@@ -478,8 +478,12 @@ async function normalizeAdditionalDirectories(
 }
 
 async function sendUserMessage(sessionId: string, content: string): Promise<void> {
+  const trimmedContent = content.trim()
+  if (!trimmedContent) {
+    throw new Error('Desktop user message cannot be empty.')
+  }
   const session = getSession(sessionId)
-  await session.sendUserMessage(content)
+  await session.sendUserMessage(trimmedContent)
 }
 
 async function respondToPermission(
