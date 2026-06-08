@@ -69,6 +69,7 @@ export type CreateDesktopSessionOptions = {
   workspacePath: string
   permissionMode?: DesktopPermissionMode
   model?: string
+  fallbackModel?: string
 }
 
 export type CreateDesktopSessionResult = {

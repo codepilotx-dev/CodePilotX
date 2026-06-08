@@ -15,6 +15,7 @@ export type DesktopAgentRuntimeContext = {
   agentExecutablePath?: string
   permissionMode?: DesktopPermissionMode
   model?: string
+  fallbackModel?: string
   emit(event: DesktopAgentEvent): void
   requestPermission(request: DesktopPermissionRequest): Promise<DesktopPermissionDecision>
 }
@@ -67,6 +68,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
         this.context.sessionId,
         ...permissionModeArgs(this.context.permissionMode),
         ...modelArgs(this.context.model),
+        ...fallbackModelArgs(this.context.fallbackModel),
       ],
       {
         cwd: this.context.workspacePath,
@@ -386,6 +388,10 @@ function permissionModeArgs(
 
 function modelArgs(model: string | undefined): string[] {
   return model ? ['--model', model] : []
+}
+
+function fallbackModelArgs(fallbackModel: string | undefined): string[] {
+  return fallbackModel ? ['--fallback-model', fallbackModel] : []
 }
 
 function summarizeToolInput(toolName: string, input: unknown): string {

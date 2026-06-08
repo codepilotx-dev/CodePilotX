@@ -38,6 +38,7 @@ type SessionListItem = {
   workspacePath: string
   permissionMode: DesktopPermissionMode
   model: string | null
+  fallbackModel: string | null
   status: DesktopSessionStatus
   createdAt: string
 }
@@ -96,6 +97,7 @@ const MAX_RECENT_WORKSPACES = 5
 type StoredDesktopSettings = {
   permissionMode: DesktopPermissionMode
   model: string
+  fallbackModel: string
   recentWorkspaces: DesktopWorkspace[]
 }
 
@@ -128,6 +130,9 @@ export function App(): React.ReactNode {
   const [permissionMode, setPermissionMode] =
     useState<DesktopPermissionMode>(initialDesktopSettings.permissionMode)
   const [model, setModel] = useState(initialDesktopSettings.model)
+  const [fallbackModel, setFallbackModel] = useState(
+    initialDesktopSettings.fallbackModel,
+  )
   const [recentWorkspaces, setRecentWorkspaces] = useState<DesktopWorkspace[]>(
     initialDesktopSettings.recentWorkspaces,
   )
@@ -146,8 +151,13 @@ export function App(): React.ReactNode {
   }, [])
 
   useEffect(() => {
-    storeDesktopSettings({ permissionMode, model, recentWorkspaces })
-  }, [permissionMode, model, recentWorkspaces])
+    storeDesktopSettings({
+      permissionMode,
+      model,
+      fallbackModel,
+      recentWorkspaces,
+    })
+  }, [permissionMode, model, fallbackModel, recentWorkspaces])
 
   async function runDesktopAction<T>(action: () => Promise<T>): Promise<T | null> {
     try {
@@ -405,6 +415,7 @@ export function App(): React.ReactNode {
         workspacePath: target.path,
         permissionMode,
         model: normalizeOptionalText(model),
+        fallbackModel: normalizeOptionalText(fallbackModel),
       }),
     )
     if (!session) return
@@ -420,6 +431,7 @@ export function App(): React.ReactNode {
         workspacePath: target.path,
         permissionMode,
         model: normalizeOptionalText(model) ?? null,
+        fallbackModel: normalizeOptionalText(fallbackModel) ?? null,
         status: 'idle',
         createdAt: new Date().toLocaleTimeString(),
       },
@@ -661,7 +673,8 @@ export function App(): React.ReactNode {
                     <span>{session.workspaceName}</span>
                     <small>
                       {session.status} - {session.permissionMode} -{' '}
-                      {session.model ?? 'default model'} - {session.createdAt}
+                      {session.model ?? 'default model'} - fallback{' '}
+                      {session.fallbackModel ?? 'none'} - {session.createdAt}
                     </small>
                   </button>
                   <button
@@ -840,6 +853,15 @@ export function App(): React.ReactNode {
                 />
                 <small>Leave blank to use the CLI default model.</small>
               </label>
+              <label className="setting-field">
+                <span>Fallback model for new sessions</span>
+                <input
+                  value={fallbackModel}
+                  onChange={event => setFallbackModel(event.target.value)}
+                  placeholder="leave blank, or enter a model alias/name"
+                />
+                <small>Used when the main model is overloaded.</small>
+              </label>
               <p>Auth: {authStatus?.method ?? 'unknown'}</p>
               <p>User: {authStatus?.email ?? 'not signed in'}</p>
               <div className="setting-runtime">
@@ -869,6 +891,11 @@ export function App(): React.ReactNode {
                 Active model:{' '}
                 {sessions.find(session => session.id === sessionId)?.model ??
                   'none'}
+              </p>
+              <p>
+                Active fallback:{' '}
+                {sessions.find(session => session.id === sessionId)
+                  ?.fallbackModel ?? 'none'}
               </p>
             </div>
           </section>
@@ -913,6 +940,7 @@ function readStoredDesktopSettings(): StoredDesktopSettings {
     const parsed = JSON.parse(raw) as {
       permissionMode?: unknown
       model?: unknown
+      fallbackModel?: unknown
       recentWorkspaces?: unknown
     }
     return {
@@ -920,6 +948,8 @@ function readStoredDesktopSettings(): StoredDesktopSettings {
         ? parsed.permissionMode
         : 'default',
       model: typeof parsed.model === 'string' ? parsed.model : '',
+      fallbackModel:
+        typeof parsed.fallbackModel === 'string' ? parsed.fallbackModel : '',
       recentWorkspaces: parseStoredRecentWorkspaces(parsed.recentWorkspaces),
     }
   } catch {
@@ -942,6 +972,7 @@ function defaultDesktopSettings(): StoredDesktopSettings {
   return {
     permissionMode: 'default',
     model: '',
+    fallbackModel: '',
     recentWorkspaces: [],
   }
 }

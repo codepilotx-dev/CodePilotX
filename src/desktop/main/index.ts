@@ -357,8 +357,9 @@ async function createSession(
   const workspacePath = assertAllowedWorkspace(options.workspacePath)
   const permissionMode = normalizePermissionMode(options.permissionMode)
   const model = normalizeOptionalText(options.model)
+  const fallbackModel = normalizeOptionalText(options.fallbackModel)
   const session = createDesktopAgentSession(
-    { workspacePath, permissionMode, model },
+    { workspacePath, permissionMode, model, fallbackModel },
     {
       agentExecutablePath: getAgentExecutablePath(),
     },
