@@ -377,7 +377,12 @@ async function getWorkspaceDiff(
 async function createSession(
   options: CreateDesktopSessionOptions,
 ): Promise<CreateDesktopSessionResult> {
-  const workspacePath = assertAllowedWorkspace(options.workspacePath)
+  if (!options || typeof options !== 'object') {
+    throw new Error('Desktop session options must be an object.')
+  }
+  const workspacePath = assertAllowedWorkspace(
+    requireNonEmptyString(options.workspacePath, 'Desktop workspace path'),
+  )
   const permissionMode = normalizePermissionMode(options.permissionMode)
   const model = normalizeOptionalText(options.model)
   const fallbackModel = normalizeOptionalText(options.fallbackModel)
@@ -478,13 +483,10 @@ async function normalizeAdditionalDirectories(
 }
 
 async function sendUserMessage(sessionId: string, content: string): Promise<void> {
-  if (typeof content !== 'string') {
-    throw new Error('Desktop user message must be a string.')
-  }
-  const trimmedContent = content.trim()
-  if (!trimmedContent) {
-    throw new Error('Desktop user message cannot be empty.')
-  }
+  const trimmedContent = requireNonEmptyString(
+    content,
+    'Desktop user message',
+  )
   const session = getSession(sessionId)
   await session.sendUserMessage(trimmedContent)
 }
@@ -494,12 +496,10 @@ async function respondToPermission(
   requestId: string,
   decision: DesktopPermissionDecision,
 ): Promise<void> {
-  if (typeof requestId !== 'string') {
-    throw new Error('Desktop permission request id must be a string.')
-  }
-  if (!requestId.trim()) {
-    throw new Error('Desktop permission request id cannot be empty.')
-  }
+  const normalizedRequestId = requireNonEmptyString(
+    requestId,
+    'Desktop permission request id',
+  )
   if (!decision || typeof decision !== 'object') {
     throw new Error('Desktop permission decision must be an object.')
   }
@@ -509,7 +509,7 @@ async function respondToPermission(
     )
   }
   const session = getSession(sessionId)
-  await session.respondToPermission(requestId, decision)
+  await session.respondToPermission(normalizedRequestId, decision)
 }
 
 async function interruptSession(sessionId: string): Promise<void> {
@@ -531,11 +531,26 @@ function disposeAllSessions(): void {
 }
 
 function getSession(sessionId: string): DesktopAgentSession {
-  const session = sessions.get(sessionId)
+  const normalizedSessionId = requireNonEmptyString(
+    sessionId,
+    'Desktop session id',
+  )
+  const session = sessions.get(normalizedSessionId)
   if (!session) {
-    throw new Error(`Unknown desktop session: ${sessionId}`)
+    throw new Error(`Unknown desktop session: ${normalizedSessionId}`)
   }
   return session
+}
+
+function requireNonEmptyString(value: unknown, label: string): string {
+  if (typeof value !== 'string') {
+    throw new Error(`${label} must be a string.`)
+  }
+  const trimmed = value.trim()
+  if (!trimmed) {
+    throw new Error(`${label} cannot be empty.`)
+  }
+  return trimmed
 }
 
 function registerIpc(): void {
