@@ -178,7 +178,9 @@ class LocalDesktopAgentSession
         { once: true },
       )
     })
-    this.emitStatus('running')
+    if (!this.disposed && !this.currentAbortController?.signal.aborted) {
+      this.emitStatus('running')
+    }
     return decision
   }
 
