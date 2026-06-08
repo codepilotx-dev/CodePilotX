@@ -305,8 +305,11 @@ export function App(): React.ReactNode {
       }
       updateSessionView(event.sessionId, view => ({
         ...view,
+        pendingPermissions: [],
         messages: [
-          ...view.messages,
+          ...view.messages.map(message =>
+            message.streaming ? { ...message, streaming: false } : message,
+          ),
           {
             id: crypto.randomUUID(),
             role: 'system',
