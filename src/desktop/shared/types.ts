@@ -41,6 +41,12 @@ export type DesktopPermissionMode =
   | 'dontAsk'
   | 'plan'
 
+export type DesktopThinkingMode =
+  | 'default'
+  | 'enabled'
+  | 'adaptive'
+  | 'disabled'
+
 export type DesktopPermissionDecision = {
   behavior: 'allow' | 'deny'
   message?: string
@@ -71,6 +77,7 @@ export type CreateDesktopSessionOptions = {
   model?: string
   fallbackModel?: string
   sessionName?: string
+  thinkingMode?: DesktopThinkingMode
 }
 
 export type CreateDesktopSessionResult = {

@@ -70,13 +70,14 @@ class LocalDesktopAgentSession
       model: options.model,
       fallbackModel: options.fallbackModel,
       sessionName: options.sessionName,
+      thinkingMode: options.thinkingMode,
       emit: event => this.emit(event),
       requestPermission: request => this.requestPermission(request),
     })
     this.emitStatus('idle')
     this.emitMessage(
       'system',
-      `Workspace attached: ${options.workspacePath} (${options.sessionName ?? 'untitled'} session, ${options.permissionMode ?? 'default'} permissions, ${options.model ?? 'default'} model, ${options.fallbackModel ?? 'none'} fallback)`,
+      `Workspace attached: ${options.workspacePath} (${options.sessionName ?? 'untitled'} session, ${options.permissionMode ?? 'default'} permissions, ${options.model ?? 'default'} model, ${options.fallbackModel ?? 'none'} fallback, ${options.thinkingMode ?? 'default'} thinking)`,
     )
   }
 

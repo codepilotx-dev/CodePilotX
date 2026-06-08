@@ -40,6 +40,7 @@ import type {
   DesktopPermissionDecision,
   DesktopPermissionMode,
   DesktopRuntimeStatus,
+  DesktopThinkingMode,
   DesktopWorkspace,
 } from '../shared/types.js'
 
@@ -60,6 +61,12 @@ const DESKTOP_PERMISSION_MODES = new Set<DesktopPermissionMode>([
   'default',
   'dontAsk',
   'plan',
+])
+const DESKTOP_THINKING_MODES = new Set<DesktopThinkingMode>([
+  'default',
+  'enabled',
+  'adaptive',
+  'disabled',
 ])
 
 async function installDesktopOAuthTokens(tokens: OAuthTokens): Promise<void> {
@@ -359,8 +366,16 @@ async function createSession(
   const model = normalizeOptionalText(options.model)
   const fallbackModel = normalizeOptionalText(options.fallbackModel)
   const sessionName = normalizeOptionalText(options.sessionName)
+  const thinkingMode = normalizeThinkingMode(options.thinkingMode)
   const session = createDesktopAgentSession(
-    { workspacePath, permissionMode, model, fallbackModel, sessionName },
+    {
+      workspacePath,
+      permissionMode,
+      model,
+      fallbackModel,
+      sessionName,
+      thinkingMode,
+    },
     {
       agentExecutablePath: getAgentExecutablePath(),
     },
@@ -392,6 +407,18 @@ function normalizePermissionMode(
     throw new Error(`Unsupported desktop permission mode: ${permissionMode}`)
   }
   return permissionMode
+}
+
+function normalizeThinkingMode(
+  thinkingMode: DesktopThinkingMode | undefined,
+): DesktopThinkingMode {
+  if (!thinkingMode) {
+    return 'default'
+  }
+  if (!DESKTOP_THINKING_MODES.has(thinkingMode)) {
+    throw new Error(`Unsupported desktop thinking mode: ${thinkingMode}`)
+  }
+  return thinkingMode
 }
 
 function normalizeOptionalText(value: string | undefined): string | undefined {

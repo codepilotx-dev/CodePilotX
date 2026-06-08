@@ -7,6 +7,7 @@ import type {
   DesktopPermissionMode,
   DesktopPermissionDecision,
   DesktopPermissionRequest,
+  DesktopThinkingMode,
 } from '../shared/types.js'
 
 export type DesktopAgentRuntimeContext = {
@@ -17,6 +18,7 @@ export type DesktopAgentRuntimeContext = {
   model?: string
   fallbackModel?: string
   sessionName?: string
+  thinkingMode?: DesktopThinkingMode
   emit(event: DesktopAgentEvent): void
   requestPermission(request: DesktopPermissionRequest): Promise<DesktopPermissionDecision>
 }
@@ -71,6 +73,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
         ...modelArgs(this.context.model),
         ...fallbackModelArgs(this.context.fallbackModel),
         ...sessionNameArgs(this.context.sessionName),
+        ...thinkingModeArgs(this.context.thinkingMode),
       ],
       {
         cwd: this.context.workspacePath,
@@ -398,6 +401,14 @@ function fallbackModelArgs(fallbackModel: string | undefined): string[] {
 
 function sessionNameArgs(sessionName: string | undefined): string[] {
   return sessionName ? ['--name', sessionName] : []
+}
+
+function thinkingModeArgs(
+  thinkingMode: DesktopThinkingMode | undefined,
+): string[] {
+  return thinkingMode && thinkingMode !== 'default'
+    ? ['--thinking', thinkingMode]
+    : []
 }
 
 function summarizeToolInput(toolName: string, input: unknown): string {

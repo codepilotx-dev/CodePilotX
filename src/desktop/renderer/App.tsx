@@ -22,6 +22,7 @@ import type {
   DesktopPermissionRequest,
   DesktopRuntimeStatus,
   DesktopSessionStatus,
+  DesktopThinkingMode,
   DesktopWorkspace,
 } from '../shared/types.js'
 
@@ -40,6 +41,7 @@ type SessionListItem = {
   permissionMode: DesktopPermissionMode
   model: string | null
   fallbackModel: string | null
+  thinkingMode: DesktopThinkingMode
   status: DesktopSessionStatus
   createdAt: string
 }
@@ -92,6 +94,15 @@ const PERMISSION_MODE_OPTIONS: Array<{
     detail: 'Skip permission prompts for this session.',
   },
 ]
+const THINKING_MODE_OPTIONS: Array<{
+  value: DesktopThinkingMode
+  label: string
+}> = [
+  { value: 'default', label: 'Default' },
+  { value: 'enabled', label: 'Enabled' },
+  { value: 'adaptive', label: 'Adaptive' },
+  { value: 'disabled', label: 'Disabled' },
+]
 const DESKTOP_SETTINGS_STORAGE_KEY = 'claude-code-desktop-settings'
 const MAX_RECENT_WORKSPACES = 5
 
@@ -100,6 +111,7 @@ type StoredDesktopSettings = {
   model: string
   fallbackModel: string
   sessionName: string
+  thinkingMode: DesktopThinkingMode
   recentWorkspaces: DesktopWorkspace[]
 }
 
@@ -138,6 +150,9 @@ export function App(): React.ReactNode {
   const [sessionName, setSessionName] = useState(
     initialDesktopSettings.sessionName,
   )
+  const [thinkingMode, setThinkingMode] = useState<DesktopThinkingMode>(
+    initialDesktopSettings.thinkingMode,
+  )
   const [recentWorkspaces, setRecentWorkspaces] = useState<DesktopWorkspace[]>(
     initialDesktopSettings.recentWorkspaces,
   )
@@ -161,9 +176,17 @@ export function App(): React.ReactNode {
       model,
       fallbackModel,
       sessionName,
+      thinkingMode,
       recentWorkspaces,
     })
-  }, [permissionMode, model, fallbackModel, sessionName, recentWorkspaces])
+  }, [
+    permissionMode,
+    model,
+    fallbackModel,
+    sessionName,
+    thinkingMode,
+    recentWorkspaces,
+  ])
 
   async function runDesktopAction<T>(action: () => Promise<T>): Promise<T | null> {
     try {
@@ -423,6 +446,7 @@ export function App(): React.ReactNode {
         model: normalizeOptionalText(model),
         fallbackModel: normalizeOptionalText(fallbackModel),
         sessionName: normalizeOptionalText(sessionName),
+        thinkingMode,
       }),
     )
     if (!session) return
@@ -440,6 +464,7 @@ export function App(): React.ReactNode {
         permissionMode,
         model: normalizeOptionalText(model) ?? null,
         fallbackModel: normalizeOptionalText(fallbackModel) ?? null,
+        thinkingMode,
         status: 'idle',
         createdAt: new Date().toLocaleTimeString(),
       },
@@ -682,7 +707,8 @@ export function App(): React.ReactNode {
                     <small>
                       {session.status} - {session.permissionMode} -{' '}
                       {session.model ?? 'default model'} - fallback{' '}
-                      {session.fallbackModel ?? 'none'} - {session.createdAt}
+                      {session.fallbackModel ?? 'none'} - {session.thinkingMode}{' '}
+                      thinking - {session.createdAt}
                     </small>
                   </button>
                   <button
@@ -879,6 +905,22 @@ export function App(): React.ReactNode {
                 />
                 <small>Leave blank to use the workspace name.</small>
               </label>
+              <label className="setting-field">
+                <span>Thinking mode for new sessions</span>
+                <select
+                  value={thinkingMode}
+                  onChange={event =>
+                    setThinkingMode(event.target.value as DesktopThinkingMode)
+                  }
+                >
+                  {THINKING_MODE_OPTIONS.map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <small>Default leaves the CLI thinking setting unchanged.</small>
+              </label>
               <p>Auth: {authStatus?.method ?? 'unknown'}</p>
               <p>User: {authStatus?.email ?? 'not signed in'}</p>
               <div className="setting-runtime">
@@ -918,6 +960,11 @@ export function App(): React.ReactNode {
                 Active fallback:{' '}
                 {sessions.find(session => session.id === sessionId)
                   ?.fallbackModel ?? 'none'}
+              </p>
+              <p>
+                Active thinking:{' '}
+                {sessions.find(session => session.id === sessionId)
+                  ?.thinkingMode ?? 'none'}
               </p>
             </div>
           </section>
@@ -964,6 +1011,7 @@ function readStoredDesktopSettings(): StoredDesktopSettings {
       model?: unknown
       fallbackModel?: unknown
       sessionName?: unknown
+      thinkingMode?: unknown
       recentWorkspaces?: unknown
     }
     return {
@@ -975,6 +1023,9 @@ function readStoredDesktopSettings(): StoredDesktopSettings {
         typeof parsed.fallbackModel === 'string' ? parsed.fallbackModel : '',
       sessionName:
         typeof parsed.sessionName === 'string' ? parsed.sessionName : '',
+      thinkingMode: isDesktopThinkingMode(parsed.thinkingMode)
+        ? parsed.thinkingMode
+        : 'default',
       recentWorkspaces: parseStoredRecentWorkspaces(parsed.recentWorkspaces),
     }
   } catch {
@@ -999,12 +1050,17 @@ function defaultDesktopSettings(): StoredDesktopSettings {
     model: '',
     fallbackModel: '',
     sessionName: '',
+    thinkingMode: 'default',
     recentWorkspaces: [],
   }
 }
 
 function isDesktopPermissionMode(value: unknown): value is DesktopPermissionMode {
   return PERMISSION_MODE_OPTIONS.some(option => option.value === value)
+}
+
+function isDesktopThinkingMode(value: unknown): value is DesktopThinkingMode {
+  return THINKING_MODE_OPTIONS.some(option => option.value === value)
 }
 
 function parseStoredRecentWorkspaces(value: unknown): DesktopWorkspace[] {
