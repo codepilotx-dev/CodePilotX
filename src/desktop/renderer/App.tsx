@@ -531,6 +531,17 @@ export function App(): React.ReactNode {
     const activeSessionId = sessionId
     if (!canSubmit || !activeSessionId) return
     setInput('')
+    updateSessionView(activeSessionId, view => ({
+      ...view,
+      messages: [
+        ...view.messages,
+        {
+          id: crypto.randomUUID(),
+          role: 'user',
+          text: trimmed,
+        },
+      ],
+    }))
     await runDesktopAction(() =>
       window.desktopApi.sendUserMessage(activeSessionId, trimmed),
     )
