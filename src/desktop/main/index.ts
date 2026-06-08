@@ -478,6 +478,9 @@ async function normalizeAdditionalDirectories(
 }
 
 async function sendUserMessage(sessionId: string, content: string): Promise<void> {
+  if (typeof content !== 'string') {
+    throw new Error('Desktop user message must be a string.')
+  }
   const trimmedContent = content.trim()
   if (!trimmedContent) {
     throw new Error('Desktop user message cannot be empty.')
@@ -491,6 +494,20 @@ async function respondToPermission(
   requestId: string,
   decision: DesktopPermissionDecision,
 ): Promise<void> {
+  if (typeof requestId !== 'string') {
+    throw new Error('Desktop permission request id must be a string.')
+  }
+  if (!requestId.trim()) {
+    throw new Error('Desktop permission request id cannot be empty.')
+  }
+  if (!decision || typeof decision !== 'object') {
+    throw new Error('Desktop permission decision must be an object.')
+  }
+  if (decision.behavior !== 'allow' && decision.behavior !== 'deny') {
+    throw new Error(
+      `Unsupported desktop permission decision: ${decision.behavior}`,
+    )
+  }
   const session = getSession(sessionId)
   await session.respondToPermission(requestId, decision)
 }
