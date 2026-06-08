@@ -15,6 +15,7 @@ body {
 }
 
 button,
+input,
 select,
 textarea {
   font: inherit;
@@ -44,6 +45,16 @@ select {
   border-radius: 6px;
   color: #202124;
   min-height: 34px;
+  padding: 0 10px;
+}
+
+input {
+  background: #ffffff;
+  border: 1px solid #c8cbc1;
+  border-radius: 6px;
+  color: #202124;
+  min-height: 34px;
+  min-width: 0;
   padding: 0 10px;
 }
 

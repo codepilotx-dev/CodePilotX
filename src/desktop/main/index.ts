@@ -356,8 +356,9 @@ async function createSession(
 ): Promise<CreateDesktopSessionResult> {
   const workspacePath = assertAllowedWorkspace(options.workspacePath)
   const permissionMode = normalizePermissionMode(options.permissionMode)
+  const model = normalizeOptionalText(options.model)
   const session = createDesktopAgentSession(
-    { workspacePath, permissionMode },
+    { workspacePath, permissionMode, model },
     {
       agentExecutablePath: getAgentExecutablePath(),
     },
@@ -389,6 +390,11 @@ function normalizePermissionMode(
     throw new Error(`Unsupported desktop permission mode: ${permissionMode}`)
   }
   return permissionMode
+}
+
+function normalizeOptionalText(value: string | undefined): string | undefined {
+  const trimmed = value?.trim()
+  return trimmed ? trimmed : undefined
 }
 
 async function sendUserMessage(sessionId: string, content: string): Promise<void> {

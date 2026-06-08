@@ -68,6 +68,7 @@ export type DesktopAgentEvent =
 export type CreateDesktopSessionOptions = {
   workspacePath: string
   permissionMode?: DesktopPermissionMode
+  model?: string
 }
 
 export type CreateDesktopSessionResult = {

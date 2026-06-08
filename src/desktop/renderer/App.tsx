@@ -37,6 +37,7 @@ type SessionListItem = {
   workspaceName: string
   workspacePath: string
   permissionMode: DesktopPermissionMode
+  model: string | null
   status: DesktopSessionStatus
   createdAt: string
 }
@@ -94,6 +95,7 @@ const MAX_RECENT_WORKSPACES = 5
 
 type StoredDesktopSettings = {
   permissionMode: DesktopPermissionMode
+  model: string
   recentWorkspaces: DesktopWorkspace[]
 }
 
@@ -125,6 +127,7 @@ export function App(): React.ReactNode {
   >([])
   const [permissionMode, setPermissionMode] =
     useState<DesktopPermissionMode>(initialDesktopSettings.permissionMode)
+  const [model, setModel] = useState(initialDesktopSettings.model)
   const [recentWorkspaces, setRecentWorkspaces] = useState<DesktopWorkspace[]>(
     initialDesktopSettings.recentWorkspaces,
   )
@@ -143,8 +146,8 @@ export function App(): React.ReactNode {
   }, [])
 
   useEffect(() => {
-    storeDesktopSettings({ permissionMode, recentWorkspaces })
-  }, [permissionMode, recentWorkspaces])
+    storeDesktopSettings({ permissionMode, model, recentWorkspaces })
+  }, [permissionMode, model, recentWorkspaces])
 
   async function runDesktopAction<T>(action: () => Promise<T>): Promise<T | null> {
     try {
@@ -401,6 +404,7 @@ export function App(): React.ReactNode {
       window.desktopApi.createSession({
         workspacePath: target.path,
         permissionMode,
+        model: normalizeOptionalText(model),
       }),
     )
     if (!session) return
@@ -415,6 +419,7 @@ export function App(): React.ReactNode {
         workspaceName: target.name,
         workspacePath: target.path,
         permissionMode,
+        model: normalizeOptionalText(model) ?? null,
         status: 'idle',
         createdAt: new Date().toLocaleTimeString(),
       },
@@ -656,7 +661,7 @@ export function App(): React.ReactNode {
                     <span>{session.workspaceName}</span>
                     <small>
                       {session.status} - {session.permissionMode} -{' '}
-                      {session.createdAt}
+                      {session.model ?? 'default model'} - {session.createdAt}
                     </small>
                   </button>
                   <button
@@ -826,6 +831,15 @@ export function App(): React.ReactNode {
                   }
                 </small>
               </label>
+              <label className="setting-field">
+                <span>Model for new sessions</span>
+                <input
+                  value={model}
+                  onChange={event => setModel(event.target.value)}
+                  placeholder="default, sonnet, opus, or full model name"
+                />
+                <small>Leave blank to use the CLI default model.</small>
+              </label>
               <p>Auth: {authStatus?.method ?? 'unknown'}</p>
               <p>User: {authStatus?.email ?? 'not signed in'}</p>
               <div className="setting-runtime">
@@ -850,6 +864,11 @@ export function App(): React.ReactNode {
                 Active mode:{' '}
                 {sessions.find(session => session.id === sessionId)
                   ?.permissionMode ?? 'none'}
+              </p>
+              <p>
+                Active model:{' '}
+                {sessions.find(session => session.id === sessionId)?.model ??
+                  'none'}
               </p>
             </div>
           </section>
@@ -893,12 +912,14 @@ function readStoredDesktopSettings(): StoredDesktopSettings {
     }
     const parsed = JSON.parse(raw) as {
       permissionMode?: unknown
+      model?: unknown
       recentWorkspaces?: unknown
     }
     return {
       permissionMode: isDesktopPermissionMode(parsed.permissionMode)
         ? parsed.permissionMode
         : 'default',
+      model: typeof parsed.model === 'string' ? parsed.model : '',
       recentWorkspaces: parseStoredRecentWorkspaces(parsed.recentWorkspaces),
     }
   } catch {
@@ -920,6 +941,7 @@ function storeDesktopSettings(settings: StoredDesktopSettings): void {
 function defaultDesktopSettings(): StoredDesktopSettings {
   return {
     permissionMode: 'default',
+    model: '',
     recentWorkspaces: [],
   }
 }
@@ -960,4 +982,9 @@ function upsertRecentWorkspace(
     workspace,
     ...workspaces.filter(item => item.path !== workspace.path),
   ].slice(0, MAX_RECENT_WORKSPACES)
+}
+
+function normalizeOptionalText(value: string): string | undefined {
+  const trimmed = value.trim()
+  return trimmed ? trimmed : undefined
 }

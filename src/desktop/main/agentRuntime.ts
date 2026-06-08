@@ -14,6 +14,7 @@ export type DesktopAgentRuntimeContext = {
   workspacePath: string
   agentExecutablePath?: string
   permissionMode?: DesktopPermissionMode
+  model?: string
   emit(event: DesktopAgentEvent): void
   requestPermission(request: DesktopPermissionRequest): Promise<DesktopPermissionDecision>
 }
@@ -65,6 +66,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
         '--session-id',
         this.context.sessionId,
         ...permissionModeArgs(this.context.permissionMode),
+        ...modelArgs(this.context.model),
       ],
       {
         cwd: this.context.workspacePath,
@@ -380,6 +382,10 @@ function permissionModeArgs(
     return ['--dangerously-skip-permissions']
   }
   return ['--permission-mode', permissionMode]
+}
+
+function modelArgs(model: string | undefined): string[] {
+  return model ? ['--model', model] : []
 }
 
 function summarizeToolInput(toolName: string, input: unknown): string {
