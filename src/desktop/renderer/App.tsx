@@ -44,6 +44,7 @@ type SessionListItem = {
   thinkingMode: DesktopThinkingMode
   hasSystemPrompt: boolean
   hasAppendSystemPrompt: boolean
+  additionalDirectoryCount: number
   status: DesktopSessionStatus
   createdAt: string
 }
@@ -116,6 +117,7 @@ type StoredDesktopSettings = {
   thinkingMode: DesktopThinkingMode
   systemPrompt: string
   appendSystemPrompt: string
+  additionalDirectories: string
   recentWorkspaces: DesktopWorkspace[]
 }
 
@@ -163,6 +165,9 @@ export function App(): React.ReactNode {
   const [appendSystemPrompt, setAppendSystemPrompt] = useState(
     initialDesktopSettings.appendSystemPrompt,
   )
+  const [additionalDirectories, setAdditionalDirectories] = useState(
+    initialDesktopSettings.additionalDirectories,
+  )
   const [recentWorkspaces, setRecentWorkspaces] = useState<DesktopWorkspace[]>(
     initialDesktopSettings.recentWorkspaces,
   )
@@ -189,6 +194,7 @@ export function App(): React.ReactNode {
       thinkingMode,
       systemPrompt,
       appendSystemPrompt,
+      additionalDirectories,
       recentWorkspaces,
     })
   }, [
@@ -199,6 +205,7 @@ export function App(): React.ReactNode {
     thinkingMode,
     systemPrompt,
     appendSystemPrompt,
+    additionalDirectories,
     recentWorkspaces,
   ])
 
@@ -463,6 +470,7 @@ export function App(): React.ReactNode {
         thinkingMode,
         systemPrompt: normalizeOptionalText(systemPrompt),
         appendSystemPrompt: normalizeOptionalText(appendSystemPrompt),
+        additionalDirectories: parseAdditionalDirectories(additionalDirectories),
       }),
     )
     if (!session) return
@@ -483,6 +491,8 @@ export function App(): React.ReactNode {
         thinkingMode,
         hasSystemPrompt: Boolean(normalizeOptionalText(systemPrompt)),
         hasAppendSystemPrompt: Boolean(normalizeOptionalText(appendSystemPrompt)),
+        additionalDirectoryCount:
+          parseAdditionalDirectories(additionalDirectories).length,
         status: 'idle',
         createdAt: new Date().toLocaleTimeString(),
       },
@@ -734,7 +744,8 @@ export function App(): React.ReactNode {
                       {session.hasSystemPrompt || session.hasAppendSystemPrompt
                         ? 'custom'
                         : 'default'}{' '}
-                      - {session.createdAt}
+                      - {session.additionalDirectoryCount} extra dirs -{' '}
+                      {session.createdAt}
                     </small>
                   </button>
                   <button
@@ -967,6 +978,15 @@ export function App(): React.ReactNode {
                 />
                 <small>Leave blank to avoid appending extra instructions.</small>
               </label>
+              <label className="setting-field">
+                <span>Additional directories for new sessions</span>
+                <textarea
+                  value={additionalDirectories}
+                  onChange={event => setAdditionalDirectories(event.target.value)}
+                  placeholder="one directory per line, relative to workspace or absolute"
+                />
+                <small>Each directory must exist before a session can start.</small>
+              </label>
               <p>Auth: {authStatus?.method ?? 'unknown'}</p>
               <p>User: {authStatus?.email ?? 'not signed in'}</p>
               <div className="setting-runtime">
@@ -1011,6 +1031,10 @@ export function App(): React.ReactNode {
                 activeSessionItem?.hasAppendSystemPrompt
                   ? 'custom'
                   : 'default'}
+              </p>
+              <p>
+                Active extra dirs:{' '}
+                {activeSessionItem?.additionalDirectoryCount ?? 0}
               </p>
             </div>
           </section>
@@ -1060,6 +1084,7 @@ function readStoredDesktopSettings(): StoredDesktopSettings {
       thinkingMode?: unknown
       systemPrompt?: unknown
       appendSystemPrompt?: unknown
+      additionalDirectories?: unknown
       recentWorkspaces?: unknown
     }
     return {
@@ -1079,6 +1104,10 @@ function readStoredDesktopSettings(): StoredDesktopSettings {
       appendSystemPrompt:
         typeof parsed.appendSystemPrompt === 'string'
           ? parsed.appendSystemPrompt
+          : '',
+      additionalDirectories:
+        typeof parsed.additionalDirectories === 'string'
+          ? parsed.additionalDirectories
           : '',
       recentWorkspaces: parseStoredRecentWorkspaces(parsed.recentWorkspaces),
     }
@@ -1107,6 +1136,7 @@ function defaultDesktopSettings(): StoredDesktopSettings {
     thinkingMode: 'default',
     systemPrompt: '',
     appendSystemPrompt: '',
+    additionalDirectories: '',
     recentWorkspaces: [],
   }
 }
@@ -1156,4 +1186,11 @@ function upsertRecentWorkspace(
 function normalizeOptionalText(value: string): string | undefined {
   const trimmed = value.trim()
   return trimmed ? trimmed : undefined
+}
+
+function parseAdditionalDirectories(value: string): string[] {
+  return value
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(Boolean)
 }

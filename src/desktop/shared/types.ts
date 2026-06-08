@@ -80,6 +80,7 @@ export type CreateDesktopSessionOptions = {
   thinkingMode?: DesktopThinkingMode
   systemPrompt?: string
   appendSystemPrompt?: string
+  additionalDirectories?: string[]
 }
 
 export type CreateDesktopSessionResult = {

@@ -73,13 +73,14 @@ class LocalDesktopAgentSession
       thinkingMode: options.thinkingMode,
       systemPrompt: options.systemPrompt,
       appendSystemPrompt: options.appendSystemPrompt,
+      additionalDirectories: options.additionalDirectories,
       emit: event => this.emit(event),
       requestPermission: request => this.requestPermission(request),
     })
     this.emitStatus('idle')
     this.emitMessage(
       'system',
-      `Workspace attached: ${options.workspacePath} (${options.sessionName ?? 'untitled'} session, ${options.permissionMode ?? 'default'} permissions, ${options.model ?? 'default'} model, ${options.fallbackModel ?? 'none'} fallback, ${options.thinkingMode ?? 'default'} thinking, ${options.systemPrompt ? 'custom' : 'default'} system prompt)`,
+      `Workspace attached: ${options.workspacePath} (${options.sessionName ?? 'untitled'} session, ${options.permissionMode ?? 'default'} permissions, ${options.model ?? 'default'} model, ${options.fallbackModel ?? 'none'} fallback, ${options.thinkingMode ?? 'default'} thinking, ${options.systemPrompt ? 'custom' : 'default'} system prompt, ${options.additionalDirectories?.length ?? 0} extra dirs)`,
     )
   }
 

@@ -1,7 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { execFile } from 'node:child_process'
 import { open, readdir, stat } from 'node:fs/promises'
-import { basename, dirname, join, resolve, sep } from 'node:path'
+import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import { fetchAndStoreClaudeCodeFirstTokenDate } from '../../services/api/firstTokenDate.js'
@@ -369,6 +369,10 @@ async function createSession(
   const thinkingMode = normalizeThinkingMode(options.thinkingMode)
   const systemPrompt = normalizeOptionalText(options.systemPrompt)
   const appendSystemPrompt = normalizeOptionalText(options.appendSystemPrompt)
+  const additionalDirectories = await normalizeAdditionalDirectories(
+    options.additionalDirectories,
+    workspacePath,
+  )
   const session = createDesktopAgentSession(
     {
       workspacePath,
@@ -379,6 +383,7 @@ async function createSession(
       thinkingMode,
       systemPrompt,
       appendSystemPrompt,
+      additionalDirectories,
     },
     {
       agentExecutablePath: getAgentExecutablePath(),
@@ -428,6 +433,32 @@ function normalizeThinkingMode(
 function normalizeOptionalText(value: string | undefined): string | undefined {
   const trimmed = value?.trim()
   return trimmed ? trimmed : undefined
+}
+
+async function normalizeAdditionalDirectories(
+  directories: string[] | undefined,
+  workspacePath: string,
+): Promise<string[]> {
+  if (!Array.isArray(directories) || directories.length === 0) {
+    return []
+  }
+
+  const normalized = new Map<string, string>()
+  for (const directory of directories) {
+    const trimmed = directory.trim()
+    if (!trimmed) {
+      continue
+    }
+    const resolvedDirectory = isAbsolute(trimmed)
+      ? resolve(trimmed)
+      : resolve(workspacePath, trimmed)
+    const directoryStat = await stat(resolvedDirectory)
+    if (!directoryStat.isDirectory()) {
+      throw new Error(`Additional directory is not a directory: ${trimmed}`)
+    }
+    normalized.set(normalizeWorkspacePath(resolvedDirectory), resolvedDirectory)
+  }
+  return [...normalized.values()]
 }
 
 async function sendUserMessage(sessionId: string, content: string): Promise<void> {

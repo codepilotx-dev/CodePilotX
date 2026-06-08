@@ -21,6 +21,7 @@ export type DesktopAgentRuntimeContext = {
   thinkingMode?: DesktopThinkingMode
   systemPrompt?: string
   appendSystemPrompt?: string
+  additionalDirectories?: string[]
   emit(event: DesktopAgentEvent): void
   requestPermission(request: DesktopPermissionRequest): Promise<DesktopPermissionDecision>
 }
@@ -78,6 +79,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
         ...thinkingModeArgs(this.context.thinkingMode),
         ...systemPromptArgs(this.context.systemPrompt),
         ...appendSystemPromptArgs(this.context.appendSystemPrompt),
+        ...additionalDirectoryArgs(this.context.additionalDirectories),
       ],
       {
         cwd: this.context.workspacePath,
@@ -424,6 +426,14 @@ function appendSystemPromptArgs(
 ): string[] {
   return appendSystemPrompt
     ? ['--append-system-prompt', appendSystemPrompt]
+    : []
+}
+
+function additionalDirectoryArgs(
+  additionalDirectories: string[] | undefined,
+): string[] {
+  return additionalDirectories && additionalDirectories.length > 0
+    ? ['--add-dir', ...additionalDirectories]
     : []
 }
 
