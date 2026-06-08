@@ -1,5 +1,9 @@
 import { randomUUID } from 'node:crypto'
 import { EventEmitter } from 'node:events'
+import {
+  createDesktopAgentRuntime,
+  type DesktopAgentRuntime,
+} from './agentRuntime.js'
 import type {
   CreateDesktopSessionOptions,
   DesktopAgentEvent,
@@ -46,10 +50,17 @@ class LocalDesktopAgentSession
   private disposed = false
   private currentAbortController: AbortController | null = null
   private readonly pendingPermissions = new Map<string, PendingPermission>()
+  private readonly runtime: DesktopAgentRuntime
 
   constructor(options: CreateDesktopSessionOptions) {
     super()
     this.workspacePath = options.workspacePath
+    this.runtime = createDesktopAgentRuntime({
+      sessionId: this.sessionId,
+      workspacePath: this.workspacePath,
+      emit: event => this.emit(event),
+      requestPermission: request => this.requestPermission(request),
+    })
     this.emitStatus('idle')
     this.emitMessage('system', `Workspace attached: ${options.workspacePath}`)
   }
@@ -63,27 +74,10 @@ class LocalDesktopAgentSession
     this.currentAbortController = abortController
 
     try {
-      await this.maybeRequestPermission(content, abortController.signal)
+      await this.runtime.runUserTurn(content, abortController.signal)
       if (abortController.signal.aborted) {
         return
       }
-
-      this.emitMessage(
-        'assistant',
-        'Desktop agent runtime is initialized. The next step is wiring this session facade to the shared headless agent runner.',
-      )
-      this.emit({
-        type: 'tool_start',
-        sessionId: this.sessionId,
-        toolName: 'DesktopRuntime',
-        summary: 'Preparing in-process agent bridge',
-      })
-      this.emit({
-        type: 'tool_result',
-        sessionId: this.sessionId,
-        toolName: 'DesktopRuntime',
-        summary: 'Session API and IPC are connected',
-      })
       this.emitStatus('done')
       this.emit({ type: 'done', sessionId: this.sessionId })
     } catch (error) {
@@ -128,24 +122,11 @@ class LocalDesktopAgentSession
     this.removeAllListeners()
   }
 
-  private async maybeRequestPermission(
-    content: string,
-    signal: AbortSignal,
-  ): Promise<void> {
-    if (!/\b(write|edit|shell|permission)\b/i.test(content)) {
-      return
-    }
-
-    const requestId = randomUUID()
-    const request: DesktopPermissionRequest = {
-      requestId,
-      toolName: 'DesktopRuntime',
-      input: { prompt: content },
-      description: 'Approve this desktop runtime dry-run permission request.',
-    }
-
+  private async requestPermission(
+    request: DesktopPermissionRequest,
+  ): Promise<DesktopPermissionDecision> {
     const decision = await new Promise<DesktopPermissionDecision>(resolve => {
-      this.pendingPermissions.set(requestId, { request, resolve })
+      this.pendingPermissions.set(request.requestId, { request, resolve })
       this.emitStatus('waiting')
       this.emit({
         type: 'permission_request',
@@ -153,11 +134,11 @@ class LocalDesktopAgentSession
         request,
       })
 
-      signal.addEventListener(
+      this.currentAbortController?.signal.addEventListener(
         'abort',
         () => {
-          if (!this.pendingPermissions.has(requestId)) return
-          this.pendingPermissions.delete(requestId)
+          if (!this.pendingPermissions.has(request.requestId)) return
+          this.pendingPermissions.delete(request.requestId)
           resolve({
             behavior: 'deny',
             message: 'Interrupted before approval',
@@ -166,11 +147,10 @@ class LocalDesktopAgentSession
         { once: true },
       )
     })
-
-    if (decision.behavior === 'deny') {
-      throw new Error(decision.message ?? 'Permission denied')
+    if (decision.behavior === 'allow') {
+      this.emitStatus('running')
     }
-    this.emitStatus('running')
+    return decision
   }
 
   private emitMessage(role: 'user' | 'assistant' | 'system', text: string): void {
