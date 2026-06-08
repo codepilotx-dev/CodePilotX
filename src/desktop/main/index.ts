@@ -358,8 +358,9 @@ async function createSession(
   const permissionMode = normalizePermissionMode(options.permissionMode)
   const model = normalizeOptionalText(options.model)
   const fallbackModel = normalizeOptionalText(options.fallbackModel)
+  const sessionName = normalizeOptionalText(options.sessionName)
   const session = createDesktopAgentSession(
-    { workspacePath, permissionMode, model, fallbackModel },
+    { workspacePath, permissionMode, model, fallbackModel, sessionName },
     {
       agentExecutablePath: getAgentExecutablePath(),
     },

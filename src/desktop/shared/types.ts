@@ -70,6 +70,7 @@ export type CreateDesktopSessionOptions = {
   permissionMode?: DesktopPermissionMode
   model?: string
   fallbackModel?: string
+  sessionName?: string
 }
 
 export type CreateDesktopSessionResult = {
