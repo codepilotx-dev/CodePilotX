@@ -502,6 +502,13 @@ async function disposeSession(sessionId: string): Promise<void> {
   await session.dispose()
 }
 
+function disposeAllSessions(): void {
+  for (const [sessionId, session] of sessions) {
+    sessions.delete(sessionId)
+    void session.dispose()
+  }
+}
+
 function getSession(sessionId: string): DesktopAgentSession {
   const session = sessions.get(sessionId)
   if (!session) {
@@ -549,4 +556,8 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
   }
+})
+
+app.on('before-quit', () => {
+  disposeAllSessions()
 })
