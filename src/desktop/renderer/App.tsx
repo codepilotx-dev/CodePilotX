@@ -329,6 +329,7 @@ export function App(): React.ReactNode {
       }
       updateSessionView(event.sessionId, view => ({
         ...view,
+        pendingPermissions: [],
         messages: view.messages.map(message =>
           message.streaming ? { ...message, streaming: false } : message,
         ),
