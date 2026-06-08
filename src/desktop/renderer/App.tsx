@@ -134,6 +134,7 @@ export function App(): React.ReactNode {
   const [sessionId, setSessionId] = useState<string | null>(null)
   const activeSessionIdRef = useRef<string | null>(null)
   const sessionViewsRef = useRef<Record<string, SessionViewState>>({})
+  const sessionWorkspacesRef = useRef<Record<string, DesktopWorkspace>>({})
   const [sessionStatus, setSessionStatus] =
     useState<DesktopSessionStatus>('idle')
   const [sessions, setSessions] = useState<SessionListItem[]>([])
@@ -302,6 +303,7 @@ export function App(): React.ReactNode {
     if (event.type === 'error') {
       if (event.sessionId === activeSessionIdRef.current) {
         setErrorMessage(event.message)
+        refreshSessionWorkspace(event.sessionId)
       }
       updateSessionView(event.sessionId, view => ({
         ...view,
@@ -329,6 +331,7 @@ export function App(): React.ReactNode {
       )
       if (event.sessionId === activeSessionIdRef.current) {
         setSessionStatus('done')
+        refreshSessionWorkspace(event.sessionId)
       }
       updateSessionView(event.sessionId, view => ({
         ...view,
@@ -340,20 +343,42 @@ export function App(): React.ReactNode {
     }
   }
 
-  async function refreshWorkspace(target = workspace): Promise<void> {
+  async function refreshWorkspace(
+    target = workspace,
+    options: {
+      clearErrorOnSuccess?: boolean
+      clearSelectedFile?: boolean
+    } = {},
+  ): Promise<void> {
     if (!target) return
-    const result = await runDesktopAction(() =>
-      Promise.all([
+    try {
+      const [nextFiles, nextDiff] = await Promise.all([
         window.desktopApi.listWorkspaceFiles(target.path),
         window.desktopApi.getWorkspaceDiff(target.path),
-      ]),
-    )
-    if (!result) return
-    const [nextFiles, nextDiff] = result
-    setFiles(nextFiles)
-    setDiff(nextDiff.patch)
-    setSelectedFile(null)
-    updateActiveSessionView(view => ({ ...view, selectedFile: null }))
+      ])
+      if (options.clearErrorOnSuccess ?? true) {
+        setErrorMessage(null)
+      }
+      setFiles(nextFiles)
+      setDiff(nextDiff.patch)
+      if (options.clearSelectedFile ?? true) {
+        setSelectedFile(null)
+        updateActiveSessionView(view => ({ ...view, selectedFile: null }))
+      }
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : String(error))
+    }
+  }
+
+  function refreshSessionWorkspace(targetSessionId: string): void {
+    const target = sessionWorkspacesRef.current[targetSessionId]
+    if (!target) {
+      return
+    }
+    void refreshWorkspace(target, {
+      clearErrorOnSuccess: false,
+      clearSelectedFile: false,
+    })
   }
 
   function activateSession(nextSessionId: string | null): void {
@@ -480,6 +505,10 @@ export function App(): React.ReactNode {
     if (!session) return
     const nextView =
       sessionViewsRef.current[session.sessionId] ?? createEmptySessionView()
+    sessionWorkspacesRef.current = {
+      ...sessionWorkspacesRef.current,
+      [session.sessionId]: target,
+    }
     setSessionView(session.sessionId, nextView)
     activateSession(session.sessionId)
     setSessionStatus('idle')
@@ -557,7 +586,12 @@ export function App(): React.ReactNode {
       [targetSessionId]: _removedSessionView,
       ...remainingSessionViews
     } = sessionViewsRef.current
+    const {
+      [targetSessionId]: _removedWorkspace,
+      ...remainingSessionWorkspaces
+    } = sessionWorkspacesRef.current
     sessionViewsRef.current = remainingSessionViews
+    sessionWorkspacesRef.current = remainingSessionWorkspaces
     setSessions(remaining)
 
     if (targetSessionId !== activeSessionIdRef.current) {
