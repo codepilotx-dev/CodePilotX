@@ -38,6 +38,7 @@ import type {
   DesktopFileEntry,
   DesktopFilePreview,
   DesktopPermissionDecision,
+  DesktopPermissionMode,
   DesktopWorkspace,
 } from '../shared/types.js'
 
@@ -52,6 +53,13 @@ const IGNORED_DIRECTORY_NAMES = new Set([
   'release',
 ])
 const MAX_FILE_PREVIEW_BYTES = 200_000
+const DESKTOP_PERMISSION_MODES = new Set<DesktopPermissionMode>([
+  'acceptEdits',
+  'bypassPermissions',
+  'default',
+  'dontAsk',
+  'plan',
+])
 
 async function installDesktopOAuthTokens(tokens: OAuthTokens): Promise<void> {
   const profile =
@@ -318,8 +326,9 @@ async function createSession(
   options: CreateDesktopSessionOptions,
 ): Promise<CreateDesktopSessionResult> {
   const workspacePath = assertAllowedWorkspace(options.workspacePath)
+  const permissionMode = normalizePermissionMode(options.permissionMode)
   const session = createDesktopAgentSession(
-    { workspacePath },
+    { workspacePath, permissionMode },
     {
       agentExecutablePath: getAgentExecutablePath(),
     },
@@ -339,6 +348,18 @@ async function createSession(
     }
   })
   return { sessionId: session.sessionId }
+}
+
+function normalizePermissionMode(
+  permissionMode: DesktopPermissionMode | undefined,
+): DesktopPermissionMode {
+  if (!permissionMode) {
+    return 'default'
+  }
+  if (!DESKTOP_PERMISSION_MODES.has(permissionMode)) {
+    throw new Error(`Unsupported desktop permission mode: ${permissionMode}`)
+  }
+  return permissionMode
 }
 
 async function sendUserMessage(sessionId: string, content: string): Promise<void> {

@@ -29,6 +29,13 @@ export type DesktopDiffSummary = {
 
 export type DesktopSessionStatus = 'idle' | 'running' | 'waiting' | 'done' | 'error'
 
+export type DesktopPermissionMode =
+  | 'acceptEdits'
+  | 'bypassPermissions'
+  | 'default'
+  | 'dontAsk'
+  | 'plan'
+
 export type DesktopPermissionDecision = {
   behavior: 'allow' | 'deny'
   message?: string
@@ -55,6 +62,7 @@ export type DesktopAgentEvent =
 
 export type CreateDesktopSessionOptions = {
   workspacePath: string
+  permissionMode?: DesktopPermissionMode
 }
 
 export type CreateDesktopSessionResult = {

@@ -66,11 +66,15 @@ class LocalDesktopAgentSession
       sessionId: this.sessionId,
       workspacePath: this.workspacePath,
       agentExecutablePath: runtimeOptions.agentExecutablePath,
+      permissionMode: options.permissionMode,
       emit: event => this.emit(event),
       requestPermission: request => this.requestPermission(request),
     })
     this.emitStatus('idle')
-    this.emitMessage('system', `Workspace attached: ${options.workspacePath}`)
+    this.emitMessage(
+      'system',
+      `Workspace attached: ${options.workspacePath} (${options.permissionMode ?? 'default'} permissions)`,
+    )
   }
 
   async sendUserMessage(content: string): Promise<void> {

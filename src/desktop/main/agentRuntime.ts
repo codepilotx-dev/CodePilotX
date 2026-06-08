@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs'
 import { createInterface } from 'node:readline'
 import type {
   DesktopAgentEvent,
+  DesktopPermissionMode,
   DesktopPermissionDecision,
   DesktopPermissionRequest,
 } from '../shared/types.js'
@@ -12,6 +13,7 @@ export type DesktopAgentRuntimeContext = {
   sessionId: string
   workspacePath: string
   agentExecutablePath?: string
+  permissionMode?: DesktopPermissionMode
   emit(event: DesktopAgentEvent): void
   requestPermission(request: DesktopPermissionRequest): Promise<DesktopPermissionDecision>
 }
@@ -60,6 +62,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
         '--replay-user-messages',
         '--session-id',
         this.context.sessionId,
+        ...permissionModeArgs(this.context.permissionMode),
       ],
       {
         cwd: this.context.workspacePath,
@@ -416,6 +419,14 @@ class DryRunDesktopAgentRuntime implements DesktopAgentRuntime {
       throw new Error(decision.message ?? 'Permission denied')
     }
   }
+}
+
+function permissionModeArgs(
+  permissionMode: DesktopPermissionMode | undefined,
+): string[] {
+  return permissionMode && permissionMode !== 'default'
+    ? ['--permission-mode', permissionMode]
+    : []
 }
 
 function summarizeToolInput(toolName: string, input: unknown): string {

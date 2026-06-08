@@ -18,6 +18,7 @@ import type {
   DesktopAuthStatus,
   DesktopFileEntry,
   DesktopFilePreview,
+  DesktopPermissionMode,
   DesktopPermissionRequest,
   DesktopSessionStatus,
   DesktopWorkspace,
@@ -34,6 +35,7 @@ type SessionListItem = {
   id: string
   workspaceName: string
   workspacePath: string
+  permissionMode: DesktopPermissionMode
   status: DesktopSessionStatus
   createdAt: string
 }
@@ -54,6 +56,38 @@ type SessionViewState = {
   pendingPermissions: DesktopPermissionRequest[]
   selectedFile: DesktopFilePreview | null
 }
+
+const PERMISSION_MODE_OPTIONS: Array<{
+  value: DesktopPermissionMode
+  label: string
+  detail: string
+}> = [
+  {
+    value: 'default',
+    label: 'Default',
+    detail: 'Ask before risky tool use.',
+  },
+  {
+    value: 'acceptEdits',
+    label: 'Accept edits',
+    detail: 'Allow file edits, still ask for other risky tools.',
+  },
+  {
+    value: 'dontAsk',
+    label: "Don't ask",
+    detail: 'Deny requests that would need approval.',
+  },
+  {
+    value: 'plan',
+    label: 'Plan',
+    detail: 'Analyze and plan before implementation.',
+  },
+  {
+    value: 'bypassPermissions',
+    label: 'Bypass permissions',
+    detail: 'Skip permission prompts for this session.',
+  },
+]
 
 declare global {
   interface Window {
@@ -80,6 +114,8 @@ export function App(): React.ReactNode {
   const [pendingPermissions, setPendingPermissions] = useState<
     DesktopPermissionRequest[]
   >([])
+  const [permissionMode, setPermissionMode] =
+    useState<DesktopPermissionMode>('default')
   const [showSettings, setShowSettings] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [input, setInput] = useState('')
@@ -332,6 +368,7 @@ export function App(): React.ReactNode {
     const session = await runDesktopAction(() =>
       window.desktopApi.createSession({
         workspacePath: target.path,
+        permissionMode,
       }),
     )
     if (!session) return
@@ -345,6 +382,7 @@ export function App(): React.ReactNode {
         id: session.sessionId,
         workspaceName: target.name,
         workspacePath: target.path,
+        permissionMode,
         status: 'idle',
         createdAt: new Date().toLocaleTimeString(),
       },
@@ -559,7 +597,10 @@ export function App(): React.ReactNode {
                     }}
                   >
                     <span>{session.workspaceName}</span>
-                    <small>{session.status} - {session.createdAt}</small>
+                    <small>
+                      {session.status} - {session.permissionMode} -{' '}
+                      {session.createdAt}
+                    </small>
                   </button>
                   <button
                     className="icon-button"
@@ -704,10 +745,39 @@ export function App(): React.ReactNode {
           <section>
             <h2>Settings</h2>
             <div className="settings-list">
+              <label className="setting-field">
+                <span>Permission mode for new sessions</span>
+                <select
+                  value={permissionMode}
+                  onChange={event =>
+                    setPermissionMode(
+                      event.target.value as DesktopPermissionMode,
+                    )
+                  }
+                >
+                  {PERMISSION_MODE_OPTIONS.map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <small>
+                  {
+                    PERMISSION_MODE_OPTIONS.find(
+                      option => option.value === permissionMode,
+                    )?.detail
+                  }
+                </small>
+              </label>
               <p>Auth: {authStatus?.method ?? 'unknown'}</p>
               <p>User: {authStatus?.email ?? 'not signed in'}</p>
               <p>Workspace: {workspace?.path ?? 'none'}</p>
               <p>Active session: {sessionId ?? 'none'}</p>
+              <p>
+                Active mode:{' '}
+                {sessions.find(session => session.id === sessionId)
+                  ?.permissionMode ?? 'none'}
+              </p>
             </div>
           </section>
         ) : null}

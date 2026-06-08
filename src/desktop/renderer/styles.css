@@ -15,6 +15,7 @@ body {
 }
 
 button,
+select,
 textarea {
   font: inherit;
 }
@@ -35,6 +36,15 @@ button {
 button:disabled {
   cursor: not-allowed;
   opacity: 0.5;
+}
+
+select {
+  background: #ffffff;
+  border: 1px solid #c8cbc1;
+  border-radius: 6px;
+  color: #202124;
+  min-height: 34px;
+  padding: 0 10px;
 }
 
 .desktop-shell {
@@ -126,6 +136,23 @@ p {
 .tool-log {
   display: grid;
   gap: 6px;
+}
+
+.setting-field {
+  display: grid;
+  gap: 5px;
+}
+
+.setting-field span {
+  color: #202124;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.setting-field small {
+  color: #6b6f66;
+  font-size: 11px;
+  line-height: 1.35;
 }
 
 .session-row {
