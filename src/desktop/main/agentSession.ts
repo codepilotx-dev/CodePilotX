@@ -91,6 +91,9 @@ class LocalDesktopAgentSession
 
   async sendUserMessage(content: string): Promise<void> {
     this.assertActive()
+    if (this.currentAbortController) {
+      throw new Error('Desktop agent session is already running')
+    }
     this.emitMessage('user', content)
     this.emitStatus('running')
 
