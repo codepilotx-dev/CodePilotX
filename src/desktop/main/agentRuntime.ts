@@ -25,13 +25,15 @@ export type DesktopAgentRuntime = {
 export function createDesktopAgentRuntime(
   context: DesktopAgentRuntimeContext,
 ): DesktopAgentRuntime {
-  if (
-    context.agentExecutablePath &&
-    existsSync(context.agentExecutablePath)
-  ) {
-    return new CliDesktopAgentRuntime(context)
+  if (!context.agentExecutablePath) {
+    throw new Error('Desktop agent executable path is not configured')
   }
-  return new DryRunDesktopAgentRuntime(context)
+  if (!existsSync(context.agentExecutablePath)) {
+    throw new Error(
+      `Desktop agent executable is missing: ${context.agentExecutablePath}`,
+    )
+  }
+  return new CliDesktopAgentRuntime(context)
 }
 
 class CliDesktopAgentRuntime implements DesktopAgentRuntime {
@@ -365,59 +367,6 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
       return
     }
     child.stdin.write(`${JSON.stringify(message)}\n`)
-  }
-}
-
-class DryRunDesktopAgentRuntime implements DesktopAgentRuntime {
-  constructor(private readonly context: DesktopAgentRuntimeContext) {}
-
-  async runUserTurn(content: string, signal: AbortSignal): Promise<void> {
-    await this.maybeRequestPermission(content, signal)
-    if (signal.aborted) {
-      return
-    }
-
-    this.context.emit({
-      type: 'message',
-      sessionId: this.context.sessionId,
-      role: 'assistant',
-      text: 'Desktop agent runtime is initialized. The next step is wiring this runtime interface to the shared headless agent runner.',
-    })
-    this.context.emit({
-      type: 'tool_start',
-      sessionId: this.context.sessionId,
-      toolName: 'DesktopRuntime',
-      summary: 'Preparing in-process agent bridge',
-    })
-    this.context.emit({
-      type: 'tool_result',
-      sessionId: this.context.sessionId,
-      toolName: 'DesktopRuntime',
-      summary: 'Session API and IPC are connected',
-    })
-  }
-
-  private async maybeRequestPermission(
-    content: string,
-    signal: AbortSignal,
-  ): Promise<void> {
-    if (!/\b(write|edit|shell|permission)\b/i.test(content)) {
-      return
-    }
-
-    const decision = await this.context.requestPermission({
-      requestId: randomUUID(),
-      toolName: 'DesktopRuntime',
-      input: { prompt: content, workspacePath: this.context.workspacePath },
-      description: 'Approve this desktop runtime dry-run permission request.',
-    })
-
-    if (signal.aborted) {
-      return
-    }
-    if (decision.behavior === 'deny') {
-      throw new Error(decision.message ?? 'Permission denied')
-    }
   }
 }
 
