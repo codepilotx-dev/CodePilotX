@@ -348,6 +348,7 @@ export function App(): React.ReactNode {
     options: {
       clearErrorOnSuccess?: boolean
       clearSelectedFile?: boolean
+      expectedSessionId?: string
     } = {},
   ): Promise<void> {
     if (!target) return
@@ -356,6 +357,12 @@ export function App(): React.ReactNode {
         window.desktopApi.listWorkspaceFiles(target.path),
         window.desktopApi.getWorkspaceDiff(target.path),
       ])
+      if (
+        options.expectedSessionId &&
+        options.expectedSessionId !== activeSessionIdRef.current
+      ) {
+        return
+      }
       if (options.clearErrorOnSuccess ?? true) {
         setErrorMessage(null)
       }
@@ -365,7 +372,11 @@ export function App(): React.ReactNode {
         setSelectedFile(null)
         updateActiveSessionView(view => ({ ...view, selectedFile: null }))
       } else {
-        await refreshSelectedFilePreview(target, nextFiles)
+        await refreshSelectedFilePreview(
+          target,
+          nextFiles,
+          options.expectedSessionId ?? activeSessionIdRef.current,
+        )
       }
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : String(error))
@@ -375,13 +386,13 @@ export function App(): React.ReactNode {
   async function refreshSelectedFilePreview(
     target: DesktopWorkspace,
     nextFiles: DesktopFileEntry[],
+    targetSessionId: string | null,
   ): Promise<void> {
-    const activeSessionId = activeSessionIdRef.current
-    if (!activeSessionId) {
+    if (!targetSessionId || targetSessionId !== activeSessionIdRef.current) {
       return
     }
     const currentPreview =
-      sessionViewsRef.current[activeSessionId]?.selectedFile
+      sessionViewsRef.current[targetSessionId]?.selectedFile
     if (!currentPreview) {
       return
     }
@@ -389,7 +400,7 @@ export function App(): React.ReactNode {
       file => file.type === 'file' && file.path === currentPreview.path,
     )
     if (!stillExists) {
-      updateSessionView(activeSessionId, view => ({
+      updateSessionView(targetSessionId, view => ({
         ...view,
         selectedFile: null,
       }))
@@ -400,12 +411,15 @@ export function App(): React.ReactNode {
         target.path,
         currentPreview.path,
       )
-      updateSessionView(activeSessionId, view => ({
+      if (targetSessionId !== activeSessionIdRef.current) {
+        return
+      }
+      updateSessionView(targetSessionId, view => ({
         ...view,
         selectedFile: preview,
       }))
     } catch {
-      updateSessionView(activeSessionId, view => ({
+      updateSessionView(targetSessionId, view => ({
         ...view,
         selectedFile: null,
       }))
@@ -420,6 +434,7 @@ export function App(): React.ReactNode {
     void refreshWorkspace(target, {
       clearErrorOnSuccess: false,
       clearSelectedFile: false,
+      expectedSessionId: targetSessionId,
     })
   }
 
