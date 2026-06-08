@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertCircle,
+  ChevronDown,
+  ChevronRight,
   FolderOpen,
   LogIn,
   Play,
@@ -36,6 +38,16 @@ type SessionListItem = {
   createdAt: string
 }
 
+type ToolLogEntry = {
+  id: string
+  toolName: string
+  summary: string
+  kind: 'start' | 'result'
+  isError?: boolean
+  expanded: boolean
+  createdAt: string
+}
+
 declare global {
   interface Window {
     desktopApi: import('../shared/types.js').DesktopApi
@@ -51,7 +63,7 @@ export function App(): React.ReactNode {
     useState<DesktopSessionStatus>('idle')
   const [sessions, setSessions] = useState<SessionListItem[]>([])
   const [messages, setMessages] = useState<Message[]>([])
-  const [toolLog, setToolLog] = useState<string[]>([])
+  const [toolLog, setToolLog] = useState<ToolLogEntry[]>([])
   const [files, setFiles] = useState<DesktopFileEntry[]>([])
   const [selectedFile, setSelectedFile] = useState<DesktopFilePreview | null>(
     null,
@@ -129,17 +141,20 @@ export function App(): React.ReactNode {
       return
     }
     if (event.type === 'tool_start') {
-      setToolLog(current => [
-        `${event.toolName}: ${event.summary}`,
-        ...current,
-      ])
+      addToolLogEntry({
+        toolName: event.toolName,
+        summary: event.summary,
+        kind: 'start',
+      })
       return
     }
     if (event.type === 'tool_result') {
-      setToolLog(current => [
-        `${event.toolName}: ${event.summary}`,
-        ...current,
-      ])
+      addToolLogEntry({
+        toolName: event.toolName,
+        summary: event.summary,
+        kind: 'result',
+        isError: event.isError,
+      })
       return
     }
     if (event.type === 'permission_request') {
@@ -197,6 +212,30 @@ export function App(): React.ReactNode {
   function activateSession(nextSessionId: string | null): void {
     activeSessionIdRef.current = nextSessionId
     setSessionId(nextSessionId)
+  }
+
+  function addToolLogEntry(
+    entry: Omit<ToolLogEntry, 'id' | 'createdAt' | 'expanded'>,
+  ): void {
+    setToolLog(current => [
+      {
+        ...entry,
+        id: crypto.randomUUID(),
+        createdAt: new Date().toLocaleTimeString(),
+        expanded: entry.isError === true,
+      },
+      ...current,
+    ])
+  }
+
+  function toggleToolLogEntry(entryId: string): void {
+    setToolLog(current =>
+      current.map(entry =>
+        entry.id === entryId
+          ? { ...entry, expanded: !entry.expanded }
+          : entry,
+      ),
+    )
   }
 
   async function chooseWorkspace(): Promise<void> {
@@ -555,7 +594,23 @@ export function App(): React.ReactNode {
             {toolLog.length === 0 ? (
               <p>No tool activity yet.</p>
             ) : (
-              toolLog.map((line, index) => <p key={`${line}-${index}`}>{line}</p>)
+              toolLog.map(entry => (
+                <article
+                  className={entry.isError ? 'tool-entry error' : 'tool-entry'}
+                  key={entry.id}
+                >
+                  <button onClick={() => toggleToolLogEntry(entry.id)}>
+                    {entry.expanded ? (
+                      <ChevronDown size={14} />
+                    ) : (
+                      <ChevronRight size={14} />
+                    )}
+                    <span>{entry.toolName}</span>
+                    <small>{entry.kind} - {entry.createdAt}</small>
+                  </button>
+                  {entry.expanded ? <p>{entry.summary}</p> : null}
+                </article>
+              ))
             )}
           </div>
         </section>

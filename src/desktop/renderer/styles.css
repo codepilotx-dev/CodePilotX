@@ -261,6 +261,56 @@ p {
   gap: 6px;
 }
 
+.tool-entry {
+  background: #ffffff;
+  border: 1px solid #d4d7cd;
+  border-radius: 6px;
+  display: grid;
+  overflow: hidden;
+}
+
+.tool-entry.error {
+  border-color: #d7a39c;
+}
+
+.tool-entry button {
+  border: 0;
+  border-radius: 0;
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
+  min-height: 34px;
+  padding: 0 8px;
+  text-align: left;
+}
+
+.tool-entry span,
+.tool-entry small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tool-entry span {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.tool-entry small {
+  color: #6b6f66;
+  font-size: 11px;
+}
+
+.tool-entry p {
+  border-top: 1px solid #eef0ea;
+  color: #202124;
+  font-family: "Cascadia Code", Consolas, monospace;
+  font-size: 11px;
+  max-height: 160px;
+  overflow: auto;
+  padding: 8px;
+  white-space: pre-wrap;
+}
+
 .status-pill {
   align-self: start;
   background: #dce4de;
