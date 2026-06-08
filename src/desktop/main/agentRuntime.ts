@@ -48,6 +48,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
   private child: ChildProcessWithoutNullStreams | null = null
   private emittedAssistantText = false
   private partialText = ''
+  private readonly toolNamesByUseId = new Map<string, string>()
 
   constructor(private readonly context: DesktopAgentRuntimeContext) {}
 
@@ -58,6 +59,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
     }
     this.emittedAssistantText = false
     this.partialText = ''
+    this.toolNamesByUseId.clear()
 
     const child = spawn(
       executablePath,
@@ -245,6 +247,9 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
         })
       } else if (item.type === 'tool_use') {
         const toolName = typeof item.name === 'string' ? item.name : 'Tool'
+        if (typeof item.id === 'string') {
+          this.toolNamesByUseId.set(item.id, toolName)
+        }
         this.context.emit({
           type: 'tool_start',
           sessionId: this.context.sessionId,
@@ -252,15 +257,22 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
           summary: summarizeToolInput(toolName, item.input),
         })
       } else if (item.type === 'tool_result') {
+        const toolName = this.toolNameForResult(item)
         this.context.emit({
           type: 'tool_result',
           sessionId: this.context.sessionId,
-          toolName: 'Tool',
-          summary: summarizeToolInput('Tool', item.content),
+          toolName,
+          summary: summarizeToolInput(toolName, item.content),
           isError: item.is_error === true,
         })
       }
     }
+  }
+
+  private toolNameForResult(item: Record<string, unknown>): string {
+    return typeof item.tool_use_id === 'string'
+      ? (this.toolNamesByUseId.get(item.tool_use_id) ?? 'Tool')
+      : 'Tool'
   }
 
   private emitSystemMessage(message: Record<string, unknown>): void {
