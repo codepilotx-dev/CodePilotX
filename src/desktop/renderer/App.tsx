@@ -474,7 +474,8 @@ export function App(): React.ReactNode {
       }),
     )
     if (!session) return
-    const nextView = createEmptySessionView()
+    const nextView =
+      sessionViewsRef.current[session.sessionId] ?? createEmptySessionView()
     setSessionView(session.sessionId, nextView)
     activateSession(session.sessionId)
     setSessionStatus('idle')
