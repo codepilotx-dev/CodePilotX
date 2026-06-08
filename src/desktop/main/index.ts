@@ -1,6 +1,10 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { basename, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import {
+  createDesktopAgentSession,
+  type DesktopAgentSession,
+} from './agentSession.js'
 import type {
   CreateDesktopSessionOptions,
   CreateDesktopSessionResult,
@@ -15,6 +19,7 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
 let mainWindow: BrowserWindow | null = null
+const sessions = new Map<string, DesktopAgentSession>()
 
 function rendererUrl(): string {
   return `file://${join(__dirname, '../renderer/index.html').replace(/\\/g, '/')}`
@@ -77,64 +82,43 @@ async function chooseWorkspace(): Promise<DesktopWorkspace | null> {
 async function createSession(
   options: CreateDesktopSessionOptions,
 ): Promise<CreateDesktopSessionResult> {
-  const sessionId = crypto.randomUUID()
-  emitAgentEvent({
-    type: 'status',
-    sessionId,
-    status: 'idle',
-  })
-  emitAgentEvent({
-    type: 'message',
-    sessionId,
-    role: 'system',
-    text: `Workspace attached: ${options.workspacePath}`,
-  })
-  return { sessionId }
+  const session = createDesktopAgentSession(options)
+  sessions.set(session.sessionId, session)
+  session.on('event', emitAgentEvent)
+  return { sessionId: session.sessionId }
 }
 
 async function sendUserMessage(sessionId: string, content: string): Promise<void> {
-  emitAgentEvent({
-    type: 'message',
-    sessionId,
-    role: 'user',
-    text: content,
-  })
-  emitAgentEvent({
-    type: 'status',
-    sessionId,
-    status: 'running',
-  })
-  emitAgentEvent({
-    type: 'message',
-    sessionId,
-    role: 'assistant',
-    text: 'Desktop agent runtime is not connected yet. The Electron shell is ready for the in-process agent bridge.',
-  })
-  emitAgentEvent({
-    type: 'done',
-    sessionId,
-  })
+  const session = getSession(sessionId)
+  await session.sendUserMessage(content)
 }
 
 async function respondToPermission(
-  _sessionId: string,
-  _requestId: string,
-  _decision: DesktopPermissionDecision,
-): Promise<void> {}
+  sessionId: string,
+  requestId: string,
+  decision: DesktopPermissionDecision,
+): Promise<void> {
+  const session = getSession(sessionId)
+  await session.respondToPermission(requestId, decision)
+}
 
 async function interruptSession(sessionId: string): Promise<void> {
-  emitAgentEvent({
-    type: 'status',
-    sessionId,
-    status: 'done',
-  })
+  const session = getSession(sessionId)
+  await session.interrupt()
 }
 
 async function disposeSession(sessionId: string): Promise<void> {
-  emitAgentEvent({
-    type: 'done',
-    sessionId,
-  })
+  const session = getSession(sessionId)
+  sessions.delete(sessionId)
+  await session.dispose()
+}
+
+function getSession(sessionId: string): DesktopAgentSession {
+  const session = sessions.get(sessionId)
+  if (!session) {
+    throw new Error(`Unknown desktop session: ${sessionId}`)
+  }
+  return session
 }
 
 function registerIpc(): void {
