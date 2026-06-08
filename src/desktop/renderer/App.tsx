@@ -13,6 +13,7 @@ import type {
   DesktopAgentEvent,
   DesktopAuthStatus,
   DesktopFileEntry,
+  DesktopFilePreview,
   DesktopPermissionRequest,
   DesktopSessionStatus,
   DesktopWorkspace,
@@ -50,6 +51,9 @@ export function App(): React.ReactNode {
   const [messages, setMessages] = useState<Message[]>([])
   const [toolLog, setToolLog] = useState<string[]>([])
   const [files, setFiles] = useState<DesktopFileEntry[]>([])
+  const [selectedFile, setSelectedFile] = useState<DesktopFilePreview | null>(
+    null,
+  )
   const [diff, setDiff] = useState('No workspace selected.')
   const [pendingPermissions, setPendingPermissions] = useState<
     DesktopPermissionRequest[]
@@ -166,6 +170,7 @@ export function App(): React.ReactNode {
     ])
     setFiles(nextFiles)
     setDiff(nextDiff.patch)
+    setSelectedFile(null)
   }
 
   function activateSession(nextSessionId: string): void {
@@ -207,6 +212,13 @@ export function App(): React.ReactNode {
 
   async function login(): Promise<void> {
     setAuthStatus(await window.desktopApi.login())
+  }
+
+  async function previewFile(file: DesktopFileEntry): Promise<void> {
+    if (!workspace || file.type !== 'file') return
+    setSelectedFile(
+      await window.desktopApi.readWorkspaceFile(workspace.path, file.path),
+    )
   }
 
   async function submit(): Promise<void> {
@@ -376,6 +388,7 @@ export function App(): React.ReactNode {
                 <button
                   className="file-row"
                   key={file.path}
+                  onClick={() => void previewFile(file)}
                   style={{ paddingLeft: 10 + file.depth * 14 }}
                 >
                   <span>{file.type === 'directory' ? 'dir' : 'file'}</span>
@@ -384,6 +397,13 @@ export function App(): React.ReactNode {
               ))
             )}
           </div>
+          {selectedFile ? (
+            <div className="file-preview">
+              <strong>{selectedFile.path}</strong>
+              {selectedFile.truncated ? <p>Preview truncated.</p> : null}
+              <pre>{selectedFile.content}</pre>
+            </div>
+          ) : null}
         </section>
         <section>
           <h2>Diff</h2>

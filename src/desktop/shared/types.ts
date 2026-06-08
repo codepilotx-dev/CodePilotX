@@ -17,6 +17,12 @@ export type DesktopFileEntry = {
   depth: number
 }
 
+export type DesktopFilePreview = {
+  path: string
+  content: string
+  truncated: boolean
+}
+
 export type DesktopDiffSummary = {
   patch: string
 }
@@ -60,6 +66,7 @@ export type DesktopApi = {
   login(): Promise<DesktopAuthStatus>
   chooseWorkspace(): Promise<DesktopWorkspace | null>
   listWorkspaceFiles(workspacePath: string): Promise<DesktopFileEntry[]>
+  readWorkspaceFile(workspacePath: string, filePath: string): Promise<DesktopFilePreview>
   getWorkspaceDiff(workspacePath: string): Promise<DesktopDiffSummary>
   createSession(options: CreateDesktopSessionOptions): Promise<CreateDesktopSessionResult>
   sendUserMessage(sessionId: string, content: string): Promise<void>

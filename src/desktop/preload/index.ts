@@ -7,6 +7,8 @@ const api: DesktopApi = {
   chooseWorkspace: () => ipcRenderer.invoke('desktop:chooseWorkspace'),
   listWorkspaceFiles: workspacePath =>
     ipcRenderer.invoke('desktop:listWorkspaceFiles', workspacePath),
+  readWorkspaceFile: (workspacePath, filePath) =>
+    ipcRenderer.invoke('desktop:readWorkspaceFile', workspacePath, filePath),
   getWorkspaceDiff: workspacePath =>
     ipcRenderer.invoke('desktop:getWorkspaceDiff', workspacePath),
   createSession: options => ipcRenderer.invoke('desktop:createSession', options),

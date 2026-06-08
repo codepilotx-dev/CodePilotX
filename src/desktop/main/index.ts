@@ -1,7 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { execFile } from 'node:child_process'
-import { readdir } from 'node:fs/promises'
-import { basename, dirname, join } from 'node:path'
+import { open, readdir, stat } from 'node:fs/promises'
+import { basename, dirname, join, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import { fetchAndStoreClaudeCodeFirstTokenDate } from '../../services/api/firstTokenDate.js'
@@ -36,6 +36,7 @@ import type {
   DesktopAuthStatus,
   DesktopDiffSummary,
   DesktopFileEntry,
+  DesktopFilePreview,
   DesktopPermissionDecision,
   DesktopWorkspace,
 } from '../shared/types.js'
@@ -50,6 +51,7 @@ const IGNORED_DIRECTORY_NAMES = new Set([
   'bun_cache',
   'release',
 ])
+const MAX_FILE_PREVIEW_BYTES = 200_000
 
 async function installDesktopOAuthTokens(tokens: OAuthTokens): Promise<void> {
   const profile =
@@ -236,6 +238,43 @@ async function listWorkspaceFiles(
   return entries
 }
 
+async function readWorkspaceFile(
+  workspacePath: string,
+  filePath: string,
+): Promise<DesktopFilePreview> {
+  const resolvedWorkspace = resolve(workspacePath)
+  const resolvedFile = resolve(filePath)
+  const workspacePrefix = resolvedWorkspace.endsWith(sep)
+    ? resolvedWorkspace
+    : `${resolvedWorkspace}${sep}`
+
+  if (
+    resolvedFile !== resolvedWorkspace &&
+    !resolvedFile.startsWith(workspacePrefix)
+  ) {
+    throw new Error('File is outside the selected workspace.')
+  }
+
+  const fileStat = await stat(resolvedFile)
+  if (!fileStat.isFile()) {
+    throw new Error('Selected entry is not a file.')
+  }
+
+  const file = await open(resolvedFile, 'r')
+  try {
+    const buffer = Buffer.alloc(Math.min(fileStat.size, MAX_FILE_PREVIEW_BYTES))
+    const { bytesRead } = await file.read(buffer, 0, buffer.length, 0)
+    const truncated = fileStat.size > MAX_FILE_PREVIEW_BYTES
+    return {
+      path: resolvedFile,
+      content: buffer.subarray(0, bytesRead).toString('utf8'),
+      truncated,
+    }
+  } finally {
+    await file.close()
+  }
+}
+
 async function getWorkspaceDiff(
   workspacePath: string,
 ): Promise<DesktopDiffSummary> {
@@ -310,6 +349,7 @@ function registerIpc(): void {
     login,
     chooseWorkspace,
     listWorkspaceFiles,
+    readWorkspaceFile,
     getWorkspaceDiff,
     createSession,
     sendUserMessage,

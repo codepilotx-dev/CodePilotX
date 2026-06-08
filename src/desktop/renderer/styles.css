@@ -191,6 +191,32 @@ p {
   white-space: pre-wrap;
 }
 
+.file-preview {
+  background: #ffffff;
+  border: 1px solid #d4d7cd;
+  border-radius: 6px;
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+}
+
+.file-preview strong {
+  color: #202124;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-preview pre {
+  font-family: "Cascadia Code", Consolas, monospace;
+  font-size: 12px;
+  margin: 0;
+  max-height: 220px;
+  overflow: auto;
+  white-space: pre;
+}
+
 .permission-card {
   background: #ffffff;
   border: 1px solid #d4d7cd;
