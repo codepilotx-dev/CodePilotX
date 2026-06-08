@@ -18,10 +18,10 @@ export function createRecentActivityFeed(activities: LogOption[]): FeedConfig {
     };
   });
   return {
-    title: 'Recent activity',
+    title: '最近活动',
     lines,
     footer: lines.length > 0 ? '/resume for more' : undefined,
-    emptyMessage: 'No recent activity'
+    emptyMessage: '暂无最近活动'
   };
 }
 export function createWhatsNewFeed(releaseNotes: string[]): FeedConfig {
@@ -67,7 +67,7 @@ export function createProjectOnboardingFeed(steps: Step[]): FeedConfig {
     });
   }
   return {
-    title: 'Tips for getting started',
+    title: '入门提示',
     lines
   };
 }

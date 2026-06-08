@@ -116,13 +116,13 @@
     "typescript": "latest"
   },
   "optionalDependencies": {
-    "@ant/claude-for-chrome-mcp": "file:stubs/ant-claude-for-chrome-mcp",
-    "@ant/computer-use-input": "file:stubs/ant-computer-use-input",
-    "@ant/computer-use-mcp": "file:stubs/ant-computer-use-mcp",
-    "@ant/computer-use-swift": "file:stubs/ant-computer-use-swift",
-    "audio-capture.node": "file:stubs/native-empty",
-    "color-diff-napi": "file:stubs/native-empty",
-    "modifiers-napi": "file:stubs/native-empty"
+    "@ant/claude-for-chrome-mcp": "latest",
+    "@ant/computer-use-input": "latest",
+    "@ant/computer-use-mcp": "latest",
+    "@ant/computer-use-swift": "latest",
+    "audio-capture.node": "latest",
+    "color-diff-napi": "latest",
+    "modifiers-napi": "latest"
   }
 }
 

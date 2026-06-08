@@ -2216,6 +2216,11 @@ async function run(): Promise<CommanderCommand> {
 
     // Show setup screens after commands are loaded
     if (!isNonInteractiveSession) {
+      if (process.stdout.isTTY) {
+        // Match `cls`/`clear` behavior for interactive startup: clear the
+        // visible screen, clear scrollback, and move the cursor home.
+        process.stdout.write('\x1b[2J\x1b[3J\x1b[H');
+      }
       const ctx = getRenderContext(false);
       getFpsMetrics = ctx.getFpsMetrics;
       stats = ctx.stats;
