@@ -390,6 +390,14 @@ The user cannot receive your response until the team is completely shut down.
 
 Shut down your team and prepare your final response for the user.`
 
+export type StructuredIOFactory = (
+  inputPrompt: string | AsyncIterable<string>,
+  options: {
+    sdkUrl: string | undefined
+    replayUserMessages?: boolean
+  },
+) => StructuredIO
+
 // Track message UUIDs received during the current session runtime
 const MAX_RECEIVED_UUIDS = 10_000
 const receivedMessageUuids = new Set<UUID>()
@@ -489,6 +497,7 @@ export async function runHeadless(
     setupTrigger?: 'init' | 'maintenance' | undefined
     sessionStartHooksPromise?: ReturnType<typeof processSessionStartHooks>
     setSDKStatus?: (status: SDKStatus) => void
+    createStructuredIO?: StructuredIOFactory
   },
 ): Promise<void> {
   if (
@@ -584,7 +593,10 @@ export async function runHeadless(
     return
   }
 
-  const structuredIO = getStructuredIO(inputPrompt, options)
+  const structuredIO = (options.createStructuredIO ?? getStructuredIO)(
+    inputPrompt,
+    options,
+  )
 
   // When emitting NDJSON for SDK clients, any stray write to stdout (debug
   // prints, dependency console.log, library banners) breaks the client's
