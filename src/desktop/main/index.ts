@@ -94,6 +94,7 @@ async function installDesktopOAuthTokens(tokens: OAuthTokens): Promise<void> {
 
 let mainWindow: BrowserWindow | null = null
 const sessions = new Map<string, DesktopAgentSession>()
+const allowedWorkspacePaths = new Set<string>()
 
 function rendererUrl(): string {
   return `file://${join(__dirname, '../renderer/index.html').replace(/\\/g, '/')}`
@@ -135,6 +136,23 @@ function createWindow(): void {
 
 function emitAgentEvent(event: DesktopAgentEvent): void {
   mainWindow?.webContents.send('desktop:agent-event', event)
+}
+
+function normalizeWorkspacePath(workspacePath: string): string {
+  const resolvedPath = resolve(workspacePath)
+  return process.platform === 'win32' ? resolvedPath.toLowerCase() : resolvedPath
+}
+
+function registerAllowedWorkspace(workspacePath: string): void {
+  allowedWorkspacePaths.add(normalizeWorkspacePath(workspacePath))
+}
+
+function assertAllowedWorkspace(workspacePath: string): string {
+  const resolvedPath = resolve(workspacePath)
+  if (!allowedWorkspacePaths.has(normalizeWorkspacePath(resolvedPath))) {
+    throw new Error('Workspace must be selected before it can be used.')
+  }
+  return resolvedPath
 }
 
 function getAuthStatus(): DesktopAuthStatus {
@@ -196,15 +214,18 @@ async function chooseWorkspace(): Promise<DesktopWorkspace | null> {
   if (result.canceled || !selected) {
     return null
   }
+  const resolvedSelected = resolve(selected)
+  registerAllowedWorkspace(resolvedSelected)
   return {
-    path: selected,
-    name: basename(selected),
+    path: resolvedSelected,
+    name: basename(resolvedSelected),
   }
 }
 
 async function listWorkspaceFiles(
   workspacePath: string,
 ): Promise<DesktopFileEntry[]> {
+  const resolvedWorkspace = assertAllowedWorkspace(workspacePath)
   const entries: DesktopFileEntry[] = []
 
   async function walk(dir: string, depth: number): Promise<void> {
@@ -234,7 +255,7 @@ async function listWorkspaceFiles(
     }
   }
 
-  await walk(workspacePath, 0)
+  await walk(resolvedWorkspace, 0)
   return entries
 }
 
@@ -242,7 +263,7 @@ async function readWorkspaceFile(
   workspacePath: string,
   filePath: string,
 ): Promise<DesktopFilePreview> {
-  const resolvedWorkspace = resolve(workspacePath)
+  const resolvedWorkspace = assertAllowedWorkspace(workspacePath)
   const resolvedFile = resolve(filePath)
   const workspacePrefix = resolvedWorkspace.endsWith(sep)
     ? resolvedWorkspace
@@ -278,8 +299,14 @@ async function readWorkspaceFile(
 async function getWorkspaceDiff(
   workspacePath: string,
 ): Promise<DesktopDiffSummary> {
+  const resolvedWorkspace = assertAllowedWorkspace(workspacePath)
   try {
-    const { stdout } = await execFileAsync('git', ['-C', workspacePath, 'diff', '--'])
+    const { stdout } = await execFileAsync('git', [
+      '-C',
+      resolvedWorkspace,
+      'diff',
+      '--',
+    ])
     return { patch: stdout || 'No file changes.' }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
@@ -290,9 +317,13 @@ async function getWorkspaceDiff(
 async function createSession(
   options: CreateDesktopSessionOptions,
 ): Promise<CreateDesktopSessionResult> {
-  const session = createDesktopAgentSession(options, {
-    agentExecutablePath: getAgentExecutablePath(),
-  })
+  const workspacePath = assertAllowedWorkspace(options.workspacePath)
+  const session = createDesktopAgentSession(
+    { workspacePath },
+    {
+      agentExecutablePath: getAgentExecutablePath(),
+    },
+  )
   sessions.set(session.sessionId, session)
   session.on('event', event => {
     emitAgentEvent(event)
