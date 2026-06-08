@@ -32,6 +32,12 @@ import {
 } from './model.js'
 import { has1mContext } from '../context.js'
 import { getGlobalConfig } from '../config.js'
+import {
+  getSelectedProviderConfig,
+  getSelectedProviderID,
+  formatProviderModel,
+  getCachedProviderModels,
+} from './providerConfig.js'
 
 // @[MODEL LAUNCH]: Update all the available and default model option strings below.
 
@@ -459,6 +465,38 @@ function getKnownModelOption(model: string): ModelOption | null {
 }
 
 export function getModelOptions(fastMode = false): ModelOption[] {
+  const selectedProvider = getSelectedProviderConfig()
+  if (selectedProvider.kind !== 'anthropic') {
+    const currentModel = getUserSpecifiedModelSetting()
+    const providerModels =
+      getCachedProviderModels(getSelectedProviderID()) ??
+      selectedProvider.defaultModels
+    const options: ModelOption[] = [
+      {
+        value: null,
+        label: 'Default (recommended)',
+        description: `Use ${formatProviderModel(getSelectedProviderID(), getDefaultMainLoopModelSetting())}`,
+      },
+      ...providerModels.map(model => ({
+        value: model,
+        label: model,
+        description: formatProviderModel(getSelectedProviderID(), model),
+      })),
+    ]
+    if (
+      currentModel !== undefined &&
+      currentModel !== null &&
+      !options.some(option => option.value === currentModel)
+    ) {
+      options.push({
+        value: currentModel,
+        label: currentModel,
+        description: 'Current provider model',
+      })
+    }
+    return options
+  }
+
   const options = getModelOptionsBase(fastMode)
 
   // Add the custom model from the ANTHROPIC_CUSTOM_MODEL_OPTION env var
