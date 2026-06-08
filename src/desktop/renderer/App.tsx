@@ -48,6 +48,13 @@ type ToolLogEntry = {
   createdAt: string
 }
 
+type SessionViewState = {
+  messages: Message[]
+  toolLog: ToolLogEntry[]
+  pendingPermissions: DesktopPermissionRequest[]
+  selectedFile: DesktopFilePreview | null
+}
+
 declare global {
   interface Window {
     desktopApi: import('../shared/types.js').DesktopApi
@@ -59,6 +66,7 @@ export function App(): React.ReactNode {
   const [workspace, setWorkspace] = useState<DesktopWorkspace | null>(null)
   const [sessionId, setSessionId] = useState<string | null>(null)
   const activeSessionIdRef = useRef<string | null>(null)
+  const sessionViewsRef = useRef<Record<string, SessionViewState>>({})
   const [sessionStatus, setSessionStatus] =
     useState<DesktopSessionStatus>('idle')
   const [sessions, setSessions] = useState<SessionListItem[]>([])
@@ -108,40 +116,43 @@ export function App(): React.ReactNode {
       }
       return
     }
-    if (event.sessionId !== activeSessionIdRef.current) {
-      return
-    }
     if (event.type === 'message') {
-      setMessages(current => [
-        ...current.filter(message => !message.streaming),
-        {
-          id: crypto.randomUUID(),
-          role: event.role,
-          text: event.text,
-        },
-      ])
+      updateSessionView(event.sessionId, view => ({
+        ...view,
+        messages: [
+          ...view.messages.filter(message => !message.streaming),
+          {
+            id: crypto.randomUUID(),
+            role: event.role,
+            text: event.text,
+          },
+        ],
+      }))
       return
     }
     if (event.type === 'partial_message') {
-      setMessages(current => {
-        const index = current.findIndex(message => message.streaming)
+      updateSessionView(event.sessionId, view => {
+        const index = view.messages.findIndex(message => message.streaming)
         const nextMessage: Message = {
-          id: index >= 0 ? current[index]!.id : crypto.randomUUID(),
+          id: index >= 0 ? view.messages[index]!.id : crypto.randomUUID(),
           role: 'assistant',
           text: event.text,
           streaming: true,
         }
         if (index === -1) {
-          return [...current, nextMessage]
+          return { ...view, messages: [...view.messages, nextMessage] }
         }
-        return current.map((message, messageIndex) =>
-          messageIndex === index ? nextMessage : message,
-        )
+        return {
+          ...view,
+          messages: view.messages.map((message, messageIndex) =>
+            messageIndex === index ? nextMessage : message,
+          ),
+        }
       })
       return
     }
     if (event.type === 'tool_start') {
-      addToolLogEntry({
+      addToolLogEntry(event.sessionId, {
         toolName: event.toolName,
         summary: event.summary,
         kind: 'start',
@@ -149,7 +160,7 @@ export function App(): React.ReactNode {
       return
     }
     if (event.type === 'tool_result') {
-      addToolLogEntry({
+      addToolLogEntry(event.sessionId, {
         toolName: event.toolName,
         summary: event.summary,
         kind: 'result',
@@ -158,27 +169,36 @@ export function App(): React.ReactNode {
       return
     }
     if (event.type === 'permission_request') {
-      setPendingPermissions(current => [event.request, ...current])
+      updateSessionView(event.sessionId, view => ({
+        ...view,
+        pendingPermissions: [event.request, ...view.pendingPermissions],
+      }))
       return
     }
     if (event.type === 'diff') {
-      setDiff(event.patch)
+      if (event.sessionId === activeSessionIdRef.current) {
+        setDiff(event.patch)
+      }
       return
     }
     if (event.type === 'error') {
-      setErrorMessage(event.message)
-      setMessages(current => [
-        ...current,
-        {
-          id: crypto.randomUUID(),
-          role: 'system',
-          text: event.message,
-        },
-      ])
+      if (event.sessionId === activeSessionIdRef.current) {
+        setErrorMessage(event.message)
+      }
+      updateSessionView(event.sessionId, view => ({
+        ...view,
+        messages: [
+          ...view.messages,
+          {
+            id: crypto.randomUUID(),
+            role: 'system',
+            text: event.message,
+          },
+        ],
+      }))
       return
     }
     if (event.type === 'done') {
-      setSessionStatus('done')
       setSessions(current =>
         current.map(session =>
           session.id === event.sessionId
@@ -186,11 +206,15 @@ export function App(): React.ReactNode {
             : session,
         ),
       )
-      setMessages(current =>
-        current.map(message =>
+      if (event.sessionId === activeSessionIdRef.current) {
+        setSessionStatus('done')
+      }
+      updateSessionView(event.sessionId, view => ({
+        ...view,
+        messages: view.messages.map(message =>
           message.streaming ? { ...message, streaming: false } : message,
         ),
-      )
+      }))
     }
   }
 
@@ -207,6 +231,7 @@ export function App(): React.ReactNode {
     setFiles(nextFiles)
     setDiff(nextDiff.patch)
     setSelectedFile(null)
+    updateActiveSessionView(view => ({ ...view, selectedFile: null }))
   }
 
   function activateSession(nextSessionId: string | null): void {
@@ -214,28 +239,80 @@ export function App(): React.ReactNode {
     setSessionId(nextSessionId)
   }
 
+  function createEmptySessionView(): SessionViewState {
+    return {
+      messages: [],
+      toolLog: [],
+      pendingPermissions: [],
+      selectedFile: null,
+    }
+  }
+
+  function applySessionView(view: SessionViewState): void {
+    setMessages(view.messages)
+    setToolLog(view.toolLog)
+    setPendingPermissions(view.pendingPermissions)
+    setSelectedFile(view.selectedFile)
+  }
+
+  function setSessionView(
+    targetSessionId: string,
+    view: SessionViewState,
+  ): void {
+    sessionViewsRef.current = {
+      ...sessionViewsRef.current,
+      [targetSessionId]: view,
+    }
+  }
+
+  function updateSessionView(
+    targetSessionId: string,
+    updater: (view: SessionViewState) => SessionViewState,
+  ): void {
+    const nextView = updater(
+      sessionViewsRef.current[targetSessionId] ?? createEmptySessionView(),
+    )
+    setSessionView(targetSessionId, nextView)
+    if (targetSessionId === activeSessionIdRef.current) {
+      applySessionView(nextView)
+    }
+  }
+
+  function updateActiveSessionView(
+    updater: (view: SessionViewState) => SessionViewState,
+  ): void {
+    const activeSessionId = activeSessionIdRef.current
+    if (!activeSessionId) {
+      return
+    }
+    updateSessionView(activeSessionId, updater)
+  }
+
   function addToolLogEntry(
+    targetSessionId: string,
     entry: Omit<ToolLogEntry, 'id' | 'createdAt' | 'expanded'>,
   ): void {
-    setToolLog(current => [
-      {
-        ...entry,
-        id: crypto.randomUUID(),
-        createdAt: new Date().toLocaleTimeString(),
-        expanded: entry.isError === true,
-      },
-      ...current,
-    ])
+    updateSessionView(targetSessionId, view => ({
+      ...view,
+      toolLog: [
+        {
+          ...entry,
+          id: crypto.randomUUID(),
+          createdAt: new Date().toLocaleTimeString(),
+          expanded: entry.isError === true,
+        },
+        ...view.toolLog,
+      ],
+    }))
   }
 
   function toggleToolLogEntry(entryId: string): void {
-    setToolLog(current =>
-      current.map(entry =>
-        entry.id === entryId
-          ? { ...entry, expanded: !entry.expanded }
-          : entry,
+    updateActiveSessionView(view => ({
+      ...view,
+      toolLog: view.toolLog.map(entry =>
+        entry.id === entryId ? { ...entry, expanded: !entry.expanded } : entry,
       ),
-    )
+    }))
   }
 
   async function chooseWorkspace(): Promise<void> {
@@ -258,11 +335,11 @@ export function App(): React.ReactNode {
       }),
     )
     if (!session) return
+    const nextView = createEmptySessionView()
+    setSessionView(session.sessionId, nextView)
     activateSession(session.sessionId)
     setSessionStatus('idle')
-    setMessages([])
-    setToolLog([])
-    setPendingPermissions([])
+    applySessionView(nextView)
     setSessions(current => [
       {
         id: session.sessionId,
@@ -288,7 +365,7 @@ export function App(): React.ReactNode {
       window.desktopApi.readWorkspaceFile(workspace.path, file.path),
     )
     if (preview) {
-      setSelectedFile(preview)
+      updateActiveSessionView(view => ({ ...view, selectedFile: preview }))
     }
   }
 
@@ -314,6 +391,11 @@ export function App(): React.ReactNode {
     )
     if (disposed === null) return
     const remaining = sessions.filter(session => session.id !== targetSessionId)
+    const {
+      [targetSessionId]: _removedSessionView,
+      ...remainingSessionViews
+    } = sessionViewsRef.current
+    sessionViewsRef.current = remainingSessionViews
     setSessions(remaining)
 
     if (targetSessionId !== activeSessionIdRef.current) {
@@ -323,11 +405,10 @@ export function App(): React.ReactNode {
     const next = remaining[0]
     activateSession(next?.id ?? null)
     setSessionStatus(next?.status ?? 'idle')
-    setMessages([])
-    setToolLog([])
-    setPendingPermissions([])
-    setSelectedFile(null)
     if (next) {
+      applySessionView(
+        sessionViewsRef.current[next.id] ?? createEmptySessionView(),
+      )
       const nextWorkspace = {
         name: next.workspaceName,
         path: next.workspacePath,
@@ -335,6 +416,7 @@ export function App(): React.ReactNode {
       setWorkspace(nextWorkspace)
       void refreshWorkspace(nextWorkspace)
     } else {
+      applySessionView(createEmptySessionView())
       setWorkspace(null)
       setFiles([])
       setDiff('No workspace selected.')
@@ -347,9 +429,12 @@ export function App(): React.ReactNode {
     alwaysAllow = false,
   ): Promise<void> {
     if (!sessionId) return
-    setPendingPermissions(current =>
-      current.filter(item => item.requestId !== request.requestId),
-    )
+    updateSessionView(sessionId, view => ({
+      ...view,
+      pendingPermissions: view.pendingPermissions.filter(
+        item => item.requestId !== request.requestId,
+      ),
+    }))
     await runDesktopAction(() =>
       window.desktopApi.respondToPermission(sessionId, request.requestId, {
         behavior,
@@ -463,9 +548,10 @@ export function App(): React.ReactNode {
                         name: session.workspaceName,
                         path: session.workspacePath,
                       })
-                      setMessages([])
-                      setToolLog([])
-                      setPendingPermissions([])
+                      applySessionView(
+                        sessionViewsRef.current[session.id] ??
+                          createEmptySessionView(),
+                      )
                       void refreshWorkspace({
                         name: session.workspaceName,
                         path: session.workspacePath,
