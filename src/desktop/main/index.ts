@@ -116,6 +116,12 @@ function rendererUrl(): string {
   return pathToFileURL(join(__dirname, '../renderer/index.html')).toString()
 }
 
+function assertTrustedIpcSender(senderUrl: string | undefined): void {
+  if (senderUrl !== rendererUrl()) {
+    throw new Error('Rejected desktop IPC call from an untrusted renderer.')
+  }
+}
+
 function getAgentExecutablePath(): string {
   if (app.isPackaged) {
     return join(
@@ -571,9 +577,10 @@ function registerIpc(): void {
   }
 
   for (const [name, handler] of Object.entries(handlers)) {
-    ipcMain.handle(`desktop:${name}`, (_event, ...args: unknown[]) =>
-      (handler as (...handlerArgs: unknown[]) => unknown)(...args),
-    )
+    ipcMain.handle(`desktop:${name}`, (event, ...args: unknown[]) => {
+      assertTrustedIpcSender(event.senderFrame?.url)
+      return (handler as (...handlerArgs: unknown[]) => unknown)(...args)
+    })
   }
 }
 
