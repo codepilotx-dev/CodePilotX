@@ -175,9 +175,7 @@ class LocalDesktopAgentSession
         { once: true },
       )
     })
-    if (decision.behavior === 'allow') {
-      this.emitStatus('running')
-    }
+    this.emitStatus('running')
     return decision
   }
 
