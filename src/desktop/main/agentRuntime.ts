@@ -302,16 +302,24 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
     })
 
     if (decision.behavior === 'allow') {
+      const response: Record<string, unknown> = {
+        behavior: 'allow',
+        updatedInput: input,
+        toolUseID: request.tool_use_id,
+        decisionClassification: decision.alwaysAllow
+          ? 'user_permanent'
+          : 'user_temporary',
+      }
+      const updatedPermissions = getUpdatedPermissions(request, decision)
+      if (updatedPermissions.length > 0) {
+        response.updatedPermissions = updatedPermissions
+      }
       this.writeJsonLineToCurrentChild({
         type: 'control_response',
         response: {
           request_id: requestId,
           subtype: 'success',
-          response: {
-            behavior: 'allow',
-            updatedInput: input,
-            toolUseID: request.tool_use_id,
-          },
+          response,
         },
       })
     } else {
@@ -410,4 +418,47 @@ function summarizeToolInput(toolName: string, input: unknown): string {
     record.url ??
     record.query
   return typeof target === 'string' ? `${toolName}: ${target}` : toolName
+}
+
+function getUpdatedPermissions(
+  request: Record<string, unknown>,
+  decision: DesktopPermissionDecision,
+): Record<string, unknown>[] {
+  if (!decision.alwaysAllow || !Array.isArray(request.permission_suggestions)) {
+    return []
+  }
+  return request.permission_suggestions
+    .filter(isPermissionUpdate)
+    .map(update =>
+      update.destination === 'session'
+        ? { ...update, destination: 'localSettings' }
+        : update,
+    )
+}
+
+function isPermissionUpdate(value: unknown): value is Record<string, unknown> {
+  if (!value || typeof value !== 'object') {
+    return false
+  }
+  const update = value as Record<string, unknown>
+  if (typeof update.type !== 'string') {
+    return false
+  }
+  if (typeof update.destination !== 'string') {
+    return false
+  }
+  if (
+    update.type === 'addRules' ||
+    update.type === 'replaceRules' ||
+    update.type === 'removeRules'
+  ) {
+    return Array.isArray(update.rules) && typeof update.behavior === 'string'
+  }
+  if (update.type === 'setMode') {
+    return typeof update.mode === 'string'
+  }
+  if (update.type === 'addDirectories' || update.type === 'removeDirectories') {
+    return Array.isArray(update.directories)
+  }
+  return false
 }
