@@ -35,6 +35,7 @@ export function createDesktopAgentRuntime(
 class CliDesktopAgentRuntime implements DesktopAgentRuntime {
   private child: ChildProcessWithoutNullStreams | null = null
   private emittedAssistantText = false
+  private partialText = ''
 
   constructor(private readonly context: DesktopAgentRuntimeContext) {}
 
@@ -44,6 +45,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
       throw new Error('Desktop agent executable path is not configured')
     }
     this.emittedAssistantText = false
+    this.partialText = ''
 
     const child = spawn(
       executablePath,
@@ -204,8 +206,17 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
         continue
       }
       const item = block as Record<string, unknown>
-      if (item.type === 'text' && typeof item.text === 'string') {
+      const partialText = extractPartialText(item)
+      if (partialText) {
+        this.partialText += partialText
+        this.context.emit({
+          type: 'partial_message',
+          sessionId: this.context.sessionId,
+          text: this.partialText,
+        })
+      } else if (item.type === 'text' && typeof item.text === 'string') {
         this.emittedAssistantText = true
+        this.partialText = ''
         this.context.emit({
           type: 'message',
           sessionId: this.context.sessionId,
@@ -247,7 +258,8 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
     if (
       !this.emittedAssistantText &&
       typeof message.result === 'string' &&
-      message.result.trim()
+      message.result.trim() &&
+      message.result !== this.partialText
     ) {
       this.context.emit({
         type: 'message',
@@ -259,6 +271,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
     if (this.child && !this.child.stdin.destroyed) {
       this.child.stdin.end()
     }
+    this.partialText = ''
   }
 
   private async handleControlRequest(
@@ -418,6 +431,20 @@ function summarizeToolInput(toolName: string, input: unknown): string {
     record.url ??
     record.query
   return typeof target === 'string' ? `${toolName}: ${target}` : toolName
+}
+
+function extractPartialText(item: Record<string, unknown>): string | null {
+  if (item.type !== 'content_block_delta') {
+    return null
+  }
+  const delta = item.delta
+  if (!delta || typeof delta !== 'object') {
+    return null
+  }
+  const record = delta as Record<string, unknown>
+  return record.type === 'text_delta' && typeof record.text === 'string'
+    ? record.text
+    : null
 }
 
 function getUpdatedPermissions(

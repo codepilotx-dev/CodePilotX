@@ -255,7 +255,19 @@ async function createSession(
     agentExecutablePath: getAgentExecutablePath(),
   })
   sessions.set(session.sessionId, session)
-  session.on('event', emitAgentEvent)
+  session.on('event', event => {
+    emitAgentEvent(event)
+    if (event.type === 'done') {
+      void getWorkspaceDiff(session.workspacePath).then(diff =>
+        emitAgentEvent({
+          type: 'diff',
+          sessionId: session.sessionId,
+          filePath: session.workspacePath,
+          patch: diff.patch,
+        }),
+      )
+    }
+  })
   return { sessionId: session.sessionId }
 }
 

@@ -21,6 +21,7 @@ type Message = {
   id: string
   role: 'user' | 'assistant' | 'system'
   text: string
+  streaming?: boolean
 }
 
 declare global {
@@ -56,13 +57,31 @@ export function App(): React.ReactNode {
     }
     if (event.type === 'message') {
       setMessages(current => [
-        ...current,
+        ...current.filter(message => !message.streaming),
         {
           id: crypto.randomUUID(),
           role: event.role,
           text: event.text,
         },
       ])
+      return
+    }
+    if (event.type === 'partial_message') {
+      setMessages(current => {
+        const index = current.findIndex(message => message.streaming)
+        const nextMessage: Message = {
+          id: index >= 0 ? current[index]!.id : crypto.randomUUID(),
+          role: 'assistant',
+          text: event.text,
+          streaming: true,
+        }
+        if (index === -1) {
+          return [...current, nextMessage]
+        }
+        return current.map((message, messageIndex) =>
+          messageIndex === index ? nextMessage : message,
+        )
+      })
       return
     }
     if (event.type === 'tool_start') {
@@ -100,6 +119,11 @@ export function App(): React.ReactNode {
     }
     if (event.type === 'done') {
       setSessionStatus('done')
+      setMessages(current =>
+        current.map(message =>
+          message.streaming ? { ...message, streaming: false } : message,
+        ),
+      )
     }
   }
 
