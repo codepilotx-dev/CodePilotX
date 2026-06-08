@@ -89,6 +89,12 @@ const PERMISSION_MODE_OPTIONS: Array<{
   },
 ]
 const DESKTOP_SETTINGS_STORAGE_KEY = 'claude-code-desktop-settings'
+const MAX_RECENT_WORKSPACES = 5
+
+type StoredDesktopSettings = {
+  permissionMode: DesktopPermissionMode
+  recentWorkspaces: DesktopWorkspace[]
+}
 
 declare global {
   interface Window {
@@ -97,6 +103,7 @@ declare global {
 }
 
 export function App(): React.ReactNode {
+  const initialDesktopSettings = useMemo(() => readStoredDesktopSettings(), [])
   const [authStatus, setAuthStatus] = useState<DesktopAuthStatus | null>(null)
   const [workspace, setWorkspace] = useState<DesktopWorkspace | null>(null)
   const [sessionId, setSessionId] = useState<string | null>(null)
@@ -116,7 +123,10 @@ export function App(): React.ReactNode {
     DesktopPermissionRequest[]
   >([])
   const [permissionMode, setPermissionMode] =
-    useState<DesktopPermissionMode>(() => readStoredPermissionMode())
+    useState<DesktopPermissionMode>(initialDesktopSettings.permissionMode)
+  const [recentWorkspaces, setRecentWorkspaces] = useState<DesktopWorkspace[]>(
+    initialDesktopSettings.recentWorkspaces,
+  )
   const [showSettings, setShowSettings] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [input, setInput] = useState('')
@@ -129,8 +139,8 @@ export function App(): React.ReactNode {
   }, [])
 
   useEffect(() => {
-    storePermissionMode(permissionMode)
-  }, [permissionMode])
+    storeDesktopSettings({ permissionMode, recentWorkspaces })
+  }, [permissionMode, recentWorkspaces])
 
   async function runDesktopAction<T>(action: () => Promise<T>): Promise<T | null> {
     try {
@@ -361,7 +371,20 @@ export function App(): React.ReactNode {
       window.desktopApi.chooseWorkspace(),
     )
     if (!selected) return
+    await activateWorkspace(selected)
+  }
+
+  async function openRecentWorkspace(target: DesktopWorkspace): Promise<void> {
+    const selected = await runDesktopAction(() =>
+      window.desktopApi.openWorkspace(target.path),
+    )
+    if (!selected) return
+    await activateWorkspace(selected)
+  }
+
+  async function activateWorkspace(selected: DesktopWorkspace): Promise<void> {
     setWorkspace(selected)
+    setRecentWorkspaces(current => upsertRecentWorkspace(current, selected))
     await refreshWorkspace(selected)
     await createSessionForWorkspace(selected)
   }
@@ -565,6 +588,22 @@ export function App(): React.ReactNode {
             <Plus size={15} />
             <span>New session</span>
           </button>
+          {recentWorkspaces.length > 0 ? (
+            <div className="recent-workspaces">
+              <h3>Recent</h3>
+              {recentWorkspaces.map(item => (
+                <button
+                  className="recent-workspace-row"
+                  key={item.path}
+                  onClick={() => void openRecentWorkspace(item)}
+                  title={item.path}
+                >
+                  <span>{item.name}</span>
+                  <small>{item.path}</small>
+                </button>
+              ))}
+            </div>
+          ) : null}
         </section>
 
         <section className="panel">
@@ -817,32 +856,79 @@ export function App(): React.ReactNode {
   )
 }
 
-function readStoredPermissionMode(): DesktopPermissionMode {
+function readStoredDesktopSettings(): StoredDesktopSettings {
   try {
     const raw = window.localStorage.getItem(DESKTOP_SETTINGS_STORAGE_KEY)
     if (!raw) {
-      return 'default'
+      return defaultDesktopSettings()
     }
-    const parsed = JSON.parse(raw) as { permissionMode?: unknown }
-    return isDesktopPermissionMode(parsed.permissionMode)
-      ? parsed.permissionMode
-      : 'default'
+    const parsed = JSON.parse(raw) as {
+      permissionMode?: unknown
+      recentWorkspaces?: unknown
+    }
+    return {
+      permissionMode: isDesktopPermissionMode(parsed.permissionMode)
+        ? parsed.permissionMode
+        : 'default',
+      recentWorkspaces: parseStoredRecentWorkspaces(parsed.recentWorkspaces),
+    }
   } catch {
-    return 'default'
+    return defaultDesktopSettings()
   }
 }
 
-function storePermissionMode(permissionMode: DesktopPermissionMode): void {
+function storeDesktopSettings(settings: StoredDesktopSettings): void {
   try {
     window.localStorage.setItem(
       DESKTOP_SETTINGS_STORAGE_KEY,
-      JSON.stringify({ permissionMode }),
+      JSON.stringify(settings),
     )
   } catch {
-    // Ignore storage failures; the setting still applies to this renderer run.
+    // Ignore storage failures; settings still apply to this renderer run.
+  }
+}
+
+function defaultDesktopSettings(): StoredDesktopSettings {
+  return {
+    permissionMode: 'default',
+    recentWorkspaces: [],
   }
 }
 
 function isDesktopPermissionMode(value: unknown): value is DesktopPermissionMode {
   return PERMISSION_MODE_OPTIONS.some(option => option.value === value)
+}
+
+function parseStoredRecentWorkspaces(value: unknown): DesktopWorkspace[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+  const workspaces: DesktopWorkspace[] = []
+  for (const item of value) {
+    if (
+      item &&
+      typeof item === 'object' &&
+      typeof (item as DesktopWorkspace).name === 'string' &&
+      typeof (item as DesktopWorkspace).path === 'string'
+    ) {
+      workspaces.push({
+        name: (item as DesktopWorkspace).name,
+        path: (item as DesktopWorkspace).path,
+      })
+    }
+    if (workspaces.length >= MAX_RECENT_WORKSPACES) {
+      break
+    }
+  }
+  return workspaces
+}
+
+function upsertRecentWorkspace(
+  workspaces: DesktopWorkspace[],
+  workspace: DesktopWorkspace,
+): DesktopWorkspace[] {
+  return [
+    workspace,
+    ...workspaces.filter(item => item.path !== workspace.path),
+  ].slice(0, MAX_RECENT_WORKSPACES)
 }

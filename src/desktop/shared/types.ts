@@ -73,6 +73,7 @@ export type DesktopApi = {
   getAuthStatus(): Promise<DesktopAuthStatus>
   login(): Promise<DesktopAuthStatus>
   chooseWorkspace(): Promise<DesktopWorkspace | null>
+  openWorkspace(workspacePath: string): Promise<DesktopWorkspace>
   listWorkspaceFiles(workspacePath: string): Promise<DesktopFileEntry[]>
   readWorkspaceFile(workspacePath: string, filePath: string): Promise<DesktopFilePreview>
   getWorkspaceDiff(workspacePath: string): Promise<DesktopDiffSummary>

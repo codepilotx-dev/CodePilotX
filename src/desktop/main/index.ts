@@ -222,11 +222,23 @@ async function chooseWorkspace(): Promise<DesktopWorkspace | null> {
   if (result.canceled || !selected) {
     return null
   }
-  const resolvedSelected = resolve(selected)
-  registerAllowedWorkspace(resolvedSelected)
+  return openWorkspace(selected)
+}
+
+async function openWorkspace(workspacePath: string): Promise<DesktopWorkspace> {
+  const resolvedWorkspace = resolve(workspacePath)
+  const workspaceStat = await stat(resolvedWorkspace)
+  if (!workspaceStat.isDirectory()) {
+    throw new Error('Workspace path must be a directory.')
+  }
+  registerAllowedWorkspace(resolvedWorkspace)
+  return workspaceFromPath(resolvedWorkspace)
+}
+
+function workspaceFromPath(workspacePath: string): DesktopWorkspace {
   return {
-    path: resolvedSelected,
-    name: basename(resolvedSelected),
+    path: workspacePath,
+    name: basename(workspacePath),
   }
 }
 
@@ -400,6 +412,7 @@ function registerIpc(): void {
     getAuthStatus: async () => getAuthStatus(),
     login,
     chooseWorkspace,
+    openWorkspace,
     listWorkspaceFiles,
     readWorkspaceFile,
     getWorkspaceDiff,

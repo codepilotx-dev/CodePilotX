@@ -5,6 +5,8 @@ const api: DesktopApi = {
   getAuthStatus: () => ipcRenderer.invoke('desktop:getAuthStatus'),
   login: () => ipcRenderer.invoke('desktop:login'),
   chooseWorkspace: () => ipcRenderer.invoke('desktop:chooseWorkspace'),
+  openWorkspace: workspacePath =>
+    ipcRenderer.invoke('desktop:openWorkspace', workspacePath),
   listWorkspaceFiles: workspacePath =>
     ipcRenderer.invoke('desktop:listWorkspaceFiles', workspacePath),
   readWorkspaceFile: (workspacePath, filePath) =>
