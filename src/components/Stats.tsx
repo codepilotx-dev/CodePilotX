@@ -97,7 +97,7 @@ export function Stats({ onClose }: Props): React.ReactNode {
       fallback={
         <Box marginTop={1}>
           <Spinner />
-          <Text> Loading your Claude Code stats…</Text>
+          <Text> Loading your Oh-My-AgentCode stats…</Text>
         </Box>
       }
     >
@@ -210,7 +210,7 @@ function StatsContent({
     return (
       <Box marginTop={1}>
         <Text color="warning">
-          No stats available yet. Start using Claude Code!
+          No stats available yet. Start using Oh-My-AgentCode!
         </Text>
       </Box>
     )

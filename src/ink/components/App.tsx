@@ -502,7 +502,7 @@ export default class App extends PureComponent<Props, State> {
       this.props.stdout.write(SHOW_CURSOR + DFE + DISABLE_MOUSE_TRACKING)
     }
 
-    // Emit suspend event for Claude Code to handle. Mostly just has a notification
+    // Emit suspend event for Oh-My-AgentCode to handle. Mostly just has a notification
     this.internal_eventEmitter.emit('suspend')
 
     // Set up resume handler
@@ -523,7 +523,7 @@ export default class App extends PureComponent<Props, State> {
         this.props.stdout.write(EFE)
       }
 
-      // Emit resume event for Claude Code to handle
+      // Emit resume event for Oh-My-AgentCode to handle
       this.internal_eventEmitter.emit('resume')
 
       process.removeListener('SIGCONT', resumeHandler)

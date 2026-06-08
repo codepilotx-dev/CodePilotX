@@ -110,7 +110,7 @@ export function HelpV2({ onClose, commands }: Props): React.ReactNode {
           title={
             "external" === 'ant'
               ? '/help'
-              : `Claude Code v${MACRO.VERSION}`
+              : `Oh-My-AgentCode v${MACRO.VERSION}`
           }
           color="professionalBlue"
           defaultTab="general"

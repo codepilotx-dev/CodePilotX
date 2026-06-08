@@ -136,7 +136,7 @@ export function PreflightStep({
                   Please check your internet connection and network settings.
                 </Text>
                 <Text>
-                  Note: Claude Code might not be available in your country.
+                  Note: Oh-My-AgentCode might not be available in your country.
                   Check supported countries at{' '}
                   <Text color="suggestion">
                     https://anthropic.com/supported-countries

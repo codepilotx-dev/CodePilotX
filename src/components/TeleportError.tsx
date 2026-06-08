@@ -118,7 +118,7 @@ export function TeleportError({
           <Box flexDirection="column">
             <Text dimColor>Teleport requires a Claude.ai account.</Text>
             <Text dimColor>
-              Your Claude Pro/Max subscription will be used by Claude Code.
+              Your Claude Pro/Max subscription will be used by Oh-My-AgentCode.
             </Text>
           </Box>
           <Select

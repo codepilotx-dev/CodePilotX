@@ -889,7 +889,7 @@ function EmptyStateMessage({
       return (
         <>
           <Text dimColor>Git is required to install marketplaces.</Text>
-          <Text dimColor>Please install git and restart Claude Code.</Text>
+          <Text dimColor>Please install git and restart Oh-My-AgentCode.</Text>
         </>
       )
     case 'all-blocked-by-policy':

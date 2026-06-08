@@ -1048,7 +1048,7 @@ function PromptInput({
     if (feature('ULTRAPLAN') && ultraplanTriggers.length) {
       addNotification({
         key: 'ultraplan-active',
-        text: 'This prompt will launch an ultraplan session in Claude Code on the web',
+        text: 'This prompt will launch an ultraplan session in Oh-My-AgentCode on the web',
         priority: 'immediate',
         timeoutMs: 5000,
       })

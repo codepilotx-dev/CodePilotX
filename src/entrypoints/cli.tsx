@@ -50,7 +50,7 @@ async function main(): Promise<void> {
   ) {
     // MACRO.VERSION is inlined at build time
     // biome-ignore lint/suspicious/noConsole:: intentional console output
-    console.log(`${MACRO.VERSION} (Claude Code)`)
+    console.log(`${MACRO.VERSION} (Oh-My-AgentCode)`)
     return
   }
 

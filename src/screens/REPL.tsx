@@ -1574,7 +1574,7 @@ export function REPL({
   const haikuTitleAttemptedRef = useRef((initialMessages?.length ?? 0) > 0)
   const agentTitle = mainThreadAgentDefinition?.agentType
   const terminalTitle =
-    sessionTitle ?? agentTitle ?? haikuTitle ?? 'Claude Code'
+    sessionTitle ?? agentTitle ?? haikuTitle ?? 'Oh-My-AgentCode'
   const isWaitingForApproval =
     toolUseConfirmQueue.length > 0 ||
     promptQueue.length > 0 ||
@@ -3583,7 +3583,7 @@ export function REPL({
       // which was broken by SessionStart hook messages (prepended via
       // useDeferredHookMessages) and attachment messages (appended by
       // processTextPrompt) — both pushed length past 1 on turn one, so the
-      // title silently fell through to the "Claude Code" default.
+      // title silently fell through to the "Oh-My-AgentCode" default.
       if (
         !titleDisabled &&
         !sessionTitle &&
@@ -5468,7 +5468,7 @@ export function REPL({
     const handleSuspend = () => {
       // Print suspension instructions
       process.stdout.write(
-        `\nClaude Code has been suspended. Run \`fg\` to bring Claude Code back.\nNote: ctrl + z now suspends Claude Code, ctrl + _ undoes input.\n`,
+        `\nOh-My-AgentCode has been suspended. Run \`fg\` to bring Oh-My-AgentCode back.\nNote: ctrl + z now suspends Oh-My-AgentCode, ctrl + _ undoes input.\n`,
       )
     }
 

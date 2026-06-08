@@ -52,7 +52,7 @@ const REMEMBER_DIRECTORY_OPTIONS: Array<{
 function PermissionDescription(): React.ReactNode {
   return (
     <Text dimColor>
-      Claude Code will be able to read files in this directory and make edits
+      Oh-My-AgentCode will be able to read files in this directory and make edits
       when auto-accept edits is on.
     </Text>
   )

@@ -108,7 +108,7 @@ export function ApiKeyStep({
               {selectedOption === 'existing'
                 ? color('success', theme)('> ')
                 : '  '}
-              Use your existing Claude Code API key
+              Use your existing Oh-My-AgentCode API key
             </Text>
           </Box>
         )}
