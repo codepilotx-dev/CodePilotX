@@ -296,6 +296,33 @@ p {
   padding: 20px;
 }
 
+.error-banner {
+  align-items: center;
+  background: #fff4f2;
+  border: 1px solid #d7a39c;
+  border-radius: 6px;
+  color: #7d2f25;
+  display: flex;
+  gap: 8px;
+  max-width: 820px;
+  padding: 10px 12px;
+}
+
+.error-banner span {
+  flex: 1;
+  font-size: 13px;
+  line-height: 1.4;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.error-banner button {
+  border-color: #d7a39c;
+  color: #7d2f25;
+  flex: 0 0 auto;
+  min-height: 28px;
+}
+
 .empty-state {
   align-items: center;
   color: #6b6f66;

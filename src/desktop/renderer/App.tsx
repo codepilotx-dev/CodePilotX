@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
+  AlertCircle,
   FolderOpen,
   LogIn,
   Play,
@@ -60,12 +61,26 @@ export function App(): React.ReactNode {
     DesktopPermissionRequest[]
   >([])
   const [showSettings, setShowSettings] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [input, setInput] = useState('')
 
   useEffect(() => {
-    void window.desktopApi.getAuthStatus().then(setAuthStatus)
+    void runDesktopAction(() =>
+      window.desktopApi.getAuthStatus().then(setAuthStatus),
+    )
     return window.desktopApi.onAgentEvent(handleAgentEvent)
   }, [])
+
+  async function runDesktopAction<T>(action: () => Promise<T>): Promise<T | null> {
+    try {
+      const result = await action()
+      setErrorMessage(null)
+      return result
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : String(error))
+      return null
+    }
+  }
 
   function handleAgentEvent(event: DesktopAgentEvent): void {
     if (event.type === 'status') {
@@ -136,6 +151,7 @@ export function App(): React.ReactNode {
       return
     }
     if (event.type === 'error') {
+      setErrorMessage(event.message)
       setMessages(current => [
         ...current,
         {
@@ -165,10 +181,14 @@ export function App(): React.ReactNode {
 
   async function refreshWorkspace(target = workspace): Promise<void> {
     if (!target) return
-    const [nextFiles, nextDiff] = await Promise.all([
-      window.desktopApi.listWorkspaceFiles(target.path),
-      window.desktopApi.getWorkspaceDiff(target.path),
-    ])
+    const result = await runDesktopAction(() =>
+      Promise.all([
+        window.desktopApi.listWorkspaceFiles(target.path),
+        window.desktopApi.getWorkspaceDiff(target.path),
+      ]),
+    )
+    if (!result) return
+    const [nextFiles, nextDiff] = result
     setFiles(nextFiles)
     setDiff(nextDiff.patch)
     setSelectedFile(null)
@@ -180,7 +200,9 @@ export function App(): React.ReactNode {
   }
 
   async function chooseWorkspace(): Promise<void> {
-    const selected = await window.desktopApi.chooseWorkspace()
+    const selected = await runDesktopAction(() =>
+      window.desktopApi.chooseWorkspace(),
+    )
     if (!selected) return
     setWorkspace(selected)
     await refreshWorkspace(selected)
@@ -191,9 +213,12 @@ export function App(): React.ReactNode {
     target = workspace,
   ): Promise<void> {
     if (!target) return
-    const session = await window.desktopApi.createSession({
-      workspacePath: target.path,
-    })
+    const session = await runDesktopAction(() =>
+      window.desktopApi.createSession({
+        workspacePath: target.path,
+      }),
+    )
+    if (!session) return
     activateSession(session.sessionId)
     setSessionStatus('idle')
     setMessages([])
@@ -212,14 +237,20 @@ export function App(): React.ReactNode {
   }
 
   async function login(): Promise<void> {
-    setAuthStatus(await window.desktopApi.login())
+    const status = await runDesktopAction(() => window.desktopApi.login())
+    if (status) {
+      setAuthStatus(status)
+    }
   }
 
   async function previewFile(file: DesktopFileEntry): Promise<void> {
     if (!workspace || file.type !== 'file') return
-    setSelectedFile(
-      await window.desktopApi.readWorkspaceFile(workspace.path, file.path),
+    const preview = await runDesktopAction(() =>
+      window.desktopApi.readWorkspaceFile(workspace.path, file.path),
     )
+    if (preview) {
+      setSelectedFile(preview)
+    }
   }
 
   async function submit(): Promise<void> {
@@ -227,17 +258,22 @@ export function App(): React.ReactNode {
     const activeSessionId = sessionId
     if (!canSubmit || !activeSessionId) return
     setInput('')
-    await window.desktopApi.sendUserMessage(activeSessionId, trimmed)
+    await runDesktopAction(() =>
+      window.desktopApi.sendUserMessage(activeSessionId, trimmed),
+    )
   }
 
   async function interrupt(): Promise<void> {
     if (sessionId) {
-      await window.desktopApi.interruptSession(sessionId)
+      await runDesktopAction(() => window.desktopApi.interruptSession(sessionId))
     }
   }
 
   async function closeSession(targetSessionId: string): Promise<void> {
-    await window.desktopApi.disposeSession(targetSessionId)
+    const disposed = await runDesktopAction(() =>
+      window.desktopApi.disposeSession(targetSessionId),
+    )
+    if (disposed === null) return
     const remaining = sessions.filter(session => session.id !== targetSessionId)
     setSessions(remaining)
 
@@ -275,11 +311,13 @@ export function App(): React.ReactNode {
     setPendingPermissions(current =>
       current.filter(item => item.requestId !== request.requestId),
     )
-    await window.desktopApi.respondToPermission(sessionId, request.requestId, {
-      behavior,
-      message: behavior === 'deny' ? 'Denied in desktop UI' : undefined,
-      alwaysAllow,
-    })
+    await runDesktopAction(() =>
+      window.desktopApi.respondToPermission(sessionId, request.requestId, {
+        behavior,
+        message: behavior === 'deny' ? 'Denied in desktop UI' : undefined,
+        alwaysAllow,
+      }),
+    )
   }
 
   const canSubmit = useMemo(
@@ -393,6 +431,13 @@ export function App(): React.ReactNode {
         </header>
 
         <div className="message-list">
+          {errorMessage ? (
+            <div className="error-banner">
+              <AlertCircle size={16} />
+              <span>{errorMessage}</span>
+              <button onClick={() => setErrorMessage(null)}>Dismiss</button>
+            </div>
+          ) : null}
           {messages.length === 0 ? (
             <div className="empty-state">
               <Play size={24} />
