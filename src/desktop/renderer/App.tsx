@@ -369,9 +369,46 @@ export function App(): React.ReactNode {
       ),
     [input, sessionId, sessionStatus],
   )
+  const activePermissionRequest = pendingPermissions[0] ?? null
 
   return (
     <main className="desktop-shell">
+      {activePermissionRequest ? (
+        <div className="permission-modal-backdrop">
+          <section className="permission-modal">
+            <header>
+              <h2>Permission request</h2>
+              <span>{activePermissionRequest.toolName}</span>
+            </header>
+            <p>{activePermissionRequest.description}</p>
+            <code>{JSON.stringify(activePermissionRequest.input)}</code>
+            <div className="permission-modal-actions">
+              <button
+                className="primary-button"
+                onClick={() =>
+                  void decidePermission(activePermissionRequest, 'allow')
+                }
+              >
+                Allow
+              </button>
+              <button
+                onClick={() =>
+                  void decidePermission(activePermissionRequest, 'allow', true)
+                }
+              >
+                Always allow
+              </button>
+              <button
+                onClick={() =>
+                  void decidePermission(activePermissionRequest, 'deny')
+                }
+              >
+                Deny
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
       <aside className="sidebar">
         <div className="brand">
           <span className="brand-mark">CC</span>
