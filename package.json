@@ -14,9 +14,10 @@
     "smoke": "bun dist/claude.js --version && bun dist/claude.js --help",
     "check": "bun run typecheck && bun run build && bun run smoke",
     "deps:audit": "node scripts/deps-audit.mjs",
-    "desktop:dev": "bun run desktop:build && electron dist/desktop/main/index.js",
+    "desktop:agent:build": "bun build src/entrypoints/cli.tsx --compile --outfile=dist/desktop-agent/claude-local.exe --define MACRO.VERSION='\"0.0.0-local\"' --define MACRO.BUILD_TIME='\"local\"' --define MACRO.PACKAGE_URL='\"claudecode-local\"' --define MACRO.NATIVE_PACKAGE_URL='\"claudecode-local-native\"' --define MACRO.FEEDBACK_CHANNEL='\"local\"' --define MACRO.ISSUES_EXPLAINER='\"open an issue in the local checkout\"' --define MACRO.VERSION_CHANGELOG='\"Local development build\"' --define process.env.USER_TYPE='\"external\"' --define process.env.NODE_ENV='\"development\"' --define process.env.CLAUDE_CODE_DISABLE_MDM_READ='\"1\"' --define process.env.CLAUDE_CODE_DISABLE_MIN_VERSION_CHECK='\"1\"'",
+    "desktop:dev": "bun run desktop:agent:build && bun run desktop:build && electron dist/desktop/main/index.js",
     "desktop:build": "vite build --config vite.desktop.main.config.ts && vite build --config vite.desktop.preload.config.ts && vite build --config vite.desktop.config.ts",
-    "desktop:dist:win": "bun run desktop:build && electron-builder --win --config electron-builder.config.cjs"
+    "desktop:dist:win": "bun run desktop:agent:build && bun run desktop:build && electron-builder --win --config electron-builder.config.cjs"
   },
   "dependencies": {
     "@alcalzone/ansi-tokenize": "latest",
@@ -130,7 +131,11 @@
     "productName": "ClaudeCode Local Desktop",
     "files": [
       "dist/desktop/**/*",
+      "dist/desktop-agent/**/*",
       "package.json"
+    ],
+    "asarUnpack": [
+      "dist/desktop-agent/**/*"
     ],
     "directories": {
       "output": "release/desktop"
