@@ -193,6 +193,19 @@ p {
   line-height: 1.35;
 }
 
+.setting-runtime {
+  display: grid;
+  gap: 5px;
+}
+
+.setting-runtime p {
+  overflow-wrap: anywhere;
+}
+
+.setting-runtime button {
+  justify-self: start;
+}
+
 .session-row {
   align-items: stretch;
   display: flex;

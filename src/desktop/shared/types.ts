@@ -27,6 +27,11 @@ export type DesktopDiffSummary = {
   patch: string
 }
 
+export type DesktopRuntimeStatus = {
+  agentExecutablePath: string
+  agentExecutableExists: boolean
+}
+
 export type DesktopSessionStatus = 'idle' | 'running' | 'waiting' | 'done' | 'error'
 
 export type DesktopPermissionMode =
@@ -71,6 +76,7 @@ export type CreateDesktopSessionResult = {
 
 export type DesktopApi = {
   getAuthStatus(): Promise<DesktopAuthStatus>
+  getRuntimeStatus(): Promise<DesktopRuntimeStatus>
   login(): Promise<DesktopAuthStatus>
   chooseWorkspace(): Promise<DesktopWorkspace | null>
   openWorkspace(workspacePath: string): Promise<DesktopWorkspace>

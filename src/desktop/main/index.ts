@@ -39,6 +39,7 @@ import type {
   DesktopFilePreview,
   DesktopPermissionDecision,
   DesktopPermissionMode,
+  DesktopRuntimeStatus,
   DesktopWorkspace,
 } from '../shared/types.js'
 
@@ -173,6 +174,22 @@ function getAuthStatus(): DesktopAuthStatus {
     method: authenticated ? tokenSource.source : 'none',
     email: account?.emailAddress ?? null,
     organizationName: account?.organizationName ?? null,
+  }
+}
+
+async function getRuntimeStatus(): Promise<DesktopRuntimeStatus> {
+  const agentExecutablePath = getAgentExecutablePath()
+  try {
+    const fileStat = await stat(agentExecutablePath)
+    return {
+      agentExecutablePath,
+      agentExecutableExists: fileStat.isFile(),
+    }
+  } catch {
+    return {
+      agentExecutablePath,
+      agentExecutableExists: false,
+    }
   }
 }
 
@@ -410,6 +427,7 @@ function getSession(sessionId: string): DesktopAgentSession {
 function registerIpc(): void {
   const handlers: Omit<DesktopApi, 'onAgentEvent'> = {
     getAuthStatus: async () => getAuthStatus(),
+    getRuntimeStatus,
     login,
     chooseWorkspace,
     openWorkspace,

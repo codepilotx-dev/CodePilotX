@@ -20,6 +20,7 @@ import type {
   DesktopFilePreview,
   DesktopPermissionMode,
   DesktopPermissionRequest,
+  DesktopRuntimeStatus,
   DesktopSessionStatus,
   DesktopWorkspace,
 } from '../shared/types.js'
@@ -127,6 +128,8 @@ export function App(): React.ReactNode {
   const [recentWorkspaces, setRecentWorkspaces] = useState<DesktopWorkspace[]>(
     initialDesktopSettings.recentWorkspaces,
   )
+  const [runtimeStatus, setRuntimeStatus] =
+    useState<DesktopRuntimeStatus | null>(null)
   const [showSettings, setShowSettings] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [input, setInput] = useState('')
@@ -135,6 +138,7 @@ export function App(): React.ReactNode {
     void runDesktopAction(() =>
       window.desktopApi.getAuthStatus().then(setAuthStatus),
     )
+    void refreshRuntimeStatus()
     return window.desktopApi.onAgentEvent(handleAgentEvent)
   }, [])
 
@@ -422,6 +426,15 @@ export function App(): React.ReactNode {
     const status = await runDesktopAction(() => window.desktopApi.login())
     if (status) {
       setAuthStatus(status)
+    }
+  }
+
+  async function refreshRuntimeStatus(): Promise<void> {
+    const status = await runDesktopAction(() =>
+      window.desktopApi.getRuntimeStatus(),
+    )
+    if (status) {
+      setRuntimeStatus(status)
     }
   }
 
@@ -815,6 +828,22 @@ export function App(): React.ReactNode {
               </label>
               <p>Auth: {authStatus?.method ?? 'unknown'}</p>
               <p>User: {authStatus?.email ?? 'not signed in'}</p>
+              <div className="setting-runtime">
+                <p>
+                  Agent runtime:{' '}
+                  {runtimeStatus?.agentExecutableExists
+                    ? 'available'
+                    : 'missing'}
+                </p>
+                <p>
+                  Agent path:{' '}
+                  {runtimeStatus?.agentExecutablePath ?? 'checking'}
+                </p>
+                <button onClick={() => void refreshRuntimeStatus()}>
+                  <RefreshCw size={15} />
+                  <span>Refresh runtime</span>
+                </button>
+              </div>
               <p>Workspace: {workspace?.path ?? 'none'}</p>
               <p>Active session: {sessionId ?? 'none'}</p>
               <p>
