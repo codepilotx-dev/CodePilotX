@@ -200,6 +200,8 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
         await this.handleControlRequest(message)
         return
       case 'user':
+        this.emitUserMessage(message)
+        return
       case 'control_cancel_request':
       case 'keep_alive':
         return
@@ -214,11 +216,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
   }
 
   private emitAssistantMessage(message: Record<string, unknown>): void {
-    const assistantMessage = message.message
-    if (!assistantMessage || typeof assistantMessage !== 'object') {
-      return
-    }
-    const content = (assistantMessage as Record<string, unknown>).content
+    const content = getMessageContent(message)
     if (!Array.isArray(content)) {
       return
     }
@@ -266,6 +264,31 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
           isError: item.is_error === true,
         })
       }
+    }
+  }
+
+  private emitUserMessage(message: Record<string, unknown>): void {
+    const content = getMessageContent(message)
+    if (!Array.isArray(content)) {
+      return
+    }
+
+    for (const block of content) {
+      if (!block || typeof block !== 'object') {
+        continue
+      }
+      const item = block as Record<string, unknown>
+      if (item.type !== 'tool_result') {
+        continue
+      }
+      const toolName = this.toolNameForResult(item)
+      this.context.emit({
+        type: 'tool_result',
+        sessionId: this.context.sessionId,
+        toolName,
+        summary: summarizeToolInput(toolName, item.content),
+        isError: item.is_error === true,
+      })
     }
   }
 
@@ -476,6 +499,13 @@ function extractPartialText(item: Record<string, unknown>): string | null {
   return record.type === 'text_delta' && typeof record.text === 'string'
     ? record.text
     : null
+}
+
+function getMessageContent(message: Record<string, unknown>): unknown {
+  const wrappedMessage = message.message
+  return wrappedMessage && typeof wrappedMessage === 'object'
+    ? (wrappedMessage as Record<string, unknown>).content
+    : undefined
 }
 
 function getUpdatedPermissions(
