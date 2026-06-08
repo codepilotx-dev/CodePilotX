@@ -364,9 +364,51 @@ export function App(): React.ReactNode {
       if (options.clearSelectedFile ?? true) {
         setSelectedFile(null)
         updateActiveSessionView(view => ({ ...view, selectedFile: null }))
+      } else {
+        await refreshSelectedFilePreview(target, nextFiles)
       }
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : String(error))
+    }
+  }
+
+  async function refreshSelectedFilePreview(
+    target: DesktopWorkspace,
+    nextFiles: DesktopFileEntry[],
+  ): Promise<void> {
+    const activeSessionId = activeSessionIdRef.current
+    if (!activeSessionId) {
+      return
+    }
+    const currentPreview =
+      sessionViewsRef.current[activeSessionId]?.selectedFile
+    if (!currentPreview) {
+      return
+    }
+    const stillExists = nextFiles.some(
+      file => file.type === 'file' && file.path === currentPreview.path,
+    )
+    if (!stillExists) {
+      updateSessionView(activeSessionId, view => ({
+        ...view,
+        selectedFile: null,
+      }))
+      return
+    }
+    try {
+      const preview = await window.desktopApi.readWorkspaceFile(
+        target.path,
+        currentPreview.path,
+      )
+      updateSessionView(activeSessionId, view => ({
+        ...view,
+        selectedFile: preview,
+      }))
+    } catch {
+      updateSessionView(activeSessionId, view => ({
+        ...view,
+        selectedFile: null,
+      }))
     }
   }
 
