@@ -17,19 +17,21 @@
     "baseUrl": ".",
     "ignoreDeprecations": "6.0",
     "paths": {
-      "src/*": ["./*"]
+      "src/*": ["./src/*"]
     },
     "types": ["bun", "node"],
-    "typeRoots": ["./types/local", "./node_modules/@types"]
+    "typeRoots": ["./src/types/local", "./node_modules/@types"]
   },
   "include": [
-    "**/*.ts",
-    "**/*.tsx",
-    "**/*.js",
-    "types/local/**/*.d.ts"
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "src/**/*.js",
+    "src/types/local/**/*.d.ts"
   ],
   "exclude": [
     "dist",
     "node_modules"
   ]
 }
+
+

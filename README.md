@@ -23,7 +23,7 @@ bun run smoke
 bun run check
 ```
 
-`bun run build` bundles `entrypoints/cli.tsx` to `dist/claude.js` with local development macro values. Internal feature flags are left disabled by default.
+`bun run build` bundles `src/entrypoints/cli.tsx` to `dist/claude.js` with local development macro values. Internal feature flags are left disabled by default.
 
 ## Local Acceptance
 
@@ -40,6 +40,7 @@ Full authenticated Claude requests, internal Anthropic-only features, private MC
 ## Notes
 
 - Imports intentionally use `.js` extensions from `.ts` and `.tsx` files. Keep that style.
-- `src/*` is configured as an alias to the repository root.
+- `src/*` is configured as an alias to `src/`.
 - Private `@ant/*` and native packages are represented by local stubs when public packages are unavailable.
 - Do not edit `types/generated/` by hand.
+
