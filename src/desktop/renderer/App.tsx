@@ -8,6 +8,7 @@ import {
   Settings,
   Plus,
   Square,
+  X,
 } from 'lucide-react'
 import type {
   DesktopAgentEvent,
@@ -173,7 +174,7 @@ export function App(): React.ReactNode {
     setSelectedFile(null)
   }
 
-  function activateSession(nextSessionId: string): void {
+  function activateSession(nextSessionId: string | null): void {
     activeSessionIdRef.current = nextSessionId
     setSessionId(nextSessionId)
   }
@@ -223,14 +224,45 @@ export function App(): React.ReactNode {
 
   async function submit(): Promise<void> {
     const trimmed = input.trim()
-    if (!sessionId || !trimmed) return
+    const activeSessionId = sessionId
+    if (!canSubmit || !activeSessionId) return
     setInput('')
-    await window.desktopApi.sendUserMessage(sessionId, trimmed)
+    await window.desktopApi.sendUserMessage(activeSessionId, trimmed)
   }
 
   async function interrupt(): Promise<void> {
     if (sessionId) {
       await window.desktopApi.interruptSession(sessionId)
+    }
+  }
+
+  async function closeSession(targetSessionId: string): Promise<void> {
+    await window.desktopApi.disposeSession(targetSessionId)
+    const remaining = sessions.filter(session => session.id !== targetSessionId)
+    setSessions(remaining)
+
+    if (targetSessionId !== activeSessionIdRef.current) {
+      return
+    }
+
+    const next = remaining[0]
+    activateSession(next?.id ?? null)
+    setSessionStatus(next?.status ?? 'idle')
+    setMessages([])
+    setToolLog([])
+    setPendingPermissions([])
+    setSelectedFile(null)
+    if (next) {
+      const nextWorkspace = {
+        name: next.workspaceName,
+        path: next.workspacePath,
+      }
+      setWorkspace(nextWorkspace)
+      void refreshWorkspace(nextWorkspace)
+    } else {
+      setWorkspace(null)
+      setFiles([])
+      setDiff('No workspace selected.')
     }
   }
 
@@ -251,8 +283,14 @@ export function App(): React.ReactNode {
   }
 
   const canSubmit = useMemo(
-    () => Boolean(sessionId && input.trim()),
-    [input, sessionId],
+    () =>
+      Boolean(
+        sessionId &&
+          input.trim() &&
+          sessionStatus !== 'running' &&
+          sessionStatus !== 'waiting',
+      ),
+    [input, sessionId, sessionStatus],
   )
 
   return (
@@ -294,32 +332,43 @@ export function App(): React.ReactNode {
           ) : (
             <div className="session-list">
               {sessions.map(session => (
-                <button
+                <div
                   className={
                     session.id === sessionId
                       ? 'session-row active'
                       : 'session-row'
                   }
                   key={session.id}
-                  onClick={() => {
-                    activateSession(session.id)
-                    setSessionStatus(session.status)
-                    setWorkspace({
-                      name: session.workspaceName,
-                      path: session.workspacePath,
-                    })
-                    setMessages([])
-                    setToolLog([])
-                    setPendingPermissions([])
-                    void refreshWorkspace({
-                      name: session.workspaceName,
-                      path: session.workspacePath,
-                    })
-                  }}
                 >
-                  <span>{session.workspaceName}</span>
-                  <small>{session.status} - {session.createdAt}</small>
-                </button>
+                  <button
+                    className="session-select"
+                    onClick={() => {
+                      activateSession(session.id)
+                      setSessionStatus(session.status)
+                      setWorkspace({
+                        name: session.workspaceName,
+                        path: session.workspacePath,
+                      })
+                      setMessages([])
+                      setToolLog([])
+                      setPendingPermissions([])
+                      void refreshWorkspace({
+                        name: session.workspaceName,
+                        path: session.workspacePath,
+                      })
+                    }}
+                  >
+                    <span>{session.workspaceName}</span>
+                    <small>{session.status} - {session.createdAt}</small>
+                  </button>
+                  <button
+                    className="icon-button"
+                    onClick={() => void closeSession(session.id)}
+                    title="Close session"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
               ))}
             </div>
           )}
@@ -371,7 +420,7 @@ export function App(): React.ReactNode {
             </button>
             <button className="send-button" onClick={submit} disabled={!canSubmit}>
               <Send size={17} />
-              <span>Send</span>
+              <span>{sessionStatus === 'waiting' ? 'Waiting' : 'Send'}</span>
             </button>
           </div>
         </footer>
