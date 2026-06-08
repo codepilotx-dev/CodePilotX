@@ -408,7 +408,7 @@ async function createSession(
   sessions.set(session.sessionId, session)
   session.on('event', event => {
     emitAgentEvent(event)
-    if (event.type === 'done') {
+    if (event.type === 'done' || event.type === 'error') {
       void getWorkspaceDiff(session.workspacePath).then(diff =>
         emitAgentEvent({
           type: 'diff',
