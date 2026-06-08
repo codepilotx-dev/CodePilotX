@@ -1,0 +1,7 @@
+node_modules/
+dist/
+bun.lock
+*.tsbuildinfo
+.DS_Store
+Thumbs.db
+*.log
