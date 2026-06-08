@@ -290,7 +290,14 @@ async function listWorkspaceFiles(
       return
     }
 
-    const children = await readdir(dir, { withFileTypes: true })
+    const children = (await readdir(dir, { withFileTypes: true })).sort(
+      (left, right) => {
+        if (left.isDirectory() !== right.isDirectory()) {
+          return left.isDirectory() ? -1 : 1
+        }
+        return left.name.localeCompare(right.name)
+      },
+    )
     for (const child of children) {
       if (child.isDirectory() && IGNORED_DIRECTORY_NAMES.has(child.name)) {
         continue
