@@ -15,6 +15,7 @@ import { checkOpus1mAccess, checkSonnet1mAccess } from '../../utils/model/check1
 import { getDefaultMainLoopModelSetting, isOpus1mMergeEnabled, renderDefaultModelSetting } from '../../utils/model/model.js';
 import { isModelAllowed } from '../../utils/model/modelAllowlist.js';
 import { validateModel } from '../../utils/model/validateModel.js';
+import { getSelectedProviderID, saveSelectedProvider, splitProviderModel } from '../../utils/model/providerConfig.js';
 function ModelPickerWrapper(t0) {
   const $ = _c(17);
   const {
@@ -138,9 +139,25 @@ function SetModelAndClose({
 }): React.ReactNode {
   const isFastMode = useAppState(s => s.fastMode);
   const setAppState = useSetAppState();
-  const model = args === 'default' ? null : args;
+  const providerModel = splitProviderModel(args);
+  const providerID = providerModel?.providerID ?? getSelectedProviderID();
+  const hasProviderModel = providerModel !== null;
+  const modelArg = providerModel?.modelID ?? args;
+  const model = modelArg === 'default' ? null : modelArg;
   React.useEffect(() => {
     async function handleModelChange(): Promise<void> {
+      if (hasProviderModel) {
+        saveSelectedProvider({
+          providerID,
+          modelID: model ?? undefined
+        });
+      }
+
+      if (providerID !== 'anthropic') {
+        setModel(model);
+        return;
+      }
+
       if (model && !isModelAllowed(model)) {
         onDone(`Model '${model}' is not available. Your organization restricts model selection.`, {
           display: 'system'
@@ -196,6 +213,12 @@ function SetModelAndClose({
       }
     }
     function setModel(modelValue: string | null): void {
+      if (providerID !== 'anthropic') {
+        saveSelectedProvider({
+          providerID,
+          modelID: modelValue ?? undefined
+        });
+      }
       setAppState(prev => ({
         ...prev,
         mainLoopModel: modelValue,
@@ -227,7 +250,7 @@ function SetModelAndClose({
       onDone(message);
     }
     void handleModelChange();
-  }, [model, onDone, setAppState]);
+  }, [hasProviderModel, model, onDone, providerID, setAppState]);
   return null;
 }
 function isKnownAlias(model: string): boolean {
@@ -291,6 +314,9 @@ export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
   return <ModelPickerWrapper onDone={onDone} />;
 };
 function renderModelLabel(model: string | null): string {
+  if (getSelectedProviderID() !== 'anthropic') {
+    return model === null ? `${getSelectedProviderID()}/default` : `${getSelectedProviderID()}/${model}`;
+  }
   const rendered = renderDefaultModelSetting(model ?? getDefaultMainLoopModelSetting());
   return model === null ? `${rendered} (default)` : rendered;
 }

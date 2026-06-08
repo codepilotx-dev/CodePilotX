@@ -28,6 +28,11 @@ import { LIGHTNING_BOLT } from '../../constants/figures.js'
 import { isModelAllowed } from './modelAllowlist.js'
 import { type ModelAlias, isModelAlias } from './aliases.js'
 import { capitalize } from '../stringUtils.js'
+import {
+  formatProviderModel,
+  getSelectedProviderConfig,
+  getSelectedProviderID,
+} from './providerConfig.js'
 
 export type ModelShortName = string
 export type ModelName = string
@@ -176,6 +181,11 @@ export function getRuntimeMainLoopModel(params: {
  * @returns The default model setting to use
  */
 export function getDefaultMainLoopModelSetting(): ModelName | ModelAlias {
+  const selectedProvider = getSelectedProviderConfig()
+  if (selectedProvider.kind !== 'anthropic') {
+    return selectedProvider.defaultModels[0] ?? getDefaultSonnetModel()
+  }
+
   // Ants default to defaultModel from flag config, or Opus 1M if not configured
   if (process.env.USER_TYPE === 'ant') {
     return (
@@ -393,6 +403,10 @@ function maskModelCodename(baseName: string): string {
 }
 
 export function renderModelName(model: ModelName): string {
+  if (getSelectedProviderConfig().kind !== 'anthropic') {
+    return model
+  }
+
   const publicName = getPublicModelDisplayName(model)
   if (publicName) {
     return publicName
@@ -554,7 +568,11 @@ export function isLegacyModelRemapEnabled(): boolean {
 }
 
 export function modelDisplayString(model: ModelSetting): string {
+  const selectedProvider = getSelectedProviderID()
   if (model === null) {
+    if (selectedProvider !== 'anthropic') {
+      return `Default (${formatProviderModel(selectedProvider, getDefaultMainLoopModel())})`
+    }
     if (process.env.USER_TYPE === 'ant') {
       return `Default for Ants (${renderDefaultModelSetting(getDefaultMainLoopModelSetting())})`
     } else if (isClaudeAISubscriber()) {
@@ -563,7 +581,11 @@ export function modelDisplayString(model: ModelSetting): string {
     return `Default (${getDefaultMainLoopModel()})`
   }
   const resolvedModel = parseUserSpecifiedModel(model)
-  return model === resolvedModel ? resolvedModel : `${model} (${resolvedModel})`
+  const rendered =
+    model === resolvedModel ? resolvedModel : `${model} (${resolvedModel})`
+  return selectedProvider === 'anthropic'
+    ? rendered
+    : formatProviderModel(selectedProvider, rendered)
 }
 
 // @[MODEL LAUNCH]: Add a marketing name mapping for the new model below.

@@ -376,6 +376,15 @@ export const SettingsSchema = lazySchema(() =>
         .string()
         .optional()
         .describe('Override the default model used by Claude Code'),
+      provider: z
+        .enum(['anthropic', 'openai', 'openrouter', 'deepseek', 'groq', 'custom'])
+        .optional()
+        .describe('Model provider used by Claude Code'),
+      providerBaseURL: z
+        .string()
+        .url()
+        .optional()
+        .describe('Base URL for a custom OpenAI-compatible provider'),
       // Enterprise allowlist of models
       availableModels: z
         .array(z.string())

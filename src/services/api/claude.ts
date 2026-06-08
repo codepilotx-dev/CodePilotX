@@ -255,6 +255,8 @@ import {
   type RetryContext,
   withRetry,
 } from './withRetry.js'
+import { queryOpenAICompatibleModelWithStreaming } from './openaiCompatible.js'
+import { shouldUseOpenAICompatibleProvider } from '../../utils/model/providerConfig.js'
 
 // Define a type that represents valid JSON values
 type JsonValue = string | number | boolean | null | JsonObject | JsonArray
@@ -721,6 +723,28 @@ export async function queryModelWithoutStreaming({
   signal: AbortSignal
   options: Options
 }): Promise<AssistantMessage> {
+  if (shouldUseOpenAICompatibleProvider()) {
+    let assistantMessage: AssistantMessage | undefined
+    for await (const message of queryOpenAICompatibleModelWithStreaming({
+      messages,
+      systemPrompt,
+      tools,
+      signal,
+      options,
+    })) {
+      if (message.type === 'assistant') {
+        assistantMessage = message
+      }
+    }
+    if (!assistantMessage) {
+      if (signal.aborted) {
+        throw new APIUserAbortError()
+      }
+      throw new Error('No assistant message found')
+    }
+    return assistantMessage
+  }
+
   // Store the assistant message but continue consuming the generator to ensure
   // logAPISuccessAndDuration gets called (which happens after all yields)
   let assistantMessage: AssistantMessage | undefined
@@ -767,6 +791,17 @@ export async function* queryModelWithStreaming({
   StreamEvent | AssistantMessage | SystemAPIErrorMessage,
   void
 > {
+  if (shouldUseOpenAICompatibleProvider()) {
+    yield* queryOpenAICompatibleModelWithStreaming({
+      messages,
+      systemPrompt,
+      tools,
+      signal,
+      options,
+    })
+    return
+  }
+
   return yield* withStreamingVCR(messages, async function* () {
     yield* queryModel(
       messages,
