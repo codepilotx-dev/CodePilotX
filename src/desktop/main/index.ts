@@ -2,7 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { execFile } from 'node:child_process'
 import { open, readdir, stat } from 'node:fs/promises'
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { promisify } from 'node:util'
 import { fetchAndStoreClaudeCodeFirstTokenDate } from '../../services/api/firstTokenDate.js'
 import {
@@ -113,7 +113,7 @@ const sessions = new Map<string, DesktopAgentSession>()
 const allowedWorkspacePaths = new Set<string>()
 
 function rendererUrl(): string {
-  return `file://${join(__dirname, '../renderer/index.html').replace(/\\/g, '/')}`
+  return pathToFileURL(join(__dirname, '../renderer/index.html')).toString()
 }
 
 function getAgentExecutablePath(): string {
