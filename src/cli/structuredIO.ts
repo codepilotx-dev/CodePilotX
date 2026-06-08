@@ -135,6 +135,7 @@ const MAX_RESOLVED_TOOL_USE_IDS = 1000
 export class StructuredIO {
   readonly structuredInput: AsyncGenerator<StdinMessage | SDKMessage>
   private readonly pendingRequests = new Map<string, PendingRequest<unknown>>()
+  private readonly writeMessage: (message: StdoutMessage) => Promise<void>
 
   // CCR external_metadata read back on worker start; null when the
   // transport doesn't restore. Assigned by RemoteIO.
@@ -164,8 +165,18 @@ export class StructuredIO {
   constructor(
     private readonly input: AsyncIterable<string>,
     private readonly replayUserMessages?: boolean,
+    options?: {
+      writeMessage?: (message: StdoutMessage) => Promise<void> | void
+    },
   ) {
     this.input = input
+    this.writeMessage = async message => {
+      if (options?.writeMessage) {
+        await options.writeMessage(message)
+        return
+      }
+      writeToStdout(ndjsonSafeStringify(message) + '\n')
+    }
     this.structuredInput = this.read()
   }
 
@@ -463,7 +474,7 @@ export class StructuredIO {
   }
 
   async write(message: StdoutMessage): Promise<void> {
-    writeToStdout(ndjsonSafeStringify(message) + '\n')
+    await this.writeMessage(message)
   }
 
   private async sendRequest<Response>(
