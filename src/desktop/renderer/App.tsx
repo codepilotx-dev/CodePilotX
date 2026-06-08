@@ -3,6 +3,7 @@ import {
   FolderOpen,
   LogIn,
   Play,
+  RefreshCw,
   Send,
   Settings,
   Square,
@@ -10,6 +11,8 @@ import {
 import type {
   DesktopAgentEvent,
   DesktopAuthStatus,
+  DesktopFileEntry,
+  DesktopPermissionRequest,
   DesktopSessionStatus,
   DesktopWorkspace,
 } from '../shared/types.js'
@@ -33,6 +36,12 @@ export function App(): React.ReactNode {
   const [sessionStatus, setSessionStatus] =
     useState<DesktopSessionStatus>('idle')
   const [messages, setMessages] = useState<Message[]>([])
+  const [toolLog, setToolLog] = useState<string[]>([])
+  const [files, setFiles] = useState<DesktopFileEntry[]>([])
+  const [diff, setDiff] = useState('No workspace selected.')
+  const [pendingPermissions, setPendingPermissions] = useState<
+    DesktopPermissionRequest[]
+  >([])
   const [input, setInput] = useState('')
 
   useEffect(() => {
@@ -56,15 +65,59 @@ export function App(): React.ReactNode {
       ])
       return
     }
+    if (event.type === 'tool_start') {
+      setToolLog(current => [
+        `${event.toolName}: ${event.summary}`,
+        ...current,
+      ])
+      return
+    }
+    if (event.type === 'tool_result') {
+      setToolLog(current => [
+        `${event.toolName}: ${event.summary}`,
+        ...current,
+      ])
+      return
+    }
+    if (event.type === 'permission_request') {
+      setPendingPermissions(current => [event.request, ...current])
+      return
+    }
+    if (event.type === 'diff') {
+      setDiff(event.patch)
+      return
+    }
+    if (event.type === 'error') {
+      setMessages(current => [
+        ...current,
+        {
+          id: crypto.randomUUID(),
+          role: 'system',
+          text: event.message,
+        },
+      ])
+      return
+    }
     if (event.type === 'done') {
       setSessionStatus('done')
     }
+  }
+
+  async function refreshWorkspace(target = workspace): Promise<void> {
+    if (!target) return
+    const [nextFiles, nextDiff] = await Promise.all([
+      window.desktopApi.listWorkspaceFiles(target.path),
+      window.desktopApi.getWorkspaceDiff(target.path),
+    ])
+    setFiles(nextFiles)
+    setDiff(nextDiff.patch)
   }
 
   async function chooseWorkspace(): Promise<void> {
     const selected = await window.desktopApi.chooseWorkspace()
     if (!selected) return
     setWorkspace(selected)
+    await refreshWorkspace(selected)
     const session = await window.desktopApi.createSession({
       workspacePath: selected.path,
     })
@@ -86,6 +139,22 @@ export function App(): React.ReactNode {
     if (sessionId) {
       await window.desktopApi.interruptSession(sessionId)
     }
+  }
+
+  async function decidePermission(
+    request: DesktopPermissionRequest,
+    behavior: 'allow' | 'deny',
+    alwaysAllow = false,
+  ): Promise<void> {
+    if (!sessionId) return
+    setPendingPermissions(current =>
+      current.filter(item => item.requestId !== request.requestId),
+    )
+    await window.desktopApi.respondToPermission(sessionId, request.requestId, {
+      behavior,
+      message: behavior === 'deny' ? 'Denied in desktop UI' : undefined,
+      alwaysAllow,
+    })
   }
 
   const canSubmit = useMemo(
@@ -112,6 +181,10 @@ export function App(): React.ReactNode {
         <section className="panel">
           <h2>Workspace</h2>
           <p>{workspace?.path ?? 'No workspace selected'}</p>
+          <button onClick={() => void refreshWorkspace()} disabled={!workspace}>
+            <RefreshCw size={15} />
+            <span>Refresh</span>
+          </button>
         </section>
 
         <section className="panel">
@@ -175,15 +248,71 @@ export function App(): React.ReactNode {
       <aside className="inspector">
         <section>
           <h2>Files</h2>
-          <p>File tree integration will read from the selected workspace.</p>
+          <div className="file-list">
+            {files.length === 0 ? (
+              <p>No files loaded.</p>
+            ) : (
+              files.map(file => (
+                <button
+                  className="file-row"
+                  key={file.path}
+                  style={{ paddingLeft: 10 + file.depth * 14 }}
+                >
+                  <span>{file.type === 'directory' ? 'dir' : 'file'}</span>
+                  {file.name}
+                </button>
+              ))
+            )}
+          </div>
         </section>
         <section>
           <h2>Diff</h2>
-          <p>No file changes yet.</p>
+          <pre className="diff-panel">{diff}</pre>
         </section>
         <section>
           <h2>Permissions</h2>
-          <p>Pending tool approvals will appear here.</p>
+          <div className="permission-list">
+            {pendingPermissions.length === 0 ? (
+              <p>No pending approvals.</p>
+            ) : (
+              pendingPermissions.map(request => (
+                <article className="permission-card" key={request.requestId}>
+                  <strong>{request.toolName}</strong>
+                  <p>{request.description}</p>
+                  <code>{JSON.stringify(request.input)}</code>
+                  <div>
+                    <button
+                      onClick={() => void decidePermission(request, 'allow')}
+                    >
+                      Allow
+                    </button>
+                    <button
+                      onClick={() =>
+                        void decidePermission(request, 'allow', true)
+                      }
+                    >
+                      Always allow
+                    </button>
+                    <button
+                      onClick={() => void decidePermission(request, 'deny')}
+                    >
+                      Deny
+                    </button>
+                  </div>
+                </article>
+              ))
+            )}
+          </div>
+        </section>
+        <section>
+          <h2>Tool log</h2>
+          <div className="tool-log">
+            {toolLog.length === 0 ? (
+              <p>No tool activity yet.</p>
+            ) : (
+              toolLog.map((line, index) => <p key={`${line}-${index}`}>{line}</p>)
+            )}
+          </div>
         </section>
       </aside>
     </main>

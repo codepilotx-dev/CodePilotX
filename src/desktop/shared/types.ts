@@ -10,6 +10,17 @@ export type DesktopWorkspace = {
   name: string
 }
 
+export type DesktopFileEntry = {
+  name: string
+  path: string
+  type: 'file' | 'directory'
+  depth: number
+}
+
+export type DesktopDiffSummary = {
+  patch: string
+}
+
 export type DesktopSessionStatus = 'idle' | 'running' | 'waiting' | 'done' | 'error'
 
 export type DesktopPermissionDecision = {
@@ -48,6 +59,8 @@ export type DesktopApi = {
   getAuthStatus(): Promise<DesktopAuthStatus>
   login(): Promise<DesktopAuthStatus>
   chooseWorkspace(): Promise<DesktopWorkspace | null>
+  listWorkspaceFiles(workspacePath: string): Promise<DesktopFileEntry[]>
+  getWorkspaceDiff(workspacePath: string): Promise<DesktopDiffSummary>
   createSession(options: CreateDesktopSessionOptions): Promise<CreateDesktopSessionResult>
   sendUserMessage(sessionId: string, content: string): Promise<void>
   respondToPermission(

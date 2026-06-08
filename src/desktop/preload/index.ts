@@ -5,6 +5,10 @@ const api: DesktopApi = {
   getAuthStatus: () => ipcRenderer.invoke('desktop:getAuthStatus'),
   login: () => ipcRenderer.invoke('desktop:login'),
   chooseWorkspace: () => ipcRenderer.invoke('desktop:chooseWorkspace'),
+  listWorkspaceFiles: workspacePath =>
+    ipcRenderer.invoke('desktop:listWorkspaceFiles', workspacePath),
+  getWorkspaceDiff: workspacePath =>
+    ipcRenderer.invoke('desktop:getWorkspaceDiff', workspacePath),
   createSession: options => ipcRenderer.invoke('desktop:createSession', options),
   sendUserMessage: (sessionId, content) =>
     ipcRenderer.invoke('desktop:sendUserMessage', sessionId, content),

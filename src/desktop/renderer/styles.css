@@ -59,6 +59,8 @@ button:disabled {
 
 .inspector {
   border-left: 1px solid #d4d7cd;
+  min-width: 0;
+  overflow: auto;
 }
 
 .brand,
@@ -115,6 +117,65 @@ p {
 .inspector section {
   display: grid;
   gap: 8px;
+}
+
+.file-list,
+.permission-list,
+.tool-log {
+  display: grid;
+  gap: 6px;
+}
+
+.file-row {
+  border: 0;
+  justify-content: flex-start;
+  min-height: 26px;
+  overflow: hidden;
+  padding-right: 6px;
+  text-align: left;
+}
+
+.file-row span {
+  color: #6b6f66;
+  font-size: 11px;
+  min-width: 24px;
+}
+
+.diff-panel {
+  background: #ffffff;
+  border: 1px solid #d4d7cd;
+  border-radius: 6px;
+  color: #202124;
+  font-family: "Cascadia Code", Consolas, monospace;
+  font-size: 12px;
+  max-height: 280px;
+  overflow: auto;
+  padding: 10px;
+  white-space: pre-wrap;
+}
+
+.permission-card {
+  background: #ffffff;
+  border: 1px solid #d4d7cd;
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+}
+
+.permission-card code {
+  background: #f4f5ef;
+  border-radius: 4px;
+  font-size: 11px;
+  overflow: hidden;
+  padding: 6px;
+  text-overflow: ellipsis;
+}
+
+.permission-card div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .status-pill {
