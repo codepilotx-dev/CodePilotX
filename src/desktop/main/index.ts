@@ -345,13 +345,29 @@ async function getWorkspaceDiff(
 ): Promise<DesktopDiffSummary> {
   const resolvedWorkspace = assertAllowedWorkspace(workspacePath)
   try {
-    const { stdout } = await execFileAsync('git', [
-      '-C',
-      resolvedWorkspace,
-      'diff',
-      '--',
-    ])
-    return { patch: stdout || 'No file changes.' }
+    const [{ stdout: diffOutput }, { stdout: statusOutput }] =
+      await Promise.all([
+        execFileAsync('git', ['-C', resolvedWorkspace, 'diff', '--']),
+        execFileAsync('git', [
+          '-C',
+          resolvedWorkspace,
+          'status',
+          '--short',
+          '--untracked-files=all',
+        ]),
+      ])
+    const status = statusOutput.trim()
+    if (!diffOutput && !status) {
+      return { patch: 'No file changes.' }
+    }
+    return {
+      patch: [
+        status ? `Git status:\n${status}` : null,
+        diffOutput ? `Diff:\n${diffOutput}` : 'Diff:\nNo tracked file diff.',
+      ]
+        .filter(Boolean)
+        .join('\n\n'),
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     return { patch: `Unable to read git diff: ${message}` }
