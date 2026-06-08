@@ -88,6 +88,7 @@ const PERMISSION_MODE_OPTIONS: Array<{
     detail: 'Skip permission prompts for this session.',
   },
 ]
+const DESKTOP_SETTINGS_STORAGE_KEY = 'claude-code-desktop-settings'
 
 declare global {
   interface Window {
@@ -115,7 +116,7 @@ export function App(): React.ReactNode {
     DesktopPermissionRequest[]
   >([])
   const [permissionMode, setPermissionMode] =
-    useState<DesktopPermissionMode>('default')
+    useState<DesktopPermissionMode>(() => readStoredPermissionMode())
   const [showSettings, setShowSettings] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [input, setInput] = useState('')
@@ -126,6 +127,10 @@ export function App(): React.ReactNode {
     )
     return window.desktopApi.onAgentEvent(handleAgentEvent)
   }, [])
+
+  useEffect(() => {
+    storePermissionMode(permissionMode)
+  }, [permissionMode])
 
   async function runDesktopAction<T>(action: () => Promise<T>): Promise<T | null> {
     try {
@@ -810,4 +815,34 @@ export function App(): React.ReactNode {
       </aside>
     </main>
   )
+}
+
+function readStoredPermissionMode(): DesktopPermissionMode {
+  try {
+    const raw = window.localStorage.getItem(DESKTOP_SETTINGS_STORAGE_KEY)
+    if (!raw) {
+      return 'default'
+    }
+    const parsed = JSON.parse(raw) as { permissionMode?: unknown }
+    return isDesktopPermissionMode(parsed.permissionMode)
+      ? parsed.permissionMode
+      : 'default'
+  } catch {
+    return 'default'
+  }
+}
+
+function storePermissionMode(permissionMode: DesktopPermissionMode): void {
+  try {
+    window.localStorage.setItem(
+      DESKTOP_SETTINGS_STORAGE_KEY,
+      JSON.stringify({ permissionMode }),
+    )
+  } catch {
+    // Ignore storage failures; the setting still applies to this renderer run.
+  }
+}
+
+function isDesktopPermissionMode(value: unknown): value is DesktopPermissionMode {
+  return PERMISSION_MODE_OPTIONS.some(option => option.value === value)
 }
