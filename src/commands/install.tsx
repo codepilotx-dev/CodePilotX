@@ -298,7 +298,7 @@ function Install({ onDone, force, target }: InstallProps): React.ReactNode {
 export const install = {
   type: 'local-jsx' as const,
   name: 'install',
-  description: 'Install Oh-My-AgentCode native build',
+  description: '安装 Oh-My-AgentCode native build',
   argumentHint: '[options]',
   async call(
     onDone: (

@@ -33,8 +33,7 @@ export function Opus1mMergeNotice(): React.ReactNode {
     <Box paddingLeft={2}>
       <AnimatedAsterisk char={UP_ARROW} />
       <Text dimColor>
-        {' '}
-        Opus now defaults to 1M context · 5x more room, same pricing
+        {' '}Opus 现在默认使用 100 万上下文 · 空间增加 5 倍，价格不变
       </Text>
     </Box>
   )

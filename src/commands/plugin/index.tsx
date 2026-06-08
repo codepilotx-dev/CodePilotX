@@ -4,7 +4,7 @@ const plugin = {
   type: 'local-jsx',
   name: 'plugin',
   aliases: ['plugins', 'marketplace'],
-  description: 'Manage Oh-My-AgentCode plugins',
+  description: '管理 Oh-My-AgentCode plugins',
   immediate: true,
   load: () => import('./plugin.js'),
 } satisfies Command

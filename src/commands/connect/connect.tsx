@@ -105,12 +105,12 @@ function ConnectProvider({
             {
               value: 'custom',
               label: 'Custom gateway',
-              description: 'Set a custom OpenAI-compatible base URL',
+              description: '设置自定义 OpenAI-compatible base URL',
             },
             {
               value: 'anthropic',
               label: 'Anthropic',
-              description: 'Use the built-in Anthropic adapter',
+              description: '使用内置 Anthropic adapter',
             },
           ]}
           onChange={value => {

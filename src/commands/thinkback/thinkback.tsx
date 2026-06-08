@@ -321,31 +321,31 @@ function ThinkbackMenu({
   const options = hasGenerated
     ? [
         {
-          label: 'Play animation',
+          label: '播放动画',
           value: 'play' as const,
-          description: 'Watch your year in review',
+          description: '观看你的年度回顾',
         },
         {
-          label: 'Edit content',
+          label: '编辑内容',
           value: 'edit' as const,
-          description: 'Modify the animation',
+          description: '修改动画',
         },
         {
-          label: 'Fix errors',
+          label: '修复错误',
           value: 'fix' as const,
-          description: 'Fix validation or rendering issues',
+          description: '修复验证或渲染问题',
         },
         {
-          label: 'Regenerate',
+          label: '重新生成',
           value: 'regenerate' as const,
-          description: 'Create a new animation from scratch',
+          description: '从头创建新动画',
         },
       ]
     : [
         {
-          label: "Let's go!",
+          label: '开始！',
           value: 'regenerate' as const,
-          description: 'Generate your personalized animation',
+          description: '生成你的个性化动画',
         },
       ]
 

@@ -4,7 +4,7 @@ const status = {
   type: 'local-jsx',
   name: 'status',
   description:
-    'Show Oh-My-AgentCode status including version, model, account, API connectivity, and tool statuses',
+    '显示 Oh-My-AgentCode 状态，包括版本、模型、账号、API 连接和工具状态',
   immediate: true,
   load: () => import('./status.js'),
 } satisfies Command

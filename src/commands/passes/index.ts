@@ -10,9 +10,9 @@ export default {
   get description() {
     const reward = getCachedReferrerReward()
     if (reward) {
-      return 'Share a free week of Oh-My-AgentCode with friends and earn extra usage'
+      return '与朋友分享一周免费 Oh-My-AgentCode，并获得额外用量'
     }
-    return 'Share a free week of Oh-My-AgentCode with friends'
+    return '与朋友分享一周免费 Oh-My-AgentCode'
   },
   get isHidden() {
     const { eligible, hasCache } = checkCachedPassesEligibility()

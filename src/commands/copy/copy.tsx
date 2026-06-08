@@ -139,9 +139,9 @@ function CopyPicker({
 
   const options: OptionWithDescription<PickerSelection>[] = [
     {
-      label: 'Full response',
+      label: '完整回复',
       value: 'full' as const,
-      description: `${fullText.length} chars, ${countCharInString(fullText, '\n') + 1} lines`,
+      description: `${fullText.length} 个字符，${countCharInString(fullText, '\n') + 1} 行`,
     },
     ...codeBlocks.map((block, index) => {
       const blockLines = countCharInString(block.code, '\n') + 1
@@ -149,15 +149,15 @@ function CopyPicker({
         label: truncateLine(block.code, 60),
         value: index,
         description:
-          [block.lang, blockLines > 1 ? `${blockLines} lines` : undefined]
+          [block.lang, blockLines > 1 ? `${blockLines} 行` : undefined]
             .filter(Boolean)
             .join(', ') || undefined,
       }
     }),
     {
-      label: 'Always copy full response',
+      label: '始终复制完整回复',
       value: 'always' as const,
-      description: 'Skip this picker in the future (revert via /config)',
+      description: '以后跳过此选择器（可通过 /config 恢复）',
     },
   ]
 

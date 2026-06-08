@@ -19,21 +19,21 @@ const command = {
       icon = currentlyEnabled ? figures.tick : figures.circle
     }
 
-    let statusText = 'sandbox disabled'
+    let statusText = 'sandbox 已禁用'
     if (currentlyEnabled) {
       statusText = autoAllow
-        ? 'sandbox enabled (auto-allow)'
-        : 'sandbox enabled'
+        ? 'sandbox 已启用（自动允许）'
+        : 'sandbox 已启用'
 
       // Add unsandboxed fallback status
-      statusText += allowUnsandboxed ? ', fallback allowed' : ''
+      statusText += allowUnsandboxed ? '，允许 fallback' : ''
     }
 
     if (isLocked) {
-      statusText += ' (managed)'
+      statusText += '（托管）'
     }
 
-    return `${icon} ${statusText} (⏎ to configure)`
+    return `${icon} ${statusText}（⏎ 配置）`
   },
   argumentHint: 'exclude "command pattern"',
   get isHidden() {
