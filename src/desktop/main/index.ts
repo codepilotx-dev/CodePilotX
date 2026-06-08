@@ -97,6 +97,19 @@ function rendererUrl(): string {
   return `file://${join(__dirname, '../renderer/index.html').replace(/\\/g, '/')}`
 }
 
+function getAgentExecutablePath(): string {
+  if (app.isPackaged) {
+    return join(
+      process.resourcesPath,
+      'app.asar.unpacked',
+      'dist',
+      'desktop-agent',
+      'claude-local.exe',
+    )
+  }
+  return join(__dirname, '..', '..', 'desktop-agent', 'claude-local.exe')
+}
+
 function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1440,
@@ -238,7 +251,9 @@ async function getWorkspaceDiff(
 async function createSession(
   options: CreateDesktopSessionOptions,
 ): Promise<CreateDesktopSessionResult> {
-  const session = createDesktopAgentSession(options)
+  const session = createDesktopAgentSession(options, {
+    agentExecutablePath: getAgentExecutablePath(),
+  })
   sessions.set(session.sessionId, session)
   session.on('event', emitAgentEvent)
   return { sessionId: session.sessionId }

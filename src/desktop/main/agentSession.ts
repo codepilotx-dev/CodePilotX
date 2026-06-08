@@ -21,6 +21,10 @@ type PendingPermission = {
   resolve: (decision: DesktopPermissionDecision) => void
 }
 
+export type DesktopAgentSessionRuntimeOptions = {
+  agentExecutablePath?: string
+}
+
 export type DesktopAgentSession = {
   sessionId: string
   workspacePath: string
@@ -52,12 +56,16 @@ class LocalDesktopAgentSession
   private readonly pendingPermissions = new Map<string, PendingPermission>()
   private readonly runtime: DesktopAgentRuntime
 
-  constructor(options: CreateDesktopSessionOptions) {
+  constructor(
+    options: CreateDesktopSessionOptions,
+    runtimeOptions: DesktopAgentSessionRuntimeOptions,
+  ) {
     super()
     this.workspacePath = options.workspacePath
     this.runtime = createDesktopAgentRuntime({
       sessionId: this.sessionId,
       workspacePath: this.workspacePath,
+      agentExecutablePath: runtimeOptions.agentExecutablePath,
       emit: event => this.emit(event),
       requestPermission: request => this.requestPermission(request),
     })
@@ -183,6 +191,7 @@ class LocalDesktopAgentSession
 
 export function createDesktopAgentSession(
   options: CreateDesktopSessionOptions,
+  runtimeOptions: DesktopAgentSessionRuntimeOptions = {},
 ): DesktopAgentSession {
-  return new LocalDesktopAgentSession(options)
+  return new LocalDesktopAgentSession(options, runtimeOptions)
 }
