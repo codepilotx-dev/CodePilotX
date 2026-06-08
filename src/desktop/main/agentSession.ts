@@ -71,13 +71,15 @@ class LocalDesktopAgentSession
       fallbackModel: options.fallbackModel,
       sessionName: options.sessionName,
       thinkingMode: options.thinkingMode,
+      systemPrompt: options.systemPrompt,
+      appendSystemPrompt: options.appendSystemPrompt,
       emit: event => this.emit(event),
       requestPermission: request => this.requestPermission(request),
     })
     this.emitStatus('idle')
     this.emitMessage(
       'system',
-      `Workspace attached: ${options.workspacePath} (${options.sessionName ?? 'untitled'} session, ${options.permissionMode ?? 'default'} permissions, ${options.model ?? 'default'} model, ${options.fallbackModel ?? 'none'} fallback, ${options.thinkingMode ?? 'default'} thinking)`,
+      `Workspace attached: ${options.workspacePath} (${options.sessionName ?? 'untitled'} session, ${options.permissionMode ?? 'default'} permissions, ${options.model ?? 'default'} model, ${options.fallbackModel ?? 'none'} fallback, ${options.thinkingMode ?? 'default'} thinking, ${options.systemPrompt ? 'custom' : 'default'} system prompt)`,
     )
   }
 

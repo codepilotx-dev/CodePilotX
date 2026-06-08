@@ -19,6 +19,8 @@ export type DesktopAgentRuntimeContext = {
   fallbackModel?: string
   sessionName?: string
   thinkingMode?: DesktopThinkingMode
+  systemPrompt?: string
+  appendSystemPrompt?: string
   emit(event: DesktopAgentEvent): void
   requestPermission(request: DesktopPermissionRequest): Promise<DesktopPermissionDecision>
 }
@@ -74,6 +76,8 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
         ...fallbackModelArgs(this.context.fallbackModel),
         ...sessionNameArgs(this.context.sessionName),
         ...thinkingModeArgs(this.context.thinkingMode),
+        ...systemPromptArgs(this.context.systemPrompt),
+        ...appendSystemPromptArgs(this.context.appendSystemPrompt),
       ],
       {
         cwd: this.context.workspacePath,
@@ -408,6 +412,18 @@ function thinkingModeArgs(
 ): string[] {
   return thinkingMode && thinkingMode !== 'default'
     ? ['--thinking', thinkingMode]
+    : []
+}
+
+function systemPromptArgs(systemPrompt: string | undefined): string[] {
+  return systemPrompt ? ['--system-prompt', systemPrompt] : []
+}
+
+function appendSystemPromptArgs(
+  appendSystemPrompt: string | undefined,
+): string[] {
+  return appendSystemPrompt
+    ? ['--append-system-prompt', appendSystemPrompt]
     : []
 }
 

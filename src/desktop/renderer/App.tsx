@@ -42,6 +42,8 @@ type SessionListItem = {
   model: string | null
   fallbackModel: string | null
   thinkingMode: DesktopThinkingMode
+  hasSystemPrompt: boolean
+  hasAppendSystemPrompt: boolean
   status: DesktopSessionStatus
   createdAt: string
 }
@@ -112,6 +114,8 @@ type StoredDesktopSettings = {
   fallbackModel: string
   sessionName: string
   thinkingMode: DesktopThinkingMode
+  systemPrompt: string
+  appendSystemPrompt: string
   recentWorkspaces: DesktopWorkspace[]
 }
 
@@ -153,6 +157,12 @@ export function App(): React.ReactNode {
   const [thinkingMode, setThinkingMode] = useState<DesktopThinkingMode>(
     initialDesktopSettings.thinkingMode,
   )
+  const [systemPrompt, setSystemPrompt] = useState(
+    initialDesktopSettings.systemPrompt,
+  )
+  const [appendSystemPrompt, setAppendSystemPrompt] = useState(
+    initialDesktopSettings.appendSystemPrompt,
+  )
   const [recentWorkspaces, setRecentWorkspaces] = useState<DesktopWorkspace[]>(
     initialDesktopSettings.recentWorkspaces,
   )
@@ -177,6 +187,8 @@ export function App(): React.ReactNode {
       fallbackModel,
       sessionName,
       thinkingMode,
+      systemPrompt,
+      appendSystemPrompt,
       recentWorkspaces,
     })
   }, [
@@ -185,6 +197,8 @@ export function App(): React.ReactNode {
     fallbackModel,
     sessionName,
     thinkingMode,
+    systemPrompt,
+    appendSystemPrompt,
     recentWorkspaces,
   ])
 
@@ -447,6 +461,8 @@ export function App(): React.ReactNode {
         fallbackModel: normalizeOptionalText(fallbackModel),
         sessionName: normalizeOptionalText(sessionName),
         thinkingMode,
+        systemPrompt: normalizeOptionalText(systemPrompt),
+        appendSystemPrompt: normalizeOptionalText(appendSystemPrompt),
       }),
     )
     if (!session) return
@@ -465,6 +481,8 @@ export function App(): React.ReactNode {
         model: normalizeOptionalText(model) ?? null,
         fallbackModel: normalizeOptionalText(fallbackModel) ?? null,
         thinkingMode,
+        hasSystemPrompt: Boolean(normalizeOptionalText(systemPrompt)),
+        hasAppendSystemPrompt: Boolean(normalizeOptionalText(appendSystemPrompt)),
         status: 'idle',
         createdAt: new Date().toLocaleTimeString(),
       },
@@ -582,6 +600,10 @@ export function App(): React.ReactNode {
           sessionStatus !== 'waiting',
       ),
     [input, sessionId, sessionStatus],
+  )
+  const activeSessionItem = useMemo(
+    () => sessions.find(session => session.id === sessionId) ?? null,
+    [sessions, sessionId],
   )
   const activePermissionRequest = pendingPermissions[0] ?? null
 
@@ -708,7 +730,11 @@ export function App(): React.ReactNode {
                       {session.status} - {session.permissionMode} -{' '}
                       {session.model ?? 'default model'} - fallback{' '}
                       {session.fallbackModel ?? 'none'} - {session.thinkingMode}{' '}
-                      thinking - {session.createdAt}
+                      thinking - prompt{' '}
+                      {session.hasSystemPrompt || session.hasAppendSystemPrompt
+                        ? 'custom'
+                        : 'default'}{' '}
+                      - {session.createdAt}
                     </small>
                   </button>
                   <button
@@ -921,6 +947,26 @@ export function App(): React.ReactNode {
                 </select>
                 <small>Default leaves the CLI thinking setting unchanged.</small>
               </label>
+              <label className="setting-field">
+                <span>System prompt for new sessions</span>
+                <textarea
+                  value={systemPrompt}
+                  onChange={event => setSystemPrompt(event.target.value)}
+                  placeholder="replace the default system prompt"
+                />
+                <small>Leave blank to use the CLI default system prompt.</small>
+              </label>
+              <label className="setting-field">
+                <span>Append system prompt for new sessions</span>
+                <textarea
+                  value={appendSystemPrompt}
+                  onChange={event =>
+                    setAppendSystemPrompt(event.target.value)
+                  }
+                  placeholder="extra instructions appended to the session"
+                />
+                <small>Leave blank to avoid appending extra instructions.</small>
+              </label>
               <p>Auth: {authStatus?.method ?? 'unknown'}</p>
               <p>User: {authStatus?.email ?? 'not signed in'}</p>
               <div className="setting-runtime">
@@ -943,28 +989,28 @@ export function App(): React.ReactNode {
               <p>Active session: {sessionId ?? 'none'}</p>
               <p>
                 Active name:{' '}
-                {sessions.find(session => session.id === sessionId)
-                  ?.sessionName ?? 'none'}
+                {activeSessionItem?.sessionName ?? 'none'}
               </p>
               <p>
-                Active mode:{' '}
-                {sessions.find(session => session.id === sessionId)
-                  ?.permissionMode ?? 'none'}
+                Active mode: {activeSessionItem?.permissionMode ?? 'none'}
               </p>
               <p>
-                Active model:{' '}
-                {sessions.find(session => session.id === sessionId)?.model ??
-                  'none'}
+                Active model: {activeSessionItem?.model ?? 'none'}
               </p>
               <p>
                 Active fallback:{' '}
-                {sessions.find(session => session.id === sessionId)
-                  ?.fallbackModel ?? 'none'}
+                {activeSessionItem?.fallbackModel ?? 'none'}
               </p>
               <p>
                 Active thinking:{' '}
-                {sessions.find(session => session.id === sessionId)
-                  ?.thinkingMode ?? 'none'}
+                {activeSessionItem?.thinkingMode ?? 'none'}
+              </p>
+              <p>
+                Active prompt:{' '}
+                {activeSessionItem?.hasSystemPrompt ||
+                activeSessionItem?.hasAppendSystemPrompt
+                  ? 'custom'
+                  : 'default'}
               </p>
             </div>
           </section>
@@ -1012,6 +1058,8 @@ function readStoredDesktopSettings(): StoredDesktopSettings {
       fallbackModel?: unknown
       sessionName?: unknown
       thinkingMode?: unknown
+      systemPrompt?: unknown
+      appendSystemPrompt?: unknown
       recentWorkspaces?: unknown
     }
     return {
@@ -1026,6 +1074,12 @@ function readStoredDesktopSettings(): StoredDesktopSettings {
       thinkingMode: isDesktopThinkingMode(parsed.thinkingMode)
         ? parsed.thinkingMode
         : 'default',
+      systemPrompt:
+        typeof parsed.systemPrompt === 'string' ? parsed.systemPrompt : '',
+      appendSystemPrompt:
+        typeof parsed.appendSystemPrompt === 'string'
+          ? parsed.appendSystemPrompt
+          : '',
       recentWorkspaces: parseStoredRecentWorkspaces(parsed.recentWorkspaces),
     }
   } catch {
@@ -1051,6 +1105,8 @@ function defaultDesktopSettings(): StoredDesktopSettings {
     fallbackModel: '',
     sessionName: '',
     thinkingMode: 'default',
+    systemPrompt: '',
+    appendSystemPrompt: '',
     recentWorkspaces: [],
   }
 }

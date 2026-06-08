@@ -367,6 +367,8 @@ async function createSession(
   const fallbackModel = normalizeOptionalText(options.fallbackModel)
   const sessionName = normalizeOptionalText(options.sessionName)
   const thinkingMode = normalizeThinkingMode(options.thinkingMode)
+  const systemPrompt = normalizeOptionalText(options.systemPrompt)
+  const appendSystemPrompt = normalizeOptionalText(options.appendSystemPrompt)
   const session = createDesktopAgentSession(
     {
       workspacePath,
@@ -375,6 +377,8 @@ async function createSession(
       fallbackModel,
       sessionName,
       thinkingMode,
+      systemPrompt,
+      appendSystemPrompt,
     },
     {
       agentExecutablePath: getAgentExecutablePath(),

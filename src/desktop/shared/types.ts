@@ -78,6 +78,8 @@ export type CreateDesktopSessionOptions = {
   fallbackModel?: string
   sessionName?: string
   thinkingMode?: DesktopThinkingMode
+  systemPrompt?: string
+  appendSystemPrompt?: string
 }
 
 export type CreateDesktopSessionResult = {

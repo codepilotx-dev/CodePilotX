@@ -204,6 +204,11 @@ p {
   line-height: 1.35;
 }
 
+.setting-field textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
 .setting-runtime {
   display: grid;
   gap: 5px;
