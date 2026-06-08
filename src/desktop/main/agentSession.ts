@@ -131,7 +131,10 @@ class LocalDesktopAgentSession
   }
 
   async interrupt(): Promise<void> {
-    this.currentAbortController?.abort()
+    if (!this.currentAbortController) {
+      return
+    }
+    this.currentAbortController.abort()
     this.emitStatus('done')
     this.emit({ type: 'done', sessionId: this.sessionId })
   }
