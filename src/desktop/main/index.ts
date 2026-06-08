@@ -150,6 +150,13 @@ function createWindow(): void {
     },
   })
 
+  mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    if (url !== rendererUrl()) {
+      event.preventDefault()
+    }
+  })
+
   void mainWindow.loadURL(rendererUrl())
   mainWindow.on('closed', () => {
     mainWindow = null
