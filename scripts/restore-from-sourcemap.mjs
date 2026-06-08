@@ -8,7 +8,7 @@ const SOURCE_DIR = path.join(ROOT, 'src');
 const INCLUDED_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx']);
 const SKIP_DIRS = new Set(['dist', 'node_modules', 'src/types/generated']);
 const MAP_COMMENT_RE =
-  /(?:\/\/|\/\/@) sourceMappingURL=data:application\/json(?:;charset=utf-8)?;base64,([A-Za-z0-9+/=]+)/;
+  /\/\/(?:@|#)?\s*sourceMappingURL=data:application\/json(?:;[^,]+)?;base64,([A-Za-z0-9+/=]+)/;
 
 const flags = new Set(process.argv.slice(2));
 const dryRun = flags.has('--dry-run') || flags.has('-n');
