@@ -1335,7 +1335,7 @@ async function run(): Promise<CommanderCommand> {
       },
     )
     .addOption(
-      new Option('-d2e, --debug-to-stderr', 'Enable debug mode (to stderr)')
+      new Option('--debug-to-stderr', 'Enable debug mode (to stderr)')
         .argParser(Boolean)
         .hideHelp(),
     )
