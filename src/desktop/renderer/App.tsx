@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   FolderOpen,
   LogIn,
@@ -6,6 +6,7 @@ import {
   RefreshCw,
   Send,
   Settings,
+  Plus,
   Square,
 } from 'lucide-react'
 import type {
@@ -24,6 +25,14 @@ type Message = {
   streaming?: boolean
 }
 
+type SessionListItem = {
+  id: string
+  workspaceName: string
+  workspacePath: string
+  status: DesktopSessionStatus
+  createdAt: string
+}
+
 declare global {
   interface Window {
     desktopApi: import('../shared/types.js').DesktopApi
@@ -34,8 +43,10 @@ export function App(): React.ReactNode {
   const [authStatus, setAuthStatus] = useState<DesktopAuthStatus | null>(null)
   const [workspace, setWorkspace] = useState<DesktopWorkspace | null>(null)
   const [sessionId, setSessionId] = useState<string | null>(null)
+  const activeSessionIdRef = useRef<string | null>(null)
   const [sessionStatus, setSessionStatus] =
     useState<DesktopSessionStatus>('idle')
+  const [sessions, setSessions] = useState<SessionListItem[]>([])
   const [messages, setMessages] = useState<Message[]>([])
   const [toolLog, setToolLog] = useState<string[]>([])
   const [files, setFiles] = useState<DesktopFileEntry[]>([])
@@ -43,6 +54,7 @@ export function App(): React.ReactNode {
   const [pendingPermissions, setPendingPermissions] = useState<
     DesktopPermissionRequest[]
   >([])
+  const [showSettings, setShowSettings] = useState(false)
   const [input, setInput] = useState('')
 
   useEffect(() => {
@@ -52,7 +64,19 @@ export function App(): React.ReactNode {
 
   function handleAgentEvent(event: DesktopAgentEvent): void {
     if (event.type === 'status') {
-      setSessionStatus(event.status)
+      setSessions(current =>
+        current.map(session =>
+          session.id === event.sessionId
+            ? { ...session, status: event.status }
+            : session,
+        ),
+      )
+      if (event.sessionId === activeSessionIdRef.current) {
+        setSessionStatus(event.status)
+      }
+      return
+    }
+    if (event.sessionId !== activeSessionIdRef.current) {
       return
     }
     if (event.type === 'message') {
@@ -119,6 +143,13 @@ export function App(): React.ReactNode {
     }
     if (event.type === 'done') {
       setSessionStatus('done')
+      setSessions(current =>
+        current.map(session =>
+          session.id === event.sessionId
+            ? { ...session, status: 'done' }
+            : session,
+        ),
+      )
       setMessages(current =>
         current.map(message =>
           message.streaming ? { ...message, streaming: false } : message,
@@ -137,15 +168,41 @@ export function App(): React.ReactNode {
     setDiff(nextDiff.patch)
   }
 
+  function activateSession(nextSessionId: string): void {
+    activeSessionIdRef.current = nextSessionId
+    setSessionId(nextSessionId)
+  }
+
   async function chooseWorkspace(): Promise<void> {
     const selected = await window.desktopApi.chooseWorkspace()
     if (!selected) return
     setWorkspace(selected)
     await refreshWorkspace(selected)
+    await createSessionForWorkspace(selected)
+  }
+
+  async function createSessionForWorkspace(
+    target = workspace,
+  ): Promise<void> {
+    if (!target) return
     const session = await window.desktopApi.createSession({
-      workspacePath: selected.path,
+      workspacePath: target.path,
     })
-    setSessionId(session.sessionId)
+    activateSession(session.sessionId)
+    setSessionStatus('idle')
+    setMessages([])
+    setToolLog([])
+    setPendingPermissions([])
+    setSessions(current => [
+      {
+        id: session.sessionId,
+        workspaceName: target.name,
+        workspacePath: target.path,
+        status: 'idle',
+        createdAt: new Date().toLocaleTimeString(),
+      },
+      ...current,
+    ])
   }
 
   async function login(): Promise<void> {
@@ -209,12 +266,51 @@ export function App(): React.ReactNode {
             <RefreshCw size={15} />
             <span>Refresh</span>
           </button>
+          <button
+            onClick={() => void createSessionForWorkspace()}
+            disabled={!workspace}
+          >
+            <Plus size={15} />
+            <span>New session</span>
+          </button>
         </section>
 
         <section className="panel">
-          <h2>Session</h2>
-          <p>{sessionId ?? 'No active session'}</p>
-          <span className="status-pill">{sessionStatus}</span>
+          <h2>Sessions</h2>
+          {sessions.length === 0 ? (
+            <p>No sessions yet.</p>
+          ) : (
+            <div className="session-list">
+              {sessions.map(session => (
+                <button
+                  className={
+                    session.id === sessionId
+                      ? 'session-row active'
+                      : 'session-row'
+                  }
+                  key={session.id}
+                  onClick={() => {
+                    activateSession(session.id)
+                    setSessionStatus(session.status)
+                    setWorkspace({
+                      name: session.workspaceName,
+                      path: session.workspacePath,
+                    })
+                    setMessages([])
+                    setToolLog([])
+                    setPendingPermissions([])
+                    void refreshWorkspace({
+                      name: session.workspaceName,
+                      path: session.workspacePath,
+                    })
+                  }}
+                >
+                  <span>{session.workspaceName}</span>
+                  <small>{session.status} - {session.createdAt}</small>
+                </button>
+              ))}
+            </div>
+          )}
         </section>
       </aside>
 
@@ -229,7 +325,7 @@ export function App(): React.ReactNode {
               <LogIn size={17} />
               <span>{authStatus?.authenticated ? 'Signed in' : 'Sign in'}</span>
             </button>
-            <button>
+            <button onClick={() => setShowSettings(value => !value)}>
               <Settings size={17} />
             </button>
           </div>
@@ -328,6 +424,17 @@ export function App(): React.ReactNode {
             )}
           </div>
         </section>
+        {showSettings ? (
+          <section>
+            <h2>Settings</h2>
+            <div className="settings-list">
+              <p>Auth: {authStatus?.method ?? 'unknown'}</p>
+              <p>User: {authStatus?.email ?? 'not signed in'}</p>
+              <p>Workspace: {workspace?.path ?? 'none'}</p>
+              <p>Active session: {sessionId ?? 'none'}</p>
+            </div>
+          </section>
+        ) : null}
         <section>
           <h2>Tool log</h2>
           <div className="tool-log">

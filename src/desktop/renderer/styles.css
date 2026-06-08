@@ -121,9 +121,46 @@ p {
 
 .file-list,
 .permission-list,
+.session-list,
+.settings-list,
 .tool-log {
   display: grid;
   gap: 6px;
+}
+
+.session-row {
+  align-items: flex-start;
+  display: grid;
+  gap: 2px;
+  height: auto;
+  justify-items: start;
+  min-height: 46px;
+  overflow: hidden;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.session-row.active {
+  background: #dfe9ed;
+  border-color: #8ea6af;
+}
+
+.session-row span,
+.session-row small {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-row span {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.session-row small {
+  color: #6b6f66;
+  font-size: 11px;
 }
 
 .file-row {
