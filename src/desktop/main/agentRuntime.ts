@@ -424,9 +424,13 @@ class DryRunDesktopAgentRuntime implements DesktopAgentRuntime {
 function permissionModeArgs(
   permissionMode: DesktopPermissionMode | undefined,
 ): string[] {
-  return permissionMode && permissionMode !== 'default'
-    ? ['--permission-mode', permissionMode]
-    : []
+  if (!permissionMode || permissionMode === 'default') {
+    return []
+  }
+  if (permissionMode === 'bypassPermissions') {
+    return ['--dangerously-skip-permissions']
+  }
+  return ['--permission-mode', permissionMode]
 }
 
 function summarizeToolInput(toolName: string, input: unknown): string {
