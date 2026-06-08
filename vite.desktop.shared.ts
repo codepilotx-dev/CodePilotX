@@ -1,8 +1,16 @@
 import { builtinModules } from 'node:module'
+import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import type { UserConfig } from 'vite'
 
 const root = resolve(__dirname)
+const packageJson = JSON.parse(
+  readFileSync(resolve(root, 'package.json'), 'utf8'),
+) as {
+  dependencies?: Record<string, string>
+  optionalDependencies?: Record<string, string>
+  devDependencies?: Record<string, string>
+}
 
 export const desktopOutDir = resolve(root, 'dist/desktop')
 
@@ -29,7 +37,17 @@ const external = [
   'electron',
   ...builtinModules,
   ...builtinModules.map(mod => `node:${mod}`),
+  ...Object.keys(packageJson.dependencies ?? {}),
+  ...Object.keys(packageJson.optionalDependencies ?? {}),
+  ...Object.keys(packageJson.devDependencies ?? {}),
 ]
+
+function isExternalDependency(id: string): boolean {
+  return external.some(externalId => {
+    if (id === externalId) return true
+    return id.startsWith(`${externalId}/`)
+  })
+}
 
 export function nodeDesktopBuild(
   entry: string,
@@ -50,7 +68,7 @@ export function nodeDesktopBuild(
         fileName: () => `${name}.js`,
       },
       rollupOptions: {
-        external,
+        external: isExternalDependency,
       },
     },
   }

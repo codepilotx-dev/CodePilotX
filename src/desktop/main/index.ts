@@ -4,6 +4,26 @@ import { readdir } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
+import { fetchAndStoreClaudeCodeFirstTokenDate } from '../../services/api/firstTokenDate.js'
+import {
+  createAndStoreApiKey,
+  fetchAndStoreUserRoles,
+  shouldUseClaudeAIAuth,
+  storeOAuthAccountInfo,
+} from '../../services/oauth/client.js'
+import { getOauthProfileFromOauthToken } from '../../services/oauth/getOauthProfile.js'
+import { OAuthService } from '../../services/oauth/index.js'
+import type { OAuthTokens } from '../../services/oauth/types.js'
+import {
+  clearOAuthTokenCache,
+  getAuthTokenSource,
+  getOauthAccountInfo,
+  hasAnthropicApiKeyAuth,
+  saveOAuthTokensIfNeeded,
+  validateForceLoginOrg,
+} from '../../utils/auth.js'
+import { saveGlobalConfig } from '../../utils/config.js'
+import { getInitialSettings } from '../../utils/settings/settings.js'
 import {
   createDesktopAgentSession,
   type DesktopAgentSession,
@@ -30,6 +50,45 @@ const IGNORED_DIRECTORY_NAMES = new Set([
   'bun_cache',
   'release',
 ])
+
+async function installDesktopOAuthTokens(tokens: OAuthTokens): Promise<void> {
+  const profile =
+    tokens.profile ?? (await getOauthProfileFromOauthToken(tokens.accessToken))
+
+  if (profile) {
+    storeOAuthAccountInfo({
+      accountUuid: profile.account.uuid,
+      emailAddress: profile.account.email,
+      organizationUuid: profile.organization.uuid,
+      displayName: profile.account.display_name || undefined,
+      hasExtraUsageEnabled:
+        profile.organization.has_extra_usage_enabled ?? undefined,
+      billingType: profile.organization.billing_type ?? undefined,
+      subscriptionCreatedAt:
+        profile.organization.subscription_created_at ?? undefined,
+      accountCreatedAt: profile.account.created_at,
+    })
+  } else if (tokens.tokenAccount) {
+    storeOAuthAccountInfo({
+      accountUuid: tokens.tokenAccount.uuid,
+      emailAddress: tokens.tokenAccount.emailAddress,
+      organizationUuid: tokens.tokenAccount.organizationUuid,
+    })
+  }
+
+  saveOAuthTokensIfNeeded(tokens)
+  clearOAuthTokenCache()
+
+  await fetchAndStoreUserRoles(tokens.accessToken).catch(() => {})
+  if (shouldUseClaudeAIAuth(tokens.scopes)) {
+    await fetchAndStoreClaudeCodeFirstTokenDate().catch(() => {})
+  } else {
+    const apiKey = await createAndStoreApiKey(tokens.accessToken)
+    if (!apiKey) {
+      throw new Error('Unable to create API key for console authentication.')
+    }
+  }
+}
 
 let mainWindow: BrowserWindow | null = null
 const sessions = new Map<string, DesktopAgentSession>()
@@ -64,16 +123,52 @@ function emitAgentEvent(event: DesktopAgentEvent): void {
 }
 
 function getAuthStatus(): DesktopAuthStatus {
+  const tokenSource = getAuthTokenSource()
+  const account = getOauthAccountInfo()
+  const authenticated = tokenSource.hasToken || hasAnthropicApiKeyAuth()
+
   return {
-    authenticated: false,
-    method: 'none',
-    email: null,
-    organizationName: null,
+    authenticated,
+    method: authenticated ? tokenSource.source : 'none',
+    email: account?.emailAddress ?? null,
+    organizationName: account?.organizationName ?? null,
   }
 }
 
 async function login(): Promise<DesktopAuthStatus> {
-  await shell.openExternal('https://claude.ai/login')
+  const settings = getInitialSettings()
+  const loginWithClaudeAi = settings.forceLoginMethod
+    ? settings.forceLoginMethod === 'claudeai'
+    : true
+  const oauthService = new OAuthService()
+
+  try {
+    const tokens = await oauthService.startOAuthFlow(
+      async (manualUrl, automaticUrl) => {
+        await shell.openExternal(automaticUrl ?? manualUrl)
+      },
+      {
+        loginWithClaudeAi,
+        orgUUID: settings.forceLoginOrgUUID,
+        skipBrowserOpen: true,
+      },
+    )
+    await installDesktopOAuthTokens(tokens)
+
+    const orgResult = await validateForceLoginOrg()
+    if (!orgResult.valid) {
+      throw new Error(orgResult.message)
+    }
+
+    saveGlobalConfig(current =>
+      current.hasCompletedOnboarding
+        ? current
+        : { ...current, hasCompletedOnboarding: true },
+    )
+  } finally {
+    oauthService.cleanup()
+  }
+
   return getAuthStatus()
 }
 
