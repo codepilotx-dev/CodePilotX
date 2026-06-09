@@ -25,11 +25,7 @@ export function QuickChatView({
       className={hasMessages ? 'quick-chat-view active' : 'quick-chat-view'}
     >
       <div className="quick-chat-hero">
-        <h1>
-          {workspaceName
-            ? `我们应该在 ${workspaceName} 中构建什么？`
-            : '我们应该构建什么？'}
-        </h1>
+        <h1>我们该做什么？</h1>
         {hasMessages ? <p>当前状态：{translateStatus(sessionStatus)}</p> : null}
       </div>
 
