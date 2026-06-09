@@ -722,8 +722,44 @@ export function App(): React.ReactNode {
   const runtimeMissing = runtimeStatus?.agentExecutableExists === false
   const activePermissionRequest = pendingPermissions[0] ?? null
 
+  const authLabel = authStatus?.authenticated
+    ? authStatus.email ?? 'Signed in'
+    : 'Sign in'
+
   return (
-    <main className="desktop-shell">
+    <div className="desktop-frame">
+      <header className="app-titlebar">
+        <div className="app-titlebar-drag">
+          <span className="app-titlebar-mark">CC</span>
+          <div className="app-titlebar-copy">
+            <strong>ClaudeCode</strong>
+            <span>Local Desktop</span>
+          </div>
+          <div className="app-titlebar-divider" />
+          <div className="workspace-chip" title={workspace?.path}>
+            <span>{workspace?.name ?? 'No workspace selected'}</span>
+            <small>
+              {activeSessionItem
+                ? `${activeSessionItem.permissionMode} - ${sessionStatus}`
+                : 'Choose a workspace to start'}
+            </small>
+          </div>
+        </div>
+        <div className="app-titlebar-actions">
+          <button onClick={login}>
+            <LogIn size={16} />
+            <span>{authLabel}</span>
+          </button>
+          <button
+            className={showSettings ? 'icon-button active' : 'icon-button'}
+            onClick={() => setShowSettings(value => !value)}
+            title="Settings"
+          >
+            <Settings size={16} />
+          </button>
+        </div>
+      </header>
+      <main className="desktop-shell">
       {activePermissionRequest ? (
         <div className="permission-modal-backdrop">
           <section className="permission-modal">
@@ -761,14 +797,6 @@ export function App(): React.ReactNode {
         </div>
       ) : null}
       <aside className="sidebar">
-        <div className="brand">
-          <span className="brand-mark">CC</span>
-          <div>
-            <h1>ClaudeCode</h1>
-            <p>Local Desktop</p>
-          </div>
-        </div>
-
         <button className="primary-button" onClick={chooseWorkspace}>
           <FolderOpen size={18} />
           <span>Choose workspace</span>
@@ -879,13 +907,12 @@ export function App(): React.ReactNode {
             <p>{workspace?.name ?? 'Select a workspace to start'}</p>
           </div>
           <div className="topbar-actions">
-            <button onClick={login}>
-              <LogIn size={17} />
-              <span>{authStatus?.authenticated ? 'Signed in' : 'Sign in'}</span>
-            </button>
-            <button onClick={() => setShowSettings(value => !value)}>
-              <Settings size={17} />
-            </button>
+            {runtimeMissing ? (
+              <span className="status-pill warning">Runtime missing</span>
+            ) : null}
+            <span className={`status-pill status-${sessionStatus}`}>
+              {sessionStatus}
+            </span>
           </div>
         </header>
 
@@ -1176,7 +1203,8 @@ export function App(): React.ReactNode {
           </div>
         </section>
       </aside>
-    </main>
+      </main>
+    </div>
   )
 }
 

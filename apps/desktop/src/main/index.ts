@@ -22,7 +22,7 @@ import {
   saveOAuthTokensIfNeeded,
   validateForceLoginOrg,
 } from '@claudecode/core/utils/auth.js'
-import { saveGlobalConfig } from '@claudecode/core/utils/config.js'
+import { enableConfigs, saveGlobalConfig } from '@claudecode/core/utils/config.js'
 import { getInitialSettings } from '@claudecode/core/utils/settings/settings.js'
 import {
   createDesktopAgentSession,
@@ -142,6 +142,13 @@ function createWindow(): void {
     minWidth: 1080,
     minHeight: 720,
     title: 'ClaudeCode Local Desktop',
+    autoHideMenuBar: true,
+    titleBarStyle: 'hidden',
+    titleBarOverlay: {
+      color: '#eef0ea',
+      symbolColor: '#202124',
+      height: 44,
+    },
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
@@ -150,6 +157,7 @@ function createWindow(): void {
     },
   })
 
+  mainWindow.setMenuBarVisibility(false)
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
   mainWindow.webContents.on('will-navigate', (event, url) => {
     if (url !== rendererUrl()) {
@@ -604,6 +612,7 @@ function registerIpc(): void {
   }
 }
 
+enableConfigs()
 registerIpc()
 
 app.whenReady().then(() => {
