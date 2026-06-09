@@ -1,6 +1,6 @@
 import type React from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AlertCircle, PanelRightOpen, RefreshCw } from 'lucide-react'
+import { AlertCircle, RefreshCw } from 'lucide-react'
 import type {
   DesktopAgentEvent,
   DesktopAuthStatus,
@@ -23,12 +23,12 @@ import { AutomationView } from './components/AutomationView.js'
 import { ComposerCard } from './components/ComposerCard.js'
 import { ContextStrip } from './components/ContextStrip.js'
 import { DesktopShell } from './components/DesktopShell.js'
+import { DesktopSidebar } from './components/DesktopSidebar.js'
+import { MenuBar } from './components/MenuBar.js'
 import { PluginsView } from './components/PluginsView.js'
-import { ProjectList } from './components/ProjectList.js'
 import { QuickChatView } from './components/QuickChatView.js'
 import { RightDrawer } from './components/RightDrawer.js'
 import { SearchView } from './components/SearchView.js'
-import { SidebarNav } from './components/SidebarNav.js'
 import type {
   AppView,
   DrawerTab,
@@ -81,6 +81,10 @@ const THINKING_MODE_OPTIONS: Array<{
 ]
 
 const DESKTOP_SETTINGS_STORAGE_KEY = 'claude-code-desktop-settings'
+const SIDEBAR_WIDTH_STORAGE_KEY = 'layout.sidebarWidth'
+const SIDEBAR_MIN_RATIO = 0.12
+const SIDEBAR_MAX_RATIO = 0.2
+const DEFAULT_SIDEBAR_WIDTH = 250
 const MAX_RECENT_WORKSPACES = 5
 
 type StoredDesktopSettings = {
@@ -118,7 +122,8 @@ export function App(): React.ReactNode {
   const [messages, setMessages] = useState<Message[]>([])
   const [toolLog, setToolLog] = useState<ToolLogEntry[]>([])
   const [files, setFiles] = useState<DesktopFileEntry[]>([])
-  const [selectedFile, setSelectedFile] = useState<SessionViewState['selectedFile']>(null)
+  const [selectedFile, setSelectedFile] =
+    useState<SessionViewState['selectedFile']>(null)
   const [diff, setDiff] = useState('未选择项目。')
   const [pendingPermissions, setPendingPermissions] = useState<
     DesktopPermissionRequest[]
@@ -165,6 +170,13 @@ export function App(): React.ReactNode {
     ),
   )
   const [searchQuery, setSearchQuery] = useState('')
+  const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() =>
+    window.matchMedia('(max-width: 900px)').matches,
+  )
+  const [sidebarWidth, setSidebarWidthState] = useState(() =>
+    readStoredSidebarWidth(window.innerWidth),
+  )
 
   useEffect(() => {
     void runDesktopAction(() =>
@@ -177,6 +189,19 @@ export function App(): React.ReactNode {
       unsubscribeAgent()
       unsubscribeUi()
     }
+  }, [])
+
+  useEffect(() => {
+    function handleResize(): void {
+      const nextViewportWidth = window.innerWidth
+      setViewportWidth(nextViewportWidth)
+      setSidebarWidthState(current =>
+        clampSidebarWidth(current, nextViewportWidth),
+      )
+    }
+
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
   }, [])
 
   useEffect(() => {
@@ -462,9 +487,7 @@ export function App(): React.ReactNode {
 
   function refreshSessionWorkspace(targetSessionId: string): void {
     const target = sessionWorkspacesRef.current[targetSessionId]
-    if (!target) {
-      return
-    }
+    if (!target) return
     void refreshWorkspace(target, {
       clearErrorOnSuccess: false,
       clearSelectedFile: false,
@@ -520,9 +543,7 @@ export function App(): React.ReactNode {
     updater: (view: SessionViewState) => SessionViewState,
   ): void {
     const activeSessionId = activeSessionIdRef.current
-    if (!activeSessionId) {
-      return
-    }
+    if (!activeSessionId) return
     updateSessionView(activeSessionId, updater)
   }
 
@@ -578,14 +599,10 @@ export function App(): React.ReactNode {
     }
   }
 
-  async function createSessionForWorkspace(
-    target = workspace,
-  ): Promise<void> {
+  async function createSessionForWorkspace(target = workspace): Promise<void> {
     if (!target) return
     if (runtimeMissing) {
-      setErrorMessage(
-        '桌面端 agent 运行时缺失，请先构建 desktop agent。',
-      )
+      setErrorMessage('桌面端 agent 运行时缺失，请先构建 desktop agent。')
       return
     }
     const session = await runDesktopAction(() =>
@@ -643,7 +660,6 @@ export function App(): React.ReactNode {
     await chooseWorkspace()
   }
 
-
   async function refreshRuntimeStatus(): Promise<void> {
     const status = await runDesktopAction(() =>
       window.desktopApi.getRuntimeStatus(),
@@ -682,6 +698,12 @@ export function App(): React.ReactNode {
   function openDrawer(tab: DrawerTab): void {
     setDrawerTab(tab)
     setIsDrawerOpen(true)
+  }
+
+  function setSidebarWidth(nextWidth: number): void {
+    const clamped = clampSidebarWidth(nextWidth, viewportWidth)
+    setSidebarWidthState(clamped)
+    window.localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(clamped))
   }
 
   async function closeSession(targetSessionId: string): Promise<void> {
@@ -773,17 +795,13 @@ export function App(): React.ReactNode {
         return
       }
       const trimmed = customValue.trim()
-      if (!trimmed) {
-        return
-      }
+      if (!trimmed) return
       setModel(trimmed)
       setSelectedModelPreset(CUSTOM_MODEL_PRESET_ID)
       return
     }
     const preset = MODEL_PRESETS.find(item => item.id === nextPresetId)
-    if (!preset) {
-      return
-    }
+    if (!preset) return
     setSelectedModelPreset(nextPresetId)
     setModel(preset.value)
   }
@@ -813,9 +831,7 @@ export function App(): React.ReactNode {
 
   const filteredWorkspaces = useMemo(() => {
     const keyword = searchQuery.trim().toLowerCase()
-    if (!keyword) {
-      return recentWorkspaces
-    }
+    if (!keyword) return recentWorkspaces
     return recentWorkspaces.filter(item =>
       [item.name, item.path, item.branchName ?? '']
         .join(' ')
@@ -826,9 +842,7 @@ export function App(): React.ReactNode {
 
   const filteredSessions = useMemo(() => {
     const keyword = searchQuery.trim().toLowerCase()
-    if (!keyword) {
-      return sessions
-    }
+    if (!keyword) return sessions
     return sessions.filter(session =>
       [
         session.sessionName ?? '',
@@ -885,76 +899,75 @@ export function App(): React.ReactNode {
         />
       </label>
       <div className="setting-runtime">
-        <p>?????{authStatus?.method ?? '??'}</p>
-        <p>?????{authStatus?.email ?? '???????'}</p>
+        <p>认证方式：{authStatus?.method ?? '未知'}</p>
+        <p>账号：{authStatus?.email ?? '未登录'}</p>
         <p>
           Agent 运行时：
           {runtimeStatus?.agentExecutableExists ? '可用' : '缺失'}
         </p>
         <p>Agent 路径：{runtimeStatus?.agentExecutablePath ?? '检查中'}</p>
-        <button onClick={() => void refreshRuntimeStatus()}>
+        <button onClick={() => void refreshRuntimeStatus()} type="button">
           <RefreshCw size={15} />
           <span>刷新运行时</span>
         </button>
       </div>
       <div className="setting-runtime">
         <p>当前项目：{workspace?.path ?? '无'}</p>
-        <p>当前会话：{activeSessionItem?.sessionName ?? activeSessionItem?.workspaceName ?? '无'}</p>
+        <p>
+          当前会话：
+          {activeSessionItem?.sessionName ??
+            activeSessionItem?.workspaceName ??
+            '无'}
+        </p>
         <p>当前模型：{(activeSessionItem?.model ?? model) || '默认模型'}</p>
-        <p>当前推理：{THINKING_MODE_OPTIONS.find(option => option.value === thinkingMode)?.label}</p>
+        <p>
+          当前推理：
+          {
+            THINKING_MODE_OPTIONS.find(option => option.value === thinkingMode)
+              ?.label
+          }
+        </p>
       </div>
     </div>
   )
 
-  const topbar = (
-    <>
-      <div className="main-topbar-copy">
-        <h2>
-          {activeView === 'quickChat'
-            ? '快速对话'
-            : activeView === 'search'
-              ? '搜索'
-              : activeView === 'plugins'
-                ? '插件'
-                : '自动化'}
-        </h2>
-        <p>{workspace?.path ?? '请选择一个项目开始。'}</p>
-      </div>
-      <div className="main-topbar-actions">
-        {runtimeMissing ? <span className="status-pill warning">运行时缺失</span> : null}
-        <button onClick={() => void refreshWorkspace()} disabled={!workspace}>
-          <RefreshCw size={16} />
-          <span>刷新</span>
-        </button>
-        <button onClick={() => openDrawer('settings')}>
-          <PanelRightOpen size={16} />
-          <span>抽屉</span>
-        </button>
-      </div>
-    </>
+  const menuBar = (
+    <MenuBar
+      runtimeMissing={runtimeMissing}
+      sidebarCollapsed={sidebarCollapsed}
+      onOpenSettings={() => openDrawer('settings')}
+      onToggleSidebar={() => setSidebarCollapsed(current => !current)}
+    />
   )
 
   const sidebar = (
-    <>
-      <SidebarNav
-        activeView={activeView}
-        onNewConversation={() => void handleNewConversation()}
-        onSelectView={setActiveView}
-        onOpenSettings={() => openDrawer('settings')}
-      />
-      <ProjectList
-        workspace={workspace}
-        recentWorkspaces={recentWorkspaces}
-        sessions={sessions}
-        activeSessionId={sessionId}
-        onChooseWorkspace={() => void chooseWorkspace()}
-        onOpenWorkspace={workspaceItem => void openRecentWorkspace(workspaceItem)}
-        onRefreshWorkspace={() => void refreshWorkspace()}
-        onCreateSession={() => void createSessionForWorkspace()}
-        onSelectSession={selectSession}
-        onCloseSession={session => void closeSession(session)}
-      />
-    </>
+    <DesktopSidebar
+      activeSessionId={sessionId}
+      activeView={activeView}
+      collapsed={sidebarCollapsed}
+      maxWidth={Math.round(viewportWidth * SIDEBAR_MAX_RATIO)}
+      minWidth={Math.round(viewportWidth * SIDEBAR_MIN_RATIO)}
+      recentWorkspaces={recentWorkspaces}
+      sessions={sessions}
+      width={sidebarWidth}
+      workspace={workspace}
+      onChooseWorkspace={() => void chooseWorkspace()}
+      onCloseSession={session => void closeSession(session)}
+      onCreateSession={() => void createSessionForWorkspace()}
+      onOpenSettings={() => openDrawer('settings')}
+      onOpenWorkspace={workspaceItem => void openRecentWorkspace(workspaceItem)}
+      onRefreshWorkspace={() => void refreshWorkspace()}
+      onSelectSession={selectSession}
+      onSelectView={view => {
+        if (view === 'quickChat') {
+          void handleNewConversation()
+          return
+        }
+        setActiveView(view)
+      }}
+      onSetWidth={setSidebarWidth}
+      onToggleCollapsed={() => setSidebarCollapsed(current => !current)}
+    />
   )
 
   const content =
@@ -1045,7 +1058,10 @@ export function App(): React.ReactNode {
             <div className="permission-modal-actions">
               <button
                 className="primary-button"
-                onClick={() => void decidePermission(activePermissionRequest, 'allow')}
+                onClick={() =>
+                  void decidePermission(activePermissionRequest, 'allow')
+                }
+                type="button"
               >
                 允许
               </button>
@@ -1053,11 +1069,15 @@ export function App(): React.ReactNode {
                 onClick={() =>
                   void decidePermission(activePermissionRequest, 'allow', true)
                 }
+                type="button"
               >
                 始终允许
               </button>
               <button
-                onClick={() => void decidePermission(activePermissionRequest, 'deny')}
+                onClick={() =>
+                  void decidePermission(activePermissionRequest, 'deny')
+                }
+                type="button"
               >
                 拒绝
               </button>
@@ -1069,13 +1089,16 @@ export function App(): React.ReactNode {
       {!workspace && runtimeMissing ? (
         <div className="global-warning">
           <AlertCircle size={16} />
-          <span>桌面端 agent 运行时缺失，发送消息前请先执行 `bun run desktop:agent:build`。</span>
+          <span>
+            桌面端 agent 运行时缺失，发送消息前请先执行
+            `bun run desktop:agent:build`。
+          </span>
         </div>
       ) : null}
 
       <DesktopShell
+        menuBar={menuBar}
         sidebar={sidebar}
-        topbar={topbar}
         content={content}
         composer={composer}
         drawer={drawer}
@@ -1087,9 +1110,7 @@ export function App(): React.ReactNode {
 function readStoredDesktopSettings(): StoredDesktopSettings {
   try {
     const raw = window.localStorage.getItem(DESKTOP_SETTINGS_STORAGE_KEY)
-    if (!raw) {
-      return defaultDesktopSettings()
-    }
+    if (!raw) return defaultDesktopSettings()
     const parsed = JSON.parse(raw) as {
       permissionMode?: unknown
       model?: unknown
@@ -1191,9 +1212,7 @@ function isDrawerTab(value: unknown): value is DrawerTab {
 }
 
 function parseStoredRecentWorkspaces(value: unknown): DesktopWorkspace[] {
-  if (!Array.isArray(value)) {
-    return []
-  }
+  if (!Array.isArray(value)) return []
   const workspaces: DesktopWorkspace[] = []
   for (const item of value) {
     if (
@@ -1237,4 +1256,20 @@ function parseAdditionalDirectories(value: string): string[] {
     .split(/\r?\n/)
     .map(line => line.trim())
     .filter(Boolean)
+}
+
+function clampSidebarWidth(value: number, viewportWidth: number): number {
+  const min = Math.round(viewportWidth * SIDEBAR_MIN_RATIO)
+  const max = Math.round(viewportWidth * SIDEBAR_MAX_RATIO)
+  return Math.min(max, Math.max(min, Math.round(value)))
+}
+
+function readStoredSidebarWidth(viewportWidth: number): number {
+  const raw = window.localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY)
+  if (!raw) return clampSidebarWidth(DEFAULT_SIDEBAR_WIDTH, viewportWidth)
+  const parsed = Number.parseInt(raw, 10)
+  if (Number.isNaN(parsed)) {
+    return clampSidebarWidth(DEFAULT_SIDEBAR_WIDTH, viewportWidth)
+  }
+  return clampSidebarWidth(parsed, viewportWidth)
 }
