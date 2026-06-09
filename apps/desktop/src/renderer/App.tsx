@@ -235,16 +235,6 @@ export function App(): React.ReactNode {
 
   const handleFileMenuAction = useCallback(
     (action: FileMenuAction): void => {
-      console.log('[app] handleFileMenuAction', action)
-      if (
-        typeof window !== 'undefined' &&
-        window.desktopApi &&
-        typeof window.desktopApi.logRenderer === 'function'
-      ) {
-        try {
-          void window.desktopApi.logRenderer('[app] handleFileMenuAction', action)
-        } catch {}
-      }
       switch (action) {
         case 'close':
           void window.desktopApi.closeWindow()
@@ -276,33 +266,12 @@ export function App(): React.ReactNode {
   )
 
   const handleEditMenuAction = useCallback(
-    (action: EditMenuAction): void => {
-      console.log('[app] handleEditMenuAction', action)
-      if (
-        typeof window !== 'undefined' &&
-        window.desktopApi &&
-        typeof window.desktopApi.logRenderer === 'function'
-      ) {
-        try {
-          void window.desktopApi.logRenderer('[app] handleEditMenuAction', action)
-        } catch {}
-      }
-    },
+    (_action: EditMenuAction): void => {},
     [],
   )
 
   const handleViewMenuAction = useCallback(
     (action: ViewMenuAction): void => {
-      console.log('[app] handleViewMenuAction', action)
-      if (
-        typeof window !== 'undefined' &&
-        window.desktopApi &&
-        typeof window.desktopApi.logRenderer === 'function'
-      ) {
-        try {
-          void window.desktopApi.logRenderer('[app] handleViewMenuAction', action)
-        } catch {}
-      }
       if (action === 'toggleSidebar') {
         toggleSidebarCollapsed()
       }
@@ -312,19 +281,6 @@ export function App(): React.ReactNode {
 
   const handleWindowMenuAction = useCallback(
     (action: WindowMenuAction): void => {
-      console.log('[app] handleWindowMenuAction', action)
-      if (
-        typeof window !== 'undefined' &&
-        window.desktopApi &&
-        typeof window.desktopApi.logRenderer === 'function'
-      ) {
-        try {
-          void window.desktopApi.logRenderer(
-            '[app] handleWindowMenuAction',
-            action,
-          )
-        } catch {}
-      }
       switch (action) {
         case 'minimize':
           void window.desktopApi.minimizeWindow()
@@ -343,18 +299,7 @@ export function App(): React.ReactNode {
   )
 
   const handleHelpMenuAction = useCallback(
-    (action: HelpMenuAction): void => {
-      console.log('[app] handleHelpMenuAction', action)
-      if (
-        typeof window !== 'undefined' &&
-        window.desktopApi &&
-        typeof window.desktopApi.logRenderer === 'function'
-      ) {
-        try {
-          void window.desktopApi.logRenderer('[app] handleHelpMenuAction', action)
-        } catch {}
-      }
-    },
+    (_action: HelpMenuAction): void => {},
     [],
   )
 

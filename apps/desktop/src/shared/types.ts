@@ -122,7 +122,6 @@ export type DesktopApi = {
   openSettings(): Promise<void>
   logOut(): Promise<void>
   exitApp(): Promise<void>
-  logRenderer(message: string, payload?: unknown): Promise<void>
   onAgentEvent(callback: (event: DesktopAgentEvent) => void): () => void
   onUiCommand(callback: (command: DesktopUiCommand) => void): () => void
 }

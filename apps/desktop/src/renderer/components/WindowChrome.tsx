@@ -80,24 +80,6 @@ type Props = {
   onHelpMenuAction: (action: HelpMenuAction) => void
 }
 
-function debugLog(message: string, payload?: unknown): void {
-  const line = `[window-chrome] ${message}`
-  if (payload === undefined) {
-    console.log(line)
-  } else {
-    console.log(line, payload)
-  }
-  if (
-    typeof window !== 'undefined' &&
-    window.desktopApi &&
-    typeof window.desktopApi.logRenderer === 'function'
-  ) {
-    try {
-      void window.desktopApi.logRenderer(line, payload)
-    } catch {}
-  }
-}
-
 export function WindowChrome({
   sidebarCollapsed,
   isMaximized,
@@ -117,40 +99,27 @@ export function WindowChrome({
   const [windowMenuOpen, setWindowMenuOpen] = useState(false)
   const [helpMenuOpen, setHelpMenuOpen] = useState(false)
 
-  debugLog('render', {
-    fileMenuOpen,
-    editMenuOpen,
-    viewMenuOpen,
-    windowMenuOpen,
-    helpMenuOpen,
-  })
-
   const runFileAction = (action: FileMenuAction): void => {
-    debugLog('runFileAction', action)
     setFileMenuOpen(false)
     onFileMenuAction(action)
   }
 
   const runEditAction = (action: EditMenuAction): void => {
-    debugLog('runEditAction', action)
     setEditMenuOpen(false)
     onEditMenuAction(action)
   }
 
   const runViewAction = (action: ViewMenuAction): void => {
-    debugLog('runViewAction', action)
     setViewMenuOpen(false)
     onViewMenuAction(action)
   }
 
   const runWindowAction = (action: WindowMenuAction): void => {
-    debugLog('runWindowAction', action)
     setWindowMenuOpen(false)
     onWindowMenuAction(action)
   }
 
   const runHelpAction = (action: HelpMenuAction): void => {
-    debugLog('runHelpAction', action)
     setHelpMenuOpen(false)
     onHelpMenuAction(action)
   }
@@ -189,9 +158,6 @@ export function WindowChrome({
                   ].join(' ')}
                   onPointerDown={event => {
                     if (event.button !== 0) return
-                    debugLog('trigger pointerdown', {
-                      currentOpen: fileMenuOpen,
-                    })
                     event.stopPropagation()
                     setFileMenuOpen(value => !value)
                   }}
@@ -200,10 +166,7 @@ export function WindowChrome({
                   文件
                 </button>
               }
-              onOpenChange={next => {
-                debugLog('onOpenChange', next)
-                setFileMenuOpen(next)
-              }}
+              onOpenChange={setFileMenuOpen}
             >
               <PopoverItem meta="Ctrl+W" onClick={() => runFileAction('close')}>
                 关闭
@@ -426,9 +389,7 @@ export function WindowChrome({
               >
                 最小化
               </PopoverItem>
-              <PopoverItem
-                onClick={() => runWindowAction('zoom')}
-              >
+              <PopoverItem onClick={() => runWindowAction('zoom')}>
                 缩放
               </PopoverItem>
               <PopoverItem

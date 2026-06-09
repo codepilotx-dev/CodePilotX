@@ -42,8 +42,6 @@ const api: DesktopApi = {
   openSettings: () => ipcRenderer.invoke('desktop:openSettings'),
   logOut: () => ipcRenderer.invoke('desktop:logOut'),
   exitApp: () => ipcRenderer.invoke('desktop:exitApp'),
-  logRenderer: (message, payload) =>
-    ipcRenderer.send('desktop:logRenderer', message, payload),
   onAgentEvent: callback => {
     const listener = (_event: Electron.IpcRendererEvent, payload: DesktopAgentEvent) => {
       callback(payload)
