@@ -1,5 +1,5 @@
 import type React from 'react'
-import { AlertCircle, Sparkles } from 'lucide-react'
+import { AlertCircle } from 'lucide-react'
 import type { DesktopSessionStatus } from '../../shared/types.js'
 import type { Message } from '../uiTypes.js'
 
@@ -55,14 +55,7 @@ export function QuickChatView({
               </article>
             ))}
           </div>
-        ) : (
-          <div className="empty-canvas-card">
-            <Sparkles size={22} />
-            <p>
-              从一个明确的问题开始，例如修复 bug、实现功能，或梳理当前项目结构。
-            </p>
-          </div>
-        )}
+        ) : null}
       </div>
     </section>
   )

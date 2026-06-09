@@ -549,7 +549,7 @@ p {
   min-width: 0;
   min-height: 0;
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr);
   overflow: hidden;
   background: var(--c-bg);
 }
@@ -557,6 +557,15 @@ p {
 .desktop-main-stage {
   min-height: 0;
   overflow: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: var(--sp-6) var(--sp-5);
+}
+
+.desktop-main-stage:has(.quick-chat-view:not(.active)) {
+  justify-content: center;
 }
 
 .desktop-main-composer {
@@ -564,7 +573,12 @@ p {
   flex-direction: column;
   align-items: center;
   gap: var(--sp-3);
-  padding: 0 var(--sp-5) 28px;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+.quick-chat-view:not(.active) + .desktop-main-composer {
+  margin-top: var(--sp-6);
 }
 
 .quick-chat-view,
@@ -574,19 +588,23 @@ p {
 }
 
 .quick-chat-view {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  gap: 34px;
-  padding: 86px var(--sp-5) var(--sp-6);
-}
-
-.quick-chat-view:not(.active) {
-  align-content: center;
-  padding-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  flex: 1;
+  min-height: 0;
 }
 
 .quick-chat-view.active {
-  padding-top: var(--sp-6);
+  align-self: stretch;
+}
+
+.quick-chat-view .quick-chat-stream {
+  flex: 1;
+  min-height: 0;
+  align-self: stretch;
+  overflow: auto;
 }
 
 .quick-chat-hero {
@@ -631,6 +649,7 @@ p {
   min-height: 0;
   display: grid;
   gap: var(--sp-4);
+  width: 100%;
 }
 
 .empty-canvas-card,
@@ -1404,12 +1423,8 @@ p {
     display: none;
   }
 
-  .desktop-main-composer {
-    padding: 0 var(--sp-4) var(--sp-5);
-  }
-
-  .quick-chat-view {
-    padding: 42px var(--sp-4) var(--sp-5);
+  .desktop-main-stage {
+    padding: var(--sp-5) var(--sp-4);
   }
 
   .quick-chat-hero h1,

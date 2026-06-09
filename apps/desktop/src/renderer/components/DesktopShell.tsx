@@ -21,8 +21,10 @@ export function DesktopShell({
       <div className="app-body">
         {sidebar}
         <section className="desktop-main">
-          <div className="desktop-main-stage">{content}</div>
-          <div className="desktop-main-composer">{composer}</div>
+          <div className="desktop-main-stage">
+            {content}
+            <div className="desktop-main-composer">{composer}</div>
+          </div>
         </section>
         {drawer}
       </div>
