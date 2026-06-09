@@ -8,7 +8,6 @@ import {
   Folder,
   FolderOpen,
   History,
-  Play,
   Plus,
   RefreshCw,
   Search,
@@ -277,14 +276,6 @@ export function DesktopSidebar({
           </span>
           <span>设置</span>
         </Link>
-        <button
-          className="play-button"
-          onClick={() => {}}
-          title="启动"
-          type="button"
-        >
-          <Play size={16} fill="currentColor" />
-        </button>
         <IconButton
           className="mobile-button"
           onClick={() => {}}
