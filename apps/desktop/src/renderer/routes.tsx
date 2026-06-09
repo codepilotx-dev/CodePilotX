@@ -11,7 +11,7 @@ import { SearchView } from './components/SearchView.js'
 import { QuickChatContext } from './context/QuickChatContext.js'
 import { SearchContext } from './context/SearchContext.js'
 import { AutomationView } from './components/AutomationView.js'
-import { SettingsPage } from './components/SettingsPage.js'
+import { SettingsLayout } from './components/SettingsLayout.js'
 import { WindowChrome } from './components/WindowChrome.js'
 import type {
   EditMenuAction,
@@ -519,7 +519,6 @@ function DesktopLayout(): React.ReactNode {
   )
 }
 
-// 路由配置 - 所有页面共用 DesktopLayout
 const router = createBrowserRouter([
   {
     path: '/',
@@ -529,16 +528,12 @@ const router = createBrowserRouter([
       { path: 'search', element: <SearchView /> },
       { path: 'plugins', element: <PluginsView /> },
       { path: 'automation', element: <AutomationView /> },
-      { path: 'settings', element: <SettingsView /> },
     ],
   },
+  {
+    path: '/settings',
+    element: <SettingsLayout />,
+  },
 ])
-
-function SettingsView(): React.ReactNode {
-  const navigate = useNavigate()
-  return (
-    <SettingsPage onClose={() => navigate(-1)} />
-  )
-}
 
 export { router }
