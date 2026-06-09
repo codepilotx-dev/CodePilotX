@@ -95,7 +95,7 @@ function ConnectProvider({
             {
               value: 'deepseek',
               label: 'DeepSeek',
-              description: 'https://api.deepseek.com',
+              description: 'https://api.deepseek.com · 启用硬盘缓存 (命中 0.025元/M)',
             },
             {
               value: 'groq',
