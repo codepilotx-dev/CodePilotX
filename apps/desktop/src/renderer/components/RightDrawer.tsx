@@ -56,15 +56,23 @@ export function RightDrawer({
         <div className="right-drawer-tabs">
           {TABS.map(tab => (
             <button
-              className={activeTab === tab.value ? 'drawer-tab active' : 'drawer-tab'}
+              className={
+                activeTab === tab.value ? 'drawer-tab active' : 'drawer-tab'
+              }
               key={tab.value}
               onClick={() => onSelectTab(tab.value)}
+              type="button"
             >
               {tab.label}
             </button>
           ))}
         </div>
-        <button className="ghost-icon-button" onClick={onClose} title="关闭抽屉">
+        <button
+          className="ghost-icon-button"
+          onClick={onClose}
+          title="关闭抽屉"
+          type="button"
+        >
           <X size={16} />
         </button>
       </div>
@@ -82,6 +90,7 @@ export function RightDrawer({
                     key={file.path}
                     onClick={() => onPreviewFile(file)}
                     style={{ paddingLeft: 12 + file.depth * 14 }}
+                    type="button"
                   >
                     <span>{file.type === 'directory' ? '目录' : '文件'}</span>
                     <strong>{file.name}</strong>
@@ -92,7 +101,9 @@ export function RightDrawer({
             {selectedFile ? (
               <div className="drawer-preview">
                 <strong>{selectedFile.path}</strong>
-                {selectedFile.truncated ? <p className="muted-copy">预览已截断。</p> : null}
+                {selectedFile.truncated ? (
+                  <p className="muted-copy">预览已截断。</p>
+                ) : null}
                 <pre>{selectedFile.content}</pre>
               </div>
             ) : null}
@@ -116,11 +127,24 @@ export function RightDrawer({
                   <p>{request.description}</p>
                   <code>{JSON.stringify(request.input)}</code>
                   <div>
-                    <button onClick={() => onDecidePermission(request, 'allow')}>允许</button>
-                    <button onClick={() => onDecidePermission(request, 'allow', true)}>
+                    <button
+                      onClick={() => onDecidePermission(request, 'allow')}
+                      type="button"
+                    >
+                      允许
+                    </button>
+                    <button
+                      onClick={() => onDecidePermission(request, 'allow', true)}
+                      type="button"
+                    >
                       始终允许
                     </button>
-                    <button onClick={() => onDecidePermission(request, 'deny')}>拒绝</button>
+                    <button
+                      onClick={() => onDecidePermission(request, 'deny')}
+                      type="button"
+                    >
+                      拒绝
+                    </button>
                   </div>
                 </article>
               ))
@@ -134,9 +158,19 @@ export function RightDrawer({
               <p className="muted-copy">还没有工具活动记录。</p>
             ) : (
               toolLog.map(entry => (
-                <article className={entry.isError ? 'tool-entry error' : 'tool-entry'} key={entry.id}>
-                  <button onClick={() => onToggleToolLog(entry.id)}>
-                    {entry.expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                <article
+                  className={entry.isError ? 'tool-entry error' : 'tool-entry'}
+                  key={entry.id}
+                >
+                  <button
+                    onClick={() => onToggleToolLog(entry.id)}
+                    type="button"
+                  >
+                    {entry.expanded ? (
+                      <ChevronDown size={14} />
+                    ) : (
+                      <ChevronRight size={14} />
+                    )}
                     <span>{entry.toolName}</span>
                     <small>
                       {entry.kind} · {entry.createdAt}

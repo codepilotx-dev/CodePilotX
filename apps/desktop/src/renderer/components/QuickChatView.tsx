@@ -21,19 +21,16 @@ export function QuickChatView({
   const hasMessages = messages.length > 0
 
   return (
-    <section className={hasMessages ? 'quick-chat-view active' : 'quick-chat-view'}>
+    <section
+      className={hasMessages ? 'quick-chat-view active' : 'quick-chat-view'}
+    >
       <div className="quick-chat-hero">
-        <span className="section-label">快速对话</span>
         <h1>
           {workspaceName
             ? `我们应该在 ${workspaceName} 中构建什么？`
             : '我们应该构建什么？'}
         </h1>
-        <p>
-          {hasMessages
-            ? `当前状态：${sessionStatus}`
-            : '选择项目后即可开启新会话，底部输入卡片会保留当前模型、推理和权限模式。'}
-        </p>
+        {hasMessages ? <p>当前状态：{translateStatus(sessionStatus)}</p> : null}
       </div>
 
       <div className="quick-chat-stream">
@@ -41,14 +38,19 @@ export function QuickChatView({
           <div className="error-banner">
             <AlertCircle size={16} />
             <span>{errorMessage}</span>
-            <button onClick={onDismissError}>关闭</button>
+            <button onClick={onDismissError} type="button">
+              关闭
+            </button>
           </div>
         ) : null}
         {hasMessages ? (
           <div className="message-list">
             {messages.map(message => (
-              <article key={message.id} className={`message-card ${message.role}`}>
-                <span>{message.role === 'user' ? '你' : message.role === 'assistant' ? 'ClaudeCode' : '系统'}</span>
+              <article
+                className={`message-card ${message.role}`}
+                key={message.id}
+              >
+                <span>{labelForRole(message.role)}</span>
                 <p>{message.text}</p>
               </article>
             ))}
@@ -56,10 +58,26 @@ export function QuickChatView({
         ) : (
           <div className="empty-canvas-card">
             <Sparkles size={22} />
-            <p>从一个明确的问题开始，例如修复 bug、实现功能、或梳理当前项目结构。</p>
+            <p>
+              从一个明确的问题开始，例如修复 bug、实现功能，或梳理当前项目结构。
+            </p>
           </div>
         )}
       </div>
     </section>
   )
+}
+
+function labelForRole(role: Message['role']): string {
+  if (role === 'user') return '你'
+  if (role === 'assistant') return 'ClaudeCode'
+  return '系统'
+}
+
+function translateStatus(status: DesktopSessionStatus): string {
+  if (status === 'running') return '运行中'
+  if (status === 'waiting') return '等待确认'
+  if (status === 'done') return '已完成'
+  if (status === 'error') return '出错'
+  return '空闲'
 }

@@ -6,7 +6,7 @@ export function AutomationView(): React.ReactNode {
       <div className="utility-view-header">
         <span className="section-label">自动化</span>
         <h1>自动化中心</h1>
-        <p>这里会承接桌面端自动化任务、提醒、监控与运行记录。当前版本先提供结构化空态。</p>
+        <p>这里将承接桌面端自动化任务、提醒、监控与运行记录。</p>
       </div>
       <div className="utility-card placeholder-card">
         <h2>暂未接入自动化后端</h2>

@@ -21,7 +21,6 @@ import {
 } from './modelPresets.js'
 import { AutomationView } from './components/AutomationView.js'
 import { ComposerCard } from './components/ComposerCard.js'
-import { ContextStrip } from './components/ContextStrip.js'
 import { DesktopShell } from './components/DesktopShell.js'
 import { DesktopSidebar } from './components/DesktopSidebar.js'
 import { MenuBar } from './components/MenuBar.js'
@@ -995,30 +994,29 @@ export function App(): React.ReactNode {
     )
 
   const composer = (
-    <>
-      <ComposerCard
-        input={input}
-        canSubmit={canSubmit}
-        sessionStatus={sessionStatus}
-        permissionMode={permissionMode}
-        thinkingMode={thinkingMode}
-        selectedModelPreset={selectedModelPreset}
-        modelPresets={MODEL_PRESETS}
-        permissionOptions={PERMISSION_MODE_OPTIONS.map(option => ({
-          value: option.value,
-          label: option.label,
-        }))}
-        thinkingOptions={THINKING_MODE_OPTIONS}
-        onInputChange={setInput}
-        onPermissionChange={setPermissionMode}
-        onThinkingChange={setThinkingMode}
-        onModelChange={handleModelPresetChange}
-        onSubmit={() => void submit()}
-        onInterrupt={() => void interrupt()}
-        onOpenFiles={() => openDrawer('files')}
-      />
-      <ContextStrip workspaceName={workspaceName} branchName={branchName} />
-    </>
+    <ComposerCard
+      input={input}
+      canSubmit={canSubmit}
+      sessionStatus={sessionStatus}
+      permissionMode={permissionMode}
+      thinkingMode={thinkingMode}
+      selectedModelPreset={selectedModelPreset}
+      modelPresets={MODEL_PRESETS}
+      permissionOptions={PERMISSION_MODE_OPTIONS}
+      thinkingOptions={THINKING_MODE_OPTIONS}
+      branchName={branchName}
+      recentWorkspaces={recentWorkspaces}
+      workspace={workspace}
+      onChooseWorkspace={() => void chooseWorkspace()}
+      onInputChange={setInput}
+      onInterrupt={() => void interrupt()}
+      onModelChange={handleModelPresetChange}
+      onOpenFiles={() => openDrawer('files')}
+      onOpenWorkspace={workspaceItem => void openRecentWorkspace(workspaceItem)}
+      onPermissionChange={setPermissionMode}
+      onSubmit={() => void submit()}
+      onThinkingChange={setThinkingMode}
+    />
   )
 
   const drawer = (

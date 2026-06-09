@@ -24,8 +24,8 @@ export function SearchView({
     <section className="utility-view">
       <div className="utility-view-header">
         <span className="section-label">搜索</span>
-        <h1>查找项目与会话</h1>
-        <p>本地搜索当前内存中的最近项目、会话名称和会话时间。</p>
+        <h1>查找项目与对话</h1>
+        <p>搜索当前内存中的最近项目、会话名称和会话时间。</p>
       </div>
       <label className="search-input-row">
         <Search size={16} />
@@ -46,6 +46,7 @@ export function SearchView({
                 className="search-result-row"
                 key={workspace.path}
                 onClick={() => onOpenWorkspace(workspace)}
+                type="button"
               >
                 <span>{workspace.name}</span>
                 <small>{workspace.branchName ?? '未检测到 Git 分支'}</small>
@@ -54,15 +55,16 @@ export function SearchView({
           )}
         </section>
         <section className="utility-card">
-          <h2>会话</h2>
+          <h2>对话</h2>
           {sessions.length === 0 ? (
-            <p className="muted-copy">没有匹配的会话。</p>
+            <p className="muted-copy">没有匹配的对话。</p>
           ) : (
             sessions.map(session => (
               <button
                 className="search-result-row"
                 key={session.id}
                 onClick={() => onSelectSession(session)}
+                type="button"
               >
                 <span>{session.sessionName ?? session.workspaceName}</span>
                 <small>
