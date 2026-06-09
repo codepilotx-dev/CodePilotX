@@ -1,5 +1,9 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { DesktopAgentEvent, DesktopApi } from '../shared/types.js'
+import type {
+  DesktopAgentEvent,
+  DesktopApi,
+  DesktopUiCommand,
+} from '../shared/types.js'
 
 const api: DesktopApi = {
   getAuthStatus: () => ipcRenderer.invoke('desktop:getAuthStatus'),
@@ -8,6 +12,8 @@ const api: DesktopApi = {
   chooseWorkspace: () => ipcRenderer.invoke('desktop:chooseWorkspace'),
   openWorkspace: workspacePath =>
     ipcRenderer.invoke('desktop:openWorkspace', workspacePath),
+  getWorkspaceContext: workspacePath =>
+    ipcRenderer.invoke('desktop:getWorkspaceContext', workspacePath),
   listWorkspaceFiles: workspacePath =>
     ipcRenderer.invoke('desktop:listWorkspaceFiles', workspacePath),
   readWorkspaceFile: (workspacePath, filePath) =>
@@ -34,6 +40,16 @@ const api: DesktopApi = {
     }
     ipcRenderer.on('desktop:agent-event', listener)
     return () => ipcRenderer.off('desktop:agent-event', listener)
+  },
+  onUiCommand: callback => {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      command: DesktopUiCommand,
+    ) => {
+      callback(command)
+    }
+    ipcRenderer.on('desktop:ui-command', listener)
+    return () => ipcRenderer.off('desktop:ui-command', listener)
   },
 }
 

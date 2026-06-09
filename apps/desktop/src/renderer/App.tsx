@@ -1,70 +1,42 @@
+import type React from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import {
-  AlertCircle,
-  ChevronDown,
-  ChevronRight,
-  FolderOpen,
-  LogIn,
-  Play,
-  RefreshCw,
-  Send,
-  Settings,
-  Plus,
-  Square,
-  X,
-} from 'lucide-react'
+import { AlertCircle, LogIn, PanelRightOpen, RefreshCw } from 'lucide-react'
 import type {
   DesktopAgentEvent,
   DesktopAuthStatus,
   DesktopFileEntry,
-  DesktopFilePreview,
   DesktopPermissionMode,
   DesktopPermissionRequest,
   DesktopRuntimeStatus,
   DesktopSessionStatus,
   DesktopThinkingMode,
+  DesktopUiCommand,
   DesktopWorkspace,
 } from '../shared/types.js'
-
-type Message = {
-  id: string
-  role: 'user' | 'assistant' | 'system'
-  text: string
-  streaming?: boolean
-}
-
-type SessionListItem = {
-  id: string
-  sessionName: string | null
-  workspaceName: string
-  workspacePath: string
-  permissionMode: DesktopPermissionMode
-  model: string | null
-  fallbackModel: string | null
-  thinkingMode: DesktopThinkingMode
-  hasSystemPrompt: boolean
-  hasAppendSystemPrompt: boolean
-  additionalDirectoryCount: number
-  status: DesktopSessionStatus
-  createdAt: string
-}
-
-type ToolLogEntry = {
-  id: string
-  toolName: string
-  summary: string
-  kind: 'start' | 'result'
-  isError?: boolean
-  expanded: boolean
-  createdAt: string
-}
-
-type SessionViewState = {
-  messages: Message[]
-  toolLog: ToolLogEntry[]
-  pendingPermissions: DesktopPermissionRequest[]
-  selectedFile: DesktopFilePreview | null
-}
+import {
+  CUSTOM_MODEL_PRESET_ID,
+  DEFAULT_MODEL_PRESET_ID,
+  MODEL_PRESETS,
+  resolveModelPresetId,
+} from './modelPresets.js'
+import { AutomationView } from './components/AutomationView.js'
+import { ComposerCard } from './components/ComposerCard.js'
+import { ContextStrip } from './components/ContextStrip.js'
+import { DesktopShell } from './components/DesktopShell.js'
+import { PluginsView } from './components/PluginsView.js'
+import { ProjectList } from './components/ProjectList.js'
+import { QuickChatView } from './components/QuickChatView.js'
+import { RightDrawer } from './components/RightDrawer.js'
+import { SearchView } from './components/SearchView.js'
+import { SidebarNav } from './components/SidebarNav.js'
+import type {
+  AppView,
+  DrawerTab,
+  Message,
+  SessionListItem,
+  SessionViewState,
+  ToolLogEntry,
+} from './uiTypes.js'
 
 const PERMISSION_MODE_OPTIONS: Array<{
   value: DesktopPermissionMode
@@ -73,39 +45,41 @@ const PERMISSION_MODE_OPTIONS: Array<{
 }> = [
   {
     value: 'default',
-    label: 'Default',
-    detail: 'Ask before risky tool use.',
+    label: '自动审查',
+    detail: '编辑和高风险工具会按原有规则请求确认。',
   },
   {
     value: 'acceptEdits',
-    label: 'Accept edits',
-    detail: 'Allow file edits, still ask for other risky tools.',
-  },
-  {
-    value: 'dontAsk',
-    label: "Don't ask",
-    detail: 'Deny requests that would need approval.',
+    label: '允许编辑',
+    detail: '默认允许文件编辑，其他高风险动作仍会确认。',
   },
   {
     value: 'plan',
-    label: 'Plan',
-    detail: 'Analyze and plan before implementation.',
+    label: '规划模式',
+    detail: '先分析和规划，再决定是否实施。',
+  },
+  {
+    value: 'dontAsk',
+    label: '严格拦截',
+    detail: '需要额外确认的动作会被拒绝。',
   },
   {
     value: 'bypassPermissions',
-    label: 'Bypass permissions',
-    detail: 'Skip permission prompts for this session.',
+    label: '免确认',
+    detail: '跳过权限询问，直接执行会话内动作。',
   },
 ]
+
 const THINKING_MODE_OPTIONS: Array<{
   value: DesktopThinkingMode
   label: string
 }> = [
-  { value: 'default', label: 'Default' },
-  { value: 'enabled', label: 'Enabled' },
-  { value: 'adaptive', label: 'Adaptive' },
-  { value: 'disabled', label: 'Disabled' },
+  { value: 'disabled', label: '低' },
+  { value: 'default', label: '中' },
+  { value: 'adaptive', label: '高' },
+  { value: 'enabled', label: '超高' },
 ]
+
 const DESKTOP_SETTINGS_STORAGE_KEY = 'claude-code-desktop-settings'
 const MAX_RECENT_WORKSPACES = 5
 
@@ -119,6 +93,9 @@ type StoredDesktopSettings = {
   appendSystemPrompt: string
   additionalDirectories: string
   recentWorkspaces: DesktopWorkspace[]
+  activeView: AppView
+  drawerTab: DrawerTab
+  selectedModelPreset: string
 }
 
 declare global {
@@ -141,10 +118,8 @@ export function App(): React.ReactNode {
   const [messages, setMessages] = useState<Message[]>([])
   const [toolLog, setToolLog] = useState<ToolLogEntry[]>([])
   const [files, setFiles] = useState<DesktopFileEntry[]>([])
-  const [selectedFile, setSelectedFile] = useState<DesktopFilePreview | null>(
-    null,
-  )
-  const [diff, setDiff] = useState('No workspace selected.')
+  const [selectedFile, setSelectedFile] = useState<SessionViewState['selectedFile']>(null)
+  const [diff, setDiff] = useState('未选择项目。')
   const [pendingPermissions, setPendingPermissions] = useState<
     DesktopPermissionRequest[]
   >([])
@@ -174,16 +149,34 @@ export function App(): React.ReactNode {
   )
   const [runtimeStatus, setRuntimeStatus] =
     useState<DesktopRuntimeStatus | null>(null)
-  const [showSettings, setShowSettings] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [input, setInput] = useState('')
+  const [activeView, setActiveView] = useState<AppView>(
+    initialDesktopSettings.activeView,
+  )
+  const [drawerTab, setDrawerTab] = useState<DrawerTab>(
+    initialDesktopSettings.drawerTab,
+  )
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+  const [selectedModelPreset, setSelectedModelPreset] = useState(
+    resolveModelPresetId(
+      initialDesktopSettings.model,
+      initialDesktopSettings.selectedModelPreset,
+    ),
+  )
+  const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
     void runDesktopAction(() =>
       window.desktopApi.getAuthStatus().then(setAuthStatus),
     )
     void refreshRuntimeStatus()
-    return window.desktopApi.onAgentEvent(handleAgentEvent)
+    const unsubscribeAgent = window.desktopApi.onAgentEvent(handleAgentEvent)
+    const unsubscribeUi = window.desktopApi.onUiCommand(handleUiCommand)
+    return () => {
+      unsubscribeAgent()
+      unsubscribeUi()
+    }
   }, [])
 
   useEffect(() => {
@@ -197,6 +190,9 @@ export function App(): React.ReactNode {
       appendSystemPrompt,
       additionalDirectories,
       recentWorkspaces,
+      activeView,
+      drawerTab,
+      selectedModelPreset,
     })
   }, [
     permissionMode,
@@ -208,6 +204,9 @@ export function App(): React.ReactNode {
     appendSystemPrompt,
     additionalDirectories,
     recentWorkspaces,
+    activeView,
+    drawerTab,
+    selectedModelPreset,
   ])
 
   async function runDesktopAction<T>(action: () => Promise<T>): Promise<T | null> {
@@ -218,6 +217,20 @@ export function App(): React.ReactNode {
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : String(error))
       return null
+    }
+  }
+
+  function handleUiCommand(command: DesktopUiCommand): void {
+    if (command === 'newConversation') {
+      void handleNewConversation()
+      return
+    }
+    if (command === 'chooseWorkspace') {
+      void chooseWorkspace()
+      return
+    }
+    if (command === 'refreshWorkspace') {
+      void refreshWorkspace()
     }
   }
 
@@ -292,6 +305,10 @@ export function App(): React.ReactNode {
         ...view,
         pendingPermissions: [event.request, ...view.pendingPermissions],
       }))
+      if (event.sessionId === activeSessionIdRef.current) {
+        setDrawerTab('permissions')
+        setIsDrawerOpen(true)
+      }
       return
     }
     if (event.type === 'diff') {
@@ -353,7 +370,8 @@ export function App(): React.ReactNode {
   ): Promise<void> {
     if (!target) return
     try {
-      const [nextFiles, nextDiff] = await Promise.all([
+      const [nextContext, nextFiles, nextDiff] = await Promise.all([
+        window.desktopApi.getWorkspaceContext(target.path),
         window.desktopApi.listWorkspaceFiles(target.path),
         window.desktopApi.getWorkspaceDiff(target.path),
       ])
@@ -366,6 +384,7 @@ export function App(): React.ReactNode {
       if (options.clearErrorOnSuccess ?? true) {
         setErrorMessage(null)
       }
+      syncWorkspaceContext(nextContext, options.expectedSessionId)
       setFiles(nextFiles)
       setDiff(nextDiff.patch)
       if (options.clearSelectedFile ?? true) {
@@ -373,13 +392,28 @@ export function App(): React.ReactNode {
         updateActiveSessionView(view => ({ ...view, selectedFile: null }))
       } else {
         await refreshSelectedFilePreview(
-          target,
+          nextContext,
           nextFiles,
           options.expectedSessionId ?? activeSessionIdRef.current,
         )
       }
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : String(error))
+    }
+  }
+
+  function syncWorkspaceContext(
+    nextWorkspace: DesktopWorkspace,
+    expectedSessionId?: string,
+  ): void {
+    setWorkspace(nextWorkspace)
+    setRecentWorkspaces(current => upsertRecentWorkspace(current, nextWorkspace))
+    if (!expectedSessionId) {
+      return
+    }
+    sessionWorkspacesRef.current = {
+      ...sessionWorkspacesRef.current,
+      [expectedSessionId]: nextWorkspace,
     }
   }
 
@@ -536,8 +570,8 @@ export function App(): React.ReactNode {
   }
 
   async function activateWorkspace(selected: DesktopWorkspace): Promise<void> {
-    setWorkspace(selected)
-    setRecentWorkspaces(current => upsertRecentWorkspace(current, selected))
+    setActiveView('quickChat')
+    syncWorkspaceContext(selected)
     await refreshWorkspace(selected)
     if (!runtimeMissing) {
       await createSessionForWorkspace(selected)
@@ -550,7 +584,7 @@ export function App(): React.ReactNode {
     if (!target) return
     if (runtimeMissing) {
       setErrorMessage(
-        'Desktop agent runtime is missing. Build the desktop agent first.',
+        '桌面端 agent 运行时缺失，请先构建 desktop agent。',
       )
       return
     }
@@ -578,6 +612,7 @@ export function App(): React.ReactNode {
     activateSession(session.sessionId)
     setSessionStatus('idle')
     applySessionView(nextView)
+    setActiveView('quickChat')
     setSessions(current => [
       {
         id: session.sessionId,
@@ -597,6 +632,15 @@ export function App(): React.ReactNode {
       },
       ...current,
     ])
+  }
+
+  async function handleNewConversation(): Promise<void> {
+    setActiveView('quickChat')
+    if (workspace) {
+      await createSessionForWorkspace(workspace)
+      return
+    }
+    await chooseWorkspace()
   }
 
   async function login(): Promise<void> {
@@ -641,6 +685,11 @@ export function App(): React.ReactNode {
     }
   }
 
+  function openDrawer(tab: DrawerTab): void {
+    setDrawerTab(tab)
+    setIsDrawerOpen(true)
+  }
+
   async function closeSession(targetSessionId: string): Promise<void> {
     const disposed = await runDesktopAction(() =>
       window.desktopApi.disposeSession(targetSessionId),
@@ -670,17 +719,18 @@ export function App(): React.ReactNode {
       applySessionView(
         sessionViewsRef.current[next.id] ?? createEmptySessionView(),
       )
-      const nextWorkspace = {
-        name: next.workspaceName,
-        path: next.workspacePath,
-      }
+      const nextWorkspace =
+        sessionWorkspacesRef.current[next.id] ?? {
+          name: next.workspaceName,
+          path: next.workspacePath,
+        }
       setWorkspace(nextWorkspace)
-      void refreshWorkspace(nextWorkspace)
+      void refreshWorkspace(nextWorkspace, { expectedSessionId: next.id })
     } else {
       applySessionView(createEmptySessionView())
       setWorkspace(null)
       setFiles([])
-      setDiff('No workspace selected.')
+      setDiff('未选择项目。')
     }
   }
 
@@ -699,10 +749,49 @@ export function App(): React.ReactNode {
     await runDesktopAction(() =>
       window.desktopApi.respondToPermission(sessionId, request.requestId, {
         behavior,
-        message: behavior === 'deny' ? 'Denied in desktop UI' : undefined,
+        message: behavior === 'deny' ? '在桌面端界面中拒绝' : undefined,
         alwaysAllow,
       }),
     )
+  }
+
+  function selectSession(session: SessionListItem): void {
+    activateSession(session.id)
+    setSessionStatus(session.status)
+    setActiveView('quickChat')
+    const nextWorkspace =
+      sessionWorkspacesRef.current[session.id] ?? {
+        name: session.workspaceName,
+        path: session.workspacePath,
+      }
+    setWorkspace(nextWorkspace)
+    applySessionView(
+      sessionViewsRef.current[session.id] ?? createEmptySessionView(),
+    )
+    void refreshWorkspace(nextWorkspace, { expectedSessionId: session.id })
+  }
+
+  function handleModelPresetChange(nextPresetId: string): void {
+    if (nextPresetId === CUSTOM_MODEL_PRESET_ID) {
+      const customValue = window.prompt('输入自定义模型名称', model)
+      if (!customValue) {
+        setSelectedModelPreset(resolveModelPresetId(model, selectedModelPreset))
+        return
+      }
+      const trimmed = customValue.trim()
+      if (!trimmed) {
+        return
+      }
+      setModel(trimmed)
+      setSelectedModelPreset(CUSTOM_MODEL_PRESET_ID)
+      return
+    }
+    const preset = MODEL_PRESETS.find(item => item.id === nextPresetId)
+    if (!preset) {
+      return
+    }
+    setSelectedModelPreset(nextPresetId)
+    setModel(preset.value)
   }
 
   const canSubmit = useMemo(
@@ -715,56 +804,253 @@ export function App(): React.ReactNode {
       ),
     [input, sessionId, sessionStatus],
   )
+
   const activeSessionItem = useMemo(
     () => sessions.find(session => session.id === sessionId) ?? null,
     [sessions, sessionId],
   )
   const runtimeMissing = runtimeStatus?.agentExecutableExists === false
   const activePermissionRequest = pendingPermissions[0] ?? null
-
   const authLabel = authStatus?.authenticated
-    ? authStatus.email ?? 'Signed in'
-    : 'Sign in'
+    ? authStatus.email ?? '已登录'
+    : '登录'
+  const workspaceName = workspace?.name ?? '未选择项目'
+  const branchName =
+    workspace?.isGitRepo === false
+      ? '未检测到 Git 分支'
+      : workspace?.branchName ?? '未检测到 Git 分支'
+
+  const filteredWorkspaces = useMemo(() => {
+    const keyword = searchQuery.trim().toLowerCase()
+    if (!keyword) {
+      return recentWorkspaces
+    }
+    return recentWorkspaces.filter(item =>
+      [item.name, item.path, item.branchName ?? '']
+        .join(' ')
+        .toLowerCase()
+        .includes(keyword),
+    )
+  }, [recentWorkspaces, searchQuery])
+
+  const filteredSessions = useMemo(() => {
+    const keyword = searchQuery.trim().toLowerCase()
+    if (!keyword) {
+      return sessions
+    }
+    return sessions.filter(session =>
+      [
+        session.sessionName ?? '',
+        session.workspaceName,
+        session.createdAt,
+        session.status,
+      ]
+        .join(' ')
+        .toLowerCase()
+        .includes(keyword),
+    )
+  }, [sessions, searchQuery])
+
+  const settingsContent = (
+    <div className="settings-list">
+      <label className="setting-field">
+        <span>会话名称</span>
+        <input
+          value={sessionName}
+          onChange={event => setSessionName(event.target.value)}
+          placeholder="为空时默认使用项目名称"
+        />
+      </label>
+      <label className="setting-field">
+        <span>Fallback 模型</span>
+        <input
+          value={fallbackModel}
+          onChange={event => setFallbackModel(event.target.value)}
+          placeholder="模型繁忙时回退到此模型"
+        />
+      </label>
+      <label className="setting-field">
+        <span>System Prompt</span>
+        <textarea
+          value={systemPrompt}
+          onChange={event => setSystemPrompt(event.target.value)}
+          placeholder="替换默认系统提示词"
+        />
+      </label>
+      <label className="setting-field">
+        <span>追加 Prompt</span>
+        <textarea
+          value={appendSystemPrompt}
+          onChange={event => setAppendSystemPrompt(event.target.value)}
+          placeholder="附加到默认提示词后面"
+        />
+      </label>
+      <label className="setting-field">
+        <span>额外目录</span>
+        <textarea
+          value={additionalDirectories}
+          onChange={event => setAdditionalDirectories(event.target.value)}
+          placeholder="每行一个目录，可相对项目或绝对路径"
+        />
+      </label>
+      <div className="setting-runtime">
+        <p>认证方式：{authStatus?.method ?? '未知'}</p>
+        <p>账号：{authStatus?.email ?? '未登录'}</p>
+        <p>
+          Agent 运行时：
+          {runtimeStatus?.agentExecutableExists ? '可用' : '缺失'}
+        </p>
+        <p>Agent 路径：{runtimeStatus?.agentExecutablePath ?? '检查中'}</p>
+        <button onClick={() => void refreshRuntimeStatus()}>
+          <RefreshCw size={15} />
+          <span>刷新运行时</span>
+        </button>
+      </div>
+      <div className="setting-runtime">
+        <p>当前项目：{workspace?.path ?? '无'}</p>
+        <p>当前会话：{activeSessionItem?.sessionName ?? activeSessionItem?.workspaceName ?? '无'}</p>
+        <p>当前模型：{(activeSessionItem?.model ?? model) || '默认模型'}</p>
+        <p>当前推理：{THINKING_MODE_OPTIONS.find(option => option.value === thinkingMode)?.label}</p>
+      </div>
+    </div>
+  )
+
+  const topbar = (
+    <>
+      <div className="main-topbar-copy">
+        <h2>
+          {activeView === 'quickChat'
+            ? '快速对话'
+            : activeView === 'search'
+              ? '搜索'
+              : activeView === 'plugins'
+                ? '插件'
+                : '自动化'}
+        </h2>
+        <p>{workspace?.path ?? '请选择一个项目开始。'}</p>
+      </div>
+      <div className="main-topbar-actions">
+        {runtimeMissing ? <span className="status-pill warning">运行时缺失</span> : null}
+        <button onClick={login}>
+          <LogIn size={16} />
+          <span>{authLabel}</span>
+        </button>
+        <button onClick={() => void refreshWorkspace()} disabled={!workspace}>
+          <RefreshCw size={16} />
+          <span>刷新</span>
+        </button>
+        <button onClick={() => openDrawer('settings')}>
+          <PanelRightOpen size={16} />
+          <span>抽屉</span>
+        </button>
+      </div>
+    </>
+  )
+
+  const sidebar = (
+    <>
+      <SidebarNav
+        activeView={activeView}
+        onNewConversation={() => void handleNewConversation()}
+        onSelectView={setActiveView}
+        onOpenSettings={() => openDrawer('settings')}
+      />
+      <ProjectList
+        workspace={workspace}
+        recentWorkspaces={recentWorkspaces}
+        sessions={sessions}
+        activeSessionId={sessionId}
+        onChooseWorkspace={() => void chooseWorkspace()}
+        onOpenWorkspace={workspaceItem => void openRecentWorkspace(workspaceItem)}
+        onRefreshWorkspace={() => void refreshWorkspace()}
+        onCreateSession={() => void createSessionForWorkspace()}
+        onSelectSession={selectSession}
+        onCloseSession={session => void closeSession(session)}
+      />
+    </>
+  )
+
+  const content =
+    activeView === 'quickChat' ? (
+      <QuickChatView
+        workspaceName={workspace?.name ?? null}
+        messages={messages}
+        errorMessage={errorMessage}
+        onDismissError={() => setErrorMessage(null)}
+        sessionStatus={sessionStatus}
+      />
+    ) : activeView === 'search' ? (
+      <SearchView
+        query={searchQuery}
+        workspaces={filteredWorkspaces}
+        sessions={filteredSessions}
+        onQueryChange={setSearchQuery}
+        onOpenWorkspace={workspaceItem => void openRecentWorkspace(workspaceItem)}
+        onSelectSession={session => selectSession(session)}
+      />
+    ) : activeView === 'plugins' ? (
+      <PluginsView />
+    ) : (
+      <AutomationView />
+    )
+
+  const composer = (
+    <>
+      <ComposerCard
+        input={input}
+        canSubmit={canSubmit}
+        sessionStatus={sessionStatus}
+        permissionMode={permissionMode}
+        thinkingMode={thinkingMode}
+        selectedModelPreset={selectedModelPreset}
+        modelPresets={MODEL_PRESETS}
+        permissionOptions={PERMISSION_MODE_OPTIONS.map(option => ({
+          value: option.value,
+          label: option.label,
+        }))}
+        thinkingOptions={THINKING_MODE_OPTIONS}
+        onInputChange={setInput}
+        onPermissionChange={setPermissionMode}
+        onThinkingChange={setThinkingMode}
+        onModelChange={handleModelPresetChange}
+        onSubmit={() => void submit()}
+        onInterrupt={() => void interrupt()}
+        onOpenFiles={() => openDrawer('files')}
+      />
+      <ContextStrip workspaceName={workspaceName} branchName={branchName} />
+    </>
+  )
+
+  const drawer = (
+    <RightDrawer
+      isOpen={isDrawerOpen}
+      activeTab={drawerTab}
+      files={files}
+      selectedFile={selectedFile}
+      diff={diff}
+      pendingPermissions={pendingPermissions}
+      toolLog={toolLog}
+      settingsContent={settingsContent}
+      onClose={() => setIsDrawerOpen(false)}
+      onSelectTab={tab => {
+        setDrawerTab(tab)
+        setIsDrawerOpen(true)
+      }}
+      onPreviewFile={file => void previewFile(file)}
+      onToggleToolLog={toggleToolLogEntry}
+      onDecidePermission={(request, behavior, alwaysAllow) =>
+        void decidePermission(request, behavior, alwaysAllow)
+      }
+    />
+  )
 
   return (
     <div className="desktop-frame">
-      <header className="app-titlebar">
-        <div className="app-titlebar-drag">
-          <span className="app-titlebar-mark">CC</span>
-          <div className="app-titlebar-copy">
-            <strong>ClaudeCode</strong>
-            <span>Local Desktop</span>
-          </div>
-          <div className="app-titlebar-divider" />
-          <div className="workspace-chip" title={workspace?.path}>
-            <span>{workspace?.name ?? 'No workspace selected'}</span>
-            <small>
-              {activeSessionItem
-                ? `${activeSessionItem.permissionMode} - ${sessionStatus}`
-                : 'Choose a workspace to start'}
-            </small>
-          </div>
-        </div>
-        <div className="app-titlebar-actions">
-          <button onClick={login}>
-            <LogIn size={16} />
-            <span>{authLabel}</span>
-          </button>
-          <button
-            className={showSettings ? 'icon-button active' : 'icon-button'}
-            onClick={() => setShowSettings(value => !value)}
-            title="Settings"
-          >
-            <Settings size={16} />
-          </button>
-        </div>
-      </header>
-      <main className="desktop-shell">
       {activePermissionRequest ? (
         <div className="permission-modal-backdrop">
           <section className="permission-modal">
             <header>
-              <h2>Permission request</h2>
+              <h2>权限请求</h2>
               <span>{activePermissionRequest.toolName}</span>
             </header>
             <p>{activePermissionRequest.description}</p>
@@ -772,438 +1058,41 @@ export function App(): React.ReactNode {
             <div className="permission-modal-actions">
               <button
                 className="primary-button"
-                onClick={() =>
-                  void decidePermission(activePermissionRequest, 'allow')
-                }
+                onClick={() => void decidePermission(activePermissionRequest, 'allow')}
               >
-                Allow
+                允许
               </button>
               <button
                 onClick={() =>
                   void decidePermission(activePermissionRequest, 'allow', true)
                 }
               >
-                Always allow
+                始终允许
               </button>
               <button
-                onClick={() =>
-                  void decidePermission(activePermissionRequest, 'deny')
-                }
+                onClick={() => void decidePermission(activePermissionRequest, 'deny')}
               >
-                Deny
+                拒绝
               </button>
             </div>
           </section>
         </div>
       ) : null}
-      <aside className="sidebar">
-        <button className="primary-button" onClick={chooseWorkspace}>
-          <FolderOpen size={18} />
-          <span>Choose workspace</span>
-        </button>
 
-        <section className="panel">
-          <h2>Workspace</h2>
-          <p>{workspace?.path ?? 'No workspace selected'}</p>
-          <button onClick={() => void refreshWorkspace()} disabled={!workspace}>
-            <RefreshCw size={15} />
-            <span>Refresh</span>
-          </button>
-          <button
-            onClick={() => void createSessionForWorkspace()}
-            disabled={!workspace || runtimeMissing}
-            title={
-              runtimeMissing
-                ? 'Desktop agent runtime is missing'
-                : 'Create a new session'
-            }
-          >
-            <Plus size={15} />
-            <span>New session</span>
-          </button>
-          {recentWorkspaces.length > 0 ? (
-            <div className="recent-workspaces">
-              <h3>Recent</h3>
-              {recentWorkspaces.map(item => (
-                <button
-                  className="recent-workspace-row"
-                  key={item.path}
-                  onClick={() => void openRecentWorkspace(item)}
-                  title={item.path}
-                >
-                  <span>{item.name}</span>
-                  <small>{item.path}</small>
-                </button>
-              ))}
-            </div>
-          ) : null}
-        </section>
-
-        <section className="panel">
-          <h2>Sessions</h2>
-          {sessions.length === 0 ? (
-            <p>No sessions yet.</p>
-          ) : (
-            <div className="session-list">
-              {sessions.map(session => (
-                <div
-                  className={
-                    session.id === sessionId
-                      ? 'session-row active'
-                      : 'session-row'
-                  }
-                  key={session.id}
-                >
-                  <button
-                    className="session-select"
-                    onClick={() => {
-                      activateSession(session.id)
-                      setSessionStatus(session.status)
-                      setWorkspace({
-                        name: session.workspaceName,
-                        path: session.workspacePath,
-                      })
-                      applySessionView(
-                        sessionViewsRef.current[session.id] ??
-                          createEmptySessionView(),
-                      )
-                      void refreshWorkspace({
-                        name: session.workspaceName,
-                        path: session.workspacePath,
-                      })
-                    }}
-                  >
-                    <span>{session.sessionName ?? session.workspaceName}</span>
-                    <small>
-                      {session.status} - {session.permissionMode} -{' '}
-                      {session.model ?? 'default model'} - fallback{' '}
-                      {session.fallbackModel ?? 'none'} - {session.thinkingMode}{' '}
-                      thinking - prompt{' '}
-                      {session.hasSystemPrompt || session.hasAppendSystemPrompt
-                        ? 'custom'
-                        : 'default'}{' '}
-                      - {session.additionalDirectoryCount} extra dirs -{' '}
-                      {session.createdAt}
-                    </small>
-                  </button>
-                  <button
-                    className="icon-button"
-                    onClick={() => void closeSession(session.id)}
-                    title="Close session"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-      </aside>
-
-      <section className="conversation">
-        <header className="topbar">
-          <div>
-            <h2>Agent workspace</h2>
-            <p>{workspace?.name ?? 'Select a workspace to start'}</p>
-          </div>
-          <div className="topbar-actions">
-            {runtimeMissing ? (
-              <span className="status-pill warning">Runtime missing</span>
-            ) : null}
-            <span className={`status-pill status-${sessionStatus}`}>
-              {sessionStatus}
-            </span>
-          </div>
-        </header>
-
-        <div className="message-list">
-          {errorMessage ? (
-            <div className="error-banner">
-              <AlertCircle size={16} />
-              <span>{errorMessage}</span>
-              <button onClick={() => setErrorMessage(null)}>Dismiss</button>
-            </div>
-          ) : null}
-          {messages.length === 0 ? (
-            <div className="empty-state">
-              <Play size={24} />
-              <p>Choose a workspace, then send a prompt to start a desktop session.</p>
-            </div>
-          ) : (
-            messages.map(message => (
-              <article key={message.id} className={`message ${message.role}`}>
-                <span>{message.role}</span>
-                <p>{message.text}</p>
-              </article>
-            ))
-          )}
+      {!workspace && runtimeMissing ? (
+        <div className="global-warning">
+          <AlertCircle size={16} />
+          <span>桌面端 agent 运行时缺失，发送消息前请先执行 `bun run desktop:agent:build`。</span>
         </div>
+      ) : null}
 
-        <footer className="composer">
-          <textarea
-            value={input}
-            onChange={event => setInput(event.target.value)}
-            placeholder="Ask the agent to inspect or change this workspace..."
-          />
-          <div className="composer-actions">
-            <button onClick={interrupt} disabled={!sessionId}>
-              <Square size={17} />
-            </button>
-            <button className="send-button" onClick={submit} disabled={!canSubmit}>
-              <Send size={17} />
-              <span>{sessionStatus === 'waiting' ? 'Waiting' : 'Send'}</span>
-            </button>
-          </div>
-        </footer>
-      </section>
-
-      <aside className="inspector">
-        <section>
-          <h2>Files</h2>
-          <div className="file-list">
-            {files.length === 0 ? (
-              <p>No files loaded.</p>
-            ) : (
-              files.map(file => (
-                <button
-                  className="file-row"
-                  key={file.path}
-                  onClick={() => void previewFile(file)}
-                  style={{ paddingLeft: 10 + file.depth * 14 }}
-                >
-                  <span>{file.type === 'directory' ? 'dir' : 'file'}</span>
-                  {file.name}
-                </button>
-              ))
-            )}
-          </div>
-          {selectedFile ? (
-            <div className="file-preview">
-              <strong>{selectedFile.path}</strong>
-              {selectedFile.truncated ? <p>Preview truncated.</p> : null}
-              <pre>{selectedFile.content}</pre>
-            </div>
-          ) : null}
-        </section>
-        <section>
-          <h2>Diff</h2>
-          <pre className="diff-panel">{diff}</pre>
-        </section>
-        <section>
-          <h2>Permissions</h2>
-          <div className="permission-list">
-            {pendingPermissions.length === 0 ? (
-              <p>No pending approvals.</p>
-            ) : (
-              pendingPermissions.map(request => (
-                <article className="permission-card" key={request.requestId}>
-                  <strong>{request.toolName}</strong>
-                  <p>{request.description}</p>
-                  <code>{JSON.stringify(request.input)}</code>
-                  <div>
-                    <button
-                      onClick={() => void decidePermission(request, 'allow')}
-                    >
-                      Allow
-                    </button>
-                    <button
-                      onClick={() =>
-                        void decidePermission(request, 'allow', true)
-                      }
-                    >
-                      Always allow
-                    </button>
-                    <button
-                      onClick={() => void decidePermission(request, 'deny')}
-                    >
-                      Deny
-                    </button>
-                  </div>
-                </article>
-              ))
-            )}
-          </div>
-        </section>
-        {showSettings ? (
-          <section>
-            <h2>Settings</h2>
-            <div className="settings-list">
-              <label className="setting-field">
-                <span>Permission mode for new sessions</span>
-                <select
-                  value={permissionMode}
-                  onChange={event =>
-                    setPermissionMode(
-                      event.target.value as DesktopPermissionMode,
-                    )
-                  }
-                >
-                  {PERMISSION_MODE_OPTIONS.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-                <small>
-                  {
-                    PERMISSION_MODE_OPTIONS.find(
-                      option => option.value === permissionMode,
-                    )?.detail
-                  }
-                </small>
-              </label>
-              <label className="setting-field">
-                <span>Model for new sessions</span>
-                <input
-                  value={model}
-                  onChange={event => setModel(event.target.value)}
-                  placeholder="default, sonnet, opus, or full model name"
-                />
-                <small>Leave blank to use the CLI default model.</small>
-              </label>
-              <label className="setting-field">
-                <span>Fallback model for new sessions</span>
-                <input
-                  value={fallbackModel}
-                  onChange={event => setFallbackModel(event.target.value)}
-                  placeholder="leave blank, or enter a model alias/name"
-                />
-                <small>Used when the main model is overloaded.</small>
-              </label>
-              <label className="setting-field">
-                <span>Name for new sessions</span>
-                <input
-                  value={sessionName}
-                  onChange={event => setSessionName(event.target.value)}
-                  placeholder="optional display name"
-                />
-                <small>Leave blank to use the workspace name.</small>
-              </label>
-              <label className="setting-field">
-                <span>Thinking mode for new sessions</span>
-                <select
-                  value={thinkingMode}
-                  onChange={event =>
-                    setThinkingMode(event.target.value as DesktopThinkingMode)
-                  }
-                >
-                  {THINKING_MODE_OPTIONS.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-                <small>Default leaves the CLI thinking setting unchanged.</small>
-              </label>
-              <label className="setting-field">
-                <span>System prompt for new sessions</span>
-                <textarea
-                  value={systemPrompt}
-                  onChange={event => setSystemPrompt(event.target.value)}
-                  placeholder="replace the default system prompt"
-                />
-                <small>Leave blank to use the CLI default system prompt.</small>
-              </label>
-              <label className="setting-field">
-                <span>Append system prompt for new sessions</span>
-                <textarea
-                  value={appendSystemPrompt}
-                  onChange={event =>
-                    setAppendSystemPrompt(event.target.value)
-                  }
-                  placeholder="extra instructions appended to the session"
-                />
-                <small>Leave blank to avoid appending extra instructions.</small>
-              </label>
-              <label className="setting-field">
-                <span>Additional directories for new sessions</span>
-                <textarea
-                  value={additionalDirectories}
-                  onChange={event => setAdditionalDirectories(event.target.value)}
-                  placeholder="one directory per line, relative to workspace or absolute"
-                />
-                <small>Each directory must exist before a session can start.</small>
-              </label>
-              <p>Auth: {authStatus?.method ?? 'unknown'}</p>
-              <p>User: {authStatus?.email ?? 'not signed in'}</p>
-              <div className="setting-runtime">
-                <p>
-                  Agent runtime:{' '}
-                  {runtimeStatus?.agentExecutableExists
-                    ? 'available'
-                    : 'missing'}
-                </p>
-                <p>
-                  Agent path:{' '}
-                  {runtimeStatus?.agentExecutablePath ?? 'checking'}
-                </p>
-                <button onClick={() => void refreshRuntimeStatus()}>
-                  <RefreshCw size={15} />
-                  <span>Refresh runtime</span>
-                </button>
-              </div>
-              <p>Workspace: {workspace?.path ?? 'none'}</p>
-              <p>Active session: {sessionId ?? 'none'}</p>
-              <p>
-                Active name:{' '}
-                {activeSessionItem?.sessionName ?? 'none'}
-              </p>
-              <p>
-                Active mode: {activeSessionItem?.permissionMode ?? 'none'}
-              </p>
-              <p>
-                Active model: {activeSessionItem?.model ?? 'none'}
-              </p>
-              <p>
-                Active fallback:{' '}
-                {activeSessionItem?.fallbackModel ?? 'none'}
-              </p>
-              <p>
-                Active thinking:{' '}
-                {activeSessionItem?.thinkingMode ?? 'none'}
-              </p>
-              <p>
-                Active prompt:{' '}
-                {activeSessionItem?.hasSystemPrompt ||
-                activeSessionItem?.hasAppendSystemPrompt
-                  ? 'custom'
-                  : 'default'}
-              </p>
-              <p>
-                Active extra dirs:{' '}
-                {activeSessionItem?.additionalDirectoryCount ?? 0}
-              </p>
-            </div>
-          </section>
-        ) : null}
-        <section>
-          <h2>Tool log</h2>
-          <div className="tool-log">
-            {toolLog.length === 0 ? (
-              <p>No tool activity yet.</p>
-            ) : (
-              toolLog.map(entry => (
-                <article
-                  className={entry.isError ? 'tool-entry error' : 'tool-entry'}
-                  key={entry.id}
-                >
-                  <button onClick={() => toggleToolLogEntry(entry.id)}>
-                    {entry.expanded ? (
-                      <ChevronDown size={14} />
-                    ) : (
-                      <ChevronRight size={14} />
-                    )}
-                    <span>{entry.toolName}</span>
-                    <small>{entry.kind} - {entry.createdAt}</small>
-                  </button>
-                  {entry.expanded ? <p>{entry.summary}</p> : null}
-                </article>
-              ))
-            )}
-          </div>
-        </section>
-      </aside>
-      </main>
+      <DesktopShell
+        sidebar={sidebar}
+        topbar={topbar}
+        content={content}
+        composer={composer}
+        drawer={drawer}
+      />
     </div>
   )
 }
@@ -1224,6 +1113,9 @@ function readStoredDesktopSettings(): StoredDesktopSettings {
       appendSystemPrompt?: unknown
       additionalDirectories?: unknown
       recentWorkspaces?: unknown
+      activeView?: unknown
+      drawerTab?: unknown
+      selectedModelPreset?: unknown
     }
     return {
       permissionMode: isDesktopPermissionMode(parsed.permissionMode)
@@ -1248,6 +1140,12 @@ function readStoredDesktopSettings(): StoredDesktopSettings {
           ? parsed.additionalDirectories
           : '',
       recentWorkspaces: parseStoredRecentWorkspaces(parsed.recentWorkspaces),
+      activeView: isAppView(parsed.activeView) ? parsed.activeView : 'quickChat',
+      drawerTab: isDrawerTab(parsed.drawerTab) ? parsed.drawerTab : 'files',
+      selectedModelPreset:
+        typeof parsed.selectedModelPreset === 'string'
+          ? parsed.selectedModelPreset
+          : DEFAULT_MODEL_PRESET_ID,
     }
   } catch {
     return defaultDesktopSettings()
@@ -1255,14 +1153,10 @@ function readStoredDesktopSettings(): StoredDesktopSettings {
 }
 
 function storeDesktopSettings(settings: StoredDesktopSettings): void {
-  try {
-    window.localStorage.setItem(
-      DESKTOP_SETTINGS_STORAGE_KEY,
-      JSON.stringify(settings),
-    )
-  } catch {
-    // Ignore storage failures; settings still apply to this renderer run.
-  }
+  window.localStorage.setItem(
+    DESKTOP_SETTINGS_STORAGE_KEY,
+    JSON.stringify(settings),
+  )
 }
 
 function defaultDesktopSettings(): StoredDesktopSettings {
@@ -1276,6 +1170,9 @@ function defaultDesktopSettings(): StoredDesktopSettings {
     appendSystemPrompt: '',
     additionalDirectories: '',
     recentWorkspaces: [],
+    activeView: 'quickChat',
+    drawerTab: 'files',
+    selectedModelPreset: DEFAULT_MODEL_PRESET_ID,
   }
 }
 
@@ -1285,6 +1182,25 @@ function isDesktopPermissionMode(value: unknown): value is DesktopPermissionMode
 
 function isDesktopThinkingMode(value: unknown): value is DesktopThinkingMode {
   return THINKING_MODE_OPTIONS.some(option => option.value === value)
+}
+
+function isAppView(value: unknown): value is AppView {
+  return (
+    value === 'quickChat' ||
+    value === 'search' ||
+    value === 'plugins' ||
+    value === 'automation'
+  )
+}
+
+function isDrawerTab(value: unknown): value is DrawerTab {
+  return (
+    value === 'files' ||
+    value === 'diff' ||
+    value === 'permissions' ||
+    value === 'toolLog' ||
+    value === 'settings'
+  )
 }
 
 function parseStoredRecentWorkspaces(value: unknown): DesktopWorkspace[] {
@@ -1302,10 +1218,15 @@ function parseStoredRecentWorkspaces(value: unknown): DesktopWorkspace[] {
       workspaces.push({
         name: (item as DesktopWorkspace).name,
         path: (item as DesktopWorkspace).path,
+        branchName:
+          typeof (item as DesktopWorkspace).branchName === 'string'
+            ? (item as DesktopWorkspace).branchName
+            : null,
+        isGitRepo:
+          typeof (item as DesktopWorkspace).isGitRepo === 'boolean'
+            ? (item as DesktopWorkspace).isGitRepo
+            : undefined,
       })
-    }
-    if (workspaces.length >= MAX_RECENT_WORKSPACES) {
-      break
     }
   }
   return workspaces
@@ -1315,10 +1236,8 @@ function upsertRecentWorkspace(
   workspaces: DesktopWorkspace[],
   workspace: DesktopWorkspace,
 ): DesktopWorkspace[] {
-  return [
-    workspace,
-    ...workspaces.filter(item => item.path !== workspace.path),
-  ].slice(0, MAX_RECENT_WORKSPACES)
+  const filtered = workspaces.filter(item => item.path !== workspace.path)
+  return [workspace, ...filtered].slice(0, MAX_RECENT_WORKSPACES)
 }
 
 function normalizeOptionalText(value: string): string | undefined {

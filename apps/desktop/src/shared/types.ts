@@ -8,6 +8,8 @@ export type DesktopAuthStatus = {
 export type DesktopWorkspace = {
   path: string
   name: string
+  branchName?: string | null
+  isGitRepo?: boolean
 }
 
 export type DesktopFileEntry = {
@@ -87,12 +89,18 @@ export type CreateDesktopSessionResult = {
   sessionId: string
 }
 
+export type DesktopUiCommand =
+  | 'newConversation'
+  | 'chooseWorkspace'
+  | 'refreshWorkspace'
+
 export type DesktopApi = {
   getAuthStatus(): Promise<DesktopAuthStatus>
   getRuntimeStatus(): Promise<DesktopRuntimeStatus>
   login(): Promise<DesktopAuthStatus>
   chooseWorkspace(): Promise<DesktopWorkspace | null>
   openWorkspace(workspacePath: string): Promise<DesktopWorkspace>
+  getWorkspaceContext(workspacePath: string): Promise<DesktopWorkspace>
   listWorkspaceFiles(workspacePath: string): Promise<DesktopFileEntry[]>
   readWorkspaceFile(workspacePath: string, filePath: string): Promise<DesktopFilePreview>
   getWorkspaceDiff(workspacePath: string): Promise<DesktopDiffSummary>
@@ -106,4 +114,5 @@ export type DesktopApi = {
   interruptSession(sessionId: string): Promise<void>
   disposeSession(sessionId: string): Promise<void>
   onAgentEvent(callback: (event: DesktopAgentEvent) => void): () => void
+  onUiCommand(callback: (command: DesktopUiCommand) => void): () => void
 }

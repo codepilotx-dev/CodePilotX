@@ -1,4 +1,11 @@
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  Menu,
+  shell,
+} from 'electron'
 import { execFile } from 'node:child_process'
 import { open, readdir, stat } from 'node:fs/promises'
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path'
@@ -41,6 +48,7 @@ import type {
   DesktopPermissionMode,
   DesktopRuntimeStatus,
   DesktopThinkingMode,
+  DesktopUiCommand,
   DesktopWorkspace,
 } from '../shared/types.js'
 
@@ -142,13 +150,6 @@ function createWindow(): void {
     minWidth: 1080,
     minHeight: 720,
     title: 'ClaudeCode Local Desktop',
-    autoHideMenuBar: true,
-    titleBarStyle: 'hidden',
-    titleBarOverlay: {
-      color: '#eef0ea',
-      symbolColor: '#202124',
-      height: 44,
-    },
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
@@ -157,7 +158,7 @@ function createWindow(): void {
     },
   })
 
-  mainWindow.setMenuBarVisibility(false)
+  mainWindow.setMenuBarVisibility(true)
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
   mainWindow.webContents.on('will-navigate', (event, url) => {
     if (url !== rendererUrl()) {
@@ -169,6 +170,85 @@ function createWindow(): void {
   mainWindow.on('closed', () => {
     mainWindow = null
   })
+}
+
+function sendUiCommand(command: DesktopUiCommand): void {
+  mainWindow?.webContents.send('desktop:ui-command', command)
+}
+
+function createApplicationMenu(): void {
+  const template = [
+    {
+      label: '文件',
+      submenu: [
+        {
+          label: '新对话',
+          accelerator: 'CmdOrCtrl+N',
+          click: () => sendUiCommand('newConversation'),
+        },
+        {
+          label: '选择项目',
+          accelerator: 'CmdOrCtrl+O',
+          click: () => sendUiCommand('chooseWorkspace'),
+        },
+        {
+          label: '刷新项目',
+          accelerator: 'CmdOrCtrl+R',
+          click: () => sendUiCommand('refreshWorkspace'),
+        },
+        { type: 'separator' as const },
+        { role: 'close' as const, label: '关闭窗口' },
+      ],
+    },
+    {
+      label: '编辑',
+      submenu: [
+        { role: 'undo' as const, label: '撤销' },
+        { role: 'redo' as const, label: '重做' },
+        { type: 'separator' as const },
+        { role: 'cut' as const, label: '剪切' },
+        { role: 'copy' as const, label: '复制' },
+        { role: 'paste' as const, label: '粘贴' },
+        { role: 'selectAll' as const, label: '全选' },
+      ],
+    },
+    {
+      label: '查看',
+      submenu: [
+        { role: 'reload' as const, label: '重新加载' },
+        { role: 'forceReload' as const, label: '强制重新加载' },
+        { role: 'toggleDevTools' as const, label: '开发者工具' },
+        { type: 'separator' as const },
+        { role: 'resetZoom' as const, label: '实际大小' },
+        { role: 'zoomIn' as const, label: '放大' },
+        { role: 'zoomOut' as const, label: '缩小' },
+        { type: 'separator' as const },
+        { role: 'togglefullscreen' as const, label: '切换全屏' },
+      ],
+    },
+    {
+      label: '窗口',
+      submenu: [
+        { role: 'minimize' as const, label: '最小化' },
+        { role: 'zoom' as const, label: '缩放' },
+        { role: 'front' as const, label: '前置全部窗口' },
+      ],
+    },
+    {
+      label: '帮助',
+      submenu: [
+        {
+          label: 'ClaudeCode 本地开发说明',
+          click: () => {
+            void shell.openExternal(
+              'https://github.com/anthropics/claude-code',
+            )
+          },
+        },
+      ],
+    },
+  ]
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template))
 }
 
 function emitAgentEvent(event: DesktopAgentEvent): void {
@@ -280,10 +360,59 @@ async function openWorkspace(workspacePath: string): Promise<DesktopWorkspace> {
   return workspaceFromPath(resolvedWorkspace)
 }
 
-function workspaceFromPath(workspacePath: string): DesktopWorkspace {
+async function workspaceFromPath(workspacePath: string): Promise<DesktopWorkspace> {
+  const gitInfo = await getWorkspaceGitInfo(workspacePath)
   return {
     path: workspacePath,
     name: basename(workspacePath),
+    branchName: gitInfo.branchName,
+    isGitRepo: gitInfo.isGitRepo,
+  }
+}
+
+async function getWorkspaceContext(workspacePath: string): Promise<DesktopWorkspace> {
+  const resolvedWorkspace = assertAllowedWorkspace(workspacePath)
+  return workspaceFromPath(resolvedWorkspace)
+}
+
+async function getWorkspaceGitInfo(
+  workspacePath: string,
+): Promise<{ branchName: string | null; isGitRepo: boolean }> {
+  try {
+    const { stdout: gitRoot } = await execFileAsync('git', [
+      '-C',
+      workspacePath,
+      'rev-parse',
+      '--show-toplevel',
+    ])
+    const normalizedRoot = resolve(gitRoot.trim())
+    if (normalizedRoot !== resolve(workspacePath)) {
+      return {
+        branchName: await readGitBranchName(workspacePath),
+        isGitRepo: true,
+      }
+    }
+    return {
+      branchName: await readGitBranchName(workspacePath),
+      isGitRepo: true,
+    }
+  } catch {
+    return { branchName: null, isGitRepo: false }
+  }
+}
+
+async function readGitBranchName(workspacePath: string): Promise<string | null> {
+  try {
+    const { stdout } = await execFileAsync('git', [
+      '-C',
+      workspacePath,
+      'branch',
+      '--show-current',
+    ])
+    const branchName = stdout.trim()
+    return branchName || null
+  } catch {
+    return null
   }
 }
 
@@ -588,12 +717,13 @@ function requireNonEmptyString(value: unknown, label: string): string {
 }
 
 function registerIpc(): void {
-  const handlers: Omit<DesktopApi, 'onAgentEvent'> = {
+  const handlers: Omit<DesktopApi, 'onAgentEvent' | 'onUiCommand'> = {
     getAuthStatus: async () => getAuthStatus(),
     getRuntimeStatus,
     login,
     chooseWorkspace,
     openWorkspace,
+    getWorkspaceContext,
     listWorkspaceFiles,
     readWorkspaceFile,
     getWorkspaceDiff,
@@ -616,6 +746,7 @@ enableConfigs()
 registerIpc()
 
 app.whenReady().then(() => {
+  createApplicationMenu()
   createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
