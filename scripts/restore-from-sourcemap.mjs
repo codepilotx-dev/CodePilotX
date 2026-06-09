@@ -6,7 +6,11 @@ import path from 'node:path';
 const ROOT = process.cwd();
 const SOURCE_DIR = path.join(ROOT, 'src');
 const INCLUDED_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx']);
-const SKIP_DIRS = new Set(['dist', 'node_modules', 'src/types/generated']);
+const SKIP_DIRS = new Set([
+  'dist',
+  'node_modules',
+  'packages/core/src/types/generated',
+]);
 const MAP_COMMENT_RE =
   /\/\/(?:@|#)?\s*sourceMappingURL=data:application\/json(?:;[^,]+)?;base64,([A-Za-z0-9+/=]+)/;
 

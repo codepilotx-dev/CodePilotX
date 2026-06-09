@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    "module": "Preserve",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "jsxImportSource": "react",
+    "allowJs": true,
+    "checkJs": false,
+    "strict": false,
+    "skipLibCheck": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "ignoreDeprecations": "6.0",
+    "paths": {
+      "@claudecode/core/*": ["./packages/core/src/*"],
+      "@claudecode/tui/*": ["./apps/tui/src/*"],
+      "@claudecode/desktop/*": ["./apps/desktop/src/*"]
+    },
+    "types": ["bun", "node"],
+    "typeRoots": ["./apps/tui/src/types/local", "./node_modules/@types"]
+  }
+}
