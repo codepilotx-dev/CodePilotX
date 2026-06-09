@@ -7,12 +7,11 @@ import {
   Folder,
   FolderOpen,
   History,
-  PanelLeftClose,
-  PanelLeftOpen,
   Plus,
   RefreshCw,
   Search,
   Settings2,
+  Smartphone,
   SquarePen,
   X,
 } from 'lucide-react'
@@ -283,7 +282,7 @@ export function DesktopSidebar({
           onClick={onToggleCollapsed}
           title={collapsed ? '展开侧边栏' : '收起侧边栏'}
         >
-          {collapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
+          <Smartphone size={17} />
         </IconButton>
       </div>
 
