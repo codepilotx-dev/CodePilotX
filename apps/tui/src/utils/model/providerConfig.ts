@@ -60,7 +60,7 @@ export const PROVIDER_CONFIGS: Record<ModelProviderID, ProviderConfig> = {
     displayName: 'DeepSeek',
     baseURL: 'https://api.deepseek.com',
     apiKeyEnvVar: 'DEEPSEEK_API_KEY',
-    defaultModels: ['deepseek-v4-flash', 'deepseek-v4-pro'],
+    defaultModels: ['deepseek-v4-pro', 'deepseek-v4-flash'],
   },
   groq: {
     providerID: 'groq',
