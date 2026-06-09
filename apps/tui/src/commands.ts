@@ -29,6 +29,7 @@ import keybindings from './commands/keybindings/index.js'
 import installGitHubApp from './commands/install-github-app/index.js'
 import installSlackApp from './commands/install-slack-app/index.js'
 import breakCache from './commands/break-cache/index.js'
+import cacheStats from './commands/cache-stats/index.js'
 import mcp from './commands/mcp/index.js'
 import mobile from './commands/mobile/index.js'
 import onboarding from './commands/onboarding/index.js'
@@ -260,6 +261,7 @@ const COMMANDS = memoize((): Command[] => [
   agents,
   branch,
   btw,
+  cacheStats,
   chrome,
   clear,
   color,
