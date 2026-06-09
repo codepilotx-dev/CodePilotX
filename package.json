@@ -82,8 +82,8 @@
     "indent-string": "latest",
     "jsonc-parser": "latest",
     "lodash-es": "latest",
-    "lucide-react": "latest",
     "lru-cache": "latest",
+    "lucide-react": "latest",
     "marked": "latest",
     "p-map": "latest",
     "picomatch": "latest",
@@ -92,6 +92,7 @@
     "react": "latest",
     "react-dom": "latest",
     "react-reconciler": "latest",
+    "react-router-dom": "^7.17.0",
     "semver": "latest",
     "sharp": "latest",
     "shell-quote": "latest",
@@ -140,4 +141,3 @@
     "modifiers-napi": "latest"
   }
 }
-
