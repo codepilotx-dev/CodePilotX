@@ -11,23 +11,12 @@ import { open, readdir, stat } from 'node:fs/promises'
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { promisify } from 'node:util'
-import { fetchAndStoreClaudeCodeFirstTokenDate } from '@claudecode/core/services/api/firstTokenDate.js'
-import {
-  createAndStoreApiKey,
-  fetchAndStoreUserRoles,
-  shouldUseClaudeAIAuth,
-  storeOAuthAccountInfo,
-} from '@claudecode/core/services/oauth/client.js'
-import { getOauthProfileFromOauthToken } from '@claudecode/core/services/oauth/getOauthProfile.js'
-import { OAuthService } from '@claudecode/core/services/oauth/index.js'
-import type { OAuthTokens } from '@claudecode/core/services/oauth/types.js'
 import {
   getAuthTokenSource,
   getOauthAccountInfo,
   hasAnthropicApiKeyAuth,
 } from '@claudecode/core/utils/auth.js'
-import { enableConfigs, saveGlobalConfig } from '@claudecode/core/utils/config.js'
-import { getInitialSettings } from '@claudecode/core/utils/settings/settings.js'
+import { enableConfigs } from '@claudecode/core/utils/config.js'
 import {
   createDesktopAgentSession,
   type DesktopAgentSession,
@@ -641,7 +630,6 @@ function registerIpc(): void {
   const handlers: Omit<DesktopApi, 'onAgentEvent' | 'onUiCommand'> = {
     getAuthStatus: async () => getAuthStatus(),
     getRuntimeStatus,
-    login,
     chooseWorkspace,
     openWorkspace,
     getWorkspaceContext,
