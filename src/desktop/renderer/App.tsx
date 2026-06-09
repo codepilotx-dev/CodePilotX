@@ -539,13 +539,21 @@ export function App(): React.ReactNode {
     setWorkspace(selected)
     setRecentWorkspaces(current => upsertRecentWorkspace(current, selected))
     await refreshWorkspace(selected)
-    await createSessionForWorkspace(selected)
+    if (!runtimeMissing) {
+      await createSessionForWorkspace(selected)
+    }
   }
 
   async function createSessionForWorkspace(
     target = workspace,
   ): Promise<void> {
     if (!target) return
+    if (runtimeMissing) {
+      setErrorMessage(
+        'Desktop agent runtime is missing. Build the desktop agent first.',
+      )
+      return
+    }
     const session = await runDesktopAction(() =>
       window.desktopApi.createSession({
         workspacePath: target.path,
@@ -711,6 +719,7 @@ export function App(): React.ReactNode {
     () => sessions.find(session => session.id === sessionId) ?? null,
     [sessions, sessionId],
   )
+  const runtimeMissing = runtimeStatus?.agentExecutableExists === false
   const activePermissionRequest = pendingPermissions[0] ?? null
 
   return (
@@ -774,7 +783,12 @@ export function App(): React.ReactNode {
           </button>
           <button
             onClick={() => void createSessionForWorkspace()}
-            disabled={!workspace}
+            disabled={!workspace || runtimeMissing}
+            title={
+              runtimeMissing
+                ? 'Desktop agent runtime is missing'
+                : 'Create a new session'
+            }
           >
             <Plus size={15} />
             <span>New session</span>
