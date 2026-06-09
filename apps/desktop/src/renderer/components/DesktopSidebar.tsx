@@ -8,6 +8,7 @@ import {
   Folder,
   FolderOpen,
   History,
+  Play,
   Plus,
   RefreshCw,
   Search,
@@ -276,10 +277,18 @@ export function DesktopSidebar({
           </span>
           <span>设置</span>
         </Link>
+        <button
+          className="play-button"
+          onClick={() => {}}
+          title="启动"
+          type="button"
+        >
+          <Play size={16} fill="currentColor" />
+        </button>
         <IconButton
-          className="collapse-button"
-          onClick={onToggleCollapsed}
-          title={collapsed ? '展开侧边栏' : '收起侧边栏'}
+          className="mobile-button"
+          onClick={() => {}}
+          title="移动端"
         >
           <Smartphone size={17} />
         </IconButton>

@@ -1,6 +1,5 @@
 import type React from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
 import { SettingsPage } from './SettingsPage.js'
 import { WindowChrome } from './WindowChrome.js'
 import { useDesktopLayout } from '../features/layout/useDesktopLayout.js'
@@ -33,14 +32,6 @@ export function SettingsLayout(): React.ReactNode {
         />
       </div>
       <div className="settings-page-wrapper">
-        <button
-          className="back-to-app-button"
-          onClick={() => navigate(-1)}
-          type="button"
-        >
-          <ArrowLeft size={16} />
-          <span>返回应用</span>
-        </button>
         <SettingsPage onClose={() => navigate(-1)} />
       </div>
     </div>

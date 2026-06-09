@@ -33,3 +33,11 @@
   color: #8a4b0f;
   font-size: var(--fs-13);
 }
+
+.settings-page-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}

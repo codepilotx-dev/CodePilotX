@@ -257,6 +257,30 @@
   color: #7b7b7b;
 }
 
+.play-button {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: #1f1f1f;
+  color: #ffffff;
+  cursor: pointer;
+  transition: background 0.12s ease-out;
+}
+
+.play-button:hover {
+  background: #000000;
+}
+
+.mobile-button {
+  width: 32px;
+  height: 32px;
+  color: #7b7b7b;
+}
+
 .sidebar-resizer {
   position: absolute;
   top: 0;
