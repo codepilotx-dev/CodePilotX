@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { AppView, DrawerTab } from '../../uiTypes.js'
+import type { DrawerTab } from '../../uiTypes.js'
 import type { DesktopPermissionMode, DesktopThinkingMode, DesktopWorkspace } from '../../../shared/types.js'
 import {
   type StoredDesktopSettings,
@@ -17,7 +17,6 @@ export type UseDesktopSettingsResult = {
   appendSystemPrompt: string
   additionalDirectories: string
   recentWorkspaces: DesktopWorkspace[]
-  activeView: AppView
   drawerTab: DrawerTab
   selectedModelPreset: string
   setPermissionMode: (value: DesktopPermissionMode) => void
@@ -31,7 +30,6 @@ export type UseDesktopSettingsResult = {
   setRecentWorkspaces: (
     value: DesktopWorkspace[] | ((current: DesktopWorkspace[]) => DesktopWorkspace[]),
   ) => void
-  setActiveView: (value: AppView) => void
   setDrawerTab: (value: DrawerTab) => void
   setSelectedModelPreset: (value: string) => void
 }
@@ -57,7 +55,6 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
   const [recentWorkspaces, setRecentWorkspaces] = useState<DesktopWorkspace[]>(
     initial.recentWorkspaces,
   )
-  const [activeView, setActiveView] = useState<AppView>(initial.activeView)
   const [drawerTab, setDrawerTab] = useState<DrawerTab>(initial.drawerTab)
   const [selectedModelPreset, setSelectedModelPreset] = useState<string>(
     initial.selectedModelPreset,
@@ -74,7 +71,6 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       appendSystemPrompt,
       additionalDirectories,
       recentWorkspaces,
-      activeView,
       drawerTab,
       selectedModelPreset,
     }
@@ -89,7 +85,6 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
     appendSystemPrompt,
     additionalDirectories,
     recentWorkspaces,
-    activeView,
     drawerTab,
     selectedModelPreset,
   ])
@@ -104,7 +99,6 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
     appendSystemPrompt,
     additionalDirectories,
     recentWorkspaces,
-    activeView,
     drawerTab,
     selectedModelPreset,
     setPermissionMode,
@@ -116,7 +110,6 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
     setAppendSystemPrompt,
     setAdditionalDirectories,
     setRecentWorkspaces,
-    setActiveView,
     setDrawerTab,
     setSelectedModelPreset,
   }

@@ -1,4 +1,4 @@
-import type { AppView, DrawerTab } from '../../uiTypes.js'
+import type { DrawerTab } from '../../uiTypes.js'
 import type { DesktopPermissionMode, DesktopThinkingMode, DesktopWorkspace } from '../../../shared/types.js'
 
 export const PERMISSION_MODE_OPTIONS: Array<{
@@ -56,7 +56,6 @@ export type StoredDesktopSettings = {
   appendSystemPrompt: string
   additionalDirectories: string
   recentWorkspaces: DesktopWorkspace[]
-  activeView: AppView
   drawerTab: DrawerTab
   selectedModelPreset: string
 }
@@ -72,7 +71,6 @@ export function defaultDesktopSettings(): StoredDesktopSettings {
     appendSystemPrompt: '',
     additionalDirectories: '',
     recentWorkspaces: [],
-    activeView: 'quickChat',
     drawerTab: 'files',
     selectedModelPreset: '',
   }
@@ -92,15 +90,6 @@ function isDesktopPermissionMode(value: unknown): value is DesktopPermissionMode
 
 function isDesktopThinkingMode(value: unknown): value is DesktopThinkingMode {
   return THINKING_MODE_OPTIONS.some(option => option.value === value)
-}
-
-function isAppView(value: unknown): value is AppView {
-  return (
-    value === 'quickChat' ||
-    value === 'search' ||
-    value === 'plugins' ||
-    value === 'automation'
-  )
 }
 
 function isDrawerTab(value: unknown): value is DrawerTab {
@@ -158,7 +147,6 @@ export function readStoredDesktopSettings(): StoredDesktopSettings {
       appendSystemPrompt?: unknown
       additionalDirectories?: unknown
       recentWorkspaces?: unknown
-      activeView?: unknown
       drawerTab?: unknown
       selectedModelPreset?: unknown
     }
@@ -180,7 +168,6 @@ export function readStoredDesktopSettings(): StoredDesktopSettings {
         ? parsed.additionalDirectories
         : '',
       recentWorkspaces: parseStoredRecentWorkspaces(parsed.recentWorkspaces),
-      activeView: isAppView(parsed.activeView) ? parsed.activeView : 'quickChat',
       drawerTab: isDrawerTab(parsed.drawerTab) ? parsed.drawerTab : 'files',
       selectedModelPreset: isString(parsed.selectedModelPreset)
         ? parsed.selectedModelPreset
