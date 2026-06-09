@@ -412,9 +412,9 @@ export function ComposerCard({
         {workspace?.isGitRepo === false ? (
           <span className="composer-meta-note">非 Git 项目</span>
         ) : (
-          <span className="composer-meta-note">
-            {workspace?.path ?? '选择项目后开始'}
-          </span>
+          workspace?.path && (
+            <span className="composer-meta-note">{workspace.path}</span>
+          )
         )}
       </div>
     </div>
