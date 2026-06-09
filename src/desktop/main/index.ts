@@ -432,16 +432,22 @@ async function createSession(
   )
   sessions.set(session.sessionId, session)
   session.on('event', event => {
+    if (sessions.get(session.sessionId) !== session) {
+      return
+    }
     emitAgentEvent(event)
     if (event.type === 'done' || event.type === 'error') {
-      void getWorkspaceDiff(session.workspacePath).then(diff =>
+      void getWorkspaceDiff(session.workspacePath).then(diff => {
+        if (sessions.get(session.sessionId) !== session) {
+          return
+        }
         emitAgentEvent({
           type: 'diff',
           sessionId: session.sessionId,
           filePath: session.workspacePath,
           patch: diff.patch,
-        }),
-      )
+        })
+      })
     }
   })
   return { sessionId: session.sessionId }
