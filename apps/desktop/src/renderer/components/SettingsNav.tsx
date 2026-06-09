@@ -16,7 +16,7 @@ import {
   Monitor,
   Archive,
   CreditCard,
-  Pocket
+  Anchor
 } from 'lucide-react'
 
 const MENU_ITEMS = [
@@ -27,7 +27,7 @@ const MENU_ITEMS = [
   { id: 'personalization', label: '个性化', icon: Sparkles },
   { id: 'shortcuts', label: '键盘快捷键', icon: Keyboard },
   { id: 'mcp', label: 'MCP服务器', icon: Server },
-  { id: 'hooks', label: '钩子', icon: Pocket },
+  { id: 'hooks', label: '钩子', icon: Anchor },
   { id: 'connections', label: '连接', icon: Link },
   { id: 'git', label: 'Git', icon: GitBranch },
   { id: 'environment', label: '环境', icon: Box },
