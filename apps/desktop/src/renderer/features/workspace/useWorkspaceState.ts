@@ -52,7 +52,9 @@ export function useWorkspaceState(
     null,
   )
   const [files, setFiles] = useState<DesktopFileEntry[]>([])
-  const [selectedFile, setSelectedFile] = useState<DesktopFilePreview | null>(null)
+  const [selectedFile, setSelectedFileState] =
+    useState<DesktopFilePreview | null>(null)
+  const selectedFileRef = useRef<DesktopFilePreview | null>(null)
   const [diff, setDiff] = useState(NO_WORKSPACE_DIFF)
   const activeSessionIdRef = useRef<string | null>(null)
   const onErrorRef = useRef(options.onError)
@@ -63,6 +65,14 @@ export function useWorkspaceState(
   function setActiveSessionId(id: string | null): void {
     activeSessionIdRef.current = id
   }
+
+  const setSelectedFile = useCallback(
+    (preview: DesktopFilePreview | null): void => {
+      selectedFileRef.current = preview
+      setSelectedFileState(preview)
+    },
+    [],
+  )
 
   const refreshRuntimeStatus = useCallback(async (): Promise<void> => {
     try {
@@ -118,7 +128,7 @@ export function useWorkspaceState(
         onErrorRef.current(errorMessageOf(error))
       }
     },
-    [workspace],
+    [setSelectedFile, workspace],
   )
 
   async function refreshSelectedFilePreview(
@@ -129,9 +139,10 @@ export function useWorkspaceState(
     if (!targetSessionId || targetSessionId !== activeSessionIdRef.current) {
       return
     }
-    if (!selectedFile) return
+    const currentSelectedFile = selectedFileRef.current
+    if (!currentSelectedFile) return
     const stillExists = nextFiles.some(
-      file => file.type === 'file' && file.path === selectedFile.path,
+      file => file.type === 'file' && file.path === currentSelectedFile.path,
     )
     if (!stillExists) {
       setSelectedFile(null)
@@ -140,7 +151,7 @@ export function useWorkspaceState(
     try {
       const preview = await window.desktopApi.readWorkspaceFile(
         target.path,
-        selectedFile.path,
+        currentSelectedFile.path,
       )
       setSelectedFile(preview)
     } catch {

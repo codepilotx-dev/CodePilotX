@@ -155,21 +155,26 @@ export function App(): React.ReactNode {
     [setDrawerTab],
   )
 
-  const handleChooseWorkspace = useCallback(async (): Promise<void> => {
-    const selected = await chooseWorkspace()
-    if (!selected) return
-    setActiveView('quickChat')
-    setWorkspaceState(selected)
-    await refreshWorkspace(selected)
-  }, [chooseWorkspace, refreshWorkspace, setActiveView, setWorkspaceState])
-
-  const handleOpenRecentWorkspace = useCallback(
-    async (target: DesktopWorkspace): Promise<void> => {
-      const selected = await openRecentWorkspace(target)
-      if (!selected) return
+  const handleChooseWorkspace = useCallback(
+    async (): Promise<DesktopWorkspace | null> => {
+      const selected = await chooseWorkspace()
+      if (!selected) return null
       setActiveView('quickChat')
       setWorkspaceState(selected)
       await refreshWorkspace(selected)
+      return selected
+    },
+    [chooseWorkspace, refreshWorkspace, setActiveView, setWorkspaceState],
+  )
+
+  const handleOpenRecentWorkspace = useCallback(
+    async (target: DesktopWorkspace): Promise<DesktopWorkspace | null> => {
+      const selected = await openRecentWorkspace(target)
+      if (!selected) return null
+      setActiveView('quickChat')
+      setWorkspaceState(selected)
+      await refreshWorkspace(selected)
+      return selected
     },
     [openRecentWorkspace, refreshWorkspace, setActiveView, setWorkspaceState],
   )
@@ -179,7 +184,10 @@ export function App(): React.ReactNode {
       await createSessionForWorkspace(currentWorkspace)
       return
     }
-    await handleChooseWorkspace()
+    const selected = await handleChooseWorkspace()
+    if (selected) {
+      await createSessionForWorkspace(selected)
+    }
   }, [createSessionForWorkspace, currentWorkspace, handleChooseWorkspace])
 
   const handleNewConversation = useCallback(async (): Promise<void> => {
@@ -188,7 +196,10 @@ export function App(): React.ReactNode {
       await createSessionForWorkspace(currentWorkspace)
       return
     }
-    await handleChooseWorkspace()
+    const selected = await handleChooseWorkspace()
+    if (selected) {
+      await createSessionForWorkspace(selected)
+    }
   }, [
     createSessionForWorkspace,
     currentWorkspace,
@@ -260,13 +271,9 @@ export function App(): React.ReactNode {
 
   const handleSelectView = useCallback(
     (view: AppView): void => {
-      if (view === 'quickChat') {
-        void handleNewConversation()
-        return
-      }
       setActiveView(view)
     },
-    [handleNewConversation, setActiveView],
+    [setActiveView],
   )
 
   const runtimeMissing = runtimeStatus?.agentExecutableExists === false
