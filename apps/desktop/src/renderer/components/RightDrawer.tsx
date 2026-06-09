@@ -15,7 +15,6 @@ type Props = {
   diff: string
   pendingPermissions: DesktopPermissionRequest[]
   toolLog: ToolLogEntry[]
-  settingsContent: React.ReactNode
   onClose: () => void
   onSelectTab: (tab: DrawerTab) => void
   onPreviewFile: (file: DesktopFileEntry) => void
@@ -32,7 +31,6 @@ const TABS: Array<{ value: DrawerTab; label: string }> = [
   { value: 'diff', label: '变更' },
   { value: 'permissions', label: '权限' },
   { value: 'toolLog', label: '工具日志' },
-  { value: 'settings', label: '高级设置' },
 ]
 
 export function RightDrawer({
@@ -43,7 +41,6 @@ export function RightDrawer({
   diff,
   pendingPermissions,
   toolLog,
-  settingsContent,
   onClose,
   onSelectTab,
   onPreviewFile,
@@ -181,10 +178,6 @@ export function RightDrawer({
               ))
             )}
           </section>
-        ) : null}
-
-        {activeTab === 'settings' ? (
-          <section className="drawer-section">{settingsContent}</section>
         ) : null}
       </div>
     </aside>

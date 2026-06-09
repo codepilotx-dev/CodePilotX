@@ -72,6 +72,7 @@ export function App(): React.ReactNode {
   } = settings
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+  const [isSettingsPageOpen, setIsSettingsPageOpen] = useState(false)
   const [isWindowMaximized, setIsWindowMaximized] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -227,7 +228,7 @@ export function App(): React.ReactNode {
       void refreshWorkspace()
     },
     onOpenSettings: () => {
-      openDrawerTab('settings')
+      setIsSettingsPageOpen(true)
     },
     onLogOut: () => {
       setErrorMessage('已退出登录（本地无持久账户，请重新启动应用）。')
@@ -395,86 +396,6 @@ export function App(): React.ReactNode {
     }
   }, [])
 
-  const settingsContent = (
-    <SettingsPage 
-      onClose={() => setActiveTab('files')}
-      legacySettings={
-        <div className="settings-list">
-      <label className="setting-field">
-        <span>会话名称</span>
-        <input
-          value={sessionName}
-          onChange={event => setSessionName(event.target.value)}
-          placeholder="为空时默认使用项目名称"
-        />
-      </label>
-      <label className="setting-field">
-        <span>Fallback 模型</span>
-        <input
-          value={fallbackModel}
-          onChange={event => setFallbackModel(event.target.value)}
-          placeholder="模型繁忙时回退到此模型"
-        />
-      </label>
-      <label className="setting-field">
-        <span>System Prompt</span>
-        <textarea
-          value={systemPrompt}
-          onChange={event => setSystemPrompt(event.target.value)}
-          placeholder="替换默认系统提示词"
-        />
-      </label>
-      <label className="setting-field">
-        <span>追加 Prompt</span>
-        <textarea
-          value={appendSystemPrompt}
-          onChange={event => setAppendSystemPrompt(event.target.value)}
-          placeholder="附加到默认提示词后面"
-        />
-      </label>
-      <label className="setting-field">
-        <span>额外目录</span>
-        <textarea
-          value={additionalDirectories}
-          onChange={event => setAdditionalDirectories(event.target.value)}
-          placeholder="每行一个目录，可相对项目或绝对路径"
-        />
-      </label>
-      <div className="setting-runtime">
-        <p>认证方式：{authStatus?.method ?? '未知'}</p>
-        <p>账号：{authStatus?.email ?? '未登录'}</p>
-        <p>
-          Agent 运行时：
-          {runtimeStatus?.agentExecutableExists ? '可用' : '缺失'}
-        </p>
-        <p>Agent 路径：{runtimeStatus?.agentExecutablePath ?? '检查中'}</p>
-        <button onClick={() => void refreshRuntimeStatus()} type="button">
-          <RefreshCw size={15} />
-          <span>刷新运行时</span>
-        </button>
-      </div>
-      <div className="setting-runtime">
-        <p>当前项目：{currentWorkspace?.path ?? '无'}</p>
-        <p>
-          当前会话：
-          {activeSessionItem?.sessionName ??
-            activeSessionItem?.workspaceName ??
-            '无'}
-        </p>
-        <p>当前模型：{(activeSessionItem?.model ?? model) || '默认模型'}</p>
-        <p>
-          当前推理：
-          {
-            THINKING_MODE_OPTIONS.find(option => option.value === thinkingMode)
-              ?.label
-          }
-        </p>
-      </div>
-    </div>
-      }
-    />
-  )
-
   const windowChrome = (
     <WindowChrome
       sidebarCollapsed={sidebarCollapsed}
@@ -582,7 +503,6 @@ export function App(): React.ReactNode {
       diff={diff}
       pendingPermissions={pendingPermissions}
       toolLog={toolLog}
-      settingsContent={settingsContent}
       onClose={() => setIsDrawerOpen(false)}
       onSelectTab={tab => {
         setDrawerTab(tab)
@@ -648,13 +568,93 @@ export function App(): React.ReactNode {
         </div>
       ) : null}
 
-      <DesktopShell
-        windowChrome={windowChrome}
-        sidebar={sidebar}
-        content={content}
-        composer={composer}
-        drawer={drawer}
-      />
+      {isSettingsPageOpen ? (
+        <SettingsPage
+          onClose={() => setIsSettingsPageOpen(false)}
+          legacySettings={
+            <div className="settings-list">
+          <label className="setting-field">
+            <span>会话名称</span>
+            <input
+              value={sessionName}
+              onChange={event => setSessionName(event.target.value)}
+              placeholder="为空时默认使用项目名称"
+            />
+          </label>
+          <label className="setting-field">
+            <span>Fallback 模型</span>
+            <input
+              value={fallbackModel}
+              onChange={event => setFallbackModel(event.target.value)}
+              placeholder="模型繁忙时回退到此模型"
+            />
+          </label>
+          <label className="setting-field">
+            <span>System Prompt</span>
+            <textarea
+              value={systemPrompt}
+              onChange={event => setSystemPrompt(event.target.value)}
+              placeholder="替换默认系统提示词"
+            />
+          </label>
+          <label className="setting-field">
+            <span>追加 Prompt</span>
+            <textarea
+              value={appendSystemPrompt}
+              onChange={event => setAppendSystemPrompt(event.target.value)}
+              placeholder="附加到默认提示词后面"
+            />
+          </label>
+          <label className="setting-field">
+            <span>额外目录</span>
+            <textarea
+              value={additionalDirectories}
+              onChange={event => setAdditionalDirectories(event.target.value)}
+              placeholder="每行一个目录，可相对项目或绝对路径"
+            />
+          </label>
+          <div className="setting-runtime">
+            <p>认证方式：{authStatus?.method ?? '未知'}</p>
+            <p>账号：{authStatus?.email ?? '未登录'}</p>
+            <p>
+              Agent 运行时：
+              {runtimeStatus?.agentExecutableExists ? '可用' : '缺失'}
+            </p>
+            <p>Agent 路径：{runtimeStatus?.agentExecutablePath ?? '检查中'}</p>
+            <button onClick={() => void refreshRuntimeStatus()} type="button">
+              <RefreshCw size={15} />
+              <span>刷新运行时</span>
+            </button>
+          </div>
+          <div className="setting-runtime">
+            <p>当前项目：{currentWorkspace?.path ?? '无'}</p>
+            <p>
+              当前会话：
+              {activeSessionItem?.sessionName ??
+                activeSessionItem?.workspaceName ??
+                '无'}
+            </p>
+            <p>当前模型：{(activeSessionItem?.model ?? model) || '默认模型'}</p>
+            <p>
+              当前推理：
+              {
+                THINKING_MODE_OPTIONS.find(option => option.value === thinkingMode)
+                  ?.label
+              }
+            </p>
+          </div>
+        </div>
+          }
+        />
+      ) : (
+        <DesktopShell
+          windowChrome={windowChrome}
+          sidebar={sidebar}
+          content={content}
+          composer={composer}
+          drawer={drawer}
+        />
+      )}
     </div>
   )
 }
