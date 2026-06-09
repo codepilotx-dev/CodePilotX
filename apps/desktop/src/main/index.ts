@@ -225,6 +225,37 @@ function isWindowMaximized(): boolean {
   return mainWindow?.isMaximized() ?? false
 }
 
+function newWindow(): void {
+  createWindow()
+}
+
+function openSettings(): void {
+  mainWindow?.webContents.send('desktop:ui-command', 'openSettings')
+}
+
+function logOut(): void {
+  mainWindow?.webContents.send('desktop:ui-command', 'logOut')
+}
+
+function exitApp(): void {
+  app.quit()
+}
+
+function logRenderer(message: string, payload: unknown): void {
+  const stamp = new Date().toISOString()
+  if (payload === undefined || payload === null) {
+    process.stderr.write(`[renderer ${stamp}] ${message}\n`)
+  } else {
+    let serialized: string
+    try {
+      serialized = typeof payload === 'string' ? payload : JSON.stringify(payload)
+    } catch {
+      serialized = '[unserializable payload]'
+    }
+    process.stderr.write(`[renderer ${stamp}] ${message} ${serialized}\n`)
+  }
+}
+
 function emitAgentEvent(event: DesktopAgentEvent): void {
   mainWindow?.webContents.send('desktop:agent-event', event)
 }
@@ -672,6 +703,10 @@ function registerIpc(): void {
     toggleWindowMaximized: async () => toggleWindowMaximized(),
     closeWindow: async () => closeWindow(),
     isWindowMaximized: async () => isWindowMaximized(),
+    newWindow: async () => newWindow(),
+    openSettings: async () => openSettings(),
+    logOut: async () => logOut(),
+    exitApp: async () => exitApp(),
   }
 
   for (const [name, handler] of Object.entries(handlers)) {
@@ -680,6 +715,12 @@ function registerIpc(): void {
       return (handler as (...handlerArgs: unknown[]) => unknown)(...args)
     })
   }
+
+  ipcMain.on('desktop:logRenderer', (event, message: unknown, payload: unknown) => {
+    assertTrustedIpcSender(event.senderFrame?.url)
+    const text = typeof message === 'string' ? message : String(message)
+    logRenderer(text, payload)
+  })
 }
 
 enableConfigs()

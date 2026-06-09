@@ -93,6 +93,8 @@ export type DesktopUiCommand =
   | 'newConversation'
   | 'chooseWorkspace'
   | 'refreshWorkspace'
+  | 'openSettings'
+  | 'logOut'
 
 export type DesktopApi = {
   getAuthStatus(): Promise<DesktopAuthStatus>
@@ -116,6 +118,11 @@ export type DesktopApi = {
   toggleWindowMaximized(): Promise<boolean>
   closeWindow(): Promise<void>
   isWindowMaximized(): Promise<boolean>
+  newWindow(): Promise<void>
+  openSettings(): Promise<void>
+  logOut(): Promise<void>
+  exitApp(): Promise<void>
+  logRenderer(message: string, payload?: unknown): Promise<void>
   onAgentEvent(callback: (event: DesktopAgentEvent) => void): () => void
   onUiCommand(callback: (command: DesktopUiCommand) => void): () => void
 }

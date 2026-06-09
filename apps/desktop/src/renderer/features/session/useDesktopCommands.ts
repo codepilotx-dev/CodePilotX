@@ -5,6 +5,8 @@ export type UseDesktopCommandsOptions = {
   onNewConversation: () => void
   onChooseWorkspace: () => void
   onRefreshWorkspace: () => void
+  onOpenSettings: () => void
+  onLogOut: () => void
 }
 
 function routeCommand(
@@ -21,6 +23,14 @@ function routeCommand(
   }
   if (command === 'refreshWorkspace') {
     options.onRefreshWorkspace()
+    return
+  }
+  if (command === 'openSettings') {
+    options.onOpenSettings()
+    return
+  }
+  if (command === 'logOut') {
+    options.onLogOut()
   }
 }
 

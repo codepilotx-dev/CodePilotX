@@ -19,6 +19,13 @@ import { QuickChatView } from './components/QuickChatView.js'
 import { RightDrawer } from './components/RightDrawer.js'
 import { SearchView } from './components/SearchView.js'
 import { WindowChrome } from './components/WindowChrome.js'
+import type {
+  EditMenuAction,
+  FileMenuAction,
+  HelpMenuAction,
+  ViewMenuAction,
+  WindowMenuAction,
+} from './components/WindowChrome.js'
 import type { AppView, DrawerTab, SessionListItem } from './uiTypes.js'
 import { PERMISSION_MODE_OPTIONS, THINKING_MODE_OPTIONS } from './features/settings/settingsStorage.js'
 import { useDesktopSettings } from './features/settings/useDesktopSettings.js'
@@ -218,7 +225,138 @@ export function App(): React.ReactNode {
     onRefreshWorkspace: () => {
       void refreshWorkspace()
     },
+    onOpenSettings: () => {
+      openDrawerTab('settings')
+    },
+    onLogOut: () => {
+      setErrorMessage('已退出登录（本地无持久账户，请重新启动应用）。')
+    },
   })
+
+  const handleFileMenuAction = useCallback(
+    (action: FileMenuAction): void => {
+      console.log('[app] handleFileMenuAction', action)
+      if (
+        typeof window !== 'undefined' &&
+        window.desktopApi &&
+        typeof window.desktopApi.logRenderer === 'function'
+      ) {
+        try {
+          void window.desktopApi.logRenderer('[app] handleFileMenuAction', action)
+        } catch {}
+      }
+      switch (action) {
+        case 'close':
+          void window.desktopApi.closeWindow()
+          break
+        case 'newWindow':
+          void window.desktopApi.newWindow()
+          break
+        case 'newChat':
+          void handleNewConversation()
+          break
+        case 'quickChat':
+          setActiveView('quickChat')
+          break
+        case 'openFolder':
+          void handleChooseWorkspace()
+          break
+        case 'openSettings':
+          void window.desktopApi.openSettings()
+          break
+        case 'logOut':
+          void window.desktopApi.logOut()
+          break
+        case 'exit':
+          void window.desktopApi.exitApp()
+          break
+      }
+    },
+    [handleChooseWorkspace, handleNewConversation, setActiveView],
+  )
+
+  const handleEditMenuAction = useCallback(
+    (action: EditMenuAction): void => {
+      console.log('[app] handleEditMenuAction', action)
+      if (
+        typeof window !== 'undefined' &&
+        window.desktopApi &&
+        typeof window.desktopApi.logRenderer === 'function'
+      ) {
+        try {
+          void window.desktopApi.logRenderer('[app] handleEditMenuAction', action)
+        } catch {}
+      }
+    },
+    [],
+  )
+
+  const handleViewMenuAction = useCallback(
+    (action: ViewMenuAction): void => {
+      console.log('[app] handleViewMenuAction', action)
+      if (
+        typeof window !== 'undefined' &&
+        window.desktopApi &&
+        typeof window.desktopApi.logRenderer === 'function'
+      ) {
+        try {
+          void window.desktopApi.logRenderer('[app] handleViewMenuAction', action)
+        } catch {}
+      }
+      if (action === 'toggleSidebar') {
+        toggleSidebarCollapsed()
+      }
+    },
+    [toggleSidebarCollapsed],
+  )
+
+  const handleWindowMenuAction = useCallback(
+    (action: WindowMenuAction): void => {
+      console.log('[app] handleWindowMenuAction', action)
+      if (
+        typeof window !== 'undefined' &&
+        window.desktopApi &&
+        typeof window.desktopApi.logRenderer === 'function'
+      ) {
+        try {
+          void window.desktopApi.logRenderer(
+            '[app] handleWindowMenuAction',
+            action,
+          )
+        } catch {}
+      }
+      switch (action) {
+        case 'minimize':
+          void window.desktopApi.minimizeWindow()
+          break
+        case 'zoom':
+          void window.desktopApi
+            .toggleWindowMaximized()
+            .then(next => setIsWindowMaximized(next))
+          break
+        case 'close':
+          void window.desktopApi.closeWindow()
+          break
+      }
+    },
+    [setIsWindowMaximized],
+  )
+
+  const handleHelpMenuAction = useCallback(
+    (action: HelpMenuAction): void => {
+      console.log('[app] handleHelpMenuAction', action)
+      if (
+        typeof window !== 'undefined' &&
+        window.desktopApi &&
+        typeof window.desktopApi.logRenderer === 'function'
+      ) {
+        try {
+          void window.desktopApi.logRenderer('[app] handleHelpMenuAction', action)
+        } catch {}
+      }
+    },
+    [],
+  )
 
   const handleModelPresetChange = useCallback(
     (nextPresetId: string): void => {
@@ -402,6 +540,11 @@ export function App(): React.ReactNode {
           .toggleWindowMaximized()
           .then(next => setIsWindowMaximized(next))
       }}
+      onFileMenuAction={handleFileMenuAction}
+      onEditMenuAction={handleEditMenuAction}
+      onViewMenuAction={handleViewMenuAction}
+      onWindowMenuAction={handleWindowMenuAction}
+      onHelpMenuAction={handleHelpMenuAction}
     />
   )
 
