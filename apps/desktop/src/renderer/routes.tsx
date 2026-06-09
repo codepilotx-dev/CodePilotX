@@ -8,6 +8,8 @@ import { DesktopSidebar } from './components/DesktopSidebar.js'
 import { PluginsView } from './components/PluginsView.js'
 import { QuickChatView } from './components/QuickChatView.js'
 import { SearchView } from './components/SearchView.js'
+import { QuickChatContext } from './context/QuickChatContext.js'
+import { SearchContext } from './context/SearchContext.js'
 import { AutomationView } from './components/AutomationView.js'
 import { SettingsPage } from './components/SettingsPage.js'
 import { WindowChrome } from './components/WindowChrome.js'
@@ -487,7 +489,30 @@ function DesktopLayout(): React.ReactNode {
       <DesktopShell
         windowChrome={windowChrome}
         sidebar={sidebar}
-        content={<Outlet />}
+        content={
+          <QuickChatContext.Provider
+            value={{
+              workspaceName: currentWorkspace?.name ?? null,
+              messages,
+              errorMessage,
+              onDismissError: () => setErrorMessage(null),
+              sessionStatus,
+            }}
+          >
+            <SearchContext.Provider
+              value={{
+                query: searchQuery,
+                workspaces: search.filteredWorkspaces,
+                sessions: search.filteredSessions,
+                onQueryChange: setSearchQuery,
+                onOpenWorkspace: handleOpenRecentWorkspace,
+                onSelectSession: handleSelectSession,
+              }}
+            >
+              <Outlet />
+            </SearchContext.Provider>
+          </QuickChatContext.Provider>
+        }
         composer={composer}
       />
     </div>

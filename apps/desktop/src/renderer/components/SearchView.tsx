@@ -1,25 +1,17 @@
 import type React from 'react'
 import { Search } from 'lucide-react'
-import type { DesktopWorkspace } from '../../shared/types.js'
-import type { SessionListItem } from '../uiTypes.js'
+import { useSearchContext } from '../context/SearchContext.js'
 
-type Props = {
-  query: string
-  workspaces: DesktopWorkspace[]
-  sessions: SessionListItem[]
-  onQueryChange: (value: string) => void
-  onOpenWorkspace: (workspace: DesktopWorkspace) => void
-  onSelectSession: (session: SessionListItem) => void
-}
+export function SearchView(): React.ReactNode {
+  const {
+    query,
+    workspaces,
+    sessions,
+    onQueryChange,
+    onOpenWorkspace,
+    onSelectSession,
+  } = useSearchContext()
 
-export function SearchView({
-  query,
-  workspaces,
-  sessions,
-  onQueryChange,
-  onOpenWorkspace,
-  onSelectSession,
-}: Props): React.ReactNode {
   return (
     <section className="utility-view">
       <div className="utility-view-header">

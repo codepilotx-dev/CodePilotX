@@ -1,23 +1,16 @@
 import type React from 'react'
 import { AlertCircle } from 'lucide-react'
-import type { DesktopSessionStatus } from '../../shared/types.js'
-import type { Message } from '../uiTypes.js'
+import { useQuickChatContext } from '../context/QuickChatContext.js'
 
-type Props = {
-  workspaceName: string | null
-  messages: Message[]
-  errorMessage: string | null
-  onDismissError: () => void
-  sessionStatus: DesktopSessionStatus
-}
+export function QuickChatView(): React.ReactNode {
+  const {
+    workspaceName,
+    messages,
+    errorMessage,
+    onDismissError,
+    sessionStatus,
+  } = useQuickChatContext()
 
-export function QuickChatView({
-  workspaceName,
-  messages,
-  errorMessage,
-  onDismissError,
-  sessionStatus,
-}: Props): React.ReactNode {
   const hasMessages = messages.length > 0
 
   return (
@@ -57,13 +50,13 @@ export function QuickChatView({
   )
 }
 
-function labelForRole(role: Message['role']): string {
+function labelForRole(role: 'user' | 'assistant' | 'system'): string {
   if (role === 'user') return '你'
   if (role === 'assistant') return 'ClaudeCode'
   return '系统'
 }
 
-function translateStatus(status: DesktopSessionStatus): string {
+function translateStatus(status: string): string {
   if (status === 'running') return '运行中'
   if (status === 'waiting') return '等待确认'
   if (status === 'done') return '已完成'
