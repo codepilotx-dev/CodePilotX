@@ -1,0 +1,244 @@
+.right-drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 10;
+  width: 390px;
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  border-left: 1px solid var(--c-border-soft);
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: -20px 0 50px rgba(24, 24, 21, 0.08);
+  transform: translateX(100%);
+  transition: transform 0.18s ease;
+}
+
+.right-drawer.open {
+  transform: translateX(0);
+}
+
+.right-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border-bottom: 1px solid var(--c-border-soft);
+}
+
+.right-drawer-tabs {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  min-width: 0;
+  overflow: auto;
+}
+
+.drawer-tab {
+  min-height: 30px;
+  flex: 0 0 auto;
+  padding: 0 10px;
+  border-radius: var(--r-round);
+  color: var(--c-text-soft);
+  font-size: var(--fs-13);
+}
+
+.drawer-tab:hover,
+.drawer-tab.active {
+  background: var(--c-bg-hover);
+  color: var(--c-text);
+}
+
+.right-drawer-body {
+  min-height: 0;
+  overflow: auto;
+  padding: 14px;
+}
+
+.drawer-section,
+.drawer-file-list,
+.settings-list,
+.setting-field,
+.setting-runtime {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+.drawer-file-row {
+  display: grid;
+  gap: 2px;
+  justify-items: start;
+  min-height: 38px;
+  border-radius: var(--r-md);
+  text-align: left;
+}
+
+.drawer-file-row:hover {
+  background: var(--c-bg-row-hover);
+}
+
+.drawer-file-row span {
+  color: var(--c-text-meta);
+  font-size: var(--fs-11);
+}
+
+.drawer-preview,
+.diff-panel,
+.permission-card,
+.tool-entry {
+  border-radius: var(--r-lg);
+}
+
+.drawer-preview {
+  display: grid;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+}
+
+.drawer-preview pre,
+.diff-panel,
+.tool-entry p,
+.permission-card code {
+  font-family: var(--ff-mono);
+}
+
+.drawer-preview pre,
+.diff-panel {
+  margin: 0;
+  overflow: auto;
+  white-space: pre-wrap;
+}
+
+.diff-panel {
+  padding: var(--sp-3);
+  border: 1px solid var(--c-border-soft);
+  background: var(--c-bg);
+}
+
+.permission-card {
+  display: grid;
+  gap: 10px;
+  padding: var(--sp-3);
+}
+
+.permission-card code {
+  max-height: 180px;
+  overflow: auto;
+  padding: 10px;
+  border-radius: var(--r-md);
+  background: var(--c-bg-soft);
+  white-space: pre-wrap;
+}
+
+.permission-card div {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.permission-card button,
+.setting-runtime button,
+.permission-modal-actions button,
+.error-banner button {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  padding: 0 10px;
+  border: 1px solid var(--c-border-soft);
+  border-radius: var(--r-md);
+  background: var(--c-bg);
+}
+
+.permission-card button:hover,
+.setting-runtime button:hover,
+.permission-modal-actions button:hover,
+.error-banner button:hover {
+  background: var(--c-bg-hover);
+}
+
+.tool-entry {
+  display: grid;
+  overflow: hidden;
+}
+
+.tool-entry.error {
+  border-color: #d8b0a6;
+}
+
+.tool-entry button {
+  min-height: 40px;
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
+  gap: var(--sp-2);
+  align-items: center;
+  padding: 0 10px;
+  text-align: left;
+}
+
+.tool-entry button:hover {
+  background: var(--c-bg-row-hover);
+}
+
+.tool-entry span,
+.tool-entry small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tool-entry small {
+  color: var(--c-text-meta);
+  font-size: var(--fs-12);
+}
+
+.tool-entry p {
+  max-height: 180px;
+  margin: 0;
+  overflow: auto;
+  padding: var(--sp-3);
+  border-top: 1px solid var(--c-border-row);
+  white-space: pre-wrap;
+}
+
+.setting-field span {
+  display: block;
+}
+
+.setting-field input,
+.setting-field textarea {
+  min-height: 36px;
+  padding: 8px 10px;
+}
+
+.setting-field textarea {
+  min-height: 96px;
+}
+
+.setting-runtime {
+  padding: var(--sp-3);
+  border: 1px solid var(--c-border-soft);
+  border-radius: var(--r-lg);
+  background: #fcfcfa;
+}
+
+.error-banner {
+  width: min(100%, 820px);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: 0 auto;
+  padding: var(--sp-3);
+  border: 1px solid #e4b3ab;
+  border-radius: var(--r-lg);
+  background: #fff4f2;
+  color: #7d2f25;
+}
+
+.error-banner span {
+  flex: 1;
+}

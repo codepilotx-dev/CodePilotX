@@ -1,0 +1,123 @@
+:root {
+  --contrast: 40;
+  --c-bg: #ffffff;
+  --c-bg-soft: #f6f6f6;
+  --c-bg-mask: #fbfbfb;
+  --c-bg-hover: #f1f1f1;
+  --c-bg-row-hover: #f5f5f5;
+  --c-bg-chip-hover: #eef3ff;
+  --c-surface: #ffffff;
+  --c-ink: #0d0d0d;
+  --c-border: #e0e0e0;
+  --c-border-soft: #eeeeee;
+  --c-border-faint: #ededed;
+  --c-border-row: #f0f0f0;
+  --c-text: #0d0d0d;
+  --c-text-strong: #0d0d0d;
+  --c-text-meta: #999999;
+  --c-text-soft: #8a8a8a;
+  --c-text-mute: #cdcdcd;
+  --c-text-placeholder: #b8b8b8;
+  --c-text-disabled: #cccccc;
+  --c-text-on-accent: #ffffff;
+  --c-icon: #9b9b9b;
+  --c-icon-soft: #9a9a9a;
+  --c-icon-arrow: #b8b8b8;
+  --c-accent: #0169cc;
+  --c-send-bg: #8b8b8b;
+  --c-send-bg-hover: #2b2b2b;
+  --c-send-bg-disabled: #8f8f8f;
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 30px;
+  --sp-8: 36px;
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-pill: 18px;
+  --r-card: 24px;
+  --r-round: 999px;
+  --sh-soft: 0 1px 2px rgba(0, 0, 0, 0.03);
+  --sh-card: 0 1px 2px rgba(0, 0, 0, 0.025);
+  --sh-card-lg: 0 8px 18px rgba(0, 0, 0, 0.035);
+  --sh-popover:
+    0 4px 6px -2px rgba(0, 0, 0, 0.04),
+    0 12px 24px -6px rgba(0, 0, 0, 0.12);
+  --ff-sans:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC",
+    "Helvetica Neue", Arial, "Microsoft YaHei", sans-serif;
+  --ff-mono: "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+  --fs-11: 11px;
+  --fs-12: 12px;
+  --fs-13: 13px;
+  --fs-14: 14px;
+  --fs-15: 15px;
+  --fs-16: 16px;
+  --fs-26: 26px;
+  --chrome-h: 48px;
+  --titlebar-h: var(--chrome-h);
+  --menubar-h: var(--chrome-h);
+  --composer-w: 650px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  background: var(--c-bg);
+  color: var(--c-text);
+  font-family: var(--ff-sans);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+input,
+textarea {
+  min-width: 0;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+  background: var(--c-bg);
+  color: var(--c-text);
+  outline: none;
+}
+
+textarea {
+  resize: none;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}

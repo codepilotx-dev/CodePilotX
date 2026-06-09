@@ -1,0 +1,35 @@
+.desktop-frame,
+.app-shell {
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.desktop-frame {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+}
+
+.app-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+.global-warning {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 9px var(--sp-4);
+  border-bottom: 1px solid #f1d5a8;
+  background: #fff7e8;
+  color: #8a4b0f;
+  font-size: var(--fs-13);
+}

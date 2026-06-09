@@ -1,0 +1,93 @@
+.desktop-chrome {
+  border-bottom: 1px solid var(--c-border-row);
+  background: var(--c-bg);
+}
+
+.window-chrome {
+  background: var(--c-bg);
+  user-select: none;
+}
+
+.window-titlebar {
+  width: 100%;
+  height: var(--chrome-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: 0 10px 0 12px;
+  -webkit-app-region: drag;
+}
+
+.window-titlebar-left {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  -webkit-app-region: no-drag;
+}
+
+.window-toolbar-icon {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border-radius: var(--r-md);
+  color: var(--c-icon);
+}
+
+.window-toolbar-icon:hover {
+  background: var(--c-bg-hover);
+}
+
+.window-menu {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-left: 6px;
+  overflow: hidden;
+  -webkit-app-region: no-drag;
+}
+
+.window-menu-item {
+  padding: 5px 2px;
+  border-radius: var(--r-sm);
+  color: var(--c-text-soft);
+  font-size: var(--fs-16);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.window-menu-item:hover {
+  background: var(--c-bg-hover);
+  color: var(--c-text);
+}
+
+.window-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  -webkit-app-region: no-drag;
+}
+
+.window-control-button {
+  width: 46px;
+  height: 34px;
+  border-radius: 8px;
+  color: #505050;
+}
+
+.window-control-button:hover {
+  background: var(--c-bg-hover);
+}
+
+.window-control-button.close:hover {
+  background: #e81123;
+  color: #ffffff;
+}

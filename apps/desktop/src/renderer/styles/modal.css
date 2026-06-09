@@ -1,0 +1,51 @@
+.permission-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-6);
+  background: rgba(20, 20, 20, 0.34);
+}
+
+.permission-modal {
+  width: min(620px, 100%);
+  display: grid;
+  gap: var(--sp-3);
+  padding: var(--sp-5);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-lg);
+  background: var(--c-bg);
+  box-shadow: 0 24px 60px rgba(20, 20, 20, 0.2);
+}
+
+.permission-modal header,
+.permission-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.permission-modal header span {
+  padding: 5px 10px;
+  border-radius: var(--r-round);
+  background: var(--c-bg-soft);
+  color: var(--c-text-soft);
+}
+
+.permission-modal code {
+  display: block;
+  overflow: auto;
+  padding: var(--sp-3);
+  border-radius: var(--r-md);
+  background: var(--c-bg-soft);
+  font-family: var(--ff-mono);
+  white-space: pre-wrap;
+}
+
+.primary-button {
+  background: var(--c-text) !important;
+  color: var(--c-text-on-accent);
+}

@@ -1,0 +1,75 @@
+@media (max-width: 900px) {
+  .window-titlebar {
+    padding: 0 8px 0 8px;
+  }
+
+  .window-titlebar-left {
+    gap: 2px;
+  }
+
+  .window-menu {
+    display: none;
+  }
+
+  .window-toolbar-icon {
+    width: 26px;
+    height: 26px;
+  }
+
+  .window-control-button {
+    width: 42px;
+    height: 32px;
+  }
+
+  .window-control-button:hover,
+  .window-toolbar-icon:hover {
+    background: var(--c-bg-hover);
+  }
+
+  .window-control-button.close:hover {
+    background: #e81123;
+    color: #ffffff;
+  }
+
+  .desktop-sidebar {
+    position: fixed;
+    inset: var(--chrome-h) auto 0 0;
+    z-index: 40;
+    width: var(--sidebar-current-w);
+    height: calc(100vh - var(--chrome-h));
+    flex: none;
+    box-shadow: 16px 0 28px rgba(0, 0, 0, 0.08);
+    transform: translateX(0);
+  }
+
+  .desktop-sidebar.is-collapsed {
+    width: var(--sidebar-current-w);
+    transform: translateX(-100%);
+    border-right-width: 1px;
+  }
+
+  .sidebar-resizer {
+    display: none;
+  }
+
+  .desktop-main-stage {
+    padding: var(--sp-5) var(--sp-4);
+  }
+
+  .quick-chat-hero h1,
+  .utility-view-header h1 {
+    font-size: 23px;
+  }
+
+  .utility-view {
+    padding: var(--sp-6) var(--sp-4);
+  }
+
+  .utility-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .right-drawer {
+    width: min(390px, 100vw);
+  }
+}
