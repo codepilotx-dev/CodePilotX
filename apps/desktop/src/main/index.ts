@@ -68,6 +68,9 @@ const sessions = new Map<string, DesktopAgentSession>()
 const allowedWorkspacePaths = new Set<string>()
 
 function rendererUrl(): string {
+  if (!app.isPackaged && process.env.CLAUDE_CODE_DESKTOP_RENDERER_URL) {
+    return process.env.CLAUDE_CODE_DESKTOP_RENDERER_URL
+  }
   return pathToFileURL(join(__dirname, '../renderer/index.html')).toString()
 }
 

@@ -311,92 +311,92 @@ export function WindowChrome({
                 meta="Ctrl+B"
                 onClick={() => runViewAction('toggleSidebar')}
               >
-                Toggle Sidebar
+                切换侧边栏
               </PopoverItem>
               <PopoverItem
                 meta="Ctrl+J"
                 onClick={() => runViewAction('toggleBottomPanel')}
               >
-                Toggle Bottom Panel
+                切换底部面板
               </PopoverItem>
               <PopoverItem
                 meta="Ctrl+`"
                 onClick={() => runViewAction('openTerminal')}
               >
-                Open Terminal
+                打开终端
               </PopoverItem>
               <PopoverItem
                 meta="Ctrl+Shift+E"
                 onClick={() => runViewAction('toggleFileTree')}
               >
-                Toggle File Tree
+                切换文件树
               </PopoverItem>
               <PopoverItem
                 meta="Ctrl+T"
                 onClick={() => runViewAction('openBrowserTab')}
               >
-                Open Browser Tab
+                打开浏览器标签
               </PopoverItem>
               <PopoverItem
                 disabled
                 meta="Ctrl+R"
                 onClick={() => runViewAction('reloadBrowserPage')}
               >
-                Reload Browser Page
+                重新加载浏览器
               </PopoverItem>
               <PopoverItem
                 meta="Alt+Ctrl+B"
                 onClick={() => runViewAction('toggleSidePanel')}
               >
-                Toggle Side Panel
+                切换侧边面板
               </PopoverItem>
               <PopoverItem meta="Ctrl+F" onClick={() => runViewAction('find')}>
-                Find
+                查找
               </PopoverItem>
               <div className="popover-divider" />
               <PopoverItem
                 meta="Ctrl+Shift+["
                 onClick={() => runViewAction('previousChat')}
               >
-                Previous Chat
+                上一个聊天
               </PopoverItem>
               <PopoverItem
                 meta="Ctrl+Shift+]"
                 onClick={() => runViewAction('nextChat')}
               >
-                Next Chat
+                下一个聊天
               </PopoverItem>
               <PopoverItem meta="Ctrl+[" onClick={() => runViewAction('back')}>
-                Back
+                后退
               </PopoverItem>
               <PopoverItem meta="Ctrl+]" onClick={() => runViewAction('forward')}>
-                Forward
+                前进
               </PopoverItem>
               <div className="popover-divider" />
               <PopoverItem
                 meta="Ctrl+Shift+="
                 onClick={() => runViewAction('zoomIn')}
               >
-                Zoom In
+                放大
               </PopoverItem>
               <PopoverItem
                 meta="Ctrl+-"
                 onClick={() => runViewAction('zoomOut')}
               >
-                Zoom Out
+                缩小
               </PopoverItem>
               <PopoverItem
                 meta="Ctrl+0"
                 onClick={() => runViewAction('actualSize')}
               >
-                Actual Size
+                实际大小
               </PopoverItem>
               <div className="popover-divider" />
               <PopoverItem
                 meta="F11"
                 onClick={() => runViewAction('toggleFullScreen')}
               >
-                Toggle Full Screen
+                切换全屏
               </PopoverItem>
             </PopoverMenu>
             <PopoverMenu
@@ -424,18 +424,18 @@ export function WindowChrome({
                 meta="Ctrl+M"
                 onClick={() => runWindowAction('minimize')}
               >
-                Minimize
+                最小化
               </PopoverItem>
               <PopoverItem
                 onClick={() => runWindowAction('zoom')}
               >
-                Zoom
+                缩放
               </PopoverItem>
               <PopoverItem
                 meta="Ctrl+W"
                 onClick={() => runWindowAction('close')}
               >
-                Close
+                关闭
               </PopoverItem>
             </PopoverMenu>
             <PopoverMenu
@@ -462,45 +462,45 @@ export function WindowChrome({
               <PopoverItem
                 onClick={() => runHelpAction('codexDocumentation')}
               >
-                Codex Documentation
+                Codex 文档
               </PopoverItem>
               <PopoverItem onClick={() => runHelpAction('whatsNew')}>
-                What's new
+                新特性
               </PopoverItem>
               <PopoverItem onClick={() => runHelpAction('automations')}>
-                Automations
+                自动化
               </PopoverItem>
               <PopoverItem onClick={() => runHelpAction('localEnvironments')}>
-                Local Environments
+                本地环境
               </PopoverItem>
               <PopoverItem onClick={() => runHelpAction('worktrees')}>
-                Worktrees
+                工作树
               </PopoverItem>
               <PopoverItem onClick={() => runHelpAction('skills')}>
-                Skills
+                技能
               </PopoverItem>
               <PopoverItem onClick={() => runHelpAction('modelContextProtocol')}>
-                Model Context Protocol
+                模型上下文协议
               </PopoverItem>
               <PopoverItem onClick={() => runHelpAction('troubleshooting')}>
-                Troubleshooting
+                故障排查
               </PopoverItem>
               <div className="popover-divider" />
               <PopoverItem onClick={() => runHelpAction('sendFeedback')}>
-                Send Feedback
+                发送反馈
               </PopoverItem>
               <PopoverItem onClick={() => runHelpAction('startPerformanceTrace')}>
-                Start Performance Trace
+                启动性能追踪
               </PopoverItem>
               <div className="popover-divider" />
               <PopoverItem
                 meta="Ctrl+Shift+/"
                 onClick={() => runHelpAction('keyboardShortcuts')}
               >
-                Keyboard Shortcuts
+                键盘快捷键
               </PopoverItem>
               <PopoverItem onClick={() => runHelpAction('aboutCodex')}>
-                About Codex
+                关于 Codex
               </PopoverItem>
             </PopoverMenu>
           </nav>

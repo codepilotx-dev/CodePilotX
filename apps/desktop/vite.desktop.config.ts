@@ -11,6 +11,11 @@ export default defineConfig({
   base: './',
   resolve: { alias: desktopAlias },
   define: desktopMacroDefines,
+  server: {
+    host: '127.0.0.1',
+    port: 5173,
+    strictPort: true,
+  },
   build: {
     outDir: resolve(desktopOutDir, 'renderer'),
     emptyOutDir: false,
