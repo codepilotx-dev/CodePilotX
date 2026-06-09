@@ -14,11 +14,13 @@ import { AutomationView } from './components/AutomationView.js'
 import { ComposerCard } from './components/ComposerCard.js'
 import { DesktopShell } from './components/DesktopShell.js'
 import { DesktopSidebar } from './components/DesktopSidebar.js'
+import { MainToolbar } from './components/MainToolbar.js'
 import { MenuBar } from './components/MenuBar.js'
 import { PluginsView } from './components/PluginsView.js'
 import { QuickChatView } from './components/QuickChatView.js'
 import { RightDrawer } from './components/RightDrawer.js'
 import { SearchView } from './components/SearchView.js'
+import { WindowChrome } from './components/WindowChrome.js'
 import type { AppView, DrawerTab, SessionListItem } from './uiTypes.js'
 import { PERMISSION_MODE_OPTIONS, THINKING_MODE_OPTIONS } from './features/settings/settingsStorage.js'
 import { useDesktopSettings } from './features/settings/useDesktopSettings.js'
@@ -64,6 +66,7 @@ export function App(): React.ReactNode {
   } = settings
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+  const [isWindowMaximized, setIsWindowMaximized] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
   const layout = useDesktopLayout()
@@ -291,6 +294,25 @@ export function App(): React.ReactNode {
     sessions,
   })
 
+  useEffect(() => {
+    let mounted = true
+    void window.desktopApi
+      .isWindowMaximized()
+      .then(next => {
+        if (mounted) {
+          setIsWindowMaximized(next)
+        }
+      })
+      .catch(() => {
+        if (mounted) {
+          setIsWindowMaximized(false)
+        }
+      })
+    return () => {
+      mounted = false
+    }
+  }, [])
+
   const settingsContent = (
     <div className="settings-list">
       <label className="setting-field">
@@ -366,10 +388,32 @@ export function App(): React.ReactNode {
     </div>
   )
 
+  const windowChrome = (
+    <WindowChrome
+      isMaximized={isWindowMaximized}
+      title="ClaudeCode Local Desktop"
+      onClose={() => {
+        void window.desktopApi.closeWindow()
+      }}
+      onMinimize={() => {
+        void window.desktopApi.minimizeWindow()
+      }}
+      onToggleMaximize={() => {
+        void window.desktopApi
+          .toggleWindowMaximized()
+          .then(next => setIsWindowMaximized(next))
+      }}
+    />
+  )
+
   const menuBar = (
-    <MenuBar
-      runtimeMissing={runtimeMissing}
+    <MenuBar />
+  )
+
+  const mainToolbar = (
+    <MainToolbar
       sidebarCollapsed={sidebarCollapsed}
+      runtimeMissing={runtimeMissing}
       onOpenSettings={() => openDrawerTab('settings')}
       onToggleSidebar={toggleSidebarCollapsed}
     />
@@ -525,7 +569,9 @@ export function App(): React.ReactNode {
       ) : null}
 
       <DesktopShell
+        windowChrome={windowChrome}
         menuBar={menuBar}
+        mainToolbar={mainToolbar}
         sidebar={sidebar}
         content={content}
         composer={composer}

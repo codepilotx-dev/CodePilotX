@@ -33,6 +33,11 @@ const api: DesktopApi = {
     ipcRenderer.invoke('desktop:interruptSession', sessionId),
   disposeSession: sessionId =>
     ipcRenderer.invoke('desktop:disposeSession', sessionId),
+  minimizeWindow: () => ipcRenderer.invoke('desktop:minimizeWindow'),
+  toggleWindowMaximized: () =>
+    ipcRenderer.invoke('desktop:toggleWindowMaximized'),
+  closeWindow: () => ipcRenderer.invoke('desktop:closeWindow'),
+  isWindowMaximized: () => ipcRenderer.invoke('desktop:isWindowMaximized'),
   onAgentEvent: callback => {
     const listener = (_event: Electron.IpcRendererEvent, payload: DesktopAgentEvent) => {
       callback(payload)

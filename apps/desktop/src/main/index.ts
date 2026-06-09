@@ -96,6 +96,7 @@ function createWindow(): void {
     height: 920,
     minWidth: 1080,
     minHeight: 720,
+    frame: false,
     title: 'ClaudeCode Local Desktop',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -105,7 +106,8 @@ function createWindow(): void {
     },
   })
 
-  mainWindow.setMenuBarVisibility(true)
+  mainWindow.setMenuBarVisibility(false)
+  mainWindow.setAutoHideMenuBar(true)
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
   mainWindow.webContents.on('will-navigate', (event, url) => {
     if (url !== rendererUrl()) {
@@ -196,6 +198,28 @@ function createApplicationMenu(): void {
     },
   ]
   Menu.setApplicationMenu(Menu.buildFromTemplate(template))
+}
+
+function minimizeWindow(): void {
+  mainWindow?.minimize()
+}
+
+function toggleWindowMaximized(): boolean {
+  if (!mainWindow) return false
+  if (mainWindow.isMaximized()) {
+    mainWindow.unmaximize()
+    return false
+  }
+  mainWindow.maximize()
+  return true
+}
+
+function closeWindow(): void {
+  mainWindow?.close()
+}
+
+function isWindowMaximized(): boolean {
+  return mainWindow?.isMaximized() ?? false
 }
 
 function emitAgentEvent(event: DesktopAgentEvent): void {
@@ -641,6 +665,10 @@ function registerIpc(): void {
     respondToPermission,
     interruptSession,
     disposeSession,
+    minimizeWindow: async () => minimizeWindow(),
+    toggleWindowMaximized: async () => toggleWindowMaximized(),
+    closeWindow: async () => closeWindow(),
+    isWindowMaximized: async () => isWindowMaximized(),
   }
 
   for (const [name, handler] of Object.entries(handlers)) {

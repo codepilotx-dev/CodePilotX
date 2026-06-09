@@ -112,6 +112,10 @@ export type DesktopApi = {
   ): Promise<void>
   interruptSession(sessionId: string): Promise<void>
   disposeSession(sessionId: string): Promise<void>
+  minimizeWindow(): Promise<void>
+  toggleWindowMaximized(): Promise<boolean>
+  closeWindow(): Promise<void>
+  isWindowMaximized(): Promise<boolean>
   onAgentEvent(callback: (event: DesktopAgentEvent) => void): () => void
   onUiCommand(callback: (command: DesktopUiCommand) => void): () => void
 }
