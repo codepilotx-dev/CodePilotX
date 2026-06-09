@@ -1,37 +1,8 @@
 {
-  "compilerOptions": {
-    "target": "ES2022",
-    "lib": ["ES2022", "DOM"],
-    "module": "Preserve",
-    "moduleResolution": "Bundler",
-    "jsx": "react-jsx",
-    "jsxImportSource": "react",
-    "allowJs": true,
-    "checkJs": false,
-    "strict": false,
-    "skipLibCheck": true,
-    "allowSyntheticDefaultImports": true,
-    "esModuleInterop": true,
-    "resolveJsonModule": true,
-    "noEmit": true,
-    "baseUrl": ".",
-    "ignoreDeprecations": "6.0",
-    "paths": {
-      "src/*": ["./src/*"]
-    },
-    "types": ["bun", "node"],
-    "typeRoots": ["./src/types/local", "./node_modules/@types"]
-  },
-  "include": [
-    "src/**/*.ts",
-    "src/**/*.tsx",
-    "src/**/*.js",
-    "src/types/local/**/*.d.ts"
-  ],
-  "exclude": [
-    "dist",
-    "node_modules"
+  "files": [],
+  "references": [
+    { "path": "./packages/core" },
+    { "path": "./apps/tui" },
+    { "path": "./apps/desktop" }
   ]
 }
-
-

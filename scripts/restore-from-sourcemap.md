@@ -7,7 +7,7 @@
 
 - 仅处理 inline sourcemap (`sourceMappingURL=data:application/json...base64,`)，优先匹配 `//#`/`//@`/`//`。
 - 仅当 `sourcesContent.length === 1` 时恢复。
-- 跳过目录：`dist`、`node_modules`、`src/types/generated`。
+- 跳过目录：`dist`、`node_modules`、`packages/core/src/types/generated`。
 - 不处理缺少 sourcemap 或缺失/多项 `sourcesContent` 的文件（作为语义回退保护）。
 - 恢复后直接写入源码（即去掉 sourcemap tail，不做启发式反编译）。
 
