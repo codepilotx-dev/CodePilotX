@@ -26,11 +26,16 @@ import {
 import { asSystemPrompt, type SystemPrompt } from '../../utils/systemPromptType.js'
 
 const DEFAULT_OPENAI_MAX_TOKENS = 8192
+// DeepSeek v4 输出上限 384K，模型端默认截断粒度比 OpenAI 大。
+// 16K 足够覆盖绝大多数 agent 单轮输出（含思考模式 + 工具调用 + 长回答），
+// 避免被截断后整轮重试浪费已经命中的缓存前缀。
+const DEEPSEEK_PRO_MAX_TOKENS = 16384
+const DEEPSEEK_FLASH_MAX_TOKENS = 8192
 
 type ChatMessage =
   | { role: 'system'; content: string }
   | { role: 'user'; content: string | OpenAIContentPart[] }
-  | { role: 'assistant'; content: string | null; tool_calls?: OpenAIToolCall[] }
+  | { role: 'assistant'; content: string | null; tool_calls?: OpenAIToolCall[]; reasoning_content?: string }
   | { role: 'tool'; tool_call_id: string; content: string }
 
 type OpenAIContentPart =
@@ -76,6 +81,8 @@ type ChatCompletionChunk = {
   usage?: {
     prompt_tokens?: number
     completion_tokens?: number
+    prompt_cache_hit_tokens?: number
+    prompt_cache_miss_tokens?: number
   }
 }
 
@@ -91,6 +98,8 @@ type ChatCompletionResponse = {
   usage?: {
     prompt_tokens?: number
     completion_tokens?: number
+    prompt_cache_hit_tokens?: number
+    prompt_cache_miss_tokens?: number
   }
 }
 
@@ -133,21 +142,27 @@ export async function* queryOpenAICompatibleModelWithStreaming({
       normalizeMessagesForAPI(messages, tools),
     )
     const apiTools = await buildOpenAITools(tools, options)
+    const sysPromptBlocks = isDeepSeekProvider(providerID)
+      ? buildDeepSeekSystemBlocks(systemPrompt)
+      : [
+          {
+            role: 'system' as const,
+            content: asSystemPrompt(systemPrompt).join('\n\n'),
+          },
+        ]
     const requestBody = {
       model: options.model,
-      messages: [
-        {
-          role: 'system' as const,
-          content: asSystemPrompt(systemPrompt).join('\n\n'),
-        },
-        ...toOpenAIMessages(normalizedMessages),
-      ],
+      messages: [...sysPromptBlocks, ...toOpenAIMessages(normalizedMessages)],
       ...(apiTools.length > 0 && { tools: apiTools, tool_choice: 'auto' }),
-      max_tokens: options.maxOutputTokensOverride ?? DEFAULT_OPENAI_MAX_TOKENS,
+      max_tokens:
+        options.maxOutputTokensOverride ?? defaultMaxTokensForModel(options.model, providerID),
       stream: true,
       stream_options: { include_usage: true },
       ...(options.temperatureOverride !== undefined && {
         temperature: options.temperatureOverride,
+      }),
+      ...(isDeepSeekProvider(providerID) && {
+        user_id: resolveDeepSeekUserId(options),
       }),
     }
 
@@ -156,6 +171,7 @@ export async function* queryOpenAICompatibleModelWithStreaming({
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
+        ...(isDeepSeekProvider(providerID) && { 'X-User-Id': resolveDeepSeekUserId(options) }),
       },
       body: JSON.stringify(requestBody),
       signal,
@@ -295,6 +311,7 @@ function assistantMessageToOpenAI(message: Message): ChatMessage {
   const content = message.message.content
   const text: string[] = []
   const toolCalls: OpenAIToolCall[] = []
+  const reasoningParts: string[] = []
 
   for (const block of content) {
     if (block.type === 'text') {
@@ -308,6 +325,11 @@ function assistantMessageToOpenAI(message: Message): ChatMessage {
           arguments: JSON.stringify(block.input ?? {}),
         },
       })
+    } else if (block.type === 'thinking') {
+      const thinkingText = (block as { thinking?: string }).thinking
+      if (typeof thinkingText === 'string' && thinkingText.length > 0) {
+        reasoningParts.push(thinkingText)
+      }
     }
   }
 
@@ -315,6 +337,8 @@ function assistantMessageToOpenAI(message: Message): ChatMessage {
     role: 'assistant',
     content: text.join('\n\n') || null,
     ...(toolCalls.length > 0 && { tool_calls: toolCalls }),
+    ...(toolCalls.length > 0 &&
+      reasoningParts.length > 0 && { reasoning_content: reasoningParts.join('\n') }),
   }
 }
 
@@ -411,11 +435,18 @@ function mergeToolCallDeltas(
 function usageFromOpenAI(usage: {
   prompt_tokens?: number
   completion_tokens?: number
+  prompt_cache_hit_tokens?: number
+  prompt_cache_miss_tokens?: number
+  completion_tokens_details?: { reasoning_tokens?: number }
 }): NonNullableUsage {
+  const hit = usage.prompt_cache_hit_tokens ?? 0
+  const miss = usage.prompt_cache_miss_tokens ?? usage.prompt_tokens ?? 0
   return {
     ...EMPTY_USAGE,
-    input_tokens: usage.prompt_tokens ?? 0,
+    input_tokens: hit + miss,
     output_tokens: usage.completion_tokens ?? 0,
+    cache_read_input_tokens: hit,
+    cache_creation_input_tokens: 0,
   }
 }
 
@@ -495,4 +526,56 @@ async function formatOpenAIError(response: Response): Promise<string> {
 
 function joinURL(baseURL: string, path: string): string {
   return `${baseURL.replace(/\/+$/, '')}/${path.replace(/^\/+/, '')}`
+}
+
+function isDeepSeekProvider(providerID: string): boolean {
+  return providerID === 'deepseek'
+}
+
+function defaultMaxTokensForModel(
+  model: string,
+  providerID: string,
+): number {
+  if (!isDeepSeekProvider(providerID)) {
+    return DEFAULT_OPENAI_MAX_TOKENS
+  }
+  if (model.includes('flash')) return DEEPSEEK_FLASH_MAX_TOKENS
+  if (model.includes('pro')) return DEEPSEEK_PRO_MAX_TOKENS
+  return DEEPSEEK_PRO_MAX_TOKENS
+}
+
+// DeepSeek 文档：缓存命中要求"从 token 0 起完全匹配"。
+// 单一 system 字符串会把所有动态段（attribution、user context）混在一起，
+// 任何微小变化都会让整段前缀失配；拆成 [稳定段, 动态段] 后，
+// 至少前 N 个 system token 跨请求保持不变，从而命中硬盘缓存。
+function buildDeepSeekSystemBlocks(
+  systemPrompt: SystemPrompt,
+): Array<{ role: 'system'; content: string }> {
+  const blocks = asSystemPrompt(systemPrompt)
+  if (blocks.length <= 1) {
+    return [
+      {
+        role: 'system' as const,
+        content: blocks.join('\n\n'),
+      },
+    ]
+  }
+  // 第一个 block 通常是 CLI 身份前缀（"You are Oh-My-AgentCode..."），
+  // 跨 session 不变；其余 block 在多轮中可能动态追加（user context 等）。
+  const [stable, ...rest] = blocks
+  const out: Array<{ role: 'system'; content: string }> = [
+    { role: 'system', content: stable },
+  ]
+  const restJoined = rest.join('\n\n')
+  if (restJoined.length > 0) {
+    out.push({ role: 'system', content: restJoined })
+  }
+  return out
+}
+
+// user_id 字符集 [a-zA-Z0-9\-_]，长度 ≤ 512。
+// 固定常量足以让同 CLI 进程多轮请求共享 cache prefix 单元，
+// 同时把不同 CLI 实例的缓存空间彼此隔离。
+function resolveDeepSeekUserId(_options: Options): string {
+  return 'claudecode-cli'
 }
