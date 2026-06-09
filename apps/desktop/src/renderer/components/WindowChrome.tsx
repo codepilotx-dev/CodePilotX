@@ -1,18 +1,30 @@
 import type React from 'react'
-import { Bot, Minus, Square, X } from 'lucide-react'
+import {
+  ChevronLeft,
+  ChevronRight,
+  Minus,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Square,
+  X,
+} from 'lucide-react'
 import { IconButton } from './ui/IconButton.js'
 
 type Props = {
-  title: string
+  sidebarCollapsed: boolean
   isMaximized: boolean
+  onToggleSidebar: () => void
   onMinimize: () => void
   onToggleMaximize: () => void
   onClose: () => void
 }
 
+const MENUS = ['文件', '编辑', '查看', '窗口', '帮助']
+
 export function WindowChrome({
-  title,
+  sidebarCollapsed,
   isMaximized,
+  onToggleSidebar,
   onMinimize,
   onToggleMaximize,
   onClose,
@@ -20,11 +32,32 @@ export function WindowChrome({
   return (
     <div className="window-chrome">
       <div className="window-titlebar">
-        <div className="window-titlebar-drag">
-          <span className="window-app-mark" aria-hidden="true">
-            <Bot size={16} strokeWidth={1.9} />
-          </span>
-          <span className="window-title">{title}</span>
+        <div className="window-titlebar-left">
+          <IconButton
+            className="window-toolbar-icon"
+            onClick={onToggleSidebar}
+            title={sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'}
+          >
+            {sidebarCollapsed ? (
+              <PanelLeftOpen size={16} strokeWidth={1.8} />
+            ) : (
+              <PanelLeftClose size={16} strokeWidth={1.8} />
+            )}
+          </IconButton>
+          <IconButton className="window-toolbar-icon" title="后退">
+            <ChevronLeft size={16} strokeWidth={1.8} />
+          </IconButton>
+          <IconButton className="window-toolbar-icon" title="前进">
+            <ChevronRight size={16} strokeWidth={1.8} />
+          </IconButton>
+
+          <nav className="window-menu" aria-label="应用菜单">
+            {MENUS.map(menu => (
+              <button className="window-menu-item" key={menu} type="button">
+                {menu}
+              </button>
+            ))}
+          </nav>
         </div>
 
         <div className="window-controls">

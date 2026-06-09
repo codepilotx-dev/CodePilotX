@@ -14,8 +14,6 @@ import { AutomationView } from './components/AutomationView.js'
 import { ComposerCard } from './components/ComposerCard.js'
 import { DesktopShell } from './components/DesktopShell.js'
 import { DesktopSidebar } from './components/DesktopSidebar.js'
-import { MainToolbar } from './components/MainToolbar.js'
-import { MenuBar } from './components/MenuBar.js'
 import { PluginsView } from './components/PluginsView.js'
 import { QuickChatView } from './components/QuickChatView.js'
 import { RightDrawer } from './components/RightDrawer.js'
@@ -390,8 +388,9 @@ export function App(): React.ReactNode {
 
   const windowChrome = (
     <WindowChrome
+      sidebarCollapsed={sidebarCollapsed}
       isMaximized={isWindowMaximized}
-      title="ClaudeCode Local Desktop"
+      onToggleSidebar={toggleSidebarCollapsed}
       onClose={() => {
         void window.desktopApi.closeWindow()
       }}
@@ -403,19 +402,6 @@ export function App(): React.ReactNode {
           .toggleWindowMaximized()
           .then(next => setIsWindowMaximized(next))
       }}
-    />
-  )
-
-  const menuBar = (
-    <MenuBar />
-  )
-
-  const mainToolbar = (
-    <MainToolbar
-      sidebarCollapsed={sidebarCollapsed}
-      runtimeMissing={runtimeMissing}
-      onOpenSettings={() => openDrawerTab('settings')}
-      onToggleSidebar={toggleSidebarCollapsed}
     />
   )
 
@@ -570,8 +556,6 @@ export function App(): React.ReactNode {
 
       <DesktopShell
         windowChrome={windowChrome}
-        menuBar={menuBar}
-        mainToolbar={mainToolbar}
         sidebar={sidebar}
         content={content}
         composer={composer}
