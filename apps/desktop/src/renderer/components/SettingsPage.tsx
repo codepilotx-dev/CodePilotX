@@ -1,7 +1,6 @@
 import React, { useState } from 'react'
 import { SettingsNav } from './SettingsNav.js'
 import { GeneralSettings } from './GeneralSettings.js'
-import './Settings.css'
 
 type Props = {
   onClose: () => void

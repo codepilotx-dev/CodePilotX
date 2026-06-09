@@ -1,31 +1,29 @@
 import type React from 'react'
 import { Outlet, useNavigate } from 'react-router-dom'
-import { AlertCircle, RefreshCw } from 'lucide-react'
-import { SettingsPage } from './components/SettingsPage.js'
-import { ComposerCard } from './components/ComposerCard.js'
-import { DesktopShell } from './components/DesktopShell.js'
-import { DesktopSidebar } from './components/DesktopSidebar.js'
-import { PluginsView } from './components/PluginsView.js'
-import { QuickChatView } from './components/QuickChatView.js'
-import { SearchView } from './components/SearchView.js'
-import { WindowChrome } from './components/WindowChrome.js'
+import { AlertCircle } from 'lucide-react'
+import { ComposerCard } from './ComposerCard.js'
+import { DesktopShell } from './DesktopShell.js'
+import { DesktopSidebar } from './DesktopSidebar.js'
+import { WindowChrome } from './WindowChrome.js'
 import type {
   EditMenuAction,
   FileMenuAction,
   HelpMenuAction,
   ViewMenuAction,
   WindowMenuAction,
-} from './components/WindowChrome.js'
-import type { AppView, SessionListItem } from './uiTypes.js'
-import { PERMISSION_MODE_OPTIONS, THINKING_MODE_OPTIONS } from './features/settings/settingsStorage.js'
-import { useDesktopSettings } from './features/settings/useDesktopSettings.js'
-import { useDesktopLayout } from './features/layout/useDesktopLayout.js'
-import { useWorkspaceState } from './features/workspace/useWorkspaceState.js'
-import { useSessionState } from './features/session/useSessionState.js'
-import { useDesktopCommands } from './features/session/useDesktopCommands.js'
-import { useDesktopSearch } from './features/search/useDesktopSearch.js'
-import { CUSTOM_MODEL_PRESET_ID, MODEL_PRESETS, resolveModelPresetId } from './modelPresets.js'
-import type { DesktopPermissionRequest, DesktopWorkspace } from '../shared/types.js'
+} from './WindowChrome.js'
+import { QuickChatContext } from '../context/QuickChatContext.js'
+import { SearchContext } from '../context/SearchContext.js'
+import type { SessionListItem } from '../uiTypes.js'
+import { PERMISSION_MODE_OPTIONS, THINKING_MODE_OPTIONS } from '../features/settings/settingsStorage.js'
+import { useDesktopSettings } from '../features/settings/useDesktopSettings.js'
+import { useDesktopLayout } from '../features/layout/useDesktopLayout.js'
+import { useWorkspaceState } from '../features/workspace/useWorkspaceState.js'
+import { useSessionState } from '../features/session/useSessionState.js'
+import { useDesktopCommands } from '../features/session/useDesktopCommands.js'
+import { useDesktopSearch } from '../features/search/useDesktopSearch.js'
+import { CUSTOM_MODEL_PRESET_ID, MODEL_PRESETS, resolveModelPresetId } from '../modelPresets.js'
+import type { DesktopPermissionRequest, DesktopWorkspace } from '../../shared/types.js'
 import { useCallback, useEffect, useState } from 'react'
 
 export function DesktopLayout(): React.ReactNode {
@@ -49,6 +47,8 @@ export function DesktopLayout(): React.ReactNode {
     setSystemPrompt,
     setAppendSystemPrompt,
     setAdditionalDirectories,
+    setRecentWorkspaces,
+    setDrawerTab,
     setSelectedModelPreset,
   } = settings
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -107,6 +107,7 @@ export function DesktopLayout(): React.ReactNode {
         expectedSessionId: sessionId,
       })
     },
+    onOpenDrawerPermissions: () => setDrawerTab('permissions'),
   })
   const {
     sessionId,
@@ -324,13 +325,6 @@ export function DesktopLayout(): React.ReactNode {
     [closeSession, refreshWorkspace, setDiffState, setSelectedFile, setWorkspaceState],
   )
 
-  const handleSelectView = useCallback(
-    (view: AppView): void => {
-      navigate(`/${view === 'quickChat' ? '' : view}`)
-    },
-    [navigate],
-  )
-
   const runtimeMissing = runtimeStatus?.agentExecutableExists === false
   const activePermissionRequest: DesktopPermissionRequest | null =
     pendingPermissions[0] ?? null
@@ -392,7 +386,6 @@ export function DesktopLayout(): React.ReactNode {
   const sidebar = (
     <DesktopSidebar
       activeSessionId={sessionId}
-      activeView={getActiveViewFromPath('/')}
       collapsed={sidebarCollapsed}
       maxWidth={Math.round(viewportWidth * 0.2)}
       minWidth={Math.round(viewportWidth * 0.12)}
@@ -403,11 +396,9 @@ export function DesktopLayout(): React.ReactNode {
       onChooseWorkspace={() => void handleChooseWorkspace()}
       onCloseSession={session => void handleCloseSession(session)}
       onCreateSession={() => void handleCreateSession()}
-      onOpenSettings={() => navigate('/settings')}
       onOpenWorkspace={workspaceItem => void handleOpenRecentWorkspace(workspaceItem)}
       onRefreshWorkspace={() => void refreshWorkspace()}
       onSelectSession={handleSelectSession}
-      onSelectView={handleSelectView}
       onSetWidth={setSidebarWidth}
       onToggleCollapsed={toggleSidebarCollapsed}
     />
@@ -494,17 +485,32 @@ export function DesktopLayout(): React.ReactNode {
       <DesktopShell
         windowChrome={windowChrome}
         sidebar={sidebar}
-        content={<Outlet />}
+        content={
+          <QuickChatContext.Provider
+            value={{
+              workspaceName: currentWorkspace?.name ?? null,
+              messages,
+              errorMessage,
+              onDismissError: () => setErrorMessage(null),
+              sessionStatus,
+            }}
+          >
+            <SearchContext.Provider
+              value={{
+                query: searchQuery,
+                workspaces: search.filteredWorkspaces,
+                sessions: search.filteredSessions,
+                onQueryChange: setSearchQuery,
+                onOpenWorkspace: handleOpenRecentWorkspace,
+                onSelectSession: handleSelectSession,
+              }}
+            >
+              <Outlet />
+            </SearchContext.Provider>
+          </QuickChatContext.Provider>
+        }
         composer={composer}
       />
     </div>
   )
-}
-
-function getActiveViewFromPath(pathname: string): AppView {
-  if (pathname === '/') return 'quickChat'
-  if (pathname === '/search') return 'search'
-  if (pathname === '/plugins') return 'plugins'
-  if (pathname === '/automation') return 'automation'
-  return 'quickChat'
 }

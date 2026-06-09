@@ -4,6 +4,17 @@ import { ToggleSwitch } from './ToggleSwitch.js'
 import { SettingsDropdown } from './SettingsDropdown.js'
 import { Brain, Zap, Code2, Terminal } from 'lucide-react'
 import { useDesktopSettings } from '../features/settings/useDesktopSettings.js'
+import {
+  PERMISSION_MODE_OPTIONS,
+  THINKING_MODE_OPTIONS,
+} from '../features/settings/settingsStorage.js'
+
+const THINKING_MODE_DESCRIPTIONS = {
+  disabled: '尽量减少额外推理，优先快速响应。',
+  default: '使用默认推理设置，适合日常任务。',
+  adaptive: '根据任务复杂度自动调整推理深度。',
+  enabled: '启用更深入的推理，适合复杂分析。',
+} satisfies Record<(typeof THINKING_MODE_OPTIONS)[number]['value'], string>
 
 export function GeneralSettings() {
   const {
@@ -24,20 +35,22 @@ export function GeneralSettings() {
         <h3 className="settings-block-title">工作模式</h3>
         <p className="settings-block-desc">选择模型思考的深入程度与显示细节</p>
         <div className="settings-radio-group">
-          <RadioCard
-            icon={<Zap />}
-            title="标准模式"
-            description="快速响应，适合日常常规任务与代码生成。"
-            checked={thinkingMode === 'default' || thinkingMode === 'disabled'}
-            onClick={() => setThinkingMode('default')}
-          />
-          <RadioCard
-            icon={<Brain />}
-            title="深度推理"
-            description="允许模型在回答前进行更长时间的逻辑推理。"
-            checked={thinkingMode === 'enabled' || thinkingMode === 'adaptive'}
-            onClick={() => setThinkingMode('enabled')}
-          />
+          {THINKING_MODE_OPTIONS.map(option => (
+            <RadioCard
+              checked={thinkingMode === option.value}
+              description={THINKING_MODE_DESCRIPTIONS[option.value]}
+              icon={
+                option.value === 'enabled' || option.value === 'adaptive' ? (
+                  <Brain />
+                ) : (
+                  <Zap />
+                )
+              }
+              key={option.value}
+              onClick={() => setThinkingMode(option.value)}
+              title={option.label}
+            />
+          ))}
         </div>
       </div>
 
@@ -46,32 +59,17 @@ export function GeneralSettings() {
         <h3 className="settings-block-title">权限</h3>
         <p className="settings-block-desc">配置应用在您的系统上的操作权限限制</p>
         <div className="settings-toggle-list">
-          <ToggleSwitch
-            title="只读模式 (Read)"
-            description="模型只能读取文件和执行安全命令，不能修改文件。"
-            checked={permissionMode === 'read'}
-            onChange={(checked) => {
-              if (checked) setPermissionMode('read')
-            }}
-          />
-          <ToggleSwitch
-            title="自动审核 (Bypass)"
-            description="跳过常规的权限弹窗，加快连续操作速度。"
-            checked={permissionMode === 'bypass'}
-            onChange={(checked) => {
-              if (checked) setPermissionMode('bypass')
-              else if (permissionMode === 'bypass') setPermissionMode('read')
-            }}
-          />
-          <ToggleSwitch
-            title="完全访问 (Full)"
-            description="授予模型对系统文件和命令的完整访问权限。"
-            checked={permissionMode === 'full'}
-            onChange={(checked) => {
-              if (checked) setPermissionMode('full')
-              else if (permissionMode === 'full') setPermissionMode('read')
-            }}
-          />
+          {PERMISSION_MODE_OPTIONS.map(option => (
+            <ToggleSwitch
+              checked={permissionMode === option.value}
+              description={option.detail}
+              key={option.value}
+              onChange={checked => {
+                if (checked) setPermissionMode(option.value)
+              }}
+              title={option.label}
+            />
+          ))}
         </div>
       </div>
 
