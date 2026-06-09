@@ -10,6 +10,7 @@ import {
   MODEL_PRESETS,
   resolveModelPresetId,
 } from './modelPresets.js'
+import { SettingsPage } from './components/SettingsPage.js'
 import { AutomationView } from './components/AutomationView.js'
 import { ComposerCard } from './components/ComposerCard.js'
 import { DesktopShell } from './components/DesktopShell.js'
@@ -395,7 +396,10 @@ export function App(): React.ReactNode {
   }, [])
 
   const settingsContent = (
-    <div className="settings-list">
+    <SettingsPage 
+      onClose={() => setActiveTab('files')}
+      legacySettings={
+        <div className="settings-list">
       <label className="setting-field">
         <span>会话名称</span>
         <input
@@ -467,6 +471,8 @@ export function App(): React.ReactNode {
         </p>
       </div>
     </div>
+      }
+    />
   )
 
   const windowChrome = (
