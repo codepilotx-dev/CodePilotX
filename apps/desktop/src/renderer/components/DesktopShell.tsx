@@ -5,7 +5,6 @@ type Props = {
   sidebar: React.ReactNode
   content: React.ReactNode
   composer: React.ReactNode
-  drawer: React.ReactNode
 }
 
 export function DesktopShell({
@@ -13,7 +12,6 @@ export function DesktopShell({
   sidebar,
   content,
   composer,
-  drawer,
 }: Props): React.ReactNode {
   return (
     <div className="app-shell">
@@ -26,7 +24,6 @@ export function DesktopShell({
             <div className="desktop-main-composer">{composer}</div>
           </div>
         </section>
-        {drawer}
       </div>
     </div>
   )

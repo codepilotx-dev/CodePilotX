@@ -17,7 +17,6 @@ import { DesktopShell } from './components/DesktopShell.js'
 import { DesktopSidebar } from './components/DesktopSidebar.js'
 import { PluginsView } from './components/PluginsView.js'
 import { QuickChatView } from './components/QuickChatView.js'
-import { RightDrawer } from './components/RightDrawer.js'
 import { SearchView } from './components/SearchView.js'
 import { WindowChrome } from './components/WindowChrome.js'
 import type {
@@ -27,7 +26,7 @@ import type {
   ViewMenuAction,
   WindowMenuAction,
 } from './components/WindowChrome.js'
-import type { AppView, DrawerTab, SessionListItem } from './uiTypes.js'
+import type { AppView, SessionListItem } from './uiTypes.js'
 import { PERMISSION_MODE_OPTIONS, THINKING_MODE_OPTIONS } from './features/settings/settingsStorage.js'
 import { useDesktopSettings } from './features/settings/useDesktopSettings.js'
 import { useDesktopLayout } from './features/layout/useDesktopLayout.js'
@@ -67,11 +66,9 @@ export function App(): React.ReactNode {
     setAdditionalDirectories,
     setRecentWorkspaces,
     setActiveView,
-    setDrawerTab,
     setSelectedModelPreset,
   } = settings
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [isSettingsPageOpen, setIsSettingsPageOpen] = useState(false)
   const [isWindowMaximized, setIsWindowMaximized] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -128,10 +125,6 @@ export function App(): React.ReactNode {
         expectedSessionId: sessionId,
       })
     },
-    onOpenDrawerPermissions: () => {
-      setDrawerTab('permissions')
-      setIsDrawerOpen(true)
-    },
   })
   const {
     sessionId,
@@ -156,14 +149,6 @@ export function App(): React.ReactNode {
   useEffect(() => {
     setActiveSessionId(sessionId)
   }, [sessionId, setActiveSessionId])
-
-  const openDrawerTab = useCallback(
-    (tab: DrawerTab): void => {
-      setDrawerTab(tab)
-      setIsDrawerOpen(true)
-    },
-    [setDrawerTab],
-  )
 
   const handleChooseWorkspace = useCallback(
     async (): Promise<DesktopWorkspace | null> => {
@@ -434,7 +419,7 @@ export function App(): React.ReactNode {
       onChooseWorkspace={() => void handleChooseWorkspace()}
       onCloseSession={session => void handleCloseSession(session)}
       onCreateSession={() => void handleCreateSession()}
-      onOpenSettings={() => openDrawerTab('settings')}
+      onOpenSettings={() => setIsSettingsPageOpen(true)}
       onOpenWorkspace={workspaceItem => void handleOpenRecentWorkspace(workspaceItem)}
       onRefreshWorkspace={() => void refreshWorkspace()}
       onSelectSession={handleSelectSession}
@@ -486,33 +471,11 @@ export function App(): React.ReactNode {
       onInputChange={setInput}
       onInterrupt={() => void interrupt()}
       onModelChange={handleModelPresetChange}
-      onOpenFiles={() => openDrawerTab('files')}
+      onOpenFiles={() => {}}
       onOpenWorkspace={workspaceItem => void handleOpenRecentWorkspace(workspaceItem)}
       onPermissionChange={setPermissionMode}
       onSubmit={() => void submit()}
       onThinkingChange={setThinkingMode}
-    />
-  )
-
-  const drawer = (
-    <RightDrawer
-      isOpen={isDrawerOpen}
-      activeTab={drawerTab}
-      files={files}
-      selectedFile={selectedFile}
-      diff={diff}
-      pendingPermissions={pendingPermissions}
-      toolLog={toolLog}
-      onClose={() => setIsDrawerOpen(false)}
-      onSelectTab={tab => {
-        setDrawerTab(tab)
-        setIsDrawerOpen(true)
-      }}
-      onPreviewFile={file => void previewFile(file)}
-      onToggleToolLog={toggleToolLogEntry}
-      onDecidePermission={(request, behavior, alwaysAllow) =>
-        void decidePermission(request, behavior, alwaysAllow)
-      }
     />
   )
 
@@ -652,7 +615,6 @@ export function App(): React.ReactNode {
           sidebar={sidebar}
           content={content}
           composer={composer}
-          drawer={drawer}
         />
       )}
     </div>
