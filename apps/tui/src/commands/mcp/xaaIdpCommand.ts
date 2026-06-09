@@ -8,7 +8,6 @@
 import type { Command } from '@commander-js/extra-typings'
 import { cliError, cliOk } from '../../cli/exit.js'
 import {
-  acquireIdpIdToken,
   clearIdpClientSecret,
   clearIdpIdToken,
   getCachedIdpIdToken,
@@ -16,9 +15,7 @@ import {
   getXaaIdpSettings,
   issuerKey,
   saveIdpClientSecret,
-  saveIdpIdTokenFromJwt,
 } from '../../services/mcp/xaaIdpLogin.js'
-import { errorMessage } from '../../utils/errors.js'
 import { updateSettingsForSource } from '../../utils/settings/settings.js'
 
 export function registerMcpXaaIdpCommand(mcp: Command): void {
@@ -125,7 +122,7 @@ export function registerMcpXaaIdpCommand(mcp: Command): void {
         } else if (oldClientId !== options.clientId) {
           // Same issuer slot but different OAuth client registration — the
           // cached id_token's aud claim and the stored secret are both for the
-          // old client. `xaa login` would send {new clientId, old secret} and
+          // old client. `xaa` token acquisition would send {new clientId, old secret} and
           // fail with opaque `invalid_client`; downstream SEP-990 exchange
           // would fail aud validation. Keep both when clientId is unchanged:
           // re-setup without --client-secret means "tweak port, keep secret".
@@ -148,75 +145,6 @@ export function registerMcpXaaIdpCommand(mcp: Command): void {
     })
 
   xaaIdp
-    .command('login')
-    .description(
-      'Cache an IdP id_token so XAA-enabled MCP servers authenticate ' +
-        'silently. Default: run the OIDC browser login. With --id-token: ' +
-        'write a pre-obtained JWT directly (used by conformance/e2e tests ' +
-        'where the mock IdP does not serve /authorize).',
-    )
-    .option(
-      '--force',
-      'Ignore any cached id_token and re-login (useful after IdP-side revocation)',
-    )
-    // TODO(paulc): read the JWT from stdin instead of argv to keep it out of
-    // shell history. Fine for conformance (docker exec uses argv directly,
-    // no shell parser), but a real user would want `echo $TOKEN | ... --stdin`.
-    .option(
-      '--id-token <jwt>',
-      'Write this pre-obtained id_token directly to cache, skipping the OIDC browser login',
-    )
-    .action(async options => {
-      const idp = getXaaIdpSettings()
-      if (!idp) {
-        return cliError(
-          "Error: no XAA IdP connection. Run 'claude mcp xaa setup' first.",
-        )
-      }
-
-      // Direct-inject path: skip cache check, skip OIDC. Writing IS the
-      // operation. Issuer comes from settings (single source of truth), not
-      // a separate flag — one less thing to desync.
-      if (options.idToken) {
-        const expiresAt = saveIdpIdTokenFromJwt(idp.issuer, options.idToken)
-        return cliOk(
-          `id_token cached for ${idp.issuer} (expires ${new Date(expiresAt).toISOString()})`,
-        )
-      }
-
-      if (options.force) {
-        clearIdpIdToken(idp.issuer)
-      }
-
-      const wasCached = getCachedIdpIdToken(idp.issuer) !== undefined
-      if (wasCached) {
-        return cliOk(
-          `Already logged in to ${idp.issuer} (cached id_token still valid). Use --force to re-login.`,
-        )
-      }
-
-      process.stdout.write(`Opening browser for IdP login at ${idp.issuer}…\n`)
-      try {
-        await acquireIdpIdToken({
-          idpIssuer: idp.issuer,
-          idpClientId: idp.clientId,
-          idpClientSecret: getIdpClientSecret(idp.issuer),
-          callbackPort: idp.callbackPort,
-          onAuthorizationUrl: url => {
-            process.stdout.write(
-              `If the browser did not open, visit:\n  ${url}\n`,
-            )
-          },
-        })
-        cliOk(
-          `Logged in. MCP servers with --xaa will now authenticate silently.`,
-        )
-      } catch (e) {
-        cliError(`IdP login failed: ${errorMessage(e)}`)
-      }
-    })
-
-  xaaIdp
     .command('show')
     .description('Show the current IdP connection config')
     .action(() => {
@@ -235,7 +163,7 @@ export function registerMcpXaaIdpCommand(mcp: Command): void {
         `Client secret: ${hasSecret ? '(stored in keychain)' : '(not set — PKCE-only)'}\n`,
       )
       process.stdout.write(
-        `Logged in:     ${hasIdToken ? 'yes (id_token cached)' : "no — run 'claude mcp xaa login'"}\n`,
+        `Logged in:     ${hasIdToken ? 'yes (id_token cached)' : "no — run 'interactive login is disabled'"}\n`,
       )
       cliOk()
     })

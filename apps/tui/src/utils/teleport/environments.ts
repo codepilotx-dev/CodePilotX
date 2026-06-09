@@ -33,7 +33,7 @@ export async function fetchEnvironments(): Promise<EnvironmentResource[]> {
   const accessToken = getClaudeAIOAuthTokens()?.accessToken
   if (!accessToken) {
     throw new Error(
-      'Oh-My-AgentCode web sessions require authentication with a Claude.ai account. API key authentication is not sufficient. Please run /login to authenticate, or check your authentication status with /status.',
+      'Oh-My-AgentCode web sessions require authentication with a Claude.ai account. API key authentication is not sufficient. OAuth login is disabled in this build.',
     )
   }
 

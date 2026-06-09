@@ -8,7 +8,6 @@ import type {
 const api: DesktopApi = {
   getAuthStatus: () => ipcRenderer.invoke('desktop:getAuthStatus'),
   getRuntimeStatus: () => ipcRenderer.invoke('desktop:getRuntimeStatus'),
-  login: () => ipcRenderer.invoke('desktop:login'),
   chooseWorkspace: () => ipcRenderer.invoke('desktop:chooseWorkspace'),
   openWorkspace: workspacePath =>
     ipcRenderer.invoke('desktop:openWorkspace', workspacePath),

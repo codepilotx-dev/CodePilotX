@@ -1,6 +1,6 @@
 import type React from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AlertCircle, LogIn, PanelRightOpen, RefreshCw } from 'lucide-react'
+import { AlertCircle, PanelRightOpen, RefreshCw } from 'lucide-react'
 import type {
   DesktopAgentEvent,
   DesktopAuthStatus,
@@ -643,12 +643,6 @@ export function App(): React.ReactNode {
     await chooseWorkspace()
   }
 
-  async function login(): Promise<void> {
-    const status = await runDesktopAction(() => window.desktopApi.login())
-    if (status) {
-      setAuthStatus(status)
-    }
-  }
 
   async function refreshRuntimeStatus(): Promise<void> {
     const status = await runDesktopAction(() =>
@@ -811,9 +805,6 @@ export function App(): React.ReactNode {
   )
   const runtimeMissing = runtimeStatus?.agentExecutableExists === false
   const activePermissionRequest = pendingPermissions[0] ?? null
-  const authLabel = authStatus?.authenticated
-    ? authStatus.email ?? '已登录'
-    : '登录'
   const workspaceName = workspace?.name ?? '未选择项目'
   const branchName =
     workspace?.isGitRepo === false
@@ -894,8 +885,8 @@ export function App(): React.ReactNode {
         />
       </label>
       <div className="setting-runtime">
-        <p>认证方式：{authStatus?.method ?? '未知'}</p>
-        <p>账号：{authStatus?.email ?? '未登录'}</p>
+        <p>?????{authStatus?.method ?? '??'}</p>
+        <p>?????{authStatus?.email ?? '???????'}</p>
         <p>
           Agent 运行时：
           {runtimeStatus?.agentExecutableExists ? '可用' : '缺失'}
@@ -931,10 +922,6 @@ export function App(): React.ReactNode {
       </div>
       <div className="main-topbar-actions">
         {runtimeMissing ? <span className="status-pill warning">运行时缺失</span> : null}
-        <button onClick={login}>
-          <LogIn size={16} />
-          <span>{authLabel}</span>
-        </button>
         <button onClick={() => void refreshWorkspace()} disabled={!workspace}>
           <RefreshCw size={16} />
           <span>刷新</span>

@@ -5,7 +5,6 @@ import {
 } from '@claudecode/tui/utils/background/remote/preconditions.js'
 import { gracefulShutdownSync } from '@claudecode/tui/utils/gracefulShutdown.js'
 import { Box, Text } from '../ink.js'
-import { ConsoleOAuthFlow } from './ConsoleOAuthFlow.js'
 import { Select } from './CustomSelect/index.js'
 import { Dialog } from './design-system/Dialog.js'
 import { TeleportStash } from './TeleportStash.js'
@@ -29,7 +28,6 @@ export function TeleportError({
 }: TeleportErrorProps): React.ReactNode {
   const [currentError, setCurrentError] =
     useState<TeleportLocalErrorType | null>(null)
-  const [isLoggingIn, setIsLoggingIn] = useState<boolean>(false)
 
   // Check for errors on mount and when error resolution occurs
   const checkErrors = useCallback(async () => {
@@ -63,25 +61,11 @@ export function TeleportError({
     gracefulShutdownSync(0)
   }, [])
 
-  const handleLoginComplete = useCallback(() => {
-    setIsLoggingIn(false)
-    void checkErrors()
-  }, [checkErrors])
-
-  const handleLoginWithClaudeAI = useCallback(() => {
-    setIsLoggingIn(true)
-  }, [setIsLoggingIn])
-
   const handleLoginDialogSelect = useCallback(
-    (value: string) => {
-      if (value === 'login') {
-        handleLoginWithClaudeAI()
-      } else {
-        // User selected exit
-        onCancel()
-      }
+    (_value: string) => {
+      onCancel()
     },
-    [handleLoginWithClaudeAI, onCancel],
+    [onCancel],
   )
 
   const handleStashComplete = useCallback(() => {
@@ -103,27 +87,16 @@ export function TeleportError({
       )
 
     case 'needsLogin': {
-      if (isLoggingIn) {
-        return (
-          <ConsoleOAuthFlow
-            onDone={handleLoginComplete}
-            mode="login"
-            forceLoginMethod="claudeai"
-          />
-        )
-      }
-
       return (
-        <Dialog title="Log in to Claude" onCancel={onCancel}>
+        <Dialog title="Claude.ai login disabled" onCancel={onCancel}>
           <Box flexDirection="column">
-            <Text dimColor>Teleport requires a Claude.ai account.</Text>
+            <Text dimColor>Teleport requires Claude.ai OAuth.</Text>
             <Text dimColor>
-              Your Claude Pro/Max subscription will be used by Oh-My-AgentCode.
+              OAuth login is disabled in this build. Use ANTHROPIC_API_KEY or provider credentials for local model requests.
             </Text>
           </Box>
           <Select
             options={[
-              { label: 'Login with Claude account', value: 'login' },
               { label: 'Exit', value: 'exit' },
             ]}
             onChange={handleLoginDialogSelect}

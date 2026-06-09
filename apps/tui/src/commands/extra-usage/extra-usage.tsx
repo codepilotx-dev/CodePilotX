@@ -1,12 +1,10 @@
 import React from 'react'
-import type { LocalJSXCommandContext } from '../../commands.js'
 import type { LocalJSXCommandOnDone } from '../../types/command.js'
-import { Login } from '../login/login.js'
 import { runExtraUsage } from './extra-usage-core.js'
 
 export async function call(
   onDone: LocalJSXCommandOnDone,
-  context: LocalJSXCommandContext,
+  _context: unknown,
 ): Promise<React.ReactNode | null> {
   const result = await runExtraUsage()
 
@@ -15,15 +13,6 @@ export async function call(
     return null
   }
 
-  return (
-    <Login
-      startingMessage={
-        'Starting new login following /extra-usage. Exit with Ctrl-C to use existing account.'
-      }
-      onDone={success => {
-        context.onChangeAPIKey()
-        onDone(success ? 'Login successful' : 'Login interrupted')
-      }}
-    />
-  )
+  onDone('OAuth login is disabled in this build. Set ANTHROPIC_API_KEY or configure provider credentials for additional usage.')
+  return null
 }

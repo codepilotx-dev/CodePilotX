@@ -3311,7 +3311,7 @@ async function run(): Promise<CommanderCommand> {
 
         if (onboardingShown) {
           // Refresh auth-dependent services now that the user has logged in during onboarding.
-          // Keep in sync with the post-login logic in src/commands/login.tsx
+          // Keep in sync with the post-onboarding credential refresh logic.
           void refreshRemoteManagedSettings()
           void refreshPolicyLimits()
           // Clear user data cache BEFORE GrowthBook refresh so it picks up fresh credentials
@@ -5662,7 +5662,7 @@ async function run(): Promise<CommanderCommand> {
         process.stderr.write(
           'Usage: claude ssh <user@host | ssh-config-alias> [dir]\n\n' +
             "Runs Oh-My-AgentCode on a remote Linux host. You don't need to install\n" +
-            'anything on the remote or run `claude auth login` there — the binary is\n' +
+            'anything on the remote or run `configure credentials` there — the binary is\n' +
             'deployed over SSH and API auth tunnels back through your local machine.\n',
         )
         process.exit(1)
@@ -5744,33 +5744,6 @@ async function run(): Promise<CommanderCommand> {
     .configureHelp(createSortedHelpConfig())
 
   auth
-    .command('login')
-    .description('Sign in to your Anthropic account')
-    .option('--email <email>', 'Pre-populate email address on the login page')
-    .option('--sso', 'Force SSO login flow')
-    .option(
-      '--console',
-      'Use Anthropic Console (API usage billing) instead of Claude subscription',
-    )
-    .option('--claudeai', 'Use Claude subscription (default)')
-    .action(
-      async ({
-        email,
-        sso,
-        console: useConsole,
-        claudeai,
-      }: {
-        email?: string
-        sso?: boolean
-        console?: boolean
-        claudeai?: boolean
-      }) => {
-        const { authLogin } = await import('./cli/handlers/auth.js')
-        await authLogin({ email, sso, console: useConsole, claudeai })
-      },
-    )
-
-  auth
     .command('status')
     .description('Show authentication status')
     .option('--json', 'Output as JSON (default)')
@@ -5780,13 +5753,6 @@ async function run(): Promise<CommanderCommand> {
       await authStatus(opts)
     })
 
-  auth
-    .command('logout')
-    .description('Log out from your Anthropic account')
-    .action(async () => {
-      const { authLogout } = await import('./cli/handlers/auth.js')
-      await authLogout()
-    })
 
   /**
    * Helper function to handle marketplace command errors consistently.
@@ -6014,21 +5980,6 @@ async function run(): Promise<CommanderCommand> {
       },
     )
   // END ANT-ONLY
-
-  // Setup token command
-  program
-    .command('setup-token')
-    .description(
-      'Set up a long-lived authentication token (requires Claude subscription)',
-    )
-    .action(async () => {
-      const [{ setupTokenHandler }, { createRoot }] = await Promise.all([
-        import('./cli/handlers/util.js'),
-        import('./ink.js'),
-      ])
-      const root = await createRoot(getBaseRenderOptions(false))
-      await setupTokenHandler(root)
-    })
 
   // Agents command - list configured agents
   program

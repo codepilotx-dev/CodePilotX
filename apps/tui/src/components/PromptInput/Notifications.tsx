@@ -318,7 +318,7 @@ function NotificationContent({
           <Text color="error" wrap="truncate">
             {isEnvTruthy(process.env.CLAUDE_CODE_REMOTE)
               ? 'Authentication error · Try again'
-              : 'Not logged in · Run /login'}
+              : 'Not logged in · Configure ANTHROPIC_API_KEY'}
           </Text>
         </Box>
       )}

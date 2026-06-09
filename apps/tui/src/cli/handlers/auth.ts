@@ -109,126 +109,6 @@ export async function installOAuthTokens(tokens: OAuthTokens): Promise<void> {
   await clearAuthRelatedCaches()
 }
 
-export async function authLogin({
-  email,
-  sso,
-  console: useConsole,
-  claudeai,
-}: {
-  email?: string
-  sso?: boolean
-  console?: boolean
-  claudeai?: boolean
-}): Promise<void> {
-  if (useConsole && claudeai) {
-    process.stderr.write(
-      'Error: --console and --claudeai cannot be used together.\n',
-    )
-    process.exit(1)
-  }
-
-  const settings = getInitialSettings()
-  // forceLoginMethod is a hard constraint (enterprise setting) — matches ConsoleOAuthFlow behavior.
-  // Without it, --console selects Console; --claudeai (or no flag) selects claude.ai.
-  const loginWithClaudeAi = settings.forceLoginMethod
-    ? settings.forceLoginMethod === 'claudeai'
-    : !useConsole
-  const orgUUID = settings.forceLoginOrgUUID
-
-  // Fast path: if a refresh token is provided via env var, skip the browser
-  // OAuth flow and exchange it directly for tokens.
-  const envRefreshToken = process.env.CLAUDE_CODE_OAUTH_REFRESH_TOKEN
-  if (envRefreshToken) {
-    const envScopes = process.env.CLAUDE_CODE_OAUTH_SCOPES
-    if (!envScopes) {
-      process.stderr.write(
-        'CLAUDE_CODE_OAUTH_SCOPES is required when using CLAUDE_CODE_OAUTH_REFRESH_TOKEN.\n' +
-          'Set it to the space-separated scopes the refresh token was issued with\n' +
-          '(e.g. "user:inference" or "user:profile user:inference user:sessions:claude_code user:mcp_servers").\n',
-      )
-      process.exit(1)
-    }
-
-    const scopes = envScopes.split(/\s+/).filter(Boolean)
-
-    try {
-      logEvent('tengu_login_from_refresh_token', {})
-
-      const tokens = await refreshOAuthToken(envRefreshToken, { scopes })
-      await installOAuthTokens(tokens)
-
-      const orgResult = await validateForceLoginOrg()
-      if (!orgResult.valid) {
-        process.stderr.write(orgResult.message + '\n')
-        process.exit(1)
-      }
-
-      // Mark onboarding complete — interactive paths handle this via
-      // the Onboarding component, but the env var path skips it.
-      saveGlobalConfig(current => {
-        if (current.hasCompletedOnboarding) return current
-        return { ...current, hasCompletedOnboarding: true }
-      })
-
-      logEvent('tengu_oauth_success', {
-        loginWithClaudeAi: shouldUseClaudeAIAuth(tokens.scopes),
-      })
-      process.stdout.write('Login successful.\n')
-      process.exit(0)
-    } catch (err) {
-      logError(err)
-      const sslHint = getSSLErrorHint(err)
-      process.stderr.write(
-        `Login failed: ${errorMessage(err)}\n${sslHint ? sslHint + '\n' : ''}`,
-      )
-      process.exit(1)
-    }
-  }
-
-  const resolvedLoginMethod = sso ? 'sso' : undefined
-
-  const oauthService = new OAuthService()
-
-  try {
-    logEvent('tengu_oauth_flow_start', { loginWithClaudeAi })
-
-    const result = await oauthService.startOAuthFlow(
-      async url => {
-        process.stdout.write('Opening browser to sign in…\n')
-        process.stdout.write(`If the browser didn't open, visit: ${url}\n`)
-      },
-      {
-        loginWithClaudeAi,
-        loginHint: email,
-        loginMethod: resolvedLoginMethod,
-        orgUUID,
-      },
-    )
-
-    await installOAuthTokens(result)
-
-    const orgResult = await validateForceLoginOrg()
-    if (!orgResult.valid) {
-      process.stderr.write(orgResult.message + '\n')
-      process.exit(1)
-    }
-
-    logEvent('tengu_oauth_success', { loginWithClaudeAi })
-
-    process.stdout.write('Login successful.\n')
-    process.exit(0)
-  } catch (err) {
-    logError(err)
-    const sslHint = getSSLErrorHint(err)
-    process.stderr.write(
-      `Login failed: ${errorMessage(err)}\n${sslHint ? sslHint + '\n' : ''}`,
-    )
-    process.exit(1)
-  } finally {
-    oauthService.cleanup()
-  }
-}
-
 export async function authStatus(opts: {
   json?: boolean
   text?: boolean
@@ -287,7 +167,7 @@ export async function authStatus(opts: {
     }
     if (!loggedIn) {
       process.stdout.write(
-        'Not logged in. Run claude auth login to authenticate.\n',
+        'No credentials configured. Set ANTHROPIC_API_KEY or configure provider credentials.\n',
       )
     }
   } else {
@@ -318,13 +198,3 @@ export async function authStatus(opts: {
   process.exit(loggedIn ? 0 : 1)
 }
 
-export async function authLogout(): Promise<void> {
-  try {
-    await performLogout({ clearOnboarding: false })
-  } catch {
-    process.stderr.write('Failed to log out.\n')
-    process.exit(1)
-  }
-  process.stdout.write('Successfully logged out from your Anthropic account.\n')
-  process.exit(0)
-}

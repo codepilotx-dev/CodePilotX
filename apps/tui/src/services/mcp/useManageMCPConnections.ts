@@ -157,7 +157,7 @@ export function useManageMCPConnections(
   const reconnectTimersRef = useRef<Map<string, NodeJS.Timeout>>(new Map())
 
   // Dedup the --channels blocked warning per skip kind so that a user who
-  // sees "run /login" (auth skip), logs in, then hits the policy gate
+  // sees "configure ANTHROPIC_API_KEY" (auth skip), logs in, then hits the policy gate
   // gets a second toast.
   const channelWarnedKindsRef = useRef<
     Set<'disabled' | 'auth' | 'policy' | 'marketplace' | 'allowlist'>
@@ -597,7 +597,7 @@ export function useManageMCPConnections(
                     gate.kind === 'disabled'
                       ? 'Channels are not currently available'
                       : gate.kind === 'auth'
-                        ? 'Channels require claude.ai authentication · run /login'
+                        ? 'Channels require claude.ai authentication · configure ANTHROPIC_API_KEY'
                         : gate.kind === 'policy'
                           ? 'Channels are not enabled for your org · have an administrator set channelsEnabled: true in managed settings'
                           : gate.reason

@@ -43,7 +43,7 @@ export function useCanSwitchToExistingSubscription(): void {
 
 /**
  * Checks if the user has a subscription but is not currently logged into it.
- * This helps inform users they should run /login to access their subscription.
+ * This helps inform users they should configure ANTHROPIC_API_KEY
  */
 async function getExistingClaudeSubscription(): Promise<'Max' | 'Pro' | null> {
   // If already using subscription auth, there is nothing to switch to

@@ -97,7 +97,6 @@ export type DesktopUiCommand =
 export type DesktopApi = {
   getAuthStatus(): Promise<DesktopAuthStatus>
   getRuntimeStatus(): Promise<DesktopRuntimeStatus>
-  login(): Promise<DesktopAuthStatus>
   chooseWorkspace(): Promise<DesktopWorkspace | null>
   openWorkspace(workspacePath: string): Promise<DesktopWorkspace>
   getWorkspaceContext(workspacePath: string): Promise<DesktopWorkspace>

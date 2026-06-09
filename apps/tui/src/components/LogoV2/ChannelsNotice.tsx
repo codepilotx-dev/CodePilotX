@@ -88,7 +88,7 @@ export function ChannelsNotice(): React.ReactNode {
           {flag} ignored ({list})
         </Text>
         <Text dimColor>
-          Channels require claude.ai authentication · run /login, then restart
+          Channels require claude.ai authentication · configure ANTHROPIC_API_KEY
         </Text>
       </Box>
     )

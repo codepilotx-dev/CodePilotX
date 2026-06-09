@@ -22,12 +22,9 @@ import { getOauthProfileFromOauthToken } from '@claudecode/core/services/oauth/g
 import { OAuthService } from '@claudecode/core/services/oauth/index.js'
 import type { OAuthTokens } from '@claudecode/core/services/oauth/types.js'
 import {
-  clearOAuthTokenCache,
   getAuthTokenSource,
   getOauthAccountInfo,
   hasAnthropicApiKeyAuth,
-  saveOAuthTokensIfNeeded,
-  validateForceLoginOrg,
 } from '@claudecode/core/utils/auth.js'
 import { enableConfigs, saveGlobalConfig } from '@claudecode/core/utils/config.js'
 import { getInitialSettings } from '@claudecode/core/utils/settings/settings.js'
@@ -76,45 +73,6 @@ const DESKTOP_THINKING_MODES = new Set<DesktopThinkingMode>([
   'adaptive',
   'disabled',
 ])
-
-async function installDesktopOAuthTokens(tokens: OAuthTokens): Promise<void> {
-  const profile =
-    tokens.profile ?? (await getOauthProfileFromOauthToken(tokens.accessToken))
-
-  if (profile) {
-    storeOAuthAccountInfo({
-      accountUuid: profile.account.uuid,
-      emailAddress: profile.account.email,
-      organizationUuid: profile.organization.uuid,
-      displayName: profile.account.display_name || undefined,
-      hasExtraUsageEnabled:
-        profile.organization.has_extra_usage_enabled ?? undefined,
-      billingType: profile.organization.billing_type ?? undefined,
-      subscriptionCreatedAt:
-        profile.organization.subscription_created_at ?? undefined,
-      accountCreatedAt: profile.account.created_at,
-    })
-  } else if (tokens.tokenAccount) {
-    storeOAuthAccountInfo({
-      accountUuid: tokens.tokenAccount.uuid,
-      emailAddress: tokens.tokenAccount.emailAddress,
-      organizationUuid: tokens.tokenAccount.organizationUuid,
-    })
-  }
-
-  saveOAuthTokensIfNeeded(tokens)
-  clearOAuthTokenCache()
-
-  await fetchAndStoreUserRoles(tokens.accessToken).catch(() => {})
-  if (shouldUseClaudeAIAuth(tokens.scopes)) {
-    await fetchAndStoreClaudeCodeFirstTokenDate().catch(() => {})
-  } else {
-    const apiKey = await createAndStoreApiKey(tokens.accessToken)
-    if (!apiKey) {
-      throw new Error('Unable to create API key for console authentication.')
-    }
-  }
-}
 
 let mainWindow: BrowserWindow | null = null
 const sessions = new Map<string, DesktopAgentSession>()
@@ -299,43 +257,6 @@ async function getRuntimeStatus(): Promise<DesktopRuntimeStatus> {
       agentExecutableExists: false,
     }
   }
-}
-
-async function login(): Promise<DesktopAuthStatus> {
-  const settings = getInitialSettings()
-  const loginWithClaudeAi = settings.forceLoginMethod
-    ? settings.forceLoginMethod === 'claudeai'
-    : true
-  const oauthService = new OAuthService()
-
-  try {
-    const tokens = await oauthService.startOAuthFlow(
-      async (manualUrl, automaticUrl) => {
-        await shell.openExternal(automaticUrl ?? manualUrl)
-      },
-      {
-        loginWithClaudeAi,
-        orgUUID: settings.forceLoginOrgUUID,
-        skipBrowserOpen: true,
-      },
-    )
-    await installDesktopOAuthTokens(tokens)
-
-    const orgResult = await validateForceLoginOrg()
-    if (!orgResult.valid) {
-      throw new Error(orgResult.message)
-    }
-
-    saveGlobalConfig(current =>
-      current.hasCompletedOnboarding
-        ? current
-        : { ...current, hasCompletedOnboarding: true },
-    )
-  } finally {
-    oauthService.cleanup()
-  }
-
-  return getAuthStatus()
 }
 
 async function chooseWorkspace(): Promise<DesktopWorkspace | null> {
