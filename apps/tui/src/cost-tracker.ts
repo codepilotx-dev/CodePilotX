@@ -68,6 +68,29 @@ export {
   getUsageForModel,
 }
 
+const CACHE_STATS_BUFFER_LIMIT = 20
+
+type CacheStatsEntry = {
+  timestamp: number
+  model: string
+  promptTokens: number
+  cacheHitTokens: number
+  outputTokens: number
+}
+
+export type CacheStatsSnapshot = {
+  recent: CacheStatsEntry[]
+  totals: {
+    promptTokens: number
+    cacheHitTokens: number
+    outputTokens: number
+    hitRate: number
+    estimatedSavingsUSD: number
+  }
+}
+
+const cacheStatsBuffer: CacheStatsEntry[] = []
+
 type StoredCostState = {
   totalCostUSD: number
   totalAPIDuration: number
@@ -282,6 +305,13 @@ export function addToTotalSessionCost(
 ): number {
   const modelUsage = addToTotalModelUsage(cost, usage, model)
   addToTotalCostState(cost, modelUsage, model)
+  recordCacheStat({
+    timestamp: Date.now(),
+    model,
+    promptTokens: usage.input_tokens,
+    cacheHitTokens: usage.cache_read_input_tokens ?? 0,
+    outputTokens: usage.output_tokens,
+  })
 
   const attrs =
     isFastModeEnabled() && usage.speed === 'fast'
@@ -320,4 +350,43 @@ export function addToTotalSessionCost(
     )
   }
   return totalCost
+}
+
+function recordCacheStat(entry: CacheStatsEntry): void {
+  cacheStatsBuffer.push(entry)
+  if (cacheStatsBuffer.length > CACHE_STATS_BUFFER_LIMIT) {
+    cacheStatsBuffer.splice(
+      0,
+      cacheStatsBuffer.length - CACHE_STATS_BUFFER_LIMIT,
+    )
+  }
+}
+
+export function getCacheStatsSnapshot(
+  limit: number = CACHE_STATS_BUFFER_LIMIT,
+): CacheStatsSnapshot {
+  const recent = cacheStatsBuffer.slice(-Math.max(0, limit))
+  let promptTokens = 0
+  let cacheHitTokens = 0
+  let outputTokens = 0
+  for (const e of recent) {
+    promptTokens += e.promptTokens
+    cacheHitTokens += e.cacheHitTokens
+    outputTokens += e.outputTokens
+  }
+  const denom = promptTokens + cacheHitTokens
+  const hitRate = denom > 0 ? cacheHitTokens / denom : 0
+  // 估算节省：把命中部分按 Anthropic 标准 cache_read 单价重算。
+  // 这只是个粗略可比指标，跨 provider 不一定严格准确。
+  const estimatedSavingsUSD = cacheHitTokens * 0.0000003
+  return {
+    recent,
+    totals: {
+      promptTokens,
+      cacheHitTokens,
+      outputTokens,
+      hitRate,
+      estimatedSavingsUSD,
+    },
+  }
 }
