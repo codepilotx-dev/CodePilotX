@@ -1,4 +1,5 @@
 import type React from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import {
   Bot,
@@ -21,7 +22,6 @@ import { IconButton } from './ui/IconButton.js'
 
 type Props = {
   activeSessionId: string | null
-  activeView: AppView
   collapsed: boolean
   maxWidth: number
   minWidth: number
@@ -32,11 +32,9 @@ type Props = {
   onChooseWorkspace: () => void
   onCloseSession: (sessionId: string) => void
   onCreateSession: () => void
-  onOpenSettings: () => void
   onOpenWorkspace: (workspace: DesktopWorkspace) => void
   onRefreshWorkspace: () => void
   onSelectSession: (session: SessionListItem) => void
-  onSelectView: (view: AppView) => void
   onSetWidth: (width: number) => void
   onToggleCollapsed: () => void
 }
@@ -45,16 +43,16 @@ const PRIMARY_ITEMS: Array<{
   view: AppView
   label: string
   icon: React.ReactNode
+  path: string
 }> = [
-  { view: 'quickChat', label: '快速对话', icon: <SquarePen size={16} /> },
-  { view: 'search', label: '搜索', icon: <Search size={16} /> },
-  { view: 'plugins', label: '插件', icon: <Boxes size={16} /> },
-  { view: 'automation', label: '自动化', icon: <Clock3 size={16} /> },
+  { view: 'quickChat', label: '快速对话', icon: <SquarePen size={16} />, path: '/' },
+  { view: 'search', label: '搜索', icon: <Search size={16} />, path: '/search' },
+  { view: 'plugins', label: '插件', icon: <Boxes size={16} />, path: '/plugins' },
+  { view: 'automation', label: '自动化', icon: <Clock3 size={16} />, path: '/automation' },
 ]
 
 export function DesktopSidebar({
   activeSessionId,
-  activeView,
   collapsed,
   maxWidth,
   minWidth,
@@ -65,14 +63,13 @@ export function DesktopSidebar({
   onChooseWorkspace,
   onCloseSession,
   onCreateSession,
-  onOpenSettings,
   onOpenWorkspace,
   onRefreshWorkspace,
   onSelectSession,
-  onSelectView,
   onSetWidth,
   onToggleCollapsed,
 }: Props): React.ReactNode {
+  const location = useLocation()
   const [resizing, setResizing] = useState(false)
   const [start, setStart] = useState({ x: 0, width })
 
@@ -128,6 +125,11 @@ export function DesktopSidebar({
     }
   }
 
+  function isActiveView(view: AppView): boolean {
+    if (view === 'quickChat') return location.pathname === '/'
+    return location.pathname === `/${view}`
+  }
+
   return (
     <aside
       aria-label="侧边栏"
@@ -141,17 +143,14 @@ export function DesktopSidebar({
       <div className="sidebar-content">
         <section className="nav-section primary">
           {PRIMARY_ITEMS.map(item => (
-            <button
-              className={
-                activeView === item.view ? 'nav-item active' : 'nav-item'
-              }
+            <Link
+              className={isActiveView(item.view) ? 'nav-item active' : 'nav-item'}
               key={item.view}
-              onClick={() => onSelectView(item.view)}
-              type="button"
+              to={item.path}
             >
               <span className="nav-icon">{item.icon}</span>
               <span className="nav-label">{item.label}</span>
-            </button>
+            </Link>
           ))}
         </section>
 
@@ -271,12 +270,12 @@ export function DesktopSidebar({
       </div>
 
       <div className="sidebar-footer">
-        <button className="footer-button" onClick={onOpenSettings} type="button">
+        <Link className="footer-button" to="/settings">
           <span className="nav-icon">
             <Settings2 size={17} />
           </span>
           <span>设置</span>
-        </button>
+        </Link>
         <IconButton
           className="collapse-button"
           onClick={onToggleCollapsed}

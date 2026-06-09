@@ -18,7 +18,7 @@ import type {
   ViewMenuAction,
   WindowMenuAction,
 } from './components/WindowChrome.js'
-import type { AppView, SessionListItem } from './uiTypes.js'
+import type { SessionListItem } from './uiTypes.js'
 import { PERMISSION_MODE_OPTIONS, THINKING_MODE_OPTIONS } from './features/settings/settingsStorage.js'
 import { useDesktopSettings } from './features/settings/useDesktopSettings.js'
 import { useDesktopLayout } from './features/layout/useDesktopLayout.js'
@@ -327,13 +327,6 @@ function DesktopLayout(): React.ReactNode {
     [closeSession, refreshWorkspace, setDiffState, setSelectedFile, setWorkspaceState],
   )
 
-  const handleSelectView = useCallback(
-    (view: AppView): void => {
-      navigate(`/${view === 'quickChat' ? '' : view}`)
-    },
-    [navigate],
-  )
-
   const runtimeMissing = runtimeStatus?.agentExecutableExists === false
   const activePermissionRequest: DesktopPermissionRequest | null =
     pendingPermissions[0] ?? null
@@ -395,7 +388,6 @@ function DesktopLayout(): React.ReactNode {
   const sidebar = (
     <DesktopSidebar
       activeSessionId={sessionId}
-      activeView={getActiveViewFromPath(location.pathname)}
       collapsed={sidebarCollapsed}
       maxWidth={Math.round(viewportWidth * 0.2)}
       minWidth={Math.round(viewportWidth * 0.12)}
@@ -406,11 +398,9 @@ function DesktopLayout(): React.ReactNode {
       onChooseWorkspace={() => void handleChooseWorkspace()}
       onCloseSession={session => void handleCloseSession(session)}
       onCreateSession={() => void handleCreateSession()}
-      onOpenSettings={() => navigate('/settings')}
       onOpenWorkspace={workspaceItem => void handleOpenRecentWorkspace(workspaceItem)}
       onRefreshWorkspace={() => void refreshWorkspace()}
       onSelectSession={handleSelectSession}
-      onSelectView={handleSelectView}
       onSetWidth={setSidebarWidth}
       onToggleCollapsed={toggleSidebarCollapsed}
     />
@@ -502,15 +492,6 @@ function DesktopLayout(): React.ReactNode {
       />
     </div>
   )
-}
-
-// 根据路径获取当前视图
-function getActiveViewFromPath(pathname: string): AppView {
-  if (pathname === '/') return 'quickChat'
-  if (pathname === '/search') return 'search'
-  if (pathname === '/plugins') return 'plugins'
-  if (pathname === '/automation') return 'automation'
-  return 'quickChat'
 }
 
 // 路由配置 - 所有页面共用 DesktopLayout
