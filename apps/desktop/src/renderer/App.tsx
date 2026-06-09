@@ -1,21 +1,12 @@
 import type React from 'react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { AlertCircle, RefreshCw } from 'lucide-react'
 import type {
-  DesktopAgentEvent,
-  DesktopAuthStatus,
-  DesktopFileEntry,
-  DesktopPermissionMode,
   DesktopPermissionRequest,
-  DesktopRuntimeStatus,
-  DesktopSessionStatus,
-  DesktopThinkingMode,
-  DesktopUiCommand,
   DesktopWorkspace,
 } from '../shared/types.js'
 import {
   CUSTOM_MODEL_PRESET_ID,
-  DEFAULT_MODEL_PRESET_ID,
   MODEL_PRESETS,
   resolveModelPresetId,
 } from './modelPresets.js'
@@ -28,78 +19,14 @@ import { PluginsView } from './components/PluginsView.js'
 import { QuickChatView } from './components/QuickChatView.js'
 import { RightDrawer } from './components/RightDrawer.js'
 import { SearchView } from './components/SearchView.js'
-import type {
-  AppView,
-  DrawerTab,
-  Message,
-  SessionListItem,
-  SessionViewState,
-  ToolLogEntry,
-} from './uiTypes.js'
-
-const PERMISSION_MODE_OPTIONS: Array<{
-  value: DesktopPermissionMode
-  label: string
-  detail: string
-}> = [
-  {
-    value: 'default',
-    label: '自动审查',
-    detail: '编辑和高风险工具会按原有规则请求确认。',
-  },
-  {
-    value: 'acceptEdits',
-    label: '允许编辑',
-    detail: '默认允许文件编辑，其他高风险动作仍会确认。',
-  },
-  {
-    value: 'plan',
-    label: '规划模式',
-    detail: '先分析和规划，再决定是否实施。',
-  },
-  {
-    value: 'dontAsk',
-    label: '严格拦截',
-    detail: '需要额外确认的动作会被拒绝。',
-  },
-  {
-    value: 'bypassPermissions',
-    label: '免确认',
-    detail: '跳过权限询问，直接执行会话内动作。',
-  },
-]
-
-const THINKING_MODE_OPTIONS: Array<{
-  value: DesktopThinkingMode
-  label: string
-}> = [
-  { value: 'disabled', label: '低' },
-  { value: 'default', label: '中' },
-  { value: 'adaptive', label: '高' },
-  { value: 'enabled', label: '超高' },
-]
-
-const DESKTOP_SETTINGS_STORAGE_KEY = 'claude-code-desktop-settings'
-const SIDEBAR_WIDTH_STORAGE_KEY = 'layout.sidebarWidth'
-const SIDEBAR_MIN_RATIO = 0.12
-const SIDEBAR_MAX_RATIO = 0.2
-const DEFAULT_SIDEBAR_WIDTH = 250
-const MAX_RECENT_WORKSPACES = 5
-
-type StoredDesktopSettings = {
-  permissionMode: DesktopPermissionMode
-  model: string
-  fallbackModel: string
-  sessionName: string
-  thinkingMode: DesktopThinkingMode
-  systemPrompt: string
-  appendSystemPrompt: string
-  additionalDirectories: string
-  recentWorkspaces: DesktopWorkspace[]
-  activeView: AppView
-  drawerTab: DrawerTab
-  selectedModelPreset: string
-}
+import type { AppView, DrawerTab, SessionListItem } from './uiTypes.js'
+import { PERMISSION_MODE_OPTIONS, THINKING_MODE_OPTIONS } from './features/settings/settingsStorage.js'
+import { useDesktopSettings } from './features/settings/useDesktopSettings.js'
+import { useDesktopLayout } from './features/layout/useDesktopLayout.js'
+import { useWorkspaceState } from './features/workspace/useWorkspaceState.js'
+import { useSessionState } from './features/session/useSessionState.js'
+import { useDesktopCommands } from './features/session/useDesktopCommands.js'
+import { useDesktopSearch } from './features/search/useDesktopSearch.js'
 
 declare global {
   interface Window {
@@ -108,117 +35,8 @@ declare global {
 }
 
 export function App(): React.ReactNode {
-  const initialDesktopSettings = useMemo(() => readStoredDesktopSettings(), [])
-  const [authStatus, setAuthStatus] = useState<DesktopAuthStatus | null>(null)
-  const [workspace, setWorkspace] = useState<DesktopWorkspace | null>(null)
-  const [sessionId, setSessionId] = useState<string | null>(null)
-  const activeSessionIdRef = useRef<string | null>(null)
-  const sessionViewsRef = useRef<Record<string, SessionViewState>>({})
-  const sessionWorkspacesRef = useRef<Record<string, DesktopWorkspace>>({})
-  const [sessionStatus, setSessionStatus] =
-    useState<DesktopSessionStatus>('idle')
-  const [sessions, setSessions] = useState<SessionListItem[]>([])
-  const [messages, setMessages] = useState<Message[]>([])
-  const [toolLog, setToolLog] = useState<ToolLogEntry[]>([])
-  const [files, setFiles] = useState<DesktopFileEntry[]>([])
-  const [selectedFile, setSelectedFile] =
-    useState<SessionViewState['selectedFile']>(null)
-  const [diff, setDiff] = useState('未选择项目。')
-  const [pendingPermissions, setPendingPermissions] = useState<
-    DesktopPermissionRequest[]
-  >([])
-  const [permissionMode, setPermissionMode] =
-    useState<DesktopPermissionMode>(initialDesktopSettings.permissionMode)
-  const [model, setModel] = useState(initialDesktopSettings.model)
-  const [fallbackModel, setFallbackModel] = useState(
-    initialDesktopSettings.fallbackModel,
-  )
-  const [sessionName, setSessionName] = useState(
-    initialDesktopSettings.sessionName,
-  )
-  const [thinkingMode, setThinkingMode] = useState<DesktopThinkingMode>(
-    initialDesktopSettings.thinkingMode,
-  )
-  const [systemPrompt, setSystemPrompt] = useState(
-    initialDesktopSettings.systemPrompt,
-  )
-  const [appendSystemPrompt, setAppendSystemPrompt] = useState(
-    initialDesktopSettings.appendSystemPrompt,
-  )
-  const [additionalDirectories, setAdditionalDirectories] = useState(
-    initialDesktopSettings.additionalDirectories,
-  )
-  const [recentWorkspaces, setRecentWorkspaces] = useState<DesktopWorkspace[]>(
-    initialDesktopSettings.recentWorkspaces,
-  )
-  const [runtimeStatus, setRuntimeStatus] =
-    useState<DesktopRuntimeStatus | null>(null)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [input, setInput] = useState('')
-  const [activeView, setActiveView] = useState<AppView>(
-    initialDesktopSettings.activeView,
-  )
-  const [drawerTab, setDrawerTab] = useState<DrawerTab>(
-    initialDesktopSettings.drawerTab,
-  )
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
-  const [selectedModelPreset, setSelectedModelPreset] = useState(
-    resolveModelPresetId(
-      initialDesktopSettings.model,
-      initialDesktopSettings.selectedModelPreset,
-    ),
-  )
-  const [searchQuery, setSearchQuery] = useState('')
-  const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth)
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() =>
-    window.matchMedia('(max-width: 900px)').matches,
-  )
-  const [sidebarWidth, setSidebarWidthState] = useState(() =>
-    readStoredSidebarWidth(window.innerWidth),
-  )
-
-  useEffect(() => {
-    void runDesktopAction(() =>
-      window.desktopApi.getAuthStatus().then(setAuthStatus),
-    )
-    void refreshRuntimeStatus()
-    const unsubscribeAgent = window.desktopApi.onAgentEvent(handleAgentEvent)
-    const unsubscribeUi = window.desktopApi.onUiCommand(handleUiCommand)
-    return () => {
-      unsubscribeAgent()
-      unsubscribeUi()
-    }
-  }, [])
-
-  useEffect(() => {
-    function handleResize(): void {
-      const nextViewportWidth = window.innerWidth
-      setViewportWidth(nextViewportWidth)
-      setSidebarWidthState(current =>
-        clampSidebarWidth(current, nextViewportWidth),
-      )
-    }
-
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
-
-  useEffect(() => {
-    storeDesktopSettings({
-      permissionMode,
-      model,
-      fallbackModel,
-      sessionName,
-      thinkingMode,
-      systemPrompt,
-      appendSystemPrompt,
-      additionalDirectories,
-      recentWorkspaces,
-      activeView,
-      drawerTab,
-      selectedModelPreset,
-    })
-  }, [
+  const settings = useDesktopSettings()
+  const {
     permissionMode,
     model,
     fallbackModel,
@@ -231,629 +49,240 @@ export function App(): React.ReactNode {
     activeView,
     drawerTab,
     selectedModelPreset,
+    setPermissionMode,
+    setModel,
+    setFallbackModel,
+    setSessionName,
+    setThinkingMode,
+    setSystemPrompt,
+    setAppendSystemPrompt,
+    setAdditionalDirectories,
+    setRecentWorkspaces,
+    setActiveView,
+    setDrawerTab,
+    setSelectedModelPreset,
+  } = settings
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+
+  const layout = useDesktopLayout()
+  const {
+    sidebarCollapsed,
+    sidebarWidth,
+    viewportWidth,
+    setSidebarWidth,
+    toggleSidebarCollapsed,
+  } = layout
+
+  const workspace = useWorkspaceState({
+    onError: (message: string) => setErrorMessage(message || null),
+    onRecentWorkspacesChange: next => {
+      setRecentWorkspaces(next)
+    },
+  })
+  const {
+    workspace: currentWorkspace,
+    authStatus,
+    runtimeStatus,
+    files,
+    selectedFile,
+    diff,
+    setActiveSessionId,
+    refreshRuntimeStatus,
+    refreshWorkspace,
+    chooseWorkspace,
+    openRecentWorkspace,
+    previewFile,
+    setSelectedFile,
+    setWorkspace: setWorkspaceState,
+    setDiff: setDiffState,
+  } = workspace
+
+  const session = useSessionState({
+    permissionMode,
+    model,
+    fallbackModel,
+    sessionName,
+    thinkingMode,
+    systemPrompt,
+    appendSystemPrompt,
+    additionalDirectories,
+    onError: (message: string) => setErrorMessage(message),
+    onDiffForActive: (patch: string) => setDiffState(patch),
+    onRefreshActiveWorkspace: (sessionId: string) => {
+      const target = session.sessionId === sessionId ? currentWorkspace : null
+      if (!target) return
+      void refreshWorkspace(target, {
+        clearSelectedFile: false,
+        expectedSessionId: sessionId,
+      })
+    },
+    onOpenDrawerPermissions: () => {
+      setDrawerTab('permissions')
+      setIsDrawerOpen(true)
+    },
+  })
+  const {
+    sessionId,
+    sessions,
+    sessionStatus,
+    messages,
+    toolLog,
+    pendingPermissions,
+    activeSessionItem,
+    canSubmit,
+    input,
+    setInput,
+    createSessionForWorkspace,
+    submit,
+    interrupt,
+    decidePermission,
+    closeSession,
+    selectSession: selectSessionRaw,
+    toggleToolLogEntry,
+  } = session
+
+  useEffect(() => {
+    setActiveSessionId(sessionId)
+  }, [sessionId, setActiveSessionId])
+
+  const openDrawerTab = useCallback(
+    (tab: DrawerTab): void => {
+      setDrawerTab(tab)
+      setIsDrawerOpen(true)
+    },
+    [setDrawerTab],
+  )
+
+  const handleChooseWorkspace = useCallback(async (): Promise<void> => {
+    const selected = await chooseWorkspace()
+    if (!selected) return
+    setActiveView('quickChat')
+    setWorkspaceState(selected)
+    await refreshWorkspace(selected)
+  }, [chooseWorkspace, refreshWorkspace, setActiveView, setWorkspaceState])
+
+  const handleOpenRecentWorkspace = useCallback(
+    async (target: DesktopWorkspace): Promise<void> => {
+      const selected = await openRecentWorkspace(target)
+      if (!selected) return
+      setActiveView('quickChat')
+      setWorkspaceState(selected)
+      await refreshWorkspace(selected)
+    },
+    [openRecentWorkspace, refreshWorkspace, setActiveView, setWorkspaceState],
+  )
+
+  const handleCreateSession = useCallback(async (): Promise<void> => {
+    if (currentWorkspace) {
+      await createSessionForWorkspace(currentWorkspace)
+      return
+    }
+    await handleChooseWorkspace()
+  }, [createSessionForWorkspace, currentWorkspace, handleChooseWorkspace])
+
+  const handleNewConversation = useCallback(async (): Promise<void> => {
+    setActiveView('quickChat')
+    if (currentWorkspace) {
+      await createSessionForWorkspace(currentWorkspace)
+      return
+    }
+    await handleChooseWorkspace()
+  }, [
+    createSessionForWorkspace,
+    currentWorkspace,
+    handleChooseWorkspace,
+    setActiveView,
   ])
 
-  async function runDesktopAction<T>(action: () => Promise<T>): Promise<T | null> {
-    try {
-      const result = await action()
-      setErrorMessage(null)
-      return result
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : String(error))
-      return null
-    }
-  }
-
-  function handleUiCommand(command: DesktopUiCommand): void {
-    if (command === 'newConversation') {
+  useDesktopCommands({
+    onNewConversation: () => {
       void handleNewConversation()
-      return
-    }
-    if (command === 'chooseWorkspace') {
-      void chooseWorkspace()
-      return
-    }
-    if (command === 'refreshWorkspace') {
+    },
+    onChooseWorkspace: () => {
+      void handleChooseWorkspace()
+    },
+    onRefreshWorkspace: () => {
       void refreshWorkspace()
-    }
-  }
+    },
+  })
 
-  function handleAgentEvent(event: DesktopAgentEvent): void {
-    if (event.type === 'status') {
-      setSessions(current =>
-        current.map(session =>
-          session.id === event.sessionId
-            ? { ...session, status: event.status }
-            : session,
-        ),
-      )
-      if (event.sessionId === activeSessionIdRef.current) {
-        setSessionStatus(event.status)
-      }
-      return
-    }
-    if (event.type === 'message') {
-      updateSessionView(event.sessionId, view => ({
-        ...view,
-        messages: [
-          ...view.messages.filter(message => !message.streaming),
-          {
-            id: crypto.randomUUID(),
-            role: event.role,
-            text: event.text,
-          },
-        ],
-      }))
-      return
-    }
-    if (event.type === 'partial_message') {
-      updateSessionView(event.sessionId, view => {
-        const index = view.messages.findIndex(message => message.streaming)
-        const nextMessage: Message = {
-          id: index >= 0 ? view.messages[index]!.id : crypto.randomUUID(),
-          role: 'assistant',
-          text: event.text,
-          streaming: true,
+  const handleModelPresetChange = useCallback(
+    (nextPresetId: string): void => {
+      if (nextPresetId === CUSTOM_MODEL_PRESET_ID) {
+        const customValue = window.prompt('输入自定义模型名称', model)
+        if (!customValue) {
+          setSelectedModelPreset(resolveModelPresetId(model, selectedModelPreset))
+          return
         }
-        if (index === -1) {
-          return { ...view, messages: [...view.messages, nextMessage] }
-        }
-        return {
-          ...view,
-          messages: view.messages.map((message, messageIndex) =>
-            messageIndex === index ? nextMessage : message,
-          ),
-        }
-      })
-      return
-    }
-    if (event.type === 'tool_start') {
-      addToolLogEntry(event.sessionId, {
-        toolName: event.toolName,
-        summary: event.summary,
-        kind: 'start',
-      })
-      return
-    }
-    if (event.type === 'tool_result') {
-      addToolLogEntry(event.sessionId, {
-        toolName: event.toolName,
-        summary: event.summary,
-        kind: 'result',
-        isError: event.isError,
-      })
-      return
-    }
-    if (event.type === 'permission_request') {
-      updateSessionView(event.sessionId, view => ({
-        ...view,
-        pendingPermissions: [event.request, ...view.pendingPermissions],
-      }))
-      if (event.sessionId === activeSessionIdRef.current) {
-        setDrawerTab('permissions')
-        setIsDrawerOpen(true)
-      }
-      return
-    }
-    if (event.type === 'diff') {
-      if (event.sessionId === activeSessionIdRef.current) {
-        setDiff(event.patch)
-      }
-      return
-    }
-    if (event.type === 'error') {
-      if (event.sessionId === activeSessionIdRef.current) {
-        setErrorMessage(event.message)
-        refreshSessionWorkspace(event.sessionId)
-      }
-      updateSessionView(event.sessionId, view => ({
-        ...view,
-        pendingPermissions: [],
-        messages: [
-          ...view.messages.map(message =>
-            message.streaming ? { ...message, streaming: false } : message,
-          ),
-          {
-            id: crypto.randomUUID(),
-            role: 'system',
-            text: event.message,
-          },
-        ],
-      }))
-      return
-    }
-    if (event.type === 'done') {
-      setSessions(current =>
-        current.map(session =>
-          session.id === event.sessionId
-            ? { ...session, status: 'done' }
-            : session,
-        ),
-      )
-      if (event.sessionId === activeSessionIdRef.current) {
-        setSessionStatus('done')
-        refreshSessionWorkspace(event.sessionId)
-      }
-      updateSessionView(event.sessionId, view => ({
-        ...view,
-        pendingPermissions: [],
-        messages: view.messages.map(message =>
-          message.streaming ? { ...message, streaming: false } : message,
-        ),
-      }))
-    }
-  }
-
-  async function refreshWorkspace(
-    target = workspace,
-    options: {
-      clearErrorOnSuccess?: boolean
-      clearSelectedFile?: boolean
-      expectedSessionId?: string
-    } = {},
-  ): Promise<void> {
-    if (!target) return
-    try {
-      const [nextContext, nextFiles, nextDiff] = await Promise.all([
-        window.desktopApi.getWorkspaceContext(target.path),
-        window.desktopApi.listWorkspaceFiles(target.path),
-        window.desktopApi.getWorkspaceDiff(target.path),
-      ])
-      if (
-        options.expectedSessionId &&
-        options.expectedSessionId !== activeSessionIdRef.current
-      ) {
+        const trimmed = customValue.trim()
+        if (!trimmed) return
+        setModel(trimmed)
+        setSelectedModelPreset(CUSTOM_MODEL_PRESET_ID)
         return
       }
-      if (options.clearErrorOnSuccess ?? true) {
-        setErrorMessage(null)
-      }
-      syncWorkspaceContext(nextContext, options.expectedSessionId)
-      setFiles(nextFiles)
-      setDiff(nextDiff.patch)
-      if (options.clearSelectedFile ?? true) {
-        setSelectedFile(null)
-        updateActiveSessionView(view => ({ ...view, selectedFile: null }))
+      const preset = MODEL_PRESETS.find(item => item.id === nextPresetId)
+      if (!preset) return
+      setSelectedModelPreset(nextPresetId)
+      setModel(preset.value)
+    },
+    [model, setModel, setSelectedModelPreset, selectedModelPreset],
+  )
+
+  const handleSelectSession = useCallback(
+    (sessionItem: SessionListItem): void => {
+      const nextWorkspace = selectSessionRaw(sessionItem)
+      setActiveView('quickChat')
+      setWorkspaceState(nextWorkspace)
+      void refreshWorkspace(nextWorkspace, { expectedSessionId: sessionItem.id })
+    },
+    [refreshWorkspace, selectSessionRaw, setActiveView, setWorkspaceState],
+  )
+
+  const handleCloseSession = useCallback(
+    async (targetSessionId: string): Promise<void> => {
+      const result = await closeSession(targetSessionId)
+      if (!result) return
+      if (result.nextActiveSession && result.nextWorkspace) {
+        setWorkspaceState(result.nextWorkspace)
+        void refreshWorkspace(result.nextWorkspace, {
+          expectedSessionId: result.nextActiveSession.id,
+        })
       } else {
-        await refreshSelectedFilePreview(
-          nextContext,
-          nextFiles,
-          options.expectedSessionId ?? activeSessionIdRef.current,
-        )
+        setWorkspaceState(null)
+        setDiffState('未选择项目。')
+        setSelectedFile(null)
       }
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : String(error))
-    }
-  }
-
-  function syncWorkspaceContext(
-    nextWorkspace: DesktopWorkspace,
-    expectedSessionId?: string,
-  ): void {
-    setWorkspace(nextWorkspace)
-    setRecentWorkspaces(current => upsertRecentWorkspace(current, nextWorkspace))
-    if (!expectedSessionId) {
-      return
-    }
-    sessionWorkspacesRef.current = {
-      ...sessionWorkspacesRef.current,
-      [expectedSessionId]: nextWorkspace,
-    }
-  }
-
-  async function refreshSelectedFilePreview(
-    target: DesktopWorkspace,
-    nextFiles: DesktopFileEntry[],
-    targetSessionId: string | null,
-  ): Promise<void> {
-    if (!targetSessionId || targetSessionId !== activeSessionIdRef.current) {
-      return
-    }
-    const currentPreview =
-      sessionViewsRef.current[targetSessionId]?.selectedFile
-    if (!currentPreview) {
-      return
-    }
-    const stillExists = nextFiles.some(
-      file => file.type === 'file' && file.path === currentPreview.path,
-    )
-    if (!stillExists) {
-      updateSessionView(targetSessionId, view => ({
-        ...view,
-        selectedFile: null,
-      }))
-      return
-    }
-    try {
-      const preview = await window.desktopApi.readWorkspaceFile(
-        target.path,
-        currentPreview.path,
-      )
-      if (targetSessionId !== activeSessionIdRef.current) {
-        return
-      }
-      updateSessionView(targetSessionId, view => ({
-        ...view,
-        selectedFile: preview,
-      }))
-    } catch {
-      updateSessionView(targetSessionId, view => ({
-        ...view,
-        selectedFile: null,
-      }))
-    }
-  }
-
-  function refreshSessionWorkspace(targetSessionId: string): void {
-    const target = sessionWorkspacesRef.current[targetSessionId]
-    if (!target) return
-    void refreshWorkspace(target, {
-      clearErrorOnSuccess: false,
-      clearSelectedFile: false,
-      expectedSessionId: targetSessionId,
-    })
-  }
-
-  function activateSession(nextSessionId: string | null): void {
-    activeSessionIdRef.current = nextSessionId
-    setSessionId(nextSessionId)
-  }
-
-  function createEmptySessionView(): SessionViewState {
-    return {
-      messages: [],
-      toolLog: [],
-      pendingPermissions: [],
-      selectedFile: null,
-    }
-  }
-
-  function applySessionView(view: SessionViewState): void {
-    setMessages(view.messages)
-    setToolLog(view.toolLog)
-    setPendingPermissions(view.pendingPermissions)
-    setSelectedFile(view.selectedFile)
-  }
-
-  function setSessionView(
-    targetSessionId: string,
-    view: SessionViewState,
-  ): void {
-    sessionViewsRef.current = {
-      ...sessionViewsRef.current,
-      [targetSessionId]: view,
-    }
-  }
-
-  function updateSessionView(
-    targetSessionId: string,
-    updater: (view: SessionViewState) => SessionViewState,
-  ): void {
-    const nextView = updater(
-      sessionViewsRef.current[targetSessionId] ?? createEmptySessionView(),
-    )
-    setSessionView(targetSessionId, nextView)
-    if (targetSessionId === activeSessionIdRef.current) {
-      applySessionView(nextView)
-    }
-  }
-
-  function updateActiveSessionView(
-    updater: (view: SessionViewState) => SessionViewState,
-  ): void {
-    const activeSessionId = activeSessionIdRef.current
-    if (!activeSessionId) return
-    updateSessionView(activeSessionId, updater)
-  }
-
-  function addToolLogEntry(
-    targetSessionId: string,
-    entry: Omit<ToolLogEntry, 'id' | 'createdAt' | 'expanded'>,
-  ): void {
-    updateSessionView(targetSessionId, view => ({
-      ...view,
-      toolLog: [
-        {
-          ...entry,
-          id: crypto.randomUUID(),
-          createdAt: new Date().toLocaleTimeString(),
-          expanded: entry.isError === true,
-        },
-        ...view.toolLog,
-      ],
-    }))
-  }
-
-  function toggleToolLogEntry(entryId: string): void {
-    updateActiveSessionView(view => ({
-      ...view,
-      toolLog: view.toolLog.map(entry =>
-        entry.id === entryId ? { ...entry, expanded: !entry.expanded } : entry,
-      ),
-    }))
-  }
-
-  async function chooseWorkspace(): Promise<void> {
-    const selected = await runDesktopAction(() =>
-      window.desktopApi.chooseWorkspace(),
-    )
-    if (!selected) return
-    await activateWorkspace(selected)
-  }
-
-  async function openRecentWorkspace(target: DesktopWorkspace): Promise<void> {
-    const selected = await runDesktopAction(() =>
-      window.desktopApi.openWorkspace(target.path),
-    )
-    if (!selected) return
-    await activateWorkspace(selected)
-  }
-
-  async function activateWorkspace(selected: DesktopWorkspace): Promise<void> {
-    setActiveView('quickChat')
-    syncWorkspaceContext(selected)
-    await refreshWorkspace(selected)
-    if (!runtimeMissing) {
-      await createSessionForWorkspace(selected)
-    }
-  }
-
-  async function createSessionForWorkspace(target = workspace): Promise<void> {
-    if (!target) return
-    if (runtimeMissing) {
-      setErrorMessage('桌面端 agent 运行时缺失，请先构建 desktop agent。')
-      return
-    }
-    const session = await runDesktopAction(() =>
-      window.desktopApi.createSession({
-        workspacePath: target.path,
-        permissionMode,
-        model: normalizeOptionalText(model),
-        fallbackModel: normalizeOptionalText(fallbackModel),
-        sessionName: normalizeOptionalText(sessionName),
-        thinkingMode,
-        systemPrompt: normalizeOptionalText(systemPrompt),
-        appendSystemPrompt: normalizeOptionalText(appendSystemPrompt),
-        additionalDirectories: parseAdditionalDirectories(additionalDirectories),
-      }),
-    )
-    if (!session) return
-    const nextView =
-      sessionViewsRef.current[session.sessionId] ?? createEmptySessionView()
-    sessionWorkspacesRef.current = {
-      ...sessionWorkspacesRef.current,
-      [session.sessionId]: target,
-    }
-    setSessionView(session.sessionId, nextView)
-    activateSession(session.sessionId)
-    setSessionStatus('idle')
-    applySessionView(nextView)
-    setActiveView('quickChat')
-    setSessions(current => [
-      {
-        id: session.sessionId,
-        sessionName: normalizeOptionalText(sessionName) ?? null,
-        workspaceName: target.name,
-        workspacePath: target.path,
-        permissionMode,
-        model: normalizeOptionalText(model) ?? null,
-        fallbackModel: normalizeOptionalText(fallbackModel) ?? null,
-        thinkingMode,
-        hasSystemPrompt: Boolean(normalizeOptionalText(systemPrompt)),
-        hasAppendSystemPrompt: Boolean(normalizeOptionalText(appendSystemPrompt)),
-        additionalDirectoryCount:
-          parseAdditionalDirectories(additionalDirectories).length,
-        status: 'idle',
-        createdAt: new Date().toLocaleTimeString(),
-      },
-      ...current,
-    ])
-  }
-
-  async function handleNewConversation(): Promise<void> {
-    setActiveView('quickChat')
-    if (workspace) {
-      await createSessionForWorkspace(workspace)
-      return
-    }
-    await chooseWorkspace()
-  }
-
-  async function refreshRuntimeStatus(): Promise<void> {
-    const status = await runDesktopAction(() =>
-      window.desktopApi.getRuntimeStatus(),
-    )
-    if (status) {
-      setRuntimeStatus(status)
-    }
-  }
-
-  async function previewFile(file: DesktopFileEntry): Promise<void> {
-    if (!workspace || file.type !== 'file') return
-    const preview = await runDesktopAction(() =>
-      window.desktopApi.readWorkspaceFile(workspace.path, file.path),
-    )
-    if (preview) {
-      updateActiveSessionView(view => ({ ...view, selectedFile: preview }))
-    }
-  }
-
-  async function submit(): Promise<void> {
-    const trimmed = input.trim()
-    const activeSessionId = sessionId
-    if (!canSubmit || !activeSessionId) return
-    setInput('')
-    await runDesktopAction(() =>
-      window.desktopApi.sendUserMessage(activeSessionId, trimmed),
-    )
-  }
-
-  async function interrupt(): Promise<void> {
-    if (sessionId) {
-      await runDesktopAction(() => window.desktopApi.interruptSession(sessionId))
-    }
-  }
-
-  function openDrawer(tab: DrawerTab): void {
-    setDrawerTab(tab)
-    setIsDrawerOpen(true)
-  }
-
-  function setSidebarWidth(nextWidth: number): void {
-    const clamped = clampSidebarWidth(nextWidth, viewportWidth)
-    setSidebarWidthState(clamped)
-    window.localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(clamped))
-  }
-
-  async function closeSession(targetSessionId: string): Promise<void> {
-    const disposed = await runDesktopAction(() =>
-      window.desktopApi.disposeSession(targetSessionId),
-    )
-    if (disposed === null) return
-    const remaining = sessions.filter(session => session.id !== targetSessionId)
-    const {
-      [targetSessionId]: _removedSessionView,
-      ...remainingSessionViews
-    } = sessionViewsRef.current
-    const {
-      [targetSessionId]: _removedWorkspace,
-      ...remainingSessionWorkspaces
-    } = sessionWorkspacesRef.current
-    sessionViewsRef.current = remainingSessionViews
-    sessionWorkspacesRef.current = remainingSessionWorkspaces
-    setSessions(remaining)
-
-    if (targetSessionId !== activeSessionIdRef.current) {
-      return
-    }
-
-    const next = remaining[0]
-    activateSession(next?.id ?? null)
-    setSessionStatus(next?.status ?? 'idle')
-    if (next) {
-      applySessionView(
-        sessionViewsRef.current[next.id] ?? createEmptySessionView(),
-      )
-      const nextWorkspace =
-        sessionWorkspacesRef.current[next.id] ?? {
-          name: next.workspaceName,
-          path: next.workspacePath,
-        }
-      setWorkspace(nextWorkspace)
-      void refreshWorkspace(nextWorkspace, { expectedSessionId: next.id })
-    } else {
-      applySessionView(createEmptySessionView())
-      setWorkspace(null)
-      setFiles([])
-      setDiff('未选择项目。')
-    }
-  }
-
-  async function decidePermission(
-    request: DesktopPermissionRequest,
-    behavior: 'allow' | 'deny',
-    alwaysAllow = false,
-  ): Promise<void> {
-    if (!sessionId) return
-    updateSessionView(sessionId, view => ({
-      ...view,
-      pendingPermissions: view.pendingPermissions.filter(
-        item => item.requestId !== request.requestId,
-      ),
-    }))
-    await runDesktopAction(() =>
-      window.desktopApi.respondToPermission(sessionId, request.requestId, {
-        behavior,
-        message: behavior === 'deny' ? '在桌面端界面中拒绝' : undefined,
-        alwaysAllow,
-      }),
-    )
-  }
-
-  function selectSession(session: SessionListItem): void {
-    activateSession(session.id)
-    setSessionStatus(session.status)
-    setActiveView('quickChat')
-    const nextWorkspace =
-      sessionWorkspacesRef.current[session.id] ?? {
-        name: session.workspaceName,
-        path: session.workspacePath,
-      }
-    setWorkspace(nextWorkspace)
-    applySessionView(
-      sessionViewsRef.current[session.id] ?? createEmptySessionView(),
-    )
-    void refreshWorkspace(nextWorkspace, { expectedSessionId: session.id })
-  }
-
-  function handleModelPresetChange(nextPresetId: string): void {
-    if (nextPresetId === CUSTOM_MODEL_PRESET_ID) {
-      const customValue = window.prompt('输入自定义模型名称', model)
-      if (!customValue) {
-        setSelectedModelPreset(resolveModelPresetId(model, selectedModelPreset))
-        return
-      }
-      const trimmed = customValue.trim()
-      if (!trimmed) return
-      setModel(trimmed)
-      setSelectedModelPreset(CUSTOM_MODEL_PRESET_ID)
-      return
-    }
-    const preset = MODEL_PRESETS.find(item => item.id === nextPresetId)
-    if (!preset) return
-    setSelectedModelPreset(nextPresetId)
-    setModel(preset.value)
-  }
-
-  const canSubmit = useMemo(
-    () =>
-      Boolean(
-        sessionId &&
-          input.trim() &&
-          sessionStatus !== 'running' &&
-          sessionStatus !== 'waiting',
-      ),
-    [input, sessionId, sessionStatus],
+    },
+    [closeSession, refreshWorkspace, setDiffState, setSelectedFile, setWorkspaceState],
   )
 
-  const activeSessionItem = useMemo(
-    () => sessions.find(session => session.id === sessionId) ?? null,
-    [sessions, sessionId],
+  const handleSelectView = useCallback(
+    (view: AppView): void => {
+      if (view === 'quickChat') {
+        void handleNewConversation()
+        return
+      }
+      setActiveView(view)
+    },
+    [handleNewConversation, setActiveView],
   )
+
   const runtimeMissing = runtimeStatus?.agentExecutableExists === false
-  const activePermissionRequest = pendingPermissions[0] ?? null
-  const workspaceName = workspace?.name ?? '未选择项目'
+  const activePermissionRequest: DesktopPermissionRequest | null =
+    pendingPermissions[0] ?? null
+  const workspaceName = currentWorkspace?.name ?? '未选择项目'
   const branchName =
-    workspace?.isGitRepo === false
+    currentWorkspace?.isGitRepo === false
       ? '未检测到 Git 分支'
-      : workspace?.branchName ?? '未检测到 Git 分支'
+      : currentWorkspace?.branchName ?? '未检测到 Git 分支'
 
-  const filteredWorkspaces = useMemo(() => {
-    const keyword = searchQuery.trim().toLowerCase()
-    if (!keyword) return recentWorkspaces
-    return recentWorkspaces.filter(item =>
-      [item.name, item.path, item.branchName ?? '']
-        .join(' ')
-        .toLowerCase()
-        .includes(keyword),
-    )
-  }, [recentWorkspaces, searchQuery])
-
-  const filteredSessions = useMemo(() => {
-    const keyword = searchQuery.trim().toLowerCase()
-    if (!keyword) return sessions
-    return sessions.filter(session =>
-      [
-        session.sessionName ?? '',
-        session.workspaceName,
-        session.createdAt,
-        session.status,
-      ]
-        .join(' ')
-        .toLowerCase()
-        .includes(keyword),
-    )
-  }, [sessions, searchQuery])
+  const search = useDesktopSearch({
+    query: searchQuery,
+    recentWorkspaces,
+    sessions,
+  })
 
   const settingsContent = (
     <div className="settings-list">
@@ -911,7 +340,7 @@ export function App(): React.ReactNode {
         </button>
       </div>
       <div className="setting-runtime">
-        <p>当前项目：{workspace?.path ?? '无'}</p>
+        <p>当前项目：{currentWorkspace?.path ?? '无'}</p>
         <p>
           当前会话：
           {activeSessionItem?.sessionName ??
@@ -934,8 +363,8 @@ export function App(): React.ReactNode {
     <MenuBar
       runtimeMissing={runtimeMissing}
       sidebarCollapsed={sidebarCollapsed}
-      onOpenSettings={() => openDrawer('settings')}
-      onToggleSidebar={() => setSidebarCollapsed(current => !current)}
+      onOpenSettings={() => openDrawerTab('settings')}
+      onToggleSidebar={toggleSidebarCollapsed}
     />
   )
 
@@ -944,35 +373,29 @@ export function App(): React.ReactNode {
       activeSessionId={sessionId}
       activeView={activeView}
       collapsed={sidebarCollapsed}
-      maxWidth={Math.round(viewportWidth * SIDEBAR_MAX_RATIO)}
-      minWidth={Math.round(viewportWidth * SIDEBAR_MIN_RATIO)}
+      maxWidth={Math.round(viewportWidth * 0.2)}
+      minWidth={Math.round(viewportWidth * 0.12)}
       recentWorkspaces={recentWorkspaces}
       sessions={sessions}
       width={sidebarWidth}
-      workspace={workspace}
-      onChooseWorkspace={() => void chooseWorkspace()}
-      onCloseSession={session => void closeSession(session)}
-      onCreateSession={() => void createSessionForWorkspace()}
-      onOpenSettings={() => openDrawer('settings')}
-      onOpenWorkspace={workspaceItem => void openRecentWorkspace(workspaceItem)}
+      workspace={currentWorkspace}
+      onChooseWorkspace={() => void handleChooseWorkspace()}
+      onCloseSession={session => void handleCloseSession(session)}
+      onCreateSession={() => void handleCreateSession()}
+      onOpenSettings={() => openDrawerTab('settings')}
+      onOpenWorkspace={workspaceItem => void handleOpenRecentWorkspace(workspaceItem)}
       onRefreshWorkspace={() => void refreshWorkspace()}
-      onSelectSession={selectSession}
-      onSelectView={view => {
-        if (view === 'quickChat') {
-          void handleNewConversation()
-          return
-        }
-        setActiveView(view)
-      }}
+      onSelectSession={handleSelectSession}
+      onSelectView={handleSelectView}
       onSetWidth={setSidebarWidth}
-      onToggleCollapsed={() => setSidebarCollapsed(current => !current)}
+      onToggleCollapsed={toggleSidebarCollapsed}
     />
   )
 
   const content =
     activeView === 'quickChat' ? (
       <QuickChatView
-        workspaceName={workspace?.name ?? null}
+        workspaceName={currentWorkspace?.name ?? null}
         messages={messages}
         errorMessage={errorMessage}
         onDismissError={() => setErrorMessage(null)}
@@ -981,11 +404,11 @@ export function App(): React.ReactNode {
     ) : activeView === 'search' ? (
       <SearchView
         query={searchQuery}
-        workspaces={filteredWorkspaces}
-        sessions={filteredSessions}
+        workspaces={search.filteredWorkspaces}
+        sessions={search.filteredSessions}
         onQueryChange={setSearchQuery}
-        onOpenWorkspace={workspaceItem => void openRecentWorkspace(workspaceItem)}
-        onSelectSession={session => selectSession(session)}
+        onOpenWorkspace={workspaceItem => void handleOpenRecentWorkspace(workspaceItem)}
+        onSelectSession={session => handleSelectSession(session)}
       />
     ) : activeView === 'plugins' ? (
       <PluginsView />
@@ -1006,13 +429,13 @@ export function App(): React.ReactNode {
       thinkingOptions={THINKING_MODE_OPTIONS}
       branchName={branchName}
       recentWorkspaces={recentWorkspaces}
-      workspace={workspace}
-      onChooseWorkspace={() => void chooseWorkspace()}
+      workspace={currentWorkspace}
+      onChooseWorkspace={() => void handleChooseWorkspace()}
       onInputChange={setInput}
       onInterrupt={() => void interrupt()}
       onModelChange={handleModelPresetChange}
-      onOpenFiles={() => openDrawer('files')}
-      onOpenWorkspace={workspaceItem => void openRecentWorkspace(workspaceItem)}
+      onOpenFiles={() => openDrawerTab('files')}
+      onOpenWorkspace={workspaceItem => void handleOpenRecentWorkspace(workspaceItem)}
       onPermissionChange={setPermissionMode}
       onSubmit={() => void submit()}
       onThinkingChange={setThinkingMode}
@@ -1084,7 +507,7 @@ export function App(): React.ReactNode {
         </div>
       ) : null}
 
-      {!workspace && runtimeMissing ? (
+      {!currentWorkspace && runtimeMissing ? (
         <div className="global-warning">
           <AlertCircle size={16} />
           <span>
@@ -1103,171 +526,4 @@ export function App(): React.ReactNode {
       />
     </div>
   )
-}
-
-function readStoredDesktopSettings(): StoredDesktopSettings {
-  try {
-    const raw = window.localStorage.getItem(DESKTOP_SETTINGS_STORAGE_KEY)
-    if (!raw) return defaultDesktopSettings()
-    const parsed = JSON.parse(raw) as {
-      permissionMode?: unknown
-      model?: unknown
-      fallbackModel?: unknown
-      sessionName?: unknown
-      thinkingMode?: unknown
-      systemPrompt?: unknown
-      appendSystemPrompt?: unknown
-      additionalDirectories?: unknown
-      recentWorkspaces?: unknown
-      activeView?: unknown
-      drawerTab?: unknown
-      selectedModelPreset?: unknown
-    }
-    return {
-      permissionMode: isDesktopPermissionMode(parsed.permissionMode)
-        ? parsed.permissionMode
-        : 'default',
-      model: typeof parsed.model === 'string' ? parsed.model : '',
-      fallbackModel:
-        typeof parsed.fallbackModel === 'string' ? parsed.fallbackModel : '',
-      sessionName:
-        typeof parsed.sessionName === 'string' ? parsed.sessionName : '',
-      thinkingMode: isDesktopThinkingMode(parsed.thinkingMode)
-        ? parsed.thinkingMode
-        : 'default',
-      systemPrompt:
-        typeof parsed.systemPrompt === 'string' ? parsed.systemPrompt : '',
-      appendSystemPrompt:
-        typeof parsed.appendSystemPrompt === 'string'
-          ? parsed.appendSystemPrompt
-          : '',
-      additionalDirectories:
-        typeof parsed.additionalDirectories === 'string'
-          ? parsed.additionalDirectories
-          : '',
-      recentWorkspaces: parseStoredRecentWorkspaces(parsed.recentWorkspaces),
-      activeView: isAppView(parsed.activeView) ? parsed.activeView : 'quickChat',
-      drawerTab: isDrawerTab(parsed.drawerTab) ? parsed.drawerTab : 'files',
-      selectedModelPreset:
-        typeof parsed.selectedModelPreset === 'string'
-          ? parsed.selectedModelPreset
-          : DEFAULT_MODEL_PRESET_ID,
-    }
-  } catch {
-    return defaultDesktopSettings()
-  }
-}
-
-function storeDesktopSettings(settings: StoredDesktopSettings): void {
-  window.localStorage.setItem(
-    DESKTOP_SETTINGS_STORAGE_KEY,
-    JSON.stringify(settings),
-  )
-}
-
-function defaultDesktopSettings(): StoredDesktopSettings {
-  return {
-    permissionMode: 'default',
-    model: '',
-    fallbackModel: '',
-    sessionName: '',
-    thinkingMode: 'default',
-    systemPrompt: '',
-    appendSystemPrompt: '',
-    additionalDirectories: '',
-    recentWorkspaces: [],
-    activeView: 'quickChat',
-    drawerTab: 'files',
-    selectedModelPreset: DEFAULT_MODEL_PRESET_ID,
-  }
-}
-
-function isDesktopPermissionMode(value: unknown): value is DesktopPermissionMode {
-  return PERMISSION_MODE_OPTIONS.some(option => option.value === value)
-}
-
-function isDesktopThinkingMode(value: unknown): value is DesktopThinkingMode {
-  return THINKING_MODE_OPTIONS.some(option => option.value === value)
-}
-
-function isAppView(value: unknown): value is AppView {
-  return (
-    value === 'quickChat' ||
-    value === 'search' ||
-    value === 'plugins' ||
-    value === 'automation'
-  )
-}
-
-function isDrawerTab(value: unknown): value is DrawerTab {
-  return (
-    value === 'files' ||
-    value === 'diff' ||
-    value === 'permissions' ||
-    value === 'toolLog' ||
-    value === 'settings'
-  )
-}
-
-function parseStoredRecentWorkspaces(value: unknown): DesktopWorkspace[] {
-  if (!Array.isArray(value)) return []
-  const workspaces: DesktopWorkspace[] = []
-  for (const item of value) {
-    if (
-      item &&
-      typeof item === 'object' &&
-      typeof (item as DesktopWorkspace).name === 'string' &&
-      typeof (item as DesktopWorkspace).path === 'string'
-    ) {
-      workspaces.push({
-        name: (item as DesktopWorkspace).name,
-        path: (item as DesktopWorkspace).path,
-        branchName:
-          typeof (item as DesktopWorkspace).branchName === 'string'
-            ? (item as DesktopWorkspace).branchName
-            : null,
-        isGitRepo:
-          typeof (item as DesktopWorkspace).isGitRepo === 'boolean'
-            ? (item as DesktopWorkspace).isGitRepo
-            : undefined,
-      })
-    }
-  }
-  return workspaces
-}
-
-function upsertRecentWorkspace(
-  workspaces: DesktopWorkspace[],
-  workspace: DesktopWorkspace,
-): DesktopWorkspace[] {
-  const filtered = workspaces.filter(item => item.path !== workspace.path)
-  return [workspace, ...filtered].slice(0, MAX_RECENT_WORKSPACES)
-}
-
-function normalizeOptionalText(value: string): string | undefined {
-  const trimmed = value.trim()
-  return trimmed ? trimmed : undefined
-}
-
-function parseAdditionalDirectories(value: string): string[] {
-  return value
-    .split(/\r?\n/)
-    .map(line => line.trim())
-    .filter(Boolean)
-}
-
-function clampSidebarWidth(value: number, viewportWidth: number): number {
-  const min = Math.round(viewportWidth * SIDEBAR_MIN_RATIO)
-  const max = Math.round(viewportWidth * SIDEBAR_MAX_RATIO)
-  return Math.min(max, Math.max(min, Math.round(value)))
-}
-
-function readStoredSidebarWidth(viewportWidth: number): number {
-  const raw = window.localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY)
-  if (!raw) return clampSidebarWidth(DEFAULT_SIDEBAR_WIDTH, viewportWidth)
-  const parsed = Number.parseInt(raw, 10)
-  if (Number.isNaN(parsed)) {
-    return clampSidebarWidth(DEFAULT_SIDEBAR_WIDTH, viewportWidth)
-  }
-  return clampSidebarWidth(parsed, viewportWidth)
 }
