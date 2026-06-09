@@ -14,7 +14,6 @@ import {
   ShieldCheck,
   Smile,
   Sparkles,
-  Square,
   Zap,
 } from 'lucide-react'
 import type {
@@ -263,13 +262,6 @@ export function ComposerCard({
 
             <IconButton title="语音输入">
               <Mic size={18} />
-            </IconButton>
-            <IconButton
-              disabled={sessionStatus !== 'running' && sessionStatus !== 'waiting'}
-              onClick={onInterrupt}
-              title="停止当前执行"
-            >
-              <Square size={16} />
             </IconButton>
             <button
               aria-label="发送"
