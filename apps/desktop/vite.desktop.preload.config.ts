@@ -7,5 +7,6 @@ export default defineConfig(
     'apps/desktop/src/preload/index.ts',
     resolve(desktopOutDir, 'preload'),
     'index',
+    ['cjs'],
   ),
 )

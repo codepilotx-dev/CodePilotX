@@ -8,6 +8,7 @@ import {
 
 export default defineConfig({
   root: 'apps/desktop/src/renderer',
+  base: './',
   resolve: { alias: desktopAlias },
   define: desktopMacroDefines,
   build: {

@@ -55,6 +55,7 @@ export function nodeDesktopBuild(
   entry: string,
   outDir: string,
   name: string,
+  formats: ('es' | 'cjs')[] = ['es'],
 ): UserConfig {
   return {
     resolve: { alias: desktopAlias },
@@ -66,7 +67,7 @@ export function nodeDesktopBuild(
       sourcemap: true,
       lib: {
         entry,
-        formats: ['es'],
+        formats,
         fileName: () => `${name}.js`,
       },
       rollupOptions: {
