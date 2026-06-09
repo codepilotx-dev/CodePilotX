@@ -108,6 +108,9 @@ function createWindow(): void {
 
   mainWindow.setMenuBarVisibility(false)
   mainWindow.setAutoHideMenuBar(true)
+  if (process.env.NODE_ENV === 'development') {
+    mainWindow.webContents.openDevTools()
+  }
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
   mainWindow.webContents.on('will-navigate', (event, url) => {
     if (url !== rendererUrl()) {
