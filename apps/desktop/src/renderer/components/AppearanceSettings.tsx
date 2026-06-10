@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { ArrowLeftRight, Laptop, Moon, Sun } from 'lucide-react'
+import { Laptop, Moon, Sun } from 'lucide-react'
 import { SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
 import { SettingsDropdown } from './SettingsDropdown.js'
@@ -65,7 +65,6 @@ function TextInput({ value, onChange }: { value: string; onChange: (v: string) =
 // --- Main Component ---
 
 export function AppearanceSettings() {
-  const [swapped, setSwapped] = useState(false)
   const [themeMode, setThemeMode] = useState<ThemeMode>('light')
   
   // States
@@ -96,12 +95,12 @@ export function AppearanceSettings() {
     { key: 'contrast', value: '68' },
   ]
 
-  const leftCode = swapped ? code2 : code1
-  const rightCode = swapped ? code1 : code2
+  const leftCode = code1
+  const rightCode = code2
 
   return (
     <div className="settings-content-area">
-      <div className="settings-content-inner appearance-content-inner">
+      <div className="settings-content-inner">
         <h2 className="settings-page-title">外观</h2>
 
         {/* 1) 顶部代码对比预览区 */}
@@ -129,7 +128,7 @@ export function AppearanceSettings() {
           </div>
 
           <div className="appearance-preview">
-            <div className={`appearance-preview-pane ${swapped ? 'appearance-preview-green' : 'appearance-preview-red'}`}>
+            <div className="appearance-preview-pane appearance-preview-red">
               <div className="appearance-preview-line">
                 <div className="appearance-preview-lineno">1</div>
                 <div className="appearance-preview-code">
@@ -165,15 +164,7 @@ export function AppearanceSettings() {
               </div>
             </div>
             
-            <button 
-              type="button" 
-              className="appearance-preview-swap" 
-              onClick={() => setSwapped(!swapped)}
-            >
-              <ArrowLeftRight size={16} />
-            </button>
-            
-            <div className={`appearance-preview-pane ${swapped ? 'appearance-preview-red' : 'appearance-preview-green'}`}>
+            <div className="appearance-preview-pane appearance-preview-green">
               <div className="appearance-preview-line">
                 <div className="appearance-preview-lineno">1</div>
                 <div className="appearance-preview-code">

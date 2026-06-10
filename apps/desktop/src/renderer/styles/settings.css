@@ -415,11 +415,8 @@
 }
 
 /* --- Appearance Settings --- */
-.appearance-content-inner {
-  max-width: 1132px;
-}
-
 .appearance-theme-preview {
+  font-size: 14px;
   border: 1px solid var(--c-border-soft);
   border-radius: 14px;
   margin-bottom: 14px;
@@ -428,12 +425,10 @@
 }
 
 .appearance-mode-header {
-  min-height: 110px;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 24px;
-  padding: 24px 24px 20px 22px;
+  padding: 12px;
 }
 
 .appearance-mode-copy {
@@ -443,7 +438,7 @@
 .appearance-mode-title {
   margin: 0 0 9px;
   color: var(--c-text-strong);
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 500;
   line-height: 1.2;
   letter-spacing: 0;
@@ -452,7 +447,7 @@
 .appearance-mode-desc {
   margin: 0;
   color: var(--c-text-soft);
-  font-size: 20px;
+  font-size: 14px;
   line-height: 1.28;
   letter-spacing: 0;
 }
@@ -460,8 +455,6 @@
 .appearance-mode-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 15px;
-  padding-top: 12px;
   flex-shrink: 0;
 }
 
@@ -476,7 +469,7 @@
   border-radius: 18px;
   background: transparent;
   color: var(--c-text-soft);
-  font-size: 20px;
+  font-size: 14px;
   font-weight: 500;
   line-height: 1;
   letter-spacing: 0;
@@ -485,8 +478,8 @@
 }
 
 .appearance-mode-option svg {
-  width: 23px;
-  height: 23px;
+  width: 18px;
+  height: 18px;
   stroke-width: 2;
 }
 
@@ -498,7 +491,7 @@
 .appearance-preview {
   display: flex;
   align-items: stretch;
-  min-height: 202px;
+  gap: 3px;
   border-top: 1px solid var(--c-border-soft);
   overflow: hidden;
   background-color: var(--c-bg);
@@ -508,7 +501,7 @@
   flex: 1;
   padding: 0;
   font-family: var(--ff-mono);
-  font-size: 20px;
+  font-size: 14px;
   display: flex;
   flex-direction: column;
 }
@@ -523,18 +516,15 @@
 
 .appearance-preview-line {
   display: flex;
-  min-height: 34px;
-  line-height: 34px;
+  padding: 5px 0;
 }
 
 .appearance-preview-lineno {
-  width: 88px;
+  width: 35px;
   text-align: right;
-  padding-right: 14px;
   color: #555;
   user-select: none;
   background-color: transparent;
-  margin-right: 0;
 }
 
 .appearance-preview-code {
@@ -573,24 +563,6 @@
 
 .appearance-syntax-punct {
   color: #555;
-}
-
-.appearance-preview-swap {
-  width: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--c-bg);
-  border-left: 0;
-  border-right: 0;
-  color: transparent;
-  transition: color 0.15s ease, background-color 0.15s ease;
-  flex-shrink: 0;
-}
-
-.appearance-preview-swap:hover {
-  background-color: var(--c-bg);
-  color: transparent;
 }
 
 .appearance-theme-header {
