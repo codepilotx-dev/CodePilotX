@@ -17,10 +17,27 @@ import {
   hasAnthropicApiKeyAuth,
 } from '@claudecode/core/utils/auth.js'
 import { enableConfigs } from '@claudecode/core/utils/config.js'
+import { getSettings_DEPRECATED } from '@claudecode/tui/utils/settings/settings.js'
+import {
+  PROVIDER_CONFIGS,
+  fetchProviderModels as fetchTuiProviderModels,
+  getCachedProviderModels,
+  getProviderApiKeySource,
+  getSelectedProviderConfig,
+  getSelectedProviderID,
+  isModelProviderID,
+  saveProviderApiKey as saveTuiProviderApiKey,
+  saveSelectedProvider,
+} from '@claudecode/tui/utils/model/providerConfig.js'
 import {
   createDesktopAgentSession,
   type DesktopAgentSession,
 } from './agentSession.js'
+import {
+  getDesktopConfigDirectoryPath,
+  readDesktopStoredSettings,
+  saveDesktopStoredSettings,
+} from './desktopSettings.js'
 import {
   readDesktopThemeSettings,
   saveDesktopThemeSettings,
@@ -34,12 +51,18 @@ import type {
   DesktopDiffSummary,
   DesktopFileEntry,
   DesktopFilePreview,
+  DesktopModelProviderState,
+  DesktopModelProviderSummary,
   DesktopPermissionDecision,
   DesktopPermissionMode,
+  DesktopProviderModelListResult,
   DesktopRuntimeStatus,
+  DesktopStoredSettings,
   DesktopThinkingMode,
   DesktopUiCommand,
   DesktopWorkspace,
+  ModelProviderID,
+  SaveDesktopModelProviderOptions,
 } from '../shared/types.js'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -319,13 +342,96 @@ async function getRuntimeStatus(): Promise<DesktopRuntimeStatus> {
     return {
       agentExecutablePath,
       agentExecutableExists: fileStat.isFile(),
+      configDirectoryPath: getDesktopConfigDirectoryPath(),
     }
   } catch {
     return {
       agentExecutablePath,
       agentExecutableExists: false,
+      configDirectoryPath: getDesktopConfigDirectoryPath(),
     }
   }
+}
+
+function listModelProviders(): DesktopModelProviderSummary[] {
+  return Object.values(PROVIDER_CONFIGS).map(provider => ({
+    providerID: provider.providerID as ModelProviderID,
+    kind: provider.kind,
+    displayName: provider.displayName,
+    baseURL: provider.baseURL,
+    defaultModels: provider.defaultModels,
+  }))
+}
+
+function getModelProviderState(): DesktopModelProviderState {
+  const settings = getSettings_DEPRECATED() || {}
+  const selectedProviderID = getSelectedProviderID() as ModelProviderID
+  const provider = getSelectedProviderConfig()
+  const model = typeof settings.model === 'string' ? settings.model : ''
+  const apiKeySource = getProviderApiKeySource(selectedProviderID) ?? null
+  return {
+    selectedProviderID,
+    provider: {
+      providerID: provider.providerID as ModelProviderID,
+      kind: provider.kind,
+      displayName: provider.displayName,
+      baseURL: provider.baseURL,
+      defaultModels: provider.defaultModels,
+    },
+    model,
+    baseURL: provider.baseURL,
+    apiKeyConfigured: Boolean(apiKeySource),
+    apiKeySource,
+    models: getCachedProviderModels(selectedProviderID) ?? provider.defaultModels,
+  }
+}
+
+async function fetchProviderModels(options: {
+  providerID: ModelProviderID
+  apiKey?: string
+  baseURL?: string
+}): Promise<DesktopProviderModelListResult> {
+  const providerID = normalizeProviderID(options.providerID)
+  return fetchTuiProviderModels({
+    providerID,
+    apiKey: normalizeOptionalText(options.apiKey),
+    baseURL: normalizeOptionalText(options.baseURL),
+  })
+}
+
+async function saveModelProvider(
+  options: SaveDesktopModelProviderOptions,
+): Promise<DesktopModelProviderState> {
+  const providerID = normalizeProviderID(options.providerID)
+  const modelID =
+    typeof options.modelID === 'string' ? options.modelID.trim() : undefined
+  const baseURL = normalizeOptionalText(options.baseURL)
+  saveSelectedProvider({
+    providerID,
+    modelID,
+    baseURL,
+  })
+  const settings = await readDesktopStoredSettings()
+  await saveDesktopStoredSettings({
+    ...settings,
+    providerID,
+    providerBaseURL: providerID === 'custom' ? baseURL ?? '' : '',
+    model: modelID ?? '',
+  })
+  return getModelProviderState()
+}
+
+async function saveProviderApiKey(
+  providerID: ModelProviderID,
+  apiKey: string,
+): Promise<DesktopModelProviderState> {
+  const normalizedProviderID = normalizeProviderID(providerID)
+  const normalizedApiKey = requireNonEmptyString(apiKey, 'Provider API key')
+  const result = saveTuiProviderApiKey(normalizedProviderID, normalizedApiKey)
+  if (!result.success) {
+    throw new Error(result.warning ?? 'Failed to save provider API key.')
+  }
+  return getModelProviderState()
 }
 
 async function chooseWorkspace(): Promise<DesktopWorkspace | null> {
@@ -604,6 +710,13 @@ function normalizeThinkingMode(
   return thinkingMode
 }
 
+function normalizeProviderID(providerID: ModelProviderID): ModelProviderID {
+  if (!providerID || !isModelProviderID(providerID)) {
+    throw new Error(`Unsupported model provider: ${providerID}`)
+  }
+  return providerID
+}
+
 function normalizeOptionalText(value: string | undefined): string | undefined {
   const trimmed = value?.trim()
   return trimmed ? trimmed : undefined
@@ -710,6 +823,14 @@ function registerIpc(): void {
   const handlers: Omit<DesktopApi, 'onAgentEvent' | 'onUiCommand'> = {
     getAuthStatus: async () => getAuthStatus(),
     getRuntimeStatus,
+    getDesktopSettings: readDesktopStoredSettings,
+    saveDesktopSettings: async (settings: DesktopStoredSettings) =>
+      saveDesktopStoredSettings(settings),
+    listModelProviders: async () => listModelProviders(),
+    getModelProviderState: async () => getModelProviderState(),
+    fetchProviderModels,
+    saveModelProvider,
+    saveProviderApiKey,
     chooseWorkspace,
     openWorkspace,
     getWorkspaceContext,

@@ -1,4 +1,4 @@
-import type React from 'react'
+﻿import type React from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { AlertCircle } from 'lucide-react'
 import { ComposerCard } from './ComposerCard.js'
@@ -22,9 +22,17 @@ import { useWorkspaceState } from '../features/workspace/useWorkspaceState.js'
 import { useSessionState } from '../features/session/useSessionState.js'
 import { useDesktopCommands } from '../features/session/useDesktopCommands.js'
 import { useDesktopSearch } from '../features/search/useDesktopSearch.js'
-import { CUSTOM_MODEL_PRESET_ID, MODEL_PRESETS, resolveModelPresetId } from '../modelPresets.js'
-import type { DesktopPermissionRequest, DesktopWorkspace } from '../../shared/types.js'
-import { useCallback, useEffect, useState } from 'react'
+import {
+  CUSTOM_MODEL_PRESET_ID,
+  buildModelPresets,
+  resolveModelPresetId,
+} from '../modelPresets.js'
+import type {
+  DesktopModelProviderState,
+  DesktopPermissionRequest,
+  DesktopWorkspace,
+} from '../../shared/types.js'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 export function DesktopLayout(): React.ReactNode {
   const settings = useDesktopSettings()
@@ -54,6 +62,8 @@ export function DesktopLayout(): React.ReactNode {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isWindowMaximized, setIsWindowMaximized] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [providerState, setProviderState] =
+    useState<DesktopModelProviderState | null>(null)
 
   const layout = useDesktopLayout()
   const {
@@ -201,7 +211,7 @@ export function DesktopLayout(): React.ReactNode {
       navigate('/settings')
     },
     onLogOut: () => {
-      setErrorMessage('已退出登录（本地无持久账户，请重新启动应用）。')
+      setErrorMessage('已退出登录。本地桌面端暂无持久账号切换，请重启应用。')
     },
   })
 
@@ -275,26 +285,102 @@ export function DesktopLayout(): React.ReactNode {
     [],
   )
 
+  const modelPresets = useMemo(
+    () =>
+      buildModelPresets(
+        providerState?.models ?? providerState?.provider.defaultModels ?? [],
+        providerState?.provider.displayName
+          ? `默认模型 (${providerState.provider.displayName})`
+          : '默认模型',
+      ),
+    [providerState],
+  )
+  const resolvedSelectedModelPreset = resolveModelPresetId(
+    model,
+    selectedModelPreset,
+    modelPresets,
+  )
+
+  const refreshProviderState = useCallback(async (): Promise<void> => {
+    try {
+      const next = await window.desktopApi.getModelProviderState()
+      setProviderState(next)
+      if (next.model !== model) {
+        setModel(next.model)
+      }
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : String(error))
+    }
+  }, [model, setModel])
+
+  useEffect(() => {
+    void refreshProviderState()
+    const listener = () => {
+      void refreshProviderState()
+    }
+    window.addEventListener('desktop:model-provider-changed', listener)
+    return () => {
+      window.removeEventListener('desktop:model-provider-changed', listener)
+    }
+  }, [refreshProviderState])
+
   const handleModelPresetChange = useCallback(
     (nextPresetId: string): void => {
       if (nextPresetId === CUSTOM_MODEL_PRESET_ID) {
         const customValue = window.prompt('输入自定义模型名称', model)
         if (!customValue) {
-          setSelectedModelPreset(resolveModelPresetId(model, selectedModelPreset))
+          setSelectedModelPreset(
+            resolveModelPresetId(model, selectedModelPreset, modelPresets),
+          )
           return
         }
         const trimmed = customValue.trim()
         if (!trimmed) return
         setModel(trimmed)
         setSelectedModelPreset(CUSTOM_MODEL_PRESET_ID)
+        if (providerState) {
+          void window.desktopApi
+            .saveModelProvider({
+              providerID: providerState.selectedProviderID,
+              modelID: trimmed,
+              baseURL: providerState.baseURL,
+            })
+            .then(setProviderState)
+            .catch(error =>
+              setErrorMessage(
+                error instanceof Error ? error.message : String(error),
+              ),
+            )
+        }
         return
       }
-      const preset = MODEL_PRESETS.find(item => item.id === nextPresetId)
+      const preset = modelPresets.find(item => item.id === nextPresetId)
       if (!preset) return
       setSelectedModelPreset(nextPresetId)
       setModel(preset.value)
+      if (providerState) {
+        void window.desktopApi
+          .saveModelProvider({
+            providerID: providerState.selectedProviderID,
+            modelID: preset.value,
+            baseURL: providerState.baseURL,
+          })
+          .then(setProviderState)
+          .catch(error =>
+            setErrorMessage(
+              error instanceof Error ? error.message : String(error),
+            ),
+          )
+      }
     },
-    [model, setModel, setSelectedModelPreset, selectedModelPreset],
+    [
+      model,
+      modelPresets,
+      providerState,
+      setModel,
+      setSelectedModelPreset,
+      selectedModelPreset,
+    ],
   )
 
   const handleSelectSession = useCallback(
@@ -328,6 +414,14 @@ export function DesktopLayout(): React.ReactNode {
   const runtimeMissing = runtimeStatus?.agentExecutableExists === false
   const activePermissionRequest: DesktopPermissionRequest | null =
     pendingPermissions[0] ?? null
+  const composerCanSubmit =
+    canSubmit ||
+    Boolean(
+      currentWorkspace &&
+        input.trim() &&
+        sessionStatus !== 'running' &&
+        sessionStatus !== 'waiting',
+    )
   const workspaceName = currentWorkspace?.name ?? '未选择项目'
   const branchName =
     currentWorkspace?.isGitRepo === false
@@ -408,12 +502,12 @@ export function DesktopLayout(): React.ReactNode {
   const composer = isHomePage ? (
     <ComposerCard
       input={input}
-      canSubmit={canSubmit}
+      canSubmit={composerCanSubmit}
       sessionStatus={sessionStatus}
       permissionMode={permissionMode}
       thinkingMode={thinkingMode}
-      selectedModelPreset={selectedModelPreset}
-      modelPresets={MODEL_PRESETS}
+      selectedModelPreset={resolvedSelectedModelPreset}
+      modelPresets={modelPresets}
       permissionOptions={PERMISSION_MODE_OPTIONS}
       thinkingOptions={THINKING_MODE_OPTIONS}
       branchName={branchName}
@@ -426,7 +520,7 @@ export function DesktopLayout(): React.ReactNode {
       onOpenFiles={() => {}}
       onOpenWorkspace={workspaceItem => void handleOpenRecentWorkspace(workspaceItem)}
       onPermissionChange={setPermissionMode}
-      onSubmit={() => void submit()}
+      onSubmit={() => void submit(currentWorkspace)}
       onThinkingChange={setThinkingMode}
     />
   ) : null

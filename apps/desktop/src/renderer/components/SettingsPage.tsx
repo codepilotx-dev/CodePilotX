@@ -1,19 +1,19 @@
-import React from 'react'
-import { GeneralSettings } from './GeneralSettings.js'
+﻿import React from 'react'
 import { AppearanceSettings } from './AppearanceSettings.js'
+import { GeneralSettings } from './GeneralSettings.js'
+import { ModelProviderSettings } from './ModelProviderSettings.js'
 
 type Props = {
   activeTab: string
   legacySettings?: React.ReactNode
 }
 
-export function SettingsPage({ activeTab, legacySettings }: Props) {
+export function SettingsPage({
+  activeTab,
+  legacySettings,
+}: Props): React.ReactNode {
   return (
     <div className="settings-page">
-      {/* 
-        Ideally we would switch rendering based on activeTab. 
-        For this task, we only implemented the GeneralSettings 
-      */}
       {activeTab === 'general' ? (
         <GeneralSettings />
       ) : activeTab === 'appearance' ? (
@@ -21,9 +21,10 @@ export function SettingsPage({ activeTab, legacySettings }: Props) {
       ) : activeTab === 'config' ? (
         <div className="settings-content-area">
           <h2 className="settings-section-title">高级配置</h2>
-          <div className="settings-block">
-             {legacySettings}
-          </div>
+          <ModelProviderSettings />
+          {legacySettings ? (
+            <div className="settings-block">{legacySettings}</div>
+          ) : null}
         </div>
       ) : (
         <div className="settings-content-area">

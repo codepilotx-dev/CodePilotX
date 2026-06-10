@@ -61,8 +61,8 @@ export type UseSessionStateResult = {
   canSubmit: boolean
   input: string
   setInput: (value: string) => void
-  createSessionForWorkspace: (target?: DesktopWorkspace | null) => Promise<void>
-  submit: () => Promise<void>
+  createSessionForWorkspace: (target?: DesktopWorkspace | null) => Promise<string | null>
+  submit: (target?: DesktopWorkspace | null) => Promise<void>
   interrupt: () => Promise<void>
   decidePermission: (
     request: DesktopPermissionRequest,
@@ -212,13 +212,12 @@ export function useSessionState(
   )
 
   const createSessionForWorkspace = useCallback(
-    async (target: DesktopWorkspace | null): Promise<void> => {
-      await createSessionForWorkspaceAction(
+    async (target: DesktopWorkspace | null): Promise<string | null> =>
+      createSessionForWorkspaceAction(
         actionContext,
         settingsSnapshot,
         target,
-      )
-    },
+      ),
     [actionContext, settingsSnapshot],
   )
 
@@ -233,15 +232,29 @@ export function useSessionState(
     [input, sessionId, sessionStatus],
   )
 
-  const submit = useCallback(async (): Promise<void> => {
+  const submit = useCallback(async (target?: DesktopWorkspace | null): Promise<void> => {
+    const targetSessionId =
+      sessionId ??
+      (target
+        ? await createSessionForWorkspaceAction(
+            actionContext,
+            settingsSnapshot,
+            target,
+          )
+        : null)
     await submitSessionMessageAction(
       onErrorRef,
-      sessionId,
+      targetSessionId,
       input,
-      canSubmit,
+      Boolean(
+        targetSessionId &&
+          input.trim() &&
+          sessionStatus !== 'running' &&
+          sessionStatus !== 'waiting',
+      ),
       setInput,
     )
-  }, [canSubmit, input, sessionId])
+  }, [actionContext, input, sessionId, sessionStatus, settingsSnapshot])
 
   const interrupt = useCallback(async (): Promise<void> => {
     await interruptSessionAction(onErrorRef, sessionId)

@@ -32,6 +32,7 @@ export type DesktopDiffSummary = {
 export type DesktopRuntimeStatus = {
   agentExecutablePath: string
   agentExecutableExists: boolean
+  configDirectoryPath: string
 }
 
 export type DesktopSessionStatus = 'idle' | 'running' | 'waiting' | 'done' | 'error'
@@ -47,6 +48,69 @@ export type DesktopThinkingMode =
   | 'enabled'
   | 'adaptive'
   | 'disabled'
+
+export type DesktopDrawerTab =
+  | 'files'
+  | 'diff'
+  | 'permissions'
+  | 'toolLog'
+  | 'settings'
+
+export type ModelProviderID =
+  | 'anthropic'
+  | 'openai'
+  | 'openrouter'
+  | 'deepseek'
+  | 'groq'
+  | 'custom'
+
+export type DesktopModelProviderKind = 'anthropic' | 'openai-compatible'
+
+export type DesktopModelProviderSummary = {
+  providerID: ModelProviderID
+  kind: DesktopModelProviderKind
+  displayName: string
+  baseURL?: string
+  defaultModels: string[]
+}
+
+export type DesktopModelProviderState = {
+  selectedProviderID: ModelProviderID
+  provider: DesktopModelProviderSummary
+  model: string
+  baseURL?: string
+  apiKeyConfigured: boolean
+  apiKeySource: string | null
+  models: string[]
+  error?: string
+}
+
+export type DesktopProviderModelListResult = {
+  models: string[]
+  error?: string
+}
+
+export type SaveDesktopModelProviderOptions = {
+  providerID: ModelProviderID
+  modelID?: string
+  baseURL?: string
+}
+
+export type DesktopStoredSettings = {
+  permissionMode: DesktopPermissionMode
+  model: string
+  fallbackModel: string
+  sessionName: string
+  thinkingMode: DesktopThinkingMode
+  systemPrompt: string
+  appendSystemPrompt: string
+  additionalDirectories: string
+  recentWorkspaces: DesktopWorkspace[]
+  drawerTab: DesktopDrawerTab
+  selectedModelPreset: string
+  providerID: ModelProviderID
+  providerBaseURL: string
+}
 
 export type DesktopThemeMode = 'light' | 'dark' | 'system'
 
@@ -128,6 +192,22 @@ export type DesktopUiCommand =
 export type DesktopApi = {
   getAuthStatus(): Promise<DesktopAuthStatus>
   getRuntimeStatus(): Promise<DesktopRuntimeStatus>
+  getDesktopSettings(): Promise<DesktopStoredSettings>
+  saveDesktopSettings(settings: DesktopStoredSettings): Promise<DesktopStoredSettings>
+  listModelProviders(): Promise<DesktopModelProviderSummary[]>
+  getModelProviderState(): Promise<DesktopModelProviderState>
+  fetchProviderModels(options: {
+    providerID: ModelProviderID
+    apiKey?: string
+    baseURL?: string
+  }): Promise<DesktopProviderModelListResult>
+  saveModelProvider(
+    options: SaveDesktopModelProviderOptions,
+  ): Promise<DesktopModelProviderState>
+  saveProviderApiKey(
+    providerID: ModelProviderID,
+    apiKey: string,
+  ): Promise<DesktopModelProviderState>
   chooseWorkspace(): Promise<DesktopWorkspace | null>
   openWorkspace(workspacePath: string): Promise<DesktopWorkspace>
   getWorkspaceContext(workspacePath: string): Promise<DesktopWorkspace>

@@ -1,4 +1,4 @@
-.settings-page {
+﻿.settings-page {
   display: flex;
   height: 100%;
   width: 100%;
@@ -820,4 +820,21 @@
   border: 1px solid var(--c-border);
   border-radius: var(--r-md);
   background-color: var(--c-bg);
+}
+
+.settings-input {
+  min-width: 220px;
+  border: 1px solid var(--c-border);
+  border-radius: 10px;
+  background: var(--c-bg-card);
+  color: var(--c-text);
+  padding: 8px 10px;
+}
+
+.settings-inline-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }

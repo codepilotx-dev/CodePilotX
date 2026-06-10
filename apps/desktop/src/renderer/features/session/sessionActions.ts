@@ -1,4 +1,4 @@
-import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
+﻿import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 import type {
   DesktopPermissionMode,
   DesktopPermissionRequest,
@@ -58,8 +58,8 @@ export async function createSessionForWorkspaceAction(
   context: SessionActionContext,
   settings: SessionSettingsSnapshot,
   target: DesktopWorkspace | null,
-): Promise<void> {
-  if (!target) return
+): Promise<string | null> {
+  if (!target) return null
   try {
     const session = await window.desktopApi.createSession({
       workspacePath: target.path,
@@ -107,8 +107,10 @@ export async function createSessionForWorkspaceAction(
       },
       ...current,
     ])
+    return session.sessionId
   } catch (error) {
     context.onErrorRef.current(errorMessageOf(error))
+    return null
   }
 }
 

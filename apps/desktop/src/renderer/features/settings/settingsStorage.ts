@@ -1,8 +1,10 @@
 import type { DrawerTab } from "../../uiTypes.js";
 import type {
   DesktopPermissionMode,
+  DesktopStoredSettings,
   DesktopThinkingMode,
   DesktopWorkspace,
+  ModelProviderID,
 } from "../../../shared/types.js";
 
 export const PERMISSION_MODE_OPTIONS: Array<{
@@ -46,19 +48,7 @@ export const THINKING_MODE_OPTIONS: Array<{
 export const DESKTOP_SETTINGS_STORAGE_KEY = "claude-code-desktop-settings";
 export const MAX_RECENT_WORKSPACES = 5;
 
-export type StoredDesktopSettings = {
-  permissionMode: DesktopPermissionMode;
-  model: string;
-  fallbackModel: string;
-  sessionName: string;
-  thinkingMode: DesktopThinkingMode;
-  systemPrompt: string;
-  appendSystemPrompt: string;
-  additionalDirectories: string;
-  recentWorkspaces: DesktopWorkspace[];
-  drawerTab: DrawerTab;
-  selectedModelPreset: string;
-};
+export type StoredDesktopSettings = DesktopStoredSettings;
 
 export function defaultDesktopSettings(): StoredDesktopSettings {
   return {
@@ -73,6 +63,8 @@ export function defaultDesktopSettings(): StoredDesktopSettings {
     recentWorkspaces: [],
     drawerTab: "files",
     selectedModelPreset: "",
+    providerID: "anthropic",
+    providerBaseURL: "",
   };
 }
 
@@ -108,6 +100,17 @@ function isString(value: unknown): value is string {
   return typeof value === "string";
 }
 
+function isModelProviderID(value: unknown): value is ModelProviderID {
+  return (
+    value === "anthropic" ||
+    value === "openai" ||
+    value === "openrouter" ||
+    value === "deepseek" ||
+    value === "groq" ||
+    value === "custom"
+  );
+}
+
 function parseStoredRecentWorkspaces(value: unknown): DesktopWorkspace[] {
   if (!Array.isArray(value)) return [];
   const workspaces: DesktopWorkspace[] = [];
@@ -136,55 +139,11 @@ function parseStoredRecentWorkspaces(value: unknown): DesktopWorkspace[] {
 }
 
 export function readStoredDesktopSettings(): StoredDesktopSettings {
-  try {
-    const raw = window.localStorage.getItem(DESKTOP_SETTINGS_STORAGE_KEY);
-    if (!raw) return defaultDesktopSettings();
-    const parsed = JSON.parse(raw) as {
-      permissionMode?: unknown;
-      model?: unknown;
-      fallbackModel?: unknown;
-      sessionName?: unknown;
-      thinkingMode?: unknown;
-      systemPrompt?: unknown;
-      appendSystemPrompt?: unknown;
-      additionalDirectories?: unknown;
-      recentWorkspaces?: unknown;
-      drawerTab?: unknown;
-      selectedModelPreset?: unknown;
-    };
-    return {
-      permissionMode: isDesktopPermissionMode(parsed.permissionMode)
-        ? parsed.permissionMode
-        : "default",
-      model: isString(parsed.model) ? parsed.model : "",
-      fallbackModel: isString(parsed.fallbackModel) ? parsed.fallbackModel : "",
-      sessionName: isString(parsed.sessionName) ? parsed.sessionName : "",
-      thinkingMode: isDesktopThinkingMode(parsed.thinkingMode)
-        ? parsed.thinkingMode
-        : "default",
-      systemPrompt: isString(parsed.systemPrompt) ? parsed.systemPrompt : "",
-      appendSystemPrompt: isString(parsed.appendSystemPrompt)
-        ? parsed.appendSystemPrompt
-        : "",
-      additionalDirectories: isString(parsed.additionalDirectories)
-        ? parsed.additionalDirectories
-        : "",
-      recentWorkspaces: parseStoredRecentWorkspaces(parsed.recentWorkspaces),
-      drawerTab: isDrawerTab(parsed.drawerTab) ? parsed.drawerTab : "files",
-      selectedModelPreset: isString(parsed.selectedModelPreset)
-        ? parsed.selectedModelPreset
-        : "",
-    };
-  } catch {
-    return defaultDesktopSettings();
-  }
+  return defaultDesktopSettings();
 }
 
 export function storeDesktopSettings(settings: StoredDesktopSettings): void {
-  window.localStorage.setItem(
-    DESKTOP_SETTINGS_STORAGE_KEY,
-    JSON.stringify(settings),
-  );
+  void window.desktopApi.saveDesktopSettings(settings);
 }
 
 export function normalizeOptionalText(value: string): string | undefined {

@@ -8,6 +8,18 @@ import type {
 const api: DesktopApi = {
   getAuthStatus: () => ipcRenderer.invoke('desktop:getAuthStatus'),
   getRuntimeStatus: () => ipcRenderer.invoke('desktop:getRuntimeStatus'),
+  getDesktopSettings: () => ipcRenderer.invoke('desktop:getDesktopSettings'),
+  saveDesktopSettings: settings =>
+    ipcRenderer.invoke('desktop:saveDesktopSettings', settings),
+  listModelProviders: () => ipcRenderer.invoke('desktop:listModelProviders'),
+  getModelProviderState: () =>
+    ipcRenderer.invoke('desktop:getModelProviderState'),
+  fetchProviderModels: options =>
+    ipcRenderer.invoke('desktop:fetchProviderModels', options),
+  saveModelProvider: options =>
+    ipcRenderer.invoke('desktop:saveModelProvider', options),
+  saveProviderApiKey: (providerID, apiKey) =>
+    ipcRenderer.invoke('desktop:saveProviderApiKey', providerID, apiKey),
   chooseWorkspace: () => ipcRenderer.invoke('desktop:chooseWorkspace'),
   openWorkspace: workspacePath =>
     ipcRenderer.invoke('desktop:openWorkspace', workspacePath),

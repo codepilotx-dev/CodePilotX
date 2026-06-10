@@ -1,4 +1,4 @@
-﻿import type React from 'react'
+﻿import React from 'react'
 import { AlertCircle } from 'lucide-react'
 import { useQuickChatContext } from '../context/QuickChatContext.js'
 
@@ -13,7 +13,6 @@ export function QuickChatView(): React.ReactNode {
   } = useQuickChatContext()
 
   const hasMessages = messages.length > 0
-  const shouldShowMessages = !composer && hasMessages
 
   return (
     <section
@@ -24,7 +23,7 @@ export function QuickChatView(): React.ReactNode {
         {hasMessages ? <p>当前状态：{translateStatus(sessionStatus)}</p> : null}
       </div>
 
-      {(errorMessage || shouldShowMessages) ? (
+      {(errorMessage || hasMessages) ? (
         <div className="quick-chat-content">
           {errorMessage ? (
             <div className="error-banner">
@@ -35,7 +34,7 @@ export function QuickChatView(): React.ReactNode {
               </button>
             </div>
           ) : null}
-          {shouldShowMessages ? (
+          {hasMessages ? (
           <div className="message-list">
             {messages.map(message => (
               <article
@@ -43,7 +42,9 @@ export function QuickChatView(): React.ReactNode {
                 key={message.id}
               >
                 <span>{labelForRole(message.role)}</span>
-                <p>{message.text}</p>
+                <div className="message-body">
+                  {renderSafeMarkdown(message.text)}
+                </div>
               </article>
             ))}
           </div>
@@ -53,6 +54,29 @@ export function QuickChatView(): React.ReactNode {
       {composer ? <div className="chat-composer">{composer}</div> : null}
     </section>
   )
+}
+
+function renderSafeMarkdown(text: string): React.ReactNode {
+  const parts = text.split(/```/)
+  return parts.map((part, index) => {
+    if (index % 2 === 1) {
+      const lines = part.replace(/^\w+\r?\n/, '').trimEnd()
+      return <pre key={index}><code>{lines}</code></pre>
+    }
+    return part
+      .split(/\n{2,}/)
+      .filter(Boolean)
+      .map((paragraph, paragraphIndex) => (
+        <p key={`${index}-${paragraphIndex}`}>
+          {paragraph.split(/\r?\n/).map((line, lineIndex) => (
+            <React.Fragment key={lineIndex}>
+              {lineIndex > 0 ? <br /> : null}
+              {line}
+            </React.Fragment>
+          ))}
+        </p>
+      ))
+  })
 }
 
 function labelForRole(role: 'user' | 'assistant' | 'system'): string {
