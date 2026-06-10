@@ -33,7 +33,7 @@
   flex-direction: column;
   align-items: center;
   gap: var(--sp-3);
-  width: 100%;
+  width: min(100%, var(--composer-w));
   flex-shrink: 0;
 }
 
@@ -48,7 +48,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--sp-6);
+  gap: 35px;
   width: 100%;
   flex: 1;
   min-height: 0;
@@ -74,7 +74,15 @@
   text-align: center;
 }
 
-.quick-chat-hero h1,
+.quick-chat-hero h1 {
+  width: min(100%, 900px);
+  color: var(--c-text-strong);
+  font-size: 28px;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.2;
+}
+
 .utility-view-header h1 {
   width: min(100%, 760px);
   color: var(--c-text-strong);

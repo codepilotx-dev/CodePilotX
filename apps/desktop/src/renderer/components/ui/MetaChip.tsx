@@ -26,7 +26,7 @@ export function MetaChip({
     >
       {icon}
       <span>{label}</span>
-      <ChevronDown size={10} strokeWidth={2.4} />
+      <ChevronDown size={12} strokeWidth={2.4} />
     </button>
   )
 }

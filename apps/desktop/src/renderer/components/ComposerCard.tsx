@@ -39,7 +39,9 @@ type Option<T extends string> = {
 };
 
 const PERMISSION_MENU_ICON_SIZE = 16;
-const PERMISSION_TRIGGER_ICON_SIZE = 15;
+const PERMISSION_TRIGGER_ICON_SIZE = 18;
+const COMPOSER_ACTION_ICON_SIZE = 24;
+const META_CHIP_ICON_SIZE = 18;
 
 type ComposerDropdown = "permission" | "model" | "project" | "mode" | "branch";
 
@@ -293,7 +295,7 @@ export function ComposerCard({
               </PopoverItem>
             </PopoverMenu>
 
-            <IconButton title="语音输入">
+            <IconButton className="icon-button composer-mic-button" title="语音输入">
               <Mic size={18} />
             </IconButton>
             <button
@@ -304,7 +306,7 @@ export function ComposerCard({
               title="发送"
               type="button"
             >
-              <Send size={16} />
+              <Send size={24} />
             </button>
           </div>
         </div>
@@ -318,7 +320,7 @@ export function ComposerCard({
           trigger={
             <MetaChip
               active={openDropdown === "project"}
-              icon={<Folder size={14} />}
+              icon={<Folder size={META_CHIP_ICON_SIZE} />}
               label={workspace?.name ?? "选择项目"}
               onClick={() => toggleDropdown("project")}
               title="选择项目"
@@ -370,7 +372,7 @@ export function ComposerCard({
           trigger={
             <MetaChip
               active={openDropdown === "mode"}
-              icon={<Monitor size={14} />}
+              icon={<Monitor size={META_CHIP_ICON_SIZE} />}
               label="本地模式"
               onClick={() => toggleDropdown("mode")}
               title="启动模式"
@@ -398,7 +400,7 @@ export function ComposerCard({
           trigger={
             <MetaChip
               active={openDropdown === "branch"}
-              icon={<GitBranch size={14} />}
+              icon={<GitBranch size={META_CHIP_ICON_SIZE} />}
               label={branchName}
               onClick={() => toggleDropdown("branch")}
               title="选择分支"

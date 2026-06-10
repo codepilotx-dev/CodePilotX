@@ -60,7 +60,7 @@
   --chrome-h: 35px;
   --titlebar-h: var(--chrome-h);
   --menubar-h: var(--chrome-h);
-  --composer-w: 650px;
+  --composer-w: 1000px;
 }
 
 * {

@@ -31,9 +31,7 @@ export type UseDesktopLayoutResult = {
 }
 
 export function useDesktopLayout(): UseDesktopLayoutResult {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() =>
-    window.matchMedia('(max-width: 900px)').matches,
-  )
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth)
   const [sidebarWidth, setSidebarWidthState] = useState(() =>
     readStoredSidebarWidth(window.innerWidth),

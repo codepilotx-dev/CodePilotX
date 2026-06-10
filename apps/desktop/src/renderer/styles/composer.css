@@ -3,34 +3,34 @@
   max-width: var(--composer-w);
   display: flex;
   flex-direction: column;
-  border-radius: var(--r-card);
-  background: var(--c-bg-soft);
+  border-radius: 20px;
+  background: #f7f7f7;
   box-shadow: var(--sh-card-lg);
 }
 
 .composer-top {
   min-height: 104px;
-  padding: 13px 14px 9px;
+  padding: 14px 16px 10px;
   border: 1px solid var(--c-border);
-  border-radius: var(--r-card);
+  border-radius: 20px;
   background: var(--c-bg);
   box-shadow: var(--sh-card);
 }
 
 .composer-input {
-  padding: var(--sp-1) var(--sp-1) 17px;
+  padding: 0 0 18px;
 }
 
 .composer-input textarea {
   width: 100%;
-  max-height: 200px;
+  max-height: 130px;
   min-height: 24px;
   padding: 0;
   border: 0;
   background: transparent;
   color: #1f1f1f;
-  font-size: var(--fs-14);
-  line-height: 1.55;
+  font-size: 16px;
+  line-height: 1.45;
 }
 
 .composer-input textarea::placeholder {
@@ -46,23 +46,37 @@
 }
 
 .composer-toolbar {
-  min-height: 30px;
   justify-content: space-between;
 }
 
 .toolbar-left,
 .toolbar-right {
   min-width: 0;
-  gap: var(--sp-1);
+  gap: 6px;
+}
+
+.composer .icon-button {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-round);
+}
+
+.composer-mic-button {
+  width: 24px;
+  height: 24px;
+}
+
+.composer .icon-button:hover {
+  background: var(--c-bg-hover);
 }
 
 .send-button {
-  width: 34px;
-  height: 34px;
+  width: 28px;
+  height: 28px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-left: var(--sp-1);
+  margin-left: 2px;
   border-radius: var(--r-round);
   background: var(--c-send-bg);
   color: var(--c-text-on-accent);
@@ -80,10 +94,10 @@
 }
 
 .composer-bottom {
-  min-height: 40px;
+  min-height: 36px;
   flex-wrap: wrap;
-  gap: var(--sp-3);
-  padding: 5px 14px 8px;
+  gap: 10px;
+  padding: 3px 10px 6px;
 }
 
 .composer-meta-note {
@@ -98,11 +112,12 @@
 .chip-button {
   display: inline-flex;
   align-items: center;
-  gap: var(--sp-1);
-  padding: 5px var(--sp-2);
-  border-radius: var(--r-md);
+  gap: 4px;
+  padding: 3px 5px;
+  border-radius: 12px;
   color: var(--c-accent);
-  font-size: var(--fs-13);
+  font-size: 12px;
+  line-height: 16px;
   transition: background 0.15s ease-out;
 }
 
@@ -155,12 +170,13 @@
 .meta-chip {
   display: inline-flex;
   align-items: center;
-  gap: var(--sp-1);
+  gap: 4px;
   max-width: 220px;
-  padding: 6px 0;
+  padding: 2px 0;
   border-radius: var(--r-md);
   color: #888888;
-  font-size: var(--fs-16);
+  font-size: 12px;
+  line-height: 16px;
   transition:
     background 0.15s ease-out,
     color 0.15s ease-out;
