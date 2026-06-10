@@ -1,4 +1,4 @@
-.desktop-main {
+﻿.desktop-main {
   background: var(--c-bg);
   flex: 1;
   min-width: 0;
@@ -24,8 +24,6 @@
   min-width: 0;
 }
 
-
-
 .desktop-main-composer {
   display: flex;
   flex-direction: column;
@@ -45,6 +43,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
+  gap: var(--sp-6);
   width: 100%;
   flex: 1;
   min-height: 0;
