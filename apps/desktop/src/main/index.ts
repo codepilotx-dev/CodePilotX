@@ -21,6 +21,10 @@ import {
   createDesktopAgentSession,
   type DesktopAgentSession,
 } from './agentSession.js'
+import {
+  readDesktopThemeSettings,
+  saveDesktopThemeSettings,
+} from './themeSettings.js'
 import type {
   CreateDesktopSessionOptions,
   CreateDesktopSessionResult,
@@ -712,6 +716,8 @@ function registerIpc(): void {
     listWorkspaceFiles,
     readWorkspaceFile,
     getWorkspaceDiff,
+    getThemeSettings: readDesktopThemeSettings,
+    saveThemeSettings: saveDesktopThemeSettings,
     createSession,
     sendUserMessage,
     respondToPermission,

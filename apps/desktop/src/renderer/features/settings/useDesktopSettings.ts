@@ -1,4 +1,11 @@
-import { useEffect, useState } from 'react'
+import {
+  createContext,
+  createElement,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from 'react'
 import type { DrawerTab } from '../../uiTypes.js'
 import type { DesktopPermissionMode, DesktopThinkingMode, DesktopWorkspace } from '../../../shared/types.js'
 import {
@@ -34,7 +41,32 @@ export type UseDesktopSettingsResult = {
   setSelectedModelPreset: (value: string) => void
 }
 
+const DesktopSettingsContext = createContext<UseDesktopSettingsResult | null>(
+  null,
+)
+
+export function DesktopSettingsProvider({
+  children,
+}: {
+  children: ReactNode
+}): ReactNode {
+  const settings = useDesktopSettingsState()
+  return createElement(
+    DesktopSettingsContext.Provider,
+    { value: settings },
+    children,
+  )
+}
+
 export function useDesktopSettings(): UseDesktopSettingsResult {
+  const settings = useContext(DesktopSettingsContext)
+  if (settings) {
+    return settings
+  }
+  return useDesktopSettingsState()
+}
+
+function useDesktopSettingsState(): UseDesktopSettingsResult {
   const initial = readStoredDesktopSettings()
   const [permissionMode, setPermissionMode] = useState<DesktopPermissionMode>(
     initial.permissionMode,

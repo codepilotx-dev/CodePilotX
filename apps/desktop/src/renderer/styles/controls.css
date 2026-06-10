@@ -38,5 +38,5 @@
 }
 
 .menubar-status.warning {
-  color: #9a5a10;
+  color: var(--c-accent);
 }

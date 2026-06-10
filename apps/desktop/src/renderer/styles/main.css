@@ -160,7 +160,7 @@
 
 .message-card.user {
   align-self: flex-end;
-  background: #f6f8ff;
+  background: var(--c-bg-chip-hover);
 }
 
 .message-card.assistant,
@@ -208,7 +208,7 @@
 .utility-card h2,
 .drawer-section strong,
 .setting-field span {
-  color: #343530;
+  color: var(--c-text-strong);
   font-size: var(--fs-13);
   font-weight: 600;
 }

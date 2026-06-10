@@ -75,7 +75,7 @@
   width: 46px;
   height: 35px;
   line-height: 35px;
-  color: #505050;
+  color: var(--c-icon-soft);
 }
 
 .window-control-button:hover {

@@ -19,6 +19,9 @@ const api: DesktopApi = {
     ipcRenderer.invoke('desktop:readWorkspaceFile', workspacePath, filePath),
   getWorkspaceDiff: workspacePath =>
     ipcRenderer.invoke('desktop:getWorkspaceDiff', workspacePath),
+  getThemeSettings: () => ipcRenderer.invoke('desktop:getThemeSettings'),
+  saveThemeSettings: settings =>
+    ipcRenderer.invoke('desktop:saveThemeSettings', settings),
   createSession: options => ipcRenderer.invoke('desktop:createSession', options),
   sendUserMessage: (sessionId, content) =>
     ipcRenderer.invoke('desktop:sendUserMessage', sessionId, content),

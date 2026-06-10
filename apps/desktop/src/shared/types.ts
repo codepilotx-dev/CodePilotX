@@ -48,6 +48,36 @@ export type DesktopThinkingMode =
   | 'adaptive'
   | 'disabled'
 
+export type DesktopThemeMode = 'light' | 'dark' | 'system'
+
+export type DesktopThemeVariant = 'light' | 'dark'
+
+export type DesktopThemeConfigV1 = {
+  codeThemeId: string
+  theme: {
+    accent: string
+    contrast: number
+    fonts: {
+      code: string
+      ui: string
+    }
+    ink: string
+    opaqueWindows: boolean
+    semanticColors: {
+      diffAdded: string
+      diffRemoved: string
+      skill: string
+    }
+    surface: string
+  }
+  variant: DesktopThemeVariant
+}
+
+export type DesktopThemeSettings = {
+  mode: DesktopThemeMode
+  themes: Partial<Record<DesktopThemeVariant, DesktopThemeConfigV1>>
+}
+
 export type DesktopPermissionDecision = {
   behavior: 'allow' | 'deny'
   message?: string
@@ -104,6 +134,8 @@ export type DesktopApi = {
   listWorkspaceFiles(workspacePath: string): Promise<DesktopFileEntry[]>
   readWorkspaceFile(workspacePath: string, filePath: string): Promise<DesktopFilePreview>
   getWorkspaceDiff(workspacePath: string): Promise<DesktopDiffSummary>
+  getThemeSettings(): Promise<DesktopThemeSettings>
+  saveThemeSettings(settings: DesktopThemeSettings): Promise<void>
   createSession(options: CreateDesktopSessionOptions): Promise<CreateDesktopSessionResult>
   sendUserMessage(sessionId: string, content: string): Promise<void>
   respondToPermission(

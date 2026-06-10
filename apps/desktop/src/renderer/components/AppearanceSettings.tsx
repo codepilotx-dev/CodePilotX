@@ -6,13 +6,26 @@ import { SettingsDropdown } from './SettingsDropdown.js'
 import { SegmentedControl } from './SegmentedControl.js'
 import { ToggleSwitch } from './ToggleSwitch.js'
 import { ColorPickerControl } from './ColorPickerControl.js'
-
-// --- Custom Components ---
-
-type ThemeMode = 'light' | 'dark' | 'system'
+import type {
+  DesktopThemeConfigV1,
+  DesktopThemeMode,
+  DesktopThemeSettings,
+  DesktopThemeVariant,
+} from '../../shared/types.js'
+import {
+  CODEX_THEME_PREFIX,
+  DEFAULT_DARK_THEME,
+  DEFAULT_LIGHT_THEME,
+  DESKTOP_THEME_PRESETS,
+  getDesktopThemeForVariant,
+  isDesktopThemeVariant,
+  normalizeDesktopThemeConfig,
+  normalizeDesktopThemeSettings,
+} from '../../shared/theme.js'
+import { useDesktopTheme } from '../features/theme/themeContext.js'
 
 const THEME_MODE_OPTIONS: Array<{
-  value: ThemeMode
+  value: DesktopThemeMode
   label: string
   icon: React.ReactNode
 }> = [
@@ -21,14 +34,20 @@ const THEME_MODE_OPTIONS: Array<{
   { value: 'system', label: '系统', icon: <Laptop size={24} /> },
 ]
 
-function Slider({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+function Slider({
+  value,
+  onChange,
+}: {
+  value: number
+  onChange: (v: number) => void
+}) {
   return (
     <div className="appearance-slider-wrap">
-      <input 
-        type="range" 
-        min="0" 
-        max="100" 
-        value={value} 
+      <input
+        type="range"
+        min="0"
+        max="100"
+        value={value}
         onChange={e => onChange(parseInt(e.target.value, 10))}
         className="appearance-slider"
       />
@@ -37,12 +56,18 @@ function Slider({ value, onChange }: { value: number; onChange: (v: number) => v
   )
 }
 
-function NumberInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+function NumberInput({
+  value,
+  onChange,
+}: {
+  value: number
+  onChange: (v: number) => void
+}) {
   return (
     <div className="appearance-number-wrap">
-      <input 
-        type="number" 
-        value={value} 
+      <input
+        type="number"
+        value={value}
         onChange={e => onChange(parseInt(e.target.value, 10))}
         className="appearance-number-input"
       />
@@ -51,74 +76,149 @@ function NumberInput({ value, onChange }: { value: number; onChange: (v: number)
   )
 }
 
-function TextInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function TextInput({
+  value,
+  onChange,
+}: {
+  value: string
+  onChange: (v: string) => void
+}) {
   return (
-    <input 
-      type="text" 
-      value={value} 
+    <input
+      type="text"
+      value={value}
       onChange={e => onChange(e.target.value)}
       className="appearance-text-input"
     />
   )
 }
 
-// --- Main Component ---
-
 export function AppearanceSettings() {
-  const [themeMode, setThemeMode] = useState<ThemeMode>('light')
-  
-  // States
-  const [accentColor, setAccentColor] = useState('#0169cc')
-  const [bgColor, setBgColor] = useState('#ffffff')
-  const [fgColor, setFgColor] = useState('#0d0d0d')
-  const [uiFont, setUiFont] = useState('Inter')
-  const [codeFont, setCodeFont] = useState('JetBrains Mono SemiB')
-  const [transparentSidebar, setTransparentSidebar] = useState(true)
-  const [contrast, setContrast] = useState(40)
-  const [themeDropdown, setThemeDropdown] = useState('codex')
-  
+  const { settings, resolvedVariant, setMode, saveSettings } = useDesktopTheme()
+  const activeTheme = getDesktopThemeForVariant(settings, resolvedVariant)
   const [usePointer, setUsePointer] = useState(true)
-  const [reduceMotion, setReduceMotion] = useState<'system'|'on'|'off'>('system')
+  const [reduceMotion, setReduceMotion] = useState<'system' | 'on' | 'off'>(
+    'system',
+  )
   const [uiFontSize, setUiFontSize] = useState(14)
   const [codeFontSize, setCodeFontSize] = useState(12)
-  const [diffMarker, setDiffMarker] = useState<'color'|'+/-'>('color')
+  const [diffMarker, setDiffMarker] = useState<'color' | '+/-'>('color')
   const [pet, setPet] = useState('codex')
-
-  const code1 = [
-    { key: 'surface', value: '"sidebar"' },
-    { key: 'accent', value: '"#2563eb"' },
-    { key: 'contrast', value: '42' },
+  const presetOptions = DESKTOP_THEME_PRESETS.filter(
+    preset => preset.config.variant === resolvedVariant,
+  )
+  const activePresetId =
+    presetOptions.find(preset => themesEqual(preset.config, activeTheme))?.id ??
+    'custom'
+  const themeDropdownOptions = [
+    ...presetOptions.map(preset => ({
+      value: preset.id,
+      label: `Aa ${preset.label}`,
+    })),
+    ...(activePresetId === 'custom'
+      ? [{ value: 'custom', label: `Aa ${activeTheme.codeThemeId}` }]
+      : []),
   ]
-  const code2 = [
-    { key: 'surface', value: '"sidebar-elevated"' },
-    { key: 'accent', value: '"#0ea5e9"' },
-    { key: 'contrast', value: '68' },
+
+  const previewLines = [
+    { key: 'surface', value: JSON.stringify(activeTheme.theme.surface) },
+    { key: 'accent', value: JSON.stringify(activeTheme.theme.accent) },
+    { key: 'contrast', value: String(activeTheme.theme.contrast) },
   ]
 
-  const leftCode = code1
-  const rightCode = code2
+  const updateActiveTheme = (
+    updater: (theme: DesktopThemeConfigV1) => DesktopThemeConfigV1,
+  ): void => {
+    const nextTheme = updater(activeTheme)
+    void saveSettings({
+      ...settings,
+      themes: {
+        ...settings.themes,
+        [resolvedVariant]: nextTheme,
+      },
+    })
+  }
+
+  const updateThemeTokens = (
+    patch: Partial<DesktopThemeConfigV1['theme']>,
+  ): void => {
+    updateActiveTheme(theme => ({
+      ...theme,
+      theme: {
+        ...theme.theme,
+        ...patch,
+      },
+    }))
+  }
+
+  const updateThemeFonts = (
+    patch: Partial<DesktopThemeConfigV1['theme']['fonts']>,
+  ): void => {
+    updateActiveTheme(theme => ({
+      ...theme,
+      theme: {
+        ...theme.theme,
+        fonts: {
+          ...theme.theme.fonts,
+          ...patch,
+        },
+      },
+    }))
+  }
+
+  const handleCopyTheme = (): void => {
+    const text = `${CODEX_THEME_PREFIX}${JSON.stringify(activeTheme)}`
+    const copyPromise = navigator.clipboard?.writeText(text)
+    if (!copyPromise) {
+      window.prompt('复制主题', text)
+      return
+    }
+    void copyPromise.catch(() => {
+      window.prompt('复制主题', text)
+    })
+  }
+
+  const handleImportTheme = (): void => {
+    const input = window.prompt('粘贴 codex-theme-v1 或 JSON 主题配置')
+    if (!input) return
+
+    const raw = input.trim().startsWith(CODEX_THEME_PREFIX)
+      ? input.trim().slice(CODEX_THEME_PREFIX.length)
+      : input.trim()
+
+    try {
+      const parsed = JSON.parse(raw) as unknown
+      const nextSettings = parseImportedTheme(parsed, settings, resolvedVariant)
+      void saveSettings(nextSettings)
+    } catch {
+      window.alert('主题 JSON 无法解析。')
+    }
+  }
 
   return (
     <div className="settings-content-area">
       <div className="settings-content-inner">
         <h2 className="settings-page-title">外观</h2>
 
-        {/* 1) 顶部代码对比预览区 */}
         <section className="appearance-theme-preview">
           <div className="appearance-mode-header">
             <div className="appearance-mode-copy">
               <h2 className="appearance-mode-title">主题</h2>
-              <p className="appearance-mode-desc">使用浅色、深色，或匹配系统设置</p>
+              <p className="appearance-mode-desc">
+                使用浅色、深色，或匹配系统设置。
+              </p>
             </div>
             <div className="appearance-mode-toggle" role="tablist" aria-label="主题模式">
-              {THEME_MODE_OPTIONS.map((option) => (
+              {THEME_MODE_OPTIONS.map(option => (
                 <button
                   key={option.value}
                   type="button"
                   role="tab"
-                  aria-selected={themeMode === option.value}
-                  className={`appearance-mode-option ${themeMode === option.value ? 'active' : ''}`}
-                  onClick={() => setThemeMode(option.value)}
+                  aria-selected={settings.mode === option.value}
+                  className={`appearance-mode-option ${
+                    settings.mode === option.value ? 'active' : ''
+                  }`}
+                  onClick={() => void setMode(option.value)}
                 >
                   {option.icon}
                   <span>{option.label}</span>
@@ -128,103 +228,57 @@ export function AppearanceSettings() {
           </div>
 
           <div className="appearance-preview">
-            <div className="appearance-preview-pane appearance-preview-red">
-              <div className="appearance-preview-line">
-                <div className="appearance-preview-lineno">1</div>
-                <div className="appearance-preview-code">
-                  <span className="appearance-syntax-keyword">const</span>
-                  <span> </span>
-                  <span className="appearance-syntax-name">themePreview</span>
-                  <span className="appearance-syntax-punct">: </span>
-                  <span className="appearance-syntax-type">ThemeConfig</span>
-                  <span> </span>
-                  <span className="appearance-syntax-operator">=</span>
-                  <span> </span>
-                  <span className="appearance-syntax-punct">{'{'}</span>
-                </div>
-              </div>
-              {leftCode.map((line, i) => (
-                <div key={line.key} className="appearance-preview-line appearance-preview-line-highlight">
-                  <div className="appearance-preview-lineno">{i + 2}</div>
-                  <div className="appearance-preview-code">
-                    <span className="appearance-syntax-prop">{line.key}</span>
-                    <span className="appearance-syntax-punct">: </span>
-                    <span className={line.key === 'contrast' ? 'appearance-syntax-number' : 'appearance-syntax-string'}>
-                      {line.value}
-                    </span>
-                    <span className="appearance-syntax-punct">,</span>
-                  </div>
-                </div>
-              ))}
-              <div className="appearance-preview-line">
-                <div className="appearance-preview-lineno">5</div>
-                <div className="appearance-preview-code">
-                  <span className="appearance-syntax-punct">{'};'}</span>
-                </div>
-              </div>
-            </div>
-            
-            <div className="appearance-preview-pane appearance-preview-green">
-              <div className="appearance-preview-line">
-                <div className="appearance-preview-lineno">1</div>
-                <div className="appearance-preview-code">
-                  <span className="appearance-syntax-keyword">const</span>
-                  <span> </span>
-                  <span className="appearance-syntax-name">themePreview</span>
-                  <span className="appearance-syntax-punct">: </span>
-                  <span className="appearance-syntax-type">ThemeConfig</span>
-                  <span> </span>
-                  <span className="appearance-syntax-operator">=</span>
-                  <span> </span>
-                  <span className="appearance-syntax-punct">{'{'}</span>
-                </div>
-              </div>
-              {rightCode.map((line, i) => (
-                <div key={line.key} className="appearance-preview-line appearance-preview-line-highlight">
-                  <div className="appearance-preview-lineno">{i + 2}</div>
-                  <div className="appearance-preview-code">
-                    <span className="appearance-syntax-prop">{line.key}</span>
-                    <span className="appearance-syntax-punct">: </span>
-                    <span className={line.key === 'contrast' ? 'appearance-syntax-number' : 'appearance-syntax-string'}>
-                      {line.value}
-                    </span>
-                    <span className="appearance-syntax-punct">,</span>
-                  </div>
-                </div>
-              ))}
-              <div className="appearance-preview-line">
-                <div className="appearance-preview-lineno">5</div>
-                <div className="appearance-preview-code">
-                  <span className="appearance-syntax-punct">{'};'}</span>
-                </div>
-              </div>
-            </div>
+            <ThemePreviewPane lines={previewLines} tone="red" />
+            <ThemePreviewPane lines={previewLines} tone="green" />
           </div>
         </section>
 
-        {/* 2) 中部: 主题配置 section */}
         <section className="settings-section">
           <div className="appearance-theme-header">
-            <h3 className="settings-section-title">浅色主题</h3>
+            <h3 className="settings-section-title">
+              {resolvedVariant === 'dark' ? '深色主题' : '浅色主题'}
+            </h3>
             <div className="appearance-theme-actions">
-              <button type="button" className="appearance-btn-import">导入</button>
-              <button type="button" className="appearance-btn-copy">复制主题</button>
+              <button
+                type="button"
+                className="appearance-btn-import"
+                onClick={handleImportTheme}
+              >
+                导入
+              </button>
+              <button
+                type="button"
+                className="appearance-btn-copy"
+                onClick={handleCopyTheme}
+              >
+                复制主题
+              </button>
               <SettingsDropdown
-                value={themeDropdown}
-                options={[{ value: 'codex', label: 'Aa Codex' }]}
-                onChange={setThemeDropdown}
+                value={activePresetId}
+                options={themeDropdownOptions}
+                onChange={presetId => {
+                  const preset = presetOptions.find(item => item.id === presetId)
+                  if (!preset) return
+                  void saveSettings({
+                    ...settings,
+                    themes: {
+                      ...settings.themes,
+                      [preset.config.variant]: preset.config,
+                    },
+                  })
+                }}
               />
             </div>
           </div>
-          
+
           <div className="settings-card">
             <SettingsRow
               title="强调色"
               control={
                 <ColorPickerControl
-                  ariaLabel="寮鸿皟鑹"
-                  value={accentColor}
-                  onChange={setAccentColor}
+                  ariaLabel="强调色"
+                  value={activeTheme.theme.accent}
+                  onChange={accent => updateThemeTokens({ accent })}
                 />
               }
             />
@@ -232,9 +286,9 @@ export function AppearanceSettings() {
               title="背景"
               control={
                 <ColorPickerControl
-                  ariaLabel="鑳屾櫙"
-                  value={bgColor}
-                  onChange={setBgColor}
+                  ariaLabel="背景"
+                  value={activeTheme.theme.surface}
+                  onChange={surface => updateThemeTokens({ surface })}
                 />
               }
             />
@@ -242,32 +296,51 @@ export function AppearanceSettings() {
               title="前景"
               control={
                 <ColorPickerControl
-                  ariaLabel="鍓嶆櫙"
-                  value={fgColor}
-                  onChange={setFgColor}
+                  ariaLabel="前景"
+                  value={activeTheme.theme.ink}
+                  onChange={ink => updateThemeTokens({ ink })}
                 />
               }
             />
             <SettingsRow
               title="UI 字体"
-              control={<TextInput value={uiFont} onChange={setUiFont} />}
+              control={
+                <TextInput
+                  value={activeTheme.theme.fonts.ui}
+                  onChange={ui => updateThemeFonts({ ui })}
+                />
+              }
             />
             <SettingsRow
               title="代码字体"
-              control={<TextInput value={codeFont} onChange={setCodeFont} />}
+              control={
+                <TextInput
+                  value={activeTheme.theme.fonts.code}
+                  onChange={code => updateThemeFonts({ code })}
+                />
+              }
             />
             <SettingsRow
-              title="半透明侧边栏"
-              control={<ToggleSwitch checked={transparentSidebar} onChange={setTransparentSidebar} />}
+              title="不透明窗口"
+              control={
+                <ToggleSwitch
+                  checked={activeTheme.theme.opaqueWindows}
+                  onChange={opaqueWindows => updateThemeTokens({ opaqueWindows })}
+                />
+              }
             />
             <SettingsRow
               title="对比度"
-              control={<Slider value={contrast} onChange={setContrast} />}
+              control={
+                <Slider
+                  value={activeTheme.theme.contrast}
+                  onChange={contrast => updateThemeTokens({ contrast })}
+                />
+              }
             />
           </div>
         </section>
 
-        {/* 3) 下部: 其他外观设置 */}
         <SettingsSection>
           <SettingsRow
             title="使用指针光标"
@@ -283,7 +356,7 @@ export function AppearanceSettings() {
                 options={[
                   { value: 'system', label: '系统' },
                   { value: 'on', label: '开启' },
-                  { value: 'off', label: '关闭' }
+                  { value: 'off', label: '关闭' },
                 ]}
                 onChange={setReduceMotion}
               />
@@ -295,19 +368,21 @@ export function AppearanceSettings() {
             control={<NumberInput value={uiFontSize} onChange={setUiFontSize} />}
           />
           <SettingsRow
-            title="代码字体大小"
-            description="调整聊天和差异视图中代码使用的基准字号"
-            control={<NumberInput value={codeFontSize} onChange={setCodeFontSize} />}
+            title="代码字号"
+            description="调整聊天和差异视图中的代码字号"
+            control={
+              <NumberInput value={codeFontSize} onChange={setCodeFontSize} />
+            }
           />
           <SettingsRow
             title="差异标记"
-            description="使用彩色条和背景，或在每个更改行上显示 '+' 和 '-' 符号"
+            description="使用彩色背景，或在每个更改行上显示 + / - 符号"
             control={
               <SegmentedControl
                 value={diffMarker}
                 options={[
                   { value: 'color', label: '颜色' },
-                  { value: '+/-', label: '+/-' }
+                  { value: '+/-', label: '+/-' },
                 ]}
                 onChange={setDiffMarker}
               />
@@ -321,7 +396,7 @@ export function AppearanceSettings() {
                 value={pet}
                 options={[
                   { value: 'codex', label: 'Codex' },
-                  { value: 'off', label: '关闭' }
+                  { value: 'off', label: '关闭' },
                 ]}
                 onChange={setPet}
               />
@@ -331,4 +406,102 @@ export function AppearanceSettings() {
       </div>
     </div>
   )
+}
+
+function ThemePreviewPane({
+  lines,
+  tone,
+}: {
+  lines: Array<{ key: string; value: string }>
+  tone: 'red' | 'green'
+}) {
+  return (
+    <div className={`appearance-preview-pane appearance-preview-${tone}`}>
+      <div className="appearance-preview-line">
+        <div className="appearance-preview-lineno">1</div>
+        <div className="appearance-preview-code">
+          <span className="appearance-syntax-keyword">const</span>
+          <span> </span>
+          <span className="appearance-syntax-name">themePreview</span>
+          <span className="appearance-syntax-punct">: </span>
+          <span className="appearance-syntax-type">ThemeConfig</span>
+          <span> </span>
+          <span className="appearance-syntax-operator">=</span>
+          <span> </span>
+          <span className="appearance-syntax-punct">{'{'}</span>
+        </div>
+      </div>
+      {lines.map((line, i) => (
+        <div
+          key={line.key}
+          className="appearance-preview-line appearance-preview-line-highlight"
+        >
+          <div className="appearance-preview-lineno">{i + 2}</div>
+          <div className="appearance-preview-code">
+            <span className="appearance-syntax-prop">{line.key}</span>
+            <span className="appearance-syntax-punct">: </span>
+            <span
+              className={
+                line.key === 'contrast'
+                  ? 'appearance-syntax-number'
+                  : 'appearance-syntax-string'
+              }
+            >
+              {line.value}
+            </span>
+            <span className="appearance-syntax-punct">,</span>
+          </div>
+        </div>
+      ))}
+      <div className="appearance-preview-line">
+        <div className="appearance-preview-lineno">5</div>
+        <div className="appearance-preview-code">
+          <span className="appearance-syntax-punct">{'};'}</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function parseImportedTheme(
+  parsed: unknown,
+  currentSettings: DesktopThemeSettings,
+  resolvedVariant: DesktopThemeVariant,
+): DesktopThemeSettings {
+  if (isSettingsShape(parsed)) {
+    return normalizeDesktopThemeSettings(parsed)
+  }
+
+  if (isThemeConfigShape(parsed)) {
+    const variant = isDesktopThemeVariant(parsed.variant)
+      ? parsed.variant
+      : resolvedVariant
+    const fallback = variant === 'dark' ? DEFAULT_DARK_THEME : DEFAULT_LIGHT_THEME
+    const theme = normalizeDesktopThemeConfig(parsed, variant, fallback)
+    return {
+      ...currentSettings,
+      mode: variant,
+      themes: {
+        ...currentSettings.themes,
+        [variant]: theme,
+      },
+    }
+  }
+
+  throw new Error('Unsupported theme JSON shape.')
+}
+
+function isSettingsShape(value: unknown): value is DesktopThemeSettings {
+  return Boolean(value) && typeof value === 'object' && 'themes' in value
+}
+
+function isThemeConfigShape(value: unknown): value is DesktopThemeConfigV1 {
+  return Boolean(value) && typeof value === 'object' && 'theme' in value
+}
+
+function themesEqual(
+  left: DesktopThemeConfigV1,
+  right: DesktopThemeConfigV1,
+): boolean {
+  return JSON.stringify(left) === JSON.stringify(right)
 }
