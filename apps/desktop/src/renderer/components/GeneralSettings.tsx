@@ -101,6 +101,8 @@ export function GeneralSettings() {
   const [suggestPrompts, setSuggestPrompts] = useState(true)
   const [popupShortcut] = useState<string | null>(null)
   const [popupNoProjectChat, setPopupNoProjectChat] = useState(false)
+  const [holdDictation] = useState<string | null>(null)
+  const [toggleDictation] = useState<string | null>(null)
 
   const workMode: WorkMode = thinkingMode === 'adaptive' ? 'daily' : 'coding'
   const handleWorkMode = (next: WorkMode) => {
@@ -333,6 +335,53 @@ export function GeneralSettings() {
                 ariaLabel="默认使用无项目聊天"
               />
             }
+          />
+        </SettingsSection>
+
+        <SettingsSection title="听写">
+          <SettingsRow
+            title="按住听写快捷键"
+            description="在桌面任意位置按住，即可在光标处听写"
+            control={
+              <>
+                <span className="settings-row-status">
+                  {holdDictation ? holdDictation : '关闭'}
+                </span>
+                <button type="button" className="settings-button">
+                  设置
+                </button>
+              </>
+            }
+          />
+          <SettingsRow
+            title="切换听写快捷键"
+            description="在桌面任意位置按一次开始听写，再按一次停止"
+            control={
+              <>
+                <span className="settings-row-status">
+                  {toggleDictation ? toggleDictation : '关闭'}
+                </span>
+                <button type="button" className="settings-button">
+                  设置
+                </button>
+              </>
+            }
+          />
+          <SettingsRow
+            title="听写词典"
+            description="听写应能识别的单词或短语"
+            control={
+              <SettingsDropdown
+                value=""
+                options={[{ value: '', label: '未选择' }]}
+                onChange={() => {}}
+                ariaLabel="听写词典"
+              />
+            }
+          />
+          <SettingsRow
+            title="最近的听写记录"
+            description="你最近的听写记录会显示在这里，便于在文本没有出现在预期位置时找回内容"
           />
         </SettingsSection>
       </div>
