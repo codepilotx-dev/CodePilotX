@@ -54,7 +54,6 @@ const DESKTOP_PERMISSION_MODES = new Set<DesktopPermissionMode>([
   'bypassPermissions',
   'default',
   'dontAsk',
-  'plan',
 ])
 const DESKTOP_THINKING_MODES = new Set<DesktopThinkingMode>([
   'default',

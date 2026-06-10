@@ -41,7 +41,6 @@ export type DesktopPermissionMode =
   | 'bypassPermissions'
   | 'default'
   | 'dontAsk'
-  | 'plan'
 
 export type DesktopThinkingMode =
   | 'default'

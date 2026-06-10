@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react'
 import type React from 'react'
 import { Check, ChevronRight } from 'lucide-react'
 
@@ -28,6 +29,27 @@ export function PopoverItem({
   onMouseEnter,
   onMouseLeave,
 }: Props): React.ReactNode {
+  const [metaPosition, setMetaPosition] = useState<'left' | 'right'>('right')
+  const metaRef = useRef<HTMLSpanElement | null>(null)
+
+  const handleMouseEnter = (event: React.MouseEvent<HTMLButtonElement>) => {
+    if (metaRef.current) {
+      const itemRect = event.currentTarget.getBoundingClientRect()
+      const metaRect = metaRef.current.getBoundingClientRect()
+      if (itemRect) {
+        const gap = 10
+        const canShowRight =
+          itemRect.right + gap + metaRect.width < window.innerWidth
+        setMetaPosition(canShowRight ? 'right' : 'left')
+      }
+    }
+    onMouseEnter?.()
+  }
+
+  const handleMouseLeave = () => {
+    onMouseLeave?.()
+  }
+
   return (
     <button
       className={[
@@ -38,8 +60,8 @@ export function PopoverItem({
       ].join(' ')}
       disabled={disabled}
       onClick={onClick}
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
+      onMouseEnter={meta ? handleMouseEnter : onMouseEnter}
+      onMouseLeave={meta ? handleMouseLeave : onMouseLeave}
       role="menuitem"
       type="button"
     >
@@ -47,7 +69,15 @@ export function PopoverItem({
       {meta ? (
         <span className="popover-item-rich">
           <span className="popover-item-label">{children}</span>
-          <span className="popover-item-meta">{meta}</span>
+          <span
+            ref={metaRef}
+            className={[
+              'popover-item-meta',
+              `popover-item-meta-${metaPosition}`,
+            ].join(' ')}
+          >
+            {meta}
+          </span>
         </span>
       ) : (
         <span className="popover-item-label">{children}</span>

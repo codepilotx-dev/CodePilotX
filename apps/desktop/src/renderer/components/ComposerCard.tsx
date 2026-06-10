@@ -153,6 +153,7 @@ export function ComposerCard({
             </IconButton>
             <PopoverMenu
               open={openDropdown === 'permission'}
+              autoWidth
               onOpenChange={open =>
                 setOpenDropdown(open ? 'permission' : null)
               }
@@ -163,7 +164,7 @@ export function ComposerCard({
                   title="选择权限模式"
                 >
                   <ShieldCheck size={16} />
-                  <span>{selectedPermission?.label ?? '自动审查'}</span>
+                  <span>{selectedPermission?.label ?? '默认权限'}</span>
                 </ChipButton>
               }
             >

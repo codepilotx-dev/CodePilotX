@@ -93,6 +93,7 @@
 }
 
 .popover-item {
+  position: relative;
   width: 100%;
   display: flex;
   align-items: center;
@@ -164,8 +165,43 @@
 }
 
 .popover-item-meta {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  display: inline-block;
+  width: max-content;
+  max-width: min(320px, calc(100vw - 32px));
+  padding: 6px 8px;
+  border-radius: var(--r-md);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  background: var(--c-bg);
+  box-shadow: var(--sh-popover);
   color: var(--c-text-meta);
   font-size: var(--fs-11);
+  line-height: 1.4;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.12s ease-out, visibility 0.12s ease-out;
+}
+
+.popover-item-meta-right {
+  left: calc(100% + 10px);
+  right: auto;
+}
+
+.popover-item-meta-left {
+  right: calc(100% + 10px);
+  left: auto;
+}
+
+.popover-item:hover .popover-item-meta,
+.popover-item:focus-visible .popover-item-meta {
+  opacity: 1;
+  visibility: visible;
 }
 
 .popover-item-arrow {
