@@ -11,7 +11,7 @@ export function DesktopShell({
   windowChrome,
   sidebar,
   content,
-  composer,
+
 }: Props): React.ReactNode {
   return (
     <div className="app-shell">
@@ -21,7 +21,7 @@ export function DesktopShell({
         <section className="desktop-main">
           <div className="desktop-main-stage">
             {content}
-            {composer ? <div className="desktop-main-composer">{composer}</div> : null}
+        
           </div>
         </section>
       </div>

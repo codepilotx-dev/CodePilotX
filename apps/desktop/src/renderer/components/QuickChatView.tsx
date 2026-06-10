@@ -50,7 +50,7 @@ export function QuickChatView(): React.ReactNode {
           ) : null}
         </div>
       ) : null}
-      {composer ? <div className="desktop-main-composer">{composer}</div> : null}
+      {composer ? <div className="chat-composer">{composer}</div> : null}
     </section>
   )
 }
