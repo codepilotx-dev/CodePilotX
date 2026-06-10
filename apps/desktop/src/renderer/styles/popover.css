@@ -108,8 +108,7 @@
 }
 
 .popover-item:hover:not(:disabled),
-.popover-item.active,
-.popover-item.selected {
+.popover-item.active {
   background: var(--c-bg-row-hover);
 }
 
@@ -121,6 +120,15 @@
 .popover-item-check,
 .popover-item-arrow {
   flex-shrink: 0;
+}
+
+.popover-item-icon {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--c-icon);
 }
 
 .popover-item-label {
@@ -185,7 +193,9 @@
   pointer-events: none;
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.12s ease-out, visibility 0.12s ease-out;
+  transition:
+    opacity 0.12s ease-out,
+    visibility 0.12s ease-out;
 }
 
 .popover-item-meta-right {

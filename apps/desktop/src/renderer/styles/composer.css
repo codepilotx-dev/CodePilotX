@@ -115,6 +115,34 @@
   color: #2e2e2e;
 }
 
+.chip-button.permission-chip {
+  color: var(--permission-chip-color);
+  transition:
+    background 0.15s ease-out,
+    color 0.15s ease-out;
+}
+
+.chip-button.permission-chip:hover,
+.chip-button.permission-chip.active {
+  background: var(--permission-chip-bg);
+}
+
+.permission-chip-default,
+.permission-chip-dontAsk {
+  --permission-chip-bg: #f5f5f5;
+  --permission-chip-color: #8b8b8b;
+}
+
+.permission-chip-acceptEdits {
+  --permission-chip-bg: #eaf3ff;
+  --permission-chip-color: #0074e8;
+}
+
+.permission-chip-bypassPermissions {
+  --permission-chip-bg: #fff1ea;
+  --permission-chip-color: #f05a18;
+}
+
 .chip-dot {
   width: 8px;
   height: 8px;
