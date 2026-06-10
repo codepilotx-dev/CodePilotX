@@ -8,7 +8,7 @@ type Option<T extends string> = {
 type Props<T extends string> = {
   value: T
   options: Option<T>[]
-  onChange: (value: T) => void
+  onChange: React.Dispatch<React.SetStateAction<T>>
 }
 
 export function SegmentedControl<T extends string>({ value, options, onChange }: Props<T>) {

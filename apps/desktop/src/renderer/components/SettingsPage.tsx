@@ -1,5 +1,6 @@
 import React from 'react'
 import { GeneralSettings } from './GeneralSettings.js'
+import { AppearanceSettings } from './AppearanceSettings.js'
 
 type Props = {
   activeTab: string
@@ -15,6 +16,8 @@ export function SettingsPage({ activeTab, legacySettings }: Props) {
       */}
       {activeTab === 'general' ? (
         <GeneralSettings />
+      ) : activeTab === 'appearance' ? (
+        <AppearanceSettings />
       ) : activeTab === 'config' ? (
         <div className="settings-content-area">
           <h2 className="settings-section-title">高级配置</h2>
