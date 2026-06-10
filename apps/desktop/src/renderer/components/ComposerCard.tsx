@@ -12,7 +12,6 @@ import {
   Search,
   Send,
   ShieldCheck,
-  Smile,
   Sparkles,
   Zap,
 } from 'lucide-react'
@@ -163,7 +162,7 @@ export function ComposerCard({
                   onClick={() => toggleDropdown('permission')}
                   title="选择权限模式"
                 >
-                  <Smile size={16} />
+                  <ShieldCheck size={16} />
                   <span>{selectedPermission?.label ?? '自动审查'}</span>
                 </ChipButton>
               }
