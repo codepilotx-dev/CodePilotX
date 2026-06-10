@@ -9,8 +9,7 @@
 }
 
 .composer-top {
-  min-height: 104px;
-  padding: 14px 16px 10px;
+  padding: 10px 16px 8px;
   border: 1px solid var(--c-border);
   border-radius: 20px;
   background: var(--c-bg);
@@ -18,7 +17,7 @@
 }
 
 .composer-input {
-  padding: 0 0 18px;
+  padding: 0;
 }
 
 .composer-input textarea {
@@ -29,8 +28,7 @@
   border: 0;
   background: transparent;
   color: #1f1f1f;
-  font-size: 16px;
-  line-height: 1.45;
+  font-size: 14px;
 }
 
 .composer-input textarea::placeholder {
