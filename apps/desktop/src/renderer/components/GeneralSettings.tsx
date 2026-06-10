@@ -99,6 +99,8 @@ export function GeneralSettings() {
   const [followUp, setFollowUp] = useState<'queue' | 'steer'>('steer')
   const [reviewView, setReviewView] = useState<'inline' | 'detached'>('inline')
   const [suggestPrompts, setSuggestPrompts] = useState(true)
+  const [popupShortcut] = useState<string | null>(null)
+  const [popupNoProjectChat, setPopupNoProjectChat] = useState(false)
 
   const workMode: WorkMode = thinkingMode === 'adaptive' ? 'daily' : 'coding'
   const handleWorkMode = (next: WorkMode) => {
@@ -302,6 +304,34 @@ export function GeneralSettings() {
               <button type="button" className="settings-button">
                 查看
               </button>
+            }
+          />
+        </SettingsSection>
+
+        <SettingsSection title="弹出窗口">
+          <SettingsRow
+            title="弹出窗口快捷键"
+            description="为弹出窗口设置全局快捷键。留空则保持关闭。"
+            control={
+              <>
+                <span className="settings-row-status">
+                  {popupShortcut ? popupShortcut : '禁用'}
+                </span>
+                <button type="button" className="settings-button">
+                  设置
+                </button>
+              </>
+            }
+          />
+          <SettingsRow
+            title="默认使用无项目聊天"
+            description="无需项目即可开始新聊天"
+            control={
+              <ToggleSwitch
+                checked={popupNoProjectChat}
+                onChange={setPopupNoProjectChat}
+                ariaLabel="默认使用无项目聊天"
+              />
             }
           />
         </SettingsSection>
