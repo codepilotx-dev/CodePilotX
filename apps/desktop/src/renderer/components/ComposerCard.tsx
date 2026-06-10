@@ -41,7 +41,7 @@ type Option<T extends string> = {
 const PERMISSION_MENU_ICON_SIZE = 16;
 const PERMISSION_TRIGGER_ICON_SIZE = 18;
 const COMPOSER_ACTION_ICON_SIZE = 24;
-const META_CHIP_ICON_SIZE = 18;
+const META_CHIP_ICON_SIZE = 14;
 
 type ComposerDropdown = "permission" | "model" | "project" | "mode" | "branch";
 
