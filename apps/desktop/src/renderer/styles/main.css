@@ -1,7 +1,6 @@
-﻿.desktop-main {
+.desktop-main {
   background: var(--c-bg);
   flex: 1;
-  grid-template-rows: auto minmax(0, 1fr);
   min-width: 0;
   min-height: 0;
   display: flex;
@@ -25,9 +24,7 @@
   min-width: 0;
 }
 
-.desktop-main-stage:has(.quick-chat-view:not(.active)) {
-  width: 100%;
-}
+
 
 .desktop-main-composer {
   display: flex;
@@ -66,9 +63,6 @@
   width: 100%;
 }
 
-
-
-
 .quick-chat-hero {
   display: grid;
   gap: 0;
@@ -106,7 +100,6 @@
 .muted-copy {
   color: var(--c-text-soft);
 }
-
 
 .empty-canvas-card,
 .utility-card,
