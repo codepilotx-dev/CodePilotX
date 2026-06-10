@@ -1,10 +1,9 @@
 .desktop-chrome {
-  border-bottom: 1px solid var(--c-border-row);
-  background: var(--c-bg);
+  background: var(--c-bg-mask);
 }
 
 .window-chrome {
-  background: var(--c-bg);
+  background: var(--c-bg-mask);
   user-select: none;
 }
 

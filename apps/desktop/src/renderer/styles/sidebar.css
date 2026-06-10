@@ -7,7 +7,7 @@
   flex-direction: column;
   justify-content: space-between;
   overflow: hidden;
-  border-right: 1px solid var(--c-border-faint);
+  border-right: 0;
   background: var(--c-bg-mask);
   color: #565656;
   user-select: none;
@@ -24,8 +24,6 @@
 .desktop-sidebar.is-collapsed {
   width: 0;
   flex-basis: 0;
-  border-right-width: 0;
-  border-right-color: transparent;
 }
 
 .sidebar-content,

@@ -45,7 +45,7 @@
   .desktop-sidebar.is-collapsed {
     width: var(--sidebar-current-w);
     transform: translateX(-100%);
-    border-right-width: 1px;
+    border-right: 1px solid var(--c-border-faint);
   }
 
   .sidebar-resizer {
