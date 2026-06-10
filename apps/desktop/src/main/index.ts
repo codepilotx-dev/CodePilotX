@@ -75,8 +75,39 @@ function rendererUrl(): string {
 }
 
 function assertTrustedIpcSender(senderUrl: string | undefined): void {
-  if (senderUrl !== rendererUrl()) {
+  if (!isTrustedRendererUrl(senderUrl)) {
     throw new Error('Rejected desktop IPC call from an untrusted renderer.')
+  }
+}
+
+function isTrustedRendererUrl(senderUrl: string | undefined): boolean {
+  if (!senderUrl) return false
+
+  const trustedRendererUrl = rendererUrl()
+  if (senderUrl === trustedRendererUrl) return true
+
+  try {
+    const parsedSender = new URL(senderUrl)
+    const parsedTrusted = new URL(trustedRendererUrl)
+    if (parsedSender.protocol !== parsedTrusted.protocol) return false
+
+    if (parsedSender.protocol === 'file:') {
+      const trustedPath = decodeURIComponent(parsedTrusted.pathname)
+      const senderPath = decodeURIComponent(parsedSender.pathname)
+      const trustedDirectory =
+        trustedPath.endsWith('/')
+          ? trustedPath
+          : trustedPath.replace(/[^/]+$/, '')
+      return (
+        senderPath === trustedPath ||
+        senderPath.startsWith(trustedDirectory)
+      )
+    }
+
+    if (parsedSender.origin !== parsedTrusted.origin) return false
+    return parsedSender.pathname.startsWith(parsedTrusted.pathname)
+  } catch {
+    return false
   }
 }
 
