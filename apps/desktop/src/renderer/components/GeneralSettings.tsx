@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Code2, Briefcase } from 'lucide-react'
+import { SquareTerminal, MessagesSquare } from 'lucide-react'
 import { RadioCard } from './RadioCard.js'
 import { ToggleSwitch } from './ToggleSwitch.js'
 import { SettingsRow } from './SettingsRow.js'
@@ -58,13 +58,13 @@ const WORK_MODES: Array<{
     value: 'coding',
     title: '适用于编程',
     description: '更具技术性的回复和控制',
-    icon: <Code2 />,
+    icon: <SquareTerminal />,
   },
   {
     value: 'daily',
     title: '适用于日常工作',
     description: '同样强大，技术细节更少',
-    icon: <Briefcase />,
+    icon: <MessagesSquare />,
   },
 ]
 
