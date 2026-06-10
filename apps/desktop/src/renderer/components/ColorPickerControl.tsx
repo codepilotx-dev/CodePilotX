@@ -37,6 +37,25 @@ function normalizeHex(value: string): string {
   return FALLBACK_HEX
 }
 
+function parseColorInput(value: string): string | null {
+  const trimmed = value.trim()
+  const raw = trimmed.startsWith('#') ? trimmed.slice(1) : trimmed
+
+  if (/^[0-9a-fA-F]{3}$/.test(raw)) {
+    return `#${raw
+      .split('')
+      .map((char) => char + char)
+      .join('')
+      .toUpperCase()}`
+  }
+
+  if (/^[0-9a-fA-F]{6}$/.test(raw)) {
+    return `#${raw.toUpperCase()}`
+  }
+
+  return null
+}
+
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
   const normalized = normalizeHex(hex).slice(1)
   return {
@@ -143,9 +162,12 @@ export function ColorPickerControl({ value, onChange, ariaLabel }: Props) {
   const draggingRef = useRef(false)
   const [open, setOpen] = useState(false)
   const [hsv, setHsv] = useState<Hsv>(() => hexToHsv(value))
+  const [inputValue, setInputValue] = useState<string>(() => normalizeHex(value))
 
   useEffect(() => {
-    setHsv(hexToHsv(value))
+    const normalized = normalizeHex(value)
+    setHsv(hexToHsv(normalized))
+    setInputValue(normalized)
   }, [value])
 
   useEffect(() => {
@@ -218,33 +240,84 @@ export function ColorPickerControl({ value, onChange, ariaLabel }: Props) {
     }
   }
 
+  function handleColorValueChange(event: React.ChangeEvent<HTMLInputElement>): void {
+    const nextValue = event.target.value
+    setInputValue(nextValue)
+
+    const normalized = parseColorInput(nextValue)
+    if (normalized === null) {
+      return
+    }
+
+    commitColor(hexToHsv(normalized))
+    setInputValue(normalized)
+  }
+
+  function commitColorFromInput(): void {
+    const normalized = parseColorInput(inputValue)
+    if (normalized === null) {
+      setInputValue(selectedHex)
+      return
+    }
+
+    commitColor(hexToHsv(normalized))
+    setInputValue(normalized)
+  }
+
+  function handleColorValueKeyDown(event: React.KeyboardEvent<HTMLInputElement>): void {
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      event.currentTarget.blur()
+      commitColorFromInput()
+      return
+    }
+
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      setInputValue(selectedHex)
+      event.currentTarget.blur()
+    }
+  }
+
   function handleHueChange(event: React.ChangeEvent<HTMLInputElement>): void {
     commitColor({ ...hsv, h: Number(event.target.value) })
   }
 
   return (
     <div className="appearance-color-picker" ref={rootRef}>
-      <button
-        aria-expanded={open}
-        aria-haspopup="dialog"
-        aria-label={ariaLabel}
+      <div
         className="appearance-color-trigger"
-        onClick={() => setOpen((current) => !current)}
-        type="button"
         style={{
           backgroundColor: selectedHex,
           color: buttonTextColor,
         }}
       >
-        <span
+        <button
+          aria-expanded={open}
+          aria-haspopup="dialog"
+          aria-label={ariaLabel}
           className="appearance-color-trigger-swatch"
+          onClick={() => setOpen((current) => !current)}
+          type="button"
           style={{
             backgroundColor: selectedHex,
             borderColor: swatchBorderColor,
           }}
         />
-        <span className="appearance-color-trigger-value">{selectedHex}</span>
-      </button>
+        <input
+          aria-label={`${ariaLabel ?? 'color'} value`}
+          className="appearance-color-trigger-value"
+          maxLength={7}
+          onBlur={commitColorFromInput}
+          onFocus={() => setOpen(false)}
+          onPointerDown={() => setOpen(false)}
+          onChange={handleColorValueChange}
+          onKeyDown={handleColorValueKeyDown}
+          spellCheck={false}
+          type="text"
+          value={inputValue}
+        />
+      </div>
 
       {open ? (
         <div className="appearance-color-popover" role="dialog" aria-label={ariaLabel}>
