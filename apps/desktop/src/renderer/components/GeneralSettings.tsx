@@ -106,6 +106,7 @@ export function GeneralSettings() {
   const [notifyOnComplete, setNotifyOnComplete] = useState('unfocused')
   const [notifyPermission, setNotifyPermission] = useState(true)
   const [notifyQuestions, setNotifyQuestions] = useState(true)
+  const [showContextUsage, setShowContextUsage] = useState(true)
 
   const workMode: WorkMode = thinkingMode === 'adaptive' ? 'daily' : 'coding'
   const handleWorkMode = (next: WorkMode) => {
@@ -424,6 +425,20 @@ export function GeneralSettings() {
                 checked={notifyQuestions}
                 onChange={setNotifyQuestions}
                 ariaLabel="启用问题通知"
+              />
+            }
+          />
+        </SettingsSection>
+
+        <SettingsSection title="Composer footer">
+          <SettingsRow
+            title="Show context window usage"
+            description="Show context window usage in the composer footer"
+            control={
+              <ToggleSwitch
+                checked={showContextUsage}
+                onChange={setShowContextUsage}
+                ariaLabel="Show context window usage"
               />
             }
           />
