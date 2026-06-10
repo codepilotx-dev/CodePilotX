@@ -21,7 +21,7 @@ export function DesktopShell({
         <section className="desktop-main">
           <div className="desktop-main-stage">
             {content}
-            <div className="desktop-main-composer">{composer}</div>
+            {composer ? <div className="desktop-main-composer">{composer}</div> : null}
           </div>
         </section>
       </div>

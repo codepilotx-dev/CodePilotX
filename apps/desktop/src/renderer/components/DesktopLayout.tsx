@@ -1,5 +1,5 @@
 import type React from 'react'
-import { Outlet, useNavigate } from 'react-router-dom'
+import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { AlertCircle } from 'lucide-react'
 import { ComposerCard } from './ComposerCard.js'
 import { DesktopShell } from './DesktopShell.js'
@@ -339,6 +339,8 @@ export function DesktopLayout(): React.ReactNode {
     recentWorkspaces,
     sessions,
   })
+  const location = useLocation()
+  const isHomePage = location.pathname === '/'
 
   useEffect(() => {
     let mounted = true
@@ -404,7 +406,7 @@ export function DesktopLayout(): React.ReactNode {
     />
   )
 
-  const composer = (
+  const composer = isHomePage ? (
     <ComposerCard
       input={input}
       canSubmit={canSubmit}
@@ -428,7 +430,7 @@ export function DesktopLayout(): React.ReactNode {
       onSubmit={() => void submit()}
       onThinkingChange={setThinkingMode}
     />
-  )
+  ) : null
 
   return (
     <div className="desktop-frame">
