@@ -103,6 +103,9 @@ export function GeneralSettings() {
   const [popupNoProjectChat, setPopupNoProjectChat] = useState(false)
   const [holdDictation] = useState<string | null>(null)
   const [toggleDictation] = useState<string | null>(null)
+  const [notifyOnComplete, setNotifyOnComplete] = useState('unfocused')
+  const [notifyPermission, setNotifyPermission] = useState(true)
+  const [notifyQuestions, setNotifyQuestions] = useState(true)
 
   const workMode: WorkMode = thinkingMode === 'adaptive' ? 'daily' : 'coding'
   const handleWorkMode = (next: WorkMode) => {
@@ -382,6 +385,47 @@ export function GeneralSettings() {
           <SettingsRow
             title="最近的听写记录"
             description="你最近的听写记录会显示在这里，便于在文本没有出现在预期位置时找回内容"
+          />
+        </SettingsSection>
+
+        <SettingsSection title="通知">
+          <SettingsRow
+            title="轮次完成通知"
+            description="设置 Codex 完成任务时的提醒"
+            control={
+              <SettingsDropdown
+                value={notifyOnComplete}
+                options={[
+                  { value: 'always', label: '总是' },
+                  { value: 'unfocused', label: '仅当应用失焦时' },
+                  { value: 'never', label: '从不' },
+                ]}
+                onChange={setNotifyOnComplete}
+                ariaLabel="轮次完成通知"
+              />
+            }
+          />
+          <SettingsRow
+            title="启用权限通知"
+            description="在需要通知权限时显示提醒"
+            control={
+              <ToggleSwitch
+                checked={notifyPermission}
+                onChange={setNotifyPermission}
+                ariaLabel="启用权限通知"
+              />
+            }
+          />
+          <SettingsRow
+            title="启用问题通知"
+            description="需要输入才能继续时显示提醒"
+            control={
+              <ToggleSwitch
+                checked={notifyQuestions}
+                onChange={setNotifyQuestions}
+                ariaLabel="启用问题通知"
+              />
+            }
           />
         </SettingsSection>
       </div>
