@@ -1,7 +1,11 @@
 import React from 'react'
 import { Code2, Briefcase } from 'lucide-react'
 import { RadioCard } from './RadioCard.js'
+import { ToggleSwitch } from './ToggleSwitch.js'
+import { SettingsRow } from './SettingsRow.js'
+import { SettingsSection } from './SettingsSection.js'
 import { useDesktopSettings } from '../features/settings/useDesktopSettings.js'
+import type { DesktopPermissionMode } from '../../shared/types.js'
 
 type WorkMode = 'coding' | 'daily'
 
@@ -25,11 +29,46 @@ const WORK_MODES: Array<{
   },
 ]
 
+const PERMISSION_LEVELS: Record<DesktopPermissionMode, number> = {
+  default: 0,
+  acceptEdits: 1,
+  bypassPermissions: 2,
+  dontAsk: 2,
+}
+
+function LearnMoreLink() {
+  return (
+    <a
+      className="settings-row-link"
+      href="#"
+      onClick={e => e.preventDefault()}
+    >
+      了解更多有关高风险的信息。
+    </a>
+  )
+}
+
 export function GeneralSettings() {
-  const { thinkingMode, setThinkingMode } = useDesktopSettings()
+  const { thinkingMode, setThinkingMode, permissionMode, setPermissionMode } =
+    useDesktopSettings()
+
   const workMode: WorkMode = thinkingMode === 'adaptive' ? 'daily' : 'coding'
   const handleWorkMode = (next: WorkMode) => {
     setThinkingMode(next === 'coding' ? 'default' : 'adaptive')
+  }
+
+  const level = PERMISSION_LEVELS[permissionMode] ?? 0
+  const defaultPermOn = level >= 0
+  const autoApproveOn = level >= 1
+  const fullAccessOn = level >= 2
+
+  const handleAutoApprove = (checked: boolean) => {
+    if (checked) setPermissionMode('acceptEdits')
+    else setPermissionMode('default')
+  }
+  const handleFullAccess = (checked: boolean) => {
+    if (checked) setPermissionMode('bypassPermissions')
+    else setPermissionMode('acceptEdits')
   }
 
   return (
@@ -55,6 +94,52 @@ export function GeneralSettings() {
             ))}
           </div>
         </section>
+
+        <SettingsSection title="权限">
+          <SettingsRow
+            title="默认权限"
+            description="默认情况下，Codex 可以读取并编辑其工作区中的文件。必要时，它可以请求额外的访问权限。"
+            control={
+              <ToggleSwitch
+                checked={defaultPermOn}
+                onChange={() => {}}
+                ariaLabel="默认权限"
+              />
+            }
+          />
+          <SettingsRow
+            title="自动审核"
+            description={
+              <>
+                Codex 可以读取和编辑其工作区中的文件。Codex 会自动审核额外访问权限请求。自动审核可能会出错。
+                <LearnMoreLink />
+              </>
+            }
+            control={
+              <ToggleSwitch
+                checked={autoApproveOn}
+                onChange={handleAutoApprove}
+                ariaLabel="自动审核"
+              />
+            }
+          />
+          <SettingsRow
+            title="完全访问权限"
+            description={
+              <>
+                当 Codex 以完全访问权限运行时，无需你批准，即可编辑你的电脑上的任何文件并运行联网命令。这会显著增加数据丢失、泄露或意外行为的风险。
+                <LearnMoreLink />
+              </>
+            }
+            control={
+              <ToggleSwitch
+                checked={fullAccessOn}
+                onChange={handleFullAccess}
+                ariaLabel="完全访问权限"
+              />
+            }
+          />
+        </SettingsSection>
       </div>
     </div>
   )
