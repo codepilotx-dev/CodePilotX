@@ -6,6 +6,8 @@ type Props = {
   className?: string
   open: boolean
   trigger: React.ReactNode
+  autoWidth?: boolean
+  textMode?: 'nowrap' | 'wrap'
   onOpenChange: (open: boolean) => void
 }
 
@@ -14,6 +16,8 @@ export function PopoverMenu({
   className = '',
   open,
   trigger,
+  autoWidth = false,
+  textMode = 'nowrap',
   onOpenChange,
 }: Props): React.ReactNode {
   const rootRef = useRef<HTMLDivElement | null>(null)
@@ -63,7 +67,15 @@ export function PopoverMenu({
     <div className="popover-root" ref={rootRef}>
       {trigger}
       {open ? (
-        <div className={`popover ${className}`} role="menu">
+        <div
+          className={[
+            'popover',
+            className,
+            autoWidth ? 'popover-auto-width' : '',
+            textMode === 'wrap' ? 'popover-text-wrap' : '',
+          ].join(' ')}
+          role="menu"
+        >
           {children}
         </div>
       ) : null}

@@ -7,6 +7,8 @@
   bottom: calc(100% + 6px);
   left: 0;
   z-index: 1000;
+  display: inline-block;
+  width: max-content;
   min-width: 240px;
   max-width: min(420px, calc(100vw - 32px));
   padding: 6px;
@@ -17,6 +19,11 @@
   color: var(--c-text);
   font-size: var(--fs-13);
   transform-origin: bottom left;
+}
+
+.popover-auto-width {
+  min-width: 0;
+  width: max-content;
 }
 
 .popover-model,
@@ -121,6 +128,21 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.popover-text-wrap .popover-item-label {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.popover-text-wrap .popover-item {
+  align-items: flex-start;
+}
+
+.popover-text-wrap .popover-item-rich {
+  align-items: flex-start;
 }
 
 .popover-item-rich {
