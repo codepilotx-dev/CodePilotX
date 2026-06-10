@@ -7,7 +7,7 @@ import {
   shell,
 } from 'electron'
 import { execFile } from 'node:child_process'
-import { open, readdir, stat } from 'node:fs/promises'
+import { mkdir, open, readdir, stat } from 'node:fs/promises'
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { promisify } from 'node:util'
@@ -76,6 +76,8 @@ const IGNORED_DIRECTORY_NAMES = new Set([
   'release',
 ])
 const MAX_FILE_PREVIEW_BYTES = 200_000
+const STANDALONE_WORKSPACE_NAME = '无项目对话'
+const STANDALONE_WORKSPACE_DIRECTORY_NAME = 'chat-workspace'
 const DESKTOP_PERMISSION_MODES = new Set<DesktopPermissionMode>([
   'acceptEdits',
   'bypassPermissions',
@@ -466,6 +468,21 @@ async function workspaceFromPath(workspacePath: string): Promise<DesktopWorkspac
   }
 }
 
+async function getStandaloneWorkspace(): Promise<DesktopWorkspace> {
+  const workspacePath = join(
+    getDesktopConfigDirectoryPath(),
+    STANDALONE_WORKSPACE_DIRECTORY_NAME,
+  )
+  await mkdir(workspacePath, { recursive: true })
+  return {
+    path: workspacePath,
+    name: STANDALONE_WORKSPACE_NAME,
+    branchName: null,
+    isGitRepo: false,
+    isStandalone: true,
+  }
+}
+
 async function getWorkspaceContext(workspacePath: string): Promise<DesktopWorkspace> {
   const resolvedWorkspace = assertAllowedWorkspace(workspacePath)
   return workspaceFromPath(resolvedWorkspace)
@@ -633,9 +650,11 @@ async function createSession(
   if (!options || typeof options !== 'object') {
     throw new Error('Desktop session options must be an object.')
   }
-  const workspacePath = assertAllowedWorkspace(
-    requireNonEmptyString(options.workspacePath, 'Desktop workspace path'),
-  )
+  const workspace =
+    typeof options.workspacePath === 'string' && options.workspacePath.trim()
+      ? await workspaceFromPath(assertAllowedWorkspace(options.workspacePath))
+      : await getStandaloneWorkspace()
+  const workspacePath = workspace.path
   const permissionMode = normalizePermissionMode(options.permissionMode)
   const model = normalizeOptionalText(options.model)
   const fallbackModel = normalizeOptionalText(options.fallbackModel)
@@ -647,6 +666,7 @@ async function createSession(
     options.additionalDirectories,
     workspacePath,
   )
+  const standalone = workspace.isStandalone === true
   const session = createDesktopAgentSession(
     {
       workspacePath,
@@ -669,7 +689,7 @@ async function createSession(
       return
     }
     emitAgentEvent(event)
-    if (event.type === 'done' || event.type === 'error') {
+    if (!standalone && (event.type === 'done' || event.type === 'error')) {
       void getWorkspaceDiff(session.workspacePath).then(diff => {
         if (sessions.get(session.sessionId) !== session) {
           return
@@ -683,7 +703,7 @@ async function createSession(
       })
     }
   })
-  return { sessionId: session.sessionId }
+  return { sessionId: session.sessionId, workspace, standalone }
 }
 
 function normalizePermissionMode(

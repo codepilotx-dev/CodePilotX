@@ -72,6 +72,7 @@ export function upsertRecentWorkspace(
   workspaces: DesktopWorkspace[],
   workspace: DesktopWorkspace,
 ): DesktopWorkspace[] {
+  if (workspace.isStandalone) return workspaces;
   const filtered = workspaces.filter((item) => item.path !== workspace.path);
   return [workspace, ...filtered].slice(0, MAX_RECENT_WORKSPACES);
 }
@@ -118,6 +119,7 @@ function parseStoredRecentWorkspaces(value: unknown): DesktopWorkspace[] {
     if (
       item &&
       typeof item === "object" &&
+      (item as DesktopWorkspace).isStandalone !== true &&
       isString((item as DesktopWorkspace).name) &&
       isString((item as DesktopWorkspace).path)
     ) {

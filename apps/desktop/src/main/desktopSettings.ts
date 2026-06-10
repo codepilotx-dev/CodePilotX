@@ -133,6 +133,7 @@ function normalizeWorkspaces(value: unknown): DesktopWorkspace[] {
   return value.flatMap(item => {
     if (!item || typeof item !== 'object') return []
     const workspace = item as Partial<DesktopWorkspace>
+    if (workspace.isStandalone) return []
     if (typeof workspace.name !== 'string') return []
     if (typeof workspace.path !== 'string') return []
     return [

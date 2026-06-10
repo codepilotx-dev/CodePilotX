@@ -59,10 +59,9 @@ export async function createSessionForWorkspaceAction(
   settings: SessionSettingsSnapshot,
   target: DesktopWorkspace | null,
 ): Promise<string | null> {
-  if (!target) return null
   try {
     const session = await window.desktopApi.createSession({
-      workspacePath: target.path,
+      workspacePath: target?.path,
       permissionMode: settings.permissionMode,
       model: normalizeOptionalText(settings.model),
       fallbackModel: normalizeOptionalText(settings.fallbackModel),
@@ -74,12 +73,13 @@ export async function createSessionForWorkspaceAction(
         settings.additionalDirectories,
       ),
     })
+    const workspace = session.workspace
     const nextView =
       context.sessionViewsRef.current[session.sessionId] ??
       createEmptySessionView()
     context.sessionWorkspacesRef.current = {
       ...context.sessionWorkspacesRef.current,
-      [session.sessionId]: target,
+      [session.sessionId]: workspace,
     }
     setSessionView(context.sessionViewsRef, session.sessionId, nextView)
     activateSession(context, session.sessionId)
@@ -89,8 +89,9 @@ export async function createSessionForWorkspaceAction(
       {
         id: session.sessionId,
         sessionName: normalizeOptionalText(settings.sessionName) ?? null,
-        workspaceName: target.name,
-        workspacePath: target.path,
+        workspaceName: workspace.name,
+        workspacePath: workspace.path,
+        standalone: session.standalone,
         permissionMode: settings.permissionMode,
         model: normalizeOptionalText(settings.model) ?? null,
         fallbackModel: normalizeOptionalText(settings.fallbackModel) ?? null,
@@ -209,8 +210,12 @@ export async function closeSessionAction(
     const nextWorkspace = remainingSessionWorkspaces[next.id] ?? {
       name: next.workspaceName,
       path: next.workspacePath,
+      isStandalone: next.standalone,
     }
-    return { nextActiveSession: next, nextWorkspace }
+    return {
+      nextActiveSession: next,
+      nextWorkspace: next.standalone ? null : nextWorkspace,
+    }
   }
   applySessionView(createEmptySessionView(), context.viewSetters)
   return { nextActiveSession: null, nextWorkspace: null }
@@ -219,13 +224,16 @@ export async function closeSessionAction(
 export function selectSessionAction(
   context: SessionActionContext,
   session: SessionListItem,
-): DesktopWorkspace {
+): DesktopWorkspace | null {
   activateSession(context, session.id)
   context.setSessionStatus(session.status)
   applySessionView(
     context.sessionViewsRef.current[session.id] ?? createEmptySessionView(),
     context.viewSetters,
   )
+  if (session.standalone) {
+    return null
+  }
   return context.sessionWorkspacesRef.current[session.id] ?? {
     name: session.workspaceName,
     path: session.workspacePath,

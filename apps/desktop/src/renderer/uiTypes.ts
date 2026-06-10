@@ -27,6 +27,7 @@ export type SessionListItem = {
   sessionName: string | null
   workspaceName: string
   workspacePath: string
+  standalone?: boolean
   permissionMode: DesktopPermissionMode
   model: string | null
   fallbackModel: string | null

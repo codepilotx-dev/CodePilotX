@@ -21,6 +21,10 @@ type PendingPermission = {
   resolve: (decision: DesktopPermissionDecision) => void
 }
 
+type ResolvedDesktopSessionOptions = CreateDesktopSessionOptions & {
+  workspacePath: string
+}
+
 export type DesktopAgentSessionRuntimeOptions = {
   agentExecutablePath?: string
 }
@@ -57,7 +61,7 @@ class LocalDesktopAgentSession
   private readonly runtime: DesktopAgentRuntime
 
   constructor(
-    options: CreateDesktopSessionOptions,
+    options: ResolvedDesktopSessionOptions,
     runtimeOptions: DesktopAgentSessionRuntimeOptions,
   ) {
     super()
@@ -213,7 +217,7 @@ class LocalDesktopAgentSession
 }
 
 export function createDesktopAgentSession(
-  options: CreateDesktopSessionOptions,
+  options: ResolvedDesktopSessionOptions,
   runtimeOptions: DesktopAgentSessionRuntimeOptions = {},
 ): DesktopAgentSession {
   return new LocalDesktopAgentSession(options, runtimeOptions)

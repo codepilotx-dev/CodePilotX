@@ -10,6 +10,7 @@ export type DesktopWorkspace = {
   name: string
   branchName?: string | null
   isGitRepo?: boolean
+  isStandalone?: boolean
 }
 
 export type DesktopFileEntry = {
@@ -167,7 +168,7 @@ export type DesktopAgentEvent =
   | { type: 'done'; sessionId: string }
 
 export type CreateDesktopSessionOptions = {
-  workspacePath: string
+  workspacePath?: string
   permissionMode?: DesktopPermissionMode
   model?: string
   fallbackModel?: string
@@ -180,6 +181,8 @@ export type CreateDesktopSessionOptions = {
 
 export type CreateDesktopSessionResult = {
   sessionId: string
+  workspace: DesktopWorkspace
+  standalone: boolean
 }
 
 export type DesktopUiCommand =

@@ -29,7 +29,10 @@ export function ProjectList({
   onCloseSession,
 }: Props): React.ReactNode {
   const workspaceSessions = workspace
-    ? sessions.filter(session => session.workspacePath === workspace.path)
+    ? sessions.filter(
+        session =>
+          !session.standalone && session.workspacePath === workspace.path,
+      )
     : []
 
   return (

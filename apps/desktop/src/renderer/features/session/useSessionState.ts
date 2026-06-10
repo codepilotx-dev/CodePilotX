@@ -70,7 +70,7 @@ export type UseSessionStateResult = {
     alwaysAllow?: boolean,
   ) => Promise<void>
   closeSession: (targetSessionId: string) => Promise<CloseSessionResult | null>
-  selectSession: (session: SessionListItem) => DesktopWorkspace
+  selectSession: (session: SessionListItem) => DesktopWorkspace | null
   toggleToolLogEntry: (entryId: string) => void
 }
 
@@ -235,13 +235,11 @@ export function useSessionState(
   const submit = useCallback(async (target?: DesktopWorkspace | null): Promise<void> => {
     const targetSessionId =
       sessionId ??
-      (target
-        ? await createSessionForWorkspaceAction(
-            actionContext,
-            settingsSnapshot,
-            target,
-          )
-        : null)
+      (await createSessionForWorkspaceAction(
+        actionContext,
+        settingsSnapshot,
+        target ?? null,
+      ))
     await submitSessionMessageAction(
       onErrorRef,
       targetSessionId,
@@ -285,7 +283,7 @@ export function useSessionState(
   )
 
   const selectSession = useCallback(
-    (session: SessionListItem): DesktopWorkspace =>
+    (session: SessionListItem): DesktopWorkspace | null =>
       selectSessionAction(actionContext, session),
     [actionContext],
   )

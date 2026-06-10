@@ -174,11 +174,8 @@ export function DesktopLayout(): React.ReactNode {
       await createSessionForWorkspace(currentWorkspace)
       return
     }
-    const selected = await handleChooseWorkspace()
-    if (selected) {
-      await createSessionForWorkspace(selected)
-    }
-  }, [createSessionForWorkspace, currentWorkspace, handleChooseWorkspace])
+    await createSessionForWorkspace(null)
+  }, [createSessionForWorkspace, currentWorkspace])
 
   const handleNewConversation = useCallback(async (): Promise<void> => {
     navigate('/')
@@ -186,14 +183,10 @@ export function DesktopLayout(): React.ReactNode {
       await createSessionForWorkspace(currentWorkspace)
       return
     }
-    const selected = await handleChooseWorkspace()
-    if (selected) {
-      await createSessionForWorkspace(selected)
-    }
+    await createSessionForWorkspace(null)
   }, [
     createSessionForWorkspace,
     currentWorkspace,
-    handleChooseWorkspace,
     navigate,
   ])
 
@@ -387,16 +380,31 @@ export function DesktopLayout(): React.ReactNode {
     (sessionItem: SessionListItem): void => {
       const nextWorkspace = selectSessionRaw(sessionItem)
       navigate('/')
+      if (!nextWorkspace) {
+        setWorkspaceState(null)
+        setDiffState('未选择项目。')
+        setSelectedFile(null)
+        return
+      }
       setWorkspaceState(nextWorkspace)
       void refreshWorkspace(nextWorkspace, { expectedSessionId: sessionItem.id })
     },
-    [navigate, refreshWorkspace, selectSessionRaw, setWorkspaceState],
+    [
+      navigate,
+      refreshWorkspace,
+      selectSessionRaw,
+      setDiffState,
+      setSelectedFile,
+      setWorkspaceState,
+    ],
   )
 
   const handleCloseSession = useCallback(
     async (targetSessionId: string): Promise<void> => {
+      const closingActiveSession = targetSessionId === sessionId
       const result = await closeSession(targetSessionId)
       if (!result) return
+      if (!closingActiveSession) return
       if (result.nextActiveSession && result.nextWorkspace) {
         setWorkspaceState(result.nextWorkspace)
         void refreshWorkspace(result.nextWorkspace, {
@@ -408,7 +416,14 @@ export function DesktopLayout(): React.ReactNode {
         setSelectedFile(null)
       }
     },
-    [closeSession, refreshWorkspace, setDiffState, setSelectedFile, setWorkspaceState],
+    [
+      closeSession,
+      refreshWorkspace,
+      sessionId,
+      setDiffState,
+      setSelectedFile,
+      setWorkspaceState,
+    ],
   )
 
   const runtimeMissing = runtimeStatus?.agentExecutableExists === false
@@ -423,9 +438,11 @@ export function DesktopLayout(): React.ReactNode {
     )
   const workspaceName = currentWorkspace?.name ?? '未选择项目'
   const branchName =
-    currentWorkspace?.isGitRepo === false
+    !currentWorkspace
+      ? '无项目'
+      : currentWorkspace.isGitRepo === false
       ? '未检测到 Git 分支'
-      : currentWorkspace?.branchName ?? '未检测到 Git 分支'
+      : currentWorkspace.branchName ?? '未检测到 Git 分支'
 
   const search = useDesktopSearch({
     query: searchQuery,
@@ -525,10 +542,7 @@ export function DesktopLayout(): React.ReactNode {
             await submit(currentWorkspace)
             return
           }
-          const selected = await handleChooseWorkspace()
-          if (selected) {
-            await submit(selected)
-          }
+          await submit(null)
         })()
       }}
       onThinkingChange={setThinkingMode}

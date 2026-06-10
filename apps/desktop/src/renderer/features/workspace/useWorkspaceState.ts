@@ -96,6 +96,13 @@ export function useWorkspaceState(
       refreshOptions: RefreshWorkspaceOptions = {},
     ): Promise<void> => {
       if (!target) return
+      if (target.isStandalone) {
+        setWorkspace(null)
+        setFiles([])
+        setDiff(NO_WORKSPACE_DIFF)
+        setSelectedFile(null)
+        return
+      }
       try {
         const [nextContext, nextFiles, nextDiff] = await Promise.all([
           window.desktopApi.getWorkspaceContext(target.path),

@@ -174,7 +174,8 @@ export function DesktopSidebar({
             recentWorkspaces.map(item => {
               const expanded = workspace?.path === item.path
               const workspaceSessions = sessions.filter(
-                session => session.workspacePath === item.path,
+                session =>
+                  !session.standalone && session.workspacePath === item.path,
               )
               return (
                 <div className="project-block" key={item.path}>

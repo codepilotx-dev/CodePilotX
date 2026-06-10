@@ -322,7 +322,7 @@ export function ComposerCard({
             <MetaChip
               active={openDropdown === 'project'}
               icon={<Folder size={META_CHIP_ICON_SIZE} />}
-              label={workspace?.name ?? '选择项目'}
+              label={workspace?.name ?? '无项目对话'}
               onClick={() => toggleDropdown('project')}
               title="选择项目"
             />
@@ -437,7 +437,9 @@ export function ComposerCard({
           </PopoverItem>
         </PopoverMenu>
 
-        {workspace?.isGitRepo === false ? (
+        {!workspace ? (
+          <span className="composer-meta-note">未选择项目文件夹</span>
+        ) : workspace.isGitRepo === false ? (
           <span className="composer-meta-note">非 Git 项目</span>
         ) : (
           workspace?.path && (
