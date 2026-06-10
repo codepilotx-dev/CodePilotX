@@ -8,10 +8,15 @@
 }
 
 /* --- Left Nav --- */
+.settings-shell-sidebar {
+  background: var(--c-bg-soft);
+}
+
 .settings-nav {
-  width: 240px;
+  width: 100%;
+  min-width: var(--sidebar-current-w);
+  height: 100%;
   background-color: var(--c-bg-soft);
-  border-right: 1px solid var(--c-border-soft);
   display: flex;
   flex-direction: column;
   padding: var(--sp-4) 0;

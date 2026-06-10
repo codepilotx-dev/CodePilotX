@@ -1,23 +1,14 @@
-import React, { useState } from 'react'
-import { SettingsNav } from './SettingsNav.js'
+import React from 'react'
 import { GeneralSettings } from './GeneralSettings.js'
 
 type Props = {
-  onClose: () => void
+  activeTab: string
   legacySettings?: React.ReactNode
 }
 
-export function SettingsPage({ onClose, legacySettings }: Props) {
-  const [activeTab, setActiveTab] = useState('general')
-
+export function SettingsPage({ activeTab, legacySettings }: Props) {
   return (
     <div className="settings-page">
-      <SettingsNav 
-        activeTab={activeTab} 
-        onTabChange={setActiveTab} 
-        onBack={onClose} 
-      />
-      
       {/* 
         Ideally we would switch rendering based on activeTab. 
         For this task, we only implemented the GeneralSettings 
