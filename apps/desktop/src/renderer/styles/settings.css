@@ -218,28 +218,15 @@
   background-color: var(--c-bg);
   display: flex;
   gap: var(--sp-3);
-  align-items: flex-start;
+  align-items: center;
 }
 
 .radio-card:hover {
   border-color: var(--c-border);
 }
 
-.radio-card.active {
-  border-color: var(--c-accent);
-  background-color: #f3f7ff;
-}
-
 .radio-card-icon {
-  color: var(--c-text-soft);
-  width: 18px;
-  height: 18px;
   flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.radio-card.active .radio-card-icon {
-  color: var(--c-accent);
 }
 
 .radio-card-body {
