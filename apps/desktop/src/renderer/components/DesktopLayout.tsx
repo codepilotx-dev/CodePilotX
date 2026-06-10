@@ -399,7 +399,6 @@ export function DesktopLayout(): React.ReactNode {
       onCloseSession={session => void handleCloseSession(session)}
       onCreateSession={() => void handleCreateSession()}
       onOpenWorkspace={workspaceItem => void handleOpenRecentWorkspace(workspaceItem)}
-      onRefreshWorkspace={() => void refreshWorkspace()}
       onSelectSession={handleSelectSession}
       onSetWidth={setSidebarWidth}
       onToggleCollapsed={toggleSidebarCollapsed}

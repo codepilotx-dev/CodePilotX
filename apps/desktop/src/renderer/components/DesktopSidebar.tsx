@@ -9,7 +9,6 @@ import {
   FolderOpen,
   History,
   Plus,
-  RefreshCw,
   Search,
   Settings2,
   Smartphone,
@@ -33,7 +32,6 @@ type Props = {
   onCloseSession: (sessionId: string) => void
   onCreateSession: () => void
   onOpenWorkspace: (workspace: DesktopWorkspace) => void
-  onRefreshWorkspace: () => void
   onSelectSession: (session: SessionListItem) => void
   onSetWidth: (width: number) => void
   onToggleCollapsed: () => void
@@ -64,7 +62,6 @@ export function DesktopSidebar({
   onCloseSession,
   onCreateSession,
   onOpenWorkspace,
-  onRefreshWorkspace,
   onSelectSession,
   onSetWidth,
   onToggleCollapsed,
@@ -160,13 +157,6 @@ export function DesktopSidebar({
             <div className="sidebar-action-row">
               <IconButton onClick={onChooseWorkspace} title="选择项目">
                 <FolderOpen size={15} />
-              </IconButton>
-              <IconButton
-                disabled={!workspace}
-                onClick={onRefreshWorkspace}
-                title="刷新项目"
-              >
-                <RefreshCw size={15} />
               </IconButton>
               <IconButton
                 disabled={!workspace}
