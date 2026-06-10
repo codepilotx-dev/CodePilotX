@@ -56,7 +56,37 @@
 
 .quick-chat-view.active {
   align-self: stretch;
+  justify-content: flex-start;
+  gap: 0;
+  height: 100%;
 }
+
+.chat-session-header {
+  width: 100%;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  padding: 0 4px 14px;
+  border-bottom: 1px solid var(--c-border-soft);
+  flex-shrink: 0;
+}
+
+.chat-session-title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+  color: var(--c-text-strong);
+  font-size: var(--fs-14);
+  font-weight: 600;
+}
+
+.chat-session-title span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .quick-chat-content {
   flex: 1;
   min-height: 0;
@@ -171,6 +201,83 @@
 .message-card span {
   color: var(--c-text-meta);
   font-size: var(--fs-12);
+}
+
+.conversation-stream {
+  width: min(100%, 760px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  margin: 0 auto;
+  padding: var(--sp-6) 0;
+}
+
+.chat-message-row {
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  color: var(--c-text);
+  font-size: var(--fs-14);
+  line-height: 1.6;
+}
+
+.chat-message-row.user {
+  align-items: flex-end;
+}
+
+.chat-message-row.assistant,
+.chat-message-row.system,
+.assistant-thinking {
+  align-items: flex-start;
+}
+
+.user-message-bubble {
+  max-width: min(520px, 78%);
+  padding: 8px 13px;
+  border-radius: 17px;
+  background: var(--c-bg-chip-hover);
+  color: var(--c-text-strong);
+  white-space: pre-wrap;
+}
+
+.assistant-message-body {
+  max-width: min(680px, 100%);
+  color: var(--c-text-strong);
+}
+
+.assistant-message-body p {
+  margin: 0 0 var(--sp-3);
+}
+
+.assistant-message-body p:last-child {
+  margin-bottom: 0;
+}
+
+.assistant-message-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.message-action {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-md);
+  color: var(--c-text-meta);
+}
+
+.message-action:hover {
+  background: var(--c-bg-hover);
+  color: var(--c-text);
+}
+
+.assistant-thinking {
+  color: var(--c-text-soft);
+  font-size: var(--fs-14);
 }
 
 .utility-view {

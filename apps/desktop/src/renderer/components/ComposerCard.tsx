@@ -13,6 +13,7 @@ import {
   Send,
   ShieldAlert,
   ShieldCheck,
+  Square,
   Wrench,
   Zap,
 } from 'lucide-react'
@@ -56,6 +57,7 @@ type Props = {
   branchName: string
   recentWorkspaces: DesktopWorkspace[]
   workspace: DesktopWorkspace | null
+  placeholder?: string
   onChooseWorkspace: () => void
   onInputChange: (value: string) => void
   onInterrupt: () => void
@@ -80,6 +82,7 @@ export function ComposerCard({
   branchName,
   recentWorkspaces,
   workspace,
+  placeholder = '随心输入',
   onChooseWorkspace,
   onInputChange,
   onInterrupt,
@@ -169,7 +172,7 @@ export function ComposerCard({
               event.preventDefault()
               if (canSubmit) onSubmit()
             }}
-            placeholder="随心输入"
+            placeholder={placeholder}
             rows={1}
           />
         </div>
@@ -300,14 +303,18 @@ export function ComposerCard({
               <Mic size={18} />
             </IconButton>
             <button
-              aria-label={isRunning ? '运行中' : '发送'}
+              aria-label={isRunning ? '停止' : '发送'}
               className="send-button"
-              disabled={!canSubmit}
-              onClick={onSubmit}
-              title={isRunning ? '运行中' : '发送'}
+              disabled={!isRunning && !canSubmit}
+              onClick={isRunning ? onInterrupt : onSubmit}
+              title={isRunning ? '停止' : '发送'}
               type="button"
             >
-              <Send size={24} />
+              {isRunning ? (
+                <Square size={12} fill="currentColor" />
+              ) : (
+                <Send size={24} />
+              )}
             </button>
           </div>
         </div>

@@ -451,6 +451,9 @@ export function DesktopLayout(): React.ReactNode {
   })
   const location = useLocation()
   const isHomePage = location.pathname === '/'
+  const hasConversationMessages = messages.some(
+    message => message.role !== 'system',
+  )
 
   useEffect(() => {
     let mounted = true
@@ -529,6 +532,7 @@ export function DesktopLayout(): React.ReactNode {
       branchName={branchName}
       recentWorkspaces={recentWorkspaces}
       workspace={currentWorkspace}
+      placeholder={hasConversationMessages ? '要求后续变更' : '随心输入'}
       onChooseWorkspace={() => void handleChooseWorkspace()}
       onInputChange={setInput}
       onInterrupt={() => void interrupt()}

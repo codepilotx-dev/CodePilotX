@@ -47,6 +47,7 @@ export function createDesktopAgentRuntime(
 class CliDesktopAgentRuntime implements DesktopAgentRuntime {
   private child: ChildProcessWithoutNullStreams | null = null
   private emittedAssistantText = false
+  private hasStartedCliSession = false
   private partialText = ''
   private readonly toolNamesByUseId = new Map<string, string>()
 
@@ -72,8 +73,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
         'stream-json',
         '--include-partial-messages',
         '--replay-user-messages',
-        '--session-id',
-        this.context.sessionId,
+        ...this.sessionResumeArgs(),
         ...permissionModeArgs(this.context.permissionMode),
         ...modelArgs(this.context.model),
         ...fallbackModelArgs(this.context.fallbackModel),
@@ -120,6 +120,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
       },
       parent_tool_use_id: null,
     })
+    this.hasStartedCliSession = true
 
     try {
       const exitCode = await new Promise<number | null>((resolve, reject) => {
@@ -145,6 +146,12 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
         child.stdin.end()
       }
     }
+  }
+
+  private sessionResumeArgs(): string[] {
+    return this.hasStartedCliSession
+      ? ['--resume', this.context.sessionId]
+      : ['--session-id', this.context.sessionId]
   }
 
   private attachAbortHandler(
