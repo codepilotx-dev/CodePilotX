@@ -1,11 +1,33 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Code2, Briefcase } from 'lucide-react'
 import { RadioCard } from './RadioCard.js'
 import { ToggleSwitch } from './ToggleSwitch.js'
 import { SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
+import { SettingsDropdown } from './SettingsDropdown.js'
 import { useDesktopSettings } from '../features/settings/useDesktopSettings.js'
 import type { DesktopPermissionMode } from '../../shared/types.js'
+
+const OPEN_TARGET_OPTIONS = [
+  { value: 'vscode', label: 'VS Code' },
+  { value: 'cursor', label: 'Cursor' },
+  { value: 'finder', label: '文件资源管理器' },
+  { value: 'terminal', label: '终端' },
+]
+
+const TERMINAL_SHELL_OPTIONS = [
+  { value: 'powershell', label: 'PowerShell' },
+  { value: 'cmd', label: 'Command Prompt' },
+  { value: 'bash', label: 'Bash' },
+  { value: 'pwsh', label: 'PowerShell Core' },
+]
+
+const LANGUAGE_OPTIONS = [
+  { value: 'zh-CN', label: '中文（中国）' },
+  { value: 'en-US', label: 'English (US)' },
+  { value: 'ja-JP', label: '日本語' },
+  { value: 'ko-KR', label: '한국어' },
+]
 
 type WorkMode = 'coding' | 'daily'
 
@@ -51,6 +73,11 @@ function LearnMoreLink() {
 export function GeneralSettings() {
   const { thinkingMode, setThinkingMode, permissionMode, setPermissionMode } =
     useDesktopSettings()
+
+  const [openTarget, setOpenTarget] = useState('vscode')
+  const [terminalShell, setTerminalShell] = useState('powershell')
+  const [language, setLanguage] = useState('zh-CN')
+  const [longPromptShortcut, setLongPromptShortcut] = useState(false)
 
   const workMode: WorkMode = thinkingMode === 'adaptive' ? 'daily' : 'coding'
   const handleWorkMode = (next: WorkMode) => {
@@ -136,6 +163,56 @@ export function GeneralSettings() {
                 checked={fullAccessOn}
                 onChange={handleFullAccess}
                 ariaLabel="完全访问权限"
+              />
+            }
+          />
+        </SettingsSection>
+
+        <SettingsSection title="常规">
+          <SettingsRow
+            title="默认打开目标"
+            description="默认打开文件和文件夹的位置"
+            control={
+              <SettingsDropdown
+                value={openTarget}
+                options={OPEN_TARGET_OPTIONS}
+                onChange={setOpenTarget}
+                ariaLabel="默认打开目标"
+              />
+            }
+          />
+          <SettingsRow
+            title="集成终端 Shell"
+            description="选择要在集成终端中打开的 Shell。"
+            control={
+              <SettingsDropdown
+                value={terminalShell}
+                options={TERMINAL_SHELL_OPTIONS}
+                onChange={setTerminalShell}
+                ariaLabel="集成终端 Shell"
+              />
+            }
+          />
+          <SettingsRow
+            title="语言"
+            description="应用 UI 语言"
+            control={
+              <SettingsDropdown
+                value={language}
+                options={LANGUAGE_OPTIONS}
+                onChange={setLanguage}
+                ariaLabel="语言"
+              />
+            }
+          />
+          <SettingsRow
+            title="需按 ^ + 回车键发送长文本提示"
+            description="启用后，长文本提示需按 ^ + 回车键发送。"
+            control={
+              <ToggleSwitch
+                checked={longPromptShortcut}
+                onChange={setLongPromptShortcut}
+                ariaLabel="需按快捷键发送长文本提示"
               />
             }
           />
