@@ -487,15 +487,16 @@ export function DesktopLayout(): React.ReactNode {
         windowChrome={windowChrome}
         sidebar={sidebar}
         content={
-          <QuickChatContext.Provider
-            value={{
-              workspaceName: currentWorkspace?.name ?? null,
-              messages,
-              errorMessage,
-              onDismissError: () => setErrorMessage(null),
-              sessionStatus,
-            }}
-          >
+        <QuickChatContext.Provider
+          value={{
+            workspaceName: currentWorkspace?.name ?? null,
+            messages,
+            errorMessage,
+            onDismissError: () => setErrorMessage(null),
+            sessionStatus,
+            composer,
+          }}
+        >
             <SearchContext.Provider
               value={{
                 query: searchQuery,
@@ -510,7 +511,7 @@ export function DesktopLayout(): React.ReactNode {
             </SearchContext.Provider>
           </QuickChatContext.Provider>
         }
-        composer={composer}
+        composer={null}
       />
     </div>
   )

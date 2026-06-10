@@ -1,3 +1,4 @@
+import type React from 'react'
 import { createContext, useContext } from 'react'
 import type { Message, SessionListItem } from '../uiTypes.js'
 import type { DesktopSessionStatus } from '../../../shared/types.js'
@@ -8,6 +9,7 @@ export type QuickChatContextValue = {
   errorMessage: string | null
   onDismissError: () => void
   sessionStatus: DesktopSessionStatus
+  composer: React.ReactNode
 }
 
 export const QuickChatContext = createContext<QuickChatContextValue | null>(null)

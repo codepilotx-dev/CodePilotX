@@ -1,4 +1,4 @@
-import type React from 'react'
+﻿import type React from 'react'
 import { AlertCircle } from 'lucide-react'
 import { useQuickChatContext } from '../context/QuickChatContext.js'
 
@@ -9,9 +9,11 @@ export function QuickChatView(): React.ReactNode {
     errorMessage,
     onDismissError,
     sessionStatus,
+    composer,
   } = useQuickChatContext()
 
   const hasMessages = messages.length > 0
+  const shouldShowMessages = !composer && hasMessages
 
   return (
     <section
@@ -22,17 +24,18 @@ export function QuickChatView(): React.ReactNode {
         {hasMessages ? <p>当前状态：{translateStatus(sessionStatus)}</p> : null}
       </div>
 
-      <div className="quick-chat-stream">
-        {errorMessage ? (
-          <div className="error-banner">
-            <AlertCircle size={16} />
-            <span>{errorMessage}</span>
-            <button onClick={onDismissError} type="button">
-              关闭
-            </button>
-          </div>
-        ) : null}
-        {hasMessages ? (
+      {(errorMessage || shouldShowMessages) ? (
+        <div className="quick-chat-content">
+          {errorMessage ? (
+            <div className="error-banner">
+              <AlertCircle size={16} />
+              <span>{errorMessage}</span>
+              <button onClick={onDismissError} type="button">
+                关闭
+              </button>
+            </div>
+          ) : null}
+          {shouldShowMessages ? (
           <div className="message-list">
             {messages.map(message => (
               <article
@@ -44,8 +47,10 @@ export function QuickChatView(): React.ReactNode {
               </article>
             ))}
           </div>
-        ) : null}
-      </div>
+          ) : null}
+        </div>
+      ) : null}
+      {composer ? <div className="desktop-main-composer">{composer}</div> : null}
     </section>
   )
 }
