@@ -79,6 +79,28 @@ body {
   background: var(--c-bg);
   color: var(--c-text);
   font-family: var(--ff-sans);
+  scrollbar-color: #EDECED transparent;
+  scrollbar-width: thin;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+  background: #EDECED;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: #5A5A5A;
 }
 
 button,
