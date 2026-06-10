@@ -417,8 +417,7 @@ export function DesktopLayout(): React.ReactNode {
   const composerCanSubmit =
     canSubmit ||
     Boolean(
-      currentWorkspace &&
-        input.trim() &&
+      input.trim() &&
         sessionStatus !== 'running' &&
         sessionStatus !== 'waiting',
     )
@@ -520,7 +519,18 @@ export function DesktopLayout(): React.ReactNode {
       onOpenFiles={() => {}}
       onOpenWorkspace={workspaceItem => void handleOpenRecentWorkspace(workspaceItem)}
       onPermissionChange={setPermissionMode}
-      onSubmit={() => void submit(currentWorkspace)}
+      onSubmit={() => {
+        void (async () => {
+          if (currentWorkspace) {
+            await submit(currentWorkspace)
+            return
+          }
+          const selected = await handleChooseWorkspace()
+          if (selected) {
+            await submit(selected)
+          }
+        })()
+      }}
       onThinkingChange={setThinkingMode}
     />
   ) : null

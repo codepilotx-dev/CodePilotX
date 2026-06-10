@@ -1,73 +1,71 @@
-import type React from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+﻿import type React from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Bot,
-  Check,
   Folder,
   FolderPlus,
   GitBranch,
+  Hand,
   Mic,
   Monitor,
   Plus,
   Search,
   Send,
-  Hand,
   ShieldAlert,
   ShieldCheck,
   Wrench,
   Zap,
-} from "lucide-react";
+} from 'lucide-react'
 import type {
   DesktopPermissionMode,
   DesktopSessionStatus,
   DesktopThinkingMode,
   DesktopWorkspace,
-} from "../../shared/types.js";
-import type { ModelPreset } from "../modelPresets.js";
-import { CUSTOM_MODEL_PRESET_ID } from "../modelPresets.js";
-import { ChipButton } from "./ui/ChipButton.js";
-import { IconButton } from "./ui/IconButton.js";
-import { MetaChip } from "./ui/MetaChip.js";
-import { PopoverItem } from "./ui/PopoverItem.js";
-import { PopoverMenu } from "./ui/PopoverMenu.js";
-import { SearchInput } from "./ui/SearchInput.js";
+} from '../../shared/types.js'
+import type { ModelPreset } from '../modelPresets.js'
+import { CUSTOM_MODEL_PRESET_ID } from '../modelPresets.js'
+import { ChipButton } from './ui/ChipButton.js'
+import { IconButton } from './ui/IconButton.js'
+import { MetaChip } from './ui/MetaChip.js'
+import { PopoverItem } from './ui/PopoverItem.js'
+import { PopoverMenu } from './ui/PopoverMenu.js'
+import { SearchInput } from './ui/SearchInput.js'
 
 type Option<T extends string> = {
-  value: T;
-  label: string;
-  detail?: string;
-};
+  value: T
+  label: string
+  detail?: string
+}
 
-const PERMISSION_MENU_ICON_SIZE = 16;
-const PERMISSION_TRIGGER_ICON_SIZE = 18;
-const COMPOSER_ACTION_ICON_SIZE = 24;
-const META_CHIP_ICON_SIZE = 14;
+const PERMISSION_MENU_ICON_SIZE = 16
+const PERMISSION_TRIGGER_ICON_SIZE = 18
+const META_CHIP_ICON_SIZE = 14
 
-type ComposerDropdown = "permission" | "model" | "project" | "mode" | "branch";
+type ComposerDropdown = 'permission' | 'model' | 'project' | 'mode' | 'branch'
 
 type Props = {
-  input: string;
-  canSubmit: boolean;
-  sessionStatus: DesktopSessionStatus;
-  permissionMode: DesktopPermissionMode;
-  thinkingMode: DesktopThinkingMode;
-  selectedModelPreset: string;
-  modelPresets: ModelPreset[];
-  permissionOptions: Option<DesktopPermissionMode>[];
-  thinkingOptions: Option<DesktopThinkingMode>[];
-  branchName: string;
-  recentWorkspaces: DesktopWorkspace[];
-  workspace: DesktopWorkspace | null;
-  onChooseWorkspace: () => void;
-  onInputChange: (value: string) => void;
-  onInterrupt: () => void;
-  onModelChange: (value: string) => void;
-  onOpenFiles: () => void;
-  onOpenWorkspace: (workspace: DesktopWorkspace) => void;
-  onPermissionChange: (value: DesktopPermissionMode) => void;
-  onSubmit: () => void;
-  onThinkingChange: (value: DesktopThinkingMode) => void;
-};
+  input: string
+  canSubmit: boolean
+  sessionStatus: DesktopSessionStatus
+  permissionMode: DesktopPermissionMode
+  thinkingMode: DesktopThinkingMode
+  selectedModelPreset: string
+  modelPresets: ModelPreset[]
+  permissionOptions: Option<DesktopPermissionMode>[]
+  thinkingOptions: Option<DesktopThinkingMode>[]
+  branchName: string
+  recentWorkspaces: DesktopWorkspace[]
+  workspace: DesktopWorkspace | null
+  onChooseWorkspace: () => void
+  onInputChange: (value: string) => void
+  onInterrupt: () => void
+  onModelChange: (value: string) => void
+  onOpenFiles: () => void
+  onOpenWorkspace: (workspace: DesktopWorkspace) => void
+  onPermissionChange: (value: DesktopPermissionMode) => void
+  onSubmit: () => void
+  onThinkingChange: (value: DesktopThinkingMode) => void
+}
 
 export function ComposerCard({
   input,
@@ -92,69 +90,71 @@ export function ComposerCard({
   onSubmit,
   onThinkingChange,
 }: Props): React.ReactNode {
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const [openDropdown, setOpenDropdown] = useState<ComposerDropdown | null>(
     null,
-  );
-  const [projectSearch, setProjectSearch] = useState("");
-  const [branchSearch, setBranchSearch] = useState("");
+  )
+  const [projectSearch, setProjectSearch] = useState('')
+  const [branchSearch, setBranchSearch] = useState('')
 
   const selectedPermission = permissionOptions.find(
-    (option) => option.value === permissionMode,
-  );
+    option => option.value === permissionMode,
+  )
   const selectedModel = modelPresets.find(
-    (preset) => preset.id === selectedModelPreset,
-  );
+    preset => preset.id === selectedModelPreset,
+  )
   const selectedThinking = thinkingOptions.find(
-    (option) => option.value === thinkingMode,
-  );
+    option => option.value === thinkingMode,
+  )
 
   const filteredWorkspaces = useMemo(() => {
-    const keyword = projectSearch.trim().toLowerCase();
-    if (!keyword) return recentWorkspaces;
-    return recentWorkspaces.filter((item) =>
-      [item.name, item.path, item.branchName ?? ""]
-        .join(" ")
+    const keyword = projectSearch.trim().toLowerCase()
+    if (!keyword) return recentWorkspaces
+    return recentWorkspaces.filter(item =>
+      [item.name, item.path, item.branchName ?? '']
+        .join(' ')
         .toLowerCase()
         .includes(keyword),
-    );
-  }, [projectSearch, recentWorkspaces]);
+    )
+  }, [projectSearch, recentWorkspaces])
 
   const filteredBranches = useMemo(() => {
-    const branches = branchName ? [branchName] : [];
-    const keyword = branchSearch.trim().toLowerCase();
-    if (!keyword) return branches;
-    return branches.filter((branch) => branch.toLowerCase().includes(keyword));
-  }, [branchName, branchSearch]);
+    const branches = branchName ? [branchName] : []
+    const keyword = branchSearch.trim().toLowerCase()
+    if (!keyword) return branches
+    return branches.filter(branch => branch.toLowerCase().includes(keyword))
+  }, [branchName, branchSearch])
 
   useEffect(() => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    textarea.style.height = "auto";
-    textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
-  }, [input]);
+    const textarea = textareaRef.current
+    if (!textarea) return
+    textarea.style.height = 'auto'
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`
+  }, [input])
 
   function toggleDropdown(dropdown: ComposerDropdown): void {
-    setOpenDropdown((current) => (current === dropdown ? null : dropdown));
+    setOpenDropdown(current => (current === dropdown ? null : dropdown))
   }
 
   function closeDropdown(): void {
-    setOpenDropdown(null);
+    setOpenDropdown(null)
   }
 
   function getPermissionIcon(
     value: DesktopPermissionMode,
     size = 14,
   ): React.ReactNode {
-    if (value === "default") return <Hand size={size} />;
-    if (value === "bypassPermissions") return <ShieldAlert size={size} />;
-    if (value === "dontAsk") return <Wrench size={size} />;
-    return <ShieldCheck size={size} />;
+    if (value === 'default') return <Hand size={size} />
+    if (value === 'bypassPermissions') return <ShieldAlert size={size} />
+    if (value === 'dontAsk') return <Wrench size={size} />
+    return <ShieldCheck size={size} />
   }
 
   function getPermissionClassName(value: DesktopPermissionMode): string {
-    return `permission-chip permission-chip-${value}`;
+    return `permission-chip permission-chip-${value}`
   }
+
+  const isRunning = sessionStatus === 'running' || sessionStatus === 'waiting'
 
   return (
     <div className="composer">
@@ -163,7 +163,12 @@ export function ComposerCard({
           <textarea
             ref={textareaRef}
             value={input}
-            onChange={(event) => onInputChange(event.target.value)}
+            onChange={event => onInputChange(event.target.value)}
+            onKeyDown={event => {
+              if (event.key !== 'Enter' || event.shiftKey) return
+              event.preventDefault()
+              if (canSubmit) onSubmit()
+            }}
             placeholder="随心输入"
             rows={1}
           />
@@ -175,30 +180,26 @@ export function ComposerCard({
               <Plus size={18} />
             </IconButton>
             <PopoverMenu
-              open={openDropdown === "permission"}
+              open={openDropdown === 'permission'}
               autoWidth
-              onOpenChange={(open) =>
-                setOpenDropdown(open ? "permission" : null)
-              }
+              onOpenChange={open => setOpenDropdown(open ? 'permission' : null)}
               trigger={
                 <ChipButton
-                  active={openDropdown === "permission"}
+                  active={openDropdown === 'permission'}
                   className={getPermissionClassName(permissionMode)}
-                  onClick={() => toggleDropdown("permission")}
-                  title="Select permission mode"
+                  onClick={() => toggleDropdown('permission')}
+                  title="选择权限模式"
                 >
                   {getPermissionIcon(
                     permissionMode,
                     PERMISSION_TRIGGER_ICON_SIZE,
                   )}
-                  <span>
-                    {selectedPermission?.label ?? "Default permission mode"}
-                  </span>
+                  <span>{selectedPermission?.label ?? '默认权限'}</span>
                 </ChipButton>
               }
             >
               <div className="popover-section">
-                {permissionOptions.map((option) => (
+                {permissionOptions.map(option => (
                   <PopoverItem
                     icon={getPermissionIcon(
                       option.value,
@@ -209,8 +210,8 @@ export function ComposerCard({
                     selected={option.value === permissionMode}
                     withCheck
                     onClick={() => {
-                      onPermissionChange(option.value);
-                      closeDropdown();
+                      onPermissionChange(option.value)
+                      closeDropdown()
                     }}
                   >
                     {option.label}
@@ -223,33 +224,33 @@ export function ComposerCard({
           <div className="toolbar-right">
             <PopoverMenu
               className="popover-model"
-              open={openDropdown === "model"}
-              onOpenChange={(open) => setOpenDropdown(open ? "model" : null)}
+              open={openDropdown === 'model'}
+              onOpenChange={open => setOpenDropdown(open ? 'model' : null)}
               trigger={
                 <ChipButton
-                  active={openDropdown === "model"}
+                  active={openDropdown === 'model'}
                   className="subtle"
-                  onClick={() => toggleDropdown("model")}
+                  onClick={() => toggleDropdown('model')}
                   showDot
                   title="选择模型"
                 >
                   <span>
-                    {selectedModel?.label ?? selectedModelPreset} ·{" "}
-                    {selectedThinking?.label ?? "中"}
+                    {selectedModel?.label ?? selectedModelPreset} ·{' '}
+                    {selectedThinking?.label ?? '默认'}
                   </span>
                 </ChipButton>
               }
             >
               <div className="popover-header">推理</div>
               <div className="popover-section">
-                {thinkingOptions.map((option) => (
+                {thinkingOptions.map(option => (
                   <PopoverItem
                     key={option.value}
                     selected={option.value === thinkingMode}
                     withCheck
                     onClick={() => {
-                      onThinkingChange(option.value);
-                      closeDropdown();
+                      onThinkingChange(option.value)
+                      closeDropdown()
                     }}
                   >
                     {option.label}
@@ -259,15 +260,15 @@ export function ComposerCard({
               <div className="popover-divider" />
               <div className="popover-header">模型</div>
               <div className="popover-section">
-                {modelPresets.map((preset) => (
+                {modelPresets.map(preset => (
                   <PopoverItem
                     icon={<Bot size={14} />}
                     key={preset.id}
                     selected={preset.id === selectedModelPreset}
                     withCheck
                     onClick={() => {
-                      onModelChange(preset.id);
-                      closeDropdown();
+                      onModelChange(preset.id)
+                      closeDropdown()
                     }}
                   >
                     {preset.label}
@@ -278,8 +279,8 @@ export function ComposerCard({
                   selected={selectedModelPreset === CUSTOM_MODEL_PRESET_ID}
                   withCheck
                   onClick={() => {
-                    onModelChange(CUSTOM_MODEL_PRESET_ID);
-                    closeDropdown();
+                    onModelChange(CUSTOM_MODEL_PRESET_ID)
+                    closeDropdown()
                   }}
                 >
                   自定义模型
@@ -299,11 +300,11 @@ export function ComposerCard({
               <Mic size={18} />
             </IconButton>
             <button
-              aria-label="发送"
+              aria-label={isRunning ? '运行中' : '发送'}
               className="send-button"
               disabled={!canSubmit}
               onClick={onSubmit}
-              title="发送"
+              title={isRunning ? '运行中' : '发送'}
               type="button"
             >
               <Send size={24} />
@@ -315,14 +316,14 @@ export function ComposerCard({
       <div className="composer-bottom">
         <PopoverMenu
           className="popover-project"
-          open={openDropdown === "project"}
-          onOpenChange={(open) => setOpenDropdown(open ? "project" : null)}
+          open={openDropdown === 'project'}
+          onOpenChange={open => setOpenDropdown(open ? 'project' : null)}
           trigger={
             <MetaChip
-              active={openDropdown === "project"}
+              active={openDropdown === 'project'}
               icon={<Folder size={META_CHIP_ICON_SIZE} />}
-              label={workspace?.name ?? "选择项目"}
-              onClick={() => toggleDropdown("project")}
+              label={workspace?.name ?? '选择项目'}
+              onClick={() => toggleDropdown('project')}
               title="选择项目"
             />
           }
@@ -336,15 +337,15 @@ export function ComposerCard({
             {filteredWorkspaces.length === 0 ? (
               <div className="popover-empty">无匹配项目</div>
             ) : (
-              filteredWorkspaces.map((item) => (
+              filteredWorkspaces.map(item => (
                 <PopoverItem
                   icon={<Folder size={14} />}
                   key={item.path}
                   selected={item.path === workspace?.path}
                   withCheck
                   onClick={() => {
-                    onOpenWorkspace(item);
-                    closeDropdown();
+                    onOpenWorkspace(item)
+                    closeDropdown()
                   }}
                 >
                   {item.name}
@@ -357,8 +358,8 @@ export function ComposerCard({
             icon={<FolderPlus size={14} />}
             withArrow
             onClick={() => {
-              onChooseWorkspace();
-              closeDropdown();
+              onChooseWorkspace()
+              closeDropdown()
             }}
           >
             添加新项目
@@ -367,14 +368,14 @@ export function ComposerCard({
 
         <PopoverMenu
           className="popover-mode"
-          open={openDropdown === "mode"}
-          onOpenChange={(open) => setOpenDropdown(open ? "mode" : null)}
+          open={openDropdown === 'mode'}
+          onOpenChange={open => setOpenDropdown(open ? 'mode' : null)}
           trigger={
             <MetaChip
-              active={openDropdown === "mode"}
+              active={openDropdown === 'mode'}
               icon={<Monitor size={META_CHIP_ICON_SIZE} />}
               label="本地模式"
-              onClick={() => toggleDropdown("mode")}
+              onClick={() => toggleDropdown('mode')}
               title="启动模式"
             />
           }
@@ -395,14 +396,14 @@ export function ComposerCard({
 
         <PopoverMenu
           className="popover-branch"
-          open={openDropdown === "branch"}
-          onOpenChange={(open) => setOpenDropdown(open ? "branch" : null)}
+          open={openDropdown === 'branch'}
+          onOpenChange={open => setOpenDropdown(open ? 'branch' : null)}
           trigger={
             <MetaChip
-              active={openDropdown === "branch"}
+              active={openDropdown === 'branch'}
               icon={<GitBranch size={META_CHIP_ICON_SIZE} />}
               label={branchName}
-              onClick={() => toggleDropdown("branch")}
+              onClick={() => toggleDropdown('branch')}
               title="选择分支"
             />
           }
@@ -417,7 +418,7 @@ export function ComposerCard({
             {filteredBranches.length === 0 ? (
               <div className="popover-empty">无匹配分支</div>
             ) : (
-              filteredBranches.map((branch) => (
+              filteredBranches.map(branch => (
                 <PopoverItem
                   icon={<GitBranch size={14} />}
                   key={branch}
@@ -445,5 +446,5 @@ export function ComposerCard({
         )}
       </div>
     </div>
-  );
+  )
 }
