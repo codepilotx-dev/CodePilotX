@@ -1,17 +1,313 @@
 import type React from 'react'
+import { useMemo, useState } from 'react'
+import {
+  AlertOctagon,
+  Bell,
+  Check,
+  ChevronDown,
+  Clock,
+  Eye,
+  FileSpreadsheet,
+  GitBranch,
+  MessageCircle,
+  MessageSquare,
+  Palette,
+  PencilRuler,
+  PlayCircle,
+  Plus,
+  Search,
+  Settings2,
+  Share2,
+  Sparkles,
+} from 'lucide-react'
+import { IconButton } from './ui/IconButton.js'
+
+type PluginTone = 'github' | 'chrome' | 'sheet' | 'slides' | 'slack' | 'data' | 'design' | 'creative' | 'sales' | 'codex'
+
+type Plugin = {
+  id: string
+  name: string
+  description: string
+  icon: React.ReactNode
+  tone: PluginTone
+  installed: boolean
+}
+
+const PLUGINS: Plugin[] = [
+  {
+    id: 'computer-use',
+    name: 'Computer Use',
+    description: 'Control Windows apps from Codex',
+    icon: <Sparkles size={18} strokeWidth={2.2} />,
+    tone: 'codex',
+    installed: true,
+  },
+  {
+    id: 'chrome',
+    name: 'Chrome',
+    description: 'Control Chrome with Codex',
+    icon: <Eye size={18} strokeWidth={2.2} />,
+    tone: 'chrome',
+    installed: true,
+  },
+  {
+    id: 'spreadsheets',
+    name: 'Spreadsheets',
+    description: 'Create and edit spreadsheet files',
+    icon: <FileSpreadsheet size={18} strokeWidth={2.2} />,
+    tone: 'sheet',
+    installed: true,
+  },
+  {
+    id: 'presentations',
+    name: 'Presentations',
+    description: 'Create and edit presentations',
+    icon: <Share2 size={18} strokeWidth={2.2} />,
+    tone: 'slides',
+    installed: true,
+  },
+  {
+    id: 'github',
+    name: 'GitHub',
+    description: 'Triage PRs, issues, CI, and publish flows',
+    icon: <GitBranch size={18} strokeWidth={2.2} />,
+    tone: 'github',
+    installed: true,
+  },
+  {
+    id: 'slack',
+    name: 'Slack',
+    description: 'Read and manage Slack',
+    icon: <MessageCircle size={18} strokeWidth={2.2} />,
+    tone: 'slack',
+    installed: false,
+  },
+  {
+    id: 'data-analytics',
+    name: 'Data Analytics',
+    description: 'Turn data into clear decisions',
+    icon: <AlertOctagon size={18} strokeWidth={2.2} />,
+    tone: 'data',
+    installed: false,
+  },
+  {
+    id: 'product-design',
+    name: 'Product Design',
+    description: 'Explore and prototype ideas',
+    icon: <PencilRuler size={18} strokeWidth={2.2} />,
+    tone: 'design',
+    installed: false,
+  },
+  {
+    id: 'creative-production',
+    name: 'Creative Production',
+    description: 'Create marketing visuals from a brief or...',
+    icon: <Palette size={18} strokeWidth={2.2} />,
+    tone: 'creative',
+    installed: false,
+  },
+  {
+    id: 'sales',
+    name: 'Sales',
+    description: 'Prepare sales work faster',
+    icon: <Bell size={18} strokeWidth={2.2} />,
+    tone: 'sales',
+    installed: false,
+  },
+]
+
+const HERO_SLIDES = 5
+
+type Filter = 'all' | 'installed' | 'available'
+type Owner = 'openai' | 'all' | 'community'
+type Tab = 'plugins' | 'skills'
 
 export function PluginsView(): React.ReactNode {
+  const [tab, setTab] = useState<Tab>('plugins')
+  const [activeSlide, setActiveSlide] = useState(1)
+  const [query, setQuery] = useState('')
+  const [owner, setOwner] = useState<Owner>('openai')
+  const [filter, setFilter] = useState<Filter>('all')
+
+  const visiblePlugins = useMemo(() => {
+    const keyword = query.trim().toLowerCase()
+    return PLUGINS.filter(plugin => {
+      if (filter === 'installed' && !plugin.installed) return false
+      if (filter === 'available' && plugin.installed) return false
+      if (!keyword) return true
+      return (
+        plugin.name.toLowerCase().includes(keyword) ||
+        plugin.description.toLowerCase().includes(keyword)
+      )
+    })
+  }, [filter, query])
+
   return (
-    <section className="utility-view">
-      <div className="utility-view-header">
-        <span className="section-label">插件</span>
-        <h1>插件中心</h1>
-        <p>这里将承接桌面端插件的浏览、启用和配置。</p>
+    <section className="plugins-view">
+      <header className="plugins-toolbar">
+        <div className="plugins-tabs">
+          <button
+            aria-pressed={tab === 'plugins'}
+            className={tab === 'plugins' ? 'plugins-tab is-active' : 'plugins-tab'}
+            onClick={() => setTab('plugins')}
+            type="button"
+          >
+            插件
+          </button>
+          <button
+            aria-pressed={tab === 'skills'}
+            className={tab === 'skills' ? 'plugins-tab is-active' : 'plugins-tab'}
+            onClick={() => setTab('skills')}
+            type="button"
+          >
+            技能
+          </button>
+        </div>
+
+        <div className="plugins-actions">
+          <button className="plugins-button is-ghost" type="button">
+            <Settings2 size={14} strokeWidth={2.2} />
+            <span>管理</span>
+          </button>
+          <button className="plugins-button is-primary" type="button">
+            <span>创建</span>
+            <ChevronDown size={14} strokeWidth={2.2} />
+          </button>
+          <IconButton title="更多操作">
+            <span className="plugins-more-dots" aria-hidden="true">
+              <i />
+              <i />
+              <i />
+            </span>
+          </IconButton>
+        </div>
+      </header>
+
+      <div className="plugins-hero-header">
+        <h1>让 Codex 按你的方式工作</h1>
       </div>
-      <div className="utility-card placeholder-card">
-        <h2>暂未接入插件后端</h2>
-        <p>后续可以展示已安装插件、推荐插件以及每个插件的权限范围。</p>
+
+      <div className="plugins-search-row">
+        <label className="plugins-search">
+          <Search size={15} strokeWidth={2.2} />
+          <input
+            value={query}
+            placeholder="搜索插件"
+            onChange={event => setQuery(event.target.value)}
+          />
+        </label>
+
+        <button className="plugins-filter" type="button">
+          <span className="plugins-filter-owner">
+            <Sparkles size={12} strokeWidth={2.4} />
+            Built by OpenAI
+          </span>
+          <ChevronDown size={13} strokeWidth={2.2} />
+        </button>
+
+        <button
+          aria-expanded={filter !== 'all'}
+          className="plugins-filter"
+          onClick={() =>
+            setFilter(current =>
+              current === 'all' ? 'installed' : current === 'installed' ? 'available' : 'all',
+            )
+          }
+          type="button"
+        >
+          <span>
+            {filter === 'installed'
+              ? '已添加'
+              : filter === 'available'
+              ? '未添加'
+              : '全部'}
+          </span>
+          <ChevronDown size={13} strokeWidth={2.2} />
+        </button>
       </div>
+
+      <div className="plugins-hero">
+        <div className="plugins-hero-aurora" aria-hidden="true" />
+        <div className="plugins-hero-grain" aria-hidden="true" />
+        <div className="plugins-hero-content">
+          <p className="plugins-hero-pill">
+            <code className="plugins-hero-command">
+              <PlayCircle size={13} strokeWidth={2.4} />
+              Computer Use
+            </code>
+            播放一个播放列表,帮我进入专注状态
+          </p>
+          <button className="plugins-hero-cta" type="button">
+            <MessageSquare size={14} strokeWidth={2.2} />
+            在对话中试用
+          </button>
+        </div>
+
+        <ol className="plugins-hero-dots" aria-label="Hero 翻页">
+          {Array.from({ length: HERO_SLIDES }).map((_, index) => (
+            <li
+              aria-current={activeSlide === index + 1}
+              className={
+                activeSlide === index + 1
+                  ? 'plugins-hero-dot is-active'
+                  : 'plugins-hero-dot'
+              }
+              key={index}
+              onClick={() => setActiveSlide(index + 1)}
+            >
+              <button
+                aria-label={`第 ${index + 1} 张`}
+                onClick={() => setActiveSlide(index + 1)}
+                type="button"
+              />
+            </li>
+          ))}
+        </ol>
+      </div>
+
+      <section className="plugins-section">
+        <header className="plugins-section-header">
+          <h2>Featured</h2>
+          <span className="plugins-section-count">{visiblePlugins.length}</span>
+        </header>
+
+        {visiblePlugins.length === 0 ? (
+          <div className="plugins-empty">
+            <Clock size={18} strokeWidth={2} />
+            <p>没有匹配 "{query}" 的插件。</p>
+          </div>
+        ) : (
+          <ul className="plugins-grid">
+            {visiblePlugins.map(plugin => (
+              <li className="plugins-card" data-tone={plugin.tone} key={plugin.id}>
+                <span className={`plugins-card-icon plugins-tone-${plugin.tone}`}>
+                  {plugin.icon}
+                </span>
+                <div className="plugins-card-meta">
+                  <h3>{plugin.name}</h3>
+                  <p>{plugin.description}</p>
+                </div>
+                <button
+                  aria-pressed={plugin.installed}
+                  className={
+                    plugin.installed
+                      ? 'plugins-card-action is-installed'
+                      : 'plugins-card-action'
+                  }
+                  disabled={plugin.installed}
+                  onClick={() => {
+                    /* 后端接通后在此挂载启用逻辑 */
+                  }}
+                  type="button"
+                  title={plugin.installed ? '已添加' : '添加到 Codex'}
+                >
+                  {plugin.installed ? <Check size={14} strokeWidth={2.4} /> : <Plus size={14} strokeWidth={2.4} />}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </section>
   )
 }
