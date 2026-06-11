@@ -27,6 +27,8 @@ const api: DesktopApi = {
     ipcRenderer.invoke('desktop:openWorkspace', workspacePath),
   getWorkspaceContext: workspacePath =>
     ipcRenderer.invoke('desktop:getWorkspaceContext', workspacePath),
+  checkoutWorkspaceBranch: (workspacePath, branchName) =>
+    ipcRenderer.invoke('desktop:checkoutWorkspaceBranch', workspacePath, branchName),
   listWorkspaceFiles: workspacePath =>
     ipcRenderer.invoke('desktop:listWorkspaceFiles', workspacePath),
   readWorkspaceFile: (workspacePath, filePath) =>

@@ -9,6 +9,7 @@ export type DesktopWorkspace = {
   path: string
   name: string
   branchName?: string | null
+  branches?: string[]
   isGitRepo?: boolean
   isStandalone?: boolean
 }
@@ -302,6 +303,10 @@ export type DesktopApi = {
   chooseWorkspace(): Promise<DesktopWorkspace | null>
   openWorkspace(workspacePath: string): Promise<DesktopWorkspace>
   getWorkspaceContext(workspacePath: string): Promise<DesktopWorkspace>
+  checkoutWorkspaceBranch(
+    workspacePath: string,
+    branchName: string,
+  ): Promise<DesktopWorkspace>
   listWorkspaceFiles(workspacePath: string): Promise<DesktopFileEntry[]>
   readWorkspaceFile(workspacePath: string, filePath: string): Promise<DesktopFilePreview>
   getWorkspaceDiff(workspacePath: string): Promise<DesktopDiffSummary>

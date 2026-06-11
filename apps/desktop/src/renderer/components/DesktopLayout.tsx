@@ -213,6 +213,29 @@ export function DesktopLayout(): React.ReactNode {
     }
   }, [createSessionForWorkspace, currentWorkspace, navigate])
 
+  const handleBranchSelect = useCallback(
+    async (branch: string): Promise<void> => {
+      if (!currentWorkspace || currentWorkspace.branchName === branch) {
+        return
+      }
+      try {
+        const nextWorkspace = await window.desktopApi.checkoutWorkspaceBranch(
+          currentWorkspace.path,
+          branch,
+        )
+        setWorkspaceState(nextWorkspace)
+        await refreshWorkspace(nextWorkspace, { clearSelectedFile: true })
+      } catch (error) {
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : String(error ?? '无法切换分支'),
+        )
+      }
+    },
+    [currentWorkspace, refreshWorkspace, setWorkspaceState],
+  )
+
   const handleNewConversation = useCallback(async (): Promise<void> => {
     activateSessionById(null)
     setInput('')
@@ -573,6 +596,7 @@ export function DesktopLayout(): React.ReactNode {
       permissionOptions={PERMISSION_MODE_OPTIONS}
       thinkingOptions={THINKING_MODE_OPTIONS}
       branchName={branchName}
+      branches={currentWorkspace?.branches ?? []}
       recentWorkspaces={recentWorkspaces}
       workspace={currentWorkspace}
       placeholder={hasConversationMessages ? '要求后续变更' : '随心输入'}
@@ -582,6 +606,7 @@ export function DesktopLayout(): React.ReactNode {
       onModelChange={handleModelPresetChange}
       onOpenFiles={() => {}}
       onOpenWorkspace={workspaceItem => void handleOpenRecentWorkspace(workspaceItem)}
+      onBranchSelect={handleBranchSelect}
       onPermissionChange={setPermissionMode}
       onSubmit={() => {
         void (async () => {

@@ -59,6 +59,7 @@ type Props = {
   permissionOptions: Option<DesktopPermissionMode>[]
   thinkingOptions: Option<DesktopThinkingMode>[]
   branchName: string
+  branches: string[]
   recentWorkspaces: DesktopWorkspace[]
   workspace: DesktopWorkspace | null
   placeholder?: string
@@ -68,6 +69,7 @@ type Props = {
   onModelChange: (value: string) => void
   onOpenFiles: () => void
   onOpenWorkspace: (workspace: DesktopWorkspace) => void
+  onBranchSelect: (branch: string) => void
   onPermissionChange: (value: DesktopPermissionMode) => void
   onSubmit: () => void
   onThinkingChange: (value: DesktopThinkingMode) => void
@@ -84,6 +86,7 @@ export function ComposerCard({
   permissionOptions,
   thinkingOptions,
   branchName,
+  branches,
   recentWorkspaces,
   workspace,
   placeholder = '随心输入',
@@ -93,6 +96,7 @@ export function ComposerCard({
   onModelChange,
   onOpenFiles,
   onOpenWorkspace,
+  onBranchSelect,
   onPermissionChange,
   onSubmit,
   onThinkingChange,
@@ -126,11 +130,14 @@ export function ComposerCard({
   }, [projectSearch, recentWorkspaces])
 
   const filteredBranches = useMemo(() => {
-    const branches = branchName ? [branchName] : []
+    const availableBranches =
+      branches.length > 0 || branchName === '无项目' || branchName === '未检测到 Git 分支'
+        ? branches
+        : [branchName]
     const keyword = branchSearch.trim().toLowerCase()
-    if (!keyword) return branches
-    return branches.filter(branch => branch.toLowerCase().includes(keyword))
-  }, [branchName, branchSearch])
+    if (!keyword) return availableBranches
+    return availableBranches.filter(branch => branch.toLowerCase().includes(keyword))
+  }, [branchName, branchSearch, branches])
 
   useEffect(() => {
     const textarea = textareaRef.current
@@ -479,9 +486,12 @@ export function ComposerCard({
                 <PopoverItem
                   icon={<GitBranch size={14} />}
                   key={branch}
-                  selected
-                  withCheck
-                  onClick={closeDropdown}
+                  selected={branch === branchName}
+                  withCheck={branch === branchName}
+                  onClick={() => {
+                    onBranchSelect(branch)
+                    closeDropdown()
+                  }}
                 >
                   {branch}
                 </PopoverItem>

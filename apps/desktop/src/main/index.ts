@@ -513,6 +513,7 @@ async function workspaceFromPath(workspacePath: string): Promise<DesktopWorkspac
     path: workspacePath,
     name: basename(workspacePath),
     branchName: gitInfo.branchName,
+    branches: gitInfo.branches,
     isGitRepo: gitInfo.isGitRepo,
   }
 }
@@ -537,9 +538,22 @@ async function getWorkspaceContext(workspacePath: string): Promise<DesktopWorksp
   return workspaceFromPath(resolvedWorkspace)
 }
 
+async function checkoutWorkspaceBranch(
+  workspacePath: string,
+  branchName: string,
+): Promise<DesktopWorkspace> {
+  const resolvedWorkspace = assertAllowedWorkspace(workspacePath)
+  const trimmedBranch = branchName.trim()
+  if (!trimmedBranch) {
+    throw new Error('branchName cannot be empty.')
+  }
+  await execFileAsync('git', ['-C', resolvedWorkspace, 'checkout', trimmedBranch])
+  return getWorkspaceContext(resolvedWorkspace)
+}
+
 async function getWorkspaceGitInfo(
   workspacePath: string,
-): Promise<{ branchName: string | null; isGitRepo: boolean }> {
+): Promise<{ branchName: string | null; branches: string[]; isGitRepo: boolean }> {
   try {
     const { stdout: gitRoot } = await execFileAsync('git', [
       '-C',
@@ -548,18 +562,21 @@ async function getWorkspaceGitInfo(
       '--show-toplevel',
     ])
     const normalizedRoot = resolve(gitRoot.trim())
+    const branches = await listWorkspaceBranches(workspacePath)
     if (normalizedRoot !== resolve(workspacePath)) {
       return {
         branchName: await readGitBranchName(workspacePath),
+        branches,
         isGitRepo: true,
       }
     }
     return {
       branchName: await readGitBranchName(workspacePath),
+      branches,
       isGitRepo: true,
     }
   } catch {
-    return { branchName: null, isGitRepo: false }
+    return { branchName: null, branches: [], isGitRepo: false }
   }
 }
 
@@ -575,6 +592,27 @@ async function readGitBranchName(workspacePath: string): Promise<string | null> 
     return branchName || null
   } catch {
     return null
+  }
+}
+
+async function listWorkspaceBranches(
+  workspacePath: string,
+): Promise<string[]> {
+  try {
+    const { stdout } = await execFileAsync('git', [
+      '-C',
+      workspacePath,
+      'branch',
+      '--format=%(refname:short)',
+      '--sort=-committerdate',
+    ])
+    return stdout
+      .split(/\r?\n/)
+      .map(branch => branch.trim())
+      .filter(Boolean)
+      .filter((branch, index, branches) => branches.indexOf(branch) === index)
+  } catch {
+    return []
   }
 }
 
@@ -1110,6 +1148,7 @@ function registerIpc(): void {
     chooseWorkspace,
     openWorkspace,
     getWorkspaceContext,
+    checkoutWorkspaceBranch,
     listWorkspaceFiles,
     readWorkspaceFile,
     getWorkspaceDiff,
