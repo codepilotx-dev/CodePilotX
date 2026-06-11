@@ -156,11 +156,6 @@ export function WindowChrome({
                     'window-menu-item',
                     fileMenuOpen ? 'active' : '',
                   ].join(' ')}
-                  onPointerDown={event => {
-                    if (event.button !== 0) return
-                    event.stopPropagation()
-                    setFileMenuOpen(value => !value)
-                  }}
                   type="button"
                 >
                   文件
@@ -210,11 +205,6 @@ export function WindowChrome({
                     'window-menu-item',
                     editMenuOpen ? 'active' : '',
                   ].join(' ')}
-                  onPointerDown={event => {
-                    if (event.button !== 0) return
-                    event.stopPropagation()
-                    setEditMenuOpen(value => !value)
-                  }}
                   type="button"
                 >
                   编辑
@@ -258,11 +248,6 @@ export function WindowChrome({
                     'window-menu-item',
                     viewMenuOpen ? 'active' : '',
                   ].join(' ')}
-                  onPointerDown={event => {
-                    if (event.button !== 0) return
-                    event.stopPropagation()
-                    setViewMenuOpen(value => !value)
-                  }}
                   type="button"
                 >
                   查看
@@ -371,11 +356,6 @@ export function WindowChrome({
                     'window-menu-item',
                     windowMenuOpen ? 'active' : '',
                   ].join(' ')}
-                  onPointerDown={event => {
-                    if (event.button !== 0) return
-                    event.stopPropagation()
-                    setWindowMenuOpen(value => !value)
-                  }}
                   type="button"
                 >
                   窗口
@@ -408,11 +388,6 @@ export function WindowChrome({
                     'window-menu-item',
                     helpMenuOpen ? 'active' : '',
                   ].join(' ')}
-                  onPointerDown={event => {
-                    if (event.button !== 0) return
-                    event.stopPropagation()
-                    setHelpMenuOpen(value => !value)
-                  }}
                   type="button"
                 >
                   帮助

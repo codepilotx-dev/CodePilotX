@@ -1,4 +1,5 @@
 import React from 'react'
+import * as Tabs from '@radix-ui/react-tabs'
 
 type Option<T extends string> = {
   value: T
@@ -13,19 +14,23 @@ type Props<T extends string> = {
 
 export function SegmentedControl<T extends string>({ value, options, onChange }: Props<T>) {
   return (
-    <div className="segmented-control" role="tablist">
+    <Tabs.Root
+      className="segmented-control"
+      value={value}
+      onValueChange={nextValue => onChange(nextValue as T)}
+    >
+      <Tabs.List className="segmented-control-list">
       {options.map(option => (
-        <button
+        <Tabs.Trigger
           key={option.value}
           type="button"
-          role="tab"
-          aria-selected={value === option.value}
           className={`segmented-control-item ${value === option.value ? 'active' : ''}`}
-          onClick={() => onChange(option.value)}
+          value={option.value}
         >
           {option.label}
-        </button>
+        </Tabs.Trigger>
       ))}
-    </div>
+      </Tabs.List>
+    </Tabs.Root>
   )
 }

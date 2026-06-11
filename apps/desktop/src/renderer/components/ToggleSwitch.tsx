@@ -1,4 +1,5 @@
 import React from 'react'
+import * as Switch from '@radix-ui/react-switch'
 
 type Props = {
   checked: boolean
@@ -8,15 +9,13 @@ type Props = {
 
 export function ToggleSwitch({ checked, onChange, ariaLabel }: Props) {
   return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
+    <Switch.Root
       aria-label={ariaLabel}
       className={`toggle-switch ${checked ? 'on' : ''}`}
-      onClick={() => onChange(!checked)}
+      checked={checked}
+      onCheckedChange={onChange}
     >
-      <div className="toggle-knob" />
-    </button>
+      <Switch.Thumb className="toggle-knob" />
+    </Switch.Root>
   )
 }

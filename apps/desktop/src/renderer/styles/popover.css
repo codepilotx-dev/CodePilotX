@@ -108,12 +108,16 @@
 }
 
 .popover-item:hover:not(:disabled),
-.popover-item.active {
+.popover-item.active,
+.popover-item[data-highlighted] {
   background: var(--c-bg-row-hover);
+  outline: none;
 }
 
-.popover-item:disabled {
+.popover-item:disabled,
+.popover-item[data-disabled] {
   color: var(--c-text-disabled);
+  pointer-events: none;
 }
 
 .popover-item-icon,
@@ -216,4 +220,20 @@
 
 .popover-item-arrow {
   color: var(--c-icon-arrow);
+}
+
+.popover-item-tooltip {
+  z-index: 1100;
+  width: max-content;
+  max-width: min(320px, calc(100vw - 32px));
+  padding: 6px 8px;
+  border-radius: var(--r-md);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  background: var(--c-bg);
+  box-shadow: var(--sh-popover);
+  color: var(--c-text-meta);
+  font-size: var(--fs-11);
+  line-height: 1.4;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }

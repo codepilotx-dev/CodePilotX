@@ -1,5 +1,6 @@
 ﻿import type React from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
+import * as Dialog from '@radix-ui/react-dialog'
 import { AlertCircle } from 'lucide-react'
 import { ComposerCard } from './ComposerCard.js'
 import { DesktopShell } from './DesktopShell.js'
@@ -606,14 +607,24 @@ export function DesktopLayout(): React.ReactNode {
 
   return (
     <div className="desktop-frame">
-      {activePermissionRequest ? (
-        <div className="permission-modal-backdrop">
-          <section className="permission-modal">
+      <Dialog.Root open={Boolean(activePermissionRequest)}>
+        <Dialog.Portal>
+          {activePermissionRequest ? (
+            <Dialog.Overlay className="permission-modal-backdrop">
+              <Dialog.Content
+                className="permission-modal"
+                onEscapeKeyDown={event => event.preventDefault()}
+                onInteractOutside={event => event.preventDefault()}
+              >
             <header>
-              <h2>权限请求</h2>
+              <Dialog.Title asChild>
+                <h2>权限请求</h2>
+              </Dialog.Title>
               <span>{activePermissionRequest.toolName}</span>
             </header>
-            <p>{activePermissionRequest.description}</p>
+            <Dialog.Description asChild>
+              <p>{activePermissionRequest.description}</p>
+            </Dialog.Description>
             <code>{JSON.stringify(activePermissionRequest.input)}</code>
             <div className="permission-modal-actions">
               <button
@@ -642,9 +653,11 @@ export function DesktopLayout(): React.ReactNode {
                 拒绝
               </button>
             </div>
-          </section>
-        </div>
-      ) : null}
+              </Dialog.Content>
+            </Dialog.Overlay>
+          ) : null}
+        </Dialog.Portal>
+      </Dialog.Root>
 
       {!currentWorkspace && runtimeMissing ? (
         <div className="global-warning">

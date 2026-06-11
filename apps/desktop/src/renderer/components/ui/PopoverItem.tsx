@@ -1,5 +1,6 @@
-import { useRef, useState } from 'react'
 import type React from 'react'
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
+import * as Tooltip from '@radix-ui/react-tooltip'
 import { Check, ChevronRight } from 'lucide-react'
 
 type Props = {
@@ -29,29 +30,8 @@ export function PopoverItem({
   onMouseEnter,
   onMouseLeave,
 }: Props): React.ReactNode {
-  const [metaPosition, setMetaPosition] = useState<'left' | 'right'>('right')
-  const metaRef = useRef<HTMLSpanElement | null>(null)
-
-  const handleMouseEnter = (event: React.MouseEvent<HTMLButtonElement>) => {
-    if (metaRef.current) {
-      const itemRect = event.currentTarget.getBoundingClientRect()
-      const metaRect = metaRef.current.getBoundingClientRect()
-      if (itemRect) {
-        const gap = 10
-        const canShowRight =
-          itemRect.right + gap + metaRect.width < window.innerWidth
-        setMetaPosition(canShowRight ? 'right' : 'left')
-      }
-    }
-    onMouseEnter?.()
-  }
-
-  const handleMouseLeave = () => {
-    onMouseLeave?.()
-  }
-
-  return (
-    <button
+  const item = (
+    <DropdownMenu.Item
       className={[
         'popover-item',
         meta ? 'rich' : '',
@@ -59,25 +39,20 @@ export function PopoverItem({
         selected ? 'selected' : '',
       ].join(' ')}
       disabled={disabled}
-      onClick={onClick}
-      onMouseEnter={meta ? handleMouseEnter : onMouseEnter}
-      onMouseLeave={meta ? handleMouseLeave : onMouseLeave}
-      role="menuitem"
-      type="button"
+      onPointerEnter={onMouseEnter}
+      onPointerLeave={onMouseLeave}
+      onSelect={event => {
+        if (disabled) {
+          event.preventDefault()
+          return
+        }
+        onClick?.()
+      }}
     >
       {icon ? <span className="popover-item-icon">{icon}</span> : null}
       {meta ? (
         <span className="popover-item-rich">
           <span className="popover-item-label">{children}</span>
-          <span
-            ref={metaRef}
-            className={[
-              'popover-item-meta',
-              `popover-item-meta-${metaPosition}`,
-            ].join(' ')}
-          >
-            {meta}
-          </span>
         </span>
       ) : (
         <span className="popover-item-label">{children}</span>
@@ -87,6 +62,28 @@ export function PopoverItem({
       ) : withArrow ? (
         <ChevronRight className="popover-item-arrow" size={12} />
       ) : null}
-    </button>
+    </DropdownMenu.Item>
+  )
+
+  if (!meta) {
+    return item
+  }
+
+  return (
+    <Tooltip.Provider delayDuration={350}>
+      <Tooltip.Root>
+        <Tooltip.Trigger asChild>{item}</Tooltip.Trigger>
+        <Tooltip.Portal>
+          <Tooltip.Content
+            align="center"
+            className="popover-item-tooltip"
+            side="right"
+            sideOffset={10}
+          >
+            {meta}
+          </Tooltip.Content>
+        </Tooltip.Portal>
+      </Tooltip.Root>
+    </Tooltip.Provider>
   )
 }

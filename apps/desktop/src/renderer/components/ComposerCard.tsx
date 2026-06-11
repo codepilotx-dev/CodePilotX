@@ -135,10 +135,6 @@ export function ComposerCard({
     textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`
   }, [input])
 
-  function toggleDropdown(dropdown: ComposerDropdown): void {
-    setOpenDropdown(current => (current === dropdown ? null : dropdown))
-  }
-
   function closeDropdown(): void {
     setOpenDropdown(null)
   }
@@ -190,7 +186,6 @@ export function ComposerCard({
                 <ChipButton
                   active={openDropdown === 'permission'}
                   className={getPermissionClassName(permissionMode)}
-                  onClick={() => toggleDropdown('permission')}
                   title="选择权限模式"
                 >
                   {getPermissionIcon(
@@ -233,7 +228,6 @@ export function ComposerCard({
                 <ChipButton
                   active={openDropdown === 'model'}
                   className="subtle"
-                  onClick={() => toggleDropdown('model')}
                   showDot
                   title="选择模型"
                 >
@@ -330,7 +324,6 @@ export function ComposerCard({
               active={openDropdown === 'project'}
               icon={<Folder size={META_CHIP_ICON_SIZE} />}
               label={workspace?.name ?? '无项目对话'}
-              onClick={() => toggleDropdown('project')}
               title="选择项目"
             />
           }
@@ -382,7 +375,6 @@ export function ComposerCard({
               active={openDropdown === 'mode'}
               icon={<Monitor size={META_CHIP_ICON_SIZE} />}
               label="本地模式"
-              onClick={() => toggleDropdown('mode')}
               title="启动模式"
             />
           }
@@ -410,7 +402,6 @@ export function ComposerCard({
               active={openDropdown === 'branch'}
               icon={<GitBranch size={META_CHIP_ICON_SIZE} />}
               label={branchName}
-              onClick={() => toggleDropdown('branch')}
               title="选择分支"
             />
           }

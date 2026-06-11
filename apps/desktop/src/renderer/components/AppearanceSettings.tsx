@@ -1,4 +1,6 @@
 import React, { useState } from 'react'
+import * as RadixSlider from '@radix-ui/react-slider'
+import * as Tabs from '@radix-ui/react-tabs'
 import { Laptop, Moon, Sun } from 'lucide-react'
 import { SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
@@ -43,14 +45,19 @@ function Slider({
 }) {
   return (
     <div className="appearance-slider-wrap">
-      <input
-        type="range"
-        min="0"
-        max="100"
-        value={value}
-        onChange={e => onChange(parseInt(e.target.value, 10))}
+      <RadixSlider.Root
         className="appearance-slider"
-      />
+        min={0}
+        max={100}
+        step={1}
+        value={[value]}
+        onValueChange={values => onChange(values[0] ?? value)}
+      >
+        <RadixSlider.Track className="appearance-slider-track">
+          <RadixSlider.Range className="appearance-slider-range" />
+        </RadixSlider.Track>
+        <RadixSlider.Thumb className="appearance-slider-thumb" />
+      </RadixSlider.Root>
       <span className="appearance-slider-value">{value}</span>
     </div>
   )
@@ -209,21 +216,26 @@ export function AppearanceSettings() {
               </p>
             </div>
             <div className="appearance-mode-toggle" role="tablist" aria-label="主题模式">
+              <Tabs.Root
+                value={settings.mode}
+                onValueChange={value => void setMode(value as DesktopThemeMode)}
+              >
+                <Tabs.List className="appearance-mode-list">
               {THEME_MODE_OPTIONS.map(option => (
-                <button
+                <Tabs.Trigger
                   key={option.value}
                   type="button"
-                  role="tab"
-                  aria-selected={settings.mode === option.value}
                   className={`appearance-mode-option ${
                     settings.mode === option.value ? 'active' : ''
                   }`}
-                  onClick={() => void setMode(option.value)}
+                  value={option.value}
                 >
                   {option.icon}
                   <span>{option.label}</span>
-                </button>
+                </Tabs.Trigger>
               ))}
+                </Tabs.List>
+              </Tabs.Root>
             </div>
           </div>
 

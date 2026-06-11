@@ -1,5 +1,5 @@
 import type React from 'react'
-import { useEffect, useRef } from 'react'
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 
 type Props = {
   children: React.ReactNode
@@ -20,65 +20,30 @@ export function PopoverMenu({
   textMode = 'nowrap',
   onOpenChange,
 }: Props): React.ReactNode {
-  const rootRef = useRef<HTMLDivElement | null>(null)
-
-  useEffect(() => {
-    if (!open) return
-
-    function handlePointerDown(event: PointerEvent): void {
-      const target = event.target
-      if (
-        target instanceof Node &&
-        rootRef.current &&
-        !rootRef.current.contains(target)
-      ) {
-        onOpenChange(false)
-      }
-    }
-
-    function handleMouseDown(event: MouseEvent): void {
-      const target = event.target
-      if (
-        target instanceof Node &&
-        rootRef.current &&
-        !rootRef.current.contains(target)
-      ) {
-        onOpenChange(false)
-      }
-    }
-
-    function handleKeyDown(event: KeyboardEvent): void {
-      if (event.key === 'Escape') {
-        onOpenChange(false)
-      }
-    }
-
-    document.addEventListener('pointerdown', handlePointerDown, true)
-    document.addEventListener('mousedown', handleMouseDown, true)
-    document.addEventListener('keydown', handleKeyDown)
-    return () => {
-      document.removeEventListener('pointerdown', handlePointerDown, true)
-      document.removeEventListener('mousedown', handleMouseDown, true)
-      document.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [onOpenChange, open])
+  const side = className.includes('popover-menu-') ? 'bottom' : 'top'
+  const align =
+    className.includes('popover-model') || className.includes('popover-branch')
+      ? 'end'
+      : 'start'
 
   return (
-    <div className="popover-root" ref={rootRef}>
-      {trigger}
-      {open ? (
-        <div
+    <DropdownMenu.Root open={open} onOpenChange={onOpenChange}>
+      <DropdownMenu.Trigger asChild>{trigger}</DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content
+          align={align}
           className={[
             'popover',
             className,
             autoWidth ? 'popover-auto-width' : '',
             textMode === 'wrap' ? 'popover-text-wrap' : '',
           ].join(' ')}
-          role="menu"
+          side={side}
+          sideOffset={className.includes('popover-menu-') ? 4 : 6}
         >
           {children}
-        </div>
-      ) : null}
-    </div>
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
   )
 }

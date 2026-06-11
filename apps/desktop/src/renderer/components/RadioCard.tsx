@@ -1,27 +1,28 @@
 import React from 'react'
+import * as RadioGroup from '@radix-ui/react-radio-group'
 
 type Props = {
+  value: string
   icon: React.ReactNode
   title: string
   description: string
   checked: boolean
-  onClick: () => void
+  onClick?: () => void
 }
 
-export function RadioCard({ icon, title, description, checked, onClick }: Props) {
+export function RadioCard({
+  value,
+  icon,
+  title,
+  description,
+  checked,
+  onClick,
+}: Props) {
   return (
-    <div
+    <RadioGroup.Item
       className={`radio-card ${checked ? 'active' : ''}`}
       onClick={onClick}
-      role="radio"
-      aria-checked={checked}
-      tabIndex={0}
-      onKeyDown={e => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-          onClick()
-        }
-      }}
+      value={value}
     >
       <div className="radio-card-icon">{icon}</div>
       <div className="radio-card-body">
@@ -29,8 +30,8 @@ export function RadioCard({ icon, title, description, checked, onClick }: Props)
         <p className="radio-card-desc">{description}</p>
       </div>
       <div className="radio-indicator">
-        <div className="radio-indicator-inner" />
+        <RadioGroup.Indicator className="radio-indicator-inner" />
       </div>
-    </div>
+    </RadioGroup.Item>
   )
 }

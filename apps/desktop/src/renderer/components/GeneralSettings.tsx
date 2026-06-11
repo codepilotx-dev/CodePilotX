@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import * as RadioGroup from '@radix-ui/react-radio-group'
 import { SquareTerminal, MessagesSquare } from 'lucide-react'
 import { RadioCard } from './RadioCard.js'
 import { ToggleSwitch } from './ToggleSwitch.js'
@@ -137,18 +138,22 @@ export function GeneralSettings() {
             <h3 className="settings-section-title">工作模式</h3>
             <p className="settings-section-desc">选择 Codex 显示多少技术细节</p>
           </div>
-          <div className="settings-radio-group">
+          <RadioGroup.Root
+            className="settings-radio-group"
+            value={workMode}
+            onValueChange={value => handleWorkMode(value as WorkMode)}
+          >
             {WORK_MODES.map(mode => (
               <RadioCard
                 key={mode.value}
+                value={mode.value}
                 checked={workMode === mode.value}
                 description={mode.description}
                 icon={mode.icon}
-                onClick={() => handleWorkMode(mode.value)}
                 title={mode.title}
               />
             ))}
-          </div>
+          </RadioGroup.Root>
         </section>
 
         <SettingsSection title="权限">
