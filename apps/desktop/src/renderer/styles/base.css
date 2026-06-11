@@ -27,6 +27,7 @@
   --c-send-bg: #8b8b8b;
   --c-send-bg-hover: #2b2b2b;
   --c-send-bg-disabled: #8f8f8f;
+  --c-user-bubble-bg: #f1f1f1;
   --c-scrollbar: #EDECED;
   --c-scrollbar-hover: #5A5A5A;
   --c-diff-added: #16a34a;
@@ -97,6 +98,7 @@
   --c-send-bg: #ff79c6;
   --c-send-bg-hover: #ff92d0;
   --c-send-bg-disabled: #5b4a63;
+  --c-user-bubble-bg: #3a3d4f;
   --c-scrollbar: #44475a;
   --c-scrollbar-hover: #6272a4;
   --c-diff-added: #50fa7b;

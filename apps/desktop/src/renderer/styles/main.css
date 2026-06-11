@@ -245,7 +245,7 @@
   max-width: min(520px, 78%);
   padding: 8px 13px;
   border-radius: 17px;
-  background: var(--c-bg-chip-hover);
+  background: var(--c-user-bubble-bg);
   color: var(--c-text-strong);
   white-space: pre-wrap;
 }
