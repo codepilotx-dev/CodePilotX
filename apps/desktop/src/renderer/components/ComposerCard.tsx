@@ -286,15 +286,15 @@ export function ComposerCard({
           <div className="toolbar-right">
             {showContextUsage ? (
               <span
-                aria-label="Context window usage"
+                aria-label="上下文窗口使用量"
                 className="context-usage-chip"
                 tabIndex={0}
               >
                 <span className="chip-dot" />
                 <span className="context-usage-popover" role="tooltip">
-                  <span>Context window:</span>
-                  <strong>28% used (72% left)</strong>
-                  <span>72k / 258k tokens used</span>
+                  <span>上下文窗口：</span>
+                  <strong>已用 28%，剩余 72%</strong>
+                  <span>已使用 72k / 258k token</span>
                 </span>
               </span>
             ) : null}

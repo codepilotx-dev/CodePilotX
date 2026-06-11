@@ -1,91 +1,91 @@
-import React, { useState } from 'react'
-import * as RadioGroup from '@radix-ui/react-radio-group'
-import { SquareTerminal, MessagesSquare } from 'lucide-react'
-import { RadioCard } from './RadioCard.js'
-import { ToggleSwitch } from './ToggleSwitch.js'
-import { SettingsRow } from './SettingsRow.js'
-import { SettingsSection } from './SettingsSection.js'
-import { SettingsDropdown } from './SettingsDropdown.js'
-import { SegmentedControl } from './SegmentedControl.js'
-import { useDesktopSettings } from '../features/settings/useDesktopSettings.js'
-import type { DesktopPermissionMode } from '../../shared/types.js'
+import React, { useState } from "react";
+import * as RadioGroup from "@radix-ui/react-radio-group";
+import { SquareTerminal, MessagesSquare } from "lucide-react";
+import { RadioCard } from "./RadioCard.js";
+import { ToggleSwitch } from "./ToggleSwitch.js";
+import { SettingsRow } from "./SettingsRow.js";
+import { SettingsSection } from "./SettingsSection.js";
+import { SettingsDropdown } from "./SettingsDropdown.js";
+import { SegmentedControl } from "./SegmentedControl.js";
+import { useDesktopSettings } from "../features/settings/useDesktopSettings.js";
+import type { DesktopPermissionMode } from "../../shared/types.js";
 
 const OPEN_TARGET_OPTIONS = [
-  { value: 'vscode', label: 'VS Code' },
-  { value: 'cursor', label: 'Cursor' },
-  { value: 'finder', label: '文件资源管理器' },
-  { value: 'terminal', label: '终端' },
-]
+  { value: "vscode", label: "VS Code" },
+  { value: "cursor", label: "Cursor" },
+  { value: "finder", label: "文件资源管理器" },
+  { value: "terminal", label: "终端" },
+];
 
 const TERMINAL_SHELL_OPTIONS = [
-  { value: 'powershell', label: 'PowerShell' },
-  { value: 'cmd', label: 'Command Prompt' },
-  { value: 'bash', label: 'Bash' },
-  { value: 'pwsh', label: 'PowerShell Core' },
-]
+  { value: "powershell", label: "PowerShell" },
+  { value: "cmd", label: "Command Prompt" },
+  { value: "bash", label: "Bash" },
+  { value: "pwsh", label: "PowerShell Core" },
+];
 
 const LANGUAGE_OPTIONS = [
-  { value: 'zh-CN', label: '中文（中国）' },
-  { value: 'en-US', label: 'English (US)' },
-  { value: 'ja-JP', label: '日本語' },
-  { value: 'ko-KR', label: '한국어' },
-]
+  { value: "zh-CN", label: "中文（中国）" },
+  { value: "en-US", label: "English (US)" },
+  { value: "ja-JP", label: "日本語" },
+  { value: "ko-KR", label: "한국어" },
+];
 
 const SPEED_OPTIONS = [
-  { value: 'fast', label: '快' },
-  { value: 'standard', label: '标准' },
-  { value: 'thorough', label: '深入' },
-]
+  { value: "fast", label: "快" },
+  { value: "standard", label: "标准" },
+  { value: "thorough", label: "深入" },
+];
 
-const FOLLOW_UP_OPTIONS: Array<{ value: 'queue' | 'steer'; label: string }> = [
-  { value: 'queue', label: '排队' },
-  { value: 'steer', label: '引导' },
-]
+const FOLLOW_UP_OPTIONS: Array<{ value: "queue" | "steer"; label: string }> = [
+  { value: "queue", label: "排队" },
+  { value: "steer", label: "引导" },
+];
 
-const REVIEW_OPTIONS: Array<{ value: 'inline' | 'detached'; label: string }> = [
-  { value: 'inline', label: '行内视图' },
-  { value: 'detached', label: '分离视图' },
-]
+const REVIEW_OPTIONS: Array<{ value: "inline" | "detached"; label: string }> = [
+  { value: "inline", label: "行内视图" },
+  { value: "detached", label: "分离视图" },
+];
 
-type WorkMode = 'coding' | 'daily'
+type WorkMode = "coding" | "daily";
 
 const WORK_MODES: Array<{
-  value: WorkMode
-  title: string
-  description: string
-  icon: React.ReactNode
+  value: WorkMode;
+  title: string;
+  description: string;
+  icon: React.ReactNode;
 }> = [
   {
-    value: 'coding',
-    title: '适用于编程',
-    description: '更具技术性的回复和控制',
+    value: "coding",
+    title: "适用于编程",
+    description: "更具技术性的回复和控制",
     icon: <SquareTerminal />,
   },
   {
-    value: 'daily',
-    title: '适用于日常工作',
-    description: '同样强大，技术细节更少',
+    value: "daily",
+    title: "适用于日常工作",
+    description: "同样强大，技术细节更少",
     icon: <MessagesSquare />,
   },
-]
+];
 
 const PERMISSION_LEVELS: Record<DesktopPermissionMode, number> = {
   default: 0,
   acceptEdits: 1,
   bypassPermissions: 2,
   dontAsk: 2,
-}
+};
 
 function LearnMoreLink() {
   return (
     <a
       className="settings-row-link"
       href="#"
-      onClick={e => e.preventDefault()}
+      onClick={(e) => e.preventDefault()}
     >
       了解更多有关高风险的信息。
     </a>
-  )
+  );
 }
 
 export function GeneralSettings() {
@@ -96,42 +96,42 @@ export function GeneralSettings() {
     setPermissionMode,
     showContextUsage,
     setShowContextUsage,
-  } = useDesktopSettings()
+  } = useDesktopSettings();
 
-  const [openTarget, setOpenTarget] = useState('vscode')
-  const [terminalShell, setTerminalShell] = useState('powershell')
-  const [language, setLanguage] = useState('zh-CN')
-  const [longPromptShortcut, setLongPromptShortcut] = useState(false)
-  const [speed, setSpeed] = useState('standard')
-  const [followUp, setFollowUp] = useState<'queue' | 'steer'>('steer')
-  const [reviewView, setReviewView] = useState<'inline' | 'detached'>('inline')
-  const [suggestPrompts, setSuggestPrompts] = useState(true)
-  const [popupShortcut] = useState<string | null>(null)
-  const [popupNoProjectChat, setPopupNoProjectChat] = useState(false)
-  const [holdDictation] = useState<string | null>(null)
-  const [toggleDictation] = useState<string | null>(null)
-  const [notifyOnComplete, setNotifyOnComplete] = useState('unfocused')
-  const [notifyPermission, setNotifyPermission] = useState(true)
-  const [notifyQuestions, setNotifyQuestions] = useState(true)
+  const [openTarget, setOpenTarget] = useState("vscode");
+  const [terminalShell, setTerminalShell] = useState("powershell");
+  const [language, setLanguage] = useState("zh-CN");
+  const [longPromptShortcut, setLongPromptShortcut] = useState(false);
+  const [speed, setSpeed] = useState("standard");
+  const [followUp, setFollowUp] = useState<"queue" | "steer">("steer");
+  const [reviewView, setReviewView] = useState<"inline" | "detached">("inline");
+  const [suggestPrompts, setSuggestPrompts] = useState(true);
+  const [popupShortcut] = useState<string | null>(null);
+  const [popupNoProjectChat, setPopupNoProjectChat] = useState(false);
+  const [holdDictation] = useState<string | null>(null);
+  const [toggleDictation] = useState<string | null>(null);
+  const [notifyOnComplete, setNotifyOnComplete] = useState("unfocused");
+  const [notifyPermission, setNotifyPermission] = useState(true);
+  const [notifyQuestions, setNotifyQuestions] = useState(true);
 
-  const workMode: WorkMode = thinkingMode === 'adaptive' ? 'daily' : 'coding'
+  const workMode: WorkMode = thinkingMode === "adaptive" ? "daily" : "coding";
   const handleWorkMode = (next: WorkMode) => {
-    setThinkingMode(next === 'coding' ? 'default' : 'adaptive')
-  }
+    setThinkingMode(next === "coding" ? "default" : "adaptive");
+  };
 
-  const level = PERMISSION_LEVELS[permissionMode] ?? 0
-  const defaultPermOn = level >= 0
-  const autoApproveOn = level >= 1
-  const fullAccessOn = level >= 2
+  const level = PERMISSION_LEVELS[permissionMode] ?? 0;
+  const defaultPermOn = level >= 0;
+  const autoApproveOn = level >= 1;
+  const fullAccessOn = level >= 2;
 
   const handleAutoApprove = (checked: boolean) => {
-    if (checked) setPermissionMode('acceptEdits')
-    else setPermissionMode('default')
-  }
+    if (checked) setPermissionMode("acceptEdits");
+    else setPermissionMode("default");
+  };
   const handleFullAccess = (checked: boolean) => {
-    if (checked) setPermissionMode('bypassPermissions')
-    else setPermissionMode('acceptEdits')
-  }
+    if (checked) setPermissionMode("bypassPermissions");
+    else setPermissionMode("acceptEdits");
+  };
 
   return (
     <div className="settings-content-area">
@@ -146,9 +146,9 @@ export function GeneralSettings() {
           <RadioGroup.Root
             className="settings-radio-group"
             value={workMode}
-            onValueChange={value => handleWorkMode(value as WorkMode)}
+            onValueChange={(value) => handleWorkMode(value as WorkMode)}
           >
-            {WORK_MODES.map(mode => (
+            {WORK_MODES.map((mode) => (
               <RadioCard
                 key={mode.value}
                 value={mode.value}
@@ -177,7 +177,8 @@ export function GeneralSettings() {
             title="自动审核"
             description={
               <>
-                Codex 可以读取和编辑其工作区中的文件。Codex 会自动审核额外访问权限请求。自动审核可能会出错。
+                Codex 可以读取和编辑其工作区中的文件。Codex
+                会自动审核额外访问权限请求。自动审核可能会出错。
                 <LearnMoreLink />
               </>
             }
@@ -193,7 +194,8 @@ export function GeneralSettings() {
             title="完全访问权限"
             description={
               <>
-                当 Codex 以完全访问权限运行时，无需你批准，即可编辑你的电脑上的任何文件并运行联网命令。这会显著增加数据丢失、泄露或意外行为的风险。
+                当 Codex
+                以完全访问权限运行时，无需你批准，即可编辑你的电脑上的任何文件并运行联网命令。这会显著增加数据丢失、泄露或意外行为的风险。
                 <LearnMoreLink />
               </>
             }
@@ -271,7 +273,8 @@ export function GeneralSettings() {
             title="跟进行为"
             description={
               <>
-                在 Codex 运行时将后续操作加入队列，或引导当前运行。按下"Ctrl+↵"可对单条消息执行相反操作
+                在 Codex
+                运行时将后续操作加入队列，或引导当前运行。按下"Ctrl+↵"可对单条消息执行相反操作
               </>
             }
             control={
@@ -331,7 +334,7 @@ export function GeneralSettings() {
             control={
               <>
                 <span className="settings-row-status">
-                  {popupShortcut ? popupShortcut : '禁用'}
+                  {popupShortcut ? popupShortcut : "禁用"}
                 </span>
                 <button type="button" className="settings-button">
                   设置
@@ -359,7 +362,7 @@ export function GeneralSettings() {
             control={
               <>
                 <span className="settings-row-status">
-                  {holdDictation ? holdDictation : '关闭'}
+                  {holdDictation ? holdDictation : "关闭"}
                 </span>
                 <button type="button" className="settings-button">
                   设置
@@ -373,7 +376,7 @@ export function GeneralSettings() {
             control={
               <>
                 <span className="settings-row-status">
-                  {toggleDictation ? toggleDictation : '关闭'}
+                  {toggleDictation ? toggleDictation : "关闭"}
                 </span>
                 <button type="button" className="settings-button">
                   设置
@@ -387,7 +390,7 @@ export function GeneralSettings() {
             control={
               <SettingsDropdown
                 value=""
-                options={[{ value: '', label: '未选择' }]}
+                options={[{ value: "", label: "未选择" }]}
                 onChange={() => {}}
                 ariaLabel="听写词典"
               />
@@ -407,9 +410,9 @@ export function GeneralSettings() {
               <SettingsDropdown
                 value={notifyOnComplete}
                 options={[
-                  { value: 'always', label: '总是' },
-                  { value: 'unfocused', label: '仅当应用失焦时' },
-                  { value: 'never', label: '从不' },
+                  { value: "always", label: "总是" },
+                  { value: "unfocused", label: "仅当应用失焦时" },
+                  { value: "never", label: "从不" },
                 ]}
                 onChange={setNotifyOnComplete}
                 ariaLabel="轮次完成通知"
@@ -440,20 +443,20 @@ export function GeneralSettings() {
           />
         </SettingsSection>
 
-        <SettingsSection title="Composer footer">
+        <SettingsSection title="对话框底部栏">
           <SettingsRow
-            title="Show context window usage"
-            description="Show context window usage in the composer footer"
+            title="显示上下文窗口使用量"
+            description="在对话框底部栏显示上下文窗口使用量"
             control={
               <ToggleSwitch
                 checked={showContextUsage}
                 onChange={setShowContextUsage}
-                ariaLabel="Show context window usage"
+                ariaLabel="显示上下文窗口使用量"
               />
             }
           />
         </SettingsSection>
       </div>
     </div>
-  )
+  );
 }
