@@ -94,6 +94,7 @@ export async function createSessionForWorkspaceAction(
       {
         id: session.sessionId,
         sessionName: normalizeOptionalText(settings.sessionName) ?? null,
+        aiTitle: null,
         workspaceName: workspace.name,
         workspacePath: workspace.path,
         standalone: session.standalone,

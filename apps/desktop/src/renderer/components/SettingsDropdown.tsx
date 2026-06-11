@@ -5,6 +5,7 @@ import { ChevronDown } from 'lucide-react'
 type Option = {
   value: string
   label: string
+  detail?: string
   icon?: React.ReactNode
 }
 
@@ -58,7 +59,13 @@ export function SettingsDropdown({ value, options, onChange, ariaLabel }: Props)
                 tabIndex={-1}
                 value={opt.value === '' ? EMPTY_VALUE : opt.value}
               >
-                <Select.ItemText>{opt.label}</Select.ItemText>
+                <div className="settings-dropdown-item-inner">
+                  {opt.icon}
+                  <div className="settings-dropdown-item-copy">
+                    <Select.ItemText>{opt.label}</Select.ItemText>
+                    {opt.detail ? <span>{opt.detail}</span> : null}
+                  </div>
+                </div>
               </Select.Item>
             ))}
           </Select.Viewport>

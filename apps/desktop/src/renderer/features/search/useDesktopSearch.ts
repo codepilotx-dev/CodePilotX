@@ -32,6 +32,7 @@ export function useDesktopSearch(
     return visibleSessions.filter(session =>
       [
         session.sessionName ?? '',
+        session.aiTitle ?? '',
         session.workspaceName,
         session.createdAt,
         session.status,

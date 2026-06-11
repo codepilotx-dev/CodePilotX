@@ -21,6 +21,10 @@ export type SessionListItem = DesktopSessionListItem
 
 export type ToolLogEntry = DesktopToolLogEntry
 
+export function sessionDisplayTitle(session: SessionListItem): string {
+  return session.sessionName ?? session.aiTitle ?? session.workspaceName
+}
+
 export type SessionViewState = {
   messages: Message[]
   toolLog: ToolLogEntry[]

@@ -21,6 +21,7 @@ export function QuickChatView(): React.ReactNode {
   const {
     isConversationRoute,
     isConversationLoading,
+    sessionTitle,
     messages,
     errorMessage,
     onDismissError,
@@ -53,7 +54,7 @@ export function QuickChatView(): React.ReactNode {
             <span>
               {isConversationLoading
                 ? "加载对话中"
-                : getConversationTitle(conversationMessages)}
+                : sessionTitle ?? getConversationTitle(conversationMessages)}
             </span>
             <Tooltip content="更多操作">
               <button

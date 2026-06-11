@@ -59,19 +59,33 @@ export type DesktopDrawerTab =
   | 'toolLog'
   | 'settings'
 
-export type ModelProviderID =
-  | 'anthropic'
-  | 'openai'
-  | 'openrouter'
-  | 'deepseek'
-  | 'minimax'
-  | 'groq'
-  | 'custom'
+export type ModelProviderID = string
 
 export type DesktopModelProviderKind =
   | 'anthropic'
   | 'openai-compatible'
   | 'minimax'
+
+export type DesktopModelMetadata = {
+  id: string
+  name?: string
+  label?: string
+  description?: string
+  badge?: string
+  contextWindow?: number
+  outputTokens?: number
+  inputCost?: number
+  outputCost?: number
+  cacheReadCost?: number
+  reasoning?: boolean
+  toolCall?: boolean
+  structuredOutput?: boolean
+  vision?: boolean
+  modalities?: {
+    input: string[]
+    output: string[]
+  }
+}
 
 export type DesktopModelProviderSummary = {
   providerID: ModelProviderID
@@ -79,7 +93,14 @@ export type DesktopModelProviderSummary = {
   displayName: string
   baseURL?: string
   defaultModels: string[]
+  modelMetadata?: Record<string, DesktopModelMetadata>
   apiKeyConfigured: boolean
+  envVars?: string[]
+  docURL?: string
+  logoURL?: string
+  npmPackage?: string
+  modelsDevSource?: boolean
+  requiresBaseURL?: boolean
 }
 
 export type DesktopModelProviderState = {
@@ -90,6 +111,7 @@ export type DesktopModelProviderState = {
   apiKeyConfigured: boolean
   apiKeySource: string | null
   models: string[]
+  modelMetadata?: Record<string, DesktopModelMetadata>
   error?: string
 }
 
@@ -198,6 +220,7 @@ export type DesktopToolLogEntry = {
 export type DesktopSessionListItem = {
   id: string
   sessionName: string | null
+  aiTitle: string | null
   workspaceName: string
   workspacePath: string
   standalone?: boolean
@@ -248,6 +271,7 @@ export type DesktopSessionMetadataPatch = {
 export type DesktopAgentEvent =
   | { type: 'message'; sessionId: string; role: 'user' | 'assistant' | 'system'; text: string; createdAt?: string }
   | { type: 'partial_message'; sessionId: string; text: string; createdAt?: string }
+  | { type: 'session_title'; sessionId: string; title: string }
   | { type: 'tool_start'; sessionId: string; toolName: string; summary: string }
   | { type: 'tool_result'; sessionId: string; toolName: string; summary: string; isError?: boolean }
   | { type: 'permission_request'; sessionId: string; request: DesktopPermissionRequest }

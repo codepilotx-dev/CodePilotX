@@ -3806,7 +3806,8 @@ function runHeadlessStreaming(
           // interrupts for the duration of the API roundtrip).
           const { description, persist } = message.request
           // Reuse the live controller only if it has not already been aborted
-          // (e.g. by interrupt()); an aborted signal would cause queryHaiku to
+          // (e.g. by interrupt()); an aborted signal would cause the title
+          // request to
           // immediately throw APIUserAbortError → {title: null}.
           const titleSignal = (
             abortController && !abortController.signal.aborted
@@ -3815,7 +3816,11 @@ function runHeadlessStreaming(
           ).signal
           void (async () => {
             try {
-              const title = await generateSessionTitle(description, titleSignal)
+              const title = await generateSessionTitle(
+                description,
+                titleSignal,
+                getMainLoopModel(),
+              )
               if (title && persist) {
                 try {
                   saveAiGeneratedTitle(getSessionId() as UUID, title)

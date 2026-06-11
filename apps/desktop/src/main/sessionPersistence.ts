@@ -95,6 +95,7 @@ export function createDesktopSessionSnapshot(params: {
     item: {
       id: params.sessionId,
       sessionName: params.settings.sessionName ?? null,
+      aiTitle: null,
       workspaceName: params.workspace.name,
       workspacePath: params.workspace.path,
       standalone: params.standalone,
@@ -173,6 +174,11 @@ export function applyDesktopAgentEventToSnapshot(
         messageIndex === index ? partialMessage : message,
       )
     }
+    return next
+  }
+
+  if (event.type === 'session_title') {
+    next.item.aiTitle = event.title
     return next
   }
 
@@ -317,6 +323,7 @@ function normalizeSessionItem(
     id: typeof item.id === 'string' ? item.id : '',
     sessionName:
       typeof item.sessionName === 'string' ? item.sessionName : null,
+    aiTitle: typeof item.aiTitle === 'string' ? item.aiTitle : null,
     workspaceName:
       typeof item.workspaceName === 'string' ? item.workspaceName : '',
     workspacePath:

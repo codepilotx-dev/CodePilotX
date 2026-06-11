@@ -25,7 +25,11 @@ import type {
   DesktopSessionMetadataPatch,
   DesktopWorkspace,
 } from "../../shared/types.js";
-import type { AppView, SessionListItem } from "../uiTypes.js";
+import {
+  sessionDisplayTitle,
+  type AppView,
+  type SessionListItem,
+} from "../uiTypes.js";
 import { IconButton } from "./ui/IconButton.js";
 
 type Props = {
@@ -502,7 +506,7 @@ function SessionGroup({
 }
 
 function conversationTitle(session: SessionListItem): string {
-  return session.sessionName ?? session.workspaceName;
+  return sessionDisplayTitle(session);
 }
 
 function compareTimestamp(

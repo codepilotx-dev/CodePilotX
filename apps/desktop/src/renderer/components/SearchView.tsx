@@ -1,6 +1,7 @@
 import type React from 'react'
 import { Search } from 'lucide-react'
 import { useSearchContext } from '../context/SearchContext.js'
+import { sessionDisplayTitle } from '../uiTypes.js'
 
 export function SearchView(): React.ReactNode {
   const {
@@ -58,7 +59,7 @@ export function SearchView(): React.ReactNode {
                 onClick={() => onSelectSession(session)}
                 type="button"
               >
-                <span>{session.sessionName ?? session.workspaceName}</span>
+                <span>{sessionDisplayTitle(session)}</span>
                 <small>
                   {session.workspaceName} · {session.createdAt}
                 </small>

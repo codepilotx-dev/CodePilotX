@@ -1,11 +1,12 @@
 ﻿import type React from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import * as Select from '@radix-ui/react-select'
 import {
   ArrowUp,
-  Bot,
   Check,
   ChevronDown,
+  ChevronRight,
   Folder,
   FolderPlus,
   GitBranch,
@@ -26,6 +27,7 @@ import type {
   DesktopSessionStatus,
   DesktopThinkingMode,
   DesktopWorkspace,
+  ModelProviderID,
 } from '../../shared/types.js'
 import type { ModelPreset } from '../modelPresets.js'
 import { CUSTOM_MODEL_PRESET_ID } from '../modelPresets.js'
@@ -42,6 +44,12 @@ type Option<T extends string> = {
   detail?: string
 }
 
+type ProviderModelOption = {
+  providerID: ModelProviderID
+  displayName: string
+  modelPresets: ModelPreset[]
+}
+
 const PERMISSION_MENU_ICON_SIZE = 16
 const PERMISSION_TRIGGER_ICON_SIZE = 18
 const META_CHIP_ICON_SIZE = 14
@@ -54,9 +62,12 @@ type Props = {
   sessionStatus: DesktopSessionStatus
   permissionMode: DesktopPermissionMode
   thinkingMode: DesktopThinkingMode
+  selectedProviderID: ModelProviderID
   selectedModelPreset: string
+  showThinkingOptions: boolean
   showContextUsage: boolean
   modelPresets: ModelPreset[]
+  providerOptions: ProviderModelOption[]
   permissionOptions: Option<DesktopPermissionMode>[]
   thinkingOptions: Option<DesktopThinkingMode>[]
   branchName: string
@@ -67,7 +78,10 @@ type Props = {
   onChooseWorkspace: () => void
   onInputChange: (value: string) => void
   onInterrupt: () => void
-  onModelChange: (value: string) => void
+  onProviderModelChange: (
+    providerID: ModelProviderID,
+    modelPresetID: string,
+  ) => void
   onOpenFiles: () => void
   onOpenWorkspace: (workspace: DesktopWorkspace) => void
   onBranchSelect: (branch: string) => void
@@ -82,9 +96,12 @@ export function ComposerCard({
   sessionStatus,
   permissionMode,
   thinkingMode,
+  selectedProviderID,
   selectedModelPreset,
+  showThinkingOptions,
   showContextUsage,
   modelPresets,
+  providerOptions,
   permissionOptions,
   thinkingOptions,
   branchName,
@@ -95,7 +112,7 @@ export function ComposerCard({
   onChooseWorkspace,
   onInputChange,
   onInterrupt,
-  onModelChange,
+  onProviderModelChange,
   onOpenFiles,
   onOpenWorkspace,
   onBranchSelect,
@@ -116,6 +133,17 @@ export function ComposerCard({
   const selectedModel = modelPresets.find(
     preset => preset.id === selectedModelPreset,
   )
+  const selectedProvider = providerOptions.find(
+    provider => provider.providerID === selectedProviderID,
+  )
+  const selectedModelLabel =
+    selectedModelPreset === CUSTOM_MODEL_PRESET_ID
+      ? '自定义模型'
+      : (selectedModel?.shortLabel ?? selectedModel?.label ?? selectedModelPreset)
+  const selectedModelTitle =
+    selectedModelPreset === CUSTOM_MODEL_PRESET_ID
+      ? '自定义模型'
+      : (selectedModel?.label ?? selectedModelPreset)
   const selectedThinking = thinkingOptions.find(
     option => option.value === thinkingMode,
   )
@@ -307,62 +335,120 @@ export function ComposerCard({
                   active={openDropdown === 'model'}
                   className="subtle"
                   title={
-                    selectedModel?.label ?? selectedModelPreset
+                    `${selectedProvider?.displayName ?? '模型'} · ${selectedModelTitle}`
                   }
                 >
                   <span>
-                    {selectedModel?.shortLabel ??
-                      selectedModel?.label ??
-                      selectedModelPreset}{' '}
-                    · {selectedThinking?.label ?? '默认'}
+                    {selectedProvider?.displayName
+                      ? `${selectedProvider.displayName} · `
+                      : ''}
+                    {selectedModelLabel}
+                    {showThinkingOptions
+                      ? ` · ${selectedThinking?.label ?? '默认'}`
+                      : ''}
                   </span>
                 </ChipButton>
               }
             >
-              <div className="popover-header">推理</div>
-              <div className="popover-section">
-                {thinkingOptions.map(option => (
-                  <PopoverItem
-                    key={option.value}
-                    selected={option.value === thinkingMode}
-                    withCheck
-                    onClick={() => {
-                      onThinkingChange(option.value)
-                      closeDropdown()
-                    }}
-                  >
-                    {option.label}
-                  </PopoverItem>
+              {showThinkingOptions ? (
+                <>
+                  <div className="popover-header">推理</div>
+                  <div className="popover-section">
+                    {thinkingOptions.map(option => (
+                      <PopoverItem
+                        key={option.value}
+                        selected={option.value === thinkingMode}
+                        withCheck
+                        onClick={() => {
+                          onThinkingChange(option.value)
+                          closeDropdown()
+                        }}
+                      >
+                        {option.label}
+                      </PopoverItem>
+                    ))}
+                  </div>
+                  <div className="popover-divider" />
+                </>
+              ) : null}
+              <div className="popover-header">提供商</div>
+              <div className="popover-section popover-provider-list">
+                {providerOptions.map(provider => (
+                  <DropdownMenu.Sub key={provider.providerID}>
+                    <DropdownMenu.SubTrigger
+                      className={[
+                        'popover-item',
+                        'popover-sub-trigger',
+                        provider.providerID === selectedProviderID
+                          ? 'selected'
+                          : '',
+                      ].join(' ')}
+                      tabIndex={-1}
+                    >
+                      <span className="popover-item-label">
+                        {provider.displayName}
+                      </span>
+                      {provider.providerID === selectedProviderID ? (
+                        <Check
+                          className="popover-item-check"
+                          size={14}
+                          strokeWidth={2.5}
+                        />
+                      ) : null}
+                      <ChevronRight
+                        className="popover-item-arrow"
+                        size={12}
+                      />
+                    </DropdownMenu.SubTrigger>
+                    <DropdownMenu.Portal>
+                      <DropdownMenu.SubContent
+                        alignOffset={-6}
+                        className="popover popover-sub-content popover-model-submenu"
+                        sideOffset={8}
+                      >
+                        <div className="popover-header">模型</div>
+                        <div className="popover-section popover-model-list">
+                          {provider.modelPresets.map(preset => (
+                            <PopoverItem
+                              key={preset.id}
+                              selected={
+                                provider.providerID === selectedProviderID &&
+                                preset.id === selectedModelPreset
+                              }
+                              withCheck
+                              onClick={() => {
+                                onProviderModelChange(
+                                  provider.providerID,
+                                  preset.id,
+                                )
+                                closeDropdown()
+                              }}
+                            >
+                              {preset.label}
+                            </PopoverItem>
+                          ))}
+                          <PopoverItem
+                            icon={<Wrench size={14} />}
+                            selected={
+                              provider.providerID === selectedProviderID &&
+                              selectedModelPreset === CUSTOM_MODEL_PRESET_ID
+                            }
+                            withCheck
+                            onClick={() => {
+                              onProviderModelChange(
+                                provider.providerID,
+                                CUSTOM_MODEL_PRESET_ID,
+                              )
+                              closeDropdown()
+                            }}
+                          >
+                            自定义模型
+                          </PopoverItem>
+                        </div>
+                      </DropdownMenu.SubContent>
+                    </DropdownMenu.Portal>
+                  </DropdownMenu.Sub>
                 ))}
-              </div>
-              <div className="popover-divider" />
-              <div className="popover-header">模型</div>
-              <div className="popover-section">
-                {modelPresets.map(preset => (
-                  <PopoverItem
-                    icon={<Bot size={14} />}
-                    key={preset.id}
-                    selected={preset.id === selectedModelPreset}
-                    withCheck
-                    onClick={() => {
-                      onModelChange(preset.id)
-                      closeDropdown()
-                    }}
-                  >
-                    {preset.label}
-                  </PopoverItem>
-                ))}
-                <PopoverItem
-                  icon={<Wrench size={14} />}
-                  selected={selectedModelPreset === CUSTOM_MODEL_PRESET_ID}
-                  withCheck
-                  onClick={() => {
-                    onModelChange(CUSTOM_MODEL_PRESET_ID)
-                    closeDropdown()
-                  }}
-                >
-                  自定义模型
-                </PopoverItem>
               </div>
               <div className="popover-divider" />
               <PopoverItem

@@ -1,5 +1,5 @@
 /**
- * Session title generation via Haiku.
+ * Session title generation.
  *
  * Standalone module with minimal dependencies so it can be imported from
  * print.ts (SDK control request handler) without pulling in the React/chalk/
@@ -15,18 +15,19 @@
 import { z } from 'zod/v4'
 import { getIsNonInteractiveSession } from '../bootstrap/state.js'
 import { logEvent } from '../services/analytics/index.js'
-import { queryHaiku } from '../services/api/claude.js'
+import { queryWithModel } from '../services/api/claude.js'
 import type { Message } from '../types/message.js'
 import { logForDebugging } from './debug.js'
 import { safeParseJSON } from './json.js'
 import { lazySchema } from './lazySchema.js'
 import { extractTextContent } from './messages.js'
+import { getMainLoopModel } from './model/model.js'
 import { asSystemPrompt } from './systemPromptType.js'
 
 const MAX_CONVERSATION_TEXT = 1000
 
 /**
- * Flatten a message array into a single text string for Haiku title input.
+ * Flatten a message array into a single text string for title input.
  * Skips meta/non-human messages. Tail-slices to the last 1000 chars so
  * recent context wins when the conversation is long.
  */
@@ -53,7 +54,9 @@ export function extractConversationText(messages: Message[]): string {
     : text
 }
 
-const SESSION_TITLE_PROMPT = `Generate a concise, sentence-case title (3-7 words) that captures the main topic or goal of this coding session. The title should be clear enough that the user recognizes the session in a list. Use sentence case: capitalize only the first word and proper nouns.
+const SESSION_TITLE_PROMPT = `Generate a concise title that captures the main topic or goal of this coding session. The title should be clear enough that the user recognizes the session in a list.
+
+Use the same primary language as the user's description. If the user writes in Chinese, return a natural Chinese title. If the user writes in English, return a concise sentence-case English title (capitalize only the first word and proper nouns). For mixed-language input, use the language that best matches the user's main request.
 
 Return JSON with a single "title" field.
 
@@ -62,16 +65,20 @@ Good examples:
 {"title": "Add OAuth authentication"}
 {"title": "Debug failing CI tests"}
 {"title": "Refactor API client error handling"}
+{"title": "询问当前模型"}
+{"title": "修复侧边栏标题生成"}
+{"title": "添加会话搜索功能"}
 
 Bad (too vague): {"title": "Code changes"}
 Bad (too long): {"title": "Investigate and fix the issue where the login button does not respond on mobile devices"}
+Bad (wrong language): returning {"title": "Introduce your model"} for a Chinese request like "你是什么模型"
 Bad (wrong case): {"title": "Fix Login Button On Mobile"}`
 
 const titleSchema = lazySchema(() => z.object({ title: z.string() }))
 
 /**
  * Generate a sentence-case session title from a description or first message.
- * Returns null on error or if Haiku returns an unparseable response.
+ * Returns null on error or if the model returns an unparseable response.
  *
  * @param description - The user's first message or a description of the session
  * @param signal - Abort signal for cancellation
@@ -79,12 +86,13 @@ const titleSchema = lazySchema(() => z.object({ title: z.string() }))
 export async function generateSessionTitle(
   description: string,
   signal: AbortSignal,
+  model = getMainLoopModel(),
 ): Promise<string | null> {
   const trimmed = description.trim()
   if (!trimmed) return null
 
   try {
-    const result = await queryHaiku({
+    const result = await queryWithModel({
       systemPrompt: asSystemPrompt([SESSION_TITLE_PROMPT]),
       userPrompt: trimmed,
       outputFormat: {
@@ -100,6 +108,7 @@ export async function generateSessionTitle(
       },
       signal,
       options: {
+        model,
         querySource: 'generate_session_title',
         agents: [],
         // Reflect the actual session mode — this module is called from

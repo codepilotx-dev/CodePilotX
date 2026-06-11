@@ -1,7 +1,7 @@
 import type React from 'react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ArchiveRestore, Trash2 } from 'lucide-react'
-import type { SessionListItem } from '../uiTypes.js'
+import { sessionDisplayTitle, type SessionListItem } from '../uiTypes.js'
 
 export function ArchivedConversationsSettings(): React.ReactNode {
   const [sessions, setSessions] = useState<SessionListItem[]>([])
@@ -75,7 +75,7 @@ export function ArchivedConversationsSettings(): React.ReactNode {
               archivedSessions.map(session => (
                 <article className="archived-session-row" key={session.id}>
                   <div className="archived-session-copy">
-                    <h3>{session.sessionName ?? session.workspaceName}</h3>
+                    <h3>{sessionDisplayTitle(session)}</h3>
                     <p>
                       {session.standalone ? '对话' : session.workspaceName}
                       {' · '}

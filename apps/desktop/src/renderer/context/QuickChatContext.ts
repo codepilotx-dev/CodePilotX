@@ -6,6 +6,7 @@ import type { DesktopSessionStatus } from '../../../shared/types.js'
 export type QuickChatContextValue = {
   isConversationRoute: boolean
   isConversationLoading: boolean
+  sessionTitle: string | null
   workspaceName: string | null
   messages: Message[]
   errorMessage: string | null

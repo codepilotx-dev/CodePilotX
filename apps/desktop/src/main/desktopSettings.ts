@@ -31,16 +31,6 @@ const DRAWER_TABS = new Set<DesktopDrawerTab>([
   'toolLog',
   'settings',
 ])
-const PROVIDERS = new Set<ModelProviderID>([
-  'anthropic',
-  'openai',
-  'openrouter',
-  'deepseek',
-  'minimax',
-  'groq',
-  'custom',
-])
-
 export function getDesktopConfigDirectoryPath(): string {
   return join(getOpenAgentConfigHomeDir(), 'desktop')
 }
@@ -180,5 +170,5 @@ function isDrawerTab(value: unknown): value is DesktopDrawerTab {
 }
 
 function isProvider(value: unknown): value is ModelProviderID {
-  return typeof value === 'string' && PROVIDERS.has(value as ModelProviderID)
+  return typeof value === 'string' && value.trim().length > 0
 }

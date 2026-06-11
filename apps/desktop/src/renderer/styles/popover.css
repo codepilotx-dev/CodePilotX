@@ -47,6 +47,50 @@
   left: auto;
 }
 
+.popover-model {
+  max-height: min(320px, calc(100vh - 96px));
+  overflow: visible;
+}
+
+.popover-provider-list {
+  max-height: min(220px, calc(100vh - 220px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.popover-sub-content {
+  position: relative;
+  right: auto;
+  bottom: auto;
+  left: auto;
+  transform-origin: var(--radix-dropdown-menu-content-transform-origin);
+}
+
+.popover-sub-trigger {
+  cursor: default;
+}
+
+.popover-model-submenu {
+  min-width: 260px;
+  max-height: min(
+    360px,
+    var(--radix-dropdown-menu-content-available-height, calc(100vh - 96px))
+  );
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
+.popover-model-list {
+  max-height: min(
+    300px,
+    calc(
+      var(--radix-dropdown-menu-content-available-height, 360px) - 42px
+    )
+  );
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 .popover-mode {
   min-width: 220px;
 }

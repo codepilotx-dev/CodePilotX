@@ -102,6 +102,17 @@ export function handleSessionAgentEvent(
     return
   }
 
+  if (event.type === 'session_title') {
+    setSessions(current =>
+      current.map(session =>
+        session.id === event.sessionId
+          ? { ...session, aiTitle: event.title }
+          : session,
+      ),
+    )
+    return
+  }
+
   if (event.type === 'tool_start') {
     addToolLogEntry(event.sessionId, {
       toolName: event.toolName,

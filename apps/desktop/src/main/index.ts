@@ -19,17 +19,23 @@ import {
 import { enableConfigs } from '@claudecode/core/utils/config.js'
 import { getSettings_DEPRECATED } from '@claudecode/tui/utils/settings/settings.js'
 import {
-  PROVIDER_CONFIGS,
   fetchProviderBalance as fetchTuiProviderBalance,
   fetchProviderModels as fetchTuiProviderModels,
   getCachedProviderModels,
+  getProviderConfig,
   getProviderApiKeySource,
   getSelectedProviderConfig,
   getSelectedProviderID,
   isModelProviderID,
+  listProviderConfigs,
   saveProviderApiKey as saveTuiProviderApiKey,
   saveSelectedProvider,
 } from '@claudecode/tui/utils/model/providerConfig.js'
+import {
+  getMainLoopModel,
+  parseUserSpecifiedModel,
+} from '@claudecode/tui/utils/model/model.js'
+import { generateSessionTitle } from '@claudecode/tui/utils/sessionTitle.js'
 import {
   createDesktopAgentSession,
   type DesktopAgentSession,
@@ -115,6 +121,7 @@ process.env.CLAUDE_CONFIG_DIR = getOpenAgentConfigHomeDir()
 let mainWindow: BrowserWindow | null = null
 const sessions = new Map<string, DesktopSessionRecord>()
 const allowedWorkspacePaths = new Set<string>()
+const titleGenerationStartedSessionIds = new Set<string>()
 let activeSessionId: string | null = null
 let sessionStoreLoadPromise: Promise<void> | null = null
 
@@ -387,23 +394,39 @@ async function getRuntimeStatus(): Promise<DesktopRuntimeStatus> {
   }
 }
 
-function listModelProviders(): DesktopModelProviderSummary[] {
-  return Object.values(PROVIDER_CONFIGS).map(provider => ({
+async function listModelProviders(): Promise<DesktopModelProviderSummary[]> {
+  const providers = await listProviderConfigs()
+  return providers.map(provider => ({
     providerID: provider.providerID as ModelProviderID,
     kind: provider.kind,
     displayName: provider.displayName,
     baseURL: provider.baseURL,
     defaultModels: provider.defaultModels,
+    modelMetadata: provider.modelMetadata,
     apiKeyConfigured: Boolean(
       getProviderApiKeySource(provider.providerID as ModelProviderID),
     ),
+    envVars: provider.envVars,
+    docURL: provider.docURL,
+    logoURL: provider.logoURL,
+    npmPackage: provider.npmPackage,
+    modelsDevSource: provider.modelsDevSource,
+    requiresBaseURL: provider.requiresBaseURL,
   }))
 }
 
-function getModelProviderState(): DesktopModelProviderState {
+async function getModelProviderState(
+  providerIDOverride?: ModelProviderID,
+): Promise<DesktopModelProviderState> {
   const settings = getSettings_DEPRECATED() || {}
-  const selectedProviderID = getSelectedProviderID() as ModelProviderID
-  const provider = getSelectedProviderConfig()
+  const selectedProviderID =
+    providerIDOverride ?? (getSelectedProviderID() as ModelProviderID)
+  const provider = await getProviderConfig(selectedProviderID)
+  const savedSelectedProviderID = getSelectedProviderID() as ModelProviderID
+  const selectedProvider =
+    selectedProviderID === savedSelectedProviderID
+      ? getSelectedProviderConfig()
+      : provider
   const model = typeof settings.model === 'string' ? settings.model : ''
   const apiKeySource = getProviderApiKeySource(selectedProviderID) ?? null
   return {
@@ -412,15 +435,23 @@ function getModelProviderState(): DesktopModelProviderState {
       providerID: provider.providerID as ModelProviderID,
       kind: provider.kind,
       displayName: provider.displayName,
-      baseURL: provider.baseURL,
+      baseURL: selectedProvider.baseURL ?? provider.baseURL,
       defaultModels: provider.defaultModels,
+      modelMetadata: provider.modelMetadata,
       apiKeyConfigured: Boolean(apiKeySource),
+      envVars: provider.envVars,
+      docURL: provider.docURL,
+      logoURL: provider.logoURL,
+      npmPackage: provider.npmPackage,
+      modelsDevSource: provider.modelsDevSource,
+      requiresBaseURL: provider.requiresBaseURL,
     },
     model,
-    baseURL: provider.baseURL,
+    baseURL: selectedProvider.baseURL ?? provider.baseURL,
     apiKeyConfigured: Boolean(apiKeySource),
     apiKeySource,
     models: getCachedProviderModels(selectedProviderID) ?? provider.defaultModels,
+    modelMetadata: provider.modelMetadata,
   }
 }
 
@@ -469,7 +500,7 @@ async function saveModelProvider(
     providerBaseURL: providerID === 'custom' ? baseURL ?? '' : '',
     model: modelID ?? '',
   })
-  return getModelProviderState()
+  return await getModelProviderState()
 }
 
 async function saveProviderApiKey(
@@ -482,7 +513,7 @@ async function saveProviderApiKey(
   if (!result.success) {
     throw new Error(result.warning ?? 'Failed to save provider API key.')
   }
-  return getModelProviderState()
+  return await getModelProviderState(normalizedProviderID)
 }
 
 async function chooseWorkspace(): Promise<DesktopWorkspace | null> {
@@ -1053,10 +1084,65 @@ async function sendUserMessage(sessionId: string, content: string): Promise<void
     'Desktop user message',
   )
   const record = await getSessionRecord(sessionId)
+  const shouldGenerateTitle = shouldGenerateAiTitle(record)
   const session = createRuntimeForRecord(record)
   activeSessionId = record.snapshot.item.id
   persistSessionStore()
+  if (shouldGenerateTitle) {
+    scheduleAiTitleGeneration(record, trimmedContent)
+  }
   await session.sendUserMessage(trimmedContent)
+}
+
+function shouldGenerateAiTitle(record: DesktopSessionRecord): boolean {
+  const { item, view } = record.snapshot
+  return (
+    !item.sessionName &&
+    !item.aiTitle &&
+    !titleGenerationStartedSessionIds.has(item.id) &&
+    !view.messages.some(message => message.role === 'user')
+  )
+}
+
+function scheduleAiTitleGeneration(
+  record: DesktopSessionRecord,
+  description: string,
+): void {
+  const sessionId = record.snapshot.item.id
+  titleGenerationStartedSessionIds.add(sessionId)
+  const model = getSessionTitleModel(record)
+
+  void generateSessionTitle(
+    description,
+    AbortSignal.timeout(30_000),
+    model,
+  ).then(title => {
+    if (!title) return
+    const latestRecord = sessions.get(sessionId)
+    if (!latestRecord) return
+    if (
+      latestRecord.snapshot.item.sessionName ||
+      latestRecord.snapshot.item.aiTitle
+    ) {
+      return
+    }
+    const event: DesktopAgentEvent = {
+      type: 'session_title',
+      sessionId,
+      title,
+    }
+    latestRecord.snapshot = applyDesktopAgentEventToSnapshot(
+      latestRecord.snapshot,
+      event,
+    )
+    persistSessionStore()
+    emitAgentEvent(event)
+  })
+}
+
+function getSessionTitleModel(record: DesktopSessionRecord): string {
+  const model = record.snapshot.settings.model
+  return model ? parseUserSpecifiedModel(model) : getMainLoopModel()
 }
 
 async function respondToPermission(

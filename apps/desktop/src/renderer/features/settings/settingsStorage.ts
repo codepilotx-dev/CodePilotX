@@ -103,15 +103,7 @@ function isString(value: unknown): value is string {
 }
 
 function isModelProviderID(value: unknown): value is ModelProviderID {
-  return (
-    value === "anthropic" ||
-    value === "openai" ||
-    value === "openrouter" ||
-    value === "deepseek" ||
-    value === "minimax" ||
-    value === "groq" ||
-    value === "custom"
-  );
+  return typeof value === "string" && value.trim().length > 0;
 }
 
 function parseStoredRecentWorkspaces(value: unknown): DesktopWorkspace[] {

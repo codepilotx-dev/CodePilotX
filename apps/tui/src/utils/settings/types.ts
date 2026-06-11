@@ -377,7 +377,8 @@ export const SettingsSchema = lazySchema(() =>
         .optional()
         .describe('Override the default model used by Oh-My-AgentCode'),
       provider: z
-        .enum(['anthropic', 'openai', 'openrouter', 'deepseek', 'groq', 'custom'])
+        .string()
+        .min(1)
         .optional()
         .describe('Model provider used by Oh-My-AgentCode'),
       providerBaseURL: z

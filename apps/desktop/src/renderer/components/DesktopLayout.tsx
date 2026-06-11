@@ -29,9 +29,11 @@ import {
   resolveModelPresetId,
 } from '../modelPresets.js'
 import type {
+  DesktopModelProviderSummary,
   DesktopModelProviderState,
   DesktopPermissionRequest,
   DesktopWorkspace,
+  ModelProviderID,
 } from '../../shared/types.js'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react'
 
@@ -51,6 +53,8 @@ export function DesktopLayout(): React.ReactNode {
     showContextUsage,
     setPermissionMode,
     setModel,
+    setProviderBaseURL,
+    setProviderID,
     setThinkingMode,
     setRecentWorkspaces,
     setDrawerTab,
@@ -61,6 +65,9 @@ export function DesktopLayout(): React.ReactNode {
   const [searchQuery, setSearchQuery] = useState('')
   const [providerState, setProviderState] =
     useState<DesktopModelProviderState | null>(null)
+  const [modelProviders, setModelProviders] = useState<
+    DesktopModelProviderSummary[]
+  >([])
 
   const layout = useDesktopLayout()
   const {
@@ -125,6 +132,7 @@ export function DesktopLayout(): React.ReactNode {
     interrupt,
     decidePermission,
     updateSessionMetadata,
+    activeSessionItem,
   } = session
 
   const location = useLocation()
@@ -345,23 +353,62 @@ export function DesktopLayout(): React.ReactNode {
       ),
     [providerState],
   )
+  const providerModelOptions = useMemo(
+    () => {
+      const providers =
+        modelProviders.length > 0
+          ? modelProviders
+          : providerState
+            ? [providerState.provider]
+            : []
+      return providers.filter(provider => provider.apiKeyConfigured).map(provider => {
+        const isSelected =
+          provider.providerID === providerState?.selectedProviderID
+        const models = isSelected
+          ? providerState?.models ?? provider.defaultModels
+          : provider.defaultModels
+        return {
+          providerID: provider.providerID,
+          displayName: provider.displayName,
+          modelPresets: buildModelPresets(
+            models,
+            `默认模型 (${provider.displayName})`,
+          ),
+        }
+      })
+    },
+    [modelProviders, providerState],
+  )
   const resolvedSelectedModelPreset = resolveModelPresetId(
     model,
     selectedModelPreset,
     modelPresets,
   )
+  const selectedModelMetadata =
+    model && providerState?.modelMetadata
+      ? providerState.modelMetadata[model]
+      : undefined
+  const showThinkingOptions =
+    providerState?.provider.kind === 'anthropic' ||
+    selectedModelMetadata?.reasoning === true
 
   const refreshProviderState = useCallback(async (): Promise<void> => {
     try {
-      const next = await window.desktopApi.getModelProviderState()
+      const [next, providers] = await Promise.all([
+        window.desktopApi.getModelProviderState(),
+        window.desktopApi.listModelProviders(),
+      ])
       setProviderState(next)
+      setModelProviders(providers)
       if (next.model !== model) {
         setModel(next.model)
       }
+      setProviderID(next.selectedProviderID)
+      setProviderBaseURL(next.baseURL ?? '')
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : String(error))
     }
-  }, [model, setModel])
+  }, [model, setModel, setProviderBaseURL, setProviderID])
 
   useEffect(() => {
     void refreshProviderState()
@@ -374,62 +421,92 @@ export function DesktopLayout(): React.ReactNode {
     }
   }, [refreshProviderState])
 
-  const handleModelPresetChange = useCallback(
-    (nextPresetId: string): void => {
+  useEffect(() => {
+    if (showThinkingOptions || thinkingMode === 'default') return
+    setThinkingMode('default')
+  }, [showThinkingOptions, thinkingMode, setThinkingMode])
+
+  const handleProviderModelChange = useCallback(
+    (providerID: ModelProviderID, nextPresetId: string): void => {
+      const providerOption = providerModelOptions.find(
+        provider => provider.providerID === providerID,
+      )
+      if (!providerOption) return
+
+      const providerSummary =
+        modelProviders.find(provider => provider.providerID === providerID) ??
+        (providerState?.provider.providerID === providerID
+          ? providerState.provider
+          : undefined)
+      const baseURL =
+        providerState?.selectedProviderID === providerID
+          ? providerState.baseURL
+          : providerSummary?.baseURL
+
       if (nextPresetId === CUSTOM_MODEL_PRESET_ID) {
         const customValue = window.prompt('输入自定义模型名称', model)
-        if (!customValue) {
-          setSelectedModelPreset(
-            resolveModelPresetId(model, selectedModelPreset, modelPresets),
-          )
-          return
-        }
+        if (!customValue) return
         const trimmed = customValue.trim()
         if (!trimmed) return
+        setProviderID(providerID)
+        setProviderBaseURL(baseURL ?? '')
         setModel(trimmed)
         setSelectedModelPreset(CUSTOM_MODEL_PRESET_ID)
-        if (providerState) {
-          void window.desktopApi
-            .saveModelProvider({
-              providerID: providerState.selectedProviderID,
-              modelID: trimmed,
-              baseURL: providerState.baseURL,
-            })
-            .then(setProviderState)
-            .catch(error =>
-              setErrorMessage(
-                error instanceof Error ? error.message : String(error),
-              ),
-            )
-        }
-        return
-      }
-      const preset = modelPresets.find(item => item.id === nextPresetId)
-      if (!preset) return
-      setSelectedModelPreset(nextPresetId)
-      setModel(preset.value)
-      if (providerState) {
         void window.desktopApi
           .saveModelProvider({
-            providerID: providerState.selectedProviderID,
-            modelID: preset.value,
-            baseURL: providerState.baseURL,
+            providerID,
+            modelID: trimmed,
+            baseURL,
           })
-          .then(setProviderState)
+          .then(next => {
+            setProviderState(next)
+            setProviderID(next.selectedProviderID)
+            setProviderBaseURL(next.baseURL ?? '')
+            setModel(next.model)
+          })
           .catch(error =>
             setErrorMessage(
               error instanceof Error ? error.message : String(error),
             ),
           )
+        return
       }
+
+      const preset = providerOption.modelPresets.find(
+        item => item.id === nextPresetId,
+      )
+      if (!preset) return
+      setProviderID(providerID)
+      setProviderBaseURL(baseURL ?? '')
+      setSelectedModelPreset(nextPresetId)
+      setModel(preset.value)
+      void window.desktopApi
+        .saveModelProvider({
+          providerID,
+          modelID: preset.value,
+          baseURL,
+        })
+        .then(next => {
+          setProviderState(next)
+          setProviderID(next.selectedProviderID)
+          setProviderBaseURL(next.baseURL ?? '')
+          setModel(next.model)
+        })
+        .catch(error =>
+          setErrorMessage(
+            error instanceof Error ? error.message : String(error),
+          ),
+        )
     },
     [
       model,
-      modelPresets,
+      modelProviders,
+      providerModelOptions,
       providerState,
       setModel,
+      setProviderBaseURL,
+      setProviderID,
       setSelectedModelPreset,
-      selectedModelPreset,
     ],
   )
 
@@ -592,9 +669,12 @@ export function DesktopLayout(): React.ReactNode {
       sessionStatus={sessionStatus}
       permissionMode={permissionMode}
       thinkingMode={thinkingMode}
+      selectedProviderID={providerState?.selectedProviderID ?? 'anthropic'}
       selectedModelPreset={resolvedSelectedModelPreset}
+      showThinkingOptions={showThinkingOptions}
       showContextUsage={showContextUsage}
       modelPresets={modelPresets}
+      providerOptions={providerModelOptions}
       permissionOptions={PERMISSION_MODE_OPTIONS}
       thinkingOptions={THINKING_MODE_OPTIONS}
       branchName={branchName}
@@ -605,7 +685,7 @@ export function DesktopLayout(): React.ReactNode {
       onChooseWorkspace={() => void handleChooseWorkspace()}
       onInputChange={setInput}
       onInterrupt={() => void interrupt()}
-      onModelChange={handleModelPresetChange}
+      onProviderModelChange={handleProviderModelChange}
       onOpenFiles={() => {}}
       onOpenWorkspace={workspaceItem => void handleOpenRecentWorkspace(workspaceItem)}
       onBranchSelect={handleBranchSelect}
@@ -704,6 +784,10 @@ export function DesktopLayout(): React.ReactNode {
           value={{
             isConversationRoute,
             isConversationLoading,
+            sessionTitle:
+              activeSessionItem?.sessionName ??
+              activeSessionItem?.aiTitle ??
+              null,
             workspaceName: currentWorkspace?.name ?? null,
             messages: isHomePage || isConversationLoading ? [] : messages,
             errorMessage,
