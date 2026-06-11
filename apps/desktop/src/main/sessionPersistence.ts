@@ -88,6 +88,8 @@ export function createDesktopSessionSnapshot(params: {
   standalone: boolean
   settings: DesktopSessionSettingsSnapshot
 }): DesktopSessionSnapshot {
+  const now = new Date()
+  const lastMessageAt = now.toISOString()
   const createdAt = new Date().toLocaleTimeString()
   return {
     item: {
@@ -106,6 +108,7 @@ export function createDesktopSessionSnapshot(params: {
       hasAppendSystemPrompt: Boolean(params.settings.appendSystemPrompt),
       additionalDirectoryCount: params.settings.additionalDirectories.length,
       status: 'idle',
+      lastMessageAt,
       createdAt,
     },
     workspace: params.workspace,
@@ -136,12 +139,15 @@ export function applyDesktopAgentEventToSnapshot(
   }
 
   if (event.type === 'message') {
+    const createdAt = normalizeTimestampString(event.createdAt) ?? new Date().toISOString()
+    next.item.lastMessageAt = createdAt
     next.view.messages = [
       ...next.view.messages.filter(message => !message.streaming),
       {
         id: randomId(),
         role: event.role,
         text: event.text,
+        createdAt,
       },
     ]
     return next
@@ -149,10 +155,15 @@ export function applyDesktopAgentEventToSnapshot(
 
   if (event.type === 'partial_message') {
     const index = next.view.messages.findIndex(message => message.streaming)
+    const createdAt =
+      normalizeTimestampString(event.createdAt) ??
+      (index >= 0 ? next.view.messages[index]?.createdAt : undefined) ??
+      new Date().toISOString()
     const partialMessage: DesktopSessionMessage = {
       id: index >= 0 ? next.view.messages[index]!.id : randomId(),
       role: 'assistant',
       text: event.text,
+      createdAt,
       streaming: true,
     }
     if (index === -1) {
@@ -199,7 +210,9 @@ export function applyDesktopAgentEventToSnapshot(
   }
 
   if (event.type === 'error') {
+    const createdAt = new Date().toISOString()
     next.item.status = 'error'
+    next.item.lastMessageAt = createdAt
     next.view.pendingPermissions = []
     next.view.messages = [
       ...next.view.messages.map(message =>
@@ -209,6 +222,7 @@ export function applyDesktopAgentEventToSnapshot(
         id: randomId(),
         role: 'system',
         text: event.message,
+        createdAt,
       },
     ]
     return next
@@ -265,10 +279,17 @@ function normalizeSessionSnapshot(value: unknown): DesktopSessionSnapshot[] {
 
   const item = normalizeSessionItem(snapshot.item)
   const view = normalizeViewSnapshot(snapshot.view)
+  const updatedAt =
+    typeof snapshot.updatedAt === 'string'
+      ? snapshot.updatedAt
+      : new Date().toISOString()
+  const lastMessageAt =
+    item.lastMessageAt ?? latestMessageTimestamp(view.messages) ?? updatedAt
   return [
     {
       item: {
         ...item,
+        lastMessageAt,
         status:
           item.status === 'running' || item.status === 'waiting'
             ? 'done'
@@ -284,10 +305,7 @@ function normalizeSessionSnapshot(value: unknown): DesktopSessionSnapshot[] {
           streaming: false,
         })),
       },
-      updatedAt:
-        typeof snapshot.updatedAt === 'string'
-          ? snapshot.updatedAt
-          : new Date().toISOString(),
+      updatedAt,
     },
   ]
 }
@@ -328,6 +346,7 @@ function normalizeSessionItem(
         ? item.additionalDirectoryCount
         : 0,
     status: normalizeStatus(item.status),
+    lastMessageAt: normalizeTimestampString(item.lastMessageAt),
     createdAt: typeof item.createdAt === 'string' ? item.createdAt : '',
   }
 }
@@ -390,6 +409,9 @@ function normalizeMessage(value: unknown): DesktopSessionMessage[] {
       id: typeof message.id === 'string' ? message.id : randomId(),
       role: message.role,
       text: message.text,
+      createdAt:
+        normalizeTimestampString(message.createdAt) ??
+        new Date().toISOString(),
       streaming: message.streaming === true,
     },
   ]
@@ -454,6 +476,8 @@ async function hydrateSessionFromTranscript(
       ...snapshot,
       item: {
         ...snapshot.item,
+        lastMessageAt:
+          latestMessageTimestamp(view.messages) ?? snapshot.item.lastMessageAt,
         status:
           snapshot.item.status === 'running' || snapshot.item.status === 'waiting'
             ? 'done'
@@ -491,6 +515,9 @@ function parseTranscriptView(raw: string): DesktopSessionViewSnapshot {
           id: entry.uuid ?? randomId(),
           role: 'user',
           text: userText,
+          createdAt:
+            normalizeTimestampString(entry.timestamp) ??
+            new Date().toISOString(),
         })
       }
       collectToolResults(content, toolLog, toolNamesById, entry.timestamp)
@@ -505,6 +532,9 @@ function parseTranscriptView(raw: string): DesktopSessionViewSnapshot {
           id: entry.uuid ?? randomId(),
           role: 'assistant',
           text: assistantText,
+          createdAt:
+            normalizeTimestampString(entry.timestamp) ??
+            new Date().toISOString(),
         })
       }
       collectToolUses(content, toolLog, toolNamesById, entry.timestamp)
@@ -518,6 +548,9 @@ function parseTranscriptView(raw: string): DesktopSessionViewSnapshot {
           id: entry.uuid ?? randomId(),
           role: 'system',
           text,
+          createdAt:
+            normalizeTimestampString(entry.timestamp) ??
+            new Date().toISOString(),
         })
       }
     }
@@ -678,6 +711,17 @@ function formatTimestamp(timestamp: string | undefined): string {
   return Number.isNaN(date.getTime())
     ? new Date().toLocaleTimeString()
     : date.toLocaleTimeString()
+}
+
+function normalizeTimestampString(value: unknown): string | null {
+  if (typeof value !== 'string' || !value.trim()) return null
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? null : date.toISOString()
+}
+
+function latestMessageTimestamp(messages: DesktopSessionMessage[]): string | null {
+  const latest = messages.at(-1)?.createdAt
+  return normalizeTimestampString(latest)
 }
 
 function stringOrUndefined(value: unknown): string | undefined {

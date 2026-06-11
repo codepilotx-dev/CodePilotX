@@ -201,6 +201,7 @@ class LocalDesktopAgentSession
       sessionId: this.sessionId,
       role,
       text,
+      createdAt: new Date().toISOString(),
     })
   }
 

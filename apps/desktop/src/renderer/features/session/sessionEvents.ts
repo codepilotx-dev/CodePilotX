@@ -52,6 +52,14 @@ export function handleSessionAgentEvent(
   }
 
   if (event.type === 'message') {
+    const createdAt = event.createdAt ?? new Date().toISOString()
+    setSessions(current =>
+      current.map(session =>
+        session.id === event.sessionId
+          ? { ...session, lastMessageAt: createdAt }
+          : session,
+      ),
+    )
     updateSessionView(event.sessionId, view => ({
       ...view,
       messages: [
@@ -60,6 +68,7 @@ export function handleSessionAgentEvent(
           id: crypto.randomUUID(),
           role: event.role,
           text: event.text,
+          createdAt,
         },
       ],
     }))
@@ -69,10 +78,15 @@ export function handleSessionAgentEvent(
   if (event.type === 'partial_message') {
     updateSessionView(event.sessionId, view => {
       const index = view.messages.findIndex(message => message.streaming)
+      const createdAt =
+        event.createdAt ??
+        (index >= 0 ? view.messages[index]?.createdAt : undefined) ??
+        new Date().toISOString()
       const nextMessage: Message = {
         id: index >= 0 ? view.messages[index]!.id : crypto.randomUUID(),
         role: 'assistant',
         text: event.text,
+        createdAt,
         streaming: true,
       }
       if (index === -1) {
@@ -126,6 +140,14 @@ export function handleSessionAgentEvent(
   }
 
   if (event.type === 'error') {
+    const createdAt = new Date().toISOString()
+    setSessions(current =>
+      current.map(session =>
+        session.id === event.sessionId
+          ? { ...session, status: 'error', lastMessageAt: createdAt }
+          : session,
+      ),
+    )
     if (event.sessionId === activeSessionIdRef.current) {
       onErrorRef.current(event.message)
       onRefreshActiveWorkspaceRef.current(event.sessionId)
@@ -141,6 +163,7 @@ export function handleSessionAgentEvent(
           id: crypto.randomUUID(),
           role: 'system',
           text: event.message,
+          createdAt,
         },
       ],
     }))

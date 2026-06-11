@@ -89,6 +89,7 @@ export async function createSessionForWorkspaceAction(
     activateSession(context, session.sessionId)
     context.setSessionStatus('idle')
     applySessionView(nextView, context.viewSetters)
+    const now = new Date()
     context.setSessions(current => [
       {
         id: session.sessionId,
@@ -108,7 +109,8 @@ export async function createSessionForWorkspaceAction(
           settings.additionalDirectories,
         ).length,
         status: 'idle',
-        createdAt: new Date().toLocaleTimeString(),
+        lastMessageAt: now.toISOString(),
+        createdAt: now.toLocaleTimeString(),
       },
       ...current,
     ])

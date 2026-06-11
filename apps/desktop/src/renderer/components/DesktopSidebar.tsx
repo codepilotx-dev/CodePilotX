@@ -79,10 +79,16 @@ export function DesktopSidebar({
 }: Props): React.ReactNode {
   const location = useLocation()
   const [resizing, setResizing] = useState(false)
+  const [relativeNow, setRelativeNow] = useState(() => Date.now())
   const [start, setStart] = useState({ x: 0, width })
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(
     {},
   )
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setRelativeNow(Date.now()), 30_000)
+    return () => window.clearInterval(timer)
+  }, [])
 
   useEffect(() => {
     if (!resizing) return
@@ -224,6 +230,7 @@ export function DesktopSidebar({
               activeSessionId={activeSessionId}
               groupKey="pinned"
               isExpanded={expandedGroups.pinned === true}
+              now={relativeNow}
               sessions={visibleGroupItems('pinned', pinnedSessions)}
               totalCount={pinnedSessions.length}
               onArchiveSession={archiveSession}
@@ -284,6 +291,7 @@ export function DesktopSidebar({
                       activeSessionId={activeSessionId}
                       groupKey={groupKey}
                       isExpanded={expandedGroups[groupKey] === true}
+                      now={relativeNow}
                       sessions={visibleGroupItems(groupKey, workspaceSessions)}
                       totalCount={workspaceSessions.length}
                       onArchiveSession={archiveSession}
@@ -308,6 +316,7 @@ export function DesktopSidebar({
               activeSessionId={activeSessionId}
               groupKey="standalone"
               isExpanded={expandedGroups.standalone === true}
+              now={relativeNow}
               sessions={visibleGroupItems('standalone', standaloneSessions)}
               totalCount={standaloneSessions.length}
               onArchiveSession={archiveSession}
@@ -360,6 +369,7 @@ function SessionGroup({
   activeSessionId,
   groupKey,
   isExpanded,
+  now,
   sessions,
   totalCount,
   onArchiveSession,
@@ -371,6 +381,7 @@ function SessionGroup({
   activeSessionId: string | null
   groupKey: string
   isExpanded: boolean
+  now: number
   sessions: SessionListItem[]
   totalCount: number
   onArchiveSession: (session: SessionListItem) => void
@@ -403,7 +414,12 @@ function SessionGroup({
                   size={12}
                 />
               ) : (
-                <span className="task-time">{session.createdAt}</span>
+                <span className="task-time">
+                  {formatRelativeConversationTime(
+                    session.lastMessageAt ?? session.createdAt,
+                    now,
+                  )}
+                </span>
               )}
             </button>
             <div className="session-inline-actions">
@@ -462,6 +478,24 @@ function compareTimestamp(
   right: string | null | undefined,
 ): number {
   return new Date(left ?? 0).getTime() - new Date(right ?? 0).getTime()
+}
+
+const MINUTE_MS = 60_000
+const HOUR_MS = 60 * MINUTE_MS
+const DAY_MS = 24 * HOUR_MS
+
+function formatRelativeConversationTime(
+  timestamp: string | null | undefined,
+  now: number,
+): string {
+  const time = new Date(timestamp ?? '').getTime()
+  if (Number.isNaN(time)) return '刚刚'
+
+  const elapsed = Math.max(0, now - time)
+  if (elapsed < MINUTE_MS) return '刚刚'
+  if (elapsed < HOUR_MS) return `${Math.floor(elapsed / MINUTE_MS)} 分`
+  if (elapsed < DAY_MS) return `${Math.floor(elapsed / HOUR_MS)} 时`
+  return `${Math.floor(elapsed / DAY_MS)} 天`
 }
 
 function mergeProjectWorkspaces(

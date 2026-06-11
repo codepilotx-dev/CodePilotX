@@ -161,6 +161,7 @@ export type DesktopSessionMessage = {
   id: string
   role: 'user' | 'assistant' | 'system'
   text: string
+  createdAt: string
   streaming?: boolean
 }
 
@@ -190,6 +191,7 @@ export type DesktopSessionListItem = {
   hasAppendSystemPrompt: boolean
   additionalDirectoryCount: number
   status: DesktopSessionStatus
+  lastMessageAt?: string | null
   createdAt: string
 }
 
@@ -224,8 +226,8 @@ export type DesktopSessionMetadataPatch = {
 }
 
 export type DesktopAgentEvent =
-  | { type: 'message'; sessionId: string; role: 'user' | 'assistant' | 'system'; text: string }
-  | { type: 'partial_message'; sessionId: string; text: string }
+  | { type: 'message'; sessionId: string; role: 'user' | 'assistant' | 'system'; text: string; createdAt?: string }
+  | { type: 'partial_message'; sessionId: string; text: string; createdAt?: string }
   | { type: 'tool_start'; sessionId: string; toolName: string; summary: string }
   | { type: 'tool_result'; sessionId: string; toolName: string; summary: string; isError?: boolean }
   | { type: 'permission_request'; sessionId: string; request: DesktopPermissionRequest }

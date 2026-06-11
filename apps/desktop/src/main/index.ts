@@ -329,6 +329,13 @@ function emitAgentEvent(event: DesktopAgentEvent): void {
   mainWindow?.webContents.send('desktop:agent-event', event)
 }
 
+function withDesktopMessageTimestamp(event: DesktopAgentEvent): DesktopAgentEvent {
+  if (event.type !== 'message' && event.type !== 'partial_message') {
+    return event
+  }
+  return event.createdAt ? event : { ...event, createdAt: new Date().toISOString() }
+}
+
 function normalizeWorkspacePath(workspacePath: string): string {
   const resolvedPath = resolve(workspacePath)
   return process.platform === 'win32' ? resolvedPath.toLowerCase() : resolvedPath
@@ -708,15 +715,16 @@ function attachSessionListeners(record: DesktopSessionRecord): void {
     if (!currentRecord || currentRecord.session !== session) {
       return
     }
+    const timestampedEvent = withDesktopMessageTimestamp(event)
     currentRecord.snapshot = applyDesktopAgentEventToSnapshot(
       currentRecord.snapshot,
-      event,
+      timestampedEvent,
     )
     persistSessionStore()
-    emitAgentEvent(event)
+    emitAgentEvent(timestampedEvent)
     if (
       !currentRecord.snapshot.item.standalone &&
-      (event.type === 'done' || event.type === 'error')
+      (timestampedEvent.type === 'done' || timestampedEvent.type === 'error')
     ) {
       void getWorkspaceDiff(session.workspacePath).then(diff => {
         const latestRecord = sessions.get(session.sessionId)
