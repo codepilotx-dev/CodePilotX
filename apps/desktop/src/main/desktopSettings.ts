@@ -59,6 +59,7 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     providerID: 'anthropic',
     providerBaseURL: '',
     showContextUsage: true,
+    defaultOpenTargetId: 'default-app',
   }
 }
 
@@ -125,6 +126,10 @@ function normalizeDesktopStoredSettings(value: unknown): DesktopStoredSettings {
       typeof parsed.showContextUsage === 'boolean'
         ? parsed.showContextUsage
         : defaults.showContextUsage,
+    defaultOpenTargetId: stringOrDefault(
+      parsed.defaultOpenTargetId,
+      defaults.defaultOpenTargetId,
+    ),
   }
 }
 

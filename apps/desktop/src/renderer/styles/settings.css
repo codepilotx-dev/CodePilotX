@@ -362,6 +362,14 @@
   flex-shrink: 0;
 }
 
+.settings-open-target-icon {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+
 .settings-dropdown-content {
   z-index: 1000;
   min-width: var(--radix-select-trigger-width);

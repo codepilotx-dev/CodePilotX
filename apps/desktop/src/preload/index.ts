@@ -11,6 +11,9 @@ const api: DesktopApi = {
   getDesktopSettings: () => ipcRenderer.invoke('desktop:getDesktopSettings'),
   saveDesktopSettings: settings =>
     ipcRenderer.invoke('desktop:saveDesktopSettings', settings),
+  listOpenTargets: () => ipcRenderer.invoke('desktop:listOpenTargets'),
+  openPathWithDefaultTarget: targetPath =>
+    ipcRenderer.invoke('desktop:openPathWithDefaultTarget', targetPath),
   listModelProviders: () => ipcRenderer.invoke('desktop:listModelProviders'),
   getModelProviderState: () =>
     ipcRenderer.invoke('desktop:getModelProviderState'),

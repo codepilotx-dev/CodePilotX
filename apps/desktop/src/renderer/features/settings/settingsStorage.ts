@@ -66,6 +66,7 @@ export function defaultDesktopSettings(): StoredDesktopSettings {
     providerID: "anthropic",
     providerBaseURL: "",
     showContextUsage: true,
+    defaultOpenTargetId: "default-app",
   };
 }
 

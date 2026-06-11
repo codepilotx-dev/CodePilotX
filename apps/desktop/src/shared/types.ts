@@ -38,6 +38,21 @@ export type DesktopRuntimeStatus = {
   configDirectoryPath: string
 }
 
+export type DesktopOpenTargetKind =
+  | 'default-app'
+  | 'file-explorer'
+  | 'terminal'
+  | 'editor'
+
+export type DesktopOpenTarget = {
+  id: string
+  label: string
+  kind: DesktopOpenTargetKind
+  executablePath?: string
+  command?: string
+  iconDataUrl?: string
+}
+
 export type DesktopSessionStatus = 'idle' | 'running' | 'waiting' | 'done' | 'error'
 
 export type DesktopPermissionMode =
@@ -65,6 +80,7 @@ export type DesktopModelProviderKind =
   | 'anthropic'
   | 'openai-compatible'
   | 'minimax'
+  | 'ai-gateway'
 
 export type DesktopModelMetadata = {
   id: string
@@ -85,6 +101,11 @@ export type DesktopModelMetadata = {
     input: string[]
     output: string[]
   }
+  catalogSources?: Array<'models.dev' | 'gateway'>
+  gatewayModelId?: string
+  modelsDevProviderId?: string
+  modelType?: string
+  tags?: string[]
 }
 
 export type DesktopModelProviderSummary = {
@@ -100,6 +121,7 @@ export type DesktopModelProviderSummary = {
   logoURL?: string
   npmPackage?: string
   modelsDevSource?: boolean
+  gatewaySource?: boolean
   requiresBaseURL?: boolean
 }
 
@@ -154,6 +176,7 @@ export type DesktopStoredSettings = {
   providerID: ModelProviderID
   providerBaseURL: string
   showContextUsage: boolean
+  defaultOpenTargetId: string
 }
 
 export type DesktopThemeMode = 'light' | 'dark' | 'system'
@@ -326,6 +349,8 @@ export type DesktopApi = {
   getRuntimeStatus(): Promise<DesktopRuntimeStatus>
   getDesktopSettings(): Promise<DesktopStoredSettings>
   saveDesktopSettings(settings: DesktopStoredSettings): Promise<DesktopStoredSettings>
+  listOpenTargets(): Promise<DesktopOpenTarget[]>
+  openPathWithDefaultTarget(targetPath: string): Promise<void>
   listModelProviders(): Promise<DesktopModelProviderSummary[]>
   getModelProviderState(): Promise<DesktopModelProviderState>
   fetchProviderModels(options: {

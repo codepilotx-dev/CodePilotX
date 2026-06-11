@@ -34,6 +34,7 @@ export type UseDesktopSettingsResult = {
   providerID: ModelProviderID
   providerBaseURL: string
   showContextUsage: boolean
+  defaultOpenTargetId: string
   setPermissionMode: (value: DesktopPermissionMode) => void
   setModel: (value: string) => void
   setFallbackModel: (value: string) => void
@@ -50,6 +51,7 @@ export type UseDesktopSettingsResult = {
   setProviderID: (value: ModelProviderID) => void
   setProviderBaseURL: (value: string) => void
   setShowContextUsage: (value: boolean) => void
+  setDefaultOpenTargetId: (value: string) => void
 }
 
 const DesktopSettingsContext = createContext<UseDesktopSettingsResult | null>(
@@ -111,6 +113,9 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
   const [showContextUsage, setShowContextUsage] = useState(
     initial.showContextUsage,
   )
+  const [defaultOpenTargetId, setDefaultOpenTargetId] = useState(
+    initial.defaultOpenTargetId,
+  )
   const [settingsLoaded, setSettingsLoaded] = useState(false)
 
   useEffect(() => {
@@ -133,6 +138,7 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
         setProviderID(settings.providerID)
         setProviderBaseURL(settings.providerBaseURL)
         setShowContextUsage(settings.showContextUsage)
+        setDefaultOpenTargetId(settings.defaultOpenTargetId)
         setSettingsLoaded(true)
       })
       .catch(() => {
@@ -162,6 +168,7 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
       providerID,
       providerBaseURL,
       showContextUsage,
+      defaultOpenTargetId,
     }
     storeDesktopSettings(next)
   }, [
@@ -180,6 +187,7 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     providerID,
     providerBaseURL,
     showContextUsage,
+    defaultOpenTargetId,
   ])
 
   return {
@@ -197,6 +205,7 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     providerID,
     providerBaseURL,
     showContextUsage,
+    defaultOpenTargetId,
     setPermissionMode,
     setModel,
     setFallbackModel,
@@ -211,5 +220,6 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     setProviderID,
     setProviderBaseURL,
     setShowContextUsage,
+    setDefaultOpenTargetId,
   }
 }

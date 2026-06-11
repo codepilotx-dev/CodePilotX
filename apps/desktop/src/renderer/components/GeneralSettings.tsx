@@ -1,6 +1,12 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import * as RadioGroup from "@radix-ui/react-radio-group";
-import { SquareTerminal, MessagesSquare } from "lucide-react";
+import {
+  Code,
+  File,
+  FolderOpen,
+  MessagesSquare,
+  SquareTerminal,
+} from "lucide-react";
 import { RadioCard } from "./RadioCard.js";
 import { ToggleSwitch } from "./ToggleSwitch.js";
 import { SettingsRow } from "./SettingsRow.js";
@@ -8,13 +14,27 @@ import { SettingsSection } from "./SettingsSection.js";
 import { SettingsDropdown } from "./SettingsDropdown.js";
 import { SegmentedControl } from "./SegmentedControl.js";
 import { useDesktopSettings } from "../features/settings/useDesktopSettings.js";
-import type { DesktopPermissionMode } from "../../shared/types.js";
+import type {
+  DesktopOpenTarget,
+  DesktopPermissionMode,
+} from "../../shared/types.js";
 
-const OPEN_TARGET_OPTIONS = [
-  { value: "vscode", label: "VS Code" },
-  { value: "cursor", label: "Cursor" },
-  { value: "finder", label: "文件资源管理器" },
-  { value: "terminal", label: "终端" },
+const FALLBACK_OPEN_TARGETS: DesktopOpenTarget[] = [
+  {
+    id: "default-app",
+    label: "Default app",
+    kind: "default-app",
+  },
+  {
+    id: "file-explorer",
+    label: "File Explorer",
+    kind: "file-explorer",
+  },
+  {
+    id: "terminal",
+    label: "Terminal",
+    kind: "terminal",
+  },
 ];
 
 const TERMINAL_SHELL_OPTIONS = [
@@ -88,6 +108,28 @@ function LearnMoreLink() {
   );
 }
 
+function renderOpenTargetIcon(target: DesktopOpenTarget): React.ReactNode {
+  if (target.iconDataUrl) {
+    return (
+      <img
+        alt=""
+        className="settings-open-target-icon"
+        src={target.iconDataUrl}
+      />
+    );
+  }
+  if (target.kind === "file-explorer") {
+    return <FolderOpen size={14} />;
+  }
+  if (target.kind === "terminal") {
+    return <SquareTerminal size={14} />;
+  }
+  if (target.kind === "editor") {
+    return <Code size={14} />;
+  }
+  return <File size={14} />;
+}
+
 export function GeneralSettings() {
   const {
     thinkingMode,
@@ -96,9 +138,13 @@ export function GeneralSettings() {
     setPermissionMode,
     showContextUsage,
     setShowContextUsage,
+    defaultOpenTargetId,
+    setDefaultOpenTargetId,
   } = useDesktopSettings();
 
-  const [openTarget, setOpenTarget] = useState("vscode");
+  const [openTargets, setOpenTargets] =
+    useState<DesktopOpenTarget[]>(FALLBACK_OPEN_TARGETS);
+  const [openTargetsLoaded, setOpenTargetsLoaded] = useState(false);
   const [terminalShell, setTerminalShell] = useState("powershell");
   const [language, setLanguage] = useState("zh-CN");
   const [longPromptShortcut, setLongPromptShortcut] = useState(false);
@@ -132,6 +178,49 @@ export function GeneralSettings() {
     if (checked) setPermissionMode("bypassPermissions");
     else setPermissionMode("acceptEdits");
   };
+
+  useEffect(() => {
+    let mounted = true;
+    void window.desktopApi
+      .listOpenTargets()
+      .then((targets) => {
+        if (!mounted) return;
+        const nextTargets = targets.length ? targets : FALLBACK_OPEN_TARGETS;
+        setOpenTargets(nextTargets);
+        setOpenTargetsLoaded(true);
+        if (!nextTargets.some((target) => target.id === defaultOpenTargetId)) {
+          setDefaultOpenTargetId("default-app");
+        }
+      })
+      .catch(() => {
+        if (mounted) {
+          setOpenTargets(FALLBACK_OPEN_TARGETS);
+          setOpenTargetsLoaded(true);
+        }
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [defaultOpenTargetId, setDefaultOpenTargetId]);
+
+  const displayedOpenTargets =
+    !openTargetsLoaded &&
+    !openTargets.some((target) => target.id === defaultOpenTargetId)
+      ? [
+          ...openTargets,
+          {
+            id: defaultOpenTargetId,
+            label: "Loading...",
+            kind: "editor" as const,
+          },
+        ]
+      : openTargets;
+
+  const openTargetOptions = displayedOpenTargets.map((target) => ({
+    value: target.id,
+    label: target.label,
+    icon: renderOpenTargetIcon(target),
+  }));
 
   return (
     <div className="settings-content-area">
@@ -215,9 +304,9 @@ export function GeneralSettings() {
             description="默认打开文件和文件夹的位置"
             control={
               <SettingsDropdown
-                value={openTarget}
-                options={OPEN_TARGET_OPTIONS}
-                onChange={setOpenTarget}
+                value={defaultOpenTargetId}
+                options={openTargetOptions}
+                onChange={setDefaultOpenTargetId}
                 ariaLabel="默认打开目标"
               />
             }

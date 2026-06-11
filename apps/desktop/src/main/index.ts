@@ -6,7 +6,7 @@ import {
   Menu,
   shell,
 } from 'electron'
-import { execFile } from 'node:child_process'
+import { execFile, spawn } from 'node:child_process'
 import { mkdir, open, readdir, stat } from 'node:fs/promises'
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -69,6 +69,7 @@ import type {
   DesktopFilePreview,
   DesktopModelProviderState,
   DesktopModelProviderSummary,
+  DesktopOpenTarget,
   DesktopPermissionDecision,
   DesktopPermissionMode,
   DesktopProviderModelListResult,
@@ -109,6 +110,68 @@ const DESKTOP_THINKING_MODES = new Set<DesktopThinkingMode>([
   'adaptive',
   'disabled',
 ])
+const DEFAULT_OPEN_TARGET: DesktopOpenTarget = {
+  id: 'default-app',
+  label: 'Default app',
+  kind: 'default-app',
+}
+const BUILTIN_OPEN_TARGETS: DesktopOpenTarget[] = [
+  DEFAULT_OPEN_TARGET,
+  { id: 'file-explorer', label: 'File Explorer', kind: 'file-explorer' },
+  { id: 'terminal', label: 'Terminal', kind: 'terminal' },
+]
+const JETBRAINS_WINDOWS_PRODUCTS = [
+  {
+    label: 'IntelliJ IDEA',
+    matches: ['intellij'],
+    executables: ['idea64.exe', 'idea.exe'],
+  },
+  {
+    label: 'PyCharm',
+    matches: ['pycharm'],
+    executables: ['pycharm64.exe', 'pycharm.exe'],
+  },
+  {
+    label: 'WebStorm',
+    matches: ['webstorm'],
+    executables: ['webstorm64.exe', 'webstorm.exe'],
+  },
+  {
+    label: 'PhpStorm',
+    matches: ['phpstorm'],
+    executables: ['phpstorm64.exe', 'phpstorm.exe'],
+  },
+  {
+    label: 'RubyMine',
+    matches: ['rubymine'],
+    executables: ['rubymine64.exe', 'rubymine.exe'],
+  },
+  {
+    label: 'CLion',
+    matches: ['clion'],
+    executables: ['clion64.exe', 'clion.exe'],
+  },
+  {
+    label: 'GoLand',
+    matches: ['goland'],
+    executables: ['goland64.exe', 'goland.exe'],
+  },
+  {
+    label: 'Rider',
+    matches: ['rider'],
+    executables: ['rider64.exe', 'rider.exe'],
+  },
+  {
+    label: 'DataGrip',
+    matches: ['datagrip'],
+    executables: ['datagrip64.exe', 'datagrip.exe'],
+  },
+  {
+    label: 'DataSpell',
+    matches: ['dataspell'],
+    executables: ['dataspell64.exe', 'dataspell.exe'],
+  },
+]
 
 type DesktopSessionRecord = {
   session: DesktopAgentSession | null
@@ -411,6 +474,7 @@ async function listModelProviders(): Promise<DesktopModelProviderSummary[]> {
     logoURL: provider.logoURL,
     npmPackage: provider.npmPackage,
     modelsDevSource: provider.modelsDevSource,
+    gatewaySource: provider.gatewaySource,
     requiresBaseURL: provider.requiresBaseURL,
   }))
 }
@@ -444,6 +508,7 @@ async function getModelProviderState(
       logoURL: provider.logoURL,
       npmPackage: provider.npmPackage,
       modelsDevSource: provider.modelsDevSource,
+      gatewaySource: provider.gatewaySource,
       requiresBaseURL: provider.requiresBaseURL,
     },
     model,
@@ -488,6 +553,7 @@ async function saveModelProvider(
   const modelID =
     typeof options.modelID === 'string' ? options.modelID.trim() : undefined
   const baseURL = normalizeOptionalText(options.baseURL)
+  const provider = await getProviderConfig(providerID)
   saveSelectedProvider({
     providerID,
     modelID,
@@ -497,7 +563,8 @@ async function saveModelProvider(
   await saveDesktopStoredSettings({
     ...settings,
     providerID,
-    providerBaseURL: providerID === 'custom' ? baseURL ?? '' : '',
+    providerBaseURL:
+      provider.requiresBaseURL || providerID === 'custom' ? baseURL ?? '' : '',
     model: modelID ?? '',
   })
   return await getModelProviderState()
@@ -538,6 +605,44 @@ async function openWorkspace(workspacePath: string): Promise<DesktopWorkspace> {
   return workspaceFromPath(resolvedWorkspace)
 }
 
+async function listOpenTargets(): Promise<DesktopOpenTarget[]> {
+  const detectedTargets =
+    process.platform === 'win32' ? await detectWindowsOpenTargets() : []
+  const targets = dedupeOpenTargets([
+    ...BUILTIN_OPEN_TARGETS,
+    ...detectedTargets,
+  ])
+  return Promise.all(targets.map(target => addOpenTargetIcon(target)))
+}
+
+async function openPathWithDefaultTarget(targetPath: string): Promise<void> {
+  const requestedPath = requireNonEmptyString(targetPath, 'Target path')
+  const resolvedTarget = resolve(requestedPath)
+  const targetStat = await stat(resolvedTarget)
+  const target = await getSelectedOpenTarget()
+
+  if (target.kind === 'file-explorer') {
+    if (targetStat.isFile()) {
+      shell.showItemInFolder(resolvedTarget)
+      return
+    }
+    await openShellPath(resolvedTarget)
+    return
+  }
+
+  if (target.kind === 'terminal') {
+    await openTerminalAtPath(resolvedTarget, targetStat.isDirectory())
+    return
+  }
+
+  if (target.kind === 'editor' && target.executablePath) {
+    openPathInEditor(target.executablePath, resolvedTarget)
+    return
+  }
+
+  await openShellPath(resolvedTarget)
+}
+
 async function workspaceFromPath(workspacePath: string): Promise<DesktopWorkspace> {
   const gitInfo = await getWorkspaceGitInfo(workspacePath)
   return {
@@ -547,6 +652,329 @@ async function workspaceFromPath(workspacePath: string): Promise<DesktopWorkspac
     branches: gitInfo.branches,
     isGitRepo: gitInfo.isGitRepo,
   }
+}
+
+async function getSelectedOpenTarget(): Promise<DesktopOpenTarget> {
+  const settings = await readDesktopStoredSettings()
+  const targets = await listOpenTargets()
+  const selected = targets.find(target => target.id === settings.defaultOpenTargetId)
+  if (selected) return selected
+
+  if (settings.defaultOpenTargetId !== 'default-app') {
+    await saveDesktopStoredSettings({
+      ...settings,
+      defaultOpenTargetId: 'default-app',
+    })
+  }
+  return DEFAULT_OPEN_TARGET
+}
+
+async function addOpenTargetIcon(
+  target: DesktopOpenTarget,
+): Promise<DesktopOpenTarget> {
+  if (!target.executablePath) return target
+  try {
+    const icon = await app.getFileIcon(target.executablePath, { size: 'normal' })
+    return { ...target, iconDataUrl: icon.toDataURL() }
+  } catch {
+    return target
+  }
+}
+
+function dedupeOpenTargets(targets: DesktopOpenTarget[]): DesktopOpenTarget[] {
+  const seenIds = new Set<string>()
+  const seenLabels = new Set<string>()
+  const deduped: DesktopOpenTarget[] = []
+  for (const target of targets) {
+    const id = target.id.toLocaleLowerCase()
+    const label = target.label.toLocaleLowerCase()
+    if (seenIds.has(id) || (target.kind === 'editor' && seenLabels.has(label))) {
+      continue
+    }
+    seenIds.add(id)
+    seenLabels.add(label)
+    deduped.push(target)
+  }
+  return deduped
+}
+
+async function detectWindowsOpenTargets(): Promise<DesktopOpenTarget[]> {
+  const candidates: Array<{ label: string; executablePath: string }> = []
+  const localAppData = process.env.LOCALAPPDATA
+  const programFiles = process.env.ProgramFiles
+  const programFilesX86 = process.env['ProgramFiles(x86)']
+
+  await appendFirstWhereCandidate(candidates, 'VS Code', ['code'], path =>
+    resolveCommandBackedExecutable(path, 'Code.exe'),
+  )
+  await appendFirstExistingCandidate(candidates, 'VS Code', [
+    joinOptional(localAppData, 'Programs', 'Microsoft VS Code', 'Code.exe'),
+    joinOptional(programFiles, 'Microsoft VS Code', 'Code.exe'),
+    joinOptional(programFilesX86, 'Microsoft VS Code', 'Code.exe'),
+  ])
+  await appendFirstWhereCandidate(candidates, 'Cursor', ['cursor'], path =>
+    resolveCommandBackedExecutable(path, 'Cursor.exe'),
+  )
+  await appendFirstExistingCandidate(candidates, 'Cursor', [
+    joinOptional(localAppData, 'Programs', 'Cursor', 'Cursor.exe'),
+    joinOptional(programFiles, 'Cursor', 'Cursor.exe'),
+    joinOptional(programFilesX86, 'Cursor', 'Cursor.exe'),
+  ])
+  await appendFirstWhereCandidate(candidates, 'Windsurf', ['windsurf'], path =>
+    resolveCommandBackedExecutable(path, 'Windsurf.exe'),
+  )
+  await appendFirstExistingCandidate(candidates, 'Windsurf', [
+    joinOptional(localAppData, 'Programs', 'Windsurf', 'Windsurf.exe'),
+    joinOptional(programFiles, 'Windsurf', 'Windsurf.exe'),
+    joinOptional(programFilesX86, 'Windsurf', 'Windsurf.exe'),
+  ])
+  await appendFirstExistingCandidate(candidates, 'Android Studio', [
+    joinOptional(programFiles, 'Android', 'Android Studio', 'bin', 'studio64.exe'),
+    joinOptional(programFilesX86, 'Android', 'Android Studio', 'bin', 'studio64.exe'),
+  ])
+
+  candidates.push(...(await detectVisualStudioTargets()))
+  candidates.push(...(await detectJetBrainsTargets()))
+
+  return candidates.map(candidate => ({
+    id: `app:${candidate.executablePath}`,
+    label: candidate.label,
+    kind: 'editor',
+    executablePath: candidate.executablePath,
+  }))
+}
+
+async function appendFirstExistingCandidate(
+  candidates: Array<{ label: string; executablePath: string }>,
+  label: string,
+  executablePaths: Array<string | null>,
+): Promise<void> {
+  if (candidates.some(candidate => candidate.label === label)) {
+    return
+  }
+  for (const executablePath of executablePaths) {
+    if (executablePath && (await fileExists(executablePath))) {
+      candidates.push({ label, executablePath })
+      return
+    }
+  }
+}
+
+async function appendFirstWhereCandidate(
+  candidates: Array<{ label: string; executablePath: string }>,
+  label: string,
+  commands: string[],
+  resolveExecutablePath?: (commandPath: string) => string | null,
+): Promise<void> {
+  if (candidates.some(candidate => candidate.label === label)) {
+    return
+  }
+  for (const command of commands) {
+    const commandVariants = command.toLocaleLowerCase().endsWith('.exe')
+      ? [command, command.slice(0, -4)]
+      : [command]
+    for (const commandPath of await findWindowsCommands(commandVariants)) {
+      const executablePath = resolveExecutablePath?.(commandPath) ?? commandPath
+      if (executablePath && (await fileExists(executablePath))) {
+        candidates.push({ label, executablePath })
+        return
+      }
+    }
+  }
+}
+
+async function detectVisualStudioTargets(): Promise<
+  Array<{ label: string; executablePath: string }>
+> {
+  const roots = [process.env.ProgramFiles, process.env['ProgramFiles(x86)']]
+    .map(root => joinOptional(root, 'Microsoft Visual Studio'))
+    .filter((root): root is string => Boolean(root))
+
+  for (const root of roots) {
+    const yearEntries = (await readDirectoryEntries(root))
+      .filter(entry => entry.isDirectory())
+      .sort((left, right) => right.name.localeCompare(left.name))
+    for (const yearEntry of yearEntries) {
+      const yearPath = join(root, yearEntry.name)
+      const editionEntries = (await readDirectoryEntries(yearPath)).filter(entry =>
+        entry.isDirectory(),
+      )
+      for (const editionEntry of editionEntries) {
+        const executablePath = join(
+          yearPath,
+          editionEntry.name,
+          'Common7',
+          'IDE',
+          'devenv.exe',
+        )
+        if (await fileExists(executablePath)) {
+          return [{ label: 'Visual Studio', executablePath }]
+        }
+      }
+    }
+  }
+  return []
+}
+
+async function detectJetBrainsTargets(): Promise<
+  Array<{ label: string; executablePath: string }>
+> {
+  const roots = [
+    joinOptional(process.env.LOCALAPPDATA, 'Programs', 'JetBrains'),
+    joinOptional(process.env.ProgramFiles, 'JetBrains'),
+    joinOptional(process.env['ProgramFiles(x86)'], 'JetBrains'),
+  ]
+    .filter((root): root is string => Boolean(root))
+  const targets: Array<{ label: string; executablePath: string }> = []
+
+  for (const product of JETBRAINS_WINDOWS_PRODUCTS) {
+    await appendFirstWhereCandidate(
+      targets,
+      product.label,
+      product.executables,
+    )
+    for (const root of roots) {
+      const productEntries = (await readDirectoryEntries(root))
+        .filter(entry => entry.isDirectory())
+        .sort((left, right) => right.name.localeCompare(left.name))
+      for (const productEntry of productEntries) {
+        const normalizedName = productEntry.name.toLocaleLowerCase()
+        if (!product.matches.some(match => normalizedName.includes(match))) {
+          continue
+        }
+        for (const executable of product.executables) {
+          const executablePath = join(root, productEntry.name, 'bin', executable)
+          if (await fileExists(executablePath)) {
+            targets.push({ label: product.label, executablePath })
+            break
+          }
+        }
+        if (targets.some(target => target.label === product.label)) {
+          break
+        }
+      }
+      if (targets.some(target => target.label === product.label)) {
+        break
+      }
+    }
+  }
+  return targets
+}
+
+async function findWindowsCommands(commands: string[]): Promise<string[]> {
+  const paths: string[] = []
+  const seen = new Set<string>()
+  for (const command of commands) {
+    for (const commandPath of await findWindowsCommand(command)) {
+      const key = commandPath.toLocaleLowerCase()
+      if (!seen.has(key)) {
+        seen.add(key)
+        paths.push(commandPath)
+      }
+    }
+  }
+  return paths
+}
+
+async function findWindowsCommand(command: string): Promise<string[]> {
+  try {
+    const { stdout } = await execFileAsync('where.exe', [command])
+    return stdout
+      .split(/\r?\n/)
+      .map(line => line.trim())
+      .filter(Boolean)
+  } catch {
+    return []
+  }
+}
+
+function resolveCommandBackedExecutable(
+  commandPath: string,
+  executableName: string,
+): string | null {
+  const binDirectory = dirname(commandPath)
+  const appDirectory = dirname(binDirectory)
+  return join(appDirectory, executableName)
+}
+
+
+function joinOptional(
+  root: string | undefined,
+  ...segments: string[]
+): string | null {
+  if (!root) return null
+  return join(root, ...segments)
+}
+
+async function fileExists(path: string | null): Promise<boolean> {
+  if (!path) return false
+  try {
+    return (await stat(path)).isFile()
+  } catch {
+    return false
+  }
+}
+
+async function readDirectoryEntries(path: string) {
+  try {
+    return await readdir(path, { withFileTypes: true })
+  } catch {
+    return []
+  }
+}
+
+async function openShellPath(targetPath: string): Promise<void> {
+  const error = await shell.openPath(targetPath)
+  if (error) {
+    throw new Error(error)
+  }
+}
+
+async function openTerminalAtPath(
+  targetPath: string,
+  targetIsDirectory: boolean,
+): Promise<void> {
+  const cwd = targetIsDirectory ? targetPath : dirname(targetPath)
+  if (process.platform === 'win32') {
+    const child = spawn(
+      'cmd.exe',
+      [
+        '/c',
+        'start',
+        '',
+        'powershell.exe',
+        '-NoExit',
+        '-Command',
+        `Set-Location -LiteralPath ${quotePowerShellPath(cwd)}`,
+      ],
+      { cwd, detached: true, stdio: 'ignore', windowsHide: true },
+    )
+    child.unref()
+    return
+  }
+  if (process.platform === 'darwin') {
+    await execFileAsync('open', ['-a', 'Terminal', cwd])
+    return
+  }
+  const child = spawn('x-terminal-emulator', [], {
+    cwd,
+    detached: true,
+    stdio: 'ignore',
+  })
+  child.unref()
+}
+
+function quotePowerShellPath(targetPath: string): string {
+  return `'${targetPath.replace(/'/g, "''")}'`
+}
+
+function openPathInEditor(executablePath: string, targetPath: string): void {
+  const child = spawn(executablePath, [targetPath], {
+    detached: true,
+    stdio: 'ignore',
+  })
+  child.on('error', () => {})
+  child.unref()
 }
 
 async function getStandaloneWorkspace(): Promise<DesktopWorkspace> {
@@ -1225,6 +1653,8 @@ function registerIpc(): void {
     getDesktopSettings: readDesktopStoredSettings,
     saveDesktopSettings: async (settings: DesktopStoredSettings) =>
       saveDesktopStoredSettings(settings),
+    listOpenTargets,
+    openPathWithDefaultTarget,
     listModelProviders: async () => listModelProviders(),
     getModelProviderState: async () => getModelProviderState(),
     fetchProviderModels,
