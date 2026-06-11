@@ -26,7 +26,9 @@ import {
 } from './sessionActions.js'
 import { handleSessionAgentEvent } from './sessionEvents.js'
 import {
+  applySessionView,
   addToolLogEntry as addToolLogEntryToView,
+  createEmptySessionView,
   toggleToolLogEntry as toggleToolLogEntryInView,
   updateSessionView as updateSessionViewState,
   type AddToolLogEntry,
@@ -188,6 +190,61 @@ export function useSessionState(
     }
   }, [handleAgentEvent])
 
+  useEffect(() => {
+    let disposed = false
+    async function hydrateSessions(): Promise<void> {
+      try {
+        const [sessionSnapshots, persistedActiveSessionId] = await Promise.all([
+          window.desktopApi.listSessions(),
+          window.desktopApi.getActiveSessionId(),
+        ])
+        if (disposed) return
+
+        const nextSessions = sessionSnapshots.map(snapshot => snapshot.item)
+        const nextViews: Record<string, SessionViewState> = {}
+        const nextWorkspaces: Record<string, DesktopWorkspace> = {}
+        for (const snapshot of sessionSnapshots) {
+          nextViews[snapshot.item.id] = {
+            ...snapshot.view,
+            selectedFile: null,
+          }
+          nextWorkspaces[snapshot.item.id] = snapshot.workspace
+        }
+
+        sessionViewsRef.current = nextViews
+        sessionWorkspacesRef.current = nextWorkspaces
+        setSessions(nextSessions)
+
+        const nextSessionId =
+          persistedActiveSessionId && nextViews[persistedActiveSessionId]
+            ? persistedActiveSessionId
+            : nextSessions[0]?.id ?? null
+        activeSessionIdRef.current = nextSessionId
+        setSessionId(nextSessionId)
+
+        const activeSession = nextSessions.find(
+          session => session.id === nextSessionId,
+        )
+        setSessionStatus(activeSession?.status ?? 'idle')
+        applySessionView(
+          nextSessionId
+            ? nextViews[nextSessionId] ?? createEmptySessionView()
+            : createEmptySessionView(),
+          viewSetters,
+        )
+        if (nextSessionId !== persistedActiveSessionId) {
+          void window.desktopApi.setActiveSession(nextSessionId)
+        }
+      } catch (error) {
+        onErrorRef.current(errorMessageOf(error))
+      }
+    }
+    void hydrateSessions()
+    return () => {
+      disposed = true
+    }
+  }, [viewSetters])
+
   const settingsSnapshot = useMemo<SessionSettingsSnapshot>(
     () => ({
       permissionMode,
@@ -312,4 +369,8 @@ export function useSessionState(
     selectSession,
     toggleToolLogEntry,
   }
+}
+
+function errorMessageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
 }

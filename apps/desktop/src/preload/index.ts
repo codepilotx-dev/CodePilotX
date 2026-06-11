@@ -35,6 +35,10 @@ const api: DesktopApi = {
   saveThemeSettings: settings =>
     ipcRenderer.invoke('desktop:saveThemeSettings', settings),
   createSession: options => ipcRenderer.invoke('desktop:createSession', options),
+  listSessions: () => ipcRenderer.invoke('desktop:listSessions'),
+  getActiveSessionId: () => ipcRenderer.invoke('desktop:getActiveSessionId'),
+  setActiveSession: sessionId =>
+    ipcRenderer.invoke('desktop:setActiveSession', sessionId),
   sendUserMessage: (sessionId, content) =>
     ipcRenderer.invoke('desktop:sendUserMessage', sessionId, content),
   respondToPermission: (sessionId, requestId, decision) =>

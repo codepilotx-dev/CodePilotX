@@ -41,7 +41,11 @@ const PROVIDERS = new Set<ModelProviderID>([
 ])
 
 export function getDesktopConfigDirectoryPath(): string {
-  return join(homedir(), '.oh-my-openagent', 'desktop')
+  return join(getOpenAgentConfigHomeDir(), 'desktop')
+}
+
+export function getOpenAgentConfigHomeDir(): string {
+  return join(homedir(), '.oh-my-openagent')
 }
 
 function getDesktopSettingsPath(): string {

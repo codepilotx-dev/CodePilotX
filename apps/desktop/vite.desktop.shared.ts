@@ -35,6 +35,23 @@ export const desktopMacroDefines = {
   'process.env.CLAUDE_CODE_DISABLE_MIN_VERSION_CHECK': JSON.stringify('1'),
 }
 
+function disableBundledFeaturesPlugin() {
+  return {
+    name: 'desktop-disable-bundled-features',
+    enforce: 'pre' as const,
+    transform(code: string, id: string) {
+      if (!id.includes('/apps/tui/src/') && !id.includes('\\apps\\tui\\src\\')) {
+        return null
+      }
+      const transformed = code.replace(
+        /\bfeature\(\s*(['"`])[^'"`]*\1\s*\)/g,
+        'false',
+      )
+      return transformed === code ? null : { code: transformed, map: null }
+    },
+  }
+}
+
 const external = [
   'electron',
   ...builtinModules,
@@ -44,11 +61,28 @@ const external = [
   ...Object.keys(packageJson.devDependencies ?? {}),
 ]
 
+const optionalDesktopFeatureModules = [
+  'DiscoverSkillsTool/prompt.js',
+]
+
 function isExternalDependency(id: string): boolean {
+  if (optionalDesktopFeatureModules.some(moduleId => id.includes(moduleId))) {
+    return true
+  }
   return external.some(externalId => {
     if (id === externalId) return true
     return id.startsWith(`${externalId}/`)
   })
+}
+
+function nodeRequireBanner(formats: ('es' | 'cjs')[]): string | undefined {
+  if (formats.length !== 1 || formats[0] !== 'es') {
+    return undefined
+  }
+  return [
+    "import { createRequire as __desktopCreateRequire } from 'node:module';",
+    'const require = __desktopCreateRequire(import.meta.url);',
+  ].join('\n')
 }
 
 export function nodeDesktopBuild(
@@ -58,6 +92,7 @@ export function nodeDesktopBuild(
   formats: ('es' | 'cjs')[] = ['es'],
 ): UserConfig {
   return {
+    plugins: [disableBundledFeaturesPlugin()],
     resolve: { alias: desktopAlias },
     define: desktopMacroDefines,
     build: {
@@ -72,6 +107,9 @@ export function nodeDesktopBuild(
       },
       rollupOptions: {
         external: isExternalDependency,
+        output: {
+          banner: nodeRequireBanner(formats),
+        },
       },
     },
   }

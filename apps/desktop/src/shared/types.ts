@@ -31,6 +31,7 @@ export type DesktopDiffSummary = {
 }
 
 export type DesktopRuntimeStatus = {
+  runtimeKind: 'subprocess' | 'in-process-headless'
   agentExecutablePath: string
   agentExecutableExists: boolean
   configDirectoryPath: string
@@ -156,6 +157,65 @@ export type DesktopPermissionRequest = {
   description: string
 }
 
+export type DesktopSessionMessage = {
+  id: string
+  role: 'user' | 'assistant' | 'system'
+  text: string
+  streaming?: boolean
+}
+
+export type DesktopToolLogEntry = {
+  id: string
+  toolName: string
+  summary: string
+  kind: 'start' | 'result'
+  isError?: boolean
+  expanded: boolean
+  createdAt: string
+}
+
+export type DesktopSessionListItem = {
+  id: string
+  sessionName: string | null
+  workspaceName: string
+  workspacePath: string
+  standalone?: boolean
+  permissionMode: DesktopPermissionMode
+  model: string | null
+  fallbackModel: string | null
+  thinkingMode: DesktopThinkingMode
+  hasSystemPrompt: boolean
+  hasAppendSystemPrompt: boolean
+  additionalDirectoryCount: number
+  status: DesktopSessionStatus
+  createdAt: string
+}
+
+export type DesktopSessionSettingsSnapshot = {
+  permissionMode: DesktopPermissionMode
+  model?: string
+  fallbackModel?: string
+  sessionName?: string
+  thinkingMode: DesktopThinkingMode
+  systemPrompt?: string
+  appendSystemPrompt?: string
+  additionalDirectories: string[]
+}
+
+export type DesktopSessionViewSnapshot = {
+  messages: DesktopSessionMessage[]
+  toolLog: DesktopToolLogEntry[]
+  pendingPermissions: DesktopPermissionRequest[]
+}
+
+export type DesktopSessionSnapshot = {
+  item: DesktopSessionListItem
+  workspace: DesktopWorkspace
+  settings: DesktopSessionSettingsSnapshot
+  view: DesktopSessionViewSnapshot
+  updatedAt: string
+}
+
 export type DesktopAgentEvent =
   | { type: 'message'; sessionId: string; role: 'user' | 'assistant' | 'system'; text: string }
   | { type: 'partial_message'; sessionId: string; text: string }
@@ -220,6 +280,9 @@ export type DesktopApi = {
   getThemeSettings(): Promise<DesktopThemeSettings>
   saveThemeSettings(settings: DesktopThemeSettings): Promise<void>
   createSession(options: CreateDesktopSessionOptions): Promise<CreateDesktopSessionResult>
+  listSessions(): Promise<DesktopSessionSnapshot[]>
+  getActiveSessionId(): Promise<string | null>
+  setActiveSession(sessionId: string | null): Promise<void>
   sendUserMessage(sessionId: string, content: string): Promise<void>
   respondToPermission(
     sessionId: string,

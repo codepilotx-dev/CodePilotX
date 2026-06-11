@@ -32,7 +32,7 @@ import type {
   DesktopPermissionRequest,
   DesktopWorkspace,
 } from '../../shared/types.js'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 export function DesktopLayout(): React.ReactNode {
   const settings = useDesktopSettings()
@@ -142,6 +142,32 @@ export function DesktopLayout(): React.ReactNode {
   useEffect(() => {
     setActiveSessionId(sessionId)
   }, [sessionId, setActiveSessionId])
+
+  const restoredWorkspaceSessionIdRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!activeSessionItem) return
+    if (restoredWorkspaceSessionIdRef.current === activeSessionItem.id) return
+    restoredWorkspaceSessionIdRef.current = activeSessionItem.id
+
+    const nextWorkspace = selectSessionRaw(activeSessionItem)
+    if (!nextWorkspace) {
+      setWorkspaceState(null)
+      setDiffState('未选择项目。')
+      setSelectedFile(null)
+      return
+    }
+    setWorkspaceState(nextWorkspace)
+    void refreshWorkspace(nextWorkspace, {
+      expectedSessionId: activeSessionItem.id,
+    })
+  }, [
+    activeSessionItem,
+    refreshWorkspace,
+    selectSessionRaw,
+    setDiffState,
+    setSelectedFile,
+    setWorkspaceState,
+  ])
 
   const navigate = useNavigate()
 

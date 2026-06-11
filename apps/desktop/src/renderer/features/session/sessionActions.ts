@@ -52,6 +52,9 @@ export function activateSession(
 ): void {
   context.activeSessionIdRef.current = nextSessionId
   context.setSessionId(nextSessionId)
+  void window.desktopApi.setActiveSession(nextSessionId).catch(error => {
+    context.onErrorRef.current(errorMessageOf(error))
+  })
 }
 
 export async function createSessionForWorkspaceAction(

@@ -23,10 +23,14 @@ type PendingPermission = {
 
 type ResolvedDesktopSessionOptions = CreateDesktopSessionOptions & {
   workspacePath: string
+  sessionId?: string
+  resumeExistingSession?: boolean
+  suppressStartupMessage?: boolean
 }
 
 export type DesktopAgentSessionRuntimeOptions = {
   agentExecutablePath?: string
+  configDirectoryPath?: string
 }
 
 export type DesktopAgentSession = {
@@ -53,7 +57,7 @@ class LocalDesktopAgentSession
   extends EventEmitter
   implements DesktopAgentSession
 {
-  readonly sessionId = randomUUID()
+  readonly sessionId: string
   readonly workspacePath: string
   private disposed = false
   private currentAbortController: AbortController | null = null
@@ -65,11 +69,14 @@ class LocalDesktopAgentSession
     runtimeOptions: DesktopAgentSessionRuntimeOptions,
   ) {
     super()
+    this.sessionId = options.sessionId ?? randomUUID()
     this.workspacePath = options.workspacePath
     this.runtime = createDesktopAgentRuntime({
       sessionId: this.sessionId,
       workspacePath: this.workspacePath,
       agentExecutablePath: runtimeOptions.agentExecutablePath,
+      configDirectoryPath: runtimeOptions.configDirectoryPath,
+      resumeExistingSession: options.resumeExistingSession,
       permissionMode: options.permissionMode,
       model: options.model,
       fallbackModel: options.fallbackModel,
@@ -82,7 +89,7 @@ class LocalDesktopAgentSession
       requestPermission: request => this.requestPermission(request),
     })
     queueMicrotask(() => {
-      if (this.disposed) {
+      if (this.disposed || options.suppressStartupMessage) {
         return
       }
       this.emitStatus('idle')

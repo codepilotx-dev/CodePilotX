@@ -35,9 +35,18 @@ import {
 } from './agentSession.js'
 import {
   getDesktopConfigDirectoryPath,
+  getOpenAgentConfigHomeDir,
   readDesktopStoredSettings,
   saveDesktopStoredSettings,
 } from './desktopSettings.js'
+import {
+  applyDesktopAgentEventToSnapshot,
+  createDesktopSessionSnapshot,
+  desktopSessionTranscriptExists,
+  loadDesktopSessionStore,
+  removePendingPermissionFromSnapshot,
+  saveDesktopSessionStore,
+} from './sessionPersistence.js'
 import {
   readDesktopThemeSettings,
   saveDesktopThemeSettings,
@@ -57,6 +66,8 @@ import type {
   DesktopPermissionMode,
   DesktopProviderModelListResult,
   DesktopRuntimeStatus,
+  DesktopSessionSettingsSnapshot,
+  DesktopSessionSnapshot,
   DesktopStoredSettings,
   DesktopThinkingMode,
   DesktopUiCommand,
@@ -91,9 +102,19 @@ const DESKTOP_THINKING_MODES = new Set<DesktopThinkingMode>([
   'disabled',
 ])
 
+type DesktopSessionRecord = {
+  session: DesktopAgentSession | null
+  snapshot: DesktopSessionSnapshot
+  resumeExistingSession: boolean
+}
+
+process.env.CLAUDE_CONFIG_DIR = getOpenAgentConfigHomeDir()
+
 let mainWindow: BrowserWindow | null = null
-const sessions = new Map<string, DesktopAgentSession>()
+const sessions = new Map<string, DesktopSessionRecord>()
 const allowedWorkspacePaths = new Set<string>()
+let activeSessionId: string | null = null
+let sessionStoreLoadPromise: Promise<void> | null = null
 
 function rendererUrl(): string {
   if (!app.isPackaged && process.env.CLAUDE_CODE_DESKTOP_RENDERER_URL) {
@@ -342,15 +363,17 @@ async function getRuntimeStatus(): Promise<DesktopRuntimeStatus> {
   try {
     const fileStat = await stat(agentExecutablePath)
     return {
+      runtimeKind: 'subprocess',
       agentExecutablePath,
       agentExecutableExists: fileStat.isFile(),
-      configDirectoryPath: getDesktopConfigDirectoryPath(),
+      configDirectoryPath: getOpenAgentConfigHomeDir(),
     }
   } catch {
     return {
+      runtimeKind: 'subprocess',
       agentExecutablePath,
       agentExecutableExists: false,
-      configDirectoryPath: getDesktopConfigDirectoryPath(),
+      configDirectoryPath: getOpenAgentConfigHomeDir(),
     }
   }
 }
@@ -644,9 +667,117 @@ async function getWorkspaceDiff(
   }
 }
 
+async function ensureSessionStoreLoaded(): Promise<void> {
+  if (!sessionStoreLoadPromise) {
+    sessionStoreLoadPromise = loadDesktopSessionStore().then(store => {
+      sessions.clear()
+      return Promise.all(
+        store.sessions.map(async snapshot => {
+          const resumeExistingSession =
+            await desktopSessionTranscriptExists(snapshot)
+          sessions.set(snapshot.item.id, {
+            session: null,
+            snapshot,
+            resumeExistingSession,
+          })
+          registerAllowedWorkspace(snapshot.workspace.path)
+        }),
+      ).then(() => {
+        activeSessionId = store.activeSessionId
+      })
+    })
+  }
+  await sessionStoreLoadPromise
+}
+
+function persistSessionStore(): void {
+  void saveDesktopSessionStore({
+    activeSessionId,
+    sessions: [...sessions.values()].map(record => record.snapshot),
+  }).catch(error => {
+    console.error('Failed to save desktop sessions.', error)
+  })
+}
+
+function attachSessionListeners(record: DesktopSessionRecord): void {
+  const session = record.session
+  if (!session) return
+  session.on('event', event => {
+    const currentRecord = sessions.get(session.sessionId)
+    if (!currentRecord || currentRecord.session !== session) {
+      return
+    }
+    currentRecord.snapshot = applyDesktopAgentEventToSnapshot(
+      currentRecord.snapshot,
+      event,
+    )
+    persistSessionStore()
+    emitAgentEvent(event)
+    if (
+      !currentRecord.snapshot.item.standalone &&
+      (event.type === 'done' || event.type === 'error')
+    ) {
+      void getWorkspaceDiff(session.workspacePath).then(diff => {
+        const latestRecord = sessions.get(session.sessionId)
+        if (!latestRecord || latestRecord.session !== session) {
+          return
+        }
+        emitAgentEvent({
+          type: 'diff',
+          sessionId: session.sessionId,
+          filePath: session.workspacePath,
+          patch: diff.patch,
+        })
+      })
+    }
+  })
+}
+
+function createRuntimeForRecord(record: DesktopSessionRecord): DesktopAgentSession {
+  if (record.session) {
+    return record.session
+  }
+  const session = createDesktopAgentSession(
+    {
+      ...record.snapshot.settings,
+      workspacePath: record.snapshot.workspace.path,
+      sessionId: record.snapshot.item.id,
+      resumeExistingSession: record.resumeExistingSession,
+      suppressStartupMessage: true,
+    },
+    {
+      agentExecutablePath: getAgentExecutablePath(),
+      configDirectoryPath: getOpenAgentConfigHomeDir(),
+    },
+  )
+  record.session = session
+  attachSessionListeners(record)
+  return session
+}
+
+async function listSessions(): Promise<DesktopSessionSnapshot[]> {
+  await ensureSessionStoreLoaded()
+  return [...sessions.values()].map(record => record.snapshot)
+}
+
+async function getActiveSessionId(): Promise<string | null> {
+  await ensureSessionStoreLoaded()
+  return activeSessionId
+}
+
+async function setActiveSession(sessionId: string | null): Promise<void> {
+  await ensureSessionStoreLoaded()
+  if (sessionId !== null && !sessions.has(sessionId)) {
+    throw new Error(`Unknown desktop session: ${sessionId}`)
+  }
+  activeSessionId = sessionId
+  persistSessionStore()
+}
+
 async function createSession(
   options: CreateDesktopSessionOptions,
 ): Promise<CreateDesktopSessionResult> {
+  await ensureSessionStoreLoaded()
   if (!options || typeof options !== 'object') {
     throw new Error('Desktop session options must be an object.')
   }
@@ -667,6 +798,16 @@ async function createSession(
     workspacePath,
   )
   const standalone = workspace.isStandalone === true
+  const settings = createSessionSettingsSnapshot({
+    permissionMode,
+    model,
+    fallbackModel,
+    sessionName,
+    thinkingMode,
+    systemPrompt,
+    appendSystemPrompt,
+    additionalDirectories,
+  })
   const session = createDesktopAgentSession(
     {
       workspacePath,
@@ -681,29 +822,49 @@ async function createSession(
     },
     {
       agentExecutablePath: getAgentExecutablePath(),
+      configDirectoryPath: getOpenAgentConfigHomeDir(),
     },
   )
-  sessions.set(session.sessionId, session)
-  session.on('event', event => {
-    if (sessions.get(session.sessionId) !== session) {
-      return
-    }
-    emitAgentEvent(event)
-    if (!standalone && (event.type === 'done' || event.type === 'error')) {
-      void getWorkspaceDiff(session.workspacePath).then(diff => {
-        if (sessions.get(session.sessionId) !== session) {
-          return
-        }
-        emitAgentEvent({
-          type: 'diff',
-          sessionId: session.sessionId,
-          filePath: session.workspacePath,
-          patch: diff.patch,
-        })
-      })
-    }
-  })
+  const record: DesktopSessionRecord = {
+    session,
+    resumeExistingSession: false,
+    snapshot: createDesktopSessionSnapshot({
+      sessionId: session.sessionId,
+      workspace,
+      standalone,
+      settings,
+    }),
+  }
+  sessions.set(session.sessionId, record)
+  activeSessionId = session.sessionId
+  attachSessionListeners(record)
+  persistSessionStore()
   return { sessionId: session.sessionId, workspace, standalone }
+}
+
+function createSessionSettingsSnapshot(params: {
+  permissionMode: DesktopPermissionMode
+  model?: string
+  fallbackModel?: string
+  sessionName?: string
+  thinkingMode: DesktopThinkingMode
+  systemPrompt?: string
+  appendSystemPrompt?: string
+  additionalDirectories: string[]
+}): DesktopSessionSettingsSnapshot {
+  const settings: DesktopSessionSettingsSnapshot = {
+    permissionMode: params.permissionMode,
+    thinkingMode: params.thinkingMode,
+    additionalDirectories: params.additionalDirectories,
+  }
+  if (params.model) settings.model = params.model
+  if (params.fallbackModel) settings.fallbackModel = params.fallbackModel
+  if (params.sessionName) settings.sessionName = params.sessionName
+  if (params.systemPrompt) settings.systemPrompt = params.systemPrompt
+  if (params.appendSystemPrompt) {
+    settings.appendSystemPrompt = params.appendSystemPrompt
+  }
+  return settings
 }
 
 function normalizePermissionMode(
@@ -773,7 +934,10 @@ async function sendUserMessage(sessionId: string, content: string): Promise<void
     content,
     'Desktop user message',
   )
-  const session = getSession(sessionId)
+  const record = await getSessionRecord(sessionId)
+  const session = createRuntimeForRecord(record)
+  activeSessionId = record.snapshot.item.id
+  persistSessionStore()
   await session.sendUserMessage(trimmedContent)
 }
 
@@ -794,38 +958,49 @@ async function respondToPermission(
       `Unsupported desktop permission decision: ${decision.behavior}`,
     )
   }
-  const session = getSession(sessionId)
-  await session.respondToPermission(normalizedRequestId, decision)
-}
-
-async function interruptSession(sessionId: string): Promise<void> {
-  const session = getSession(sessionId)
-  await session.interrupt()
-}
-
-async function disposeSession(sessionId: string): Promise<void> {
-  const session = getSession(sessionId)
-  sessions.delete(sessionId)
-  await session.dispose()
-}
-
-function disposeAllSessions(): void {
-  for (const [sessionId, session] of sessions) {
-    sessions.delete(sessionId)
-    void session.dispose()
+  const record = await getSessionRecord(sessionId)
+  record.snapshot = removePendingPermissionFromSnapshot(
+    record.snapshot,
+    normalizedRequestId,
+  )
+  persistSessionStore()
+  if (record.session) {
+    await record.session.respondToPermission(normalizedRequestId, decision)
   }
 }
 
-function getSession(sessionId: string): DesktopAgentSession {
+async function interruptSession(sessionId: string): Promise<void> {
+  const record = await getSessionRecord(sessionId)
+  await record.session?.interrupt()
+}
+
+async function disposeSession(sessionId: string): Promise<void> {
+  const record = await getSessionRecord(sessionId)
+  sessions.delete(sessionId)
+  if (activeSessionId === sessionId) {
+    activeSessionId = [...sessions.keys()][0] ?? null
+  }
+  persistSessionStore()
+  await record.session?.dispose()
+}
+
+function disposeAllSessions(): void {
+  for (const record of sessions.values()) {
+    void record.session?.dispose()
+  }
+}
+
+async function getSessionRecord(sessionId: string): Promise<DesktopSessionRecord> {
+  await ensureSessionStoreLoaded()
   const normalizedSessionId = requireNonEmptyString(
     sessionId,
     'Desktop session id',
   )
-  const session = sessions.get(normalizedSessionId)
-  if (!session) {
+  const record = sessions.get(normalizedSessionId)
+  if (!record) {
     throw new Error(`Unknown desktop session: ${normalizedSessionId}`)
   }
-  return session
+  return record
 }
 
 function requireNonEmptyString(value: unknown, label: string): string {
@@ -860,6 +1035,9 @@ function registerIpc(): void {
     getThemeSettings: readDesktopThemeSettings,
     saveThemeSettings: saveDesktopThemeSettings,
     createSession,
+    listSessions,
+    getActiveSessionId,
+    setActiveSession,
     sendUserMessage,
     respondToPermission,
     interruptSession,
