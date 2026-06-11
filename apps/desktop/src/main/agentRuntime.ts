@@ -66,6 +66,7 @@ export type DesktopAgentRuntimeContext = {
 }
 
 export type DesktopAgentRuntime = {
+  setModel(model: string | undefined): void
   runUserTurn(content: string, signal: AbortSignal): Promise<void>
 }
 
@@ -102,6 +103,10 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
   private readonly toolNamesByUseId = new Map<string, string>()
 
   constructor(private readonly context: DesktopAgentRuntimeContext) {}
+
+  setModel(model: string | undefined): void {
+    this.context.model = model
+  }
 
   async runUserTurn(content: string, signal: AbortSignal): Promise<void> {
     const executablePath = this.context.agentExecutablePath
@@ -514,6 +519,10 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
     process.env.CLAUDE_CODE_DISABLE_MDM_READ = '1'
     process.env.CLAUDE_CODE_DISABLE_MIN_VERSION_CHECK = '1'
     process.env.CLAUDE_CODE_ENTRYPOINT = 'desktop'
+  }
+
+  setModel(model: string | undefined): void {
+    this.context.model = model
   }
 
   async runUserTurn(content: string, signal: AbortSignal): Promise<void> {

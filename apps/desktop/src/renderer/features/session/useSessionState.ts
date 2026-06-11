@@ -365,6 +365,7 @@ export function useSessionState(
           targetStatus !== 'running' &&
           targetStatus !== 'waiting',
       ),
+      model,
       nextValue => {
         inputBySessionRef.current = {
           ...inputBySessionRef.current,
@@ -375,7 +376,7 @@ export function useSessionState(
         }
       },
     )
-  }, [])
+  }, [model])
 
   const submit = useCallback(async (target?: DesktopWorkspace | null): Promise<void> => {
     const targetSessionId =

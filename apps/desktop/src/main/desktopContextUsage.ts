@@ -1,6 +1,5 @@
 import { getSdkBetas } from '@claudecode/tui/bootstrap/state.js'
 import { getContextWindowForModel } from '@claudecode/tui/utils/context.js'
-import { getSelectedProviderID } from '@claudecode/tui/utils/model/providerConfig.js'
 import type { DesktopContextUsage } from '../shared/types.js'
 
 type UsageLike = {
@@ -13,7 +12,7 @@ type UsageLike = {
 export function buildDesktopContextUsage(params: {
   model: string
   usage: UsageLike
-  provider?: string
+  provider?: string | null
 }): DesktopContextUsage | null {
   const inputTokens = numberOrZero(params.usage.input_tokens)
   const outputTokens = numberOrZero(params.usage.output_tokens)
@@ -46,7 +45,10 @@ export function buildDesktopContextUsage(params: {
 
   return {
     model: params.model,
-    provider: params.provider ?? getProviderID(),
+    provider:
+      params.provider === undefined
+        ? inferProviderFromModel(params.model)
+        : params.provider || undefined,
     contextWindow,
     inputTokens,
     outputTokens,
@@ -57,6 +59,17 @@ export function buildDesktopContextUsage(params: {
     usedPercent,
     remainingPercent: 100 - usedPercent,
   }
+}
+
+export function inferProviderFromModel(model: string): string | undefined {
+  const normalized = model.trim().toLowerCase()
+  if (!normalized || normalized === 'unknown') return undefined
+  const slash = normalized.indexOf('/')
+  if (slash > 0) return normalized.slice(0, slash)
+  if (normalized.startsWith('minimax-')) return 'minimax'
+  if (normalized.startsWith('deepseek-')) return 'deepseek'
+  if (normalized.startsWith('claude-')) return 'anthropic'
+  return undefined
 }
 
 export function getUsageFromAssistantRecord(
@@ -85,12 +98,4 @@ function numberOrZero(value: unknown): number {
 
 function clampPercent(value: number): number {
   return Math.min(100, Math.max(0, value))
-}
-
-function getProviderID(): string | undefined {
-  try {
-    return getSelectedProviderID()
-  } catch {
-    return undefined
-  }
 }

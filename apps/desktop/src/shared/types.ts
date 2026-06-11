@@ -391,7 +391,11 @@ export type DesktopApi = {
     patch: DesktopSessionMetadataPatch,
   ): Promise<DesktopSessionSnapshot>
   openExternalURL(url: string): Promise<void>
-  sendUserMessage(sessionId: string, content: string): Promise<void>
+  sendUserMessage(
+    sessionId: string,
+    content: string,
+    model?: string,
+  ): Promise<void>
   respondToPermission(
     sessionId: string,
     requestId: string,

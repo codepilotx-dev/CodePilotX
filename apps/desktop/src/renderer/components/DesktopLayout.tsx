@@ -393,6 +393,30 @@ export function DesktopLayout(): React.ReactNode {
     providerState?.provider.kind === 'anthropic' ||
     selectedModelMetadata?.reasoning === true
 
+  useEffect(() => {
+    const activeModel = activeSessionItem?.model?.trim()
+    if (!activeModel) return
+    if (model !== activeModel) {
+      setModel(activeModel)
+    }
+    const nextPreset = resolveModelPresetId(
+      activeModel,
+      undefined,
+      modelPresets,
+    )
+    if (selectedModelPreset !== nextPreset) {
+      setSelectedModelPreset(nextPreset)
+    }
+  }, [
+    activeSessionItem?.id,
+    activeSessionItem?.model,
+    model,
+    modelPresets,
+    selectedModelPreset,
+    setModel,
+    setSelectedModelPreset,
+  ])
+
   const refreshProviderState = useCallback(async (): Promise<void> => {
     try {
       const [next, providers] = await Promise.all([
@@ -401,7 +425,8 @@ export function DesktopLayout(): React.ReactNode {
       ])
       setProviderState(next)
       setModelProviders(providers)
-      if (next.model !== model) {
+      const activeModel = activeSessionItem?.model?.trim()
+      if (!activeModel && next.model !== model) {
         setModel(next.model)
       }
       setProviderID(next.selectedProviderID)
@@ -409,7 +434,13 @@ export function DesktopLayout(): React.ReactNode {
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : String(error))
     }
-  }, [model, setModel, setProviderBaseURL, setProviderID])
+  }, [
+    activeSessionItem?.model,
+    model,
+    setModel,
+    setProviderBaseURL,
+    setProviderID,
+  ])
 
   useEffect(() => {
     void refreshProviderState()

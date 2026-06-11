@@ -127,13 +127,18 @@ export async function submitSessionMessageAction(
   sessionId: string | null,
   input: string,
   canSubmit: boolean,
+  model: string,
   setInput: (value: string) => void,
 ): Promise<void> {
   const trimmed = input.trim()
   if (!canSubmit || !sessionId) return
   setInput('')
   try {
-    await window.desktopApi.sendUserMessage(sessionId, trimmed)
+    await window.desktopApi.sendUserMessage(
+      sessionId,
+      trimmed,
+      normalizeOptionalText(model),
+    )
   } catch (error) {
     onErrorRef.current(errorMessageOf(error))
   }

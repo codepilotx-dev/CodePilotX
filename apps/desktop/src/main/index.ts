@@ -1506,14 +1506,34 @@ async function normalizeAdditionalDirectories(
   return [...normalized.values()]
 }
 
-async function sendUserMessage(sessionId: string, content: string): Promise<void> {
+async function sendUserMessage(
+  sessionId: string,
+  content: string,
+  model?: string,
+): Promise<void> {
   const trimmedContent = requireNonEmptyString(
     content,
     'Desktop user message',
   )
   const record = await getSessionRecord(sessionId)
+  const nextModel = normalizeOptionalText(model)
+  if (model !== undefined) {
+    record.snapshot = {
+      ...record.snapshot,
+      item: {
+        ...record.snapshot.item,
+        model: nextModel ?? null,
+      },
+      settings: {
+        ...record.snapshot.settings,
+        model: nextModel,
+      },
+      updatedAt: new Date().toISOString(),
+    }
+  }
   const shouldGenerateTitle = shouldGenerateAiTitle(record)
   const session = createRuntimeForRecord(record)
+  session.setModel(record.snapshot.settings.model)
   activeSessionId = record.snapshot.item.id
   persistSessionStore()
   if (shouldGenerateTitle) {

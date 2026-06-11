@@ -20,6 +20,7 @@ import {
 import {
   buildDesktopContextUsage,
   getUsageFromAssistantRecord,
+  inferProviderFromModel,
 } from './desktopContextUsage.js'
 
 type PersistedDesktopSessions = {
@@ -35,7 +36,12 @@ type TranscriptEntry = {
   message?: {
     role?: string
     content?: unknown
+    model?: unknown
   }
+}
+
+type ParsedTranscriptView = DesktopSessionViewSnapshot & {
+  effectiveModel?: string
 }
 
 const SESSION_INDEX_FILE_NAME = 'sessions.json'
@@ -184,6 +190,11 @@ export function applyDesktopAgentEventToSnapshot(
   }
 
   if (event.type === 'context_usage') {
+    next.item.model = event.usage.model
+    next.settings = {
+      ...next.settings,
+      model: event.usage.model,
+    }
     next.view.contextUsage = event.usage
     return next
   }
@@ -296,6 +307,15 @@ function normalizeSessionSnapshot(value: unknown): DesktopSessionSnapshot[] {
 
   const item = normalizeSessionItem(snapshot.item)
   const view = normalizeViewSnapshot(snapshot.view)
+  const settings = normalizeSettingsSnapshot(snapshot.settings)
+  const effectiveModel =
+    validModelName(view.contextUsage?.model) ??
+    validModelName(item.model) ??
+    validModelName(settings.model)
+  if (effectiveModel) {
+    item.model = effectiveModel
+    settings.model = effectiveModel
+  }
   const updatedAt =
     typeof snapshot.updatedAt === 'string'
       ? snapshot.updatedAt
@@ -313,7 +333,7 @@ function normalizeSessionSnapshot(value: unknown): DesktopSessionSnapshot[] {
             : item.status,
       },
       workspace: snapshot.workspace,
-      settings: normalizeSettingsSnapshot(snapshot.settings),
+      settings,
       view: {
         ...view,
         pendingPermissions: [],
@@ -515,10 +535,19 @@ async function hydrateSessionFromTranscript(
     if (view.messages.length === 0 && view.toolLog.length === 0) {
       return snapshot
     }
+    const effectiveModel =
+      validModelName(view.contextUsage?.model) ??
+      validModelName(view.effectiveModel) ??
+      validModelName(snapshot.item.model) ??
+      validModelName(snapshot.settings.model)
+    const nextSettings = effectiveModel
+      ? { ...snapshot.settings, model: effectiveModel }
+      : snapshot.settings
     return {
       ...snapshot,
       item: {
         ...snapshot.item,
+        model: effectiveModel ?? snapshot.item.model,
         lastMessageAt:
           latestMessageTimestamp(view.messages) ?? snapshot.item.lastMessageAt,
         status:
@@ -526,6 +555,7 @@ async function hydrateSessionFromTranscript(
             ? 'done'
             : snapshot.item.status,
       },
+      settings: nextSettings,
       view: {
         ...view,
         pendingPermissions: [],
@@ -536,11 +566,12 @@ async function hydrateSessionFromTranscript(
   }
 }
 
-function parseTranscriptView(raw: string): DesktopSessionViewSnapshot {
+function parseTranscriptView(raw: string): ParsedTranscriptView {
   const messages: DesktopSessionMessage[] = []
   const toolLog: DesktopToolLogEntry[] = []
   const toolNamesById = new Map<string, string>()
   let contextUsage: DesktopContextUsage | null = null
+  let effectiveModel: string | undefined
 
   for (const line of raw.split(/\r?\n/)) {
     if (!line.trim()) continue
@@ -573,7 +604,14 @@ function parseTranscriptView(raw: string): DesktopSessionViewSnapshot {
         entry as unknown as Record<string, unknown>,
       )
       if (usageRecord) {
-        contextUsage = buildDesktopContextUsage(usageRecord) ?? contextUsage
+        const usage = buildDesktopContextUsage({
+          ...usageRecord,
+          provider: inferProviderFromModel(usageRecord.model) ?? null,
+        })
+        contextUsage = usage ?? contextUsage
+        effectiveModel = validModelName(usageRecord.model) ?? effectiveModel
+      } else {
+        effectiveModel = extractAssistantModel(entry) ?? effectiveModel
       }
       const content = entry.message?.content
       const assistantText = extractTextContent(content)
@@ -611,7 +649,18 @@ function parseTranscriptView(raw: string): DesktopSessionViewSnapshot {
     toolLog: toolLog.reverse(),
     pendingPermissions: [],
     contextUsage,
+    effectiveModel,
   }
+}
+
+function extractAssistantModel(entry: TranscriptEntry): string | undefined {
+  return validModelName(entry.message?.model)
+}
+
+function validModelName(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined
+  const trimmed = value.trim()
+  return trimmed && trimmed !== 'unknown' ? trimmed : undefined
 }
 
 function collectToolUses(

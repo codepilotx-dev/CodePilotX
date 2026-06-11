@@ -49,8 +49,8 @@ const api: DesktopApi = {
   updateSessionMetadata: (sessionId, patch) =>
     ipcRenderer.invoke('desktop:updateSessionMetadata', sessionId, patch),
   openExternalURL: url => ipcRenderer.invoke('desktop:openExternalURL', url),
-  sendUserMessage: (sessionId, content) =>
-    ipcRenderer.invoke('desktop:sendUserMessage', sessionId, content),
+  sendUserMessage: (sessionId, content, model) =>
+    ipcRenderer.invoke('desktop:sendUserMessage', sessionId, content, model),
   respondToPermission: (sessionId, requestId, decision) =>
     ipcRenderer.invoke(
       'desktop:respondToPermission',

@@ -36,6 +36,7 @@ export type DesktopAgentSessionRuntimeOptions = {
 export type DesktopAgentSession = {
   sessionId: string
   workspacePath: string
+  setModel(model: string | undefined): void
   sendUserMessage(content: string): Promise<void>
   respondToPermission(
     requestId: string,
@@ -98,6 +99,10 @@ class LocalDesktopAgentSession
         `Workspace attached: ${options.workspacePath} (${options.sessionName ?? 'untitled'} session, ${options.permissionMode ?? 'default'} permissions, ${options.model ?? 'default'} model, ${options.fallbackModel ?? 'none'} fallback, ${options.thinkingMode ?? 'default'} thinking, ${options.systemPrompt ? 'custom' : 'default'} system prompt, ${options.additionalDirectories?.length ?? 0} extra dirs)`,
       )
     })
+  }
+
+  setModel(model: string | undefined): void {
+    this.runtime.setModel(model)
   }
 
   async sendUserMessage(content: string): Promise<void> {
