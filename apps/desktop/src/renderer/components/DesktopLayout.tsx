@@ -32,7 +32,7 @@ import type {
   DesktopPermissionRequest,
   DesktopWorkspace,
 } from '../../shared/types.js'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react'
 
 export function DesktopLayout(): React.ReactNode {
   const settings = useDesktopSettings()
@@ -49,12 +49,7 @@ export function DesktopLayout(): React.ReactNode {
     selectedModelPreset,
     setPermissionMode,
     setModel,
-    setFallbackModel,
-    setSessionName,
     setThinkingMode,
-    setSystemPrompt,
-    setAppendSystemPrompt,
-    setAdditionalDirectories,
     setRecentWorkspaces,
     setDrawerTab,
     setSelectedModelPreset,
@@ -82,17 +77,11 @@ export function DesktopLayout(): React.ReactNode {
   })
   const {
     workspace: currentWorkspace,
-    authStatus,
     runtimeStatus,
-    files,
-    selectedFile,
-    diff,
     setActiveSessionId,
-    refreshRuntimeStatus,
     refreshWorkspace,
     chooseWorkspace,
     openRecentWorkspace,
-    previewFile,
     setSelectedFile,
     setWorkspace: setWorkspaceState,
     setDiff: setDiffState,
@@ -121,35 +110,52 @@ export function DesktopLayout(): React.ReactNode {
   })
   const {
     sessionId,
+    sessionsHydrated,
     sessions,
     sessionStatus,
     messages,
-    toolLog,
     pendingPermissions,
-    activeSessionItem,
-    canSubmit,
     input,
     setInput,
+    activateSessionById,
     createSessionForWorkspace,
-    submit,
+    submitToSession,
     interrupt,
     decidePermission,
     updateSessionMetadata,
-    selectSession: selectSessionRaw,
-    toggleToolLogEntry,
   } = session
+
+  const location = useLocation()
+  const navigate = useNavigate()
+  const routedSessionId = getRoutedSessionId(location.pathname)
+  const isHomePage = location.pathname === '/'
+  const isConversationRoute = routedSessionId !== null
 
   useEffect(() => {
     setActiveSessionId(sessionId)
   }, [sessionId, setActiveSessionId])
 
-  const restoredWorkspaceSessionIdRef = useRef<string | null>(null)
-  useEffect(() => {
-    if (!activeSessionItem) return
-    if (restoredWorkspaceSessionIdRef.current === activeSessionItem.id) return
-    restoredWorkspaceSessionIdRef.current = activeSessionItem.id
+  useLayoutEffect(() => {
+    if (!sessionsHydrated) return
+    if (!routedSessionId) {
+      activateSessionById(null)
+      return
+    }
 
-    const nextWorkspace = selectSessionRaw(activeSessionItem)
+    const routedSession = sessions.find(item => item.id === routedSessionId)
+    if (!routedSession || routedSession.archivedAt) {
+      activateSessionById(null)
+      setWorkspaceState(null)
+      setDiffState('未选择项目。')
+      setSelectedFile(null)
+      setErrorMessage(`找不到对话：${routedSessionId}`)
+      navigate('/', { replace: true })
+      return
+    }
+
+    if (sessionId === routedSessionId) return
+
+    const nextWorkspace = activateSessionById(routedSessionId)
     if (!nextWorkspace) {
       setWorkspaceState(null)
       setDiffState('未选择项目。')
@@ -158,18 +164,20 @@ export function DesktopLayout(): React.ReactNode {
     }
     setWorkspaceState(nextWorkspace)
     void refreshWorkspace(nextWorkspace, {
-      expectedSessionId: activeSessionItem.id,
+      expectedSessionId: routedSessionId,
     })
   }, [
-    activeSessionItem,
+    activateSessionById,
+    navigate,
     refreshWorkspace,
-    selectSessionRaw,
+    routedSessionId,
+    sessionId,
+    sessions,
+    sessionsHydrated,
     setDiffState,
     setSelectedFile,
     setWorkspaceState,
   ])
-
-  const navigate = useNavigate()
 
   const handleChooseWorkspace = useCallback(
     async (): Promise<DesktopWorkspace | null> => {
@@ -196,24 +204,22 @@ export function DesktopLayout(): React.ReactNode {
   )
 
   const handleCreateSession = useCallback(async (): Promise<void> => {
-    if (currentWorkspace) {
-      await createSessionForWorkspace(currentWorkspace)
-      return
+    const nextSessionId = currentWorkspace
+      ? await createSessionForWorkspace(currentWorkspace)
+      : await createSessionForWorkspace(null)
+    if (nextSessionId) {
+      navigate(sessionPath(nextSessionId))
     }
-    await createSessionForWorkspace(null)
-  }, [createSessionForWorkspace, currentWorkspace])
+  }, [createSessionForWorkspace, currentWorkspace, navigate])
 
   const handleNewConversation = useCallback(async (): Promise<void> => {
+    activateSessionById(null)
+    setInput('')
     navigate('/')
-    if (currentWorkspace) {
-      await createSessionForWorkspace(currentWorkspace)
-      return
-    }
-    await createSessionForWorkspace(null)
   }, [
-    createSessionForWorkspace,
-    currentWorkspace,
+    activateSessionById,
     navigate,
+    setInput,
   ])
 
   useDesktopCommands({
@@ -404,8 +410,8 @@ export function DesktopLayout(): React.ReactNode {
 
   const handleSelectSession = useCallback(
     (sessionItem: SessionListItem): void => {
-      const nextWorkspace = selectSessionRaw(sessionItem)
-      navigate('/')
+      const nextWorkspace = activateSessionById(sessionItem.id)
+      navigate(sessionPath(sessionItem.id))
       if (!nextWorkspace) {
         setWorkspaceState(null)
         setDiffState('未选择项目。')
@@ -416,9 +422,9 @@ export function DesktopLayout(): React.ReactNode {
       void refreshWorkspace(nextWorkspace, { expectedSessionId: sessionItem.id })
     },
     [
+      activateSessionById,
       navigate,
       refreshWorkspace,
-      selectSessionRaw,
       setDiffState,
       setSelectedFile,
       setWorkspaceState,
@@ -431,9 +437,15 @@ export function DesktopLayout(): React.ReactNode {
       patch: { pinnedAt?: string | null; archivedAt?: string | null },
     ): Promise<void> => {
       const archivingActiveSession =
-        targetSessionId === sessionId && Boolean(patch.archivedAt)
+        targetSessionId === routedSessionId && Boolean(patch.archivedAt)
       const result = await updateSessionMetadata(targetSessionId, patch)
       if (!result || !archivingActiveSession) return
+      navigate(
+        result.nextActiveSession
+          ? sessionPath(result.nextActiveSession.id)
+          : '/',
+        { replace: true },
+      )
       if (result.nextActiveSession && result.nextWorkspace) {
         setWorkspaceState(result.nextWorkspace)
         void refreshWorkspace(result.nextWorkspace, {
@@ -446,8 +458,9 @@ export function DesktopLayout(): React.ReactNode {
       }
     },
     [
+      navigate,
       refreshWorkspace,
-      sessionId,
+      routedSessionId,
       setDiffState,
       setSelectedFile,
       setWorkspaceState,
@@ -455,17 +468,18 @@ export function DesktopLayout(): React.ReactNode {
     ],
   )
 
+  const isConversationLoading =
+    isConversationRoute && (!sessionsHydrated || sessionId !== routedSessionId)
   const runtimeMissing = runtimeStatus?.agentExecutableExists === false
   const activePermissionRequest: DesktopPermissionRequest | null =
-    pendingPermissions[0] ?? null
+    isConversationRoute && !isConversationLoading
+      ? pendingPermissions[0] ?? null
+      : null
   const composerCanSubmit =
-    canSubmit ||
-    Boolean(
-      input.trim() &&
-        sessionStatus !== 'running' &&
-        sessionStatus !== 'waiting',
-    )
-  const workspaceName = currentWorkspace?.name ?? '未选择项目'
+    Boolean(input.trim()) &&
+    sessionStatus !== 'running' &&
+    sessionStatus !== 'waiting' &&
+    (isHomePage || Boolean(routedSessionId))
   const branchName =
     !currentWorkspace
       ? '无项目'
@@ -478,8 +492,6 @@ export function DesktopLayout(): React.ReactNode {
     recentWorkspaces,
     sessions,
   })
-  const location = useLocation()
-  const isHomePage = location.pathname === '/'
   const hasConversationMessages = messages.some(
     message => message.role !== 'system',
   )
@@ -548,7 +560,7 @@ export function DesktopLayout(): React.ReactNode {
     />
   )
 
-  const composer = isHomePage ? (
+  const composer = isHomePage || isConversationRoute ? (
     <ComposerCard
       input={input}
       canSubmit={composerCanSubmit}
@@ -572,11 +584,20 @@ export function DesktopLayout(): React.ReactNode {
       onPermissionChange={setPermissionMode}
       onSubmit={() => {
         void (async () => {
-          if (currentWorkspace) {
-            await submit(currentWorkspace)
+          const submittedInput = input
+          if (isHomePage) {
+            setInput('')
+            const nextSessionId = currentWorkspace
+              ? await createSessionForWorkspace(currentWorkspace)
+              : await createSessionForWorkspace(null)
+            if (!nextSessionId) return
+            navigate(sessionPath(nextSessionId))
+            await submitToSession(nextSessionId, submittedInput)
             return
           }
-          await submit(null)
+          if (routedSessionId) {
+            await submitToSession(routedSessionId, submittedInput)
+          }
         })()
       }}
       onThinkingChange={setThinkingMode}
@@ -641,12 +662,14 @@ export function DesktopLayout(): React.ReactNode {
         content={
         <QuickChatContext.Provider
           value={{
+            isConversationRoute,
+            isConversationLoading,
             workspaceName: currentWorkspace?.name ?? null,
-            messages,
+            messages: isHomePage || isConversationLoading ? [] : messages,
             errorMessage,
             onDismissError: () => setErrorMessage(null),
             sessionStatus,
-            composer,
+            composer: isConversationLoading ? null : composer,
           }}
         >
             <SearchContext.Provider
@@ -667,4 +690,13 @@ export function DesktopLayout(): React.ReactNode {
       />
     </div>
   )
+}
+
+function getRoutedSessionId(pathname: string): string | null {
+  const match = /^\/sessions\/([^/]+)$/.exec(pathname)
+  return match ? decodeURIComponent(match[1]!) : null
+}
+
+function sessionPath(sessionId: string): string {
+  return `/sessions/${encodeURIComponent(sessionId)}`
 }

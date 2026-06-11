@@ -124,7 +124,7 @@ export async function submitSessionMessageAction(
   sessionId: string | null,
   input: string,
   canSubmit: boolean,
-  setInput: Dispatch<SetStateAction<string>>,
+  setInput: (value: string) => void,
 ): Promise<void> {
   const trimmed = input.trim()
   if (!canSubmit || !sessionId) return

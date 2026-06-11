@@ -15,6 +15,7 @@ import type {
   ToolLogEntry,
 } from '../../uiTypes.js'
 import {
+  activateSession,
   closeSessionAction,
   createSessionForWorkspaceAction,
   decidePermissionAction,
@@ -56,6 +57,7 @@ export type UseSessionStateOptions = {
 
 export type UseSessionStateResult = {
   sessionId: string | null
+  sessionsHydrated: boolean
   sessions: SessionListItem[]
   sessionStatus: DesktopSessionStatus
   messages: Message[]
@@ -65,8 +67,10 @@ export type UseSessionStateResult = {
   canSubmit: boolean
   input: string
   setInput: (value: string) => void
+  activateSessionById: (targetSessionId: string | null) => DesktopWorkspace | null
   createSessionForWorkspace: (target?: DesktopWorkspace | null) => Promise<string | null>
   submit: (target?: DesktopWorkspace | null) => Promise<void>
+  submitToSession: (targetSessionId: string, value: string) => Promise<void>
   interrupt: () => Promise<void>
   decidePermission: (
     request: DesktopPermissionRequest,
@@ -101,6 +105,7 @@ export function useSessionState(
   } = options
 
   const [sessionId, setSessionId] = useState<string | null>(null)
+  const [sessionsHydrated, setSessionsHydrated] = useState(false)
   const [sessions, setSessions] = useState<SessionListItem[]>([])
   const [sessionStatus, setSessionStatus] =
     useState<DesktopSessionStatus>('idle')
@@ -112,8 +117,11 @@ export function useSessionState(
   const [input, setInput] = useState('')
 
   const activeSessionIdRef = useRef<string | null>(null)
+  const sessionsRef = useRef<SessionListItem[]>([])
+  const sessionStatusRef = useRef<DesktopSessionStatus>('idle')
   const sessionViewsRef = useRef<Record<string, SessionViewState>>({})
   const sessionWorkspacesRef = useRef<Record<string, DesktopWorkspace>>({})
+  const inputBySessionRef = useRef<Record<string, string>>({})
 
   const onErrorRef = useRef(onError)
   onErrorRef.current = onError
@@ -145,6 +153,23 @@ export function useSessionState(
     }),
     [viewSetters],
   )
+
+  useEffect(() => {
+    sessionsRef.current = sessions
+  }, [sessions])
+
+  useEffect(() => {
+    sessionStatusRef.current = sessionStatus
+  }, [sessionStatus])
+
+  const setScopedInput = useCallback((value: string): void => {
+    const key = activeSessionIdRef.current ?? HOME_INPUT_KEY
+    inputBySessionRef.current = {
+      ...inputBySessionRef.current,
+      [key]: value,
+    }
+    setInput(value)
+  }, [])
 
   const updateSessionView = useCallback<UpdateSessionView>(
     (targetSessionId, updater) => {
@@ -200,10 +225,7 @@ export function useSessionState(
     let disposed = false
     async function hydrateSessions(): Promise<void> {
       try {
-        const [sessionSnapshots, persistedActiveSessionId] = await Promise.all([
-          window.desktopApi.listSessions(),
-          window.desktopApi.getActiveSessionId(),
-        ])
+        const sessionSnapshots = await window.desktopApi.listSessions()
         if (disposed) return
 
         const nextSessions = sessionSnapshots.map(snapshot => snapshot.item)
@@ -219,30 +241,18 @@ export function useSessionState(
 
         sessionViewsRef.current = nextViews
         sessionWorkspacesRef.current = nextWorkspaces
+        sessionsRef.current = nextSessions
         setSessions(nextSessions)
 
-        const nextSessionId =
-          persistedActiveSessionId && nextViews[persistedActiveSessionId]
-            ? persistedActiveSessionId
-            : nextSessions[0]?.id ?? null
-        activeSessionIdRef.current = nextSessionId
-        setSessionId(nextSessionId)
-
-        const activeSession = nextSessions.find(
-          session => session.id === nextSessionId,
-        )
-        setSessionStatus(activeSession?.status ?? 'idle')
-        applySessionView(
-          nextSessionId
-            ? nextViews[nextSessionId] ?? createEmptySessionView()
-            : createEmptySessionView(),
-          viewSetters,
-        )
-        if (nextSessionId !== persistedActiveSessionId) {
-          void window.desktopApi.setActiveSession(nextSessionId)
-        }
+        activeSessionIdRef.current = null
+        setSessionId(null)
+        setSessionStatus('idle')
+        applySessionView(createEmptySessionView(), viewSetters)
+        setInput(inputBySessionRef.current[HOME_INPUT_KEY] ?? '')
+        setSessionsHydrated(true)
       } catch (error) {
         onErrorRef.current(errorMessageOf(error))
+        setSessionsHydrated(true)
       }
     }
     void hydrateSessions()
@@ -284,6 +294,41 @@ export function useSessionState(
     [actionContext, settingsSnapshot],
   )
 
+  const activateSessionById = useCallback(
+    (targetSessionId: string | null): DesktopWorkspace | null => {
+      if (!targetSessionId) {
+        activateSession(actionContext, null)
+        setSessionStatus('idle')
+        applySessionView(createEmptySessionView(), viewSetters)
+        setInput(inputBySessionRef.current[HOME_INPUT_KEY] ?? '')
+        return null
+      }
+
+      const targetSession = sessionsRef.current.find(
+        session => session.id === targetSessionId,
+      )
+      if (!targetSession) {
+        return null
+      }
+
+      activateSession(actionContext, targetSessionId)
+      setSessionStatus(targetSession.status)
+      applySessionView(
+        sessionViewsRef.current[targetSessionId] ?? createEmptySessionView(),
+        viewSetters,
+      )
+      setInput(inputBySessionRef.current[targetSessionId] ?? '')
+      if (targetSession.standalone) {
+        return null
+      }
+      return sessionWorkspacesRef.current[targetSessionId] ?? {
+        name: targetSession.workspaceName,
+        path: targetSession.workspacePath,
+      }
+    },
+    [actionContext, viewSetters],
+  )
+
   const canSubmit = useMemo(
     () =>
       Boolean(
@@ -295,6 +340,38 @@ export function useSessionState(
     [input, sessionId, sessionStatus],
   )
 
+  const submitToSession = useCallback(async (
+    targetSessionId: string,
+    value: string,
+  ): Promise<void> => {
+    const targetStatus =
+      sessionsRef.current.find(session => session.id === targetSessionId)
+        ?.status ??
+      (activeSessionIdRef.current === targetSessionId
+        ? sessionStatusRef.current
+        : 'idle')
+    await submitSessionMessageAction(
+      onErrorRef,
+      targetSessionId,
+      value,
+      Boolean(
+        targetSessionId &&
+          value.trim() &&
+          targetStatus !== 'running' &&
+          targetStatus !== 'waiting',
+      ),
+      nextValue => {
+        inputBySessionRef.current = {
+          ...inputBySessionRef.current,
+          [targetSessionId]: nextValue,
+        }
+        if (activeSessionIdRef.current === targetSessionId) {
+          setInput(nextValue)
+        }
+      },
+    )
+  }, [])
+
   const submit = useCallback(async (target?: DesktopWorkspace | null): Promise<void> => {
     const targetSessionId =
       sessionId ??
@@ -303,19 +380,9 @@ export function useSessionState(
         settingsSnapshot,
         target ?? null,
       ))
-    await submitSessionMessageAction(
-      onErrorRef,
-      targetSessionId,
-      input,
-      Boolean(
-        targetSessionId &&
-          input.trim() &&
-          sessionStatus !== 'running' &&
-          sessionStatus !== 'waiting',
-      ),
-      setInput,
-    )
-  }, [actionContext, input, sessionId, sessionStatus, settingsSnapshot])
+    if (!targetSessionId) return
+    await submitToSession(targetSessionId, input)
+  }, [actionContext, input, sessionId, settingsSnapshot, submitToSession])
 
   const interrupt = useCallback(async (): Promise<void> => {
     await interruptSessionAction(onErrorRef, sessionId)
@@ -372,6 +439,7 @@ export function useSessionState(
 
   return {
     sessionId,
+    sessionsHydrated,
     sessions,
     sessionStatus,
     messages,
@@ -380,9 +448,11 @@ export function useSessionState(
     activeSessionItem,
     canSubmit,
     input,
-    setInput,
+    setInput: setScopedInput,
+    activateSessionById,
     createSessionForWorkspace,
     submit,
+    submitToSession,
     interrupt,
     decidePermission,
     closeSession,
@@ -391,6 +461,8 @@ export function useSessionState(
     toggleToolLogEntry,
   }
 }
+
+const HOME_INPUT_KEY = '__home__'
 
 function errorMessageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error)

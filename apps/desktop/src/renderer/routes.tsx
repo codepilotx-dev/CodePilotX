@@ -12,6 +12,7 @@ const router = createBrowserRouter([
     element: <DesktopLayout />,
     children: [
       { index: true, element: <QuickChatView /> },
+      { path: 'sessions/:sessionId', element: <QuickChatView /> },
       { path: 'search', element: <SearchView /> },
       { path: 'plugins', element: <PluginsView /> },
       { path: 'automation', element: <AutomationView /> },

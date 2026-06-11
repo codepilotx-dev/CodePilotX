@@ -12,6 +12,8 @@ import type { Message } from '../uiTypes.js'
 
 export function QuickChatView(): React.ReactNode {
   const {
+    isConversationRoute,
+    isConversationLoading,
     messages,
     errorMessage,
     onDismissError,
@@ -32,12 +34,16 @@ export function QuickChatView(): React.ReactNode {
         Boolean(message.text.trim()),
     )
 
-  if (hasMessages) {
+  if (hasMessages || isConversationRoute) {
     return (
       <section className="quick-chat-view active">
         <header className="chat-session-header">
           <div className="chat-session-title">
-            <span>{getConversationTitle(conversationMessages)}</span>
+            <span>
+              {isConversationLoading
+                ? '加载对话中'
+                : getConversationTitle(conversationMessages)}
+            </span>
             <button
               aria-label="更多会话操作"
               className="message-action"
@@ -59,10 +65,14 @@ export function QuickChatView(): React.ReactNode {
             </div>
           ) : null}
           <div className="conversation-stream">
-            {conversationMessages.map(message => (
-              <ChatMessage message={message} key={message.id} />
-            ))}
-            {showThinking ? (
+            {isConversationLoading ? (
+              <div className="assistant-thinking">加载对话中</div>
+            ) : (
+              conversationMessages.map(message => (
+                <ChatMessage message={message} key={message.id} />
+              ))
+            )}
+            {!isConversationLoading && showThinking ? (
               <div className="assistant-thinking">正在思考</div>
             ) : null}
           </div>

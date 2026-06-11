@@ -1,9 +1,11 @@
 import type React from 'react'
 import { createContext, useContext } from 'react'
-import type { Message, SessionListItem } from '../uiTypes.js'
+import type { Message } from '../uiTypes.js'
 import type { DesktopSessionStatus } from '../../../shared/types.js'
 
 export type QuickChatContextValue = {
+  isConversationRoute: boolean
+  isConversationLoading: boolean
   workspaceName: string | null
   messages: Message[]
   errorMessage: string | null
