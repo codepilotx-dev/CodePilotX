@@ -225,8 +225,8 @@ export function ComposerCard({
               <Select.Portal>
                 <Select.Content
                   align="start"
-                  avoidCollisions={false}
                   className="permission-select-content"
+                  collisionPadding={12}
                   position="popper"
                   side="bottom"
                   sideOffset={6}

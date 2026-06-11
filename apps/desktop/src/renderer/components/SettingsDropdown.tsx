@@ -44,8 +44,8 @@ export function SettingsDropdown({ value, options, onChange, ariaLabel }: Props)
       <Select.Portal>
         <Select.Content
           align="start"
-          avoidCollisions={false}
           className="settings-dropdown-content"
+          collisionPadding={12}
           position="popper"
           side="bottom"
           sideOffset={6}

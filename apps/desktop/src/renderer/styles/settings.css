@@ -378,6 +378,11 @@
 .settings-dropdown-viewport {
   display: grid;
   gap: 2px;
+  max-height: max(
+    80px,
+    calc(min(320px, var(--radix-select-content-available-height)) - 12px)
+  );
+  overflow-y: auto;
 }
 
 .settings-dropdown-item {
