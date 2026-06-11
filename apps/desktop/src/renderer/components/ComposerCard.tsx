@@ -13,6 +13,7 @@ import {
   Search,
   ShieldAlert,
   ShieldCheck,
+  ShieldOff,
   Square,
   Wrench,
   Zap,
@@ -154,9 +155,17 @@ export function ComposerCard({
   }
 
   const isRunning = sessionStatus === 'running' || sessionStatus === 'waiting'
+  const showFullAccessWarning =
+    permissionMode === 'bypassPermissions' || permissionMode === 'dontAsk'
 
   return (
     <div className="composer">
+      {showFullAccessWarning ? (
+        <div className="permission-warning-banner">
+          <ShieldOff size={13} />
+          <span>完全访问权限 · 此对话允许直接读写文件和运行命令</span>
+        </div>
+      ) : null}
       <div className="composer-top">
         <div className="composer-input">
           <textarea

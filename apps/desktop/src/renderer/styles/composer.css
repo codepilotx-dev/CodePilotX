@@ -6,6 +6,35 @@
   border-radius: 20px;
   background: var(--c-bg-soft);
   box-shadow: var(--sh-card-lg);
+  overflow: hidden;
+}
+
+.permission-warning-banner {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px 6px 10px;
+  background: #fff4e8;
+  color: #b54b08;
+  border-bottom: 1px solid #ffd9b3;
+  font-size: 12px;
+  line-height: 1.4;
+  font-weight: 500;
+}
+
+.permission-warning-banner > svg {
+  flex-shrink: 0;
+  color: #e07a1f;
+}
+
+:root[data-theme='dark'] .permission-warning-banner {
+  background: rgba(255, 167, 38, 0.08);
+  color: #ffc46b;
+  border-bottom-color: rgba(255, 167, 38, 0.18);
+}
+
+:root[data-theme='dark'] .permission-warning-banner > svg {
+  color: #ffb84d;
 }
 
 .composer-top {
