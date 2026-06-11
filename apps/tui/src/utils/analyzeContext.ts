@@ -1,5 +1,4 @@
 import { feature } from 'bun:bundle'
-import type { Anthropic } from '@anthropic-ai/sdk'
 import {
   getSystemPrompt,
   SYSTEM_PROMPT_DYNAMIC_BOUNDARY,
@@ -15,11 +14,7 @@ import {
   isAutoCompactEnabled,
   MANUAL_COMPACT_BUFFER_TOKENS,
 } from '../services/compact/autoCompact.js'
-import {
-  countMessagesTokensWithAPI,
-  countTokensViaHaikuFallback,
-  roughTokenCountEstimation,
-} from '../services/tokenEstimation.js'
+import { roughTokenCountEstimation } from '../services/tokenEstimation.js'
 import { estimateSkillFrontmatterTokens } from '../skills/loadSkillsDir.js'
 import {
   findToolByName,
@@ -34,6 +29,7 @@ import type {
   AgentDefinitionsResult,
 } from '../tools/AgentTool/loadAgentsDir.js'
 import { SKILL_TOOL_NAME } from '../tools/SkillTool/constants.js'
+import { isDeferredTool } from '../tools/ToolSearchTool/prompt.js'
 import {
   getLimitedSkillToolCommands,
   getSkillToolInfo as getSlashCommandInfo,
@@ -46,13 +42,11 @@ import type {
   NormalizedUserMessage,
   UserMessage,
 } from '../types/message.js'
-import { toolToAPISchema } from './api.js'
 import { filterInjectedMemoryFiles, getMemoryFiles } from './claudemd.js'
 import { getContextWindowForModel } from './context.js'
 import { getCwd } from './cwd.js'
-import { logForDebugging } from './debug.js'
 import { isEnvTruthy } from './envUtils.js'
-import { errorMessage, toError } from './errors.js'
+import { toError } from './errors.js'
 import { logError } from './log.js'
 import { normalizeMessagesForAPI } from './messages.js'
 import { getRuntimeMainLoopModel } from './model/model.js'
@@ -60,54 +54,21 @@ import type { SettingSource } from './settings/constants.js'
 import { jsonStringify } from './slowOperations.js'
 import { buildEffectiveSystemPrompt } from './systemPrompt.js'
 import type { Theme } from './theme.js'
+import { isToolSearchEnabled } from './toolSearch.js'
+import {
+  countTokensWithFallback,
+  countToolDefinitionTokens,
+  TOOL_TOKEN_COUNT_OVERHEAD,
+} from './toolTokenCounting.js'
 import { getCurrentUsage } from './tokens.js'
+
+export {
+  countToolDefinitionTokens,
+  TOOL_TOKEN_COUNT_OVERHEAD,
+} from './toolTokenCounting.js'
 
 const RESERVED_CATEGORY_NAME = 'Autocompact buffer'
 const MANUAL_COMPACT_BUFFER_NAME = 'Compact buffer'
-
-/**
- * Fixed token overhead added by the API when tools are present.
- * The API adds a tool prompt preamble (~500 tokens) once per API call when tools are present.
- * When we count tools individually via the token counting API, each call includes this overhead,
- * leading to N × overhead instead of 1 × overhead for N tools.
- * We subtract this overhead from per-tool counts to show accurate tool content sizes.
- */
-export const TOOL_TOKEN_COUNT_OVERHEAD = 500
-
-async function countTokensWithFallback(
-  messages: Anthropic.Beta.Messages.BetaMessageParam[],
-  tools: Anthropic.Beta.Messages.BetaToolUnion[],
-): Promise<number | null> {
-  try {
-    const result = await countMessagesTokensWithAPI(messages, tools)
-    if (result !== null) {
-      return result
-    }
-    logForDebugging(
-      `countTokensWithFallback: API returned null, trying haiku fallback (${tools.length} tools)`,
-    )
-  } catch (err) {
-    logForDebugging(`countTokensWithFallback: API failed: ${errorMessage(err)}`)
-    logError(err)
-  }
-
-  try {
-    const fallbackResult = await countTokensViaHaikuFallback(messages, tools)
-    if (fallbackResult === null) {
-      logForDebugging(
-        `countTokensWithFallback: haiku fallback also returned null (${tools.length} tools)`,
-      )
-    }
-    return fallbackResult
-  } catch (err) {
-    logForDebugging(
-      `countTokensWithFallback: haiku fallback failed: ${errorMessage(err)}`,
-    )
-    logError(err)
-    return null
-  }
-}
-
 interface ContextCategory {
   name: string
   tokens: number
@@ -229,32 +190,6 @@ export interface ContextData {
     cache_creation_input_tokens: number
     cache_read_input_tokens: number
   } | null
-}
-
-export async function countToolDefinitionTokens(
-  tools: Tools,
-  getToolPermissionContext: () => Promise<ToolPermissionContext>,
-  agentInfo: AgentDefinitionsResult | null,
-  model?: string,
-): Promise<number> {
-  const toolSchemas = await Promise.all(
-    tools.map(tool =>
-      toolToAPISchema(tool, {
-        getToolPermissionContext,
-        tools,
-        agents: agentInfo?.activeAgents ?? [],
-        model,
-      }),
-    ),
-  )
-  const result = await countTokensWithFallback([], toolSchemas)
-  if (result === null || result === 0) {
-    const toolNames = tools.map(t => t.name).join(', ')
-    logForDebugging(
-      `countToolDefinitionTokens returned ${result} for ${tools.length} tools: ${toolNames.slice(0, 100)}${toolNames.length > 100 ? '...' : ''}`,
-    )
-  }
-  return result ?? 0
 }
 
 /** Extract a human-readable name from a system prompt section's content */
@@ -383,8 +318,6 @@ async function countBuiltInToolTokens(
   }
 
   // Check if tool search is enabled
-  const { isToolSearchEnabled } = await import('./toolSearch.js')
-  const { isDeferredTool } = await import('../tools/ToolSearchTool/prompt.js')
   const isDeferred = await isToolSearchEnabled(
     model ?? '',
     tools,
@@ -666,9 +599,6 @@ export async function countMcpToolTokens(
 
   // Check if tool search is enabled - if so, MCP tools are deferred
   // isToolSearchEnabled handles threshold calculation internally for TstAuto mode
-  const { isToolSearchEnabled } = await import('./toolSearch.js')
-  const { isDeferredTool } = await import('../tools/ToolSearchTool/prompt.js')
-
   const isDeferred = await isToolSearchEnabled(
     model,
     tools,
