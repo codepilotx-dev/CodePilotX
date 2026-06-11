@@ -183,7 +183,7 @@
 
 .task-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 24px;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--sp-1);
   padding-left: 30px;
@@ -206,6 +206,39 @@
   width: 22px;
   height: 22px;
   color: var(--c-text-meta);
+}
+
+.session-inline-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.task-row:hover .session-inline-actions,
+.task-row.active .session-inline-actions,
+.session-inline-actions:focus-within {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.show-more-button {
+  min-width: 0;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 30px;
+  padding: 0 6px;
+  border-radius: var(--r-sm);
+  color: var(--c-text-meta);
+  font-size: var(--fs-12);
+}
+
+.show-more-button:hover {
+  background: var(--c-bg-hover);
+  color: var(--c-text-soft);
 }
 
 .task-time,

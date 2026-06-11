@@ -96,6 +96,8 @@ export function createDesktopSessionSnapshot(params: {
       workspaceName: params.workspace.name,
       workspacePath: params.workspace.path,
       standalone: params.standalone,
+      pinnedAt: null,
+      archivedAt: null,
       permissionMode: params.settings.permissionMode,
       model: params.settings.model ?? null,
       fallbackModel: params.settings.fallbackModel ?? null,
@@ -302,6 +304,8 @@ function normalizeSessionItem(
     workspacePath:
       typeof item.workspacePath === 'string' ? item.workspacePath : '',
     standalone: item.standalone === true,
+    pinnedAt: typeof item.pinnedAt === 'string' ? item.pinnedAt : null,
+    archivedAt: typeof item.archivedAt === 'string' ? item.archivedAt : null,
     permissionMode:
       item.permissionMode === 'acceptEdits' ||
       item.permissionMode === 'bypassPermissions' ||

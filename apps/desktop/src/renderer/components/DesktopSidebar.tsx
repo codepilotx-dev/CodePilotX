@@ -1,21 +1,28 @@
 import type React from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
+  Archive,
   Bot,
   Boxes,
+  ChevronDown,
+  ChevronRight,
   Clock3,
   Folder,
   FolderOpen,
   History,
+  Pin,
+  PinOff,
   Plus,
   Search,
   Settings2,
   Smartphone,
   SquarePen,
-  X,
 } from 'lucide-react'
-import type { DesktopWorkspace } from '../../shared/types.js'
+import type {
+  DesktopSessionMetadataPatch,
+  DesktopWorkspace,
+} from '../../shared/types.js'
 import type { AppView, SessionListItem } from '../uiTypes.js'
 import { IconButton } from './ui/IconButton.js'
 
@@ -29,12 +36,14 @@ type Props = {
   width: number
   workspace: DesktopWorkspace | null
   onChooseWorkspace: () => void
-  onCloseSession: (sessionId: string) => void
   onCreateSession: () => void
   onOpenWorkspace: (workspace: DesktopWorkspace) => void
   onSelectSession: (session: SessionListItem) => void
   onSetWidth: (width: number) => void
-  onToggleCollapsed: () => void
+  onUpdateSessionMetadata: (
+    sessionId: string,
+    patch: DesktopSessionMetadataPatch,
+  ) => void
 }
 
 const PRIMARY_ITEMS: Array<{
@@ -43,11 +52,13 @@ const PRIMARY_ITEMS: Array<{
   icon: React.ReactNode
   path: string
 }> = [
-  { view: 'quickChat', label: '快速对话', icon: <SquarePen size={16} />, path: '/' },
+  { view: 'quickChat', label: '新对话', icon: <SquarePen size={16} />, path: '/' },
   { view: 'search', label: '搜索', icon: <Search size={16} />, path: '/search' },
   { view: 'plugins', label: '插件', icon: <Boxes size={16} />, path: '/plugins' },
   { view: 'automation', label: '自动化', icon: <Clock3 size={16} />, path: '/automation' },
 ]
+
+const GROUP_LIMIT = 5
 
 export function DesktopSidebar({
   activeSessionId,
@@ -59,16 +70,18 @@ export function DesktopSidebar({
   width,
   workspace,
   onChooseWorkspace,
-  onCloseSession,
   onCreateSession,
   onOpenWorkspace,
   onSelectSession,
   onSetWidth,
-  onToggleCollapsed,
+  onUpdateSessionMetadata,
 }: Props): React.ReactNode {
   const location = useLocation()
   const [resizing, setResizing] = useState(false)
   const [start, setStart] = useState({ x: 0, width })
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(
+    {},
+  )
 
   useEffect(() => {
     if (!resizing) return
@@ -96,6 +109,30 @@ export function DesktopSidebar({
       document.body.style.userSelect = ''
     }
   }, [onSetWidth, resizing, start.width, start.x])
+
+  const visibleSessions = useMemo(
+    () => sessions.filter(session => !session.archivedAt),
+    [sessions],
+  )
+  const pinnedSessions = useMemo(
+    () =>
+      visibleSessions
+        .filter(session => session.pinnedAt)
+        .sort((left, right) => compareTimestamp(right.pinnedAt, left.pinnedAt)),
+    [visibleSessions],
+  )
+  const unpinnedSessions = useMemo(
+    () => visibleSessions.filter(session => !session.pinnedAt),
+    [visibleSessions],
+  )
+  const standaloneSessions = useMemo(
+    () => unpinnedSessions.filter(session => session.standalone),
+    [unpinnedSessions],
+  )
+  const projectWorkspaces = useMemo(
+    () => mergeProjectWorkspaces(recentWorkspaces, unpinnedSessions),
+    [recentWorkspaces, unpinnedSessions],
+  )
 
   function startResize(event: React.PointerEvent<HTMLDivElement>): void {
     if (collapsed) return
@@ -127,6 +164,34 @@ export function DesktopSidebar({
     return location.pathname === `/${view}`
   }
 
+  function visibleGroupItems(
+    groupKey: string,
+    groupSessions: SessionListItem[],
+  ): SessionListItem[] {
+    return expandedGroups[groupKey]
+      ? groupSessions
+      : groupSessions.slice(0, GROUP_LIMIT)
+  }
+
+  function toggleGroup(groupKey: string): void {
+    setExpandedGroups(current => ({
+      ...current,
+      [groupKey]: !current[groupKey],
+    }))
+  }
+
+  function pinSession(session: SessionListItem): void {
+    onUpdateSessionMetadata(session.id, { pinnedAt: new Date().toISOString() })
+  }
+
+  function unpinSession(session: SessionListItem): void {
+    onUpdateSessionMetadata(session.id, { pinnedAt: null })
+  }
+
+  function archiveSession(session: SessionListItem): void {
+    onUpdateSessionMetadata(session.id, { archivedAt: new Date().toISOString() })
+  }
+
   return (
     <aside
       aria-label="侧边栏"
@@ -151,6 +216,24 @@ export function DesktopSidebar({
           ))}
         </section>
 
+        {pinnedSessions.length > 0 ? (
+          <section className="nav-section conversations">
+            <h2 className="section-title">固定</h2>
+            <SessionGroup
+              activeSessionId={activeSessionId}
+              groupKey="pinned"
+              isExpanded={expandedGroups.pinned === true}
+              sessions={visibleGroupItems('pinned', pinnedSessions)}
+              totalCount={pinnedSessions.length}
+              onArchiveSession={archiveSession}
+              onPinSession={pinSession}
+              onSelectSession={onSelectSession}
+              onToggleExpanded={toggleGroup}
+              onUnpinSession={unpinSession}
+            />
+          </section>
+        ) : null}
+
         <section className="nav-section project-actions">
           <div className="sidebar-section-header">
             <h2 className="section-title">项目</h2>
@@ -168,20 +251,24 @@ export function DesktopSidebar({
             </div>
           </div>
 
-          {recentWorkspaces.length === 0 ? (
+          {projectWorkspaces.length === 0 ? (
             <p className="sidebar-empty">暂无最近项目</p>
           ) : (
-            recentWorkspaces.map(item => {
-              const expanded = workspace?.path === item.path
-              const workspaceSessions = sessions.filter(
+            projectWorkspaces.map(item => {
+              const groupKey = `project:${item.path}`
+              const workspaceSessions = unpinnedSessions.filter(
                 session =>
                   !session.standalone && session.workspacePath === item.path,
               )
               return (
                 <div className="project-block" key={item.path}>
                   <button
-                    aria-expanded={expanded}
-                    className={expanded ? 'project-row active' : 'project-row'}
+                    aria-current={workspace?.path === item.path ? 'page' : undefined}
+                    className={
+                      workspace?.path === item.path
+                        ? 'project-row active'
+                        : 'project-row'
+                    }
                     onClick={() => onOpenWorkspace(item)}
                     title={item.path}
                     type="button"
@@ -191,42 +278,19 @@ export function DesktopSidebar({
                     </span>
                     <span className="project-name">{item.name}</span>
                   </button>
-                  {expanded && workspaceSessions.length > 0 ? (
-                    <ul className="task-list">
-                      {workspaceSessions.map(session => (
-                        <li
-                          className={
-                            session.id === activeSessionId
-                              ? 'task-row active'
-                              : 'task-row'
-                          }
-                          key={session.id}
-                        >
-                          <button
-                            className="task-button"
-                            onClick={() => onSelectSession(session)}
-                            title={session.sessionName ?? session.workspaceName}
-                            type="button"
-                          >
-                            <span className="task-title">
-                              {session.sessionName ?? session.workspaceName}
-                            </span>
-                            <span className="task-time">
-                              {session.status === 'running'
-                                ? '运行中'
-                                : session.createdAt}
-                            </span>
-                          </button>
-                          <IconButton
-                            className="task-close-button"
-                            onClick={() => onCloseSession(session.id)}
-                            title="关闭对话"
-                          >
-                            <X size={12} />
-                          </IconButton>
-                        </li>
-                      ))}
-                    </ul>
+                  {workspaceSessions.length > 0 ? (
+                    <SessionGroup
+                      activeSessionId={activeSessionId}
+                      groupKey={groupKey}
+                      isExpanded={expandedGroups[groupKey] === true}
+                      sessions={visibleGroupItems(groupKey, workspaceSessions)}
+                      totalCount={workspaceSessions.length}
+                      onArchiveSession={archiveSession}
+                      onPinSession={pinSession}
+                      onSelectSession={onSelectSession}
+                      onToggleExpanded={toggleGroup}
+                      onUnpinSession={unpinSession}
+                    />
                   ) : null}
                 </div>
               )
@@ -236,26 +300,21 @@ export function DesktopSidebar({
 
         <section className="nav-section conversations">
           <h2 className="section-title">对话</h2>
-          {sessions.length === 0 ? (
+          {standaloneSessions.length === 0 ? (
             <p className="sidebar-empty">暂无对话</p>
           ) : (
-            sessions.slice(0, 8).map(session => (
-              <button
-                className={
-                  session.id === activeSessionId
-                    ? 'conversation-item active'
-                    : 'conversation-item'
-                }
-                key={session.id}
-                onClick={() => onSelectSession(session)}
-                type="button"
-              >
-                <span className="conversation-title">
-                  {session.sessionName ?? session.workspaceName}
-                </span>
-                <span className="conversation-time">{session.createdAt}</span>
-              </button>
-            ))
+            <SessionGroup
+              activeSessionId={activeSessionId}
+              groupKey="standalone"
+              isExpanded={expandedGroups.standalone === true}
+              sessions={visibleGroupItems('standalone', standaloneSessions)}
+              totalCount={standaloneSessions.length}
+              onArchiveSession={archiveSession}
+              onPinSession={pinSession}
+              onSelectSession={onSelectSession}
+              onToggleExpanded={toggleGroup}
+              onUnpinSession={unpinSession}
+            />
           )}
         </section>
       </div>
@@ -294,4 +353,124 @@ export function DesktopSidebar({
       <History className="sidebar-history-watermark" size={14} />
     </aside>
   )
+}
+
+function SessionGroup({
+  activeSessionId,
+  groupKey,
+  isExpanded,
+  sessions,
+  totalCount,
+  onArchiveSession,
+  onPinSession,
+  onSelectSession,
+  onToggleExpanded,
+  onUnpinSession,
+}: {
+  activeSessionId: string | null
+  groupKey: string
+  isExpanded: boolean
+  sessions: SessionListItem[]
+  totalCount: number
+  onArchiveSession: (session: SessionListItem) => void
+  onPinSession: (session: SessionListItem) => void
+  onSelectSession: (session: SessionListItem) => void
+  onToggleExpanded: (groupKey: string) => void
+  onUnpinSession: (session: SessionListItem) => void
+}): React.ReactNode {
+  return (
+    <>
+      <ul className="task-list">
+        {sessions.map(session => (
+          <li
+            className={
+              session.id === activeSessionId ? 'task-row active' : 'task-row'
+            }
+            key={session.id}
+          >
+            <button
+              className="task-button"
+              onClick={() => onSelectSession(session)}
+              title={conversationTitle(session)}
+              type="button"
+            >
+              <span className="task-title">{conversationTitle(session)}</span>
+              <span className="task-time">
+                {session.status === 'running' ? '运行中' : session.createdAt}
+              </span>
+            </button>
+            <div className="session-inline-actions">
+              {session.pinnedAt ? (
+                <IconButton
+                  className="task-close-button"
+                  onClick={() => onUnpinSession(session)}
+                  title="取消固定"
+                >
+                  <PinOff size={12} />
+                </IconButton>
+              ) : (
+                <IconButton
+                  className="task-close-button"
+                  onClick={() => onPinSession(session)}
+                  title="固定"
+                >
+                  <Pin size={12} />
+                </IconButton>
+              )}
+              <IconButton
+                className="task-close-button"
+                onClick={() => onArchiveSession(session)}
+                title="归档"
+              >
+                <Archive size={12} />
+              </IconButton>
+            </div>
+          </li>
+        ))}
+      </ul>
+      {totalCount > GROUP_LIMIT ? (
+        <button
+          className="show-more-button"
+          onClick={() => onToggleExpanded(groupKey)}
+          type="button"
+        >
+          {isExpanded ? (
+            <ChevronDown size={13} />
+          ) : (
+            <ChevronRight size={13} />
+          )}
+          <span>{isExpanded ? '收起' : '显示更多'}</span>
+        </button>
+      ) : null}
+    </>
+  )
+}
+
+function conversationTitle(session: SessionListItem): string {
+  return session.sessionName ?? session.workspaceName
+}
+
+function compareTimestamp(
+  left: string | null | undefined,
+  right: string | null | undefined,
+): number {
+  return new Date(left ?? 0).getTime() - new Date(right ?? 0).getTime()
+}
+
+function mergeProjectWorkspaces(
+  recentWorkspaces: DesktopWorkspace[],
+  sessions: SessionListItem[],
+): DesktopWorkspace[] {
+  const byPath = new Map<string, DesktopWorkspace>()
+  for (const workspace of recentWorkspaces) {
+    byPath.set(workspace.path, workspace)
+  }
+  for (const session of sessions) {
+    if (session.standalone || byPath.has(session.workspacePath)) continue
+    byPath.set(session.workspacePath, {
+      name: session.workspaceName,
+      path: session.workspacePath,
+    })
+  }
+  return [...byPath.values()]
 }

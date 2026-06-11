@@ -382,6 +382,21 @@
   background-color: var(--c-bg-hover);
 }
 
+.settings-button svg {
+  width: 14px;
+  height: 14px;
+  margin-right: 6px;
+}
+
+.settings-button.danger {
+  color: var(--c-danger, #c2410c);
+}
+
+.settings-error-text {
+  color: var(--c-danger, #c2410c);
+  font-size: var(--fs-13);
+}
+
 /* --- Segmented Control --- */
 .segmented-control {
   display: inline-flex;
@@ -837,4 +852,55 @@
   gap: 8px;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+.archived-session-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.archived-empty {
+  margin: 0;
+  padding: 18px;
+  color: var(--c-text-soft);
+  font-size: var(--fs-13);
+}
+
+.archived-session-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: 14px var(--sp-4);
+}
+
+.archived-session-row + .archived-session-row {
+  border-top: 1px solid var(--c-border-soft);
+}
+
+.archived-session-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.archived-session-copy h3 {
+  margin: 0 0 4px;
+  color: var(--c-text-strong);
+  font-size: var(--fs-14);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.archived-session-copy p {
+  margin: 0;
+  color: var(--c-text-soft);
+  font-size: var(--fs-12);
+}
+
+.archived-session-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-shrink: 0;
 }

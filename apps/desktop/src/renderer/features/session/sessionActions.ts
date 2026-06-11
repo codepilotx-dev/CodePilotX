@@ -2,6 +2,7 @@
 import type {
   DesktopPermissionMode,
   DesktopPermissionRequest,
+  DesktopSessionMetadataPatch,
   DesktopSessionStatus,
   DesktopThinkingMode,
   DesktopWorkspace,
@@ -220,6 +221,59 @@ export async function closeSessionAction(
       nextWorkspace: next.standalone ? null : nextWorkspace,
     }
   }
+  applySessionView(createEmptySessionView(), context.viewSetters)
+  return { nextActiveSession: null, nextWorkspace: null }
+}
+
+export async function updateSessionMetadataAction(
+  context: SessionActionContext,
+  sessions: SessionListItem[],
+  targetSessionId: string,
+  patch: DesktopSessionMetadataPatch,
+): Promise<CloseSessionResult | null> {
+  let updatedSession: SessionListItem | null = null
+  try {
+    const snapshot = await window.desktopApi.updateSessionMetadata(
+      targetSessionId,
+      patch,
+    )
+    updatedSession = snapshot.item
+  } catch (error) {
+    context.onErrorRef.current(errorMessageOf(error))
+    return null
+  }
+
+  const updatedSessions = sessions.map(session =>
+    session.id === targetSessionId ? updatedSession! : session,
+  )
+  context.setSessions(updatedSessions)
+
+  const archivedActiveSession =
+    targetSessionId === context.activeSessionIdRef.current &&
+    updatedSession.archivedAt
+  if (!archivedActiveSession) {
+    return { nextActiveSession: null, nextWorkspace: null }
+  }
+
+  const next = updatedSessions.find(session => !session.archivedAt) ?? null
+  activateSession(context, next?.id ?? null)
+  context.setSessionStatus(next?.status ?? 'idle')
+  if (next) {
+    applySessionView(
+      context.sessionViewsRef.current[next.id] ?? createEmptySessionView(),
+      context.viewSetters,
+    )
+    const nextWorkspace = context.sessionWorkspacesRef.current[next.id] ?? {
+      name: next.workspaceName,
+      path: next.workspacePath,
+      isStandalone: next.standalone,
+    }
+    return {
+      nextActiveSession: next,
+      nextWorkspace: next.standalone ? null : nextWorkspace,
+    }
+  }
+
   applySessionView(createEmptySessionView(), context.viewSetters)
   return { nextActiveSession: null, nextWorkspace: null }
 }

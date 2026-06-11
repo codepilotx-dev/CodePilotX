@@ -134,7 +134,7 @@ export function DesktopLayout(): React.ReactNode {
     submit,
     interrupt,
     decidePermission,
-    closeSession,
+    updateSessionMetadata,
     selectSession: selectSessionRaw,
     toggleToolLogEntry,
   } = session
@@ -425,12 +425,15 @@ export function DesktopLayout(): React.ReactNode {
     ],
   )
 
-  const handleCloseSession = useCallback(
-    async (targetSessionId: string): Promise<void> => {
-      const closingActiveSession = targetSessionId === sessionId
-      const result = await closeSession(targetSessionId)
-      if (!result) return
-      if (!closingActiveSession) return
+  const handleUpdateSessionMetadata = useCallback(
+    async (
+      targetSessionId: string,
+      patch: { pinnedAt?: string | null; archivedAt?: string | null },
+    ): Promise<void> => {
+      const archivingActiveSession =
+        targetSessionId === sessionId && Boolean(patch.archivedAt)
+      const result = await updateSessionMetadata(targetSessionId, patch)
+      if (!result || !archivingActiveSession) return
       if (result.nextActiveSession && result.nextWorkspace) {
         setWorkspaceState(result.nextWorkspace)
         void refreshWorkspace(result.nextWorkspace, {
@@ -443,12 +446,12 @@ export function DesktopLayout(): React.ReactNode {
       }
     },
     [
-      closeSession,
       refreshWorkspace,
       sessionId,
       setDiffState,
       setSelectedFile,
       setWorkspaceState,
+      updateSessionMetadata,
     ],
   )
 
@@ -535,12 +538,13 @@ export function DesktopLayout(): React.ReactNode {
       width={sidebarWidth}
       workspace={currentWorkspace}
       onChooseWorkspace={() => void handleChooseWorkspace()}
-      onCloseSession={session => void handleCloseSession(session)}
       onCreateSession={() => void handleCreateSession()}
       onOpenWorkspace={workspaceItem => void handleOpenRecentWorkspace(workspaceItem)}
       onSelectSession={handleSelectSession}
       onSetWidth={setSidebarWidth}
-      onToggleCollapsed={toggleSidebarCollapsed}
+      onUpdateSessionMetadata={(targetSessionId, patch) =>
+        void handleUpdateSessionMetadata(targetSessionId, patch)
+      }
     />
   )
 

@@ -66,6 +66,7 @@ import type {
   DesktopPermissionMode,
   DesktopProviderModelListResult,
   DesktopRuntimeStatus,
+  DesktopSessionMetadataPatch,
   DesktopSessionSettingsSnapshot,
   DesktopSessionSnapshot,
   DesktopStoredSettings,
@@ -774,6 +775,40 @@ async function setActiveSession(sessionId: string | null): Promise<void> {
   persistSessionStore()
 }
 
+async function updateSessionMetadata(
+  sessionId: string,
+  patch: DesktopSessionMetadataPatch,
+): Promise<DesktopSessionSnapshot> {
+  const record = await getSessionRecord(sessionId)
+  if (!patch || typeof patch !== 'object') {
+    throw new Error('Desktop session metadata patch must be an object.')
+  }
+
+  const nextItem = { ...record.snapshot.item }
+  if ('pinnedAt' in patch) {
+    nextItem.pinnedAt = normalizeNullableTimestamp(patch.pinnedAt)
+  }
+  if ('archivedAt' in patch) {
+    nextItem.archivedAt = normalizeNullableTimestamp(patch.archivedAt)
+  }
+
+  record.snapshot = {
+    ...record.snapshot,
+    item: nextItem,
+    updatedAt: new Date().toISOString(),
+  }
+  if (nextItem.archivedAt && activeSessionId === sessionId) {
+    activeSessionId =
+      [...sessions.values()].find(
+        item =>
+          item.snapshot.item.id !== sessionId &&
+          !item.snapshot.item.archivedAt,
+      )?.snapshot.item.id ?? null
+  }
+  persistSessionStore()
+  return record.snapshot
+}
+
 async function createSession(
   options: CreateDesktopSessionOptions,
 ): Promise<CreateDesktopSessionResult> {
@@ -901,6 +936,17 @@ function normalizeProviderID(providerID: ModelProviderID): ModelProviderID {
 function normalizeOptionalText(value: string | undefined): string | undefined {
   const trimmed = value?.trim()
   return trimmed ? trimmed : undefined
+}
+
+function normalizeNullableTimestamp(value: unknown): string | null {
+  if (value === null || value === undefined) {
+    return null
+  }
+  if (typeof value !== 'string') {
+    throw new Error('Session metadata timestamp must be a string or null.')
+  }
+  const trimmed = value.trim()
+  return trimmed ? trimmed : null
 }
 
 async function normalizeAdditionalDirectories(
@@ -1038,6 +1084,7 @@ function registerIpc(): void {
     listSessions,
     getActiveSessionId,
     setActiveSession,
+    updateSessionMetadata,
     sendUserMessage,
     respondToPermission,
     interruptSession,

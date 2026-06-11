@@ -180,6 +180,8 @@ export type DesktopSessionListItem = {
   workspaceName: string
   workspacePath: string
   standalone?: boolean
+  pinnedAt?: string | null
+  archivedAt?: string | null
   permissionMode: DesktopPermissionMode
   model: string | null
   fallbackModel: string | null
@@ -214,6 +216,11 @@ export type DesktopSessionSnapshot = {
   settings: DesktopSessionSettingsSnapshot
   view: DesktopSessionViewSnapshot
   updatedAt: string
+}
+
+export type DesktopSessionMetadataPatch = {
+  pinnedAt?: string | null
+  archivedAt?: string | null
 }
 
 export type DesktopAgentEvent =
@@ -283,6 +290,10 @@ export type DesktopApi = {
   listSessions(): Promise<DesktopSessionSnapshot[]>
   getActiveSessionId(): Promise<string | null>
   setActiveSession(sessionId: string | null): Promise<void>
+  updateSessionMetadata(
+    sessionId: string,
+    patch: DesktopSessionMetadataPatch,
+  ): Promise<DesktopSessionSnapshot>
   sendUserMessage(sessionId: string, content: string): Promise<void>
   respondToPermission(
     sessionId: string,

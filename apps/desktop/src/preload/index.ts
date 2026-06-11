@@ -39,6 +39,8 @@ const api: DesktopApi = {
   getActiveSessionId: () => ipcRenderer.invoke('desktop:getActiveSessionId'),
   setActiveSession: sessionId =>
     ipcRenderer.invoke('desktop:setActiveSession', sessionId),
+  updateSessionMetadata: (sessionId, patch) =>
+    ipcRenderer.invoke('desktop:updateSessionMetadata', sessionId, patch),
   sendUserMessage: (sessionId, content) =>
     ipcRenderer.invoke('desktop:sendUserMessage', sessionId, content),
   respondToPermission: (sessionId, requestId, decision) =>

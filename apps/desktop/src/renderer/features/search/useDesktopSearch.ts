@@ -27,8 +27,9 @@ export function useDesktopSearch(
   }, [keyword, recentWorkspaces])
 
   const filteredSessions = useMemo(() => {
-    if (!keyword) return sessions
-    return sessions.filter(session =>
+    const visibleSessions = sessions.filter(session => !session.archivedAt)
+    if (!keyword) return visibleSessions
+    return visibleSessions.filter(session =>
       [
         session.sessionName ?? '',
         session.workspaceName,
