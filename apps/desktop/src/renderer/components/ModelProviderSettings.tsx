@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+﻿import React, { useEffect, useMemo, useState } from 'react'
 import type {
   DesktopModelMetadata,
   DesktopModelProviderState,
@@ -16,6 +16,7 @@ import { SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
 
 const BUILT_IN_PROVIDER_IDS = new Set([
+  'ai-gateway',
   'anthropic',
   'openai',
   'openrouter',
@@ -24,6 +25,8 @@ const BUILT_IN_PROVIDER_IDS = new Set([
   'groq',
   'custom',
 ])
+
+const NO_MODEL_OPTION = '__no_models_available__'
 
 export function ModelProviderSettings(): React.ReactNode {
   const settings = useDesktopSettings()
@@ -34,6 +37,7 @@ export function ModelProviderSettings(): React.ReactNode {
     settings.providerID,
   )
   const [providerQuery, setProviderQuery] = useState('')
+  const [modelQuery, setModelQuery] = useState('')
   const [baseURL, setBaseURL] = useState(settings.providerBaseURL)
   const [apiKey, setApiKey] = useState('')
   const [model, setModel] = useState(settings.model)
@@ -66,16 +70,16 @@ export function ModelProviderSettings(): React.ReactNode {
     () => providers.find(provider => provider.providerID === providerID),
     [providerID, providers],
   )
+  const isAIGateway = providerID === 'ai-gateway'
   const isDeepSeek = providerID === 'deepseek'
   const isMiniMax = providerID === 'minimax'
   const selectedProviderState =
     providerState?.selectedProviderID === providerID ? providerState : null
-  const providerModels =
+  const providerModels = (
     selectedProviderState?.models ?? selectedProvider?.defaultModels ?? []
+  ).filter(item => item && item !== NO_MODEL_OPTION)
   const modelMetadata =
-    selectedProviderState?.modelMetadata ??
-    selectedProvider?.modelMetadata ??
-    {}
+    selectedProviderState?.modelMetadata ?? selectedProvider?.modelMetadata ?? {}
   const selectedModelMetadata = model ? modelMetadata[model] : undefined
   const requiresBaseURL = Boolean(selectedProvider?.requiresBaseURL)
   const baseURLEditable = requiresBaseURL || providerID === 'custom'
@@ -84,8 +88,10 @@ export function ModelProviderSettings(): React.ReactNode {
 
   useEffect(() => {
     if (providerID === providerState?.selectedProviderID) return
+    const firstModel = selectedProvider?.defaultModels[0] ?? ''
     setBaseURL(selectedProvider?.baseURL ?? '')
-    setModel('')
+    setModel(firstModel)
+    setModelQuery('')
     setBalanceStatus(null)
     setStatus(null)
     setModelError(null)
@@ -106,56 +112,53 @@ export function ModelProviderSettings(): React.ReactNode {
       .map(provider => ({
         value: provider.providerID,
         label: provider.displayName,
-        detail: provider.modelsDevSource
-          ? provider.requiresBaseURL
-            ? 'Models.dev · needs Base URL'
-            : 'Models.dev'
-          : 'Built-in',
+        detail: providerDetail(provider),
         icon: provider.logoURL ? (
           <img className="settings-provider-logo" src={provider.logoURL} alt="" />
         ) : undefined,
       }))
   }, [providerQuery, providers])
 
-  const modelOptions = useMemo(
-    () => [
-      {
-        value: '',
-        label: selectedProvider
-          ? `默认模型 (${selectedProvider.displayName})`
-          : '默认模型',
-        detail: 'Use provider default',
-      },
-      ...providerModels.filter(Boolean).map(item => ({
-        value: item,
-        label: modelOptionLabel(item, modelMetadata[item], isDeepSeek),
-        detail: modelOptionDetail(modelMetadata[item]),
-      })),
-    ],
-    [isDeepSeek, modelMetadata, providerModels, selectedProvider],
-  )
+  const modelOptions = useMemo(() => {
+    const query = modelQuery.trim().toLowerCase()
+    const filteredModels = providerModels.filter(item => {
+      if (!query) return true
+      const metadata = modelMetadata[item]
+      return modelSearchText(item, metadata).includes(query)
+    })
+    return filteredModels.slice(0, 200).map(item => ({
+      value: item,
+      label: modelOptionLabel(item, modelMetadata[item], isDeepSeek),
+      detail: modelOptionDetail(modelMetadata[item]),
+    }))
+  }, [isDeepSeek, modelMetadata, modelQuery, providerModels])
 
-  const selectedModelDescription =
-    selectedModelMetadata
-      ? formatModelMetadata(selectedModelMetadata)
-      : isDeepSeek && model
-        ? getModelDescription(model)
-        : null
+  const selectedModelDescription = selectedModelMetadata
+    ? formatModelMetadata(selectedModelMetadata)
+    : isDeepSeek && model
+      ? getModelDescription(model)
+      : null
 
   function applyProviderState(nextState: DesktopModelProviderState): void {
+    const nextModel =
+      nextState.model ||
+      nextState.models[0] ||
+      nextState.provider.defaultModels[0] ||
+      ''
     setProviderState(nextState)
     setProviderID(nextState.selectedProviderID)
     setBaseURL(nextState.baseURL ?? '')
-    setModel(nextState.model)
+    setModel(nextModel)
     settings.setProviderID(nextState.selectedProviderID)
     settings.setProviderBaseURL(nextState.baseURL ?? '')
-    settings.setModel(nextState.model)
+    settings.setModel(nextModel)
   }
 
   function applyFetchedModels(models: string[], error?: string): void {
+    const cleanModels = models.filter(Boolean)
     setProviderState(current => {
       if (current && current.selectedProviderID === providerID) {
-        return { ...current, models, error }
+        return { ...current, models: cleanModels, error }
       }
       if (!selectedProvider) return current
       return {
@@ -165,17 +168,18 @@ export function ModelProviderSettings(): React.ReactNode {
         baseURL,
         apiKeyConfigured: false,
         apiKeySource: null,
-        models,
+        models: cleanModels,
         modelMetadata,
         error,
       }
     })
+    if (!model && cleanModels[0]) setModel(cleanModels[0])
   }
 
   async function fetchModels(): Promise<void> {
     setBusy(true)
     setModelError(null)
-    setStatus('正在拉取模型列表...')
+    setStatus('Refreshing model catalog...')
     try {
       const result = await window.desktopApi.fetchProviderModels({
         providerID,
@@ -184,7 +188,7 @@ export function ModelProviderSettings(): React.ReactNode {
       })
       applyFetchedModels(result.models, result.error)
       setModelError(result.error ?? null)
-      setStatus(result.error ? null : `已拉取 ${result.models.length} 个可用模型。`)
+      setStatus(result.error ? null : `Loaded ${result.models.length} models.`)
     } finally {
       setBusy(false)
     }
@@ -202,12 +206,16 @@ export function ModelProviderSettings(): React.ReactNode {
 
   async function testConnection(): Promise<void> {
     if (requiresBaseURL && !baseURL.trim()) {
-      setModelError('该供应商需要填写 OpenAI-compatible Base URL 后才能测试连接。')
+      setModelError('This provider needs an OpenAI-compatible Base URL before testing.')
+      return
+    }
+    if (isAIGateway && !apiKeyConfigured && !apiKey.trim()) {
+      setModelError('Save the AI Gateway API key first, or set AI_GATEWAY_API_KEY.')
       return
     }
     setBusy(true)
     setModelError(null)
-    setStatus('正在测试连接...')
+    setStatus('Testing connection...')
     try {
       const modelsRequest = window.desktopApi.fetchProviderModels({
         providerID,
@@ -221,11 +229,13 @@ export function ModelProviderSettings(): React.ReactNode {
       const errors = [modelsResult.error, balanceResult?.error].filter(
         (item): item is string => Boolean(item),
       )
-      setModelError(errors.length > 0 ? errors.join('；') : null)
+      setModelError(errors.length > 0 ? errors.join('; ') : null)
       setStatus(
         errors.length > 0
           ? null
-          : `连接正常，发现 ${modelsResult.models.length} 个模型。`,
+          : isAIGateway
+            ? `AI Gateway key configured. Catalog has ${modelsResult.models.length} language models.`
+            : `Connection OK. Found ${modelsResult.models.length} models.`,
       )
     } finally {
       setBusy(false)
@@ -234,7 +244,11 @@ export function ModelProviderSettings(): React.ReactNode {
 
   async function saveProvider(): Promise<void> {
     if (requiresBaseURL && !baseURL.trim()) {
-      setModelError('已选择 Models.dev 供应商；请填写 Base URL 后再保存为可调用连接。')
+      setModelError('This Models.dev provider needs a Base URL before saving as callable.')
+      return
+    }
+    if (!model.trim()) {
+      setModelError('Select a concrete model before saving.')
       return
     }
     setBusy(true)
@@ -242,11 +256,11 @@ export function ModelProviderSettings(): React.ReactNode {
     try {
       const nextState = await window.desktopApi.saveModelProvider({
         providerID,
-        modelID: model.trim() || undefined,
+        modelID: model.trim(),
         baseURL: baseURL.trim() || undefined,
       })
       applyProviderState(nextState)
-      setStatus('模型连接已保存。')
+      setStatus('Model connection saved.')
       window.dispatchEvent(new Event('desktop:model-provider-changed'))
     } finally {
       setBusy(false)
@@ -255,7 +269,7 @@ export function ModelProviderSettings(): React.ReactNode {
 
   async function saveApiKey(): Promise<void> {
     if (!apiKey.trim()) {
-      setModelError('请输入 API key。')
+      setModelError('Enter an API key.')
       return
     }
     setBusy(true)
@@ -293,7 +307,7 @@ export function ModelProviderSettings(): React.ReactNode {
           modelMetadata,
         }
       })
-      setStatus('API key 已保存。')
+      setStatus('API key saved.')
       window.dispatchEvent(new Event('desktop:model-provider-changed'))
       if (providerID === 'deepseek') {
         const result = await window.desktopApi.fetchProviderBalance({
@@ -308,47 +322,57 @@ export function ModelProviderSettings(): React.ReactNode {
     }
   }
 
+  const providerOptions = filteredProviderOptions.length
+    ? filteredProviderOptions
+    : [{ value: providerID, label: providerID }]
+  const dropdownModelOptions = modelOptions.length
+    ? modelOptions
+    : [{ value: NO_MODEL_OPTION, label: 'No models loaded', detail: 'Refresh catalog first' }]
+  const dropdownModelValue = modelOptions.some(option => option.value === model)
+    ? model
+    : dropdownModelOptions[0]?.value ?? NO_MODEL_OPTION
+
   return (
     <div className="model-provider-settings">
       <section className="settings-hero-card">
         <div className="settings-hero-copy">
-          <span className="settings-eyebrow">当前连接</span>
+          <span className="settings-eyebrow">Current connection</span>
           <h3>{selectedProvider?.displayName ?? providerID}</h3>
           <p>
-            {model ? model : '使用供应商默认模型'} · {baseURL || '未配置 Base URL'}
+            {model || 'No model selected'} / {baseURL || 'No Base URL required'}
           </p>
         </div>
         <div className="settings-status-grid">
           <StatusPill label="API key" value={formatApiKeyState(apiKeySource, apiKeyConfigured)} tone={apiKeyConfigured ? 'ok' : 'warn'} />
-          <StatusPill label="类型" value={selectedProvider?.kind ?? 'openai-compatible'} />
-          <StatusPill label="来源" value={selectedProvider?.modelsDevSource ? 'Models.dev' : '内置'} />
+          <StatusPill label="Kind" value={selectedProvider?.kind ?? 'openai-compatible'} />
+          <StatusPill label="Source" value={selectedProvider?.gatewaySource ? 'AI Gateway' : selectedProvider?.modelsDevSource ? 'Models.dev' : 'Built-in'} />
         </div>
       </section>
 
       <SettingsSection
-        title="供应商"
-        description="从内置适配器和 Models.dev 目录中选择模型供应商。非内置供应商需要填写 OpenAI-compatible Base URL。"
+        title="Provider"
+        description="AI Gateway exposes AI SDK supported language models. DeepSeek direct mode keeps its optimized path."
       >
         <SettingsRow
-          title="搜索"
-          description="按供应商名称、ID 或 npm 包名过滤列表。"
+          title="Search"
+          description="Filter by provider name, ID, or npm package."
           control={
             <input
               className="settings-input settings-input-wide"
               value={providerQuery}
-              placeholder="搜索 provider..."
+              placeholder="Search provider..."
               onChange={event => setProviderQuery(event.target.value)}
             />
           }
         />
         <SettingsRow
-          title="提供商"
+          title="Provider"
           description={providerDescription(selectedProvider)}
           control={
             <SettingsDropdown
-              ariaLabel="模型提供商"
+              ariaLabel="Model provider"
               value={providerID}
-              options={filteredProviderOptions.length ? filteredProviderOptions : [{ value: providerID, label: providerID }]}
+              options={providerOptions}
               onChange={value => setProviderID(value as ModelProviderID)}
             />
           }
@@ -369,12 +393,12 @@ export function ModelProviderSettings(): React.ReactNode {
       </SettingsSection>
 
       <SettingsSection
-        title="凭据"
-        description="API key 会保存到安全存储，不会明文写入桌面设置 JSON。"
+        title="Credentials"
+        description="API keys are stored in secure storage. Environment variables take precedence."
       >
         <SettingsRow
           title="API key"
-          description={apiKeySource ? `当前来源：${apiKeySource}` : providerEnvDescription(selectedProvider)}
+          description={apiKeySource ? `Current source: ${apiKeySource}` : providerEnvDescription(selectedProvider)}
           control={
             <div className="settings-inline-actions settings-secret-actions">
               <span className={`settings-chip ${apiKeyConfigured ? 'ok' : 'warn'}`}>
@@ -383,7 +407,7 @@ export function ModelProviderSettings(): React.ReactNode {
               <input
                 className="settings-input"
                 value={apiKey}
-                placeholder="输入后保存"
+                placeholder="Enter and save"
                 type="password"
                 onChange={event => setApiKey(event.target.value)}
               />
@@ -393,7 +417,7 @@ export function ModelProviderSettings(): React.ReactNode {
                 type="button"
                 onClick={() => void saveApiKey()}
               >
-                保存
+                Save
               </button>
             </div>
           }
@@ -401,24 +425,38 @@ export function ModelProviderSettings(): React.ReactNode {
       </SettingsSection>
 
       <SettingsSection
-        title="模型"
-        description="模型列表优先来自 Models.dev 元数据；连接测试会尝试读取供应商实时 /models。"
+        title="Model"
+        description={isAIGateway ? 'AI Gateway models use provider/model IDs, for example openai/gpt-4.1.' : 'Model metadata comes from Models.dev and live provider catalogs when available.'}
       >
         <SettingsRow
-          title="模型"
-          description={selectedModelDescription ?? '留空表示使用该 provider 的默认模型。'}
+          title="Search models"
+          description="Filter by provider, model, capability, context, price, source, or tag."
           control={
-            <SettingsDropdown
-              ariaLabel="模型"
-              value={model}
-              options={modelOptions}
-              onChange={setModel}
+            <input
+              className="settings-input settings-input-wide"
+              value={modelQuery}
+              placeholder="Search model / provider / capability..."
+              onChange={event => setModelQuery(event.target.value)}
             />
           }
         />
         <SettingsRow
-          title="模型列表"
-          description={modelError ?? status ?? `当前目录包含 ${providerModels.length} 个模型。`}
+          title="Model"
+          description={selectedModelDescription ?? 'Select a concrete model.'}
+          control={
+            <SettingsDropdown
+              ariaLabel="Model"
+              value={dropdownModelValue}
+              options={dropdownModelOptions}
+              onChange={value => {
+                if (value !== NO_MODEL_OPTION) setModel(value)
+              }}
+            />
+          }
+        />
+        <SettingsRow
+          title="Catalog"
+          description={modelError ?? status ?? `Current catalog has ${providerModels.length} models.`}
           control={
             <button
               className="settings-button"
@@ -426,17 +464,17 @@ export function ModelProviderSettings(): React.ReactNode {
               type="button"
               onClick={() => void fetchModels()}
             >
-              拉取模型
+              Refresh catalog
             </button>
           }
         />
       </SettingsSection>
 
       {isDeepSeek ? (
-        <SettingsSection title="DeepSeek 状态" description="测试连接会同时拉取模型列表并查询 /user/balance。">
+        <SettingsSection title="DeepSeek Status" description="DeepSeek direct mode keeps balance checks, thinking parameters, and output-token optimizations.">
           <SettingsRow
-            title="账户状态"
-            description={balanceStatus ?? '尚未查询余额。'}
+            title="Account status"
+            description={balanceStatus ?? 'Balance has not been checked yet.'}
             control={
               <div className="settings-provider-links">
                 <a
@@ -455,7 +493,7 @@ export function ModelProviderSettings(): React.ReactNode {
                   rel="noreferrer"
                   target="_blank"
                 >
-                  文档
+                  Docs
                 </a>
               </div>
             }
@@ -464,11 +502,11 @@ export function ModelProviderSettings(): React.ReactNode {
       ) : null}
 
       <SettingsSection
-        title="连接测试"
-        description="测试当前凭据和 Base URL；保存连接后新会话会使用该 provider/model。"
+        title="Connection test"
+        description="Test current credentials and Base URL. Saved connections apply to new sessions."
       >
         <SettingsRow
-          title="操作"
+          title="Actions"
           description={modelError ?? status ?? connectionHint(selectedProvider, baseURL)}
           control={
             <div className="settings-inline-actions">
@@ -480,7 +518,7 @@ export function ModelProviderSettings(): React.ReactNode {
                   rel="noreferrer"
                   target="_blank"
                 >
-                  文档
+                  Docs
                 </a>
               ) : null}
               <button
@@ -489,7 +527,7 @@ export function ModelProviderSettings(): React.ReactNode {
                 type="button"
                 onClick={() => void testConnection()}
               >
-                测试连接
+                Test connection
               </button>
               <button
                 className="settings-button primary"
@@ -497,7 +535,7 @@ export function ModelProviderSettings(): React.ReactNode {
                 type="button"
                 onClick={() => void saveProvider()}
               >
-                保存连接
+                Save connection
               </button>
             </div>
           }
@@ -524,37 +562,67 @@ function StatusPill({
   )
 }
 
+function providerDetail(provider: DesktopModelProviderSummary): string {
+  if (provider.providerID === 'ai-gateway') return 'AI SDK Gateway / full catalog'
+  if (provider.gatewaySource && provider.modelsDevSource) return 'Gateway + Models.dev'
+  if (provider.gatewaySource) return 'Gateway'
+  if (provider.modelsDevSource) {
+    return provider.requiresBaseURL ? 'Models.dev / needs Base URL' : 'Models.dev'
+  }
+  return 'Built-in'
+}
+
 function providerDescription(provider: DesktopModelProviderSummary | undefined): string {
-  if (!provider) return '选择新会话使用的 provider。'
+  if (!provider) return 'Choose the provider used by new sessions.'
+  if (provider.providerID === 'ai-gateway') {
+    return 'Use AI SDK / Vercel AI Gateway as the unified runtime for supported language models.'
+  }
   const parts = [provider.providerID]
   if (provider.npmPackage) parts.push(provider.npmPackage)
   if (provider.requiresBaseURL && !BUILT_IN_PROVIDER_IDS.has(provider.providerID)) {
-    parts.push('需要 Base URL')
+    parts.push('needs Base URL')
   }
-  return parts.join(' · ')
+  return parts.join(' / ')
 }
 
 function baseURLDescription(
   provider: DesktopModelProviderSummary | undefined,
   isMiniMax: boolean,
 ): string {
-  if (!provider) return '选择 provider 后显示默认地址。'
-  if (provider.requiresBaseURL) return '该 Models.dev provider 需要填写 OpenAI-compatible Base URL。'
-  if (provider.providerID === 'deepseek') return 'DeepSeek 使用内置 OpenAI-compatible 地址。'
-  if (isMiniMax) return 'MiniMax 使用内置 Anthropic-compatible 地址。'
-  return '内置 provider 的 Base URL 由应用管理。'
+  if (!provider) return 'Select a provider to show its default endpoint.'
+  if (provider.providerID === 'ai-gateway') return 'AI Gateway uses its default unified endpoint.'
+  if (provider.requiresBaseURL) return 'This Models.dev provider needs an OpenAI-compatible Base URL.'
+  if (provider.providerID === 'deepseek') return 'DeepSeek uses the built-in OpenAI-compatible endpoint.'
+  if (isMiniMax) return 'MiniMax uses the built-in Anthropic-compatible endpoint.'
+  return 'The app manages the built-in provider Base URL.'
 }
 
 function providerEnvDescription(provider: DesktopModelProviderSummary | undefined): string {
-  if (!provider?.envVars?.length) return '未发现环境变量配置。'
-  return `可使用环境变量：${provider.envVars.join(', ')}`
+  if (!provider?.envVars?.length) return 'No environment variable was detected.'
+  return `Environment variables: ${provider.envVars.join(', ')}`
 }
 
 function connectionHint(provider: DesktopModelProviderSummary | undefined, baseURL: string): string {
   if (provider?.requiresBaseURL && !baseURL.trim()) {
-    return '填写 Base URL 后可以测试并保存为可调用连接。'
+    return 'Fill in Base URL before testing or saving this callable connection.'
   }
-  return '拉取模型列表、测试连接或保存当前连接。'
+  return 'Refresh model catalog, test the connection, or save the current connection.'
+}
+
+function modelSearchText(model: string, metadata: DesktopModelMetadata | undefined): string {
+  return [
+    model,
+    metadata?.name,
+    metadata?.description,
+    metadata?.modelsDevProviderId,
+    metadata?.gatewayModelId,
+    metadata?.modelType,
+    ...(metadata?.tags ?? []),
+    ...(metadata?.catalogSources ?? []),
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase()
 }
 
 function modelOptionLabel(
@@ -569,25 +637,29 @@ function modelOptionLabel(
 function modelOptionDetail(metadata: DesktopModelMetadata | undefined): string | undefined {
   if (!metadata) return undefined
   const parts = []
+  if (metadata.modelsDevProviderId) parts.push(metadata.modelsDevProviderId)
   if (metadata.contextWindow) parts.push(`${formatCompactNumber(metadata.contextWindow)} ctx`)
   if (metadata.inputCost !== undefined && metadata.outputCost !== undefined) {
     parts.push(`$${metadata.inputCost}/$${metadata.outputCost}`)
   }
   const caps = formatCapabilities(metadata)
   if (caps) parts.push(caps)
-  return parts.join(' · ')
+  const sources = metadata.catalogSources?.join('+')
+  if (sources) parts.push(sources)
+  return parts.join(' / ')
 }
 
 function formatModelMetadata(metadata: DesktopModelMetadata): string {
   const parts = []
-  if (metadata.contextWindow) parts.push(`上下文 ${formatCompactNumber(metadata.contextWindow)}`)
-  if (metadata.outputTokens) parts.push(`输出 ${formatCompactNumber(metadata.outputTokens)}`)
+  if (metadata.contextWindow) parts.push(`context ${formatCompactNumber(metadata.contextWindow)}`)
+  if (metadata.outputTokens) parts.push(`output ${formatCompactNumber(metadata.outputTokens)}`)
   if (metadata.inputCost !== undefined && metadata.outputCost !== undefined) {
-    parts.push(`价格 $${metadata.inputCost}/$${metadata.outputCost} 每百万 tokens`)
+    parts.push(`price $${metadata.inputCost}/$${metadata.outputCost} per 1M tokens`)
   }
   const caps = formatCapabilities(metadata)
   if (caps) parts.push(caps)
-  return parts.join(' · ')
+  if (metadata.catalogSources?.length) parts.push(`source ${metadata.catalogSources.join('+')}`)
+  return parts.join(' / ')
 }
 
 function formatCapabilities(metadata: DesktopModelMetadata): string {
@@ -606,24 +678,24 @@ function formatCompactNumber(value: number): string {
 }
 
 function formatApiKeyState(source: string | null, configured: boolean): string {
-  if (!configured) return '未配置'
-  if (source && source !== 'secureStorage') return '来自环境变量'
-  return '已配置'
+  if (!configured) return 'Not configured'
+  if (source && source !== 'secureStorage') return 'From env var'
+  return 'Configured'
 }
 
 function formatBalanceStatus(result: DesktopProviderBalanceResult): string {
   if (result.error) return result.error
   if (result.balances.length === 0) {
     return result.isAvailable
-      ? 'DeepSeek 账户可用，但未返回余额明细。'
-      : 'DeepSeek 账户当前不可用。'
+      ? 'DeepSeek account is available, but no balance details were returned.'
+      : 'DeepSeek account is currently unavailable.'
   }
   const balanceText = result.balances
     .map(balance => `${balance.currency} ${balance.totalBalance}`)
-    .join('；')
+    .join('; ')
   return result.isAvailable
-    ? `DeepSeek 账户可用，余额：${balanceText}`
-    : `DeepSeek 余额不足或账户不可用：${balanceText}`
+    ? `DeepSeek account is available. Balance: ${balanceText}`
+    : `DeepSeek balance is insufficient or account is unavailable: ${balanceText}`
 }
 
 function openExternalLink(event: React.MouseEvent<HTMLAnchorElement>): void {

@@ -257,7 +257,9 @@ import {
 } from './withRetry.js'
 import { queryOpenAICompatibleModelWithStreaming } from './openaiCompatible.js'
 import { queryMiniMaxWithAiSdkStreaming } from './minimax.js'
+import { queryAIGatewayWithStreaming } from './aiGateway.js'
 import {
+  shouldUseAiGatewayProvider,
   shouldUseMiniMaxProvider,
   shouldUseOpenAICompatibleProvider,
 } from '../../utils/model/providerConfig.js'
@@ -727,6 +729,29 @@ export async function queryModelWithoutStreaming({
   signal: AbortSignal
   options: Options
 }): Promise<AssistantMessage> {
+  if (shouldUseAiGatewayProvider()) {
+    let assistantMessage: AssistantMessage | undefined
+    for await (const message of queryAIGatewayWithStreaming({
+      messages,
+      systemPrompt,
+      tools,
+      signal,
+      _thinkingConfig: thinkingConfig,
+      options,
+    })) {
+      if (message.type === 'assistant') {
+        assistantMessage = message
+      }
+    }
+    if (!assistantMessage) {
+      if (signal.aborted) {
+        throw new APIUserAbortError()
+      }
+      throw new Error('No assistant message found')
+    }
+    return assistantMessage
+  }
+
   if (shouldUseMiniMaxProvider()) {
     let assistantMessage: AssistantMessage | undefined
     for await (const message of queryMiniMaxWithAiSdkStreaming({
@@ -819,6 +844,18 @@ export async function* queryModelWithStreaming({
   StreamEvent | AssistantMessage | SystemAPIErrorMessage,
   void
 > {
+  if (shouldUseAiGatewayProvider()) {
+    yield* queryAIGatewayWithStreaming({
+      messages,
+      systemPrompt,
+      tools,
+      signal,
+      _thinkingConfig: thinkingConfig,
+      options,
+    })
+    return
+  }
+
   if (shouldUseMiniMaxProvider()) {
     yield* queryMiniMaxWithAiSdkStreaming({
       messages,

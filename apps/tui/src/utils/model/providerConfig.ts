@@ -3,7 +3,11 @@ import { getSettings_DEPRECATED, updateSettingsForSource } from '../settings/set
 
 export type ModelProviderID = string
 
-export type ModelProviderKind = 'anthropic' | 'openai-compatible' | 'minimax'
+export type ModelProviderKind =
+  | 'anthropic'
+  | 'openai-compatible'
+  | 'minimax'
+  | 'ai-gateway'
 
 export type ProviderModelMetadata = {
   id: string
@@ -24,6 +28,11 @@ export type ProviderModelMetadata = {
     input: string[]
     output: string[]
   }
+  catalogSources?: Array<'models.dev' | 'gateway'>
+  gatewayModelId?: string
+  modelsDevProviderId?: string
+  modelType?: string
+  tags?: string[]
 }
 
 export type ProviderConfig = {
@@ -39,6 +48,7 @@ export type ProviderConfig = {
   logoURL?: string
   npmPackage?: string
   modelsDevSource?: boolean
+  gatewaySource?: boolean
   requiresBaseURL?: boolean
 }
 
@@ -62,6 +72,10 @@ export type ProviderBalanceResult = {
 
 const MODELS_DEV_API_URL = 'https://models.dev/api.json'
 const MODELS_DEV_LOGO_BASE_URL = 'https://models.dev/logos'
+const AI_GATEWAY_MODELS_URL = 'https://ai-gateway.vercel.sh/v1/models'
+const AI_GATEWAY_DEFAULT_BASE_URL = 'https://ai-gateway.vercel.sh/v3/ai'
+const AI_GATEWAY_PROVIDER_ID = 'ai-gateway'
+
 const providerModelCache = new Map<string, string[]>()
 let providerCatalogCache: Record<string, ProviderConfig> | null = null
 let providerCatalogPromise: Promise<Record<string, ProviderConfig>> | null = null
@@ -72,16 +86,32 @@ export const DEEPSEEK_MODEL_METADATA: Record<string, ProviderModelMetadata> = {
     label: 'V4 Pro',
     description: 'Complex agent and high-quality coding tasks',
     badge: 'Quality',
+    catalogSources: ['models.dev'],
+    modelsDevProviderId: 'deepseek',
   },
   'deepseek-v4-flash': {
     id: 'deepseek-v4-flash',
     label: 'V4 Flash',
     description: 'Fast responses, light tasks, and economical usage',
     badge: 'Fast',
+    catalogSources: ['models.dev'],
+    modelsDevProviderId: 'deepseek',
   },
 }
 
 export const PROVIDER_CONFIGS: Record<string, ProviderConfig> = {
+  [AI_GATEWAY_PROVIDER_ID]: {
+    providerID: AI_GATEWAY_PROVIDER_ID,
+    kind: 'ai-gateway',
+    displayName: 'AI Gateway',
+    baseURL: AI_GATEWAY_DEFAULT_BASE_URL,
+    apiKeyEnvVar: 'AI_GATEWAY_API_KEY',
+    envVars: ['AI_GATEWAY_API_KEY'],
+    defaultModels: ['openai/gpt-4.1', 'anthropic/claude-sonnet-4.5'],
+    docURL: 'https://vercel.com/docs/ai-gateway',
+    logoURL: `${MODELS_DEV_LOGO_BASE_URL}/vercel.svg`,
+    gatewaySource: true,
+  },
   anthropic: {
     providerID: 'anthropic',
     kind: 'anthropic',
@@ -179,6 +209,8 @@ export async function getProviderConfigCatalog(): Promise<Record<string, Provide
 export async function listProviderConfigs(): Promise<ProviderConfig[]> {
   const catalog = await getProviderConfigCatalog()
   return Object.values(catalog).sort((a, b) => {
+    if (a.providerID === AI_GATEWAY_PROVIDER_ID) return -1
+    if (b.providerID === AI_GATEWAY_PROVIDER_ID) return 1
     const aBuiltIn = a.providerID in PROVIDER_CONFIGS ? 0 : 1
     const bBuiltIn = b.providerID in PROVIDER_CONFIGS ? 0 : 1
     return aBuiltIn - bBuiltIn || a.displayName.localeCompare(b.displayName)
@@ -195,46 +227,103 @@ function getCachedProviderConfig(providerID: ModelProviderID): ProviderConfig {
 }
 
 async function fetchProviderConfigCatalog(): Promise<Record<string, ProviderConfig>> {
-  try {
-    const response = await fetch(MODELS_DEV_API_URL)
-    if (!response.ok) throw new Error(`${response.status} ${response.statusText}`)
-    const parsed = (await response.json()) as Record<string, ModelsDevProvider>
-    return mergeProviderCatalog(parsed)
-  } catch {
-    return { ...PROVIDER_CONFIGS }
-  }
-}
-
-function mergeProviderCatalog(modelsDevProviders: Record<string, ModelsDevProvider>): Record<string, ProviderConfig> {
   const catalog: Record<string, ProviderConfig> = { ...PROVIDER_CONFIGS }
-  for (const [providerID, provider] of Object.entries(modelsDevProviders)) {
-    if (!provider || typeof provider !== 'object') continue
-    const fromModelsDev = providerFromModelsDev(providerID, provider)
-    const builtin = PROVIDER_CONFIGS[providerID]
-    catalog[providerID] = builtin
-      ? {
-          ...builtin,
-          displayName: fromModelsDev.displayName || builtin.displayName,
-          envVars: fromModelsDev.envVars?.length ? fromModelsDev.envVars : builtin.envVars,
-          apiKeyEnvVar: fromModelsDev.apiKeyEnvVar ?? builtin.apiKeyEnvVar,
-          docURL: fromModelsDev.docURL ?? builtin.docURL,
-          logoURL: fromModelsDev.logoURL ?? builtin.logoURL,
-          npmPackage: fromModelsDev.npmPackage ?? builtin.npmPackage,
-          defaultModels: fromModelsDev.defaultModels.length ? fromModelsDev.defaultModels : builtin.defaultModels,
-          modelMetadata: {
-            ...(builtin.modelMetadata ?? {}),
-            ...(fromModelsDev.modelMetadata ?? {}),
-          },
-          modelsDevSource: true,
-        }
-      : fromModelsDev
+  const [modelsDevResult, gatewayResult] = await Promise.allSettled([
+    fetchModelsDevProviders(),
+    fetchGatewayModels(),
+  ])
+
+  if (modelsDevResult.status === 'fulfilled') {
+    mergeModelsDevCatalog(catalog, modelsDevResult.value)
+  }
+  if (gatewayResult.status === 'fulfilled') {
+    mergeGatewayCatalog(catalog, gatewayResult.value)
   }
   return catalog
 }
 
+async function fetchModelsDevProviders(): Promise<Record<string, ModelsDevProvider>> {
+  const response = await fetch(MODELS_DEV_API_URL)
+  if (!response.ok) throw new Error(`${response.status} ${response.statusText}`)
+  return (await response.json()) as Record<string, ModelsDevProvider>
+}
+
+async function fetchGatewayModels(): Promise<GatewayModel[]> {
+  const response = await fetch(AI_GATEWAY_MODELS_URL)
+  if (!response.ok) throw new Error(`${response.status} ${response.statusText}`)
+  const parsed = (await response.json()) as { data?: GatewayModel[] }
+  return Array.isArray(parsed.data) ? parsed.data : []
+}
+
+function mergeModelsDevCatalog(
+  catalog: Record<string, ProviderConfig>,
+  modelsDevProviders: Record<string, ModelsDevProvider>,
+): void {
+  for (const [providerID, provider] of Object.entries(modelsDevProviders)) {
+    if (!provider || typeof provider !== 'object') continue
+    const fromModelsDev = providerFromModelsDev(providerID, provider)
+    const existing = catalog[providerID]
+    catalog[providerID] = existing
+      ? {
+          ...existing,
+          displayName: fromModelsDev.displayName || existing.displayName,
+          envVars: fromModelsDev.envVars?.length ? fromModelsDev.envVars : existing.envVars,
+          apiKeyEnvVar: fromModelsDev.apiKeyEnvVar ?? existing.apiKeyEnvVar,
+          docURL: fromModelsDev.docURL ?? existing.docURL,
+          logoURL: fromModelsDev.logoURL ?? existing.logoURL,
+          npmPackage: fromModelsDev.npmPackage ?? existing.npmPackage,
+          defaultModels: fromModelsDev.defaultModels.length ? fromModelsDev.defaultModels : existing.defaultModels,
+          modelMetadata: mergeModelMetadata(existing.modelMetadata, fromModelsDev.modelMetadata),
+          modelsDevSource: true,
+        }
+      : fromModelsDev
+  }
+}
+
+function mergeGatewayCatalog(
+  catalog: Record<string, ProviderConfig>,
+  gatewayModels: GatewayModel[],
+): void {
+  const gatewayProvider = catalog[AI_GATEWAY_PROVIDER_ID] ?? PROVIDER_CONFIGS[AI_GATEWAY_PROVIDER_ID]!
+  const languageModels = gatewayModels.filter(model => model.type === 'language')
+  const gatewayMetadata: Record<string, ProviderModelMetadata> = {}
+  for (const model of languageModels) {
+    if (typeof model.id !== 'string' || !model.id.trim()) continue
+    gatewayMetadata[model.id] = normalizeGatewayModelMetadata(model)
+  }
+  catalog[AI_GATEWAY_PROVIDER_ID] = {
+    ...gatewayProvider,
+    defaultModels: Object.keys(gatewayMetadata).length
+      ? Object.keys(gatewayMetadata)
+      : gatewayProvider.defaultModels,
+    modelMetadata: mergeModelMetadata(gatewayProvider.modelMetadata, gatewayMetadata),
+    gatewaySource: true,
+  }
+}
+
+function mergeModelMetadata(
+  first: Record<string, ProviderModelMetadata> | undefined,
+  second: Record<string, ProviderModelMetadata> | undefined,
+): Record<string, ProviderModelMetadata> | undefined {
+  if (!first && !second) return undefined
+  const merged = { ...(first ?? {}) }
+  for (const [modelID, metadata] of Object.entries(second ?? {})) {
+    const current = merged[modelID]
+    merged[modelID] = current
+      ? {
+          ...current,
+          ...metadata,
+          catalogSources: mergeSources(current.catalogSources, metadata.catalogSources),
+          tags: Array.from(new Set([...(current.tags ?? []), ...(metadata.tags ?? [])])),
+        }
+      : metadata
+  }
+  return merged
+}
+
 function providerFromModelsDev(providerID: string, provider: ModelsDevProvider): ProviderConfig {
   const envVars = normalizeStringArray(provider.env)
-  const modelMetadata = normalizeProviderModels(provider.models)
+  const modelMetadata = normalizeProviderModels(providerID, provider.models)
   return {
     providerID,
     kind: inferProviderKind(providerID),
@@ -251,16 +340,23 @@ function providerFromModelsDev(providerID: string, provider: ModelsDevProvider):
   }
 }
 
-function normalizeProviderModels(models: unknown): Record<string, ProviderModelMetadata> {
+function normalizeProviderModels(
+  providerID: string,
+  models: unknown,
+): Record<string, ProviderModelMetadata> {
   if (!models || typeof models !== 'object') return {}
   const normalized: Record<string, ProviderModelMetadata> = {}
   for (const [modelID, model] of Object.entries(models as Record<string, ModelsDevModel>)) {
-    normalized[modelID] = normalizeModelMetadata(modelID, model)
+    normalized[modelID] = normalizeModelsDevModelMetadata(providerID, modelID, model)
   }
   return normalized
 }
 
-function normalizeModelMetadata(modelID: string, model: ModelsDevModel): ProviderModelMetadata {
+function normalizeModelsDevModelMetadata(
+  providerID: string,
+  modelID: string,
+  model: ModelsDevModel,
+): ProviderModelMetadata {
   const inputModalities = normalizeModalities(model?.modalities?.input)
   const outputModalities = normalizeModalities(model?.modalities?.output)
   return {
@@ -277,10 +373,45 @@ function normalizeModelMetadata(modelID: string, model: ModelsDevModel): Provide
     structuredOutput: model?.structured_output === true,
     vision: inputModalities.includes('image'),
     modalities: { input: inputModalities, output: outputModalities },
+    catalogSources: ['models.dev'],
+    modelsDevProviderId: providerID,
+  }
+}
+
+function normalizeGatewayModelMetadata(model: GatewayModel): ProviderModelMetadata {
+  const tags = normalizeStringArray(model.tags)
+  return {
+    id: model.id,
+    name: typeof model.name === 'string' ? model.name : undefined,
+    label: typeof model.name === 'string' ? model.name : model.id,
+    description: typeof model.description === 'string' ? model.description : undefined,
+    contextWindow: numberOrUndefined(model.context_window),
+    outputTokens: numberOrUndefined(model.max_tokens),
+    inputCost: gatewayCostPerMillion(model.pricing?.input),
+    outputCost: gatewayCostPerMillion(model.pricing?.output),
+    cacheReadCost: gatewayCostPerMillion(model.pricing?.input_cache_read),
+    reasoning: tags.includes('reasoning'),
+    toolCall: tags.includes('tool-use'),
+    structuredOutput: tags.includes('structured-output'),
+    vision: tags.includes('vision'),
+    modalities: {
+      input: [
+        'text',
+        ...(tags.includes('vision') ? ['image'] : []),
+        ...(tags.includes('file-input') ? ['file'] : []),
+      ],
+      output: ['text'],
+    },
+    catalogSources: ['gateway'],
+    gatewayModelId: model.id,
+    modelsDevProviderId: typeof model.owned_by === 'string' ? model.owned_by : undefined,
+    modelType: typeof model.type === 'string' ? model.type : undefined,
+    tags,
   }
 }
 
 function inferProviderKind(providerID: string): ModelProviderKind {
+  if (providerID === AI_GATEWAY_PROVIDER_ID) return 'ai-gateway'
   if (providerID === 'anthropic') return 'anthropic'
   if (providerID === 'minimax') return 'minimax'
   return 'openai-compatible'
@@ -317,39 +448,6 @@ export function getSelectedProviderConfig(): ProviderConfig {
   }
 }
 
-function getMetadataForModel(
-  metadata: Record<string, ProviderModelMetadata> | undefined,
-  modelID: string,
-): ProviderModelMetadata | undefined {
-  if (!metadata || !modelID) return undefined
-  const exact = metadata[modelID]
-  if (exact) return exact
-  const lowerModel = modelID.toLowerCase()
-  for (const [key, value] of Object.entries(metadata)) {
-    if (key.toLowerCase() === lowerModel) return value
-  }
-  return undefined
-}
-
-export function getSelectedProviderModelMetadata(
-  modelID: string,
-): ProviderModelMetadata | undefined {
-  const provider = getSelectedProviderConfig()
-  const direct = getMetadataForModel(provider.modelMetadata, modelID)
-  if (direct) return direct
-
-  const split = splitProviderModel(modelID)
-  if (split) {
-    const byModelID = getMetadataForModel(provider.modelMetadata, split.modelID)
-    if (byModelID) return byModelID
-  }
-
-  const defaultModel = provider.defaultModels[0]
-  return defaultModel
-    ? getMetadataForModel(provider.modelMetadata, defaultModel)
-    : undefined
-}
-
 export function getProviderDisplayName(providerID = getSelectedProviderID()): string {
   return getCachedProviderConfig(providerID).displayName ?? providerID
 }
@@ -358,7 +456,13 @@ export function getProviderModelMetadata(
   providerID: ModelProviderID,
   modelID: string,
 ): ProviderModelMetadata | undefined {
-  return getMetadataForModel(getCachedProviderConfig(providerID).modelMetadata, modelID)
+  return getCachedProviderConfig(providerID).modelMetadata?.[modelID]
+}
+
+export function getSelectedProviderModelMetadata(
+  modelID: string,
+): ProviderModelMetadata | undefined {
+  return getProviderModelMetadata(getSelectedProviderID(), modelID)
 }
 
 export function splitProviderModel(input: string): {
@@ -440,6 +544,10 @@ function getProviderEnvVars(provider: ProviderConfig): string[] {
   )
 }
 
+export function shouldUseAiGatewayProvider(): boolean {
+  return getSelectedProviderConfig().kind === 'ai-gateway'
+}
+
 export function shouldUseOpenAICompatibleProvider(): boolean {
   return getSelectedProviderConfig().kind === 'openai-compatible'
 }
@@ -465,6 +573,10 @@ export async function fetchProviderModels(params: {
       ? getSelectedProviderConfig()
       : await getProviderConfig(providerID)
 
+  if (provider.kind === 'ai-gateway') {
+    providerModelCache.set(providerID, provider.defaultModels)
+    return { models: provider.defaultModels }
+  }
   if (provider.kind !== 'openai-compatible') return { models: provider.defaultModels }
 
   const baseURL = params.baseURL ?? provider.baseURL
@@ -582,6 +694,19 @@ export async function fetchProviderBalance(params: {
   }
 }
 
+function mergeSources(
+  first: ProviderModelMetadata['catalogSources'],
+  second: ProviderModelMetadata['catalogSources'],
+): ProviderModelMetadata['catalogSources'] {
+  return Array.from(new Set([...(first ?? []), ...(second ?? [])]))
+}
+
+function gatewayCostPerMillion(value: unknown): number | undefined {
+  if (typeof value !== 'string' && typeof value !== 'number') return undefined
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed * 1_000_000 : undefined
+}
+
 function joinURL(baseURL: string, path: string): string {
   return `${baseURL.replace(/\/+$/, '')}/${path.replace(/^\/+/, '')}`
 }
@@ -678,5 +803,21 @@ type ModelsDevModel = {
     input?: unknown
     output?: unknown
     cache_read?: unknown
+  }
+}
+
+type GatewayModel = {
+  id: string
+  owned_by?: unknown
+  name?: unknown
+  description?: unknown
+  context_window?: unknown
+  max_tokens?: unknown
+  type?: unknown
+  tags?: unknown
+  pricing?: {
+    input?: unknown
+    output?: unknown
+    input_cache_read?: unknown
   }
 }
