@@ -289,6 +289,38 @@
   font-size: var(--fs-14);
 }
 
+.chat-thinking-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px 4px 9px;
+  border: 1px solid var(--c-border-soft);
+  border-radius: 999px;
+  background: var(--c-bg-soft);
+  color: var(--c-text-soft);
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1;
+  transition:
+    background 0.15s ease-out,
+    color 0.15s ease-out,
+    border-color 0.15s ease-out;
+}
+
+.chat-thinking-pill:hover {
+  background: var(--c-bg-hover);
+  color: var(--c-text);
+  border-color: var(--c-border);
+}
+
+.chat-thinking-pill > svg:first-child {
+  color: var(--c-accent);
+}
+
+.chat-thinking-pill > svg:last-child {
+  color: var(--c-text-meta);
+}
+
 .utility-view {
   display: grid;
   align-content: start;

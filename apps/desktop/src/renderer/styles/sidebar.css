@@ -249,6 +249,17 @@
   font-variant-numeric: tabular-nums;
 }
 
+.task-spinner {
+  color: var(--c-text-soft);
+  animation: sidebar-spin 0.9s linear infinite;
+}
+
+@keyframes sidebar-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .conversations {
   margin-top: var(--sp-7);
   gap: var(--sp-1);

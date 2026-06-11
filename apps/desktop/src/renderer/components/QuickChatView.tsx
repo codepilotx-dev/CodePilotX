@@ -1,12 +1,14 @@
 import React from 'react'
 import {
   AlertCircle,
+  ChevronRight,
   Columns2,
   Code2,
   Copy,
   Maximize2,
   MoreHorizontal,
   RotateCcw,
+  Sparkles,
   ThumbsDown,
   ThumbsUp,
 } from 'lucide-react'
@@ -103,7 +105,7 @@ export function QuickChatView(): React.ReactNode {
               ))
             )}
             {!isConversationLoading && showThinking ? (
-              <div className="assistant-thinking">正在思考</div>
+              <ThinkingPill />
             ) : null}
           </div>
         </div>
@@ -203,4 +205,34 @@ function getConversationTitle(messages: Message[]): string {
   const firstUserMessage = messages.find(message => message.role === 'user')
   const title = firstUserMessage?.text.trim().split(/\r?\n/)[0] ?? '新对话'
   return title.length > 28 ? `${title.slice(0, 28)}...` : title
+}
+
+function ThinkingPill(): React.ReactNode {
+  const [seconds, setSeconds] = React.useState(0)
+
+  React.useEffect(() => {
+    setSeconds(0)
+    const startedAt = Date.now()
+    const id = window.setInterval(() => {
+      setSeconds(Math.floor((Date.now() - startedAt) / 1000))
+    }, 1000)
+    return () => {
+      window.clearInterval(id)
+    }
+  }, [])
+
+  return (
+    <button className="chat-thinking-pill" type="button">
+      <Sparkles size={12} />
+      <span>已处理 {formatDuration(seconds)}</span>
+      <ChevronRight size={12} />
+    </button>
+  )
+}
+
+function formatDuration(totalSeconds: number): string {
+  if (totalSeconds < 60) return `${totalSeconds}s`
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return `${minutes}m ${seconds}s`
 }

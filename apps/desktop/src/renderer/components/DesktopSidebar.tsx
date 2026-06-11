@@ -11,6 +11,7 @@ import {
   Folder,
   FolderOpen,
   History,
+  Loader2,
   Pin,
   PinOff,
   Plus,
@@ -395,9 +396,15 @@ function SessionGroup({
               type="button"
             >
               <span className="task-title">{conversationTitle(session)}</span>
-              <span className="task-time">
-                {session.status === 'running' ? '运行中' : session.createdAt}
-              </span>
+              {session.status === 'running' ? (
+                <Loader2
+                  aria-label="运行中"
+                  className="task-spinner"
+                  size={12}
+                />
+              ) : (
+                <span className="task-time">{session.createdAt}</span>
+              )}
             </button>
             <div className="session-inline-actions">
               {session.pinnedAt ? (
