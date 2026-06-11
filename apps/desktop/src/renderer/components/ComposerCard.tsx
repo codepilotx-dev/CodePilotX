@@ -1,8 +1,11 @@
 ﻿import type React from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import * as Select from '@radix-ui/react-select'
 import {
   ArrowUp,
   Bot,
+  Check,
+  ChevronDown,
   Folder,
   FolderPlus,
   GitBranch,
@@ -187,45 +190,88 @@ export function ComposerCard({
             <IconButton onClick={onOpenFiles} title="添加上下文">
               <Plus size={18} />
             </IconButton>
-            <PopoverMenu
+            <Select.Root
               open={openDropdown === 'permission'}
-              autoWidth
-              onOpenChange={open => setOpenDropdown(open ? 'permission' : null)}
-              trigger={
-                <ChipButton
-                  active={openDropdown === 'permission'}
-                  className={getPermissionClassName(permissionMode)}
-                  title="选择权限模式"
-                >
-                  {getPermissionIcon(
-                    permissionMode,
-                    PERMISSION_TRIGGER_ICON_SIZE,
-                  )}
-                  <span>{selectedPermission?.label ?? '默认权限'}</span>
-                </ChipButton>
+              value={permissionMode}
+              onOpenChange={open =>
+                setOpenDropdown(open ? 'permission' : null)
               }
+              onValueChange={value => {
+                onPermissionChange(value as DesktopPermissionMode)
+                closeDropdown()
+              }}
             >
-              <div className="popover-section">
-                {permissionOptions.map(option => (
-                  <PopoverItem
-                    icon={getPermissionIcon(
-                      option.value,
-                      PERMISSION_MENU_ICON_SIZE,
-                    )}
-                    key={option.value}
-                    meta={option.detail}
-                    selected={option.value === permissionMode}
-                    withCheck
-                    onClick={() => {
-                      onPermissionChange(option.value)
-                      closeDropdown()
-                    }}
-                  >
-                    {option.label}
-                  </PopoverItem>
-                ))}
-              </div>
-            </PopoverMenu>
+              <Select.Trigger
+                aria-label="选择权限模式"
+                className={[
+                  'chip-button',
+                  getPermissionClassName(permissionMode),
+                  openDropdown === 'permission' ? 'active' : '',
+                  'permission-select-trigger',
+                ].join(' ')}
+                title="选择权限模式"
+              >
+                {getPermissionIcon(
+                  permissionMode,
+                  PERMISSION_TRIGGER_ICON_SIZE,
+                )}
+                <span className="permission-select-trigger-label">
+                  {selectedPermission?.label ?? '默认权限'}
+                </span>
+                <Select.Icon asChild>
+                  <ChevronDown size={12} strokeWidth={2.4} />
+                </Select.Icon>
+              </Select.Trigger>
+              <Select.Portal>
+                <Select.Content
+                  align="start"
+                  avoidCollisions={false}
+                  className="permission-select-content"
+                  position="popper"
+                  side="bottom"
+                  sideOffset={6}
+                >
+                  <Select.Viewport className="permission-select-viewport">
+                    {permissionOptions.map(option => (
+                      <Select.Item
+                        className="permission-select-item"
+                        key={option.value}
+                        value={option.value}
+                      >
+                        <span className="permission-select-item-icon">
+                          {getPermissionIcon(
+                            option.value,
+                            PERMISSION_MENU_ICON_SIZE,
+                          )}
+                        </span>
+                        <span className="permission-select-item-body">
+                          <Select.ItemText>{option.label}</Select.ItemText>
+                          {option.detail ? (
+                            <span className="permission-select-item-detail">
+                              {option.value === 'acceptEdits' ? (
+                                <>
+                                  <span>
+                                    {option.detail.replace(/了解更多.*$/, '')}
+                                  </span>
+                                  <span className="permission-select-item-detail-more">
+                                    了解更多
+                                  </span>
+                                </>
+                              ) : (
+                                option.detail
+                              )}
+                            </span>
+                          ) : null}
+                        </span>
+                        <Select.ItemIndicator className="permission-select-item-indicator">
+                          <Check size={14} strokeWidth={2.5} />
+                        </Select.ItemIndicator>
+                      </Select.Item>
+                    ))}
+                  </Select.Viewport>
+                </Select.Content>
+              </Select.Portal>
+            </Select.Root>
           </div>
 
           <div className="toolbar-right">
