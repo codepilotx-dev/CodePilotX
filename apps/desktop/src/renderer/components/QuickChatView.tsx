@@ -1,4 +1,4 @@
-import React from 'react'
+import React from "react";
 import {
   AlertCircle,
   ChevronRight,
@@ -11,11 +11,11 @@ import {
   Sparkles,
   ThumbsDown,
   ThumbsUp,
-} from 'lucide-react'
-import { useQuickChatContext } from '../context/QuickChatContext.js'
-import type { Message } from '../uiTypes.js'
-import { MarkdownMessage } from './MarkdownMessage.js'
-import { Tooltip, TooltipProvider } from './ui/Tooltip.js'
+} from "lucide-react";
+import { useQuickChatContext } from "../context/QuickChatContext.js";
+import type { Message } from "../uiTypes.js";
+import { MarkdownMessage } from "./MarkdownMessage.js";
+import { Tooltip, TooltipProvider } from "./ui/Tooltip.js";
 
 export function QuickChatView(): React.ReactNode {
   const {
@@ -26,33 +26,33 @@ export function QuickChatView(): React.ReactNode {
     onDismissError,
     sessionStatus,
     composer,
-  } = useQuickChatContext()
+  } = useQuickChatContext();
 
   const conversationMessages = messages.filter(
-    message => message.role !== 'system',
-  )
-  const hasMessages = conversationMessages.length > 0
+    (message) => message.role !== "system",
+  );
+  const hasMessages = conversationMessages.length > 0;
   const showThinking =
-    (sessionStatus === 'running' || sessionStatus === 'waiting') &&
+    (sessionStatus === "running" || sessionStatus === "waiting") &&
     !conversationMessages.some(
-      message =>
-        message.role === 'assistant' &&
+      (message) =>
+        message.role === "assistant" &&
         message.streaming &&
         Boolean(message.text.trim()),
-    )
+    );
 
   if (hasMessages || isConversationRoute) {
     return (
       <section
         className={`quick-chat-view active ${
-          isConversationRoute ? 'conversation-route' : ''
+          isConversationRoute ? "conversation-route" : ""
         }`}
       >
         <header className="chat-session-header">
           <div className="chat-session-title">
             <span>
               {isConversationLoading
-                ? '加载对话中'
+                ? "加载对话中"
                 : getConversationTitle(conversationMessages)}
             </span>
             <Tooltip content="更多操作">
@@ -110,25 +110,26 @@ export function QuickChatView(): React.ReactNode {
             {isConversationLoading ? (
               <div className="assistant-thinking">加载对话中</div>
             ) : (
-              conversationMessages.map(message => (
+              conversationMessages.map((message) => (
                 <ChatMessage message={message} key={message.id} />
               ))
             )}
-            {!isConversationLoading && showThinking ? (
-              <ThinkingPill />
-            ) : null}
+            {!isConversationLoading && showThinking ? <ThinkingPill /> : null}
           </div>
         </div>
 
         {composer ? <div className="chat-composer">{composer}</div> : null}
       </section>
-    )
+    );
   }
 
   return (
     <section className="quick-chat-view">
       <div className="quick-chat-hero">
-        <h1>我们应该在 ClaudeCode 中构建什么?</h1>
+        <h1>
+          我们应该在 <span className="project-name">ClaudeCode</span>{" "}
+          中构建什么?
+        </h1>
       </div>
 
       {errorMessage ? (
@@ -144,11 +145,11 @@ export function QuickChatView(): React.ReactNode {
       ) : null}
       {composer ? <div className="chat-composer">{composer}</div> : null}
     </section>
-  )
+  );
 }
 
 function ChatMessage({ message }: { message: Message }): React.ReactNode {
-  if (message.role === 'user') {
+  if (message.role === "user") {
     return (
       <article className="chat-message-row user">
         <div className="user-message-bubble">{message.text}</div>
@@ -156,15 +157,18 @@ function ChatMessage({ message }: { message: Message }): React.ReactNode {
           <Copy size={14} />
         </MessageActionButton>
       </article>
-    )
+    );
   }
 
   return (
     <article className={`chat-message-row ${message.role}`}>
       <div className="assistant-message-body">
-        <MarkdownMessage text={message.text} streaming={Boolean(message.streaming)} />
+        <MarkdownMessage
+          text={message.text}
+          streaming={Boolean(message.streaming)}
+        />
       </div>
-      {message.role === 'assistant' && message.text.trim() ? (
+      {message.role === "assistant" && message.text.trim() ? (
         <div className="assistant-message-actions">
           <MessageActionButton label="复制" tip="复制" text={message.text}>
             <Copy size={14} />
@@ -191,7 +195,7 @@ function ChatMessage({ message }: { message: Message }): React.ReactNode {
         </div>
       ) : null}
     </article>
-  )
+  );
 }
 
 function MessageActionButton({
@@ -200,10 +204,10 @@ function MessageActionButton({
   tip,
   text,
 }: {
-  children: React.ReactNode
-  label: string
-  tip: string
-  text: string
+  children: React.ReactNode;
+  label: string;
+  tip: string;
+  text: string;
 }): React.ReactNode {
   return (
     <Tooltip content={tip}>
@@ -211,35 +215,35 @@ function MessageActionButton({
         aria-label={label}
         className="message-action"
         onClick={() => {
-          void navigator.clipboard?.writeText(text).catch(() => undefined)
+          void navigator.clipboard?.writeText(text).catch(() => undefined);
         }}
         type="button"
       >
         {children}
       </button>
     </Tooltip>
-  )
+  );
 }
 
 function getConversationTitle(messages: Message[]): string {
-  const firstUserMessage = messages.find(message => message.role === 'user')
-  const title = firstUserMessage?.text.trim().split(/\r?\n/)[0] ?? '新对话'
-  return title.length > 28 ? `${title.slice(0, 28)}...` : title
+  const firstUserMessage = messages.find((message) => message.role === "user");
+  const title = firstUserMessage?.text.trim().split(/\r?\n/)[0] ?? "新对话";
+  return title.length > 28 ? `${title.slice(0, 28)}...` : title;
 }
 
 function ThinkingPill(): React.ReactNode {
-  const [seconds, setSeconds] = React.useState(0)
+  const [seconds, setSeconds] = React.useState(0);
 
   React.useEffect(() => {
-    setSeconds(0)
-    const startedAt = Date.now()
+    setSeconds(0);
+    const startedAt = Date.now();
     const id = window.setInterval(() => {
-      setSeconds(Math.floor((Date.now() - startedAt) / 1000))
-    }, 1000)
+      setSeconds(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
     return () => {
-      window.clearInterval(id)
-    }
-  }, [])
+      window.clearInterval(id);
+    };
+  }, []);
 
   return (
     <button className="chat-thinking-pill" type="button">
@@ -247,12 +251,12 @@ function ThinkingPill(): React.ReactNode {
       <span>已处理 {formatDuration(seconds)}</span>
       <ChevronRight size={12} />
     </button>
-  )
+  );
 }
 
 function formatDuration(totalSeconds: number): string {
-  if (totalSeconds < 60) return `${totalSeconds}s`
-  const minutes = Math.floor(totalSeconds / 60)
-  const seconds = totalSeconds % 60
-  return `${minutes}m ${seconds}s`
+  if (totalSeconds < 60) return `${totalSeconds}s`;
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}m ${seconds}s`;
 }

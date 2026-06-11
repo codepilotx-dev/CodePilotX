@@ -113,13 +113,26 @@
   text-align: center;
 }
 
-.quick-chat-hero h1 {
+.quick-chat-hero h1,
+.quick-chat-hero {
   width: min(100%, 900px);
   color: var(--c-text-strong);
   font-size: 28px;
   font-weight: 400;
   letter-spacing: 0;
   line-height: 1.2;
+}
+
+.quick-chat-hero .project-name {
+  padding: 3px 5px;
+  border-radius: 20px;
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
+}
+
+.quick-chat-hero .project-name:hover {
+  background: var(--c-bg-hover);
 }
 
 .utility-view-header h1 {
