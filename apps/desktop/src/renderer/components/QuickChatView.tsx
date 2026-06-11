@@ -56,6 +56,32 @@ export function QuickChatView(): React.ReactNode {
               <MoreHorizontal size={16} />
             </button>
           </div>
+          <div className="chat-session-actions">
+            <button
+              aria-label="在编辑器中打开"
+              className="message-action"
+              title="在编辑器中打开"
+              type="button"
+            >
+              <Code2 size={15} strokeWidth={1.8} />
+            </button>
+            <button
+              aria-label="分屏"
+              className="message-action"
+              title="分屏"
+              type="button"
+            >
+              <Columns2 size={15} strokeWidth={1.8} />
+            </button>
+            <button
+              aria-label="展开"
+              className="message-action"
+              title="展开"
+              type="button"
+            >
+              <Maximize2 size={15} strokeWidth={1.8} />
+            </button>
+          </div>
         </header>
 
         <div className="quick-chat-content">

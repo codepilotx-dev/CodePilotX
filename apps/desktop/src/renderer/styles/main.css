@@ -66,6 +66,8 @@
   min-height: 38px;
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
   padding: 0 4px 14px;
   border-bottom: 1px solid var(--c-border-soft);
   flex-shrink: 0;
@@ -85,6 +87,13 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.chat-session-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
 }
 
 .quick-chat-content {
