@@ -272,13 +272,8 @@ export function DesktopSidebar({
                 <div className="project-block" key={item.path}>
                   <button
                     aria-current={workspace?.path === item.path ? 'page' : undefined}
-                    className={
-                      workspace?.path === item.path
-                        ? 'project-row active'
-                        : 'project-row'
-                    }
+                    className="project-row"
                     onClick={() => onOpenWorkspace(item)}
-                    title={item.path}
                     type="button"
                   >
                     <span className="nav-icon">

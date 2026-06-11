@@ -110,7 +110,6 @@
 .nav-item:hover,
 .nav-item.active,
 .project-row:hover,
-.project-row.active,
 .task-row:hover,
 .task-row.active,
 .conversation-item:hover,
@@ -120,7 +119,6 @@
 }
 
 .nav-item.active,
-.project-row.active,
 .task-row.active,
 .conversation-item.active {
   color: var(--c-text-strong);
@@ -290,6 +288,7 @@
 }
 
 .footer-button {
+  flex: 1;
   height: 32px;
   display: inline-flex;
   align-items: center;
@@ -297,6 +296,7 @@
   padding: 0 4px;
   color: var(--c-text-soft);
   font-size: var(--fs-14);
+  text-decoration: none;
 }
 
 .collapse-button {

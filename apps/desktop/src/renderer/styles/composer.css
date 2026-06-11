@@ -27,13 +27,13 @@
   color: #e07a1f;
 }
 
-:root[data-theme='dark'] .permission-warning-banner {
+:root[data-theme="dark"] .permission-warning-banner {
   background: rgba(255, 167, 38, 0.08);
   color: #ffc46b;
   border-bottom-color: rgba(255, 167, 38, 0.18);
 }
 
-:root[data-theme='dark'] .permission-warning-banner > svg {
+:root[data-theme="dark"] .permission-warning-banner > svg {
   color: #ffb84d;
 }
 
@@ -43,7 +43,7 @@
   border-radius: 20px;
   background: var(--c-bg);
   box-shadow: var(--sh-card);
-  min-height: 120px;
+  min-height: 100px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -243,7 +243,7 @@
   background: var(--c-bg-row-hover);
 }
 
-.permission-select-item[data-state='checked'] {
+.permission-select-item[data-state="checked"] {
   color: var(--c-text-strong);
 }
 

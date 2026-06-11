@@ -43,7 +43,11 @@ export function QuickChatView(): React.ReactNode {
 
   if (hasMessages || isConversationRoute) {
     return (
-      <section className="quick-chat-view active">
+      <section
+        className={`quick-chat-view active ${
+          isConversationRoute ? 'conversation-route' : ''
+        }`}
+      >
         <header className="chat-session-header">
           <div className="chat-session-title">
             <span>
