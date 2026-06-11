@@ -229,11 +229,15 @@ export function ComposerCard({
                   active={openDropdown === 'model'}
                   className="subtle"
                   showDot
-                  title="选择模型"
+                  title={
+                    selectedModel?.label ?? selectedModelPreset
+                  }
                 >
                   <span>
-                    {selectedModel?.label ?? selectedModelPreset} ·{' '}
-                    {selectedThinking?.label ?? '默认'}
+                    {selectedModel?.shortLabel ??
+                      selectedModel?.label ??
+                      selectedModelPreset}{' '}
+                    · {selectedThinking?.label ?? '默认'}
                   </span>
                 </ChipButton>
               }
