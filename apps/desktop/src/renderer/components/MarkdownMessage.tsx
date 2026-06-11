@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useEffect, useMemo, useRef } from 'react'
 import { marked } from 'marked'
 import xssLib from 'xss'
 import hljs from 'highlight.js/lib/common'
@@ -6,7 +6,6 @@ import hljs from 'highlight.js/lib/common'
 // 初始化 marked：GFM 表格、删除线、自动识别围栏代码块语言、走 highlight.js。
 // 注意 marked.parse 在 v18 默认是异步友好的，这里强制同步返回字符串。
 const renderer = new marked.Renderer()
-const originalCode = renderer.code.bind(renderer)
 renderer.code = function (token: marked.Tokens.Code): string {
   const rawLang = (token.lang ?? '').trim().split(/\s+/)[0] ?? ''
   let highlighted = token.text
@@ -23,9 +22,19 @@ renderer.code = function (token: marked.Tokens.Code): string {
     highlighted = escapeHtml(token.text)
   }
   const langLabel = detectedLang ? detectedLang.toUpperCase() : 'TEXT'
+  const safeCode = token.text.replace(/<\//g, '<\\/')
   return [
-    '<div class="md-code-block">',
-    `<div class="md-code-header"><span class="md-code-lang">${langLabel}</span></div>`,
+    '<div class="md-code-block" data-md-code>',
+    '<div class="md-code-header">',
+    `<span class="md-code-lang">${langLabel}</span>`,
+    `<button type="button" class="md-code-copy" data-md-copy data-md-code-text="${escapeAttr(
+      safeCode,
+    )}" aria-label="复制代码">`,
+    '<span class="md-code-copy-default"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></span>',
+    '<span class="md-code-copy-done"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>',
+    '<span class="md-code-copy-label">复制</span>',
+    '</button>',
+    '</div>',
     `<pre class="md-code-pre"><code class="hljs language-${escapeAttr(
       detectedLang,
     )}">${highlighted}</code></pre>`,
@@ -98,6 +107,32 @@ type Props = {
 
 export function MarkdownMessage({ text, streaming = false }: Props): React.ReactNode {
   const html = useMemo(() => renderMarkdown(text, streaming), [text, streaming])
+  const bodyRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    const root = bodyRef.current
+    if (!root) return
+    function handleClick(event: MouseEvent): void {
+      const target = event.target
+      if (!(target instanceof Element)) return
+      const button = target.closest<HTMLButtonElement>('[data-md-copy]')
+      if (!button) return
+      const code = button.getAttribute('data-md-code-text') ?? ''
+      void navigator.clipboard
+        ?.writeText(code)
+        .then(() => {
+          button.classList.add('is-copied')
+          window.setTimeout(() => {
+            button.classList.remove('is-copied')
+          }, 1500)
+        })
+        .catch(() => undefined)
+    }
+    root.addEventListener('click', handleClick)
+    return () => {
+      root.removeEventListener('click', handleClick)
+    }
+  }, [html])
 
   if (!html) return null
 
@@ -106,6 +141,7 @@ export function MarkdownMessage({ text, streaming = false }: Props): React.React
       className="md-body"
       // 已经过 xss 白名单清洗
       dangerouslySetInnerHTML={{ __html: html }}
+      ref={bodyRef}
     />
   )
 }

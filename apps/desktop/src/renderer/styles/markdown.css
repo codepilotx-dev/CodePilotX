@@ -148,7 +148,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 5px 10px;
+  padding: 5px 6px 5px 10px;
   border-bottom: 1px solid var(--c-border-faint);
   background: var(--c-bg-mask);
 }
@@ -159,6 +159,49 @@
   font-size: 10.5px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+.md-body .md-code-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 7px;
+  border-radius: 5px;
+  color: var(--c-text-meta);
+  font-size: 11px;
+  line-height: 1;
+  transition:
+    background 0.15s ease-out,
+    color 0.15s ease-out;
+}
+
+.md-body .md-code-copy:hover {
+  background: var(--c-bg-hover);
+  color: var(--c-text);
+}
+
+.md-body .md-code-copy.is-copied {
+  color: #16a34a;
+}
+
+:root[data-theme='dark'] .md-body .md-code-copy.is-copied {
+  color: #50fa7b;
+}
+
+.md-body .md-code-copy-done {
+  display: none;
+}
+
+.md-body .md-code-copy.is-copied .md-code-copy-default {
+  display: none;
+}
+
+.md-body .md-code-copy.is-copied .md-code-copy-done {
+  display: inline-flex;
+}
+
+.md-body .md-code-copy.is-copied .md-code-copy-label::before {
+  content: '已';
 }
 
 .md-body .md-code-pre {

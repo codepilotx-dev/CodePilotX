@@ -237,3 +237,32 @@
   white-space: normal;
   overflow-wrap: anywhere;
 }
+
+.tooltip-content {
+  z-index: 100;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--c-ink);
+  color: var(--c-text-on-accent);
+  font-size: 12px;
+  line-height: 1.4;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  user-select: none;
+  animation: tooltip-fade-in 120ms ease-out;
+}
+
+.tooltip-arrow {
+  fill: var(--c-ink);
+}
+
+@keyframes tooltip-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

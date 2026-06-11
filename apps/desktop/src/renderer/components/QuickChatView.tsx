@@ -15,6 +15,7 @@ import {
 import { useQuickChatContext } from '../context/QuickChatContext.js'
 import type { Message } from '../uiTypes.js'
 import { MarkdownMessage } from './MarkdownMessage.js'
+import { Tooltip, TooltipProvider } from './ui/Tooltip.js'
 
 export function QuickChatView(): React.ReactNode {
   const {
@@ -50,39 +51,44 @@ export function QuickChatView(): React.ReactNode {
                 ? '加载对话中'
                 : getConversationTitle(conversationMessages)}
             </span>
-            <button
-              aria-label="更多会话操作"
-              className="message-action"
-              type="button"
-            >
-              <MoreHorizontal size={16} />
-            </button>
+            <Tooltip content="更多操作">
+              <button
+                aria-label="更多会话操作"
+                className="message-action"
+                type="button"
+              >
+                <MoreHorizontal size={16} />
+              </button>
+            </Tooltip>
           </div>
           <div className="chat-session-actions">
-            <button
-              aria-label="在编辑器中打开"
-              className="message-action"
-              title="在编辑器中打开"
-              type="button"
-            >
-              <Code2 size={15} strokeWidth={1.8} />
-            </button>
-            <button
-              aria-label="分屏"
-              className="message-action"
-              title="分屏"
-              type="button"
-            >
-              <Columns2 size={15} strokeWidth={1.8} />
-            </button>
-            <button
-              aria-label="展开"
-              className="message-action"
-              title="展开"
-              type="button"
-            >
-              <Maximize2 size={15} strokeWidth={1.8} />
-            </button>
+            <Tooltip content="在编辑器中打开">
+              <button
+                aria-label="在编辑器中打开"
+                className="message-action"
+                type="button"
+              >
+                <Code2 size={15} strokeWidth={1.8} />
+              </button>
+            </Tooltip>
+            <Tooltip content="分屏">
+              <button
+                aria-label="分屏"
+                className="message-action"
+                type="button"
+              >
+                <Columns2 size={15} strokeWidth={1.8} />
+              </button>
+            </Tooltip>
+            <Tooltip content="展开">
+              <button
+                aria-label="展开"
+                className="message-action"
+                type="button"
+              >
+                <Maximize2 size={15} strokeWidth={1.8} />
+              </button>
+            </Tooltip>
           </div>
         </header>
 
@@ -142,7 +148,7 @@ function ChatMessage({ message }: { message: Message }): React.ReactNode {
     return (
       <article className="chat-message-row user">
         <div className="user-message-bubble">{message.text}</div>
-        <MessageActionButton label="复制" text={message.text}>
+        <MessageActionButton label="复制" tip="复制" text={message.text}>
           <Copy size={14} />
         </MessageActionButton>
       </article>
@@ -156,22 +162,28 @@ function ChatMessage({ message }: { message: Message }): React.ReactNode {
       </div>
       {message.role === 'assistant' && message.text.trim() ? (
         <div className="assistant-message-actions">
-          <MessageActionButton label="复制" text={message.text}>
+          <MessageActionButton label="复制" tip="复制" text={message.text}>
             <Copy size={14} />
           </MessageActionButton>
-          <button aria-label="赞" className="message-action" type="button">
-            <ThumbsUp size={14} />
-          </button>
-          <button aria-label="踩" className="message-action" type="button">
-            <ThumbsDown size={14} />
-          </button>
-          <button
-            aria-label="重新生成"
-            className="message-action"
-            type="button"
-          >
-            <RotateCcw size={14} />
-          </button>
+          <Tooltip content="赞">
+            <button aria-label="赞" className="message-action" type="button">
+              <ThumbsUp size={14} />
+            </button>
+          </Tooltip>
+          <Tooltip content="踩">
+            <button aria-label="踩" className="message-action" type="button">
+              <ThumbsDown size={14} />
+            </button>
+          </Tooltip>
+          <Tooltip content="重新生成">
+            <button
+              aria-label="重新生成"
+              className="message-action"
+              type="button"
+            >
+              <RotateCcw size={14} />
+            </button>
+          </Tooltip>
         </div>
       ) : null}
     </article>
@@ -181,23 +193,27 @@ function ChatMessage({ message }: { message: Message }): React.ReactNode {
 function MessageActionButton({
   children,
   label,
+  tip,
   text,
 }: {
   children: React.ReactNode
   label: string
+  tip: string
   text: string
 }): React.ReactNode {
   return (
-    <button
-      aria-label={label}
-      className="message-action"
-      onClick={() => {
-        void navigator.clipboard?.writeText(text).catch(() => undefined)
-      }}
-      type="button"
-    >
-      {children}
-    </button>
+    <Tooltip content={tip}>
+      <button
+        aria-label={label}
+        className="message-action"
+        onClick={() => {
+          void navigator.clipboard?.writeText(text).catch(() => undefined)
+        }}
+        type="button"
+      >
+        {children}
+      </button>
+    </Tooltip>
   )
 }
 
