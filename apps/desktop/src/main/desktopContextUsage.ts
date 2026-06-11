@@ -7,6 +7,9 @@ type UsageLike = {
   output_tokens?: unknown
   cache_creation_input_tokens?: unknown
   cache_read_input_tokens?: unknown
+  reasoning_tokens?: unknown
+  prompt_cache_hit_tokens?: unknown
+  prompt_cache_miss_tokens?: unknown
 }
 
 export function buildDesktopContextUsage(params: {
@@ -22,22 +25,37 @@ export function buildDesktopContextUsage(params: {
   const cacheReadInputTokens = numberOrZero(
     params.usage.cache_read_input_tokens,
   )
+  const reasoningTokens = numberOrZero(params.usage.reasoning_tokens)
+  const promptCacheHitTokens = numberOrZero(
+    params.usage.prompt_cache_hit_tokens,
+  )
+  const promptCacheMissTokens = numberOrZero(
+    params.usage.prompt_cache_miss_tokens,
+  )
 
   if (
     inputTokens === 0 &&
     outputTokens === 0 &&
     cacheCreationInputTokens === 0 &&
-    cacheReadInputTokens === 0
+    cacheReadInputTokens === 0 &&
+    reasoningTokens === 0 &&
+    promptCacheHitTokens === 0 &&
+    promptCacheMissTokens === 0
   ) {
     return null
   }
 
   const contextWindow = getContextWindowForModel(params.model, getSdkBetas())
+  const hasOpenAICompatibleUsageDetails =
+    params.usage.reasoning_tokens !== undefined ||
+    params.usage.prompt_cache_hit_tokens !== undefined ||
+    params.usage.prompt_cache_miss_tokens !== undefined
   const usedTokens =
     inputTokens +
     outputTokens +
-    cacheCreationInputTokens +
-    cacheReadInputTokens
+    (hasOpenAICompatibleUsageDetails
+      ? 0
+      : cacheCreationInputTokens + cacheReadInputTokens)
   const remainingTokens = Math.max(0, contextWindow - usedTokens)
   const usedPercent = clampPercent(
     Math.round((usedTokens / contextWindow) * 100),
@@ -54,6 +72,9 @@ export function buildDesktopContextUsage(params: {
     outputTokens,
     cacheCreationInputTokens,
     cacheReadInputTokens,
+    reasoningTokens,
+    promptCacheHitTokens,
+    promptCacheMissTokens,
     usedTokens,
     remainingTokens,
     usedPercent,

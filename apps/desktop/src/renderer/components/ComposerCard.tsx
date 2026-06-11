@@ -214,6 +214,17 @@ export function ComposerCard({
         contextUsage.contextWindow,
       )} token`
     : '暂无上下文统计'
+  const promptCacheHitTokens = contextUsage?.promptCacheHitTokens ?? 0
+  const promptCacheMissTokens = contextUsage?.promptCacheMissTokens ?? 0
+  const promptCacheTotalTokens =
+    promptCacheHitTokens + promptCacheMissTokens
+  const promptCacheHitRate =
+    promptCacheTotalTokens > 0
+      ? Math.round((promptCacheHitTokens / promptCacheTotalTokens) * 100)
+      : 0
+  const reasoningTokens = contextUsage?.reasoningTokens ?? 0
+  const showContextUsageDetails =
+    promptCacheTotalTokens > 0 || reasoningTokens > 0
 
   return (
     <div className="composer">
@@ -345,6 +356,30 @@ export function ComposerCard({
                         {contextUsage.remainingPercent}%
                       </strong>
                       <span>已使用 {contextUsedText}</span>
+                      {showContextUsageDetails ? (
+                        <>
+                          {promptCacheTotalTokens > 0 ? (
+                            <>
+                              <span>缓存详情：</span>
+                              <span>
+                                命中缓存{' '}
+                                {formatCompactNumber(promptCacheHitTokens)}{' '}
+                                (命中率 {promptCacheHitRate}%)
+                              </span>
+                              <span>
+                                未命中缓存{' '}
+                                {formatCompactNumber(promptCacheMissTokens)}
+                              </span>
+                            </>
+                          ) : null}
+                          {reasoningTokens > 0 ? (
+                            <span>
+                              推理 token:{' '}
+                              {formatCompactNumber(reasoningTokens)}
+                            </span>
+                          ) : null}
+                        </>
+                      ) : null}
                       <span>
                         {contextUsage.provider
                           ? `${contextUsage.provider} · `

@@ -88,6 +88,7 @@ type ChatCompletionChunk = {
     prompt_cache_hit_tokens?: number
     prompt_cache_miss_tokens?: number
     prompt_tokens_details?: { cached_tokens?: number }
+    completion_tokens_details?: { reasoning_tokens?: number }
   }
 }
 
@@ -108,7 +109,14 @@ type ChatCompletionResponse = {
     prompt_cache_hit_tokens?: number
     prompt_cache_miss_tokens?: number
     prompt_tokens_details?: { cached_tokens?: number }
+    completion_tokens_details?: { reasoning_tokens?: number }
   }
+}
+
+type OpenAICompatibleUsage = NonNullableUsage & {
+  prompt_cache_hit_tokens?: number
+  prompt_cache_miss_tokens?: number
+  reasoning_tokens?: number
 }
 
 export async function* queryOpenAICompatibleModelWithStreaming({
@@ -489,7 +497,7 @@ function usageFromOpenAI(usage: {
   prompt_cache_miss_tokens?: number
   prompt_tokens_details?: { cached_tokens?: number }
   completion_tokens_details?: { reasoning_tokens?: number }
-}): NonNullableUsage {
+}): OpenAICompatibleUsage {
   const promptTokens = usage.prompt_tokens ?? 0
   const hit =
     usage.prompt_cache_hit_tokens ??
@@ -503,10 +511,13 @@ function usageFromOpenAI(usage: {
       : promptTokens)
   return {
     ...EMPTY_USAGE,
-    input_tokens: miss,
+    input_tokens: promptTokens,
     output_tokens: usage.completion_tokens ?? 0,
     cache_read_input_tokens: hit,
     cache_creation_input_tokens: 0,
+    prompt_cache_hit_tokens: hit,
+    prompt_cache_miss_tokens: miss,
+    reasoning_tokens: usage.completion_tokens_details?.reasoning_tokens ?? 0,
   }
 }
 

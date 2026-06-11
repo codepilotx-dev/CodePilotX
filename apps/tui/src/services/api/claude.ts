@@ -3041,6 +3041,10 @@ export function updateUsage(
   if (!partUsage) {
     return { ...usage }
   }
+  const openAICompatibleUsageDetails = updateOpenAICompatibleUsageDetails(
+    usage,
+    partUsage,
+  )
   return {
     input_tokens:
       partUsage.input_tokens !== null && partUsage.input_tokens > 0
@@ -3096,6 +3100,7 @@ export function updateUsage(
     inference_geo: usage.inference_geo,
     iterations: partUsage.iterations ?? usage.iterations,
     speed: (partUsage as BetaUsage).speed ?? usage.speed,
+    ...openAICompatibleUsageDetails,
   }
 }
 
@@ -3107,6 +3112,10 @@ export function accumulateUsage(
   totalUsage: Readonly<NonNullableUsage>,
   messageUsage: Readonly<NonNullableUsage>,
 ): NonNullableUsage {
+  const openAICompatibleUsageDetails = accumulateOpenAICompatibleUsageDetails(
+    totalUsage,
+    messageUsage,
+  )
   return {
     input_tokens: totalUsage.input_tokens + messageUsage.input_tokens,
     cache_creation_input_tokens:
@@ -3147,6 +3156,79 @@ export function accumulateUsage(
     inference_geo: messageUsage.inference_geo, // Use the most recent
     iterations: messageUsage.iterations, // Use the most recent
     speed: messageUsage.speed, // Use the most recent
+    ...openAICompatibleUsageDetails,
+  }
+}
+
+type OpenAICompatibleUsageDetails = {
+  prompt_cache_hit_tokens?: number
+  prompt_cache_miss_tokens?: number
+  reasoning_tokens?: number
+}
+
+function updateOpenAICompatibleUsageDetails(
+  usage: Readonly<NonNullableUsage>,
+  partUsage: BetaMessageDeltaUsage,
+): OpenAICompatibleUsageDetails {
+  const current = usage as OpenAICompatibleUsageDetails
+  const next = partUsage as OpenAICompatibleUsageDetails
+  return {
+    ...(next.prompt_cache_hit_tokens !== undefined ||
+    current.prompt_cache_hit_tokens !== undefined
+      ? {
+          prompt_cache_hit_tokens:
+            next.prompt_cache_hit_tokens ?? current.prompt_cache_hit_tokens ?? 0,
+        }
+      : {}),
+    ...(next.prompt_cache_miss_tokens !== undefined ||
+    current.prompt_cache_miss_tokens !== undefined
+      ? {
+          prompt_cache_miss_tokens:
+            next.prompt_cache_miss_tokens ??
+            current.prompt_cache_miss_tokens ??
+            0,
+        }
+      : {}),
+    ...(next.reasoning_tokens !== undefined ||
+    current.reasoning_tokens !== undefined
+      ? {
+          reasoning_tokens:
+            next.reasoning_tokens ?? current.reasoning_tokens ?? 0,
+        }
+      : {}),
+  }
+}
+
+function accumulateOpenAICompatibleUsageDetails(
+  totalUsage: Readonly<NonNullableUsage>,
+  messageUsage: Readonly<NonNullableUsage>,
+): OpenAICompatibleUsageDetails {
+  const total = totalUsage as OpenAICompatibleUsageDetails
+  const message = messageUsage as OpenAICompatibleUsageDetails
+  return {
+    ...(total.prompt_cache_hit_tokens !== undefined ||
+    message.prompt_cache_hit_tokens !== undefined
+      ? {
+          prompt_cache_hit_tokens:
+            (total.prompt_cache_hit_tokens ?? 0) +
+            (message.prompt_cache_hit_tokens ?? 0),
+        }
+      : {}),
+    ...(total.prompt_cache_miss_tokens !== undefined ||
+    message.prompt_cache_miss_tokens !== undefined
+      ? {
+          prompt_cache_miss_tokens:
+            (total.prompt_cache_miss_tokens ?? 0) +
+            (message.prompt_cache_miss_tokens ?? 0),
+        }
+      : {}),
+    ...(total.reasoning_tokens !== undefined ||
+    message.reasoning_tokens !== undefined
+      ? {
+          reasoning_tokens:
+            (total.reasoning_tokens ?? 0) + (message.reasoning_tokens ?? 0),
+        }
+      : {}),
   }
 }
 

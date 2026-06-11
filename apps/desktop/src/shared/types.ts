@@ -248,6 +248,9 @@ export type DesktopContextUsage = {
   outputTokens: number
   cacheCreationInputTokens: number
   cacheReadInputTokens: number
+  reasoningTokens: number
+  promptCacheHitTokens: number
+  promptCacheMissTokens: number
   usedTokens: number
   remainingTokens: number
   usedPercent: number
