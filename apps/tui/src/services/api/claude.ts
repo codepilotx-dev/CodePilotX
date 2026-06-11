@@ -256,7 +256,11 @@ import {
   withRetry,
 } from './withRetry.js'
 import { queryOpenAICompatibleModelWithStreaming } from './openaiCompatible.js'
-import { shouldUseOpenAICompatibleProvider } from '../../utils/model/providerConfig.js'
+import { queryMiniMaxWithAiSdkStreaming } from './minimax.js'
+import {
+  shouldUseMiniMaxProvider,
+  shouldUseOpenAICompatibleProvider,
+} from '../../utils/model/providerConfig.js'
 
 // Define a type that represents valid JSON values
 type JsonValue = string | number | boolean | null | JsonObject | JsonArray
@@ -723,6 +727,29 @@ export async function queryModelWithoutStreaming({
   signal: AbortSignal
   options: Options
 }): Promise<AssistantMessage> {
+  if (shouldUseMiniMaxProvider()) {
+    let assistantMessage: AssistantMessage | undefined
+    for await (const message of queryMiniMaxWithAiSdkStreaming({
+      messages,
+      systemPrompt,
+      tools,
+      signal,
+      _thinkingConfig: thinkingConfig,
+      options,
+    })) {
+      if (message.type === 'assistant') {
+        assistantMessage = message
+      }
+    }
+    if (!assistantMessage) {
+      if (signal.aborted) {
+        throw new APIUserAbortError()
+      }
+      throw new Error('No assistant message found')
+    }
+    return assistantMessage
+  }
+
   if (shouldUseOpenAICompatibleProvider()) {
     let assistantMessage: AssistantMessage | undefined
     for await (const message of queryOpenAICompatibleModelWithStreaming({
@@ -792,6 +819,18 @@ export async function* queryModelWithStreaming({
   StreamEvent | AssistantMessage | SystemAPIErrorMessage,
   void
 > {
+  if (shouldUseMiniMaxProvider()) {
+    yield* queryMiniMaxWithAiSdkStreaming({
+      messages,
+      systemPrompt,
+      tools,
+      signal,
+      _thinkingConfig: thinkingConfig,
+      options,
+    })
+    return
+  }
+
   if (shouldUseOpenAICompatibleProvider()) {
     yield* queryOpenAICompatibleModelWithStreaming({
       messages,

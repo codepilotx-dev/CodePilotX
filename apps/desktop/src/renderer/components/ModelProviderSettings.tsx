@@ -55,6 +55,7 @@ export function ModelProviderSettings(): React.ReactNode {
     [providerID, providers],
   )
   const isDeepSeek = providerID === 'deepseek'
+  const isMiniMax = providerID === 'minimax'
   const isCustom = providerID === 'custom'
   const selectedProviderState =
     providerState?.selectedProviderID === providerID ? providerState : null
@@ -255,6 +256,8 @@ export function ModelProviderSettings(): React.ReactNode {
         description={
           isDeepSeek
             ? 'DeepSeek 使用内置 OpenAI-compatible 地址。'
+            : isMiniMax
+              ? 'MiniMax 使用内置 Anthropic-compatible 地址。'
             : isCustom
               ? 'Custom provider 需要填写 OpenAI-compatible Base URL。'
               : '内置 provider 的 Base URL 由应用管理。'
@@ -332,6 +335,34 @@ export function ModelProviderSettings(): React.ReactNode {
               <a
                 className="settings-row-link"
                 href="https://api-docs.deepseek.com/"
+                onClick={openExternalLink}
+                rel="noreferrer"
+                target="_blank"
+              >
+                文档
+              </a>
+            </div>
+          }
+        />
+      ) : null}
+      {isMiniMax ? (
+        <SettingsRow
+          title="MiniMax 状态"
+          description="主对话使用 MiniMax Anthropic-compatible 文本 API；图片、语音、视频、音乐、文件和额度通过内置 MiniMax 工具调用。"
+          control={
+            <div className="settings-provider-links">
+              <a
+                className="settings-row-link"
+                href="https://platform.minimaxi.com/user-center/basic-information/interface-key"
+                onClick={openExternalLink}
+                rel="noreferrer"
+                target="_blank"
+              >
+                API key
+              </a>
+              <a
+                className="settings-row-link"
+                href="https://platform.minimaxi.com/docs"
                 onClick={openExternalLink}
                 rel="noreferrer"
                 target="_blank"

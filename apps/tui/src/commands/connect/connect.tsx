@@ -78,7 +78,7 @@ function ConnectProvider({
       <Box flexDirection="column">
         <Box marginBottom={1} flexDirection="column">
           <Text color="remember" bold={true}>Connect provider</Text>
-          <Text dimColor={true}>Choose an OpenAI-compatible provider.</Text>
+          <Text dimColor={true}>Choose a model provider.</Text>
         </Box>
         <Select
           options={[
@@ -96,6 +96,11 @@ function ConnectProvider({
               value: 'deepseek',
               label: 'DeepSeek',
               description: 'https://api.deepseek.com · 启用硬盘缓存 (命中 0.025元/M)',
+            },
+            {
+              value: 'minimax',
+              label: 'MiniMax',
+              description: 'https://api.minimaxi.com/anthropic/v1',
             },
             {
               value: 'groq',

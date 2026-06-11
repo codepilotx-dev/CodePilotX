@@ -64,10 +64,14 @@ export type ModelProviderID =
   | 'openai'
   | 'openrouter'
   | 'deepseek'
+  | 'minimax'
   | 'groq'
   | 'custom'
 
-export type DesktopModelProviderKind = 'anthropic' | 'openai-compatible'
+export type DesktopModelProviderKind =
+  | 'anthropic'
+  | 'openai-compatible'
+  | 'minimax'
 
 export type DesktopModelProviderSummary = {
   providerID: ModelProviderID

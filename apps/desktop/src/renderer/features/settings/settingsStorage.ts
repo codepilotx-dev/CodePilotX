@@ -108,6 +108,7 @@ function isModelProviderID(value: unknown): value is ModelProviderID {
     value === "openai" ||
     value === "openrouter" ||
     value === "deepseek" ||
+    value === "minimax" ||
     value === "groq" ||
     value === "custom"
   );

@@ -6,10 +6,11 @@ export type ModelProviderID =
   | 'openai'
   | 'openrouter'
   | 'deepseek'
+  | 'minimax'
   | 'groq'
   | 'custom'
 
-export type ModelProviderKind = 'anthropic' | 'openai-compatible'
+export type ModelProviderKind = 'anthropic' | 'openai-compatible' | 'minimax'
 
 export type ProviderConfig = {
   providerID: ModelProviderID
@@ -93,6 +94,22 @@ export const PROVIDER_CONFIGS: Record<ModelProviderID, ProviderConfig> = {
     baseURL: 'https://api.deepseek.com',
     apiKeyEnvVar: 'DEEPSEEK_API_KEY',
     defaultModels: ['deepseek-v4-pro', 'deepseek-v4-flash'],
+  },
+  minimax: {
+    providerID: 'minimax',
+    kind: 'minimax',
+    displayName: 'MiniMax',
+    baseURL: 'https://api.minimaxi.com/anthropic/v1',
+    apiKeyEnvVar: 'MINIMAX_API_KEY',
+    defaultModels: [
+      'MiniMax-M2.7',
+      'MiniMax-M2.7-highspeed',
+      'MiniMax-M2.5',
+      'MiniMax-M2.5-highspeed',
+      'MiniMax-M2.1',
+      'MiniMax-M2.1-highspeed',
+      'MiniMax-M2',
+    ],
   },
   groq: {
     providerID: 'groq',
@@ -218,6 +235,10 @@ export function getProviderApiKeySource(providerID = getSelectedProviderID()):
 
 export function shouldUseOpenAICompatibleProvider(): boolean {
   return getSelectedProviderConfig().kind === 'openai-compatible'
+}
+
+export function shouldUseMiniMaxProvider(): boolean {
+  return getSelectedProviderConfig().kind === 'minimax'
 }
 
 export function getCachedProviderModels(

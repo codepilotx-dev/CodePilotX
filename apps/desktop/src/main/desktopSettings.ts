@@ -36,6 +36,7 @@ const PROVIDERS = new Set<ModelProviderID>([
   'openai',
   'openrouter',
   'deepseek',
+  'minimax',
   'groq',
   'custom',
 ])
