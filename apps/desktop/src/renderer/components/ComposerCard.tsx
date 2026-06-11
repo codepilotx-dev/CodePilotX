@@ -1,6 +1,7 @@
 ﻿import type React from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
+  ArrowUp,
   Bot,
   Folder,
   FolderPlus,
@@ -10,7 +11,6 @@ import {
   Monitor,
   Plus,
   Search,
-  Send,
   ShieldAlert,
   ShieldCheck,
   Square,
@@ -307,7 +307,7 @@ export function ComposerCard({
               {isRunning ? (
                 <Square size={12} fill="currentColor" />
               ) : (
-                <Send size={24} />
+                <ArrowUp size={18} strokeWidth={2.4} />
               )}
             </button>
           </div>
