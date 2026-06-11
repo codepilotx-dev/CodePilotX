@@ -1,6 +1,6 @@
-import type React from 'react'
-import { Link, useLocation } from 'react-router-dom'
-import { useEffect, useMemo, useState } from 'react'
+import type React from "react";
+import { Link, useLocation } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
 import {
   Archive,
   Bot,
@@ -10,6 +10,7 @@ import {
   Clock3,
   Folder,
   FolderOpen,
+  FolderGit2,
   History,
   Loader2,
   Pin,
@@ -19,47 +20,67 @@ import {
   Settings2,
   Smartphone,
   SquarePen,
-} from 'lucide-react'
+} from "lucide-react";
 import type {
   DesktopSessionMetadataPatch,
   DesktopWorkspace,
-} from '../../shared/types.js'
-import type { AppView, SessionListItem } from '../uiTypes.js'
-import { IconButton } from './ui/IconButton.js'
+} from "../../shared/types.js";
+import type { AppView, SessionListItem } from "../uiTypes.js";
+import { IconButton } from "./ui/IconButton.js";
 
 type Props = {
-  activeSessionId: string | null
-  collapsed: boolean
-  maxWidth: number
-  minWidth: number
-  recentWorkspaces: DesktopWorkspace[]
-  sessions: SessionListItem[]
-  width: number
-  workspace: DesktopWorkspace | null
-  onChooseWorkspace: () => void
-  onCreateSession: () => void
-  onOpenWorkspace: (workspace: DesktopWorkspace) => void
-  onSelectSession: (session: SessionListItem) => void
-  onSetWidth: (width: number) => void
+  activeSessionId: string | null;
+  collapsed: boolean;
+  maxWidth: number;
+  minWidth: number;
+  recentWorkspaces: DesktopWorkspace[];
+  sessions: SessionListItem[];
+  width: number;
+  workspace: DesktopWorkspace | null;
+  onChooseWorkspace: () => void;
+  onCreateSession: () => void;
+  onOpenWorkspace: (workspace: DesktopWorkspace) => void;
+  onSelectSession: (session: SessionListItem) => void;
+  onSetWidth: (width: number) => void;
   onUpdateSessionMetadata: (
     sessionId: string,
     patch: DesktopSessionMetadataPatch,
-  ) => void
-}
+  ) => void;
+};
 
 const PRIMARY_ITEMS: Array<{
-  view: AppView
-  label: string
-  icon: React.ReactNode
-  path: string
+  view: AppView;
+  label: string;
+  icon: React.ReactNode;
+  path: string;
 }> = [
-  { view: 'quickChat', label: '新对话', icon: <SquarePen size={16} />, path: '/' },
-  { view: 'search', label: '搜索', icon: <Search size={16} />, path: '/search' },
-  { view: 'plugins', label: '插件', icon: <Boxes size={16} />, path: '/plugins' },
-  { view: 'automation', label: '自动化', icon: <Clock3 size={16} />, path: '/automation' },
-]
+  {
+    view: "quickChat",
+    label: "新对话",
+    icon: <SquarePen size={16} />,
+    path: "/",
+  },
+  {
+    view: "search",
+    label: "搜索",
+    icon: <Search size={16} />,
+    path: "/search",
+  },
+  {
+    view: "plugins",
+    label: "插件",
+    icon: <Boxes size={16} />,
+    path: "/plugins",
+  },
+  {
+    view: "automation",
+    label: "自动化",
+    icon: <Clock3 size={16} />,
+    path: "/automation",
+  },
+];
 
-const GROUP_LIMIT = 5
+const GROUP_LIMIT = 5;
 
 export function DesktopSidebar({
   activeSessionId,
@@ -77,98 +98,99 @@ export function DesktopSidebar({
   onSetWidth,
   onUpdateSessionMetadata,
 }: Props): React.ReactNode {
-  const location = useLocation()
-  const [resizing, setResizing] = useState(false)
-  const [relativeNow, setRelativeNow] = useState(() => Date.now())
-  const [start, setStart] = useState({ x: 0, width })
+  const location = useLocation();
+  const [resizing, setResizing] = useState(false);
+  const [relativeNow, setRelativeNow] = useState(() => Date.now());
+  const [start, setStart] = useState({ x: 0, width });
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(
     {},
-  )
+  );
+  const [hoveredProjectPath, setHoveredProjectPath] = useState<string | null>(null);
 
   useEffect(() => {
-    const timer = window.setInterval(() => setRelativeNow(Date.now()), 30_000)
-    return () => window.clearInterval(timer)
-  }, [])
+    const timer = window.setInterval(() => setRelativeNow(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
-    if (!resizing) return
+    if (!resizing) return;
 
     function handlePointerMove(event: PointerEvent): void {
-      onSetWidth(start.width + event.clientX - start.x)
+      onSetWidth(start.width + event.clientX - start.x);
     }
 
     function stopResize(): void {
-      setResizing(false)
-      document.body.style.cursor = ''
-      document.body.style.userSelect = ''
+      setResizing(false);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
     }
 
-    document.addEventListener('pointermove', handlePointerMove)
-    document.addEventListener('pointerup', stopResize)
-    document.addEventListener('pointercancel', stopResize)
-    document.body.style.cursor = 'col-resize'
-    document.body.style.userSelect = 'none'
+    document.addEventListener("pointermove", handlePointerMove);
+    document.addEventListener("pointerup", stopResize);
+    document.addEventListener("pointercancel", stopResize);
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
     return () => {
-      document.removeEventListener('pointermove', handlePointerMove)
-      document.removeEventListener('pointerup', stopResize)
-      document.removeEventListener('pointercancel', stopResize)
-      document.body.style.cursor = ''
-      document.body.style.userSelect = ''
-    }
-  }, [onSetWidth, resizing, start.width, start.x])
+      document.removeEventListener("pointermove", handlePointerMove);
+      document.removeEventListener("pointerup", stopResize);
+      document.removeEventListener("pointercancel", stopResize);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+  }, [onSetWidth, resizing, start.width, start.x]);
 
   const visibleSessions = useMemo(
-    () => sessions.filter(session => !session.archivedAt),
+    () => sessions.filter((session) => !session.archivedAt),
     [sessions],
-  )
+  );
   const pinnedSessions = useMemo(
     () =>
       visibleSessions
-        .filter(session => session.pinnedAt)
+        .filter((session) => session.pinnedAt)
         .sort((left, right) => compareTimestamp(right.pinnedAt, left.pinnedAt)),
     [visibleSessions],
-  )
+  );
   const unpinnedSessions = useMemo(
-    () => visibleSessions.filter(session => !session.pinnedAt),
+    () => visibleSessions.filter((session) => !session.pinnedAt),
     [visibleSessions],
-  )
+  );
   const standaloneSessions = useMemo(
-    () => unpinnedSessions.filter(session => session.standalone),
+    () => unpinnedSessions.filter((session) => session.standalone),
     [unpinnedSessions],
-  )
+  );
   const projectWorkspaces = useMemo(
     () => mergeProjectWorkspaces(recentWorkspaces, unpinnedSessions),
     [recentWorkspaces, unpinnedSessions],
-  )
+  );
 
   function startResize(event: React.PointerEvent<HTMLDivElement>): void {
-    if (collapsed) return
-    event.preventDefault()
-    setStart({ x: event.clientX, width })
-    setResizing(true)
+    if (collapsed) return;
+    event.preventDefault();
+    setStart({ x: event.clientX, width });
+    setResizing(true);
   }
 
   function handleResizeKey(event: React.KeyboardEvent<HTMLDivElement>): void {
-    if (collapsed) return
-    const step = event.shiftKey ? 32 : 8
-    if (event.key === 'ArrowLeft') {
-      event.preventDefault()
-      onSetWidth(width - step)
-    } else if (event.key === 'ArrowRight') {
-      event.preventDefault()
-      onSetWidth(width + step)
-    } else if (event.key === 'Home') {
-      event.preventDefault()
-      onSetWidth(minWidth)
-    } else if (event.key === 'End') {
-      event.preventDefault()
-      onSetWidth(maxWidth)
+    if (collapsed) return;
+    const step = event.shiftKey ? 32 : 8;
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      onSetWidth(width - step);
+    } else if (event.key === "ArrowRight") {
+      event.preventDefault();
+      onSetWidth(width + step);
+    } else if (event.key === "Home") {
+      event.preventDefault();
+      onSetWidth(minWidth);
+    } else if (event.key === "End") {
+      event.preventDefault();
+      onSetWidth(maxWidth);
     }
   }
 
   function isActiveView(view: AppView): boolean {
-    if (view === 'quickChat') return location.pathname === '/'
-    return location.pathname === `/${view}`
+    if (view === "quickChat") return location.pathname === "/";
+    return location.pathname === `/${view}`;
   }
 
   function visibleGroupItems(
@@ -177,43 +199,47 @@ export function DesktopSidebar({
   ): SessionListItem[] {
     return expandedGroups[groupKey]
       ? groupSessions
-      : groupSessions.slice(0, GROUP_LIMIT)
+      : groupSessions.slice(0, GROUP_LIMIT);
   }
 
   function toggleGroup(groupKey: string): void {
-    setExpandedGroups(current => ({
+    setExpandedGroups((current) => ({
       ...current,
       [groupKey]: !current[groupKey],
-    }))
+    }));
   }
 
   function pinSession(session: SessionListItem): void {
-    onUpdateSessionMetadata(session.id, { pinnedAt: new Date().toISOString() })
+    onUpdateSessionMetadata(session.id, { pinnedAt: new Date().toISOString() });
   }
 
   function unpinSession(session: SessionListItem): void {
-    onUpdateSessionMetadata(session.id, { pinnedAt: null })
+    onUpdateSessionMetadata(session.id, { pinnedAt: null });
   }
 
   function archiveSession(session: SessionListItem): void {
-    onUpdateSessionMetadata(session.id, { archivedAt: new Date().toISOString() })
+    onUpdateSessionMetadata(session.id, {
+      archivedAt: new Date().toISOString(),
+    });
   }
 
   return (
     <aside
       aria-label="侧边栏"
       className={[
-        'desktop-sidebar',
-        collapsed ? 'is-collapsed' : '',
-        resizing ? 'is-resizing' : '',
-      ].join(' ')}
-      style={{ '--sidebar-current-w': `${width}px` } as React.CSSProperties}
+        "desktop-sidebar",
+        collapsed ? "is-collapsed" : "",
+        resizing ? "is-resizing" : "",
+      ].join(" ")}
+      style={{ "--sidebar-current-w": `${width}px` } as React.CSSProperties}
     >
       <div className="sidebar-content">
         <section className="nav-section primary">
-          {PRIMARY_ITEMS.map(item => (
+          {PRIMARY_ITEMS.map((item) => (
             <Link
-              className={isActiveView(item.view) ? 'nav-item active' : 'nav-item'}
+              className={
+                isActiveView(item.view) ? "nav-item active" : "nav-item"
+              }
               key={item.view}
               to={item.path}
             >
@@ -231,7 +257,7 @@ export function DesktopSidebar({
               groupKey="pinned"
               isExpanded={expandedGroups.pinned === true}
               now={relativeNow}
-              sessions={visibleGroupItems('pinned', pinnedSessions)}
+              sessions={visibleGroupItems("pinned", pinnedSessions)}
               totalCount={pinnedSessions.length}
               onArchiveSession={archiveSession}
               onPinSession={pinSession}
@@ -262,22 +288,35 @@ export function DesktopSidebar({
           {projectWorkspaces.length === 0 ? (
             <p className="sidebar-empty">暂无最近项目</p>
           ) : (
-            projectWorkspaces.map(item => {
-              const groupKey = `project:${item.path}`
+            projectWorkspaces.map((item) => {
+              const groupKey = `project:${item.path}`;
               const workspaceSessions = unpinnedSessions.filter(
-                session =>
+                (session) =>
                   !session.standalone && session.workspacePath === item.path,
-              )
+              );
               return (
                 <div className="project-block" key={item.path}>
                   <button
-                    aria-current={workspace?.path === item.path ? 'page' : undefined}
+                    aria-current={
+                      workspace?.path === item.path ? "page" : undefined
+                    }
                     className="project-row"
+                    onMouseEnter={() => setHoveredProjectPath(item.path)}
+                    onMouseLeave={() =>
+                      setHoveredProjectPath(current =>
+                        current === item.path ? null : current,
+                      )
+                    }
                     onClick={() => onOpenWorkspace(item)}
                     type="button"
                   >
                     <span className="nav-icon">
-                      <Folder size={15} />
+                      {item.isGitRepo === true &&
+                      hoveredProjectPath === item.path ? (
+                        <FolderGit2 size={15} />
+                      ) : (
+                        <FolderOpen size={15} />
+                      )}
                     </span>
                     <span className="project-name">{item.name}</span>
                   </button>
@@ -297,7 +336,7 @@ export function DesktopSidebar({
                     />
                   ) : null}
                 </div>
-              )
+              );
             })
           )}
         </section>
@@ -312,7 +351,7 @@ export function DesktopSidebar({
               groupKey="standalone"
               isExpanded={expandedGroups.standalone === true}
               now={relativeNow}
-              sessions={visibleGroupItems('standalone', standaloneSessions)}
+              sessions={visibleGroupItems("standalone", standaloneSessions)}
               totalCount={standaloneSessions.length}
               onArchiveSession={archiveSession}
               onPinSession={pinSession}
@@ -331,11 +370,7 @@ export function DesktopSidebar({
           </span>
           <span>设置</span>
         </Link>
-        <IconButton
-          className="mobile-button"
-          onClick={() => {}}
-          title="移动端"
-        >
+        <IconButton className="mobile-button" onClick={() => {}} title="移动端">
           <Smartphone size={17} />
         </IconButton>
       </div>
@@ -357,7 +392,7 @@ export function DesktopSidebar({
       </div>
       <History className="sidebar-history-watermark" size={14} />
     </aside>
-  )
+  );
 }
 
 function SessionGroup({
@@ -373,32 +408,32 @@ function SessionGroup({
   onToggleExpanded,
   onUnpinSession,
 }: {
-  activeSessionId: string | null
-  groupKey: string
-  isExpanded: boolean
-  now: number
-  sessions: SessionListItem[]
-  totalCount: number
-  onArchiveSession: (session: SessionListItem) => void
-  onPinSession: (session: SessionListItem) => void
-  onSelectSession: (session: SessionListItem) => void
-  onToggleExpanded: (groupKey: string) => void
-  onUnpinSession: (session: SessionListItem) => void
+  activeSessionId: string | null;
+  groupKey: string;
+  isExpanded: boolean;
+  now: number;
+  sessions: SessionListItem[];
+  totalCount: number;
+  onArchiveSession: (session: SessionListItem) => void;
+  onPinSession: (session: SessionListItem) => void;
+  onSelectSession: (session: SessionListItem) => void;
+  onToggleExpanded: (groupKey: string) => void;
+  onUnpinSession: (session: SessionListItem) => void;
 }): React.ReactNode {
-  const [hoveredSessionId, setHoveredSessionId] = useState<string | null>(null)
+  const [hoveredSessionId, setHoveredSessionId] = useState<string | null>(null);
 
   return (
     <>
       <ul className="task-list">
-        {sessions.map(session => (
+        {sessions.map((session) => (
           <li
             className={
-              session.id === activeSessionId ? 'task-row active' : 'task-row'
+              session.id === activeSessionId ? "task-row active" : "task-row"
             }
             key={session.id}
             onMouseEnter={() => setHoveredSessionId(session.id)}
             onMouseLeave={() =>
-              setHoveredSessionId(current =>
+              setHoveredSessionId((current) =>
                 current === session.id ? null : current,
               )
             }
@@ -411,12 +446,8 @@ function SessionGroup({
               <span className="task-title">{conversationTitle(session)}</span>
             </button>
             <div className="task-trailing">
-              {session.status === 'running' ? (
-                <Loader2
-                  aria-label="???"
-                  className="task-spinner"
-                  size={12}
-                />
+              {session.status === "running" ? (
+                <Loader2 aria-label="???" className="task-spinner" size={12} />
               ) : hoveredSessionId === session.id ? (
                 <div className="session-inline-actions">
                   {session.pinnedAt ? (
@@ -462,61 +493,57 @@ function SessionGroup({
           onClick={() => onToggleExpanded(groupKey)}
           type="button"
         >
-          {isExpanded ? (
-            <ChevronDown size={13} />
-          ) : (
-            <ChevronRight size={13} />
-          )}
-          <span>{isExpanded ? '??' : '????'}</span>
+          {isExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+          <span>{isExpanded ? "??" : "????"}</span>
         </button>
       ) : null}
     </>
-  )
+  );
 }
 
 function conversationTitle(session: SessionListItem): string {
-  return session.sessionName ?? session.workspaceName
+  return session.sessionName ?? session.workspaceName;
 }
 
 function compareTimestamp(
   left: string | null | undefined,
   right: string | null | undefined,
 ): number {
-  return new Date(left ?? 0).getTime() - new Date(right ?? 0).getTime()
+  return new Date(left ?? 0).getTime() - new Date(right ?? 0).getTime();
 }
 
-const MINUTE_MS = 60_000
-const HOUR_MS = 60 * MINUTE_MS
-const DAY_MS = 24 * HOUR_MS
+const MINUTE_MS = 60_000;
+const HOUR_MS = 60 * MINUTE_MS;
+const DAY_MS = 24 * HOUR_MS;
 
 function formatRelativeConversationTime(
   timestamp: string | null | undefined,
   now: number,
 ): string {
-  const time = new Date(timestamp ?? '').getTime()
-  if (Number.isNaN(time)) return '刚刚'
+  const time = new Date(timestamp ?? "").getTime();
+  if (Number.isNaN(time)) return "刚刚";
 
-  const elapsed = Math.max(0, now - time)
-  if (elapsed < MINUTE_MS) return '刚刚'
-  if (elapsed < HOUR_MS) return `${Math.floor(elapsed / MINUTE_MS)} 分`
-  if (elapsed < DAY_MS) return `${Math.floor(elapsed / HOUR_MS)} 时`
-  return `${Math.floor(elapsed / DAY_MS)} 天`
+  const elapsed = Math.max(0, now - time);
+  if (elapsed < MINUTE_MS) return "刚刚";
+  if (elapsed < HOUR_MS) return `${Math.floor(elapsed / MINUTE_MS)} 分`;
+  if (elapsed < DAY_MS) return `${Math.floor(elapsed / HOUR_MS)} 时`;
+  return `${Math.floor(elapsed / DAY_MS)} 天`;
 }
 
 function mergeProjectWorkspaces(
   recentWorkspaces: DesktopWorkspace[],
   sessions: SessionListItem[],
 ): DesktopWorkspace[] {
-  const byPath = new Map<string, DesktopWorkspace>()
+  const byPath = new Map<string, DesktopWorkspace>();
   for (const workspace of recentWorkspaces) {
-    byPath.set(workspace.path, workspace)
+    byPath.set(workspace.path, workspace);
   }
   for (const session of sessions) {
-    if (session.standalone || byPath.has(session.workspacePath)) continue
+    if (session.standalone || byPath.has(session.workspacePath)) continue;
     byPath.set(session.workspacePath, {
       name: session.workspaceName,
       path: session.workspacePath,
-    })
+    });
   }
-  return [...byPath.values()]
+  return [...byPath.values()];
 }
