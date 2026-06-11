@@ -69,8 +69,8 @@
   padding-left: 22px;
 }
 
-.md-body li {
-  margin: 2px 0;
+.assistant-message-body .md-body li {
+  margin: 10px 0;
 }
 
 .md-body li > p {
