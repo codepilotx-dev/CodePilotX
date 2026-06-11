@@ -24,6 +24,7 @@ import {
   getSelectedProviderID,
 } from '../../utils/model/providerConfig.js'
 import { asSystemPrompt, type SystemPrompt } from '../../utils/systemPromptType.js'
+import type { ThinkingConfig } from '../../utils/thinking.js'
 
 const DEFAULT_OPENAI_MAX_TOKENS = 8192
 // DeepSeek v4 输出上限 384K，模型端默认截断粒度比 OpenAI 大。
@@ -66,6 +67,7 @@ type ChatCompletionChunk = {
   choices?: Array<{
     delta?: {
       content?: string | null
+      reasoning_content?: string | null
       tool_calls?: Array<{
         index?: number
         id?: string
@@ -91,6 +93,7 @@ type ChatCompletionResponse = {
   choices?: Array<{
     message?: {
       content?: string | null
+      reasoning_content?: string | null
       tool_calls?: OpenAIToolCall[]
     }
     finish_reason?: string | null
@@ -108,12 +111,14 @@ export async function* queryOpenAICompatibleModelWithStreaming({
   systemPrompt,
   tools,
   signal,
+  thinkingConfig,
   options,
 }: {
   messages: Message[]
   systemPrompt: SystemPrompt
   tools: Tools
   signal: AbortSignal
+  thinkingConfig?: ThinkingConfig
   options: Options
 }): AsyncGenerator<StreamEvent | AssistantMessage, void> {
   const providerID = getSelectedProviderID()
@@ -142,7 +147,24 @@ export async function* queryOpenAICompatibleModelWithStreaming({
       normalizeMessagesForAPI(messages, tools),
     )
     const apiTools = await buildOpenAITools(tools, options)
-    const sysPromptBlocks = isDeepSeekProvider(providerID)
+    const isDeepSeek = isDeepSeekProvider(providerID)
+    const deepSeekThinkingParams = isDeepSeek
+      ? deepSeekThinkingRequestParams(thinkingConfig)
+      : {}
+    const deepSeekThinkingEnabled =
+      isDeepSeek && deepSeekThinkingParams.thinking?.type === 'enabled'
+    const toolParams =
+      apiTools.length > 0
+        ? {
+            tools: apiTools,
+            ...(isDeepSeek ? {} : { tool_choice: 'auto' as const }),
+          }
+        : {}
+    const temperatureParams =
+      !deepSeekThinkingEnabled && options.temperatureOverride !== undefined
+        ? { temperature: options.temperatureOverride }
+        : {}
+    const sysPromptBlocks = isDeepSeek
       ? buildDeepSeekSystemBlocks(systemPrompt)
       : [
           {
@@ -152,16 +174,18 @@ export async function* queryOpenAICompatibleModelWithStreaming({
         ]
     const requestBody = {
       model: options.model,
-      messages: [...sysPromptBlocks, ...toOpenAIMessages(normalizedMessages)],
-      ...(apiTools.length > 0 && { tools: apiTools, tool_choice: 'auto' }),
+      messages: [
+        ...sysPromptBlocks,
+        ...toOpenAIMessages(normalizedMessages, providerID),
+      ],
+      ...toolParams,
       max_tokens:
         options.maxOutputTokensOverride ?? defaultMaxTokensForModel(options.model, providerID),
       stream: true,
       stream_options: { include_usage: true },
-      ...(options.temperatureOverride !== undefined && {
-        temperature: options.temperatureOverride,
-      }),
-      ...(isDeepSeekProvider(providerID) && {
+      ...temperatureParams,
+      ...deepSeekThinkingParams,
+      ...(isDeepSeek && {
         user_id: resolveDeepSeekUserId(options),
       }),
     }
@@ -171,7 +195,7 @@ export async function* queryOpenAICompatibleModelWithStreaming({
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
-        ...(isDeepSeekProvider(providerID) && { 'X-User-Id': resolveDeepSeekUserId(options) }),
+        ...(isDeepSeek && { 'X-User-Id': resolveDeepSeekUserId(options) }),
       },
       body: JSON.stringify(requestBody),
       signal,
@@ -184,12 +208,13 @@ export async function* queryOpenAICompatibleModelWithStreaming({
       throw new Error('Provider returned an empty response body')
     }
 
-    const { content, toolCalls, usage, finishReason, requestID } =
+    const { content, reasoningContent, toolCalls, usage, finishReason, requestID } =
       await readOpenAIStream(response)
 
     const assistant = createAssistantMessage({
       model: options.model,
       content,
+      reasoningContent,
       toolCalls,
       usage,
       finishReason,
@@ -252,13 +277,16 @@ function betaToolToOpenAITool(schema: BetaToolUnion): OpenAITool {
   }
 }
 
-function toOpenAIMessages(messages: (Message & { message?: unknown })[]): ChatMessage[] {
+function toOpenAIMessages(
+  messages: (Message & { message?: unknown })[],
+  providerID: string,
+): ChatMessage[] {
   const result: ChatMessage[] = []
   for (const message of messages) {
     if (message.type === 'user') {
       result.push(...userMessageToOpenAI(message))
     } else if (message.type === 'assistant') {
-      result.push(assistantMessageToOpenAI(message))
+      result.push(assistantMessageToOpenAI(message, providerID))
     }
   }
   return result
@@ -307,7 +335,7 @@ function userMessageToOpenAI(message: Message): ChatMessage[] {
   return messages
 }
 
-function assistantMessageToOpenAI(message: Message): ChatMessage {
+function assistantMessageToOpenAI(message: Message, providerID: string): ChatMessage {
   const content = message.message.content
   const text: string[] = []
   const toolCalls: OpenAIToolCall[] = []
@@ -333,9 +361,12 @@ function assistantMessageToOpenAI(message: Message): ChatMessage {
     }
   }
 
+  const contentText = text.join('\n\n')
   return {
     role: 'assistant',
-    content: text.join('\n\n') || null,
+    content:
+      contentText ||
+      (isDeepSeekProvider(providerID) && toolCalls.length > 0 ? '' : null),
     ...(toolCalls.length > 0 && { tool_calls: toolCalls }),
     ...(toolCalls.length > 0 &&
       reasoningParts.length > 0 && { reasoning_content: reasoningParts.join('\n') }),
@@ -357,6 +388,7 @@ function stringifyToolResult(content: unknown): string {
 
 async function readOpenAIStream(response: Response): Promise<{
   content: string
+  reasoningContent: string
   toolCalls: OpenAIToolCall[]
   usage: NonNullableUsage
   finishReason: string | null
@@ -366,6 +398,7 @@ async function readOpenAIStream(response: Response): Promise<{
   const decoder = new TextDecoder()
   let buffer = ''
   let content = ''
+  let reasoningContent = ''
   let finishReason: string | null = null
   let usage = EMPTY_USAGE as NonNullableUsage
   const toolCalls: OpenAIToolCall[] = []
@@ -389,6 +422,9 @@ async function readOpenAIStream(response: Response): Promise<{
         if (choice?.delta?.content) {
           content += choice.delta.content
         }
+        if (choice?.delta?.reasoning_content) {
+          reasoningContent += choice.delta.reasoning_content
+        }
         if (choice?.delta?.tool_calls) {
           mergeToolCallDeltas(toolCalls, choice.delta.tool_calls)
         }
@@ -405,6 +441,7 @@ async function readOpenAIStream(response: Response): Promise<{
 
   return {
     content,
+    reasoningContent,
     toolCalls: toolCalls.filter(call => call.function.name),
     usage,
     finishReason,
@@ -453,6 +490,7 @@ function usageFromOpenAI(usage: {
 function createAssistantMessage({
   model,
   content,
+  reasoningContent,
   toolCalls,
   usage,
   finishReason,
@@ -462,6 +500,7 @@ function createAssistantMessage({
 }: {
   model: string
   content: string
+  reasoningContent: string
   toolCalls: OpenAIToolCall[]
   usage: NonNullableUsage
   finishReason: string | null
@@ -470,6 +509,13 @@ function createAssistantMessage({
   agentId?: Options['agentId']
 }): AssistantMessage {
   const blocks: BetaContentBlock[] = []
+  if (reasoningContent) {
+    blocks.push({
+      type: 'thinking',
+      thinking: reasoningContent,
+      signature: '',
+    } as BetaContentBlock)
+  }
   if (content) {
     blocks.push({ type: 'text', text: content })
   }
@@ -530,6 +576,24 @@ function joinURL(baseURL: string, path: string): string {
 
 function isDeepSeekProvider(providerID: string): boolean {
   return providerID === 'deepseek'
+}
+
+function deepSeekThinkingRequestParams(
+  thinkingConfig: ThinkingConfig | undefined,
+): {
+  thinking?: { type: 'enabled' | 'disabled' }
+  reasoning_effort?: 'high' | 'max'
+} {
+  switch (thinkingConfig?.type) {
+    case 'disabled':
+      return { thinking: { type: 'disabled' } }
+    case 'adaptive':
+      return { thinking: { type: 'enabled' }, reasoning_effort: 'high' }
+    case 'enabled':
+      return { thinking: { type: 'enabled' }, reasoning_effort: 'max' }
+    default:
+      return {}
+  }
 }
 
 function defaultMaxTokensForModel(

@@ -730,6 +730,7 @@ export async function queryModelWithoutStreaming({
       systemPrompt,
       tools,
       signal,
+      thinkingConfig,
       options,
     })) {
       if (message.type === 'assistant') {
@@ -797,6 +798,7 @@ export async function* queryModelWithStreaming({
       systemPrompt,
       tools,
       signal,
+      thinkingConfig,
       options,
     })
     return

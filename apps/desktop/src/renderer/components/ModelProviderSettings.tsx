@@ -2,9 +2,14 @@ import React, { useEffect, useMemo, useState } from 'react'
 import type {
   DesktopModelProviderState,
   DesktopModelProviderSummary,
+  DesktopProviderBalanceResult,
   ModelProviderID,
 } from '../../shared/types.js'
 import { useDesktopSettings } from '../features/settings/useDesktopSettings.js'
+import {
+  getModelDescription,
+  getModelDisplayLabel,
+} from '../modelPresets.js'
 import { SettingsDropdown } from './SettingsDropdown.js'
 import { SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
@@ -21,7 +26,9 @@ export function ModelProviderSettings(): React.ReactNode {
   const [apiKey, setApiKey] = useState('')
   const [model, setModel] = useState(settings.model)
   const [modelError, setModelError] = useState<string | null>(null)
+  const [balanceStatus, setBalanceStatus] = useState<string | null>(null)
   const [status, setStatus] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
 
   useEffect(() => {
     let mounted = true
@@ -47,21 +54,42 @@ export function ModelProviderSettings(): React.ReactNode {
     () => providers.find(provider => provider.providerID === providerID),
     [providerID, providers],
   )
+  const isDeepSeek = providerID === 'deepseek'
+  const isCustom = providerID === 'custom'
+  const selectedProviderState =
+    providerState?.selectedProviderID === providerID ? providerState : null
 
   useEffect(() => {
     if (providerID === providerState?.selectedProviderID) return
     setBaseURL(selectedProvider?.baseURL ?? '')
+    setModel('')
+    setBalanceStatus(null)
+    setStatus(null)
+    setModelError(null)
   }, [providerID, providerState, selectedProvider])
 
   const modelOptions = useMemo(
     () => [
-      { value: '', label: '默认模型' },
-      ...(providerState?.models ?? selectedProvider?.defaultModels ?? []).map(
-        item => ({ value: item, label: item }),
-      ),
+      {
+        value: '',
+        label: selectedProvider
+          ? `默认模型 (${selectedProvider.displayName})`
+          : '默认模型',
+      },
+      ...(selectedProviderState?.models ?? selectedProvider?.defaultModels ?? [])
+        .filter(Boolean)
+        .map(item => ({
+          value: item,
+          label: isDeepSeek
+            ? `${getModelDisplayLabel(item)} (${item})`
+            : item,
+        })),
     ],
-    [providerState, selectedProvider],
+    [isDeepSeek, selectedProvider, selectedProviderState],
   )
+
+  const selectedModelDescription =
+    isDeepSeek && model ? getModelDescription(model) : null
 
   function applyProviderState(nextState: DesktopModelProviderState): void {
     setProviderState(nextState)
@@ -73,31 +101,102 @@ export function ModelProviderSettings(): React.ReactNode {
     settings.setModel(nextState.model)
   }
 
+  function applyFetchedModels(models: string[], error?: string): void {
+    setProviderState(current => {
+      if (current && current.selectedProviderID === providerID) {
+        return { ...current, models, error }
+      }
+      if (!selectedProvider) {
+        return current
+      }
+      return {
+        selectedProviderID: providerID,
+        provider: selectedProvider,
+        model,
+        baseURL,
+        apiKeyConfigured: false,
+        apiKeySource: null,
+        models,
+        error,
+      }
+    })
+  }
+
   async function fetchModels(): Promise<void> {
+    setBusy(true)
     setModelError(null)
-    const result = await window.desktopApi.fetchProviderModels({
+    setStatus('正在拉取模型列表...')
+    try {
+      const result = await window.desktopApi.fetchProviderModels({
+        providerID,
+        apiKey: apiKey.trim() || undefined,
+        baseURL: baseURL.trim() || undefined,
+      })
+      applyFetchedModels(result.models, result.error)
+      setModelError(result.error ?? null)
+      setStatus(
+        result.error
+          ? null
+          : `已拉取 ${result.models.length} 个可用模型。`,
+      )
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function fetchBalance(): Promise<DesktopProviderBalanceResult> {
+    const result = await window.desktopApi.fetchProviderBalance({
       providerID,
       apiKey: apiKey.trim() || undefined,
       baseURL: baseURL.trim() || undefined,
     })
-    setProviderState(current =>
-      current
-        ? { ...current, models: result.models, error: result.error }
-        : current,
-    )
-    setModelError(result.error ?? null)
+    setBalanceStatus(formatBalanceStatus(result))
+    return result
+  }
+
+  async function testConnection(): Promise<void> {
+    setBusy(true)
+    setModelError(null)
+    setStatus('正在测试连接...')
+    try {
+      const modelsRequest = window.desktopApi.fetchProviderModels({
+        providerID,
+        apiKey: apiKey.trim() || undefined,
+        baseURL: baseURL.trim() || undefined,
+      })
+      const [modelsResult, balanceResult] = isDeepSeek
+        ? await Promise.all([modelsRequest, fetchBalance()])
+        : [await modelsRequest, null]
+      applyFetchedModels(modelsResult.models, modelsResult.error)
+      const errors = [modelsResult.error, balanceResult?.error].filter(
+        (item): item is string => Boolean(item),
+      )
+      setModelError(errors.length > 0 ? errors.join('；') : null)
+      setStatus(
+        errors.length > 0
+          ? null
+          : `连接正常，已发现 ${modelsResult.models.length} 个模型。`,
+      )
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function saveProvider(): Promise<void> {
+    setBusy(true)
     setModelError(null)
-    const nextState = await window.desktopApi.saveModelProvider({
-      providerID,
-      modelID: model.trim() || undefined,
-      baseURL: baseURL.trim() || undefined,
-    })
-    applyProviderState(nextState)
-    setStatus('模型连接已保存')
-    window.dispatchEvent(new Event('desktop:model-provider-changed'))
+    try {
+      const nextState = await window.desktopApi.saveModelProvider({
+        providerID,
+        modelID: model.trim() || undefined,
+        baseURL: baseURL.trim() || undefined,
+      })
+      applyProviderState(nextState)
+      setStatus('模型连接已保存。')
+      window.dispatchEvent(new Event('desktop:model-provider-changed'))
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function saveApiKey(): Promise<void> {
@@ -105,15 +204,30 @@ export function ModelProviderSettings(): React.ReactNode {
       setModelError('请输入 API key。')
       return
     }
+    setBusy(true)
     setModelError(null)
-    const nextState = await window.desktopApi.saveProviderApiKey(
-      providerID,
-      apiKey.trim(),
-    )
-    setApiKey('')
-    applyProviderState(nextState)
-    setStatus('API key 已保存')
-    window.dispatchEvent(new Event('desktop:model-provider-changed'))
+    try {
+      const nextState = await window.desktopApi.saveProviderApiKey(
+        providerID,
+        apiKey.trim(),
+      )
+      setApiKey('')
+      applyProviderState(nextState)
+      setStatus('API key 已保存。')
+      window.dispatchEvent(new Event('desktop:model-provider-changed'))
+      if (providerID === 'deepseek') {
+        const result = await window.desktopApi.fetchProviderBalance({
+          providerID,
+          baseURL: nextState.baseURL,
+        })
+        setBalanceStatus(formatBalanceStatus(result))
+        if (result.error) {
+          setModelError(result.error)
+        }
+      }
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
@@ -138,10 +252,17 @@ export function ModelProviderSettings(): React.ReactNode {
       />
       <SettingsRow
         title="Base URL"
-        description="Custom provider 需要填写 OpenAI-compatible base URL。"
+        description={
+          isDeepSeek
+            ? 'DeepSeek 使用内置 OpenAI-compatible 地址。'
+            : isCustom
+              ? 'Custom provider 需要填写 OpenAI-compatible Base URL。'
+              : '内置 provider 的 Base URL 由应用管理。'
+        }
         control={
           <input
             className="settings-input"
+            readOnly={!isCustom}
             value={baseURL}
             placeholder={selectedProvider?.baseURL ?? 'https://.../v1'}
             onChange={event => setBaseURL(event.target.value)}
@@ -151,9 +272,9 @@ export function ModelProviderSettings(): React.ReactNode {
       <SettingsRow
         title="API key"
         description={
-          providerState?.apiKeyConfigured
-            ? `已配置：${providerState.apiKeySource ?? 'secureStorage'}`
-            : '不会明文写入桌面配置 JSON。'
+          selectedProviderState?.apiKeyConfigured
+            ? `已配置：${selectedProviderState.apiKeySource ?? 'secureStorage'}`
+            : 'API key 会保存到安全存储，不会明文写入桌面设置 JSON。'
         }
         control={
           <div className="settings-inline-actions">
@@ -166,6 +287,7 @@ export function ModelProviderSettings(): React.ReactNode {
             />
             <button
               className="settings-button"
+              disabled={busy}
               type="button"
               onClick={() => void saveApiKey()}
             >
@@ -176,7 +298,10 @@ export function ModelProviderSettings(): React.ReactNode {
       />
       <SettingsRow
         title="模型"
-        description="留空表示使用该 provider 的默认模型。"
+        description={
+          selectedModelDescription ??
+          '留空表示使用该 provider 的默认模型。'
+        }
         control={
           <SettingsDropdown
             ariaLabel="模型"
@@ -186,13 +311,45 @@ export function ModelProviderSettings(): React.ReactNode {
           />
         }
       />
+      {isDeepSeek ? (
+        <SettingsRow
+          title="DeepSeek 状态"
+          description={
+            balanceStatus ??
+            '测试连接会同时拉取模型列表并查询 /user/balance。'
+          }
+          control={
+            <div className="settings-provider-links">
+              <a
+                className="settings-row-link"
+                href="https://platform.deepseek.com/api_keys"
+                onClick={openExternalLink}
+                rel="noreferrer"
+                target="_blank"
+              >
+                API key
+              </a>
+              <a
+                className="settings-row-link"
+                href="https://api-docs.deepseek.com/"
+                onClick={openExternalLink}
+                rel="noreferrer"
+                target="_blank"
+              >
+                文档
+              </a>
+            </div>
+          }
+        />
+      ) : null}
       <SettingsRow
         title="操作"
-        description={modelError ?? status ?? '拉取模型列表或保存当前连接。'}
+        description={modelError ?? status ?? '拉取模型列表、测试连接或保存当前连接。'}
         control={
           <div className="settings-inline-actions">
             <button
               className="settings-button"
+              disabled={busy}
               type="button"
               onClick={() => void fetchModels()}
             >
@@ -200,6 +357,15 @@ export function ModelProviderSettings(): React.ReactNode {
             </button>
             <button
               className="settings-button"
+              disabled={busy}
+              type="button"
+              onClick={() => void testConnection()}
+            >
+              测试连接
+            </button>
+            <button
+              className="settings-button"
+              disabled={busy}
               type="button"
               onClick={() => void saveProvider()}
             >
@@ -210,4 +376,26 @@ export function ModelProviderSettings(): React.ReactNode {
       />
     </SettingsSection>
   )
+}
+
+function formatBalanceStatus(result: DesktopProviderBalanceResult): string {
+  if (result.error) {
+    return result.error
+  }
+  if (result.balances.length === 0) {
+    return result.isAvailable
+      ? 'DeepSeek 账户可用，但未返回余额明细。'
+      : 'DeepSeek 账户当前不可用。'
+  }
+  const balanceText = result.balances
+    .map(balance => `${balance.currency} ${balance.totalBalance}`)
+    .join('，')
+  return result.isAvailable
+    ? `DeepSeek 账户可用，余额：${balanceText}`
+    : `DeepSeek 余额不足或账户不可用：${balanceText}`
+}
+
+function openExternalLink(event: React.MouseEvent<HTMLAnchorElement>): void {
+  event.preventDefault()
+  void window.desktopApi.openExternalURL(event.currentTarget.href)
 }

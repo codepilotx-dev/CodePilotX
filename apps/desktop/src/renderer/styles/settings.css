@@ -931,6 +931,64 @@
   justify-content: flex-end;
 }
 
+.settings-provider-links {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  white-space: nowrap;
+}
+
+.billing-balance-list {
+  display: grid;
+  gap: 0;
+  border-top: 1px solid var(--c-border-soft);
+}
+
+.billing-balance-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  padding: 14px var(--sp-4);
+}
+
+.billing-balance-row + .billing-balance-row {
+  border-top: 1px solid var(--c-border-soft);
+}
+
+.billing-balance-row h4 {
+  margin: 0 0 2px;
+  color: var(--c-text-strong);
+  font-size: var(--fs-14);
+  font-weight: 600;
+}
+
+.billing-balance-row p {
+  margin: 0;
+  color: var(--c-text-soft);
+  font-size: var(--fs-13);
+}
+
+.billing-balance-row dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(96px, auto));
+  gap: var(--sp-4);
+  margin: 0;
+}
+
+.billing-balance-row dt {
+  color: var(--c-text-soft);
+  font-size: var(--fs-12);
+}
+
+.billing-balance-row dd {
+  margin: 2px 0 0;
+  color: var(--c-text-strong);
+  font-size: var(--fs-13);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
 .archived-session-card {
   display: flex;
   flex-direction: column;

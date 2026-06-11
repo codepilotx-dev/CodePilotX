@@ -74,6 +74,7 @@ export type DesktopModelProviderSummary = {
   displayName: string
   baseURL?: string
   defaultModels: string[]
+  apiKeyConfigured: boolean
 }
 
 export type DesktopModelProviderState = {
@@ -89,6 +90,19 @@ export type DesktopModelProviderState = {
 
 export type DesktopProviderModelListResult = {
   models: string[]
+  error?: string
+}
+
+export type DesktopProviderBalanceInfo = {
+  currency: string
+  totalBalance: string
+  grantedBalance: string
+  toppedUpBalance: string
+}
+
+export type DesktopProviderBalanceResult = {
+  isAvailable: boolean
+  balances: DesktopProviderBalanceInfo[]
   error?: string
 }
 
@@ -273,6 +287,11 @@ export type DesktopApi = {
     apiKey?: string
     baseURL?: string
   }): Promise<DesktopProviderModelListResult>
+  fetchProviderBalance(options: {
+    providerID: ModelProviderID
+    apiKey?: string
+    baseURL?: string
+  }): Promise<DesktopProviderBalanceResult>
   saveModelProvider(
     options: SaveDesktopModelProviderOptions,
   ): Promise<DesktopModelProviderState>
@@ -296,6 +315,7 @@ export type DesktopApi = {
     sessionId: string,
     patch: DesktopSessionMetadataPatch,
   ): Promise<DesktopSessionSnapshot>
+  openExternalURL(url: string): Promise<void>
   sendUserMessage(sessionId: string, content: string): Promise<void>
   respondToPermission(
     sessionId: string,

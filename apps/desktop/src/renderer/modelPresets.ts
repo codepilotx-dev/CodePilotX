@@ -18,17 +18,35 @@ export function buildModelPresets(
     { id: DEFAULT_MODEL_PRESET_ID, label: defaultLabel, value: '' },
     ...models.map(model => ({
       id: model,
-      label: model,
+      label: getModelDisplayLabel(model),
       value: model,
       shortLabel: shortenModelLabel(model),
     })),
   ]
 }
 
-// 把冗长的模型名截成 trigger chip 友好的短名，例如：
-// "claude-3-5-sonnet-20241022" -> "3.5 sonnet"
-// "deepseek-v4-pro"            -> "v4 pro"
-// "gpt-4o-mini"                -> "4o mini"
+export function getModelDisplayLabel(model: string): string {
+  switch (model) {
+    case 'deepseek-v4-pro':
+      return 'V4 Pro'
+    case 'deepseek-v4-flash':
+      return 'V4 Flash'
+    default:
+      return model
+  }
+}
+
+export function getModelDescription(model: string): string | null {
+  switch (model) {
+    case 'deepseek-v4-pro':
+      return '复杂 Agent / 高质量代码任务'
+    case 'deepseek-v4-flash':
+      return '快速响应 / 经济使用'
+    default:
+      return null
+  }
+}
+
 export function shortenModelLabel(model: string): string {
   const cleaned = model.trim()
   if (!cleaned) return ''
@@ -54,9 +72,9 @@ export function shortenModelLabel(model: string): string {
 
   const dsMatch = /^deepseek-(v\d+)(?:-(\w+))?.*$/i.exec(cleaned)
   if (dsMatch) {
-    const version = dsMatch[1]
+    const version = dsMatch[1]?.toUpperCase() ?? ''
     const tier = dsMatch[2] ?? ''
-    return tier ? `${version} ${tier.toLowerCase()}` : version
+    return tier ? `${version} ${capitalizeAscii(tier)}` : version
   }
 
   const gptMatch = /^gpt-([\d.]+)(?:-(\w+))?.*$/i.exec(cleaned)
@@ -66,7 +84,7 @@ export function shortenModelLabel(model: string): string {
     return variant ? `${version} ${variant.toLowerCase()}` : version
   }
 
-  return cleaned.length > 14 ? `${cleaned.slice(0, 14)}…` : cleaned
+  return cleaned.length > 14 ? `${cleaned.slice(0, 14)}...` : cleaned
 }
 
 export function findModelPresetByValue(
@@ -87,4 +105,10 @@ export function resolveModelPresetId(
       : CUSTOM_MODEL_PRESET_ID
   }
   return findModelPresetByValue(model, presets)?.id ?? CUSTOM_MODEL_PRESET_ID
+}
+
+function capitalizeAscii(value: string): string {
+  return value
+    ? `${value[0]?.toUpperCase() ?? ''}${value.slice(1).toLowerCase()}`
+    : ''
 }

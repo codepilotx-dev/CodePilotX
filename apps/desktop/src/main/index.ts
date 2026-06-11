@@ -20,6 +20,7 @@ import { enableConfigs } from '@claudecode/core/utils/config.js'
 import { getSettings_DEPRECATED } from '@claudecode/tui/utils/settings/settings.js'
 import {
   PROVIDER_CONFIGS,
+  fetchProviderBalance as fetchTuiProviderBalance,
   fetchProviderModels as fetchTuiProviderModels,
   getCachedProviderModels,
   getProviderApiKeySource,
@@ -393,6 +394,9 @@ function listModelProviders(): DesktopModelProviderSummary[] {
     displayName: provider.displayName,
     baseURL: provider.baseURL,
     defaultModels: provider.defaultModels,
+    apiKeyConfigured: Boolean(
+      getProviderApiKeySource(provider.providerID as ModelProviderID),
+    ),
   }))
 }
 
@@ -410,6 +414,7 @@ function getModelProviderState(): DesktopModelProviderState {
       displayName: provider.displayName,
       baseURL: provider.baseURL,
       defaultModels: provider.defaultModels,
+      apiKeyConfigured: Boolean(apiKeySource),
     },
     model,
     baseURL: provider.baseURL,
@@ -426,6 +431,19 @@ async function fetchProviderModels(options: {
 }): Promise<DesktopProviderModelListResult> {
   const providerID = normalizeProviderID(options.providerID)
   return fetchTuiProviderModels({
+    providerID,
+    apiKey: normalizeOptionalText(options.apiKey),
+    baseURL: normalizeOptionalText(options.baseURL),
+  })
+}
+
+async function fetchProviderBalance(options: {
+  providerID: ModelProviderID
+  apiKey?: string
+  baseURL?: string
+}) {
+  const providerID = normalizeProviderID(options.providerID)
+  return fetchTuiProviderBalance({
     providerID,
     apiKey: normalizeOptionalText(options.apiKey),
     baseURL: normalizeOptionalText(options.baseURL),
@@ -817,6 +835,14 @@ async function updateSessionMetadata(
   return record.snapshot
 }
 
+async function openExternalURL(url: string): Promise<void> {
+  const parsed = new URL(requireNonEmptyString(url, 'External URL'))
+  if (parsed.protocol !== 'https:') {
+    throw new Error('Only HTTPS external URLs can be opened.')
+  }
+  await shell.openExternal(parsed.toString())
+}
+
 async function createSession(
   options: CreateDesktopSessionOptions,
 ): Promise<CreateDesktopSessionResult> {
@@ -1078,6 +1104,7 @@ function registerIpc(): void {
     listModelProviders: async () => listModelProviders(),
     getModelProviderState: async () => getModelProviderState(),
     fetchProviderModels,
+    fetchProviderBalance,
     saveModelProvider,
     saveProviderApiKey,
     chooseWorkspace,
@@ -1093,6 +1120,7 @@ function registerIpc(): void {
     getActiveSessionId,
     setActiveSession,
     updateSessionMetadata,
+    openExternalURL,
     sendUserMessage,
     respondToPermission,
     interruptSession,

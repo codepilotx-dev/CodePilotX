@@ -3,6 +3,7 @@ import { AppearanceSettings } from './AppearanceSettings.js'
 import { ArchivedConversationsSettings } from './ArchivedConversationsSettings.js'
 import { GeneralSettings } from './GeneralSettings.js'
 import { ModelProviderSettings } from './ModelProviderSettings.js'
+import { UsageBillingSettings } from './UsageBillingSettings.js'
 
 type Props = {
   activeTab: string
@@ -29,6 +30,8 @@ export function SettingsPage({
         </div>
       ) : activeTab === 'archived' ? (
         <ArchivedConversationsSettings />
+      ) : activeTab === 'billing' ? (
+        <UsageBillingSettings />
       ) : (
         <div className="settings-content-area">
           <h2 className="settings-section-title">建设中...</h2>

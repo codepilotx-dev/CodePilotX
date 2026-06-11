@@ -16,6 +16,8 @@ const api: DesktopApi = {
     ipcRenderer.invoke('desktop:getModelProviderState'),
   fetchProviderModels: options =>
     ipcRenderer.invoke('desktop:fetchProviderModels', options),
+  fetchProviderBalance: options =>
+    ipcRenderer.invoke('desktop:fetchProviderBalance', options),
   saveModelProvider: options =>
     ipcRenderer.invoke('desktop:saveModelProvider', options),
   saveProviderApiKey: (providerID, apiKey) =>
@@ -41,6 +43,7 @@ const api: DesktopApi = {
     ipcRenderer.invoke('desktop:setActiveSession', sessionId),
   updateSessionMetadata: (sessionId, patch) =>
     ipcRenderer.invoke('desktop:updateSessionMetadata', sessionId, patch),
+  openExternalURL: url => ipcRenderer.invoke('desktop:openExternalURL', url),
   sendUserMessage: (sessionId, content) =>
     ipcRenderer.invoke('desktop:sendUserMessage', sessionId, content),
   respondToPermission: (sessionId, requestId, decision) =>
