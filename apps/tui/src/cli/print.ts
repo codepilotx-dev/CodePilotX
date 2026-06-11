@@ -498,9 +498,11 @@ export async function runHeadless(
     sessionStartHooksPromise?: ReturnType<typeof processSessionStartHooks>
     setSDKStatus?: (status: SDKStatus) => void
     createStructuredIO?: StructuredIOFactory
+    exitOnComplete?: boolean
   },
 ): Promise<void> {
   if (
+    options.exitOnComplete !== false &&
     process.env.USER_TYPE === 'ant' &&
     isEnvTruthy(process.env.CLAUDE_CODE_EXIT_AFTER_FIRST_RENDER)
   ) {
@@ -926,46 +928,50 @@ export async function runHeadless(
     }
   }
 
-  switch (options.outputFormat) {
-    case 'json':
-      if (!lastMessage || lastMessage.type !== 'result') {
-        throw new Error('No messages returned')
-      }
-      if (options.verbose) {
-        writeToStdout(jsonStringify(messages) + '\n')
+  if (options.exitOnComplete !== false) {
+    switch (options.outputFormat) {
+      case 'json':
+        if (!lastMessage || lastMessage.type !== 'result') {
+          throw new Error('No messages returned')
+        }
+        if (options.verbose) {
+          writeToStdout(jsonStringify(messages) + '\n')
+          break
+        }
+        writeToStdout(jsonStringify(lastMessage) + '\n')
         break
-      }
-      writeToStdout(jsonStringify(lastMessage) + '\n')
-      break
-    case 'stream-json':
-      // already logged above
-      break
-    default:
-      if (!lastMessage || lastMessage.type !== 'result') {
-        throw new Error('No messages returned')
-      }
-      switch (lastMessage.subtype) {
-        case 'success':
-          writeToStdout(
-            lastMessage.result.endsWith('\n')
-              ? lastMessage.result
-              : lastMessage.result + '\n',
-          )
-          break
-        case 'error_during_execution':
-          writeToStdout(`Execution error`)
-          break
-        case 'error_max_turns':
-          writeToStdout(`Error: Reached max turns (${options.maxTurns})`)
-          break
-        case 'error_max_budget_usd':
-          writeToStdout(`Error: Exceeded USD budget (${options.maxBudgetUsd})`)
-          break
-        case 'error_max_structured_output_retries':
-          writeToStdout(
-            `Error: Failed to provide valid structured output after maximum retries`,
-          )
-      }
+      case 'stream-json':
+        // already logged above
+        break
+      default:
+        if (!lastMessage || lastMessage.type !== 'result') {
+          throw new Error('No messages returned')
+        }
+        switch (lastMessage.subtype) {
+          case 'success':
+            writeToStdout(
+              lastMessage.result.endsWith('\n')
+                ? lastMessage.result
+                : lastMessage.result + '\n',
+            )
+            break
+          case 'error_during_execution':
+            writeToStdout(`Execution error`)
+            break
+          case 'error_max_turns':
+            writeToStdout(`Error: Reached max turns (${options.maxTurns})`)
+            break
+          case 'error_max_budget_usd':
+            writeToStdout(
+              `Error: Exceeded USD budget (${options.maxBudgetUsd})`,
+            )
+            break
+          case 'error_max_structured_output_retries':
+            writeToStdout(
+              `Error: Failed to provide valid structured output after maximum retries`,
+            )
+        }
+    }
   }
 
   // Log headless latency metrics for the final turn
@@ -980,9 +986,11 @@ export async function runHeadless(
     await extractMemoriesModule!.drainPendingExtraction()
   }
 
-  gracefulShutdownSync(
-    lastMessage?.type === 'result' && lastMessage?.is_error ? 1 : 0,
-  )
+  if (options.exitOnComplete !== false) {
+    gracefulShutdownSync(
+      lastMessage?.type === 'result' && lastMessage?.is_error ? 1 : 0,
+    )
+  }
 }
 
 function runHeadlessStreaming(

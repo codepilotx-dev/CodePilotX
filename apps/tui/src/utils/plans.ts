@@ -389,8 +389,10 @@ export async function persistFileSnapshotIfRemote(): Promise<void> {
       snapshotFiles,
     }
 
-    const { recordTranscript } = await import('./sessionStorage.js')
-    await recordTranscript([message])
+    const { recordTranscriptMessages } = await import(
+      './sessionStorageTranscriptBridge.js'
+    )
+    await recordTranscriptMessages([message])
   } catch (error) {
     logError(error)
   }

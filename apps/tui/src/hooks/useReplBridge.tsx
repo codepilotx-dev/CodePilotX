@@ -1,6 +1,9 @@
 import { feature } from 'bun:bundle'
 import React, { useCallback, useEffect, useRef } from 'react'
-import { setMainLoopModelOverride } from '../bootstrap/state.js'
+import {
+  setMainLoopModelOverride,
+  setReplBridgeActive,
+} from '../bootstrap/state.js'
 import {
   type BridgePermissionCallbacks,
   type BridgePermissionResponse,
@@ -275,6 +278,7 @@ export function useReplBridge(
               // Sync replBridgeConnected so the forwarding effect starts/stops
               // writing as the transport comes up or dies.
               if (state === 'failed') {
+                setReplBridgeActive(false)
                 setAppState(prev => {
                   if (!prev.replBridgeConnected) return prev
                   return { ...prev, replBridgeConnected: false }
@@ -290,6 +294,7 @@ export function useReplBridge(
             const handle = handleRef.current
             switch (state) {
               case 'ready':
+                setReplBridgeActive(false)
                 setAppState(prev => {
                   const connectUrl =
                     handle && handle.environmentId !== ''
@@ -331,6 +336,7 @@ export function useReplBridge(
                 })
                 break
               case 'connected': {
+                setReplBridgeActive(true)
                 setAppState(prev => {
                   if (prev.replBridgeSessionActive) return prev
                   return {
@@ -395,6 +401,7 @@ export function useReplBridge(
                 break
               }
               case 'reconnecting':
+                setReplBridgeActive(false)
                 setAppState(prev => {
                   if (prev.replBridgeReconnecting) return prev
                   return {
@@ -405,6 +412,7 @@ export function useReplBridge(
                 })
                 break
               case 'failed':
+                setReplBridgeActive(false)
                 // Clear any previous failure dismiss timer
                 clearTimeout(failureTimeoutRef.current)
                 notifyBridgeFailed(detail)
@@ -604,6 +612,7 @@ export function useReplBridge(
           }
           handleRef.current = handle
           setReplBridgeHandle(handle)
+          setReplBridgeActive(false)
           consecutiveFailuresRef.current = 0
           // Skip initial messages in the forwarding effect — they were
           // already loaded as session events during creation.
@@ -789,6 +798,7 @@ export function useReplBridge(
           teardownPromiseRef.current = handleRef.current.teardown()
           handleRef.current = null
           setReplBridgeHandle(null)
+          setReplBridgeActive(false)
         }
         setAppState(prev => {
           if (
