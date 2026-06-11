@@ -71,6 +71,7 @@ export type DesktopAgentRuntime = {
 }
 
 let headlessQueue: Promise<void> = Promise.resolve()
+const DESKTOP_ENABLED_THINKING_BUDGET = 1_000_000_000
 
 function runSerialized<T>(operation: () => Promise<T>): Promise<T> {
   const run = headlessQueue.then(operation, operation)
@@ -1046,6 +1047,10 @@ function thinkingConfigFromDesktopMode(
 ): ThinkingConfig | undefined {
   switch (thinkingMode) {
     case 'enabled':
+      return {
+        type: 'enabled',
+        budgetTokens: DESKTOP_ENABLED_THINKING_BUDGET,
+      }
     case 'adaptive':
       return { type: 'adaptive' }
     case 'disabled':
@@ -1082,6 +1087,9 @@ function sessionNameArgs(sessionName: string | undefined): string[] {
 function thinkingModeArgs(
   thinkingMode: DesktopThinkingMode | undefined,
 ): string[] {
+  if (thinkingMode === 'enabled') {
+    return ['--max-thinking-tokens', String(DESKTOP_ENABLED_THINKING_BUDGET)]
+  }
   return thinkingMode && thinkingMode !== 'default'
     ? ['--thinking', thinkingMode]
     : []

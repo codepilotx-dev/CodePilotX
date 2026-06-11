@@ -68,6 +68,7 @@ type ChatCompletionChunk = {
   choices?: Array<{
     delta?: {
       content?: string | null
+      reasoning?: string | null
       reasoning_content?: string | null
       tool_calls?: Array<{
         index?: number
@@ -95,6 +96,7 @@ type ChatCompletionResponse = {
   choices?: Array<{
     message?: {
       content?: string | null
+      reasoning?: string | null
       reasoning_content?: string | null
       tool_calls?: OpenAIToolCall[]
     }
@@ -151,8 +153,13 @@ export async function* queryOpenAICompatibleModelWithStreaming({
     )
     const apiTools = await buildOpenAITools(tools, options)
     const isDeepSeek = isDeepSeekProvider(providerID)
-    const deepSeekThinkingParams = isDeepSeek
+    const thinkingParams = isDeepSeek
       ? deepSeekThinkingRequestParams(thinkingConfig)
+      : isDeepSeekReasoningGatewayModel(providerID, options.model)
+        ? deepSeekGatewayReasoningRequestParams(thinkingConfig)
+        : {}
+    const deepSeekThinkingParams = isDeepSeek
+      ? (thinkingParams as ReturnType<typeof deepSeekThinkingRequestParams>)
       : {}
     const deepSeekThinkingEnabled =
       isDeepSeek && deepSeekThinkingParams.thinking?.type === 'enabled'
@@ -187,7 +194,7 @@ export async function* queryOpenAICompatibleModelWithStreaming({
       stream: true,
       stream_options: { include_usage: true },
       ...temperatureParams,
-      ...deepSeekThinkingParams,
+      ...thinkingParams,
       ...(isDeepSeek && {
         user_id: resolveDeepSeekUserId(options),
       }),
@@ -428,6 +435,9 @@ async function readOpenAIStream(response: Response): Promise<{
         if (choice?.delta?.reasoning_content) {
           reasoningContent += choice.delta.reasoning_content
         }
+        if (choice?.delta?.reasoning) {
+          reasoningContent += choice.delta.reasoning
+        }
         if (choice?.delta?.tool_calls) {
           mergeToolCallDeltas(toolCalls, choice.delta.tool_calls)
         }
@@ -591,6 +601,19 @@ function isDeepSeekProvider(providerID: string): boolean {
   return providerID === 'deepseek'
 }
 
+function isDeepSeekReasoningGatewayModel(
+  providerID: string,
+  model: string,
+): boolean {
+  if (providerID !== 'openrouter' && providerID !== 'ai-gateway') {
+    return false
+  }
+  return (
+    model.toLowerCase().includes('deepseek') &&
+    getProviderModelMetadata(providerID, model)?.reasoning === true
+  )
+}
+
 function deepSeekThinkingRequestParams(
   thinkingConfig: ThinkingConfig | undefined,
 ): {
@@ -606,6 +629,21 @@ function deepSeekThinkingRequestParams(
       return { thinking: { type: 'enabled' }, reasoning_effort: 'max' }
     default:
       return {}
+  }
+}
+
+function deepSeekGatewayReasoningRequestParams(
+  thinkingConfig: ThinkingConfig | undefined,
+): {
+  reasoning: { effort: 'none' | 'high' | 'xhigh' }
+} {
+  switch (thinkingConfig?.type) {
+    case 'disabled':
+      return { reasoning: { effort: 'none' } }
+    case 'enabled':
+      return { reasoning: { effort: 'xhigh' } }
+    default:
+      return { reasoning: { effort: 'high' } }
   }
 }
 

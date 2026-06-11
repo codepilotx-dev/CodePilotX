@@ -66,6 +66,7 @@ type Props = {
   selectedProviderID: ModelProviderID
   selectedModelPreset: string
   showThinkingOptions: boolean
+  deepSeekThinkingControls: boolean
   showContextUsage: boolean
   contextUsage: DesktopContextUsage | null
   modelPresets: ModelPreset[]
@@ -101,6 +102,7 @@ export function ComposerCard({
   selectedProviderID,
   selectedModelPreset,
   showThinkingOptions,
+  deepSeekThinkingControls,
   showContextUsage,
   contextUsage,
   modelPresets,
@@ -150,6 +152,13 @@ export function ComposerCard({
   const selectedThinking = thinkingOptions.find(
     option => option.value === thinkingMode,
   )
+  const selectedThinkingLabel = deepSeekThinkingControls
+    ? thinkingMode === 'disabled'
+      ? '思考关闭'
+      : thinkingMode === 'enabled'
+        ? '超高'
+        : '高'
+    : (selectedThinking?.label ?? '默认')
 
   const filteredWorkspaces = useMemo(() => {
     const keyword = projectSearch.trim().toLowerCase()
@@ -367,32 +376,88 @@ export function ComposerCard({
                       : ''}
                     {selectedModelLabel}
                     {showThinkingOptions
-                      ? ` · ${selectedThinking?.label ?? '默认'}`
+                      ? ` · ${selectedThinkingLabel}`
                       : ''}
                   </span>
                 </ChipButton>
               }
             >
               {showThinkingOptions ? (
-                <>
-                  <div className="popover-header">推理</div>
-                  <div className="popover-section">
-                    {thinkingOptions.map(option => (
+                deepSeekThinkingControls ? (
+                  <>
+                    <div className="popover-header">思考模式</div>
+                    <div className="popover-section">
                       <PopoverItem
-                        key={option.value}
-                        selected={option.value === thinkingMode}
+                        selected={thinkingMode !== 'disabled'}
                         withCheck
                         onClick={() => {
-                          onThinkingChange(option.value)
+                          onThinkingChange('default')
+                        }}
+                      >
+                        启用
+                      </PopoverItem>
+                      <PopoverItem
+                        selected={thinkingMode === 'disabled'}
+                        withCheck
+                        onClick={() => {
+                          onThinkingChange('disabled')
                           closeDropdown()
                         }}
                       >
-                        {option.label}
+                        禁用
                       </PopoverItem>
-                    ))}
-                  </div>
-                  <div className="popover-divider" />
-                </>
+                    </div>
+                    {thinkingMode !== 'disabled' ? (
+                      <>
+                        <div className="popover-divider" />
+                        <div className="popover-header">推理强度</div>
+                        <div className="popover-section">
+                          <PopoverItem
+                            selected={thinkingMode !== 'enabled'}
+                            withCheck
+                            onClick={() => {
+                              onThinkingChange('default')
+                              closeDropdown()
+                            }}
+                          >
+                            高
+                          </PopoverItem>
+                          <PopoverItem
+                            selected={thinkingMode === 'enabled'}
+                            withCheck
+                            onClick={() => {
+                              onThinkingChange('enabled')
+                              closeDropdown()
+                            }}
+                          >
+                            超高
+                          </PopoverItem>
+                        </div>
+                      </>
+                    ) : null}
+                    <div className="popover-divider" />
+                  </>
+                ) : (
+                  <>
+                    <div className="popover-header">推理</div>
+                    <div className="popover-section">
+                      {thinkingOptions.map(option => (
+                        <PopoverItem
+                          key={option.value}
+                          selected={option.value === thinkingMode}
+                          withCheck
+                          onClick={() => {
+                            onThinkingChange(option.value)
+                            closeDropdown()
+                          }}
+                        >
+                          {option.label}
+                        </PopoverItem>
+                      ))}
+                    </div>
+                    <div className="popover-divider" />
+                  </>
+                )
               ) : null}
               <div className="popover-header">提供商</div>
               <div className="popover-section popover-provider-list">
@@ -473,14 +538,18 @@ export function ComposerCard({
                   </DropdownMenu.Sub>
                 ))}
               </div>
-              <div className="popover-divider" />
-              <PopoverItem
-                icon={<Zap size={14} />}
-                meta="暂未接入速度切换"
-                disabled
-              >
-                快速
-              </PopoverItem>
+              {!deepSeekThinkingControls ? (
+                <>
+                  <div className="popover-divider" />
+                  <PopoverItem
+                    icon={<Zap size={14} />}
+                    meta="暂未接入速度切换"
+                    disabled
+                  >
+                    快速
+                  </PopoverItem>
+                </>
+              ) : null}
             </PopoverMenu>
 
             <IconButton className="icon-button composer-mic-button" title="语音输入">

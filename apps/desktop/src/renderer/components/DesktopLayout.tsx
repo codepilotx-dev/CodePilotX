@@ -29,6 +29,7 @@ import {
   resolveModelPresetId,
 } from '../modelPresets.js'
 import type {
+  DesktopModelMetadata,
   DesktopModelProviderSummary,
   DesktopModelProviderState,
   DesktopPermissionRequest,
@@ -50,6 +51,7 @@ export function DesktopLayout(): React.ReactNode {
     additionalDirectories,
     recentWorkspaces,
     selectedModelPreset,
+    providerID,
     showContextUsage,
     setPermissionMode,
     setModel,
@@ -385,12 +387,26 @@ export function DesktopLayout(): React.ReactNode {
     selectedModelPreset,
     modelPresets,
   )
+  const selectedProviderID = providerState?.selectedProviderID ?? providerID
+  const selectedProviderSummary =
+    modelProviders.find(provider => provider.providerID === selectedProviderID) ??
+    (providerState?.provider.providerID === selectedProviderID
+      ? providerState.provider
+      : undefined)
   const selectedModelMetadata =
-    model && providerState?.modelMetadata
-      ? providerState.modelMetadata[model]
-      : undefined
+    model && selectedProviderSummary?.modelMetadata
+      ? selectedProviderSummary.modelMetadata[model]
+      : model && providerState?.modelMetadata
+        ? providerState.modelMetadata[model]
+        : undefined
+  const deepSeekThinkingControls = isDeepSeekThinkingModel({
+    providerID: selectedProviderID,
+    model,
+    metadata: selectedModelMetadata,
+  })
   const showThinkingOptions =
-    providerState?.provider.kind === 'anthropic' ||
+    deepSeekThinkingControls ||
+    selectedProviderSummary?.kind === 'anthropic' ||
     selectedModelMetadata?.reasoning === true
 
   useEffect(() => {
@@ -454,9 +470,18 @@ export function DesktopLayout(): React.ReactNode {
   }, [refreshProviderState])
 
   useEffect(() => {
+    if (deepSeekThinkingControls && thinkingMode === 'adaptive') {
+      setThinkingMode('default')
+      return
+    }
     if (showThinkingOptions || thinkingMode === 'default') return
     setThinkingMode('default')
-  }, [showThinkingOptions, thinkingMode, setThinkingMode])
+  }, [
+    deepSeekThinkingControls,
+    showThinkingOptions,
+    thinkingMode,
+    setThinkingMode,
+  ])
 
   const handleProviderModelChange = useCallback(
     (providerID: ModelProviderID, nextPresetId: string): void => {
@@ -701,9 +726,10 @@ export function DesktopLayout(): React.ReactNode {
       sessionStatus={sessionStatus}
       permissionMode={permissionMode}
       thinkingMode={thinkingMode}
-      selectedProviderID={providerState?.selectedProviderID ?? 'anthropic'}
+      selectedProviderID={selectedProviderID ?? 'anthropic'}
       selectedModelPreset={resolvedSelectedModelPreset}
       showThinkingOptions={showThinkingOptions}
+      deepSeekThinkingControls={deepSeekThinkingControls}
       showContextUsage={showContextUsage}
       contextUsage={contextUsage}
       modelPresets={modelPresets}
@@ -856,4 +882,22 @@ function getRoutedSessionId(pathname: string): string | null {
 
 function sessionPath(sessionId: string): string {
   return `/sessions/${encodeURIComponent(sessionId)}`
+}
+
+function isDeepSeekThinkingModel({
+  providerID,
+  model,
+  metadata,
+}: {
+  providerID?: ModelProviderID
+  model: string
+  metadata?: DesktopModelMetadata
+}): boolean {
+  if (providerID === 'deepseek') {
+    return true
+  }
+  if (providerID !== 'openrouter' && providerID !== 'ai-gateway') {
+    return false
+  }
+  return model.toLowerCase().includes('deepseek') && metadata?.reasoning === true
 }
