@@ -1,7 +1,10 @@
 import React from 'react'
 import {
   AlertCircle,
+  Columns2,
+  Code2,
   Copy,
+  Maximize2,
   MoreHorizontal,
   RotateCcw,
   ThumbsDown,
@@ -9,6 +12,7 @@ import {
 } from 'lucide-react'
 import { useQuickChatContext } from '../context/QuickChatContext.js'
 import type { Message } from '../uiTypes.js'
+import { MarkdownMessage } from './MarkdownMessage.js'
 
 export function QuickChatView(): React.ReactNode {
   const {
@@ -120,7 +124,7 @@ function ChatMessage({ message }: { message: Message }): React.ReactNode {
   return (
     <article className={`chat-message-row ${message.role}`}>
       <div className="assistant-message-body">
-        {renderSafeMarkdown(message.text)}
+        <MarkdownMessage text={message.text} streaming={Boolean(message.streaming)} />
       </div>
       {message.role === 'assistant' && message.text.trim() ? (
         <div className="assistant-message-actions">
@@ -167,33 +171,6 @@ function MessageActionButton({
       {children}
     </button>
   )
-}
-
-function renderSafeMarkdown(text: string): React.ReactNode {
-  const parts = text.split(/```/)
-  return parts.map((part, index) => {
-    if (index % 2 === 1) {
-      const lines = part.replace(/^\w+\r?\n/, '').trimEnd()
-      return (
-        <pre key={index}>
-          <code>{lines}</code>
-        </pre>
-      )
-    }
-    return part
-      .split(/\n{2,}/)
-      .filter(Boolean)
-      .map((paragraph, paragraphIndex) => (
-        <p key={`${index}-${paragraphIndex}`}>
-          {paragraph.split(/\r?\n/).map((line, lineIndex) => (
-            <React.Fragment key={lineIndex}>
-              {lineIndex > 0 ? <br /> : null}
-              {line}
-            </React.Fragment>
-          ))}
-        </p>
-      ))
-  })
 }
 
 function getConversationTitle(messages: Message[]): string {

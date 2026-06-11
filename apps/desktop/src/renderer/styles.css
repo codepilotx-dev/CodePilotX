@@ -4,6 +4,7 @@
 @import './styles/controls.css';
 @import './styles/sidebar.css';
 @import './styles/main.css';
+@import './styles/markdown.css';
 @import './styles/composer.css';
 @import './styles/popover.css';
 @import './styles/drawer.css';
