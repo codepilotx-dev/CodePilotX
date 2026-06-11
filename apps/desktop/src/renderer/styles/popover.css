@@ -19,6 +19,21 @@
   color: var(--c-text);
   font-size: var(--fs-13);
   transform-origin: bottom left;
+  outline: none !important;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.popover *,
+.chip-button,
+.chip-button *,
+.meta-chip,
+.meta-chip *,
+.window-menu-item,
+.window-menu-item * {
+  outline: none !important;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .popover-auto-width {
@@ -105,6 +120,9 @@
   line-height: 1.4;
   text-align: left;
   transition: background 0.12s ease-out;
+  outline: none !important;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .popover-item:hover:not(:disabled),

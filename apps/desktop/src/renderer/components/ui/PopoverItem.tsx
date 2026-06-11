@@ -39,6 +39,7 @@ export function PopoverItem({
         selected ? 'selected' : '',
       ].join(' ')}
       disabled={disabled}
+      tabIndex={-1}
       onPointerEnter={onMouseEnter}
       onPointerLeave={onMouseLeave}
       onSelect={event => {

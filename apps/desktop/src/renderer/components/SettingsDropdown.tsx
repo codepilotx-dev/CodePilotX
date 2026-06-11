@@ -31,6 +31,7 @@ export function SettingsDropdown({ value, options, onChange, ariaLabel }: Props)
       <Select.Trigger
         aria-label={ariaLabel}
         className="settings-dropdown"
+        tabIndex={-1}
       >
         <div className="settings-dropdown-value">
           {selectedOption?.icon}
@@ -42,8 +43,11 @@ export function SettingsDropdown({ value, options, onChange, ariaLabel }: Props)
       </Select.Trigger>
       <Select.Portal>
         <Select.Content
+          align="start"
+          avoidCollisions={false}
           className="settings-dropdown-content"
           position="popper"
+          side="bottom"
           sideOffset={6}
         >
           <Select.Viewport className="settings-dropdown-viewport">
@@ -51,6 +55,7 @@ export function SettingsDropdown({ value, options, onChange, ariaLabel }: Props)
               <Select.Item
                 className="settings-dropdown-item"
                 key={opt.value}
+                tabIndex={-1}
                 value={opt.value === '' ? EMPTY_VALUE : opt.value}
               >
                 <Select.ItemText>{opt.label}</Select.ItemText>

@@ -1,5 +1,5 @@
 import type React from 'react'
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
+import { Dropdown } from './Dropdown.js'
 
 type Props = {
   children: React.ReactNode
@@ -27,23 +27,18 @@ export function PopoverMenu({
       : 'start'
 
   return (
-    <DropdownMenu.Root open={open} onOpenChange={onOpenChange}>
-      <DropdownMenu.Trigger asChild>{trigger}</DropdownMenu.Trigger>
-      <DropdownMenu.Portal>
-        <DropdownMenu.Content
-          align={align}
-          className={[
-            'popover',
-            className,
-            autoWidth ? 'popover-auto-width' : '',
-            textMode === 'wrap' ? 'popover-text-wrap' : '',
-          ].join(' ')}
-          side={side}
-          sideOffset={className.includes('popover-menu-') ? 4 : 6}
-        >
-          {children}
-        </DropdownMenu.Content>
-      </DropdownMenu.Portal>
-    </DropdownMenu.Root>
+    <Dropdown
+      align={align}
+      autoWidth={autoWidth}
+      className={className}
+      open={open}
+      side={side}
+      sideOffset={className.includes('popover-menu-') ? 4 : 6}
+      textMode={textMode}
+      trigger={trigger}
+      onOpenChange={onOpenChange}
+    >
+      {children}
+    </Dropdown>
   )
 }

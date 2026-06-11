@@ -329,6 +329,17 @@
   transition: border-color 0.15s ease, background-color 0.15s ease;
   font-size: var(--fs-13);
   color: var(--c-text);
+  outline: none !important;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.settings-dropdown *,
+.settings-dropdown-content,
+.settings-dropdown-content * {
+  outline: none !important;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .settings-dropdown:hover {
@@ -377,7 +388,9 @@
   color: var(--c-text);
   font-size: var(--fs-13);
   cursor: pointer;
-  outline: none;
+  outline: none !important;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .settings-dropdown-item[data-highlighted] {
