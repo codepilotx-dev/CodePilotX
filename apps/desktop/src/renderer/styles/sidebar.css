@@ -163,7 +163,7 @@
   align-items: center;
   gap: 7px;
   padding: 5px 8px;
-  border-radius: 15px;
+  border-radius: 5px;
   color: var(--c-text-soft);
   font-size: var(--fs-14);
 }
@@ -188,20 +188,26 @@
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--sp-1);
-  padding-left: 30px;
-  border-radius: 15px;
+  padding: 0 10px 0 35px;
+  border-radius: 5px;
 }
 
 .task-button {
   min-width: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: flex;
   align-items: center;
-  gap: var(--sp-2);
   height: 28px;
   padding: 0;
   color: var(--c-text-soft);
   font-size: var(--fs-13);
+}
+
+.task-trailing {
+  min-width: 48px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
 }
 
 .task-close-button {
@@ -214,15 +220,6 @@
   display: inline-flex;
   align-items: center;
   gap: 1px;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.task-row:hover .session-inline-actions,
-.task-row.active .session-inline-actions,
-.session-inline-actions:focus-within {
-  opacity: 1;
-  pointer-events: auto;
 }
 
 .show-more-button {

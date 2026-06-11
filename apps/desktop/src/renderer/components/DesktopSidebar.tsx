@@ -390,6 +390,8 @@ function SessionGroup({
   onToggleExpanded: (groupKey: string) => void
   onUnpinSession: (session: SessionListItem) => void
 }): React.ReactNode {
+  const [hoveredSessionId, setHoveredSessionId] = useState<string | null>(null)
+
   return (
     <>
       <ul className="task-list">
@@ -399,6 +401,12 @@ function SessionGroup({
               session.id === activeSessionId ? 'task-row active' : 'task-row'
             }
             key={session.id}
+            onMouseEnter={() => setHoveredSessionId(session.id)}
+            onMouseLeave={() =>
+              setHoveredSessionId(current =>
+                current === session.id ? null : current,
+              )
+            }
           >
             <button
               className="task-button"
@@ -407,12 +415,41 @@ function SessionGroup({
               type="button"
             >
               <span className="task-title">{conversationTitle(session)}</span>
+            </button>
+            <div className="task-trailing">
               {session.status === 'running' ? (
                 <Loader2
-                  aria-label="运行中"
+                  aria-label="???"
                   className="task-spinner"
                   size={12}
                 />
+              ) : hoveredSessionId === session.id ? (
+                <div className="session-inline-actions">
+                  {session.pinnedAt ? (
+                    <IconButton
+                      className="task-close-button"
+                      onClick={() => onUnpinSession(session)}
+                      title="????"
+                    >
+                      <PinOff size={12} />
+                    </IconButton>
+                  ) : (
+                    <IconButton
+                      className="task-close-button"
+                      onClick={() => onPinSession(session)}
+                      title="??"
+                    >
+                      <Pin size={12} />
+                    </IconButton>
+                  )}
+                  <IconButton
+                    className="task-close-button"
+                    onClick={() => onArchiveSession(session)}
+                    title="??"
+                  >
+                    <Archive size={12} />
+                  </IconButton>
+                </div>
               ) : (
                 <span className="task-time">
                   {formatRelativeConversationTime(
@@ -421,32 +458,6 @@ function SessionGroup({
                   )}
                 </span>
               )}
-            </button>
-            <div className="session-inline-actions">
-              {session.pinnedAt ? (
-                <IconButton
-                  className="task-close-button"
-                  onClick={() => onUnpinSession(session)}
-                  title="取消固定"
-                >
-                  <PinOff size={12} />
-                </IconButton>
-              ) : (
-                <IconButton
-                  className="task-close-button"
-                  onClick={() => onPinSession(session)}
-                  title="固定"
-                >
-                  <Pin size={12} />
-                </IconButton>
-              )}
-              <IconButton
-                className="task-close-button"
-                onClick={() => onArchiveSession(session)}
-                title="归档"
-              >
-                <Archive size={12} />
-              </IconButton>
             </div>
           </li>
         ))}
@@ -462,7 +473,7 @@ function SessionGroup({
           ) : (
             <ChevronRight size={13} />
           )}
-          <span>{isExpanded ? '收起' : '显示更多'}</span>
+          <span>{isExpanded ? '??' : '????'}</span>
         </button>
       ) : null}
     </>
