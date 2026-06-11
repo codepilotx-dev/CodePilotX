@@ -333,214 +333,221 @@ export function ModelProviderSettings(): React.ReactNode {
     : dropdownModelOptions[0]?.value ?? NO_MODEL_OPTION
 
   return (
-    <div className="model-provider-settings">
-      <section className="settings-hero-card">
-        <div className="settings-hero-copy">
-          <span className="settings-eyebrow">Current connection</span>
-          <h3>{selectedProvider?.displayName ?? providerID}</h3>
-          <p>
-            {model || 'No model selected'} / {baseURL || 'No Base URL required'}
-          </p>
-        </div>
-        <div className="settings-status-grid">
-          <StatusPill label="API key" value={formatApiKeyState(apiKeySource, apiKeyConfigured)} tone={apiKeyConfigured ? 'ok' : 'warn'} />
-          <StatusPill label="Kind" value={selectedProvider?.kind ?? 'openai-compatible'} />
-          <StatusPill label="Source" value={selectedProvider?.gatewaySource ? 'AI Gateway' : selectedProvider?.modelsDevSource ? 'Models.dev' : 'Built-in'} />
-        </div>
-      </section>
+    <div className="settings-content-area">
+      <div className="settings-content-inner">
+        <h2 className="settings-page-title">高级配置</h2>
+        <p className="settings-page-desc">
+          配置桌面端新会话使用的模型供应商、模型、API key 和连接状态。
+        </p>
 
-      <SettingsSection
-        title="Provider"
-        description="AI Gateway exposes AI SDK supported language models. DeepSeek direct mode keeps its optimized path."
-      >
-        <SettingsRow
-          title="Search"
-          description="Filter by provider name, ID, or npm package."
-          control={
-            <input
-              className="settings-input settings-input-wide"
-              value={providerQuery}
-              placeholder="Search provider..."
-              onChange={event => setProviderQuery(event.target.value)}
-            />
-          }
-        />
-        <SettingsRow
+        <section className="settings-hero-card">
+          <div className="settings-hero-copy">
+            <span className="settings-eyebrow">Current connection</span>
+            <h3>{selectedProvider?.displayName ?? providerID}</h3>
+            <p>
+              {model || 'No model selected'} / {baseURL || 'No Base URL required'}
+            </p>
+          </div>
+          <div className="settings-status-grid">
+            <StatusPill label="API key" value={formatApiKeyState(apiKeySource, apiKeyConfigured)} tone={apiKeyConfigured ? 'ok' : 'warn'} />
+            <StatusPill label="Kind" value={selectedProvider?.kind ?? 'openai-compatible'} />
+            <StatusPill label="Source" value={selectedProvider?.gatewaySource ? 'AI Gateway' : selectedProvider?.modelsDevSource ? 'Models.dev' : 'Built-in'} />
+          </div>
+        </section>
+
+        <SettingsSection
           title="Provider"
-          description={providerDescription(selectedProvider)}
-          control={
-            <SettingsDropdown
-              ariaLabel="Model provider"
-              value={providerID}
-              options={providerOptions}
-              onChange={value => setProviderID(value as ModelProviderID)}
-            />
-          }
-        />
-        <SettingsRow
-          title="Base URL"
-          description={baseURLDescription(selectedProvider, isMiniMax)}
-          control={
-            <input
-              className="settings-input settings-input-wide"
-              readOnly={!baseURLEditable}
-              value={baseURL}
-              placeholder={selectedProvider?.baseURL ?? 'https://.../v1'}
-              onChange={event => setBaseURL(event.target.value)}
-            />
-          }
-        />
-      </SettingsSection>
-
-      <SettingsSection
-        title="Credentials"
-        description="API keys are stored in secure storage. Environment variables take precedence."
-      >
-        <SettingsRow
-          title="API key"
-          description={apiKeySource ? `Current source: ${apiKeySource}` : providerEnvDescription(selectedProvider)}
-          control={
-            <div className="settings-inline-actions settings-secret-actions">
-              <span className={`settings-chip ${apiKeyConfigured ? 'ok' : 'warn'}`}>
-                {formatApiKeyState(apiKeySource, apiKeyConfigured)}
-              </span>
-              <input
-                className="settings-input"
-                value={apiKey}
-                placeholder="Enter and save"
-                type="password"
-                onChange={event => setApiKey(event.target.value)}
-              />
-              <button
-                className="settings-button"
-                disabled={busy}
-                type="button"
-                onClick={() => void saveApiKey()}
-              >
-                Save
-              </button>
-            </div>
-          }
-        />
-      </SettingsSection>
-
-      <SettingsSection
-        title="Model"
-        description={isAIGateway ? 'AI Gateway models use provider/model IDs, for example openai/gpt-4.1.' : 'Model metadata comes from Models.dev and live provider catalogs when available.'}
-      >
-        <SettingsRow
-          title="Search models"
-          description="Filter by provider, model, capability, context, price, source, or tag."
-          control={
-            <input
-              className="settings-input settings-input-wide"
-              value={modelQuery}
-              placeholder="Search model / provider / capability..."
-              onChange={event => setModelQuery(event.target.value)}
-            />
-          }
-        />
-        <SettingsRow
-          title="Model"
-          description={selectedModelDescription ?? 'Select a concrete model.'}
-          control={
-            <SettingsDropdown
-              ariaLabel="Model"
-              value={dropdownModelValue}
-              options={dropdownModelOptions}
-              onChange={value => {
-                if (value !== NO_MODEL_OPTION) setModel(value)
-              }}
-            />
-          }
-        />
-        <SettingsRow
-          title="Catalog"
-          description={modelError ?? status ?? `Current catalog has ${providerModels.length} models.`}
-          control={
-            <button
-              className="settings-button"
-              disabled={busy}
-              type="button"
-              onClick={() => void fetchModels()}
-            >
-              Refresh catalog
-            </button>
-          }
-        />
-      </SettingsSection>
-
-      {isDeepSeek ? (
-        <SettingsSection title="DeepSeek Status" description="DeepSeek direct mode keeps balance checks, thinking parameters, and output-token optimizations.">
+          description="AI Gateway exposes AI SDK supported language models. DeepSeek direct mode keeps its optimized path."
+        >
           <SettingsRow
-            title="Account status"
-            description={balanceStatus ?? 'Balance has not been checked yet.'}
+            title="Search"
+            description="Filter by provider name, ID, or npm package."
             control={
-              <div className="settings-provider-links">
-                <a
-                  className="settings-row-link"
-                  href="https://platform.deepseek.com/api_keys"
-                  onClick={openExternalLink}
-                  rel="noreferrer"
-                  target="_blank"
+              <input
+                className="settings-input settings-input-wide"
+                value={providerQuery}
+                placeholder="Search provider..."
+                onChange={event => setProviderQuery(event.target.value)}
+              />
+            }
+          />
+          <SettingsRow
+            title="Provider"
+            description={providerDescription(selectedProvider)}
+            control={
+              <SettingsDropdown
+                ariaLabel="Model provider"
+                value={providerID}
+                options={providerOptions}
+                onChange={value => setProviderID(value as ModelProviderID)}
+              />
+            }
+          />
+          <SettingsRow
+            title="Base URL"
+            description={baseURLDescription(selectedProvider, isMiniMax)}
+            control={
+              <input
+                className="settings-input settings-input-wide"
+                readOnly={!baseURLEditable}
+                value={baseURL}
+                placeholder={selectedProvider?.baseURL ?? 'https://.../v1'}
+                onChange={event => setBaseURL(event.target.value)}
+              />
+            }
+          />
+        </SettingsSection>
+
+        <SettingsSection
+          title="Credentials"
+          description="API keys are stored in secure storage. Environment variables take precedence."
+        >
+          <SettingsRow
+            title="API key"
+            description={apiKeySource ? `Current source: ${apiKeySource}` : providerEnvDescription(selectedProvider)}
+            control={
+              <div className="settings-inline-actions settings-secret-actions">
+                <span className={`settings-chip ${apiKeyConfigured ? 'ok' : 'warn'}`}>
+                  {formatApiKeyState(apiKeySource, apiKeyConfigured)}
+                </span>
+                <input
+                  className="settings-input"
+                  value={apiKey}
+                  placeholder="Enter and save"
+                  type="password"
+                  onChange={event => setApiKey(event.target.value)}
+                />
+                <button
+                  className="settings-button"
+                  disabled={busy}
+                  type="button"
+                  onClick={() => void saveApiKey()}
                 >
-                  API key
-                </a>
-                <a
-                  className="settings-row-link"
-                  href="https://api-docs.deepseek.com/"
-                  onClick={openExternalLink}
-                  rel="noreferrer"
-                  target="_blank"
-                >
-                  Docs
-                </a>
+                  Save
+                </button>
               </div>
             }
           />
         </SettingsSection>
-      ) : null}
 
-      <SettingsSection
-        title="Connection test"
-        description="Test current credentials and Base URL. Saved connections apply to new sessions."
-      >
-        <SettingsRow
-          title="Actions"
-          description={modelError ?? status ?? connectionHint(selectedProvider, baseURL)}
-          control={
-            <div className="settings-inline-actions">
-              {selectedProvider?.docURL ? (
-                <a
-                  className="settings-row-link"
-                  href={selectedProvider.docURL}
-                  onClick={openExternalLink}
-                  rel="noreferrer"
-                  target="_blank"
-                >
-                  Docs
-                </a>
-              ) : null}
+        <SettingsSection
+          title="Model"
+          description={isAIGateway ? 'AI Gateway models use provider/model IDs, for example openai/gpt-4.1.' : 'Model metadata comes from Models.dev and live provider catalogs when available.'}
+        >
+          <SettingsRow
+            title="Search models"
+            description="Filter by provider, model, capability, context, price, source, or tag."
+            control={
+              <input
+                className="settings-input settings-input-wide"
+                value={modelQuery}
+                placeholder="Search model / provider / capability..."
+                onChange={event => setModelQuery(event.target.value)}
+              />
+            }
+          />
+          <SettingsRow
+            title="Model"
+            description={selectedModelDescription ?? 'Select a concrete model.'}
+            control={
+              <SettingsDropdown
+                ariaLabel="Model"
+                value={dropdownModelValue}
+                options={dropdownModelOptions}
+                onChange={value => {
+                  if (value !== NO_MODEL_OPTION) setModel(value)
+                }}
+              />
+            }
+          />
+          <SettingsRow
+            title="Catalog"
+            description={modelError ?? status ?? `Current catalog has ${providerModels.length} models.`}
+            control={
               <button
                 className="settings-button"
                 disabled={busy}
                 type="button"
-                onClick={() => void testConnection()}
+                onClick={() => void fetchModels()}
               >
-                Test connection
+                Refresh catalog
               </button>
-              <button
-                className="settings-button primary"
-                disabled={busy}
-                type="button"
-                onClick={() => void saveProvider()}
-              >
-                Save connection
-              </button>
-            </div>
-          }
-        />
-      </SettingsSection>
+            }
+          />
+        </SettingsSection>
+
+        {isDeepSeek ? (
+          <SettingsSection title="DeepSeek Status" description="DeepSeek direct mode keeps balance checks, thinking parameters, and output-token optimizations.">
+            <SettingsRow
+              title="Account status"
+              description={balanceStatus ?? 'Balance has not been checked yet.'}
+              control={
+                <div className="settings-provider-links">
+                  <a
+                    className="settings-row-link"
+                    href="https://platform.deepseek.com/api_keys"
+                    onClick={openExternalLink}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    API key
+                  </a>
+                  <a
+                    className="settings-row-link"
+                    href="https://api-docs.deepseek.com/"
+                    onClick={openExternalLink}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    Docs
+                  </a>
+                </div>
+              }
+            />
+          </SettingsSection>
+        ) : null}
+
+        <SettingsSection
+          title="Connection test"
+          description="Test current credentials and Base URL. Saved connections apply to new sessions."
+        >
+          <SettingsRow
+            title="Actions"
+            description={modelError ?? status ?? connectionHint(selectedProvider, baseURL)}
+            control={
+              <div className="settings-inline-actions">
+                {selectedProvider?.docURL ? (
+                  <a
+                    className="settings-row-link"
+                    href={selectedProvider.docURL}
+                    onClick={openExternalLink}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    Docs
+                  </a>
+                ) : null}
+                <button
+                  className="settings-button"
+                  disabled={busy}
+                  type="button"
+                  onClick={() => void testConnection()}
+                >
+                  Test connection
+                </button>
+                <button
+                  className="settings-button primary"
+                  disabled={busy}
+                  type="button"
+                  onClick={() => void saveProvider()}
+                >
+                  Save connection
+                </button>
+              </div>
+            }
+          />
+        </SettingsSection>
+      </div>
     </div>
   )
 }

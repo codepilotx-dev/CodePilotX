@@ -71,14 +71,14 @@ function NumberInput({
   onChange: (v: number) => void
 }) {
   return (
-    <div className="appearance-number-wrap">
+    <div className="settings-input settings-input-compact">
       <input
         type="number"
         value={value}
         onChange={e => onChange(parseInt(e.target.value, 10))}
-        className="appearance-number-input"
+        className="settings-input-number"
       />
-      <span className="appearance-number-unit">px</span>
+      <span className="settings-input-unit">px</span>
     </div>
   )
 }
@@ -95,7 +95,7 @@ function TextInput({
       type="text"
       value={value}
       onChange={e => onChange(e.target.value)}
-      className="appearance-text-input"
+      className="settings-input settings-input-narrow"
     />
   )
 }
@@ -245,22 +245,20 @@ export function AppearanceSettings() {
           </div>
         </section>
 
-        <section className="settings-section">
-          <div className="appearance-theme-header">
-            <h3 className="settings-section-title">
-              {resolvedVariant === 'dark' ? '深色主题' : '浅色主题'}
-            </h3>
-            <div className="appearance-theme-actions">
+        <SettingsSection
+          title={resolvedVariant === 'dark' ? '深色主题' : '浅色主题'}
+          actions={
+            <>
               <button
                 type="button"
-                className="appearance-btn-import"
+                className="settings-button link"
                 onClick={handleImportTheme}
               >
                 导入
               </button>
               <button
                 type="button"
-                className="appearance-btn-copy"
+                className="settings-button ghost"
                 onClick={handleCopyTheme}
               >
                 复制主题
@@ -280,78 +278,76 @@ export function AppearanceSettings() {
                   })
                 }}
               />
-            </div>
-          </div>
-
-          <div className="settings-card">
-            <SettingsRow
-              title="强调色"
-              control={
-                <ColorPickerControl
-                  ariaLabel="强调色"
-                  value={activeTheme.theme.accent}
-                  onChange={accent => updateThemeTokens({ accent })}
-                />
-              }
-            />
-            <SettingsRow
-              title="背景"
-              control={
-                <ColorPickerControl
-                  ariaLabel="背景"
-                  value={activeTheme.theme.surface}
-                  onChange={surface => updateThemeTokens({ surface })}
-                />
-              }
-            />
-            <SettingsRow
-              title="前景"
-              control={
-                <ColorPickerControl
-                  ariaLabel="前景"
-                  value={activeTheme.theme.ink}
-                  onChange={ink => updateThemeTokens({ ink })}
-                />
-              }
-            />
-            <SettingsRow
-              title="UI 字体"
-              control={
-                <TextInput
-                  value={activeTheme.theme.fonts.ui}
-                  onChange={ui => updateThemeFonts({ ui })}
-                />
-              }
-            />
-            <SettingsRow
-              title="代码字体"
-              control={
-                <TextInput
-                  value={activeTheme.theme.fonts.code}
-                  onChange={code => updateThemeFonts({ code })}
-                />
-              }
-            />
-            <SettingsRow
-              title="不透明窗口"
-              control={
-                <ToggleSwitch
-                  checked={activeTheme.theme.opaqueWindows}
-                  onChange={opaqueWindows => updateThemeTokens({ opaqueWindows })}
-                />
-              }
-            />
-            <SettingsRow
-              title="对比度"
-              control={
-                <Slider
-                  value={activeTheme.theme.contrast}
-                  onChange={contrast => updateThemeTokens({ contrast })}
-                />
-              }
-            />
-          </div>
-        </section>
+            </>
+          }
+        >
+          <SettingsRow
+            title="强调色"
+            control={
+              <ColorPickerControl
+                ariaLabel="强调色"
+                value={activeTheme.theme.accent}
+                onChange={accent => updateThemeTokens({ accent })}
+              />
+            }
+          />
+          <SettingsRow
+            title="背景"
+            control={
+              <ColorPickerControl
+                ariaLabel="背景"
+                value={activeTheme.theme.surface}
+                onChange={surface => updateThemeTokens({ surface })}
+              />
+            }
+          />
+          <SettingsRow
+            title="前景"
+            control={
+              <ColorPickerControl
+                ariaLabel="前景"
+                value={activeTheme.theme.ink}
+                onChange={ink => updateThemeTokens({ ink })}
+              />
+            }
+          />
+          <SettingsRow
+            title="UI 字体"
+            control={
+              <TextInput
+                value={activeTheme.theme.fonts.ui}
+                onChange={ui => updateThemeFonts({ ui })}
+              />
+            }
+          />
+          <SettingsRow
+            title="代码字体"
+            control={
+              <TextInput
+                value={activeTheme.theme.fonts.code}
+                onChange={code => updateThemeFonts({ code })}
+              />
+            }
+          />
+          <SettingsRow
+            title="不透明窗口"
+            control={
+              <ToggleSwitch
+                checked={activeTheme.theme.opaqueWindows}
+                onChange={opaqueWindows => updateThemeTokens({ opaqueWindows })}
+              />
+            }
+          />
+          <SettingsRow
+            title="对比度"
+            control={
+              <Slider
+                value={activeTheme.theme.contrast}
+                onChange={contrast => updateThemeTokens({ contrast })}
+              />
+            }
+          />
+        </SettingsSection>
 
         <SettingsSection>
           <SettingsRow
