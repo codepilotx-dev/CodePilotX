@@ -65,11 +65,13 @@
 
 .section-title {
   margin: 0;
-  padding: 0 2px;
-  color: var(--c-text-soft);
-  font-size: var(--fs-14);
-  font-weight: 400;
+  padding: 0 6px;
+  color: var(--c-text-meta);
+  font-size: 11px;
+  font-weight: 500;
   line-height: 1;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .sidebar-section-header {
