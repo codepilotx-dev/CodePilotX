@@ -136,15 +136,6 @@
   padding: 3px 10px 6px;
 }
 
-.composer-meta-note {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--c-text-meta);
-  font-size: var(--fs-12);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .chip-button {
   display: inline-flex;
   align-items: center;

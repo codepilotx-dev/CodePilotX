@@ -448,15 +448,6 @@ export function ComposerCard({
           </PopoverItem>
         </PopoverMenu>
 
-        {!workspace ? (
-          <span className="composer-meta-note">未选择项目文件夹</span>
-        ) : workspace.isGitRepo === false ? (
-          <span className="composer-meta-note">非 Git 项目</span>
-        ) : (
-          workspace?.path && (
-            <span className="composer-meta-note">{workspace.path}</span>
-          )
-        )}
       </div>
     </div>
   )
