@@ -1,4 +1,5 @@
 import type {
+  DesktopContextUsage,
   DesktopFilePreview,
   DesktopPermissionRequest,
   DesktopSessionListItem,
@@ -29,5 +30,6 @@ export type SessionViewState = {
   messages: Message[]
   toolLog: ToolLogEntry[]
   pendingPermissions: DesktopPermissionRequest[]
+  contextUsage: DesktopContextUsage | null
   selectedFile: DesktopFilePreview | null
 }

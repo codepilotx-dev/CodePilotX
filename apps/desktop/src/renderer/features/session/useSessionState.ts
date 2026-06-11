@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
   DesktopAgentEvent,
+  DesktopContextUsage,
   DesktopPermissionMode,
   DesktopPermissionRequest,
   DesktopSessionMetadataPatch,
@@ -63,6 +64,7 @@ export type UseSessionStateResult = {
   messages: Message[]
   toolLog: ToolLogEntry[]
   pendingPermissions: DesktopPermissionRequest[]
+  contextUsage: DesktopContextUsage | null
   activeSessionItem: SessionListItem | null
   canSubmit: boolean
   input: string
@@ -114,6 +116,8 @@ export function useSessionState(
   const [pendingPermissions, setPendingPermissions] = useState<
     DesktopPermissionRequest[]
   >([])
+  const [contextUsage, setContextUsage] =
+    useState<DesktopContextUsage | null>(null)
   const [input, setInput] = useState('')
 
   const activeSessionIdRef = useRef<string | null>(null)
@@ -133,7 +137,7 @@ export function useSessionState(
   onOpenDrawerPermissionsRef.current = onOpenDrawerPermissions
 
   const viewSetters = useMemo<SessionViewStateSetters>(
-    () => ({ setMessages, setToolLog, setPendingPermissions }),
+    () => ({ setMessages, setToolLog, setPendingPermissions, setContextUsage }),
     [],
   )
   const viewRefs = useMemo<SessionViewRefs>(
@@ -234,6 +238,7 @@ export function useSessionState(
         for (const snapshot of sessionSnapshots) {
           nextViews[snapshot.item.id] = {
             ...snapshot.view,
+            contextUsage: snapshot.view.contextUsage ?? null,
             selectedFile: null,
           }
           nextWorkspaces[snapshot.item.id] = snapshot.workspace
@@ -445,6 +450,7 @@ export function useSessionState(
     messages,
     toolLog,
     pendingPermissions,
+    contextUsage,
     activeSessionItem,
     canSubmit,
     input,

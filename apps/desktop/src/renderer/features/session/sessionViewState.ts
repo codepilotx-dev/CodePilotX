@@ -10,6 +10,9 @@ export type SessionViewStateSetters = {
   setMessages: Dispatch<SetStateAction<Message[]>>
   setToolLog: Dispatch<SetStateAction<ToolLogEntry[]>>
   setPendingPermissions: Dispatch<SetStateAction<DesktopPermissionRequest[]>>
+  setContextUsage: Dispatch<
+    SetStateAction<SessionViewState['contextUsage']>
+  >
 }
 
 export type SessionViewRefs = {
@@ -32,6 +35,7 @@ export function createEmptySessionView(): SessionViewState {
     messages: [],
     toolLog: [],
     pendingPermissions: [],
+    contextUsage: null,
     selectedFile: null,
   }
 }
@@ -43,6 +47,7 @@ export function applySessionView(
   setters.setMessages(view.messages)
   setters.setToolLog(view.toolLog)
   setters.setPendingPermissions(view.pendingPermissions)
+  setters.setContextUsage(view.contextUsage)
 }
 
 export function setSessionView(

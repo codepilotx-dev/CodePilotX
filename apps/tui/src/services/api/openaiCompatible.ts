@@ -19,6 +19,7 @@ import {
   normalizeMessagesForAPI,
 } from '../../utils/messages.js'
 import {
+  getProviderModelMetadata,
   getProviderApiKey,
   getSelectedProviderConfig,
   getSelectedProviderID,
@@ -85,6 +86,7 @@ type ChatCompletionChunk = {
     completion_tokens?: number
     prompt_cache_hit_tokens?: number
     prompt_cache_miss_tokens?: number
+    prompt_tokens_details?: { cached_tokens?: number }
   }
 }
 
@@ -103,6 +105,7 @@ type ChatCompletionResponse = {
     completion_tokens?: number
     prompt_cache_hit_tokens?: number
     prompt_cache_miss_tokens?: number
+    prompt_tokens_details?: { cached_tokens?: number }
   }
 }
 
@@ -474,13 +477,23 @@ function usageFromOpenAI(usage: {
   completion_tokens?: number
   prompt_cache_hit_tokens?: number
   prompt_cache_miss_tokens?: number
+  prompt_tokens_details?: { cached_tokens?: number }
   completion_tokens_details?: { reasoning_tokens?: number }
 }): NonNullableUsage {
-  const hit = usage.prompt_cache_hit_tokens ?? 0
-  const miss = usage.prompt_cache_miss_tokens ?? usage.prompt_tokens ?? 0
+  const promptTokens = usage.prompt_tokens ?? 0
+  const hit =
+    usage.prompt_cache_hit_tokens ??
+    usage.prompt_tokens_details?.cached_tokens ??
+    0
+  const miss =
+    usage.prompt_cache_miss_tokens ??
+    (usage.prompt_cache_hit_tokens !== undefined ||
+    usage.prompt_tokens_details?.cached_tokens !== undefined
+      ? Math.max(0, promptTokens - hit)
+      : promptTokens)
   return {
     ...EMPTY_USAGE,
-    input_tokens: hit + miss,
+    input_tokens: miss,
     output_tokens: usage.completion_tokens ?? 0,
     cache_read_input_tokens: hit,
     cache_creation_input_tokens: 0,
@@ -600,6 +613,10 @@ function defaultMaxTokensForModel(
   model: string,
   providerID: string,
 ): number {
+  const metadataOutputTokens = getProviderModelMetadata(providerID, model)?.outputTokens
+  if (metadataOutputTokens && metadataOutputTokens > 0) {
+    return metadataOutputTokens
+  }
   if (!isDeepSeekProvider(providerID)) {
     return DEFAULT_OPENAI_MAX_TOKENS
   }

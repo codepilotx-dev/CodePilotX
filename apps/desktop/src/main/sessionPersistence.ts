@@ -2,6 +2,7 @@ import { readFile, stat, writeFile, mkdir } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import type {
   DesktopAgentEvent,
+  DesktopContextUsage,
   DesktopPermissionRequest,
   DesktopSessionListItem,
   DesktopSessionMessage,
@@ -16,6 +17,10 @@ import {
   getDesktopConfigDirectoryPath,
   getOpenAgentConfigHomeDir,
 } from './desktopSettings.js'
+import {
+  buildDesktopContextUsage,
+  getUsageFromAssistantRecord,
+} from './desktopContextUsage.js'
 
 type PersistedDesktopSessions = {
   activeSessionId: string | null
@@ -130,6 +135,7 @@ export function applyDesktopAgentEventToSnapshot(
       messages: [...snapshot.view.messages],
       toolLog: [...snapshot.view.toolLog],
       pendingPermissions: [...snapshot.view.pendingPermissions],
+      contextUsage: snapshot.view.contextUsage ?? null,
     },
     updatedAt: new Date().toISOString(),
   }
@@ -174,6 +180,11 @@ export function applyDesktopAgentEventToSnapshot(
         messageIndex === index ? partialMessage : message,
       )
     }
+    return next
+  }
+
+  if (event.type === 'context_usage') {
+    next.view.contextUsage = event.usage
     return next
   }
 
@@ -401,6 +412,31 @@ function normalizeViewSnapshot(
     pendingPermissions: Array.isArray(view.pendingPermissions)
       ? view.pendingPermissions.flatMap(normalizePermissionRequest)
       : [],
+    contextUsage: normalizeContextUsage(view.contextUsage),
+  }
+}
+
+function normalizeContextUsage(value: unknown): DesktopContextUsage | null {
+  if (!value || typeof value !== 'object') return null
+  const usage = value as Partial<DesktopContextUsage>
+  if (typeof usage.model !== 'string') return null
+  if (typeof usage.contextWindow !== 'number') return null
+  if (typeof usage.usedTokens !== 'number') return null
+  if (typeof usage.remainingTokens !== 'number') return null
+  if (typeof usage.usedPercent !== 'number') return null
+  if (typeof usage.remainingPercent !== 'number') return null
+  return {
+    model: usage.model,
+    provider: typeof usage.provider === 'string' ? usage.provider : undefined,
+    contextWindow: usage.contextWindow,
+    inputTokens: numberOrZero(usage.inputTokens),
+    outputTokens: numberOrZero(usage.outputTokens),
+    cacheCreationInputTokens: numberOrZero(usage.cacheCreationInputTokens),
+    cacheReadInputTokens: numberOrZero(usage.cacheReadInputTokens),
+    usedTokens: usage.usedTokens,
+    remainingTokens: usage.remainingTokens,
+    usedPercent: usage.usedPercent,
+    remainingPercent: usage.remainingPercent,
   }
 }
 
@@ -504,6 +540,7 @@ function parseTranscriptView(raw: string): DesktopSessionViewSnapshot {
   const messages: DesktopSessionMessage[] = []
   const toolLog: DesktopToolLogEntry[] = []
   const toolNamesById = new Map<string, string>()
+  let contextUsage: DesktopContextUsage | null = null
 
   for (const line of raw.split(/\r?\n/)) {
     if (!line.trim()) continue
@@ -532,6 +569,12 @@ function parseTranscriptView(raw: string): DesktopSessionViewSnapshot {
     }
 
     if (entry.type === 'assistant') {
+      const usageRecord = getUsageFromAssistantRecord(
+        entry as unknown as Record<string, unknown>,
+      )
+      if (usageRecord) {
+        contextUsage = buildDesktopContextUsage(usageRecord) ?? contextUsage
+      }
       const content = entry.message?.content
       const assistantText = extractTextContent(content)
       if (assistantText) {
@@ -567,6 +610,7 @@ function parseTranscriptView(raw: string): DesktopSessionViewSnapshot {
     messages,
     toolLog: toolLog.reverse(),
     pendingPermissions: [],
+    contextUsage,
   }
 }
 
@@ -642,7 +686,14 @@ function createEmptyViewSnapshot(): DesktopSessionViewSnapshot {
     messages: [],
     toolLog: [],
     pendingPermissions: [],
+    contextUsage: null,
   }
+}
+
+function numberOrZero(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0
+    ? value
+    : 0
 }
 
 function createToolLogEntry(params: {

@@ -27,6 +27,7 @@ import type {
   DesktopSessionStatus,
   DesktopThinkingMode,
   DesktopWorkspace,
+  DesktopContextUsage,
   ModelProviderID,
 } from '../../shared/types.js'
 import type { ModelPreset } from '../modelPresets.js'
@@ -66,6 +67,7 @@ type Props = {
   selectedModelPreset: string
   showThinkingOptions: boolean
   showContextUsage: boolean
+  contextUsage: DesktopContextUsage | null
   modelPresets: ModelPreset[]
   providerOptions: ProviderModelOption[]
   permissionOptions: Option<DesktopPermissionMode>[]
@@ -100,6 +102,7 @@ export function ComposerCard({
   selectedModelPreset,
   showThinkingOptions,
   showContextUsage,
+  contextUsage,
   modelPresets,
   providerOptions,
   permissionOptions,
@@ -197,6 +200,11 @@ export function ComposerCard({
   const isRunning = sessionStatus === 'running' || sessionStatus === 'waiting'
   const showFullAccessWarning =
     permissionMode === 'bypassPermissions' || permissionMode === 'dontAsk'
+  const contextUsedText = contextUsage
+    ? `${formatCompactNumber(contextUsage.usedTokens)} / ${formatCompactNumber(
+        contextUsage.contextWindow,
+      )} token`
+    : '暂无上下文统计'
 
   return (
     <div className="composer">
@@ -321,8 +329,23 @@ export function ComposerCard({
                 <span className="chip-dot" />
                 <span className="context-usage-popover" role="tooltip">
                   <span>上下文窗口：</span>
-                  <strong>已用 28%，剩余 72%</strong>
-                  <span>已使用 72k / 258k token</span>
+                  {contextUsage ? (
+                    <>
+                      <strong>
+                        已用 {contextUsage.usedPercent}%，剩余{' '}
+                        {contextUsage.remainingPercent}%
+                      </strong>
+                      <span>已使用 {contextUsedText}</span>
+                      <span>
+                        {contextUsage.provider
+                          ? `${contextUsage.provider} · `
+                          : ''}
+                        {contextUsage.model}
+                      </span>
+                    </>
+                  ) : (
+                    <strong>{contextUsedText}</strong>
+                  )}
                 </span>
               </span>
             ) : null}
@@ -608,4 +631,18 @@ export function ComposerCard({
       </div>
     </div>
   )
+}
+
+function formatCompactNumber(value: number): string {
+  if (value >= 1_000_000) {
+    return `${trimNumber(value / 1_000_000)}M`
+  }
+  if (value >= 1_000) {
+    return `${trimNumber(value / 1_000)}k`
+  }
+  return String(value)
+}
+
+function trimNumber(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1)
 }

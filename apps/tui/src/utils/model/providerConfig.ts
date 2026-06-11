@@ -317,6 +317,39 @@ export function getSelectedProviderConfig(): ProviderConfig {
   }
 }
 
+function getMetadataForModel(
+  metadata: Record<string, ProviderModelMetadata> | undefined,
+  modelID: string,
+): ProviderModelMetadata | undefined {
+  if (!metadata || !modelID) return undefined
+  const exact = metadata[modelID]
+  if (exact) return exact
+  const lowerModel = modelID.toLowerCase()
+  for (const [key, value] of Object.entries(metadata)) {
+    if (key.toLowerCase() === lowerModel) return value
+  }
+  return undefined
+}
+
+export function getSelectedProviderModelMetadata(
+  modelID: string,
+): ProviderModelMetadata | undefined {
+  const provider = getSelectedProviderConfig()
+  const direct = getMetadataForModel(provider.modelMetadata, modelID)
+  if (direct) return direct
+
+  const split = splitProviderModel(modelID)
+  if (split) {
+    const byModelID = getMetadataForModel(provider.modelMetadata, split.modelID)
+    if (byModelID) return byModelID
+  }
+
+  const defaultModel = provider.defaultModels[0]
+  return defaultModel
+    ? getMetadataForModel(provider.modelMetadata, defaultModel)
+    : undefined
+}
+
 export function getProviderDisplayName(providerID = getSelectedProviderID()): string {
   return getCachedProviderConfig(providerID).displayName ?? providerID
 }
@@ -325,7 +358,7 @@ export function getProviderModelMetadata(
   providerID: ModelProviderID,
   modelID: string,
 ): ProviderModelMetadata | undefined {
-  return getCachedProviderConfig(providerID).modelMetadata?.[modelID]
+  return getMetadataForModel(getCachedProviderConfig(providerID).modelMetadata, modelID)
 }
 
 export function splitProviderModel(input: string): {

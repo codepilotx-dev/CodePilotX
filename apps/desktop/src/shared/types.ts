@@ -217,6 +217,20 @@ export type DesktopToolLogEntry = {
   createdAt: string
 }
 
+export type DesktopContextUsage = {
+  model: string
+  provider?: string
+  contextWindow: number
+  inputTokens: number
+  outputTokens: number
+  cacheCreationInputTokens: number
+  cacheReadInputTokens: number
+  usedTokens: number
+  remainingTokens: number
+  usedPercent: number
+  remainingPercent: number
+}
+
 export type DesktopSessionListItem = {
   id: string
   sessionName: string | null
@@ -253,6 +267,7 @@ export type DesktopSessionViewSnapshot = {
   messages: DesktopSessionMessage[]
   toolLog: DesktopToolLogEntry[]
   pendingPermissions: DesktopPermissionRequest[]
+  contextUsage: DesktopContextUsage | null
 }
 
 export type DesktopSessionSnapshot = {
@@ -271,6 +286,7 @@ export type DesktopSessionMetadataPatch = {
 export type DesktopAgentEvent =
   | { type: 'message'; sessionId: string; role: 'user' | 'assistant' | 'system'; text: string; createdAt?: string }
   | { type: 'partial_message'; sessionId: string; text: string; createdAt?: string }
+  | { type: 'context_usage'; sessionId: string; usage: DesktopContextUsage }
   | { type: 'session_title'; sessionId: string; title: string }
   | { type: 'tool_start'; sessionId: string; toolName: string; summary: string }
   | { type: 'tool_result'; sessionId: string; toolName: string; summary: string; isError?: boolean }

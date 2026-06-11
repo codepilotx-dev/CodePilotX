@@ -123,6 +123,7 @@ export function DesktopLayout(): React.ReactNode {
     sessions,
     sessionStatus,
     messages,
+    contextUsage,
     pendingPermissions,
     input,
     setInput,
@@ -673,6 +674,7 @@ export function DesktopLayout(): React.ReactNode {
       selectedModelPreset={resolvedSelectedModelPreset}
       showThinkingOptions={showThinkingOptions}
       showContextUsage={showContextUsage}
+      contextUsage={contextUsage}
       modelPresets={modelPresets}
       providerOptions={providerModelOptions}
       permissionOptions={PERMISSION_MODE_OPTIONS}

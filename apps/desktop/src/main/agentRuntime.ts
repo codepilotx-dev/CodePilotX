@@ -42,6 +42,10 @@ import type {
   DesktopPermissionRequest,
   DesktopThinkingMode,
 } from '../shared/types.js'
+import {
+  buildDesktopContextUsage,
+  getUsageFromAssistantRecord,
+} from './desktopContextUsage.js'
 
 export type DesktopAgentRuntimeContext = {
   sessionId: string
@@ -271,6 +275,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
   }
 
   private emitAssistantMessage(message: Record<string, unknown>): void {
+    this.emitContextUsage(message)
     const content = getMessageContent(message)
     if (!Array.isArray(content)) {
       return
@@ -320,6 +325,18 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
         })
       }
     }
+  }
+
+  private emitContextUsage(message: Record<string, unknown>): void {
+    const usageRecord = getUsageFromAssistantRecord(message)
+    if (!usageRecord) return
+    const usage = buildDesktopContextUsage(usageRecord)
+    if (!usage) return
+    this.context.emit({
+      type: 'context_usage',
+      sessionId: this.context.sessionId,
+      usage,
+    })
   }
 
   private emitUserMessage(message: Record<string, unknown>): void {
@@ -652,6 +669,7 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
   }
 
   private emitAssistantMessage(message: Record<string, unknown>): void {
+    this.emitContextUsage(message)
     const content = getMessageContent(message)
     if (!Array.isArray(content)) {
       return
@@ -701,6 +719,18 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
         })
       }
     }
+  }
+
+  private emitContextUsage(message: Record<string, unknown>): void {
+    const usageRecord = getUsageFromAssistantRecord(message)
+    if (!usageRecord) return
+    const usage = buildDesktopContextUsage(usageRecord)
+    if (!usage) return
+    this.context.emit({
+      type: 'context_usage',
+      sessionId: this.context.sessionId,
+      usage,
+    })
   }
 
   private emitUserMessage(message: Record<string, unknown>): void {

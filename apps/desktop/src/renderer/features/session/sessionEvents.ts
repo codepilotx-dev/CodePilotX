@@ -102,6 +102,14 @@ export function handleSessionAgentEvent(
     return
   }
 
+  if (event.type === 'context_usage') {
+    updateSessionView(event.sessionId, view => ({
+      ...view,
+      contextUsage: event.usage,
+    }))
+    return
+  }
+
   if (event.type === 'session_title') {
     setSessions(current =>
       current.map(session =>
