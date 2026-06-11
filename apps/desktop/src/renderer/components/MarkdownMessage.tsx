@@ -14,9 +14,8 @@ renderer.code = function (token: marked.Tokens.Code): string {
     if (rawLang && hljs.getLanguage(rawLang)) {
       highlighted = hljs.highlight(token.text, { language: rawLang }).value
     } else {
-      const auto = hljs.highlightAuto(token.text)
-      highlighted = auto.value
-      detectedLang = auto.language ?? rawLang
+      highlighted = escapeHtml(token.text)
+      detectedLang = rawLang
     }
   } catch {
     highlighted = escapeHtml(token.text)
@@ -134,6 +133,10 @@ export function MarkdownMessage({ text, streaming = false }: Props): React.React
     }
   }, [html])
 
+  if (streaming) {
+    return <div className="md-body md-streaming-plain">{text}</div>
+  }
+
   if (!html) return null
 
   return (
@@ -148,6 +151,7 @@ export function MarkdownMessage({ text, streaming = false }: Props): React.React
 
 function renderMarkdown(rawText: string, streaming: boolean): string {
   const safeText = rawText ?? ''
+  if (streaming) return ''
   // 流式时如果末尾还有未闭合的围栏代码块，截掉那一段，避免渲染半截 fence 触发解析错乱
   const textToRender = streaming ? clipUnclosedFence(safeText) : safeText
   if (!textToRender.trim()) return ''

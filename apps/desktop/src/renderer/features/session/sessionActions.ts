@@ -163,6 +163,7 @@ export async function decidePermissionAction(
   request: DesktopPermissionRequest,
   behavior: 'allow' | 'deny',
   alwaysAllow = false,
+  feedback?: string,
 ): Promise<void> {
   if (!sessionId) return
   updateSessionView(sessionId, view => ({
@@ -171,11 +172,13 @@ export async function decidePermissionAction(
       item => item.requestId !== request.requestId,
     ),
   }))
+  const trimmedFeedback = feedback?.trim()
   try {
     await window.desktopApi.respondToPermission(sessionId, request.requestId, {
       behavior,
       message: behavior === 'deny' ? '在桌面端界面中拒绝' : undefined,
       alwaysAllow,
+      ...(trimmedFeedback ? { feedback: trimmedFeedback } : {}),
     })
   } catch (error) {
     onErrorRef.current(errorMessageOf(error))

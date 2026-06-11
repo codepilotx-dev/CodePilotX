@@ -33,6 +33,9 @@ type TranscriptEntry = {
   uuid?: string
   timestamp?: string
   sessionId?: string
+  isMeta?: boolean
+  isCompactSummary?: boolean
+  isVisibleInTranscriptOnly?: boolean
   message?: {
     role?: string
     content?: unknown
@@ -142,6 +145,7 @@ export function applyDesktopAgentEventToSnapshot(
       toolLog: [...snapshot.view.toolLog],
       pendingPermissions: [...snapshot.view.pendingPermissions],
       contextUsage: snapshot.view.contextUsage ?? null,
+      streamState: snapshot.view.streamState ?? createIdleStreamState(),
     },
     updatedAt: new Date().toISOString(),
   }
@@ -154,15 +158,29 @@ export function applyDesktopAgentEventToSnapshot(
   if (event.type === 'message') {
     const createdAt = normalizeTimestampString(event.createdAt) ?? new Date().toISOString()
     next.item.lastMessageAt = createdAt
-    next.view.messages = [
-      ...next.view.messages.filter(message => !message.streaming),
-      {
-        id: randomId(),
-        role: event.role,
-        text: event.text,
-        createdAt,
-      },
-    ]
+    const streamingIndex =
+      event.role === 'assistant'
+        ? next.view.messages.findIndex(message => message.streaming)
+        : -1
+    const finalMessage: DesktopSessionMessage = {
+      id:
+        streamingIndex >= 0
+          ? next.view.messages[streamingIndex]!.id
+          : randomId(),
+      role: event.role,
+      text: event.text,
+      createdAt,
+    }
+    if (streamingIndex >= 0) {
+      next.view.messages = next.view.messages.map((message, index) =>
+        index === streamingIndex ? finalMessage : message,
+      )
+    } else {
+      next.view.messages = [
+        ...next.view.messages.filter(message => !message.streaming),
+        finalMessage,
+      ]
+    }
     return next
   }
 
@@ -189,6 +207,28 @@ export function applyDesktopAgentEventToSnapshot(
     return next
   }
 
+  if (event.type === 'stream_state') {
+    next.view.streamState = {
+      ...next.view.streamState,
+      mode: event.mode,
+      thinkingRedacted:
+        event.thinkingRedacted ?? next.view.streamState.thinkingRedacted,
+      activeToolUseIds:
+        event.activeToolUseIds ?? next.view.streamState.activeToolUseIds,
+    }
+    return next
+  }
+
+  if (event.type === 'thinking_delta') {
+    next.view.streamState = {
+      ...next.view.streamState,
+      mode: 'thinking',
+      thinkingText: event.fullText,
+      thinkingRedacted: event.redacted ?? next.view.streamState.thinkingRedacted,
+    }
+    return next
+  }
+
   if (event.type === 'context_usage') {
     next.item.model = event.usage.model
     next.settings = {
@@ -205,27 +245,68 @@ export function applyDesktopAgentEventToSnapshot(
   }
 
   if (event.type === 'tool_start') {
-    next.view.toolLog = [
+    next.view.toolLog = upsertToolLogEntry(
+      next.view.toolLog,
       createToolLogEntry({
+        toolUseId: event.toolUseId,
         toolName: event.toolName,
         summary: event.summary,
         kind: 'start',
+        status: 'running',
+        input: event.input,
+        timestamp: event.createdAt,
       }),
-      ...next.view.toolLog,
-    ]
+    )
+    if (event.toolUseId) {
+      next.view.streamState = {
+        ...next.view.streamState,
+        activeToolUseIds: uniqueIds([
+          ...next.view.streamState.activeToolUseIds,
+          event.toolUseId,
+        ]),
+      }
+    }
+    return next
+  }
+
+  if (event.type === 'tool_input_delta') {
+    next.view.toolLog = upsertToolLogEntry(
+      next.view.toolLog,
+      createToolLogEntry({
+        toolUseId: event.toolUseId,
+        toolName: event.toolName,
+        summary: event.summary,
+        kind: 'start',
+        status: 'running',
+        input: event.input ?? event.partialInput,
+        timestamp: event.createdAt,
+      }),
+    )
     return next
   }
 
   if (event.type === 'tool_result') {
-    next.view.toolLog = [
+    next.view.toolLog = upsertToolLogEntry(
+      next.view.toolLog,
       createToolLogEntry({
+        toolUseId: event.toolUseId,
         toolName: event.toolName,
         summary: event.summary,
         kind: 'result',
         isError: event.isError,
+        status: event.isError ? 'error' : 'success',
+        content: event.content,
+        timestamp: event.createdAt,
       }),
-      ...next.view.toolLog,
-    ]
+    )
+    if (event.toolUseId) {
+      next.view.streamState = {
+        ...next.view.streamState,
+        activeToolUseIds: next.view.streamState.activeToolUseIds.filter(
+          id => id !== event.toolUseId,
+        ),
+      }
+    }
     return next
   }
 
@@ -242,6 +323,7 @@ export function applyDesktopAgentEventToSnapshot(
     next.item.status = 'error'
     next.item.lastMessageAt = createdAt
     next.view.pendingPermissions = []
+    next.view.streamState = createIdleStreamState()
     next.view.messages = [
       ...next.view.messages.map(message =>
         message.streaming ? { ...message, streaming: false } : message,
@@ -259,6 +341,7 @@ export function applyDesktopAgentEventToSnapshot(
   if (event.type === 'done') {
     next.item.status = 'done'
     next.view.pendingPermissions = []
+    next.view.streamState = createIdleStreamState()
     next.view.messages = next.view.messages.map(message =>
       message.streaming ? { ...message, streaming: false } : message,
     )
@@ -337,6 +420,7 @@ function normalizeSessionSnapshot(value: unknown): DesktopSessionSnapshot[] {
       view: {
         ...view,
         pendingPermissions: [],
+        streamState: createIdleStreamState(),
         messages: view.messages.map(message => ({
           ...message,
           streaming: false,
@@ -433,6 +517,7 @@ function normalizeViewSnapshot(
       ? view.pendingPermissions.flatMap(normalizePermissionRequest)
       : [],
     contextUsage: normalizeContextUsage(view.contextUsage),
+    streamState: createIdleStreamState(),
   }
 }
 
@@ -492,15 +577,31 @@ function normalizeToolLogEntry(value: unknown): DesktopToolLogEntry[] {
   return [
     {
       id: typeof entry.id === 'string' ? entry.id : randomId(),
+      toolUseId: stringOrUndefined(entry.toolUseId),
       toolName: entry.toolName,
       summary: entry.summary,
       kind: entry.kind,
       isError: entry.isError === true,
+      status:
+        entry.status === 'running' ||
+        entry.status === 'success' ||
+        entry.status === 'error'
+          ? entry.status
+          : entry.isError === true
+            ? 'error'
+            : entry.kind === 'result'
+              ? 'success'
+              : undefined,
+      input: entry.input,
+      content: entry.content,
       expanded: entry.expanded === true,
       createdAt:
         typeof entry.createdAt === 'string'
           ? entry.createdAt
           : new Date().toLocaleTimeString(),
+      createdAtIso:
+        normalizeTimestampString(entry.createdAtIso) ??
+        new Date().toISOString(),
     },
   ]
 }
@@ -584,6 +685,9 @@ function parseTranscriptView(raw: string): ParsedTranscriptView {
     } catch {
       continue
     }
+    if (isHiddenTranscriptEntry(entry)) {
+      continue
+    }
 
     if (entry.type === 'user') {
       const content = entry.message?.content
@@ -652,8 +756,17 @@ function parseTranscriptView(raw: string): ParsedTranscriptView {
     toolLog: toolLog.reverse(),
     pendingPermissions: [],
     contextUsage,
+    streamState: createIdleStreamState(),
     effectiveModel,
   }
+}
+
+function isHiddenTranscriptEntry(entry: TranscriptEntry): boolean {
+  return (
+    entry.isMeta === true ||
+    entry.isCompactSummary === true ||
+    entry.isVisibleInTranscriptOnly === true
+  )
 }
 
 function extractAssistantModel(entry: TranscriptEntry): string | undefined {
@@ -683,9 +796,12 @@ function collectToolUses(
     }
     toolLog.push(
       createToolLogEntry({
+        toolUseId: typeof item.id === 'string' ? item.id : undefined,
         toolName,
         summary: summarizeToolInput(toolName, item.input),
         kind: 'start',
+        status: 'success',
+        input: item.input,
         timestamp,
       }),
     )
@@ -709,10 +825,13 @@ function collectToolResults(
         : 'Tool'
     toolLog.push(
       createToolLogEntry({
+        toolUseId: typeof item.tool_use_id === 'string' ? item.tool_use_id : undefined,
         toolName,
         summary: summarizeToolInput(toolName, item.content),
         kind: 'result',
         isError: item.is_error === true,
+        status: item.is_error === true ? 'error' : 'success',
+        content: item.content,
         timestamp,
       }),
     )
@@ -739,6 +858,7 @@ function createEmptyViewSnapshot(): DesktopSessionViewSnapshot {
     toolLog: [],
     pendingPermissions: [],
     contextUsage: null,
+    streamState: createIdleStreamState(),
   }
 }
 
@@ -749,21 +869,71 @@ function numberOrZero(value: unknown): number {
 }
 
 function createToolLogEntry(params: {
+  toolUseId?: string
   toolName: string
   summary: string
   kind: 'start' | 'result'
   isError?: boolean
+  status?: 'running' | 'success' | 'error'
+  input?: unknown
+  content?: unknown
   timestamp?: string
 }): DesktopToolLogEntry {
+  const createdAtIso =
+    normalizeTimestampString(params.timestamp) ?? new Date().toISOString()
   return {
     id: randomId(),
+    toolUseId: params.toolUseId,
     toolName: params.toolName,
     summary: params.summary,
     kind: params.kind,
     isError: params.isError,
+    status: params.status,
+    input: params.input,
+    content: params.content,
     expanded: params.isError === true,
-    createdAt: formatTimestamp(params.timestamp),
+    createdAt: formatTimestamp(createdAtIso),
+    createdAtIso,
   }
+}
+
+function createIdleStreamState(): DesktopSessionViewSnapshot['streamState'] {
+  return {
+    mode: 'idle',
+    thinkingText: '',
+    activeToolUseIds: [],
+  }
+}
+
+function upsertToolLogEntry(
+  current: DesktopToolLogEntry[],
+  entry: DesktopToolLogEntry,
+): DesktopToolLogEntry[] {
+  if (!entry.toolUseId) {
+    return [entry, ...current]
+  }
+  const index = current.findIndex(
+    item => item.toolUseId === entry.toolUseId && item.kind === entry.kind,
+  )
+  if (index === -1) {
+    return [entry, ...current]
+  }
+  return current.map((item, itemIndex) =>
+    itemIndex === index
+      ? {
+          ...item,
+          ...entry,
+          id: item.id,
+          createdAt: item.createdAt,
+          createdAtIso: item.createdAtIso ?? entry.createdAtIso,
+          expanded: item.expanded || entry.isError === true,
+        }
+      : item,
+  )
+}
+
+function uniqueIds(ids: string[]): string[] {
+  return [...new Set(ids)]
 }
 
 function summarizeToolInput(toolName: string, input: unknown): string {

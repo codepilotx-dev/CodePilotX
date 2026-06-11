@@ -786,6 +786,10 @@ export class QueryEngine {
           yield* normalizeMessage(message)
           break
         case 'stream_event':
+          logQueryStreamDebug('query-engine-stream', {
+            eventType: message.event.type,
+            includePartialMessages,
+          })
           if (message.event.type === 'message_start') {
             // Reset current message usage for new message
             currentMessageUsage = EMPTY_USAGE
@@ -1292,4 +1296,14 @@ export async function* ask({
   } finally {
     setReadFileCache(engine.getReadFileState())
   }
+}
+
+function logQueryStreamDebug(
+  label: string,
+  details: Record<string, unknown>,
+): void {
+  if (process.env.QUERY_STREAM_DEBUG !== '1') {
+    return
+  }
+  console.info(`[${label}]`, details)
 }

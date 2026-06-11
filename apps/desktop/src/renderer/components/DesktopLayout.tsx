@@ -5,6 +5,7 @@ import { AlertCircle } from 'lucide-react'
 import { ComposerCard } from './ComposerCard.js'
 import { DesktopShell } from './DesktopShell.js'
 import { DesktopSidebar } from './DesktopSidebar.js'
+import { PermissionDialog } from './PermissionDialog.js'
 import { WindowChrome } from './WindowChrome.js'
 import type {
   EditMenuAction,
@@ -125,6 +126,8 @@ export function DesktopLayout(): React.ReactNode {
     sessions,
     sessionStatus,
     messages,
+    toolLog,
+    streamState,
     contextUsage,
     pendingPermissions,
     input,
@@ -778,47 +781,21 @@ export function DesktopLayout(): React.ReactNode {
           {activePermissionRequest ? (
             <Dialog.Overlay className="permission-modal-backdrop">
               <Dialog.Content
-                className="permission-modal"
+                className="permission-modal-anchor"
                 onEscapeKeyDown={event => event.preventDefault()}
                 onInteractOutside={event => event.preventDefault()}
               >
-            <header>
-              <Dialog.Title asChild>
-                <h2>权限请求</h2>
-              </Dialog.Title>
-              <span>{activePermissionRequest.toolName}</span>
-            </header>
-            <Dialog.Description asChild>
-              <p>{activePermissionRequest.description}</p>
-            </Dialog.Description>
-            <code>{JSON.stringify(activePermissionRequest.input)}</code>
-            <div className="permission-modal-actions">
-              <button
-                className="primary-button"
-                onClick={() =>
-                  void decidePermission(activePermissionRequest, 'allow')
-                }
-                type="button"
-              >
-                允许
-              </button>
-              <button
-                onClick={() =>
-                  void decidePermission(activePermissionRequest, 'allow', true)
-                }
-                type="button"
-              >
-                始终允许
-              </button>
-              <button
-                onClick={() =>
-                  void decidePermission(activePermissionRequest, 'deny')
-                }
-                type="button"
-              >
-                拒绝
-              </button>
-            </div>
+                <PermissionDialog
+                  request={activePermissionRequest}
+                  onDecide={(behavior, options) => {
+                    void decidePermission(
+                      activePermissionRequest,
+                      behavior,
+                      options?.alwaysAllow ?? false,
+                      options?.feedback,
+                    )
+                  }}
+                />
               </Dialog.Content>
             </Dialog.Overlay>
           ) : null}
@@ -849,6 +826,10 @@ export function DesktopLayout(): React.ReactNode {
               null,
             workspaceName: currentWorkspace?.name ?? null,
             messages: isHomePage || isConversationLoading ? [] : messages,
+            toolLog: isHomePage || isConversationLoading ? [] : toolLog,
+            streamState: isHomePage || isConversationLoading
+              ? { mode: 'idle', thinkingText: '', activeToolUseIds: [] }
+              : streamState,
             errorMessage,
             onDismissError: () => setErrorMessage(null),
             sessionStatus,

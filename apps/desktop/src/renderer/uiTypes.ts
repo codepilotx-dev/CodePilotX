@@ -4,6 +4,7 @@ import type {
   DesktopPermissionRequest,
   DesktopSessionListItem,
   DesktopSessionMessage,
+  DesktopStreamState,
   DesktopToolLogEntry,
 } from '../shared/types.js'
 
@@ -31,5 +32,6 @@ export type SessionViewState = {
   toolLog: ToolLogEntry[]
   pendingPermissions: DesktopPermissionRequest[]
   contextUsage: DesktopContextUsage | null
+  streamState: DesktopStreamState
   selectedFile: DesktopFilePreview | null
 }

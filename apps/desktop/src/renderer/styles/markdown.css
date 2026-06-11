@@ -16,6 +16,10 @@
   margin-bottom: 0;
 }
 
+.md-streaming-plain {
+  white-space: pre-wrap;
+}
+
 .md-body p {
   margin: 0 0 var(--sp-3);
 }

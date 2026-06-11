@@ -46,6 +46,7 @@ import {
   buildDesktopContextUsage,
   getUsageFromAssistantRecord,
 } from './desktopContextUsage.js'
+import { detectShellCommandRisk } from './permissionRisk.js'
 
 export type DesktopAgentRuntimeContext = {
   sessionId: string
@@ -100,8 +101,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
   private child: ChildProcessWithoutNullStreams | null = null
   private emittedAssistantText = false
   private hasStartedCliSession = false
-  private partialText = ''
-  private readonly toolNamesByUseId = new Map<string, string>()
+  private readonly streamState = createDesktopRuntimeStreamState()
 
   constructor(private readonly context: DesktopAgentRuntimeContext) {}
 
@@ -115,8 +115,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
       throw new Error('Desktop agent executable path is not configured')
     }
     this.emittedAssistantText = false
-    this.partialText = ''
-    this.toolNamesByUseId.clear()
+    resetDesktopRuntimeStreamState(this.streamState)
 
     const child = spawn(
       executablePath,
@@ -252,7 +251,18 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
     }
 
     switch (message.type) {
+      case 'stream_request_start':
+      case 'stream_event':
+        logDesktopStreamDebug('cli-stdout-stream', describeStreamMessage(message))
+        emitDesktopStreamEvents(
+          message,
+          this.context.sessionId,
+          this.streamState,
+          event => this.context.emit(event),
+        )
+        return
       case 'assistant':
+        logDesktopStreamDebug('cli-stdout-assistant', describeAssistantMessage(message))
         this.emitAssistantMessage(message)
         return
       case 'system':
@@ -265,6 +275,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
         await this.handleControlRequest(message)
         return
       case 'user':
+        logDesktopStreamDebug('cli-stdout-user', describeUserMessage(message))
         this.emitUserMessage(message)
         return
       case 'control_cancel_request':
@@ -294,39 +305,123 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
       const item = block as Record<string, unknown>
       const partialText = extractPartialText(item)
       if (partialText) {
-        this.partialText += partialText
+        this.streamState.partialText += partialText
+        logDesktopStreamDebug('assistant-partial-text', {
+          sessionId: this.context.sessionId,
+          deltaLength: partialText.length,
+          totalLength: this.streamState.partialText.length,
+        })
         this.context.emit({
           type: 'partial_message',
           sessionId: this.context.sessionId,
-          text: this.partialText,
+          text: this.streamState.partialText,
+        })
+      } else if (item.type === 'thinking' && typeof item.thinking === 'string') {
+        this.streamState.thinkingText = item.thinking
+        logDesktopStreamDebug('assistant-thinking-block', {
+          sessionId: this.context.sessionId,
+          length: item.thinking.length,
+        })
+        this.context.emit({
+          type: 'stream_state',
+          sessionId: this.context.sessionId,
+          mode: 'thinking',
+          activeToolUseIds: [...this.streamState.activeToolUseIds],
+        })
+        this.context.emit({
+          type: 'thinking_delta',
+          sessionId: this.context.sessionId,
+          text: item.thinking,
+          fullText: this.streamState.thinkingText,
+        })
+      } else if (item.type === 'redacted_thinking') {
+        this.streamState.thinkingText = ''
+        logDesktopStreamDebug('assistant-thinking-block', {
+          sessionId: this.context.sessionId,
+          redacted: true,
+        })
+        this.context.emit({
+          type: 'stream_state',
+          sessionId: this.context.sessionId,
+          mode: 'thinking',
+          thinkingRedacted: true,
+          activeToolUseIds: [...this.streamState.activeToolUseIds],
         })
       } else if (item.type === 'text' && typeof item.text === 'string') {
         this.emittedAssistantText = true
-        this.partialText = ''
+        this.streamState.partialText = item.text
+        logDesktopStreamDebug('assistant-text-block', {
+          sessionId: this.context.sessionId,
+          length: item.text.length,
+        })
+        this.context.emit({
+          type: 'stream_state',
+          sessionId: this.context.sessionId,
+          mode: 'responding',
+          activeToolUseIds: [...this.streamState.activeToolUseIds],
+        })
+        this.context.emit({
+          type: 'partial_message',
+          sessionId: this.context.sessionId,
+          text: this.streamState.partialText,
+        })
         this.context.emit({
           type: 'message',
           sessionId: this.context.sessionId,
           role: 'assistant',
           text: item.text,
         })
+        this.streamState.partialText = ''
       } else if (item.type === 'tool_use') {
         const toolName = typeof item.name === 'string' ? item.name : 'Tool'
         if (typeof item.id === 'string') {
-          this.toolNamesByUseId.set(item.id, toolName)
+          this.streamState.toolNamesByUseId.set(item.id, toolName)
+          this.streamState.activeToolUseIds.add(item.id)
         }
+        logDesktopStreamDebug('assistant-tool-use-block', {
+          sessionId: this.context.sessionId,
+          toolUseId: typeof item.id === 'string' ? item.id : undefined,
+          toolName,
+          hasInput: item.input !== undefined,
+        })
         this.context.emit({
           type: 'tool_start',
           sessionId: this.context.sessionId,
           toolName,
           summary: summarizeToolInput(toolName, item.input),
+          toolUseId: typeof item.id === 'string' ? item.id : undefined,
+          input: item.input,
+        })
+        this.context.emit({
+          type: 'stream_state',
+          sessionId: this.context.sessionId,
+          mode: 'tool-use',
+          activeToolUseIds: [...this.streamState.activeToolUseIds],
         })
       } else if (item.type === 'tool_result') {
         const toolName = this.toolNameForResult(item)
+        if (typeof item.tool_use_id === 'string') {
+          this.streamState.activeToolUseIds.delete(item.tool_use_id)
+        }
+        logDesktopStreamDebug('assistant-tool-result-block', {
+          sessionId: this.context.sessionId,
+          toolUseId:
+            typeof item.tool_use_id === 'string'
+              ? item.tool_use_id
+              : undefined,
+          toolName,
+          isError: item.is_error === true,
+        })
         this.context.emit({
           type: 'tool_result',
           sessionId: this.context.sessionId,
           toolName,
           summary: summarizeToolInput(toolName, item.content),
+          toolUseId:
+            typeof item.tool_use_id === 'string'
+              ? item.tool_use_id
+              : undefined,
+          content: item.content,
           isError: item.is_error === true,
         })
       }
@@ -360,11 +455,17 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
         continue
       }
       const toolName = this.toolNameForResult(item)
+      if (typeof item.tool_use_id === 'string') {
+        this.streamState.activeToolUseIds.delete(item.tool_use_id)
+      }
       this.context.emit({
         type: 'tool_result',
         sessionId: this.context.sessionId,
         toolName,
         summary: summarizeToolInput(toolName, item.content),
+        toolUseId:
+          typeof item.tool_use_id === 'string' ? item.tool_use_id : undefined,
+        content: item.content,
         isError: item.is_error === true,
       })
     }
@@ -372,7 +473,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
 
   private toolNameForResult(item: Record<string, unknown>): string {
     return typeof item.tool_use_id === 'string'
-      ? (this.toolNamesByUseId.get(item.tool_use_id) ?? 'Tool')
+      ? (this.streamState.toolNamesByUseId.get(item.tool_use_id) ?? 'Tool')
       : 'Tool'
   }
 
@@ -395,7 +496,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
       !this.emittedAssistantText &&
       typeof message.result === 'string' &&
       message.result.trim() &&
-      message.result !== this.partialText
+      message.result !== this.streamState.partialText
     ) {
       this.context.emit({
         type: 'message',
@@ -404,7 +505,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
         text: message.result,
       })
     }
-    this.partialText = ''
+    this.streamState.partialText = ''
     if (this.child && !this.child.stdin.destroyed) {
       this.child.stdin.end()
     }
@@ -447,6 +548,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
         typeof request.description === 'string'
           ? request.description
           : summarizeToolInput(toolName, input),
+      ...attachShellCommandRisk(toolName, input),
     })
 
     if (decision.behavior === 'allow') {
@@ -471,12 +573,15 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
         },
       })
     } else {
+      const errorMessage = decision.feedback
+        ? `${decision.message ?? 'Permission denied'}\n\n模型需要这样调整：\n${decision.feedback}`
+        : decision.message ?? 'Permission denied'
       this.writeJsonLineToCurrentChild({
         type: 'control_response',
         response: {
           request_id: requestId,
           subtype: 'error',
-          error: decision.message ?? 'Permission denied',
+          error: errorMessage,
         },
       })
     }
@@ -503,11 +608,10 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
 class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
   private emittedAssistantText = false
   private hasStartedHeadlessSession = false
-  private partialText = ''
   private resultError: string | null = null
   private currentInput: DesktopHeadlessInput | null = null
   private structuredIO: StructuredIO | null = null
-  private readonly toolNamesByUseId = new Map<string, string>()
+  private readonly streamState = createDesktopRuntimeStreamState()
   private readonly context: DesktopAgentRuntimeContext
   private readonly store: Store<ReturnType<typeof getInitialDesktopAppState>>
 
@@ -528,9 +632,8 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
 
   async runUserTurn(content: string, signal: AbortSignal): Promise<void> {
     this.emittedAssistantText = false
-    this.partialText = ''
     this.resultError = null
-    this.toolNamesByUseId.clear()
+    resetDesktopRuntimeStreamState(this.streamState)
 
     await runSerialized(() =>
       runWithCwdOverride(this.context.workspacePath, async () => {
@@ -661,7 +764,24 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
 
   private handleOutputMessage(message: Record<string, unknown>): void {
     switch (message.type) {
+      case 'stream_request_start':
+      case 'stream_event':
+        logDesktopStreamDebug(
+          'in-process-stream',
+          describeStreamMessage(message),
+        )
+        emitDesktopStreamEvents(
+          message,
+          this.context.sessionId,
+          this.streamState,
+          event => this.context.emit(event),
+        )
+        return
       case 'assistant':
+        logDesktopStreamDebug(
+          'in-process-assistant',
+          describeAssistantMessage(message),
+        )
         this.emitAssistantMessage(message)
         return
       case 'system':
@@ -671,6 +791,7 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
         this.emitResultMessage(message)
         return
       case 'user':
+        logDesktopStreamDebug('in-process-user', describeUserMessage(message))
         this.emitUserMessage(message)
         return
       default:
@@ -692,39 +813,123 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
       const item = block as Record<string, unknown>
       const partialText = extractPartialText(item)
       if (partialText) {
-        this.partialText += partialText
+        this.streamState.partialText += partialText
+        logDesktopStreamDebug('assistant-partial-text', {
+          sessionId: this.context.sessionId,
+          deltaLength: partialText.length,
+          totalLength: this.streamState.partialText.length,
+        })
         this.context.emit({
           type: 'partial_message',
           sessionId: this.context.sessionId,
-          text: this.partialText,
+          text: this.streamState.partialText,
+        })
+      } else if (item.type === 'thinking' && typeof item.thinking === 'string') {
+        this.streamState.thinkingText = item.thinking
+        logDesktopStreamDebug('assistant-thinking-block', {
+          sessionId: this.context.sessionId,
+          length: item.thinking.length,
+        })
+        this.context.emit({
+          type: 'stream_state',
+          sessionId: this.context.sessionId,
+          mode: 'thinking',
+          activeToolUseIds: [...this.streamState.activeToolUseIds],
+        })
+        this.context.emit({
+          type: 'thinking_delta',
+          sessionId: this.context.sessionId,
+          text: item.thinking,
+          fullText: this.streamState.thinkingText,
+        })
+      } else if (item.type === 'redacted_thinking') {
+        this.streamState.thinkingText = ''
+        logDesktopStreamDebug('assistant-thinking-block', {
+          sessionId: this.context.sessionId,
+          redacted: true,
+        })
+        this.context.emit({
+          type: 'stream_state',
+          sessionId: this.context.sessionId,
+          mode: 'thinking',
+          thinkingRedacted: true,
+          activeToolUseIds: [...this.streamState.activeToolUseIds],
         })
       } else if (item.type === 'text' && typeof item.text === 'string') {
         this.emittedAssistantText = true
-        this.partialText = ''
+        this.streamState.partialText = item.text
+        logDesktopStreamDebug('assistant-text-block', {
+          sessionId: this.context.sessionId,
+          length: item.text.length,
+        })
+        this.context.emit({
+          type: 'stream_state',
+          sessionId: this.context.sessionId,
+          mode: 'responding',
+          activeToolUseIds: [...this.streamState.activeToolUseIds],
+        })
+        this.context.emit({
+          type: 'partial_message',
+          sessionId: this.context.sessionId,
+          text: this.streamState.partialText,
+        })
         this.context.emit({
           type: 'message',
           sessionId: this.context.sessionId,
           role: 'assistant',
           text: item.text,
         })
+        this.streamState.partialText = ''
       } else if (item.type === 'tool_use') {
         const toolName = typeof item.name === 'string' ? item.name : 'Tool'
         if (typeof item.id === 'string') {
-          this.toolNamesByUseId.set(item.id, toolName)
+          this.streamState.toolNamesByUseId.set(item.id, toolName)
+          this.streamState.activeToolUseIds.add(item.id)
         }
+        logDesktopStreamDebug('assistant-tool-use-block', {
+          sessionId: this.context.sessionId,
+          toolUseId: typeof item.id === 'string' ? item.id : undefined,
+          toolName,
+          hasInput: item.input !== undefined,
+        })
         this.context.emit({
           type: 'tool_start',
           sessionId: this.context.sessionId,
           toolName,
           summary: summarizeToolInput(toolName, item.input),
+          toolUseId: typeof item.id === 'string' ? item.id : undefined,
+          input: item.input,
+        })
+        this.context.emit({
+          type: 'stream_state',
+          sessionId: this.context.sessionId,
+          mode: 'tool-use',
+          activeToolUseIds: [...this.streamState.activeToolUseIds],
         })
       } else if (item.type === 'tool_result') {
         const toolName = this.toolNameForResult(item)
+        if (typeof item.tool_use_id === 'string') {
+          this.streamState.activeToolUseIds.delete(item.tool_use_id)
+        }
+        logDesktopStreamDebug('assistant-tool-result-block', {
+          sessionId: this.context.sessionId,
+          toolUseId:
+            typeof item.tool_use_id === 'string'
+              ? item.tool_use_id
+              : undefined,
+          toolName,
+          isError: item.is_error === true,
+        })
         this.context.emit({
           type: 'tool_result',
           sessionId: this.context.sessionId,
           toolName,
           summary: summarizeToolInput(toolName, item.content),
+          toolUseId:
+            typeof item.tool_use_id === 'string'
+              ? item.tool_use_id
+              : undefined,
+          content: item.content,
           isError: item.is_error === true,
         })
       }
@@ -758,11 +963,17 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
         continue
       }
       const toolName = this.toolNameForResult(item)
+      if (typeof item.tool_use_id === 'string') {
+        this.streamState.activeToolUseIds.delete(item.tool_use_id)
+      }
       this.context.emit({
         type: 'tool_result',
         sessionId: this.context.sessionId,
         toolName,
         summary: summarizeToolInput(toolName, item.content),
+        toolUseId:
+          typeof item.tool_use_id === 'string' ? item.tool_use_id : undefined,
+        content: item.content,
         isError: item.is_error === true,
       })
     }
@@ -770,7 +981,7 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
 
   private toolNameForResult(item: Record<string, unknown>): string {
     return typeof item.tool_use_id === 'string'
-      ? (this.toolNamesByUseId.get(item.tool_use_id) ?? 'Tool')
+      ? (this.streamState.toolNamesByUseId.get(item.tool_use_id) ?? 'Tool')
       : 'Tool'
   }
 
@@ -793,7 +1004,7 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
       !this.emittedAssistantText &&
       typeof message.result === 'string' &&
       message.result.trim() &&
-      message.result !== this.partialText
+      message.result !== this.streamState.partialText
     ) {
       this.context.emit({
         type: 'message',
@@ -805,7 +1016,7 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
     if (message.is_error === true) {
       this.resultError = getResultErrorMessage(message)
     }
-    this.partialText = ''
+    this.streamState.partialText = ''
     this.currentInput?.close()
   }
 
@@ -847,6 +1058,7 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
         typeof request.description === 'string'
           ? request.description
           : summarizeToolInput(toolName, input),
+      ...attachShellCommandRisk(toolName, input),
     })
 
     if (decision.behavior === 'allow') {
@@ -871,12 +1083,15 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
         },
       })
     } else {
+      const errorMessage = decision.feedback
+        ? `${decision.message ?? 'Permission denied'}\n\n模型需要这样调整：\n${decision.feedback}`
+        : decision.message ?? 'Permission denied'
       this.injectControlResponse({
         type: 'control_response',
         response: {
           request_id: requestId,
           subtype: 'error',
-          error: decision.message ?? 'Permission denied',
+          error: errorMessage,
         },
       })
     }
@@ -972,6 +1187,348 @@ class DesktopHeadlessInput implements AsyncIterable<string> {
     this.waiter = null
     waiter?.()
   }
+}
+
+type DesktopStreamingToolInput = {
+  toolUseId: string
+  toolName: string
+  partialInput: string
+}
+
+type DesktopRuntimeStreamState = {
+  partialText: string
+  thinkingText: string
+  toolNamesByUseId: Map<string, string>
+  toolInputsByIndex: Map<number, DesktopStreamingToolInput>
+  activeToolUseIds: Set<string>
+}
+
+function createDesktopRuntimeStreamState(): DesktopRuntimeStreamState {
+  return {
+    partialText: '',
+    thinkingText: '',
+    toolNamesByUseId: new Map(),
+    toolInputsByIndex: new Map(),
+    activeToolUseIds: new Set(),
+  }
+}
+
+function resetDesktopRuntimeStreamState(
+  state: DesktopRuntimeStreamState,
+): void {
+  state.partialText = ''
+  state.thinkingText = ''
+  state.toolNamesByUseId.clear()
+  state.toolInputsByIndex.clear()
+  state.activeToolUseIds.clear()
+}
+
+function emitDesktopStreamEvents(
+  message: Record<string, unknown>,
+  sessionId: string,
+  state: DesktopRuntimeStreamState,
+  emit: (event: DesktopAgentEvent) => void,
+): void {
+  if (message.type === 'stream_request_start') {
+    logDesktopStreamDebug('emit-stream-state', {
+      mode: 'requesting',
+      sessionId,
+    })
+    emit({
+      type: 'stream_state',
+      sessionId,
+      mode: 'requesting',
+      activeToolUseIds: [...state.activeToolUseIds],
+    })
+    return
+  }
+  if (message.type !== 'stream_event') {
+    return
+  }
+
+  const event = objectRecord(message.event)
+  if (!event) return
+  switch (event.type) {
+    case 'message_stop':
+      logDesktopStreamDebug('emit-stream-state', {
+        mode: 'tool-use',
+        sessionId,
+        activeToolUseCount: state.activeToolUseIds.size,
+      })
+      emit({
+        type: 'stream_state',
+        sessionId,
+        mode: 'tool-use',
+        activeToolUseIds: [...state.activeToolUseIds],
+      })
+      return
+    case 'content_block_start':
+      handleStreamContentBlockStart(event, sessionId, state, emit)
+      return
+    case 'content_block_delta':
+      handleStreamContentBlockDelta(event, sessionId, state, emit)
+      return
+    case 'message_delta':
+      emit({
+        type: 'stream_state',
+        sessionId,
+        mode: 'responding',
+        activeToolUseIds: [...state.activeToolUseIds],
+      })
+      return
+    default:
+      return
+  }
+}
+
+function handleStreamContentBlockStart(
+  event: Record<string, unknown>,
+  sessionId: string,
+  state: DesktopRuntimeStreamState,
+  emit: (event: DesktopAgentEvent) => void,
+): void {
+  const contentBlock = objectRecord(event.content_block)
+  if (!contentBlock) return
+  if (contentBlock.type === 'text') {
+    logDesktopStreamDebug('stream-block-start', {
+      blockType: 'text',
+      sessionId,
+    })
+    emit({
+      type: 'stream_state',
+      sessionId,
+      mode: 'responding',
+      activeToolUseIds: [...state.activeToolUseIds],
+    })
+    return
+  }
+  if (contentBlock.type === 'thinking' || contentBlock.type === 'redacted_thinking') {
+    state.thinkingText = ''
+    logDesktopStreamDebug('stream-block-start', {
+      blockType: contentBlock.type,
+      sessionId,
+    })
+    emit({
+      type: 'stream_state',
+      sessionId,
+      mode: 'thinking',
+      thinkingRedacted: contentBlock.type === 'redacted_thinking',
+      activeToolUseIds: [...state.activeToolUseIds],
+    })
+    return
+  }
+  if (contentBlock.type === 'tool_use') {
+    const toolUseId =
+      typeof contentBlock.id === 'string' ? contentBlock.id : randomUUID()
+    const toolName =
+      typeof contentBlock.name === 'string' ? contentBlock.name : 'Tool'
+    const index = typeof event.index === 'number' ? event.index : -1
+    state.toolNamesByUseId.set(toolUseId, toolName)
+    state.activeToolUseIds.add(toolUseId)
+    if (index >= 0) {
+      state.toolInputsByIndex.set(index, {
+        toolUseId,
+        toolName,
+        partialInput: '',
+      })
+    }
+    logDesktopStreamDebug('stream-tool-start', {
+      sessionId,
+      toolUseId,
+      toolName,
+      index,
+      hasInput: contentBlock.input !== undefined,
+    })
+    emit({
+      type: 'tool_start',
+      sessionId,
+      toolUseId,
+      toolName,
+      summary: summarizeToolInput(toolName, contentBlock.input),
+      input: contentBlock.input,
+    })
+    emit({
+      type: 'stream_state',
+      sessionId,
+      mode: 'tool-input',
+      activeToolUseIds: [...state.activeToolUseIds],
+    })
+    return
+  }
+  if (isToolLikeStreamBlock(contentBlock.type)) {
+    emit({
+      type: 'stream_state',
+      sessionId,
+      mode: 'tool-input',
+      activeToolUseIds: [...state.activeToolUseIds],
+    })
+  }
+}
+
+function handleStreamContentBlockDelta(
+  event: Record<string, unknown>,
+  sessionId: string,
+  state: DesktopRuntimeStreamState,
+  emit: (event: DesktopAgentEvent) => void,
+): void {
+  const delta = objectRecord(event.delta)
+  if (!delta) return
+  if (delta.type === 'text_delta' && typeof delta.text === 'string') {
+    state.partialText += delta.text
+    logDesktopStreamDebug('stream-text-delta', {
+      sessionId,
+      deltaLength: delta.text.length,
+      totalLength: state.partialText.length,
+    })
+    emit({
+      type: 'partial_message',
+      sessionId,
+      text: state.partialText,
+    })
+    return
+  }
+  if (
+    delta.type === 'thinking_delta' &&
+    typeof delta.thinking === 'string'
+  ) {
+    state.thinkingText += delta.thinking
+    logDesktopStreamDebug('stream-thinking-delta', {
+      sessionId,
+      deltaLength: delta.thinking.length,
+      totalLength: state.thinkingText.length,
+    })
+    emit({
+      type: 'thinking_delta',
+      sessionId,
+      text: delta.thinking,
+      fullText: state.thinkingText,
+    })
+    return
+  }
+  if (
+    delta.type === 'input_json_delta' &&
+    typeof delta.partial_json === 'string'
+  ) {
+    const index = typeof event.index === 'number' ? event.index : -1
+    const current = state.toolInputsByIndex.get(index)
+    if (!current) {
+      logDesktopStreamDebug('stream-tool-input-delta-missing-start', {
+        sessionId,
+        index,
+        deltaLength: delta.partial_json.length,
+      })
+      return
+    }
+    current.partialInput += delta.partial_json
+    logDesktopStreamDebug('stream-tool-input-delta', {
+      sessionId,
+      toolUseId: current.toolUseId,
+      toolName: current.toolName,
+      index,
+      deltaLength: delta.partial_json.length,
+      totalLength: current.partialInput.length,
+    })
+    emit({
+      type: 'tool_input_delta',
+      sessionId,
+      toolUseId: current.toolUseId,
+      toolName: current.toolName,
+      partialInput: current.partialInput,
+      input: parsePartialJson(current.partialInput),
+      summary: summarizeToolInput(
+        current.toolName,
+        parsePartialJson(current.partialInput),
+      ),
+    })
+  }
+}
+
+function objectRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object'
+    ? (value as Record<string, unknown>)
+    : null
+}
+
+function parsePartialJson(value: string): unknown {
+  try {
+    return JSON.parse(value)
+  } catch {
+    return value
+  }
+}
+
+function isToolLikeStreamBlock(type: unknown): boolean {
+  return (
+    type === 'server_tool_use' ||
+    type === 'web_search_tool_result' ||
+    type === 'code_execution_tool_result' ||
+    type === 'mcp_tool_use' ||
+    type === 'mcp_tool_result' ||
+    type === 'container_upload' ||
+    type === 'web_fetch_tool_result' ||
+    type === 'bash_code_execution_tool_result' ||
+    type === 'text_editor_code_execution_tool_result' ||
+    type === 'tool_search_tool_result' ||
+    type === 'compaction'
+  )
+}
+
+function describeStreamMessage(message: Record<string, unknown>): Record<string, unknown> {
+  const event = objectRecord(message.event)
+  const contentBlock = objectRecord(event?.content_block)
+  const delta = objectRecord(event?.delta)
+  return {
+    type: message.type,
+    eventType: event?.type,
+    blockType: contentBlock?.type,
+    deltaType: delta?.type,
+    index: event?.index,
+    textLength:
+      typeof delta?.text === 'string'
+        ? delta.text.length
+        : typeof delta?.thinking === 'string'
+          ? delta.thinking.length
+          : typeof delta?.partial_json === 'string'
+            ? delta.partial_json.length
+            : undefined,
+  }
+}
+
+function describeAssistantMessage(
+  message: Record<string, unknown>,
+): Record<string, unknown> {
+  const content = getMessageContent(message)
+  const blocks = Array.isArray(content)
+    ? content.flatMap(block => {
+        const record = objectRecord(block)
+        return record?.type ? [record.type] : []
+      })
+    : []
+  return {
+    type: message.type,
+    blocks,
+  }
+}
+
+function describeUserMessage(message: Record<string, unknown>): Record<string, unknown> {
+  const content = getMessageContent(message)
+  return {
+    type: message.type,
+    blockCount: Array.isArray(content) ? content.length : undefined,
+    hasToolResult:
+      Array.isArray(content) &&
+      content.some(block => objectRecord(block)?.type === 'tool_result'),
+  }
+}
+
+function logDesktopStreamDebug(
+  label: string,
+  data: Record<string, unknown>,
+): void {
+  if (process.env.DESKTOP_STREAM_DEBUG !== '1') {
+    return
+  }
+  console.info(`[desktop-stream] ${label}`, data)
 }
 
 function getInitialDesktopAppState(context: DesktopAgentRuntimeContext) {
@@ -1205,4 +1762,23 @@ function isPermissionUpdate(value: unknown): value is Record<string, unknown> {
     return Array.isArray(update.directories)
   }
   return false
+}
+
+function attachShellCommandRisk(
+  toolName: string,
+  input: Record<string, unknown>,
+): {
+  risk: DesktopPermissionRequest['risk']
+  commandPreview: string
+  commandPrefix: string
+} {
+  const detected = detectShellCommandRisk(toolName, input)
+  if (!detected) {
+    return { risk: 'safe', commandPreview: '', commandPrefix: '' }
+  }
+  return {
+    risk: detected.risk,
+    commandPreview: detected.commandPreview,
+    commandPrefix: detected.commandPrefix,
+  }
 }

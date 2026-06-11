@@ -396,15 +396,120 @@ function exitApp(): void {
   app.quit()
 }
 
+const COALESCED_AGENT_EVENT_FLUSH_MS = 50
+const SESSION_STORE_STREAM_PERSIST_MS = 250
+
+const pendingSessionEvents = new Map<
+  string,
+  { session: DesktopAgentSession; event: DesktopAgentEvent }
+>()
+let pendingSessionEventFlushTimer: ReturnType<typeof setTimeout> | null = null
+let sessionStorePersistTimer: ReturnType<typeof setTimeout> | null = null
+
 function emitAgentEvent(event: DesktopAgentEvent): void {
+  logDesktopAgentEventDebug(event)
   mainWindow?.webContents.send('desktop:agent-event', event)
 }
 
+function enqueueSessionEvent(
+  session: DesktopAgentSession,
+  event: DesktopAgentEvent,
+): void {
+  const key = highFrequencyAgentEventKey(event)
+  if (!key) {
+    flushPendingSessionEvents(session.sessionId)
+    publishSessionEvent(session, event)
+    return
+  }
+  pendingSessionEvents.set(key, { session, event })
+  if (pendingSessionEventFlushTimer) return
+  pendingSessionEventFlushTimer = setTimeout(() => {
+    pendingSessionEventFlushTimer = null
+    flushPendingSessionEvents()
+  }, COALESCED_AGENT_EVENT_FLUSH_MS)
+}
+
+function flushPendingSessionEvents(sessionId?: string): void {
+  if (!sessionId && pendingSessionEventFlushTimer) {
+    clearTimeout(pendingSessionEventFlushTimer)
+    pendingSessionEventFlushTimer = null
+  }
+  const pending = [...pendingSessionEvents.entries()].filter(
+    ([, entry]) => !sessionId || entry.session.sessionId === sessionId,
+  )
+  for (const [key, entry] of pending) {
+    pendingSessionEvents.delete(key)
+    publishSessionEvent(entry.session, entry.event)
+  }
+  if (sessionId && pendingSessionEvents.size === 0 && pendingSessionEventFlushTimer) {
+    clearTimeout(pendingSessionEventFlushTimer)
+    pendingSessionEventFlushTimer = null
+  }
+}
+
+function highFrequencyAgentEventKey(event: DesktopAgentEvent): string | null {
+  if (event.type === 'partial_message' || event.type === 'thinking_delta') {
+    return `${event.sessionId}:${event.type}`
+  }
+  if (event.type === 'tool_input_delta') {
+    return `${event.sessionId}:${event.type}:${event.toolUseId}`
+  }
+  return null
+}
+
 function withDesktopMessageTimestamp(event: DesktopAgentEvent): DesktopAgentEvent {
-  if (event.type !== 'message' && event.type !== 'partial_message') {
+  if (
+    event.type !== 'message' &&
+    event.type !== 'partial_message' &&
+    event.type !== 'stream_state' &&
+    event.type !== 'thinking_delta' &&
+    event.type !== 'tool_start' &&
+    event.type !== 'tool_input_delta' &&
+    event.type !== 'tool_result'
+  ) {
     return event
   }
   return event.createdAt ? event : { ...event, createdAt: new Date().toISOString() }
+}
+
+function logDesktopAgentEventDebug(event: DesktopAgentEvent): void {
+  if (process.env.DESKTOP_STREAM_DEBUG !== '1') {
+    return
+  }
+  if (
+    event.type !== 'partial_message' &&
+    event.type !== 'stream_state' &&
+    event.type !== 'thinking_delta' &&
+    event.type !== 'tool_start' &&
+    event.type !== 'tool_input_delta' &&
+    event.type !== 'tool_result'
+  ) {
+    return
+  }
+  console.info('[desktop-agent-event]', {
+    type: event.type,
+    sessionId: event.sessionId,
+    textLength:
+      event.type === 'partial_message'
+        ? event.text.length
+        : event.type === 'thinking_delta'
+          ? event.fullText.length
+          : undefined,
+    mode: event.type === 'stream_state' ? event.mode : undefined,
+    toolUseId:
+      event.type === 'tool_start' ||
+      event.type === 'tool_input_delta' ||
+      event.type === 'tool_result'
+        ? event.toolUseId
+        : undefined,
+    toolName:
+      event.type === 'tool_start' ||
+      event.type === 'tool_input_delta' ||
+      event.type === 'tool_result'
+        ? event.toolName
+        : undefined,
+    isError: event.type === 'tool_result' ? event.isError === true : undefined,
+  })
 }
 
 function normalizeWorkspacePath(workspacePath: string): string {
@@ -1222,39 +1327,74 @@ function persistSessionStore(): void {
   })
 }
 
+function scheduleSessionStorePersist(): void {
+  if (sessionStorePersistTimer) return
+  sessionStorePersistTimer = setTimeout(() => {
+    sessionStorePersistTimer = null
+    persistSessionStore()
+  }, SESSION_STORE_STREAM_PERSIST_MS)
+}
+
+function persistSessionStoreForEvent(event: DesktopAgentEvent): void {
+  if (isHighFrequencyAgentEvent(event)) {
+    scheduleSessionStorePersist()
+    return
+  }
+  if (sessionStorePersistTimer) {
+    clearTimeout(sessionStorePersistTimer)
+    sessionStorePersistTimer = null
+  }
+  persistSessionStore()
+}
+
+function isHighFrequencyAgentEvent(event: DesktopAgentEvent): boolean {
+  return (
+    event.type === 'partial_message' ||
+    event.type === 'thinking_delta' ||
+    event.type === 'tool_input_delta'
+  )
+}
+
 function attachSessionListeners(record: DesktopSessionRecord): void {
   const session = record.session
   if (!session) return
   session.on('event', event => {
-    const currentRecord = sessions.get(session.sessionId)
-    if (!currentRecord || currentRecord.session !== session) {
-      return
-    }
     const timestampedEvent = withDesktopMessageTimestamp(event)
-    currentRecord.snapshot = applyDesktopAgentEventToSnapshot(
-      currentRecord.snapshot,
-      timestampedEvent,
-    )
-    persistSessionStore()
-    emitAgentEvent(timestampedEvent)
-    if (
-      !currentRecord.snapshot.item.standalone &&
-      (timestampedEvent.type === 'done' || timestampedEvent.type === 'error')
-    ) {
-      void getWorkspaceDiff(session.workspacePath).then(diff => {
-        const latestRecord = sessions.get(session.sessionId)
-        if (!latestRecord || latestRecord.session !== session) {
-          return
-        }
-        emitAgentEvent({
-          type: 'diff',
-          sessionId: session.sessionId,
-          filePath: session.workspacePath,
-          patch: diff.patch,
-        })
-      })
-    }
+    enqueueSessionEvent(session, timestampedEvent)
   })
+}
+
+function publishSessionEvent(
+  session: DesktopAgentSession,
+  event: DesktopAgentEvent,
+): void {
+  const currentRecord = sessions.get(session.sessionId)
+  if (!currentRecord || currentRecord.session !== session) {
+    return
+  }
+  currentRecord.snapshot = applyDesktopAgentEventToSnapshot(
+    currentRecord.snapshot,
+    event,
+  )
+  persistSessionStoreForEvent(event)
+  emitAgentEvent(event)
+  if (
+    !currentRecord.snapshot.item.standalone &&
+    (event.type === 'done' || event.type === 'error')
+  ) {
+    void getWorkspaceDiff(session.workspacePath).then(diff => {
+      const latestRecord = sessions.get(session.sessionId)
+      if (!latestRecord || latestRecord.session !== session) {
+        return
+      }
+      emitAgentEvent({
+        type: 'diff',
+        sessionId: session.sessionId,
+        filePath: session.workspacePath,
+        patch: diff.patch,
+      })
+    })
+  }
 }
 
 function createRuntimeForRecord(record: DesktopSessionRecord): DesktopAgentSession {

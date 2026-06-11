@@ -6,6 +6,7 @@ import type {
   DesktopPermissionRequest,
   DesktopSessionMetadataPatch,
   DesktopSessionStatus,
+  DesktopStreamState,
   DesktopThinkingMode,
   DesktopWorkspace,
 } from '../../../shared/types.js'
@@ -65,6 +66,7 @@ export type UseSessionStateResult = {
   toolLog: ToolLogEntry[]
   pendingPermissions: DesktopPermissionRequest[]
   contextUsage: DesktopContextUsage | null
+  streamState: DesktopStreamState
   activeSessionItem: SessionListItem | null
   canSubmit: boolean
   input: string
@@ -78,6 +80,7 @@ export type UseSessionStateResult = {
     request: DesktopPermissionRequest,
     behavior: 'allow' | 'deny',
     alwaysAllow?: boolean,
+    feedback?: string,
   ) => Promise<void>
   closeSession: (targetSessionId: string) => Promise<CloseSessionResult | null>
   updateSessionMetadata: (
@@ -118,6 +121,11 @@ export function useSessionState(
   >([])
   const [contextUsage, setContextUsage] =
     useState<DesktopContextUsage | null>(null)
+  const [streamState, setStreamState] = useState<DesktopStreamState>({
+    mode: 'idle',
+    thinkingText: '',
+    activeToolUseIds: [],
+  })
   const [input, setInput] = useState('')
 
   const activeSessionIdRef = useRef<string | null>(null)
@@ -137,7 +145,13 @@ export function useSessionState(
   onOpenDrawerPermissionsRef.current = onOpenDrawerPermissions
 
   const viewSetters = useMemo<SessionViewStateSetters>(
-    () => ({ setMessages, setToolLog, setPendingPermissions, setContextUsage }),
+    () => ({
+      setMessages,
+      setToolLog,
+      setPendingPermissions,
+      setContextUsage,
+      setStreamState,
+    }),
     [],
   )
   const viewRefs = useMemo<SessionViewRefs>(
@@ -239,6 +253,11 @@ export function useSessionState(
           nextViews[snapshot.item.id] = {
             ...snapshot.view,
             contextUsage: snapshot.view.contextUsage ?? null,
+            streamState: snapshot.view.streamState ?? {
+              mode: 'idle',
+              thinkingText: '',
+              activeToolUseIds: [],
+            },
             selectedFile: null,
           }
           nextWorkspaces[snapshot.item.id] = snapshot.workspace
@@ -399,6 +418,7 @@ export function useSessionState(
       request: DesktopPermissionRequest,
       behavior: 'allow' | 'deny',
       alwaysAllow = false,
+      feedback?: string,
     ): Promise<void> => {
       await decidePermissionAction(
         onErrorRef,
@@ -407,6 +427,7 @@ export function useSessionState(
         request,
         behavior,
         alwaysAllow,
+        feedback,
       )
     },
     [sessionId, updateSessionView],
@@ -452,6 +473,7 @@ export function useSessionState(
     toolLog,
     pendingPermissions,
     contextUsage,
+    streamState,
     activeSessionItem,
     canSubmit,
     input,

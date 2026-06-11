@@ -55,6 +55,14 @@ export type DesktopOpenTarget = {
 
 export type DesktopSessionStatus = 'idle' | 'running' | 'waiting' | 'done' | 'error'
 
+export type DesktopStreamMode =
+  | 'idle'
+  | 'requesting'
+  | 'responding'
+  | 'thinking'
+  | 'tool-input'
+  | 'tool-use'
+
 export type DesktopPermissionMode =
   | 'acceptEdits'
   | 'bypassPermissions'
@@ -213,13 +221,19 @@ export type DesktopPermissionDecision = {
   behavior: 'allow' | 'deny'
   message?: string
   alwaysAllow?: boolean
+  feedback?: string
 }
+
+export type DesktopPermissionRisk = 'safe' | 'compound' | 'destructive'
 
 export type DesktopPermissionRequest = {
   requestId: string
   toolName: string
   input: Record<string, unknown>
   description: string
+  risk?: DesktopPermissionRisk
+  commandPreview?: string
+  commandPrefix?: string
 }
 
 export type DesktopSessionMessage = {
@@ -232,12 +246,24 @@ export type DesktopSessionMessage = {
 
 export type DesktopToolLogEntry = {
   id: string
+  toolUseId?: string
   toolName: string
   summary: string
   kind: 'start' | 'result'
   isError?: boolean
+  status?: 'running' | 'success' | 'error'
+  input?: unknown
+  content?: unknown
   expanded: boolean
   createdAt: string
+  createdAtIso?: string
+}
+
+export type DesktopStreamState = {
+  mode: DesktopStreamMode
+  thinkingText: string
+  thinkingRedacted?: boolean
+  activeToolUseIds: string[]
 }
 
 export type DesktopContextUsage = {
@@ -294,6 +320,7 @@ export type DesktopSessionViewSnapshot = {
   toolLog: DesktopToolLogEntry[]
   pendingPermissions: DesktopPermissionRequest[]
   contextUsage: DesktopContextUsage | null
+  streamState: DesktopStreamState
 }
 
 export type DesktopSessionSnapshot = {
@@ -312,10 +339,13 @@ export type DesktopSessionMetadataPatch = {
 export type DesktopAgentEvent =
   | { type: 'message'; sessionId: string; role: 'user' | 'assistant' | 'system'; text: string; createdAt?: string }
   | { type: 'partial_message'; sessionId: string; text: string; createdAt?: string }
+  | { type: 'stream_state'; sessionId: string; mode: DesktopStreamMode; thinkingRedacted?: boolean; activeToolUseIds?: string[]; createdAt?: string }
+  | { type: 'thinking_delta'; sessionId: string; text: string; fullText: string; redacted?: boolean; createdAt?: string }
   | { type: 'context_usage'; sessionId: string; usage: DesktopContextUsage }
   | { type: 'session_title'; sessionId: string; title: string }
-  | { type: 'tool_start'; sessionId: string; toolName: string; summary: string }
-  | { type: 'tool_result'; sessionId: string; toolName: string; summary: string; isError?: boolean }
+  | { type: 'tool_start'; sessionId: string; toolName: string; summary: string; toolUseId?: string; input?: unknown; createdAt?: string }
+  | { type: 'tool_input_delta'; sessionId: string; toolUseId: string; toolName: string; partialInput: string; input?: unknown; summary: string; createdAt?: string }
+  | { type: 'tool_result'; sessionId: string; toolName: string; summary: string; toolUseId?: string; content?: unknown; isError?: boolean; createdAt?: string }
   | { type: 'permission_request'; sessionId: string; request: DesktopPermissionRequest }
   | { type: 'status'; sessionId: string; status: DesktopSessionStatus }
   | { type: 'diff'; sessionId: string; filePath: string; patch: string }

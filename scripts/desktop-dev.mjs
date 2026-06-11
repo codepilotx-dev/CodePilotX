@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { resolve } from 'node:path'
+import chokidar from 'chokidar'
 import { build, createServer } from 'vite'
 
 const require = createRequire(import.meta.url)
@@ -12,6 +13,9 @@ const mainEntry = resolve(root, 'dist/desktop/main/index.js')
 let electronProcess = null
 let restarting = false
 let restartTimer = null
+let agentBuildTimer = null
+let agentBuildRunning = false
+let agentBuildQueued = false
 let shuttingDown = false
 const cleanups = []
 
@@ -121,6 +125,60 @@ function queueElectronRestart() {
   restartTimer = setTimeout(restartElectron, 150)
 }
 
+function queueAgentRebuild() {
+  if (shuttingDown) return
+  clearTimeout(agentBuildTimer)
+  agentBuildTimer = setTimeout(() => {
+    void rebuildAgent()
+  }, 200)
+}
+
+async function rebuildAgent() {
+  if (shuttingDown) return
+  if (agentBuildRunning) {
+    agentBuildQueued = true
+    return
+  }
+  agentBuildRunning = true
+  agentBuildQueued = false
+  try {
+    log('rebuilding desktop agent')
+    await run('bun', ['run', 'desktop:agent:build'])
+    log('desktop agent rebuilt')
+    queueElectronRestart()
+  } catch (error) {
+    process.stderr.write(
+      `[desktop:dev] desktop agent rebuild failed: ${error?.stack ?? error}\n`,
+    )
+  } finally {
+    agentBuildRunning = false
+    if (agentBuildQueued) {
+      queueAgentRebuild()
+    }
+  }
+}
+
+function startAgentWatcher() {
+  const watcher = chokidar.watch(
+    [
+      resolve(root, 'apps/tui/src'),
+      resolve(root, 'packages/core/src'),
+      resolve(root, 'package.json'),
+    ],
+    {
+      ignoreInitial: true,
+      ignored: /(^|[/\\])\../,
+    },
+  )
+
+  watcher.on('all', (_event, path) => {
+    log(`agent source changed: ${path}`)
+    queueAgentRebuild()
+  })
+
+  cleanups.push(() => watcher.close())
+}
+
 function restartElectron() {
   if (shuttingDown || restarting) return
   restarting = true
@@ -149,6 +207,7 @@ async function cleanup() {
     electronProcess.kill()
   }
 
+  clearTimeout(agentBuildTimer)
   await Promise.allSettled(cleanups.map(close => close()))
 }
 
@@ -162,6 +221,7 @@ async function main() {
 
   log('building desktop agent')
   await run('bun', ['run', 'desktop:agent:build'])
+  startAgentWatcher()
 
   await startRendererServer()
   const mainReady = startBuildWatcher(

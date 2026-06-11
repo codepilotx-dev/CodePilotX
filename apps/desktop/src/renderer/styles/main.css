@@ -306,6 +306,38 @@
   font-size: var(--fs-14);
 }
 
+.chat-thinking-details {
+  width: fit-content;
+  max-width: min(680px, 100%);
+}
+
+.chat-thinking-details summary {
+  list-style: none;
+}
+
+.chat-thinking-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.chat-thinking-details[open] .chat-thinking-pill > svg:last-child {
+  transform: rotate(90deg);
+}
+
+.chat-thinking-details pre {
+  max-width: min(680px, 100%);
+  max-height: 220px;
+  margin: 8px 0 0;
+  overflow: auto;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--c-bg-soft);
+  color: var(--c-text);
+  font-family: var(--ff-mono);
+  font-size: var(--fs-12);
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
 .chat-thinking-pill {
   display: inline-flex;
   align-items: center;
@@ -336,6 +368,124 @@
 
 .chat-thinking-pill > svg:last-child {
   color: var(--c-text-meta);
+  transition: transform 0.12s ease-out;
+}
+
+.tool-run-card {
+  width: min(680px, 100%);
+  overflow: hidden;
+  border-radius: 8px;
+  color: var(--c-text);
+}
+
+.tool-run-card details {
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+.tool-run-card summary {
+  min-height: 28px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  color: var(--c-text-meta);
+  cursor: pointer;
+  list-style: none;
+}
+
+.tool-run-card summary::-webkit-details-marker {
+  display: none;
+}
+
+.tool-run-title,
+.tool-run-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.tool-run-title {
+  color: var(--c-text-soft);
+  font-size: var(--fs-13);
+}
+
+.tool-run-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--c-text-meta);
+  font-size: var(--fs-13);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tool-run-chevron {
+  transition: transform 0.12s ease-out;
+}
+
+.tool-run-card details[open] .tool-run-chevron {
+  transform: rotate(180deg);
+}
+
+.tool-run-body {
+  display: grid;
+  gap: 8px;
+  padding: 8px 0 0;
+}
+
+.tool-run-shell,
+.tool-run-detail {
+  border-radius: 8px;
+  background: #eef0f1;
+}
+
+.tool-run-shell {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+}
+
+.tool-run-shell span {
+  color: var(--c-text-meta);
+  font-size: var(--fs-12);
+}
+
+.tool-run-shell pre,
+.tool-run-detail {
+  max-width: 100%;
+  margin: 0;
+  overflow: auto;
+  color: var(--c-text);
+  font-family: var(--ff-mono);
+  font-size: var(--fs-13);
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.tool-run-detail {
+  max-height: 240px;
+  padding: 10px 12px;
+}
+
+.tool-run-status {
+  justify-self: end;
+  color: var(--c-text-meta);
+  font-size: var(--fs-13);
+}
+
+.tool-run-status svg {
+  color: #76915f;
+}
+
+.tool-run-status.error svg,
+.tool-run-card.error .tool-run-title svg {
+  color: #b94b3e;
+}
+
+.tool-run-card.running .tool-run-title svg {
+  color: var(--c-accent);
 }
 
 .utility-view {

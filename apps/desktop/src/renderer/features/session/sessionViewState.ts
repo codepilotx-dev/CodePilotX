@@ -6,6 +6,13 @@ import type {
 } from '../../uiTypes.js'
 import type { DesktopPermissionRequest } from '../../../shared/types.js'
 
+type ToolLogEntryInput = Omit<
+  ToolLogEntry,
+  'id' | 'createdAt' | 'expanded'
+> & {
+  createdAt?: string
+}
+
 export type SessionViewStateSetters = {
   setMessages: Dispatch<SetStateAction<Message[]>>
   setToolLog: Dispatch<SetStateAction<ToolLogEntry[]>>
@@ -13,6 +20,7 @@ export type SessionViewStateSetters = {
   setContextUsage: Dispatch<
     SetStateAction<SessionViewState['contextUsage']>
   >
+  setStreamState: Dispatch<SetStateAction<SessionViewState['streamState']>>
 }
 
 export type SessionViewRefs = {
@@ -27,7 +35,7 @@ export type UpdateSessionView = (
 
 export type AddToolLogEntry = (
   targetSessionId: string,
-  entry: Omit<ToolLogEntry, 'id' | 'createdAt' | 'expanded'>,
+  entry: ToolLogEntryInput,
 ) => void
 
 export function createEmptySessionView(): SessionViewState {
@@ -36,6 +44,7 @@ export function createEmptySessionView(): SessionViewState {
     toolLog: [],
     pendingPermissions: [],
     contextUsage: null,
+    streamState: createIdleStreamState(),
     selectedFile: null,
   }
 }
@@ -48,6 +57,7 @@ export function applySessionView(
   setters.setToolLog(view.toolLog)
   setters.setPendingPermissions(view.pendingPermissions)
   setters.setContextUsage(view.contextUsage)
+  setters.setStreamState(view.streamState)
 }
 
 export function setSessionView(
@@ -79,19 +89,11 @@ export function updateSessionView(
 export function addToolLogEntry(
   updateView: UpdateSessionView,
   targetSessionId: string,
-  entry: Omit<ToolLogEntry, 'id' | 'createdAt' | 'expanded'>,
+  entry: ToolLogEntryInput,
 ): void {
   updateView(targetSessionId, view => ({
     ...view,
-    toolLog: [
-      {
-        ...entry,
-        id: crypto.randomUUID(),
-        createdAt: new Date().toLocaleTimeString(),
-        expanded: entry.isError === true,
-      },
-      ...view.toolLog,
-    ],
+    toolLog: upsertToolLogEntry(view.toolLog, entry),
   }))
 }
 
@@ -108,4 +110,48 @@ export function toggleToolLogEntry(
       entry.id === entryId ? { ...entry, expanded: !entry.expanded } : entry,
     ),
   }))
+}
+
+export function createIdleStreamState(): SessionViewState['streamState'] {
+  return {
+    mode: 'idle',
+    thinkingText: '',
+    activeToolUseIds: [],
+  }
+}
+
+function upsertToolLogEntry(
+  current: ToolLogEntry[],
+  entry: ToolLogEntryInput,
+): ToolLogEntry[] {
+  const createdAtIso = entry.createdAtIso ?? new Date().toISOString()
+  const createdAt = entry.createdAt ?? new Date(createdAtIso).toLocaleTimeString()
+  if (entry.toolUseId) {
+    const index = current.findIndex(
+      item => item.toolUseId === entry.toolUseId && item.kind === entry.kind,
+    )
+    if (index >= 0) {
+      return current.map((item, itemIndex) =>
+        itemIndex === index
+          ? {
+              ...item,
+              ...entry,
+              createdAt: item.createdAt,
+              createdAtIso: item.createdAtIso ?? createdAtIso,
+              expanded: item.expanded || entry.isError === true,
+            }
+          : item,
+      )
+    }
+  }
+  return [
+    {
+      ...entry,
+      id: crypto.randomUUID(),
+      createdAt,
+      createdAtIso,
+      expanded: entry.isError === true,
+    },
+    ...current,
+  ]
 }

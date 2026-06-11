@@ -208,6 +208,17 @@ export async function* queryOpenAICompatibleModelWithStreaming({
       }),
     }
 
+    logOpenAICompatibleStreamDebug('request', {
+      providerID,
+      model: options.model,
+      stream: requestBody.stream,
+      includeUsage: requestBody.stream_options.include_usage,
+      toolCount: apiTools.length,
+      thinkingEnabled: Boolean(
+        (thinkingParams as { thinking?: unknown }).thinking,
+      ),
+    })
+
     const response = await fetch(joinURL(baseURL, '/chat/completions'), {
       method: 'POST',
       headers: {
@@ -226,8 +237,14 @@ export async function* queryOpenAICompatibleModelWithStreaming({
       throw new Error('Provider returned an empty response body')
     }
 
+    const stream = readOpenAIStream(response, options.model)
+    let next = await stream.next()
+    while (!next.done) {
+      yield next.value
+      next = await stream.next()
+    }
     const { content, reasoningContent, toolCalls, usage, finishReason, requestID } =
-      await readOpenAIStream(response)
+      next.value
 
     const assistant = createAssistantMessage({
       model: options.model,
@@ -404,14 +421,19 @@ function stringifyToolResult(content: unknown): string {
   return JSON.stringify(content ?? '')
 }
 
-async function readOpenAIStream(response: Response): Promise<{
+type OpenAIStreamResult = {
   content: string
   reasoningContent: string
   toolCalls: OpenAIToolCall[]
   usage: NonNullableUsage
   finishReason: string | null
   requestID?: string
-}> {
+}
+
+async function* readOpenAIStream(
+  response: Response,
+  model: string,
+): AsyncGenerator<StreamEvent, OpenAIStreamResult> {
   const reader = response.body!.getReader()
   const decoder = new TextDecoder()
   let buffer = ''
@@ -420,6 +442,12 @@ async function readOpenAIStream(response: Response): Promise<{
   let finishReason: string | null = null
   let usage = EMPTY_USAGE as NonNullableUsage
   const toolCalls: OpenAIToolCall[] = []
+  const requestID = response.headers.get('x-request-id') ?? undefined
+  let messageStarted = false
+  let nextBlockIndex = 0
+  let reasoningBlockIndex: number | null = null
+  let textBlockIndex: number | null = null
+  const toolBlockIndices = new Map<number, number>()
 
   while (true) {
     const { value, done } = await reader.read()
@@ -437,17 +465,125 @@ async function readOpenAIStream(response: Response): Promise<{
         if (!data || data === '[DONE]') continue
         const chunk = JSON.parse(data) as ChatCompletionChunk
         const choice = chunk.choices?.[0]
+        logOpenAICompatibleStreamDebug('chunk', {
+          contentDeltaLength:
+            typeof choice?.delta?.content === 'string'
+              ? choice.delta.content.length
+              : 0,
+          reasoningDeltaLength:
+            (typeof choice?.delta?.reasoning_content === 'string'
+              ? choice.delta.reasoning_content.length
+              : 0) +
+            (typeof choice?.delta?.reasoning === 'string'
+              ? choice.delta.reasoning.length
+              : 0),
+          toolCallDeltaCount: choice?.delta?.tool_calls?.length ?? 0,
+          finishReason: choice?.finish_reason ?? null,
+          hasUsage: Boolean(chunk.usage),
+        })
         if (choice?.delta?.content) {
+          if (!messageStarted) {
+            yield createOpenAIMessageStartEvent(model, chunk.id ?? requestID)
+            messageStarted = true
+          }
+          if (textBlockIndex === null) {
+            textBlockIndex = nextBlockIndex++
+            yield createOpenAIStreamEvent({
+              type: 'content_block_start',
+              index: textBlockIndex,
+              content_block: { type: 'text', text: '' },
+            })
+          }
           content += choice.delta.content
+          yield createOpenAIStreamEvent({
+            type: 'content_block_delta',
+            index: textBlockIndex,
+            delta: {
+              type: 'text_delta',
+              text: choice.delta.content,
+            },
+          })
         }
         if (choice?.delta?.reasoning_content) {
+          if (!messageStarted) {
+            yield createOpenAIMessageStartEvent(model, chunk.id ?? requestID)
+            messageStarted = true
+          }
+          if (reasoningBlockIndex === null) {
+            reasoningBlockIndex = nextBlockIndex++
+            yield createOpenAIStreamEvent({
+              type: 'content_block_start',
+              index: reasoningBlockIndex,
+              content_block: { type: 'thinking', thinking: '', signature: '' },
+            })
+          }
           reasoningContent += choice.delta.reasoning_content
+          yield createOpenAIStreamEvent({
+            type: 'content_block_delta',
+            index: reasoningBlockIndex,
+            delta: {
+              type: 'thinking_delta',
+              thinking: choice.delta.reasoning_content,
+            },
+          })
         }
         if (choice?.delta?.reasoning) {
+          if (!messageStarted) {
+            yield createOpenAIMessageStartEvent(model, chunk.id ?? requestID)
+            messageStarted = true
+          }
+          if (reasoningBlockIndex === null) {
+            reasoningBlockIndex = nextBlockIndex++
+            yield createOpenAIStreamEvent({
+              type: 'content_block_start',
+              index: reasoningBlockIndex,
+              content_block: { type: 'thinking', thinking: '', signature: '' },
+            })
+          }
           reasoningContent += choice.delta.reasoning
+          yield createOpenAIStreamEvent({
+            type: 'content_block_delta',
+            index: reasoningBlockIndex,
+            delta: {
+              type: 'thinking_delta',
+              thinking: choice.delta.reasoning,
+            },
+          })
         }
         if (choice?.delta?.tool_calls) {
+          if (!messageStarted) {
+            yield createOpenAIMessageStartEvent(model, chunk.id ?? requestID)
+            messageStarted = true
+          }
           mergeToolCallDeltas(toolCalls, choice.delta.tool_calls)
+          for (const toolCallDelta of choice.delta.tool_calls) {
+            const toolIndex = toolCallDelta.index ?? toolCalls.length - 1
+            const toolCall = toolCalls[toolIndex]
+            if (!toolCall?.function.name) continue
+            if (!toolBlockIndices.has(toolIndex)) {
+              toolBlockIndices.set(toolIndex, nextBlockIndex++)
+              yield createOpenAIStreamEvent({
+                type: 'content_block_start',
+                index: toolBlockIndices.get(toolIndex)!,
+                content_block: {
+                  type: 'tool_use',
+                  id: toolCall.id,
+                  name: toolCall.function.name,
+                  input: {},
+                },
+              })
+            }
+            if (toolCallDelta.function?.arguments) {
+              yield createOpenAIStreamEvent({
+                type: 'content_block_delta',
+                index: toolBlockIndices.get(toolIndex)!,
+                delta: {
+                  type: 'input_json_delta',
+                  partial_json: toolCallDelta.function.arguments,
+                },
+              })
+            }
+          }
         }
         if (choice?.finish_reason) {
           finishReason = choice.finish_reason
@@ -456,8 +592,28 @@ async function readOpenAIStream(response: Response): Promise<{
           usage = usageFromOpenAI(chunk.usage)
         }
       }
-      boundary = buffer.indexOf('\n\n')
+    boundary = buffer.indexOf('\n\n')
     }
+  }
+
+  if (messageStarted) {
+    for (let index = 0; index < nextBlockIndex; index++) {
+      yield createOpenAIStreamEvent({
+        type: 'content_block_stop',
+        index,
+      })
+    }
+    yield createOpenAIStreamEvent({
+      type: 'message_delta',
+      delta: {
+        stop_reason: toAnthropicStopReason(finishReason),
+        stop_sequence: null,
+      },
+      usage,
+    })
+    yield createOpenAIStreamEvent({
+      type: 'message_stop',
+    })
   }
 
   return {
@@ -466,7 +622,7 @@ async function readOpenAIStream(response: Response): Promise<{
     toolCalls: toolCalls.filter(call => call.function.name),
     usage,
     finishReason,
-    requestID: response.headers.get('x-request-id') ?? undefined,
+    requestID,
   }
 }
 
@@ -488,6 +644,56 @@ function mergeToolCallDeltas(
       current.function.arguments += delta.function.arguments
     }
   }
+}
+
+function createOpenAIMessageStartEvent(
+  model: string,
+  requestID?: string,
+): StreamEvent {
+  return createOpenAIStreamEvent({
+    type: 'message_start',
+    message: {
+      id: requestID ?? randomUUID(),
+      type: 'message',
+      role: 'assistant',
+      model,
+      content: [],
+      stop_reason: null,
+      stop_sequence: null,
+      usage: EMPTY_USAGE,
+    },
+  })
+}
+
+function createOpenAIStreamEvent(event: Record<string, unknown>): StreamEvent {
+  const delta =
+    event.delta && typeof event.delta === 'object'
+      ? (event.delta as Record<string, unknown>)
+      : undefined
+  const contentBlock =
+    event.content_block && typeof event.content_block === 'object'
+      ? (event.content_block as Record<string, unknown>)
+      : undefined
+  logOpenAICompatibleStreamDebug('yield', {
+    eventType: event.type,
+    index: typeof event.index === 'number' ? event.index : undefined,
+    deltaType: delta?.type,
+    blockType: contentBlock?.type,
+  })
+  return {
+    type: 'stream_event',
+    event,
+  } as StreamEvent
+}
+
+function logOpenAICompatibleStreamDebug(
+  label: string,
+  details: Record<string, unknown>,
+): void {
+  if (process.env.OPENAI_COMPATIBLE_STREAM_DEBUG !== '1') {
+    return
+  }
+  console.debug(`[openai-compatible-stream] ${label}`, details)
 }
 
 function usageFromOpenAI(usage: {

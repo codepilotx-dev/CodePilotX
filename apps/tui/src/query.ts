@@ -821,6 +821,11 @@ async function* queryLoop(
               withheld = true
             }
             if (!withheld) {
+              if (yieldMessage.type === 'stream_event') {
+                logQueryStreamDebug('query-loop-stream', {
+                  eventType: yieldMessage.event.type,
+                })
+              }
               yield yieldMessage
             }
             if (message.type === 'assistant') {
@@ -1726,4 +1731,14 @@ async function* queryLoop(
     }
     state = next
   } // while (true)
+}
+
+function logQueryStreamDebug(
+  label: string,
+  details: Record<string, unknown>,
+): void {
+  if (process.env.QUERY_STREAM_DEBUG !== '1') {
+    return
+  }
+  console.info(`[${label}]`, details)
 }

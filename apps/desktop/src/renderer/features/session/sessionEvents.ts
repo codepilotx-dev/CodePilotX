@@ -8,6 +8,7 @@ import type {
   AddToolLogEntry,
   UpdateSessionView,
 } from './sessionViewState.js'
+import { createIdleStreamState as idleStreamState } from './sessionViewState.js'
 
 export type SessionEventContext = {
   activeSessionIdRef: MutableRefObject<string | null>
@@ -60,18 +61,36 @@ export function handleSessionAgentEvent(
           : session,
       ),
     )
-    updateSessionView(event.sessionId, view => ({
-      ...view,
-      messages: [
-        ...view.messages.filter(message => !message.streaming),
-        {
-          id: crypto.randomUUID(),
-          role: event.role,
-          text: event.text,
-          createdAt,
-        },
-      ],
-    }))
+    updateSessionView(event.sessionId, view => {
+      const streamingIndex =
+        event.role === 'assistant'
+          ? view.messages.findIndex(message => message.streaming)
+          : -1
+      const finalMessage: Message = {
+        id:
+          streamingIndex >= 0
+            ? view.messages[streamingIndex]!.id
+            : crypto.randomUUID(),
+        role: event.role,
+        text: event.text,
+        createdAt,
+      }
+      if (streamingIndex >= 0) {
+        return {
+          ...view,
+          messages: view.messages.map((message, index) =>
+            index === streamingIndex ? finalMessage : message,
+          ),
+        }
+      }
+      return {
+        ...view,
+        messages: [
+          ...view.messages.filter(message => !message.streaming),
+          finalMessage,
+        ],
+      }
+    })
     return
   }
 
@@ -99,6 +118,35 @@ export function handleSessionAgentEvent(
         ),
       }
     })
+    return
+  }
+
+  if (event.type === 'stream_state') {
+    updateSessionView(event.sessionId, view => ({
+      ...view,
+      streamState: {
+        ...view.streamState,
+        mode: event.mode,
+        thinkingRedacted:
+          event.thinkingRedacted ?? view.streamState.thinkingRedacted,
+        activeToolUseIds:
+          event.activeToolUseIds ?? view.streamState.activeToolUseIds,
+      },
+    }))
+    return
+  }
+
+  if (event.type === 'thinking_delta') {
+    updateSessionView(event.sessionId, view => ({
+      ...view,
+      streamState: {
+        ...view.streamState,
+        mode: 'thinking',
+        thinkingText: event.fullText,
+        thinkingRedacted:
+          event.redacted ?? view.streamState.thinkingRedacted,
+      },
+    }))
     return
   }
 
@@ -130,20 +178,52 @@ export function handleSessionAgentEvent(
 
   if (event.type === 'tool_start') {
     addToolLogEntry(event.sessionId, {
+      toolUseId: event.toolUseId,
       toolName: event.toolName,
       summary: event.summary,
       kind: 'start',
+      status: 'running',
+      input: event.input,
+      createdAtIso: event.createdAt,
+    })
+    return
+  }
+
+  if (event.type === 'tool_input_delta') {
+    addToolLogEntry(event.sessionId, {
+      toolUseId: event.toolUseId,
+      toolName: event.toolName,
+      summary: event.summary,
+      kind: 'start',
+      status: 'running',
+      input: event.input ?? event.partialInput,
+      createdAtIso: event.createdAt,
     })
     return
   }
 
   if (event.type === 'tool_result') {
     addToolLogEntry(event.sessionId, {
+      toolUseId: event.toolUseId,
       toolName: event.toolName,
       summary: event.summary,
       kind: 'result',
       isError: event.isError,
+      status: event.isError ? 'error' : 'success',
+      content: event.content,
+      createdAtIso: event.createdAt,
     })
+    if (event.toolUseId) {
+      updateSessionView(event.sessionId, view => ({
+        ...view,
+        streamState: {
+          ...view.streamState,
+          activeToolUseIds: view.streamState.activeToolUseIds.filter(
+            id => id !== event.toolUseId,
+          ),
+        },
+      }))
+    }
     return
   }
 
@@ -181,6 +261,7 @@ export function handleSessionAgentEvent(
     updateSessionView(event.sessionId, view => ({
       ...view,
       pendingPermissions: [],
+      streamState: idleStreamState(),
       messages: [
         ...view.messages.map(message =>
           message.streaming ? { ...message, streaming: false } : message,
@@ -211,6 +292,7 @@ export function handleSessionAgentEvent(
     updateSessionView(event.sessionId, view => ({
       ...view,
       pendingPermissions: [],
+      streamState: idleStreamState(),
       messages: view.messages.map(message =>
         message.streaming ? { ...message, streaming: false } : message,
       ),
