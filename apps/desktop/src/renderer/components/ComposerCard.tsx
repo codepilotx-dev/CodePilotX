@@ -307,7 +307,7 @@ export function ComposerCard({
             </PopoverMenu>
 
             <IconButton className="icon-button composer-mic-button" title="语音输入">
-              <Mic size={18} />
+              <Mic size={15} />
             </IconButton>
             <button
               aria-label={isRunning ? '停止' : '发送'}

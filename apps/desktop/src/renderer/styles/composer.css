@@ -93,8 +93,13 @@
 }
 
 .composer-mic-button {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
+  color: var(--c-icon-soft);
+}
+
+.composer-mic-button:hover {
+  color: var(--c-icon);
 }
 
 .composer .icon-button:hover {
