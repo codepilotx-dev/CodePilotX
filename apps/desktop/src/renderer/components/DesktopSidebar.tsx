@@ -411,7 +411,6 @@ function SessionGroup({
             <button
               className="task-button"
               onClick={() => onSelectSession(session)}
-              title={conversationTitle(session)}
               type="button"
             >
               <span className="task-title">{conversationTitle(session)}</span>

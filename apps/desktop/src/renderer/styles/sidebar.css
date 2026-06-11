@@ -54,7 +54,7 @@
 .nav-section {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+
   margin-top: 26px;
 }
 
@@ -67,7 +67,7 @@
   margin: 0;
   padding: 0 6px;
   color: var(--c-text-meta);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 500;
   line-height: 1;
   letter-spacing: 0.06em;
@@ -79,7 +79,6 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--sp-2);
-  margin-bottom: var(--sp-2);
 }
 
 .sidebar-action-row {
