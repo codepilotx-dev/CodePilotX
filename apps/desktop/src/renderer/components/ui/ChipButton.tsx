@@ -9,7 +9,6 @@ type Props = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   asChild?: boolean
   className?: string
   showChevron?: boolean
-  showDot?: boolean
   title: string
 }
 
@@ -21,7 +20,6 @@ export const ChipButton = forwardRef<HTMLButtonElement, Props>(
       asChild,
       className = '',
       showChevron = true,
-      showDot,
       title,
       type = 'button',
       ...buttonProps
@@ -43,7 +41,6 @@ export const ChipButton = forwardRef<HTMLButtonElement, Props>(
         ].join(' ')}
         title={title}
       >
-        {showDot ? <span className="chip-dot" /> : null}
         <Slottable>{children}</Slottable>
         {showChevron ? <ChevronDown size={12} strokeWidth={2.4} /> : null}
       </Comp>

@@ -127,6 +127,7 @@ export type DesktopStoredSettings = {
   selectedModelPreset: string
   providerID: ModelProviderID
   providerBaseURL: string
+  showContextUsage: boolean
 }
 
 export type DesktopThemeMode = 'light' | 'dark' | 'system'

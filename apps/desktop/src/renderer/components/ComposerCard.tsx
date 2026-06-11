@@ -55,6 +55,7 @@ type Props = {
   permissionMode: DesktopPermissionMode
   thinkingMode: DesktopThinkingMode
   selectedModelPreset: string
+  showContextUsage: boolean
   modelPresets: ModelPreset[]
   permissionOptions: Option<DesktopPermissionMode>[]
   thinkingOptions: Option<DesktopThinkingMode>[]
@@ -82,6 +83,7 @@ export function ComposerCard({
   permissionMode,
   thinkingMode,
   selectedModelPreset,
+  showContextUsage,
   modelPresets,
   permissionOptions,
   thinkingOptions,
@@ -282,6 +284,20 @@ export function ComposerCard({
           </div>
 
           <div className="toolbar-right">
+            {showContextUsage ? (
+              <span
+                aria-label="Context window usage"
+                className="context-usage-chip"
+                tabIndex={0}
+              >
+                <span className="chip-dot" />
+                <span className="context-usage-popover" role="tooltip">
+                  <span>Context window:</span>
+                  <strong>28% used (72% left)</strong>
+                  <span>72k / 258k tokens used</span>
+                </span>
+              </span>
+            ) : null}
             <PopoverMenu
               className="popover-model"
               open={openDropdown === 'model'}
@@ -290,7 +306,6 @@ export function ComposerCard({
                 <ChipButton
                   active={openDropdown === 'model'}
                   className="subtle"
-                  showDot
                   title={
                     selectedModel?.label ?? selectedModelPreset
                   }

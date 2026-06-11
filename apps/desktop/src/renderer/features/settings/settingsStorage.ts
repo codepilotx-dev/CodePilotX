@@ -65,6 +65,7 @@ export function defaultDesktopSettings(): StoredDesktopSettings {
     selectedModelPreset: "",
     providerID: "anthropic",
     providerBaseURL: "",
+    showContextUsage: true,
   };
 }
 

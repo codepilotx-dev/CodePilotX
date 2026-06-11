@@ -48,6 +48,7 @@ export function DesktopLayout(): React.ReactNode {
     additionalDirectories,
     recentWorkspaces,
     selectedModelPreset,
+    showContextUsage,
     setPermissionMode,
     setModel,
     setThinkingMode,
@@ -592,6 +593,7 @@ export function DesktopLayout(): React.ReactNode {
       permissionMode={permissionMode}
       thinkingMode={thinkingMode}
       selectedModelPreset={resolvedSelectedModelPreset}
+      showContextUsage={showContextUsage}
       modelPresets={modelPresets}
       permissionOptions={PERMISSION_MODE_OPTIONS}
       thinkingOptions={THINKING_MODE_OPTIONS}

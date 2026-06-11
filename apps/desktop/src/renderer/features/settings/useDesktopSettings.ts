@@ -33,6 +33,7 @@ export type UseDesktopSettingsResult = {
   selectedModelPreset: string
   providerID: ModelProviderID
   providerBaseURL: string
+  showContextUsage: boolean
   setPermissionMode: (value: DesktopPermissionMode) => void
   setModel: (value: string) => void
   setFallbackModel: (value: string) => void
@@ -48,6 +49,7 @@ export type UseDesktopSettingsResult = {
   setSelectedModelPreset: (value: string) => void
   setProviderID: (value: ModelProviderID) => void
   setProviderBaseURL: (value: string) => void
+  setShowContextUsage: (value: boolean) => void
 }
 
 const DesktopSettingsContext = createContext<UseDesktopSettingsResult | null>(
@@ -106,6 +108,9 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
   const [providerBaseURL, setProviderBaseURL] = useState(
     initial.providerBaseURL,
   )
+  const [showContextUsage, setShowContextUsage] = useState(
+    initial.showContextUsage,
+  )
   const [settingsLoaded, setSettingsLoaded] = useState(false)
 
   useEffect(() => {
@@ -127,6 +132,7 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
         setSelectedModelPreset(settings.selectedModelPreset)
         setProviderID(settings.providerID)
         setProviderBaseURL(settings.providerBaseURL)
+        setShowContextUsage(settings.showContextUsage)
         setSettingsLoaded(true)
       })
       .catch(() => {
@@ -155,6 +161,7 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
       selectedModelPreset,
       providerID,
       providerBaseURL,
+      showContextUsage,
     }
     storeDesktopSettings(next)
   }, [
@@ -172,6 +179,7 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     selectedModelPreset,
     providerID,
     providerBaseURL,
+    showContextUsage,
   ])
 
   return {
@@ -188,6 +196,7 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     selectedModelPreset,
     providerID,
     providerBaseURL,
+    showContextUsage,
     setPermissionMode,
     setModel,
     setFallbackModel,
@@ -201,5 +210,6 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     setSelectedModelPreset,
     setProviderID,
     setProviderBaseURL,
+    setShowContextUsage,
   }
 }

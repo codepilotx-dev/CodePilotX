@@ -89,8 +89,14 @@ function LearnMoreLink() {
 }
 
 export function GeneralSettings() {
-  const { thinkingMode, setThinkingMode, permissionMode, setPermissionMode } =
-    useDesktopSettings()
+  const {
+    thinkingMode,
+    setThinkingMode,
+    permissionMode,
+    setPermissionMode,
+    showContextUsage,
+    setShowContextUsage,
+  } = useDesktopSettings()
 
   const [openTarget, setOpenTarget] = useState('vscode')
   const [terminalShell, setTerminalShell] = useState('powershell')
@@ -107,7 +113,6 @@ export function GeneralSettings() {
   const [notifyOnComplete, setNotifyOnComplete] = useState('unfocused')
   const [notifyPermission, setNotifyPermission] = useState(true)
   const [notifyQuestions, setNotifyQuestions] = useState(true)
-  const [showContextUsage, setShowContextUsage] = useState(true)
 
   const workMode: WorkMode = thinkingMode === 'adaptive' ? 'daily' : 'coding'
   const handleWorkMode = (next: WorkMode) => {

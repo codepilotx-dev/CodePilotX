@@ -67,6 +67,7 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     selectedModelPreset: '',
     providerID: 'anthropic',
     providerBaseURL: '',
+    showContextUsage: true,
   }
 }
 
@@ -129,6 +130,10 @@ function normalizeDesktopStoredSettings(value: unknown): DesktopStoredSettings {
       parsed.providerBaseURL,
       defaults.providerBaseURL,
     ),
+    showContextUsage:
+      typeof parsed.showContextUsage === 'boolean'
+        ? parsed.showContextUsage
+        : defaults.showContextUsage,
   }
 }
 
