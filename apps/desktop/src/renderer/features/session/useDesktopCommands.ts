@@ -1,3 +1,4 @@
+import { desktopClient } from '../../services/desktopClient.js'
 import { useEffect } from 'react'
 import type { DesktopUiCommand } from '../../../shared/types.js'
 
@@ -36,7 +37,7 @@ function routeCommand(
 
 export function useDesktopCommands(options: UseDesktopCommandsOptions): void {
   useEffect(() => {
-    const unsubscribe = window.desktopApi.onUiCommand(command =>
+    const unsubscribe = desktopClient.onUiCommand(command =>
       routeCommand(command, options),
     )
     return () => {

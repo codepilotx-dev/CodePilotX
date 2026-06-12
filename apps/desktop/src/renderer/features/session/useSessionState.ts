@@ -1,3 +1,4 @@
+import { desktopClient } from '../../services/desktopClient.js'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
   DesktopAgentEvent,
@@ -219,7 +220,7 @@ export function useSessionState(
   )
 
   useEffect(() => {
-    const unsubscribeAgent = window.desktopApi.onAgentEvent(handleAgentEvent)
+    const unsubscribeAgent = desktopClient.onAgentEvent(handleAgentEvent)
     return () => {
       unsubscribeAgent()
     }
@@ -229,7 +230,7 @@ export function useSessionState(
     let disposed = false
     async function hydrateSessions(): Promise<void> {
       try {
-        const sessionSnapshots = await window.desktopApi.listSessions()
+        const sessionSnapshots = await desktopClient.listSessions()
         if (disposed) return
 
         const nextSessions = sessionSnapshots.map(snapshot => snapshot.item)

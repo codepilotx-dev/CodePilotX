@@ -1,11 +1,14 @@
-import type { DrawerTab } from "../../uiTypes.js";
+import { desktopClient } from '../../services/desktopClient.js'
 import type {
   DesktopPermissionMode,
   DesktopStoredSettings,
   DesktopThinkingMode,
-  DesktopWorkspace,
-  ModelProviderID,
 } from "../../../shared/types.js";
+import { defaultDesktopStoredSettings } from "../../../shared/settingsSchema.js";
+export {
+  MAX_RECENT_WORKSPACES,
+  upsertRecentWorkspace,
+} from "../../../shared/settingsSchema.js";
 
 export const PERMISSION_MODE_OPTIONS: Array<{
   value: DesktopPermissionMode;
@@ -46,93 +49,11 @@ export const THINKING_MODE_OPTIONS: Array<{
 ];
 
 export const DESKTOP_SETTINGS_STORAGE_KEY = "claude-code-desktop-settings";
-export const MAX_RECENT_WORKSPACES = 5;
 
 export type StoredDesktopSettings = DesktopStoredSettings;
 
 export function defaultDesktopSettings(): StoredDesktopSettings {
-  return {
-    permissionMode: "default",
-    model: "",
-    fallbackModel: "",
-    sessionName: "",
-    thinkingMode: "default",
-    systemPrompt: "",
-    appendSystemPrompt: "",
-    additionalDirectories: "",
-    recentWorkspaces: [],
-    drawerTab: "files",
-    selectedModelPreset: "",
-    providerID: "anthropic",
-    providerBaseURL: "",
-    showContextUsage: true,
-    defaultOpenTargetId: "default-app",
-  };
-}
-
-export function upsertRecentWorkspace(
-  workspaces: DesktopWorkspace[],
-  workspace: DesktopWorkspace,
-): DesktopWorkspace[] {
-  if (workspace.isStandalone) return workspaces;
-  const filtered = workspaces.filter((item) => item.path !== workspace.path);
-  return [workspace, ...filtered].slice(0, MAX_RECENT_WORKSPACES);
-}
-
-function isDesktopPermissionMode(
-  value: unknown,
-): value is DesktopPermissionMode {
-  return PERMISSION_MODE_OPTIONS.some((option) => option.value === value);
-}
-
-function isDesktopThinkingMode(value: unknown): value is DesktopThinkingMode {
-  return THINKING_MODE_OPTIONS.some((option) => option.value === value);
-}
-
-function isDrawerTab(value: unknown): value is DrawerTab {
-  return (
-    value === "files" ||
-    value === "diff" ||
-    value === "permissions" ||
-    value === "toolLog" ||
-    value === "settings"
-  );
-}
-
-function isString(value: unknown): value is string {
-  return typeof value === "string";
-}
-
-function isModelProviderID(value: unknown): value is ModelProviderID {
-  return typeof value === "string" && value.trim().length > 0;
-}
-
-function parseStoredRecentWorkspaces(value: unknown): DesktopWorkspace[] {
-  if (!Array.isArray(value)) return [];
-  const workspaces: DesktopWorkspace[] = [];
-  for (const item of value) {
-    if (
-      item &&
-      typeof item === "object" &&
-      (item as DesktopWorkspace).isStandalone !== true &&
-      isString((item as DesktopWorkspace).name) &&
-      isString((item as DesktopWorkspace).path)
-    ) {
-      workspaces.push({
-        name: (item as DesktopWorkspace).name,
-        path: (item as DesktopWorkspace).path,
-        branchName:
-          typeof (item as DesktopWorkspace).branchName === "string"
-            ? (item as DesktopWorkspace).branchName
-            : null,
-        isGitRepo:
-          typeof (item as DesktopWorkspace).isGitRepo === "boolean"
-            ? (item as DesktopWorkspace).isGitRepo
-            : undefined,
-      });
-    }
-  }
-  return workspaces;
+  return defaultDesktopStoredSettings();
 }
 
 export function readStoredDesktopSettings(): StoredDesktopSettings {
@@ -140,7 +61,7 @@ export function readStoredDesktopSettings(): StoredDesktopSettings {
 }
 
 export function storeDesktopSettings(settings: StoredDesktopSettings): void {
-  void window.desktopApi.saveDesktopSettings(settings);
+  void desktopClient.saveDesktopSettings(settings);
 }
 
 export function normalizeOptionalText(value: string): string | undefined {

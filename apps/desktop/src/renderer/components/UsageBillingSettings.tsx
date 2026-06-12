@@ -1,3 +1,4 @@
+import { desktopClient } from '../services/desktopClient.js'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import type { DesktopProviderBalanceResult } from '../../shared/types.js'
 import { SettingsRow } from './SettingsRow.js'
@@ -20,7 +21,7 @@ export function UsageBillingSettings(): React.ReactNode {
     setLoading(true)
     setError(null)
     try {
-      const providers = await window.desktopApi.listModelProviders()
+      const providers = await desktopClient.listModelProviders()
       setHasConfiguredProvider(
         providers.some(provider => provider.apiKeyConfigured),
       )
@@ -33,7 +34,7 @@ export function UsageBillingSettings(): React.ReactNode {
         return
       }
       setDeepSeekConfigured(true)
-      const result = await window.desktopApi.fetchProviderBalance({
+      const result = await desktopClient.fetchProviderBalance({
         providerID: 'deepseek',
       })
       setBalance(result)
@@ -124,7 +125,7 @@ export function UsageBillingSettings(): React.ReactNode {
                     className="settings-button"
                     type="button"
                     onClick={() =>
-                      void window.desktopApi.openExternalURL(
+                      void desktopClient.openExternalURL(
                         'https://platform.deepseek.com/usage',
                       )
                     }

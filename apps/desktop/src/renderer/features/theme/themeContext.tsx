@@ -1,3 +1,4 @@
+import { desktopClient } from '../../services/desktopClient.js'
 import type React from 'react'
 import {
   createContext,
@@ -77,7 +78,7 @@ export function DesktopThemeProvider({
 
   useEffect(() => {
     let mounted = true
-    void window.desktopApi
+    void desktopClient
       .getThemeSettings()
       .then(next => {
         if (mounted) {
@@ -115,7 +116,7 @@ export function DesktopThemeProvider({
     async (nextSettings: DesktopThemeSettings): Promise<void> => {
       const normalized = normalizeDesktopThemeSettings(nextSettings)
       setSettings(normalized)
-      await window.desktopApi.saveThemeSettings(normalized)
+      await desktopClient.saveThemeSettings(normalized)
     },
     [],
   )

@@ -1,3 +1,4 @@
+import { desktopClient } from '../../services/desktopClient.js'
 import {
   createContext,
   createElement,
@@ -120,7 +121,7 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
 
   useEffect(() => {
     let mounted = true
-    void window.desktopApi
+    void desktopClient
       .getDesktopSettings()
       .then(settings => {
         if (!mounted) return

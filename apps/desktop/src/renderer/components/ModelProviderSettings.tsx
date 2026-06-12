@@ -1,3 +1,4 @@
+import { desktopClient } from '../services/desktopClient.js'
 ﻿import React, { useEffect, useMemo, useState } from 'react'
 import type {
   DesktopModelMetadata,
@@ -49,8 +50,8 @@ export function ModelProviderSettings(): React.ReactNode {
   useEffect(() => {
     let mounted = true
     void Promise.all([
-      window.desktopApi.listModelProviders(),
-      window.desktopApi.getModelProviderState(),
+      desktopClient.listModelProviders(),
+      desktopClient.getModelProviderState(),
     ])
       .then(([nextProviders, nextState]) => {
         if (!mounted) return
@@ -181,7 +182,7 @@ export function ModelProviderSettings(): React.ReactNode {
     setModelError(null)
     setStatus('正在刷新模型目录...')
     try {
-      const result = await window.desktopApi.fetchProviderModels({
+      const result = await desktopClient.fetchProviderModels({
         providerID,
         apiKey: apiKey.trim() || undefined,
         baseURL: baseURL.trim() || undefined,
@@ -195,7 +196,7 @@ export function ModelProviderSettings(): React.ReactNode {
   }
 
   async function fetchBalance(): Promise<DesktopProviderBalanceResult> {
-    const result = await window.desktopApi.fetchProviderBalance({
+    const result = await desktopClient.fetchProviderBalance({
       providerID,
       apiKey: apiKey.trim() || undefined,
       baseURL: baseURL.trim() || undefined,
@@ -217,7 +218,7 @@ export function ModelProviderSettings(): React.ReactNode {
     setModelError(null)
     setStatus('正在测试连接...')
     try {
-      const modelsRequest = window.desktopApi.fetchProviderModels({
+      const modelsRequest = desktopClient.fetchProviderModels({
         providerID,
         apiKey: apiKey.trim() || undefined,
         baseURL: baseURL.trim() || undefined,
@@ -254,7 +255,7 @@ export function ModelProviderSettings(): React.ReactNode {
     setBusy(true)
     setModelError(null)
     try {
-      const nextState = await window.desktopApi.saveModelProvider({
+      const nextState = await desktopClient.saveModelProvider({
         providerID,
         modelID: model.trim(),
         baseURL: baseURL.trim() || undefined,
@@ -275,7 +276,7 @@ export function ModelProviderSettings(): React.ReactNode {
     setBusy(true)
     setModelError(null)
     try {
-      const nextState = await window.desktopApi.saveProviderApiKey(
+      const nextState = await desktopClient.saveProviderApiKey(
         providerID,
         apiKey.trim(),
       )
@@ -310,7 +311,7 @@ export function ModelProviderSettings(): React.ReactNode {
       setStatus('API 密钥已保存。')
       window.dispatchEvent(new Event('desktop:model-provider-changed'))
       if (providerID === 'deepseek') {
-        const result = await window.desktopApi.fetchProviderBalance({
+        const result = await desktopClient.fetchProviderBalance({
           providerID,
           baseURL: baseURL.trim() || nextState.baseURL,
         })
@@ -707,5 +708,5 @@ function formatBalanceStatus(result: DesktopProviderBalanceResult): string {
 
 function openExternalLink(event: React.MouseEvent<HTMLAnchorElement>): void {
   event.preventDefault()
-  void window.desktopApi.openExternalURL(event.currentTarget.href)
+  void desktopClient.openExternalURL(event.currentTarget.href)
 }

@@ -1,3 +1,4 @@
+import { desktopClient } from '../services/desktopClient.js'
 import type React from 'react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -18,13 +19,13 @@ export function SettingsLayout(): React.ReactNode {
       isMaximized={false}
       onToggleSidebar={toggleSidebarCollapsed}
       onClose={() => {
-        void window.desktopApi.closeWindow()
+        void desktopClient.closeWindow()
       }}
       onMinimize={() => {
-        void window.desktopApi.minimizeWindow()
+        void desktopClient.minimizeWindow()
       }}
       onToggleMaximize={() => {
-        void window.desktopApi.toggleWindowMaximized()
+        void desktopClient.toggleWindowMaximized()
       }}
       onFileMenuAction={() => {}}
       onEditMenuAction={() => {}}

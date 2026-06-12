@@ -1,0 +1,18 @@
+export type {
+  CreateDesktopSessionOptions,
+  CreateDesktopSessionResult,
+  DesktopAgentEvent,
+  DesktopContextUsage,
+  DesktopPermissionDecision,
+  DesktopPermissionMode,
+  DesktopPermissionRequest,
+  DesktopSessionListItem,
+  DesktopSessionMessage,
+  DesktopSessionMetadataPatch,
+  DesktopSessionSettingsSnapshot,
+  DesktopSessionSnapshot,
+  DesktopSessionStatus,
+  DesktopSessionViewSnapshot,
+  DesktopThinkingMode,
+  DesktopToolLogEntry,
+} from './types.js'

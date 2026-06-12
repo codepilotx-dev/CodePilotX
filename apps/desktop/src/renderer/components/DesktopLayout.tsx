@@ -1,10 +1,11 @@
+import { desktopClient } from '../services/desktopClient.js'
 ﻿import type React from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
-import * as Dialog from '@radix-ui/react-dialog'
-import { AlertCircle } from 'lucide-react'
 import { ComposerCard } from './ComposerCard.js'
 import { DesktopShell } from './DesktopShell.js'
 import { DesktopSidebar } from './DesktopSidebar.js'
+import { PermissionRequestModal } from './PermissionRequestModal.js'
+import { RuntimeWarning } from './RuntimeWarning.js'
 import { WindowChrome } from './WindowChrome.js'
 import type {
   EditMenuAction,
@@ -231,7 +232,7 @@ export function DesktopLayout(): React.ReactNode {
         return
       }
       try {
-        const nextWorkspace = await window.desktopApi.checkoutWorkspaceBranch(
+        const nextWorkspace = await desktopClient.checkoutWorkspaceBranch(
           currentWorkspace.path,
           branch,
         )
@@ -280,10 +281,10 @@ export function DesktopLayout(): React.ReactNode {
     (action: FileMenuAction): void => {
       switch (action) {
         case 'close':
-          void window.desktopApi.closeWindow()
+          void desktopClient.closeWindow()
           break
         case 'newWindow':
-          void window.desktopApi.newWindow()
+          void desktopClient.newWindow()
           break
         case 'newChat':
           void handleNewConversation()
@@ -295,13 +296,13 @@ export function DesktopLayout(): React.ReactNode {
           void handleChooseWorkspace()
           break
         case 'openSettings':
-          void window.desktopApi.openSettings()
+          void desktopClient.openSettings()
           break
         case 'logOut':
-          void window.desktopApi.logOut()
+          void desktopClient.logOut()
           break
         case 'exit':
-          void window.desktopApi.exitApp()
+          void desktopClient.exitApp()
           break
       }
     },
@@ -326,15 +327,15 @@ export function DesktopLayout(): React.ReactNode {
     (action: WindowMenuAction): void => {
       switch (action) {
         case 'minimize':
-          void window.desktopApi.minimizeWindow()
+          void desktopClient.minimizeWindow()
           break
         case 'zoom':
-          void window.desktopApi
+          void desktopClient
             .toggleWindowMaximized()
             .then(next => setIsWindowMaximized(next))
           break
         case 'close':
-          void window.desktopApi.closeWindow()
+          void desktopClient.closeWindow()
           break
       }
     },
@@ -436,8 +437,8 @@ export function DesktopLayout(): React.ReactNode {
   const refreshProviderState = useCallback(async (): Promise<void> => {
     try {
       const [next, providers] = await Promise.all([
-        window.desktopApi.getModelProviderState(),
-        window.desktopApi.listModelProviders(),
+        desktopClient.getModelProviderState(),
+        desktopClient.listModelProviders(),
       ])
       setProviderState(next)
       setModelProviders(providers)
@@ -509,7 +510,7 @@ export function DesktopLayout(): React.ReactNode {
         setProviderBaseURL(baseURL ?? '')
         setModel(trimmed)
         setSelectedModelPreset(CUSTOM_MODEL_PRESET_ID)
-        void window.desktopApi
+        void desktopClient
           .saveModelProvider({
             providerID,
             modelID: trimmed,
@@ -537,7 +538,7 @@ export function DesktopLayout(): React.ReactNode {
       setProviderBaseURL(baseURL ?? '')
       setSelectedModelPreset(nextPresetId)
       setModel(preset.value)
-      void window.desktopApi
+      void desktopClient
         .saveModelProvider({
           providerID,
           modelID: preset.value,
@@ -657,7 +658,7 @@ export function DesktopLayout(): React.ReactNode {
 
   useEffect(() => {
     let mounted = true
-    void window.desktopApi
+    void desktopClient
       .isWindowMaximized()
       .then(next => {
         if (mounted) {
@@ -680,13 +681,13 @@ export function DesktopLayout(): React.ReactNode {
       isMaximized={isWindowMaximized}
       onToggleSidebar={toggleSidebarCollapsed}
       onClose={() => {
-        void window.desktopApi.closeWindow()
+        void desktopClient.closeWindow()
       }}
       onMinimize={() => {
-        void window.desktopApi.minimizeWindow()
+        void desktopClient.minimizeWindow()
       }}
       onToggleMaximize={() => {
-        void window.desktopApi
+        void desktopClient
           .toggleWindowMaximized()
           .then(next => setIsWindowMaximized(next))
       }}
@@ -773,67 +774,14 @@ export function DesktopLayout(): React.ReactNode {
 
   return (
     <div className="desktop-frame">
-      <Dialog.Root open={Boolean(activePermissionRequest)}>
-        <Dialog.Portal>
-          {activePermissionRequest ? (
-            <Dialog.Overlay className="permission-modal-backdrop">
-              <Dialog.Content
-                className="permission-modal"
-                onEscapeKeyDown={event => event.preventDefault()}
-                onInteractOutside={event => event.preventDefault()}
-              >
-            <header>
-              <Dialog.Title asChild>
-                <h2>权限请求</h2>
-              </Dialog.Title>
-              <span>{activePermissionRequest.toolName}</span>
-            </header>
-            <Dialog.Description asChild>
-              <p>{activePermissionRequest.description}</p>
-            </Dialog.Description>
-            <code>{JSON.stringify(activePermissionRequest.input)}</code>
-            <div className="permission-modal-actions">
-              <button
-                className="primary-button"
-                onClick={() =>
-                  void decidePermission(activePermissionRequest, 'allow')
-                }
-                type="button"
-              >
-                允许
-              </button>
-              <button
-                onClick={() =>
-                  void decidePermission(activePermissionRequest, 'allow', true)
-                }
-                type="button"
-              >
-                始终允许
-              </button>
-              <button
-                onClick={() =>
-                  void decidePermission(activePermissionRequest, 'deny')
-                }
-                type="button"
-              >
-                拒绝
-              </button>
-            </div>
-              </Dialog.Content>
-            </Dialog.Overlay>
-          ) : null}
-        </Dialog.Portal>
-      </Dialog.Root>
+      <PermissionRequestModal
+        request={activePermissionRequest}
+        onDecide={(request, behavior, alwaysAllow) => {
+          void decidePermission(request, behavior, alwaysAllow)
+        }}
+      />
 
-      {!currentWorkspace && runtimeMissing ? (
-        <div className="global-warning">
-          <AlertCircle size={16} />
-          <span>
-            桌面端 agent 运行时缺失，发送消息前请先执行
-            `bun run desktop:agent:build`。
-          </span>
-        </div>
-      ) : null}
+      {!currentWorkspace && runtimeMissing ? <RuntimeWarning /> : null}
 
       <DesktopShell
         windowChrome={windowChrome}

@@ -1,3 +1,4 @@
+import { desktopClient } from '../services/desktopClient.js'
 import React, { useEffect, useState } from 'react';
 import * as RadioGroup from '@radix-ui/react-radio-group';
 import {
@@ -181,7 +182,7 @@ export function GeneralSettings() {
 
   useEffect(() => {
     let mounted = true;
-    void window.desktopApi
+    void desktopClient
       .listOpenTargets()
       .then((targets) => {
         if (!mounted) return;

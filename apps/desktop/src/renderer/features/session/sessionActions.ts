@@ -1,3 +1,4 @@
+import { desktopClient } from '../../services/desktopClient.js'
 ﻿import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 import type {
   DesktopPermissionMode,
@@ -53,7 +54,7 @@ export function activateSession(
 ): void {
   context.activeSessionIdRef.current = nextSessionId
   context.setSessionId(nextSessionId)
-  void window.desktopApi.setActiveSession(nextSessionId).catch(error => {
+  void desktopClient.setActiveSession(nextSessionId).catch(error => {
     context.onErrorRef.current(errorMessageOf(error))
   })
 }
@@ -64,7 +65,7 @@ export async function createSessionForWorkspaceAction(
   target: DesktopWorkspace | null,
 ): Promise<string | null> {
   try {
-    const session = await window.desktopApi.createSession({
+    const session = await desktopClient.createSession({
       workspacePath: target?.path,
       permissionMode: settings.permissionMode,
       model: normalizeOptionalText(settings.model),
@@ -134,7 +135,7 @@ export async function submitSessionMessageAction(
   if (!canSubmit || !sessionId) return
   setInput('')
   try {
-    await window.desktopApi.sendUserMessage(
+    await desktopClient.sendUserMessage(
       sessionId,
       trimmed,
       normalizeOptionalText(model),
@@ -150,7 +151,7 @@ export async function interruptSessionAction(
 ): Promise<void> {
   if (!sessionId) return
   try {
-    await window.desktopApi.interruptSession(sessionId)
+    await desktopClient.interruptSession(sessionId)
   } catch (error) {
     onErrorRef.current(errorMessageOf(error))
   }
@@ -172,7 +173,7 @@ export async function decidePermissionAction(
     ),
   }))
   try {
-    await window.desktopApi.respondToPermission(sessionId, request.requestId, {
+    await desktopClient.respondToPermission(sessionId, request.requestId, {
       behavior,
       message: behavior === 'deny' ? '在桌面端界面中拒绝' : undefined,
       alwaysAllow,
@@ -188,7 +189,7 @@ export async function closeSessionAction(
   targetSessionId: string,
 ): Promise<CloseSessionResult | null> {
   try {
-    await window.desktopApi.disposeSession(targetSessionId)
+    await desktopClient.disposeSession(targetSessionId)
   } catch (error) {
     context.onErrorRef.current(errorMessageOf(error))
     return null
@@ -241,7 +242,7 @@ export async function updateSessionMetadataAction(
 ): Promise<CloseSessionResult | null> {
   let updatedSession: SessionListItem | null = null
   try {
-    const snapshot = await window.desktopApi.updateSessionMetadata(
+    const snapshot = await desktopClient.updateSessionMetadata(
       targetSessionId,
       patch,
     )

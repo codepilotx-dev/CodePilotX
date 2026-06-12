@@ -22,6 +22,7 @@ import {
   getUsageFromAssistantRecord,
   inferProviderFromModel,
 } from './desktopContextUsage.js'
+import { summarizeToolInput } from './agentRuntimeSupport.js'
 
 type PersistedDesktopSessions = {
   activeSessionId: string | null
@@ -764,21 +765,6 @@ function createToolLogEntry(params: {
     expanded: params.isError === true,
     createdAt: formatTimestamp(params.timestamp),
   }
-}
-
-function summarizeToolInput(toolName: string, input: unknown): string {
-  if (!input || typeof input !== 'object') {
-    return toolName
-  }
-  const record = input as Record<string, unknown>
-  const target =
-    record.file_path ??
-    record.filePath ??
-    record.pattern ??
-    record.command ??
-    record.url ??
-    record.query
-  return typeof target === 'string' ? `${toolName}: ${target}` : toolName
 }
 
 function getTranscriptPath(workspacePath: string, sessionId: string): string {

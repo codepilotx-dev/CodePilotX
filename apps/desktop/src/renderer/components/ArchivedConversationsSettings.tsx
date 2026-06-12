@@ -1,3 +1,4 @@
+import { desktopClient } from '../services/desktopClient.js'
 import type React from 'react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ArchiveRestore, Trash2 } from 'lucide-react'
@@ -10,7 +11,7 @@ export function ArchivedConversationsSettings(): React.ReactNode {
 
   const loadSessions = useCallback(async (): Promise<void> => {
     try {
-      const snapshots = await window.desktopApi.listSessions()
+      const snapshots = await desktopClient.listSessions()
       setSessions(snapshots.map(snapshot => snapshot.item))
       setError(null)
     } catch (loadError) {
@@ -34,7 +35,7 @@ export function ArchivedConversationsSettings(): React.ReactNode {
 
   async function restoreSession(session: SessionListItem): Promise<void> {
     try {
-      const snapshot = await window.desktopApi.updateSessionMetadata(
+      const snapshot = await desktopClient.updateSessionMetadata(
         session.id,
         { archivedAt: null },
       )
@@ -49,7 +50,7 @@ export function ArchivedConversationsSettings(): React.ReactNode {
 
   async function deleteSession(session: SessionListItem): Promise<void> {
     try {
-      await window.desktopApi.disposeSession(session.id)
+      await desktopClient.disposeSession(session.id)
       setSessions(current => current.filter(item => item.id !== session.id))
       setError(null)
     } catch (deleteError) {
