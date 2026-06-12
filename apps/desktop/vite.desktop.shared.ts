@@ -90,7 +90,9 @@ export function nodeDesktopBuild(
   outDir: string,
   name: string,
   formats: ('es' | 'cjs')[] = ['es'],
+  options: { sourcemap?: boolean } = {},
 ): UserConfig {
+  const sourcemap = options.sourcemap ?? false
   return {
     plugins: [disableBundledFeaturesPlugin()],
     resolve: { alias: desktopAlias },
@@ -99,7 +101,7 @@ export function nodeDesktopBuild(
       emptyOutDir: false,
       outDir,
       target: 'node22',
-      sourcemap: true,
+      sourcemap,
       lib: {
         entry,
         formats,

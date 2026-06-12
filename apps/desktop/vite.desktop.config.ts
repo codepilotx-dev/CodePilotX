@@ -20,6 +20,6 @@ export default defineConfig({
     outDir: resolve(desktopOutDir, 'renderer'),
     emptyOutDir: false,
     target: 'chrome120',
-    sourcemap: true,
+    sourcemap: false,
   },
 })
