@@ -8,12 +8,13 @@ import { UsageBillingSettings } from './UsageBillingSettings.js'
 
 type Props = {
   activeTab: string
+  onError: (message: string) => void
 }
 
-export function SettingsPage({ activeTab }: Props): React.ReactNode {
+export function SettingsPage({ activeTab, onError }: Props): React.ReactNode {
   if (activeTab === 'general') return <GeneralSettings />
   if (activeTab === 'appearance') return <AppearanceSettings />
-  if (activeTab === 'config') return <ModelProviderSettings />
+  if (activeTab === 'config') return <ModelProviderSettings onError={onError} />
   if (activeTab === 'archived') return <ArchivedConversationsSettings />
   if (activeTab === 'billing') return <UsageBillingSettings />
   return (

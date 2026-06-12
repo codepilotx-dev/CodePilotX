@@ -9,8 +9,6 @@ export type QuickChatContextValue = {
   sessionTitle: string | null
   workspaceName: string | null
   messages: Message[]
-  errorMessage: string | null
-  onDismissError: () => void
   sessionStatus: DesktopSessionStatus
   composer: React.ReactNode
 }

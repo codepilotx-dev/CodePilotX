@@ -5,11 +5,13 @@ import { useNavigate } from 'react-router-dom'
 import { SettingsNav } from './SettingsNav.js'
 import { SettingsPage } from './SettingsPage.js'
 import { WindowChrome } from './WindowChrome.js'
+import { GlobalErrorModal } from './GlobalErrorModal.js'
 import { useDesktopLayout } from '../features/layout/useDesktopLayout.js'
 
 export function SettingsLayout(): React.ReactNode {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('general')
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const { sidebarCollapsed, sidebarWidth, toggleSidebarCollapsed } =
     useDesktopLayout()
 
@@ -55,11 +57,15 @@ export function SettingsLayout(): React.ReactNode {
 
   return (
     <div className="app-shell">
+      <GlobalErrorModal
+        message={errorMessage}
+        onDismiss={() => setErrorMessage(null)}
+      />
       <div className="desktop-chrome">{windowChrome}</div>
       <div className="app-body">
         {sidebar}
         <section className="desktop-main">
-          <SettingsPage activeTab={activeTab} />
+          <SettingsPage activeTab={activeTab} onError={setErrorMessage} />
         </section>
       </div>
     </div>

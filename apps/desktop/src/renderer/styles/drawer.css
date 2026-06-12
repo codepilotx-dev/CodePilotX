@@ -140,8 +140,7 @@
 
 .permission-card button,
 .setting-runtime button,
-.permission-modal-actions button,
-.error-banner button {
+.permission-modal-actions button {
   min-height: 30px;
   display: inline-flex;
   align-items: center;
@@ -155,8 +154,7 @@
 
 .permission-card button:hover,
 .setting-runtime button:hover,
-.permission-modal-actions button:hover,
-.error-banner button:hover {
+.permission-modal-actions button:hover {
   background: var(--c-bg-hover);
 }
 
@@ -226,19 +224,3 @@
   background: #fcfcfa;
 }
 
-.error-banner {
-  width: min(100%, 820px);
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  margin: 0 auto;
-  padding: var(--sp-3);
-  border: 1px solid #e4b3ab;
-  border-radius: var(--r-lg);
-  background: #fff4f2;
-  color: #7d2f25;
-}
-
-.error-banner span {
-  flex: 1;
-}

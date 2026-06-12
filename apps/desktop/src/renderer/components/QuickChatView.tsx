@@ -1,6 +1,5 @@
 import React from "react";
 import {
-  AlertCircle,
   ChevronRight,
   Columns2,
   Code2,
@@ -23,8 +22,6 @@ export function QuickChatView(): React.ReactNode {
     isConversationLoading,
     sessionTitle,
     messages,
-    errorMessage,
-    onDismissError,
     sessionStatus,
     composer,
   } = useQuickChatContext();
@@ -98,15 +95,6 @@ export function QuickChatView(): React.ReactNode {
         </header>
 
         <div className="quick-chat-content">
-          {errorMessage ? (
-            <div className="error-banner">
-              <AlertCircle size={16} />
-              <span>{errorMessage}</span>
-              <button onClick={onDismissError} type="button">
-                关闭
-              </button>
-            </div>
-          ) : null}
           <div className="conversation-stream">
             {isConversationLoading ? (
               <div className="assistant-thinking">加载对话中</div>
@@ -133,17 +121,6 @@ export function QuickChatView(): React.ReactNode {
         </h1>
       </div>
 
-      {errorMessage ? (
-        <div className="quick-chat-content">
-          <div className="error-banner">
-            <AlertCircle size={16} />
-            <span>{errorMessage}</span>
-            <button onClick={onDismissError} type="button">
-              关闭
-            </button>
-          </div>
-        </div>
-      ) : null}
       {composer ? <div className="chat-composer">{composer}</div> : null}
     </section>
   );

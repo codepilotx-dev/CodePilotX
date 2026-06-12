@@ -29,7 +29,11 @@ const BUILT_IN_PROVIDER_IDS = new Set([
 
 const NO_MODEL_OPTION = '__no_models_available__'
 
-export function ModelProviderSettings(): React.ReactNode {
+type Props = {
+  onError: (message: string) => void
+}
+
+export function ModelProviderSettings({ onError }: Props): React.ReactNode {
   const settings = useDesktopSettings()
   const [providers, setProviders] = useState<DesktopModelProviderSummary[]>([])
   const [providerState, setProviderState] =
@@ -60,12 +64,14 @@ export function ModelProviderSettings(): React.ReactNode {
       })
       .catch(error => {
         if (!mounted) return
-        setModelError(error instanceof Error ? error.message : String(error))
+        const message = error instanceof Error ? error.message : String(error)
+        setModelError(message)
+        onError(message)
       })
     return () => {
       mounted = false
     }
-  }, [])
+  }, [onError])
 
   const selectedProvider = useMemo(
     () => providers.find(provider => provider.providerID === providerID),

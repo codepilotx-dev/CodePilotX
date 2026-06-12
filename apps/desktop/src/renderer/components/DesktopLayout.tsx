@@ -1,9 +1,10 @@
 import { desktopClient } from '../services/desktopClient.js'
-﻿import type React from 'react'
+import type React from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { ComposerCard } from './ComposerCard.js'
 import { DesktopShell } from './DesktopShell.js'
 import { DesktopSidebar } from './DesktopSidebar.js'
+import { GlobalErrorModal } from './GlobalErrorModal.js'
 import { PermissionRequestModal } from './PermissionRequestModal.js'
 import { RuntimeWarning } from './RuntimeWarning.js'
 import { WindowChrome } from './WindowChrome.js'
@@ -781,6 +782,11 @@ export function DesktopLayout(): React.ReactNode {
         }}
       />
 
+      <GlobalErrorModal
+        message={errorMessage}
+        onDismiss={() => setErrorMessage(null)}
+      />
+
       {!currentWorkspace && runtimeMissing ? <RuntimeWarning /> : null}
 
       <DesktopShell
@@ -797,8 +803,6 @@ export function DesktopLayout(): React.ReactNode {
               null,
             workspaceName: currentWorkspace?.name ?? null,
             messages: isHomePage || isConversationLoading ? [] : messages,
-            errorMessage,
-            onDismissError: () => setErrorMessage(null),
             sessionStatus,
             composer: isConversationLoading ? null : composer,
           }}
