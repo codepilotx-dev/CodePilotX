@@ -86,7 +86,10 @@ export function SidebarProjectGroup({
           }
         >
           <PopoverMenu
+            autoWidth
+            className="popover-sidebar-project"
             open={menuOpen}
+            side="bottom"
             trigger={
               <button
                 aria-label="更多"

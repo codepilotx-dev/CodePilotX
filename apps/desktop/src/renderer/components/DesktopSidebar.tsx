@@ -20,7 +20,6 @@ type Props = {
   sessions: SessionListItem[];
   width: number;
   workspace: DesktopWorkspace | null;
-  onChooseWorkspace: () => void;
   onCreateSession: () => void;
   onOpenWorkspace: (workspace: DesktopWorkspace) => void;
   onSelectSession: (session: SessionListItem) => void;
@@ -40,7 +39,6 @@ export function DesktopSidebar({
   sessions,
   width,
   workspace,
-  onChooseWorkspace,
   onCreateSession,
   onOpenWorkspace,
   onSelectSession,
@@ -184,7 +182,6 @@ export function DesktopSidebar({
           unpinnedSessions={unpinnedSessions}
           workspace={workspace}
           onArchiveSession={archiveSession}
-          onChooseWorkspace={onChooseWorkspace}
           onCreateSession={onCreateSession}
           onOpenWorkspace={onOpenWorkspace}
           onPinSession={pinSession}

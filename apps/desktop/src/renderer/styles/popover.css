@@ -4,7 +4,7 @@
 
 .popover {
   position: absolute;
-  bottom: calc(100% + 6px);
+  bottom: 100%;
   left: 0;
   z-index: 1000;
   display: inline-block;
@@ -83,9 +83,7 @@
 .popover-model-list {
   max-height: min(
     300px,
-    calc(
-      var(--radix-dropdown-menu-content-available-height, 360px) - 42px
-    )
+    calc(var(--radix-dropdown-menu-content-available-height, 360px) - 42px)
   );
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -93,6 +91,11 @@
 
 .popover-mode {
   min-width: 220px;
+}
+
+.popover-sidebar-project {
+  top: 100%;
+  bottom: auto;
 }
 
 .popover-menu-file,

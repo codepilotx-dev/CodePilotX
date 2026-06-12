@@ -1,8 +1,22 @@
 import type React from "react";
-import { MoreHorizontal, SquarePen } from "lucide-react";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { useState } from "react";
+import {
+  Archive,
+  ArrowDown,
+  ChevronRight,
+  Clock3,
+  CirclePlus,
+  Folder,
+  MoreHorizontal,
+  PenLine,
+  SquarePen,
+} from "lucide-react";
 import type { DesktopWorkspace } from "../../../shared/types.js";
 import type { SessionListItem } from "../../uiTypes.js";
 import { IconButton } from "../ui/IconButton.js";
+import { PopoverItem } from "../ui/PopoverItem.js";
+import { PopoverMenu } from "../ui/PopoverMenu.js";
 import { SidebarProjectGroup } from "./SidebarProjectGroup.js";
 import { SidebarSessionGroup } from "./SidebarSessionGroup.js";
 
@@ -16,7 +30,6 @@ type Props = {
   unpinnedSessions: SessionListItem[];
   workspace: DesktopWorkspace | null;
   onArchiveSession: (session: SessionListItem) => void;
-  onChooseWorkspace: () => void;
   onCreateSession: () => void;
   onOpenWorkspace: (workspace: DesktopWorkspace) => void;
   onPinSession: (session: SessionListItem) => void;
@@ -35,7 +48,6 @@ export function SidebarBody({
   unpinnedSessions,
   workspace,
   onArchiveSession,
-  onChooseWorkspace,
   onCreateSession,
   onOpenWorkspace,
   onPinSession,
@@ -66,7 +78,6 @@ export function SidebarBody({
       <section className="sidebar-section sidebar-projects-section">
         <SidebarSectionHeader
           title="项目"
-          onChooseWorkspace={onChooseWorkspace}
           onCreateSession={onCreateSession}
           createDisabled={!workspace}
         />
@@ -97,7 +108,6 @@ export function SidebarBody({
       <section className="sidebar-section">
         <SidebarSectionHeader
           title="对话"
-          onChooseWorkspace={onChooseWorkspace}
           onCreateSession={onCreateSession}
         />
         {standaloneSessions.length === 0 ? (
@@ -124,21 +134,57 @@ export function SidebarBody({
 function SidebarSectionHeader({
   createDisabled,
   title,
-  onChooseWorkspace,
   onCreateSession,
 }: {
   createDisabled?: boolean;
   title: string;
-  onChooseWorkspace: () => void;
   onCreateSession: () => void;
 }): React.ReactNode {
+  const [menuOpen, setMenuOpen] = useState(false);
   return (
     <div className="sidebar-section-header">
       <h2 className="sidebar-section-title">{title}</h2>
-      <div className="sidebar-section-actions">
-        <IconButton onClick={onChooseWorkspace} title="更多">
-          <MoreHorizontal size={15} />
-        </IconButton>
+      <div
+        className={
+          menuOpen
+            ? "sidebar-section-actions is-visible"
+            : "sidebar-section-actions"
+        }
+      >
+        <PopoverMenu
+          autoWidth
+          className="popover-sidebar-section"
+          open={menuOpen}
+          side="top"
+          trigger={
+            <button aria-label="更多" className="icon-button" type="button">
+              <MoreHorizontal size={15} />
+            </button>
+          }
+          onOpenChange={setMenuOpen}
+        >
+          <PopoverItem icon={<Archive size={14} />} onClick={() => {}}>
+            归档所有聊天
+          </PopoverItem>
+          <div className="popover-divider" />
+          <SidebarSubmenu
+            icon={<Folder size={14} />}
+            label="整理侧边栏"
+          >
+            <PopoverItem icon={<Folder size={14} />} selected withCheck>
+              按项目
+            </PopoverItem>
+            <PopoverItem icon={<Folder size={14} />}>近期项目</PopoverItem>
+            <PopoverItem icon={<Clock3 size={14} />}>按时间顺序</PopoverItem>
+            <PopoverItem icon={<ArrowDown size={14} />}>下移</PopoverItem>
+          </SidebarSubmenu>
+          <SidebarSubmenu icon={<Clock3 size={14} />} label="排序条件">
+            <PopoverItem icon={<CirclePlus size={14} />}>创建时间</PopoverItem>
+            <PopoverItem icon={<PenLine size={14} />} selected withCheck>
+              更新时间
+            </PopoverItem>
+          </SidebarSubmenu>
+        </PopoverMenu>
         <IconButton
           disabled={createDisabled}
           onClick={onCreateSession}
@@ -148,5 +194,37 @@ function SidebarSectionHeader({
         </IconButton>
       </div>
     </div>
+  );
+}
+
+function SidebarSubmenu({
+  children,
+  icon,
+  label,
+}: {
+  children: React.ReactNode;
+  icon: React.ReactNode;
+  label: string;
+}): React.ReactNode {
+  return (
+    <DropdownMenu.Sub>
+      <DropdownMenu.SubTrigger
+        className="popover-item popover-sub-trigger"
+        tabIndex={-1}
+      >
+        <span className="popover-item-icon">{icon}</span>
+        <span className="popover-item-label">{label}</span>
+        <ChevronRight className="popover-item-arrow" size={12} />
+      </DropdownMenu.SubTrigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.SubContent
+          alignOffset={-6}
+          className="popover popover-sub-content popover-auto-width"
+          sideOffset={8}
+        >
+          {children}
+        </DropdownMenu.SubContent>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Sub>
   );
 }

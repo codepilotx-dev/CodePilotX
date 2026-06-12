@@ -3,8 +3,10 @@ import { Dropdown } from './Dropdown.js'
 
 type Props = {
   children: React.ReactNode
+  align?: 'start' | 'center' | 'end'
   className?: string
   open: boolean
+  side?: 'top' | 'right' | 'bottom' | 'left'
   trigger: React.ReactNode
   autoWidth?: boolean
   textMode?: 'nowrap' | 'wrap'
@@ -13,26 +15,30 @@ type Props = {
 
 export function PopoverMenu({
   children,
+  align,
   className = '',
   open,
+  side,
   trigger,
   autoWidth = false,
   textMode = 'nowrap',
   onOpenChange,
 }: Props): React.ReactNode {
-  const side = className.includes('popover-menu-') ? 'bottom' : 'top'
-  const align =
+  const dropdownSide =
+    side ?? (className.includes('popover-menu-') ? 'bottom' : 'top')
+  const dropdownAlign = align ?? (
     className.includes('popover-model') || className.includes('popover-branch')
       ? 'end'
       : 'start'
+  )
 
   return (
     <Dropdown
-      align={align}
+      align={dropdownAlign}
       autoWidth={autoWidth}
       className={className}
       open={open}
-      side={side}
+      side={dropdownSide}
       sideOffset={className.includes('popover-menu-') ? 4 : 6}
       textMode={textMode}
       trigger={trigger}
