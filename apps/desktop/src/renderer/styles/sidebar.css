@@ -26,14 +26,15 @@
   flex-basis: 0;
 }
 
-.sidebar-content,
-.sidebar-footer {
+.sidebar-content {
   min-width: var(--sidebar-current-w);
   transition: opacity 0.12s ease-out;
+  display: flex;
+  flex-direction: column;
 }
 
 .desktop-sidebar.is-collapsed .sidebar-content,
-.desktop-sidebar.is-collapsed .sidebar-footer {
+.desktop-sidebar.is-collapsed .foot-section {
   opacity: 0;
   pointer-events: none;
 }
@@ -41,9 +42,8 @@
 .sidebar-content {
   flex: 1;
   min-height: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-  padding: 14px;
+  overflow: hidden;
+  padding: 10px 8px;
   scrollbar-width: none;
 }
 
@@ -60,7 +60,7 @@
 
 .nav-section.primary {
   margin-top: 0;
-  gap: 6px;
+  gap: 2px;
 }
 
 .section-title {
@@ -81,27 +81,37 @@
   gap: var(--sp-2);
 }
 
-.sidebar-action-row {
+.sidebar-section-header .sidebar-action-row {
   display: flex;
   gap: 2px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease-out;
+}
+
+.sidebar-section-header:hover .sidebar-action-row,
+.sidebar-section-header:focus-within .sidebar-action-row {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .nav-item,
 .project-row,
 .conversation-item,
 .footer-button,
-.task-button {
-  border-radius: var(--r-sm);
+.chat-button {
+  gap: 7px;
+  padding: 5px 8px;
+  border-radius: 5px;
   text-align: left;
 }
 
 .nav-item {
   width: 100%;
-  height: 30px;
+
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 4px;
+
   color: var(--c-text-soft);
   font-size: var(--fs-15);
   text-decoration: none;
@@ -110,8 +120,8 @@
 .nav-item:hover,
 .nav-item.active,
 .project-row:hover,
-.task-row:hover,
-.task-row.active,
+.chat-row:hover,
+.chat-row.active,
 .conversation-item:hover,
 .conversation-item.active,
 .footer-button:hover {
@@ -119,7 +129,7 @@
 }
 
 .nav-item.active,
-.task-row.active,
+.chat-row.active,
 .conversation-item.active {
   color: var(--c-text-strong);
 }
@@ -136,7 +146,7 @@
 
 .nav-label,
 .project-name,
-.task-title,
+.chat-title,
 .conversation-title {
   min-width: 0;
   overflow: hidden;
@@ -154,6 +164,23 @@
   gap: 2px;
 }
 
+.project-block-row {
+  display: flex;
+  align-items: center;
+  border-radius: var(--r-md);
+  padding: 3px 0;
+}
+
+.project-block-row:hover,
+.project-block-row:focus-within {
+  background: var(--c-bg-hover);
+}
+
+.project-block-row .project-row {
+  flex: 1;
+  min-width: 0;
+}
+
 .project-row {
   width: 100%;
   display: flex;
@@ -165,22 +192,46 @@
   font-size: var(--fs-14);
 }
 
+.project-row-actions {
+  display: flex;
+  align-items: center;
+  padding-right: 6px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease-out;
+}
+
+.project-row-actions.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.project-row-action-button {
+  width: 24px;
+  height: 24px;
+  color: var(--c-text-meta);
+}
+
+.project-row-action-button:hover {
+  background: var(--c-bg-mask);
+  color: var(--c-text-soft);
+}
+
 .project-name {
   flex: 1;
   color: var(--c-text-soft);
   font-size: var(--fs-13);
 }
 
-.task-list {
+.chat-list {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  margin: 0;
-  padding: 0;
+
   list-style: none;
 }
 
-.task-row {
+.chat-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
@@ -189,7 +240,7 @@
   border-radius: 5px;
 }
 
-.task-button {
+.chat-button {
   min-width: 0;
   display: flex;
   align-items: center;
@@ -199,7 +250,7 @@
   font-size: var(--fs-13);
 }
 
-.task-trailing {
+.chat-trailing {
   min-width: 48px;
   height: 28px;
   display: inline-flex;
@@ -207,7 +258,7 @@
   justify-content: flex-end;
 }
 
-.task-close-button {
+.chat-close-button {
   width: 22px;
   height: 22px;
   color: var(--c-text-meta);
@@ -238,7 +289,8 @@
 }
 
 .task-time,
-.conversation-time {
+.conversation-time,
+.chat-time {
   color: var(--c-text-meta);
   font-size: var(--fs-12);
   white-space: nowrap;
@@ -279,12 +331,12 @@
   font-size: var(--fs-12);
 }
 
-.sidebar-footer {
-  height: 52px;
+.foot-section {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 14px 12px;
+  width: 100%;
+  margin-top: auto;
 }
 
 .footer-button {

@@ -11,8 +11,11 @@ import {
   Folder,
   FolderOpen,
   FolderGit2,
+  FolderTree,
   History,
   Loader2,
+  MoreHorizontal,
+  Pencil,
   Pin,
   PinOff,
   Plus,
@@ -20,6 +23,7 @@ import {
   Settings2,
   Smartphone,
   SquarePen,
+  X,
 } from "lucide-react";
 import type {
   DesktopSessionMetadataPatch,
@@ -31,6 +35,8 @@ import {
   type SessionListItem,
 } from "../uiTypes.js";
 import { IconButton } from "./ui/IconButton.js";
+import { PopoverItem } from "./ui/PopoverItem.js";
+import { PopoverMenu } from "./ui/PopoverMenu.js";
 
 type Props = {
   activeSessionId: string | null;
@@ -109,7 +115,12 @@ export function DesktopSidebar({
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(
     {},
   );
-  const [hoveredProjectPath, setHoveredProjectPath] = useState<string | null>(null);
+  const [hoveredProjectPath, setHoveredProjectPath] = useState<string | null>(
+    null,
+  );
+  const [openProjectMenuPath, setOpenProjectMenuPath] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     const timer = window.setInterval(() => setRelativeNow(Date.now()), 30_000);
@@ -276,15 +287,15 @@ export function DesktopSidebar({
           <div className="sidebar-section-header">
             <h2 className="section-title">项目</h2>
             <div className="sidebar-action-row">
-              <IconButton onClick={onChooseWorkspace} title="选择项目">
-                <FolderOpen size={15} />
+              <IconButton onClick={onChooseWorkspace} title="更多">
+                <MoreHorizontal size={15} />
               </IconButton>
               <IconButton
                 disabled={!workspace}
                 onClick={onCreateSession}
                 title="新建对话"
               >
-                <Plus size={15} />
+                <SquarePen size={15} />
               </IconButton>
             </div>
           </div>
@@ -300,30 +311,105 @@ export function DesktopSidebar({
               );
               return (
                 <div className="project-block" key={item.path}>
-                  <button
-                    aria-current={
-                      workspace?.path === item.path ? "page" : undefined
-                    }
-                    className="project-row"
+                  <div
+                    className="project-block-row"
                     onMouseEnter={() => setHoveredProjectPath(item.path)}
                     onMouseLeave={() =>
-                      setHoveredProjectPath(current =>
+                      setHoveredProjectPath((current) =>
                         current === item.path ? null : current,
                       )
                     }
-                    onClick={() => onOpenWorkspace(item)}
-                    type="button"
                   >
-                    <span className="nav-icon">
-                      {item.isGitRepo === true &&
-                      hoveredProjectPath === item.path ? (
-                        <FolderGit2 size={15} />
-                      ) : (
-                        <FolderOpen size={15} />
-                      )}
-                    </span>
-                    <span className="project-name">{item.name}</span>
-                  </button>
+                    <button
+                      aria-current={
+                        workspace?.path === item.path ? "page" : undefined
+                      }
+                      className="project-row"
+                      onClick={() => onOpenWorkspace(item)}
+                      type="button"
+                    >
+                      <span className="nav-icon">
+                        {item.isGitRepo === true &&
+                        hoveredProjectPath === item.path ? (
+                          <FolderGit2 size={15} />
+                        ) : (
+                          <FolderOpen size={15} />
+                        )}
+                      </span>
+                      <span className="project-name">{item.name}</span>
+                    </button>
+                    <div
+                      className={
+                        openProjectMenuPath === item.path ||
+                        hoveredProjectPath === item.path
+                          ? "project-row-actions is-visible"
+                          : "project-row-actions"
+                      }
+                    >
+                      <PopoverMenu
+                        open={openProjectMenuPath === item.path}
+                        trigger={
+                          <button
+                            aria-label="更多"
+                            className="icon-button project-row-action-button"
+                            type="button"
+                          >
+                            <MoreHorizontal size={14} />
+                          </button>
+                        }
+                        onOpenChange={(open) =>
+                          setOpenProjectMenuPath(open ? item.path : null)
+                        }
+                      >
+                        <PopoverItem
+                          icon={<Pin size={14} />}
+                          onClick={() => {}}
+                        >
+                          置顶项目
+                        </PopoverItem>
+                        <PopoverItem
+                          icon={<FolderOpen size={14} />}
+                          onClick={() => {
+                            void window.desktopApi.openPathWithDefaultTarget(
+                              item.path,
+                            );
+                          }}
+                        >
+                          在资源管理器中打开
+                        </PopoverItem>
+                        <PopoverItem
+                          icon={<FolderTree size={14} />}
+                          onClick={() => {}}
+                        >
+                          创建永久工作树
+                        </PopoverItem>
+                        <PopoverItem
+                          icon={<Pencil size={14} />}
+                          onClick={() => {}}
+                        >
+                          重命名项目
+                        </PopoverItem>
+                        <PopoverItem
+                          icon={<Archive size={14} />}
+                          onClick={() => {}}
+                        >
+                          归档对话
+                        </PopoverItem>
+                        <PopoverItem icon={<X size={14} />} onClick={() => {}}>
+                          移除
+                        </PopoverItem>
+                      </PopoverMenu>
+
+                      <IconButton
+                        className="project-row-action-button"
+                        disabled={!workspace}
+                        onClick={onCreateSession}
+                        title="新建对话"
+                      >
+                        <SquarePen size={14} />
+                      </IconButton>
+                    </div>
+                  </div>
                   {workspaceSessions.length > 0 ? (
                     <SessionGroup
                       activeSessionId={activeSessionId}
@@ -346,7 +432,17 @@ export function DesktopSidebar({
         </section>
 
         <section className="nav-section conversations">
-          <h2 className="section-title">对话</h2>
+          <div className="sidebar-section-header">
+            <h2 className="section-title">对话</h2>
+            <div className="sidebar-action-row">
+              <IconButton onClick={onChooseWorkspace} title="更多">
+                <MoreHorizontal size={15} />
+              </IconButton>
+              <IconButton onClick={onCreateSession} title="新建对话">
+                <SquarePen size={15} />
+              </IconButton>
+            </div>
+          </div>
           {standaloneSessions.length === 0 ? (
             <p className="sidebar-empty">暂无对话</p>
           ) : (
@@ -365,18 +461,22 @@ export function DesktopSidebar({
             />
           )}
         </section>
-      </div>
 
-      <div className="sidebar-footer">
-        <Link className="footer-button" to="/settings">
-          <span className="nav-icon">
-            <Settings2 size={17} />
-          </span>
-          <span>设置</span>
-        </Link>
-        <IconButton className="mobile-button" onClick={() => {}} title="移动端">
-          <Smartphone size={17} />
-        </IconButton>
+        <div className="foot-section">
+          <Link className="footer-button" to="/settings">
+            <span className="nav-icon">
+              <Settings2 size={17} />
+            </span>
+            <span>设置</span>
+          </Link>
+          <IconButton
+            className="mobile-button"
+            onClick={() => {}}
+            title="移动端"
+          >
+            <Smartphone size={17} />
+          </IconButton>
+        </div>
       </div>
 
       <div
@@ -428,11 +528,11 @@ function SessionGroup({
 
   return (
     <>
-      <ul className="task-list">
+      <div className="chat-list">
         {sessions.map((session) => (
           <li
             className={
-              session.id === activeSessionId ? "task-row active" : "task-row"
+              session.id === activeSessionId ? "chat-row active" : "chat-row"
             }
             key={session.id}
             onMouseEnter={() => setHoveredSessionId(session.id)}
@@ -443,44 +543,48 @@ function SessionGroup({
             }
           >
             <button
-              className="task-button"
+              className="chat-button"
               onClick={() => onSelectSession(session)}
               type="button"
             >
-              <span className="task-title">{conversationTitle(session)}</span>
+              <span className="chat-title">{conversationTitle(session)}</span>
             </button>
-            <div className="task-trailing">
+            <div className="chat-trailing">
               {session.status === "running" ? (
-                <Loader2 aria-label="???" className="task-spinner" size={12} />
+                <Loader2
+                  aria-label="加载中"
+                  className="chat-spinner"
+                  size={12}
+                />
               ) : hoveredSessionId === session.id ? (
                 <div className="session-inline-actions">
                   {session.pinnedAt ? (
                     <IconButton
-                      className="task-close-button"
+                      className="chat-close-button"
                       onClick={() => onUnpinSession(session)}
-                      title="????"
+                      title="取消固定"
                     >
                       <PinOff size={12} />
                     </IconButton>
                   ) : (
                     <IconButton
-                      className="task-close-button"
+                      className="chat-close-button"
                       onClick={() => onPinSession(session)}
-                      title="??"
+                      title="固定"
                     >
                       <Pin size={12} />
                     </IconButton>
                   )}
                   <IconButton
-                    className="task-close-button"
+                    className="chat-close-button"
                     onClick={() => onArchiveSession(session)}
-                    title="??"
+                    title="归档"
                   >
                     <Archive size={12} />
                   </IconButton>
                 </div>
               ) : (
-                <span className="task-time">
+                <span className="chat-time">
                   {formatRelativeConversationTime(
                     session.lastMessageAt ?? session.createdAt,
                     now,
@@ -490,7 +594,7 @@ function SessionGroup({
             </div>
           </li>
         ))}
-      </ul>
+      </div>
       {totalCount > GROUP_LIMIT ? (
         <button
           className="show-more-button"
@@ -498,7 +602,7 @@ function SessionGroup({
           type="button"
         >
           {isExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-          <span>{isExpanded ? "??" : "????"}</span>
+          <span>{isExpanded ? "收起" : "展开更多"}</span>
         </button>
       ) : null}
     </>
