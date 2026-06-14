@@ -1,3 +1,27 @@
+import type {
+  AgentContextUsage,
+  AgentRuntimeEvent,
+  AgentSessionEvent,
+  AgentSessionEventType,
+  AgentSessionMessage,
+  AgentSessionStatus,
+  AgentThinkingMode,
+  AgentToolLogEntry,
+  AgentWorkspace,
+} from '@claudecode/core/agent/runtime.js'
+import type {
+  AgentPermissionDecision,
+  AgentPermissionRequest,
+  DesktopAgentPermissionMode,
+} from '@claudecode/core/agent/permissions.js'
+import type {
+  ModelMetadata,
+  ModelProviderID as CoreModelProviderID,
+  ModelProviderKind,
+  ModelProviderSummary,
+  ProviderBalanceInfo,
+} from '@claudecode/core/models/provider.js'
+
 export type DesktopAuthStatus = {
   authenticated: boolean
   method: string
@@ -5,14 +29,7 @@ export type DesktopAuthStatus = {
   organizationName?: string | null
 }
 
-export type DesktopWorkspace = {
-  path: string
-  name: string
-  branchName?: string | null
-  branches?: string[]
-  isGitRepo?: boolean
-  isStandalone?: boolean
-}
+export type DesktopWorkspace = AgentWorkspace
 
 export type DesktopFileEntry = {
   name: string
@@ -56,19 +73,11 @@ export type DesktopOpenTarget = {
   iconDataUrl?: string
 }
 
-export type DesktopSessionStatus = 'idle' | 'running' | 'waiting' | 'done' | 'error'
+export type DesktopSessionStatus = AgentSessionStatus
 
-export type DesktopPermissionMode =
-  | 'acceptEdits'
-  | 'bypassPermissions'
-  | 'default'
-  | 'dontAsk'
+export type DesktopPermissionMode = DesktopAgentPermissionMode
 
-export type DesktopThinkingMode =
-  | 'default'
-  | 'enabled'
-  | 'adaptive'
-  | 'disabled'
+export type DesktopThinkingMode = AgentThinkingMode
 
 export type DesktopDrawerTab =
   | 'files'
@@ -77,56 +86,13 @@ export type DesktopDrawerTab =
   | 'toolLog'
   | 'settings'
 
-export type ModelProviderID = string
+export type ModelProviderID = CoreModelProviderID
 
-export type DesktopModelProviderKind =
-  | 'anthropic'
-  | 'openai-compatible'
-  | 'minimax'
-  | 'ai-gateway'
+export type DesktopModelProviderKind = ModelProviderKind
 
-export type DesktopModelMetadata = {
-  id: string
-  name?: string
-  label?: string
-  description?: string
-  badge?: string
-  contextWindow?: number
-  outputTokens?: number
-  inputCost?: number
-  outputCost?: number
-  cacheReadCost?: number
-  reasoning?: boolean
-  toolCall?: boolean
-  structuredOutput?: boolean
-  vision?: boolean
-  modalities?: {
-    input: string[]
-    output: string[]
-  }
-  catalogSources?: Array<'models.dev' | 'gateway'>
-  gatewayModelId?: string
-  modelsDevProviderId?: string
-  modelType?: string
-  tags?: string[]
-}
+export type DesktopModelMetadata = ModelMetadata
 
-export type DesktopModelProviderSummary = {
-  providerID: ModelProviderID
-  kind: DesktopModelProviderKind
-  displayName: string
-  baseURL?: string
-  defaultModels: string[]
-  modelMetadata?: Record<string, DesktopModelMetadata>
-  apiKeyConfigured: boolean
-  envVars?: string[]
-  docURL?: string
-  logoURL?: string
-  npmPackage?: string
-  modelsDevSource?: boolean
-  gatewaySource?: boolean
-  requiresBaseURL?: boolean
-}
+export type DesktopModelProviderSummary = ModelProviderSummary
 
 export type DesktopModelProviderState = {
   selectedProviderID: ModelProviderID
@@ -145,12 +111,7 @@ export type DesktopProviderModelListResult = {
   error?: string
 }
 
-export type DesktopProviderBalanceInfo = {
-  currency: string
-  totalBalance: string
-  grantedBalance: string
-  toppedUpBalance: string
-}
+export type DesktopProviderBalanceInfo = ProviderBalanceInfo
 
 export type DesktopProviderBalanceResult = {
   isAvailable: boolean
@@ -212,53 +173,15 @@ export type DesktopThemeSettings = {
   themes: Partial<Record<DesktopThemeVariant, DesktopThemeConfigV1>>
 }
 
-export type DesktopPermissionDecision = {
-  behavior: 'allow' | 'deny'
-  message?: string
-  alwaysAllow?: boolean
-}
+export type DesktopPermissionDecision = AgentPermissionDecision
 
-export type DesktopPermissionRequest = {
-  requestId: string
-  toolName: string
-  input: Record<string, unknown>
-  description: string
-}
+export type DesktopPermissionRequest = AgentPermissionRequest
 
-export type DesktopSessionMessage = {
-  id: string
-  role: 'user' | 'assistant' | 'system'
-  text: string
-  createdAt: string
-  streaming?: boolean
-}
+export type DesktopSessionMessage = AgentSessionMessage
 
-export type DesktopToolLogEntry = {
-  id: string
-  toolName: string
-  summary: string
-  kind: 'start' | 'result'
-  isError?: boolean
-  expanded: boolean
-  createdAt: string
-}
+export type DesktopToolLogEntry = AgentToolLogEntry
 
-export type DesktopContextUsage = {
-  model: string
-  provider?: string
-  contextWindow: number
-  inputTokens: number
-  outputTokens: number
-  cacheCreationInputTokens: number
-  cacheReadInputTokens: number
-  reasoningTokens: number
-  promptCacheHitTokens: number
-  promptCacheMissTokens: number
-  usedTokens: number
-  remainingTokens: number
-  usedPercent: number
-  remainingPercent: number
-}
+export type DesktopContextUsage = AgentContextUsage
 
 export type DesktopSessionListItem = {
   id: string
@@ -299,27 +222,10 @@ export type DesktopSessionViewSnapshot = {
   contextUsage: DesktopContextUsage | null
 }
 
-export type DesktopSessionEventType =
-  | 'message'
-  | 'assistant_delta'
-  | 'tool_call'
-  | 'tool_result'
-  | 'status'
-  | 'permission_request'
-  | 'context_usage'
-  | 'file_patch'
-  | 'error'
-  | 'checkpoint'
+export type DesktopSessionEventType = AgentSessionEventType
 
-export type DesktopSessionEvent = {
-  id: string
-  sessionId: string
-  type: DesktopSessionEventType
-  createdAt: string
-  role?: 'user' | 'assistant' | 'system'
-  content?: string
-  metadata?: Record<string, unknown>
-}
+export type DesktopSessionEvent = AgentSessionEvent
+
 export type DesktopSessionSnapshot = {
   item: DesktopSessionListItem
   workspace: DesktopWorkspace
@@ -335,18 +241,7 @@ export type DesktopSessionMetadataPatch = {
   archivedAt?: string | null
 }
 
-export type DesktopAgentEvent =
-  | { type: 'message'; sessionId: string; role: 'user' | 'assistant' | 'system'; text: string; createdAt?: string }
-  | { type: 'partial_message'; sessionId: string; text: string; createdAt?: string }
-  | { type: 'context_usage'; sessionId: string; usage: DesktopContextUsage }
-  | { type: 'session_title'; sessionId: string; title: string }
-  | { type: 'tool_start'; sessionId: string; toolName: string; summary: string }
-  | { type: 'tool_result'; sessionId: string; toolName: string; summary: string; isError?: boolean }
-  | { type: 'permission_request'; sessionId: string; request: DesktopPermissionRequest }
-  | { type: 'status'; sessionId: string; status: DesktopSessionStatus }
-  | { type: 'diff'; sessionId: string; filePath: string; patch: string }
-  | { type: 'error'; sessionId: string; message: string }
-  | { type: 'done'; sessionId: string }
+export type DesktopAgentEvent = AgentRuntimeEvent
 
 export type CreateDesktopSessionOptions = {
   workspacePath?: string

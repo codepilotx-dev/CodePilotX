@@ -1,5 +1,9 @@
 import { readFile, stat, writeFile, mkdir } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
+import {
+  isAgentApprovalMode,
+  isAgentPermissionProfile,
+} from '@claudecode/core/agent/permissions.js'
 import type {
   DesktopAgentEvent,
   DesktopContextUsage,
@@ -15,6 +19,7 @@ import type {
   DesktopWorkspace,
 } from '../shared/types.js'
 import { desktopAgentEventToSessionEvent } from '../shared/sessionEventModel.js'
+import { normalizeDesktopPermissionMode } from '../shared/settingsSchema.js'
 import {
   getDesktopConfigDirectoryPath,
   getOpenAgentConfigHomeDir,
@@ -379,12 +384,7 @@ function normalizeSessionItem(
     standalone: item.standalone === true,
     pinnedAt: typeof item.pinnedAt === 'string' ? item.pinnedAt : null,
     archivedAt: typeof item.archivedAt === 'string' ? item.archivedAt : null,
-    permissionMode:
-      item.permissionMode === 'acceptEdits' ||
-      item.permissionMode === 'bypassPermissions' ||
-      item.permissionMode === 'dontAsk'
-        ? item.permissionMode
-        : 'default',
+    permissionMode: normalizeDesktopPermissionMode(item.permissionMode),
     model: typeof item.model === 'string' ? item.model : null,
     fallbackModel:
       typeof item.fallbackModel === 'string' ? item.fallbackModel : null,
@@ -410,12 +410,7 @@ function normalizeSettingsSnapshot(
   settings: Partial<DesktopSessionSettingsSnapshot>,
 ): DesktopSessionSettingsSnapshot {
   return {
-    permissionMode:
-      settings.permissionMode === 'acceptEdits' ||
-      settings.permissionMode === 'bypassPermissions' ||
-      settings.permissionMode === 'dontAsk'
-        ? settings.permissionMode
-        : 'default',
+    permissionMode: normalizeDesktopPermissionMode(settings.permissionMode),
     model: stringOrUndefined(settings.model),
     fallbackModel: stringOrUndefined(settings.fallbackModel),
     sessionName: stringOrUndefined(settings.sessionName),
@@ -548,6 +543,12 @@ function normalizeSessionEvent(value: unknown): DesktopSessionEvent[] {
       content: typeof event.content === 'string' ? event.content : undefined,
       metadata,
       createdAt,
+      sourceThreadId:
+        typeof event.sourceThreadId === 'string'
+          ? event.sourceThreadId
+          : undefined,
+      sourceLabel:
+        typeof event.sourceLabel === 'string' ? event.sourceLabel : undefined,
     },
   ]
 }
@@ -568,6 +569,7 @@ function isSessionEventType(
     value === 'checkpoint'
   )
 }
+
 function normalizePermissionRequest(value: unknown): DesktopPermissionRequest[] {
   if (!value || typeof value !== 'object') return []
   const request = value as Partial<DesktopPermissionRequest>
@@ -581,6 +583,12 @@ function normalizePermissionRequest(value: unknown): DesktopPermissionRequest[] 
       toolName: request.toolName,
       input: request.input as Record<string, unknown>,
       description: request.description,
+      profile: isAgentPermissionProfile(request.profile)
+        ? request.profile
+        : undefined,
+      approvalMode: isAgentApprovalMode(request.approvalMode)
+        ? request.approvalMode
+        : undefined,
     },
   ]
 }

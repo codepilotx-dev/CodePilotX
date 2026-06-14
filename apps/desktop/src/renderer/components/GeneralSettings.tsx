@@ -90,13 +90,6 @@ const WORK_MODES: Array<{
   },
 ];
 
-const PERMISSION_LEVELS: Record<DesktopPermissionMode, number> = {
-  default: 0,
-  acceptEdits: 1,
-  bypassPermissions: 2,
-  dontAsk: 2,
-};
-
 function LearnMoreLink() {
   return (
     <a
@@ -166,18 +159,22 @@ export function GeneralSettings() {
     setThinkingMode(next === 'coding' ? 'default' : 'adaptive');
   };
 
-  const level = PERMISSION_LEVELS[permissionMode] ?? 0;
-  const defaultPermOn = level >= 0;
-  const autoApproveOn = level >= 1;
-  const fullAccessOn = level >= 2;
+  const defaultPermOn = permissionMode === 'default';
+  const autoApproveOn = permissionMode === 'auto';
+  const fullAccessOn = permissionMode === 'bypassPermissions';
+  const customConfigOn = permissionMode === 'customConfig';
 
   const handleAutoApprove = (checked: boolean) => {
-    if (checked) setPermissionMode('acceptEdits');
+    if (checked) setPermissionMode('auto');
     else setPermissionMode('default');
   };
   const handleFullAccess = (checked: boolean) => {
     if (checked) setPermissionMode('bypassPermissions');
-    else setPermissionMode('acceptEdits');
+    else setPermissionMode('auto');
+  };
+  const handleCustomConfig = (checked: boolean) => {
+    if (checked) setPermissionMode('customConfig');
+    else setPermissionMode('default');
   };
 
   useEffect(() => {
@@ -258,7 +255,7 @@ export function GeneralSettings() {
             control={
               <ToggleSwitch
                 checked={defaultPermOn}
-                onChange={() => {}}
+                onChange={() => setPermissionMode('default')}
                 ariaLabel='默认权限'
               />
             }
@@ -294,6 +291,17 @@ export function GeneralSettings() {
                 checked={fullAccessOn}
                 onChange={handleFullAccess}
                 ariaLabel='完全访问权限'
+              />
+            }
+          />
+          <SettingsRow
+            title='自定义（config.toml）'
+            description='Oh-my-agentcode 使用 config.toml 中定义的权限，不从桌面端覆盖权限模式。'
+            control={
+              <ToggleSwitch
+                checked={customConfigOn}
+                onChange={handleCustomConfig}
+                ariaLabel='自定义 config.toml 权限'
               />
             }
           />

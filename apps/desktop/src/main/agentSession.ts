@@ -13,6 +13,7 @@ import type {
   DesktopPermissionRequest,
   DesktopSessionStatus,
 } from '../shared/types.js'
+import { desktopPermissionPolicyForMode } from '../shared/settingsSchema.js'
 
 type DesktopAgentSessionEvents = {
   event: [DesktopAgentEvent]
@@ -67,6 +68,7 @@ class LocalDesktopAgentSession
   private currentAbortController: AbortController | null = null
   private readonly pendingPermissions = new Map<string, PendingPermission>()
   private readonly runtime: DesktopAgentRuntime
+  private readonly permissionMode: CreateDesktopSessionOptions['permissionMode']
 
   constructor(
     options: ResolvedDesktopSessionOptions,
@@ -75,6 +77,7 @@ class LocalDesktopAgentSession
     super()
     this.sessionId = options.sessionId ?? randomUUID()
     this.workspacePath = options.workspacePath
+    this.permissionMode = options.permissionMode
     this.runtime = createDesktopAgentRuntime({
       sessionId: this.sessionId,
       workspacePath: this.workspacePath,
@@ -201,20 +204,31 @@ class LocalDesktopAgentSession
   private async requestPermission(
     request: DesktopPermissionRequest,
   ): Promise<DesktopPermissionDecision> {
+    const permissionPolicy = desktopPermissionPolicyForMode(
+      this.permissionMode,
+    )
+    const normalizedRequest: DesktopPermissionRequest = {
+      ...request,
+      profile: request.profile ?? permissionPolicy.profile,
+      approvalMode: request.approvalMode ?? permissionPolicy.approvalMode,
+    }
     const decision = await new Promise<DesktopPermissionDecision>(resolve => {
-      this.pendingPermissions.set(request.requestId, { request, resolve })
+      this.pendingPermissions.set(normalizedRequest.requestId, {
+        request: normalizedRequest,
+        resolve,
+      })
       this.emitStatus('waiting')
       this.emit({
         type: 'permission_request',
         sessionId: this.sessionId,
-        request,
+        request: normalizedRequest,
       })
 
       this.currentAbortController?.signal.addEventListener(
         'abort',
         () => {
-          if (!this.pendingPermissions.has(request.requestId)) return
-          this.pendingPermissions.delete(request.requestId)
+          if (!this.pendingPermissions.has(normalizedRequest.requestId)) return
+          this.pendingPermissions.delete(normalizedRequest.requestId)
           resolve({
             behavior: 'deny',
             message: 'Interrupted before approval',

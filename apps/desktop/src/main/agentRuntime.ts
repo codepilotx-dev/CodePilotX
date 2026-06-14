@@ -16,6 +16,7 @@ import type {
   DesktopPermissionRequest,
   DesktopThinkingMode,
 } from '../shared/types.js'
+import type { PermissionMode } from '@claudecode/tui/types/permissions.js'
 import {
   buildDesktopContextUsage,
   getUsageFromAssistantRecord,
@@ -545,7 +546,7 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
       workspacePath: context.workspacePath,
       configDirectoryPath: context.configDirectoryPath,
       resumeExistingSession: context.resumeExistingSession,
-      permissionMode: context.permissionMode,
+      permissionMode: tuiPermissionMode(context.permissionMode),
       model: context.model,
       fallbackModel: context.fallbackModel,
       sessionName: context.sessionName,
@@ -886,16 +887,22 @@ function firstResultError(message: Record<string, unknown>): string | undefined 
   return typeof first === 'string' ? first.slice(0, 500) : undefined
 }
 
-function permissionModeArgs(
+export function permissionModeArgs(
   permissionMode: DesktopPermissionMode | undefined,
 ): string[] {
-  if (!permissionMode || permissionMode === 'default') {
+  if (permissionMode === 'customConfig') {
     return []
   }
   if (permissionMode === 'bypassPermissions') {
     return ['--dangerously-skip-permissions']
   }
-  return ['--permission-mode', permissionMode]
+  return ['--permission-mode', permissionMode ?? 'default']
+}
+
+function tuiPermissionMode(
+  permissionMode: DesktopPermissionMode | undefined,
+): PermissionMode | undefined {
+  return permissionMode === 'customConfig' ? undefined : permissionMode
 }
 
 function modelArgs(model: string | undefined): string[] {

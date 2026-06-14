@@ -198,7 +198,7 @@ export function ComposerCard({
   ): React.ReactNode {
     if (value === 'default') return <Hand size={size} />
     if (value === 'bypassPermissions') return <ShieldAlert size={size} />
-    if (value === 'dontAsk') return <Wrench size={size} />
+    if (value === 'customConfig') return <Wrench size={size} />
     return <ShieldCheck size={size} />
   }
 
@@ -207,8 +207,7 @@ export function ComposerCard({
   }
 
   const isRunning = sessionStatus === 'running' || sessionStatus === 'waiting'
-  const showFullAccessWarning =
-    permissionMode === 'bypassPermissions' || permissionMode === 'dontAsk'
+  const showFullAccessWarning = permissionMode === 'bypassPermissions'
   const contextUsedText = contextUsage
     ? `${formatCompactNumber(contextUsage.usedTokens)} / ${formatCompactNumber(
         contextUsage.contextWindow,
@@ -313,7 +312,7 @@ export function ComposerCard({
                           <Select.ItemText>{option.label}</Select.ItemText>
                           {option.detail ? (
                             <span className="permission-select-item-detail">
-                              {option.value === 'acceptEdits' ? (
+                              {option.value === 'auto' ? (
                                 <>
                                   <span>
                                     {option.detail.replace(/了解更多.*$/, '')}

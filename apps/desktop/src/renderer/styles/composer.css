@@ -172,12 +172,12 @@
 }
 
 .permission-chip-default,
-.permission-chip-dontAsk {
+.permission-chip-customConfig {
   --permission-chip-bg: var(--c-bg-hover);
   --permission-chip-color: var(--c-text-soft);
 }
 
-.permission-chip-acceptEdits {
+.permission-chip-auto {
   --permission-chip-bg: var(--c-bg-chip-hover);
   --permission-chip-color: var(--c-accent);
 }

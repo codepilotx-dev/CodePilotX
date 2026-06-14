@@ -1,3 +1,10 @@
+import {
+  DESKTOP_AGENT_PERMISSION_MODES,
+  isDesktopAgentPermissionMode,
+  normalizeDesktopAgentPermissionMode,
+  permissionPolicyForDesktopMode,
+} from '@claudecode/core/agent/permissions.js'
+import type { AgentPermissionPolicy } from '@claudecode/core/agent/permissions.js'
 import type {
   DesktopDrawerTab,
   DesktopPermissionMode,
@@ -8,10 +15,7 @@ import type {
 } from './types.js'
 
 export const DESKTOP_PERMISSION_MODES = new Set<DesktopPermissionMode>([
-  'acceptEdits',
-  'bypassPermissions',
-  'default',
-  'dontAsk',
+  ...DESKTOP_AGENT_PERMISSION_MODES,
 ])
 
 export const DESKTOP_THINKING_MODES = new Set<DesktopThinkingMode>([
@@ -60,9 +64,7 @@ export function normalizeDesktopStoredSettings(
       : {}
   const defaults = defaultDesktopStoredSettings()
   return {
-    permissionMode: isDesktopPermissionMode(parsed.permissionMode)
-      ? parsed.permissionMode
-      : defaults.permissionMode,
+    permissionMode: normalizeDesktopPermissionMode(parsed.permissionMode),
     model: stringOrDefault(parsed.model, defaults.model),
     fallbackModel: stringOrDefault(parsed.fallbackModel, defaults.fallbackModel),
     sessionName: stringOrDefault(parsed.sessionName, defaults.sessionName),
@@ -141,10 +143,21 @@ export function upsertRecentWorkspace(
 export function isDesktopPermissionMode(
   value: unknown,
 ): value is DesktopPermissionMode {
-  return (
-    typeof value === 'string' &&
-    DESKTOP_PERMISSION_MODES.has(value as DesktopPermissionMode)
+  return isDesktopAgentPermissionMode(value)
+}
+
+export function normalizeDesktopPermissionMode(
+  value: unknown,
+): DesktopPermissionMode {
+  return normalizeDesktopAgentPermissionMode(
+    typeof value === 'string' ? value : undefined,
   )
+}
+
+export function desktopPermissionPolicyForMode(
+  mode: DesktopPermissionMode | undefined,
+): AgentPermissionPolicy {
+  return permissionPolicyForDesktopMode(mode)
 }
 
 export function isDesktopThinkingMode(

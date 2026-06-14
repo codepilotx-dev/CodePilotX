@@ -78,15 +78,13 @@ import type {
   DesktopThinkingMode,
   DesktopWorkspace,
 } from '../shared/types.js'
+import {
+  DESKTOP_PERMISSION_MODES,
+  normalizeDesktopPermissionMode,
+} from '../shared/settingsSchema.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
-const DESKTOP_PERMISSION_MODES = new Set<DesktopPermissionMode>([
-  'acceptEdits',
-  'bypassPermissions',
-  'default',
-  'dontAsk',
-])
 const DESKTOP_THINKING_MODES = new Set<DesktopThinkingMode>([
   'default',
   'enabled',
@@ -471,13 +469,11 @@ function createSessionSettingsSnapshot(params: {
 function normalizePermissionMode(
   permissionMode: DesktopPermissionMode | undefined,
 ): DesktopPermissionMode {
-  if (!permissionMode) {
-    return 'default'
-  }
-  if (!DESKTOP_PERMISSION_MODES.has(permissionMode)) {
+  const normalized = normalizeDesktopPermissionMode(permissionMode)
+  if (!DESKTOP_PERMISSION_MODES.has(normalized)) {
     throw new Error(`Unsupported desktop permission mode: ${permissionMode}`)
   }
-  return permissionMode
+  return normalized
 }
 
 function normalizeThinkingMode(
