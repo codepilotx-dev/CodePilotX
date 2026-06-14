@@ -1,14 +1,14 @@
 import axios from 'axios'
 import memoize from 'lodash-es/memoize.js'
-import { getOauthConfig } from '@claudecode/tui/constants/oauth.js'
+import { getOauthConfig } from '@codepilotx/tui/constants/oauth.js'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
-} from '@claudecode/tui/services/analytics/index.js'
-import { getClaudeAIOAuthTokens } from '@claudecode/tui/utils/auth.js'
-import { getGlobalConfig, saveGlobalConfig } from '@claudecode/tui/utils/config.js'
-import { logForDebugging } from '@claudecode/tui/utils/debug.js'
-import { isEnvDefinedFalsy } from '@claudecode/tui/utils/envUtils.js'
+} from '@codepilotx/tui/services/analytics/index.js'
+import { getClaudeAIOAuthTokens } from '@codepilotx/tui/utils/auth.js'
+import { getGlobalConfig, saveGlobalConfig } from '@codepilotx/tui/utils/config.js'
+import { logForDebugging } from '@codepilotx/tui/utils/debug.js'
+import { isEnvDefinedFalsy } from '@codepilotx/tui/utils/envUtils.js'
 import { clearMcpAuthCache } from './client.js'
 import { normalizeNameForMCP } from './normalization.js'
 import type { ScopedMcpServerConfig } from './types.js'

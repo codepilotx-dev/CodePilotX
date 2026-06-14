@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react'
-import { logEvent } from '@claudecode/tui/services/analytics/index.js'
+import { logEvent } from '@codepilotx/tui/services/analytics/index.js'
 import { Box, Link, Text } from '../ink.js'
 import type { ExternalClaudeMdInclude } from '../utils/claudemd.js'
 import { saveCurrentProjectConfig } from '../utils/config.js'
@@ -76,7 +76,7 @@ export function ClaudeMdExternalIncludesDialog({
       )}
 
       <Text dimColor>
-        Important: Only use Oh-My-AgentCode with files you trust. Accessing
+        Important: Only use CodePilotX with files you trust. Accessing
         untrusted files may pose security risks{' '}
         <Link url="https://code.claude.com/docs/en/security" />{' '}
       </Text>

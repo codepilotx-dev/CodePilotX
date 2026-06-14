@@ -63,6 +63,8 @@ const api: DesktopApi = {
   createSession: options =>
     ipcRenderer.invoke(desktopApiChannel('createSession'), options),
   listSessions: () => ipcRenderer.invoke(desktopApiChannel('listSessions')),
+  getSession: sessionId =>
+    ipcRenderer.invoke(desktopApiChannel('getSession'), sessionId),
   getActiveSessionId: () =>
     ipcRenderer.invoke(desktopApiChannel('getActiveSessionId')),
   setActiveSession: sessionId =>

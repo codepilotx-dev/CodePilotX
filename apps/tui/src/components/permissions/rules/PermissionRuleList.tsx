@@ -2,12 +2,12 @@ import chalk from 'chalk'
 import figures from 'figures'
 import * as React from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useAppState, useSetAppState } from '@claudecode/tui/state/AppState.js'
+import { useAppState, useSetAppState } from '@codepilotx/tui/state/AppState.js'
 import {
   applyPermissionUpdate,
   persistPermissionUpdate,
-} from '@claudecode/tui/utils/permissions/PermissionUpdate.js'
-import type { PermissionUpdateDestination } from '@claudecode/tui/utils/permissions/PermissionUpdateSchema.js'
+} from '@codepilotx/tui/utils/permissions/PermissionUpdate.js'
+import type { PermissionUpdateDestination } from '@codepilotx/tui/utils/permissions/PermissionUpdateSchema.js'
 import type { CommandResultDisplay } from '../../../commands.js'
 import { Select } from '../../../components/CustomSelect/select.js'
 import { useExitOnCtrlCDWithKeybindings } from '../../../hooks/useExitOnCtrlCDWithKeybindings.js'
@@ -237,9 +237,9 @@ function PermissionRulesTab({
       <Text>
         {
           {
-            allow: "Oh-My-AgentCode won't ask before using allowed tools.",
-            ask: 'Oh-My-AgentCode will always ask for confirmation before using these tools.',
-            deny: 'Oh-My-AgentCode will always reject requests to use denied tools.',
+            allow: "CodePilotX won't ask before using allowed tools.",
+            ask: 'CodePilotX will always ask for confirmation before using these tools.',
+            deny: 'CodePilotX will always reject requests to use denied tools.',
           }[tab]
         }
       </Text>
@@ -760,7 +760,7 @@ export function PermissionRuleList({
           <Tab id="workspace" title="Workspace">
             <Box flexDirection="column">
               <Text>
-                Oh-My-AgentCode can read files in the workspace, and make edits when
+                CodePilotX can read files in the workspace, and make edits when
                 auto-accept edits is on.
               </Text>
               <WorkspaceTab

@@ -4,7 +4,7 @@ import type {
   TextBlockParam,
 } from '@anthropic-ai/sdk/resources'
 import { randomUUID } from 'crypto'
-import { setPromptId } from '@claudecode/tui/bootstrap/state.js'
+import { setPromptId } from '@codepilotx/tui/bootstrap/state.js'
 import {
   builtInCommandNames,
   type Command,
@@ -14,9 +14,9 @@ import {
   getCommandName,
   hasCommand,
   type PromptCommand,
-} from '@claudecode/tui/commands.js'
-import { NO_CONTENT_MESSAGE } from '@claudecode/tui/constants/messages.js'
-import type { SetToolJSXFn, ToolUseContext } from '@claudecode/tui/Tool.js'
+} from '@codepilotx/tui/commands.js'
+import { NO_CONTENT_MESSAGE } from '@codepilotx/tui/constants/messages.js'
+import type { SetToolJSXFn, ToolUseContext } from '@codepilotx/tui/Tool.js'
 import type {
   AssistantMessage,
   AttachmentMessage,
@@ -24,7 +24,7 @@ import type {
   NormalizedUserMessage,
   ProgressMessage,
   UserMessage,
-} from '@claudecode/tui/types/message.js'
+} from '@codepilotx/tui/types/message.js'
 import { addInvokedSkill, getSessionId } from '../../bootstrap/state.js'
 import { COMMAND_MESSAGE_TAG, COMMAND_NAME_TAG } from '../../constants/xml.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'

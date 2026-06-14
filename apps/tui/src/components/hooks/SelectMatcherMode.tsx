@@ -5,7 +5,7 @@
  * and simply lets the user drill into each matcher to see its hooks.
  */
 import * as React from 'react'
-import type { HookEvent } from '@claudecode/tui/entrypoints/agentSdkTypes.js'
+import type { HookEvent } from '@codepilotx/tui/entrypoints/agentSdkTypes.js'
 import { Box, Text } from '../../ink.js'
 import {
   type HookSource,

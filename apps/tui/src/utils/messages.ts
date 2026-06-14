@@ -18,9 +18,9 @@ import last from 'lodash-es/last.js'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
-} from '@claudecode/tui/services/analytics/index.js'
-import { sanitizeToolNameForAnalytics } from '@claudecode/tui/services/analytics/metadata.js'
-import type { AgentId } from '@claudecode/tui/types/ids.js'
+} from '@codepilotx/tui/services/analytics/index.js'
+import { sanitizeToolNameForAnalytics } from '@codepilotx/tui/services/analytics/metadata.js'
+import type { AgentId } from '@codepilotx/tui/types/ids.js'
 import { companionIntroText } from '../buddy/prompt.js'
 import { NO_CONTENT_MESSAGE } from '../constants/messages.js'
 import { OUTPUT_STYLE_CONFIG } from '../constants/outputStyles.js'
@@ -102,23 +102,23 @@ import type {
 import type {
   HookEvent,
   SDKAssistantMessageError,
-} from '@claudecode/tui/entrypoints/agentSdkTypes.js'
-import { EXPLORE_AGENT } from '@claudecode/tui/tools/AgentTool/built-in/exploreAgent.js'
-import { PLAN_AGENT } from '@claudecode/tui/tools/AgentTool/built-in/planAgent.js'
-import { areExplorePlanAgentsEnabled } from '@claudecode/tui/tools/AgentTool/builtInAgents.js'
-import { AGENT_TOOL_NAME } from '@claudecode/tui/tools/AgentTool/constants.js'
-import { ASK_USER_QUESTION_TOOL_NAME } from '@claudecode/tui/tools/AskUserQuestionTool/prompt.js'
-import { BashTool } from '@claudecode/tui/tools/BashTool/BashTool.js'
-import { ExitPlanModeV2Tool } from '@claudecode/tui/tools/ExitPlanModeTool/ExitPlanModeV2Tool.js'
-import { FileEditTool } from '@claudecode/tui/tools/FileEditTool/FileEditTool.js'
+} from '@codepilotx/tui/entrypoints/agentSdkTypes.js'
+import { EXPLORE_AGENT } from '@codepilotx/tui/tools/AgentTool/built-in/exploreAgent.js'
+import { PLAN_AGENT } from '@codepilotx/tui/tools/AgentTool/built-in/planAgent.js'
+import { areExplorePlanAgentsEnabled } from '@codepilotx/tui/tools/AgentTool/builtInAgents.js'
+import { AGENT_TOOL_NAME } from '@codepilotx/tui/tools/AgentTool/constants.js'
+import { ASK_USER_QUESTION_TOOL_NAME } from '@codepilotx/tui/tools/AskUserQuestionTool/prompt.js'
+import { BashTool } from '@codepilotx/tui/tools/BashTool/BashTool.js'
+import { ExitPlanModeV2Tool } from '@codepilotx/tui/tools/ExitPlanModeTool/ExitPlanModeV2Tool.js'
+import { FileEditTool } from '@codepilotx/tui/tools/FileEditTool/FileEditTool.js'
 import {
   FILE_READ_TOOL_NAME,
   MAX_LINES_TO_READ,
-} from '@claudecode/tui/tools/FileReadTool/prompt.js'
-import { FileWriteTool } from '@claudecode/tui/tools/FileWriteTool/FileWriteTool.js'
-import { GLOB_TOOL_NAME } from '@claudecode/tui/tools/GlobTool/prompt.js'
-import { GREP_TOOL_NAME } from '@claudecode/tui/tools/GrepTool/prompt.js'
-import type { DeepImmutable } from '@claudecode/tui/types/utils.js'
+} from '@codepilotx/tui/tools/FileReadTool/prompt.js'
+import { FileWriteTool } from '@codepilotx/tui/tools/FileWriteTool/FileWriteTool.js'
+import { GLOB_TOOL_NAME } from '@codepilotx/tui/tools/GlobTool/prompt.js'
+import { GREP_TOOL_NAME } from '@codepilotx/tui/tools/GrepTool/prompt.js'
+import type { DeepImmutable } from '@codepilotx/tui/types/utils.js'
 import { getStrictToolResultPairing } from '../bootstrap/state.js'
 import type { SpinnerMode } from '../components/Spinner.js'
 import {
@@ -241,7 +241,7 @@ export function AUTO_REJECT_MESSAGE(toolName: string): string {
   return `Permission to use ${toolName} has been denied. ${DENIAL_WORKAROUND_GUIDANCE}`
 }
 export function DONT_ASK_REJECT_MESSAGE(toolName: string): string {
-  return `Permission to use ${toolName} has been denied because Oh-My-AgentCode is running in don't ask mode. ${DENIAL_WORKAROUND_GUIDANCE}`
+  return `Permission to use ${toolName} has been denied because CodePilotX is running in don't ask mode. ${DENIAL_WORKAROUND_GUIDANCE}`
 }
 export const NO_RESPONSE_REQUESTED = 'No response requested.'
 

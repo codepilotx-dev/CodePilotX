@@ -83,17 +83,17 @@ export function DesktopUpsellStartup({ onDone }: Props): React.ReactNode {
   }
 
   const options = [
-    { label: 'Open in Oh-My-AgentCode Desktop', value: 'try' as const },
+    { label: 'Open in CodePilotX Desktop', value: 'try' as const },
     { label: 'Not now', value: 'not-now' as const },
     { label: "Don't ask again", value: 'never' as const },
   ]
 
   return (
-    <PermissionDialog title="Try Oh-My-AgentCode Desktop">
+    <PermissionDialog title="Try CodePilotX Desktop">
       <Box flexDirection="column" paddingX={2} paddingY={1}>
         <Box marginBottom={1}>
           <Text>
-            Same Oh-My-AgentCode with visual diffs, live app preview, parallel
+            Same CodePilotX with visual diffs, live app preview, parallel
             sessions, and more.
           </Text>
         </Box>

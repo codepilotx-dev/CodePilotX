@@ -2,7 +2,7 @@ import chalk from 'chalk'
 import { writeSync } from 'fs'
 import memoize from 'lodash-es/memoize.js'
 import { onExit } from 'signal-exit'
-import type { ExitReason } from '@claudecode/tui/entrypoints/agentSdkTypes.js'
+import type { ExitReason } from '@codepilotx/tui/entrypoints/agentSdkTypes.js'
 import {
   getIsInteractive,
   getIsScrollDraining,
@@ -154,7 +154,7 @@ function printResumeHint(): void {
   ) {
     try {
       const sessionId = getSessionId()
-      // Don't show resume hint if no session file exists (e.g., subcommands like `claude update`)
+      // Don't show resume hint if no session file exists (e.g., subcommands like `codepilotx update`)
       if (!sessionIdExists(sessionId)) {
         return
       }
@@ -173,7 +173,7 @@ function printResumeHint(): void {
       writeSync(
         1,
         chalk.dim(
-          `\nResume this session with:\nclaude --resume ${resumeArg}\n`,
+          `\nResume this session with:\ncodepilotx --resume ${resumeArg}\n`,
         ),
       )
       resumeHintPrinted = true

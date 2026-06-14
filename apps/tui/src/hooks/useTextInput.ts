@@ -1,5 +1,5 @@
-import { isInputModeCharacter } from '@claudecode/tui/components/PromptInput/inputModes.js'
-import { useNotifications } from '@claudecode/tui/context/notifications.js'
+import { isInputModeCharacter } from '@codepilotx/tui/components/PromptInput/inputModes.js'
+import { useNotifications } from '@codepilotx/tui/context/notifications.js'
 import stripAnsi from 'strip-ansi'
 import { markBackslashReturnUsed } from '../commands/terminalSetup/terminalSetup.js'
 import { addToHistory } from '../history.js'

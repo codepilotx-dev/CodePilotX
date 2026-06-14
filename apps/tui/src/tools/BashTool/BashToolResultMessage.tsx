@@ -1,5 +1,5 @@
 import React from 'react'
-import { removeSandboxViolationTags } from '@claudecode/tui/utils/sandbox/sandbox-ui-utils.js'
+import { removeSandboxViolationTags } from '@codepilotx/tui/utils/sandbox/sandbox-ui-utils.js'
 import { KeyboardShortcutHint } from '../../components/design-system/KeyboardShortcutHint.js'
 import { MessageResponse } from '../../components/MessageResponse.js'
 import { OutputLine } from '../../components/shell/OutputLine.js'

@@ -165,7 +165,7 @@ export async function loadStatsCache(): Promise<PersistedStatsCache> {
         `Migrated stats cache from v${parsed.version} to v${STATS_CACHE_VERSION}`,
       )
       // Persist migration so we don't re-migrate on every load.
-      // aggregateClaudeCodeStats() skips its save when lastComputedDate is
+      // aggregateCodePilotXStats() skips its save when lastComputedDate is
       // already current, so without this the on-disk file stays at the old
       // version indefinitely.
       await saveStatsCache(migrated)

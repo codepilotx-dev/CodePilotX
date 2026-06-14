@@ -1,8 +1,8 @@
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import React, { useEffect, useState } from 'react'
-import type { CommandResultDisplay } from '@claudecode/tui/commands.js'
-import { logEvent } from '@claudecode/tui/services/analytics/index.js'
+import type { CommandResultDisplay } from '@codepilotx/tui/commands.js'
+import { logEvent } from '@codepilotx/tui/services/analytics/index.js'
 import { StatusIcon } from '../components/design-system/StatusIcon.js'
 import { Box, render, Text } from '../ink.js'
 import { logForDebugging } from '../utils/debug.js'
@@ -40,12 +40,12 @@ function getInstallationPath(): string {
 
   if (isWindows) {
     // Convert to Windows-style path
-    const windowsPath = join(homeDir, '.local', 'bin', 'claude.exe')
+    const windowsPath = join(homeDir, '.local', 'bin', 'codepilotx.exe')
     // Replace forward slashes with backslashes for Windows display
     return windowsPath.replace(/\//g, '\\')
   }
 
-  return '~/.local/bin/claude'
+  return '~/.local/bin/codepilotx'
 }
 
 function SetupNotes({ messages }: { messages: string[] }): React.ReactNode {
@@ -210,14 +210,14 @@ function Install({ onDone, force, target }: InstallProps): React.ReactNode {
       setTimeout(
         onDone,
         2000,
-        'Oh-My-AgentCode installation completed successfully',
+        'CodePilotX installation completed successfully',
         {
           display: 'system' as const,
         },
       )
     } else if (state.type === 'error') {
       // Give error message time to render before exiting
-      setTimeout(onDone, 3000, 'Oh-My-AgentCode installation failed', {
+      setTimeout(onDone, 3000, 'CodePilotX installation failed', {
         display: 'system' as const,
       })
     }
@@ -235,7 +235,7 @@ function Install({ onDone, force, target }: InstallProps): React.ReactNode {
 
       {state.type === 'installing' && (
         <Text color="claude">
-          Installing Oh-My-AgentCode native build {state.version}...
+          Installing CodePilotX native build {state.version}...
         </Text>
       )}
 
@@ -250,7 +250,7 @@ function Install({ onDone, force, target }: InstallProps): React.ReactNode {
           <Box>
             <StatusIcon status="success" withSpace />
             <Text color="success" bold>
-              Oh-My-AgentCode successfully installed!
+              CodePilotX successfully installed!
             </Text>
           </Box>
           <Box marginLeft={2} flexDirection="column" gap={1}>
@@ -269,7 +269,7 @@ function Install({ onDone, force, target }: InstallProps): React.ReactNode {
             <Box marginTop={1}>
               <Text dimColor>Next: Run </Text>
               <Text color="claude" bold>
-                claude --help
+                codepilotx --help
               </Text>
               <Text dimColor> to get started</Text>
             </Box>
@@ -298,7 +298,7 @@ function Install({ onDone, force, target }: InstallProps): React.ReactNode {
 export const install = {
   type: 'local-jsx' as const,
   name: 'install',
-  description: '安装 Oh-My-AgentCode native build',
+  description: '安装 CodePilotX native build',
   argumentHint: '[options]',
   async call(
     onDone: (

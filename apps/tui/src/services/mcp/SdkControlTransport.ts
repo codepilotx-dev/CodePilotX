@@ -2,7 +2,7 @@
  * SDK MCP Transport Bridge
  *
  * This file implements a transport bridge that allows MCP servers running in the SDK process
- * to communicate with the Oh-My-AgentCode CLI process through control messages.
+ * to communicate with the CodePilotX CLI process through control messages.
  *
  * ## Architecture Overview
  *

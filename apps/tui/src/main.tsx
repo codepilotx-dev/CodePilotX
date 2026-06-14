@@ -147,13 +147,13 @@ const kairosGate = feature('KAIROS')
   : null
 
 import { relative, resolve } from 'path'
-import { isAnalyticsDisabled } from '@claudecode/tui/services/analytics/config.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '@claudecode/tui/services/analytics/growthbook.js'
+import { isAnalyticsDisabled } from '@codepilotx/tui/services/analytics/config.js'
+import { getFeatureValue_CACHED_MAY_BE_STALE } from '@codepilotx/tui/services/analytics/growthbook.js'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
-} from '@claudecode/tui/services/analytics/index.js'
-import { initializeAnalyticsGates } from '@claudecode/tui/services/analytics/sink.js'
+} from '@codepilotx/tui/services/analytics/index.js'
+import { initializeAnalyticsGates } from '@codepilotx/tui/services/analytics/sink.js'
 import {
   getOriginalCwd,
   setAdditionalDirectoriesForClaudeMd,
@@ -295,64 +295,64 @@ import { generateTempFilePath } from './utils/tempfile.js'
 import { validateUuid } from './utils/uuid.js'
 // Plugin startup checks are now handled non-blockingly in REPL.tsx
 
-import { registerMcpAddCommand } from '@claudecode/tui/commands/mcp/addCommand.js'
-import { registerMcpXaaIdpCommand } from '@claudecode/tui/commands/mcp/xaaIdpCommand.js'
-import { logPermissionContextForAnts } from '@claudecode/tui/services/internalLogging.js'
-import { fetchClaudeAIMcpConfigsIfEligible } from '@claudecode/tui/services/mcp/claudeai.js'
-import { clearServerCache } from '@claudecode/tui/services/mcp/client.js'
+import { registerMcpAddCommand } from '@codepilotx/tui/commands/mcp/addCommand.js'
+import { registerMcpXaaIdpCommand } from '@codepilotx/tui/commands/mcp/xaaIdpCommand.js'
+import { logPermissionContextForAnts } from '@codepilotx/tui/services/internalLogging.js'
+import { fetchClaudeAIMcpConfigsIfEligible } from '@codepilotx/tui/services/mcp/claudeai.js'
+import { clearServerCache } from '@codepilotx/tui/services/mcp/client.js'
 import {
   areMcpConfigsAllowedWithEnterpriseMcpConfig,
   dedupClaudeAiMcpServers,
   doesEnterpriseMcpConfigExist,
   filterMcpServersByPolicy,
-  getClaudeCodeMcpConfigs,
+  getCodePilotXMcpConfigs,
   getMcpServerSignature,
   parseMcpConfig,
   parseMcpConfigFromFilePath,
-} from '@claudecode/tui/services/mcp/config.js'
+} from '@codepilotx/tui/services/mcp/config.js'
 import {
   excludeCommandsByServer,
   excludeResourcesByServer,
-} from '@claudecode/tui/services/mcp/utils.js'
-import { isXaaEnabled } from '@claudecode/tui/services/mcp/xaaIdpLogin.js'
-import { getRelevantTips } from '@claudecode/tui/services/tips/tipRegistry.js'
-import { logContextMetrics } from '@claudecode/tui/utils/api.js'
+} from '@codepilotx/tui/services/mcp/utils.js'
+import { isXaaEnabled } from '@codepilotx/tui/services/mcp/xaaIdpLogin.js'
+import { getRelevantTips } from '@codepilotx/tui/services/tips/tipRegistry.js'
+import { logContextMetrics } from '@codepilotx/tui/utils/api.js'
 import {
   CLAUDE_IN_CHROME_MCP_SERVER_NAME,
   isClaudeInChromeMCPServer,
-} from '@claudecode/tui/utils/claudeInChrome/common.js'
-import { registerCleanup } from '@claudecode/tui/utils/cleanupRegistry.js'
-import { eagerParseCliFlag } from '@claudecode/tui/utils/cliArgs.js'
-import { createEmptyAttributionState } from '@claudecode/tui/utils/commitAttribution.js'
+} from '@codepilotx/tui/utils/claudeInChrome/common.js'
+import { registerCleanup } from '@codepilotx/tui/utils/cleanupRegistry.js'
+import { eagerParseCliFlag } from '@codepilotx/tui/utils/cliArgs.js'
+import { createEmptyAttributionState } from '@codepilotx/tui/utils/commitAttribution.js'
 import {
   countConcurrentSessions,
   registerSession,
   updateSessionName,
-} from '@claudecode/tui/utils/concurrentSessions.js'
-import { getCwd } from '@claudecode/tui/utils/cwd.js'
-import { logForDebugging, setHasFormattedOutput } from '@claudecode/tui/utils/debug.js'
+} from '@codepilotx/tui/utils/concurrentSessions.js'
+import { getCwd } from '@codepilotx/tui/utils/cwd.js'
+import { logForDebugging, setHasFormattedOutput } from '@codepilotx/tui/utils/debug.js'
 import {
   errorMessage,
   getErrnoCode,
   isENOENT,
   TeleportOperationError,
   toError,
-} from '@claudecode/tui/utils/errors.js'
-import { getFsImplementation, safeResolvePath } from '@claudecode/tui/utils/fsOperations.js'
+} from '@codepilotx/tui/utils/errors.js'
+import { getFsImplementation, safeResolvePath } from '@codepilotx/tui/utils/fsOperations.js'
 import {
   gracefulShutdown,
   gracefulShutdownSync,
-} from '@claudecode/tui/utils/gracefulShutdown.js'
-import { setAllHookEventsEnabled } from '@claudecode/tui/utils/hooks/hookEvents.js'
-import { refreshModelCapabilities } from '@claudecode/tui/utils/model/modelCapabilities.js'
-import { peekForStdinData, writeToStderr } from '@claudecode/tui/utils/process.js'
-import { setCwd } from '@claudecode/tui/utils/Shell.js'
+} from '@codepilotx/tui/utils/gracefulShutdown.js'
+import { setAllHookEventsEnabled } from '@codepilotx/tui/utils/hooks/hookEvents.js'
+import { refreshModelCapabilities } from '@codepilotx/tui/utils/model/modelCapabilities.js'
+import { peekForStdinData, writeToStderr } from '@codepilotx/tui/utils/process.js'
+import { setCwd } from '@codepilotx/tui/utils/Shell.js'
 import {
   type ProcessedResume,
   processResumedConversation,
-} from '@claudecode/tui/utils/sessionRestore.js'
-import { parseSettingSourcesFlag } from '@claudecode/tui/utils/settings/constants.js'
-import { plural } from '@claudecode/tui/utils/stringUtils.js'
+} from '@codepilotx/tui/utils/sessionRestore.js'
+import { parseSettingSourcesFlag } from '@codepilotx/tui/utils/settings/constants.js'
+import { plural } from '@codepilotx/tui/utils/stringUtils.js'
 import {
   type ChannelEntry,
   getInitialMainLoopModel,
@@ -838,7 +838,7 @@ const _pendingConnect: PendingConnect | undefined = feature('DIRECT_CONNECT')
   ? { url: undefined, authToken: undefined, dangerouslySkipPermissions: false }
   : undefined
 
-// Set by early argv processing when `claude assistant [sessionId]` is detected
+// Set by early argv processing when `codepilotx assistant [sessionId]` is detected
 type PendingAssistantChat = { sessionId?: string; discover: boolean }
 const _pendingAssistantChat: PendingAssistantChat | undefined = feature(
   'KAIROS',
@@ -846,7 +846,7 @@ const _pendingAssistantChat: PendingAssistantChat | undefined = feature(
   ? { sessionId: undefined, discover: false }
   : undefined
 
-// `claude ssh <host> [dir]` — parsed from argv early (same pattern as
+// `codepilotx ssh <host> [dir]` — parsed from argv early (same pattern as
 // DIRECT_CONNECT above) so the main command path can pick it up and hand
 // the REPL an SSH-backed session instead of a local one.
 type PendingSSH = {
@@ -974,10 +974,10 @@ export async function main() {
     }
   }
 
-  // `claude assistant [sessionId]` — stash and strip so the main
+  // `codepilotx assistant [sessionId]` — stash and strip so the main
   // command handles it, giving the full interactive TUI. Position-0 only
   // (matching the ssh pattern below) — indexOf would false-positive on
-  // `claude -p "explain assistant"`. Root-flag-before-subcommand
+  // `codepilotx -p "explain assistant"`. Root-flag-before-subcommand
   // (e.g. `--debug assistant`) falls through to the stub, which
   // prints usage.
   if (feature('KAIROS') && _pendingAssistantChat) {
@@ -993,11 +993,11 @@ export async function main() {
         rawArgs.splice(0, 1) // drop 'assistant'
         process.argv = [process.argv[0]!, process.argv[1]!, ...rawArgs]
       }
-      // else: `claude assistant --help` → fall through to stub
+      // else: `codepilotx assistant --help` → fall through to stub
     }
   }
 
-  // `claude ssh <host> [dir]` — strip from argv so the main command handler
+  // `codepilotx ssh <host> [dir]` — strip from argv so the main command handler
   // runs (full interactive TUI), stash the host/dir for the REPL branch at
   // ~line 3720 to pick up. Headless (-p) mode not supported in v1: SSH
   // sessions need the local REPL to drive them (interrupt, permissions).
@@ -1006,7 +1006,7 @@ export async function main() {
     // SSH-specific flags can appear before the host positional (e.g.
     // `ssh --permission-mode auto host /tmp` — standard POSIX flags-before-
     // positionals). Pull them all out BEFORE checking whether a host was
-    // given, so `claude ssh --permission-mode auto host` and `claude ssh host
+    // given, so `codepilotx ssh --permission-mode auto host` and `codepilotx ssh host
     // --permission-mode auto` are equivalent. The host check below only needs
     // to guard against `-h`/`--help` (which commander should handle).
     if (rawCliArgs[0] === 'ssh') {
@@ -1090,7 +1090,7 @@ export async function main() {
       // so the flag doesn't silently cause local execution.
       if (rest.includes('-p') || rest.includes('--print')) {
         process.stderr.write(
-          'Error: headless (-p/--print) mode is not supported with claude ssh\n',
+          'Error: headless (-p/--print) mode is not supported with codepilotx ssh\n',
         )
         gracefulShutdownSync(1)
         return
@@ -1164,7 +1164,7 @@ export async function main() {
     setQuestionPreviewFormat('markdown')
   }
 
-  // Tag sessions created via `claude remote-control` so the backend can identify them
+  // Tag sessions created via `codepilotx remote-control` so the backend can identify them
   if (process.env.CLAUDE_CODE_ENVIRONMENT_KIND === 'bridge') {
     setSessionSource('remote-control')
   }
@@ -1262,7 +1262,7 @@ async function run(): Promise<CommanderCommand> {
     // terminal shell integration may mirror the process name to the tab.
     // After init() so settings.json env can also gate this (gh-4765).
     if (!isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_TERMINAL_TITLE)) {
-      process.title = 'claude'
+      process.title = 'codepilotx'
     }
 
     // Attach logging sinks so subcommand handlers can use logEvent/logError.
@@ -1316,9 +1316,9 @@ async function run(): Promise<CommanderCommand> {
   })
 
   program
-    .name('claude')
+    .name('codepilotx')
     .description(
-      `Oh-My-AgentCode - starts an interactive session by default, use -p/--print for non-interactive output`,
+      `CodePilotX - starts an interactive session by default, use -p/--print for non-interactive output`,
     )
     .argument('[prompt]', 'Your prompt', String)
     // Subcommands inherit helpOption via commander's copyInheritedSettings —
@@ -1351,12 +1351,12 @@ async function run(): Promise<CommanderCommand> {
     )
     .option(
       '-p, --print',
-      'Print response and exit (useful for pipes). Note: The workspace trust dialog is skipped when Claude is run with the -p mode. Only use this flag in directories you trust.',
+      'Print response and exit (useful for pipes). Note: The workspace trust dialog is skipped when CodePilotX is run with the -p mode. Only use this flag in directories you trust.',
       () => true,
     )
     .option(
       '--bare',
-      'Minimal mode: skip hooks, LSP, plugin sync, attribution, auto-memory, background prefetches, keychain reads, and CLAUDE.md auto-discovery. Sets CLAUDE_CODE_SIMPLE=1. Anthropic auth is strictly ANTHROPIC_API_KEY or apiKeyHelper via --settings (OAuth and keychain are never read). 3P providers (Bedrock/Vertex/Foundry) use their own credentials. Skills still resolve via /skill-name. Explicitly provide context via: --system-prompt[-file], --append-system-prompt[-file], --add-dir (CLAUDE.md dirs), --mcp-config, --settings, --agents, --plugin-dir.',
+      'Minimal mode: skip hooks, LSP, plugin sync, attribution, auto-memory, background prefetches, keychain reads, and CLAUDE.md auto-discovery. Sets CODEPILOTX_SIMPLE=1 and legacy CLAUDE_CODE_SIMPLE=1. Anthropic auth is strictly ANTHROPIC_API_KEY or apiKeyHelper via --settings (OAuth and keychain are never read). 3P providers (Bedrock/Vertex/Foundry) use their own credentials. Skills still resolve via /skill-name. Explicitly provide context via: --system-prompt[-file], --append-system-prompt[-file], --add-dir (CLAUDE.md dirs), --mcp-config, --settings, --agents, --plugin-dir.',
       () => true,
     )
     .addOption(
@@ -1710,6 +1710,7 @@ async function run(): Promise<CommanderCommand> {
       // gates fire (CLAUDE.md, skills, hooks inside executeHooks, agent
       // dir-walk). Must be set before setup() / any of the gated work runs.
       if ((options as { bare?: boolean }).bare) {
+        process.env.CODEPILOTX_SIMPLE = '1'
         process.env.CLAUDE_CODE_SIMPLE = '1'
       }
 
@@ -1718,7 +1719,7 @@ async function run(): Promise<CommanderCommand> {
         logEvent('tengu_code_prompt_ignored', {})
         // biome-ignore lint/suspicious/noConsole:: intentional console output
         console.warn(
-          chalk.yellow('Tip: You can launch Oh-My-AgentCode with just `claude`'),
+          chalk.yellow('Tip: You can launch CodePilotX with just `codepilotx`'),
         )
         prompt = undefined
       }
@@ -2291,7 +2292,7 @@ async function run(): Promise<CommanderCommand> {
             reservedNameError = `Invalid MCP configuration: "${CLAUDE_IN_CHROME_MCP_SERVER_NAME}" is a reserved MCP name.`
           } else if (feature('CHICAGO_MCP')) {
             const { isComputerUseMCPServer, COMPUTER_USE_MCP_SERVER_NAME } =
-              await import('@claudecode/tui/utils/computerUse/common.js')
+              await import('@codepilotx/tui/utils/computerUse/common.js')
             if (nonSdkConfigNames.some(isComputerUseMCPServer)) {
               reservedNameError = `Invalid MCP configuration: "${COMPUTER_USE_MCP_SERVER_NAME}" is a reserved MCP name.`
             }
@@ -2318,7 +2319,7 @@ async function run(): Promise<CommanderCommand> {
           // Enforce managed policy (allowedMcpServers / deniedMcpServers) on
           // --mcp-config servers. Without this, the CLI flag bypasses the
           // enterprise allowlist that user/project/local configs go through in
-          // getClaudeCodeMcpConfigs — callers spread dynamicMcpConfig back on
+          // getCodePilotXMcpConfigs — callers spread dynamicMcpConfig back on
           // top of filtered results. Filter here at the source so all
           // downstream consumers see the policy-filtered set.
           const { allowed, blocked } = filterMcpServersByPolicy(scopedConfigs)
@@ -2439,11 +2440,11 @@ async function run(): Promise<CommanderCommand> {
       ) {
         try {
           const { getChicagoEnabled } = await import(
-            '@claudecode/tui/utils/computerUse/gates.js'
+            '@codepilotx/tui/utils/computerUse/gates.js'
           )
           if (getChicagoEnabled()) {
             const { setupComputerUseMCP } = await import(
-              '@claudecode/tui/utils/computerUse/setup.js'
+              '@codepilotx/tui/utils/computerUse/setup.js'
             )
             const { mcpConfig, allowedTools: cuTools } = setupComputerUseMCP()
             dynamicMcpConfig = { ...dynamicMcpConfig, ...mcpConfig }
@@ -2661,7 +2662,7 @@ async function run(): Promise<CommanderCommand> {
           : Promise.resolve({})
 
       // Kick off MCP config loading early (safe - just reads files, no execution).
-      // Both interactive and -p use getClaudeCodeMcpConfigs (local file reads only).
+      // Both interactive and -p use getCodePilotXMcpConfigs (local file reads only).
       // The local promise is awaited later (before prefetchAllMcpResources) to
       // overlap config I/O with setup(), commands loading, and trust dialog.
       logForDebugging('[STARTUP] Loading MCP configs...')
@@ -2675,7 +2676,7 @@ async function run(): Promise<CommanderCommand> {
           ? Promise.resolve({
               servers: {} as Record<string, ScopedMcpServerConfig>,
             })
-          : getClaudeCodeMcpConfigs(dynamicMcpConfig)
+          : getCodePilotXMcpConfigs(dynamicMcpConfig)
       ).then(result => {
         mcpConfigResolvedMs = Date.now() - mcpConfigStart
         return result
@@ -3594,7 +3595,7 @@ async function run(): Promise<CommanderCommand> {
 
       // Register PID file for concurrent-session detection (~/.claude/sessions/)
       // and fire multi-clauding telemetry. Lives here (not init.ts) so only the
-      // REPL path registers — not subcommands like `claude doctor`. Chained:
+      // REPL path registers — not subcommands like `codepilotx doctor`. Chained:
       // count must run after register's write completes or it misses our own file.
       void registerSession().then(registered => {
         if (!registered) return
@@ -3923,7 +3924,7 @@ async function run(): Promise<CommanderCommand> {
 
         logSessionTelemetry()
         profileCheckpoint('before_print_import')
-        const { runHeadless } = await import('@claudecode/tui/cli/print.js')
+        const { runHeadless } = await import('@codepilotx/tui/cli/print.js')
         profileCheckpoint('after_print_import')
         void runHeadless(
           inputPrompt,
@@ -4357,7 +4358,7 @@ async function run(): Promise<CommanderCommand> {
         )
         return
       } else if (feature('SSH_REMOTE') && _pendingSSH?.host) {
-        // `claude ssh <host> [dir]` — probe remote, deploy binary if needed,
+        // `codepilotx ssh <host> [dir]` — probe remote, deploy binary if needed,
         // spawn ssh with unix-socket -R forward to a local auth proxy, hand
         // the REPL an SSHSession. Tools run remotely, UI renders locally.
         // `--local` skips probe/deploy/ssh and spawns the current binary
@@ -4445,7 +4446,7 @@ async function run(): Promise<CommanderCommand> {
         _pendingAssistantChat &&
         (_pendingAssistantChat.sessionId || _pendingAssistantChat.discover)
       ) {
-        // `claude assistant [sessionId]` — REPL as a pure viewer client
+        // `codepilotx assistant [sessionId]` — REPL as a pure viewer client
         // of a remote assistant session. The agentic loop runs remotely; this
         // process streams live events and POSTs messages. History is lazy-
         // loaded by useAssistantHistory on scroll-up (no blocking fetch here).
@@ -4486,7 +4487,7 @@ async function run(): Promise<CommanderCommand> {
             // establish a bridge session before discovery will find it.
             return await exitWithMessage(
               root,
-              `Assistant installed in ${installedDir}. The daemon is starting up — run \`claude assistant\` again in a few seconds to connect.`,
+              `Assistant installed in ${installedDir}. The daemon is starting up — run \`codepilotx assistant\` again in a few seconds to connect.`,
               { exitCode: 0, beforeExit: () => gracefulShutdown(0) },
             )
           }
@@ -4625,7 +4626,7 @@ async function run(): Promise<CommanderCommand> {
           }
         }
 
-        // --remote and --teleport both create/resume Oh-My-AgentCode Web (CCR) sessions.
+        // --remote and --teleport both create/resume CodePilotX Web (CCR) sessions.
         // Remote Control (--rc) is a separate feature gated in initReplBridge.ts.
         if (remote !== null || teleport) {
           await waitForPolicyLimitsToLoad()
@@ -4650,7 +4651,7 @@ async function run(): Promise<CommanderCommand> {
           if (!isRemoteTuiEnabled && !hasInitialPrompt) {
             return await exitWithError(
               root,
-              'Error: --remote requires a description.\nUsage: claude --remote "your task description"',
+              'Error: --remote requires a description.\nUsage: codepilotx --remote "your task description"',
               () => gracefulShutdown(1),
             )
           }
@@ -4695,7 +4696,7 @@ async function run(): Promise<CommanderCommand> {
               `View: ${getRemoteSessionUrl(createdSession.id)}?m=0\n`,
             )
             process.stdout.write(
-              `Resume with: claude --teleport ${createdSession.id}\n`,
+              `Resume with: codepilotx --teleport ${createdSession.id}\n`,
             )
             await gracefulShutdown(0)
             process.exit(0)
@@ -4836,9 +4837,9 @@ async function run(): Promise<CommanderCommand> {
                   } else {
                     // No known paths - show original error
                     throw new TeleportOperationError(
-                      `You must run claude --teleport ${teleport} from a checkout of ${sessionRepo}.`,
+                      `You must run codepilotx --teleport ${teleport} from a checkout of ${sessionRepo}.`,
                       chalk.red(
-                        `You must run claude --teleport ${teleport} from a checkout of ${chalk.bold(sessionRepo)}.\n`,
+                        `You must run codepilotx --teleport ${teleport} from a checkout of ${chalk.bold(sessionRepo)}.\n`,
                       ),
                     )
                   }
@@ -5192,7 +5193,7 @@ async function run(): Promise<CommanderCommand> {
       }
     })
     .version(
-      `${MACRO.VERSION} (Oh-My-AgentCode)`,
+      `${MACRO.VERSION} (CodePilotX)`,
       '-v, --version',
       'Output the version number',
     )
@@ -5428,7 +5429,7 @@ async function run(): Promise<CommanderCommand> {
 
   mcp
     .command('serve')
-    .description(`Start the Oh-My-AgentCode MCP server`)
+    .description(`Start the CodePilotX MCP server`)
     .option('-d, --debug', 'Enable debug mode', () => true)
     .option(
       '--verbose',
@@ -5531,7 +5532,7 @@ async function run(): Promise<CommanderCommand> {
   if (feature('DIRECT_CONNECT')) {
     program
       .command('server')
-      .description('Start a Oh-My-AgentCode session server')
+      .description('Start a CodePilotX session server')
       .option('--port <number>', 'HTTP port', '0')
       .option('--host <string>', 'Bind address', '0.0.0.0')
       .option('--auth-token <token>', 'Bearer token for auth')
@@ -5630,16 +5631,16 @@ async function run(): Promise<CommanderCommand> {
       )
   }
 
-  // `claude ssh <host> [dir]` — registered here only so --help shows it.
+  // `codepilotx ssh <host> [dir]` — registered here only so --help shows it.
   // The actual interactive flow is handled by early argv rewriting in main()
   // (parallels the DIRECT_CONNECT/cc:// pattern above). If commander reaches
   // this action it means the argv rewrite didn't fire (e.g. user ran
-  // `claude ssh` with no host) — just print usage.
+  // `codepilotx ssh` with no host) — just print usage.
   if (feature('SSH_REMOTE')) {
     program
       .command('ssh <host> [dir]')
       .description(
-        'Run Oh-My-AgentCode on a remote host over SSH. Deploys the binary and ' +
+        'Run CodePilotX on a remote host over SSH. Deploys the binary and ' +
           'tunnels API auth back through your local machine — no remote setup needed.',
       )
       .option(
@@ -5660,8 +5661,8 @@ async function run(): Promise<CommanderCommand> {
         // commander runs. Reaching here means host was missing or the
         // rewrite predicate didn't match.
         process.stderr.write(
-          'Usage: claude ssh <user@host | ssh-config-alias> [dir]\n\n' +
-            "Runs Oh-My-AgentCode on a remote Linux host. You don't need to install\n" +
+          'Usage: codepilotx ssh <user@host | ssh-config-alias> [dir]\n\n' +
+            "Runs CodePilotX on a remote Linux host. You don't need to install\n" +
             'anything on the remote or run `configure credentials` there — the binary is\n' +
             'deployed over SSH and API auth tunnels back through your local machine.\n',
         )
@@ -5676,7 +5677,7 @@ async function run(): Promise<CommanderCommand> {
     program
       .command('open <cc-url>')
       .description(
-        'Connect to a Oh-My-AgentCode server (internal — use cc:// URLs)',
+        'Connect to a CodePilotX server (internal — use cc:// URLs)',
       )
       .option('-p, --print [prompt]', 'Print mode (headless)')
       .option(
@@ -5768,7 +5769,7 @@ async function run(): Promise<CommanderCommand> {
   const pluginCmd = program
     .command('plugin')
     .alias('plugins')
-    .description('Manage Oh-My-AgentCode plugins')
+    .description('Manage CodePilotX plugins')
     .configureHelp(createSortedHelpConfig())
 
   pluginCmd
@@ -5806,7 +5807,7 @@ async function run(): Promise<CommanderCommand> {
   // Marketplace subcommands
   const marketplaceCmd = pluginCmd
     .command('marketplace')
-    .description('Manage Oh-My-AgentCode marketplaces')
+    .description('Manage CodePilotX marketplaces')
     .configureHelp(createSortedHelpConfig())
 
   marketplaceCmd
@@ -6078,7 +6079,7 @@ async function run(): Promise<CommanderCommand> {
         // (e.g. `--debug assistant`) and the position-0 predicate
         // didn't match. Print usage like the ssh stub does.
         process.stderr.write(
-          'Usage: claude assistant [sessionId]\n\n' +
+          'Usage: codepilotx assistant [sessionId]\n\n' +
             'Attach the REPL as a viewer client to a running bridge session.\n' +
             'Omit sessionId to discover and pick from available sessions.\n',
         )
@@ -6090,7 +6091,7 @@ async function run(): Promise<CommanderCommand> {
   program
     .command('doctor')
     .description(
-      'Check the health of your Oh-My-AgentCode auto-updater. Note: The workspace trust dialog is skipped and stdio servers from .mcp.json are spawned for health checks. Only use this command in directories you trust.',
+      'Check the health of your CodePilotX auto-updater. Note: The workspace trust dialog is skipped and stdio servers from .mcp.json are spawned for health checks. Only use this command in directories you trust.',
     )
     .action(async () => {
       const [{ doctorHandler }, { createRoot }] = await Promise.all([
@@ -6101,7 +6102,7 @@ async function run(): Promise<CommanderCommand> {
       await doctorHandler(root)
     })
 
-  // claude update
+  // codepilotx update
   //
   // For SemVer-compliant versioning with build metadata (X.X.X+SHA):
   // - We perform exact string comparison (including SHA) to detect any change
@@ -6112,7 +6113,7 @@ async function run(): Promise<CommanderCommand> {
     .alias('upgrade')
     .description('Check for updates and install if available')
     .action(async () => {
-      const { update } = await import('@claudecode/tui/cli/update.js')
+      const { update } = await import('@codepilotx/tui/cli/update.js')
       await update()
     })
 
@@ -6124,7 +6125,7 @@ async function run(): Promise<CommanderCommand> {
         '[ANT-ONLY] Initialize or upgrade the local dev environment using the "# claude up" section of the nearest CLAUDE.md',
       )
       .action(async () => {
-        const { up } = await import('@claudecode/tui/cli/up.js')
+        const { up } = await import('@codepilotx/tui/cli/up.js')
         await up()
       })
   }
@@ -6148,17 +6149,17 @@ async function run(): Promise<CommanderCommand> {
           target?: string,
           options?: { list?: boolean; dryRun?: boolean; safe?: boolean },
         ) => {
-          const { rollback } = await import('@claudecode/tui/cli/rollback.js')
+          const { rollback } = await import('@codepilotx/tui/cli/rollback.js')
           await rollback(target, options)
         },
       )
   }
 
-  // claude install
+  // codepilotx install
   program
     .command('install [target]')
     .description(
-      'Install Oh-My-AgentCode native build. Use [target] to specify version (stable, latest, or specific version)',
+      'Install CodePilotX native build. Use [target] to specify version (stable, latest, or specific version)',
     )
     .option('--force', 'Force installation even if already installed')
     .action(
@@ -6219,10 +6220,10 @@ async function run(): Promise<CommanderCommand> {
         'after',
         `
 Examples:
-  $ claude export 0 conversation.txt                Export conversation at log index 0
-  $ claude export <uuid> conversation.txt           Export conversation by session ID
-  $ claude export input.json output.txt             Render JSON log file to text
-  $ claude export <uuid>.jsonl output.txt           Render JSONL session file to text`,
+  $ codepilotx export 0 conversation.txt                Export conversation at log index 0
+  $ codepilotx export <uuid> conversation.txt           Export conversation by session ID
+  $ codepilotx export input.json output.txt             Render JSON log file to text
+  $ codepilotx export <uuid>.jsonl output.txt           Render JSONL session file to text`,
       )
       .action(async (source: string, outputFile: string) => {
         const { exportHandler } = await import('./cli/handlers/ant.js')

@@ -1,5 +1,5 @@
-import { getSdkBetas } from '@claudecode/tui/bootstrap/state.js'
-import { getContextWindowForModel } from '@claudecode/tui/utils/context.js'
+import { getSdkBetas } from '@codepilotx/tui/bootstrap/state.js'
+import { getContextWindowForModel } from '@codepilotx/tui/utils/context.js'
 import type { DesktopContextUsage } from '../shared/types.js'
 
 type UsageLike = {

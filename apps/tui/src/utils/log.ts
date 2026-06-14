@@ -3,7 +3,7 @@ import type { BetaMessageStreamParams } from '@anthropic-ai/sdk/resources/beta/m
 import { readdir, readFile, stat } from 'fs/promises'
 import memoize from 'lodash-es/memoize.js'
 import { join } from 'path'
-import type { QuerySource } from '@claudecode/tui/constants/querySource.js'
+import type { QuerySource } from '@codepilotx/tui/constants/querySource.js'
 import {
   setLastAPIRequest,
   setLastAPIRequestMessages,
@@ -137,7 +137,7 @@ export function attachErrorLogSink(newSink: ErrorLogSink): void {
  * Logs an error to multiple destinations for debugging and monitoring.
  *
  * This function logs errors to:
- * - Debug logs (visible via `claude --debug` or `tail -f ~/.claude/debug/latest`)
+ * - Debug logs (visible via `codepilotx --debug` or `tail -f ~/.claude/debug/latest`)
  * - In-memory error log (accessible via `getInMemoryErrors()`, useful for including
  *   in bug reports or displaying recent errors to users)
  * - Persistent error log file (only for internal 'ant' users, stored in ~/.claude/errors/)
@@ -148,7 +148,7 @@ export function attachErrorLogSink(newSink: ErrorLogSink): void {
  * ```
  *
  * To view errors:
- * - Debug: Run `claude --debug` or `tail -f ~/.claude/debug/latest`
+ * - Debug: Run `codepilotx --debug` or `tail -f ~/.claude/debug/latest`
  * - In-memory: Call `getInMemoryErrors()` to get recent errors for the current session
  */
 const isHardFailMode = memoize((): boolean => {

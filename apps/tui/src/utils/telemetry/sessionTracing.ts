@@ -1,8 +1,8 @@
 /**
- * Session Tracing for Oh-My-AgentCode using OpenTelemetry (BETA)
+ * Session Tracing for CodePilotX using OpenTelemetry (BETA)
  *
  * This module provides a high-level API for creating and managing spans
- * to trace Oh-My-AgentCode workflows. Each user interaction creates a root
+ * to trace CodePilotX workflows. Each user interaction creates a root
  * interaction span, which contains operation spans (LLM requests, tool calls, etc.).
  *
  * Requirements:

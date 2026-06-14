@@ -7,7 +7,7 @@ import type {
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
-} from '@claudecode/tui/services/analytics/index.js'
+} from '@codepilotx/tui/services/analytics/index.js'
 import {
   extractMcpToolDetails,
   extractSkillName,
@@ -17,7 +17,7 @@ import {
   isToolDetailsLoggingEnabled,
   mcpToolDetailsForAnalytics,
   sanitizeToolNameForAnalytics,
-} from '@claudecode/tui/services/analytics/metadata.js'
+} from '@codepilotx/tui/services/analytics/metadata.js'
 import {
   addToToolDuration,
   getCodeEditToolDecisionCounter,

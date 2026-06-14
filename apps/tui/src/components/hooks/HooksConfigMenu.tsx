@@ -12,8 +12,8 @@
  */
 import * as React from 'react'
 import { useCallback, useMemo, useState } from 'react'
-import type { HookEvent } from '@claudecode/tui/entrypoints/agentSdkTypes.js'
-import { useAppState, useAppStateStore } from '@claudecode/tui/state/AppState.js'
+import type { HookEvent } from '@codepilotx/tui/entrypoints/agentSdkTypes.js'
+import { useAppState, useAppStateStore } from '@codepilotx/tui/state/AppState.js'
 import type { CommandResultDisplay } from '../../commands.js'
 import { useSettingsChange } from '../../hooks/useSettingsChange.js'
 import { Box, Text } from '../../ink.js'

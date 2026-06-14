@@ -1,6 +1,6 @@
 module.exports = {
-  appId: 'local.claudecode.desktop',
-  productName: 'ClaudeCode Local Desktop',
+  appId: 'local.codepilotx.desktop',
+  productName: 'CodePilotX Local Desktop',
   files: ['dist/desktop/**/*', 'dist/desktop-agent/**/*', 'package.json'],
   asarUnpack: ['dist/desktop-agent/**/*'],
   directories: {

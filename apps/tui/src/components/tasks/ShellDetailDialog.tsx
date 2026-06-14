@@ -5,7 +5,7 @@ import React, {
   useEffect,
   useState,
 } from 'react'
-import type { DeepImmutable } from '@claudecode/tui/types/utils.js'
+import type { DeepImmutable } from '@codepilotx/tui/types/utils.js'
 import type { CommandResultDisplay } from '../../commands.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import type { KeyboardEvent } from '../../ink/events/keyboard-event.js'

@@ -10,28 +10,28 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react'
-import { useNotifications } from '@claudecode/tui/context/notifications.js'
-import { useCommandQueue } from '@claudecode/tui/hooks/useCommandQueue.js'
+import { useNotifications } from '@codepilotx/tui/context/notifications.js'
+import { useCommandQueue } from '@codepilotx/tui/hooks/useCommandQueue.js'
 import {
   type IDEAtMentioned,
   useIdeAtMentioned,
-} from '@claudecode/tui/hooks/useIdeAtMentioned.js'
+} from '@codepilotx/tui/hooks/useIdeAtMentioned.js'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
-} from '@claudecode/tui/services/analytics/index.js'
+} from '@codepilotx/tui/services/analytics/index.js'
 import {
   type AppState,
   useAppState,
   useAppStateStore,
   useSetAppState,
-} from '@claudecode/tui/state/AppState.js'
-import type { FooterItem } from '@claudecode/tui/state/AppStateStore.js'
-import { getCwd } from '@claudecode/tui/utils/cwd.js'
+} from '@codepilotx/tui/state/AppState.js'
+import type { FooterItem } from '@codepilotx/tui/state/AppStateStore.js'
+import { getCwd } from '@codepilotx/tui/utils/cwd.js'
 import {
   isQueuedCommandEditable,
   popAllEditable,
-} from '@claudecode/tui/utils/messageQueueManager.js'
+} from '@codepilotx/tui/utils/messageQueueManager.js'
 import stripAnsi from 'strip-ansi'
 import { companionReservedColumns } from '../../buddy/CompanionSprite.js'
 import {
@@ -1048,7 +1048,7 @@ function PromptInput({
     if (feature('ULTRAPLAN') && ultraplanTriggers.length) {
       addNotification({
         key: 'ultraplan-active',
-        text: 'This prompt will launch an ultraplan session in Oh-My-AgentCode on the web',
+        text: 'This prompt will launch an ultraplan session in CodePilotX on the web',
         priority: 'immediate',
         timeoutMs: 5000,
       })

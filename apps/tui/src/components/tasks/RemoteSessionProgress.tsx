@@ -1,6 +1,6 @@
 import React, { useRef } from 'react'
-import type { RemoteAgentTaskState } from '@claudecode/tui/tasks/RemoteAgentTask/RemoteAgentTask.js'
-import type { DeepImmutable } from '@claudecode/tui/types/utils.js'
+import type { RemoteAgentTaskState } from '@codepilotx/tui/tasks/RemoteAgentTask/RemoteAgentTask.js'
+import type { DeepImmutable } from '@codepilotx/tui/types/utils.js'
 import { DIAMOND_FILLED, DIAMOND_OPEN } from '../../constants/figures.js'
 import { useSettings } from '../../hooks/useSettings.js'
 import { Text, useAnimationFrame } from '../../ink.js'

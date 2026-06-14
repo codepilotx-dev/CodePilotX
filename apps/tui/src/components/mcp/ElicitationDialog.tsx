@@ -286,7 +286,7 @@ function ElicitationFormDialog({
   const isEditingTextField = currentFieldIsText && !focusedButton
 
   useRegisterOverlay('elicitation')
-  useNotifyAfterTimeout('Oh-My-AgentCode needs your input', 'elicitation_dialog')
+  useNotifyAfterTimeout('CodePilotX needs your input', 'elicitation_dialog')
 
   // Sync textInputValue when the focused field changes
   const syncTextInput = useCallback(
@@ -1310,7 +1310,7 @@ function ElicitationURLDialog({
   const showCancel = waitingState?.showCancel ?? false
 
   useNotifyAfterTimeout(
-    'Oh-My-AgentCode needs your input',
+    'CodePilotX needs your input',
     'elicitation_url_dialog',
   )
   useRegisterOverlay('elicitation-url')

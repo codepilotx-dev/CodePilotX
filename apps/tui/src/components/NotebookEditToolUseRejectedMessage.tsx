@@ -1,6 +1,6 @@
 import { relative } from 'path'
 import * as React from 'react'
-import { getCwd } from '@claudecode/tui/utils/cwd.js'
+import { getCwd } from '@codepilotx/tui/utils/cwd.js'
 import { Box, Text } from '../ink.js'
 import { HighlightedCode } from './HighlightedCode.js'
 import { MessageResponse } from './MessageResponse.js'

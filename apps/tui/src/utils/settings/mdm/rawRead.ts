@@ -13,6 +13,8 @@ import { execFile } from 'child_process'
 import { existsSync } from 'fs'
 import {
   getMacOSPlistPaths,
+  LEGACY_WINDOWS_REGISTRY_KEY_PATH_HKCU,
+  LEGACY_WINDOWS_REGISTRY_KEY_PATH_HKLM,
   MDM_SUBPROCESS_TIMEOUT_MS,
   PLUTIL_ARGS_PREFIX,
   PLUTIL_PATH,
@@ -54,7 +56,10 @@ function execFilePromise(
  */
 export function fireRawRead(): Promise<RawReadResult> {
   return (async (): Promise<RawReadResult> => {
-    if (process.env.CLAUDE_CODE_DISABLE_MDM_READ === '1') {
+    if (
+      process.env.CODEPILOTX_DISABLE_MDM_READ === '1' ||
+      process.env.CLAUDE_CODE_DISABLE_MDM_READ === '1'
+    ) {
       return { plistStdouts: null, hklmStdout: null, hkcuStdout: null }
     }
 
@@ -92,29 +97,31 @@ export function fireRawRead(): Promise<RawReadResult> {
     }
 
     if (process.platform === 'win32') {
-      const [hklm, hkcu] = await Promise.all([
-        execFilePromise('reg', [
-          'query',
-          WINDOWS_REGISTRY_KEY_PATH_HKLM,
-          '/v',
-          WINDOWS_REGISTRY_VALUE_NAME,
-        ]),
-        execFilePromise('reg', [
-          'query',
-          WINDOWS_REGISTRY_KEY_PATH_HKCU,
-          '/v',
-          WINDOWS_REGISTRY_VALUE_NAME,
-        ]),
+      const [hklm, legacyHklm, hkcu, legacyHkcu] = await Promise.all([
+        readRegistryValue(WINDOWS_REGISTRY_KEY_PATH_HKLM),
+        readRegistryValue(LEGACY_WINDOWS_REGISTRY_KEY_PATH_HKLM),
+        readRegistryValue(WINDOWS_REGISTRY_KEY_PATH_HKCU),
+        readRegistryValue(LEGACY_WINDOWS_REGISTRY_KEY_PATH_HKCU),
       ])
       return {
         plistStdouts: null,
-        hklmStdout: hklm.code === 0 ? hklm.stdout : null,
-        hkcuStdout: hkcu.code === 0 ? hkcu.stdout : null,
+        hklmStdout: hklm ?? legacyHklm,
+        hkcuStdout: hkcu ?? legacyHkcu,
       }
     }
 
     return { plistStdouts: null, hklmStdout: null, hkcuStdout: null }
   })()
+}
+
+async function readRegistryValue(keyPath: string): Promise<string | null> {
+  const result = await execFilePromise('reg', [
+    'query',
+    keyPath,
+    '/v',
+    WINDOWS_REGISTRY_VALUE_NAME,
+  ])
+  return result.code === 0 ? result.stdout : null
 }
 
 /**

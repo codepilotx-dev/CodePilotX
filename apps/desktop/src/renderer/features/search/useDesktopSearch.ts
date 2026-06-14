@@ -32,8 +32,16 @@ export function useDesktopSearch(
     return visibleSessions.filter(session =>
       [
         session.sessionName ?? '',
+        session.customTitle ?? '',
         session.aiTitle ?? '',
+        session.tag ?? '',
+        session.gitBranch ?? '',
+        session.summary ?? '',
+        session.firstPrompt ?? '',
+        session.prRepository ?? '',
+        session.prUrl ?? '',
         session.workspaceName,
+        session.workspacePath,
         session.createdAt,
         session.status,
       ]

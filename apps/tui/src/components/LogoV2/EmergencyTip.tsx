@@ -1,8 +1,8 @@
 import * as React from 'react'
 import { useEffect, useMemo } from 'react'
-import { Box, Text } from '@claudecode/tui/ink.js'
-import { getDynamicConfig_CACHED_MAY_BE_STALE } from '@claudecode/tui/services/analytics/growthbook.js'
-import { getGlobalConfig, saveGlobalConfig } from '@claudecode/tui/utils/config.js'
+import { Box, Text } from '@codepilotx/tui/ink.js'
+import { getDynamicConfig_CACHED_MAY_BE_STALE } from '@codepilotx/tui/services/analytics/growthbook.js'
+import { getGlobalConfig, saveGlobalConfig } from '@codepilotx/tui/utils/config.js'
 
 const CONFIG_NAME = 'tengu-top-of-feed-tip'
 

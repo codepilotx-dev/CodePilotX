@@ -1,9 +1,9 @@
 import { randomUUID } from 'crypto'
 import { basename } from 'path'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { logEvent } from '@claudecode/tui/services/analytics/index.js'
-import { readFileSync } from '@claudecode/tui/utils/fileRead.js'
-import { expandPath } from '@claudecode/tui/utils/path.js'
+import { logEvent } from '@codepilotx/tui/services/analytics/index.js'
+import { readFileSync } from '@codepilotx/tui/utils/fileRead.js'
+import { expandPath } from '@codepilotx/tui/utils/path.js'
 import type { PermissionOption } from '../components/permissions/FilePermissionDialog/permissionOptions.js'
 import type {
   MCPServerConnection,
@@ -60,7 +60,7 @@ export function useDiffInIDE({
 
   const sha = useMemo(() => randomUUID().slice(0, 6), [])
   const tabName = useMemo(
-    () => `✻ [Oh-My-AgentCode] ${basename(filePath)} (${sha}) ⧉`,
+    () => `✻ [CodePilotX] ${basename(filePath)} (${sha}) ⧉`,
     [filePath, sha],
   )
 

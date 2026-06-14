@@ -1,6 +1,6 @@
 import type { UUID } from 'crypto'
-import type { FileHistorySnapshot } from '@claudecode/tui/utils/fileHistory.js'
-import type { ContentReplacementRecord } from '@claudecode/tui/utils/toolResultStorage.js'
+import type { FileHistorySnapshot } from '@codepilotx/tui/utils/fileHistory.js'
+import type { ContentReplacementRecord } from '@codepilotx/tui/utils/toolResultStorage.js'
 import type { AgentId } from './ids.js'
 import type { Message } from './message.js'
 import type { QueueOperationMessage } from './messageQueueTypes.js'

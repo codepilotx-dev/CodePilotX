@@ -1,7 +1,7 @@
 import { diffWordsWithSpace, type StructuredPatchHunk } from 'diff'
 import * as React from 'react'
 import { useMemo } from 'react'
-import type { ThemeName } from '@claudecode/tui/utils/theme.js'
+import type { ThemeName } from '@codepilotx/tui/utils/theme.js'
 import { stringWidth } from '../../ink/stringWidth.js'
 import { Box, NoSelect, Text, useTheme, wrapText } from '../../ink.js'
 

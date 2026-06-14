@@ -3,7 +3,7 @@ import {
   getAuthTokenSource,
   getOauthAccountInfo,
   hasAnthropicApiKeyAuth,
-} from '@claudecode/core/utils/auth.js'
+} from '@codepilotx/core/utils/auth.js'
 import type {
   DesktopAuthStatus,
   DesktopRuntimeStatus,

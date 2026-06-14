@@ -1,5 +1,5 @@
 import type { Attributes } from '@opentelemetry/api'
-import { getEventLogger, getPromptId } from '@claudecode/tui/bootstrap/state.js'
+import { getEventLogger, getPromptId } from '@codepilotx/tui/bootstrap/state.js'
 import { logForDebugging } from '../debug.js'
 import { isEnvTruthy } from '../envUtils.js'
 import { getTelemetryAttributes } from '../telemetryAttributes.js'

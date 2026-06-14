@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
-} from '@claudecode/tui/services/analytics/index.js'
+} from '@codepilotx/tui/services/analytics/index.js'
 import type { CommandResultDisplay } from '../../commands.js'
 import { getOauthConfig } from '../../constants/oauth.js'
 import { useExitOnCtrlCDWithKeybindings } from '../../hooks/useExitOnCtrlCDWithKeybindings.js'
@@ -142,11 +142,11 @@ export function MCPRemoteServerMenu({
         onComplete?.(`Authentication successful. Connected to ${server.name}.`)
       } else if (result.client.type === 'needs-auth') {
         onComplete?.(
-          'Authentication successful, but server still requires authentication. You may need to manually restart Oh-My-AgentCode.',
+          'Authentication successful, but server still requires authentication. You may need to manually restart CodePilotX.',
         )
       } else {
         onComplete?.(
-          'Authentication successful, but server reconnection failed. You may need to manually restart Oh-My-AgentCode for the changes to take effect.',
+          'Authentication successful, but server reconnection failed. You may need to manually restart CodePilotX for the changes to take effect.',
         )
       }
     } catch (err) {
@@ -392,13 +392,13 @@ export function MCPRemoteServerMenu({
           onComplete?.(message)
         } else if (result.client.type === 'needs-auth') {
           onComplete?.(
-            'Authentication successful, but server still requires authentication. You may need to manually restart Oh-My-AgentCode.',
+            'Authentication successful, but server still requires authentication. You may need to manually restart CodePilotX.',
           )
         } else {
           // result.client.type === 'failed'
           logMCPDebug(server.name, `Reconnection failed after authentication`)
           onComplete?.(
-            'Authentication successful, but server reconnection failed. You may need to manually restart Oh-My-AgentCode for the changes to take effect.',
+            'Authentication successful, but server reconnection failed. You may need to manually restart CodePilotX for the changes to take effect.',
           )
         }
       }

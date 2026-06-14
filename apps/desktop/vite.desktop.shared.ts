@@ -15,22 +15,24 @@ const packageJson = JSON.parse(
 export const desktopOutDir = resolve(root, 'dist/desktop')
 
 export const desktopAlias = {
-  '@claudecode/core': resolve(root, 'packages/core/src'),
-  '@claudecode/tui': resolve(root, 'apps/tui/src'),
-  '@claudecode/desktop': resolve(root, 'apps/desktop/src'),
+  '@codepilotx/core': resolve(root, 'packages/core/src'),
+  '@codepilotx/tui': resolve(root, 'apps/tui/src'),
+  '@codepilotx/desktop': resolve(root, 'apps/desktop/src'),
   'bun:bundle': resolve(root, 'apps/desktop/src/shims/bunBundle.ts'),
 }
 
 export const desktopMacroDefines = {
   'MACRO.VERSION': JSON.stringify('0.0.0-local'),
   'MACRO.BUILD_TIME': JSON.stringify('local'),
-  'MACRO.PACKAGE_URL': JSON.stringify('claudecode-local'),
-  'MACRO.NATIVE_PACKAGE_URL': JSON.stringify('claudecode-local-native'),
+  'MACRO.PACKAGE_URL': JSON.stringify('codepilotx-local'),
+  'MACRO.NATIVE_PACKAGE_URL': JSON.stringify('codepilotx-local-native'),
   'MACRO.FEEDBACK_CHANNEL': JSON.stringify('local'),
   'MACRO.ISSUES_EXPLAINER': JSON.stringify('open an issue in the local checkout'),
   'MACRO.VERSION_CHANGELOG': JSON.stringify('Local development build'),
   'process.env.USER_TYPE': JSON.stringify('external'),
   'process.env.NODE_ENV': JSON.stringify('development'),
+  'process.env.CODEPILOTX_DISABLE_MDM_READ': JSON.stringify('1'),
+  'process.env.CODEPILOTX_DISABLE_MIN_VERSION_CHECK': JSON.stringify('1'),
   'process.env.CLAUDE_CODE_DISABLE_MDM_READ': JSON.stringify('1'),
   'process.env.CLAUDE_CODE_DISABLE_MIN_VERSION_CHECK': JSON.stringify('1'),
 }

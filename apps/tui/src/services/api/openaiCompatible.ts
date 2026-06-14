@@ -722,7 +722,7 @@ function buildDeepSeekSystemBlocks(
       },
     ]
   }
-  // 第一个 block 通常是 CLI 身份前缀（"You are Oh-My-AgentCode..."），
+  // 第一个 block 通常是 CLI 身份前缀（"You are CodePilotX..."），
   // 跨 session 不变；其余 block 在多轮中可能动态追加（user context 等）。
   const [stable, ...rest] = blocks
   const out: Array<{ role: 'system'; content: string }> = [
@@ -739,5 +739,5 @@ function buildDeepSeekSystemBlocks(
 // 固定常量足以让同 CLI 进程多轮请求共享 cache prefix 单元，
 // 同时把不同 CLI 实例的缓存空间彼此隔离。
 function resolveDeepSeekUserId(_options: Options): string {
-  return 'claudecode-cli'
+  return 'codepilotx-cli'
 }

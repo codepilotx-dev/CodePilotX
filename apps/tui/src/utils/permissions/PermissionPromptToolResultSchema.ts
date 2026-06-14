@@ -1,4 +1,4 @@
-import type { Tool, ToolUseContext } from '@claudecode/tui/Tool.js'
+import type { Tool, ToolUseContext } from '@codepilotx/tui/Tool.js'
 import z from 'zod/v4'
 import { logForDebugging } from '../debug.js'
 import { lazySchema } from '../lazySchema.js'

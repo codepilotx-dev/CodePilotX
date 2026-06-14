@@ -1,6 +1,6 @@
 import * as React from 'react'
-import type { HookEvent } from '@claudecode/tui/entrypoints/agentSdkTypes.js'
-import type { buildMessageLookups } from '@claudecode/tui/utils/messages.js'
+import type { HookEvent } from '@codepilotx/tui/entrypoints/agentSdkTypes.js'
+import type { buildMessageLookups } from '@codepilotx/tui/utils/messages.js'
 import { Box, Text } from '../../ink.js'
 import { MessageResponse } from '../MessageResponse.js'
 

@@ -3,7 +3,12 @@ import { homedir } from 'os'
 import { join } from 'path'
 import { fileSuffixForOauthConfig } from '../constants/oauth.js'
 import { isRunningWithBun } from './bundledMode.js'
-import { getClaudeConfigHomeDir, isEnvTruthy } from './envUtils.js'
+import {
+  LEGACY_CLAUDE_CONFIG_DIR_ENV,
+  LEGACY_CLAUDE_CONFIG_DIR_NAME,
+  getClaudeConfigHomeDir,
+  isEnvTruthy,
+} from './envUtils.js'
 import { findExecutable } from './findExecutable.js'
 import { getFsImplementation } from './fsOperations.js'
 import { which } from './which.js'
@@ -12,17 +17,36 @@ type Platform = 'win32' | 'darwin' | 'linux'
 
 // Config and data paths
 export const getGlobalClaudeFile = memoize((): string => {
-  // Legacy fallback for backwards compatibility
-  if (
-    getFsImplementation().existsSync(
-      join(getClaudeConfigHomeDir(), '.config.json'),
-    )
-  ) {
-    return join(getClaudeConfigHomeDir(), '.config.json')
+  const fs = getFsImplementation()
+  const codePilotXConfigDir = getClaudeConfigHomeDir()
+  const codePilotXConfigFile = join(codePilotXConfigDir, '.config.json')
+  if (fs.existsSync(codePilotXConfigFile)) {
+    return codePilotXConfigFile
   }
 
-  const filename = `.claude${fileSuffixForOauthConfig()}.json`
-  return join(process.env.CLAUDE_CONFIG_DIR || homedir(), filename)
+  const legacyFilename = `.claude${fileSuffixForOauthConfig()}.json`
+  const legacyConfigDir =
+    process.env[LEGACY_CLAUDE_CONFIG_DIR_ENV] ??
+    join(homedir(), LEGACY_CLAUDE_CONFIG_DIR_NAME)
+  const legacyCandidates = [
+    join(legacyConfigDir, '.config.json'),
+    join(legacyConfigDir, legacyFilename),
+    join(homedir(), legacyFilename),
+  ]
+  const legacyFile = legacyCandidates.find(
+    candidate => candidate !== codePilotXConfigFile && fs.existsSync(candidate),
+  )
+  if (!legacyFile) {
+    return codePilotXConfigFile
+  }
+
+  try {
+    fs.mkdirSync(codePilotXConfigDir)
+    fs.copyFileSync(legacyFile, codePilotXConfigFile)
+    return codePilotXConfigFile
+  } catch {
+    return legacyFile
+  }
 })
 
 const hasInternetAccess = memoize(async (): Promise<boolean> => {

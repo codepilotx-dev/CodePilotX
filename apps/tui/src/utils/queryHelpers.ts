@@ -3,8 +3,8 @@ import last from 'lodash-es/last.js'
 import {
   getSessionId,
   isSessionPersistenceDisabled,
-} from '@claudecode/tui/bootstrap/state.js'
-import type { SDKMessage } from '@claudecode/tui/entrypoints/agentSdkTypes.js'
+} from '@codepilotx/tui/bootstrap/state.js'
+import type { SDKMessage } from '@codepilotx/tui/entrypoints/agentSdkTypes.js'
 import type { CanUseToolFn } from '../hooks/useCanUseTool.js'
 import { runTools } from '../services/tools/toolOrchestration.js'
 import { findToolByName, type Tool, type Tools } from '../Tool.js'
@@ -159,7 +159,7 @@ export function* normalizeMessage(message: Message): Generator<SDKMessage> {
         message.data.type === 'powershell_progress'
       ) {
         // Filter bash progress to send only one per minute
-        // Only emit for Oh-My-AgentCode Remote for now
+        // Only emit for CodePilotX Remote for now
         if (
           !isEnvTruthy(process.env.CLAUDE_CODE_REMOTE) &&
           !process.env.CLAUDE_CODE_CONTAINER_ID

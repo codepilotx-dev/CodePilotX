@@ -1,11 +1,11 @@
 import { feature } from 'bun:bundle'
 import * as React from 'react'
-import { buildTool, type ToolDef, toolMatchesName } from '@claudecode/tui/Tool.js'
+import { buildTool, type ToolDef, toolMatchesName } from '@codepilotx/tui/Tool.js'
 import type {
   Message as MessageType,
   NormalizedUserMessage,
-} from '@claudecode/tui/types/message.js'
-import { getQuerySourceForAgent } from '@claudecode/tui/utils/promptCategory.js'
+} from '@codepilotx/tui/types/message.js'
+import { getQuerySourceForAgent } from '@codepilotx/tui/utils/promptCategory.js'
 import { z } from 'zod/v4'
 import {
   clearInvokedSkillsForAgent,

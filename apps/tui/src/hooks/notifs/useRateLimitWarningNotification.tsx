@@ -1,14 +1,14 @@
 import * as React from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNotifications } from '@claudecode/tui/context/notifications.js'
-import { Text } from '@claudecode/tui/ink.js'
+import { useNotifications } from '@codepilotx/tui/context/notifications.js'
+import { Text } from '@codepilotx/tui/ink.js'
 import {
   getRateLimitWarning,
   getUsingOverageText,
-} from '@claudecode/tui/services/claudeAiLimits.js'
-import { useClaudeAiLimits } from '@claudecode/tui/services/claudeAiLimitsHook.js'
-import { getSubscriptionType } from '@claudecode/tui/utils/auth.js'
-import { hasClaudeAiBillingAccess } from '@claudecode/tui/utils/billing.js'
+} from '@codepilotx/tui/services/claudeAiLimits.js'
+import { useClaudeAiLimits } from '@codepilotx/tui/services/claudeAiLimitsHook.js'
+import { getSubscriptionType } from '@codepilotx/tui/utils/auth.js'
+import { hasClaudeAiBillingAccess } from '@codepilotx/tui/utils/billing.js'
 import { getIsRemoteMode } from '../../bootstrap/state.js'
 
 export function useRateLimitWarningNotification(model: string): void {

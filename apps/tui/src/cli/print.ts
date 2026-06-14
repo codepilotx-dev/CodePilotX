@@ -5,41 +5,41 @@ import { dirname } from 'path'
 import {
   downloadUserSettings,
   redownloadUserSettings,
-} from '@claudecode/tui/services/settingsSync/index.js'
-import { waitForRemoteManagedSettingsToLoad } from '@claudecode/tui/services/remoteManagedSettings/index.js'
-import { StructuredIO } from '@claudecode/tui/cli/structuredIO.js'
-import { RemoteIO } from '@claudecode/tui/cli/remoteIO.js'
+} from '@codepilotx/tui/services/settingsSync/index.js'
+import { waitForRemoteManagedSettingsToLoad } from '@codepilotx/tui/services/remoteManagedSettings/index.js'
+import { StructuredIO } from '@codepilotx/tui/cli/structuredIO.js'
+import { RemoteIO } from '@codepilotx/tui/cli/remoteIO.js'
 import {
   type Command,
   formatDescriptionWithSource,
   getCommandName,
-} from '@claudecode/tui/commands.js'
-import { createStreamlinedTransformer } from '@claudecode/tui/utils/streamlinedTransform.js'
-import { installStreamJsonStdoutGuard } from '@claudecode/tui/utils/streamJsonStdoutGuard.js'
-import type { ToolPermissionContext } from '@claudecode/tui/Tool.js'
-import type { ThinkingConfig } from '@claudecode/tui/utils/thinking.js'
-import { assembleToolPool, filterToolsByDenyRules } from '@claudecode/tui/tools.js'
+} from '@codepilotx/tui/commands.js'
+import { createStreamlinedTransformer } from '@codepilotx/tui/utils/streamlinedTransform.js'
+import { installStreamJsonStdoutGuard } from '@codepilotx/tui/utils/streamJsonStdoutGuard.js'
+import type { ToolPermissionContext } from '@codepilotx/tui/Tool.js'
+import type { ThinkingConfig } from '@codepilotx/tui/utils/thinking.js'
+import { assembleToolPool, filterToolsByDenyRules } from '@codepilotx/tui/tools.js'
 import uniqBy from 'lodash-es/uniqBy.js'
-import { uniq } from '@claudecode/tui/utils/array.js'
-import { mergeAndFilterTools } from '@claudecode/tui/utils/toolPool.js'
+import { uniq } from '@codepilotx/tui/utils/array.js'
+import { mergeAndFilterTools } from '@codepilotx/tui/utils/toolPool.js'
 import {
   logEvent,
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-} from '@claudecode/tui/services/analytics/index.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '@claudecode/tui/services/analytics/growthbook.js'
-import { logForDebugging } from '@claudecode/tui/utils/debug.js'
+} from '@codepilotx/tui/services/analytics/index.js'
+import { getFeatureValue_CACHED_MAY_BE_STALE } from '@codepilotx/tui/services/analytics/growthbook.js'
+import { logForDebugging } from '@codepilotx/tui/utils/debug.js'
 import {
   logForDiagnosticsNoPII,
   withDiagnosticsTiming,
-} from '@claudecode/tui/utils/diagLogs.js'
-import { toolMatchesName, type Tool, type Tools } from '@claudecode/tui/Tool.js'
+} from '@codepilotx/tui/utils/diagLogs.js'
+import { toolMatchesName, type Tool, type Tools } from '@codepilotx/tui/Tool.js'
 import {
   type AgentDefinition,
   isBuiltInAgent,
   parseAgentsFromJson,
-} from '@claudecode/tui/tools/AgentTool/loadAgentsDir.js'
-import type { Message, NormalizedUserMessage } from '@claudecode/tui/types/message.js'
-import type { QueuedCommand } from '@claudecode/tui/types/textInputTypes.js'
+} from '@codepilotx/tui/tools/AgentTool/loadAgentsDir.js'
+import type { Message, NormalizedUserMessage } from '@codepilotx/tui/types/message.js'
+import type { QueuedCommand } from '@codepilotx/tui/types/textInputTypes.js'
 import {
   dequeue,
   dequeueAllMatching,
@@ -48,8 +48,8 @@ import {
   peek,
   subscribeToCommandQueue,
   getCommandsByMaxPriority,
-} from '@claudecode/tui/utils/messageQueueManager.js'
-import { notifyCommandLifecycle } from '@claudecode/tui/utils/commandLifecycle.js'
+} from '@codepilotx/tui/utils/messageQueueManager.js'
+import { notifyCommandLifecycle } from '@codepilotx/tui/utils/commandLifecycle.js'
 import {
   getSessionState,
   notifySessionStateChanged,
@@ -57,56 +57,56 @@ import {
   setPermissionModeChangedListener,
   type RequiresActionDetails,
   type SessionExternalMetadata,
-} from '@claudecode/tui/utils/sessionState.js'
-import { externalMetadataToAppState } from '@claudecode/tui/state/onChangeAppState.js'
-import { getInMemoryErrors, logError, logMCPDebug } from '@claudecode/tui/utils/log.js'
+} from '@codepilotx/tui/utils/sessionState.js'
+import { externalMetadataToAppState } from '@codepilotx/tui/state/onChangeAppState.js'
+import { getInMemoryErrors, logError, logMCPDebug } from '@codepilotx/tui/utils/log.js'
 import {
   writeToStdout,
   registerProcessOutputErrorHandlers,
-} from '@claudecode/tui/utils/process.js'
-import type { Stream } from '@claudecode/tui/utils/stream.js'
-import { EMPTY_USAGE } from '@claudecode/tui/services/api/logging.js'
+} from '@codepilotx/tui/utils/process.js'
+import type { Stream } from '@codepilotx/tui/utils/stream.js'
+import { EMPTY_USAGE } from '@codepilotx/tui/services/api/logging.js'
 import {
   loadConversationForResume,
   type TurnInterruptionState,
-} from '@claudecode/tui/utils/conversationRecovery.js'
+} from '@codepilotx/tui/utils/conversationRecovery.js'
 import type {
   MCPServerConnection,
   McpSdkServerConfig,
   ScopedMcpServerConfig,
-} from '@claudecode/tui/services/mcp/types.js'
+} from '@codepilotx/tui/services/mcp/types.js'
 import {
   ChannelMessageNotificationSchema,
   gateChannelServer,
   wrapChannelMessage,
   findChannelEntry,
-} from '@claudecode/tui/services/mcp/channelNotification.js'
+} from '@codepilotx/tui/services/mcp/channelNotification.js'
 import {
   isChannelAllowlisted,
   isChannelsEnabled,
-} from '@claudecode/tui/services/mcp/channelAllowlist.js'
-import { parsePluginIdentifier } from '@claudecode/tui/utils/plugins/pluginIdentifier.js'
-import { validateUuid } from '@claudecode/tui/utils/uuid.js'
-import { fromArray } from '@claudecode/tui/utils/generators.js'
-import { ask } from '@claudecode/tui/QueryEngine.js'
-import type { PermissionPromptTool } from '@claudecode/tui/utils/queryHelpers.js'
+} from '@codepilotx/tui/services/mcp/channelAllowlist.js'
+import { parsePluginIdentifier } from '@codepilotx/tui/utils/plugins/pluginIdentifier.js'
+import { validateUuid } from '@codepilotx/tui/utils/uuid.js'
+import { fromArray } from '@codepilotx/tui/utils/generators.js'
+import { ask } from '@codepilotx/tui/QueryEngine.js'
+import type { PermissionPromptTool } from '@codepilotx/tui/utils/queryHelpers.js'
 import {
   createFileStateCacheWithSizeLimit,
   mergeFileStateCaches,
   READ_FILE_STATE_CACHE_SIZE,
-} from '@claudecode/tui/utils/fileStateCache.js'
-import { expandPath } from '@claudecode/tui/utils/path.js'
-import { extractReadFilesFromMessages } from '@claudecode/tui/utils/queryHelpers.js'
-import { registerHookEventHandler } from '@claudecode/tui/utils/hooks/hookEvents.js'
-import { executeFilePersistence } from '@claudecode/tui/utils/filePersistence/filePersistence.js'
-import { finalizePendingAsyncHooks } from '@claudecode/tui/utils/hooks/AsyncHookRegistry.js'
+} from '@codepilotx/tui/utils/fileStateCache.js'
+import { expandPath } from '@codepilotx/tui/utils/path.js'
+import { extractReadFilesFromMessages } from '@codepilotx/tui/utils/queryHelpers.js'
+import { registerHookEventHandler } from '@codepilotx/tui/utils/hooks/hookEvents.js'
+import { executeFilePersistence } from '@codepilotx/tui/utils/filePersistence/filePersistence.js'
+import { finalizePendingAsyncHooks } from '@codepilotx/tui/utils/hooks/AsyncHookRegistry.js'
 import {
   gracefulShutdown,
   gracefulShutdownSync,
   isShuttingDown,
-} from '@claudecode/tui/utils/gracefulShutdown.js'
-import { registerCleanup } from '@claudecode/tui/utils/cleanupRegistry.js'
-import { createIdleTimeoutManager } from '@claudecode/tui/utils/idleTimeout.js'
+} from '@codepilotx/tui/utils/gracefulShutdown.js'
+import { registerCleanup } from '@codepilotx/tui/utils/cleanupRegistry.js'
+import { createIdleTimeoutManager } from '@codepilotx/tui/utils/idleTimeout.js'
 import type {
   SDKStatus,
   ModelInfo,
@@ -117,7 +117,7 @@ import type {
   McpServerConfigForProcessTransport,
   McpServerStatus,
   RewindFilesResult,
-} from '@claudecode/tui/entrypoints/agentSdkTypes.js'
+} from '@codepilotx/tui/entrypoints/agentSdkTypes.js'
 import type {
   StdoutMessage,
   SDKControlInitializeRequest,
@@ -126,82 +126,82 @@ import type {
   SDKControlResponse,
   SDKControlMcpSetServersResponse,
   SDKControlReloadPluginsResponse,
-} from '@claudecode/tui/entrypoints/sdk/controlTypes.js'
+} from '@codepilotx/tui/entrypoints/sdk/controlTypes.js'
 import type { PermissionMode } from '@anthropic-ai/claude-agent-sdk'
-import type { PermissionMode as InternalPermissionMode } from '@claudecode/tui/types/permissions.js'
+import type { PermissionMode as InternalPermissionMode } from '@codepilotx/tui/types/permissions.js'
 import { cwd } from 'process'
-import { getCwd } from '@claudecode/tui/utils/cwd.js'
+import { getCwd } from '@codepilotx/tui/utils/cwd.js'
 import omit from 'lodash-es/omit.js'
 import reject from 'lodash-es/reject.js'
-import { isPolicyAllowed } from '@claudecode/tui/services/policyLimits/index.js'
-import type { ReplBridgeHandle } from '@claudecode/tui/bridge/replBridge.js'
-import { getRemoteSessionUrl } from '@claudecode/tui/constants/product.js'
-import { buildBridgeConnectUrl } from '@claudecode/tui/bridge/bridgeStatusUtil.js'
-import { extractInboundMessageFields } from '@claudecode/tui/bridge/inboundMessages.js'
-import { resolveAndPrepend } from '@claudecode/tui/bridge/inboundAttachments.js'
-import type { CanUseToolFn } from '@claudecode/tui/hooks/useCanUseTool.js'
-import { hasPermissionsToUseTool } from '@claudecode/tui/utils/permissions/permissions.js'
-import { safeParseJSON } from '@claudecode/tui/utils/json.js'
+import { isPolicyAllowed } from '@codepilotx/tui/services/policyLimits/index.js'
+import type { ReplBridgeHandle } from '@codepilotx/tui/bridge/replBridge.js'
+import { getRemoteSessionUrl } from '@codepilotx/tui/constants/product.js'
+import { buildBridgeConnectUrl } from '@codepilotx/tui/bridge/bridgeStatusUtil.js'
+import { extractInboundMessageFields } from '@codepilotx/tui/bridge/inboundMessages.js'
+import { resolveAndPrepend } from '@codepilotx/tui/bridge/inboundAttachments.js'
+import type { CanUseToolFn } from '@codepilotx/tui/hooks/useCanUseTool.js'
+import { hasPermissionsToUseTool } from '@codepilotx/tui/utils/permissions/permissions.js'
+import { safeParseJSON } from '@codepilotx/tui/utils/json.js'
 import {
   outputSchema as permissionToolOutputSchema,
   permissionPromptToolResultToPermissionDecision,
-} from '@claudecode/tui/utils/permissions/PermissionPromptToolResultSchema.js'
-import { createAbortController } from '@claudecode/tui/utils/abortController.js'
-import { createCombinedAbortSignal } from '@claudecode/tui/utils/combinedAbortSignal.js'
-import { generateSessionTitle } from '@claudecode/tui/utils/sessionTitle.js'
-import { buildSideQuestionFallbackParams } from '@claudecode/tui/utils/queryContext.js'
-import { runSideQuestion } from '@claudecode/tui/utils/sideQuestion.js'
+} from '@codepilotx/tui/utils/permissions/PermissionPromptToolResultSchema.js'
+import { createAbortController } from '@codepilotx/tui/utils/abortController.js'
+import { createCombinedAbortSignal } from '@codepilotx/tui/utils/combinedAbortSignal.js'
+import { generateSessionTitle } from '@codepilotx/tui/utils/sessionTitle.js'
+import { buildSideQuestionFallbackParams } from '@codepilotx/tui/utils/queryContext.js'
+import { runSideQuestion } from '@codepilotx/tui/utils/sideQuestion.js'
 import {
   processSessionStartHooks,
   processSetupHooks,
   takeInitialUserMessage,
-} from '@claudecode/tui/utils/sessionStart.js'
+} from '@codepilotx/tui/utils/sessionStart.js'
 import {
   DEFAULT_OUTPUT_STYLE_NAME,
   getAllOutputStyles,
-} from '@claudecode/tui/constants/outputStyles.js'
-import { TEAMMATE_MESSAGE_TAG, TICK_TAG } from '@claudecode/tui/constants/xml.js'
+} from '@codepilotx/tui/constants/outputStyles.js'
+import { TEAMMATE_MESSAGE_TAG, TICK_TAG } from '@codepilotx/tui/constants/xml.js'
 import {
   getSettings_DEPRECATED,
   getSettingsWithSources,
-} from '@claudecode/tui/utils/settings/settings.js'
-import { settingsChangeDetector } from '@claudecode/tui/utils/settings/changeDetector.js'
-import { applySettingsChange } from '@claudecode/tui/utils/settings/applySettingsChange.js'
+} from '@codepilotx/tui/utils/settings/settings.js'
+import { settingsChangeDetector } from '@codepilotx/tui/utils/settings/changeDetector.js'
+import { applySettingsChange } from '@codepilotx/tui/utils/settings/applySettingsChange.js'
 import {
   isFastModeAvailable,
   isFastModeEnabled,
   isFastModeSupportedByModel,
   getFastModeState,
-} from '@claudecode/tui/utils/fastMode.js'
+} from '@codepilotx/tui/utils/fastMode.js'
 import {
   isAutoModeGateEnabled,
   getAutoModeUnavailableNotification,
   getAutoModeUnavailableReason,
   isBypassPermissionsModeDisabled,
   transitionPermissionMode,
-} from '@claudecode/tui/utils/permissions/permissionSetup.js'
+} from '@codepilotx/tui/utils/permissions/permissionSetup.js'
 import {
   tryGenerateSuggestion,
   logSuggestionOutcome,
   logSuggestionSuppressed,
   type PromptVariant,
-} from '@claudecode/tui/services/PromptSuggestion/promptSuggestion.js'
-import { getLastCacheSafeParams } from '@claudecode/tui/utils/forkedAgent.js'
-import { getAccountInformation } from '@claudecode/tui/utils/auth.js'
-import { OAuthService } from '@claudecode/tui/services/oauth/index.js'
-import { installOAuthTokens } from '@claudecode/tui/cli/handlers/auth.js'
-import { getAPIProvider } from '@claudecode/tui/utils/model/providers.js'
-import type { HookCallbackMatcher } from '@claudecode/tui/types/hooks.js'
-import { AwsAuthStatusManager } from '@claudecode/tui/utils/awsAuthStatusManager.js'
-import type { HookEvent } from '@claudecode/tui/entrypoints/agentSdkTypes.js'
+} from '@codepilotx/tui/services/PromptSuggestion/promptSuggestion.js'
+import { getLastCacheSafeParams } from '@codepilotx/tui/utils/forkedAgent.js'
+import { getAccountInformation } from '@codepilotx/tui/utils/auth.js'
+import { OAuthService } from '@codepilotx/tui/services/oauth/index.js'
+import { installOAuthTokens } from '@codepilotx/tui/cli/handlers/auth.js'
+import { getAPIProvider } from '@codepilotx/tui/utils/model/providers.js'
+import type { HookCallbackMatcher } from '@codepilotx/tui/types/hooks.js'
+import { AwsAuthStatusManager } from '@codepilotx/tui/utils/awsAuthStatusManager.js'
+import type { HookEvent } from '@codepilotx/tui/entrypoints/agentSdkTypes.js'
 import {
   registerHookCallbacks,
   setInitJsonSchema,
   getInitJsonSchema,
   setSdkAgentProgressSummariesEnabled,
-} from '@claudecode/tui/bootstrap/state.js'
-import { createSyntheticOutputTool } from '@claudecode/tui/tools/SyntheticOutputTool/SyntheticOutputTool.js'
-import { parseSessionIdentifier } from '@claudecode/tui/utils/sessionUrl.js'
+} from '@codepilotx/tui/bootstrap/state.js'
+import { createSyntheticOutputTool } from '@codepilotx/tui/tools/SyntheticOutputTool/SyntheticOutputTool.js'
+import { parseSessionIdentifier } from '@codepilotx/tui/utils/sessionUrl.js'
 import {
   hydrateRemoteSession,
   hydrateFromCCRv2InternalEvents,
@@ -213,8 +213,8 @@ import {
   saveMode,
   saveAiGeneratedTitle,
   restoreSessionMetadata,
-} from '@claudecode/tui/utils/sessionStorage.js'
-import { incrementPromptCount } from '@claudecode/tui/utils/commitAttribution.js'
+} from '@codepilotx/tui/utils/sessionStorage.js'
+import { incrementPromptCount } from '@codepilotx/tui/utils/commitAttribution.js'
 import {
   setupSdkMcpClients,
   connectToServer,
@@ -222,64 +222,64 @@ import {
   fetchToolsForClient,
   areMcpConfigsEqual,
   reconnectMcpServerImpl,
-} from '@claudecode/tui/services/mcp/client.js'
+} from '@codepilotx/tui/services/mcp/client.js'
 import {
   filterMcpServersByPolicy,
   getMcpConfigByName,
   isMcpServerDisabled,
   setMcpServerEnabled,
-} from '@claudecode/tui/services/mcp/config.js'
+} from '@codepilotx/tui/services/mcp/config.js'
 import {
   performMCPOAuthFlow,
   revokeServerTokens,
-} from '@claudecode/tui/services/mcp/auth.js'
+} from '@codepilotx/tui/services/mcp/auth.js'
 import {
   runElicitationHooks,
   runElicitationResultHooks,
-} from '@claudecode/tui/services/mcp/elicitationHandler.js'
-import { executeNotificationHooks } from '@claudecode/tui/utils/hooks.js'
+} from '@codepilotx/tui/services/mcp/elicitationHandler.js'
+import { executeNotificationHooks } from '@codepilotx/tui/utils/hooks.js'
 import {
   ElicitRequestSchema,
   ElicitationCompleteNotificationSchema,
 } from '@modelcontextprotocol/sdk/types.js'
-import { getMcpPrefix } from '@claudecode/tui/services/mcp/mcpStringUtils.js'
+import { getMcpPrefix } from '@codepilotx/tui/services/mcp/mcpStringUtils.js'
 import {
   commandBelongsToServer,
   filterToolsByServer,
-} from '@claudecode/tui/services/mcp/utils.js'
-import { setupVscodeSdkMcp } from '@claudecode/tui/services/mcp/vscodeSdkMcp.js'
-import { getAllMcpConfigs } from '@claudecode/tui/services/mcp/config.js'
+} from '@codepilotx/tui/services/mcp/utils.js'
+import { setupVscodeSdkMcp } from '@codepilotx/tui/services/mcp/vscodeSdkMcp.js'
+import { getAllMcpConfigs } from '@codepilotx/tui/services/mcp/config.js'
 import {
   isQualifiedForGrove,
   checkGroveForNonInteractive,
-} from '@claudecode/tui/services/api/grove.js'
+} from '@codepilotx/tui/services/api/grove.js'
 import {
   toInternalMessages,
   toSDKRateLimitInfo,
-} from '@claudecode/tui/utils/messages/mappers.js'
-import { createModelSwitchBreadcrumbs } from '@claudecode/tui/utils/messages.js'
-import { collectContextData } from '@claudecode/tui/commands/context/context-noninteractive.js'
-import { LOCAL_COMMAND_STDOUT_TAG } from '@claudecode/tui/constants/xml.js'
+} from '@codepilotx/tui/utils/messages/mappers.js'
+import { createModelSwitchBreadcrumbs } from '@codepilotx/tui/utils/messages.js'
+import { collectContextData } from '@codepilotx/tui/commands/context/context-noninteractive.js'
+import { LOCAL_COMMAND_STDOUT_TAG } from '@codepilotx/tui/constants/xml.js'
 import {
   statusListeners,
   type ClaudeAILimits,
-} from '@claudecode/tui/services/claudeAiLimits.js'
+} from '@codepilotx/tui/services/claudeAiLimits.js'
 import {
   getDefaultMainLoopModel,
   getMainLoopModel,
   modelDisplayString,
   parseUserSpecifiedModel,
-} from '@claudecode/tui/utils/model/model.js'
-import { getModelOptions } from '@claudecode/tui/utils/model/modelOptions.js'
+} from '@codepilotx/tui/utils/model/model.js'
+import { getModelOptions } from '@codepilotx/tui/utils/model/modelOptions.js'
 import {
   modelSupportsEffort,
   modelSupportsMaxEffort,
   EFFORT_LEVELS,
   resolveAppliedEffort,
-} from '@claudecode/tui/utils/effort.js'
-import { modelSupportsAdaptiveThinking } from '@claudecode/tui/utils/thinking.js'
-import { modelSupportsAutoMode } from '@claudecode/tui/utils/betas.js'
-import { ensureModelStringsInitialized } from '@claudecode/tui/utils/model/modelStrings.js'
+} from '@codepilotx/tui/utils/effort.js'
+import { modelSupportsAdaptiveThinking } from '@codepilotx/tui/utils/thinking.js'
+import { modelSupportsAutoMode } from '@codepilotx/tui/utils/betas.js'
+import { ensureModelStringsInitialized } from '@codepilotx/tui/utils/model/modelStrings.js'
 import {
   getSessionId,
   setMainLoopModelOverride,
@@ -293,33 +293,33 @@ import {
   getAllowedChannels,
   setAllowedChannels,
   type ChannelEntry,
-} from '@claudecode/tui/bootstrap/state.js'
-import { runWithWorkload, WORKLOAD_CRON } from '@claudecode/tui/utils/workloadContext.js'
+} from '@codepilotx/tui/bootstrap/state.js'
+import { runWithWorkload, WORKLOAD_CRON } from '@codepilotx/tui/utils/workloadContext.js'
 import type { UUID } from 'crypto'
 import { randomUUID } from 'crypto'
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages.mjs'
-import type { AppState } from '@claudecode/tui/state/AppStateStore.js'
+import type { AppState } from '@codepilotx/tui/state/AppStateStore.js'
 import {
   fileHistoryRewind,
   fileHistoryCanRestore,
   fileHistoryEnabled,
   fileHistoryGetDiffStats,
-} from '@claudecode/tui/utils/fileHistory.js'
+} from '@codepilotx/tui/utils/fileHistory.js'
 import {
   restoreAgentFromSession,
   restoreSessionStateFromLog,
-} from '@claudecode/tui/utils/sessionRestore.js'
-import { SandboxManager } from '@claudecode/tui/utils/sandbox/sandbox-adapter.js'
+} from '@codepilotx/tui/utils/sessionRestore.js'
+import { SandboxManager } from '@codepilotx/tui/utils/sandbox/sandbox-adapter.js'
 import {
   headlessProfilerStartTurn,
   headlessProfilerCheckpoint,
   logHeadlessProfilerTurn,
-} from '@claudecode/tui/utils/headlessProfiler.js'
+} from '@codepilotx/tui/utils/headlessProfiler.js'
 import {
   startQueryProfile,
   logQueryProfileReport,
-} from '@claudecode/tui/utils/queryProfiler.js'
-import { asSessionId } from '@claudecode/tui/types/ids.js'
+} from '@codepilotx/tui/utils/queryProfiler.js'
+import { asSessionId } from '@codepilotx/tui/types/ids.js'
 import { jsonStringify } from '../utils/slowOperations.js'
 import { skillChangeDetector } from '../utils/skills/skillChangeDetector.js'
 import { getCommands, clearCommandsCache } from '../commands.js'
@@ -3939,7 +3939,7 @@ function runHeadlessStreaming(
               let bridgeFailureDetail: string | undefined
               try {
                 const { initReplBridge } = await import(
-                  '@claudecode/tui/bridge/initReplBridge.js'
+                  '@codepilotx/tui/bridge/initReplBridge.js'
                 )
                 const handle = await initReplBridge({
                   onInboundMessage(msg) {
@@ -5031,7 +5031,7 @@ async function loadInitialMessages(
         processMessagesForTeleportResume,
         teleportResumeCodeSession,
         validateGitState,
-      } = await import('@claudecode/tui/utils/teleport.js')
+      } = await import('@codepilotx/tui/utils/teleport.js')
       await validateGitState()
       const teleportResult = await teleportResumeCodeSession(options.teleport)
       const { branchError } = await checkOutTeleportedSessionBranch(
@@ -5062,7 +5062,7 @@ async function loadInitialMessages(
       )
       if (!parsedSessionId) {
         let errorMessage =
-          'Error: --resume requires a valid session ID when used with --print. Usage: claude -p --resume <session-id>'
+          'Error: --resume requires a valid session ID when used with --print. Usage: codepilotx -p --resume <session-id>'
         if (typeof options.resume === 'string') {
           errorMessage += `. Session IDs must be in UUID format (e.g., 550e8400-e29b-41d4-a716-446655440000). Provided value "${options.resume}" is not a valid UUID`
         }

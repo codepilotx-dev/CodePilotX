@@ -1669,7 +1669,7 @@ function isGitSafe(args: string[]): boolean {
   const flagArgs = args.slice(idx + subcommandTokens)
 
   // git ls-remote URL rejection — ported from BashTool's inline guard
-  // (@claudecode/tui/tools/BashTool/readOnlyValidation.ts:~962). ls-remote with a URL
+  // (@codepilotx/tui/tools/BashTool/readOnlyValidation.ts:~962). ls-remote with a URL
   // is a data-exfiltration vector (encode secrets in hostname → DNS/HTTP).
   // Reject URL-like positionals: `://` (http/git protocols), `@` + `:` (SSH
   // git@host:path), and `$` (variable refs — $env:URL reaches here as the

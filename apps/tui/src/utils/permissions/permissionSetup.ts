@@ -39,7 +39,7 @@ import {
   checkStatsigFeatureGate_CACHED_MAY_BE_STALE,
   getDynamicConfig_BLOCKS_ON_INIT,
   getFeatureValue_CACHED_MAY_BE_STALE,
-} from '@claudecode/tui/services/analytics/growthbook.js'
+} from '@codepilotx/tui/services/analytics/growthbook.js'
 import {
   addDirHelpMessage,
   validateDirectoryForWorkspace,

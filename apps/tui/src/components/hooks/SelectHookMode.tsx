@@ -6,8 +6,8 @@
  * confirmation.
  */
 import * as React from 'react'
-import type { HookEvent } from '@claudecode/tui/entrypoints/agentSdkTypes.js'
-import type { HookEventMetadata } from '@claudecode/tui/utils/hooks/hooksConfigManager.js'
+import type { HookEvent } from '@codepilotx/tui/entrypoints/agentSdkTypes.js'
+import type { HookEventMetadata } from '@codepilotx/tui/utils/hooks/hooksConfigManager.js'
 import { Box, Text } from '../../ink.js'
 import {
   getHookDisplayText,

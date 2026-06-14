@@ -1,4 +1,4 @@
-import { isEnvTruthy } from '@claudecode/tui/utils/envUtils.js'
+import { isEnvTruthy } from '@codepilotx/tui/utils/envUtils.js'
 
 // Default to prod config, override with test/staging if enabled
 type OauthConfigType = 'prod' | 'staging' | 'local'
@@ -106,7 +106,7 @@ const PROD_OAUTH_CONFIG = {
 /**
  * Client ID Metadata Document URL for MCP OAuth (CIMD / SEP-991).
  * When an MCP auth server advertises client_id_metadata_document_supported: true,
- * Oh-My-AgentCode uses this URL as its client_id instead of Dynamic Client Registration.
+ * CodePilotX uses this URL as its client_id instead of Dynamic Client Registration.
  * The URL must point to a JSON document hosted by Anthropic.
  * See: https://datatracker.ietf.org/doc/html/draft-ietf-oauth-client-id-metadata-document-00
  */
@@ -144,7 +144,7 @@ const STAGING_OAUTH_CONFIG =
 
 // Three local dev servers: :8000 api-proxy (`api dev start -g ccr`),
 // :4000 claude-ai frontend, :3000 Console frontend. Env vars let
-// scripts/claude-localhost override if your layout differs.
+// scripts/codepilotx-localhost override if your layout differs.
 function getLocalOauthConfig(): OauthConfig {
   const api =
     process.env.CLAUDE_LOCAL_OAUTH_API_BASE?.replace(/\/$/, '') ??

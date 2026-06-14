@@ -1,6 +1,6 @@
 import * as React from 'react'
-import { BLACK_CIRCLE } from '@claudecode/tui/constants/figures.js'
-import { getModeColor } from '@claudecode/tui/utils/permissions/PermissionMode.js'
+import { BLACK_CIRCLE } from '@codepilotx/tui/constants/figures.js'
+import { getModeColor } from '@codepilotx/tui/utils/permissions/PermissionMode.js'
 import { Box, Text } from '../../ink.js'
 import type { ToolProgressData } from '../../Tool.js'
 import type { ProgressMessage } from '../../types/message.js'

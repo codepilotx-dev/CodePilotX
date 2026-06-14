@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useNotifications } from '@claudecode/tui/context/notifications.js'
+import { useNotifications } from '@codepilotx/tui/context/notifications.js'
 import { getIsRemoteMode } from '../../bootstrap/state.js'
 import { getSettingsWithAllErrors } from '../../utils/settings/allErrors.js'
 import type { ValidationError } from '../../utils/settings/validation.js'

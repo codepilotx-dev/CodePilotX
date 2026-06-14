@@ -7,8 +7,8 @@ import {
   link,
 } from 'fs/promises'
 import * as React from 'react'
-import type { CanUseToolFn } from '@claudecode/tui/hooks/useCanUseTool.js'
-import type { AppState } from '@claudecode/tui/state/AppState.js'
+import type { CanUseToolFn } from '@codepilotx/tui/hooks/useCanUseTool.js'
+import type { AppState } from '@codepilotx/tui/state/AppState.js'
 import { z } from 'zod/v4'
 import { getKairosActive } from '../../bootstrap/state.js'
 import { TOOL_SUMMARY_MAX_LENGTH } from '../../constants/toolLimits.js'
@@ -38,7 +38,7 @@ import {
   splitCommand_DEPRECATED,
   splitCommandWithOperators,
 } from '../../utils/bash/commands.js'
-import { extractClaudeCodeHints } from '../../utils/claudeCodeHints.js'
+import { extractCodePilotXHints } from '../../utils/codePilotXHints.js'
 import { detectCodeIndexingFromCommand } from '../../utils/codeIndexing.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
 import { isENOENT, ShellError } from '../../utils/errors.js'
@@ -1035,13 +1035,13 @@ export const BashTool = buildTool({
 
     let strippedStdout = stripEmptyLines(stdout)
 
-    // Oh-My-AgentCode hints protocol: CLIs/SDKs gated on CLAUDECODE=1 emit a
+    // CodePilotX hints protocol: CLIs/SDKs gated on CLAUDECODE=1 emit a
     // `<claude-code-hint />` tag to stderr (merged into stdout here). Scan,
-    // record for useClaudeCodeHintRecommendation to surface, then strip
+    // record for useCodePilotXHintRecommendation to surface, then strip
     // so the model never sees the tag — a zero-token side channel.
     // Stripping runs unconditionally (subagent output must stay clean too);
     // only the dialog recording is main-thread-only.
-    const extracted = extractClaudeCodeHints(strippedStdout, input.command)
+    const extracted = extractCodePilotXHints(strippedStdout, input.command)
     strippedStdout = extracted.stripped
     if (isMainThread && extracted.hints.length > 0) {
       for (const hint of extracted.hints) maybeRecordPluginHint(hint)

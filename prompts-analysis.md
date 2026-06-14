@@ -1,6 +1,6 @@
 # `apps/tui/src/constants/prompts.ts` 提示词分析
 
-> 范围：`D:\VueProject\ClaudeCode\apps\tui\src\constants\prompts.ts`（914 行）
+> 范围：`D:\VueProject\CodePilotX\apps\tui\src\constants\prompts.ts`（914 行）
 >
 > 角色：CLI / TUI 端**系统提示词（System Prompt）** 的总组装入口。它不是单个提示词，而是把所有静态 / 动态段落拼成 `string[]`，按顺序送给模型。
 
@@ -95,7 +95,7 @@ export const SYSTEM_PROMPT_DYNAMIC_BOUNDARY =
   - 不允许冗余注释（注释必须解释 WHY，而不是 WHAT）
   - 任务完成前**必须**自行验证（运行测试 / 脚本 / 检查输出）
   - 误报防御（不得把失败的测试说成通过）
-  - `Oh-My-AgentCode` 自身 bug 走 `/issue`、`/share` 上报
+  - `CodePilotX` 自身 bug 走 `/issue`、`/share` 上报
   - 强语气（assertiveness）纠正项（Capybara v8 校准）
 
 > AGENTS.md 也明确要求："Do not edit generated files by hand" + "Use typed helpers already present" —— 这两段 ant-only 指令正是 `Capybara v8 thoroughness / assertiveness counterweight`（PR #24302）的实验，A/B 通过后会**取消** gating。
@@ -133,7 +133,7 @@ if (process.env.USER_TYPE === 'ant' && isUndercover()) {
 }
 ```
 
-作用：在某些构建（如预发布、公开 PR）里**完全抹去**所有模型名 / 模型 ID / ClaudeCode 产品名，避免内部代号 / 未发布模型名泄露到公开 commit / 截图里。
+作用：在某些构建（如预发布、公开 PR）里**完全抹去**所有模型名 / 模型 ID / CodePilotX 产品名，避免内部代号 / 未发布模型名泄露到公开 commit / 截图里。
 
 ---
 
@@ -186,7 +186,7 @@ You may use URLs provided by the user in their messages or local files.
 - 反向兼容 hack（`_var`、`// removed`）一律不要，确定没用就删。
 - 误报防御（ant only）：不许把失败测试说成通过，不许把工作说成"完成"。
 - `/help`、反馈渠道：`MACRO.ISSUES_EXPLAINER` 是宏注入的"如何提 issue"说明（构建期替换）。
-- `Oh-My-AgentCode` 自身 bug 推荐 `/issue`（模型问题）或 `/share`（产品 bug，附 ccshare 链接 + Slack MCP 时主动建议发到 `#claude-code-feedback`，频道 ID `C07VBSHV7EV`）。
+- `CodePilotX` 自身 bug 推荐 `/issue`（模型问题）或 `/share`（产品 bug，附 ccshare 链接 + Slack MCP 时主动建议发到 `#claude-code-feedback`，频道 ID `C07VBSHV7EV`）。
 
 #### 注释规范（ant only）
 
@@ -412,7 +412,7 @@ stop early, the system will automatically continue you.
 主入口，组装顺序：
 
 ```text
-1. CLAUDE_CODE_SIMPLE 环境变量开启 → 返回极简 ["You are Oh-My-AgentCode, ..."]  （用 getCwd + session start date）
+1. CLAUDE_CODE_SIMPLE 环境变量开启 → 返回极简 ["You are CodePilotX, ..."]  （用 getCwd + session start date）
 2. 并行加载 skillToolCommands / outputStyleConfig / envInfo
 3. feature('PROACTIVE') || feature('KAIROS') 且 isProactiveActive → 走 proactive 简版系统提示
 4. 否则：构造 dynamicSections（按特性/用户类型门控），resolve，吐出 6 段静态 + boundary + 动态段
@@ -429,7 +429,7 @@ stop early, the system will automatically continue you.
   - `<env>` 块：cwd、git repo、附加目录、platform、shell、OS Version。
   - `modelDescription`："You are powered by the model named {marketing}. The exact model ID is {modelId}."（undercover 抑制）
   - `knowledgeCutoffMessage`：根据模型 ID 查 `getKnowledgeCutoff`。
-  - 主会话还附加：当前模型族（Claude 4.5/4.6）、`Oh-My-AgentCode` 形态（CLI / desktop / web / IDE）、Fast mode（同模型，仅更快，可 `/fast` 切换）—— 这三条都是 **ant only** 在外部构建里被 undercover / DCE 抹去。
+  - 主会话还附加：当前模型族（Claude 4.5/4.6）、`CodePilotX` 形态（CLI / desktop / web / IDE）、Fast mode（同模型，仅更快，可 `/fast` 切换）—— 这三条都是 **ant only** 在外部构建里被 undercover / DCE 抹去。
 
 ### 6.3 `getKnowledgeCutoff(modelId)`
 
@@ -462,7 +462,7 @@ stop early, the system will automatically continue you.
 ### 6.6 `DEFAULT_AGENT_PROMPT`
 
 ```text
-You are an agent for Oh-My-AgentCode, Anthropic's official CLI for Claude.
+You are an agent for CodePilotX, Anthropic's official CLI for Claude.
 Given the user's message, you should use the tools available to complete
 the task. Complete the task fully—don't gold-plate, but don't leave it
 half-done. When you complete the task, respond with a concise report
@@ -507,7 +507,7 @@ to the user, so it only needs the essentials.
 | 误报防御：不把失败测试说成通过 | `getSimpleDoingTasksSection`（ant only） |
 | Verification 强约束（3+ 文件改动 / 后端 / 基础设施） | `getSessionSpecificGuidanceSection`（ant + GrowthBook flag） |
 | 自主模式不输出"still waiting" | `getProactiveSection` |
-| 用户报告 `Oh-My-AgentCode` 自身 bug 走 `/issue` 或 `/share` | `getSimpleDoingTasksSection`（ant only） |
+| 用户报告 `CodePilotX` 自身 bug 走 `/issue` 或 `/share` | `getSimpleDoingTasksSection`（ant only） |
 | 不发 emoji | `getSimpleToneAndStyleSection`、`enhanceSystemPromptWithEnvDetails.notes` |
 | 不用冒号接 tool call | `getSimpleToneAndStyleSection`、`enhanceSystemPromptWithEnvDetails.notes` |
 | Subagent 用绝对路径 | `enhanceSystemPromptWithEnvDetails.notes` |
@@ -544,4 +544,4 @@ to the user, so it only needs the essentials.
 
 ## 11. 一句话总结
 
-> 这个文件是 **Claude Code（Oh-My-AgentCode）系统提示词的"路由器 + 组装器"**：它按"用户类型（ant/外部）、会话模式（proactive/普通/REPL）、特性开关（KAIROS/VERIFICATION/...）"组合出 6 段静态 + 13 段动态内容，通过 `SYSTEM_PROMPT_DYNAMIC_BOUNDARY` 切成"可缓存 + 不可缓存"两半喂给模型，并在对抗误报、过度注释、跳过验证等行为上对内部版本加严。
+> 这个文件是 **CodePilotX（CodePilotX）系统提示词的"路由器 + 组装器"**：它按"用户类型（ant/外部）、会话模式（proactive/普通/REPL）、特性开关（KAIROS/VERIFICATION/...）"组合出 6 段静态 + 13 段动态内容，通过 `SYSTEM_PROMPT_DYNAMIC_BOUNDARY` 切成"可缓存 + 不可缓存"两半喂给模型，并在对抗误报、过度注释、跳过验证等行为上对内部版本加严。

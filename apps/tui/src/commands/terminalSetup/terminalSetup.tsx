@@ -3,7 +3,7 @@ import { randomBytes } from 'crypto'
 import { copyFile, mkdir, readFile, writeFile } from 'fs/promises'
 import { homedir, platform } from 'os'
 import { dirname, join } from 'path'
-import type { ThemeName } from '@claudecode/tui/utils/theme.js'
+import type { ThemeName } from '@codepilotx/tui/utils/theme.js'
 import { pathToFileURL } from 'url'
 import { supportsHyperlinks } from '../../ink/supports-hyperlinks.js'
 import { color } from '../../ink.js'
@@ -90,7 +90,7 @@ function formatPathLink(filePath: string): string {
 
 export function shouldOfferTerminalSetup(): boolean {
   // iTerm2, WezTerm, Ghostty, Kitty, and Warp natively support CSI u / Kitty
-  // keyboard protocol, which Oh-My-AgentCode already parses. No setup needed for
+  // keyboard protocol, which CodePilotX already parses. No setup needed for
   // these terminals.
   return (
     (platform() === 'darwin' && env.terminal === 'Apple_Terminal') ||

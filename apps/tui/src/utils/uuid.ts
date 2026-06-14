@@ -1,5 +1,5 @@
 import { randomBytes, type UUID } from 'crypto'
-import type { AgentId } from '@claudecode/tui/types/ids.js'
+import type { AgentId } from '@codepilotx/tui/types/ids.js'
 
 const uuidRegex =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i

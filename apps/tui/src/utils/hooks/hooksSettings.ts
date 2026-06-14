@@ -1,5 +1,5 @@
 import { resolve } from 'path'
-import type { HookEvent } from '@claudecode/tui/entrypoints/agentSdkTypes.js'
+import type { HookEvent } from '@codepilotx/tui/entrypoints/agentSdkTypes.js'
 import { getSessionId } from '../../bootstrap/state.js'
 import type { AppState } from '../../state/AppState.js'
 import type { EditableSettingSource } from '../settings/constants.js'
@@ -183,7 +183,7 @@ export function hookSourceDescriptionDisplayString(source: HookSource): string {
     case 'sessionHook':
       return 'Session hooks (in-memory, temporary)'
     case 'builtinHook':
-      return 'Built-in hooks (registered internally by Oh-My-AgentCode)'
+      return 'Built-in hooks (registered internally by CodePilotX)'
     default:
       return source as string
   }

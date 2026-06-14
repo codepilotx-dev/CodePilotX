@@ -9,16 +9,16 @@ import React, {
   useRef,
   useState,
 } from 'react'
-import { useNotifications } from '@claudecode/tui/context/notifications.js'
+import { useNotifications } from '@codepilotx/tui/context/notifications.js'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
-} from '@claudecode/tui/services/analytics/index.js'
+} from '@codepilotx/tui/services/analytics/index.js'
 import {
   useAppState,
   useAppStateStore,
   useSetAppState,
-} from '@claudecode/tui/state/AppState.js'
+} from '@codepilotx/tui/state/AppState.js'
 import {
   getSdkBetas,
   getSessionId,
@@ -994,7 +994,7 @@ export function buildPlanApprovalOptions({
 
   if (showUltraplan) {
     options.push({
-      label: 'No, refine with Ultraplan on Oh-My-AgentCode on the web',
+      label: 'No, refine with Ultraplan on CodePilotX on the web',
       value: 'ultraplan',
     })
   }

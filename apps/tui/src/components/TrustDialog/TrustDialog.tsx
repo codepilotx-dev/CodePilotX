@@ -1,6 +1,6 @@
 import { homedir } from 'os'
 import React from 'react'
-import { logEvent } from '@claudecode/tui/services/analytics/index.js'
+import { logEvent } from '@codepilotx/tui/services/analytics/index.js'
 import { setSessionTrustAccepted } from '../../bootstrap/state.js'
 import type { Command } from '../../commands.js'
 import { useExitOnCtrlCDWithKeybindings } from '../../hooks/useExitOnCtrlCDWithKeybindings.js'
@@ -199,7 +199,7 @@ export function TrustDialog({ onDone, commands }: Props): React.ReactNode {
           first.
         </Text>
         <Text>
-          Oh-My-AgentCode{"'"}ll be able to read, edit, and execute files here.
+          CodePilotX{"'"}ll be able to read, edit, and execute files here.
         </Text>
 
         <Text dimColor>

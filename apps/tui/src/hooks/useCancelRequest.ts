@@ -5,13 +5,13 @@
  * This component renders nothing - it just registers the cancel keybinding handler.
  */
 import { useCallback, useRef } from 'react'
-import { logEvent } from '@claudecode/tui/services/analytics/index.js'
-import type { AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from '@claudecode/tui/services/analytics/metadata.js'
+import { logEvent } from '@codepilotx/tui/services/analytics/index.js'
+import type { AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from '@codepilotx/tui/services/analytics/metadata.js'
 import {
   useAppState,
   useAppStateStore,
   useSetAppState,
-} from '@claudecode/tui/state/AppState.js'
+} from '@codepilotx/tui/state/AppState.js'
 import { isVimModeEnabled } from '../components/PromptInput/utils.js'
 import type { ToolUseConfirm } from '../components/permissions/PermissionRequest.js'
 import type { SpinnerMode } from '../components/Spinner/types.js'

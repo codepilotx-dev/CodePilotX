@@ -3,7 +3,7 @@ import type { Command } from '../commands.js'
 import { isUltrareviewEnabled } from './review/ultrareviewEnabled.js'
 
 // Legal wants the explicit surface name plus a docs link visible before the
-// user triggers, so the description carries "Oh-My-AgentCode on the web" + URL.
+// user triggers, so the description carries "CodePilotX on the web" + URL.
 const CCR_TERMS_URL = 'https://code.claude.com/docs/en/claude-code-on-the-web'
 
 const LOCAL_REVIEW_PROMPT = (args: string) => `
@@ -48,7 +48,7 @@ const review: Command = {
 const ultrareview: Command = {
   type: 'local-jsx',
   name: 'ultrareview',
-  description: `约 10-20 分钟 · 查找并验证分支中的 bug。在网页版 Oh-My-AgentCode 中运行。见 ${CCR_TERMS_URL}`,
+  description: `约 10-20 分钟 · 查找并验证分支中的 bug。在网页版 CodePilotX 中运行。见 ${CCR_TERMS_URL}`,
   isEnabled: () => isUltrareviewEnabled(),
   load: () => import('./review/ultrareviewCommand.js'),
 }

@@ -9,14 +9,14 @@ import {
   isClaudeAISubscriber,
   refreshAndGetAwsCredentials,
   refreshGcpCredentialsIfNeeded,
-} from '@claudecode/tui/utils/auth.js'
-import { getUserAgent } from '@claudecode/tui/utils/http.js'
-import { getSmallFastModel } from '@claudecode/tui/utils/model/model.js'
+} from '@codepilotx/tui/utils/auth.js'
+import { getUserAgent } from '@codepilotx/tui/utils/http.js'
+import { getSmallFastModel } from '@codepilotx/tui/utils/model/model.js'
 import {
   getAPIProvider,
   isFirstPartyAnthropicBaseUrl,
-} from '@claudecode/tui/utils/model/providers.js'
-import { getProxyFetchOptions } from '@claudecode/tui/utils/proxy.js'
+} from '@codepilotx/tui/utils/model/providers.js'
+import { getProxyFetchOptions } from '@codepilotx/tui/utils/proxy.js'
 import {
   getIsNonInteractiveSession,
   getSessionId,

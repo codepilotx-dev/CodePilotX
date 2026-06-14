@@ -59,7 +59,7 @@ export function createDesktopWindowService(options: {
       minWidth: MIN_WINDOW_WIDTH,
       minHeight: MIN_WINDOW_HEIGHT,
       frame: false,
-      title: 'ClaudeCode Local Desktop',
+      title: 'CodePilotX Local Desktop',
       webPreferences: {
         preload: options.preloadPath(),
         contextIsolation: true,
@@ -153,7 +153,7 @@ export function createDesktopWindowService(options: {
         label: 'Help',
         submenu: [
           {
-            label: 'ClaudeCode Local Development',
+            label: 'CodePilotX Local Development',
             click: () => {
               void shell.openExternal(
                 'https://github.com/anthropics/claude-code',

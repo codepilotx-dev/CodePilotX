@@ -29,6 +29,7 @@ export const DESKTOP_API_METHODS = [
   'saveThemeSettings',
   'createSession',
   'listSessions',
+  'getSession',
   'getActiveSessionId',
   'setActiveSession',
   'updateSessionMetadata',

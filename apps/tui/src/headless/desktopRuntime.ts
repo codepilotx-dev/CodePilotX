@@ -38,6 +38,10 @@ import type { ThinkingConfig } from '../utils/thinking.js'
 import { asSessionId } from '../types/ids.js'
 import { runWithEmbeddedShutdownHandler } from '../utils/gracefulShutdown.js'
 import { logForDebugging } from '../utils/debug.js'
+import {
+  CODEPILOTX_CONFIG_DIR_ENV,
+  LEGACY_CLAUDE_CONFIG_DIR_ENV,
+} from '../utils/envUtils.js'
 
 export type DesktopHeadlessThinkingMode =
   | 'default'
@@ -97,8 +101,11 @@ class EmbeddedDesktopHeadlessRuntime implements DesktopHeadlessRuntime {
   constructor(private readonly options: DesktopHeadlessRuntimeOptions) {
     this.store = createStore(getInitialDesktopAppState(options))
     if (options.configDirectoryPath) {
-      process.env.CLAUDE_CONFIG_DIR = options.configDirectoryPath
+      process.env[CODEPILOTX_CONFIG_DIR_ENV] = options.configDirectoryPath
+      process.env[LEGACY_CLAUDE_CONFIG_DIR_ENV] = options.configDirectoryPath
     }
+    process.env.CODEPILOTX_DISABLE_MDM_READ = '1'
+    process.env.CODEPILOTX_DISABLE_MIN_VERSION_CHECK = '1'
     process.env.CLAUDE_CODE_DISABLE_MDM_READ = '1'
     process.env.CLAUDE_CODE_DISABLE_MIN_VERSION_CHECK = '1'
     process.env.CLAUDE_CODE_ENTRYPOINT = 'desktop'

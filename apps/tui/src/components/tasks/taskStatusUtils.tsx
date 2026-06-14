@@ -3,12 +3,12 @@
  */
 
 import figures from 'figures'
-import type { TaskStatus } from '@claudecode/tui/Task.js'
-import type { InProcessTeammateTaskState } from '@claudecode/tui/tasks/InProcessTeammateTask/types.js'
-import { isPanelAgentTask } from '@claudecode/tui/tasks/LocalAgentTask/LocalAgentTask.js'
-import { isBackgroundTask, type TaskState } from '@claudecode/tui/tasks/types.js'
-import type { DeepImmutable } from '@claudecode/tui/types/utils.js'
-import { summarizeRecentActivities } from '@claudecode/tui/utils/collapseReadSearch.js'
+import type { TaskStatus } from '@codepilotx/tui/Task.js'
+import type { InProcessTeammateTaskState } from '@codepilotx/tui/tasks/InProcessTeammateTask/types.js'
+import { isPanelAgentTask } from '@codepilotx/tui/tasks/LocalAgentTask/LocalAgentTask.js'
+import { isBackgroundTask, type TaskState } from '@codepilotx/tui/tasks/types.js'
+import type { DeepImmutable } from '@codepilotx/tui/types/utils.js'
+import { summarizeRecentActivities } from '@codepilotx/tui/utils/collapseReadSearch.js'
 
 /**
  * Returns true if the given task status represents a terminal (finished) state.

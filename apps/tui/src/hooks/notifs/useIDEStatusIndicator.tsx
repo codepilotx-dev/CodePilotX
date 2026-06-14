@@ -1,14 +1,14 @@
 import React, { useEffect, useRef } from 'react'
-import { useNotifications } from '@claudecode/tui/context/notifications.js'
-import { Text } from '@claudecode/tui/ink.js'
-import type { MCPServerConnection } from '@claudecode/tui/services/mcp/types.js'
-import { getGlobalConfig, saveGlobalConfig } from '@claudecode/tui/utils/config.js'
+import { useNotifications } from '@codepilotx/tui/context/notifications.js'
+import { Text } from '@codepilotx/tui/ink.js'
+import type { MCPServerConnection } from '@codepilotx/tui/services/mcp/types.js'
+import { getGlobalConfig, saveGlobalConfig } from '@codepilotx/tui/utils/config.js'
 import {
   detectIDEs,
   type IDEExtensionInstallationStatus,
   isJetBrainsIde,
   isSupportedTerminal,
-} from '@claudecode/tui/utils/ide.js'
+} from '@codepilotx/tui/utils/ide.js'
 import { getIsRemoteMode } from '../../bootstrap/state.js'
 import { useIdeConnectionStatus } from '../useIdeConnectionStatus.js'
 import type { IDESelection } from '../useIdeSelection.js'

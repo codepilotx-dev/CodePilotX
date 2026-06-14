@@ -1,5 +1,5 @@
 import figures from 'figures'
-import { logError } from '@claudecode/tui/utils/log.js'
+import { logError } from '@codepilotx/tui/utils/log.js'
 import { callIdeRpc } from '../services/mcp/client.js'
 import type { MCPServerConnection } from '../services/mcp/types.js'
 import { ClaudeError } from '../utils/errors.js'

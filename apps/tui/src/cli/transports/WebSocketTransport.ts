@@ -1,4 +1,4 @@
-import type { StdoutMessage } from '@claudecode/tui/entrypoints/sdk/controlTypes.js'
+import type { StdoutMessage } from '@codepilotx/tui/entrypoints/sdk/controlTypes.js'
 import type WsWebSocket from 'ws'
 import { logEvent } from '../../services/analytics/index.js'
 import { CircularBuffer } from '../../utils/CircularBuffer.js'

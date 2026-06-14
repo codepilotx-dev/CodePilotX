@@ -6,7 +6,7 @@ import memoize from 'lodash-es/memoize.js'
 import { createConnection } from 'net'
 import * as os from 'os'
 import { basename, join, sep as pathSeparator, resolve } from 'path'
-import { logEvent } from '@claudecode/tui/services/analytics/index.js'
+import { logEvent } from '@codepilotx/tui/services/analytics/index.js'
 import { getIsScrollDraining, getOriginalCwd } from '../bootstrap/state.js'
 import { callIdeRpc } from '../services/mcp/client.js'
 import type {
@@ -31,8 +31,8 @@ import { lt } from './semver.js'
 // Lazy: IdeOnboardingDialog.tsx pulls React/ink; only needed in interactive onboarding path
 /* eslint-disable @typescript-eslint/no-require-imports */
 const ideOnboardingDialog =
-  (): typeof import('@claudecode/tui/components/IdeOnboardingDialog.js') =>
-    require('@claudecode/tui/components/IdeOnboardingDialog.js')
+  (): typeof import('@codepilotx/tui/components/IdeOnboardingDialog.js') =>
+    require('@codepilotx/tui/components/IdeOnboardingDialog.js')
 
 import { createAbortController } from './abortController.js'
 import { logForDebugging } from './debug.js'
@@ -886,7 +886,7 @@ async function installIDEExtension(ideType: IdeType): Promise<string | null> {
       }
       let version = await getInstalledVSCodeExtensionVersion(command)
       // If it's not installed or the version is older than the one we have bundled,
-      if (!version || lt(version, getClaudeCodeVersion())) {
+      if (!version || lt(version, getCodePilotXVersion())) {
         // `code` may crash when invoked too quickly in succession
         await sleep(500)
         const result = await execFileNoThrowWithCwd(
@@ -899,7 +899,7 @@ async function installIDEExtension(ideType: IdeType): Promise<string | null> {
         if (result.code !== 0) {
           throw new Error(`${result.code}: ${result.error} ${result.stderr}`)
         }
-        version = getClaudeCodeVersion()
+        version = getCodePilotXVersion()
       }
       return version
     }
@@ -924,7 +924,7 @@ function getInstallationEnv(): NodeJS.ProcessEnv | undefined {
   return undefined
 }
 
-function getClaudeCodeVersion() {
+function getCodePilotXVersion() {
   return MACRO.VERSION
 }
 

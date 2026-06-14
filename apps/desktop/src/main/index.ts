@@ -5,13 +5,18 @@ import {
 import { stat } from 'node:fs/promises'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { enableConfigs } from '@claudecode/core/utils/config.js'
+import { enableConfigs } from '@codepilotx/core/utils/config.js'
 import {
   getMainLoopModel,
   parseUserSpecifiedModel,
-} from '@claudecode/tui/utils/model/model.js'
+} from '@codepilotx/tui/utils/model/model.js'
+import {
+  CODEPILOTX_CONFIG_DIR_ENV,
+  LEGACY_CLAUDE_CONFIG_DIR_ENV,
+} from '@codepilotx/tui/utils/envUtils.js'
 import { getAuthStatus, getRuntimeStatus } from './authRuntimeService.js'
-import { generateSessionTitle } from '@claudecode/tui/utils/sessionTitle.js'
+import { generateSessionTitle } from '@codepilotx/tui/utils/sessionTitle.js'
+import { saveAiGeneratedTitle } from '@codepilotx/tui/utils/sessionStorage.js'
 import {
   createDesktopAgentSession,
   type DesktopAgentSession,
@@ -57,6 +62,7 @@ import {
   applyDesktopAgentEventToSnapshot,
   createDesktopSessionSnapshot,
   desktopSessionTranscriptExists,
+  hydrateDesktopSessionSnapshot,
   loadDesktopSessionStore,
   removePendingPermissionFromSnapshot,
   saveDesktopSessionStore,
@@ -97,7 +103,9 @@ type DesktopSessionRecord = {
   resumeExistingSession: boolean
 }
 
-process.env.CLAUDE_CONFIG_DIR = getOpenAgentConfigHomeDir()
+const desktopConfigHomeDir = getOpenAgentConfigHomeDir()
+process.env[CODEPILOTX_CONFIG_DIR_ENV] = desktopConfigHomeDir
+process.env[LEGACY_CLAUDE_CONFIG_DIR_ENV] = desktopConfigHomeDir
 
 const sessions = new Map<string, DesktopSessionRecord>()
 const titleGenerationStartedSessionIds = new Set<string>()
@@ -105,8 +113,11 @@ let activeSessionId: string | null = null
 let sessionStoreLoadPromise: Promise<void> | null = null
 
 function rendererUrl(): string {
-  if (!app.isPackaged && process.env.CLAUDE_CODE_DESKTOP_RENDERER_URL) {
-    return process.env.CLAUDE_CODE_DESKTOP_RENDERER_URL
+  const devRendererUrl =
+    process.env.CODEPILOTX_DESKTOP_RENDERER_URL ??
+    process.env.CLAUDE_CODE_DESKTOP_RENDERER_URL
+  if (!app.isPackaged && devRendererUrl) {
+    return devRendererUrl
   }
   return pathToFileURL(join(__dirname, '../renderer/index.html')).toString()
 }
@@ -161,17 +172,20 @@ function getAgentExecutablePath(): string {
       'app.asar.unpacked',
       'dist',
       'desktop-agent',
-      'claude-local.exe',
+      'codepilotx-local.exe',
     )
   }
-  return join(__dirname, '..', '..', 'desktop-agent', 'claude-local.exe')
+  return join(__dirname, '..', '..', 'desktop-agent', 'codepilotx-local.exe')
 }
 
 function getDesktopRuntimeSelection(): {
   preference: DesktopAgentRuntimePreference
   source: 'default' | 'env'
 } {
-  const value = process.env.CLAUDE_CODE_DESKTOP_RUNTIME?.trim()
+  const value = (
+    process.env.CODEPILOTX_DESKTOP_RUNTIME ??
+    process.env.CLAUDE_CODE_DESKTOP_RUNTIME
+  )?.trim()
   if (!value) {
     return { preference: 'auto', source: 'default' }
   }
@@ -186,7 +200,7 @@ function getDesktopRuntimeSelection(): {
     return { preference: 'embedded-headless', source: 'env' }
   }
   console.warn(
-    `Ignoring unsupported CLAUDE_CODE_DESKTOP_RUNTIME value: ${value}`,
+    `Ignoring unsupported CODEPILOTX_DESKTOP_RUNTIME value: ${value}`,
   )
   return { preference: 'auto', source: 'default' }
 }
@@ -318,6 +332,18 @@ function createRuntimeForRecord(record: DesktopSessionRecord): DesktopAgentSessi
 async function listSessions(): Promise<DesktopSessionSnapshot[]> {
   await ensureSessionStoreLoaded()
   return [...sessions.values()].map(record => record.snapshot)
+}
+
+async function getSession(sessionId: string): Promise<DesktopSessionSnapshot> {
+  const record = await getSessionRecord(sessionId)
+  if (
+    record.snapshot.item.status !== 'running' &&
+    record.snapshot.item.status !== 'waiting'
+  ) {
+    record.snapshot = await hydrateDesktopSessionSnapshot(record.snapshot)
+    persistSessionStore()
+  }
+  return record.snapshot
 }
 
 async function getActiveSessionId(): Promise<string | null> {
@@ -622,6 +648,14 @@ function scheduleAiTitleGeneration(
       sessionId,
       title,
     }
+    try {
+      saveAiGeneratedTitle(
+        sessionId as `${string}-${string}-${string}-${string}-${string}`,
+        title,
+      )
+    } catch {
+      // Best-effort: the desktop overlay still keeps the generated title.
+    }
     latestRecord.snapshot = applyDesktopAgentEventToSnapshot(
       latestRecord.snapshot,
       event,
@@ -743,6 +777,7 @@ function registerIpc(): void {
     saveThemeSettings: saveDesktopThemeSettings,
     createSession,
     listSessions,
+    getSession,
     getActiveSessionId,
     setActiveSession,
     updateSessionMetadata,

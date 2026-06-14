@@ -1,5 +1,5 @@
-import type { Notification } from '@claudecode/tui/context/notifications.js'
-import type { TodoList } from '@claudecode/tui/utils/todo/types.js'
+import type { Notification } from '@codepilotx/tui/context/notifications.js'
+import type { TodoList } from '@codepilotx/tui/utils/todo/types.js'
 import type { BridgePermissionCallbacks } from '../bridge/bridgePermissionCallbacks.js'
 import type { Command } from '../commands.js'
 import type { ChannelPermissionCallbacks } from '../services/mcp/channelPermissions.js'
@@ -165,7 +165,7 @@ export type AppState = DeepImmutable<{
   foregroundedTaskId?: string
   // Task ID of in-process teammate whose transcript is being viewed (undefined = leader's view)
   viewingAgentTaskId?: string
-  // Latest companion reaction from the friend observer (@claudecode/tui/buddy/observer.ts)
+  // Latest companion reaction from the friend observer (@codepilotx/tui/buddy/observer.ts)
   companionReaction?: string
   // Timestamp of last /buddy pet — CompanionSprite renders hearts while recent
   companionPetAt?: number

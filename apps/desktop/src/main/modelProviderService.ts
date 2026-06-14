@@ -1,4 +1,4 @@
-import { getSettings_DEPRECATED } from '@claudecode/tui/utils/settings/settings.js'
+import { getSettings_DEPRECATED } from '@codepilotx/tui/utils/settings/settings.js'
 import {
   fetchProviderBalance as fetchTuiProviderBalance,
   fetchProviderModels as fetchTuiProviderModels,
@@ -11,7 +11,7 @@ import {
   listProviderConfigs,
   saveProviderApiKey as saveTuiProviderApiKey,
   saveSelectedProvider,
-} from '@claudecode/tui/utils/model/providerConfig.js'
+} from '@codepilotx/tui/utils/model/providerConfig.js'
 import {
   readDesktopStoredSettings,
   saveDesktopStoredSettings,

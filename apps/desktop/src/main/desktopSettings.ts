@@ -1,6 +1,11 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
+import {
+  CODEPILOTX_CONFIG_DIR_ENV,
+  CODEPILOTX_CONFIG_DIR_NAME,
+  LEGACY_CLAUDE_CONFIG_DIR_ENV,
+} from '@codepilotx/tui/utils/envUtils.js'
 import type { DesktopStoredSettings } from '../shared/types.js'
 import {
   defaultDesktopStoredSettings,
@@ -13,7 +18,11 @@ export function getDesktopConfigDirectoryPath(): string {
 }
 
 export function getOpenAgentConfigHomeDir(): string {
-  return join(homedir(), '.oh-my-openagent')
+  return (
+    process.env[CODEPILOTX_CONFIG_DIR_ENV] ??
+    process.env[LEGACY_CLAUDE_CONFIG_DIR_ENV] ??
+    join(homedir(), CODEPILOTX_CONFIG_DIR_NAME)
+  )
 }
 
 function getDesktopSettingsPath(): string {

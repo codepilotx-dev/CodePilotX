@@ -1,6 +1,6 @@
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages.mjs'
 import { useEffect, useRef } from 'react'
-import { logError } from '@claudecode/tui/utils/log.js'
+import { logError } from '@codepilotx/tui/utils/log.js'
 import { z } from 'zod/v4'
 import { callIdeRpc } from '../services/mcp/client.js'
 import type {

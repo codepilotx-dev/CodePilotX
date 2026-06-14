@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
-import { useNotifications } from '@claudecode/tui/context/notifications.js'
-import { useAppState, useSetAppState } from '@claudecode/tui/state/AppState.js'
+import { useNotifications } from '@codepilotx/tui/context/notifications.js'
+import { useAppState, useSetAppState } from '@codepilotx/tui/state/AppState.js'
 import {
   type CooldownReason,
   isFastModeEnabled,
@@ -8,8 +8,8 @@ import {
   onCooldownTriggered,
   onFastModeOverageRejection,
   onOrgFastModeChanged,
-} from '@claudecode/tui/utils/fastMode.js'
-import { formatDuration } from '@claudecode/tui/utils/format.js'
+} from '@codepilotx/tui/utils/fastMode.js'
+import { formatDuration } from '@codepilotx/tui/utils/format.js'
 import { getIsRemoteMode } from '../../bootstrap/state.js'
 
 const COOLDOWN_STARTED_KEY = 'fast-mode-cooldown-started'

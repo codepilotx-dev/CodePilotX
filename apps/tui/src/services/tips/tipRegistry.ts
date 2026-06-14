@@ -1,11 +1,11 @@
 import chalk from 'chalk'
-import { logForDebugging } from '@claudecode/tui/utils/debug.js'
-import { fileHistoryEnabled } from '@claudecode/tui/utils/fileHistory.js'
+import { logForDebugging } from '@codepilotx/tui/utils/debug.js'
+import { fileHistoryEnabled } from '@codepilotx/tui/utils/fileHistory.js'
 import {
   getInitialSettings,
   getSettings_DEPRECATED,
   getSettingsForSource,
-} from '@claudecode/tui/utils/settings/settings.js'
+} from '@codepilotx/tui/utils/settings/settings.js'
 import { shouldOfferTerminalSetup } from '../../commands/terminalSetup/terminalSetup.js'
 import { getDesktopUpsellConfig } from '../../components/DesktopUpsell/DesktopUpsellStartup.js'
 import { color } from '../../components/design-system/color.js'
@@ -355,7 +355,7 @@ const externalTips: Tip[] = [
   {
     id: 'paste-images-mac',
     content: async () =>
-      'Paste images into Oh-My-AgentCode using control+v (not cmd+v!)',
+      'Paste images into CodePilotX using control+v (not cmd+v!)',
     cooldownSessions: 10,
     isRelevant: async () => getPlatform() === 'macos',
   },
@@ -376,7 +376,7 @@ const externalTips: Tip[] = [
   {
     id: 'continue',
     content: async () =>
-      'Run claude --continue or claude --resume to resume a conversation',
+      'Run codepilotx --continue or codepilotx --resume to resume a conversation',
     cooldownSessions: 10,
     isRelevant: async () => true,
   },
@@ -437,7 +437,7 @@ const externalTips: Tip[] = [
   {
     id: 'desktop-app',
     content: async () =>
-      'Run Oh-My-AgentCode locally or remotely using the Claude desktop app: clau.de/desktop',
+      'Run CodePilotX locally or remotely using the Claude desktop app: clau.de/desktop',
     cooldownSessions: 15,
     isRelevant: async () => getPlatform() !== 'linux',
   },
@@ -445,7 +445,7 @@ const externalTips: Tip[] = [
     id: 'desktop-shortcut',
     content: async ctx => {
       const blue = color('suggestion', ctx.theme)
-      return `Continue your session in Oh-My-AgentCode Desktop with ${blue('/desktop')}`
+      return `Continue your session in CodePilotX Desktop with ${blue('/desktop')}`
     },
     cooldownSessions: 15,
     isRelevant: async () => {
@@ -466,7 +466,7 @@ const externalTips: Tip[] = [
   {
     id: 'mobile-app',
     content: async () =>
-      '/mobile to use Oh-My-AgentCode from the Claude app on your phone',
+      '/mobile to use CodePilotX from the Claude app on your phone',
     cooldownSessions: 15,
     isRelevant: async () => true,
   },
@@ -593,7 +593,7 @@ const externalTips: Tip[] = [
       const claude = color('claude', ctx.theme)
       const reward = getCachedReferrerReward()
       return reward
-        ? `Share Oh-My-AgentCode and earn ${claude(formatCreditAmount(reward))} of extra usage · ${claude('/passes')}`
+        ? `Share CodePilotX and earn ${claude(formatCreditAmount(reward))} of extra usage · ${claude('/passes')}`
         : `You have free guest passes to share · ${claude('/passes')}`
     },
     cooldownSessions: 3,

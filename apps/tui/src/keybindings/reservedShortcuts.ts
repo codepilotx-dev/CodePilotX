@@ -11,7 +11,7 @@ export type ReservedShortcut = {
 }
 
 /**
- * Shortcuts that cannot be rebound - they are hardcoded in Oh-My-AgentCode.
+ * Shortcuts that cannot be rebound - they are hardcoded in CodePilotX.
  */
 export const NON_REBINDABLE: ReservedShortcut[] = [
   {

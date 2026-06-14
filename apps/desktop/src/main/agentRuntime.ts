@@ -7,8 +7,8 @@ import {
   runDesktopHeadlessTurn,
   type DesktopHeadlessOutputControls,
   type DesktopHeadlessRuntime,
-} from '@claudecode/tui/headless/desktopRuntime.js'
-import type { StdoutMessage } from '@claudecode/tui/entrypoints/sdk/controlTypes.js'
+} from '@codepilotx/tui/headless/desktopRuntime.js'
+import type { StdoutMessage } from '@codepilotx/tui/entrypoints/sdk/controlTypes.js'
 import type {
   DesktopAgentEvent,
   DesktopPermissionMode,
@@ -16,7 +16,11 @@ import type {
   DesktopPermissionRequest,
   DesktopThinkingMode,
 } from '../shared/types.js'
-import type { PermissionMode } from '@claudecode/tui/types/permissions.js'
+import type { PermissionMode } from '@codepilotx/tui/types/permissions.js'
+import {
+  CODEPILOTX_CONFIG_DIR_ENV,
+  LEGACY_CLAUDE_CONFIG_DIR_ENV,
+} from '@codepilotx/tui/utils/envUtils.js'
 import {
   buildDesktopContextUsage,
   getUsageFromAssistantRecord,
@@ -157,8 +161,14 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
         windowsHide: true,
         env: {
           ...process.env,
-          CLAUDE_CONFIG_DIR:
-            this.context.configDirectoryPath ?? process.env.CLAUDE_CONFIG_DIR,
+          [CODEPILOTX_CONFIG_DIR_ENV]:
+            this.context.configDirectoryPath ??
+            process.env[CODEPILOTX_CONFIG_DIR_ENV],
+          [LEGACY_CLAUDE_CONFIG_DIR_ENV]:
+            this.context.configDirectoryPath ??
+            process.env[LEGACY_CLAUDE_CONFIG_DIR_ENV],
+          CODEPILOTX_DISABLE_MDM_READ: '1',
+          CODEPILOTX_DISABLE_MIN_VERSION_CHECK: '1',
           CLAUDE_CODE_DISABLE_MDM_READ: '1',
           CLAUDE_CODE_DISABLE_MIN_VERSION_CHECK: '1',
         },

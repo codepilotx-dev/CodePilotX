@@ -2,16 +2,28 @@ import memoize from 'lodash-es/memoize.js'
 import { homedir } from 'os'
 import { join } from 'path'
 
-// Memoized: 150+ callers, many on hot paths. Keyed off CLAUDE_CONFIG_DIR so
-// tests that change the env var get a fresh value without explicit cache.clear.
+export const CODEPILOTX_CONFIG_DIR_ENV = 'CODEPILOTX_CONFIG_DIR'
+export const LEGACY_CLAUDE_CONFIG_DIR_ENV = 'CLAUDE_CONFIG_DIR'
+export const CODEPILOTX_CONFIG_DIR_NAME = '.codepilotx'
+export const LEGACY_CLAUDE_CONFIG_DIR_NAME = '.claude'
+
+// Memoized: 150+ callers, many on hot paths. Keyed off config env vars so
+// tests that change them get a fresh value without explicit cache.clear.
 export const getClaudeConfigHomeDir = memoize(
   (): string => {
     return (
-      process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude')
+      process.env[CODEPILOTX_CONFIG_DIR_ENV] ??
+      process.env[LEGACY_CLAUDE_CONFIG_DIR_ENV] ??
+      join(homedir(), CODEPILOTX_CONFIG_DIR_NAME)
     ).normalize('NFC')
   },
-  () => process.env.CLAUDE_CONFIG_DIR,
+  () =>
+    `${process.env[CODEPILOTX_CONFIG_DIR_ENV] ?? ''}\0${
+      process.env[LEGACY_CLAUDE_CONFIG_DIR_ENV] ?? ''
+    }`,
 )
+
+export const getCodePilotXConfigHomeDir = getClaudeConfigHomeDir
 
 export function getTeamsDir(): string {
   return join(getClaudeConfigHomeDir(), 'teams')
@@ -59,6 +71,7 @@ export function isEnvDefinedFalsy(
  */
 export function isBareMode(): boolean {
   return (
+    isEnvTruthy(process.env.CODEPILOTX_SIMPLE) ||
     isEnvTruthy(process.env.CLAUDE_CODE_SIMPLE) ||
     process.argv.includes('--bare')
   )
@@ -123,7 +136,7 @@ export function isRunningOnHomespace(): boolean {
 }
 
 /**
- * Conservative check for whether Oh-My-AgentCode is running inside a protected
+ * Conservative check for whether CodePilotX is running inside a protected
  * (privileged or ASL3+) COO namespace or cluster.
  *
  * Conservative means: when signals are ambiguous, assume protected. We would

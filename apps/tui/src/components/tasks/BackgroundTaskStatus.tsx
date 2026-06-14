@@ -1,21 +1,21 @@
 import figures from 'figures'
 import * as React from 'react'
 import { useMemo, useState } from 'react'
-import { useTerminalSize } from '@claudecode/tui/hooks/useTerminalSize.js'
-import { stringWidth } from '@claudecode/tui/ink/stringWidth.js'
-import { useAppState, useSetAppState } from '@claudecode/tui/state/AppState.js'
+import { useTerminalSize } from '@codepilotx/tui/hooks/useTerminalSize.js'
+import { stringWidth } from '@codepilotx/tui/ink/stringWidth.js'
+import { useAppState, useSetAppState } from '@codepilotx/tui/state/AppState.js'
 import {
   enterTeammateView,
   exitTeammateView,
-} from '@claudecode/tui/state/teammateViewHelpers.js'
-import { isPanelAgentTask } from '@claudecode/tui/tasks/LocalAgentTask/LocalAgentTask.js'
-import { getPillLabel, pillNeedsCta } from '@claudecode/tui/tasks/pillLabel.js'
+} from '@codepilotx/tui/state/teammateViewHelpers.js'
+import { isPanelAgentTask } from '@codepilotx/tui/tasks/LocalAgentTask/LocalAgentTask.js'
+import { getPillLabel, pillNeedsCta } from '@codepilotx/tui/tasks/pillLabel.js'
 import {
   type BackgroundTaskState,
   isBackgroundTask,
   type TaskState,
-} from '@claudecode/tui/tasks/types.js'
-import { calculateHorizontalScrollWindow } from '@claudecode/tui/utils/horizontalScroll.js'
+} from '@codepilotx/tui/tasks/types.js'
+import { calculateHorizontalScrollWindow } from '@codepilotx/tui/utils/horizontalScroll.js'
 import { Box, Text } from '../../ink.js'
 import {
   AGENT_COLOR_TO_THEME_COLOR,

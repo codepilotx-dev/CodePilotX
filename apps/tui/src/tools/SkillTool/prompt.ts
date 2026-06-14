@@ -1,10 +1,10 @@
 import { memoize } from 'lodash-es'
-import type { Command } from '@claudecode/tui/commands.js'
+import type { Command } from '@codepilotx/tui/commands.js'
 import {
   getCommandName,
   getSkillToolCommands,
   getSlashCommandToolSkills,
-} from '@claudecode/tui/commands.js'
+} from '@codepilotx/tui/commands.js'
 import { COMMAND_NAME_TAG } from '../../constants/xml.js'
 import { stringWidth } from '../../ink/stringWidth.js'
 import {

@@ -2,9 +2,9 @@ import React, { useEffect } from 'react'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
-} from '@claudecode/tui/services/analytics/index.js'
-import type { TeleportRemoteResponse } from '@claudecode/tui/utils/conversationRecovery.js'
-import type { CodeSession } from '@claudecode/tui/utils/teleport/api.js'
+} from '@codepilotx/tui/services/analytics/index.js'
+import type { TeleportRemoteResponse } from '@codepilotx/tui/utils/conversationRecovery.js'
+import type { CodeSession } from '@codepilotx/tui/utils/teleport/api.js'
 import {
   type TeleportSource,
   useTeleportResume,

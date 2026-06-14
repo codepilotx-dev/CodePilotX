@@ -1,11 +1,11 @@
 import React, { useMemo } from 'react'
-import { getMcpConfigsByScope } from '@claudecode/tui/services/mcp/config.js'
-import type { ConfigScope } from '@claudecode/tui/services/mcp/types.js'
+import { getMcpConfigsByScope } from '@codepilotx/tui/services/mcp/config.js'
+import type { ConfigScope } from '@codepilotx/tui/services/mcp/types.js'
 import {
   describeMcpConfigFilePath,
   getScopeLabel,
-} from '@claudecode/tui/services/mcp/utils.js'
-import type { ValidationError } from '@claudecode/tui/utils/settings/validation.js'
+} from '@codepilotx/tui/services/mcp/utils.js'
+import type { ValidationError } from '@codepilotx/tui/utils/settings/validation.js'
 import { Box, Link, Text } from '../../ink.js'
 
 function McpConfigErrorSection({

@@ -91,6 +91,22 @@ export function useWorkspaceState(
       .catch((error: unknown) => onErrorRef.current(errorMessageOf(error)))
   }, [])
 
+  useEffect(() => {
+    let mounted = true
+    const refresh = (): void => {
+      void refreshRuntimeStatus().finally(() => {
+        if (!mounted) return
+      })
+    }
+
+    refresh()
+    const timer = window.setInterval(refresh, 5000)
+    return () => {
+      mounted = false
+      window.clearInterval(timer)
+    }
+  }, [refreshRuntimeStatus])
+
   const refreshWorkspace = useCallback(
     async (
       target: DesktopWorkspace | null = workspace,

@@ -204,6 +204,69 @@ export function useSessionState(
     [updateSessionView],
   )
 
+  const applyHydratedSessionSnapshot = useCallback(
+    (snapshot: Awaited<ReturnType<typeof desktopClient.getSession>>): void => {
+      const nextView: SessionViewState = {
+        ...snapshot.view,
+        eventModelVersion: snapshot.eventModelVersion,
+        events: snapshot.events ?? [],
+        contextUsage: snapshot.view.contextUsage ?? null,
+        selectedFile:
+          sessionViewsRef.current[snapshot.item.id]?.selectedFile ?? null,
+      }
+      sessionViewsRef.current = {
+        ...sessionViewsRef.current,
+        [snapshot.item.id]: nextView,
+      }
+      sessionWorkspacesRef.current = {
+        ...sessionWorkspacesRef.current,
+        [snapshot.item.id]: snapshot.workspace,
+      }
+      sessionsRef.current = sessionsRef.current.map(session =>
+        session.id === snapshot.item.id ? snapshot.item : session,
+      )
+      setSessions(current =>
+        current.map(session =>
+          session.id === snapshot.item.id ? snapshot.item : session,
+        ),
+      )
+      if (activeSessionIdRef.current === snapshot.item.id) {
+        setSessionStatus(snapshot.item.status)
+        applySessionView(nextView, viewSetters)
+      }
+    },
+    [viewSetters],
+  )
+
+  const hydrateSessionDetails = useCallback(
+    async (targetSessionId: string): Promise<void> => {
+      const target = sessionsRef.current.find(
+        session => session.id === targetSessionId,
+      )
+      const currentView = sessionViewsRef.current[targetSessionId]
+      const hasHydratedContent = Boolean(
+        currentView &&
+          (currentView.messages.length > 0 ||
+            currentView.toolLog.length > 0 ||
+            currentView.events.length > 0),
+      )
+      if (
+        hasHydratedContent ||
+        target?.status === 'running' ||
+        target?.status === 'waiting'
+      ) {
+        return
+      }
+      try {
+        const snapshot = await desktopClient.getSession(targetSessionId)
+        applyHydratedSessionSnapshot(snapshot)
+      } catch (error) {
+        onErrorRef.current(errorMessageOf(error))
+      }
+    },
+    [applyHydratedSessionSnapshot],
+  )
+
   const toggleToolLogEntry = useCallback(
     (entryId: string): void => {
       toggleToolLogEntryInView(viewRefs, updateSessionView, entryId)
@@ -334,6 +397,7 @@ export function useSessionState(
         sessionViewsRef.current[targetSessionId] ?? createEmptySessionView(),
         viewSetters,
       )
+      void hydrateSessionDetails(targetSessionId)
       setInput(inputBySessionRef.current[targetSessionId] ?? '')
       if (targetSession.standalone) {
         return null
@@ -343,7 +407,7 @@ export function useSessionState(
         path: targetSession.workspacePath,
       }
     },
-    [actionContext, viewSetters],
+    [actionContext, hydrateSessionDetails, viewSetters],
   )
 
   const canSubmit = useMemo(
@@ -445,9 +509,12 @@ export function useSessionState(
   )
 
   const selectSession = useCallback(
-    (session: SessionListItem): DesktopWorkspace | null =>
-      selectSessionAction(actionContext, session),
-    [actionContext],
+    (session: SessionListItem): DesktopWorkspace | null => {
+      const workspace = selectSessionAction(actionContext, session)
+      void hydrateSessionDetails(session.id)
+      return workspace
+    },
+    [actionContext, hydrateSessionDetails],
   )
 
   const activeSessionItem = useMemo(

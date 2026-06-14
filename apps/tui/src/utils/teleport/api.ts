@@ -1,7 +1,7 @@
 import axios, { type AxiosRequestConfig, type AxiosResponse } from 'axios'
 import { randomUUID } from 'crypto'
-import { getOauthConfig } from '@claudecode/tui/constants/oauth.js'
-import { getOrganizationUUID } from '@claudecode/tui/services/oauth/client.js'
+import { getOauthConfig } from '@codepilotx/tui/constants/oauth.js'
+import { getOrganizationUUID } from '@codepilotx/tui/services/oauth/client.js'
 import z from 'zod/v4'
 import { getClaudeAIOAuthTokens } from '../auth.js'
 import { logForDebugging } from '../debug.js'
@@ -185,7 +185,7 @@ export async function prepareApiRequest(): Promise<{
   const accessToken = getClaudeAIOAuthTokens()?.accessToken
   if (accessToken === undefined) {
     throw new Error(
-      'Oh-My-AgentCode web sessions require authentication with a Claude.ai account. API key authentication is not sufficient. OAuth login is disabled in this build.',
+      'CodePilotX web sessions require authentication with a Claude.ai account. API key authentication is not sufficient. OAuth login is disabled in this build.',
     )
   }
 

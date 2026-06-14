@@ -9,15 +9,15 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
-} from '@claudecode/tui/services/analytics/index.js'
-import { useAppState } from '@claudecode/tui/state/AppState.js'
+} from '@codepilotx/tui/services/analytics/index.js'
+import { useAppState } from '@codepilotx/tui/state/AppState.js'
 import {
   type DiffStats,
   fileHistoryCanRestore,
   fileHistoryEnabled,
   fileHistoryGetDiffStats,
-} from '@claudecode/tui/utils/fileHistory.js'
-import { logError } from '@claudecode/tui/utils/log.js'
+} from '@codepilotx/tui/utils/fileHistory.js'
+import { logError } from '@codepilotx/tui/utils/log.js'
 import { useExitOnCtrlCDWithKeybindings } from '../hooks/useExitOnCtrlCDWithKeybindings.js'
 import { Box, Text } from '../ink.js'
 import { useKeybinding, useKeybindings } from '../keybindings/useKeybinding.js'
@@ -42,9 +42,9 @@ function isTextBlock(block: ContentBlockParam): block is TextBlockParam {
 }
 
 import * as path from 'path'
-import { useTerminalSize } from '@claudecode/tui/hooks/useTerminalSize.js'
-import type { FileEditOutput } from '@claudecode/tui/tools/FileEditTool/types.js'
-import type { Output as FileWriteToolOutput } from '@claudecode/tui/tools/FileWriteTool/FileWriteTool.js'
+import { useTerminalSize } from '@codepilotx/tui/hooks/useTerminalSize.js'
+import type { FileEditOutput } from '@codepilotx/tui/tools/FileEditTool/types.js'
+import type { Output as FileWriteToolOutput } from '@codepilotx/tui/tools/FileWriteTool/FileWriteTool.js'
 import {
   COMMAND_MESSAGE_TAG,
 } from '../constants/xml.js'

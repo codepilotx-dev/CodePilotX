@@ -8,11 +8,14 @@ const root = resolve(import.meta.dirname, '..')
 const electronPath = require('electron')
 const rendererUrl = 'http://127.0.0.1:5173/'
 const mainEntry = resolve(root, 'dist/desktop/main/index.js')
+const desktopRuntimeEnv =
+  process.env.CODEPILOTX_DESKTOP_RUNTIME ??
+  process.env.CLAUDE_CODE_DESKTOP_RUNTIME
 const runtimeMode =
   process.argv.includes('--subprocess') ||
-  process.env.CLAUDE_CODE_DESKTOP_RUNTIME === 'subprocess'
+  desktopRuntimeEnv === 'subprocess'
     ? 'subprocess'
-    : process.env.CLAUDE_CODE_DESKTOP_RUNTIME
+    : desktopRuntimeEnv
 
 let electronProcess = null
 let restarting = false
@@ -104,8 +107,14 @@ function startElectron() {
     env: {
       ...process.env,
       NODE_ENV: 'development',
+      CODEPILOTX_DESKTOP_RENDERER_URL: rendererUrl,
       CLAUDE_CODE_DESKTOP_RENDERER_URL: rendererUrl,
-      ...(runtimeMode ? { CLAUDE_CODE_DESKTOP_RUNTIME: runtimeMode } : {}),
+      ...(runtimeMode
+        ? {
+            CODEPILOTX_DESKTOP_RUNTIME: runtimeMode,
+            CLAUDE_CODE_DESKTOP_RUNTIME: runtimeMode,
+          }
+        : {}),
     },
   })
 

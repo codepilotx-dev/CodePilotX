@@ -3,10 +3,10 @@ import * as React from 'react'
 import {
   getAllowedChannels,
   getQuestionPreviewFormat,
-} from '@claudecode/tui/bootstrap/state.js'
-import { MessageResponse } from '@claudecode/tui/components/MessageResponse.js'
-import { BLACK_CIRCLE } from '@claudecode/tui/constants/figures.js'
-import { getModeColor } from '@claudecode/tui/utils/permissions/PermissionMode.js'
+} from '@codepilotx/tui/bootstrap/state.js'
+import { MessageResponse } from '@codepilotx/tui/components/MessageResponse.js'
+import { BLACK_CIRCLE } from '@codepilotx/tui/constants/figures.js'
+import { getModeColor } from '@codepilotx/tui/utils/permissions/PermissionMode.js'
 import { z } from 'zod/v4'
 import { Box, Text } from '../../ink.js'
 import type { Tool } from '../../Tool.js'

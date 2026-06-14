@@ -4,7 +4,7 @@ import * as path from 'path'
 import {
   CLAUDE_CONFIG_DIRECTORIES,
   loadMarkdownFilesForSubdir,
-} from '@claudecode/tui/utils/markdownConfigLoader.js'
+} from '@codepilotx/tui/utils/markdownConfigLoader.js'
 import type { SuggestionItem } from '../components/PromptInput/PromptInputFooterSuggestions.js'
 import {
   CHUNK_MS,
@@ -385,8 +385,8 @@ async function getFilesUsingGit(
 /**
  * This function collects all parent directories for each file path
  * and returns a list of unique directory names with a trailing separator.
- * For example, if the input is ['@claudecode/tui/index.js', '@claudecode/tui/utils/helpers.js'],
- * the output will be ['@claudecode/tui/', '@claudecode/tui/utils/'].
+ * For example, if the input is ['@codepilotx/tui/index.js', '@codepilotx/tui/utils/helpers.js'],
+ * the output will be ['@codepilotx/tui/', '@codepilotx/tui/utils/'].
  * @param files An array of file paths
  * @returns An array of unique directory names with a trailing separator
  */

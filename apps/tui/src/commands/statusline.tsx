@@ -4,7 +4,7 @@ import { AGENT_TOOL_NAME } from '../tools/AgentTool/constants.js'
 
 const statusline = {
   type: 'prompt',
-  description: '设置 Oh-My-AgentCode 的状态栏 UI',
+  description: '设置 CodePilotX 的状态栏 UI',
   contentLength: 0, // Dynamic content
   aliases: [],
   name: 'statusline',

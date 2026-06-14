@@ -1,6 +1,6 @@
 import axios from 'axios'
-import { getOauthConfig, OAUTH_BETA_HEADER } from '@claudecode/tui/constants/oauth.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '@claudecode/tui/services/analytics/growthbook.js'
+import { getOauthConfig, OAUTH_BETA_HEADER } from '@codepilotx/tui/constants/oauth.js'
+import { getFeatureValue_CACHED_MAY_BE_STALE } from '@codepilotx/tui/services/analytics/growthbook.js'
 import {
   getIsNonInteractiveSession,
   getKairosActive,

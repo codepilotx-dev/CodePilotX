@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useState } from 'react'
-import { useExitOnCtrlCDWithKeybindings } from '@claudecode/tui/hooks/useExitOnCtrlCDWithKeybindings.js'
+import { useExitOnCtrlCDWithKeybindings } from '@codepilotx/tui/hooks/useExitOnCtrlCDWithKeybindings.js'
 import { Box, Text } from '../ink.js'
 import { useKeybinding } from '../keybindings/useKeybinding.js'
 import { ConfigurableShortcutHint } from './ConfigurableShortcutHint.js'

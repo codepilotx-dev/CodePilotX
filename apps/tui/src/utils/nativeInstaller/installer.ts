@@ -33,7 +33,7 @@ import { basename, delimiter, dirname, join, resolve } from 'path'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
-} from '@claudecode/tui/services/analytics/index.js'
+} from '@codepilotx/tui/services/analytics/index.js'
 import { getMaxVersion, shouldSkipVersion } from '../autoUpdater.js'
 import { registerCleanup } from '../cleanupRegistry.js'
 import { getGlobalConfig, saveGlobalConfig } from '../config.js'
@@ -109,6 +109,10 @@ export function getPlatform(): string {
 }
 
 export function getBinaryName(platform: string): string {
+  return platform.startsWith('win32') ? 'codepilotx.exe' : 'codepilotx'
+}
+
+function getLegacyBinaryName(platform: string): string {
   return platform.startsWith('win32') ? 'claude.exe' : 'claude'
 }
 
@@ -118,13 +122,13 @@ function getBaseDirectories() {
 
   return {
     // Data directories (permanent storage)
-    versions: join(getXDGDataHome(), 'claude', 'versions'),
+    versions: join(getXDGDataHome(), 'codepilotx', 'versions'),
 
     // Cache directories (can be deleted)
-    staging: join(getXDGCacheHome(), 'claude', 'staging'),
+    staging: join(getXDGCacheHome(), 'codepilotx', 'staging'),
 
     // State directories
-    locks: join(getXDGStateHome(), 'claude', 'locks'),
+    locks: join(getXDGStateHome(), 'codepilotx', 'locks'),
 
     // User bin
     executable: join(getUserBinDir(), executableName),
@@ -389,12 +393,23 @@ async function installVersionFromBinary(
   try {
     // For direct binary downloads (GCS, generic bucket), the binary is directly in staging
     const platform = getPlatform()
-    const binaryName = getBinaryName(platform)
-    const stagedBinaryPath = join(stagingPath, binaryName)
+    const binaryNames = [getBinaryName(platform), getLegacyBinaryName(platform)]
+    let stagedBinaryPath = join(stagingPath, binaryNames[0]!)
 
-    try {
-      await stat(stagedBinaryPath)
-    } catch {
+    let stagedBinaryExists = false
+    for (const binaryName of binaryNames) {
+      const candidate = join(stagingPath, binaryName)
+      try {
+        await stat(candidate)
+        stagedBinaryPath = candidate
+        stagedBinaryExists = true
+        break
+      } catch {
+        // Try the next candidate.
+      }
+    }
+
+    if (!stagedBinaryExists) {
       logEvent('tengu_native_install_binary_failure', {
         stage_binary_exists: true,
         error_binary_not_found: true,
@@ -465,7 +480,7 @@ async function performVersionUpdate(
     logForDebugging(`Version ${version} already installed, updating symlink`)
   }
 
-  // Create direct symlink from ~/.local/bin/claude to the version binary
+  // Create direct symlink from ~/.local/bin/codepilotx to the version binary
   await removeDirectoryIfEmpty(executablePath)
   await updateSymlink(executablePath, installPath)
 
@@ -845,7 +860,7 @@ export async function checkInstall(
     })
   }
 
-  // Check if claude executable exists and is valid.
+  // Check if codepilotx executable exists and is valid.
   // On non-Windows, call readlink directly and route errno — ENOENT means
   // the executable is missing, EINVAL means it exists but isn't a symlink.
   // This avoids an access()→readlink() TOCTOU where deletion between the
@@ -856,7 +871,7 @@ export async function checkInstall(
     // On Windows it's a copied executable, not a symlink
     if (!(await isPossibleClaudeBinary(dirs.executable))) {
       messages.push({
-        message: `installMethod is native, but claude command is missing or invalid at ${dirs.executable}`,
+        message: `installMethod is native, but codepilotx command is missing or invalid at ${dirs.executable}`,
         userActionRequired: true,
         type: 'error',
       })
@@ -867,7 +882,7 @@ export async function checkInstall(
       const absoluteTarget = resolve(dirname(dirs.executable), target)
       if (!(await isPossibleClaudeBinary(absoluteTarget))) {
         messages.push({
-          message: `Claude symlink points to missing or invalid binary: ${target}`,
+          message: `CodePilotX symlink points to missing or invalid binary: ${target}`,
           userActionRequired: true,
           type: 'error',
         })
@@ -875,7 +890,7 @@ export async function checkInstall(
     } catch (e) {
       if (isENOENT(e)) {
         messages.push({
-          message: `installMethod is native, but claude command not found at ${dirs.executable}`,
+          message: `installMethod is native, but codepilotx command not found at ${dirs.executable}`,
           userActionRequired: true,
           type: 'error',
         })
@@ -883,7 +898,7 @@ export async function checkInstall(
         // EINVAL (not a symlink) or other — check as regular binary
         if (!(await isPossibleClaudeBinary(dirs.executable))) {
           messages.push({
-            message: `${dirs.executable} exists but is not a valid Claude binary`,
+            message: `${dirs.executable} exists but is not a valid CodePilotX binary`,
             userActionRequired: true,
             type: 'error',
           })
@@ -1195,7 +1210,7 @@ export async function cleanupOldVersions(): Promise<void> {
       const files = await readdir(executableDir)
       let cleanedCount = 0
       for (const file of files) {
-        if (!/^claude\.exe\.old\.\d+$/.test(file)) continue
+        if (!/^codepilotx\.exe\.old\.\d+$/.test(file)) continue
         try {
           await unlink(join(executableDir, file))
           cleanedCount++
@@ -1458,7 +1473,7 @@ async function isNpmSymlink(executablePath: string): Promise<boolean> {
 }
 
 /**
- * Remove the claude symlink from the executable directory
+ * Remove the codepilotx symlink from the executable directory
  * This is used when switching away from native installation
  * Will only remove if it's a native binary symlink, not npm-managed JS files
  */
@@ -1476,12 +1491,12 @@ export async function removeInstalledSymlink(): Promise<void> {
 
     // It's a native binary symlink, safe to remove
     await unlink(dirs.executable)
-    logForDebugging(`Removed claude symlink at ${dirs.executable}`)
+    logForDebugging(`Removed codepilotx symlink at ${dirs.executable}`)
   } catch (error) {
     if (isENOENT(error)) {
       return
     }
-    logError(new Error(`Failed to remove claude symlink: ${error}`))
+    logError(new Error(`Failed to remove codepilotx symlink: ${error}`))
   }
 }
 
@@ -1556,29 +1571,37 @@ async function manualRemoveNpmPackage(
       }
     }
 
+    const binNames =
+      packageName === '@anthropic-ai/claude-code'
+        ? ['claude']
+        : ['codepilotx', 'claude']
+
     if (getPlatform().startsWith('win32')) {
       // Windows - only remove executables, not the package directory
-      const binCmd = join(globalPrefix, 'claude.cmd')
-      const binPs1 = join(globalPrefix, 'claude.ps1')
-      const binExe = join(globalPrefix, 'claude')
+      for (const binName of binNames) {
+        if (await tryRemove(join(globalPrefix, `${binName}.cmd`), 'bin script')) {
+          manuallyRemoved = true
+        }
 
-      if (await tryRemove(binCmd, 'bin script')) {
-        manuallyRemoved = true
-      }
+        if (
+          await tryRemove(
+            join(globalPrefix, `${binName}.ps1`),
+            'PowerShell script',
+          )
+        ) {
+          manuallyRemoved = true
+        }
 
-      if (await tryRemove(binPs1, 'PowerShell script')) {
-        manuallyRemoved = true
-      }
-
-      if (await tryRemove(binExe, 'bin executable')) {
-        manuallyRemoved = true
+        if (await tryRemove(join(globalPrefix, binName), 'bin executable')) {
+          manuallyRemoved = true
+        }
       }
     } else {
       // Unix/Mac - only remove symlink, not the package directory
-      const binSymlink = join(globalPrefix, 'bin', 'claude')
-
-      if (await tryRemove(binSymlink, 'bin symlink')) {
-        manuallyRemoved = true
+      for (const binName of binNames) {
+        if (await tryRemove(join(globalPrefix, 'bin', binName), 'bin symlink')) {
+          manuallyRemoved = true
+        }
       }
     }
 
@@ -1688,19 +1711,24 @@ export async function cleanupNpmInstallations(): Promise<{
     }
   }
 
-  // Check for local installation at ~/.claude/local
-  const localInstallDir = join(homedir(), '.claude', 'local')
+  // Check for local installations in the new CodePilotX path and the legacy path.
+  const localInstallDirs = [
+    join(homedir(), '.codepilotx', 'local'),
+    join(homedir(), '.claude', 'local'),
+  ]
 
-  try {
-    await rm(localInstallDir, { recursive: true })
-    removed++
-    logForDebugging(`Removed local installation at ${localInstallDir}`)
-  } catch (error) {
-    if (!isENOENT(error)) {
-      errors.push(`Failed to remove ${localInstallDir}: ${error}`)
-      logForDebugging(`Failed to remove local installation: ${error}`, {
-        level: 'error',
-      })
+  for (const localInstallDir of localInstallDirs) {
+    try {
+      await rm(localInstallDir, { recursive: true })
+      removed++
+      logForDebugging(`Removed local installation at ${localInstallDir}`)
+    } catch (error) {
+      if (!isENOENT(error)) {
+        errors.push(`Failed to remove ${localInstallDir}: ${error}`)
+        logForDebugging(`Failed to remove local installation: ${error}`, {
+          level: 'error',
+        })
+      }
     }
   }
 

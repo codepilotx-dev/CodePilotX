@@ -1,6 +1,6 @@
 import * as React from 'react'
-import { getOauthProfileFromApiKey } from '@claudecode/tui/services/oauth/getOauthProfile.js'
-import { isClaudeAISubscriber } from '@claudecode/tui/utils/auth.js'
+import { getOauthProfileFromApiKey } from '@codepilotx/tui/services/oauth/getOauthProfile.js'
+import { isClaudeAISubscriber } from '@codepilotx/tui/utils/auth.js'
 import { Text } from '../../ink.js'
 import { logEvent } from '../../services/analytics/index.js'
 import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
@@ -29,7 +29,7 @@ export function useCanSwitchToExistingSubscription(): void {
       key: 'switch-to-subscription',
       jsx: (
         <Text color="suggestion">
-          Use your existing Claude {subscriptionType} plan with Oh-My-AgentCode
+          Use your existing Claude {subscriptionType} plan with CodePilotX
           <Text color="text" dimColor>
             {' '}
             · /login to activate

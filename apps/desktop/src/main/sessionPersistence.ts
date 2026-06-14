@@ -1,9 +1,18 @@
-import { readFile, stat, writeFile, mkdir } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
+import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
+import { basename, dirname, join } from 'node:path'
 import {
   isAgentApprovalMode,
   isAgentPermissionProfile,
-} from '@claudecode/core/agent/permissions.js'
+} from '@codepilotx/core/agent/permissions.js'
+import {
+  getProjectDir,
+  loadAllProjectsMessageLogs,
+  loadFullLog,
+} from '@codepilotx/tui/utils/sessionStorage.js'
+import type {
+  LogOption,
+  SerializedMessage,
+} from '@codepilotx/tui/types/logs.js'
 import type {
   DesktopAgentEvent,
   DesktopContextUsage,
@@ -20,10 +29,7 @@ import type {
 } from '../shared/types.js'
 import { desktopAgentEventToSessionEvent } from '../shared/sessionEventModel.js'
 import { normalizeDesktopPermissionMode } from '../shared/settingsSchema.js'
-import {
-  getDesktopConfigDirectoryPath,
-  getOpenAgentConfigHomeDir,
-} from './desktopSettings.js'
+import { getDesktopConfigDirectoryPath } from './desktopSettings.js'
 import {
   buildDesktopContextUsage,
   getUsageFromAssistantRecord,
@@ -36,60 +42,94 @@ type PersistedDesktopSessions = {
   sessions: DesktopSessionSnapshot[]
 }
 
-type TranscriptEntry = {
-  type?: string
-  uuid?: string
-  timestamp?: string
-  sessionId?: string
-  message?: {
-    role?: string
-    content?: unknown
-    model?: unknown
-  }
+type PersistedDesktopSessionOverlayStore = {
+  activeSessionId: string | null
+  sessions: DesktopSessionOverlay[]
+}
+
+type DesktopSessionOverlay = {
+  id: string
+  workspace: DesktopWorkspace
+  settings: DesktopSessionSettingsSnapshot
+  standalone?: boolean
+  pinnedAt?: string | null
+  archivedAt?: string | null
+  sessionName?: string | null
+  aiTitle?: string | null
+  status?: DesktopSessionStatus
+  createdAt?: string
+  lastMessageAt?: string | null
+  updatedAt?: string
+  legacySnapshot?: DesktopSessionSnapshot
 }
 
 type ParsedTranscriptView = DesktopSessionViewSnapshot & {
   effectiveModel?: string
+  events: DesktopSessionEvent[]
 }
 
 const SESSION_INDEX_FILE_NAME = 'sessions.json'
-const MAX_SANITIZED_LENGTH = 200
+const TRANSCRIPT_ENRICH_LIMIT = Number.MAX_SAFE_INTEGER
 
 export function getDesktopSessionIndexPath(): string {
   return join(getDesktopConfigDirectoryPath(), SESSION_INDEX_FILE_NAME)
 }
 
 export async function loadDesktopSessionStore(): Promise<PersistedDesktopSessions> {
-  let persisted: PersistedDesktopSessions
-  try {
-    const raw = await readFile(getDesktopSessionIndexPath(), 'utf8')
-    persisted = normalizePersistedSessions(JSON.parse(raw))
-  } catch {
-    persisted = { activeSessionId: null, sessions: [] }
+  const persisted = await readDesktopSessionOverlayStore()
+  const overlaysById = new Map(
+    persisted.sessions.map(overlay => [overlay.id, overlay]),
+  )
+  const snapshotsById = new Map<string, DesktopSessionSnapshot>()
+
+  for (const snapshot of await loadTranscriptSessionSnapshots(overlaysById)) {
+    snapshotsById.set(snapshot.item.id, snapshot)
   }
 
-  const sessions = await Promise.all(
-    persisted.sessions.map(snapshot => hydrateSessionFromTranscript(snapshot)),
-  )
-  const visibleSessions = sessions.filter(
-    (snapshot): snapshot is DesktopSessionSnapshot => Boolean(snapshot),
-  )
-  const activeSessionId = visibleSessions.some(
+  for (const overlay of persisted.sessions) {
+    if (!snapshotsById.has(overlay.id)) {
+      snapshotsById.set(overlay.id, snapshotFromOverlay(overlay))
+    }
+  }
+
+  const sessions = [...snapshotsById.values()].sort(compareSnapshotsByRecency)
+  const activeSessionId = sessions.some(
     snapshot => snapshot.item.id === persisted.activeSessionId,
   )
     ? persisted.activeSessionId
-    : visibleSessions[0]?.item.id ?? null
-  return { activeSessionId, sessions: visibleSessions }
+    : sessions.find(snapshot => !snapshot.item.archivedAt)?.item.id ??
+      sessions[0]?.item.id ??
+      null
+
+  return { activeSessionId, sessions }
 }
 
 export async function desktopSessionTranscriptExists(
   snapshot: DesktopSessionSnapshot,
 ): Promise<boolean> {
   try {
-    await stat(getTranscriptPath(snapshot.workspace.path, snapshot.item.id))
+    await stat(transcriptPathForSnapshot(snapshot))
     return true
   } catch {
     return false
+  }
+}
+
+export async function hydrateDesktopSessionSnapshot(
+  snapshot: DesktopSessionSnapshot,
+): Promise<DesktopSessionSnapshot> {
+  const transcriptPath = transcriptPathForSnapshot(snapshot)
+  try {
+    await stat(transcriptPath)
+  } catch {
+    return snapshot
+  }
+
+  try {
+    const log = await loadFullLog(logOptionFromSnapshot(snapshot, transcriptPath))
+    return snapshotFromTranscriptLog(log, overlayFromSnapshot(snapshot), true)
+  } catch {
+    return snapshot
   }
 }
 
@@ -97,8 +137,28 @@ export async function saveDesktopSessionStore(
   state: PersistedDesktopSessions,
 ): Promise<void> {
   const filePath = getDesktopSessionIndexPath()
+  const overlayStore: PersistedDesktopSessionOverlayStore = {
+    activeSessionId: state.activeSessionId,
+    sessions: state.sessions.map(snapshot => {
+      const overlay = overlayFromSnapshot(snapshot)
+      return {
+        id: overlay.id,
+        workspace: overlay.workspace,
+        settings: overlay.settings,
+        standalone: overlay.standalone,
+        pinnedAt: overlay.pinnedAt,
+        archivedAt: overlay.archivedAt,
+        sessionName: overlay.sessionName,
+        aiTitle: overlay.aiTitle,
+        status: overlay.status,
+        createdAt: overlay.createdAt,
+        lastMessageAt: overlay.lastMessageAt,
+        updatedAt: overlay.updatedAt,
+      }
+    }),
+  }
   await mkdir(dirname(filePath), { recursive: true })
-  await writeFile(filePath, JSON.stringify(state, null, 2), 'utf8')
+  await writeFile(filePath, JSON.stringify(overlayStore, null, 2), 'utf8')
 }
 
 export function createDesktopSessionSnapshot(params: {
@@ -109,12 +169,22 @@ export function createDesktopSessionSnapshot(params: {
 }): DesktopSessionSnapshot {
   const now = new Date()
   const lastMessageAt = now.toISOString()
-  const createdAt = new Date().toLocaleTimeString()
+  const createdAt = now.toISOString()
   return {
     item: {
       id: params.sessionId,
       sessionName: params.settings.sessionName ?? null,
       aiTitle: null,
+      customTitle: null,
+      tag: null,
+      summary: null,
+      gitBranch: params.workspace.branchName ?? null,
+      firstPrompt: null,
+      prNumber: null,
+      prUrl: null,
+      prRepository: null,
+      transcriptPath: getTranscriptPath(params.workspace.path, params.sessionId),
+      fileSize: null,
       workspaceName: params.workspace.name,
       workspacePath: params.workspace.path,
       standalone: params.standalone,
@@ -136,7 +206,7 @@ export function createDesktopSessionSnapshot(params: {
     view: createEmptyViewSnapshot(),
     events: [],
     eventModelVersion: 1,
-    updatedAt: new Date().toISOString(),
+    updatedAt: now.toISOString(),
   }
 }
 
@@ -168,7 +238,8 @@ export function applyDesktopAgentEventToSnapshot(
   }
 
   if (event.type === 'message') {
-    const createdAt = normalizeTimestampString(event.createdAt) ?? new Date().toISOString()
+    const createdAt =
+      normalizeTimestampString(event.createdAt) ?? new Date().toISOString()
     next.item.lastMessageAt = createdAt
     next.view.messages = [
       ...next.view.messages.filter(message => !message.streaming),
@@ -300,17 +371,63 @@ export function removePendingPermissionFromSnapshot(
   }
 }
 
-function normalizePersistedSessions(value: unknown): PersistedDesktopSessions {
+async function readDesktopSessionOverlayStore(): Promise<PersistedDesktopSessionOverlayStore> {
+  try {
+    const raw = await readFile(getDesktopSessionIndexPath(), 'utf8')
+    return normalizePersistedOverlayStore(JSON.parse(raw))
+  } catch {
+    return { activeSessionId: null, sessions: [] }
+  }
+}
+
+function normalizePersistedOverlayStore(
+  value: unknown,
+): PersistedDesktopSessionOverlayStore {
   if (!value || typeof value !== 'object') {
     return { activeSessionId: null, sessions: [] }
   }
-  const parsed = value as Partial<PersistedDesktopSessions>
-  const sessions = Array.isArray(parsed.sessions)
-    ? parsed.sessions.flatMap(normalizeSessionSnapshot)
-    : []
-  const activeSessionId =
-    typeof parsed.activeSessionId === 'string' ? parsed.activeSessionId : null
-  return { activeSessionId, sessions }
+  const parsed = value as Partial<{
+    activeSessionId: unknown
+    sessions: unknown
+  }>
+  return {
+    activeSessionId:
+      typeof parsed.activeSessionId === 'string'
+        ? parsed.activeSessionId
+        : null,
+    sessions: Array.isArray(parsed.sessions)
+      ? parsed.sessions.flatMap(normalizeSessionOverlay)
+      : [],
+  }
+}
+
+function normalizeSessionOverlay(value: unknown): DesktopSessionOverlay[] {
+  if (!value || typeof value !== 'object') return []
+  const raw = value as Record<string, unknown>
+  if (raw.item && raw.workspace && raw.settings) {
+    const legacy = normalizeSessionSnapshot(value)[0]
+    return legacy ? [overlayFromSnapshot(legacy, legacy)] : []
+  }
+  if (typeof raw.id !== 'string') return []
+  const workspace = normalizeWorkspace(raw.workspace)
+  if (!workspace) return []
+  const settings = normalizeSettingsSnapshot(raw.settings)
+  return [
+    {
+      id: raw.id,
+      workspace,
+      settings,
+      standalone: raw.standalone === true,
+      pinnedAt: nullableString(raw.pinnedAt),
+      archivedAt: nullableString(raw.archivedAt),
+      sessionName: nullableString(raw.sessionName),
+      aiTitle: nullableString(raw.aiTitle),
+      status: normalizeStatus(raw.status),
+      createdAt: stringOrUndefined(raw.createdAt),
+      lastMessageAt: normalizeTimestampString(raw.lastMessageAt),
+      updatedAt: stringOrUndefined(raw.updatedAt),
+    },
+  ]
 }
 
 function normalizeSessionSnapshot(value: unknown): DesktopSessionSnapshot[] {
@@ -318,8 +435,8 @@ function normalizeSessionSnapshot(value: unknown): DesktopSessionSnapshot[] {
   const snapshot = value as Partial<DesktopSessionSnapshot>
   if (!snapshot.item || !snapshot.workspace || !snapshot.settings) return []
   if (typeof snapshot.item.id !== 'string') return []
-  if (typeof snapshot.workspace.path !== 'string') return []
-  if (typeof snapshot.workspace.name !== 'string') return []
+  const workspace = normalizeWorkspace(snapshot.workspace)
+  if (!workspace) return []
 
   const item = normalizeSessionItem(snapshot.item)
   const view = normalizeViewSnapshot(snapshot.view)
@@ -352,7 +469,7 @@ function normalizeSessionSnapshot(value: unknown): DesktopSessionSnapshot[] {
             ? 'done'
             : item.status,
       },
-      workspace: snapshot.workspace,
+      workspace,
       settings,
       view: {
         ...view,
@@ -369,6 +486,400 @@ function normalizeSessionSnapshot(value: unknown): DesktopSessionSnapshot[] {
   ]
 }
 
+async function loadTranscriptSessionSnapshots(
+  overlaysById: Map<string, DesktopSessionOverlay>,
+): Promise<DesktopSessionSnapshot[]> {
+  let logs: LogOption[]
+  try {
+    logs = await loadAllProjectsMessageLogs(undefined, {
+      initialEnrichCount: TRANSCRIPT_ENRICH_LIMIT,
+    })
+  } catch {
+    logs = []
+  }
+
+  const snapshots: DesktopSessionSnapshot[] = []
+  for (const log of logs) {
+    const snapshot = snapshotFromTranscriptLog(
+      log,
+      log.sessionId ? overlaysById.get(log.sessionId) : undefined,
+      false,
+    )
+    if (snapshot) {
+      snapshots.push(snapshot)
+    }
+  }
+  return snapshots
+}
+
+function snapshotFromTranscriptLog(
+  log: LogOption,
+  overlay: DesktopSessionOverlay | undefined,
+  includeView: boolean,
+): DesktopSessionSnapshot | null {
+  const sessionId = log.sessionId ?? overlay?.id
+  const workspacePath = log.projectPath ?? overlay?.workspace.path
+  if (!sessionId || !workspacePath) return null
+
+  const workspace: DesktopWorkspace = overlay?.workspace ?? {
+    path: workspacePath,
+    name: basename(workspacePath),
+    branchName: log.gitBranch ?? null,
+    isGitRepo: Boolean(log.gitBranch),
+  }
+  const settings = overlay?.settings ?? defaultSettingsSnapshot()
+  const parsed = includeView
+    ? parseTranscriptLogView(sessionId, log.messages)
+    : {
+        ...createEmptyViewSnapshot(),
+        events: [] as DesktopSessionEvent[],
+        effectiveModel: undefined,
+      }
+  const effectiveModel =
+    validModelName(parsed.effectiveModel) ??
+    validModelName(parsed.contextUsage?.model) ??
+    validModelName(settings.model)
+  const createdAt = log.created.toISOString()
+  const lastMessageAt = log.modified.toISOString()
+  const transcriptPath = log.fullPath ?? getTranscriptPath(workspacePath, sessionId)
+  const item: DesktopSessionListItem = {
+    id: sessionId,
+    sessionName: overlay?.sessionName ?? settings.sessionName ?? null,
+    aiTitle: overlay?.aiTitle ?? null,
+    customTitle: log.customTitle ?? null,
+    tag: log.tag ?? null,
+    summary: log.summary ?? null,
+    gitBranch: log.gitBranch ?? workspace.branchName ?? null,
+    firstPrompt: log.firstPrompt || null,
+    prNumber: log.prNumber ?? null,
+    prUrl: log.prUrl ?? null,
+    prRepository: log.prRepository ?? null,
+    transcriptPath,
+    fileSize: log.fileSize ?? null,
+    workspaceName: workspace.name,
+    workspacePath: workspace.path,
+    standalone: overlay?.standalone === true,
+    pinnedAt: overlay?.pinnedAt ?? null,
+    archivedAt: overlay?.archivedAt ?? null,
+    permissionMode: settings.permissionMode,
+    model: effectiveModel ?? null,
+    fallbackModel: settings.fallbackModel ?? null,
+    thinkingMode: settings.thinkingMode,
+    hasSystemPrompt: Boolean(settings.systemPrompt),
+    hasAppendSystemPrompt: Boolean(settings.appendSystemPrompt),
+    additionalDirectoryCount: settings.additionalDirectories.length,
+    status:
+      overlay?.status === 'running' || overlay?.status === 'waiting'
+        ? 'done'
+        : overlay?.status ?? 'done',
+    lastMessageAt,
+    createdAt,
+  }
+  const nextSettings =
+    effectiveModel && effectiveModel !== settings.model
+      ? { ...settings, model: effectiveModel }
+      : settings
+
+  return {
+    item,
+    workspace,
+    settings: nextSettings,
+    view: {
+      messages: parsed.messages,
+      toolLog: parsed.toolLog,
+      pendingPermissions: [],
+      contextUsage: parsed.contextUsage,
+    },
+    events: parsed.events,
+    eventModelVersion: 1,
+    updatedAt: overlay?.updatedAt ?? lastMessageAt,
+  }
+}
+
+function snapshotFromOverlay(overlay: DesktopSessionOverlay): DesktopSessionSnapshot {
+  if (overlay.legacySnapshot) {
+    return {
+      ...overlay.legacySnapshot,
+      item: {
+        ...overlay.legacySnapshot.item,
+        pinnedAt: overlay.pinnedAt ?? overlay.legacySnapshot.item.pinnedAt,
+        archivedAt:
+          overlay.archivedAt ?? overlay.legacySnapshot.item.archivedAt,
+      },
+    }
+  }
+  const settings = overlay.settings
+  const createdAt = overlay.createdAt ?? new Date().toISOString()
+  return {
+    item: {
+      id: overlay.id,
+      sessionName: overlay.sessionName ?? settings.sessionName ?? null,
+      aiTitle: overlay.aiTitle ?? null,
+      customTitle: null,
+      tag: null,
+      summary: null,
+      gitBranch: overlay.workspace.branchName ?? null,
+      firstPrompt: null,
+      prNumber: null,
+      prUrl: null,
+      prRepository: null,
+      transcriptPath: getTranscriptPath(overlay.workspace.path, overlay.id),
+      fileSize: null,
+      workspaceName: overlay.workspace.name,
+      workspacePath: overlay.workspace.path,
+      standalone: overlay.standalone === true,
+      pinnedAt: overlay.pinnedAt ?? null,
+      archivedAt: overlay.archivedAt ?? null,
+      permissionMode: settings.permissionMode,
+      model: settings.model ?? null,
+      fallbackModel: settings.fallbackModel ?? null,
+      thinkingMode: settings.thinkingMode,
+      hasSystemPrompt: Boolean(settings.systemPrompt),
+      hasAppendSystemPrompt: Boolean(settings.appendSystemPrompt),
+      additionalDirectoryCount: settings.additionalDirectories.length,
+      status:
+        overlay.status === 'running' || overlay.status === 'waiting'
+          ? 'done'
+          : overlay.status ?? 'idle',
+      lastMessageAt: overlay.lastMessageAt ?? createdAt,
+      createdAt,
+    },
+    workspace: overlay.workspace,
+    settings,
+    view: createEmptyViewSnapshot(),
+    events: [],
+    eventModelVersion: 1,
+    updatedAt: overlay.updatedAt ?? createdAt,
+  }
+}
+
+function overlayFromSnapshot(
+  snapshot: DesktopSessionSnapshot,
+  legacySnapshot?: DesktopSessionSnapshot,
+): DesktopSessionOverlay {
+  return {
+    id: snapshot.item.id,
+    workspace: snapshot.workspace,
+    settings: snapshot.settings,
+    standalone: snapshot.item.standalone === true,
+    pinnedAt: snapshot.item.pinnedAt ?? null,
+    archivedAt: snapshot.item.archivedAt ?? null,
+    sessionName: snapshot.item.sessionName ?? null,
+    aiTitle: snapshot.item.aiTitle ?? null,
+    status: snapshot.item.status,
+    createdAt: snapshot.item.createdAt,
+    lastMessageAt: snapshot.item.lastMessageAt ?? null,
+    updatedAt: snapshot.updatedAt,
+    legacySnapshot,
+  }
+}
+
+function logOptionFromSnapshot(
+  snapshot: DesktopSessionSnapshot,
+  transcriptPath: string,
+): LogOption {
+  const created = dateFromString(snapshot.item.createdAt)
+  const modified = dateFromString(snapshot.item.lastMessageAt) ?? created
+  return {
+    date: modified.toISOString(),
+    messages: [],
+    fullPath: transcriptPath,
+    value: 0,
+    created,
+    modified,
+    firstPrompt: snapshot.item.firstPrompt ?? '',
+    messageCount: 0,
+    fileSize: snapshot.item.fileSize ?? undefined,
+    isSidechain: false,
+    isLite: true,
+    sessionId: snapshot.item.id,
+    customTitle: snapshot.item.customTitle ?? undefined,
+    tag: snapshot.item.tag ?? undefined,
+    summary: snapshot.item.summary ?? undefined,
+    gitBranch: snapshot.item.gitBranch ?? undefined,
+    projectPath: snapshot.workspace.path,
+    prNumber: snapshot.item.prNumber ?? undefined,
+    prUrl: snapshot.item.prUrl ?? undefined,
+    prRepository: snapshot.item.prRepository ?? undefined,
+  }
+}
+
+function parseTranscriptLogView(
+  sessionId: string,
+  messages: SerializedMessage[],
+): ParsedTranscriptView {
+  const viewMessages: DesktopSessionMessage[] = []
+  const toolLog: DesktopToolLogEntry[] = []
+  const events: DesktopSessionEvent[] = []
+  const toolNamesById = new Map<string, string>()
+  let contextUsage: DesktopContextUsage | null = null
+  let effectiveModel: string | undefined
+
+  for (const message of messages) {
+    const record = message as unknown as Record<string, unknown>
+    const timestamp = normalizeTimestampString(record.timestamp) ?? undefined
+    const messageRecord = record.message as
+      | { role?: unknown; content?: unknown; model?: unknown }
+      | undefined
+    const content = messageRecord?.content
+
+    if (message.type === 'user') {
+      const text = extractTextContent(content)
+      if (text) {
+        addMessage(sessionId, viewMessages, events, {
+          id: typeof record.uuid === 'string' ? record.uuid : randomId(),
+          role: 'user',
+          text,
+          createdAt: timestamp ?? new Date().toISOString(),
+        })
+      }
+      collectToolResults(sessionId, content, toolLog, events, toolNamesById, timestamp)
+      continue
+    }
+
+    if (message.type === 'assistant') {
+      const usageRecord = getUsageFromAssistantRecord(record)
+      if (usageRecord) {
+        const usage = buildDesktopContextUsage({
+          ...usageRecord,
+          provider: inferProviderFromModel(usageRecord.model) ?? null,
+        })
+        contextUsage = usage ?? contextUsage
+        effectiveModel = validModelName(usageRecord.model) ?? effectiveModel
+      } else {
+        effectiveModel = validModelName(messageRecord?.model) ?? effectiveModel
+      }
+      const text = extractTextContent(content)
+      if (text) {
+        addMessage(sessionId, viewMessages, events, {
+          id: typeof record.uuid === 'string' ? record.uuid : randomId(),
+          role: 'assistant',
+          text,
+          createdAt: timestamp ?? new Date().toISOString(),
+        })
+      }
+      collectToolUses(sessionId, content, toolLog, events, toolNamesById, timestamp)
+      continue
+    }
+
+    if (message.type === 'system') {
+      const text = extractTextContent(content)
+      if (text) {
+        addMessage(sessionId, viewMessages, events, {
+          id: typeof record.uuid === 'string' ? record.uuid : randomId(),
+          role: 'system',
+          text,
+          createdAt: timestamp ?? new Date().toISOString(),
+        })
+      }
+    }
+  }
+
+  return {
+    messages: viewMessages,
+    toolLog: toolLog.reverse(),
+    pendingPermissions: [],
+    contextUsage,
+    effectiveModel,
+    events,
+  }
+}
+
+function addMessage(
+  sessionId: string,
+  messages: DesktopSessionMessage[],
+  events: DesktopSessionEvent[],
+  message: DesktopSessionMessage,
+): void {
+  messages.push(message)
+  events.push({
+    id: randomId(),
+    sessionId,
+    type: 'message',
+    role: message.role,
+    content: message.text,
+    createdAt: message.createdAt,
+  })
+}
+
+function collectToolUses(
+  sessionId: string,
+  content: unknown,
+  toolLog: DesktopToolLogEntry[],
+  events: DesktopSessionEvent[],
+  toolNamesById: Map<string, string>,
+  timestamp: string | undefined,
+): void {
+  if (!Array.isArray(content)) return
+  for (const block of content) {
+    if (!block || typeof block !== 'object') continue
+    const item = block as Record<string, unknown>
+    if (item.type !== 'tool_use') continue
+    const toolName = typeof item.name === 'string' ? item.name : 'Tool'
+    if (typeof item.id === 'string') {
+      toolNamesById.set(item.id, toolName)
+    }
+    const summary = summarizeToolInput(toolName, item.input)
+    const createdAt = timestamp ?? new Date().toISOString()
+    toolLog.push(
+      createToolLogEntry({
+        toolName,
+        summary,
+        kind: 'start',
+        timestamp,
+      }),
+    )
+    events.push({
+      id: randomId(),
+      sessionId,
+      type: 'tool_call',
+      content: summary,
+      createdAt,
+      metadata: { toolName },
+    })
+  }
+}
+
+function collectToolResults(
+  sessionId: string,
+  content: unknown,
+  toolLog: DesktopToolLogEntry[],
+  events: DesktopSessionEvent[],
+  toolNamesById: Map<string, string>,
+  timestamp: string | undefined,
+): void {
+  if (!Array.isArray(content)) return
+  for (const block of content) {
+    if (!block || typeof block !== 'object') continue
+    const item = block as Record<string, unknown>
+    if (item.type !== 'tool_result') continue
+    const toolName =
+      typeof item.tool_use_id === 'string'
+        ? toolNamesById.get(item.tool_use_id) ?? 'Tool'
+        : 'Tool'
+    const summary = summarizeToolInput(toolName, item.content)
+    const isError = item.is_error === true
+    const createdAt = timestamp ?? new Date().toISOString()
+    toolLog.push(
+      createToolLogEntry({
+        toolName,
+        summary,
+        kind: 'result',
+        isError,
+        timestamp,
+      }),
+    )
+    events.push({
+      id: randomId(),
+      sessionId,
+      type: 'tool_result',
+      content: summary,
+      createdAt,
+      metadata: { toolName, isError },
+    })
+  }
+}
+
 function normalizeSessionItem(
   item: Partial<DesktopSessionListItem>,
 ): DesktopSessionListItem {
@@ -377,13 +888,23 @@ function normalizeSessionItem(
     sessionName:
       typeof item.sessionName === 'string' ? item.sessionName : null,
     aiTitle: typeof item.aiTitle === 'string' ? item.aiTitle : null,
+    customTitle: nullableString(item.customTitle),
+    tag: nullableString(item.tag),
+    summary: nullableString(item.summary),
+    gitBranch: nullableString(item.gitBranch),
+    firstPrompt: nullableString(item.firstPrompt),
+    prNumber: typeof item.prNumber === 'number' ? item.prNumber : null,
+    prUrl: nullableString(item.prUrl),
+    prRepository: nullableString(item.prRepository),
+    transcriptPath: nullableString(item.transcriptPath),
+    fileSize: typeof item.fileSize === 'number' ? item.fileSize : null,
     workspaceName:
       typeof item.workspaceName === 'string' ? item.workspaceName : '',
     workspacePath:
       typeof item.workspacePath === 'string' ? item.workspacePath : '',
     standalone: item.standalone === true,
-    pinnedAt: typeof item.pinnedAt === 'string' ? item.pinnedAt : null,
-    archivedAt: typeof item.archivedAt === 'string' ? item.archivedAt : null,
+    pinnedAt: nullableString(item.pinnedAt),
+    archivedAt: nullableString(item.archivedAt),
     permissionMode: normalizeDesktopPermissionMode(item.permissionMode),
     model: typeof item.model === 'string' ? item.model : null,
     fallbackModel:
@@ -406,9 +927,36 @@ function normalizeSessionItem(
   }
 }
 
+function normalizeWorkspace(value: unknown): DesktopWorkspace | null {
+  if (!value || typeof value !== 'object') return null
+  const workspace = value as Partial<DesktopWorkspace>
+  if (typeof workspace.path !== 'string') return null
+  if (typeof workspace.name !== 'string') return null
+  return {
+    name: workspace.name,
+    path: workspace.path,
+    branchName:
+      typeof workspace.branchName === 'string' ? workspace.branchName : null,
+    branches: Array.isArray(workspace.branches)
+      ? workspace.branches.filter(
+          (branch): branch is string => typeof branch === 'string',
+        )
+      : undefined,
+    isGitRepo:
+      typeof workspace.isGitRepo === 'boolean'
+        ? workspace.isGitRepo
+        : undefined,
+    isStandalone: workspace.isStandalone === true,
+  }
+}
+
 function normalizeSettingsSnapshot(
-  settings: Partial<DesktopSessionSettingsSnapshot>,
+  value: unknown,
 ): DesktopSessionSettingsSnapshot {
+  const settings =
+    value && typeof value === 'object'
+      ? (value as Partial<DesktopSessionSettingsSnapshot>)
+      : {}
   return {
     permissionMode: normalizeDesktopPermissionMode(settings.permissionMode),
     model: stringOrUndefined(settings.model),
@@ -427,6 +975,14 @@ function normalizeSettingsSnapshot(
           (directory): directory is string => typeof directory === 'string',
         )
       : [],
+  }
+}
+
+function defaultSettingsSnapshot(): DesktopSessionSettingsSnapshot {
+  return {
+    permissionMode: 'default',
+    thinkingMode: 'default',
+    additionalDirectories: [],
   }
 }
 
@@ -478,7 +1034,11 @@ function normalizeContextUsage(value: unknown): DesktopContextUsage | null {
 function normalizeMessage(value: unknown): DesktopSessionMessage[] {
   if (!value || typeof value !== 'object') return []
   const message = value as Partial<DesktopSessionMessage>
-  if (message.role !== 'user' && message.role !== 'assistant' && message.role !== 'system') {
+  if (
+    message.role !== 'user' &&
+    message.role !== 'assistant' &&
+    message.role !== 'system'
+  ) {
     return []
   }
   if (typeof message.text !== 'string') return []
@@ -593,203 +1153,6 @@ function normalizePermissionRequest(value: unknown): DesktopPermissionRequest[] 
   ]
 }
 
-async function hydrateSessionFromTranscript(
-  snapshot: DesktopSessionSnapshot,
-): Promise<DesktopSessionSnapshot | null> {
-  const transcriptPath = getTranscriptPath(snapshot.workspace.path, snapshot.item.id)
-  try {
-    await stat(transcriptPath)
-  } catch {
-    return snapshot
-  }
-
-  try {
-    const raw = await readFile(transcriptPath, 'utf8')
-    const view = parseTranscriptView(raw)
-    if (view.messages.length === 0 && view.toolLog.length === 0) {
-      return snapshot
-    }
-    const effectiveModel =
-      validModelName(view.contextUsage?.model) ??
-      validModelName(view.effectiveModel) ??
-      validModelName(snapshot.item.model) ??
-      validModelName(snapshot.settings.model)
-    const nextSettings = effectiveModel
-      ? { ...snapshot.settings, model: effectiveModel }
-      : snapshot.settings
-    return {
-      ...snapshot,
-      item: {
-        ...snapshot.item,
-        model: effectiveModel ?? snapshot.item.model,
-        lastMessageAt:
-          latestMessageTimestamp(view.messages) ?? snapshot.item.lastMessageAt,
-        status:
-          snapshot.item.status === 'running' || snapshot.item.status === 'waiting'
-            ? 'done'
-            : snapshot.item.status,
-      },
-      settings: nextSettings,
-      view: {
-        ...view,
-        pendingPermissions: [],
-      },
-    }
-  } catch {
-    return snapshot
-  }
-}
-
-function parseTranscriptView(raw: string): ParsedTranscriptView {
-  const messages: DesktopSessionMessage[] = []
-  const toolLog: DesktopToolLogEntry[] = []
-  const toolNamesById = new Map<string, string>()
-  let contextUsage: DesktopContextUsage | null = null
-  let effectiveModel: string | undefined
-
-  for (const line of raw.split(/\r?\n/)) {
-    if (!line.trim()) continue
-    let entry: TranscriptEntry
-    try {
-      entry = JSON.parse(line) as TranscriptEntry
-    } catch {
-      continue
-    }
-
-    if (entry.type === 'user') {
-      const content = entry.message?.content
-      const userText = extractTextContent(content)
-      if (userText) {
-        messages.push({
-          id: entry.uuid ?? randomId(),
-          role: 'user',
-          text: userText,
-          createdAt:
-            normalizeTimestampString(entry.timestamp) ??
-            new Date().toISOString(),
-        })
-      }
-      collectToolResults(content, toolLog, toolNamesById, entry.timestamp)
-      continue
-    }
-
-    if (entry.type === 'assistant') {
-      const usageRecord = getUsageFromAssistantRecord(
-        entry as unknown as Record<string, unknown>,
-      )
-      if (usageRecord) {
-        const usage = buildDesktopContextUsage({
-          ...usageRecord,
-          provider: inferProviderFromModel(usageRecord.model) ?? null,
-        })
-        contextUsage = usage ?? contextUsage
-        effectiveModel = validModelName(usageRecord.model) ?? effectiveModel
-      } else {
-        effectiveModel = extractAssistantModel(entry) ?? effectiveModel
-      }
-      const content = entry.message?.content
-      const assistantText = extractTextContent(content)
-      if (assistantText) {
-        messages.push({
-          id: entry.uuid ?? randomId(),
-          role: 'assistant',
-          text: assistantText,
-          createdAt:
-            normalizeTimestampString(entry.timestamp) ??
-            new Date().toISOString(),
-        })
-      }
-      collectToolUses(content, toolLog, toolNamesById, entry.timestamp)
-      continue
-    }
-
-    if (entry.type === 'system') {
-      const text = extractTextContent(entry.message?.content)
-      if (text) {
-        messages.push({
-          id: entry.uuid ?? randomId(),
-          role: 'system',
-          text,
-          createdAt:
-            normalizeTimestampString(entry.timestamp) ??
-            new Date().toISOString(),
-        })
-      }
-    }
-  }
-
-  return {
-    messages,
-    toolLog: toolLog.reverse(),
-    pendingPermissions: [],
-    contextUsage,
-    effectiveModel,
-  }
-}
-
-function extractAssistantModel(entry: TranscriptEntry): string | undefined {
-  return validModelName(entry.message?.model)
-}
-
-function validModelName(value: unknown): string | undefined {
-  if (typeof value !== 'string') return undefined
-  const trimmed = value.trim()
-  return trimmed && trimmed !== 'unknown' ? trimmed : undefined
-}
-
-function collectToolUses(
-  content: unknown,
-  toolLog: DesktopToolLogEntry[],
-  toolNamesById: Map<string, string>,
-  timestamp: string | undefined,
-): void {
-  if (!Array.isArray(content)) return
-  for (const block of content) {
-    if (!block || typeof block !== 'object') continue
-    const item = block as Record<string, unknown>
-    if (item.type !== 'tool_use') continue
-    const toolName = typeof item.name === 'string' ? item.name : 'Tool'
-    if (typeof item.id === 'string') {
-      toolNamesById.set(item.id, toolName)
-    }
-    toolLog.push(
-      createToolLogEntry({
-        toolName,
-        summary: summarizeToolInput(toolName, item.input),
-        kind: 'start',
-        timestamp,
-      }),
-    )
-  }
-}
-
-function collectToolResults(
-  content: unknown,
-  toolLog: DesktopToolLogEntry[],
-  toolNamesById: Map<string, string>,
-  timestamp: string | undefined,
-): void {
-  if (!Array.isArray(content)) return
-  for (const block of content) {
-    if (!block || typeof block !== 'object') continue
-    const item = block as Record<string, unknown>
-    if (item.type !== 'tool_result') continue
-    const toolName =
-      typeof item.tool_use_id === 'string'
-        ? toolNamesById.get(item.tool_use_id) ?? 'Tool'
-        : 'Tool'
-    toolLog.push(
-      createToolLogEntry({
-        toolName,
-        summary: summarizeToolInput(toolName, item.content),
-        kind: 'result',
-        isError: item.is_error === true,
-        timestamp,
-      }),
-    )
-  }
-}
-
 function extractTextContent(content: unknown): string {
   if (typeof content === 'string') return content.trim()
   if (!Array.isArray(content)) return ''
@@ -837,38 +1200,25 @@ function createToolLogEntry(params: {
   }
 }
 
-function getTranscriptPath(workspacePath: string, sessionId: string): string {
-  return join(
-    getOpenAgentConfigHomeDir(),
-    'projects',
-    sanitizePath(workspacePath),
-    `${sessionId}.jsonl`,
+function transcriptPathForSnapshot(snapshot: DesktopSessionSnapshot): string {
+  return (
+    snapshot.item.transcriptPath ??
+    getTranscriptPath(snapshot.workspace.path, snapshot.item.id)
   )
 }
 
-function sanitizePath(name: string): string {
-  const sanitized = name.replace(/[^a-zA-Z0-9]/g, '-')
-  if (sanitized.length <= MAX_SANITIZED_LENGTH) {
-    return sanitized
-  }
-  return `${sanitized.slice(0, MAX_SANITIZED_LENGTH)}-${simpleHash(name)}`
+function getTranscriptPath(workspacePath: string, sessionId: string): string {
+  return join(getProjectDir(workspacePath), `${sessionId}.jsonl`)
 }
 
-function simpleHash(input: string): string {
-  let hash = 0
-  for (let i = 0; i < input.length; i++) {
-    hash = (hash * 31 + input.charCodeAt(i)) | 0
-  }
-  return Math.abs(hash).toString(36)
-}
-
-function normalizeStatus(status: unknown): DesktopSessionStatus {
-  return status === 'running' ||
-    status === 'waiting' ||
-    status === 'done' ||
-    status === 'error'
-    ? status
-    : 'idle'
+function compareSnapshotsByRecency(
+  left: DesktopSessionSnapshot,
+  right: DesktopSessionSnapshot,
+): number {
+  return (
+    timestampMs(right.item.lastMessageAt ?? right.updatedAt) -
+    timestampMs(left.item.lastMessageAt ?? left.updatedAt)
+  )
 }
 
 function formatTimestamp(timestamp: string | undefined): string {
@@ -885,13 +1235,46 @@ function normalizeTimestampString(value: unknown): string | null {
   return Number.isNaN(date.getTime()) ? null : date.toISOString()
 }
 
-function latestMessageTimestamp(messages: DesktopSessionMessage[]): string | null {
+function latestMessageTimestamp(
+  messages: DesktopSessionMessage[],
+): string | null {
   const latest = messages.at(-1)?.createdAt
   return normalizeTimestampString(latest)
 }
 
+function dateFromString(value: unknown): Date {
+  if (typeof value === 'string') {
+    const date = new Date(value)
+    if (!Number.isNaN(date.getTime())) return date
+  }
+  return new Date()
+}
+
+function timestampMs(value: unknown): number {
+  return dateFromString(value).getTime()
+}
+
+function normalizeStatus(status: unknown): DesktopSessionStatus {
+  return status === 'running' ||
+    status === 'waiting' ||
+    status === 'done' ||
+    status === 'error'
+    ? status
+    : 'idle'
+}
+
+function nullableString(value: unknown): string | null {
+  return typeof value === 'string' ? value : null
+}
+
 function stringOrUndefined(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value : undefined
+}
+
+function validModelName(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined
+  const trimmed = value.trim()
+  return trimmed && trimmed !== 'unknown' ? trimmed : undefined
 }
 
 function randomId(): string {

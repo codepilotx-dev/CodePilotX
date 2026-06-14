@@ -1,9 +1,9 @@
 import * as React from 'react'
-import { Box, Text } from '@claudecode/tui/ink.js'
+import { Box, Text } from '@codepilotx/tui/ink.js'
 import {
   type NetworkHostPattern,
   shouldAllowManagedSandboxDomainsOnly,
-} from '@claudecode/tui/utils/sandbox/sandbox-adapter.js'
+} from '@codepilotx/tui/utils/sandbox/sandbox-adapter.js'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,

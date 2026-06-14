@@ -63,7 +63,7 @@ export const PermissionsSchema = lazySchema(() =>
             : EXTERNAL_PERMISSION_MODES,
         )
         .optional()
-        .describe('Default permission mode when Oh-My-AgentCode needs access'),
+        .describe('Default permission mode when CodePilotX needs access'),
       disableBypassPermissionsMode: z
         .enum(['disable'])
         .optional()
@@ -258,7 +258,7 @@ export const SettingsSchema = lazySchema(() =>
       $schema: z
         .literal(CLAUDE_CODE_SETTINGS_SCHEMA_URL)
         .optional()
-        .describe('JSON Schema reference for Oh-My-AgentCode settings'),
+        .describe('JSON Schema reference for CodePilotX settings'),
       apiKeyHelper: z
         .string()
         .optional()
@@ -291,7 +291,7 @@ export const SettingsSchema = lazySchema(() =>
                   .describe('IdP issuer URL for OIDC discovery'),
                 clientId: z
                   .string()
-                  .describe("Oh-My-AgentCode's client_id registered at the IdP"),
+                  .describe("CodePilotX's client_id registered at the IdP"),
                 callbackPort: z
                   .number()
                   .int()
@@ -332,7 +332,7 @@ export const SettingsSchema = lazySchema(() =>
         ),
       env: EnvironmentVariablesSchema()
         .optional()
-        .describe('Environment variables to set for Oh-My-AgentCode sessions'),
+        .describe('Environment variables to set for CodePilotX sessions'),
       // Attribution for commits and PRs
       attribution: z
         .object({
@@ -354,7 +354,7 @@ export const SettingsSchema = lazySchema(() =>
         .optional()
         .describe(
           'Customize attribution text for commits and PRs. ' +
-            'Each field defaults to the standard Oh-My-AgentCode attribution if not set.',
+            'Each field defaults to the standard CodePilotX attribution if not set.',
         ),
       includeCoAuthoredBy: z
         .boolean()
@@ -375,12 +375,12 @@ export const SettingsSchema = lazySchema(() =>
       model: z
         .string()
         .optional()
-        .describe('Override the default model used by Oh-My-AgentCode'),
+        .describe('Override the default model used by CodePilotX'),
       provider: z
         .string()
         .min(1)
         .optional()
-        .describe('Model provider used by Oh-My-AgentCode'),
+        .describe('Model provider used by CodePilotX'),
       providerBaseURL: z
         .string()
         .url()
@@ -1050,7 +1050,7 @@ export const SettingsSchema = lazySchema(() =>
                 'Default working directory on the remote host. ' +
                   'Supports tilde expansion (e.g. ~/projects). ' +
                   'If not specified, defaults to the remote user home directory. ' +
-                  'Can be overridden by the [dir] positional argument in `claude ssh <config> [dir]`.',
+                  'Can be overridden by the [dir] positional argument in `codepilotx ssh <config> [dir]`.',
               ),
           }),
         )

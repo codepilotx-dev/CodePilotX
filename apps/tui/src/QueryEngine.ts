@@ -5,7 +5,7 @@ import last from 'lodash-es/last.js'
 import {
   getSessionId,
   isSessionPersistenceDisabled,
-} from '@claudecode/tui/bootstrap/state.js'
+} from '@codepilotx/tui/bootstrap/state.js'
 import type {
   PermissionMode,
   SDKCompactBoundaryMessage,
@@ -13,10 +13,10 @@ import type {
   SDKPermissionDenial,
   SDKStatus,
   SDKUserMessageReplay,
-} from '@claudecode/tui/entrypoints/agentSdkTypes.js'
-import { accumulateUsage, updateUsage } from '@claudecode/tui/services/api/claude.js'
-import type { NonNullableUsage } from '@claudecode/tui/services/api/logging.js'
-import { EMPTY_USAGE } from '@claudecode/tui/services/api/logging.js'
+} from '@codepilotx/tui/entrypoints/agentSdkTypes.js'
+import { accumulateUsage, updateUsage } from '@codepilotx/tui/services/api/claude.js'
+import type { NonNullableUsage } from '@codepilotx/tui/services/api/logging.js'
+import { EMPTY_USAGE } from '@codepilotx/tui/services/api/logging.js'
 import stripAnsi from 'strip-ansi'
 import type { Command } from './commands.js'
 import { getSlashCommandToolSkills } from './commands.js'

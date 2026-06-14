@@ -8,11 +8,11 @@ import React, {
   useMemo,
   useState,
 } from 'react'
-import { KeybindingWarnings } from '@claudecode/tui/components/KeybindingWarnings.js'
-import { McpParsingWarnings } from '@claudecode/tui/components/mcp/McpParsingWarnings.js'
-import { getModelMaxOutputTokens } from '@claudecode/tui/utils/context.js'
-import { getClaudeConfigHomeDir } from '@claudecode/tui/utils/envUtils.js'
-import type { SettingSource } from '@claudecode/tui/utils/settings/constants.js'
+import { KeybindingWarnings } from '@codepilotx/tui/components/KeybindingWarnings.js'
+import { McpParsingWarnings } from '@codepilotx/tui/components/mcp/McpParsingWarnings.js'
+import { getModelMaxOutputTokens } from '@codepilotx/tui/utils/context.js'
+import { getClaudeConfigHomeDir } from '@codepilotx/tui/utils/envUtils.js'
+import type { SettingSource } from '@codepilotx/tui/utils/settings/constants.js'
 import { getOriginalCwd } from '../bootstrap/state.js'
 import type { CommandResultDisplay } from '../commands.js'
 import { Pane } from '../components/design-system/Pane.js'
@@ -229,7 +229,7 @@ export function Doctor({ onDone }: Props): React.ReactNode {
   }, [toolPermissionContext, tools, agentDefinitions])
 
   const handleDismiss = useCallback(() => {
-    onDone('Oh-My-AgentCode diagnostics dismissed', { display: 'system' })
+    onDone('CodePilotX diagnostics dismissed', { display: 'system' })
   }, [onDone])
 
   // Handle dismiss via keybindings (Enter, Escape, or Ctrl+C)

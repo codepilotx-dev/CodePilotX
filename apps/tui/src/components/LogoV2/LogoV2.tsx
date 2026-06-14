@@ -23,14 +23,14 @@ import {
   createProjectOnboardingFeed,
   createGuestPassesFeed,
 } from './feedConfigs.js'
-import { getGlobalConfig, saveGlobalConfig } from '@claudecode/tui/utils/config.js'
-import { resolveThemeSetting } from '@claudecode/tui/utils/systemTheme.js'
-import { getInitialSettings } from '@claudecode/tui/utils/settings/settings.js'
+import { getGlobalConfig, saveGlobalConfig } from '@codepilotx/tui/utils/config.js'
+import { resolveThemeSetting } from '@codepilotx/tui/utils/systemTheme.js'
+import { getInitialSettings } from '@codepilotx/tui/utils/settings/settings.js'
 import {
   isDebugMode,
   isDebugToStdErr,
   getDebugLogPath,
-} from '@claudecode/tui/utils/debug.js'
+} from '@codepilotx/tui/utils/debug.js'
 import { useEffect, useState } from 'react'
 import {
   getSteps,
@@ -40,12 +40,12 @@ import {
 import { CondensedLogo } from './CondensedLogo.js'
 import { OffscreenFreeze } from '../OffscreenFreeze.js'
 import { checkForReleaseNotesSync } from '../../utils/releaseNotes.js'
-import { getDumpPromptsPath } from '@claudecode/tui/services/api/dumpPrompts.js'
-import { isEnvTruthy } from '@claudecode/tui/utils/envUtils.js'
+import { getDumpPromptsPath } from '@codepilotx/tui/services/api/dumpPrompts.js'
+import { isEnvTruthy } from '@codepilotx/tui/utils/envUtils.js'
 import {
   getStartupPerfLogPath,
   isDetailedProfilingEnabled,
-} from '@claudecode/tui/utils/startupProfiler.js'
+} from '@codepilotx/tui/utils/startupProfiler.js'
 import { EmergencyTip } from './EmergencyTip.js'
 import { VoiceModeNotice } from './VoiceModeNotice.js'
 import { Opus1mMergeNotice } from './Opus1mMergeNotice.js'
@@ -62,7 +62,7 @@ const ChannelsNoticeModule =
     ? (require('./ChannelsNotice.js') as typeof import('./ChannelsNotice.js'))
     : null
 /* eslint-enable @typescript-eslint/no-require-imports */
-import { SandboxManager } from '@claudecode/tui/utils/sandbox/sandbox-adapter.js'
+import { SandboxManager } from '@codepilotx/tui/utils/sandbox/sandbox-adapter.js'
 import {
   useShowGuestPassesUpsell,
   incrementGuestPassesSeenCount,
@@ -250,8 +250,8 @@ export function LogoV2(): React.ReactNode {
   const layoutMode = getLayoutMode(columns)
 
   const userTheme = resolveThemeSetting(getGlobalConfig().theme)
-  const borderTitle = ` ${color('claude', userTheme)('Oh-My-AgentCode')} ${color('inactive', userTheme)(`v${version}`)} `
-  const compactBorderTitle = color('claude', userTheme)(' Oh-My-AgentCode ')
+  const borderTitle = ` ${color('claude', userTheme)('CodePilotX')} ${color('inactive', userTheme)(`v${version}`)} `
+  const compactBorderTitle = color('claude', userTheme)(' CodePilotX ')
 
   // Early return for compact mode
   if (layoutMode === 'compact') {

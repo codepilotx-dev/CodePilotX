@@ -14,7 +14,7 @@ terminate the desktop app instead of only ending an agent turn.
 
 ## Fix
 
-Restored the desktop message runtime to spawn `dist/desktop-agent/claude-local.exe`
+Restored the desktop message runtime to spawn `dist/desktop-agent/codepilotx-local.exe`
 as an isolated subprocess when an agent executable path is available. The
 in-process runtime remains as a fallback, but normal desktop dev/build sessions
 now pass `agentExecutablePath` and report `runtimeKind: 'subprocess'`.
@@ -30,7 +30,7 @@ Touched files:
 
 - `bun run desktop:build` passed.
 - `bun run typecheck` passed.
-- Direct runtime smoke using `dist/desktop-agent/claude-local.exe` returned a
+- Direct runtime smoke using `dist/desktop-agent/codepilotx-local.exe` returned a
   captured subprocess error (`Desktop agent process exited with code 1`) instead
   of killing the parent process. The subprocess error was expected in the smoke
   environment because OAuth login is disabled/not configured there.

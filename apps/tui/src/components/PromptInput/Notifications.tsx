@@ -4,9 +4,9 @@ import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import {
   type Notification,
   useNotifications,
-} from '@claudecode/tui/context/notifications.js'
-import { logEvent } from '@claudecode/tui/services/analytics/index.js'
-import { useAppState } from '@claudecode/tui/state/AppState.js'
+} from '@codepilotx/tui/context/notifications.js'
+import { logEvent } from '@codepilotx/tui/services/analytics/index.js'
+import { useAppState } from '@codepilotx/tui/state/AppState.js'
 import { useVoiceState } from '../../context/voice.js'
 import type { VerificationStatus } from '../../hooks/useApiKeyVerification.js'
 import { useIdeConnectionStatus } from '../../hooks/useIdeConnectionStatus.js'

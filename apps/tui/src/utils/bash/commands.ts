@@ -436,9 +436,9 @@ export function isHelpCommand(command: string): boolean {
 }
 
 const BASH_POLICY_SPEC = `<policy_spec>
-# Oh-My-AgentCode Code Bash command prefix detection
+# CodePilotX Code Bash command prefix detection
 
-This document defines risk levels for actions that the Oh-My-AgentCode agent may take. This classification system is part of a broader safety framework and is used to determine when additional user confirmation or oversight may be needed.
+This document defines risk levels for actions that the CodePilotX agent may take. This classification system is part of a broader safety framework and is used to determine when additional user confirmation or oversight may be needed.
 
 ## Definitions
 

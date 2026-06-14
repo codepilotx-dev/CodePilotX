@@ -1,4 +1,4 @@
-import { getLocalMonthYear } from '@claudecode/tui/constants/common.js'
+import { getLocalMonthYear } from '@codepilotx/tui/constants/common.js'
 
 export const WEB_SEARCH_TOOL_NAME = 'WebSearch'
 

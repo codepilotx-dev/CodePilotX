@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
-} from '@claudecode/tui/services/analytics/index.js'
+} from '@codepilotx/tui/services/analytics/index.js'
 import { Box, Link, Text, useInput } from '../../ink.js'
 import {
   type AccountSettings,

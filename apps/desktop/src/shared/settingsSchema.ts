@@ -3,8 +3,8 @@ import {
   isDesktopAgentPermissionMode,
   normalizeDesktopAgentPermissionMode,
   permissionPolicyForDesktopMode,
-} from '@claudecode/core/agent/permissions.js'
-import type { AgentPermissionPolicy } from '@claudecode/core/agent/permissions.js'
+} from '@codepilotx/core/agent/permissions.js'
+import type { AgentPermissionPolicy } from '@codepilotx/core/agent/permissions.js'
 import type {
   DesktopDrawerTab,
   DesktopPermissionMode,

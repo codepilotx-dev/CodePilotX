@@ -2,8 +2,8 @@ import { feature } from 'bun:bundle'
 import {
   getSystemPrompt,
   SYSTEM_PROMPT_DYNAMIC_BOUNDARY,
-} from '@claudecode/tui/constants/prompts.js'
-import { microcompactMessages } from '@claudecode/tui/services/compact/microCompact.js'
+} from '@codepilotx/tui/constants/prompts.js'
+import { microcompactMessages } from '@codepilotx/tui/services/compact/microCompact.js'
 import { getSdkBetas } from '../bootstrap/state.js'
 import { getCommandName } from '../commands.js'
 import { getSystemContext } from '../context.js'
@@ -257,7 +257,7 @@ async function countMemoryFileTokens(): Promise<{
   claudeMdTokens: number
 }> {
   // Simple mode disables CLAUDE.md loading, so don't report tokens for them
-  if (isEnvTruthy(process.env.CLAUDE_CODE_SIMPLE)) {
+  if ((isEnvTruthy(process.env.CODEPILOTX_SIMPLE) || isEnvTruthy(process.env.CLAUDE_CODE_SIMPLE))) {
     return { memoryFileDetails: [], claudeMdTokens: 0 }
   }
 

@@ -8,19 +8,19 @@ import type {
   AgentThinkingMode,
   AgentToolLogEntry,
   AgentWorkspace,
-} from '@claudecode/core/agent/runtime.js'
+} from '@codepilotx/core/agent/runtime.js'
 import type {
   AgentPermissionDecision,
   AgentPermissionRequest,
   DesktopAgentPermissionMode,
-} from '@claudecode/core/agent/permissions.js'
+} from '@codepilotx/core/agent/permissions.js'
 import type {
   ModelMetadata,
   ModelProviderID as CoreModelProviderID,
   ModelProviderKind,
   ModelProviderSummary,
   ProviderBalanceInfo,
-} from '@claudecode/core/models/provider.js'
+} from '@codepilotx/core/models/provider.js'
 
 export type DesktopAuthStatus = {
   authenticated: boolean
@@ -187,6 +187,16 @@ export type DesktopSessionListItem = {
   id: string
   sessionName: string | null
   aiTitle: string | null
+  customTitle?: string | null
+  tag?: string | null
+  summary?: string | null
+  gitBranch?: string | null
+  firstPrompt?: string | null
+  prNumber?: number | null
+  prUrl?: string | null
+  prRepository?: string | null
+  transcriptPath?: string | null
+  fileSize?: number | null
   workspaceName: string
   workspacePath: string
   standalone?: boolean
@@ -308,6 +318,7 @@ export type DesktopApi = {
   saveThemeSettings(settings: DesktopThemeSettings): Promise<void>
   createSession(options: CreateDesktopSessionOptions): Promise<CreateDesktopSessionResult>
   listSessions(): Promise<DesktopSessionSnapshot[]>
+  getSession(sessionId: string): Promise<DesktopSessionSnapshot>
   getActiveSessionId(): Promise<string | null>
   setActiveSession(sessionId: string | null): Promise<void>
   updateSessionMetadata(

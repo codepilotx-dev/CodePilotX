@@ -7,8 +7,8 @@ import {
   link,
 } from 'fs/promises'
 import * as React from 'react'
-import type { CanUseToolFn } from '@claudecode/tui/hooks/useCanUseTool.js'
-import type { AppState } from '@claudecode/tui/state/AppState.js'
+import type { CanUseToolFn } from '@codepilotx/tui/hooks/useCanUseTool.js'
+import type { AppState } from '@codepilotx/tui/state/AppState.js'
 import { z } from 'zod/v4'
 import { getKairosActive } from '../../bootstrap/state.js'
 import { TOOL_SUMMARY_MAX_LENGTH } from '../../constants/toolLimits.js'
@@ -32,7 +32,7 @@ import {
 } from '../../tasks/LocalShellTask/LocalShellTask.js'
 import type { AgentId } from '../../types/ids.js'
 import type { AssistantMessage } from '../../types/message.js'
-import { extractClaudeCodeHints } from '../../utils/claudeCodeHints.js'
+import { extractCodePilotXHints } from '../../utils/codePilotXHints.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
 import {
   errorMessage as getErrorMessage,
@@ -223,7 +223,7 @@ export function detectBlockedSleepPattern(command: string): string | null {
   // `&`/`&&`/`||` (pwsh 7+), and newline (PS's primary separator). This is
   // intentionally shallow — sleep inside script blocks, subshells, or later
   // pipeline stages is fine. Matches BashTool's splitCommandWithOperators
-  // intent (@claudecode/tui/utils/bash/commands.ts) without a full PS parser.
+  // intent (@codepilotx/tui/utils/bash/commands.ts) without a full PS parser.
   const first =
     command
       .trim()
@@ -698,7 +698,7 @@ export const PowerShellTool = buildTool({
       // model (BashTool has no early return, so all paths flow through its
       // single extraction site).
       if (result.backgroundTaskId) {
-        const bgExtracted = extractClaudeCodeHints(
+        const bgExtracted = extractCodePilotXHints(
           result.stdout || '',
           input.command,
         )
@@ -742,13 +742,13 @@ export const PowerShellTool = buildTool({
 
       let stdout = stripEmptyLines(stdoutAccumulator.toString())
 
-      // Oh-My-AgentCode hints protocol: CLIs/SDKs gated on CLAUDECODE=1 emit a
+      // CodePilotX hints protocol: CLIs/SDKs gated on CLAUDECODE=1 emit a
       // `<claude-code-hint />` tag to stderr (merged into stdout here). Scan,
-      // record for useClaudeCodeHintRecommendation to surface, then strip
+      // record for useCodePilotXHintRecommendation to surface, then strip
       // so the model never sees the tag — a zero-token side channel.
       // Stripping runs unconditionally (subagent output must stay clean too);
       // only the dialog recording is main-thread-only.
-      const extracted = extractClaudeCodeHints(stdout, input.command)
+      const extracted = extractCodePilotXHints(stdout, input.command)
       stdout = extracted.stripped
       if (isMainThread && extracted.hints.length > 0) {
         for (const hint of extracted.hints) maybeRecordPluginHint(hint)

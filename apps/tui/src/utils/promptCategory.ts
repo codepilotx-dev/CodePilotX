@@ -1,4 +1,4 @@
-import type { QuerySource } from '@claudecode/tui/constants/querySource.js'
+import type { QuerySource } from '@codepilotx/tui/constants/querySource.js'
 import {
   DEFAULT_OUTPUT_STYLE_NAME,
   OUTPUT_STYLE_CONFIG,

@@ -1,11 +1,11 @@
 import { feature } from 'bun:bundle'
-import { satisfies } from '@claudecode/tui/utils/semver.js'
+import { satisfies } from '@codepilotx/tui/utils/semver.js'
 import { isRunningWithBun } from '../utils/bundledMode.js'
 import { getPlatform } from '../utils/platform.js'
 import type { KeybindingBlock } from './types.js'
 
 /**
- * Default keybindings that match current Oh-My-AgentCode behavior.
+ * Default keybindings that match current CodePilotX behavior.
  * These are loaded first, then user keybindings.json overrides them.
  */
 

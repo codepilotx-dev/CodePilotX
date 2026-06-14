@@ -390,7 +390,7 @@ export function getProjectMcpServerStatus(
     return 'approved'
   }
 
-  // In non-interactive mode (SDK, claude -p, piped input), there's no way to
+  // In non-interactive mode (SDK, codepilotx -p, piped input), there's no way to
   // show an approval popup. Auto-approve if projectSettings is enabled since:
   // 1. The user/developer explicitly chose to run in this mode
   // 2. For SDK, projectSettings is off by default - they must explicitly enable it

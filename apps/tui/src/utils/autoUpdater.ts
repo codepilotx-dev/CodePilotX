@@ -3,11 +3,11 @@ import { constants as fsConstants } from 'fs'
 import { access, writeFile } from 'fs/promises'
 import { homedir } from 'os'
 import { join } from 'path'
-import { getDynamicConfig_BLOCKS_ON_INIT } from '@claudecode/tui/services/analytics/growthbook.js'
+import { getDynamicConfig_BLOCKS_ON_INIT } from '@codepilotx/tui/services/analytics/growthbook.js'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
-} from '@claudecode/tui/services/analytics/index.js'
+} from '@codepilotx/tui/services/analytics/index.js'
 import { type ReleaseChannel, saveGlobalConfig } from './config.js'
 import { logForDebugging } from './debug.js'
 import { env } from './env.js'
@@ -61,7 +61,7 @@ export type MaxVersionConfig = {
  *
  * Versioning approach:
  * 1. For version requirements/compatibility (assertMinVersion), we use semver comparison that ignores build metadata
- * 2. For updates ('claude update'), we use exact string comparison to detect any change, including SHA
+ * 2. For updates ('codepilotx update'), we use exact string comparison to detect any change, including SHA
  *    - This ensures users always get the latest build, even when only the SHA changes
  *    - The UI clearly shows both versions including build metadata
  *
@@ -70,6 +70,7 @@ export type MaxVersionConfig = {
 export async function assertMinVersion(): Promise<void> {
   if (
     process.env.NODE_ENV === 'test' ||
+    process.env.CODEPILOTX_DISABLE_MIN_VERSION_CHECK === '1' ||
     process.env.CLAUDE_CODE_DISABLE_MIN_VERSION_CHECK === '1'
   ) {
     return
@@ -86,11 +87,11 @@ export async function assertMinVersion(): Promise<void> {
     ) {
       // biome-ignore lint/suspicious/noConsole:: intentional console output
       console.error(`
-It looks like your version of Oh-My-AgentCode (${MACRO.VERSION}) needs an update.
+It looks like your version of CodePilotX (${MACRO.VERSION}) needs an update.
 A newer version (${versionConfig.minVersion} or higher) is required to continue.
 
 To update, please run:
-    claude update
+    codepilotx update
 
 This will ensure you have access to the latest features and improvements.
 `)
@@ -485,13 +486,13 @@ export async function installGlobalPackage(
       console.error(`
 Error: Windows NPM detected in WSL
 
-You're running Oh-My-AgentCode in WSL but using the Windows NPM installation from /mnt/c/.
+You're running CodePilotX in WSL but using the Windows NPM installation from /mnt/c/.
 This configuration is not supported for updates.
 
 To fix this issue:
   1. Install Node.js within your Linux distribution: e.g. sudo apt install nodejs npm
   2. Make sure Linux NPM is in your PATH before the Windows version
-  3. Try updating again with 'claude update'
+  3. Try updating again with 'codepilotx update'
 `)
       return 'install_failed'
     }

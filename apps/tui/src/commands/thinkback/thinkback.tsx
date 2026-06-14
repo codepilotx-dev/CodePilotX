@@ -371,8 +371,8 @@ function ThinkbackMenu({
 
   return (
     <Dialog
-      title="Think Back on 2025 with Oh-My-AgentCode"
-      subtitle="Generate your 2025 Oh-My-AgentCode Think Back (takes a few minutes to run)"
+      title="Think Back on 2025 with CodePilotX"
+      subtitle="Generate your 2025 CodePilotX Think Back (takes a few minutes to run)"
       onCancel={handleCancel}
       color="claude"
     >
@@ -401,13 +401,13 @@ function ThinkbackMenu({
 }
 
 const EDIT_PROMPT =
-  'Use the Skill tool to invoke the "thinkback" skill with mode=edit to modify my existing Oh-My-AgentCode year in review animation. Ask me what I want to change. When the animation is ready, tell the user to run /think-back again to play it.'
+  'Use the Skill tool to invoke the "thinkback" skill with mode=edit to modify my existing CodePilotX year in review animation. Ask me what I want to change. When the animation is ready, tell the user to run /think-back again to play it.'
 
 const FIX_PROMPT =
-  'Use the Skill tool to invoke the "thinkback" skill with mode=fix to fix validation or rendering errors in my existing Oh-My-AgentCode year in review animation. Run the validator, identify errors, and fix them. When the animation is ready, tell the user to run /think-back again to play it.'
+  'Use the Skill tool to invoke the "thinkback" skill with mode=fix to fix validation or rendering errors in my existing CodePilotX year in review animation. Run the validator, identify errors, and fix them. When the animation is ready, tell the user to run /think-back again to play it.'
 
 const REGENERATE_PROMPT =
-  'Use the Skill tool to invoke the "thinkback" skill with mode=regenerate to create a completely new Oh-My-AgentCode year in review animation from scratch. Delete the existing animation and start fresh. When the animation is ready, tell the user to run /think-back again to play it.'
+  'Use the Skill tool to invoke the "thinkback" skill with mode=regenerate to create a completely new CodePilotX year in review animation from scratch. Delete the existing animation and start fresh. When the animation is ready, tell the user to run /think-back again to play it.'
 
 function ThinkbackFlow({
   onDone,

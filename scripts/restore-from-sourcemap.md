@@ -31,7 +31,7 @@
 - `bun run typecheck`
 - `bun run build`
 - `bun run smoke`（当前环境下失败，见下）
-- `bun run check`（当前环境下在执行 `bun dist/claude.js --help` 时失败）
+- `bun run check`（当前环境下在执行 `bun dist/codepilotx.js --help` 时失败）
 
 `bun run smoke` 与 `bun run check` 的当前失败点：
 - 运行时抛出 `option creation failed due to '-d2e' in option flags`。

@@ -1,10 +1,10 @@
 import { feature } from 'bun:bundle'
 import { useMemo } from 'react'
-import { useCommandQueue } from '@claudecode/tui/hooks/useCommandQueue.js'
-import { useAppState } from '@claudecode/tui/state/AppState.js'
-import { getGlobalConfig } from '@claudecode/tui/utils/config.js'
-import { getExampleCommandFromCache } from '@claudecode/tui/utils/exampleCommands.js'
-import { isQueuedCommandEditable } from '@claudecode/tui/utils/messageQueueManager.js'
+import { useCommandQueue } from '@codepilotx/tui/hooks/useCommandQueue.js'
+import { useAppState } from '@codepilotx/tui/state/AppState.js'
+import { getGlobalConfig } from '@codepilotx/tui/utils/config.js'
+import { getExampleCommandFromCache } from '@codepilotx/tui/utils/exampleCommands.js'
+import { isQueuedCommandEditable } from '@codepilotx/tui/utils/messageQueueManager.js'
 
 // Dead code elimination: conditional import for proactive mode
 /* eslint-disable @typescript-eslint/no-require-imports */

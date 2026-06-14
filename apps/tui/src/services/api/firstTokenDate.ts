@@ -3,13 +3,13 @@ import { getOauthConfig } from '../../constants/oauth.js'
 import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
 import { getAuthHeaders } from '../../utils/http.js'
 import { logError } from '../../utils/log.js'
-import { getClaudeCodeUserAgent } from '../../utils/userAgent.js'
+import { getCodePilotXUserAgent } from '../../utils/userAgent.js'
 
 /**
- * Fetch the user's first Oh-My-AgentCode token date and store in config.
- * This is called after successful login to cache when they started using Oh-My-AgentCode.
+ * Fetch the user's first CodePilotX token date and store in config.
+ * This is called after successful login to cache when they started using CodePilotX.
  */
-export async function fetchAndStoreClaudeCodeFirstTokenDate(): Promise<void> {
+export async function fetchAndStoreCodePilotXFirstTokenDate(): Promise<void> {
   try {
     const config = getGlobalConfig()
 
@@ -29,7 +29,7 @@ export async function fetchAndStoreClaudeCodeFirstTokenDate(): Promise<void> {
     const response = await axios.get(url, {
       headers: {
         ...authHeaders.headers,
-        'User-Agent': getClaudeCodeUserAgent(),
+        'User-Agent': getCodePilotXUserAgent(),
       },
       timeout: 10000,
     })
@@ -58,3 +58,6 @@ export async function fetchAndStoreClaudeCodeFirstTokenDate(): Promise<void> {
     logError(error)
   }
 }
+
+export const fetchAndStoreClaudeCodeFirstTokenDate =
+  fetchAndStoreCodePilotXFirstTokenDate

@@ -2,7 +2,7 @@
 import {
   logEvent,
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-} from '@claudecode/tui/services/analytics/index.js'
+} from '@codepilotx/tui/services/analytics/index.js'
 import {
   toolMatchesName,
   type Tools,
@@ -45,7 +45,7 @@ import {
   type MemoryFileInfo,
 } from './claudemd.js'
 import { dirname, parse, relative, resolve } from 'path'
-import { getCwd } from '@claudecode/tui/utils/cwd.js'
+import { getCwd } from '@codepilotx/tui/utils/cwd.js'
 import { getViewedTeammateTask } from '../state/selectors.js'
 import { logError } from './log.js'
 import { logAntError } from './debug.js'
@@ -56,15 +56,15 @@ import type {
   AttachmentMessage,
   Message,
   MessageOrigin,
-} from '@claudecode/tui/types/message.js'
+} from '@codepilotx/tui/types/message.js'
 import {
   type QueuedCommand,
   getImagePasteIds,
   isValidImagePaste,
-} from '@claudecode/tui/types/textInputTypes.js'
+} from '@codepilotx/tui/types/textInputTypes.js'
 import { randomUUID, type UUID } from 'crypto'
 import { getSettings_DEPRECATED } from './settings/settings.js'
-import { getSnippetForTwoFileDiff } from '@claudecode/tui/tools/FileEditTool/utils.js'
+import { getSnippetForTwoFileDiff } from '@codepilotx/tui/tools/FileEditTool/utils.js'
 import type {
   ContentBlockParam,
   ImageBlockParam,
@@ -107,8 +107,8 @@ const autoModeStateModule = feature('TRANSCRIPT_CLASSIFIER')
 import {
   MAX_LINES_TO_READ,
   FILE_READ_TOOL_NAME,
-} from '@claudecode/tui/tools/FileReadTool/prompt.js'
-import { getDefaultFileReadingLimits } from '@claudecode/tui/tools/FileReadTool/limits.js'
+} from '@codepilotx/tui/tools/FileReadTool/prompt.js'
+import { getDefaultFileReadingLimits } from '@codepilotx/tui/tools/FileReadTool/limits.js'
 import { cacheKeys, type FileStateCache } from './fileStateCache.js'
 import {
   createAbortController,
@@ -178,7 +178,7 @@ import type { MCPServerConnection } from '../services/mcp/types.js'
 import type {
   HookEvent,
   SyncHookJSONOutput,
-} from '@claudecode/tui/entrypoints/agentSdkTypes.js'
+} from '@codepilotx/tui/entrypoints/agentSdkTypes.js'
 import {
   checkForAsyncHookResponses,
   removeDeliveredAsyncHooks,
@@ -751,7 +751,7 @@ export async function getAttachments(
 ): Promise<Attachment[]> {
   if (
     isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_ATTACHMENTS) ||
-    isEnvTruthy(process.env.CLAUDE_CODE_SIMPLE)
+    (isEnvTruthy(process.env.CODEPILOTX_SIMPLE) || isEnvTruthy(process.env.CLAUDE_CODE_SIMPLE))
   ) {
     // query.ts:removeFromQueue dequeues these unconditionally after
     // getAttachmentMessages runs — returning [] here silently drops them.
@@ -2619,7 +2619,7 @@ export function resetSentSkillNames(): void {
  * on --resume when a skill_listing attachment already exists in the
  * transcript.
  *
- * `sentSkillNames` is module-scope — process-local. Each `claude -p` spawn
+ * `sentSkillNames` is module-scope — process-local. Each `codepilotx -p` spawn
  * starts with an empty Map, so without this every resume re-injects the
  * full ~600-token listing even though it's already in the conversation from
  * the prior process. Shows up on every --resume; particularly loud for
@@ -3519,7 +3519,7 @@ async function getAsyncHookResponseAttachments(): Promise<Attachment[]> {
 
 /**
  * Get teammate mailbox attachments for agent swarm communication
- * Teammates are independent Oh-My-AgentCode sessions running in parallel (swarms),
+ * Teammates are independent CodePilotX sessions running in parallel (swarms),
  * not parent-child subagent relationships.
  *
  * This function checks two sources for messages:

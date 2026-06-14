@@ -1,6 +1,6 @@
 import axios from 'axios'
-import { getOauthConfig } from '@claudecode/tui/constants/oauth.js'
-import { getOrganizationUUID } from '@claudecode/tui/services/oauth/client.js'
+import { getOauthConfig } from '@codepilotx/tui/constants/oauth.js'
+import { getOrganizationUUID } from '@codepilotx/tui/services/oauth/client.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../../services/analytics/growthbook.js'
 import {
   checkAndRefreshOAuthTokenIfNeeded,

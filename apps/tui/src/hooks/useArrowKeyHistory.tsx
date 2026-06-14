@@ -1,6 +1,6 @@
 import React, { useCallback, useRef, useState } from 'react'
-import { getModeFromInput } from '@claudecode/tui/components/PromptInput/inputModes.js'
-import { useNotifications } from '@claudecode/tui/context/notifications.js'
+import { getModeFromInput } from '@codepilotx/tui/components/PromptInput/inputModes.js'
+import { useNotifications } from '@codepilotx/tui/context/notifications.js'
 import { ConfigurableShortcutHint } from '../components/ConfigurableShortcutHint.js'
 import { FOOTER_TEMPORARY_STATUS_TIMEOUT } from '../components/PromptInput/Notifications.js'
 import { getHistory } from '../history.js'

@@ -2,8 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react'
 import {
   checkIsGitClean,
   checkNeedsClaudeAiLogin,
-} from '@claudecode/tui/utils/background/remote/preconditions.js'
-import { gracefulShutdownSync } from '@claudecode/tui/utils/gracefulShutdown.js'
+} from '@codepilotx/tui/utils/background/remote/preconditions.js'
+import { gracefulShutdownSync } from '@codepilotx/tui/utils/gracefulShutdown.js'
 import { Box, Text } from '../ink.js'
 import { Select } from './CustomSelect/index.js'
 import { Dialog } from './design-system/Dialog.js'

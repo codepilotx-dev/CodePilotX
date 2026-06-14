@@ -4,28 +4,28 @@ import type {
   BetaToolUnion,
 } from '@anthropic-ai/sdk/resources/beta/messages/messages.mjs'
 import { createHash } from 'crypto'
-import { SYSTEM_PROMPT_DYNAMIC_BOUNDARY } from '@claudecode/tui/constants/prompts.js'
-import { getSystemContext, getUserContext } from '@claudecode/tui/context.js'
-import { isAnalyticsDisabled } from '@claudecode/tui/services/analytics/config.js'
+import { SYSTEM_PROMPT_DYNAMIC_BOUNDARY } from '@codepilotx/tui/constants/prompts.js'
+import { getSystemContext, getUserContext } from '@codepilotx/tui/context.js'
+import { isAnalyticsDisabled } from '@codepilotx/tui/services/analytics/config.js'
 import {
   checkStatsigFeatureGate_CACHED_MAY_BE_STALE,
   getFeatureValue_CACHED_MAY_BE_STALE,
-} from '@claudecode/tui/services/analytics/growthbook.js'
+} from '@codepilotx/tui/services/analytics/growthbook.js'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
-} from '@claudecode/tui/services/analytics/index.js'
-import { prefetchAllMcpResources } from '@claudecode/tui/services/mcp/client.js'
-import type { ScopedMcpServerConfig } from '@claudecode/tui/services/mcp/types.js'
-import { BashTool } from '@claudecode/tui/tools/BashTool/BashTool.js'
-import { FileEditTool } from '@claudecode/tui/tools/FileEditTool/FileEditTool.js'
+} from '@codepilotx/tui/services/analytics/index.js'
+import { prefetchAllMcpResources } from '@codepilotx/tui/services/mcp/client.js'
+import type { ScopedMcpServerConfig } from '@codepilotx/tui/services/mcp/types.js'
+import { BashTool } from '@codepilotx/tui/tools/BashTool/BashTool.js'
+import { FileEditTool } from '@codepilotx/tui/tools/FileEditTool/FileEditTool.js'
 import {
   normalizeFileEditInput,
   stripTrailingWhitespace,
-} from '@claudecode/tui/tools/FileEditTool/utils.js'
-import { FileWriteTool } from '@claudecode/tui/tools/FileWriteTool/FileWriteTool.js'
-import { getTools } from '@claudecode/tui/tools.js'
-import type { AgentId } from '@claudecode/tui/types/ids.js'
+} from '@codepilotx/tui/tools/FileEditTool/utils.js'
+import { FileWriteTool } from '@codepilotx/tui/tools/FileWriteTool/FileWriteTool.js'
+import { getTools } from '@codepilotx/tui/tools.js'
+import type { AgentId } from '@codepilotx/tui/types/ids.js'
 import type { z } from 'zod/v4'
 import { CLI_SYSPROMPT_PREFIXES } from '../constants/system.js'
 import { roughTokenCountEstimation } from '../services/tokenEstimation.js'

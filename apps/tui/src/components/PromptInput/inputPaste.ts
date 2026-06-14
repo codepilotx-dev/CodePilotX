@@ -1,5 +1,5 @@
-import { getPastedTextRefNumLines } from '@claudecode/tui/history.js'
-import type { PastedContent } from '@claudecode/tui/utils/config.js'
+import { getPastedTextRefNumLines } from '@codepilotx/tui/history.js'
+import type { PastedContent } from '@codepilotx/tui/utils/config.js'
 
 const TRUNCATION_THRESHOLD = 10000 // Characters before we truncate
 const PREVIEW_LENGTH = 1000 // Characters to show at start and end
