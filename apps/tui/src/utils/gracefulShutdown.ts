@@ -341,6 +341,10 @@ export function gracefulShutdownSync(
     setAppState?: (f: (prev: AppState) => AppState) => void
   },
 ): void {
+  if (embeddedShutdownHandler) {
+    embeddedShutdownHandler({ exitCode, reason })
+    return
+  }
   // Set the exit code that will be used when process naturally exits. Note that we do it
   // here inside the sync version too so that it is possible to determine if
   // gracefulShutdownSync was called by checking process.exitCode.
@@ -362,6 +366,22 @@ let shutdownInProgress = false
 let failsafeTimer: ReturnType<typeof setTimeout> | undefined
 let orphanCheckInterval: ReturnType<typeof setInterval> | undefined
 let pendingShutdown: Promise<void> | undefined
+let embeddedShutdownHandler:
+  | ((request: { exitCode: number; reason: ExitReason }) => void)
+  | null = null
+
+export async function runWithEmbeddedShutdownHandler<T>(
+  handler: (request: { exitCode: number; reason: ExitReason }) => void,
+  operation: () => Promise<T>,
+): Promise<T> {
+  const previousHandler = embeddedShutdownHandler
+  embeddedShutdownHandler = handler
+  try {
+    return await operation()
+  } finally {
+    embeddedShutdownHandler = previousHandler
+  }
+}
 
 /** Check if graceful shutdown is in progress */
 export function isShuttingDown(): boolean {
@@ -398,6 +418,10 @@ export async function gracefulShutdown(
     finalMessage?: string
   },
 ): Promise<void> {
+  if (embeddedShutdownHandler) {
+    embeddedShutdownHandler({ exitCode, reason })
+    return
+  }
   if (shutdownInProgress) {
     return
   }

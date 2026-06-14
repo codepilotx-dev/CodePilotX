@@ -3,6 +3,7 @@ import { EventEmitter } from 'node:events'
 import {
   createDesktopAgentRuntime,
   type DesktopAgentRuntime,
+  type DesktopAgentRuntimePreference,
 } from './agentRuntime.js'
 import type {
   CreateDesktopSessionOptions,
@@ -31,6 +32,7 @@ type ResolvedDesktopSessionOptions = CreateDesktopSessionOptions & {
 export type DesktopAgentSessionRuntimeOptions = {
   agentExecutablePath?: string
   configDirectoryPath?: string
+  runtimePreference?: DesktopAgentRuntimePreference
 }
 
 export type DesktopAgentSession = {
@@ -77,6 +79,7 @@ class LocalDesktopAgentSession
       workspacePath: this.workspacePath,
       agentExecutablePath: runtimeOptions.agentExecutablePath,
       configDirectoryPath: runtimeOptions.configDirectoryPath,
+      runtimePreference: runtimeOptions.runtimePreference,
       resumeExistingSession: options.resumeExistingSession,
       permissionMode: options.permissionMode,
       model: options.model,

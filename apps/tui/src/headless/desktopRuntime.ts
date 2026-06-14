@@ -1,0 +1,419 @@
+import { randomUUID } from 'node:crypto'
+import { runHeadless } from '../cli/print.js'
+import { StructuredIO } from '../cli/structuredIO.js'
+import type {
+  SDKControlResponse,
+  StdoutMessage,
+} from '../entrypoints/sdk/controlTypes.js'
+import {
+  setClientType,
+  setCwdState,
+  setOriginalCwd,
+  setProjectRoot,
+  setSessionTrustAccepted,
+  switchSession,
+} from '../bootstrap/state.js'
+import { createStore, type Store } from '../state/store.js'
+import { getDefaultAppState } from '../state/AppStateStore.js'
+import type { Tool, ToolPermissionContext, Tools } from '../Tool.js'
+import { AskUserQuestionTool } from '../tools/AskUserQuestionTool/AskUserQuestionTool.js'
+import { BashTool } from '../tools/BashTool/BashTool.js'
+import { EnterPlanModeTool } from '../tools/EnterPlanModeTool/EnterPlanModeTool.js'
+import { ExitPlanModeV2Tool } from '../tools/ExitPlanModeTool/ExitPlanModeV2Tool.js'
+import { FileEditTool } from '../tools/FileEditTool/FileEditTool.js'
+import { FileReadTool } from '../tools/FileReadTool/FileReadTool.js'
+import { FileWriteTool } from '../tools/FileWriteTool/FileWriteTool.js'
+import { GlobTool } from '../tools/GlobTool/GlobTool.js'
+import { GrepTool } from '../tools/GrepTool/GrepTool.js'
+import { NotebookEditTool } from '../tools/NotebookEditTool/NotebookEditTool.js'
+import { TaskStopTool } from '../tools/TaskStopTool/TaskStopTool.js'
+import { TodoWriteTool } from '../tools/TodoWriteTool/TodoWriteTool.js'
+import { WebFetchTool } from '../tools/WebFetchTool/WebFetchTool.js'
+import { WebSearchTool } from '../tools/WebSearchTool/WebSearchTool.js'
+import { runWithCwdOverride } from '../utils/cwd.js'
+import { getDenyRuleForTool } from '../utils/permissions/permissions.js'
+import type { PermissionMode } from '../types/permissions.js'
+import { cacheSessionTitle } from '../utils/sessionStorage.js'
+import type { ThinkingConfig } from '../utils/thinking.js'
+import { asSessionId } from '../types/ids.js'
+import { runWithEmbeddedShutdownHandler } from '../utils/gracefulShutdown.js'
+
+export type DesktopHeadlessThinkingMode =
+  | 'default'
+  | 'enabled'
+  | 'adaptive'
+  | 'disabled'
+
+export type DesktopHeadlessOutputControls = {
+  injectControlResponse(response: Record<string, unknown>): void
+}
+
+export type DesktopHeadlessRuntimeOptions = {
+  sessionId: string
+  workspacePath: string
+  configDirectoryPath?: string
+  resumeExistingSession?: boolean
+  permissionMode?: PermissionMode
+  model?: string
+  fallbackModel?: string
+  sessionName?: string
+  thinkingMode?: DesktopHeadlessThinkingMode
+  systemPrompt?: string
+  appendSystemPrompt?: string
+  additionalDirectories?: string[]
+  onOutput(
+    message: StdoutMessage,
+    controls: DesktopHeadlessOutputControls,
+  ): Promise<void> | void
+}
+
+export type DesktopHeadlessRuntime = {
+  setModel(model: string | undefined): void
+  runUserTurn(content: string, signal: AbortSignal): Promise<void>
+}
+
+const DESKTOP_ENABLED_THINKING_BUDGET = 1_000_000_000
+
+export function createDesktopHeadlessRuntime(
+  options: DesktopHeadlessRuntimeOptions,
+): DesktopHeadlessRuntime {
+  return new EmbeddedDesktopHeadlessRuntime(options)
+}
+
+export async function runDesktopHeadlessTurn(
+  runtime: DesktopHeadlessRuntime,
+  content: string,
+  signal: AbortSignal,
+): Promise<void> {
+  await runtime.runUserTurn(content, signal)
+}
+
+class EmbeddedDesktopHeadlessRuntime implements DesktopHeadlessRuntime {
+  private hasStartedHeadlessSession = false
+  private currentInput: DesktopHeadlessInput | null = null
+  private readonly store: Store<ReturnType<typeof getInitialDesktopAppState>>
+
+  constructor(private readonly options: DesktopHeadlessRuntimeOptions) {
+    this.store = createStore(getInitialDesktopAppState(options))
+    if (options.configDirectoryPath) {
+      process.env.CLAUDE_CONFIG_DIR = options.configDirectoryPath
+    }
+    process.env.CLAUDE_CODE_DISABLE_MDM_READ = '1'
+    process.env.CLAUDE_CODE_DISABLE_MIN_VERSION_CHECK = '1'
+    process.env.CLAUDE_CODE_ENTRYPOINT = 'desktop'
+  }
+
+  setModel(model: string | undefined): void {
+    this.options.model = model
+  }
+
+  async runUserTurn(content: string, signal: AbortSignal): Promise<void> {
+    await runWithCwdOverride(this.options.workspacePath, async () => {
+      if (signal.aborted) {
+        return
+      }
+      const input = new DesktopHeadlessInput(
+        this.options.sessionId,
+        content,
+        signal,
+      )
+      this.currentInput = input
+      this.prepareGlobalSessionState()
+      try {
+        await runWithDesktopExitGuards(() =>
+          runHeadless(
+            input,
+            () => this.store.getState(),
+            this.store.setState,
+            [],
+            this.tools,
+            {},
+            [],
+            {
+              continue: undefined,
+              resume: this.hasStartedHeadlessSession ||
+                this.options.resumeExistingSession
+                ? this.options.sessionId
+                : undefined,
+              resumeSessionAt: undefined,
+              verbose: true,
+              outputFormat: 'stream-json',
+              jsonSchema: undefined,
+              permissionPromptToolName: undefined,
+              allowedTools: undefined,
+              thinkingConfig: thinkingConfigFromDesktopMode(
+                this.options.thinkingMode,
+              ),
+              maxTurns: undefined,
+              maxBudgetUsd: undefined,
+              taskBudget: undefined,
+              systemPrompt: this.options.systemPrompt,
+              appendSystemPrompt: this.options.appendSystemPrompt,
+              userSpecifiedModel: this.options.model,
+              fallbackModel: this.options.fallbackModel,
+              teleport: undefined,
+              sdkUrl: undefined,
+              replayUserMessages: true,
+              includePartialMessages: true,
+              forkSession: false,
+              rewindFiles: undefined,
+              enableAuthStatus: false,
+              agent: undefined,
+              workload: undefined,
+              exitOnComplete: false,
+              createStructuredIO: inputPrompt =>
+                this.createStructuredIO(inputPrompt, signal),
+            },
+          ),
+        )
+      } finally {
+        if (this.currentInput === input) {
+          input.close()
+          this.currentInput = null
+        }
+      }
+    })
+
+    this.hasStartedHeadlessSession = true
+  }
+
+  private get tools() {
+    return getDesktopHeadlessTools(this.store.getState().toolPermissionContext)
+  }
+
+  private prepareGlobalSessionState(): void {
+    setClientType('desktop')
+    setOriginalCwd(this.options.workspacePath)
+    setProjectRoot(this.options.workspacePath)
+    setCwdState(this.options.workspacePath)
+    setSessionTrustAccepted(true)
+    switchSession(asSessionId(this.options.sessionId), null)
+    if (this.options.sessionName) {
+      cacheSessionTitle(this.options.sessionName)
+    }
+  }
+
+  private createStructuredIO(
+    inputPrompt: string | AsyncIterable<string>,
+    signal: AbortSignal,
+  ): StructuredIO {
+    let structuredIO: StructuredIO
+    structuredIO = new StructuredIO(
+      structuredInputFromPrompt(this.options.sessionId, inputPrompt),
+      true,
+      {
+        writeMessage: async message => {
+          if (signal.aborted) {
+            return
+          }
+          await this.options.onOutput(message, {
+            injectControlResponse: response => {
+              structuredIO.injectControlResponse(response as SDKControlResponse)
+            },
+          })
+          if (message.type === 'result') {
+            this.currentInput?.close()
+          }
+        },
+      },
+    )
+    return structuredIO
+  }
+}
+
+class DesktopHeadlessInput implements AsyncIterable<string> {
+  private closed = false
+  private readonly lines: string[] = []
+  private waiter: (() => void) | null = null
+
+  constructor(
+    private readonly sessionId: string,
+    prompt: string,
+    private readonly signal: AbortSignal,
+  ) {
+    this.enqueueUserPrompt(prompt)
+    if (signal.aborted) {
+      this.enqueueInterrupt()
+      this.close()
+    } else {
+      signal.addEventListener('abort', this.onAbort, { once: true })
+    }
+  }
+
+  async *[Symbol.asyncIterator](): AsyncIterator<string> {
+    try {
+      while (this.lines.length > 0 || !this.closed) {
+        const line = this.lines.shift()
+        if (line) {
+          yield line
+          continue
+        }
+        await new Promise<void>(resolve => {
+          this.waiter = resolve
+        })
+      }
+    } finally {
+      this.close()
+    }
+  }
+
+  close(): void {
+    if (this.closed) {
+      return
+    }
+    this.closed = true
+    this.signal.removeEventListener('abort', this.onAbort)
+    this.notify()
+  }
+
+  private readonly onAbort = (): void => {
+    this.enqueueInterrupt()
+    this.close()
+  }
+
+  private enqueueUserPrompt(prompt: string): void {
+    this.enqueue({
+      type: 'user',
+      session_id: this.sessionId,
+      message: {
+        role: 'user',
+        content: prompt,
+      },
+      parent_tool_use_id: null,
+    })
+  }
+
+  private enqueueInterrupt(): void {
+    this.enqueue({
+      type: 'control_request',
+      request_id: randomUUID(),
+      request: {
+        subtype: 'interrupt',
+      },
+    })
+  }
+
+  private enqueue(message: Record<string, unknown>): void {
+    if (this.closed) {
+      return
+    }
+    this.lines.push(`${JSON.stringify(message)}\n`)
+    this.notify()
+  }
+
+  private notify(): void {
+    const waiter = this.waiter
+    this.waiter = null
+    waiter?.()
+  }
+}
+
+function getInitialDesktopAppState(options: DesktopHeadlessRuntimeOptions) {
+  const appState = getDefaultAppState()
+  const additionalWorkingDirectories = new Map(
+    appState.toolPermissionContext.additionalWorkingDirectories,
+  )
+  for (const directory of options.additionalDirectories ?? []) {
+    additionalWorkingDirectories.set(directory, {
+      path: directory,
+      source: 'session',
+    })
+  }
+  return {
+    ...appState,
+    verbose: true,
+    thinkingEnabled: options.thinkingMode !== 'disabled',
+    toolPermissionContext: {
+      ...appState.toolPermissionContext,
+      mode: options.permissionMode ?? 'default',
+      additionalWorkingDirectories,
+      isBypassPermissionsModeAvailable:
+        options.permissionMode === 'bypassPermissions',
+    },
+  }
+}
+
+function getDesktopHeadlessTools(
+  permissionContext: ToolPermissionContext,
+): Tools {
+  const tools: Tool[] = [
+    BashTool,
+    FileReadTool,
+    FileEditTool,
+    FileWriteTool,
+    NotebookEditTool,
+    GlobTool,
+    GrepTool,
+    WebFetchTool,
+    WebSearchTool,
+    TodoWriteTool,
+    AskUserQuestionTool,
+    EnterPlanModeTool,
+    ExitPlanModeV2Tool,
+    TaskStopTool,
+  ]
+  return tools.filter(
+    tool => !getDenyRuleForTool(permissionContext, tool) && tool.isEnabled(),
+  )
+}
+
+async function* structuredInputFromPrompt(
+  sessionId: string,
+  inputPrompt: string | AsyncIterable<string>,
+): AsyncIterable<string> {
+  if (typeof inputPrompt !== 'string') {
+    yield* inputPrompt
+    return
+  }
+  yield `${JSON.stringify({
+    type: 'user',
+    session_id: sessionId,
+    message: {
+      role: 'user',
+      content: inputPrompt,
+    },
+    parent_tool_use_id: null,
+  })}\n`
+}
+
+function thinkingConfigFromDesktopMode(
+  thinkingMode: DesktopHeadlessThinkingMode | undefined,
+): ThinkingConfig | undefined {
+  switch (thinkingMode) {
+    case 'enabled':
+      return {
+        type: 'enabled',
+        budgetTokens: DESKTOP_ENABLED_THINKING_BUDGET,
+      }
+    case 'adaptive':
+      return { type: 'adaptive' }
+    case 'disabled':
+      return { type: 'disabled' }
+    default:
+      return undefined
+  }
+}
+
+async function runWithDesktopExitGuards<T>(
+  operation: () => Promise<T>,
+): Promise<T> {
+  const originalExit = process.exit
+  process.exit = ((code?: string | number | null | undefined): never => {
+    throw new Error(
+      `Embedded desktop headless runtime attempted process.exit(${String(
+        code ?? 0,
+      )})`,
+    )
+  }) as typeof process.exit
+  try {
+    return await runWithEmbeddedShutdownHandler(({ exitCode, reason }) => {
+      if (exitCode !== 0) {
+        throw new Error(
+          `Embedded desktop headless runtime requested shutdown with code ${exitCode} (${reason})`,
+        )
+      }
+    }, operation)
+  } finally {
+    process.exit = originalExit
+  }
+}

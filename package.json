@@ -20,6 +20,7 @@
     "deps:audit": "node scripts/deps-audit.mjs",
     "desktop:agent:build": "bun build --minify apps/tui/src/entrypoints/cli.tsx --compile --outfile=dist/desktop-agent/claude-local.exe --define MACRO.VERSION='\"0.0.0-local\"' --define MACRO.BUILD_TIME='\"local\"' --define MACRO.PACKAGE_URL='\"claudecode-local\"' --define MACRO.NATIVE_PACKAGE_URL='\"claudecode-local-native\"' --define MACRO.FEEDBACK_CHANNEL='\"local\"' --define MACRO.ISSUES_EXPLAINER='\"open an issue in the local checkout\"' --define MACRO.VERSION_CHANGELOG='\"Local development build\"' --define process.env.USER_TYPE='\"external\"' --define process.env.NODE_ENV='\"development\"' --define process.env.CLAUDE_CODE_DISABLE_MDM_READ='\"1\"' --define process.env.CLAUDE_CODE_DISABLE_MIN_VERSION_CHECK='\"1\"'",
     "desktop:dev": "bun scripts/desktop-dev.mjs",
+    "desktop:dev:subprocess": "bun scripts/desktop-dev.mjs --subprocess",
     "desktop:build": "vite build --config apps/desktop/vite.desktop.main.config.ts && vite build --config apps/desktop/vite.desktop.preload.config.ts && vite build --config apps/desktop/vite.desktop.config.ts",
     "desktop:build:debug": "bun scripts/desktop-build-debug.mjs",
     "desktop:dist:win": "bun scripts/clean-desktop-dist.mjs && bun run desktop:agent:build && bun run desktop:build && electron-builder --win --config apps/desktop/electron-builder.config.cjs"

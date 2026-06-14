@@ -32,9 +32,12 @@ export type DesktopDiffSummary = {
 }
 
 export type DesktopRuntimeStatus = {
-  runtimeKind: 'subprocess' | 'in-process-headless'
+  runtimeKind: 'subprocess' | 'in-process-headless' | 'embedded-headless'
+  runtimePreference: 'auto' | 'embedded-headless' | 'subprocess'
+  runtimeSelectionSource: 'default' | 'env'
   agentExecutablePath: string
   agentExecutableExists: boolean
+  subprocessFallbackAvailable: boolean
   configDirectoryPath: string
 }
 

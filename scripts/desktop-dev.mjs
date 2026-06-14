@@ -8,6 +8,11 @@ const root = resolve(import.meta.dirname, '..')
 const electronPath = require('electron')
 const rendererUrl = 'http://127.0.0.1:5173/'
 const mainEntry = resolve(root, 'dist/desktop/main/index.js')
+const runtimeMode =
+  process.argv.includes('--subprocess') ||
+  process.env.CLAUDE_CODE_DESKTOP_RUNTIME === 'subprocess'
+    ? 'subprocess'
+    : process.env.CLAUDE_CODE_DESKTOP_RUNTIME
 
 let electronProcess = null
 let restarting = false
@@ -100,6 +105,7 @@ function startElectron() {
       ...process.env,
       NODE_ENV: 'development',
       CLAUDE_CODE_DESKTOP_RENDERER_URL: rendererUrl,
+      ...(runtimeMode ? { CLAUDE_CODE_DESKTOP_RUNTIME: runtimeMode } : {}),
     },
   })
 
@@ -160,8 +166,10 @@ async function main() {
     cleanup().finally(() => process.exit(0))
   })
 
-  log('building desktop agent')
-  await run('bun', ['run', 'desktop:agent:build'])
+  if (runtimeMode === 'subprocess') {
+    log('building desktop agent')
+    await run('bun', ['run', 'desktop:agent:build'])
+  }
 
   await startRendererServer()
   const mainReady = startBuildWatcher(

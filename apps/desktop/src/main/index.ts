@@ -16,6 +16,7 @@ import {
   createDesktopAgentSession,
   type DesktopAgentSession,
 } from './agentSession.js'
+import type { DesktopAgentRuntimePreference } from './agentRuntime.js'
 import {
   createDesktopApiHandlers,
   registerDesktopIpcHandlers,
@@ -167,6 +168,39 @@ function getAgentExecutablePath(): string {
   return join(__dirname, '..', '..', 'desktop-agent', 'claude-local.exe')
 }
 
+function getDesktopRuntimeSelection(): {
+  preference: DesktopAgentRuntimePreference
+  source: 'default' | 'env'
+} {
+  const value = process.env.CLAUDE_CODE_DESKTOP_RUNTIME?.trim()
+  if (!value) {
+    return { preference: 'auto', source: 'default' }
+  }
+  if (
+    value === 'auto' ||
+    value === 'embedded-headless' ||
+    value === 'subprocess'
+  ) {
+    return { preference: value, source: 'env' }
+  }
+  if (value === 'in-process-headless') {
+    return { preference: 'embedded-headless', source: 'env' }
+  }
+  console.warn(
+    `Ignoring unsupported CLAUDE_CODE_DESKTOP_RUNTIME value: ${value}`,
+  )
+  return { preference: 'auto', source: 'default' }
+}
+
+function getDesktopAgentRuntimeOptions() {
+  const selection = getDesktopRuntimeSelection()
+  return {
+    agentExecutablePath: getAgentExecutablePath(),
+    configDirectoryPath: getOpenAgentConfigHomeDir(),
+    runtimePreference: selection.preference,
+  }
+}
+
 function withDesktopMessageTimestamp(event: DesktopAgentEvent): DesktopAgentEvent {
   if (event.type !== 'message' && event.type !== 'partial_message') {
     return event
@@ -253,10 +287,7 @@ function createRuntimeForRecord(record: DesktopSessionRecord): DesktopAgentSessi
       resumeExistingSession: record.resumeExistingSession,
       suppressStartupMessage: true,
     },
-    {
-      agentExecutablePath: getAgentExecutablePath(),
-      configDirectoryPath: getOpenAgentConfigHomeDir(),
-    },
+    getDesktopAgentRuntimeOptions(),
   )
   record.session = session
   attachSessionListeners(record)
@@ -370,10 +401,7 @@ async function createSession(
       appendSystemPrompt,
       additionalDirectories,
     },
-    {
-      agentExecutablePath: getAgentExecutablePath(),
-      configDirectoryPath: getOpenAgentConfigHomeDir(),
-    },
+    getDesktopAgentRuntimeOptions(),
   )
   const record: DesktopSessionRecord = {
     session,
@@ -646,11 +674,15 @@ function requireNonEmptyString(value: unknown, label: string): string {
 function registerIpc(): void {
   const handlers = createDesktopApiHandlers({
     getAuthStatus: async () => getAuthStatus(),
-    getRuntimeStatus: async () =>
-      getRuntimeStatus({
+    getRuntimeStatus: async () => {
+      const runtimeSelection = getDesktopRuntimeSelection()
+      return getRuntimeStatus({
         agentExecutablePath: getAgentExecutablePath(),
         configDirectoryPath: getOpenAgentConfigHomeDir(),
-      }),
+        runtimePreference: runtimeSelection.preference,
+        runtimeSelectionSource: runtimeSelection.source,
+      })
+    },
     getDesktopSettings: readDesktopStoredSettings,
     saveDesktopSettings: async (settings: DesktopStoredSettings) =>
       saveDesktopStoredSettings(settings),

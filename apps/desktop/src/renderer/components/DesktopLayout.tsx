@@ -634,7 +634,9 @@ export function DesktopLayout(): React.ReactNode {
 
   const isConversationLoading =
     isConversationRoute && (!sessionsHydrated || sessionId !== routedSessionId)
-  const runtimeMissing = runtimeStatus?.agentExecutableExists === false
+  const runtimeMissing =
+    runtimeStatus?.runtimeKind === 'subprocess' &&
+    runtimeStatus.agentExecutableExists === false
   const activePermissionRequest: DesktopPermissionRequest | null =
     isConversationRoute && !isConversationLoading
       ? pendingPermissions[0] ?? null

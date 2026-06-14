@@ -2,39 +2,13 @@ import { randomUUID } from 'node:crypto'
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { createInterface } from 'node:readline'
-import { runHeadless } from '@claudecode/tui/cli/print.js'
-import { StructuredIO } from '@claudecode/tui/cli/structuredIO.js'
-import type { StdoutMessage } from '@claudecode/tui/entrypoints/sdk/controlTypes.js'
 import {
-  setClientType,
-  setCwdState,
-  setOriginalCwd,
-  setProjectRoot,
-  setSessionTrustAccepted,
-  switchSession,
-} from '@claudecode/tui/bootstrap/state.js'
-import { createStore, type Store } from '@claudecode/tui/state/store.js'
-import { getDefaultAppState } from '@claudecode/tui/state/AppStateStore.js'
-import type { Tool, ToolPermissionContext, Tools } from '@claudecode/tui/Tool.js'
-import { AskUserQuestionTool } from '@claudecode/tui/tools/AskUserQuestionTool/AskUserQuestionTool.js'
-import { BashTool } from '@claudecode/tui/tools/BashTool/BashTool.js'
-import { EnterPlanModeTool } from '@claudecode/tui/tools/EnterPlanModeTool/EnterPlanModeTool.js'
-import { ExitPlanModeV2Tool } from '@claudecode/tui/tools/ExitPlanModeTool/ExitPlanModeV2Tool.js'
-import { FileEditTool } from '@claudecode/tui/tools/FileEditTool/FileEditTool.js'
-import { FileReadTool } from '@claudecode/tui/tools/FileReadTool/FileReadTool.js'
-import { FileWriteTool } from '@claudecode/tui/tools/FileWriteTool/FileWriteTool.js'
-import { GlobTool } from '@claudecode/tui/tools/GlobTool/GlobTool.js'
-import { GrepTool } from '@claudecode/tui/tools/GrepTool/GrepTool.js'
-import { NotebookEditTool } from '@claudecode/tui/tools/NotebookEditTool/NotebookEditTool.js'
-import { TaskStopTool } from '@claudecode/tui/tools/TaskStopTool/TaskStopTool.js'
-import { TodoWriteTool } from '@claudecode/tui/tools/TodoWriteTool/TodoWriteTool.js'
-import { WebFetchTool } from '@claudecode/tui/tools/WebFetchTool/WebFetchTool.js'
-import { WebSearchTool } from '@claudecode/tui/tools/WebSearchTool/WebSearchTool.js'
-import { runWithCwdOverride } from '@claudecode/tui/utils/cwd.js'
-import { getDenyRuleForTool } from '@claudecode/tui/utils/permissions/permissions.js'
-import { cacheSessionTitle } from '@claudecode/tui/utils/sessionStorage.js'
-import type { ThinkingConfig } from '@claudecode/tui/utils/thinking.js'
-import { asSessionId } from '@claudecode/tui/types/ids.js'
+  createDesktopHeadlessRuntime,
+  runDesktopHeadlessTurn,
+  type DesktopHeadlessOutputControls,
+  type DesktopHeadlessRuntime,
+} from '@claudecode/tui/headless/desktopRuntime.js'
+import type { StdoutMessage } from '@claudecode/tui/entrypoints/sdk/controlTypes.js'
 import type {
   DesktopAgentEvent,
   DesktopPermissionMode,
@@ -54,11 +28,17 @@ import {
   summarizeToolInput,
 } from './agentRuntimeSupport.js'
 
+export type DesktopAgentRuntimePreference =
+  | 'auto'
+  | 'embedded-headless'
+  | 'subprocess'
+
 export type DesktopAgentRuntimeContext = {
   sessionId: string
   workspacePath: string
   agentExecutablePath?: string
   configDirectoryPath?: string
+  runtimePreference?: DesktopAgentRuntimePreference
   resumeExistingSession?: boolean
   permissionMode?: DesktopPermissionMode
   model?: string
@@ -92,15 +72,22 @@ function runSerialized<T>(operation: () => Promise<T>): Promise<T> {
 export function createDesktopAgentRuntime(
   context: DesktopAgentRuntimeContext,
 ): DesktopAgentRuntime {
-  if (context.agentExecutablePath) {
-    if (!existsSync(context.agentExecutablePath)) {
-      throw new Error(
-        `Desktop agent executable is missing: ${context.agentExecutablePath}`,
-      )
-    }
+  const preference = context.runtimePreference ?? 'auto'
+  if (preference === 'subprocess') {
     return new CliDesktopAgentRuntime(context)
   }
-  return new InProcessDesktopAgentRuntime(context)
+  try {
+    return new InProcessDesktopAgentRuntime(context)
+  } catch (error) {
+    if (
+      preference === 'auto' &&
+      context.agentExecutablePath &&
+      existsSync(context.agentExecutablePath)
+    ) {
+      return new CliDesktopAgentRuntime(context)
+    }
+    throw error
+  }
 }
 
 class CliDesktopAgentRuntime implements DesktopAgentRuntime {
@@ -118,7 +105,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
 
   async runUserTurn(content: string, signal: AbortSignal): Promise<void> {
     const executablePath = this.context.agentExecutablePath
-    if (!executablePath) {
+    if (!executablePath || !existsSync(executablePath)) {
       throw new Error('Desktop agent executable path is not configured')
     }
     this.emittedAssistantText = false
@@ -509,28 +496,36 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
 
 class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
   private emittedAssistantText = false
-  private hasStartedHeadlessSession = false
   private partialText = ''
   private resultError: string | null = null
-  private currentInput: DesktopHeadlessInput | null = null
-  private structuredIO: StructuredIO | null = null
+  private currentSignal: AbortSignal | null = null
   private readonly toolNamesByUseId = new Map<string, string>()
   private readonly context: DesktopAgentRuntimeContext
-  private readonly store: Store<ReturnType<typeof getInitialDesktopAppState>>
+  private readonly runtime: DesktopHeadlessRuntime
 
   constructor(context: DesktopAgentRuntimeContext) {
     this.context = context
-    this.store = createStore(getInitialDesktopAppState(context))
-    if (context.configDirectoryPath) {
-      process.env.CLAUDE_CONFIG_DIR = context.configDirectoryPath
-    }
-    process.env.CLAUDE_CODE_DISABLE_MDM_READ = '1'
-    process.env.CLAUDE_CODE_DISABLE_MIN_VERSION_CHECK = '1'
-    process.env.CLAUDE_CODE_ENTRYPOINT = 'desktop'
+    this.runtime = createDesktopHeadlessRuntime({
+      sessionId: context.sessionId,
+      workspacePath: context.workspacePath,
+      configDirectoryPath: context.configDirectoryPath,
+      resumeExistingSession: context.resumeExistingSession,
+      permissionMode: context.permissionMode,
+      model: context.model,
+      fallbackModel: context.fallbackModel,
+      sessionName: context.sessionName,
+      thinkingMode: context.thinkingMode,
+      systemPrompt: context.systemPrompt,
+      appendSystemPrompt: context.appendSystemPrompt,
+      additionalDirectories: context.additionalDirectories,
+      onOutput: (message, controls) =>
+        this.handleStructuredOutput(message, controls),
+    })
   }
 
   setModel(model: string | undefined): void {
     this.context.model = model
+    this.runtime.setModel(model)
   }
 
   async runUserTurn(content: string, signal: AbortSignal): Promise<void> {
@@ -538,74 +533,18 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
     this.partialText = ''
     this.resultError = null
     this.toolNamesByUseId.clear()
+    this.currentSignal = signal
 
-    await runSerialized(() =>
-      runWithCwdOverride(this.context.workspacePath, async () => {
-        if (signal.aborted) {
-          return
-        }
-        const input = new DesktopHeadlessInput(
-          this.context.sessionId,
-          content,
-          signal,
-        )
-        this.currentInput = input
-        this.prepareGlobalSessionState()
-        try {
-          await runHeadless(
-            input,
-            () => this.store.getState(),
-            this.store.setState,
-            [],
-            this.tools,
-            {},
-            [],
-            {
-              continue: undefined,
-              resume: this.hasStartedHeadlessSession ||
-                this.context.resumeExistingSession
-                ? this.context.sessionId
-                : undefined,
-              resumeSessionAt: undefined,
-              verbose: true,
-              outputFormat: 'stream-json',
-              jsonSchema: undefined,
-              permissionPromptToolName: undefined,
-              allowedTools: undefined,
-              thinkingConfig: thinkingConfigFromDesktopMode(
-                this.context.thinkingMode,
-              ),
-              maxTurns: undefined,
-              maxBudgetUsd: undefined,
-              taskBudget: undefined,
-              systemPrompt: this.context.systemPrompt,
-              appendSystemPrompt: this.context.appendSystemPrompt,
-              userSpecifiedModel: this.context.model,
-              fallbackModel: this.context.fallbackModel,
-              teleport: undefined,
-              sdkUrl: undefined,
-              replayUserMessages: true,
-              includePartialMessages: true,
-              forkSession: false,
-              rewindFiles: undefined,
-              enableAuthStatus: false,
-              agent: undefined,
-              workload: undefined,
-              exitOnComplete: false,
-              createStructuredIO: inputPrompt =>
-                this.createStructuredIO(inputPrompt, signal),
-            },
-          )
-        } finally {
-          if (this.currentInput === input) {
-            input.close()
-            this.currentInput = null
-          }
-        }
-      }),
-    )
+    try {
+      await runSerialized(() =>
+        runDesktopHeadlessTurn(this.runtime, content, signal),
+      )
+    } finally {
+      if (this.currentSignal === signal) {
+        this.currentSignal = null
+      }
+    }
 
-    this.hasStartedHeadlessSession = true
     if (signal.aborted) {
       return
     }
@@ -614,46 +553,19 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
     }
   }
 
-  private get tools() {
-    return getDesktopHeadlessTools(this.store.getState().toolPermissionContext)
-  }
-
-  private prepareGlobalSessionState(): void {
-    setClientType('desktop')
-    setOriginalCwd(this.context.workspacePath)
-    setProjectRoot(this.context.workspacePath)
-    setCwdState(this.context.workspacePath)
-    setSessionTrustAccepted(true)
-    switchSession(asSessionId(this.context.sessionId), null)
-    if (this.context.sessionName) {
-      cacheSessionTitle(this.context.sessionName)
-    }
-  }
-
-  private createStructuredIO(
-    inputPrompt: string | AsyncIterable<string>,
-    signal: AbortSignal,
-  ): StructuredIO {
-    const structuredIO = new StructuredIO(
-      structuredInputFromPrompt(this.context.sessionId, inputPrompt),
-      true,
-      {
-        writeMessage: message => this.handleStructuredOutput(message, signal),
-      },
-    )
-    this.structuredIO = structuredIO
-    return structuredIO
-  }
-
   private async handleStructuredOutput(
     message: StdoutMessage,
-    signal: AbortSignal,
+    controls: DesktopHeadlessOutputControls,
   ): Promise<void> {
-    if (signal.aborted) {
+    const signal = this.currentSignal
+    if (!signal || signal.aborted) {
       return
     }
     if (message.type === 'control_request') {
-      await this.handleControlRequest(message as Record<string, unknown>)
+      await this.handleControlRequest(
+        message as Record<string, unknown>,
+        controls,
+      )
       return
     }
     if (
@@ -813,11 +725,11 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
       this.resultError = getResultErrorMessage(message)
     }
     this.partialText = ''
-    this.currentInput?.close()
   }
 
   private async handleControlRequest(
     message: Record<string, unknown>,
+    controls: DesktopHeadlessOutputControls,
   ): Promise<void> {
     const requestId =
       typeof message.request_id === 'string'
@@ -829,7 +741,7 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
         : {}
     const subtype = request.subtype
     if (subtype !== 'can_use_tool') {
-      this.injectControlResponse({
+      this.injectControlResponse(controls, {
         type: 'control_response',
         response: {
           request_id: requestId,
@@ -869,7 +781,7 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
       if (updatedPermissions.length > 0) {
         response.updatedPermissions = updatedPermissions
       }
-      this.injectControlResponse({
+      this.injectControlResponse(controls, {
         type: 'control_response',
         response: {
           request_id: requestId,
@@ -878,7 +790,7 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
         },
       })
     } else {
-      this.injectControlResponse({
+      this.injectControlResponse(controls, {
         type: 'control_response',
         response: {
           request_id: requestId,
@@ -889,181 +801,11 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
     }
   }
 
-  private injectControlResponse(message: Record<string, unknown>): void {
-    this.structuredIO?.injectControlResponse(message as never)
-  }
-}
-
-class DesktopHeadlessInput implements AsyncIterable<string> {
-  private closed = false
-  private readonly lines: string[] = []
-  private waiter: (() => void) | null = null
-
-  constructor(
-    private readonly sessionId: string,
-    prompt: string,
-    private readonly signal: AbortSignal,
-  ) {
-    this.enqueueUserPrompt(prompt)
-    if (signal.aborted) {
-      this.enqueueInterrupt()
-      this.close()
-    } else {
-      signal.addEventListener('abort', this.onAbort, { once: true })
-    }
-  }
-
-  async *[Symbol.asyncIterator](): AsyncIterator<string> {
-    try {
-      while (this.lines.length > 0 || !this.closed) {
-        const line = this.lines.shift()
-        if (line) {
-          yield line
-          continue
-        }
-        await new Promise<void>(resolve => {
-          this.waiter = resolve
-        })
-      }
-    } finally {
-      this.close()
-    }
-  }
-
-  close(): void {
-    if (this.closed) {
-      return
-    }
-    this.closed = true
-    this.signal.removeEventListener('abort', this.onAbort)
-    this.notify()
-  }
-
-  private readonly onAbort = (): void => {
-    this.enqueueInterrupt()
-    this.close()
-  }
-
-  private enqueueUserPrompt(prompt: string): void {
-    this.enqueue({
-      type: 'user',
-      session_id: this.sessionId,
-      message: {
-        role: 'user',
-        content: prompt,
-      },
-      parent_tool_use_id: null,
-    })
-  }
-
-  private enqueueInterrupt(): void {
-    this.enqueue({
-      type: 'control_request',
-      request_id: randomUUID(),
-      request: {
-        subtype: 'interrupt',
-      },
-    })
-  }
-
-  private enqueue(message: Record<string, unknown>): void {
-    if (this.closed) {
-      return
-    }
-    this.lines.push(`${JSON.stringify(message)}\n`)
-    this.notify()
-  }
-
-  private notify(): void {
-    const waiter = this.waiter
-    this.waiter = null
-    waiter?.()
-  }
-}
-
-function getInitialDesktopAppState(context: DesktopAgentRuntimeContext) {
-  const appState = getDefaultAppState()
-  const additionalWorkingDirectories = new Map(
-    appState.toolPermissionContext.additionalWorkingDirectories,
-  )
-  for (const directory of context.additionalDirectories ?? []) {
-    additionalWorkingDirectories.set(directory, {
-      path: directory,
-      source: 'session',
-    })
-  }
-  return {
-    ...appState,
-    verbose: true,
-    thinkingEnabled: context.thinkingMode !== 'disabled',
-    toolPermissionContext: {
-      ...appState.toolPermissionContext,
-      mode: context.permissionMode ?? 'default',
-      additionalWorkingDirectories,
-      isBypassPermissionsModeAvailable:
-        context.permissionMode === 'bypassPermissions',
-    },
-  }
-}
-
-function getDesktopHeadlessTools(
-  permissionContext: ToolPermissionContext,
-): Tools {
-  const tools: Tool[] = [
-    BashTool,
-    FileReadTool,
-    FileEditTool,
-    FileWriteTool,
-    NotebookEditTool,
-    GlobTool,
-    GrepTool,
-    WebFetchTool,
-    WebSearchTool,
-    TodoWriteTool,
-    AskUserQuestionTool,
-    EnterPlanModeTool,
-    ExitPlanModeV2Tool,
-    TaskStopTool,
-  ]
-  return tools.filter(
-    tool => !getDenyRuleForTool(permissionContext, tool) && tool.isEnabled(),
-  )
-}
-
-async function* structuredInputFromPrompt(
-  sessionId: string,
-  inputPrompt: string | AsyncIterable<string>,
-): AsyncIterable<string> {
-  if (typeof inputPrompt !== 'string') {
-    yield* inputPrompt
-    return
-  }
-  yield `${JSON.stringify({
-    type: 'user',
-    session_id: sessionId,
-    message: {
-      role: 'user',
-      content: inputPrompt,
-    },
-    parent_tool_use_id: null,
-  })}\n`
-}
-
-function thinkingConfigFromDesktopMode(
-  thinkingMode: DesktopThinkingMode | undefined,
-): ThinkingConfig | undefined {
-  switch (thinkingMode) {
-    case 'enabled':
-      return {
-        type: 'enabled',
-        budgetTokens: DESKTOP_ENABLED_THINKING_BUDGET,
-      }
-    case 'adaptive':
-      return { type: 'adaptive' }
-    case 'disabled':
-      return { type: 'disabled' }
-    default:
-      return undefined
+  private injectControlResponse(
+    controls: DesktopHeadlessOutputControls,
+    message: Record<string, unknown>,
+  ): void {
+    controls.injectControlResponse(message)
   }
 }
 
