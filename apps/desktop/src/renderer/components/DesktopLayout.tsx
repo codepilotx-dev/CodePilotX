@@ -6,7 +6,6 @@ import { DesktopShell } from './DesktopShell.js'
 import { DesktopSidebar } from './DesktopSidebar.js'
 import { GlobalErrorModal } from './GlobalErrorModal.js'
 import { PermissionRequestModal } from './PermissionRequestModal.js'
-import { RuntimeWarning } from './RuntimeWarning.js'
 import { WindowChrome } from './WindowChrome.js'
 import type {
   EditMenuAction,
@@ -40,6 +39,9 @@ import type {
 } from '../../shared/types.js'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react'
 
+const RUNTIME_WARNING_MESSAGE =
+  '桌面端 agent 运行时缺失，发送消息前请先执行 `bun run desktop:agent:build`。'
+
 export function DesktopLayout(): React.ReactNode {
   const settings = useDesktopSettings()
   const {
@@ -65,6 +67,7 @@ export function DesktopLayout(): React.ReactNode {
     setSelectedModelPreset,
   } = settings
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [runtimeWarningDismissed, setRuntimeWarningDismissed] = useState(false)
   const [isWindowMaximized, setIsWindowMaximized] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [providerState, setProviderState] =
@@ -661,6 +664,11 @@ export function DesktopLayout(): React.ReactNode {
   const runtimeMissing =
     runtimeStatus?.runtimeKind === 'subprocess' &&
     runtimeStatus.agentExecutableExists === false
+  const runtimeWarningMessage =
+    !currentWorkspace && runtimeMissing && !runtimeWarningDismissed
+      ? RUNTIME_WARNING_MESSAGE
+      : null
+  const visibleErrorMessage = errorMessage ?? runtimeWarningMessage
   const activePermissionRequest: DesktopPermissionRequest | null =
     isConversationRoute && !isConversationLoading
       ? pendingPermissions[0] ?? null
@@ -685,6 +693,12 @@ export function DesktopLayout(): React.ReactNode {
   const hasConversationMessages = messages.some(
     message => message.role !== 'system',
   )
+
+  useEffect(() => {
+    if (!runtimeMissing) {
+      setRuntimeWarningDismissed(false)
+    }
+  }, [runtimeMissing])
 
   useEffect(() => {
     let mounted = true
@@ -811,11 +825,15 @@ export function DesktopLayout(): React.ReactNode {
       />
 
       <GlobalErrorModal
-        message={errorMessage}
-        onDismiss={() => setErrorMessage(null)}
+        message={visibleErrorMessage}
+        onDismiss={() => {
+          if (errorMessage) {
+            setErrorMessage(null)
+            return
+          }
+          setRuntimeWarningDismissed(true)
+        }}
       />
-
-      {!currentWorkspace && runtimeMissing ? <RuntimeWarning /> : null}
 
       <DesktopShell
         windowChrome={windowChrome}
