@@ -219,14 +219,37 @@ export function DesktopLayout(): React.ReactNode {
     [navigate, openRecentWorkspace, refreshWorkspace, setWorkspaceState],
   )
 
-  const handleCreateSession = useCallback(async (): Promise<void> => {
-    const nextSessionId = currentWorkspace
-      ? await createSessionForWorkspace(currentWorkspace)
-      : await createSessionForWorkspace(null)
-    if (nextSessionId) {
-      navigate(sessionPath(nextSessionId))
+  const handleCreateSession = useCallback(async (
+    target?: DesktopWorkspace | null,
+  ): Promise<void> => {
+    if (target === null) {
+      navigate('/')
+      activateSessionById(null)
+      setWorkspaceState(null)
+      setDiffState('未选择项目。')
+      setSelectedFile(null)
+      setInput('')
+      return
     }
-  }, [createSessionForWorkspace, currentWorkspace, navigate])
+    const targetWorkspace = target === undefined ? currentWorkspace : target
+    if (targetWorkspace && targetWorkspace.path !== currentWorkspace?.path) {
+      const selected = await handleOpenRecentWorkspace(targetWorkspace)
+      if (!selected) return
+    } else {
+      navigate('/')
+    }
+    activateSessionById(null)
+    setInput('')
+  }, [
+    activateSessionById,
+    currentWorkspace,
+    handleOpenRecentWorkspace,
+    navigate,
+    setDiffState,
+    setInput,
+    setSelectedFile,
+    setWorkspaceState,
+  ])
 
   const handleBranchSelect = useCallback(
     async (branch: string): Promise<void> => {
@@ -716,7 +739,7 @@ export function DesktopLayout(): React.ReactNode {
       sessions={sessions}
       width={sidebarWidth}
       workspace={currentWorkspace}
-      onCreateSession={() => void handleCreateSession()}
+      onCreateSession={workspaceItem => void handleCreateSession(workspaceItem)}
       onOpenWorkspace={workspaceItem => void handleOpenRecentWorkspace(workspaceItem)}
       onSelectSession={handleSelectSession}
       onSetWidth={setSidebarWidth}

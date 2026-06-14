@@ -30,7 +30,7 @@ type Props = {
   unpinnedSessions: SessionListItem[];
   workspace: DesktopWorkspace | null;
   onArchiveSession: (session: SessionListItem) => void;
-  onCreateSession: () => void;
+  onCreateSession: (workspace?: DesktopWorkspace | null) => void;
   onOpenWorkspace: (workspace: DesktopWorkspace) => void;
   onPinSession: (session: SessionListItem) => void;
   onSelectSession: (session: SessionListItem) => void;
@@ -108,7 +108,7 @@ export function SidebarBody({
       <section className="sidebar-section">
         <SidebarSectionHeader
           title="对话"
-          onCreateSession={onCreateSession}
+          onCreateSession={() => onCreateSession(null)}
         />
         {standaloneSessions.length === 0 ? (
           <p className="sidebar-empty">暂无对话</p>
@@ -187,7 +187,7 @@ function SidebarSectionHeader({
         </PopoverMenu>
         <IconButton
           disabled={createDisabled}
-          onClick={onCreateSession}
+          onClick={() => onCreateSession()}
           title="新建对话"
         >
           <SquarePen size={15} />

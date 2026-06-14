@@ -616,7 +616,7 @@ export function ComposerCard({
             <MetaChip
               active={openDropdown === 'project'}
               icon={<Folder size={META_CHIP_ICON_SIZE} />}
-              label={workspace?.name ?? '无项目对话'}
+              label={workspace?.name ?? '进入项目工作'}
               title="选择项目"
             />
           }
@@ -659,77 +659,81 @@ export function ComposerCard({
           </PopoverItem>
         </PopoverMenu>
 
-        <PopoverMenu
-          className="popover-mode"
-          open={openDropdown === 'mode'}
-          onOpenChange={open => setOpenDropdown(open ? 'mode' : null)}
-          trigger={
-            <MetaChip
-              active={openDropdown === 'mode'}
-              icon={<Monitor size={META_CHIP_ICON_SIZE} />}
-              label="本地模式"
-              title="启动模式"
-            />
-          }
-        >
-          <div className="popover-header">启动模式</div>
-          <div className="popover-section">
-            <PopoverItem icon={<Monitor size={14} />} selected withCheck>
-              本地模式
-            </PopoverItem>
-            <PopoverItem icon={<GitBranch size={14} />} disabled>
-              新工作树
-            </PopoverItem>
-            <PopoverItem icon={<Search size={14} />} disabled>
-              关联 Codex Web
-            </PopoverItem>
-          </div>
-        </PopoverMenu>
-
-        <PopoverMenu
-          className="popover-branch"
-          open={openDropdown === 'branch'}
-          onOpenChange={open => setOpenDropdown(open ? 'branch' : null)}
-          trigger={
-            <MetaChip
-              active={openDropdown === 'branch'}
-              icon={<GitBranch size={META_CHIP_ICON_SIZE} />}
-              label={branchName}
-              title="选择分支"
-            />
-          }
-        >
-          <SearchInput
-            value={branchSearch}
-            onChange={setBranchSearch}
-            placeholder="搜索分支"
-          />
-          <div className="popover-section">
-            <div className="popover-section-title">分支</div>
-            {filteredBranches.length === 0 ? (
-              <div className="popover-empty">无匹配分支</div>
-            ) : (
-              filteredBranches.map(branch => (
-                <PopoverItem
-                  icon={<GitBranch size={14} />}
-                  key={branch}
-                  selected={branch === branchName}
-                  withCheck={branch === branchName}
-                  onClick={() => {
-                    onBranchSelect(branch)
-                    closeDropdown()
-                  }}
-                >
-                  {branch}
+        {workspace ? (
+          <>
+            <PopoverMenu
+              className="popover-mode"
+              open={openDropdown === 'mode'}
+              onOpenChange={open => setOpenDropdown(open ? 'mode' : null)}
+              trigger={
+                <MetaChip
+                  active={openDropdown === 'mode'}
+                  icon={<Monitor size={META_CHIP_ICON_SIZE} />}
+                  label="本地模式"
+                  title="启动模式"
+                />
+              }
+            >
+              <div className="popover-header">启动模式</div>
+              <div className="popover-section">
+                <PopoverItem icon={<Monitor size={14} />} selected withCheck>
+                  本地模式
                 </PopoverItem>
-              ))
-            )}
-          </div>
-          <div className="popover-divider" />
-          <PopoverItem icon={<Plus size={14} />} disabled>
-            创建并检出新分支...
-          </PopoverItem>
-        </PopoverMenu>
+                <PopoverItem icon={<GitBranch size={14} />} disabled>
+                  新工作树
+                </PopoverItem>
+                <PopoverItem icon={<Search size={14} />} disabled>
+                  关联 Codex Web
+                </PopoverItem>
+              </div>
+            </PopoverMenu>
+
+            <PopoverMenu
+              className="popover-branch"
+              open={openDropdown === 'branch'}
+              onOpenChange={open => setOpenDropdown(open ? 'branch' : null)}
+              trigger={
+                <MetaChip
+                  active={openDropdown === 'branch'}
+                  icon={<GitBranch size={META_CHIP_ICON_SIZE} />}
+                  label={branchName}
+                  title="选择分支"
+                />
+              }
+            >
+              <SearchInput
+                value={branchSearch}
+                onChange={setBranchSearch}
+                placeholder="搜索分支"
+              />
+              <div className="popover-section">
+                <div className="popover-section-title">分支</div>
+                {filteredBranches.length === 0 ? (
+                  <div className="popover-empty">无匹配分支</div>
+                ) : (
+                  filteredBranches.map(branch => (
+                    <PopoverItem
+                      icon={<GitBranch size={14} />}
+                      key={branch}
+                      selected={branch === branchName}
+                      withCheck={branch === branchName}
+                      onClick={() => {
+                        onBranchSelect(branch)
+                        closeDropdown()
+                      }}
+                    >
+                      {branch}
+                    </PopoverItem>
+                  ))
+                )}
+              </div>
+              <div className="popover-divider" />
+              <PopoverItem icon={<Plus size={14} />} disabled>
+                创建并检出新分支...
+              </PopoverItem>
+            </PopoverMenu>
+          </>
+        ) : null}
 
       </div>
     </div>

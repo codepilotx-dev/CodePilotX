@@ -26,7 +26,7 @@ type Props = {
   sessions: SessionListItem[];
   workspace: DesktopWorkspace | null;
   onArchiveSession: (session: SessionListItem) => void;
-  onCreateSession: () => void;
+  onCreateSession: (workspace?: DesktopWorkspace | null) => void;
   onOpenWorkspace: (workspace: DesktopWorkspace) => void;
   onPinSession: (session: SessionListItem) => void;
   onSelectSession: (session: SessionListItem) => void;
@@ -128,8 +128,7 @@ export function SidebarProjectGroup({
 
           <IconButton
             className="sidebar-project-action-button"
-            disabled={!workspace}
-            onClick={onCreateSession}
+            onClick={() => onCreateSession(project)}
             title="新建对话"
           >
             <SquarePen size={14} />

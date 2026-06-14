@@ -20,7 +20,7 @@ type Props = {
   sessions: SessionListItem[];
   width: number;
   workspace: DesktopWorkspace | null;
-  onCreateSession: () => void;
+  onCreateSession: (workspace?: DesktopWorkspace | null) => void;
   onOpenWorkspace: (workspace: DesktopWorkspace) => void;
   onSelectSession: (session: SessionListItem) => void;
   onSetWidth: (width: number) => void;

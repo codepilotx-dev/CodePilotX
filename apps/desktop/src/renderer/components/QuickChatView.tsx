@@ -27,6 +27,7 @@ export function QuickChatView(): React.ReactNode {
     events,
     messages,
     sessionStatus,
+    workspaceName,
     composer,
   } = useQuickChatContext();
 
@@ -128,10 +129,14 @@ export function QuickChatView(): React.ReactNode {
   return (
     <section className="quick-chat-view">
       <div className="quick-chat-hero">
-        <h1>
-          我们应该在 <span className="project-name">ClaudeCode</span>{" "}
-          中构建什么?
-        </h1>
+        {workspaceName ? (
+          <h1>
+            我们应该在 <span className="project-name">{workspaceName}</span>{" "}
+            中构建什么？
+          </h1>
+        ) : (
+          <h1>我们该做什么？</h1>
+        )}
       </div>
 
       {composer ? <div className="chat-composer">{composer}</div> : null}
