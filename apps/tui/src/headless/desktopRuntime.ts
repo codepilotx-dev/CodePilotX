@@ -37,6 +37,7 @@ import { cacheSessionTitle } from '../utils/sessionStorage.js'
 import type { ThinkingConfig } from '../utils/thinking.js'
 import { asSessionId } from '../types/ids.js'
 import { runWithEmbeddedShutdownHandler } from '../utils/gracefulShutdown.js'
+import { logForDebugging } from '../utils/debug.js'
 
 export type DesktopHeadlessThinkingMode =
   | 'default'
@@ -108,8 +109,16 @@ class EmbeddedDesktopHeadlessRuntime implements DesktopHeadlessRuntime {
   }
 
   async runUserTurn(content: string, signal: AbortSignal): Promise<void> {
+    const startedAt = Date.now()
+    logDesktopHeadless('turn_start', {
+      sessionId: this.options.sessionId,
+      textLength: content.length,
+    })
     await runWithCwdOverride(this.options.workspacePath, async () => {
       if (signal.aborted) {
+        logDesktopHeadless('turn_skipped_aborted_before_start', {
+          sessionId: this.options.sessionId,
+        })
         return
       }
       const input = new DesktopHeadlessInput(
@@ -120,6 +129,12 @@ class EmbeddedDesktopHeadlessRuntime implements DesktopHeadlessRuntime {
       this.currentInput = input
       this.prepareGlobalSessionState()
       try {
+        logDesktopHeadless('run_headless_start', {
+          sessionId: this.options.sessionId,
+          resume:
+            this.hasStartedHeadlessSession ||
+            this.options.resumeExistingSession,
+        })
         await runWithDesktopExitGuards(() =>
           runHeadless(
             input,
@@ -166,6 +181,10 @@ class EmbeddedDesktopHeadlessRuntime implements DesktopHeadlessRuntime {
             },
           ),
         )
+        logDesktopHeadless('run_headless_done', {
+          sessionId: this.options.sessionId,
+          durationMs: Date.now() - startedAt,
+        })
       } finally {
         if (this.currentInput === input) {
           input.close()
@@ -175,6 +194,10 @@ class EmbeddedDesktopHeadlessRuntime implements DesktopHeadlessRuntime {
     })
 
     this.hasStartedHeadlessSession = true
+    logDesktopHeadless('turn_done', {
+      sessionId: this.options.sessionId,
+      durationMs: Date.now() - startedAt,
+    })
   }
 
   private get tools() {
@@ -204,14 +227,35 @@ class EmbeddedDesktopHeadlessRuntime implements DesktopHeadlessRuntime {
       {
         writeMessage: async message => {
           if (signal.aborted) {
+            logDesktopHeadless('output_ignored_aborted', {
+              sessionId: this.options.sessionId,
+              type: message.type,
+            })
             return
           }
+          logDesktopHeadless('output', {
+            sessionId: this.options.sessionId,
+            type: message.type,
+            ...(message.type === 'result'
+              ? {
+                  subtype: (message as Record<string, unknown>).subtype,
+                  isError: (message as Record<string, unknown>).is_error,
+                  error: firstResultError(message as Record<string, unknown>),
+                }
+              : {}),
+          })
           await this.options.onOutput(message, {
             injectControlResponse: response => {
+              logDesktopHeadless('inject_control_response', {
+                sessionId: this.options.sessionId,
+              })
               structuredIO.injectControlResponse(response as SDKControlResponse)
             },
           })
           if (message.type === 'result') {
+            logDesktopHeadless('result_closes_input', {
+              sessionId: this.options.sessionId,
+            })
             this.currentInput?.close()
           }
         },
@@ -231,6 +275,10 @@ class DesktopHeadlessInput implements AsyncIterable<string> {
     prompt: string,
     private readonly signal: AbortSignal,
   ) {
+    logDesktopHeadless('input_create', {
+      sessionId,
+      textLength: prompt.length,
+    })
     this.enqueueUserPrompt(prompt)
     if (signal.aborted) {
       this.enqueueInterrupt()
@@ -261,12 +309,14 @@ class DesktopHeadlessInput implements AsyncIterable<string> {
     if (this.closed) {
       return
     }
+    logDesktopHeadless('input_close', { sessionId: this.sessionId })
     this.closed = true
     this.signal.removeEventListener('abort', this.onAbort)
     this.notify()
   }
 
   private readonly onAbort = (): void => {
+    logDesktopHeadless('input_abort', { sessionId: this.sessionId })
     this.enqueueInterrupt()
     this.close()
   }
@@ -306,6 +356,26 @@ class DesktopHeadlessInput implements AsyncIterable<string> {
     this.waiter = null
     waiter?.()
   }
+}
+
+function logDesktopHeadless(
+  event: string,
+  fields: Record<string, unknown> = {},
+): void {
+  const suffix =
+    Object.keys(fields).length > 0 ? ` ${JSON.stringify(fields)}` : ''
+  console.info(
+    `[desktop-headless] ${new Date().toISOString()} ${event}${suffix}`,
+  )
+  logForDebugging(`[desktop-headless] ${event}${suffix}`)
+}
+
+function firstResultError(message: Record<string, unknown>): string | undefined {
+  if (!Array.isArray(message.errors)) {
+    return undefined
+  }
+  const first = message.errors.find(item => typeof item === 'string')
+  return typeof first === 'string' ? first.slice(0, 500) : undefined
 }
 
 function getInitialDesktopAppState(options: DesktopHeadlessRuntimeOptions) {
@@ -398,6 +468,7 @@ async function runWithDesktopExitGuards<T>(
   operation: () => Promise<T>,
 ): Promise<T> {
   const originalExit = process.exit
+  let shutdownRequest: { exitCode: number; reason: string } | null = null
   process.exit = ((code?: string | number | null | undefined): never => {
     throw new Error(
       `Embedded desktop headless runtime attempted process.exit(${String(
@@ -406,13 +477,23 @@ async function runWithDesktopExitGuards<T>(
     )
   }) as typeof process.exit
   try {
-    return await runWithEmbeddedShutdownHandler(({ exitCode, reason }) => {
-      if (exitCode !== 0) {
-        throw new Error(
-          `Embedded desktop headless runtime requested shutdown with code ${exitCode} (${reason})`,
-        )
-      }
-    }, operation)
+    const result = await runWithEmbeddedShutdownHandler(
+      ({ exitCode, reason }) => {
+        shutdownRequest = { exitCode, reason }
+        logDesktopHeadless('shutdown_requested', {
+          exitCode,
+          reason,
+        })
+      },
+      operation,
+    )
+    if (shutdownRequest && shutdownRequest.exitCode !== 0) {
+      logDesktopHeadless('shutdown_request_preserved_as_result', {
+        exitCode: shutdownRequest.exitCode,
+        reason: shutdownRequest.reason,
+      })
+    }
+    return result
   } finally {
     process.exit = originalExit
   }

@@ -2467,6 +2467,7 @@ function runHeadlessStreaming(
       } catch {
         // If we can't emit the error result, continue with shutdown anyway
       }
+      output.done()
       suggestionState.abortController?.abort()
       gracefulShutdownSync(1)
       return

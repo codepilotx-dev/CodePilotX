@@ -52,6 +52,7 @@ import {
   readDesktopStoredSettings,
   saveDesktopStoredSettings,
 } from './desktopSettings.js'
+import { desktopDebug } from './desktopDebug.js'
 import {
   applyDesktopAgentEventToSnapshot,
   createDesktopSessionSnapshot,
@@ -244,8 +245,24 @@ function attachSessionListeners(record: DesktopSessionRecord): void {
   const session = record.session
   if (!session) return
   session.on('event', event => {
+    desktopDebug('agent_event', {
+      sessionId: event.sessionId,
+      type: event.type,
+      ...(event.type === 'status' ? { status: event.status } : {}),
+      ...(event.type === 'message'
+        ? { role: event.role, textLength: event.text.length }
+        : {}),
+      ...(event.type === 'partial_message'
+        ? { textLength: event.text.length }
+        : {}),
+      ...(event.type === 'error' ? { message: event.message } : {}),
+    })
     const currentRecord = sessions.get(session.sessionId)
     if (!currentRecord || currentRecord.session !== session) {
+      desktopDebug('agent_event_ignored_stale_session', {
+        sessionId: session.sessionId,
+        type: event.type,
+      })
       return
     }
     const timestampedEvent = withDesktopMessageTimestamp(event)
@@ -516,10 +533,16 @@ async function sendUserMessage(
   content: string,
   model?: string,
 ): Promise<void> {
+  const startedAt = Date.now()
   const trimmedContent = requireNonEmptyString(
     content,
     'Desktop user message',
   )
+  desktopDebug('send_user_message_start', {
+    sessionId,
+    textLength: trimmedContent.length,
+    modelProvided: model !== undefined,
+  })
   const record = await getSessionRecord(sessionId)
   const nextModel = normalizeOptionalText(model)
   if (model !== undefined) {
@@ -544,7 +567,20 @@ async function sendUserMessage(
   if (shouldGenerateTitle) {
     scheduleAiTitleGeneration(record, trimmedContent)
   }
-  await session.sendUserMessage(trimmedContent)
+  try {
+    await session.sendUserMessage(trimmedContent)
+    desktopDebug('send_user_message_done', {
+      sessionId,
+      durationMs: Date.now() - startedAt,
+    })
+  } catch (error) {
+    desktopDebug('send_user_message_error', {
+      sessionId,
+      durationMs: Date.now() - startedAt,
+      message: error instanceof Error ? error.message : String(error),
+    })
+    throw error
+  }
 }
 
 function shouldGenerateAiTitle(record: DesktopSessionRecord): boolean {

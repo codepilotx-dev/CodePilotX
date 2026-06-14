@@ -404,14 +404,31 @@ function stringifyToolResult(content: unknown): string {
   return JSON.stringify(content ?? '')
 }
 
-async function readOpenAIStream(response: Response): Promise<{
+type OpenAIStreamResult = {
   content: string
   reasoningContent: string
   toolCalls: OpenAIToolCall[]
   usage: NonNullableUsage
   finishReason: string | null
   requestID?: string
-}> {
+}
+
+type FrameBoundary = {
+  index: number
+  length: number
+}
+
+function findOpenAIStreamFrameBoundary(buffer: string): FrameBoundary | null {
+  const match = /\r\n\r\n|\n\n|\r\r/.exec(buffer)
+  return match ? { index: match.index, length: match[0].length } : null
+}
+
+/**
+ * @internal exported for regression coverage of OpenAI-compatible SSE parsing.
+ */
+export async function readOpenAIStream(
+  response: Response,
+): Promise<OpenAIStreamResult> {
   const reader = response.body!.getReader()
   const decoder = new TextDecoder()
   let buffer = ''
@@ -421,53 +438,68 @@ async function readOpenAIStream(response: Response): Promise<{
   let usage = EMPTY_USAGE as NonNullableUsage
   const toolCalls: OpenAIToolCall[] = []
 
-  while (true) {
-    const { value, done } = await reader.read()
-    if (done) break
-    buffer += decoder.decode(value, { stream: true })
-
-    let boundary = buffer.indexOf('\n\n')
-    while (boundary !== -1) {
-      const frame = buffer.slice(0, boundary)
-      buffer = buffer.slice(boundary + 2)
-      for (const line of frame.split('\n')) {
-        const trimmed = line.trim()
-        if (!trimmed.startsWith('data:')) continue
-        const data = trimmed.slice(5).trim()
-        if (!data || data === '[DONE]') continue
-        const chunk = JSON.parse(data) as ChatCompletionChunk
-        const choice = chunk.choices?.[0]
-        if (choice?.delta?.content) {
-          content += choice.delta.content
-        }
-        if (choice?.delta?.reasoning_content) {
-          reasoningContent += choice.delta.reasoning_content
-        }
-        if (choice?.delta?.reasoning) {
-          reasoningContent += choice.delta.reasoning
-        }
-        if (choice?.delta?.tool_calls) {
-          mergeToolCallDeltas(toolCalls, choice.delta.tool_calls)
-        }
-        if (choice?.finish_reason) {
-          finishReason = choice.finish_reason
-        }
-        if (chunk.usage) {
-          usage = usageFromOpenAI(chunk.usage)
-        }
-      }
-      boundary = buffer.indexOf('\n\n')
-    }
-  }
-
-  return {
+  const result = (): OpenAIStreamResult => ({
     content,
     reasoningContent,
     toolCalls: toolCalls.filter(call => call.function.name),
     usage,
     finishReason,
     requestID: response.headers.get('x-request-id') ?? undefined,
+  })
+
+  const processFrame = (frame: string): boolean => {
+    for (const line of frame.split(/\r\n|\n|\r/)) {
+      const trimmed = line.trim()
+      if (!trimmed.startsWith('data:')) continue
+      const data = trimmed.slice(5).trim()
+      if (!data) continue
+      if (data === '[DONE]') return true
+      const chunk = JSON.parse(data) as ChatCompletionChunk
+      const choice = chunk.choices?.[0]
+      if (choice?.delta?.content) {
+        content += choice.delta.content
+      }
+      if (choice?.delta?.reasoning_content) {
+        reasoningContent += choice.delta.reasoning_content
+      }
+      if (choice?.delta?.reasoning) {
+        reasoningContent += choice.delta.reasoning
+      }
+      if (choice?.delta?.tool_calls) {
+        mergeToolCallDeltas(toolCalls, choice.delta.tool_calls)
+      }
+      if (choice?.finish_reason) {
+        finishReason = choice.finish_reason
+      }
+      if (chunk.usage) {
+        usage = usageFromOpenAI(chunk.usage)
+      }
+    }
+    return false
   }
+
+  while (true) {
+    const { value, done } = await reader.read()
+    if (done) {
+      buffer += decoder.decode()
+      if (buffer.trim() && processFrame(buffer)) return result()
+      break
+    }
+    buffer += decoder.decode(value, { stream: true })
+
+    let boundary = findOpenAIStreamFrameBoundary(buffer)
+    while (boundary) {
+      const frame = buffer.slice(0, boundary.index)
+      buffer = buffer.slice(boundary.index + boundary.length)
+      if (processFrame(frame)) {
+        await reader.cancel().catch(() => {})
+        return result()
+      }
+      boundary = findOpenAIStreamFrameBoundary(buffer)
+    }
+  }
+
+  return result()
 }
 
 function mergeToolCallDeltas(

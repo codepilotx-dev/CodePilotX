@@ -27,6 +27,7 @@ import {
   getUpdatedPermissions,
   summarizeToolInput,
 } from './agentRuntimeSupport.js'
+import { desktopDebug } from './desktopDebug.js'
 
 export type DesktopAgentRuntimePreference =
   | 'auto'
@@ -74,9 +75,17 @@ export function createDesktopAgentRuntime(
 ): DesktopAgentRuntime {
   const preference = context.runtimePreference ?? 'auto'
   if (preference === 'subprocess') {
+    desktopDebug('runtime_create_subprocess', {
+      sessionId: context.sessionId,
+      preference,
+    })
     return new CliDesktopAgentRuntime(context)
   }
   try {
+    desktopDebug('runtime_create_embedded', {
+      sessionId: context.sessionId,
+      preference,
+    })
     return new InProcessDesktopAgentRuntime(context)
   } catch (error) {
     if (
@@ -84,6 +93,10 @@ export function createDesktopAgentRuntime(
       context.agentExecutablePath &&
       existsSync(context.agentExecutablePath)
     ) {
+      desktopDebug('runtime_create_embedded_failed_fallback_subprocess', {
+        sessionId: context.sessionId,
+        message: error instanceof Error ? error.message : String(error),
+      })
       return new CliDesktopAgentRuntime(context)
     }
     throw error
@@ -104,6 +117,11 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
   }
 
   async runUserTurn(content: string, signal: AbortSignal): Promise<void> {
+    const startedAt = Date.now()
+    desktopDebug('runtime_subprocess_turn_start', {
+      sessionId: this.context.sessionId,
+      textLength: content.length,
+    })
     const executablePath = this.context.agentExecutablePath
     if (!executablePath || !existsSync(executablePath)) {
       throw new Error('Desktop agent executable path is not configured')
@@ -152,6 +170,10 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
 
     child.stderr.on('data', chunk => {
       const text = String(chunk)
+      desktopDebug('runtime_subprocess_stderr', {
+        sessionId: this.context.sessionId,
+        textLength: text.length,
+      })
       stderr.push(text)
       this.context.emit({
         type: 'tool_result',
@@ -181,6 +203,10 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
       })
       await outputDone
       if (signal.aborted) {
+        desktopDebug('runtime_subprocess_turn_aborted', {
+          sessionId: this.context.sessionId,
+          durationMs: Date.now() - startedAt,
+        })
         return
       }
       if (exitCode !== 0) {
@@ -189,6 +215,11 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
             `Desktop agent process exited with code ${exitCode}`,
         )
       }
+      desktopDebug('runtime_subprocess_turn_done', {
+        sessionId: this.context.sessionId,
+        durationMs: Date.now() - startedAt,
+        exitCode,
+      })
     } finally {
       if (this.child === child) {
         this.child = null
@@ -244,6 +275,10 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
       })
       return
     }
+    desktopDebug('runtime_subprocess_stdout_message', {
+      sessionId: this.context.sessionId,
+      type: message.type,
+    })
 
     switch (message.type) {
       case 'assistant':
@@ -529,6 +564,11 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
   }
 
   async runUserTurn(content: string, signal: AbortSignal): Promise<void> {
+    const startedAt = Date.now()
+    desktopDebug('runtime_embedded_turn_start', {
+      sessionId: this.context.sessionId,
+      textLength: content.length,
+    })
     this.emittedAssistantText = false
     this.partialText = ''
     this.resultError = null
@@ -546,11 +586,24 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
     }
 
     if (signal.aborted) {
+      desktopDebug('runtime_embedded_turn_aborted', {
+        sessionId: this.context.sessionId,
+        durationMs: Date.now() - startedAt,
+      })
       return
     }
     if (this.resultError) {
+      desktopDebug('runtime_embedded_turn_result_error', {
+        sessionId: this.context.sessionId,
+        durationMs: Date.now() - startedAt,
+        message: this.resultError,
+      })
       throw new Error(this.resultError)
     }
+    desktopDebug('runtime_embedded_turn_done', {
+      sessionId: this.context.sessionId,
+      durationMs: Date.now() - startedAt,
+    })
   }
 
   private async handleStructuredOutput(
@@ -559,8 +612,24 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
   ): Promise<void> {
     const signal = this.currentSignal
     if (!signal || signal.aborted) {
+      desktopDebug('runtime_embedded_output_ignored_no_signal', {
+        sessionId: this.context.sessionId,
+        type: message.type,
+        aborted: signal?.aborted,
+      })
       return
     }
+    desktopDebug('runtime_embedded_output', {
+      sessionId: this.context.sessionId,
+      type: message.type,
+      ...(message.type === 'result'
+        ? {
+            subtype: (message as Record<string, unknown>).subtype,
+            isError: (message as Record<string, unknown>).is_error,
+            error: firstResultError(message as Record<string, unknown>),
+          }
+        : {}),
+    })
     if (message.type === 'control_request') {
       await this.handleControlRequest(
         message as Record<string, unknown>,
@@ -807,6 +876,14 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
   ): void {
     controls.injectControlResponse(message)
   }
+}
+
+function firstResultError(message: Record<string, unknown>): string | undefined {
+  if (!Array.isArray(message.errors)) {
+    return undefined
+  }
+  const first = message.errors.find(item => typeof item === 'string')
+  return typeof first === 'string' ? first.slice(0, 500) : undefined
 }
 
 function permissionModeArgs(

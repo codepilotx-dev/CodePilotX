@@ -5,6 +5,7 @@ import {
   type DesktopAgentRuntime,
   type DesktopAgentRuntimePreference,
 } from './agentRuntime.js'
+import { desktopDebug } from './desktopDebug.js'
 import type {
   CreateDesktopSessionOptions,
   DesktopAgentEvent,
@@ -111,8 +112,16 @@ class LocalDesktopAgentSession
   async sendUserMessage(content: string): Promise<void> {
     this.assertActive()
     if (this.currentAbortController) {
+      desktopDebug('session_send_rejected_already_running', {
+        sessionId: this.sessionId,
+      })
       throw new Error('Desktop agent session is already running')
     }
+    const startedAt = Date.now()
+    desktopDebug('session_send_start', {
+      sessionId: this.sessionId,
+      textLength: content.length,
+    })
     this.emitMessage('user', content)
     this.emitStatus('running')
 
@@ -122,12 +131,25 @@ class LocalDesktopAgentSession
     try {
       await this.runtime.runUserTurn(content, abortController.signal)
       if (abortController.signal.aborted) {
+        desktopDebug('session_send_aborted', {
+          sessionId: this.sessionId,
+          durationMs: Date.now() - startedAt,
+        })
         return
       }
       this.emitStatus('done')
       this.emit({ type: 'done', sessionId: this.sessionId })
+      desktopDebug('session_send_done', {
+        sessionId: this.sessionId,
+        durationMs: Date.now() - startedAt,
+      })
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
+      desktopDebug('session_send_error', {
+        sessionId: this.sessionId,
+        durationMs: Date.now() - startedAt,
+        message,
+      })
       this.emit({ type: 'error', sessionId: this.sessionId, message })
       this.emitStatus('error')
     } finally {
@@ -151,8 +173,12 @@ class LocalDesktopAgentSession
 
   async interrupt(): Promise<void> {
     if (!this.currentAbortController) {
+      desktopDebug('session_interrupt_ignored_idle', {
+        sessionId: this.sessionId,
+      })
       return
     }
+    desktopDebug('session_interrupt', { sessionId: this.sessionId })
     this.currentAbortController.abort()
     this.emitStatus('done')
     this.emit({ type: 'done', sessionId: this.sessionId })
