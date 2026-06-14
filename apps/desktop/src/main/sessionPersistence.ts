@@ -4,6 +4,7 @@ import type {
   DesktopAgentEvent,
   DesktopContextUsage,
   DesktopPermissionRequest,
+  DesktopSessionEvent,
   DesktopSessionListItem,
   DesktopSessionMessage,
   DesktopSessionSettingsSnapshot,
@@ -13,6 +14,7 @@ import type {
   DesktopToolLogEntry,
   DesktopWorkspace,
 } from '../shared/types.js'
+import { desktopAgentEventToSessionEvent } from '../shared/sessionEventModel.js'
 import {
   getDesktopConfigDirectoryPath,
   getOpenAgentConfigHomeDir,
@@ -127,6 +129,8 @@ export function createDesktopSessionSnapshot(params: {
     workspace: params.workspace,
     settings: params.settings,
     view: createEmptyViewSnapshot(),
+    events: [],
+    eventModelVersion: 1,
     updatedAt: new Date().toISOString(),
   }
 }
@@ -144,7 +148,13 @@ export function applyDesktopAgentEventToSnapshot(
       pendingPermissions: [...snapshot.view.pendingPermissions],
       contextUsage: snapshot.view.contextUsage ?? null,
     },
+    events: snapshot.events ? [...snapshot.events] : undefined,
+    eventModelVersion: snapshot.eventModelVersion,
     updatedAt: new Date().toISOString(),
+  }
+  const sessionEvent = desktopAgentEventToSessionEvent(event)
+  if (next.events && sessionEvent) {
+    next.events = [...next.events, sessionEvent]
   }
 
   if (event.type === 'status') {
@@ -308,6 +318,10 @@ function normalizeSessionSnapshot(value: unknown): DesktopSessionSnapshot[] {
 
   const item = normalizeSessionItem(snapshot.item)
   const view = normalizeViewSnapshot(snapshot.view)
+  const events =
+    snapshot.eventModelVersion === 1 && Array.isArray(snapshot.events)
+      ? snapshot.events.flatMap(normalizeSessionEvent)
+      : undefined
   const settings = normalizeSettingsSnapshot(snapshot.settings)
   const effectiveModel =
     validModelName(view.contextUsage?.model) ??
@@ -343,6 +357,8 @@ function normalizeSessionSnapshot(value: unknown): DesktopSessionSnapshot[] {
           streaming: false,
         })),
       },
+      events,
+      eventModelVersion: events ? 1 : undefined,
       updatedAt,
     },
   ]
@@ -506,6 +522,52 @@ function normalizeToolLogEntry(value: unknown): DesktopToolLogEntry[] {
   ]
 }
 
+function normalizeSessionEvent(value: unknown): DesktopSessionEvent[] {
+  if (!value || typeof value !== 'object') return []
+  const event = value as Partial<DesktopSessionEvent>
+  if (typeof event.id !== 'string') return []
+  if (typeof event.sessionId !== 'string') return []
+  if (!isSessionEventType(event.type)) return []
+  const createdAt = normalizeTimestampString(event.createdAt)
+  if (!createdAt) return []
+  const metadata =
+    event.metadata && typeof event.metadata === 'object'
+      ? (event.metadata as Record<string, unknown>)
+      : undefined
+  return [
+    {
+      id: event.id,
+      sessionId: event.sessionId,
+      type: event.type,
+      role:
+        event.role === 'user' ||
+        event.role === 'assistant' ||
+        event.role === 'system'
+          ? event.role
+          : undefined,
+      content: typeof event.content === 'string' ? event.content : undefined,
+      metadata,
+      createdAt,
+    },
+  ]
+}
+
+function isSessionEventType(
+  value: unknown,
+): value is DesktopSessionEvent['type'] {
+  return (
+    value === 'message' ||
+    value === 'assistant_delta' ||
+    value === 'tool_call' ||
+    value === 'tool_result' ||
+    value === 'status' ||
+    value === 'permission_request' ||
+    value === 'context_usage' ||
+    value === 'file_patch' ||
+    value === 'error' ||
+    value === 'checkpoint'
+  )
+}
 function normalizePermissionRequest(value: unknown): DesktopPermissionRequest[] {
   if (!value || typeof value !== 'object') return []
   const request = value as Partial<DesktopPermissionRequest>

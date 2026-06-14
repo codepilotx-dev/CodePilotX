@@ -299,11 +299,34 @@ export type DesktopSessionViewSnapshot = {
   contextUsage: DesktopContextUsage | null
 }
 
+export type DesktopSessionEventType =
+  | 'message'
+  | 'assistant_delta'
+  | 'tool_call'
+  | 'tool_result'
+  | 'status'
+  | 'permission_request'
+  | 'context_usage'
+  | 'file_patch'
+  | 'error'
+  | 'checkpoint'
+
+export type DesktopSessionEvent = {
+  id: string
+  sessionId: string
+  type: DesktopSessionEventType
+  createdAt: string
+  role?: 'user' | 'assistant' | 'system'
+  content?: string
+  metadata?: Record<string, unknown>
+}
 export type DesktopSessionSnapshot = {
   item: DesktopSessionListItem
   workspace: DesktopWorkspace
   settings: DesktopSessionSettingsSnapshot
   view: DesktopSessionViewSnapshot
+  events?: DesktopSessionEvent[]
+  eventModelVersion?: 1
   updatedAt: string
 }
 

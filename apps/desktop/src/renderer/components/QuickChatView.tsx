@@ -4,6 +4,7 @@ import {
   Columns2,
   Code2,
   Copy,
+  FileDiff,
   Maximize2,
   MoreHorizontal,
   RotateCcw,
@@ -13,14 +14,17 @@ import {
 } from "lucide-react";
 import { useQuickChatContext } from "../context/QuickChatContext.js";
 import type { Message } from "../uiTypes.js";
+import type { DesktopSessionEvent } from "../../shared/types.js";
+import { legacyMessagesToSessionEvents } from "../../shared/sessionEventModel.js";
 import { MarkdownMessage } from "./MarkdownMessage.js";
-import { Tooltip, TooltipProvider } from "./ui/Tooltip.js";
+import { Tooltip } from "./ui/Tooltip.js";
 
 export function QuickChatView(): React.ReactNode {
   const {
     isConversationRoute,
     isConversationLoading,
     sessionTitle,
+    events,
     messages,
     sessionStatus,
     composer,
@@ -29,14 +33,23 @@ export function QuickChatView(): React.ReactNode {
   const conversationMessages = messages.filter(
     (message) => message.role !== "system",
   );
-  const hasMessages = conversationMessages.length > 0;
+  const timelineEvents = React.useMemo(
+    () =>
+      foldTimelineEvents(
+        events.length > 0
+          ? events
+          : legacyMessagesToSessionEvents("legacy", conversationMessages),
+      ),
+    [conversationMessages, events],
+  );
+  const hasMessages = timelineEvents.length > 0;
   const showThinking =
     (sessionStatus === "running" || sessionStatus === "waiting") &&
-    !conversationMessages.some(
-      (message) =>
-        message.role === "assistant" &&
-        message.streaming &&
-        Boolean(message.text.trim()),
+    !timelineEvents.some(
+      (event) =>
+        (event.type === "message" || event.type === "assistant_delta") &&
+        event.role === "assistant" &&
+        Boolean(event.content?.trim()),
     );
 
   if (hasMessages || isConversationRoute) {
@@ -51,7 +64,7 @@ export function QuickChatView(): React.ReactNode {
             <span>
               {isConversationLoading
                 ? "加载对话中"
-                : sessionTitle ?? getConversationTitle(conversationMessages)}
+                : sessionTitle ?? getConversationTitle(timelineEvents)}
             </span>
             <Tooltip content="更多操作">
               <button
@@ -99,8 +112,8 @@ export function QuickChatView(): React.ReactNode {
             {isConversationLoading ? (
               <div className="assistant-thinking">加载对话中</div>
             ) : (
-              conversationMessages.map((message) => (
-                <ChatMessage message={message} key={message.id} />
+              timelineEvents.map((event) => (
+                <TimelineEvent event={event} key={event.id} />
               ))
             )}
             {!isConversationLoading && showThinking ? <ThinkingPill /> : null}
@@ -124,6 +137,88 @@ export function QuickChatView(): React.ReactNode {
       {composer ? <div className="chat-composer">{composer}</div> : null}
     </section>
   );
+}
+
+function TimelineEvent({
+  event,
+}: {
+  event: DesktopSessionEvent;
+}): React.ReactNode {
+  if (event.type === "message" || event.type === "assistant_delta") {
+    return (
+      <ChatMessage
+        message={{
+          id: event.id,
+          role: event.role ?? "system",
+          text: event.content ?? "",
+          createdAt: event.createdAt,
+          streaming: event.type === "assistant_delta",
+        }}
+      />
+    );
+  }
+
+  if (event.type === "tool_call" || event.type === "tool_result") {
+    const toolName = stringMetadata(event, "toolName") ?? "Tool";
+    const isError =
+      event.type === "tool_result" && event.metadata?.isError === true;
+    return (
+      <details className={`timeline-tool-event ${isError ? "error" : ""}`}>
+        <summary>
+          <span>{event.type === "tool_call" ? "Running" : "Result"}</span>
+          <strong>{toolName}</strong>
+        </summary>
+        {event.content ? <pre>{event.content}</pre> : null}
+      </details>
+    );
+  }
+
+  if (event.type === "file_patch") {
+    const files = Array.isArray(event.metadata?.files)
+      ? (event.metadata.files as Array<Record<string, unknown>>)
+      : [];
+    const additions = numberMetadata(event, "additions");
+    const deletions = numberMetadata(event, "deletions");
+    return (
+      <article className="timeline-file-event">
+        <div className="timeline-event-title">
+          <FileDiff size={14} />
+          <span>{event.content ?? "Edited files"}</span>
+          {additions !== null || deletions !== null ? (
+            <small>
+              +{additions ?? 0} -{deletions ?? 0}
+            </small>
+          ) : null}
+        </div>
+        {files.length > 0 ? (
+          <ul>
+            {files.slice(0, 6).map((file, index) => (
+              <li key={`${String(file.path ?? "file")}-${index}`}>
+                <span>{String(file.path ?? "file")}</span>
+                <small>
+                  +{Number(file.additions ?? 0)} -{Number(file.deletions ?? 0)}
+                </small>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </article>
+    );
+  }
+
+  if (event.type === "permission_request" || event.type === "error") {
+    return (
+      <article className={`timeline-system-event ${event.type}`}>
+        {event.content}
+      </article>
+    );
+  }
+
+  if (event.type === "status" || event.type === "checkpoint") {
+    return <div className="timeline-status-event">{event.content}</div>;
+  }
+
+  return null;
 }
 
 function ChatMessage({ message }: { message: Message }): React.ReactNode {
@@ -203,10 +298,53 @@ function MessageActionButton({
   );
 }
 
-function getConversationTitle(messages: Message[]): string {
-  const firstUserMessage = messages.find((message) => message.role === "user");
-  const title = firstUserMessage?.text.trim().split(/\r?\n/)[0] ?? "新对话";
+function getConversationTitle(events: DesktopSessionEvent[]): string {
+  const firstUserMessage = events.find((event) => event.role === "user");
+  const title = firstUserMessage?.content?.trim().split(/\r?\n/)[0] ?? "新对话";
   return title.length > 28 ? `${title.slice(0, 28)}...` : title;
+}
+
+function foldTimelineEvents(
+  sourceEvents: DesktopSessionEvent[],
+): DesktopSessionEvent[] {
+  const folded: DesktopSessionEvent[] = [];
+  for (const event of sourceEvents) {
+    const previous = folded.at(-1);
+    if (event.type === "assistant_delta") {
+      if (previous?.type === "assistant_delta") {
+        folded[folded.length - 1] = event;
+      } else {
+        folded.push(event);
+      }
+      continue;
+    }
+    if (
+      event.type === "message" &&
+      event.role === "assistant" &&
+      previous?.type === "assistant_delta"
+    ) {
+      folded[folded.length - 1] = event;
+      continue;
+    }
+    folded.push(event);
+  }
+  return folded;
+}
+
+function stringMetadata(
+  event: DesktopSessionEvent,
+  key: string,
+): string | null {
+  const value = event.metadata?.[key];
+  return typeof value === "string" ? value : null;
+}
+
+function numberMetadata(
+  event: DesktopSessionEvent,
+  key: string,
+): number | null {
+  const value = event.metadata?.[key];
+  return typeof value === "number" ? value : null;
 }
 
 function ThinkingPill(): React.ReactNode {

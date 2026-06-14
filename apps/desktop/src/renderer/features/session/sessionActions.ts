@@ -79,9 +79,11 @@ export async function createSessionForWorkspaceAction(
       ),
     })
     const workspace = session.workspace
-    const nextView =
-      context.sessionViewsRef.current[session.sessionId] ??
-      createEmptySessionView()
+    const nextView = {
+      ...(context.sessionViewsRef.current[session.sessionId] ??
+        createEmptySessionView()),
+      eventModelVersion: 1 as const,
+    }
     context.sessionWorkspacesRef.current = {
       ...context.sessionWorkspacesRef.current,
       [session.sessionId]: workspace,

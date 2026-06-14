@@ -306,6 +306,114 @@
   font-size: var(--fs-14);
 }
 
+.timeline-tool-event,
+.timeline-file-event,
+.timeline-system-event {
+  max-width: min(680px, 100%);
+  border: 1px solid var(--c-border-soft);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  color: var(--c-text);
+  font-size: var(--fs-13);
+}
+
+.timeline-tool-event {
+  overflow: hidden;
+}
+
+.timeline-tool-event summary {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  cursor: pointer;
+}
+
+.timeline-tool-event summary span,
+.timeline-status-event,
+.timeline-file-event small {
+  color: var(--c-text-meta);
+  font-size: var(--fs-12);
+}
+
+.timeline-tool-event summary strong {
+  color: var(--c-text-strong);
+  font-size: var(--fs-13);
+  font-weight: 600;
+}
+
+.timeline-tool-event pre {
+  max-height: 240px;
+  overflow: auto;
+  margin: 0;
+  padding: 0 10px 10px;
+  color: var(--c-text-soft);
+  font-family: var(--font-code);
+  font-size: var(--fs-12);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.timeline-tool-event.error {
+  border-color: var(--c-diff-removed);
+}
+
+.timeline-file-event {
+  display: grid;
+  gap: 8px;
+  padding: 9px 10px;
+}
+
+.timeline-event-title,
+.timeline-file-event li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.timeline-event-title {
+  justify-content: flex-start;
+  color: var(--c-text-strong);
+  font-weight: 600;
+}
+
+.timeline-event-title svg {
+  color: var(--c-accent);
+  flex-shrink: 0;
+}
+
+.timeline-file-event ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.timeline-file-event li span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timeline-system-event {
+  padding: 8px 10px;
+  color: var(--c-text-soft);
+}
+
+.timeline-system-event.error {
+  border-color: var(--c-diff-removed);
+  color: var(--c-text-strong);
+}
+
+.timeline-status-event {
+  align-self: flex-start;
+  padding: 0 2px;
+}
+
 .chat-thinking-pill {
   display: inline-flex;
   align-items: center;

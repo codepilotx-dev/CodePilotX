@@ -1,12 +1,10 @@
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
-import type {
-  Message,
-  SessionViewState,
-  ToolLogEntry,
-} from '../../uiTypes.js'
+import type { Message, SessionViewState, ToolLogEntry } from '../../uiTypes.js'
 import type { DesktopPermissionRequest } from '../../../shared/types.js'
+import type { DesktopSessionEvent } from '../../../shared/types.js'
 
 export type SessionViewStateSetters = {
+  setEvents: Dispatch<SetStateAction<DesktopSessionEvent[]>>
   setMessages: Dispatch<SetStateAction<Message[]>>
   setToolLog: Dispatch<SetStateAction<ToolLogEntry[]>>
   setPendingPermissions: Dispatch<SetStateAction<DesktopPermissionRequest[]>>
@@ -32,6 +30,7 @@ export type AddToolLogEntry = (
 
 export function createEmptySessionView(): SessionViewState {
   return {
+    events: [],
     messages: [],
     toolLog: [],
     pendingPermissions: [],
@@ -44,6 +43,7 @@ export function applySessionView(
   view: SessionViewState,
   setters: SessionViewStateSetters,
 ): void {
+  setters.setEvents(view.events)
   setters.setMessages(view.messages)
   setters.setToolLog(view.toolLog)
   setters.setPendingPermissions(view.pendingPermissions)

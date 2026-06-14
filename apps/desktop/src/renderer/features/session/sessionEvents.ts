@@ -3,6 +3,7 @@ import type {
   DesktopAgentEvent,
   DesktopSessionStatus,
 } from '../../../shared/types.js'
+import { desktopAgentEventToSessionEvent } from '../../../shared/sessionEventModel.js'
 import type { Message, SessionListItem } from '../../uiTypes.js'
 import type {
   AddToolLogEntry,
@@ -36,6 +37,17 @@ export function handleSessionAgentEvent(
     onRefreshActiveWorkspaceRef,
     onOpenDrawerPermissionsRef,
   } = context
+
+  const sessionEvent = desktopAgentEventToSessionEvent(event)
+  if (sessionEvent) {
+    updateSessionView(event.sessionId, view => ({
+      ...view,
+      events:
+        view.eventModelVersion === 1
+          ? [...view.events, sessionEvent]
+          : view.events,
+    }))
+  }
 
   if (event.type === 'status') {
     setSessions(current =>

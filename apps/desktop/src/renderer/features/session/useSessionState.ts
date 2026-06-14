@@ -5,6 +5,7 @@ import type {
   DesktopContextUsage,
   DesktopPermissionMode,
   DesktopPermissionRequest,
+  DesktopSessionEvent,
   DesktopSessionMetadataPatch,
   DesktopSessionStatus,
   DesktopThinkingMode,
@@ -63,6 +64,7 @@ export type UseSessionStateResult = {
   sessions: SessionListItem[]
   sessionStatus: DesktopSessionStatus
   messages: Message[]
+  events: DesktopSessionEvent[]
   toolLog: ToolLogEntry[]
   pendingPermissions: DesktopPermissionRequest[]
   contextUsage: DesktopContextUsage | null
@@ -113,6 +115,7 @@ export function useSessionState(
   const [sessionStatus, setSessionStatus] =
     useState<DesktopSessionStatus>('idle')
   const [messages, setMessages] = useState<Message[]>([])
+  const [events, setEvents] = useState<DesktopSessionEvent[]>([])
   const [toolLog, setToolLog] = useState<ToolLogEntry[]>([])
   const [pendingPermissions, setPendingPermissions] = useState<
     DesktopPermissionRequest[]
@@ -138,7 +141,13 @@ export function useSessionState(
   onOpenDrawerPermissionsRef.current = onOpenDrawerPermissions
 
   const viewSetters = useMemo<SessionViewStateSetters>(
-    () => ({ setMessages, setToolLog, setPendingPermissions, setContextUsage }),
+    () => ({
+      setEvents,
+      setMessages,
+      setToolLog,
+      setPendingPermissions,
+      setContextUsage,
+    }),
     [],
   )
   const viewRefs = useMemo<SessionViewRefs>(
@@ -239,6 +248,8 @@ export function useSessionState(
         for (const snapshot of sessionSnapshots) {
           nextViews[snapshot.item.id] = {
             ...snapshot.view,
+            eventModelVersion: snapshot.eventModelVersion,
+            events: snapshot.events ?? [],
             contextUsage: snapshot.view.contextUsage ?? null,
             selectedFile: null,
           }
@@ -450,6 +461,7 @@ export function useSessionState(
     sessions,
     sessionStatus,
     messages,
+    events,
     toolLog,
     pendingPermissions,
     contextUsage,

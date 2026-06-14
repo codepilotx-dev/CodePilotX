@@ -10,6 +10,8 @@ export type {
   DesktopSessionMessage,
   DesktopSessionMetadataPatch,
   DesktopSessionSettingsSnapshot,
+  DesktopSessionEvent,
+  DesktopSessionEventType,
   DesktopSessionSnapshot,
   DesktopSessionStatus,
   DesktopSessionViewSnapshot,

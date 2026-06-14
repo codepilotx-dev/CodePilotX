@@ -281,12 +281,18 @@ function attachSessionListeners(record: DesktopSessionRecord): void {
         if (!latestRecord || latestRecord.session !== session) {
           return
         }
-        windowService.emitAgentEvent({
+        const diffEvent: DesktopAgentEvent = {
           type: 'diff',
           sessionId: session.sessionId,
           filePath: session.workspacePath,
           patch: diff.patch,
-        })
+        }
+        latestRecord.snapshot = applyDesktopAgentEventToSnapshot(
+          latestRecord.snapshot,
+          diffEvent,
+        )
+        persistSessionStore()
+        windowService.emitAgentEvent(diffEvent)
       })
     }
   })

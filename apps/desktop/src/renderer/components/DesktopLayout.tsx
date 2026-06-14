@@ -126,6 +126,7 @@ export function DesktopLayout(): React.ReactNode {
     sessionsHydrated,
     sessions,
     sessionStatus,
+    events,
     messages,
     contextUsage,
     pendingPermissions,
@@ -806,6 +807,7 @@ export function DesktopLayout(): React.ReactNode {
               activeSessionItem?.aiTitle ??
               null,
             workspaceName: currentWorkspace?.name ?? null,
+            events: isHomePage || isConversationLoading ? [] : events,
             messages: isHomePage || isConversationLoading ? [] : messages,
             sessionStatus,
             composer: isConversationLoading ? null : composer,

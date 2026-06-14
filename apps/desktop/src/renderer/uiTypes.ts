@@ -2,6 +2,7 @@ import type {
   DesktopContextUsage,
   DesktopFilePreview,
   DesktopPermissionRequest,
+  DesktopSessionEvent,
   DesktopSessionListItem,
   DesktopSessionMessage,
   DesktopToolLogEntry,
@@ -27,6 +28,8 @@ export function sessionDisplayTitle(session: SessionListItem): string {
 }
 
 export type SessionViewState = {
+  eventModelVersion?: 1
+  events: DesktopSessionEvent[]
   messages: Message[]
   toolLog: ToolLogEntry[]
   pendingPermissions: DesktopPermissionRequest[]
