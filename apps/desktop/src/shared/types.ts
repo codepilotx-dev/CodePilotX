@@ -411,6 +411,7 @@ export type DesktopApi = {
   closeWindow(): Promise<void>
   isWindowMaximized(): Promise<boolean>
   newWindow(): Promise<void>
+  openDevTools(): Promise<void>
   openSettings(): Promise<void>
   logOut(): Promise<void>
   exitApp(): Promise<void>

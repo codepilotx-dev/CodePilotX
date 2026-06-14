@@ -100,6 +100,7 @@ const api: DesktopApi = {
   isWindowMaximized: () =>
     ipcRenderer.invoke(desktopApiChannel('isWindowMaximized')),
   newWindow: () => ipcRenderer.invoke(desktopApiChannel('newWindow')),
+  openDevTools: () => ipcRenderer.invoke(desktopApiChannel('openDevTools')),
   openSettings: () => ipcRenderer.invoke(desktopApiChannel('openSettings')),
   logOut: () => ipcRenderer.invoke(desktopApiChannel('logOut')),
   exitApp: () => ipcRenderer.invoke(desktopApiChannel('exitApp')),

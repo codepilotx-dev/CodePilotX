@@ -50,7 +50,7 @@ export type ViewMenuAction =
   | 'actualSize'
   | 'toggleFullScreen'
 
-export type WindowMenuAction = 'minimize' | 'zoom' | 'close'
+export type WindowMenuAction = 'minimize' | 'zoom' | 'close' | 'debug'
 
 export type HelpMenuAction =
   | 'codexDocumentation'
@@ -377,6 +377,10 @@ export function WindowChrome({
                 onClick={() => runWindowAction('close')}
               >
                 关闭
+              </PopoverItem>
+              <div className="popover-divider" />
+              <PopoverItem onClick={() => runWindowAction('debug')}>
+                调试...
               </PopoverItem>
             </PopoverMenu>
             <PopoverMenu

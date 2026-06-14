@@ -338,6 +338,9 @@ export function DesktopLayout(): React.ReactNode {
         case 'close':
           void desktopClient.closeWindow()
           break
+        case 'debug':
+          void desktopClient.openDevTools()
+          break
       }
     },
     [setIsWindowMaximized],

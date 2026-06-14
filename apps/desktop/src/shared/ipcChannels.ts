@@ -42,6 +42,7 @@ export const DESKTOP_API_METHODS = [
   'closeWindow',
   'isWindowMaximized',
   'newWindow',
+  'openDevTools',
   'openSettings',
   'logOut',
   'exitApp',

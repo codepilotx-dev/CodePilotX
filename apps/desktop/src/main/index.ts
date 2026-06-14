@@ -686,6 +686,7 @@ function registerIpc(): void {
     closeWindow: async () => windowService.closeWindow(),
     isWindowMaximized: async () => windowService.isWindowMaximized(),
     newWindow: async () => windowService.newWindow(),
+    openDevTools: async () => windowService.openDevTools(),
     openSettings: async () => windowService.openSettings(),
     logOut: async () => windowService.logOut(),
     exitApp: async () => windowService.exitApp(),

@@ -39,6 +39,7 @@ export type DesktopWindowService = {
   closeWindow(): void
   isWindowMaximized(): boolean
   newWindow(): void
+  openDevTools(): void
   openSettings(): void
   logOut(): void
   exitApp(): void
@@ -72,9 +73,6 @@ export function createDesktopWindowService(options: {
     }
     mainWindow.setMenuBarVisibility(false)
     mainWindow.setAutoHideMenuBar(true)
-    if (process.env.NODE_ENV === 'development') {
-      mainWindow.webContents.openDevTools()
-    }
     mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
     mainWindow.webContents.on('will-navigate', (event, url) => {
       if (url !== options.rendererUrl()) {
@@ -134,8 +132,6 @@ export function createDesktopWindowService(options: {
         submenu: [
           { role: 'reload' as const, label: 'Reload' },
           { role: 'forceReload' as const, label: 'Force Reload' },
-          { role: 'toggleDevTools' as const, label: 'Developer Tools' },
-          { type: 'separator' as const },
           { role: 'resetZoom' as const, label: 'Actual Size' },
           { role: 'zoomIn' as const, label: 'Zoom In' },
           { role: 'zoomOut' as const, label: 'Zoom Out' },
@@ -149,6 +145,8 @@ export function createDesktopWindowService(options: {
           { role: 'minimize' as const, label: 'Minimize' },
           { role: 'zoom' as const, label: 'Zoom' },
           { role: 'front' as const, label: 'Bring All to Front' },
+          { type: 'separator' as const },
+          { label: '调试...', click: () => openDevTools() },
         ],
       },
       {
@@ -192,6 +190,10 @@ export function createDesktopWindowService(options: {
 
   function newWindow(): void {
     createWindow()
+  }
+
+  function openDevTools(): void {
+    mainWindow?.webContents.openDevTools()
   }
 
   function openSettings(): void {
@@ -253,6 +255,7 @@ export function createDesktopWindowService(options: {
     closeWindow,
     isWindowMaximized,
     newWindow,
+    openDevTools,
     openSettings,
     logOut,
     exitApp,
