@@ -19,7 +19,6 @@ import {
 } from "lucide-react";
 import { useQuickChatContext } from "../context/QuickChatContext.js";
 import type { Message } from "../uiTypes.js";
-import type { DesktopSessionEvent } from "../../shared/types.js";
 import { legacyMessagesToSessionEvents } from "../../shared/sessionEventModel.js";
 import { MarkdownMessage } from "./MarkdownMessage.js";
 import { Tooltip } from "./ui/Tooltip.js";
@@ -325,7 +324,9 @@ function MessageActionButton({
   );
 }
 
-function getConversationTitle(events: DesktopSessionEvent[]): string {
+function getConversationTitle(
+  events: Array<{ role?: string; content?: string }>,
+): string {
   const firstUserMessage = events.find((event) => event.role === "user");
   const title = firstUserMessage?.content?.trim().split(/\r?\n/)[0] ?? "新对话";
   return title.length > 28 ? `${title.slice(0, 28)}...` : title;

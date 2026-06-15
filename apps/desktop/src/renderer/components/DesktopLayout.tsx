@@ -899,6 +899,7 @@ export function DesktopLayout(): React.ReactNode {
             isConversationLoading,
             sessionTitle:
               activeSessionItem?.sessionName ??
+              activeSessionItem?.customTitle ??
               activeSessionItem?.aiTitle ??
               null,
             workspaceName: currentWorkspace?.name ?? null,
