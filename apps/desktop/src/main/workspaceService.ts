@@ -4,10 +4,13 @@ import { mkdir, open, readdir, stat } from 'node:fs/promises'
 import { basename, dirname, join, resolve, sep } from 'node:path'
 import { promisify } from 'node:util'
 import {
-  getDesktopConfigDirectoryPath,
   readDesktopStoredSettings,
   saveDesktopStoredSettings,
 } from './desktopSettings.js'
+import {
+  getStandaloneWorkspaceMetadata,
+  getStandaloneWorkspacePath,
+} from './standaloneWorkspace.js'
 import type {
   DesktopDiffSummary,
   DesktopFileEntry,
@@ -25,8 +28,6 @@ const IGNORED_DIRECTORY_NAMES = new Set([
   'release',
 ])
 const MAX_FILE_PREVIEW_BYTES = 200_000
-const STANDALONE_WORKSPACE_NAME = 'Standalone Chat'
-const STANDALONE_WORKSPACE_DIRECTORY_NAME = 'chat-workspace'
 const DEFAULT_OPEN_TARGET: DesktopOpenTarget = {
   id: 'default-app',
   label: 'Default app',
@@ -471,18 +472,9 @@ function openPathInEditor(executablePath: string, targetPath: string): void {
 }
 
 export async function getStandaloneWorkspace(): Promise<DesktopWorkspace> {
-  const workspacePath = join(
-    getDesktopConfigDirectoryPath(),
-    STANDALONE_WORKSPACE_DIRECTORY_NAME,
-  )
+  const workspacePath = getStandaloneWorkspacePath()
   await mkdir(workspacePath, { recursive: true })
-  return {
-    path: workspacePath,
-    name: STANDALONE_WORKSPACE_NAME,
-    branchName: null,
-    isGitRepo: false,
-    isStandalone: true,
-  }
+  return getStandaloneWorkspaceMetadata()
 }
 
 export async function getWorkspaceContext(workspacePath: string): Promise<DesktopWorkspace> {

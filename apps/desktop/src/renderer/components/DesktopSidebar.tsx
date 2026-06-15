@@ -22,6 +22,7 @@ type Props = {
   workspace: DesktopWorkspace | null;
   onCreateSession: (workspace?: DesktopWorkspace | null) => void;
   onOpenWorkspace: (workspace: DesktopWorkspace) => void;
+  onRemoveWorkspace: (workspace: DesktopWorkspace) => void;
   onSelectSession: (session: SessionListItem) => void;
   onSetWidth: (width: number) => void;
   onUpdateSessionMetadata: (
@@ -41,6 +42,7 @@ export function DesktopSidebar({
   workspace,
   onCreateSession,
   onOpenWorkspace,
+  onRemoveWorkspace,
   onSelectSession,
   onSetWidth,
   onUpdateSessionMetadata,
@@ -185,6 +187,7 @@ export function DesktopSidebar({
           onCreateSession={onCreateSession}
           onOpenWorkspace={onOpenWorkspace}
           onPinSession={pinSession}
+          onRemoveWorkspace={onRemoveWorkspace}
           onSelectSession={onSelectSession}
           onToggleExpanded={toggleGroup}
           onUnpinSession={unpinSession}

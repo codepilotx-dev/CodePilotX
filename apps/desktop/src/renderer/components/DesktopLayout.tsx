@@ -20,7 +20,10 @@ import type { SessionListItem } from '../uiTypes.js'
 import { PERMISSION_MODE_OPTIONS, THINKING_MODE_OPTIONS } from '../features/settings/settingsStorage.js'
 import { useDesktopSettings } from '../features/settings/useDesktopSettings.js'
 import { useDesktopLayout } from '../features/layout/useDesktopLayout.js'
-import { useWorkspaceState } from '../features/workspace/useWorkspaceState.js'
+import {
+  NO_WORKSPACE_DIFF,
+  useWorkspaceState,
+} from '../features/workspace/useWorkspaceState.js'
 import { useSessionState } from '../features/session/useSessionState.js'
 import { useDesktopCommands } from '../features/session/useDesktopCommands.js'
 import { useDesktopSearch } from '../features/search/useDesktopSearch.js'
@@ -162,12 +165,21 @@ export function DesktopLayout(): React.ReactNode {
     }
 
     const routedSession = sessions.find(item => item.id === routedSessionId)
-    if (!routedSession || routedSession.archivedAt) {
+    if (!routedSession) {
       activateSessionById(null)
       setWorkspaceState(null)
       setDiffState('未选择项目。')
       setSelectedFile(null)
       setErrorMessage(`找不到对话：${routedSessionId}`)
+      navigate('/', { replace: true })
+      return
+    }
+
+    if (routedSession.archivedAt) {
+      activateSessionById(null)
+      setWorkspaceState(null)
+      setDiffState(NO_WORKSPACE_DIFF)
+      setSelectedFile(null)
       navigate('/', { replace: true })
       return
     }
@@ -694,6 +706,30 @@ export function DesktopLayout(): React.ReactNode {
     message => message.role !== 'system',
   )
 
+  const handleRemoveWorkspace = useCallback(
+    (target: DesktopWorkspace): void => {
+      setRecentWorkspaces(current =>
+        current.filter(workspaceItem => workspaceItem.path !== target.path),
+      )
+      if (currentWorkspace?.path !== target.path) return
+      setWorkspaceState(null)
+      setDiffState(NO_WORKSPACE_DIFF)
+      setSelectedFile(null)
+      if (!isConversationRoute) {
+        navigate('/')
+      }
+    },
+    [
+      currentWorkspace?.path,
+      isConversationRoute,
+      navigate,
+      setDiffState,
+      setRecentWorkspaces,
+      setSelectedFile,
+      setWorkspaceState,
+    ],
+  )
+
   useEffect(() => {
     if (!runtimeMissing) {
       setRuntimeWarningDismissed(false)
@@ -755,6 +791,7 @@ export function DesktopLayout(): React.ReactNode {
       workspace={currentWorkspace}
       onCreateSession={workspaceItem => void handleCreateSession(workspaceItem)}
       onOpenWorkspace={workspaceItem => void handleOpenRecentWorkspace(workspaceItem)}
+      onRemoveWorkspace={handleRemoveWorkspace}
       onSelectSession={handleSelectSession}
       onSetWidth={setSidebarWidth}
       onUpdateSessionMetadata={(targetSessionId, patch) =>

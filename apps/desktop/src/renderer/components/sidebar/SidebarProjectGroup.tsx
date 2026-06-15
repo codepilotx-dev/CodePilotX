@@ -29,6 +29,7 @@ type Props = {
   onCreateSession: (workspace?: DesktopWorkspace | null) => void;
   onOpenWorkspace: (workspace: DesktopWorkspace) => void;
   onPinSession: (session: SessionListItem) => void;
+  onRemoveWorkspace: (workspace: DesktopWorkspace) => void;
   onSelectSession: (session: SessionListItem) => void;
   onToggleExpanded: (groupKey: string) => void;
   onUnpinSession: (session: SessionListItem) => void;
@@ -45,6 +46,7 @@ export function SidebarProjectGroup({
   onCreateSession,
   onOpenWorkspace,
   onPinSession,
+  onRemoveWorkspace,
   onSelectSession,
   onToggleExpanded,
   onUnpinSession,
@@ -121,7 +123,10 @@ export function SidebarProjectGroup({
             <PopoverItem icon={<Archive size={14} />} onClick={() => {}}>
               归档对话
             </PopoverItem>
-            <PopoverItem icon={<X size={14} />} onClick={() => {}}>
+            <PopoverItem
+              icon={<X size={14} />}
+              onClick={() => onRemoveWorkspace(project)}
+            >
               移除
             </PopoverItem>
           </PopoverMenu>

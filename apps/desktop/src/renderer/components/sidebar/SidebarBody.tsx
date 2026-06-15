@@ -33,6 +33,7 @@ type Props = {
   onCreateSession: (workspace?: DesktopWorkspace | null) => void;
   onOpenWorkspace: (workspace: DesktopWorkspace) => void;
   onPinSession: (session: SessionListItem) => void;
+  onRemoveWorkspace: (workspace: DesktopWorkspace) => void;
   onSelectSession: (session: SessionListItem) => void;
   onToggleExpanded: (groupKey: string) => void;
   onUnpinSession: (session: SessionListItem) => void;
@@ -51,6 +52,7 @@ export function SidebarBody({
   onCreateSession,
   onOpenWorkspace,
   onPinSession,
+  onRemoveWorkspace,
   onSelectSession,
   onToggleExpanded,
   onUnpinSession,
@@ -97,6 +99,7 @@ export function SidebarBody({
               onCreateSession={onCreateSession}
               onOpenWorkspace={onOpenWorkspace}
               onPinSession={onPinSession}
+              onRemoveWorkspace={onRemoveWorkspace}
               onSelectSession={onSelectSession}
               onToggleExpanded={onToggleExpanded}
               onUnpinSession={onUnpinSession}

@@ -36,6 +36,10 @@ import {
   inferProviderFromModel,
 } from './desktopContextUsage.js'
 import { summarizeToolInput } from './agentRuntimeSupport.js'
+import {
+  getStandaloneWorkspaceMetadata,
+  isStandaloneWorkspacePath,
+} from './standaloneWorkspace.js'
 
 type PersistedDesktopSessions = {
   activeSessionId: string | null
@@ -170,6 +174,8 @@ export function createDesktopSessionSnapshot(params: {
   const now = new Date()
   const lastMessageAt = now.toISOString()
   const createdAt = now.toISOString()
+  const workspace = normalizeStandaloneWorkspace(params.workspace)
+  const standalone = isStandaloneSession(workspace, params.standalone)
   return {
     item: {
       id: params.sessionId,
@@ -178,16 +184,16 @@ export function createDesktopSessionSnapshot(params: {
       customTitle: null,
       tag: null,
       summary: null,
-      gitBranch: params.workspace.branchName ?? null,
+      gitBranch: workspace.branchName ?? null,
       firstPrompt: null,
       prNumber: null,
       prUrl: null,
       prRepository: null,
-      transcriptPath: getTranscriptPath(params.workspace.path, params.sessionId),
+      transcriptPath: getTranscriptPath(workspace.path, params.sessionId),
       fileSize: null,
-      workspaceName: params.workspace.name,
-      workspacePath: params.workspace.path,
-      standalone: params.standalone,
+      workspaceName: workspace.name,
+      workspacePath: workspace.path,
+      standalone,
       pinnedAt: null,
       archivedAt: null,
       permissionMode: params.settings.permissionMode,
@@ -201,7 +207,7 @@ export function createDesktopSessionSnapshot(params: {
       lastMessageAt,
       createdAt,
     },
-    workspace: params.workspace,
+    workspace,
     settings: params.settings,
     view: createEmptyViewSnapshot(),
     events: [],
@@ -411,13 +417,17 @@ function normalizeSessionOverlay(value: unknown): DesktopSessionOverlay[] {
   if (typeof raw.id !== 'string') return []
   const workspace = normalizeWorkspace(raw.workspace)
   if (!workspace) return []
+  const normalizedWorkspace = normalizeStandaloneWorkspace(workspace)
   const settings = normalizeSettingsSnapshot(raw.settings)
   return [
     {
       id: raw.id,
-      workspace,
+      workspace: normalizedWorkspace,
       settings,
-      standalone: raw.standalone === true,
+      standalone: isStandaloneSession(
+        normalizedWorkspace,
+        raw.standalone === true,
+      ),
       pinnedAt: nullableString(raw.pinnedAt),
       archivedAt: nullableString(raw.archivedAt),
       sessionName: nullableString(raw.sessionName),
@@ -437,6 +447,7 @@ function normalizeSessionSnapshot(value: unknown): DesktopSessionSnapshot[] {
   if (typeof snapshot.item.id !== 'string') return []
   const workspace = normalizeWorkspace(snapshot.workspace)
   if (!workspace) return []
+  const normalizedWorkspace = normalizeStandaloneWorkspace(workspace)
 
   const item = normalizeSessionItem(snapshot.item)
   const view = normalizeViewSnapshot(snapshot.view)
@@ -463,13 +474,19 @@ function normalizeSessionSnapshot(value: unknown): DesktopSessionSnapshot[] {
     {
       item: {
         ...item,
+        workspaceName: normalizedWorkspace.name,
+        workspacePath: normalizedWorkspace.path,
+        standalone: isStandaloneSession(
+          normalizedWorkspace,
+          item.standalone === true,
+        ),
         lastMessageAt,
         status:
           item.status === 'running' || item.status === 'waiting'
             ? 'done'
             : item.status,
       },
-      workspace,
+      workspace: normalizedWorkspace,
       settings,
       view: {
         ...view,
@@ -521,12 +538,16 @@ function snapshotFromTranscriptLog(
   const workspacePath = log.projectPath ?? overlay?.workspace.path
   if (!sessionId || !workspacePath) return null
 
-  const workspace: DesktopWorkspace = overlay?.workspace ?? {
+  const workspace = normalizeStandaloneWorkspace(overlay?.workspace ?? {
     path: workspacePath,
     name: basename(workspacePath),
     branchName: log.gitBranch ?? null,
     isGitRepo: Boolean(log.gitBranch),
-  }
+  })
+  const standalone = isStandaloneSession(
+    workspace,
+    overlay?.standalone === true || isStandaloneWorkspacePath(workspacePath),
+  )
   const settings = overlay?.settings ?? defaultSettingsSnapshot()
   const parsed = includeView
     ? parseTranscriptLogView(sessionId, log.messages)
@@ -541,7 +562,7 @@ function snapshotFromTranscriptLog(
     validModelName(settings.model)
   const createdAt = log.created.toISOString()
   const lastMessageAt = log.modified.toISOString()
-  const transcriptPath = log.fullPath ?? getTranscriptPath(workspacePath, sessionId)
+  const transcriptPath = log.fullPath ?? getTranscriptPath(workspace.path, sessionId)
   const item: DesktopSessionListItem = {
     id: sessionId,
     sessionName: overlay?.sessionName ?? settings.sessionName ?? null,
@@ -558,7 +579,7 @@ function snapshotFromTranscriptLog(
     fileSize: log.fileSize ?? null,
     workspaceName: workspace.name,
     workspacePath: workspace.path,
-    standalone: overlay?.standalone === true,
+    standalone,
     pinnedAt: overlay?.pinnedAt ?? null,
     archivedAt: overlay?.archivedAt ?? null,
     permissionMode: settings.permissionMode,
@@ -598,18 +619,20 @@ function snapshotFromTranscriptLog(
 
 function snapshotFromOverlay(overlay: DesktopSessionOverlay): DesktopSessionSnapshot {
   if (overlay.legacySnapshot) {
+    const legacySnapshot = normalizeSnapshotStandalone(overlay.legacySnapshot)
     return {
-      ...overlay.legacySnapshot,
+      ...legacySnapshot,
       item: {
-        ...overlay.legacySnapshot.item,
-        pinnedAt: overlay.pinnedAt ?? overlay.legacySnapshot.item.pinnedAt,
-        archivedAt:
-          overlay.archivedAt ?? overlay.legacySnapshot.item.archivedAt,
+        ...legacySnapshot.item,
+        pinnedAt: overlay.pinnedAt ?? legacySnapshot.item.pinnedAt,
+        archivedAt: overlay.archivedAt ?? legacySnapshot.item.archivedAt,
       },
     }
   }
   const settings = overlay.settings
   const createdAt = overlay.createdAt ?? new Date().toISOString()
+  const workspace = normalizeStandaloneWorkspace(overlay.workspace)
+  const standalone = isStandaloneSession(workspace, overlay.standalone === true)
   return {
     item: {
       id: overlay.id,
@@ -618,16 +641,16 @@ function snapshotFromOverlay(overlay: DesktopSessionOverlay): DesktopSessionSnap
       customTitle: null,
       tag: null,
       summary: null,
-      gitBranch: overlay.workspace.branchName ?? null,
+      gitBranch: workspace.branchName ?? null,
       firstPrompt: null,
       prNumber: null,
       prUrl: null,
       prRepository: null,
-      transcriptPath: getTranscriptPath(overlay.workspace.path, overlay.id),
+      transcriptPath: getTranscriptPath(workspace.path, overlay.id),
       fileSize: null,
-      workspaceName: overlay.workspace.name,
-      workspacePath: overlay.workspace.path,
-      standalone: overlay.standalone === true,
+      workspaceName: workspace.name,
+      workspacePath: workspace.path,
+      standalone,
       pinnedAt: overlay.pinnedAt ?? null,
       archivedAt: overlay.archivedAt ?? null,
       permissionMode: settings.permissionMode,
@@ -644,7 +667,7 @@ function snapshotFromOverlay(overlay: DesktopSessionOverlay): DesktopSessionSnap
       lastMessageAt: overlay.lastMessageAt ?? createdAt,
       createdAt,
     },
-    workspace: overlay.workspace,
+    workspace,
     settings,
     view: createEmptyViewSnapshot(),
     events: [],
@@ -657,20 +680,62 @@ function overlayFromSnapshot(
   snapshot: DesktopSessionSnapshot,
   legacySnapshot?: DesktopSessionSnapshot,
 ): DesktopSessionOverlay {
+  const normalizedSnapshot = normalizeSnapshotStandalone(snapshot)
   return {
-    id: snapshot.item.id,
-    workspace: snapshot.workspace,
-    settings: snapshot.settings,
-    standalone: snapshot.item.standalone === true,
-    pinnedAt: snapshot.item.pinnedAt ?? null,
-    archivedAt: snapshot.item.archivedAt ?? null,
-    sessionName: snapshot.item.sessionName ?? null,
-    aiTitle: snapshot.item.aiTitle ?? null,
-    status: snapshot.item.status,
-    createdAt: snapshot.item.createdAt,
-    lastMessageAt: snapshot.item.lastMessageAt ?? null,
-    updatedAt: snapshot.updatedAt,
-    legacySnapshot,
+    id: normalizedSnapshot.item.id,
+    workspace: normalizedSnapshot.workspace,
+    settings: normalizedSnapshot.settings,
+    standalone: normalizedSnapshot.item.standalone === true,
+    pinnedAt: normalizedSnapshot.item.pinnedAt ?? null,
+    archivedAt: normalizedSnapshot.item.archivedAt ?? null,
+    sessionName: normalizedSnapshot.item.sessionName ?? null,
+    aiTitle: normalizedSnapshot.item.aiTitle ?? null,
+    status: normalizedSnapshot.item.status,
+    createdAt: normalizedSnapshot.item.createdAt,
+    lastMessageAt: normalizedSnapshot.item.lastMessageAt ?? null,
+    updatedAt: normalizedSnapshot.updatedAt,
+    legacySnapshot: legacySnapshot
+      ? normalizeSnapshotStandalone(legacySnapshot)
+      : undefined,
+  }
+}
+
+function normalizeStandaloneWorkspace(
+  workspace: DesktopWorkspace,
+): DesktopWorkspace {
+  return isStandaloneWorkspacePath(workspace.path)
+    ? getStandaloneWorkspaceMetadata()
+    : workspace
+}
+
+function isStandaloneSession(
+  workspace: DesktopWorkspace,
+  standalone: boolean,
+): boolean {
+  return (
+    standalone ||
+    workspace.isStandalone === true ||
+    isStandaloneWorkspacePath(workspace.path)
+  )
+}
+
+function normalizeSnapshotStandalone(
+  snapshot: DesktopSessionSnapshot,
+): DesktopSessionSnapshot {
+  const workspace = normalizeStandaloneWorkspace(snapshot.workspace)
+  const standalone = isStandaloneSession(
+    workspace,
+    snapshot.item.standalone === true,
+  )
+  return {
+    ...snapshot,
+    workspace,
+    item: {
+      ...snapshot.item,
+      workspaceName: workspace.name,
+      workspacePath: workspace.path,
+      standalone,
+    },
   }
 }
 
