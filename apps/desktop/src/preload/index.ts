@@ -18,6 +18,14 @@ const api: DesktopApi = {
     ipcRenderer.invoke(desktopApiChannel('getDesktopSettings')),
   saveDesktopSettings: settings =>
     ipcRenderer.invoke(desktopApiChannel('saveDesktopSettings'), settings),
+  listBuiltinPlugins: () =>
+    ipcRenderer.invoke(desktopApiChannel('listBuiltinPlugins')),
+  setBuiltinPluginEnabled: (pluginId, enabled) =>
+    ipcRenderer.invoke(
+      desktopApiChannel('setBuiltinPluginEnabled'),
+      pluginId,
+      enabled,
+    ),
   listOpenTargets: () =>
     ipcRenderer.invoke(desktopApiChannel('listOpenTargets')),
   openPathWithDefaultTarget: targetPath =>

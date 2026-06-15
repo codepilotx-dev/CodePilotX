@@ -15,6 +15,7 @@
 
 import type { Command } from '../commands.js'
 import type { BundledSkillDefinition } from '../skills/bundledSkills.js'
+import type { Tool } from '../Tool.js'
 import type { BuiltinPluginDefinition, LoadedPlugin } from '../types/plugin.js'
 import { getSettings_DEPRECATED } from '../utils/settings/settings.js'
 
@@ -118,6 +119,53 @@ export function getBuiltinPluginSkillCommands(): Command[] {
   }
 
   return commands
+}
+
+/**
+ * Get native tools from enabled built-in plugins.
+ */
+export function getBuiltinPluginTools(): Tool[] {
+  const { enabled } = getBuiltinPlugins()
+  const tools: Tool[] = []
+
+  for (const plugin of enabled) {
+    const definition = BUILTIN_PLUGINS.get(plugin.name)
+    if (definition?.tools) {
+      tools.push(...definition.tools)
+    }
+  }
+
+  return tools
+}
+
+/**
+ * Get system prompt sections from enabled built-in plugins.
+ */
+export async function getBuiltinPluginSystemPromptSections(
+  enabledToolNames?: ReadonlySet<string>,
+): Promise<string[]> {
+  const { enabled } = getBuiltinPlugins()
+  const sections: string[] = []
+
+  for (const plugin of enabled) {
+    const definition = BUILTIN_PLUGINS.get(plugin.name)
+    if (
+      enabledToolNames &&
+      definition?.tools?.length &&
+      !definition.tools.some(tool => enabledToolNames.has(tool.name))
+    ) {
+      continue
+    }
+    const section =
+      typeof definition?.systemPrompt === 'function'
+        ? await definition.systemPrompt()
+        : definition?.systemPrompt
+    if (section) {
+      sections.push(section)
+    }
+  }
+
+  return sections
 }
 
 /**

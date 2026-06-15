@@ -1,5 +1,5 @@
-import type React from 'react'
-import { useMemo, useState } from 'react'
+﻿import type React from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   AlertOctagon,
   Bell,
@@ -26,6 +26,7 @@ type PluginTone = 'github' | 'chrome' | 'sheet' | 'slides' | 'slack' | 'data' | 
 
 type Plugin = {
   id: string
+  builtinPluginId?: string
   name: string
   description: string
   icon: React.ReactNode
@@ -73,6 +74,15 @@ const PLUGINS: Plugin[] = [
     icon: <GitBranch size={18} strokeWidth={2.2} />,
     tone: 'github',
     installed: true,
+  },
+  {
+    id: 'minimax',
+    builtinPluginId: 'minimax@builtin',
+    name: 'MiniMax Media',
+    description: 'Generate images, speech, video, and music with MiniMax',
+    icon: <Sparkles size={18} strokeWidth={2.2} />,
+    tone: 'creative',
+    installed: false,
   },
   {
     id: 'slack',
@@ -128,10 +138,38 @@ export function PluginsView(): React.ReactNode {
   const [query, setQuery] = useState('')
   const [owner, setOwner] = useState<Owner>('openai')
   const [filter, setFilter] = useState<Filter>('all')
+  const [enabledBuiltinPlugins, setEnabledBuiltinPlugins] = useState<
+    Record<string, boolean>
+  >({})
+
+  useEffect(() => {
+    let cancelled = false
+    window.desktopApi
+      .listBuiltinPlugins()
+      .then(plugins => {
+        if (cancelled) return
+        setEnabledBuiltinPlugins(
+          Object.fromEntries(plugins.map(plugin => [plugin.id, plugin.enabled])),
+        )
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setEnabledBuiltinPlugins({})
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const visiblePlugins = useMemo(() => {
     const keyword = query.trim().toLowerCase()
-    return PLUGINS.filter(plugin => {
+    return PLUGINS.map(plugin => ({
+      ...plugin,
+      installed: plugin.builtinPluginId
+        ? enabledBuiltinPlugins[plugin.builtinPluginId] === true
+        : plugin.installed,
+    })).filter(plugin => {
       if (filter === 'installed' && !plugin.installed) return false
       if (filter === 'available' && plugin.installed) return false
       if (!keyword) return true
@@ -140,7 +178,19 @@ export function PluginsView(): React.ReactNode {
         plugin.description.toLowerCase().includes(keyword)
       )
     })
-  }, [filter, query])
+  }, [enabledBuiltinPlugins, filter, query])
+
+  async function enablePlugin(plugin: Plugin): Promise<void> {
+    if (!plugin.builtinPluginId) return
+    const result = await window.desktopApi.setBuiltinPluginEnabled(
+      plugin.builtinPluginId,
+      true,
+    )
+    setEnabledBuiltinPlugins(current => ({
+      ...current,
+      [result.id]: result.enabled,
+    }))
+  }
 
   return (
     <section className="plugins-view">
@@ -295,9 +345,7 @@ export function PluginsView(): React.ReactNode {
                       : 'plugins-card-action'
                   }
                   disabled={plugin.installed}
-                  onClick={() => {
-                    /* 后端接通后在此挂载启用逻辑 */
-                  }}
+                  onClick={() => { void enablePlugin(plugin) }}
                   type="button"
                   title={plugin.installed ? '已添加' : '添加到 Codex'}
                 >
@@ -311,3 +359,5 @@ export function PluginsView(): React.ReactNode {
     </section>
   )
 }
+
+

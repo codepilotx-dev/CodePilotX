@@ -14,6 +14,10 @@ import {
   CODEPILOTX_CONFIG_DIR_ENV,
   LEGACY_CLAUDE_CONFIG_DIR_ENV,
 } from '@codepilotx/tui/utils/envUtils.js'
+import {
+  getSettings_DEPRECATED,
+  updateSettingsForSource,
+} from '@codepilotx/tui/utils/settings/settings.js'
 import { getAuthStatus, getRuntimeStatus } from './authRuntimeService.js'
 import { generateSessionTitle } from '@codepilotx/tui/utils/sessionTitle.js'
 import { saveAiGeneratedTitle } from '@codepilotx/tui/utils/sessionStorage.js'
@@ -75,6 +79,7 @@ import type {
   CreateDesktopSessionOptions,
   CreateDesktopSessionResult,
   DesktopAgentEvent,
+  DesktopBuiltinPlugin,
   DesktopPermissionDecision,
   DesktopPermissionMode,
   DesktopSessionMetadataPatch,
@@ -111,6 +116,7 @@ const sessions = new Map<string, DesktopSessionRecord>()
 const titleGenerationStartedSessionIds = new Set<string>()
 let activeSessionId: string | null = null
 let sessionStoreLoadPromise: Promise<void> | null = null
+const DESKTOP_BUILTIN_PLUGIN_IDS = ['minimax@builtin'] as const
 
 function rendererUrl(): string {
   const devRendererUrl =
@@ -743,6 +749,37 @@ function requireNonEmptyString(value: unknown, label: string): string {
   return trimmed
 }
 
+async function listBuiltinPlugins(): Promise<DesktopBuiltinPlugin[]> {
+  const enabledPlugins = getSettings_DEPRECATED().enabledPlugins ?? {}
+  return DESKTOP_BUILTIN_PLUGIN_IDS.map(id => ({
+    id,
+    enabled: enabledPlugins[id] === true,
+  }))
+}
+
+async function setBuiltinPluginEnabled(
+  pluginId: string,
+  enabled: boolean,
+): Promise<DesktopBuiltinPlugin> {
+  if (
+    !DESKTOP_BUILTIN_PLUGIN_IDS.includes(
+      pluginId as (typeof DESKTOP_BUILTIN_PLUGIN_IDS)[number],
+    )
+  ) {
+    throw new Error(`Unknown built-in plugin: ${pluginId}`)
+  }
+
+  const { error } = updateSettingsForSource('userSettings', {
+    enabledPlugins: {
+      [pluginId]: enabled,
+    },
+  })
+  if (error) {
+    throw error
+  }
+  return { id: pluginId, enabled }
+}
+
 function registerIpc(): void {
   const handlers = createDesktopApiHandlers({
     getAuthStatus: async () => getAuthStatus(),
@@ -758,6 +795,8 @@ function registerIpc(): void {
     getDesktopSettings: readDesktopStoredSettings,
     saveDesktopSettings: async (settings: DesktopStoredSettings) =>
       saveDesktopStoredSettings(settings),
+    listBuiltinPlugins,
+    setBuiltinPluginEnabled,
     listOpenTargets,
     openPathWithDefaultTarget,
     listModelProviders: async () => listModelProviders(),

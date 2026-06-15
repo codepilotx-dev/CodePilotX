@@ -60,6 +60,7 @@ import { logForDebugging } from '../utils/debug.js'
 import { loadMemoryPrompt } from '../memdir/memdir.js'
 import { isUndercover } from '../utils/undercover.js'
 import { isMcpInstructionsDeltaEnabled } from '../utils/mcpInstructionsDelta.js'
+import { getBuiltinPluginSystemPromptSections } from '../plugins/builtinPlugins.js'
 
 // Dead code elimination: conditional imports for feature-gated modules
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -462,6 +463,8 @@ export async function getSystemPrompt(
 
   const settings = getInitialSettings()
   const enabledTools = new Set(tools.map(_ => _.name))
+  const builtinPluginPromptSections =
+    await getBuiltinPluginSystemPromptSections(enabledTools)
 
   if (
     (feature('PROACTIVE') || feature('KAIROS')) &&
@@ -481,6 +484,7 @@ ${CYBER_RISK_INSTRUCTION}`,
       isMcpInstructionsDeltaEnabled()
         ? null
         : getMcpInstructionsSection(mcpClients),
+      ...builtinPluginPromptSections,
       getScratchpadInstructions(),
       getFunctionResultClearingSection(model),
       SUMMARIZE_TOOL_RESULTS_SECTION,
@@ -517,6 +521,14 @@ ${CYBER_RISK_INSTRUCTION}`,
           ? null
           : getMcpInstructionsSection(mcpClients),
       'MCP servers connect/disconnect between turns',
+    ),
+    DANGEROUS_uncachedSystemPromptSection(
+      'builtin_plugin_prompts',
+      async () => {
+        const sections = await getBuiltinPluginSystemPromptSections(enabledTools)
+        return sections.length > 0 ? sections.join('\n\n') : null
+      },
+      'built-in plugins can be enabled or disabled during the session',
     ),
     systemPromptSection('scratchpad', () => getScratchpadInstructions()),
     systemPromptSection('frc', () => getFunctionResultClearingSection(model)),

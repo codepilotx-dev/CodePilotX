@@ -271,6 +271,11 @@ export type CreateDesktopSessionResult = {
   standalone: boolean
 }
 
+export type DesktopBuiltinPlugin = {
+  id: string
+  enabled: boolean
+}
+
 export type DesktopUiCommand =
   | 'newConversation'
   | 'chooseWorkspace'
@@ -283,6 +288,11 @@ export type DesktopApi = {
   getRuntimeStatus(): Promise<DesktopRuntimeStatus>
   getDesktopSettings(): Promise<DesktopStoredSettings>
   saveDesktopSettings(settings: DesktopStoredSettings): Promise<DesktopStoredSettings>
+  listBuiltinPlugins(): Promise<DesktopBuiltinPlugin[]>
+  setBuiltinPluginEnabled(
+    pluginId: string,
+    enabled: boolean,
+  ): Promise<DesktopBuiltinPlugin>
   listOpenTargets(): Promise<DesktopOpenTarget[]>
   openPathWithDefaultTarget(targetPath: string): Promise<void>
   listModelProviders(): Promise<DesktopModelProviderSummary[]>

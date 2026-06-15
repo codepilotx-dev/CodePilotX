@@ -30,10 +30,18 @@ import { TaskStopTool } from '../tools/TaskStopTool/TaskStopTool.js'
 import { TodoWriteTool } from '../tools/TodoWriteTool/TodoWriteTool.js'
 import { WebFetchTool } from '../tools/WebFetchTool/WebFetchTool.js'
 import { WebSearchTool } from '../tools/WebSearchTool/WebSearchTool.js'
+import {
+  MiniMaxImageTool,
+  MiniMaxMusicTool,
+  MiniMaxSpeechTool,
+  MiniMaxVideoTool,
+} from '../tools/MiniMaxTool/MiniMaxTool.js'
+import { initBuiltinPlugins } from '../plugins/bundled/index.js'
 import { runWithCwdOverride } from '../utils/cwd.js'
 import { getDenyRuleForTool } from '../utils/permissions/permissions.js'
 import type { PermissionMode } from '../types/permissions.js'
 import { cacheSessionTitle } from '../utils/sessionStorage.js'
+import { getSettings_DEPRECATED } from '../utils/settings/settings.js'
 import type { ThinkingConfig } from '../utils/thinking.js'
 import { asSessionId } from '../types/ids.js'
 import { runWithEmbeddedShutdownHandler } from '../utils/gracefulShutdown.js'
@@ -78,10 +86,12 @@ export type DesktopHeadlessRuntime = {
 }
 
 const DESKTOP_ENABLED_THINKING_BUDGET = 1_000_000_000
+const MINIMAX_BUILTIN_PLUGIN_ID = 'minimax@builtin'
 
 export function createDesktopHeadlessRuntime(
   options: DesktopHeadlessRuntimeOptions,
 ): DesktopHeadlessRuntime {
+  initBuiltinPlugins()
   return new EmbeddedDesktopHeadlessRuntime(options)
 }
 
@@ -428,6 +438,15 @@ function getDesktopHeadlessTools(
     EnterPlanModeTool,
     ExitPlanModeV2Tool,
     TaskStopTool,
+    ...(getSettings_DEPRECATED().enabledPlugins?.[MINIMAX_BUILTIN_PLUGIN_ID] ===
+    true
+      ? [
+          MiniMaxImageTool,
+          MiniMaxSpeechTool,
+          MiniMaxVideoTool,
+          MiniMaxMusicTool,
+        ]
+      : []),
   ]
   return tools.filter(
     tool => !getDenyRuleForTool(permissionContext, tool) && tool.isEnabled(),

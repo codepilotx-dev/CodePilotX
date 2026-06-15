@@ -10,6 +10,8 @@ export const DESKTOP_API_METHODS = [
   'getRuntimeStatus',
   'getDesktopSettings',
   'saveDesktopSettings',
+  'listBuiltinPlugins',
+  'setBuiltinPluginEnabled',
   'listOpenTargets',
   'openPathWithDefaultTarget',
   'listModelProviders',
