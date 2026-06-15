@@ -206,6 +206,35 @@ export function useSessionState(
 
   const applyHydratedSessionSnapshot = useCallback(
     (snapshot: Awaited<ReturnType<typeof desktopClient.getSession>>): void => {
+      const currentItem = sessionsRef.current.find(
+        session => session.id === snapshot.item.id,
+      )
+      const nextItem: SessionListItem = {
+        ...snapshot.item,
+        sessionName:
+          snapshot.item.sessionName ?? currentItem?.sessionName ?? null,
+        customTitle:
+          snapshot.item.customTitle ?? currentItem?.customTitle ?? null,
+        aiTitle: snapshot.item.aiTitle ?? currentItem?.aiTitle ?? null,
+        firstPrompt:
+          snapshot.item.firstPrompt ?? currentItem?.firstPrompt ?? null,
+      }
+      console.log('[desktop-title-debug] hydrate_apply_snapshot', {
+        id: nextItem.id,
+        isActive: activeSessionIdRef.current === nextItem.id,
+        snapshotSessionName: snapshot.item.sessionName,
+        snapshotCustomTitle: snapshot.item.customTitle,
+        snapshotAiTitle: snapshot.item.aiTitle,
+        snapshotFirstPrompt: snapshot.item.firstPrompt,
+        currentSessionName: currentItem?.sessionName,
+        currentCustomTitle: currentItem?.customTitle,
+        currentAiTitle: currentItem?.aiTitle,
+        currentFirstPrompt: currentItem?.firstPrompt,
+        mergedSessionName: nextItem.sessionName,
+        mergedCustomTitle: nextItem.customTitle,
+        mergedAiTitle: nextItem.aiTitle,
+        mergedFirstPrompt: nextItem.firstPrompt,
+      })
       const nextView: SessionViewState = {
         ...snapshot.view,
         eventModelVersion: snapshot.eventModelVersion,
@@ -223,15 +252,15 @@ export function useSessionState(
         [snapshot.item.id]: snapshot.workspace,
       }
       sessionsRef.current = sessionsRef.current.map(session =>
-        session.id === snapshot.item.id ? snapshot.item : session,
+        session.id === snapshot.item.id ? nextItem : session,
       )
       setSessions(current =>
         current.map(session =>
-          session.id === snapshot.item.id ? snapshot.item : session,
+          session.id === snapshot.item.id ? nextItem : session,
         ),
       )
       if (activeSessionIdRef.current === snapshot.item.id) {
-        setSessionStatus(snapshot.item.status)
+        setSessionStatus(nextItem.status)
         applySessionView(nextView, viewSetters)
       }
     },
@@ -259,6 +288,13 @@ export function useSessionState(
       }
       try {
         const snapshot = await desktopClient.getSession(targetSessionId)
+        console.log('[desktop-title-debug] hydrate_get_session_result', {
+          id: targetSessionId,
+          sessionName: snapshot.item.sessionName,
+          customTitle: snapshot.item.customTitle,
+          aiTitle: snapshot.item.aiTitle,
+          firstPrompt: snapshot.item.firstPrompt,
+        })
         applyHydratedSessionSnapshot(snapshot)
       } catch (error) {
         onErrorRef.current(errorMessageOf(error))

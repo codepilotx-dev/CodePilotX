@@ -4,21 +4,29 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import * as Select from '@radix-ui/react-select'
 import {
   ArrowUp,
+  Blocks,
   Check,
   ChevronDown,
   ChevronRight,
+  FileText,
   Folder,
   FolderPlus,
+  FileSpreadsheet,
   GitBranch,
   Hand,
+  ListChecks,
   Mic,
   Monitor,
+  Paperclip,
   Plus,
+  Presentation,
   Search,
   ShieldAlert,
   ShieldCheck,
   ShieldOff,
+  Sparkles,
   Square,
+  Target,
   Wrench,
   Zap,
 } from 'lucide-react'
@@ -54,8 +62,55 @@ type ProviderModelOption = {
 const PERMISSION_MENU_ICON_SIZE = 16
 const PERMISSION_TRIGGER_ICON_SIZE = 18
 const META_CHIP_ICON_SIZE = 14
+const CONTEXT_MENU_ICON_SIZE = 18
+const CONTEXT_PLUGIN_ICON_SIZE = 15
 
-type ComposerDropdown = 'permission' | 'model' | 'project' | 'mode' | 'branch'
+type ComposerDropdown =
+  | 'context'
+  | 'permission'
+  | 'model'
+  | 'project'
+  | 'mode'
+  | 'branch'
+
+type ContextPlugin = {
+  name: string
+  tone: 'docs' | 'pdf' | 'sheets' | 'slides' | 'github' | 'openai'
+  icon: React.ReactNode
+}
+
+const INSTALLED_CONTEXT_PLUGINS: ContextPlugin[] = [
+  {
+    name: 'Documents',
+    tone: 'docs',
+    icon: <FileText size={CONTEXT_PLUGIN_ICON_SIZE} strokeWidth={2.2} />,
+  },
+  {
+    name: 'PDF',
+    tone: 'pdf',
+    icon: <FileText size={CONTEXT_PLUGIN_ICON_SIZE} strokeWidth={2.2} />,
+  },
+  {
+    name: 'Spreadsheets',
+    tone: 'sheets',
+    icon: <FileSpreadsheet size={CONTEXT_PLUGIN_ICON_SIZE} strokeWidth={2.2} />,
+  },
+  {
+    name: 'Presentations',
+    tone: 'slides',
+    icon: <Presentation size={CONTEXT_PLUGIN_ICON_SIZE} strokeWidth={2.2} />,
+  },
+  {
+    name: 'GitHub',
+    tone: 'github',
+    icon: <GitBranch size={CONTEXT_PLUGIN_ICON_SIZE} strokeWidth={2.2} />,
+  },
+  {
+    name: 'OpenAI Developers',
+    tone: 'openai',
+    icon: <Sparkles size={CONTEXT_PLUGIN_ICON_SIZE} strokeWidth={2.2} />,
+  },
+]
 
 type Props = {
   input: string
@@ -131,6 +186,8 @@ export function ComposerCard({
   )
   const [projectSearch, setProjectSearch] = useState('')
   const [branchSearch, setBranchSearch] = useState('')
+  const [planModeEnabled, setPlanModeEnabled] = useState(false)
+  const [goalModeEnabled, setGoalModeEnabled] = useState(false)
 
   const selectedPermission = permissionOptions.find(
     option => option.value === permissionMode,
@@ -206,6 +263,34 @@ export function ComposerCard({
     return `permission-chip permission-chip-${value}`
   }
 
+  function renderContextSwitchItem(
+    label: string,
+    enabled: boolean,
+    icon: React.ReactNode,
+    onToggle: (enabled: boolean) => void,
+  ): React.ReactNode {
+    return (
+      <DropdownMenu.Item
+        className="popover-item context-menu-switch-item"
+        tabIndex={-1}
+        onSelect={event => {
+          event.preventDefault()
+          onToggle(!enabled)
+        }}
+      >
+        <span className="popover-item-icon">{icon}</span>
+        <span className="popover-item-label">{label}</span>
+        <span
+          aria-checked={enabled}
+          className="context-menu-switch"
+          role="switch"
+        >
+          <span className="context-menu-switch-thumb" />
+        </span>
+      </DropdownMenu.Item>
+    )
+  }
+
   const isRunning = sessionStatus === 'running' || sessionStatus === 'waiting'
   const showFullAccessWarning = permissionMode === 'bypassPermissions'
   const contextUsedText = contextUsage
@@ -251,9 +336,97 @@ export function ComposerCard({
 
         <div className="composer-toolbar">
           <div className="toolbar-left">
-            <IconButton onClick={onOpenFiles} title="添加上下文">
-              <Plus size={18} />
-            </IconButton>
+            <PopoverMenu
+              className="popover-context"
+              open={openDropdown === 'context'}
+              onOpenChange={open => setOpenDropdown(open ? 'context' : null)}
+              trigger={
+                <IconButton
+                  className={[
+                    'icon-button',
+                    openDropdown === 'context' ? 'active' : '',
+                  ].join(' ')}
+                  title="添加上下文"
+                >
+                  <Plus size={18} />
+                </IconButton>
+              }
+            >
+              <div className="popover-section">
+                <PopoverItem
+                  icon={<Paperclip size={CONTEXT_MENU_ICON_SIZE} />}
+                  onClick={() => {
+                    onOpenFiles()
+                    closeDropdown()
+                  }}
+                >
+                  添加照片和文件
+                </PopoverItem>
+              </div>
+              <div className="popover-divider" />
+              <div className="popover-section">
+                {renderContextSwitchItem(
+                  '计划模式',
+                  planModeEnabled,
+                  <ListChecks size={CONTEXT_MENU_ICON_SIZE} />,
+                  setPlanModeEnabled,
+                )}
+                {renderContextSwitchItem(
+                  '追求目标',
+                  goalModeEnabled,
+                  <Target size={CONTEXT_MENU_ICON_SIZE} />,
+                  setGoalModeEnabled,
+                )}
+              </div>
+              <div className="popover-divider" />
+              <div className="popover-section">
+                <DropdownMenu.Sub>
+                  <DropdownMenu.SubTrigger
+                    className="popover-item context-menu-sub-trigger"
+                    tabIndex={-1}
+                  >
+                    <span className="popover-item-icon">
+                      <Blocks size={CONTEXT_MENU_ICON_SIZE} />
+                    </span>
+                    <span className="popover-item-label">插件</span>
+                    <ChevronRight className="popover-item-arrow" size={15} />
+                  </DropdownMenu.SubTrigger>
+                  <DropdownMenu.Portal>
+                    <DropdownMenu.SubContent
+                      alignOffset={-8}
+                      className="popover popover-sub-content context-plugin-submenu"
+                      sideOffset={8}
+                    >
+                      <div className="popover-header">
+                        {INSTALLED_CONTEXT_PLUGINS.length} 个已安装插件
+                      </div>
+                      <div className="popover-section">
+                        {INSTALLED_CONTEXT_PLUGINS.map(plugin => (
+                          <DropdownMenu.Item
+                            className="popover-item context-plugin-item"
+                            key={plugin.name}
+                            tabIndex={-1}
+                            onSelect={event => event.preventDefault()}
+                          >
+                            <span
+                              className={[
+                                'context-plugin-icon',
+                                `context-plugin-icon-${plugin.tone}`,
+                              ].join(' ')}
+                            >
+                              {plugin.icon}
+                            </span>
+                            <span className="popover-item-label">
+                              {plugin.name}
+                            </span>
+                          </DropdownMenu.Item>
+                        ))}
+                      </div>
+                    </DropdownMenu.SubContent>
+                  </DropdownMenu.Portal>
+                </DropdownMenu.Sub>
+              </div>
+            </PopoverMenu>
             <Select.Root
               open={openDropdown === 'permission'}
               value={permissionMode}

@@ -60,6 +60,7 @@ type DesktopSessionOverlay = {
   archivedAt?: string | null
   sessionName?: string | null
   aiTitle?: string | null
+  customTitle?: string | null
   status?: DesktopSessionStatus
   createdAt?: string
   lastMessageAt?: string | null
@@ -154,6 +155,7 @@ export async function saveDesktopSessionStore(
         archivedAt: overlay.archivedAt,
         sessionName: overlay.sessionName,
         aiTitle: overlay.aiTitle,
+        customTitle: overlay.customTitle,
         status: overlay.status,
         createdAt: overlay.createdAt,
         lastMessageAt: overlay.lastMessageAt,
@@ -432,6 +434,7 @@ function normalizeSessionOverlay(value: unknown): DesktopSessionOverlay[] {
       archivedAt: nullableString(raw.archivedAt),
       sessionName: nullableString(raw.sessionName),
       aiTitle: nullableString(raw.aiTitle),
+      customTitle: nullableString(raw.customTitle),
       status: normalizeStatus(raw.status),
       createdAt: stringOrUndefined(raw.createdAt),
       lastMessageAt: normalizeTimestampString(raw.lastMessageAt),
@@ -567,7 +570,7 @@ function snapshotFromTranscriptLog(
     id: sessionId,
     sessionName: overlay?.sessionName ?? settings.sessionName ?? null,
     aiTitle: overlay?.aiTitle ?? null,
-    customTitle: log.customTitle ?? null,
+    customTitle: log.customTitle ?? overlay?.customTitle ?? null,
     tag: log.tag ?? null,
     summary: log.summary ?? null,
     gitBranch: log.gitBranch ?? workspace.branchName ?? null,
@@ -638,7 +641,7 @@ function snapshotFromOverlay(overlay: DesktopSessionOverlay): DesktopSessionSnap
       id: overlay.id,
       sessionName: overlay.sessionName ?? settings.sessionName ?? null,
       aiTitle: overlay.aiTitle ?? null,
-      customTitle: null,
+      customTitle: overlay.customTitle ?? null,
       tag: null,
       summary: null,
       gitBranch: workspace.branchName ?? null,
@@ -690,6 +693,7 @@ function overlayFromSnapshot(
     archivedAt: normalizedSnapshot.item.archivedAt ?? null,
     sessionName: normalizedSnapshot.item.sessionName ?? null,
     aiTitle: normalizedSnapshot.item.aiTitle ?? null,
+    customTitle: normalizedSnapshot.item.customTitle ?? null,
     status: normalizedSnapshot.item.status,
     createdAt: normalizedSnapshot.item.createdAt,
     lastMessageAt: normalizedSnapshot.item.lastMessageAt ?? null,

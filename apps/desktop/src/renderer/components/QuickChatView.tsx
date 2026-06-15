@@ -60,6 +60,38 @@ export function QuickChatView(): React.ReactNode {
         Boolean(event.content?.trim()),
     );
   const showEnvironmentPanel = false;
+  const fallbackTitle = React.useMemo(
+    () => getConversationTitle(timelineEvents),
+    [timelineEvents],
+  );
+  const renderedSessionTitle = sessionTitle ?? fallbackTitle;
+  const renderedSessionTitleSource = sessionTitle
+    ? "sessionTitle"
+    : "firstUserMessage";
+
+  React.useEffect(() => {
+    if (!isConversationRoute && !hasMessages) return;
+    console.log("[desktop-title-debug] quick_chat_title_render", {
+      isConversationRoute,
+      isConversationLoading,
+      sessionTitle,
+      fallbackTitle,
+      renderedSessionTitle,
+      renderedSessionTitleSource,
+      eventCount: timelineEvents.length,
+      firstUserEvent:
+        timelineEvents.find((event) => event.role === "user") ?? null,
+    });
+  }, [
+    fallbackTitle,
+    hasMessages,
+    isConversationLoading,
+    isConversationRoute,
+    renderedSessionTitle,
+    renderedSessionTitleSource,
+    sessionTitle,
+    timelineEvents,
+  ]);
 
   if (hasMessages || isConversationRoute) {
     return (
@@ -73,7 +105,7 @@ export function QuickChatView(): React.ReactNode {
             <span>
               {isConversationLoading
                 ? "加载对话中"
-                : sessionTitle ?? getConversationTitle(timelineEvents)}
+                : renderedSessionTitle}
             </span>
             <Tooltip content="更多操作">
               <button

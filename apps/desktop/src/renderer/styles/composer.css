@@ -108,6 +108,11 @@
   background: var(--c-bg-hover);
 }
 
+.composer .icon-button.active {
+  background: var(--c-bg-hover);
+  color: var(--c-text);
+}
+
 .send-button {
   width: 28px;
   height: 28px;
