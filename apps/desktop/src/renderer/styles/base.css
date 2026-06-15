@@ -2,7 +2,7 @@
   --contrast: 40;
   --c-bg: #ffffff;
   --c-bg-soft: #f6f6f6;
-  --c-bg-mask: #fbfbfb;
+  --c-bg-mask: #fbf6f4;
   --c-bg-hover: #f1f1f1;
   --c-bg-row-hover: #f5f5f5;
   --c-bg-chip-hover: #eef3ff;
@@ -66,7 +66,7 @@
   --chrome-h: 35px;
   --titlebar-h: var(--chrome-h);
   --menubar-h: var(--chrome-h);
-  --composer-w: 760px;
+  --composer-w: 860px;
 }
 
 :root[data-theme='dark'] {

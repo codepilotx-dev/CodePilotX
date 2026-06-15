@@ -885,6 +885,9 @@ export function DesktopLayout(): React.ReactNode {
               activeSessionItem?.aiTitle ??
               null,
             workspaceName: currentWorkspace?.name ?? null,
+            workspacePath: currentWorkspace?.path ?? null,
+            branchName,
+            diff: workspace.diff,
             events: isHomePage || isConversationLoading ? [] : events,
             messages: isHomePage || isConversationLoading ? [] : messages,
             sessionStatus,

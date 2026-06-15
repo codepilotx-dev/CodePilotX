@@ -5,12 +5,17 @@ import {
   Code2,
   Copy,
   FileDiff,
+  GitBranch,
+  GitPullRequest,
+  Laptop,
   Maximize2,
   MoreHorizontal,
   RotateCcw,
+  Settings,
   Sparkles,
   ThumbsDown,
   ThumbsUp,
+  Upload,
 } from "lucide-react";
 import { useQuickChatContext } from "../context/QuickChatContext.js";
 import type { Message } from "../uiTypes.js";
@@ -28,6 +33,9 @@ export function QuickChatView(): React.ReactNode {
     messages,
     sessionStatus,
     workspaceName,
+    workspacePath,
+    branchName,
+    diff,
     composer,
   } = useQuickChatContext();
 
@@ -52,6 +60,7 @@ export function QuickChatView(): React.ReactNode {
         event.role === "assistant" &&
         Boolean(event.content?.trim()),
     );
+  const showEnvironmentPanel = false;
 
   if (hasMessages || isConversationRoute) {
     return (
@@ -108,17 +117,30 @@ export function QuickChatView(): React.ReactNode {
           </div>
         </header>
 
-        <div className="quick-chat-content">
-          <div className="conversation-stream">
-            {isConversationLoading ? (
-              <div className="assistant-thinking">加载对话中</div>
-            ) : (
-              timelineEvents.map((event) => (
-                <TimelineEvent event={event} key={event.id} />
-              ))
-            )}
-            {!isConversationLoading && showThinking ? <ThinkingPill /> : null}
+        <div
+          className={`quick-chat-workspace ${
+            showEnvironmentPanel ? "with-environment-panel" : ""
+          }`}
+        >
+          <div className="quick-chat-content">
+            <div className="conversation-stream">
+              {isConversationLoading ? (
+                <div className="assistant-thinking">加载对话中</div>
+              ) : (
+                timelineEvents.map((event) => (
+                  <TimelineEvent event={event} key={event.id} />
+                ))
+              )}
+              {!isConversationLoading && showThinking ? <ThinkingPill /> : null}
+            </div>
           </div>
+          {!isConversationLoading && showEnvironmentPanel ? (
+            <EnvironmentPanel
+              branchName={branchName}
+              diff={diff}
+              workspacePath={workspacePath}
+            />
+          ) : null}
         </div>
 
         {composer ? <div className="chat-composer">{composer}</div> : null}
@@ -220,7 +242,7 @@ function TimelineEvent({
   }
 
   if (event.type === "status" || event.type === "checkpoint") {
-    return <div className="timeline-status-event">{event.content}</div>;
+    return null;
   }
 
   return null;
@@ -309,6 +331,66 @@ function getConversationTitle(events: DesktopSessionEvent[]): string {
   return title.length > 28 ? `${title.slice(0, 28)}...` : title;
 }
 
+function EnvironmentPanel({
+  branchName,
+  diff,
+  workspacePath,
+}: {
+  branchName: string | null
+  diff: string
+  workspacePath: string | null
+}): React.ReactNode {
+  const diffSummary = summarizeDiff(diff);
+  const gitLabel = branchName?.trim() || "未检测到 Git 分支";
+
+  return (
+    <aside className="environment-panel" aria-label="环境信息">
+      <div className="environment-panel-header">
+        <span>环境信息</span>
+        <button aria-label="环境设置" className="message-action" type="button">
+          <Settings size={16} />
+        </button>
+      </div>
+
+      <div className="environment-action-list">
+        <button className="environment-action-row" type="button">
+          <FileDiff size={16} />
+          <span>变更</span>
+          <span className="environment-diff-counts">
+            <strong>+{formatPanelNumber(diffSummary.additions)}</strong>
+            <em>-{formatPanelNumber(diffSummary.deletions)}</em>
+          </span>
+        </button>
+        <button className="environment-action-row" type="button">
+          <Laptop size={16} />
+          <span>本地</span>
+          <ChevronRight className="environment-row-chevron" size={13} />
+        </button>
+        <button className="environment-action-row" type="button">
+          <GitBranch size={16} />
+          <span title={gitLabel}>{gitLabel}</span>
+          <ChevronRight className="environment-row-chevron" size={13} />
+        </button>
+        <button className="environment-action-row" type="button">
+          <Upload size={16} />
+          <span>提交或推送</span>
+        </button>
+        <button className="environment-action-row" type="button">
+          <GitPullRequest size={16} />
+          <span>创建拉取请求</span>
+        </button>
+      </div>
+
+      <div className="environment-source">
+        <span>来源</span>
+        <small title={workspacePath ?? undefined}>
+          {workspacePath ? "本地项目" : "暂无来源"}
+        </small>
+      </div>
+    </aside>
+  );
+}
+
 function foldTimelineEvents(
   sourceEvents: DesktopSessionEvent[],
 ): DesktopSessionEvent[] {
@@ -350,6 +432,28 @@ function numberMetadata(
 ): number | null {
   const value = event.metadata?.[key];
   return typeof value === "number" ? value : null;
+}
+
+function summarizeDiff(diff: string): { additions: number; deletions: number } {
+  let additions = 0;
+  let deletions = 0;
+
+  for (const line of diff.split(/\r?\n/)) {
+    if (line.startsWith("+++") || line.startsWith("---")) continue;
+    if (line.startsWith("+")) {
+      additions += 1;
+      continue;
+    }
+    if (line.startsWith("-")) {
+      deletions += 1;
+    }
+  }
+
+  return { additions, deletions };
+}
+
+function formatPanelNumber(value: number): string {
+  return new Intl.NumberFormat("en-US").format(value);
 }
 
 function ThinkingPill(): React.ReactNode {

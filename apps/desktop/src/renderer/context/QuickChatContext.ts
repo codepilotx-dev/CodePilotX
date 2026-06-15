@@ -11,6 +11,9 @@ export type QuickChatContextValue = {
   isConversationLoading: boolean
   sessionTitle: string | null
   workspaceName: string | null
+  workspacePath: string | null
+  branchName: string | null
+  diff: string
   events: DesktopSessionEvent[]
   messages: Message[]
   sessionStatus: DesktopSessionStatus
