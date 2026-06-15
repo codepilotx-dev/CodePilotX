@@ -1,7 +1,7 @@
 import { desktopClient } from '../services/desktopClient.js'
 import type React from 'react'
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { SettingsNav } from './SettingsNav.js'
 import { SettingsPage } from './SettingsPage.js'
 import { WindowChrome } from './WindowChrome.js'
@@ -10,10 +10,21 @@ import { useDesktopLayout } from '../features/layout/useDesktopLayout.js'
 
 export function SettingsLayout(): React.ReactNode {
   const navigate = useNavigate()
-  const [activeTab, setActiveTab] = useState('general')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const requestedTab = searchParams.get('tab') ?? 'general'
+  const [activeTab, setActiveTab] = useState(requestedTab)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const { sidebarCollapsed, sidebarWidth, toggleSidebarCollapsed } =
     useDesktopLayout()
+
+  useEffect(() => {
+    setActiveTab(requestedTab)
+  }, [requestedTab])
+
+  function handleTabChange(tab: string): void {
+    setActiveTab(tab)
+    setSearchParams(tab === 'general' ? {} : { tab })
+  }
 
   const windowChrome = (
     <WindowChrome
@@ -49,7 +60,7 @@ export function SettingsLayout(): React.ReactNode {
     >
       <SettingsNav
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={handleTabChange}
         onBack={() => navigate(-1)}
       />
     </aside>

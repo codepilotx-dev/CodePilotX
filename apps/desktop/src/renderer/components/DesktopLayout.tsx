@@ -71,6 +71,7 @@ export function DesktopLayout(): React.ReactNode {
   } = settings
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [runtimeWarningDismissed, setRuntimeWarningDismissed] = useState(false)
+  const [archiveNoticeVisible, setArchiveNoticeVisible] = useState(false)
   const [isWindowMaximized, setIsWindowMaximized] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [providerState, setProviderState] =
@@ -639,10 +640,15 @@ export function DesktopLayout(): React.ReactNode {
       targetSessionId: string,
       patch: { pinnedAt?: string | null; archivedAt?: string | null },
     ): Promise<void> => {
+      const archivingSession = Boolean(patch.archivedAt)
       const archivingActiveSession =
-        targetSessionId === routedSessionId && Boolean(patch.archivedAt)
+        targetSessionId === routedSessionId && archivingSession
       const result = await updateSessionMetadata(targetSessionId, patch)
-      if (!result || !archivingActiveSession) return
+      if (!result) return
+      if (archivingSession) {
+        setArchiveNoticeVisible(true)
+      }
+      if (!archivingActiveSession) return
       navigate(
         result.nextActiveSession
           ? sessionPath(result.nextActiveSession.id)
@@ -668,6 +674,7 @@ export function DesktopLayout(): React.ReactNode {
       setSelectedFile,
       setWorkspaceState,
       updateSessionMetadata,
+      setArchiveNoticeVisible,
     ],
   )
 
@@ -871,6 +878,15 @@ export function DesktopLayout(): React.ReactNode {
           setRuntimeWarningDismissed(true)
         }}
       />
+      {archiveNoticeVisible ? (
+        <ArchiveConversationNotice
+          onClose={() => setArchiveNoticeVisible(false)}
+          onOpenSettings={() => {
+            setArchiveNoticeVisible(false)
+            navigate('/settings?tab=archived')
+          }}
+        />
+      ) : null}
 
       <DesktopShell
         windowChrome={windowChrome}
@@ -910,6 +926,35 @@ export function DesktopLayout(): React.ReactNode {
         }
         composer={null}
       />
+    </div>
+  )
+}
+
+function ArchiveConversationNotice({
+  onClose,
+  onOpenSettings,
+}: {
+  onClose: () => void
+  onOpenSettings: () => void
+}): React.ReactNode {
+  return (
+    <div aria-live="polite" className="archive-session-toast" role="status">
+      <span>查看已归档的聊天：</span>
+      <button
+        className="archive-session-toast-link"
+        onClick={onOpenSettings}
+        type="button"
+      >
+        设置
+      </button>
+      <button
+        aria-label="关闭归档提示"
+        className="archive-session-toast-close"
+        onClick={onClose}
+        type="button"
+      >
+        x
+      </button>
     </div>
   )
 }

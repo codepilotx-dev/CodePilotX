@@ -120,7 +120,13 @@ export function SidebarProjectGroup({
             <PopoverItem icon={<Pencil size={14} />} onClick={() => {}}>
               重命名项目
             </PopoverItem>
-            <PopoverItem icon={<Archive size={14} />} onClick={() => {}}>
+            <PopoverItem
+              disabled={projectSessions.length === 0}
+              icon={<Archive size={14} />}
+              onClick={() => {
+                projectSessions.forEach((session) => onArchiveSession(session));
+              }}
+            >
               归档对话
             </PopoverItem>
             <PopoverItem

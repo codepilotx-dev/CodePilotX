@@ -76,6 +76,62 @@
   color: var(--c-text-strong);
 }
 
+.archive-session-toast {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  z-index: 9999;
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 7px 8px 7px 13px;
+  border: 1px solid rgba(24, 24, 21, 0.08);
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 8px 28px rgba(24, 24, 21, 0.14);
+  color: var(--c-text-strong);
+  font-size: var(--fs-13);
+  line-height: 1.4;
+  transform: translateX(-50%);
+}
+
+.archive-session-toast-link,
+.archive-session-toast-close {
+  border: 0;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.archive-session-toast-link {
+  padding: 0 3px;
+  color: var(--c-accent);
+  font-weight: 500;
+}
+
+.archive-session-toast-link:hover {
+  text-decoration: underline;
+}
+
+.archive-session-toast-close {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 2px;
+  padding: 0;
+  border-radius: var(--r-round);
+  color: var(--c-text-soft);
+  line-height: 1;
+}
+
+.archive-session-toast-close:hover {
+  color: var(--c-text-strong);
+  background: var(--c-bg-hover);
+}
+
 .permission-modal header span {
   padding: 5px 10px;
   border-radius: var(--r-round);

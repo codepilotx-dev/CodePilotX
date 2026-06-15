@@ -222,10 +222,9 @@
   list-style: none;
 }
 
-
 .sidebar-session-row {
   justify-content: space-between;
- padding-left: 30px;
+  padding-left: 30px;
 }
 
 .sidebar-session-meta {
@@ -236,6 +235,10 @@
   align-items: center;
   justify-content: flex-end;
   margin-right: -3px;
+}
+
+.sidebar-session-meta.confirming-archive {
+  min-width: 40px;
 }
 
 .sidebar-project-action-button,
@@ -253,10 +256,27 @@
   height: 22px;
 }
 
+.sidebar-session-confirm-archive-button {
+  width: 100%;
+  padding: 4px ;
+  border-radius: 15px;
+  color: var(--c-danger, #d92d20);
+  background: #ecd3d4;
+  font-size: var(--fs-12);
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+
 .sidebar-project-action-button:hover,
 .sidebar-session-action-button:hover {
   background: var(--c-bg-mask);
   color: var(--c-text-soft);
+}
+
+.sidebar-session-confirm-archive-button:hover {
+  color: #e02e2a;
+  background: #ecc2c2;
 }
 
 .sidebar-session-time {

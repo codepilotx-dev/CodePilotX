@@ -42,6 +42,9 @@ export function SidebarSessionGroup({
   onUnpinSession,
 }: Props): React.ReactNode {
   const [hoveredSessionId, setHoveredSessionId] = useState<string | null>(null);
+  const [confirmArchiveSessionId, setConfirmArchiveSessionId] = useState<
+    string | null
+  >(null);
   const visibleSessions = isExpanded ? sessions : sessions.slice(0, GROUP_LIMIT);
 
   return (
@@ -56,11 +59,14 @@ export function SidebarSessionGroup({
             }
             key={session.id}
             onMouseEnter={() => setHoveredSessionId(session.id)}
-            onMouseLeave={() =>
+            onMouseLeave={() => {
               setHoveredSessionId((current) =>
                 current === session.id ? null : current,
-              )
-            }
+              );
+              setConfirmArchiveSessionId((current) =>
+                current === session.id ? null : current,
+              );
+            }}
           >
             <button
               className="sidebar-session-button"
@@ -71,13 +77,28 @@ export function SidebarSessionGroup({
                 {sessionDisplayTitle(session)}
               </span>
             </button>
-            <div className="sidebar-session-meta">
+            <div
+              className={
+                confirmArchiveSessionId === session.id
+                  ? "sidebar-session-meta confirming-archive"
+                  : "sidebar-session-meta"
+              }
+            >
               {session.status === "running" ? (
                 <Loader2
                   aria-label="加载中"
                   className="sidebar-session-spinner"
                   size={12}
                 />
+              ) : confirmArchiveSessionId === session.id ? (
+                <button
+                  className="sidebar-session-confirm-archive-button"
+                  onClick={() => onArchiveSession(session)}
+                  title="确认归档"
+                  type="button"
+                >
+                  确认
+                </button>
               ) : hoveredSessionId === session.id ? (
                 <div className="sidebar-session-actions">
                   {session.pinnedAt ? (
@@ -99,7 +120,7 @@ export function SidebarSessionGroup({
                   )}
                   <IconButton
                     className="sidebar-session-action-button"
-                    onClick={() => onArchiveSession(session)}
+                    onClick={() => setConfirmArchiveSessionId(session.id)}
                     title="归档"
                   >
                     <Archive size={12} />
