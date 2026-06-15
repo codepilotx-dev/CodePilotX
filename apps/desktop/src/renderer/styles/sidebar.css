@@ -149,12 +149,17 @@
   text-transform: none;
 }
 
+.sidebar-section-actions {
+  width: 50px !important;
+}
+
 .sidebar-section-actions,
 .sidebar-project-actions,
 .sidebar-session-actions {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  justify-content: space-around;
+  width: 100%;
 }
 
 .sidebar-section-actions,
@@ -181,7 +186,7 @@
 
 .sidebar-project-button,
 .sidebar-session-button {
-  flex: 1 1 auto;
+  flex: 1;
   height: 100%;
   display: flex;
   align-items: center;
@@ -214,6 +219,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
+  width: 50px;
 }
 
 .sidebar-session-confirm-archive-button {
