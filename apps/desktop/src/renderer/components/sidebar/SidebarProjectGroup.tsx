@@ -71,11 +71,11 @@ export function SidebarProjectGroup({
           onClick={() => onOpenWorkspace(project)}
           type="button"
         >
-          <span className="sidebar-item-icon">
+          <span className="icon-button sidebar-item-icon">
             {project.isGitRepo === true && hovered ? (
-              <FolderGit2 size={15} />
+              <FolderGit2 size={14} />
             ) : (
-              <FolderOpen size={15} />
+              <FolderOpen size={14} />
             )}
           </span>
           <span className="sidebar-project-name">{project.name}</span>
@@ -138,7 +138,7 @@ export function SidebarProjectGroup({
           </PopoverMenu>
 
           <IconButton
-            className="sidebar-project-action-button"
+            className="icon-button sidebar-project-action-button"
             onClick={() => onCreateSession(project)}
             title="新建对话"
           >

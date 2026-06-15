@@ -796,6 +796,7 @@ export function DesktopLayout(): React.ReactNode {
       sessions={sessions}
       width={sidebarWidth}
       workspace={currentWorkspace}
+      onChooseWorkspace={() => void handleChooseWorkspace()}
       onCreateSession={workspaceItem => void handleCreateSession(workspaceItem)}
       onOpenWorkspace={workspaceItem => void handleOpenRecentWorkspace(workspaceItem)}
       onRemoveWorkspace={handleRemoveWorkspace}

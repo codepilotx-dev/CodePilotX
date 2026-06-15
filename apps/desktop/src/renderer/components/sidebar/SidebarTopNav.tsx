@@ -14,25 +14,25 @@ const TOP_NAV_ITEMS: SidebarNavItem[] = [
   {
     view: "quickChat",
     label: "快速对话",
-    icon: <SquarePen size={16} />,
+    icon: <SquarePen size={14} />,
     path: "/",
   },
   {
     view: "search",
     label: "搜索",
-    icon: <Search size={16} />,
+    icon: <Search size={14} />,
     path: "/search",
   },
   {
     view: "plugins",
     label: "插件",
-    icon: <Boxes size={16} />,
+    icon: <Boxes size={14} />,
     path: "/plugins",
   },
   {
     view: "automation",
     label: "自动化",
-    icon: <Clock3 size={16} />,
+    icon: <Clock3 size={14} />,
     path: "/automation",
   },
 ];
@@ -47,6 +47,8 @@ export function SidebarTopNav({ isActiveView }: Props): React.ReactNode {
       {TOP_NAV_ITEMS.map((item) => (
         <Link
           className={
+            item.view !== "quickChat" &&
+            item.view !== "search" &&
             isActiveView(item.view)
               ? "sidebar-nav-link active"
               : "sidebar-nav-link"
@@ -54,7 +56,7 @@ export function SidebarTopNav({ isActiveView }: Props): React.ReactNode {
           key={item.view}
           to={item.path}
         >
-          <span className="sidebar-item-icon">{item.icon}</span>
+          <span className="icon-button sidebar-item-icon">{item.icon}</span>
           <span className="sidebar-item-label">{item.label}</span>
         </Link>
       ))}

@@ -8,6 +8,7 @@ import {
   Clock3,
   CirclePlus,
   Folder,
+  FolderOpen,
   MoreHorizontal,
   PenLine,
   SquarePen,
@@ -30,6 +31,7 @@ type Props = {
   unpinnedSessions: SessionListItem[];
   workspace: DesktopWorkspace | null;
   onArchiveSession: (session: SessionListItem) => void;
+  onChooseWorkspace: () => void;
   onCreateSession: (workspace?: DesktopWorkspace | null) => void;
   onOpenWorkspace: (workspace: DesktopWorkspace) => void;
   onPinSession: (session: SessionListItem) => void;
@@ -49,6 +51,7 @@ export function SidebarBody({
   unpinnedSessions,
   workspace,
   onArchiveSession,
+  onChooseWorkspace,
   onCreateSession,
   onOpenWorkspace,
   onPinSession,
@@ -79,9 +82,10 @@ export function SidebarBody({
 
       <section className="sidebar-section sidebar-projects-section">
         <SidebarSectionHeader
+          actionIcon={<FolderOpen size={14} />}
+          actionTitle="选择项目"
           title="项目"
-          onCreateSession={onCreateSession}
-          createDisabled={!workspace}
+          onAction={onChooseWorkspace}
         />
         {projectWorkspaces.length === 0 ? (
           <p className="sidebar-empty">暂无最近项目</p>
@@ -111,7 +115,7 @@ export function SidebarBody({
       <section className="sidebar-section">
         <SidebarSectionHeader
           title="对话"
-          onCreateSession={() => onCreateSession(null)}
+          onAction={() => onCreateSession(null)}
         />
         {standaloneSessions.length === 0 ? (
           <p className="sidebar-empty">暂无对话</p>
@@ -135,13 +139,15 @@ export function SidebarBody({
 }
 
 function SidebarSectionHeader({
-  createDisabled,
+  actionIcon,
+  actionTitle = "新建对话",
   title,
-  onCreateSession,
+  onAction,
 }: {
-  createDisabled?: boolean;
+  actionIcon?: React.ReactNode;
+  actionTitle?: string;
   title: string;
-  onCreateSession: () => void;
+  onAction: () => void;
 }): React.ReactNode {
   const [menuOpen, setMenuOpen] = useState(false);
   return (
@@ -161,7 +167,7 @@ function SidebarSectionHeader({
           side="top"
           trigger={
             <button aria-label="更多" className="icon-button" type="button">
-              <MoreHorizontal size={15} />
+              <MoreHorizontal size={14} />
             </button>
           }
           onOpenChange={setMenuOpen}
@@ -170,10 +176,7 @@ function SidebarSectionHeader({
             归档所有聊天
           </PopoverItem>
           <div className="popover-divider" />
-          <SidebarSubmenu
-            icon={<Folder size={14} />}
-            label="整理侧边栏"
-          >
+          <SidebarSubmenu icon={<Folder size={14} />} label="整理侧边栏">
             <PopoverItem icon={<Folder size={14} />} selected withCheck>
               按项目
             </PopoverItem>
@@ -188,12 +191,8 @@ function SidebarSectionHeader({
             </PopoverItem>
           </SidebarSubmenu>
         </PopoverMenu>
-        <IconButton
-          disabled={createDisabled}
-          onClick={() => onCreateSession()}
-          title="新建对话"
-        >
-          <SquarePen size={15} />
+        <IconButton onClick={onAction} title={actionTitle}>
+          {actionIcon ?? <SquarePen size={14} />}
         </IconButton>
       </div>
     </div>
@@ -217,7 +216,7 @@ function SidebarSubmenu({
       >
         <span className="popover-item-icon">{icon}</span>
         <span className="popover-item-label">{label}</span>
-        <ChevronRight className="popover-item-arrow" size={12} />
+        <ChevronRight className="popover-item-arrow" size={14} />
       </DropdownMenu.SubTrigger>
       <DropdownMenu.Portal>
         <DropdownMenu.SubContent

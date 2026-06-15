@@ -20,7 +20,6 @@
   --sidebar-item-h: 30px;
   --sidebar-item-gap: 8px;
   --sidebar-item-radius: 6px;
-  --sidebar-icon-size: 17px;
 }
 
 .desktop-sidebar.is-resizing {
@@ -86,18 +85,17 @@
 .sidebar-section-header,
 .sidebar-project-header,
 .sidebar-session-row,
-.sidebar-settings-link {
+.sidebar-settings-link,
+.sidebar-empty {
   width: 100%;
-  min-height: var(--sidebar-item-h);
   display: flex;
   align-items: center;
   gap: var(--sidebar-item-gap);
-  padding: 0 var(--sidebar-pad-x);
+  padding: 5px var(--sidebar-pad-x);
   border-radius: var(--sidebar-item-radius);
   color: var(--c-text-soft);
-  font-size: var(--fs-13);
+  font-size: 14px;
   font-weight: 400;
-  line-height: 1;
   text-align: left;
   text-decoration: none;
   transition:
@@ -107,29 +105,18 @@
 
 .sidebar-nav-link:hover,
 .sidebar-nav-link.active,
-.sidebar-section-header:focus-within,
 .sidebar-project-header:hover,
 .sidebar-project-header:focus-within,
 .sidebar-session-row:hover,
 .sidebar-session-row.active,
 .sidebar-settings-link:hover {
   background: var(--c-bg-hover);
-  color: var(--c-text-strong);
 }
 
 .sidebar-nav-link.active,
 .sidebar-session-row.active {
   color: var(--c-text-strong);
-}
-
-.sidebar-item-icon {
-  width: var(--sidebar-icon-size);
-  height: var(--sidebar-icon-size);
-  flex: 0 0 var(--sidebar-icon-size);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--c-icon);
+  background: var(--c-bg-hover);
 }
 
 .sidebar-nav-link:hover .sidebar-item-icon,
@@ -147,7 +134,6 @@
 .sidebar-session-title,
 .sidebar-section-title,
 .sidebar-settings-link span:last-child {
-  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -168,13 +154,12 @@
 .sidebar-session-actions {
   display: inline-flex;
   align-items: center;
-  gap: 1px;
+  gap: 10px;
 }
 
 .sidebar-section-actions,
 .sidebar-project-actions {
   flex: 0 0 auto;
-  margin-right: -4px;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.12s ease-out;
@@ -196,7 +181,6 @@
 
 .sidebar-project-button,
 .sidebar-session-button {
-  min-width: 0;
   flex: 1 1 auto;
   height: 100%;
   display: flex;
@@ -204,9 +188,7 @@
   gap: var(--sidebar-item-gap);
   padding: 0;
   color: inherit;
-  font-size: inherit;
-  font-weight: inherit;
-  line-height: inherit;
+
   text-align: left;
 }
 
@@ -228,50 +210,19 @@
 }
 
 .sidebar-session-meta {
-  min-width: 46px;
-  height: var(--sidebar-item-h);
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
-  margin-right: -3px;
-}
-
-.sidebar-session-meta.confirming-archive {
-  min-width: 40px;
-}
-
-.sidebar-project-action-button,
-.sidebar-session-action-button {
-  color: var(--c-text-meta);
-}
-
-.sidebar-project-action-button {
-  width: 24px;
-  height: 24px;
-}
-
-.sidebar-session-action-button {
-  width: 22px;
-  height: 22px;
 }
 
 .sidebar-session-confirm-archive-button {
   width: 100%;
-  padding: 4px ;
+  padding: 0 4px;
   border-radius: 15px;
   color: var(--c-danger, #d92d20);
   background: #ecd3d4;
-  font-size: var(--fs-12);
-  font-weight: 600;
-  line-height: 1;
   white-space: nowrap;
-}
-
-.sidebar-project-action-button:hover,
-.sidebar-session-action-button:hover {
-  background: var(--c-bg-mask);
-  color: var(--c-text-soft);
 }
 
 .sidebar-session-confirm-archive-button:hover {
@@ -281,7 +232,7 @@
 
 .sidebar-session-time {
   color: var(--c-text-meta);
-  font-size: var(--fs-12);
+
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
@@ -292,16 +243,13 @@
 }
 
 .sidebar-show-more-button {
-  min-width: 0;
-  height: 26px;
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  margin-left: calc(var(--sidebar-pad-x) + var(--sidebar-icon-size) + 4px);
+  margin-left: var(--sidebar-pad-x);
   padding: 0 6px;
   border-radius: var(--sidebar-item-radius);
   color: var(--c-text-meta);
-  font-size: var(--fs-12);
 }
 
 .sidebar-show-more-button:hover {
@@ -310,12 +258,7 @@
 }
 
 .sidebar-empty {
-  min-height: var(--sidebar-item-h);
-  display: flex;
-  align-items: center;
-  padding: 0 var(--sidebar-pad-x);
   color: var(--c-text-placeholder);
-  font-size: var(--fs-12);
 }
 
 .sidebar-footer {
@@ -330,13 +273,11 @@
 
 .sidebar-settings-link {
   flex: 1 1 auto;
+  color: var(--c-text-strong);
 }
 
-.collapse-button,
-.sidebar-mobile-button {
-  width: var(--sidebar-item-h);
-  height: var(--sidebar-item-h);
-  color: var(--c-icon);
+.sidebar-settings-link .sidebar-item-icon {
+  color: inherit;
 }
 
 .sidebar-resizer {

@@ -88,7 +88,7 @@ export function SidebarSessionGroup({
                 <Loader2
                   aria-label="加载中"
                   className="sidebar-session-spinner"
-                  size={12}
+                  size={14}
                 />
               ) : confirmArchiveSessionId === session.id ? (
                 <button
@@ -103,27 +103,27 @@ export function SidebarSessionGroup({
                 <div className="sidebar-session-actions">
                   {session.pinnedAt ? (
                     <IconButton
-                      className="sidebar-session-action-button"
+                      className="icon-button sidebar-session-action-button"
                       onClick={() => onUnpinSession(session)}
                       title="取消置顶"
                     >
-                      <PinOff size={12} />
+                      <PinOff size={14} />
                     </IconButton>
                   ) : (
                     <IconButton
-                      className="sidebar-session-action-button"
+                      className="icon-button sidebar-session-action-button"
                       onClick={() => onPinSession(session)}
                       title="置顶"
                     >
-                      <Pin size={12} />
+                      <Pin size={14} />
                     </IconButton>
                   )}
                   <IconButton
-                    className="sidebar-session-action-button"
+                    className="icon-button sidebar-session-action-button"
                     onClick={() => setConfirmArchiveSessionId(session.id)}
                     title="归档"
                   >
-                    <Archive size={12} />
+                    <Archive size={14} />
                   </IconButton>
                 </div>
               ) : (
@@ -144,7 +144,7 @@ export function SidebarSessionGroup({
           onClick={() => onToggleExpanded(groupKey)}
           type="button"
         >
-          {isExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+          {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
           <span>{isExpanded ? "收起" : "展开显示"}</span>
         </button>
       ) : null}
