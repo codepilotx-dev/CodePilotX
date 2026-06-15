@@ -487,9 +487,9 @@ export function saveSelectedProvider(params: {
   providerID: ModelProviderID
   modelID?: string
   baseURL?: string
-}): void {
+}): { error: Error | null } {
   const provider = getCachedProviderConfig(params.providerID)
-  updateSettingsForSource('userSettings', {
+  return updateSettingsForSource('userSettings', {
     provider: params.providerID,
     providerBaseURL:
       provider.requiresBaseURL || params.providerID === 'custom'

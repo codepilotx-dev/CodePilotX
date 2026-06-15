@@ -196,6 +196,8 @@ export function ModelProviderSettings({ onError }: Props): React.ReactNode {
       applyFetchedModels(result.models, result.error)
       setModelError(result.error ?? null)
       setStatus(result.error ? null : `已加载 ${result.models.length} 个模型。`)
+    } catch (error) {
+      showOperationError(error)
     } finally {
       setBusy(false)
     }
@@ -244,6 +246,8 @@ export function ModelProviderSettings({ onError }: Props): React.ReactNode {
             ? `AI Gateway 密钥已配置。目录共有 ${modelsResult.models.length} 个语言模型。`
             : `连接正常。共找到 ${modelsResult.models.length} 个模型。`,
       )
+    } catch (error) {
+      showOperationError(error)
     } finally {
       setBusy(false)
     }
@@ -269,6 +273,8 @@ export function ModelProviderSettings({ onError }: Props): React.ReactNode {
       applyProviderState(nextState)
       setStatus('模型连接已保存。')
       window.dispatchEvent(new Event('desktop:model-provider-changed'))
+    } catch (error) {
+      showOperationError(error)
     } finally {
       setBusy(false)
     }
@@ -324,9 +330,18 @@ export function ModelProviderSettings({ onError }: Props): React.ReactNode {
         setBalanceStatus(formatBalanceStatus(result))
         if (result.error) setModelError(result.error)
       }
+    } catch (error) {
+      showOperationError(error)
     } finally {
       setBusy(false)
     }
+  }
+
+  function showOperationError(error: unknown): void {
+    const message = errorMessageOf(error)
+    setModelError(message)
+    setStatus(null)
+    onError(message)
   }
 
   const providerOptions = filteredProviderOptions.length
@@ -715,4 +730,18 @@ function formatBalanceStatus(result: DesktopProviderBalanceResult): string {
 function openExternalLink(event: React.MouseEvent<HTMLAnchorElement>): void {
   event.preventDefault()
   void desktopClient.openExternalURL(event.currentTarget.href)
+}
+
+function errorMessageOf(error: unknown): string {
+  if (error instanceof Error) return error.message
+  if (typeof error === 'string') return error
+  if (
+    error &&
+    typeof error === 'object' &&
+    'message' in error &&
+    typeof error.message === 'string'
+  ) {
+    return error.message
+  }
+  return String(error ?? '发生未知错误。')
 }

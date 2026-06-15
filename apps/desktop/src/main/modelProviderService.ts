@@ -125,11 +125,14 @@ export async function saveModelProvider(
     typeof options.modelID === 'string' ? options.modelID.trim() : undefined
   const baseURL = normalizeOptionalText(options.baseURL)
   const provider = await getProviderConfig(providerID)
-  saveSelectedProvider({
+  const result = saveSelectedProvider({
     providerID,
     modelID,
     baseURL,
   })
+  if (result.error) {
+    throw result.error
+  }
   const settings = await readDesktopStoredSettings()
   await saveDesktopStoredSettings({
     ...settings,
