@@ -46,6 +46,7 @@ export type DesktopWindowService = {
 }
 
 export function createDesktopWindowService(options: {
+  iconPath: () => string | undefined
   rendererUrl: () => string
   preloadPath: () => string
 }): DesktopWindowService {
@@ -54,12 +55,14 @@ export function createDesktopWindowService(options: {
 
   function createWindow(): void {
     const restoredWindowState = getRestoredWindowState()
+    const icon = options.iconPath()
     mainWindow = new BrowserWindow({
       ...restoredWindowState.bounds,
       minWidth: MIN_WINDOW_WIDTH,
       minHeight: MIN_WINDOW_HEIGHT,
       frame: false,
       title: 'CodePilotX Local Desktop',
+      ...(icon ? { icon } : {}),
       webPreferences: {
         preload: options.preloadPath(),
         contextIsolation: true,

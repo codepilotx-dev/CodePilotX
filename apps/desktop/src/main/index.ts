@@ -2,6 +2,7 @@ import {
   app,
   shell,
 } from 'electron'
+import { existsSync } from 'node:fs'
 import { stat } from 'node:fs/promises'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -96,6 +97,7 @@ import {
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
+const DESKTOP_APP_ID = 'local.codepilotx.desktop'
 const DESKTOP_THINKING_MODES = new Set<DesktopThinkingMode>([
   'default',
   'enabled',
@@ -128,7 +130,15 @@ function rendererUrl(): string {
   return pathToFileURL(join(__dirname, '../renderer/index.html')).toString()
 }
 
+function desktopIconPath(): string | undefined {
+  const iconPath = app.isPackaged
+    ? join(process.resourcesPath, 'icon.ico')
+    : join(__dirname, '..', '..', '..', 'apps', 'desktop', 'build', 'icon.ico')
+  return existsSync(iconPath) ? iconPath : undefined
+}
+
 const windowService = createDesktopWindowService({
+  iconPath: desktopIconPath,
   rendererUrl,
   preloadPath: () => join(__dirname, '../preload/index.js'),
 })
@@ -840,6 +850,7 @@ function registerIpc(): void {
 }
 
 enableConfigs()
+app.setAppUserModelId(DESKTOP_APP_ID)
 registerIpc()
 
 app.whenReady().then(() => {
