@@ -38,7 +38,7 @@ const PLUGINS: Plugin[] = [
   {
     id: 'computer-use',
     name: 'Computer Use',
-    description: 'Control Windows apps from Codex',
+    description: 'Control Windows apps from CodePilotX',
     icon: <Sparkles size={18} strokeWidth={2.2} />,
     tone: 'codex',
     installed: true,
@@ -46,7 +46,7 @@ const PLUGINS: Plugin[] = [
   {
     id: 'chrome',
     name: 'Chrome',
-    description: 'Control Chrome with Codex',
+    description: 'Control Chrome with CodePilotX',
     icon: <Eye size={18} strokeWidth={2.2} />,
     tone: 'chrome',
     installed: true,
@@ -234,7 +234,7 @@ export function PluginsView(): React.ReactNode {
       </header>
 
       <div className="plugins-hero-header">
-        <h1>让 Codex 按你的方式工作</h1>
+        <h1>让 CodePilotX 按你的方式工作</h1>
       </div>
 
       <div className="plugins-search-row">
@@ -347,7 +347,7 @@ export function PluginsView(): React.ReactNode {
                   disabled={plugin.installed}
                   onClick={() => { void enablePlugin(plugin) }}
                   type="button"
-                  title={plugin.installed ? '已添加' : '添加到 Codex'}
+                  title={plugin.installed ? '已添加' : '添加到 CodePilotX'}
                 >
                   {plugin.installed ? <Check size={14} strokeWidth={2.4} /> : <Plus size={14} strokeWidth={2.4} />}
                 </button>

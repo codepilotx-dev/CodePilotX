@@ -18,23 +18,23 @@ export const PERMISSION_MODE_OPTIONS: Array<{
   {
     value: "default",
     label: "默认权限",
-    detail: "Codex 在沙盒中自动运行命令。",
+    detail: "CodePilotX 在沙盒中自动运行命令。",
   },
   {
     value: "auto",
     label: "自动审查",
     detail:
-      "Codex 将在沙盒中运行命令，并对需升级处理的请求进行自动审查。了解更多",
+      "CodePilotX 将在沙盒中运行命令，并对需升级处理的请求进行自动审查。了解更多",
   },
   {
     value: "bypassPermissions",
     label: "完全访问权限",
-    detail: "Codex 对你的计算机拥有完全访问权限（风险升高）",
+    detail: "CodePilotX 对你的计算机拥有完全访问权限（风险升高）",
   },
   {
     value: "customConfig",
     label: "自定义（config.toml）",
-    detail: "Codex 使用 config.toml 中定义的权限",
+    detail: "CodePilotX 使用 config.toml 中定义的权限",
   },
 ];
 

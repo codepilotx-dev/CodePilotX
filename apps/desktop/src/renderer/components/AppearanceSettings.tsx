@@ -186,7 +186,7 @@ export function AppearanceSettings() {
   }
 
   const handleImportTheme = (): void => {
-    const input = window.prompt('粘贴 codex-theme-v1 或 JSON 主题配置')
+    const input = window.prompt('粘贴 CodePilotX 主题配置或 JSON')
     if (!input) return
 
     const raw = input.trim().startsWith(CODEX_THEME_PREFIX)
@@ -372,7 +372,7 @@ export function AppearanceSettings() {
           />
           <SettingsRow
             title="UI 字号"
-            description="调整 Codex UI 使用的基准字号"
+            description="调整 CodePilotX UI 使用的基准字号"
             control={<NumberInput value={uiFontSize} onChange={setUiFontSize} />}
           />
           <SettingsRow
@@ -403,7 +403,7 @@ export function AppearanceSettings() {
               <SettingsDropdown
                 value={pet}
                 options={[
-                  { value: 'codex', label: 'Codex' },
+                  { value: 'codex', label: 'CodePilotX' },
                   { value: 'off', label: '关闭' },
                 ]}
                 onChange={setPet}

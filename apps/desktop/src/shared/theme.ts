@@ -66,7 +66,7 @@ export const DEFAULT_DESKTOP_THEME_SETTINGS: DesktopThemeSettings = {
 export const DESKTOP_THEME_PRESETS: DesktopThemePreset[] = [
   {
     id: 'light-codex',
-    label: 'Codex',
+    label: 'CodePilotX',
     config: DEFAULT_LIGHT_THEME,
   },
   {
@@ -244,7 +244,7 @@ export const DESKTOP_THEME_PRESETS: DesktopThemePreset[] = [
   },
   {
     id: 'dark-codex',
-    label: 'Codex Dark',
+    label: 'CodePilotX Dark',
     config: {
       codeThemeId: 'codex',
       theme: {

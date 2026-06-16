@@ -856,7 +856,7 @@ export function ComposerCard({
                   新工作树
                 </PopoverItem>
                 <PopoverItem icon={<Search size={14} />} disabled>
-                  关联 Codex Web
+                  关联 CodePilotX Web
                 </PopoverItem>
               </div>
             </PopoverMenu>

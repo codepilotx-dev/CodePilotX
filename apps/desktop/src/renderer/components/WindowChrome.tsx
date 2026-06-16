@@ -402,7 +402,7 @@ export function WindowChrome({
               <PopoverItem
                 onClick={() => runHelpAction('codexDocumentation')}
               >
-                Codex 文档
+                CodePilotX 文档
               </PopoverItem>
               <PopoverItem onClick={() => runHelpAction('whatsNew')}>
                 新特性
@@ -440,7 +440,7 @@ export function WindowChrome({
                 键盘快捷键
               </PopoverItem>
               <PopoverItem onClick={() => runHelpAction('aboutCodex')}>
-                关于 Codex
+                关于 CodePilotX
               </PopoverItem>
             </PopoverMenu>
           </nav>
