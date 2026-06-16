@@ -53,6 +53,7 @@ const THEME_VARIABLES = [
   '--c-text-mute',
   '--c-text-placeholder',
   '--c-text-disabled',
+  '--c-text-on-accent',
   '--c-icon',
   '--c-icon-soft',
   '--c-icon-arrow',
@@ -60,6 +61,7 @@ const THEME_VARIABLES = [
   '--c-send-bg',
   '--c-send-bg-hover',
   '--c-send-bg-disabled',
+  '--c-user-bubble-bg',
   '--c-scrollbar',
   '--c-scrollbar-hover',
   '--c-diff-added',
@@ -171,48 +173,47 @@ function applyDesktopTheme(
     root.style.removeProperty(variable)
   }
 
-  if (variant === 'light') {
-    root.classList.remove('dracula-theme')
-    return
-  }
-
-  const config = getDesktopThemeForVariant(settings, 'dark')
+  const config = getDesktopThemeForVariant(settings, variant)
   const { theme } = config
-  const dracula = config.codeThemeId === 'dracula'
+  const dracula = variant === 'dark' && config.codeThemeId === 'dracula'
+  const accentScale = getAccentScale(config.codeThemeId, theme.accent)
+  const neutralScale = dracula ? 'purple' : 'gray'
   root.classList.toggle('dracula-theme', dracula)
   root.style.setProperty('--contrast', String(theme.contrast))
   root.style.setProperty('--c-bg', theme.surface)
-  root.style.setProperty('--c-bg-soft', dracula ? 'var(--purple-2)' : 'var(--gray-2)')
-  root.style.setProperty('--c-bg-mask', dracula ? 'var(--purple-2)' : 'var(--gray-2)')
-  root.style.setProperty('--c-bg-hover', dracula ? 'var(--purple-4)' : 'var(--gray-4)')
-  root.style.setProperty('--c-bg-row-hover', dracula ? 'var(--purple-3)' : 'var(--gray-3)')
-  root.style.setProperty('--c-bg-chip-hover', dracula ? 'var(--pink-a2)' : 'var(--blue-3)')
-  root.style.setProperty('--c-bg-card', dracula ? 'var(--purple-2)' : 'var(--gray-2)')
+  root.style.setProperty('--c-bg-soft', radixVar(neutralScale, 2))
+  root.style.setProperty('--c-bg-mask', radixVar(neutralScale, 2))
+  root.style.setProperty('--c-bg-hover', radixVar(neutralScale, dracula ? 4 : 3))
+  root.style.setProperty('--c-bg-row-hover', radixVar(neutralScale, 3))
+  root.style.setProperty('--c-bg-chip-hover', radixVar(accentScale, 3))
+  root.style.setProperty('--c-bg-card', radixVar(neutralScale, variant === 'dark' ? 2 : 1))
   root.style.setProperty('--c-surface', theme.surface)
   root.style.setProperty('--c-ink', theme.ink)
-  root.style.setProperty('--c-border', dracula ? 'var(--purple-6)' : 'var(--gray-6)')
-  root.style.setProperty('--c-border-soft', dracula ? 'var(--purple-5)' : 'var(--gray-5)')
-  root.style.setProperty('--c-border-faint', dracula ? 'var(--purple-4)' : 'var(--gray-4)')
-  root.style.setProperty('--c-border-row', dracula ? 'var(--purple-4)' : 'var(--gray-4)')
+  root.style.setProperty('--c-border', radixVar(neutralScale, variant === 'dark' ? 6 : 5))
+  root.style.setProperty('--c-border-soft', radixVar(neutralScale, variant === 'dark' ? 5 : 4))
+  root.style.setProperty('--c-border-faint', radixVar(neutralScale, 3))
+  root.style.setProperty('--c-border-row', radixVar(neutralScale, 3))
   root.style.setProperty('--c-danger', 'var(--red-11)')
   root.style.setProperty('--c-warning', 'var(--amber-11)')
   root.style.setProperty('--c-success', 'var(--green-11)')
   root.style.setProperty('--c-text', theme.ink)
   root.style.setProperty('--c-text-strong', 'var(--gray-12)')
-  root.style.setProperty('--c-text-meta', 'var(--gray-11)')
+  root.style.setProperty('--c-text-meta', radixVar('gray', variant === 'dark' ? 11 : 10))
   root.style.setProperty('--c-text-soft', 'var(--gray-11)')
-  root.style.setProperty('--c-text-mute', 'var(--gray-9)')
-  root.style.setProperty('--c-text-placeholder', 'var(--gray-9)')
-  root.style.setProperty('--c-text-disabled', 'var(--gray-8)')
-  root.style.setProperty('--c-icon', 'var(--gray-11)')
-  root.style.setProperty('--c-icon-soft', 'var(--gray-10)')
-  root.style.setProperty('--c-icon-arrow', 'var(--gray-9)')
+  root.style.setProperty('--c-text-mute', radixVar('gray', variant === 'dark' ? 9 : 8))
+  root.style.setProperty('--c-text-placeholder', radixVar('gray', variant === 'dark' ? 9 : 8))
+  root.style.setProperty('--c-text-disabled', radixVar('gray', variant === 'dark' ? 8 : 7))
+  root.style.setProperty('--c-text-on-accent', radixVar('gray', variant === 'dark' ? 12 : 1))
+  root.style.setProperty('--c-icon', radixVar('gray', variant === 'dark' ? 11 : 10))
+  root.style.setProperty('--c-icon-soft', radixVar('gray', variant === 'dark' ? 10 : 9))
+  root.style.setProperty('--c-icon-arrow', radixVar('gray', variant === 'dark' ? 9 : 8))
   root.style.setProperty('--c-accent', theme.accent)
   root.style.setProperty('--c-send-bg', theme.accent)
-  root.style.setProperty('--c-send-bg-hover', getAccentHoverColor(theme.accent))
-  root.style.setProperty('--c-send-bg-disabled', getAccentDisabledColor(theme.accent))
-  root.style.setProperty('--c-scrollbar', 'var(--gray-6)')
-  root.style.setProperty('--c-scrollbar-hover', 'var(--gray-8)')
+  root.style.setProperty('--c-send-bg-hover', radixVar(accentScale, 10))
+  root.style.setProperty('--c-send-bg-disabled', radixVar(accentScale, variant === 'dark' ? 5 : 6))
+  root.style.setProperty('--c-user-bubble-bg', radixVar(neutralScale, 3))
+  root.style.setProperty('--c-scrollbar', radixVar('gray', variant === 'dark' ? 6 : 5))
+  root.style.setProperty('--c-scrollbar-hover', radixVar('gray', variant === 'dark' ? 8 : 9))
   root.style.setProperty('--c-diff-added', theme.semanticColors.diffAdded)
   root.style.setProperty('--c-diff-removed', theme.semanticColors.diffRemoved)
   root.style.setProperty('--c-skill', theme.semanticColors.skill)
@@ -232,38 +233,46 @@ function getSystemThemeVariant(): DesktopThemeVariant {
     : 'light'
 }
 
-function getAccentHoverColor(accent: string): string {
-  switch (accent.toLowerCase()) {
-    case '#ff79c6':
-      return 'var(--pink-10)'
-    case '#ff8dcc':
-      return '#de51a8'
-    case '#00a2c7':
-      return '#23afd0'
-    case '#8e4ec6':
-    case '#d19dff':
-      return '#9a5cd0'
-    case '#f76b15':
-      return '#ff801f'
+type AccentScale = 'blue' | 'cyan' | 'orange' | 'pink' | 'purple' | 'red'
+
+function getAccentScale(codeThemeId: string, accent: string): AccentScale {
+  switch (codeThemeId) {
+    case 'absolutely':
+      return 'orange'
+    case 'catppuccin':
+      return 'purple'
+    case 'dracula':
+      return 'pink'
+    case 'material':
+      return 'cyan'
+    case 'raycast':
+      return 'red'
     default:
-      return '#3b9eff'
+      return getAccentScaleFromHex(accent)
   }
 }
 
-function getAccentDisabledColor(accent: string): string {
+function getAccentScaleFromHex(accent: string): AccentScale {
   switch (accent.toLowerCase()) {
-    case '#ff79c6':
-      return 'var(--pink-a2)'
-    case '#ff8dcc':
-      return '#591c47'
     case '#00a2c7':
-      return '#004558'
+      return 'cyan'
     case '#8e4ec6':
     case '#d19dff':
-      return '#48295c'
+      return 'purple'
+    case '#d6409f':
+    case '#ff79c6':
+    case '#ff8dcc':
+      return 'pink'
+    case '#e5484d':
+    case '#ff9592':
+      return 'red'
     case '#f76b15':
-      return '#562800'
+      return 'orange'
     default:
-      return '#104d87'
+      return 'blue'
   }
+}
+
+function radixVar(scale: AccentScale | 'gray' | 'purple', step: number): string {
+  return `var(--${scale}-${step})`
 }

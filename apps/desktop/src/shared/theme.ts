@@ -1,3 +1,21 @@
+import {
+  blue,
+  blueDark,
+  cyan,
+  cyanDark,
+  gray,
+  grayDark,
+  green,
+  greenDark,
+  orange,
+  orangeDark,
+  pink,
+  pinkDark,
+  purple,
+  purpleDark,
+  red,
+  redDark,
+} from '@radix-ui/colors'
 import type {
   DesktopThemeConfigV1,
   DesktopThemeMode,
@@ -13,44 +31,95 @@ export type DesktopThemePreset = {
   config: DesktopThemeConfigV1
 }
 
-export const DEFAULT_LIGHT_THEME: DesktopThemeConfigV1 = {
-  codeThemeId: 'codex',
-  theme: {
-    accent: '#0090ff',
-    contrast: 40,
-    fonts: {
-      code: 'JetBrains Mono SemiBold',
-      ui: 'Inter',
-    },
-    ink: '#202020',
-    opaqueWindows: true,
-    semanticColors: {
-      diffAdded: '#30a46c',
-      diffRemoved: '#e5484d',
-      skill: '#8e4ec6',
-    },
-    surface: '#fcfcfc',
-  },
-  variant: 'light',
+type RadixScale =
+  | 'blue'
+  | 'cyan'
+  | 'gray'
+  | 'green'
+  | 'orange'
+  | 'pink'
+  | 'purple'
+  | 'red'
+
+type RadixStep = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12
+
+type RadixThemePresetOptions = {
+  accentScale: RadixScale
+  accentStep?: RadixStep
+  codeThemeId: string
+  contrast?: number
+  fonts?: DesktopThemeConfigV1['theme']['fonts']
+  inkScale?: RadixScale
+  inkStep?: RadixStep
+  opaqueWindows?: boolean
+  skillScale?: RadixScale
+  skillStep?: RadixStep
+  surfaceScale?: RadixScale
+  surfaceStep?: RadixStep
+  variant: DesktopThemeVariant
 }
+
+const RADIX_LIGHT: Record<RadixScale, Record<string, string>> = {
+  blue,
+  cyan,
+  gray,
+  green,
+  orange,
+  pink,
+  purple,
+  red,
+}
+
+const RADIX_DARK: Record<RadixScale, Record<string, string>> = {
+  blue: blueDark,
+  cyan: cyanDark,
+  gray: grayDark,
+  green: greenDark,
+  orange: orangeDark,
+  pink: pinkDark,
+  purple: purpleDark,
+  red: redDark,
+}
+
+const INTER_FONTS = {
+  code: 'JetBrains Mono SemiBold',
+  ui: 'Inter',
+}
+
+const QUOTED_JETBRAINS_FONTS = {
+  code: '"Jetbrains Mono"',
+  ui: 'Inter',
+}
+
+const DRACULA_PINK = {
+  9: '#ff79c6',
+  10: '#f36ebb',
+  11: '#ffb0e1',
+  12: '#fdd1e7',
+}
+
+export const DEFAULT_LIGHT_THEME: DesktopThemeConfigV1 =
+  createRadixThemePreset({
+    accentScale: 'blue',
+    codeThemeId: 'codex',
+    skillScale: 'purple',
+    variant: 'light',
+  })
 
 export const DEFAULT_DARK_THEME: DesktopThemeConfigV1 = {
   codeThemeId: 'dracula',
   theme: {
-    accent: '#ff79c6',
+    accent: DRACULA_PINK[9],
     contrast: 60,
-    fonts: {
-      code: 'JetBrains Mono SemiBold',
-      ui: 'Inter',
-    },
-    ink: '#eeeeee',
+    fonts: INTER_FONTS,
+    ink: radixColor('dark', 'gray', 12),
     opaqueWindows: true,
     semanticColors: {
-      diffAdded: '#3dd68c',
-      diffRemoved: '#ff9592',
-      skill: '#ffb0e1',
+      diffAdded: radixColor('dark', 'green', 11),
+      diffRemoved: radixColor('dark', 'red', 11),
+      skill: DRACULA_PINK[11],
     },
-    surface: '#21121d',
+    surface: radixColor('dark', 'pink', 2),
   },
   variant: 'dark',
 }
@@ -72,98 +141,50 @@ export const DESKTOP_THEME_PRESETS: DesktopThemePreset[] = [
   {
     id: 'light-absolutely',
     label: 'Absolutely',
-    config: {
+    config: createRadixThemePreset({
+      accentScale: 'orange',
       codeThemeId: 'absolutely',
-      theme: {
-        accent: '#f76b15',
-        contrast: 40,
-        fonts: {
-          code: 'JetBrains Mono SemiBold',
-          ui: 'Inter',
-        },
-        ink: '#582d1d',
-        opaqueWindows: true,
-        semanticColors: {
-          diffAdded: '#30a46c',
-          diffRemoved: '#e5484d',
-          skill: '#f76b15',
-        },
-        surface: '#fefcfb',
-      },
+      inkScale: 'orange',
+      skillScale: 'orange',
+      surfaceScale: 'orange',
       variant: 'light',
-    },
+    }),
   },
   {
     id: 'light-catppuccin',
     label: 'Catppuccin',
-    config: {
+    config: createRadixThemePreset({
+      accentScale: 'purple',
       codeThemeId: 'catppuccin',
-      theme: {
-        accent: '#8e4ec6',
-        contrast: 40,
-        fonts: {
-          code: 'JetBrains Mono SemiBold',
-          ui: 'Inter',
-        },
-        ink: '#402060',
-        opaqueWindows: true,
-        semanticColors: {
-          diffAdded: '#30a46c',
-          diffRemoved: '#e5484d',
-          skill: '#8e4ec6',
-        },
-        surface: '#fefcfe',
-      },
+      inkScale: 'purple',
+      skillScale: 'purple',
+      surfaceScale: 'purple',
       variant: 'light',
-    },
+    }),
   },
   {
     id: 'light-raycast',
     label: 'Raycast',
-    config: {
+    config: createRadixThemePreset({
+      accentScale: 'red',
       codeThemeId: 'raycast',
-      theme: {
-        accent: '#e5484d',
-        contrast: 40,
-        fonts: {
-          code: '"Jetbrains Mono"',
-          ui: 'Inter',
-        },
-        ink: '#202020',
-        opaqueWindows: false,
-        semanticColors: {
-          diffAdded: '#30a46c',
-          diffRemoved: '#e5484d',
-          skill: '#d6409f',
-        },
-        surface: '#fcfcfc',
-      },
+      fonts: QUOTED_JETBRAINS_FONTS,
+      opaqueWindows: false,
+      skillScale: 'pink',
       variant: 'light',
-    },
+    }),
   },
   {
     id: 'light-github',
     label: 'GitHub',
-    config: {
+    config: createRadixThemePreset({
+      accentScale: 'blue',
       codeThemeId: 'github',
-      theme: {
-        accent: '#0090ff',
-        contrast: 40,
-        fonts: {
-          code: '"Jetbrains Mono"',
-          ui: 'Inter',
-        },
-        ink: '#202020',
-        opaqueWindows: false,
-        semanticColors: {
-          diffAdded: '#30a46c',
-          diffRemoved: '#e5484d',
-          skill: '#8e4ec6',
-        },
-        surface: '#fcfcfc',
-      },
+      fonts: QUOTED_JETBRAINS_FONTS,
+      opaqueWindows: false,
+      skillScale: 'purple',
       variant: 'light',
-    },
+    }),
   },
   {
     id: 'dark-dracula',
@@ -173,100 +194,94 @@ export const DESKTOP_THEME_PRESETS: DesktopThemePreset[] = [
   {
     id: 'dark-github',
     label: 'GitHub Dark',
-    config: {
+    config: createRadixThemePreset({
+      accentScale: 'blue',
       codeThemeId: 'github',
-      theme: {
-        accent: '#0090ff',
-        contrast: 60,
-        fonts: {
-          code: 'JetBrains Mono SemiBold',
-          ui: 'Inter',
-        },
-        ink: '#eeeeee',
-        opaqueWindows: true,
-        semanticColors: {
-          diffAdded: '#30a46c',
-          diffRemoved: '#e5484d',
-          skill: '#d19dff',
-        },
-        surface: '#111111',
-      },
+      skillScale: 'purple',
       variant: 'dark',
-    },
+    }),
   },
   {
     id: 'dark-material',
     label: 'Material',
-    config: {
+    config: createRadixThemePreset({
+      accentScale: 'cyan',
       codeThemeId: 'material',
-      theme: {
-        accent: '#00a2c7',
-        contrast: 60,
-        fonts: {
-          code: 'JetBrains Mono SemiBold',
-          ui: 'Inter',
-        },
-        ink: '#eeeeee',
-        opaqueWindows: true,
-        semanticColors: {
-          diffAdded: '#3dd68c',
-          diffRemoved: '#ff9592',
-          skill: '#d19dff',
-        },
-        surface: '#191919',
-      },
+      skillScale: 'purple',
+      surfaceStep: 2,
       variant: 'dark',
-    },
+    }),
   },
   {
     id: 'dark-vscode-plus',
     label: 'VSCode Plus',
-    config: {
+    config: createRadixThemePreset({
+      accentScale: 'blue',
       codeThemeId: 'vscode-plus',
-      theme: {
-        accent: '#0090ff',
-        contrast: 60,
-        fonts: {
-          code: 'JetBrains Mono SemiBold',
-          ui: 'Inter',
-        },
-        ink: '#eeeeee',
-        opaqueWindows: true,
-        semanticColors: {
-          diffAdded: '#30a46c',
-          diffRemoved: '#e5484d',
-          skill: '#70b8ff',
-        },
-        surface: '#191919',
-      },
+      skillScale: 'blue',
+      skillStep: 11,
+      surfaceStep: 2,
       variant: 'dark',
-    },
+    }),
   },
   {
     id: 'dark-codex',
     label: 'CodePilotX Dark',
-    config: {
+    config: createRadixThemePreset({
+      accentScale: 'blue',
       codeThemeId: 'codex',
-      theme: {
-        accent: '#0090ff',
-        contrast: 60,
-        fonts: {
-          code: 'JetBrains Mono SemiBold',
-          ui: 'Inter',
-        },
-        ink: '#eeeeee',
-        opaqueWindows: true,
-        semanticColors: {
-          diffAdded: '#30a46c',
-          diffRemoved: '#e5484d',
-          skill: '#d19dff',
-        },
-        surface: '#111111',
-      },
+      skillScale: 'purple',
       variant: 'dark',
-    },
+    }),
   },
 ]
+
+function createRadixThemePreset(
+  options: RadixThemePresetOptions,
+): DesktopThemeConfigV1 {
+  const {
+    accentScale,
+    accentStep = 9,
+    codeThemeId,
+    contrast = options.variant === 'dark' ? 60 : 40,
+    fonts = INTER_FONTS,
+    inkScale = 'gray',
+    inkStep = 12,
+    opaqueWindows = true,
+    skillScale = accentScale,
+    skillStep = options.variant === 'dark' ? 11 : 9,
+    surfaceScale = 'gray',
+    surfaceStep = 1,
+    variant,
+  } = options
+
+  return {
+    codeThemeId,
+    theme: {
+      accent: radixColor(variant, accentScale, accentStep),
+      contrast,
+      fonts,
+      ink: radixColor(variant, inkScale, inkStep),
+      opaqueWindows,
+      semanticColors: {
+        diffAdded: radixColor(variant, 'green', variant === 'dark' ? 11 : 9),
+        diffRemoved: radixColor(variant, 'red', variant === 'dark' ? 11 : 9),
+        skill: radixColor(variant, skillScale, skillStep),
+      },
+      surface: radixColor(variant, surfaceScale, surfaceStep),
+    },
+    variant,
+  }
+}
+
+function radixColor(
+  variant: DesktopThemeVariant,
+  scale: RadixScale,
+  step: RadixStep,
+): string {
+  const palette = variant === 'dark' ? RADIX_DARK : RADIX_LIGHT
+  return palette[scale][`${scale}${step}`]
+}
 
 export function getDesktopThemeForVariant(
   settings: DesktopThemeSettings,
