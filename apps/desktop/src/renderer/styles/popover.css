@@ -12,7 +12,7 @@
   min-width: 240px;
   max-width: min(420px, calc(100vw - 32px));
   padding: 6px;
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--black-a2);
   border-radius: var(--r-lg);
   background: var(--c-bg);
   box-shadow: var(--sh-popover);
@@ -110,7 +110,7 @@
   margin-left: auto;
   flex: 0 0 auto;
   border-radius: var(--r-round);
-  background: #e2e2e2;
+  background: var(--gray-5);
   transition: background 0.15s ease-out;
 }
 
@@ -122,7 +122,7 @@
   height: 20px;
   border-radius: var(--r-round);
   background: var(--c-bg);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 1px 2px var(--black-a3);
   transition: transform 0.15s ease-out;
 }
 
@@ -159,37 +159,37 @@
   justify-content: center;
   flex: 0 0 auto;
   border-radius: var(--r-md);
-  color: #ffffff;
+  color: var(--c-text-on-accent);
 }
 
 .context-plugin-icon-docs {
-  background: #3b82f6;
+  background: var(--blue-9);
 }
 
 .context-plugin-icon-pdf {
-  background: #ff6b6b;
+  background: var(--red-9);
 }
 
 .context-plugin-icon-sheets {
-  background: #34a853;
+  background: var(--green-9);
 }
 
 .context-plugin-icon-slides {
-  background: #f2b84b;
+  background: var(--amber-9);
 }
 
 .context-plugin-icon-github {
   background: transparent;
-  color: #474747;
+  color: var(--gray-11);
 }
 
 .context-plugin-icon-openai {
   border-radius: var(--r-round);
-  background: #635bff;
+  background: var(--purple-9);
 }
 
 :root[data-theme='dark'] .context-menu-switch {
-  background: #55586a;
+  background: var(--gray-6);
 }
 
 :root[data-theme='dark'] .context-menu-switch[aria-checked='true'] {
@@ -197,7 +197,7 @@
 }
 
 :root[data-theme='dark'] .context-plugin-icon-github {
-  color: #f8f8f2;
+  color: var(--gray-12);
 }
 
 .popover-sidebar-project {
@@ -358,7 +358,7 @@
   max-width: min(320px, calc(100vw - 32px));
   padding: 6px 8px;
   border-radius: var(--r-md);
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--black-a2);
   background: var(--c-bg);
   box-shadow: var(--sh-popover);
   color: var(--c-text-meta);
@@ -400,7 +400,7 @@
   max-width: min(320px, calc(100vw - 32px));
   padding: 6px 8px;
   border-radius: var(--r-md);
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--black-a2);
   background: var(--c-bg);
   box-shadow: var(--sh-popover);
   color: var(--c-text-meta);
@@ -419,7 +419,7 @@
   font-size: 12px;
   line-height: 1.4;
   font-weight: 500;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 4px 12px var(--black-a3);
   user-select: none;
   animation: tooltip-fade-in 120ms ease-out;
 }

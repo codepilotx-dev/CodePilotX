@@ -13,7 +13,7 @@ type Hsv = {
   v: number
 }
 
-const FALLBACK_HEX = '#0169CC'
+const FALLBACK_HEX = '#0090FF'
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
@@ -154,7 +154,7 @@ function hsvToHex(hsv: Hsv): string {
 function getReadableTextColor(hex: string): string {
   const { r, g, b } = hexToRgb(hex)
   const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255
-  return luminance > 0.58 ? '#111827' : '#FFFFFF'
+  return luminance > 0.58 ? '#202020' : '#FCFCFC'
 }
 
 export function ColorPickerControl({ value, onChange, ariaLabel }: Props) {
@@ -173,9 +173,7 @@ export function ColorPickerControl({ value, onChange, ariaLabel }: Props) {
   const selectedHex = hsvToHex(hsv)
   const buttonTextColor = getReadableTextColor(selectedHex)
   const swatchBorderColor =
-    buttonTextColor === '#FFFFFF'
-      ? 'rgba(255, 255, 255, 0.7)'
-      : 'rgba(17, 24, 39, 0.2)'
+    buttonTextColor === '#FCFCFC' ? 'var(--white-a9)' : 'var(--black-a4)'
 
   function commitColor(nextHsv: Hsv): void {
     setHsv(nextHsv)

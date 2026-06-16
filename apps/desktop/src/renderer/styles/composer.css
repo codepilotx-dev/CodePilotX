@@ -16,9 +16,9 @@
   align-items: center;
   gap: 6px;
   padding: 6px 12px 6px 10px;
-  background: #fff4e8;
-  color: #b54b08;
-  border-bottom: 1px solid #ffd9b3;
+  background: var(--orange-3);
+  color: var(--orange-11);
+  border-bottom: 1px solid var(--orange-6);
   font-size: 12px;
   line-height: 1.4;
   font-weight: 500;
@@ -26,17 +26,17 @@
 
 .permission-warning-banner > svg {
   flex-shrink: 0;
-  color: #e07a1f;
+  color: var(--orange-10);
 }
 
 :root[data-theme="dark"] .permission-warning-banner {
-  background: rgba(255, 167, 38, 0.08);
-  color: #ffc46b;
-  border-bottom-color: rgba(255, 167, 38, 0.18);
+  background: var(--orange-3);
+  color: var(--orange-11);
+  border-bottom-color: var(--orange-6);
 }
 
 :root[data-theme="dark"] .permission-warning-banner > svg {
-  color: #ffb84d;
+  color: var(--orange-10);
 }
 
 .composer-top {
@@ -188,8 +188,8 @@
 }
 
 .permission-chip-bypassPermissions {
-  --permission-chip-bg: #fff1ea;
-  --permission-chip-color: #f05a18;
+  --permission-chip-bg: var(--orange-3);
+  --permission-chip-color: var(--orange-11);
 }
 
 .permission-select-trigger {
@@ -213,7 +213,7 @@
   max-width: min(360px, calc(100vw - 24px));
   max-height: min(320px, var(--radix-select-content-available-height));
   padding: 6px;
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--black-a2);
   border-radius: var(--r-md);
   background: var(--c-bg);
   box-shadow: var(--sh-popover);
@@ -321,10 +321,10 @@
   gap: 4px;
   min-width: 170px;
   padding: 8px 12px 10px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  border: 1px solid var(--black-a2);
   border-radius: 9px;
   background: var(--c-bg);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 10px 28px var(--black-a2);
   color: var(--c-text-soft);
   font-size: 12px;
   line-height: 1.25;
@@ -350,8 +350,8 @@
 }
 
 :root[data-theme="dark"] .context-usage-popover {
-  border-color: rgba(255, 255, 255, 0.1);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  border-color: var(--white-a2);
+  box-shadow: 0 10px 28px var(--black-a5);
 }
 
 .meta-chip {

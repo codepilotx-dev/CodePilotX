@@ -17,7 +17,7 @@
 .icon-button:hover,
 .collapse-button:hover,
 .ghost-icon-button:hover {
-  color: #404347;
+  color: var(--c-text);
 }
 
 .menubar-status {

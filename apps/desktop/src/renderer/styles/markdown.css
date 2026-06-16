@@ -181,11 +181,11 @@
 }
 
 .md-body .md-code-copy.is-copied {
-  color: #16a34a;
+  color: var(--green-11);
 }
 
 :root[data-theme='dark'] .md-body .md-code-copy.is-copied {
-  color: #50fa7b;
+  color: var(--green-11);
 }
 
 .md-body .md-code-copy-done {
@@ -229,20 +229,20 @@
 .md-body .hljs-keyword,
 .md-body .hljs-tag,
 .md-body .hljs-selector-tag {
-  color: #c678dd;
+  color: var(--purple-11);
 }
 
 .md-body .hljs-string,
 .md-body .hljs-attr,
 .md-body .hljs-doctag {
-  color: #98c379;
+  color: var(--green-11);
 }
 
 .md-body .hljs-number,
 .md-body .hljs-literal,
 .md-body .hljs-symbol,
 .md-body .hljs-bullet {
-  color: #d19a66;
+  color: var(--orange-11);
 }
 
 .md-body .hljs-comment,
@@ -255,37 +255,37 @@
 .md-body .hljs-name,
 .md-body .hljs-section,
 .md-body .hljs-function .hljs-title {
-  color: #61afef;
+  color: var(--blue-11);
 }
 
 .md-body .hljs-variable,
 .md-body .hljs-template-variable,
 .md-body .hljs-attribute {
-  color: #e06c75;
+  color: var(--red-11);
 }
 
 .md-body .hljs-built_in,
 .md-body .hljs-type {
-  color: #e5c07b;
+  color: var(--amber-11);
 }
 
 :root[data-theme='light'] .md-body .hljs-keyword,
 :root[data-theme='light'] .md-body .hljs-tag,
 :root[data-theme='light'] .md-body .hljs-selector-tag {
-  color: #a626a4;
+  color: var(--purple-11);
 }
 
 :root[data-theme='light'] .md-body .hljs-string,
 :root[data-theme='light'] .md-body .hljs-attr {
-  color: #50a14f;
+  color: var(--green-11);
 }
 
 :root[data-theme='light'] .md-body .hljs-number {
-  color: #986801;
+  color: var(--amber-11);
 }
 
 :root[data-theme='light'] .md-body .hljs-comment {
-  color: #a0a1a7;
+  color: var(--gray-10);
   font-style: italic;
 }
 
@@ -293,17 +293,17 @@
 :root[data-theme='light'] .md-body .hljs-name,
 :root[data-theme='light'] .md-body .hljs-section,
 :root[data-theme='light'] .md-body .hljs-function .hljs-title {
-  color: #4078f2;
+  color: var(--blue-11);
 }
 
 :root[data-theme='light'] .md-body .hljs-variable,
 :root[data-theme='light'] .md-body .hljs-attribute {
-  color: #e45649;
+  color: var(--red-11);
 }
 
 :root[data-theme='light'] .md-body .hljs-built_in,
 :root[data-theme='light'] .md-body .hljs-type {
-  color: #c18401;
+  color: var(--amber-11);
 }
 
 /* 表格 */

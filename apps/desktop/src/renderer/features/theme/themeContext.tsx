@@ -36,12 +36,16 @@ const THEME_VARIABLES = [
   '--c-bg-hover',
   '--c-bg-row-hover',
   '--c-bg-chip-hover',
+  '--c-bg-card',
   '--c-surface',
   '--c-ink',
   '--c-border',
   '--c-border-soft',
   '--c-border-faint',
   '--c-border-row',
+  '--c-danger',
+  '--c-warning',
+  '--c-success',
   '--c-text',
   '--c-text-strong',
   '--c-text-meta',
@@ -159,6 +163,8 @@ function applyDesktopTheme(
 ): void {
   const root = document.documentElement
   root.dataset.theme = variant
+  root.classList.toggle('light-theme', variant === 'light')
+  root.classList.toggle('dark-theme', variant === 'dark')
   root.style.setProperty('color-scheme', variant)
 
   for (const variable of THEME_VARIABLES) {
@@ -166,40 +172,47 @@ function applyDesktopTheme(
   }
 
   if (variant === 'light') {
+    root.classList.remove('dracula-theme')
     return
   }
 
   const config = getDesktopThemeForVariant(settings, 'dark')
   const { theme } = config
+  const dracula = config.codeThemeId === 'dracula'
+  root.classList.toggle('dracula-theme', dracula)
   root.style.setProperty('--contrast', String(theme.contrast))
   root.style.setProperty('--c-bg', theme.surface)
-  root.style.setProperty('--c-bg-soft', '#1f212b')
-  root.style.setProperty('--c-bg-mask', '#242632')
-  root.style.setProperty('--c-bg-hover', '#343746')
-  root.style.setProperty('--c-bg-row-hover', '#303341')
-  root.style.setProperty('--c-bg-chip-hover', '#3a2f44')
+  root.style.setProperty('--c-bg-soft', dracula ? 'var(--purple-2)' : 'var(--gray-2)')
+  root.style.setProperty('--c-bg-mask', dracula ? 'var(--purple-2)' : 'var(--gray-2)')
+  root.style.setProperty('--c-bg-hover', dracula ? 'var(--purple-4)' : 'var(--gray-4)')
+  root.style.setProperty('--c-bg-row-hover', dracula ? 'var(--purple-3)' : 'var(--gray-3)')
+  root.style.setProperty('--c-bg-chip-hover', dracula ? 'var(--pink-a2)' : 'var(--blue-3)')
+  root.style.setProperty('--c-bg-card', dracula ? 'var(--purple-2)' : 'var(--gray-2)')
   root.style.setProperty('--c-surface', theme.surface)
   root.style.setProperty('--c-ink', theme.ink)
-  root.style.setProperty('--c-border', '#44475a')
-  root.style.setProperty('--c-border-soft', '#3a3d4f')
-  root.style.setProperty('--c-border-faint', '#343746')
-  root.style.setProperty('--c-border-row', '#343746')
+  root.style.setProperty('--c-border', dracula ? 'var(--purple-6)' : 'var(--gray-6)')
+  root.style.setProperty('--c-border-soft', dracula ? 'var(--purple-5)' : 'var(--gray-5)')
+  root.style.setProperty('--c-border-faint', dracula ? 'var(--purple-4)' : 'var(--gray-4)')
+  root.style.setProperty('--c-border-row', dracula ? 'var(--purple-4)' : 'var(--gray-4)')
+  root.style.setProperty('--c-danger', 'var(--red-11)')
+  root.style.setProperty('--c-warning', 'var(--amber-11)')
+  root.style.setProperty('--c-success', 'var(--green-11)')
   root.style.setProperty('--c-text', theme.ink)
-  root.style.setProperty('--c-text-strong', '#ffffff')
-  root.style.setProperty('--c-text-meta', '#a6adc8')
-  root.style.setProperty('--c-text-soft', '#c7c9d1')
-  root.style.setProperty('--c-text-mute', '#777b92')
-  root.style.setProperty('--c-text-placeholder', '#8b8fa3')
-  root.style.setProperty('--c-text-disabled', '#62677f')
-  root.style.setProperty('--c-icon', '#bdc1d6')
-  root.style.setProperty('--c-icon-soft', '#9aa0b8')
-  root.style.setProperty('--c-icon-arrow', '#8b8fa3')
+  root.style.setProperty('--c-text-strong', 'var(--gray-12)')
+  root.style.setProperty('--c-text-meta', 'var(--gray-11)')
+  root.style.setProperty('--c-text-soft', 'var(--gray-11)')
+  root.style.setProperty('--c-text-mute', 'var(--gray-9)')
+  root.style.setProperty('--c-text-placeholder', 'var(--gray-9)')
+  root.style.setProperty('--c-text-disabled', 'var(--gray-8)')
+  root.style.setProperty('--c-icon', 'var(--gray-11)')
+  root.style.setProperty('--c-icon-soft', 'var(--gray-10)')
+  root.style.setProperty('--c-icon-arrow', 'var(--gray-9)')
   root.style.setProperty('--c-accent', theme.accent)
   root.style.setProperty('--c-send-bg', theme.accent)
-  root.style.setProperty('--c-send-bg-hover', '#ff92d0')
-  root.style.setProperty('--c-send-bg-disabled', '#5b4a63')
-  root.style.setProperty('--c-scrollbar', '#44475a')
-  root.style.setProperty('--c-scrollbar-hover', '#6272a4')
+  root.style.setProperty('--c-send-bg-hover', getAccentHoverColor(theme.accent))
+  root.style.setProperty('--c-send-bg-disabled', getAccentDisabledColor(theme.accent))
+  root.style.setProperty('--c-scrollbar', 'var(--gray-6)')
+  root.style.setProperty('--c-scrollbar-hover', 'var(--gray-8)')
   root.style.setProperty('--c-diff-added', theme.semanticColors.diffAdded)
   root.style.setProperty('--c-diff-removed', theme.semanticColors.diffRemoved)
   root.style.setProperty('--c-skill', theme.semanticColors.skill)
@@ -217,4 +230,40 @@ function getSystemThemeVariant(): DesktopThemeVariant {
   return window.matchMedia('(prefers-color-scheme: dark)').matches
     ? 'dark'
     : 'light'
+}
+
+function getAccentHoverColor(accent: string): string {
+  switch (accent.toLowerCase()) {
+    case '#ff79c6':
+      return 'var(--pink-10)'
+    case '#ff8dcc':
+      return '#de51a8'
+    case '#00a2c7':
+      return '#23afd0'
+    case '#8e4ec6':
+    case '#d19dff':
+      return '#9a5cd0'
+    case '#f76b15':
+      return '#ff801f'
+    default:
+      return '#3b9eff'
+  }
+}
+
+function getAccentDisabledColor(accent: string): string {
+  switch (accent.toLowerCase()) {
+    case '#ff79c6':
+      return 'var(--pink-a2)'
+    case '#ff8dcc':
+      return '#591c47'
+    case '#00a2c7':
+      return '#004558'
+    case '#8e4ec6':
+    case '#d19dff':
+      return '#48295c'
+    case '#f76b15':
+      return '#562800'
+    default:
+      return '#104d87'
+  }
 }

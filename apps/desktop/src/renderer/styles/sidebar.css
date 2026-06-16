@@ -226,14 +226,14 @@
   width: 100%;
   padding: 0 4px;
   border-radius: 15px;
-  color: var(--c-danger, #d92d20);
-  background: #ecd3d4;
+  color: var(--c-danger);
+  background: var(--red-3);
   white-space: nowrap;
 }
 
 .sidebar-session-confirm-archive-button:hover {
-  color: #e02e2a;
-  background: #ecc2c2;
+  color: var(--red-11);
+  background: var(--red-4);
 }
 
 .sidebar-session-time {

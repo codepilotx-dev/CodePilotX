@@ -83,6 +83,6 @@
 }
 
 .window-control-button.close:hover {
-  background: #e81123;
-  color: #ffffff;
+  background: var(--red-9);
+  color: var(--c-text-on-accent);
 }
