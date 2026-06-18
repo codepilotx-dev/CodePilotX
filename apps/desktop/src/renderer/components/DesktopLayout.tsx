@@ -156,7 +156,6 @@ export function DesktopLayout(): React.ReactNode {
   const isHomePage = location.pathname === '/'
   const isConversationRoute = routedSessionId !== null
   const isSettingsRoute = location.pathname === '/settings'
-  const locationKey = `${location.pathname}${location.search}`
   const fullLocationPath = `${location.pathname}${location.search}${location.hash}`
   const settingsReturnPathRef = useRef('/')
   const settingsActiveTab =
@@ -891,7 +890,6 @@ export function DesktopLayout(): React.ReactNode {
       collapsed={sidebarCollapsed}
       maxWidth={Math.round(viewportWidth * 0.2)}
       minWidth={Math.round(viewportWidth * 0.12)}
-      slotKey={isSettingsRoute ? 'settings' : 'app'}
       width={sidebarWidth}
       onSetWidth={setSidebarWidth}
     >
@@ -981,7 +979,6 @@ export function DesktopLayout(): React.ReactNode {
       ) : null}
 
       <DesktopAppShell
-        contentKey={locationKey}
         windowChrome={windowChrome}
         sidebar={sidebar}
       >

@@ -1,6 +1,5 @@
 import type React from "react";
 import { useEffect, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Bot, History } from "lucide-react";
 
 type Props = {
@@ -8,7 +7,6 @@ type Props = {
   collapsed: boolean;
   maxWidth: number;
   minWidth: number;
-  slotKey: string;
   width: number;
   onSetWidth: (width: number) => void;
 };
@@ -18,13 +16,11 @@ export function SidebarFrame({
   collapsed,
   maxWidth,
   minWidth,
-  slotKey,
   width,
   onSetWidth,
 }: Props): React.ReactNode {
   const [resizing, setResizing] = useState(false);
   const [start, setStart] = useState({ x: 0, width });
-  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     if (!resizing) return;
@@ -88,20 +84,7 @@ export function SidebarFrame({
       ].join(" ")}
       style={{ "--sidebar-current-w": `${width}px` } as React.CSSProperties}
     >
-      <div className="sidebar-slot">
-        <AnimatePresence initial={false}>
-          <motion.div
-            animate={{ opacity: 1 }}
-            className="sidebar-slot-panel"
-            exit={{ opacity: 0 }}
-            initial={{ opacity: 0 }}
-            key={slotKey}
-            transition={{ duration: reduceMotion ? 0 : 0.18, ease: "easeOut" }}
-          >
-            {children}
-          </motion.div>
-        </AnimatePresence>
-      </div>
+      {children}
 
       <div
         aria-label="调整侧边栏宽度"
