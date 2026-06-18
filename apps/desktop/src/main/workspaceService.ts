@@ -18,6 +18,19 @@ import type {
   DesktopOpenTarget,
   DesktopWorkspace,
 } from '../shared/types.js'
+import {
+  assertAllowedWorkspace,
+  assertPathInsideAllowedWorkspace,
+  normalizeWorkspacePath,
+  registerAllowedWorkspace,
+} from './workspacePathGuard.js'
+
+export {
+  assertAllowedWorkspace,
+  normalizeWorkspacePath,
+  registerAllowedWorkspace,
+  registerAllowedWorkspaces,
+} from './workspacePathGuard.js'
 
 const execFileAsync = promisify(execFile)
 const IGNORED_DIRECTORY_NAMES = new Set([
@@ -51,30 +64,12 @@ const JETBRAINS_WINDOWS_PRODUCTS = [
   { label: 'DataSpell', matches: ['dataspell'], executables: ['dataspell64.exe', 'dataspell.exe'] },
 ]
 
-const allowedWorkspacePaths = new Set<string>()
 let getDialogWindow: () => BrowserWindow | null = () => null
 
 export function configureWorkspaceService(options: {
   getWindow: () => BrowserWindow | null
 }): void {
   getDialogWindow = options.getWindow
-}
-
-export function normalizeWorkspacePath(workspacePath: string): string {
-  const resolvedPath = resolve(workspacePath)
-  return process.platform === 'win32' ? resolvedPath.toLowerCase() : resolvedPath
-}
-
-export function registerAllowedWorkspace(workspacePath: string): void {
-  allowedWorkspacePaths.add(normalizeWorkspacePath(workspacePath))
-}
-
-export function assertAllowedWorkspace(workspacePath: string): string {
-  const resolvedPath = resolve(workspacePath)
-  if (!allowedWorkspacePaths.has(normalizeWorkspacePath(resolvedPath))) {
-    throw new Error('Workspace must be selected before it can be used.')
-  }
-  return resolvedPath
 }
 
 export async function chooseWorkspace(): Promise<DesktopWorkspace | null> {
@@ -86,10 +81,22 @@ export async function chooseWorkspace(): Promise<DesktopWorkspace | null> {
   if (result.canceled || !selected) {
     return null
   }
-  return openWorkspace(selected)
+  return openWorkspaceFromSelection(selected)
 }
 
 export async function openWorkspace(workspacePath: string): Promise<DesktopWorkspace> {
+  return openWorkspaceInternal(assertAllowedWorkspace(workspacePath))
+}
+
+async function openWorkspaceFromSelection(
+  workspacePath: string,
+): Promise<DesktopWorkspace> {
+  return openWorkspaceInternal(workspacePath)
+}
+
+async function openWorkspaceInternal(
+  workspacePath: string,
+): Promise<DesktopWorkspace> {
   const resolvedWorkspace = resolve(workspacePath)
   const workspaceStat = await stat(resolvedWorkspace)
   if (!workspaceStat.isDirectory()) {
@@ -111,7 +118,7 @@ export async function listOpenTargets(): Promise<DesktopOpenTarget[]> {
 
 export async function openPathWithDefaultTarget(targetPath: string): Promise<void> {
   const requestedPath = requireNonEmptyString(targetPath, 'Target path')
-  const resolvedTarget = resolve(requestedPath)
+  const resolvedTarget = assertPathInsideAllowedWorkspace(requestedPath)
   const targetStat = await stat(resolvedTarget)
   const target = await getSelectedOpenTarget()
 

@@ -4,7 +4,7 @@ import type { Message } from '../uiTypes.js'
 import type {
   DesktopSessionEvent,
   DesktopSessionStatus,
-} from '../../../shared/types.js'
+} from '../../shared/types.js'
 
 export type QuickChatContextValue = {
   isConversationRoute: boolean

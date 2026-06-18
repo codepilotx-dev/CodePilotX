@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react'
-import type { DesktopWorkspace } from '../../../shared/types.js'
+import type { DesktopWorkspace } from '../../shared/types.js'
 import type { SessionListItem } from '../uiTypes.js'
 
 export type SearchContextValue = {

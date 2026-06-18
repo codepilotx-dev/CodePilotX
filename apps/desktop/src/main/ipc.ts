@@ -3,6 +3,7 @@ import {
   DESKTOP_API_METHODS,
   desktopApiChannel,
 } from '../shared/ipcChannels.js'
+import { validateDesktopApiArgs } from '../shared/desktopApiSchema.js'
 import type { DesktopApi } from '../shared/types.js'
 
 export type DesktopApiHandlers = Omit<
@@ -20,7 +21,10 @@ export function registerDesktopIpcHandlers(
       desktopApiChannel(method),
       (event: IpcMainInvokeEvent, ...args: unknown[]) => {
         assertTrustedSender(event.senderFrame?.url)
-        return (handler as (...handlerArgs: unknown[]) => unknown)(...args)
+        const parsedArgs = validateDesktopApiArgs(method, args)
+        return (handler as (...handlerArgs: unknown[]) => unknown)(
+          ...parsedArgs,
+        )
       },
     )
   }

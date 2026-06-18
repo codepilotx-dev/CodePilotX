@@ -1,7 +1,4 @@
-import {
-  app,
-  shell,
-} from 'electron'
+import { app } from 'electron'
 import { existsSync } from 'node:fs'
 import { stat } from 'node:fs/promises'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
@@ -19,7 +16,6 @@ import {
   getSettings_DEPRECATED,
   updateSettingsForSource,
 } from '@codepilotx/tui/utils/settings/settings.js'
-import { getAuthStatus, getRuntimeStatus } from './authRuntimeService.js'
 import { generateSessionTitle } from '@codepilotx/tui/utils/sessionTitle.js'
 import { saveAiGeneratedTitle } from '@codepilotx/tui/utils/sessionStorage.js'
 import {
@@ -27,41 +23,19 @@ import {
   type DesktopAgentSession,
 } from './agentSession.js'
 import type { DesktopAgentRuntimePreference } from './agentRuntime.js'
-import {
-  createDesktopApiHandlers,
-  registerDesktopIpcHandlers,
-} from './ipc.js'
+import { buildDesktopApiHandlers } from './desktopApiHandlers.js'
+import { registerDesktopIpcHandlers } from './ipc.js'
 import { createDesktopWindowService } from './windowService.js'
 import {
   assertAllowedWorkspace,
-  checkoutWorkspaceBranch,
-  chooseWorkspace,
   configureWorkspaceService,
   getStandaloneWorkspace,
-  getWorkspaceContext,
   getWorkspaceDiff,
-  listOpenTargets,
-  listWorkspaceFiles,
   normalizeWorkspacePath,
-  openWorkspace,
-  openPathWithDefaultTarget,
-  readWorkspaceFile,
   registerAllowedWorkspace,
   workspaceFromPath,
 } from './workspaceService.js'
-import {
-  fetchProviderBalance,
-  fetchProviderModels,
-  getModelProviderState,
-  listModelProviders,
-  saveModelProvider,
-  saveProviderApiKey,
-} from './modelProviderService.js'
-import {
-  getOpenAgentConfigHomeDir,
-  readDesktopStoredSettings,
-  saveDesktopStoredSettings,
-} from './desktopSettings.js'
+import { getOpenAgentConfigHomeDir } from './desktopSettings.js'
 import { desktopDebug } from './desktopDebug.js'
 import {
   applyDesktopAgentEventToSnapshot,
@@ -72,10 +46,6 @@ import {
   removePendingPermissionFromSnapshot,
   saveDesktopSessionStore,
 } from './sessionPersistence.js'
-import {
-  readDesktopThemeSettings,
-  saveDesktopThemeSettings,
-} from './themeSettings.js'
 import type {
   CreateDesktopSessionOptions,
   CreateDesktopSessionResult,
@@ -86,7 +56,6 @@ import type {
   DesktopSessionMetadataPatch,
   DesktopSessionSettingsSnapshot,
   DesktopSessionSnapshot,
-  DesktopStoredSettings,
   DesktopThinkingMode,
   DesktopWorkspace,
 } from '../shared/types.js'
@@ -408,14 +377,6 @@ async function updateSessionMetadata(
   }
   persistSessionStore()
   return record.snapshot
-}
-
-async function openExternalURL(url: string): Promise<void> {
-  const parsed = new URL(requireNonEmptyString(url, 'External URL'))
-  if (parsed.protocol !== 'https:') {
-    throw new Error('Only HTTPS external URLs can be opened.')
-  }
-  await shell.openExternal(parsed.toString())
 }
 
 async function createSession(
@@ -791,59 +752,29 @@ async function setBuiltinPluginEnabled(
 }
 
 function registerIpc(): void {
-  const handlers = createDesktopApiHandlers({
-    getAuthStatus: async () => getAuthStatus(),
-    getRuntimeStatus: async () => {
+  const handlers = buildDesktopApiHandlers({
+    windowService,
+    getRuntimeOptions: () => {
       const runtimeSelection = getDesktopRuntimeSelection()
-      return getRuntimeStatus({
+      return {
         agentExecutablePath: getAgentExecutablePath(),
         configDirectoryPath: getOpenAgentConfigHomeDir(),
         runtimePreference: runtimeSelection.preference,
         runtimeSelectionSource: runtimeSelection.source,
-      })
+      }
     },
-    getDesktopSettings: readDesktopStoredSettings,
-    saveDesktopSettings: async (settings: DesktopStoredSettings) =>
-      saveDesktopStoredSettings(settings),
     listBuiltinPlugins,
     setBuiltinPluginEnabled,
-    listOpenTargets,
-    openPathWithDefaultTarget,
-    listModelProviders: async () => listModelProviders(),
-    getModelProviderState: async () => getModelProviderState(),
-    fetchProviderModels,
-    fetchProviderBalance,
-    saveModelProvider,
-    saveProviderApiKey,
-    chooseWorkspace,
-    openWorkspace,
-    getWorkspaceContext,
-    checkoutWorkspaceBranch,
-    listWorkspaceFiles,
-    readWorkspaceFile,
-    getWorkspaceDiff,
-    getThemeSettings: readDesktopThemeSettings,
-    saveThemeSettings: saveDesktopThemeSettings,
     createSession,
     listSessions,
     getSession,
     getActiveSessionId,
     setActiveSession,
     updateSessionMetadata,
-    openExternalURL,
     sendUserMessage,
     respondToPermission,
     interruptSession,
     disposeSession,
-    minimizeWindow: async () => windowService.minimizeWindow(),
-    toggleWindowMaximized: async () => windowService.toggleWindowMaximized(),
-    closeWindow: async () => windowService.closeWindow(),
-    isWindowMaximized: async () => windowService.isWindowMaximized(),
-    newWindow: async () => windowService.newWindow(),
-    openDevTools: async () => windowService.openDevTools(),
-    openSettings: async () => windowService.openSettings(),
-    logOut: async () => windowService.logOut(),
-    exitApp: async () => windowService.exitApp(),
   })
 
   registerDesktopIpcHandlers(handlers, assertTrustedIpcSender)

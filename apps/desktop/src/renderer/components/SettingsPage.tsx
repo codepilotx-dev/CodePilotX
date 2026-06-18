@@ -21,7 +21,9 @@ export function SettingsPage({ activeTab, onError }: Props): React.ReactNode {
     <div className="settings-content-area">
       <div className="settings-content-inner">
         <h2 className="settings-page-title">建设中</h2>
-        <SettingsSection description="此设置页面暂未实现。" />
+        <SettingsSection description="此设置页面暂未实现。">
+          <div />
+        </SettingsSection>
       </div>
     </div>
   )

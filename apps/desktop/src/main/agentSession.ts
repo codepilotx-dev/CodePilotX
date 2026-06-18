@@ -93,7 +93,7 @@ class LocalDesktopAgentSession
       systemPrompt: options.systemPrompt,
       appendSystemPrompt: options.appendSystemPrompt,
       additionalDirectories: options.additionalDirectories,
-      emit: event => this.emit(event),
+      emit: event => this.emitEvent(event),
       requestPermission: request => this.requestPermission(request),
     })
     queueMicrotask(() => {
@@ -141,7 +141,7 @@ class LocalDesktopAgentSession
         return
       }
       this.emitStatus('done')
-      this.emit({ type: 'done', sessionId: this.sessionId })
+      this.emitEvent({ type: 'done', sessionId: this.sessionId })
       desktopDebug('session_send_done', {
         sessionId: this.sessionId,
         durationMs: Date.now() - startedAt,
@@ -153,7 +153,7 @@ class LocalDesktopAgentSession
         durationMs: Date.now() - startedAt,
         message,
       })
-      this.emit({ type: 'error', sessionId: this.sessionId, message })
+      this.emitEvent({ type: 'error', sessionId: this.sessionId, message })
       this.emitStatus('error')
     } finally {
       if (this.currentAbortController === abortController) {
@@ -184,7 +184,7 @@ class LocalDesktopAgentSession
     desktopDebug('session_interrupt', { sessionId: this.sessionId })
     this.currentAbortController.abort()
     this.emitStatus('done')
-    this.emit({ type: 'done', sessionId: this.sessionId })
+    this.emitEvent({ type: 'done', sessionId: this.sessionId })
   }
 
   async dispose(): Promise<void> {
@@ -197,7 +197,7 @@ class LocalDesktopAgentSession
         message: 'Session disposed before approval',
       })
     }
-    this.emit({ type: 'done', sessionId: this.sessionId })
+    this.emitEvent({ type: 'done', sessionId: this.sessionId })
     this.removeAllListeners()
   }
 
@@ -218,7 +218,7 @@ class LocalDesktopAgentSession
         resolve,
       })
       this.emitStatus('waiting')
-      this.emit({
+      this.emitEvent({
         type: 'permission_request',
         sessionId: this.sessionId,
         request: normalizedRequest,
@@ -244,7 +244,7 @@ class LocalDesktopAgentSession
   }
 
   private emitMessage(role: 'user' | 'assistant' | 'system', text: string): void {
-    this.emit({
+    this.emitEvent({
       type: 'message',
       sessionId: this.sessionId,
       role,
@@ -254,14 +254,14 @@ class LocalDesktopAgentSession
   }
 
   private emitStatus(status: DesktopSessionStatus): void {
-    this.emit({
+    this.emitEvent({
       type: 'status',
       sessionId: this.sessionId,
       status,
     })
   }
 
-  private emit(event: DesktopAgentEvent): boolean {
+  private emitEvent(event: DesktopAgentEvent): boolean {
     return super.emit('event', event)
   }
 

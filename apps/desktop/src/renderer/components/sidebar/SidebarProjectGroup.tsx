@@ -12,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import type { DesktopWorkspace } from "../../../shared/types.js";
+import { desktopClient } from "../../services/desktopClient.js";
 import type { SessionListItem } from "../../uiTypes.js";
 import { IconButton } from "../ui/IconButton.js";
 import { PopoverItem } from "../ui/PopoverItem.js";
@@ -109,7 +110,7 @@ export function SidebarProjectGroup({
             <PopoverItem
               icon={<FolderOpen size={14} />}
               onClick={() => {
-                void window.desktopApi.openPathWithDefaultTarget(project.path);
+                void desktopClient.openPathWithDefaultTarget(project.path);
               }}
             >
               在资源管理器中打开

@@ -20,6 +20,7 @@ import {
   Share2,
   Sparkles,
 } from 'lucide-react'
+import { desktopClient } from '../services/desktopClient.js'
 import { IconButton } from './ui/IconButton.js'
 
 type PluginTone = 'github' | 'chrome' | 'sheet' | 'slides' | 'slack' | 'data' | 'design' | 'creative' | 'sales' | 'codex'
@@ -144,7 +145,7 @@ export function PluginsView(): React.ReactNode {
 
   useEffect(() => {
     let cancelled = false
-    window.desktopApi
+    desktopClient
       .listBuiltinPlugins()
       .then(plugins => {
         if (cancelled) return
@@ -182,7 +183,7 @@ export function PluginsView(): React.ReactNode {
 
   async function enablePlugin(plugin: Plugin): Promise<void> {
     if (!plugin.builtinPluginId) return
-    const result = await window.desktopApi.setBuiltinPluginEnabled(
+    const result = await desktopClient.setBuiltinPluginEnabled(
       plugin.builtinPluginId,
       true,
     )

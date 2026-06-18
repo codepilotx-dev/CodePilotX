@@ -6,7 +6,7 @@ import hljs from 'highlight.js/lib/common'
 // 初始化 marked：GFM 表格、删除线、自动识别围栏代码块语言、走 highlight.js。
 // 注意 marked.parse 在 v18 默认是异步友好的，这里强制同步返回字符串。
 const renderer = new marked.Renderer()
-renderer.code = function (token: marked.Tokens.Code): string {
+renderer.code = function (token: { lang?: string | null; text: string }): string {
   const rawLang = (token.lang ?? '').trim().split(/\s+/)[0] ?? ''
   let highlighted = token.text
   let detectedLang = rawLang

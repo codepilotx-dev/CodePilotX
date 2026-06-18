@@ -18,6 +18,7 @@ import {
   Upload,
 } from "lucide-react";
 import { useQuickChatContext } from "../context/QuickChatContext.js";
+import type { DesktopSessionEvent } from "../../shared/types.js";
 import type { Message } from "../uiTypes.js";
 import { legacyMessagesToSessionEvents } from "../../shared/sessionEventModel.js";
 import { MarkdownMessage } from "./MarkdownMessage.js";
