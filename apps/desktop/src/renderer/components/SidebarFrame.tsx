@@ -91,10 +91,10 @@ export function SidebarFrame({
       <div className="sidebar-slot">
         <AnimatePresence initial={false}>
           <motion.div
-            animate={{ opacity: 1, x: 0 }}
+            animate={{ opacity: 1 }}
             className="sidebar-slot-panel"
-            exit={{ opacity: 0, x: reduceMotion ? 0 : -8 }}
-            initial={{ opacity: 0, x: reduceMotion ? 0 : 8 }}
+            exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }}
             key={slotKey}
             transition={{ duration: reduceMotion ? 0 : 0.18, ease: "easeOut" }}
           >

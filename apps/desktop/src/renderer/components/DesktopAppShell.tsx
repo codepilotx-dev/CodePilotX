@@ -25,10 +25,10 @@ export function DesktopAppShell({
           <div className="desktop-main-stage">
             <AnimatePresence initial={false}>
               <motion.div
-                animate={{ opacity: 1, y: 0 }}
+                animate={{ opacity: 1 }}
                 className="desktop-route-stage"
-                exit={{ opacity: 0, y: reduceMotion ? 0 : -6 }}
-                initial={{ opacity: 0, y: reduceMotion ? 0 : 8 }}
+                exit={{ opacity: 0 }}
+                initial={{ opacity: 0 }}
                 key={contentKey}
                 transition={{
                   duration: reduceMotion ? 0 : 0.18,
