@@ -31,6 +31,25 @@
   flex-basis: 0;
 }
 
+.sidebar-slot {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sidebar-slot-panel {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .sidebar-layout {
   min-width: var(--sidebar-current-w);
   flex: 1;
@@ -109,12 +128,14 @@
 .sidebar-project-header:focus-within,
 .sidebar-session-row:hover,
 .sidebar-session-row.active,
-.sidebar-settings-link:hover {
+.sidebar-settings-link:hover,
+.sidebar-settings-link.active {
   background: var(--c-bg-hover);
 }
 
 .sidebar-nav-link.active,
-.sidebar-session-row.active {
+.sidebar-session-row.active,
+.sidebar-settings-link.active {
   color: var(--c-text-strong);
   background: var(--c-bg-hover);
 }
@@ -125,7 +146,8 @@
 .sidebar-project-header:focus-within .sidebar-item-icon,
 .sidebar-project-header:has(.sidebar-project-button[aria-current="page"])
   .sidebar-item-icon,
-.sidebar-settings-link:hover .sidebar-item-icon {
+.sidebar-settings-link:hover .sidebar-item-icon,
+.sidebar-settings-link.active .sidebar-item-icon {
   color: var(--c-text-soft);
 }
 

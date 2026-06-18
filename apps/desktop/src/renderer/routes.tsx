@@ -16,11 +16,8 @@ const router = createBrowserRouter([
       { path: 'search', element: <SearchView /> },
       { path: 'plugins', element: <PluginsView /> },
       { path: 'automation', element: <AutomationView /> },
+      { path: 'settings', element: <SettingsLayout /> },
     ],
-  },
-  {
-    path: '/settings',
-    element: <SettingsLayout />,
   },
 ])
 

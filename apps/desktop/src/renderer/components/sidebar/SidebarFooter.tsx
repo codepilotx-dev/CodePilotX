@@ -1,12 +1,20 @@
 import type React from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Settings2, Smartphone } from "lucide-react";
 import { IconButton } from "../ui/IconButton.js";
 
 export function SidebarFooter(): React.ReactNode {
+  const location = useLocation();
+  const settingsActive = location.pathname === "/settings";
+
   return (
     <footer className="sidebar-footer">
-      <Link className="sidebar-settings-link" to="/settings">
+      <Link
+        className={
+          settingsActive ? "sidebar-settings-link active" : "sidebar-settings-link"
+        }
+        to="/settings"
+      >
         <span className="icon-button sidebar-item-icon">
           <Settings2 size={14} />
         </span>

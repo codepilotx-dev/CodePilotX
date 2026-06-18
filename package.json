@@ -100,6 +100,7 @@
     "lru-cache": "latest",
     "lucide-react": "latest",
     "marked": "latest",
+    "motion": "^12.40.0",
     "p-map": "latest",
     "picomatch": "latest",
     "proper-lockfile": "latest",

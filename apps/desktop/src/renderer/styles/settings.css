@@ -1,74 +1,75 @@
 ﻿.settings-page {
   display: flex;
+  flex-direction: column;
   height: 100%;
+  min-height: 0;
   width: 100%;
   background-color: var(--c-bg);
   color: var(--c-text);
   overflow: hidden;
 }
 
-/* --- Left Nav --- */
-.settings-shell-sidebar {
-  background: var(--c-bg-soft);
-}
-
 .settings-nav {
-  width: 100%;
-  min-width: var(--sidebar-current-w);
-  height: 100%;
-  background-color: var(--c-bg-soft);
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: var(--sp-4) 0;
+  gap: 6px;
+  overflow-x: hidden;
   overflow-y: auto;
-  flex-shrink: 0;
+  scrollbar-width: none;
 }
 
 .settings-nav-header {
-  padding: 0 var(--sp-4);
-  margin-bottom: var(--sp-4);
+  flex: 0 0 auto;
 }
 
 .settings-back-btn {
+  width: 100%;
   display: flex;
   align-items: center;
-  gap: var(--sp-2);
-  background: none;
-  border: none;
+  gap: var(--sidebar-item-gap);
+  padding: 5px var(--sidebar-pad-x);
+  border-radius: var(--sidebar-item-radius);
   color: var(--c-text-soft);
-  cursor: pointer;
-  padding: var(--sp-2);
-  margin-left: calc(-1 * var(--sp-2));
-  border-radius: var(--r-md);
-  font-size: var(--fs-13);
-  transition: background-color 0.15s ease;
+  font-size: 14px;
+  font-weight: 400;
+  text-align: left;
 }
 
 .settings-back-btn:hover {
   background-color: var(--c-bg-hover);
-  color: var(--c-text);
+  color: var(--c-text-strong);
 }
 
 .settings-nav-menu {
   display: flex;
   flex-direction: column;
-  padding: 0 var(--sp-2);
-  gap: 1px;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+
+.settings-nav::-webkit-scrollbar {
+  display: none;
 }
 
 .settings-nav-item {
+  width: 100%;
   display: flex;
   align-items: center;
-  gap: var(--sp-3);
-  padding: 7px var(--sp-3);
-  border-radius: var(--r-md);
-  color: var(--c-text);
+  gap: var(--sidebar-item-gap);
+  padding: 5px var(--sidebar-pad-x);
+  border-radius: var(--sidebar-item-radius);
+  color: var(--c-text-soft);
   background: none;
   border: none;
   cursor: pointer;
-  font-size: var(--fs-14);
+  font-size: 14px;
+  font-weight: 400;
   text-align: left;
   transition: background-color 0.15s ease;
+  white-space: nowrap;
 }
 
 .settings-nav-item:hover {
@@ -76,7 +77,8 @@
 }
 
 .settings-nav-item.active {
-  background-color: var(--c-bg-row-hover);
+  background-color: var(--c-bg-hover);
+  color: var(--c-text-strong);
   font-weight: 500;
 }
 
@@ -96,7 +98,9 @@
   flex: 1;
   background-color: var(--c-bg);
   overflow-y: auto;
+  width: 100%;
   min-width: 0;
+  min-height: 0;
 }
 
 .settings-content-inner {
@@ -249,7 +253,9 @@
   padding: var(--sp-4);
   cursor: pointer;
   position: relative;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
   background-color: var(--c-bg);
   display: flex;
   gap: var(--sp-3);
@@ -308,7 +314,9 @@
   background-color: var(--c-accent);
   opacity: 0;
   transform: scale(0.5);
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
 }
 
 .radio-card.active .radio-indicator-inner {
@@ -358,11 +366,13 @@
   gap: var(--sp-2);
   min-width: 120px;
   padding: 6px 10px;
-  border: 1px solid var(--c-border);
+  border: 1px solid var(--c-border-soft);
   border-radius: var(--r-md);
-  background-color: var(--c-bg);
+  background-color: var(--c-bg-row-hover);
   cursor: pointer;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
   font-size: var(--fs-13);
   color: var(--c-text);
   outline: none !important;
@@ -464,14 +474,12 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  padding: 5px;
   border: 1px solid var(--c-border-soft);
   border-radius: 11px;
   flex-shrink: 0;
-  font-size: 20px;
+  /* font-size: 15px; */
   font-weight: 700;
-  line-height: 1;
   letter-spacing: 0;
   box-shadow: inset 0 1px 0 var(--white-a7);
 }
@@ -545,7 +553,9 @@
   color: var(--c-text-soft);
   cursor: pointer;
   border-radius: 5px;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
   white-space: nowrap;
 }
 
@@ -554,7 +564,7 @@
 }
 
 .segmented-control-item.active,
-.segmented-control-item[data-state='active'] {
+.segmented-control-item[data-state="active"] {
   background-color: var(--c-bg-row-hover);
   color: var(--c-text-strong);
   font-weight: 500;
@@ -698,34 +708,26 @@
   opacity: 0.45;
 }
 
-.appearance-theme-controls-actions .settings-dropdown {
-  width: 420px;
-  min-width: 420px;
-  height: 48px;
-  padding: 6px 12px 6px 14px;
-  border-radius: 17px;
-  border-color: var(--c-border-soft);
-  background-color: var(--c-bg-row-hover);
-}
-
 .appearance-theme-controls-actions .theme-dropdown-trigger:hover {
   background-color: var(--c-bg-row-hover);
 }
 
 .theme-dropdown-trigger .settings-dropdown-value {
-  gap: 14px;
-  font-size: 20px;
-  line-height: 1;
+  gap: var(--sp-2);
+  font-size: var(--fs-13);
+  line-height: normal;
 }
 
 .theme-dropdown-trigger .settings-dropdown-icon {
-  width: 24px;
-  height: 24px;
+  width: 15px;
+  height: 15px;
   stroke-width: 2.4;
 }
 
 .theme-dropdown-content {
-  width: max(var(--radix-select-trigger-width), 390px);
+  width: max-content;
+  min-width: var(--radix-select-trigger-width);
+  max-width: min(420px, calc(100vw - 24px));
   max-height: min(560px, var(--radix-select-content-available-height));
   padding: 10px;
   border: 1px solid var(--c-border-soft);
@@ -760,11 +762,10 @@
 }
 
 .theme-dropdown-content .settings-dropdown-item {
-  min-height: 56px;
-  padding: 8px 12px;
-  border-radius: 14px;
-  font-size: 20px;
-  line-height: 1.2;
+  min-height: 28px;
+  padding: 5px 8px;
+  border-radius: var(--r-sm);
+  font-size: var(--fs-13);
 }
 
 .theme-dropdown-content .settings-dropdown-item[data-highlighted] {
@@ -772,7 +773,7 @@
 }
 
 .theme-dropdown-content .settings-dropdown-item-inner {
-  gap: 14px;
+  gap: var(--sp-2);
 }
 
 .theme-dropdown-content .settings-dropdown-item-copy {

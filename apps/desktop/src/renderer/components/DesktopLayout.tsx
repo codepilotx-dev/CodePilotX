@@ -2,10 +2,12 @@ import { desktopClient } from '../services/desktopClient.js'
 import type React from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { ComposerCard } from './ComposerCard.js'
-import { DesktopShell } from './DesktopShell.js'
+import { DesktopAppShell } from './DesktopAppShell.js'
 import { DesktopSidebar } from './DesktopSidebar.js'
 import { GlobalErrorModal } from './GlobalErrorModal.js'
 import { PermissionRequestModal } from './PermissionRequestModal.js'
+import { SettingsSidebarContent } from './SettingsSidebarContent.js'
+import { SidebarFrame } from './SidebarFrame.js'
 import { WindowChrome } from './WindowChrome.js'
 import type {
   EditMenuAction,
@@ -40,7 +42,7 @@ import type {
   DesktopWorkspace,
   ModelProviderID,
 } from '../../shared/types.js'
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 const RUNTIME_WARNING_MESSAGE =
   '桌面端 agent 运行时缺失，发送消息前请先执行 `bun run desktop:agent:build`。'
@@ -153,6 +155,18 @@ export function DesktopLayout(): React.ReactNode {
   const routedSessionId = getRoutedSessionId(location.pathname)
   const isHomePage = location.pathname === '/'
   const isConversationRoute = routedSessionId !== null
+  const isSettingsRoute = location.pathname === '/settings'
+  const locationKey = `${location.pathname}${location.search}`
+  const fullLocationPath = `${location.pathname}${location.search}${location.hash}`
+  const settingsReturnPathRef = useRef('/')
+  const settingsActiveTab =
+    new URLSearchParams(location.search).get('tab') ?? 'general'
+
+  useEffect(() => {
+    if (!isSettingsRoute) {
+      settingsReturnPathRef.current = fullLocationPath
+    }
+  }, [fullLocationPath, isSettingsRoute])
 
   useEffect(() => {
     setActiveSessionId(sessionId)
@@ -835,26 +849,54 @@ export function DesktopLayout(): React.ReactNode {
     />
   )
 
-  const sidebar = (
+  function handleSettingsTabChange(tab: string): void {
+    navigate(
+      tab === 'general'
+        ? '/settings'
+        : `/settings?tab=${encodeURIComponent(tab)}`,
+    )
+  }
+
+  function handleSettingsBack(): void {
+    navigate(settingsReturnPathRef.current || '/')
+  }
+
+  const appSidebarContent = (
     <DesktopSidebar
       activeSessionId={sessionId}
-      collapsed={sidebarCollapsed}
-      maxWidth={Math.round(viewportWidth * 0.2)}
-      minWidth={Math.round(viewportWidth * 0.12)}
       recentWorkspaces={recentWorkspaces}
       sessions={sessions}
-      width={sidebarWidth}
       workspace={currentWorkspace}
       onChooseWorkspace={() => void handleChooseWorkspace()}
       onCreateSession={workspaceItem => void handleCreateSession(workspaceItem)}
       onOpenWorkspace={workspaceItem => void handleOpenRecentWorkspace(workspaceItem)}
       onRemoveWorkspace={handleRemoveWorkspace}
       onSelectSession={handleSelectSession}
-      onSetWidth={setSidebarWidth}
       onUpdateSessionMetadata={(targetSessionId, patch) =>
         void handleUpdateSessionMetadata(targetSessionId, patch)
       }
     />
+  )
+
+  const settingsSidebarContent = (
+    <SettingsSidebarContent
+      activeTab={settingsActiveTab}
+      onBack={handleSettingsBack}
+      onTabChange={handleSettingsTabChange}
+    />
+  )
+
+  const sidebar = (
+    <SidebarFrame
+      collapsed={sidebarCollapsed}
+      maxWidth={Math.round(viewportWidth * 0.2)}
+      minWidth={Math.round(viewportWidth * 0.12)}
+      slotKey={isSettingsRoute ? 'settings' : 'app'}
+      width={sidebarWidth}
+      onSetWidth={setSidebarWidth}
+    >
+      {isSettingsRoute ? settingsSidebarContent : appSidebarContent}
+    </SidebarFrame>
   )
 
   const composer = isHomePage || isConversationRoute ? (
@@ -938,16 +980,16 @@ export function DesktopLayout(): React.ReactNode {
         />
       ) : null}
 
-      <DesktopShell
+      <DesktopAppShell
+        contentKey={locationKey}
         windowChrome={windowChrome}
         sidebar={sidebar}
-        content={
+      >
         <QuickChatContext.Provider
           value={{
             isConversationRoute,
             isConversationLoading,
-            sessionTitle:
-              quickChatSessionTitle,
+            sessionTitle: quickChatSessionTitle,
             workspaceName: currentWorkspace?.name ?? null,
             workspacePath: currentWorkspace?.path ?? null,
             branchName,
@@ -958,22 +1000,20 @@ export function DesktopLayout(): React.ReactNode {
             composer: isConversationLoading ? null : composer,
           }}
         >
-            <SearchContext.Provider
-              value={{
-                query: searchQuery,
-                workspaces: search.filteredWorkspaces,
-                sessions: search.filteredSessions,
-                onQueryChange: setSearchQuery,
-                onOpenWorkspace: handleOpenRecentWorkspace,
-                onSelectSession: handleSelectSession,
-              }}
-            >
-              <Outlet />
-            </SearchContext.Provider>
-          </QuickChatContext.Provider>
-        }
-        composer={null}
-      />
+          <SearchContext.Provider
+            value={{
+              query: searchQuery,
+              workspaces: search.filteredWorkspaces,
+              sessions: search.filteredSessions,
+              onQueryChange: setSearchQuery,
+              onOpenWorkspace: handleOpenRecentWorkspace,
+              onSelectSession: handleSelectSession,
+            }}
+          >
+            <Outlet />
+          </SearchContext.Provider>
+        </QuickChatContext.Provider>
+      </DesktopAppShell>
     </div>
   )
 }

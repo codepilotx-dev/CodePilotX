@@ -40,16 +40,16 @@ const MENU_ITEMS = [
 
 type Props = {
   activeTab: string
-  onTabChange: (tabId: string) => void
   onBack: () => void
+  onTabChange: (tabId: string) => void
 }
 
-export function SettingsNav({ activeTab, onTabChange, onBack }: Props) {
+export function SettingsNav({ activeTab, onBack, onTabChange }: Props) {
   return (
-    <nav className="settings-nav">
+    <nav className="settings-nav" aria-label="设置分类">
       <div className="settings-nav-header">
-        <button className="settings-back-btn" onClick={onBack}>
-          <ArrowLeft size={16} />
+        <button className="settings-back-btn" onClick={onBack} type="button">
+          <ArrowLeft size={18} />
           <span>返回应用</span>
         </button>
       </div>
