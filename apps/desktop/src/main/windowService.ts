@@ -16,13 +16,6 @@ const MIN_WINDOW_HEIGHT = 720
 const WINDOW_STATE_FILE_NAME = 'window-state.json'
 const WINDOW_STATE_SAVE_DELAY_MS = 250
 
-function logWindowChromeDebug(
-  event: string,
-  details?: Record<string, unknown>,
-): void {
-  console.log('[desktop-window-chrome-debug]', event, details ?? {})
-}
-
 type DesktopWindowState = {
   bounds: Rectangle
   displayId: number
@@ -177,84 +170,44 @@ export function createDesktopWindowService(options: {
   }
 
   function minimizeWindow(): void {
-    logWindowChromeDebug('main_minimizeWindow', {
-      hasWindow: Boolean(mainWindow),
-      windowId: mainWindow?.id,
-    })
     mainWindow?.minimize()
   }
 
   function toggleWindowMaximized(): boolean {
-    logWindowChromeDebug('main_toggleWindowMaximized_start', {
-      hasWindow: Boolean(mainWindow),
-      windowId: mainWindow?.id,
-      isMaximized: mainWindow?.isMaximized(),
-    })
     if (!mainWindow) return false
     if (mainWindow.isMaximized()) {
       mainWindow.unmaximize()
-      logWindowChromeDebug('main_toggleWindowMaximized_done', {
-        windowId: mainWindow.id,
-        result: false,
-      })
       return false
     }
     mainWindow.maximize()
-    logWindowChromeDebug('main_toggleWindowMaximized_done', {
-      windowId: mainWindow.id,
-      result: true,
-    })
     return true
   }
 
   function closeWindow(): void {
-    logWindowChromeDebug('main_closeWindow', {
-      hasWindow: Boolean(mainWindow),
-      windowId: mainWindow?.id,
-    })
     mainWindow?.close()
   }
 
   function isWindowMaximized(): boolean {
-    logWindowChromeDebug('main_isWindowMaximized', {
-      hasWindow: Boolean(mainWindow),
-      windowId: mainWindow?.id,
-      result: mainWindow?.isMaximized() ?? false,
-    })
     return mainWindow?.isMaximized() ?? false
   }
 
   function newWindow(): void {
-    logWindowChromeDebug('main_newWindow')
     createWindow()
   }
 
   function openDevTools(): void {
-    logWindowChromeDebug('main_openDevTools', {
-      hasWindow: Boolean(mainWindow),
-      windowId: mainWindow?.id,
-    })
     mainWindow?.webContents.openDevTools()
   }
 
   function openSettings(): void {
-    logWindowChromeDebug('main_openSettings', {
-      hasWindow: Boolean(mainWindow),
-      windowId: mainWindow?.id,
-    })
     sendUiCommand('openSettings')
   }
 
   function logOut(): void {
-    logWindowChromeDebug('main_logOut', {
-      hasWindow: Boolean(mainWindow),
-      windowId: mainWindow?.id,
-    })
     sendUiCommand('logOut')
   }
 
   function exitApp(): void {
-    logWindowChromeDebug('main_exitApp')
     app.quit()
   }
 

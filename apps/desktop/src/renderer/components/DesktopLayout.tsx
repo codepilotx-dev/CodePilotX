@@ -45,17 +45,6 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'reac
 const RUNTIME_WARNING_MESSAGE =
   '桌面端 agent 运行时缺失，发送消息前请先执行 `bun run desktop:agent:build`。'
 
-function logWindowChromeDebug(
-  event: string,
-  details?: Record<string, unknown>,
-): void {
-  console.log('[desktop-window-chrome-debug]', event, details ?? {})
-}
-
-function describeChromeError(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
-}
-
 export function DesktopLayout(): React.ReactNode {
   const settings = useDesktopSettings()
   const {
@@ -329,45 +318,14 @@ export function DesktopLayout(): React.ReactNode {
     },
   })
 
-  const runChromeClientAction = useCallback(
-    (
-      source: string,
-      action: string,
-      task: () => Promise<unknown>,
-    ): void => {
-      logWindowChromeDebug('layout_client_action_start', { source, action })
-      void task()
-        .then(result => {
-          logWindowChromeDebug('layout_client_action_done', {
-            source,
-            action,
-            result,
-          })
-        })
-        .catch(error => {
-          logWindowChromeDebug('layout_client_action_error', {
-            source,
-            action,
-            error: describeChromeError(error),
-          })
-        })
-    },
-    [],
-  )
-
   const handleFileMenuAction = useCallback(
     (action: FileMenuAction): void => {
-      logWindowChromeDebug('layout_file_menu_action', { action })
       switch (action) {
         case 'close':
-          runChromeClientAction('file-menu', action, () =>
-            desktopClient.closeWindow(),
-          )
+          void desktopClient.closeWindow()
           break
         case 'newWindow':
-          runChromeClientAction('file-menu', action, () =>
-            desktopClient.newWindow(),
-          )
+          void desktopClient.newWindow()
           break
         case 'newChat':
           void handleNewConversation()
@@ -379,81 +337,57 @@ export function DesktopLayout(): React.ReactNode {
           void handleChooseWorkspace()
           break
         case 'openSettings':
-          runChromeClientAction('file-menu', action, () =>
-            desktopClient.openSettings(),
-          )
+          void desktopClient.openSettings()
           break
         case 'logOut':
-          runChromeClientAction('file-menu', action, () => desktopClient.logOut())
+          void desktopClient.logOut()
           break
         case 'exit':
-          runChromeClientAction('file-menu', action, () => desktopClient.exitApp())
+          void desktopClient.exitApp()
           break
       }
     },
-    [
-      handleChooseWorkspace,
-      handleNewConversation,
-      navigate,
-      runChromeClientAction,
-    ],
+    [handleChooseWorkspace, handleNewConversation, navigate],
   )
 
   const handleEditMenuAction = useCallback(
-    (action: EditMenuAction): void => {
-      logWindowChromeDebug('layout_edit_menu_action_unhandled', { action })
-    },
+    (_action: EditMenuAction): void => {},
     [],
   )
 
   const handleViewMenuAction = useCallback(
     (action: ViewMenuAction): void => {
-      logWindowChromeDebug('layout_view_menu_action', { action })
       if (action === 'toggleSidebar') {
         toggleSidebarCollapsed()
-        logWindowChromeDebug('layout_view_menu_action_done', { action })
-        return
       }
-      logWindowChromeDebug('layout_view_menu_action_unhandled', { action })
     },
     [toggleSidebarCollapsed],
   )
 
   const handleWindowMenuAction = useCallback(
     (action: WindowMenuAction): void => {
-      logWindowChromeDebug('layout_window_menu_action', { action })
       switch (action) {
         case 'minimize':
-          runChromeClientAction('window-menu', action, () =>
-            desktopClient.minimizeWindow(),
-          )
+          void desktopClient.minimizeWindow()
           break
         case 'zoom':
-          runChromeClientAction('window-menu', action, async () => {
-            const next = await desktopClient.toggleWindowMaximized()
-            setIsWindowMaximized(next)
-            return next
-          })
+          void desktopClient
+            .toggleWindowMaximized()
+            .then(next => setIsWindowMaximized(next))
           break
         case 'close':
-          runChromeClientAction('window-menu', action, () =>
-            desktopClient.closeWindow(),
-          )
+          void desktopClient.closeWindow()
           break
         case 'debug':
-          runChromeClientAction('window-menu', action, () =>
-            desktopClient.openDevTools(),
-          )
+          void desktopClient.openDevTools()
           break
       }
     },
-    [runChromeClientAction, setIsWindowMaximized],
+    [setIsWindowMaximized],
   )
 
   const handleHelpMenuAction = useCallback(
-    (action: HelpMenuAction): void => {
-      logWindowChromeDebug('layout_help_menu_action_unhandled', { action })
-    },
+    (_action: HelpMenuAction): void => {},
     [],
   )
 
@@ -883,21 +817,15 @@ export function DesktopLayout(): React.ReactNode {
       isMaximized={isWindowMaximized}
       onToggleSidebar={toggleSidebarCollapsed}
       onClose={() => {
-        runChromeClientAction('window-control', 'close', () =>
-          desktopClient.closeWindow(),
-        )
+        void desktopClient.closeWindow()
       }}
       onMinimize={() => {
-        runChromeClientAction('window-control', 'minimize', () =>
-          desktopClient.minimizeWindow(),
-        )
+        void desktopClient.minimizeWindow()
       }}
       onToggleMaximize={() => {
-        runChromeClientAction('window-control', 'toggleMaximize', async () => {
-          const next = await desktopClient.toggleWindowMaximized()
-          setIsWindowMaximized(next)
-          return next
-        })
+        void desktopClient
+          .toggleWindowMaximized()
+          .then(next => setIsWindowMaximized(next))
       }}
       onFileMenuAction={handleFileMenuAction}
       onEditMenuAction={handleEditMenuAction}

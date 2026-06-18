@@ -13,35 +13,6 @@ import { IconButton } from './ui/IconButton.js'
 import { PopoverMenu } from './ui/PopoverMenu.js'
 import { PopoverItem } from './ui/PopoverItem.js'
 
-function logChromeDebug(
-  event: string,
-  details?: Record<string, unknown>,
-): void {
-  console.log('[desktop-window-chrome-debug]', event, details ?? {})
-}
-
-function getPointerDebugDetails(
-  event: React.PointerEvent<HTMLElement>,
-): Record<string, unknown> {
-  return {
-    button: event.button,
-    pointerType: event.pointerType,
-    target: describeEventTarget(event.target),
-  }
-}
-
-function describeEventTarget(target: EventTarget): string {
-  if (!(target instanceof HTMLElement)) return target.constructor.name
-  const parts = [target.tagName.toLowerCase()]
-  if (target.id) {
-    parts.push(`#${target.id}`)
-  }
-  if (target.className && typeof target.className === 'string') {
-    parts.push(`.${target.className.trim().replace(/\s+/g, '.')}`)
-  }
-  return parts.join('')
-}
-
 export type FileMenuAction =
   | 'close'
   | 'newWindow'
@@ -129,61 +100,28 @@ export function WindowChrome({
   const [helpMenuOpen, setHelpMenuOpen] = useState(false)
 
   const runFileAction = (action: FileMenuAction): void => {
-    logChromeDebug('menu_action_select', { menu: 'file', action })
     setFileMenuOpen(false)
     onFileMenuAction(action)
   }
 
   const runEditAction = (action: EditMenuAction): void => {
-    logChromeDebug('menu_action_select', { menu: 'edit', action })
     setEditMenuOpen(false)
     onEditMenuAction(action)
   }
 
   const runViewAction = (action: ViewMenuAction): void => {
-    logChromeDebug('menu_action_select', { menu: 'view', action })
     setViewMenuOpen(false)
     onViewMenuAction(action)
   }
 
   const runWindowAction = (action: WindowMenuAction): void => {
-    logChromeDebug('menu_action_select', { menu: 'window', action })
     setWindowMenuOpen(false)
     onWindowMenuAction(action)
   }
 
   const runHelpAction = (action: HelpMenuAction): void => {
-    logChromeDebug('menu_action_select', { menu: 'help', action })
     setHelpMenuOpen(false)
     onHelpMenuAction(action)
-  }
-
-  const logMenuTriggerPointerDown = (
-    menu: string,
-    event: React.PointerEvent<HTMLButtonElement>,
-  ): void => {
-    logChromeDebug('menu_trigger_pointer_down', {
-      menu,
-      ...getPointerDebugDetails(event),
-    })
-  }
-
-  const logMenuTriggerClick = (menu: string): void => {
-    logChromeDebug('menu_trigger_click', { menu })
-  }
-
-  const logControlPointerDown = (
-    control: string,
-    event: React.PointerEvent<HTMLButtonElement>,
-  ): void => {
-    logChromeDebug('control_pointer_down', {
-      control,
-      ...getPointerDebugDetails(event),
-    })
-  }
-
-  const logControlClick = (control: string): void => {
-    logChromeDebug('control_click', { control })
   }
 
   return (
@@ -192,13 +130,7 @@ export function WindowChrome({
         <div className="window-titlebar-left">
           <IconButton
             className="window-toolbar-icon"
-            onClick={() => {
-              logControlClick('toggleSidebar')
-              onToggleSidebar()
-            }}
-            onPointerDown={event =>
-              logControlPointerDown('toggleSidebar', event)
-            }
+            onClick={onToggleSidebar}
             title={sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'}
           >
             {sidebarCollapsed ? (
@@ -207,20 +139,10 @@ export function WindowChrome({
               <PanelLeftClose size={16} strokeWidth={1.8} />
             )}
           </IconButton>
-          <IconButton
-            className="window-toolbar-icon"
-            onClick={() => logControlClick('back-unhandled')}
-            onPointerDown={event => logControlPointerDown('back', event)}
-            title="后退"
-          >
+          <IconButton className="window-toolbar-icon" title="后退">
             <ChevronLeft size={16} strokeWidth={1.8} />
           </IconButton>
-          <IconButton
-            className="window-toolbar-icon"
-            onClick={() => logControlClick('forward-unhandled')}
-            onPointerDown={event => logControlPointerDown('forward', event)}
-            title="前进"
-          >
+          <IconButton className="window-toolbar-icon" title="前进">
             <ChevronRight size={16} strokeWidth={1.8} />
           </IconButton>
 
@@ -234,10 +156,6 @@ export function WindowChrome({
                     'window-menu-item',
                     fileMenuOpen ? 'active' : '',
                   ].join(' ')}
-                  onClick={() => logMenuTriggerClick('file')}
-                  onPointerDown={event =>
-                    logMenuTriggerPointerDown('file', event)
-                  }
                   type="button"
                 >
                   文件
@@ -287,10 +205,6 @@ export function WindowChrome({
                     'window-menu-item',
                     editMenuOpen ? 'active' : '',
                   ].join(' ')}
-                  onClick={() => logMenuTriggerClick('edit')}
-                  onPointerDown={event =>
-                    logMenuTriggerPointerDown('edit', event)
-                  }
                   type="button"
                 >
                   编辑
@@ -334,10 +248,6 @@ export function WindowChrome({
                     'window-menu-item',
                     viewMenuOpen ? 'active' : '',
                   ].join(' ')}
-                  onClick={() => logMenuTriggerClick('view')}
-                  onPointerDown={event =>
-                    logMenuTriggerPointerDown('view', event)
-                  }
                   type="button"
                 >
                   查看
@@ -446,10 +356,6 @@ export function WindowChrome({
                     'window-menu-item',
                     windowMenuOpen ? 'active' : '',
                   ].join(' ')}
-                  onClick={() => logMenuTriggerClick('window')}
-                  onPointerDown={event =>
-                    logMenuTriggerPointerDown('window', event)
-                  }
                   type="button"
                 >
                   窗口
@@ -486,10 +392,6 @@ export function WindowChrome({
                     'window-menu-item',
                     helpMenuOpen ? 'active' : '',
                   ].join(' ')}
-                  onClick={() => logMenuTriggerClick('help')}
-                  onPointerDown={event =>
-                    logMenuTriggerPointerDown('help', event)
-                  }
                   type="button"
                 >
                   帮助
@@ -547,35 +449,21 @@ export function WindowChrome({
         <div className="window-controls">
           <IconButton
             className="window-control-button"
-            onClick={() => {
-              logControlClick('minimize')
-              onMinimize()
-            }}
-            onPointerDown={event => logControlPointerDown('minimize', event)}
+            onClick={onMinimize}
             title="最小化"
           >
             <Minus size={14} strokeWidth={2} />
           </IconButton>
           <IconButton
             className="window-control-button"
-            onClick={() => {
-              logControlClick('toggleMaximize')
-              onToggleMaximize()
-            }}
-            onPointerDown={event =>
-              logControlPointerDown('toggleMaximize', event)
-            }
+            onClick={onToggleMaximize}
             title={isMaximized ? '还原' : '最大化'}
           >
             <Square size={13} strokeWidth={1.9} />
           </IconButton>
           <IconButton
             className="window-control-button close"
-            onClick={() => {
-              logControlClick('close')
-              onClose()
-            }}
-            onPointerDown={event => logControlPointerDown('close', event)}
+            onClick={onClose}
             title="关闭"
           >
             <X size={14} strokeWidth={2} />
