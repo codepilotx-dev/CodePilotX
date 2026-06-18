@@ -22,6 +22,7 @@
   outline: none !important;
   user-select: none;
   -webkit-user-select: none;
+  -webkit-app-region: no-drag;
 }
 
 .popover *,
@@ -34,6 +35,7 @@
   outline: none !important;
   user-select: none;
   -webkit-user-select: none;
+  -webkit-app-region: no-drag;
 }
 
 .popover-auto-width {
@@ -408,6 +410,7 @@
   line-height: 1.4;
   white-space: normal;
   overflow-wrap: anywhere;
+  -webkit-app-region: no-drag;
 }
 
 .tooltip-content {

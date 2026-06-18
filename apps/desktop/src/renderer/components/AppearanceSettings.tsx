@@ -110,15 +110,18 @@ function NumberInput({
 function TextInput({
   value,
   onChange,
+  placeholder,
 }: {
   value: string
   onChange: (v: string) => void
+  placeholder?: string
 }) {
   return (
     <input
       type="text"
       value={value}
       onChange={e => onChange(e.target.value)}
+      placeholder={placeholder}
       className="settings-input settings-input-narrow"
     />
   )
@@ -141,8 +144,7 @@ export function AppearanceSettings() {
   const [codeFontSize, setCodeFontSize] = useState(12)
   const [diffMarker, setDiffMarker] = useState<'color' | '+/-'>('color')
   const [pet, setPet] = useState('codex')
-  const lightThemeOptions = getThemeDropdownOptions(settings, 'light')
-  const darkThemeOptions = getThemeDropdownOptions(settings, 'dark')
+  const activeThemeOptions = getThemeDropdownOptions(settings, resolvedVariant)
 
   const updateActiveTheme = (
     updater: (theme: DesktopThemeConfigV1) => DesktopThemeConfigV1,
@@ -339,10 +341,13 @@ export function AppearanceSettings() {
           </div>
         </section>
 
-        <SettingsSection
-          title="主题配色"
-          actions={
-            <>
+        <section className="settings-section appearance-theme-controls-section">
+          <div className="settings-card appearance-theme-controls-card">
+            <div className="appearance-theme-controls-header">
+              <h3 className="settings-section-title">
+                {resolvedVariant === 'dark' ? '深色主题' : '浅色主题'}
+              </h3>
+              <div className="appearance-theme-controls-actions">
               <button
                 type="button"
                 className="settings-button link"
@@ -356,7 +361,7 @@ export function AppearanceSettings() {
                 disabled={!activeThemeIsBuiltin}
                 onClick={handleCopyPreset}
               >
-                复制预设
+                复制主题
               </button>
               <button
                 type="button"
@@ -373,42 +378,14 @@ export function AppearanceSettings() {
               >
                 导出
               </button>
-            </>
-          }
-        >
-          <SettingsRow
-            title="浅色配色"
-            control={
               <SettingsDropdown
-                value={getDesktopThemeIdForVariant(settings, 'light')}
-                options={lightThemeOptions}
-                onChange={themeId => handleSelectTheme('light', themeId)}
+                value={activeThemeId}
+                options={activeThemeOptions}
+                onChange={themeId => handleSelectTheme(resolvedVariant, themeId)}
+                variant="theme"
               />
-            }
-          />
-          <SettingsRow
-            title="深色配色"
-            control={
-              <SettingsDropdown
-                value={getDesktopThemeIdForVariant(settings, 'dark')}
-                options={darkThemeOptions}
-                onChange={themeId => handleSelectTheme('dark', themeId)}
-              />
-            }
-          />
-          <SettingsRow
-            title="当前编辑"
-            description={
-              resolvedVariant === 'dark'
-                ? '正在编辑当前深色配色'
-                : '正在编辑当前浅色配色'
-            }
-            control={
-              <span className="settings-row-value">
-                {activeThemeEntry?.label ?? activeTheme.codeThemeId}
-              </span>
-            }
-          />
+              </div>
+            </div>
           <SettingsRow
             title="强调色"
             control={
@@ -445,6 +422,7 @@ export function AppearanceSettings() {
               <TextInput
                 value={activeTheme.theme.fonts.ui}
                 onChange={ui => updateThemeFonts({ ui })}
+                placeholder="Inter, system-ui"
               />
             }
           />
@@ -454,15 +432,18 @@ export function AppearanceSettings() {
               <TextInput
                 value={activeTheme.theme.fonts.code}
                 onChange={code => updateThemeFonts({ code })}
+                placeholder="Consolas, monospace"
               />
             }
           />
           <SettingsRow
-            title="不透明窗口"
+            title="半透明侧边栏"
             control={
               <ToggleSwitch
-                checked={activeTheme.theme.opaqueWindows}
-                onChange={opaqueWindows => updateThemeTokens({ opaqueWindows })}
+                checked={!activeTheme.theme.opaqueWindows}
+                onChange={translucent =>
+                  updateThemeTokens({ opaqueWindows: !translucent })
+                }
               />
             }
           />
@@ -475,7 +456,8 @@ export function AppearanceSettings() {
               />
             }
           />
-        </SettingsSection>
+          </div>
+        </section>
 
         <SettingsSection>
           <SettingsRow
@@ -745,21 +727,41 @@ function isThemeExportShape(
 function getThemeDropdownOptions(
   settings: DesktopThemeSettings,
   variant: DesktopThemeVariant,
-): Array<{ value: string; label: string }> {
+): Array<{ value: string; label: string; icon: React.ReactNode }> {
   return [
     ...DESKTOP_THEME_PRESETS.filter(
       preset => preset.config.variant === variant,
     ).map(preset => ({
       value: preset.id,
-      label: `Aa ${preset.label}`,
+      label: preset.label,
+      icon: <ThemeOptionIcon theme={preset.config} />,
     })),
     ...settings.customThemes
       .filter(theme => theme.config.variant === variant)
       .map(theme => ({
         value: theme.id,
-        label: `Aa ${theme.label}`,
+        label: theme.label,
+        icon: <ThemeOptionIcon theme={theme.config} />,
       })),
   ]
+}
+
+function ThemeOptionIcon({
+  theme,
+}: {
+  theme: DesktopThemeConfigV1
+}): React.ReactNode {
+  return (
+    <span
+      className="appearance-theme-option-icon"
+      style={{
+        backgroundColor: theme.theme.surface,
+        color: theme.theme.accent,
+      }}
+    >
+      Aa
+    </span>
+  )
 }
 
 function isNonEmptyString(value: unknown): value is string {

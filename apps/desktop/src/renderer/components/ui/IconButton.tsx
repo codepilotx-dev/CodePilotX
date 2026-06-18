@@ -6,6 +6,7 @@ type Props = {
   className?: string
   disabled?: boolean
   onClick?: () => void
+  onPointerDown?: React.PointerEventHandler<HTMLButtonElement>
 }
 
 export function IconButton({
@@ -14,6 +15,7 @@ export function IconButton({
   className = 'icon-button',
   disabled,
   onClick,
+  onPointerDown,
 }: Props): React.ReactNode {
   return (
     <button
@@ -21,6 +23,7 @@ export function IconButton({
       className={className}
       disabled={disabled}
       onClick={onClick}
+      onPointerDown={onPointerDown}
       title={title}
       type="button"
     >

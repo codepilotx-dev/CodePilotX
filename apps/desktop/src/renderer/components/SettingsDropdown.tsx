@@ -14,13 +14,21 @@ type Props = {
   options: Option[]
   onChange: (value: string) => void
   ariaLabel?: string
+  variant?: 'default' | 'theme'
 }
 
 const EMPTY_VALUE = '__radix_empty_value__'
 
-export function SettingsDropdown({ value, options, onChange, ariaLabel }: Props) {
+export function SettingsDropdown({
+  value,
+  options,
+  onChange,
+  ariaLabel,
+  variant = 'default',
+}: Props) {
   const selectedOption = options.find(o => o.value === value) || options[0]
   const radixValue = value === '' ? EMPTY_VALUE : value
+  const isThemeVariant = variant === 'theme'
 
   return (
     <Select.Root
@@ -31,7 +39,9 @@ export function SettingsDropdown({ value, options, onChange, ariaLabel }: Props)
     >
       <Select.Trigger
         aria-label={ariaLabel}
-        className="settings-dropdown"
+        className={`settings-dropdown${
+          isThemeVariant ? ' theme-dropdown-trigger' : ''
+        }`}
         tabIndex={-1}
       >
         <div className="settings-dropdown-value">
@@ -45,7 +55,9 @@ export function SettingsDropdown({ value, options, onChange, ariaLabel }: Props)
       <Select.Portal>
         <Select.Content
           align="start"
-          className="settings-dropdown-content"
+          className={`settings-dropdown-content${
+            isThemeVariant ? ' theme-dropdown-content' : ''
+          }`}
           collisionPadding={12}
           position="popper"
           side="bottom"

@@ -251,11 +251,11 @@ function applyDesktopTheme(
   root.style.setProperty('--c-skill', theme.semanticColors.skill)
   root.style.setProperty(
     '--ff-sans',
-    `${theme.fonts.ui}, -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Helvetica Neue", Arial, "Microsoft YaHei", sans-serif`,
+    `${formatFontFamilyStack(theme.fonts.ui)}, -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Helvetica Neue", Arial, "Microsoft YaHei", sans-serif`,
   )
   root.style.setProperty(
     '--ff-mono',
-    `"${theme.fonts.code}", "SF Mono", Consolas, "Liberation Mono", Menlo, monospace`,
+    `${formatFontFamilyStack(theme.fonts.code)}, ui-monospace, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace`,
   )
 }
 
@@ -289,6 +289,53 @@ function colorMix(first: string, firstPercent: number, second: string): string {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value))
+}
+
+function formatFontFamilyStack(value: string): string {
+  return value
+    .split(',')
+    .map(formatFontFamilyName)
+    .filter(Boolean)
+    .join(', ')
+}
+
+function formatFontFamilyName(value: string): string {
+  const fontName = value.trim()
+  if (!fontName) return ''
+  if (isQuotedFontFamily(fontName) || isCssFunction(fontName)) return fontName
+  if (isGenericFontFamily(fontName)) return fontName
+  return `"${fontName.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
+}
+
+function isQuotedFontFamily(value: string): boolean {
+  return (
+    (value.startsWith('"') && value.endsWith('"')) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  )
+}
+
+function isCssFunction(value: string): boolean {
+  return /^[a-z-]+\(/i.test(value)
+}
+
+function isGenericFontFamily(value: string): boolean {
+  return new Set([
+    '-apple-system',
+    'BlinkMacSystemFont',
+    'cursive',
+    'emoji',
+    'fangsong',
+    'fantasy',
+    'math',
+    'monospace',
+    'sans-serif',
+    'serif',
+    'system-ui',
+    'ui-monospace',
+    'ui-rounded',
+    'ui-sans-serif',
+    'ui-serif',
+  ]).has(value)
 }
 
 type AccentScale = 'blue' | 'cyan' | 'orange' | 'pink' | 'purple' | 'red'
