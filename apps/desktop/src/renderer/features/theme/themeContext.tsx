@@ -9,13 +9,15 @@ import {
   useState,
 } from 'react'
 import type {
+  DesktopThemeConfigV1,
   DesktopThemeMode,
   DesktopThemeSettings,
   DesktopThemeVariant,
 } from '../../../shared/types.js'
 import {
   DEFAULT_DESKTOP_THEME_SETTINGS,
-  getDesktopThemeForVariant,
+  getDesktopThemeForSelection,
+  getDesktopThemeIdForVariant,
   normalizeDesktopThemeSettings,
 } from '../../../shared/theme.js'
 
@@ -165,6 +167,7 @@ function applyDesktopTheme(
 ): void {
   const root = document.documentElement
   root.dataset.theme = variant
+  root.dataset.themeId = getDesktopThemeIdForVariant(settings, variant)
   root.classList.toggle('light-theme', variant === 'light')
   root.classList.toggle('dark-theme', variant === 'dark')
   root.style.setProperty('color-scheme', variant)
@@ -173,47 +176,76 @@ function applyDesktopTheme(
     root.style.removeProperty(variable)
   }
 
-  const config = getDesktopThemeForVariant(settings, variant)
+  const config = getDesktopThemeForSelection(settings, variant)
   const { theme } = config
   const dracula = variant === 'dark' && config.codeThemeId === 'dracula'
   const accentScale = getAccentScale(config.codeThemeId, theme.accent)
-  const neutralScale = dracula ? 'purple' : 'gray'
+  const contrast = clamp(theme.contrast, 0, 100)
+  const bgCardMix = contrastMix(contrast, 0, 4)
+  const bgSoftMix = contrastMix(contrast, 1, 6)
+  const bgHoverMix = contrastMix(contrast, 4, 14)
+  const bgRowHoverMix = contrastMix(contrast, 3, 11)
+  const borderMix = contrastMix(contrast, 8, 28)
+  const borderSoftMix = contrastMix(contrast, 5, 20)
+  const borderFaintMix = contrastMix(contrast, 3, 12)
+  const textMetaMix = contrastMix(contrast, 52, 76)
+  const textSoftMix = contrastMix(contrast, 60, 84)
+  const textMuteMix = contrastMix(contrast, 42, 66)
+  const textPlaceholderMix = contrastMix(contrast, 38, 62)
+  const textDisabledMix = contrastMix(contrast, 28, 52)
+  const iconMix = contrastMix(contrast, 58, 82)
+  const iconSoftMix = contrastMix(contrast, 46, 70)
+  const iconArrowMix = contrastMix(contrast, 36, 60)
+  const scrollbarMix = contrastMix(contrast, 10, 30)
+  const scrollbarHoverMix = contrastMix(contrast, 18, 42)
   root.classList.toggle('dracula-theme', dracula)
-  root.style.setProperty('--contrast', String(theme.contrast))
+  root.style.setProperty('--contrast', String(contrast))
   root.style.setProperty('--c-bg', theme.surface)
-  root.style.setProperty('--c-bg-soft', radixVar(neutralScale, 2))
-  root.style.setProperty('--c-bg-mask', radixVar(neutralScale, 2))
-  root.style.setProperty('--c-bg-hover', radixVar(neutralScale, dracula ? 4 : 3))
-  root.style.setProperty('--c-bg-row-hover', radixVar(neutralScale, 3))
-  root.style.setProperty('--c-bg-chip-hover', radixVar(accentScale, 3))
-  root.style.setProperty('--c-bg-card', radixVar(neutralScale, variant === 'dark' ? 2 : 1))
+  root.style.setProperty('--c-bg-soft', surfaceInkMix(theme, bgSoftMix))
+  root.style.setProperty('--c-bg-mask', surfaceInkMix(theme, bgSoftMix))
+  root.style.setProperty('--c-bg-hover', surfaceInkMix(theme, bgHoverMix))
+  root.style.setProperty('--c-bg-row-hover', surfaceInkMix(theme, bgRowHoverMix))
+  root.style.setProperty(
+    '--c-bg-chip-hover',
+    accentSurfaceMix(theme, contrastMix(contrast, 8, 18)),
+  )
+  root.style.setProperty('--c-bg-card', surfaceInkMix(theme, bgCardMix))
   root.style.setProperty('--c-surface', theme.surface)
   root.style.setProperty('--c-ink', theme.ink)
-  root.style.setProperty('--c-border', radixVar(neutralScale, variant === 'dark' ? 6 : 5))
-  root.style.setProperty('--c-border-soft', radixVar(neutralScale, variant === 'dark' ? 5 : 4))
-  root.style.setProperty('--c-border-faint', radixVar(neutralScale, 3))
-  root.style.setProperty('--c-border-row', radixVar(neutralScale, 3))
+  root.style.setProperty('--c-border', surfaceInkMix(theme, borderMix))
+  root.style.setProperty('--c-border-soft', surfaceInkMix(theme, borderSoftMix))
+  root.style.setProperty('--c-border-faint', surfaceInkMix(theme, borderFaintMix))
+  root.style.setProperty('--c-border-row', surfaceInkMix(theme, borderFaintMix))
   root.style.setProperty('--c-danger', 'var(--red-11)')
   root.style.setProperty('--c-warning', 'var(--amber-11)')
   root.style.setProperty('--c-success', 'var(--green-11)')
   root.style.setProperty('--c-text', theme.ink)
-  root.style.setProperty('--c-text-strong', 'var(--gray-12)')
-  root.style.setProperty('--c-text-meta', radixVar('gray', variant === 'dark' ? 11 : 10))
-  root.style.setProperty('--c-text-soft', 'var(--gray-11)')
-  root.style.setProperty('--c-text-mute', radixVar('gray', variant === 'dark' ? 9 : 8))
-  root.style.setProperty('--c-text-placeholder', radixVar('gray', variant === 'dark' ? 9 : 8))
-  root.style.setProperty('--c-text-disabled', radixVar('gray', variant === 'dark' ? 8 : 7))
+  root.style.setProperty('--c-text-strong', theme.ink)
+  root.style.setProperty('--c-text-meta', inkSurfaceMix(theme, textMetaMix))
+  root.style.setProperty('--c-text-soft', inkSurfaceMix(theme, textSoftMix))
+  root.style.setProperty('--c-text-mute', inkSurfaceMix(theme, textMuteMix))
+  root.style.setProperty(
+    '--c-text-placeholder',
+    inkSurfaceMix(theme, textPlaceholderMix),
+  )
+  root.style.setProperty('--c-text-disabled', inkSurfaceMix(theme, textDisabledMix))
   root.style.setProperty('--c-text-on-accent', radixVar('gray', variant === 'dark' ? 12 : 1))
-  root.style.setProperty('--c-icon', radixVar('gray', variant === 'dark' ? 11 : 10))
-  root.style.setProperty('--c-icon-soft', radixVar('gray', variant === 'dark' ? 10 : 9))
-  root.style.setProperty('--c-icon-arrow', radixVar('gray', variant === 'dark' ? 9 : 8))
+  root.style.setProperty('--c-icon', inkSurfaceMix(theme, iconMix))
+  root.style.setProperty('--c-icon-soft', inkSurfaceMix(theme, iconSoftMix))
+  root.style.setProperty('--c-icon-arrow', inkSurfaceMix(theme, iconArrowMix))
   root.style.setProperty('--c-accent', theme.accent)
   root.style.setProperty('--c-send-bg', theme.accent)
   root.style.setProperty('--c-send-bg-hover', radixVar(accentScale, 10))
-  root.style.setProperty('--c-send-bg-disabled', radixVar(accentScale, variant === 'dark' ? 5 : 6))
-  root.style.setProperty('--c-user-bubble-bg', radixVar(neutralScale, 3))
-  root.style.setProperty('--c-scrollbar', radixVar('gray', variant === 'dark' ? 6 : 5))
-  root.style.setProperty('--c-scrollbar-hover', radixVar('gray', variant === 'dark' ? 8 : 9))
+  root.style.setProperty(
+    '--c-send-bg-disabled',
+    accentSurfaceMix(theme, contrastMix(contrast, 14, 28)),
+  )
+  root.style.setProperty('--c-user-bubble-bg', surfaceInkMix(theme, bgRowHoverMix))
+  root.style.setProperty('--c-scrollbar', surfaceInkMix(theme, scrollbarMix))
+  root.style.setProperty(
+    '--c-scrollbar-hover',
+    surfaceInkMix(theme, scrollbarHoverMix),
+  )
   root.style.setProperty('--c-diff-added', theme.semanticColors.diffAdded)
   root.style.setProperty('--c-diff-removed', theme.semanticColors.diffRemoved)
   root.style.setProperty('--c-skill', theme.semanticColors.skill)
@@ -231,6 +263,32 @@ function getSystemThemeVariant(): DesktopThemeVariant {
   return window.matchMedia('(prefers-color-scheme: dark)').matches
     ? 'dark'
     : 'light'
+}
+
+type ThemeTokens = DesktopThemeConfigV1['theme']
+
+function contrastMix(contrast: number, low: number, high: number): number {
+  return Math.round(low + (clamp(contrast, 0, 100) / 100) * (high - low))
+}
+
+function surfaceInkMix(theme: ThemeTokens, inkPercent: number): string {
+  return colorMix(theme.surface, 100 - inkPercent, theme.ink)
+}
+
+function inkSurfaceMix(theme: ThemeTokens, inkPercent: number): string {
+  return colorMix(theme.ink, inkPercent, theme.surface)
+}
+
+function accentSurfaceMix(theme: ThemeTokens, accentPercent: number): string {
+  return colorMix(theme.accent, accentPercent, theme.surface)
+}
+
+function colorMix(first: string, firstPercent: number, second: string): string {
+  return `color-mix(in srgb, ${first} ${firstPercent}%, ${second})`
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value))
 }
 
 type AccentScale = 'blue' | 'cyan' | 'orange' | 'pink' | 'purple' | 'red'

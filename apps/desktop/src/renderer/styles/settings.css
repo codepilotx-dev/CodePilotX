@@ -204,6 +204,12 @@
   line-height: 1.5;
 }
 
+.settings-row-value {
+  color: var(--c-text-soft);
+  font-size: var(--fs-13);
+  white-space: nowrap;
+}
+
 .settings-row-link {
   color: var(--c-accent);
   text-decoration: none;

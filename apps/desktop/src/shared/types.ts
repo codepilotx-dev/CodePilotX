@@ -168,9 +168,18 @@ export type DesktopThemeConfigV1 = {
   variant: DesktopThemeVariant
 }
 
+export type DesktopThemeCustomTheme = {
+  id: string
+  label: string
+  config: DesktopThemeConfigV1
+  sourcePresetId?: string
+}
+
 export type DesktopThemeSettings = {
   mode: DesktopThemeMode
-  themes: Partial<Record<DesktopThemeVariant, DesktopThemeConfigV1>>
+  activeThemeIds: Record<DesktopThemeVariant, string>
+  customThemes: DesktopThemeCustomTheme[]
+  presetOverrides: Record<string, DesktopThemeConfigV1>
 }
 
 export type DesktopPermissionDecision = AgentPermissionDecision
