@@ -1,3 +1,4 @@
+import { desktopClient } from '../../services/desktopClient.js'
 import type React from 'react'
 import {
   createContext,
@@ -8,13 +9,15 @@ import {
   useState,
 } from 'react'
 import type {
+  DesktopThemeConfigV1,
   DesktopThemeMode,
   DesktopThemeSettings,
   DesktopThemeVariant,
 } from '../../../shared/types.js'
 import {
   DEFAULT_DESKTOP_THEME_SETTINGS,
-  getDesktopThemeForVariant,
+  getDesktopThemeForSelection,
+  getDesktopThemeIdForVariant,
   normalizeDesktopThemeSettings,
 } from '../../../shared/theme.js'
 
@@ -35,12 +38,16 @@ const THEME_VARIABLES = [
   '--c-bg-hover',
   '--c-bg-row-hover',
   '--c-bg-chip-hover',
+  '--c-bg-card',
   '--c-surface',
   '--c-ink',
   '--c-border',
   '--c-border-soft',
   '--c-border-faint',
   '--c-border-row',
+  '--c-danger',
+  '--c-warning',
+  '--c-success',
   '--c-text',
   '--c-text-strong',
   '--c-text-meta',
@@ -48,6 +55,7 @@ const THEME_VARIABLES = [
   '--c-text-mute',
   '--c-text-placeholder',
   '--c-text-disabled',
+  '--c-text-on-accent',
   '--c-icon',
   '--c-icon-soft',
   '--c-icon-arrow',
@@ -55,6 +63,7 @@ const THEME_VARIABLES = [
   '--c-send-bg',
   '--c-send-bg-hover',
   '--c-send-bg-disabled',
+  '--c-user-bubble-bg',
   '--c-scrollbar',
   '--c-scrollbar-hover',
   '--c-diff-added',
@@ -77,7 +86,7 @@ export function DesktopThemeProvider({
 
   useEffect(() => {
     let mounted = true
-    void window.desktopApi
+    void desktopClient
       .getThemeSettings()
       .then(next => {
         if (mounted) {
@@ -115,7 +124,7 @@ export function DesktopThemeProvider({
     async (nextSettings: DesktopThemeSettings): Promise<void> => {
       const normalized = normalizeDesktopThemeSettings(nextSettings)
       setSettings(normalized)
-      await window.desktopApi.saveThemeSettings(normalized)
+      await desktopClient.saveThemeSettings(normalized)
     },
     [],
   )
@@ -158,57 +167,95 @@ function applyDesktopTheme(
 ): void {
   const root = document.documentElement
   root.dataset.theme = variant
+  root.dataset.themeId = getDesktopThemeIdForVariant(settings, variant)
+  root.classList.toggle('light-theme', variant === 'light')
+  root.classList.toggle('dark-theme', variant === 'dark')
   root.style.setProperty('color-scheme', variant)
 
   for (const variable of THEME_VARIABLES) {
     root.style.removeProperty(variable)
   }
 
-  if (variant === 'light') {
-    return
-  }
-
-  const config = getDesktopThemeForVariant(settings, 'dark')
+  const config = getDesktopThemeForSelection(settings, variant)
   const { theme } = config
-  root.style.setProperty('--contrast', String(theme.contrast))
+  const dracula = variant === 'dark' && config.codeThemeId === 'dracula'
+  const accentScale = getAccentScale(config.codeThemeId, theme.accent)
+  const contrast = clamp(theme.contrast, 0, 100)
+  const bgCardMix = contrastMix(contrast, 0, 4)
+  const bgSoftMix = contrastMix(contrast, 1, 6)
+  const bgHoverMix = contrastMix(contrast, 4, 14)
+  const bgRowHoverMix = contrastMix(contrast, 3, 11)
+  const borderMix = contrastMix(contrast, 8, 28)
+  const borderSoftMix = contrastMix(contrast, 5, 20)
+  const borderFaintMix = contrastMix(contrast, 3, 12)
+  const textMetaMix = contrastMix(contrast, 52, 76)
+  const textSoftMix = contrastMix(contrast, 60, 84)
+  const textMuteMix = contrastMix(contrast, 42, 66)
+  const textPlaceholderMix = contrastMix(contrast, 38, 62)
+  const textDisabledMix = contrastMix(contrast, 28, 52)
+  const iconMix = contrastMix(contrast, 58, 82)
+  const iconSoftMix = contrastMix(contrast, 46, 70)
+  const iconArrowMix = contrastMix(contrast, 36, 60)
+  const scrollbarMix = contrastMix(contrast, 10, 30)
+  const scrollbarHoverMix = contrastMix(contrast, 18, 42)
+  root.classList.toggle('dracula-theme', dracula)
+  root.style.setProperty('--contrast', String(contrast))
   root.style.setProperty('--c-bg', theme.surface)
-  root.style.setProperty('--c-bg-soft', '#1f212b')
-  root.style.setProperty('--c-bg-mask', '#242632')
-  root.style.setProperty('--c-bg-hover', '#343746')
-  root.style.setProperty('--c-bg-row-hover', '#303341')
-  root.style.setProperty('--c-bg-chip-hover', '#3a2f44')
+  root.style.setProperty('--c-bg-soft', surfaceInkMix(theme, bgSoftMix))
+  root.style.setProperty('--c-bg-mask', surfaceInkMix(theme, bgSoftMix))
+  root.style.setProperty('--c-bg-hover', surfaceInkMix(theme, bgHoverMix))
+  root.style.setProperty('--c-bg-row-hover', surfaceInkMix(theme, bgRowHoverMix))
+  root.style.setProperty(
+    '--c-bg-chip-hover',
+    accentSurfaceMix(theme, contrastMix(contrast, 8, 18)),
+  )
+  root.style.setProperty('--c-bg-card', surfaceInkMix(theme, bgCardMix))
   root.style.setProperty('--c-surface', theme.surface)
   root.style.setProperty('--c-ink', theme.ink)
-  root.style.setProperty('--c-border', '#44475a')
-  root.style.setProperty('--c-border-soft', '#3a3d4f')
-  root.style.setProperty('--c-border-faint', '#343746')
-  root.style.setProperty('--c-border-row', '#343746')
+  root.style.setProperty('--c-border', surfaceInkMix(theme, borderMix))
+  root.style.setProperty('--c-border-soft', surfaceInkMix(theme, borderSoftMix))
+  root.style.setProperty('--c-border-faint', surfaceInkMix(theme, borderFaintMix))
+  root.style.setProperty('--c-border-row', surfaceInkMix(theme, borderFaintMix))
+  root.style.setProperty('--c-danger', 'var(--red-11)')
+  root.style.setProperty('--c-warning', 'var(--amber-11)')
+  root.style.setProperty('--c-success', 'var(--green-11)')
   root.style.setProperty('--c-text', theme.ink)
-  root.style.setProperty('--c-text-strong', '#ffffff')
-  root.style.setProperty('--c-text-meta', '#a6adc8')
-  root.style.setProperty('--c-text-soft', '#c7c9d1')
-  root.style.setProperty('--c-text-mute', '#777b92')
-  root.style.setProperty('--c-text-placeholder', '#8b8fa3')
-  root.style.setProperty('--c-text-disabled', '#62677f')
-  root.style.setProperty('--c-icon', '#bdc1d6')
-  root.style.setProperty('--c-icon-soft', '#9aa0b8')
-  root.style.setProperty('--c-icon-arrow', '#8b8fa3')
+  root.style.setProperty('--c-text-strong', theme.ink)
+  root.style.setProperty('--c-text-meta', inkSurfaceMix(theme, textMetaMix))
+  root.style.setProperty('--c-text-soft', inkSurfaceMix(theme, textSoftMix))
+  root.style.setProperty('--c-text-mute', inkSurfaceMix(theme, textMuteMix))
+  root.style.setProperty(
+    '--c-text-placeholder',
+    inkSurfaceMix(theme, textPlaceholderMix),
+  )
+  root.style.setProperty('--c-text-disabled', inkSurfaceMix(theme, textDisabledMix))
+  root.style.setProperty('--c-text-on-accent', radixVar('gray', variant === 'dark' ? 12 : 1))
+  root.style.setProperty('--c-icon', inkSurfaceMix(theme, iconMix))
+  root.style.setProperty('--c-icon-soft', inkSurfaceMix(theme, iconSoftMix))
+  root.style.setProperty('--c-icon-arrow', inkSurfaceMix(theme, iconArrowMix))
   root.style.setProperty('--c-accent', theme.accent)
   root.style.setProperty('--c-send-bg', theme.accent)
-  root.style.setProperty('--c-send-bg-hover', '#ff92d0')
-  root.style.setProperty('--c-send-bg-disabled', '#5b4a63')
-  root.style.setProperty('--c-scrollbar', '#44475a')
-  root.style.setProperty('--c-scrollbar-hover', '#6272a4')
+  root.style.setProperty('--c-send-bg-hover', radixVar(accentScale, 10))
+  root.style.setProperty(
+    '--c-send-bg-disabled',
+    accentSurfaceMix(theme, contrastMix(contrast, 14, 28)),
+  )
+  root.style.setProperty('--c-user-bubble-bg', surfaceInkMix(theme, bgRowHoverMix))
+  root.style.setProperty('--c-scrollbar', surfaceInkMix(theme, scrollbarMix))
+  root.style.setProperty(
+    '--c-scrollbar-hover',
+    surfaceInkMix(theme, scrollbarHoverMix),
+  )
   root.style.setProperty('--c-diff-added', theme.semanticColors.diffAdded)
   root.style.setProperty('--c-diff-removed', theme.semanticColors.diffRemoved)
   root.style.setProperty('--c-skill', theme.semanticColors.skill)
   root.style.setProperty(
     '--ff-sans',
-    `${theme.fonts.ui}, -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Helvetica Neue", Arial, "Microsoft YaHei", sans-serif`,
+    `${formatFontFamilyStack(theme.fonts.ui)}, -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Helvetica Neue", Arial, "Microsoft YaHei", sans-serif`,
   )
   root.style.setProperty(
     '--ff-mono',
-    `"${theme.fonts.code}", "SF Mono", Consolas, "Liberation Mono", Menlo, monospace`,
+    `${formatFontFamilyStack(theme.fonts.code)}, ui-monospace, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace`,
   )
 }
 
@@ -216,4 +263,121 @@ function getSystemThemeVariant(): DesktopThemeVariant {
   return window.matchMedia('(prefers-color-scheme: dark)').matches
     ? 'dark'
     : 'light'
+}
+
+type ThemeTokens = DesktopThemeConfigV1['theme']
+
+function contrastMix(contrast: number, low: number, high: number): number {
+  return Math.round(low + (clamp(contrast, 0, 100) / 100) * (high - low))
+}
+
+function surfaceInkMix(theme: ThemeTokens, inkPercent: number): string {
+  return colorMix(theme.surface, 100 - inkPercent, theme.ink)
+}
+
+function inkSurfaceMix(theme: ThemeTokens, inkPercent: number): string {
+  return colorMix(theme.ink, inkPercent, theme.surface)
+}
+
+function accentSurfaceMix(theme: ThemeTokens, accentPercent: number): string {
+  return colorMix(theme.accent, accentPercent, theme.surface)
+}
+
+function colorMix(first: string, firstPercent: number, second: string): string {
+  return `color-mix(in srgb, ${first} ${firstPercent}%, ${second})`
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value))
+}
+
+function formatFontFamilyStack(value: string): string {
+  return value
+    .split(',')
+    .map(formatFontFamilyName)
+    .filter(Boolean)
+    .join(', ')
+}
+
+function formatFontFamilyName(value: string): string {
+  const fontName = value.trim()
+  if (!fontName) return ''
+  if (isQuotedFontFamily(fontName) || isCssFunction(fontName)) return fontName
+  if (isGenericFontFamily(fontName)) return fontName
+  return `"${fontName.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
+}
+
+function isQuotedFontFamily(value: string): boolean {
+  return (
+    (value.startsWith('"') && value.endsWith('"')) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  )
+}
+
+function isCssFunction(value: string): boolean {
+  return /^[a-z-]+\(/i.test(value)
+}
+
+function isGenericFontFamily(value: string): boolean {
+  return new Set([
+    '-apple-system',
+    'BlinkMacSystemFont',
+    'cursive',
+    'emoji',
+    'fangsong',
+    'fantasy',
+    'math',
+    'monospace',
+    'sans-serif',
+    'serif',
+    'system-ui',
+    'ui-monospace',
+    'ui-rounded',
+    'ui-sans-serif',
+    'ui-serif',
+  ]).has(value)
+}
+
+type AccentScale = 'blue' | 'cyan' | 'orange' | 'pink' | 'purple' | 'red'
+
+function getAccentScale(codeThemeId: string, accent: string): AccentScale {
+  switch (codeThemeId) {
+    case 'absolutely':
+      return 'orange'
+    case 'catppuccin':
+      return 'purple'
+    case 'dracula':
+      return 'pink'
+    case 'material':
+      return 'cyan'
+    case 'raycast':
+      return 'red'
+    default:
+      return getAccentScaleFromHex(accent)
+  }
+}
+
+function getAccentScaleFromHex(accent: string): AccentScale {
+  switch (accent.toLowerCase()) {
+    case '#00a2c7':
+      return 'cyan'
+    case '#8e4ec6':
+    case '#d19dff':
+      return 'purple'
+    case '#d6409f':
+    case '#ff79c6':
+    case '#ff8dcc':
+      return 'pink'
+    case '#e5484d':
+    case '#ff9592':
+      return 'red'
+    case '#f76b15':
+      return 'orange'
+    default:
+      return 'blue'
+  }
+}
+
+function radixVar(scale: AccentScale | 'gray' | 'purple', step: number): string {
+  return `var(--${scale}-${step})`
 }

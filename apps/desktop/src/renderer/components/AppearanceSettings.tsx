@@ -1,4 +1,6 @@
 import React, { useState } from 'react'
+import * as RadixSlider from '@radix-ui/react-slider'
+import * as Tabs from '@radix-ui/react-tabs'
 import { Laptop, Moon, Sun } from 'lucide-react'
 import { SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
@@ -14,10 +16,12 @@ import type {
 } from '../../shared/types.js'
 import {
   CODEX_THEME_PREFIX,
-  DEFAULT_DARK_THEME,
-  DEFAULT_LIGHT_THEME,
   DESKTOP_THEME_PRESETS,
-  getDesktopThemeForVariant,
+  createDesktopCustomTheme,
+  getDesktopThemeEntry,
+  getDesktopThemeForSelection,
+  getDesktopThemeIdForVariant,
+  isBuiltinDesktopThemeId,
   isDesktopThemeVariant,
   normalizeDesktopThemeConfig,
   normalizeDesktopThemeSettings,
@@ -34,6 +38,28 @@ const THEME_MODE_OPTIONS: Array<{
   { value: 'system', label: '系统', icon: <Laptop size={24} /> },
 ]
 
+const FIXED_THEME_PREVIEW_PANES: Array<{
+  tone: 'red' | 'green'
+  lines: Array<{ key: string; value: string }>
+}> = [
+  {
+    tone: 'red',
+    lines: [
+      { key: 'surface', value: '"sidebar"' },
+      { key: 'accent', value: '"#2563eb"' },
+      { key: 'contrast', value: '42' },
+    ],
+  },
+  {
+    tone: 'green',
+    lines: [
+      { key: 'surface', value: '"sidebar-elevated"' },
+      { key: 'accent', value: '"#0ea5e9"' },
+      { key: 'contrast', value: '68' },
+    ],
+  },
+]
+
 function Slider({
   value,
   onChange,
@@ -43,14 +69,19 @@ function Slider({
 }) {
   return (
     <div className="appearance-slider-wrap">
-      <input
-        type="range"
-        min="0"
-        max="100"
-        value={value}
-        onChange={e => onChange(parseInt(e.target.value, 10))}
+      <RadixSlider.Root
         className="appearance-slider"
-      />
+        min={0}
+        max={100}
+        step={1}
+        value={[value]}
+        onValueChange={values => onChange(values[0] ?? value)}
+      >
+        <RadixSlider.Track className="appearance-slider-track">
+          <RadixSlider.Range className="appearance-slider-range" />
+        </RadixSlider.Track>
+        <RadixSlider.Thumb className="appearance-slider-thumb" />
+      </RadixSlider.Root>
       <span className="appearance-slider-value">{value}</span>
     </div>
   )
@@ -64,14 +95,14 @@ function NumberInput({
   onChange: (v: number) => void
 }) {
   return (
-    <div className="appearance-number-wrap">
+    <div className="settings-input settings-input-compact">
       <input
         type="number"
         value={value}
         onChange={e => onChange(parseInt(e.target.value, 10))}
-        className="appearance-number-input"
+        className="settings-input-number"
       />
-      <span className="appearance-number-unit">px</span>
+      <span className="settings-input-unit">px</span>
     </div>
   )
 }
@@ -79,23 +110,32 @@ function NumberInput({
 function TextInput({
   value,
   onChange,
+  placeholder,
 }: {
   value: string
   onChange: (v: string) => void
+  placeholder?: string
 }) {
   return (
     <input
       type="text"
       value={value}
       onChange={e => onChange(e.target.value)}
-      className="appearance-text-input"
+      placeholder={placeholder}
+      className="settings-input settings-input-narrow"
     />
   )
 }
 
 export function AppearanceSettings() {
   const { settings, resolvedVariant, setMode, saveSettings } = useDesktopTheme()
-  const activeTheme = getDesktopThemeForVariant(settings, resolvedVariant)
+  const activeThemeId = getDesktopThemeIdForVariant(settings, resolvedVariant)
+  const activeThemeEntry = getDesktopThemeEntry(settings, activeThemeId)
+  const activeTheme = getDesktopThemeForSelection(settings, resolvedVariant)
+  const activeThemeIsBuiltin = isBuiltinDesktopThemeId(activeThemeId)
+  const activeThemeCanReset = activeThemeIsBuiltin
+    ? Boolean(settings.presetOverrides[activeThemeId])
+    : Boolean(getSourcePresetId(activeThemeEntry))
   const [usePointer, setUsePointer] = useState(true)
   const [reduceMotion, setReduceMotion] = useState<'system' | 'on' | 'off'>(
     'system',
@@ -104,38 +144,28 @@ export function AppearanceSettings() {
   const [codeFontSize, setCodeFontSize] = useState(12)
   const [diffMarker, setDiffMarker] = useState<'color' | '+/-'>('color')
   const [pet, setPet] = useState('codex')
-  const presetOptions = DESKTOP_THEME_PRESETS.filter(
-    preset => preset.config.variant === resolvedVariant,
-  )
-  const activePresetId =
-    presetOptions.find(preset => themesEqual(preset.config, activeTheme))?.id ??
-    'custom'
-  const themeDropdownOptions = [
-    ...presetOptions.map(preset => ({
-      value: preset.id,
-      label: `Aa ${preset.label}`,
-    })),
-    ...(activePresetId === 'custom'
-      ? [{ value: 'custom', label: `Aa ${activeTheme.codeThemeId}` }]
-      : []),
-  ]
-
-  const previewLines = [
-    { key: 'surface', value: JSON.stringify(activeTheme.theme.surface) },
-    { key: 'accent', value: JSON.stringify(activeTheme.theme.accent) },
-    { key: 'contrast', value: String(activeTheme.theme.contrast) },
-  ]
+  const activeThemeOptions = getThemeDropdownOptions(settings, resolvedVariant)
 
   const updateActiveTheme = (
     updater: (theme: DesktopThemeConfigV1) => DesktopThemeConfigV1,
   ): void => {
     const nextTheme = updater(activeTheme)
+    if (activeThemeIsBuiltin) {
+      void saveSettings({
+        ...settings,
+        presetOverrides: {
+          ...settings.presetOverrides,
+          [activeThemeId]: nextTheme,
+        },
+      })
+      return
+    }
+
     void saveSettings({
       ...settings,
-      themes: {
-        ...settings.themes,
-        [resolvedVariant]: nextTheme,
-      },
+      customThemes: settings.customThemes.map(theme =>
+        theme.id === activeThemeId ? { ...theme, config: nextTheme } : theme,
+      ),
     })
   }
 
@@ -167,7 +197,17 @@ export function AppearanceSettings() {
   }
 
   const handleCopyTheme = (): void => {
-    const text = `${CODEX_THEME_PREFIX}${JSON.stringify(activeTheme)}`
+    const payload = activeThemeIsBuiltin
+      ? {
+          label: activeThemeEntry?.label ?? activeTheme.codeThemeId,
+          config: activeTheme,
+        }
+      : {
+          id: activeThemeId,
+          label: activeThemeEntry?.label ?? activeTheme.codeThemeId,
+          config: activeTheme,
+        }
+    const text = `${CODEX_THEME_PREFIX}${JSON.stringify(payload)}`
     const copyPromise = navigator.clipboard?.writeText(text)
     if (!copyPromise) {
       window.prompt('复制主题', text)
@@ -178,8 +218,53 @@ export function AppearanceSettings() {
     })
   }
 
+  const handleCopyPreset = (): void => {
+    if (!activeThemeIsBuiltin) return
+    const customTheme = createDesktopCustomTheme(
+      activeTheme,
+      `${activeThemeEntry?.label ?? activeTheme.codeThemeId} Custom`,
+      settings.customThemes,
+      activeThemeId,
+    )
+    void saveSettings({
+      ...settings,
+      activeThemeIds: {
+        ...settings.activeThemeIds,
+        [resolvedVariant]: customTheme.id,
+      },
+      customThemes: [...settings.customThemes, customTheme],
+    })
+  }
+
+  const handleResetTheme = (): void => {
+    if (activeThemeIsBuiltin) {
+      const { [activeThemeId]: _removed, ...presetOverrides } =
+        settings.presetOverrides
+      void saveSettings({
+        ...settings,
+        presetOverrides,
+      })
+      return
+    }
+
+    const sourcePresetId = getSourcePresetId(activeThemeEntry)
+    const sourcePreset = DESKTOP_THEME_PRESETS.find(
+      preset => preset.id === sourcePresetId,
+    )
+    if (!sourcePreset) return
+
+    void saveSettings({
+      ...settings,
+      customThemes: settings.customThemes.map(theme =>
+        theme.id === activeThemeId
+          ? { ...theme, config: sourcePreset.config }
+          : theme,
+      ),
+    })
+  }
+
   const handleImportTheme = (): void => {
-    const input = window.prompt('粘贴 codex-theme-v1 或 JSON 主题配置')
+    const input = window.prompt('粘贴 CodePilotX 主题配置或 JSON')
     if (!input) return
 
     const raw = input.trim().startsWith(CODEX_THEME_PREFIX)
@@ -193,6 +278,19 @@ export function AppearanceSettings() {
     } catch {
       window.alert('主题 JSON 无法解析。')
     }
+  }
+
+  const handleSelectTheme = (
+    variant: DesktopThemeVariant,
+    themeId: string,
+  ): void => {
+    void saveSettings({
+      ...settings,
+      activeThemeIds: {
+        ...settings.activeThemeIds,
+        [variant]: themeId,
+      },
+    })
   }
 
   return (
@@ -209,135 +307,155 @@ export function AppearanceSettings() {
               </p>
             </div>
             <div className="appearance-mode-toggle" role="tablist" aria-label="主题模式">
+              <Tabs.Root
+                value={settings.mode}
+                onValueChange={value => void setMode(value as DesktopThemeMode)}
+              >
+                <Tabs.List className="appearance-mode-list">
               {THEME_MODE_OPTIONS.map(option => (
-                <button
+                <Tabs.Trigger
                   key={option.value}
                   type="button"
-                  role="tab"
-                  aria-selected={settings.mode === option.value}
                   className={`appearance-mode-option ${
                     settings.mode === option.value ? 'active' : ''
                   }`}
-                  onClick={() => void setMode(option.value)}
+                  value={option.value}
                 >
                   {option.icon}
                   <span>{option.label}</span>
-                </button>
+                </Tabs.Trigger>
               ))}
+                </Tabs.List>
+              </Tabs.Root>
             </div>
           </div>
 
           <div className="appearance-preview">
-            <ThemePreviewPane lines={previewLines} tone="red" />
-            <ThemePreviewPane lines={previewLines} tone="green" />
+            {FIXED_THEME_PREVIEW_PANES.map(pane => (
+              <ThemePreviewPane
+                key={pane.tone}
+                lines={pane.lines}
+                tone={pane.tone}
+              />
+            ))}
           </div>
         </section>
 
-        <section className="settings-section">
-          <div className="appearance-theme-header">
-            <h3 className="settings-section-title">
-              {resolvedVariant === 'dark' ? '深色主题' : '浅色主题'}
-            </h3>
-            <div className="appearance-theme-actions">
+        <section className="settings-section appearance-theme-controls-section">
+          <div className="settings-card appearance-theme-controls-card">
+            <div className="appearance-theme-controls-header">
+              <h3 className="settings-section-title">
+                {resolvedVariant === 'dark' ? '深色主题' : '浅色主题'}
+              </h3>
+              <div className="appearance-theme-controls-actions">
               <button
                 type="button"
-                className="appearance-btn-import"
+                className="settings-button link"
                 onClick={handleImportTheme}
               >
                 导入
               </button>
               <button
                 type="button"
-                className="appearance-btn-copy"
-                onClick={handleCopyTheme}
+                className="settings-button ghost"
+                disabled={!activeThemeIsBuiltin}
+                onClick={handleCopyPreset}
               >
                 复制主题
               </button>
+              <button
+                type="button"
+                className="settings-button ghost"
+                disabled={!activeThemeCanReset}
+                onClick={handleResetTheme}
+              >
+                重置主题
+              </button>
+              <button
+                type="button"
+                className="settings-button ghost"
+                onClick={handleCopyTheme}
+              >
+                导出
+              </button>
               <SettingsDropdown
-                value={activePresetId}
-                options={themeDropdownOptions}
-                onChange={presetId => {
-                  const preset = presetOptions.find(item => item.id === presetId)
-                  if (!preset) return
-                  void saveSettings({
-                    ...settings,
-                    themes: {
-                      ...settings.themes,
-                      [preset.config.variant]: preset.config,
-                    },
-                  })
-                }}
+                value={activeThemeId}
+                options={activeThemeOptions}
+                onChange={themeId => handleSelectTheme(resolvedVariant, themeId)}
+                variant="theme"
               />
+              </div>
             </div>
-          </div>
-
-          <div className="settings-card">
-            <SettingsRow
-              title="强调色"
-              control={
-                <ColorPickerControl
-                  ariaLabel="强调色"
-                  value={activeTheme.theme.accent}
-                  onChange={accent => updateThemeTokens({ accent })}
-                />
-              }
-            />
-            <SettingsRow
-              title="背景"
-              control={
-                <ColorPickerControl
-                  ariaLabel="背景"
-                  value={activeTheme.theme.surface}
-                  onChange={surface => updateThemeTokens({ surface })}
-                />
-              }
-            />
-            <SettingsRow
-              title="前景"
-              control={
-                <ColorPickerControl
-                  ariaLabel="前景"
-                  value={activeTheme.theme.ink}
-                  onChange={ink => updateThemeTokens({ ink })}
-                />
-              }
-            />
-            <SettingsRow
-              title="UI 字体"
-              control={
-                <TextInput
-                  value={activeTheme.theme.fonts.ui}
-                  onChange={ui => updateThemeFonts({ ui })}
-                />
-              }
-            />
-            <SettingsRow
-              title="代码字体"
-              control={
-                <TextInput
-                  value={activeTheme.theme.fonts.code}
-                  onChange={code => updateThemeFonts({ code })}
-                />
-              }
-            />
-            <SettingsRow
-              title="不透明窗口"
-              control={
-                <ToggleSwitch
-                  checked={activeTheme.theme.opaqueWindows}
-                  onChange={opaqueWindows => updateThemeTokens({ opaqueWindows })}
-                />
-              }
-            />
-            <SettingsRow
-              title="对比度"
-              control={
-                <Slider
-                  value={activeTheme.theme.contrast}
-                  onChange={contrast => updateThemeTokens({ contrast })}
-                />
-              }
-            />
+          <SettingsRow
+            title="强调色"
+            control={
+              <ColorPickerControl
+                ariaLabel="强调色"
+                value={activeTheme.theme.accent}
+                onChange={accent => updateThemeTokens({ accent })}
+              />
+            }
+          />
+          <SettingsRow
+            title="背景"
+            control={
+              <ColorPickerControl
+                ariaLabel="背景"
+                value={activeTheme.theme.surface}
+                onChange={surface => updateThemeTokens({ surface })}
+              />
+            }
+          />
+          <SettingsRow
+            title="前景"
+            control={
+              <ColorPickerControl
+                ariaLabel="前景"
+                value={activeTheme.theme.ink}
+                onChange={ink => updateThemeTokens({ ink })}
+              />
+            }
+          />
+          <SettingsRow
+            title="UI 字体"
+            control={
+              <TextInput
+                value={activeTheme.theme.fonts.ui}
+                onChange={ui => updateThemeFonts({ ui })}
+                placeholder="Inter, system-ui"
+              />
+            }
+          />
+          <SettingsRow
+            title="代码字体"
+            control={
+              <TextInput
+                value={activeTheme.theme.fonts.code}
+                onChange={code => updateThemeFonts({ code })}
+                placeholder="Consolas, monospace"
+              />
+            }
+          />
+          <SettingsRow
+            title="半透明侧边栏"
+            control={
+              <ToggleSwitch
+                checked={!activeTheme.theme.opaqueWindows}
+                onChange={translucent =>
+                  updateThemeTokens({ opaqueWindows: !translucent })
+                }
+              />
+            }
+          />
+          <SettingsRow
+            title="对比度"
+            control={
+              <Slider
+                value={activeTheme.theme.contrast}
+                onChange={contrast => updateThemeTokens({ contrast })}
+              />
+            }
+          />
           </div>
         </section>
 
@@ -364,7 +482,7 @@ export function AppearanceSettings() {
           />
           <SettingsRow
             title="UI 字号"
-            description="调整 Codex UI 使用的基准字号"
+            description="调整 CodePilotX UI 使用的基准字号"
             control={<NumberInput value={uiFontSize} onChange={setUiFontSize} />}
           />
           <SettingsRow
@@ -395,7 +513,7 @@ export function AppearanceSettings() {
               <SettingsDropdown
                 value={pet}
                 options={[
-                  { value: 'codex', label: 'Codex' },
+                  { value: 'codex', label: 'CodePilotX' },
                   { value: 'off', label: '关闭' },
                 ]}
                 onChange={setPet}
@@ -469,39 +587,194 @@ function parseImportedTheme(
   resolvedVariant: DesktopThemeVariant,
 ): DesktopThemeSettings {
   if (isSettingsShape(parsed)) {
-    return normalizeDesktopThemeSettings(parsed)
+    return mergeImportedSettings(
+      currentSettings,
+      normalizeDesktopThemeSettings(parsed),
+    )
   }
 
-  if (isThemeConfigShape(parsed)) {
-    const variant = isDesktopThemeVariant(parsed.variant)
-      ? parsed.variant
+  const themeValue = isThemeExportShape(parsed) ? parsed.config : parsed
+  if (isThemeConfigShape(themeValue)) {
+    const variant = isDesktopThemeVariant(themeValue.variant)
+      ? themeValue.variant
       : resolvedVariant
-    const fallback = variant === 'dark' ? DEFAULT_DARK_THEME : DEFAULT_LIGHT_THEME
-    const theme = normalizeDesktopThemeConfig(parsed, variant, fallback)
-    return {
-      ...currentSettings,
-      mode: variant,
-      themes: {
-        ...currentSettings.themes,
-        [variant]: theme,
-      },
-    }
+    const theme = normalizeDesktopThemeConfig(
+      themeValue,
+      variant,
+      getDesktopThemeForSelection(currentSettings, variant),
+    )
+    const label =
+      isThemeExportShape(parsed) && isNonEmptyString(parsed.label)
+        ? parsed.label.trim()
+        : theme.codeThemeId
+    const themeId =
+      isThemeExportShape(parsed) && isNonEmptyString(parsed.id)
+        ? parsed.id.trim()
+        : undefined
+
+    return upsertImportedCustomTheme(currentSettings, theme, label, themeId)
   }
 
   throw new Error('Unsupported theme JSON shape.')
 }
 
+function mergeImportedSettings(
+  currentSettings: DesktopThemeSettings,
+  importedSettings: DesktopThemeSettings,
+): DesktopThemeSettings {
+  const customThemes = [...currentSettings.customThemes]
+  for (const importedTheme of importedSettings.customThemes) {
+    const existingIndex = customThemes.findIndex(
+      theme => theme.id === importedTheme.id,
+    )
+    if (existingIndex >= 0) {
+      customThemes[existingIndex] = importedTheme
+    } else {
+      customThemes.push(importedTheme)
+    }
+  }
+
+  return {
+    ...currentSettings,
+    mode: importedSettings.mode,
+    activeThemeIds: importedSettings.activeThemeIds,
+    customThemes,
+    presetOverrides: {
+      ...currentSettings.presetOverrides,
+      ...importedSettings.presetOverrides,
+    },
+  }
+}
+
+function upsertImportedCustomTheme(
+  currentSettings: DesktopThemeSettings,
+  theme: DesktopThemeConfigV1,
+  label: string,
+  themeId?: string,
+): DesktopThemeSettings {
+  if (themeId && isBuiltinDesktopThemeId(themeId)) {
+    return {
+      ...currentSettings,
+      mode: theme.variant,
+      activeThemeIds: {
+        ...currentSettings.activeThemeIds,
+        [theme.variant]: themeId,
+      },
+      presetOverrides: {
+        ...currentSettings.presetOverrides,
+        [themeId]: theme,
+      },
+    }
+  }
+
+  const existingIndex = themeId
+    ? currentSettings.customThemes.findIndex(
+        item => item.id === themeId && item.config.variant === theme.variant,
+      )
+    : -1
+
+  if (existingIndex >= 0) {
+    const customThemes = currentSettings.customThemes.map((item, index) =>
+      index === existingIndex ? { ...item, label, config: theme } : item,
+    )
+    return {
+      ...currentSettings,
+      mode: theme.variant,
+      activeThemeIds: {
+        ...currentSettings.activeThemeIds,
+        [theme.variant]: themeId,
+      },
+      customThemes,
+    }
+  }
+
+  const customTheme = createDesktopCustomTheme(
+    theme,
+    label,
+    currentSettings.customThemes,
+  )
+  return {
+    ...currentSettings,
+    mode: theme.variant,
+    activeThemeIds: {
+      ...currentSettings.activeThemeIds,
+      [theme.variant]: customTheme.id,
+    },
+    customThemes: [...currentSettings.customThemes, customTheme],
+  }
+}
+
 function isSettingsShape(value: unknown): value is DesktopThemeSettings {
-  return Boolean(value) && typeof value === 'object' && 'themes' in value
+  return (
+    isRecord(value) &&
+    ('themes' in value ||
+      'activeThemeIds' in value ||
+      'customThemes' in value ||
+      'presetOverrides' in value)
+  )
 }
 
 function isThemeConfigShape(value: unknown): value is DesktopThemeConfigV1 {
-  return Boolean(value) && typeof value === 'object' && 'theme' in value
+  return isRecord(value) && 'theme' in value
 }
 
-function themesEqual(
-  left: DesktopThemeConfigV1,
-  right: DesktopThemeConfigV1,
-): boolean {
-  return JSON.stringify(left) === JSON.stringify(right)
+function isThemeExportShape(
+  value: unknown,
+): value is { id?: unknown; label?: unknown; config: unknown } {
+  return isRecord(value) && 'config' in value
+}
+
+function getThemeDropdownOptions(
+  settings: DesktopThemeSettings,
+  variant: DesktopThemeVariant,
+): Array<{ value: string; label: string; icon: React.ReactNode }> {
+  return [
+    ...DESKTOP_THEME_PRESETS.filter(
+      preset => preset.config.variant === variant,
+    ).map(preset => ({
+      value: preset.id,
+      label: preset.label,
+      icon: <ThemeOptionIcon theme={preset.config} />,
+    })),
+    ...settings.customThemes
+      .filter(theme => theme.config.variant === variant)
+      .map(theme => ({
+        value: theme.id,
+        label: theme.label,
+        icon: <ThemeOptionIcon theme={theme.config} />,
+      })),
+  ]
+}
+
+function ThemeOptionIcon({
+  theme,
+}: {
+  theme: DesktopThemeConfigV1
+}): React.ReactNode {
+  return (
+    <span
+      className="appearance-theme-option-icon"
+      style={{
+        backgroundColor: theme.theme.surface,
+        color: theme.theme.accent,
+      }}
+    >
+      Aa
+    </span>
+  )
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+}
+
+function getSourcePresetId(
+  entry: ReturnType<typeof getDesktopThemeEntry>,
+): string | undefined {
+  if (!entry || !('sourcePresetId' in entry)) return undefined
+  return entry.sourcePresetId
 }

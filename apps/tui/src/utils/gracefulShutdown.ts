@@ -2,7 +2,7 @@ import chalk from 'chalk'
 import { writeSync } from 'fs'
 import memoize from 'lodash-es/memoize.js'
 import { onExit } from 'signal-exit'
-import type { ExitReason } from '@claudecode/tui/entrypoints/agentSdkTypes.js'
+import type { ExitReason } from '@codepilotx/tui/entrypoints/agentSdkTypes.js'
 import {
   getIsInteractive,
   getIsScrollDraining,
@@ -154,7 +154,7 @@ function printResumeHint(): void {
   ) {
     try {
       const sessionId = getSessionId()
-      // Don't show resume hint if no session file exists (e.g., subcommands like `claude update`)
+      // Don't show resume hint if no session file exists (e.g., subcommands like `codepilotx update`)
       if (!sessionIdExists(sessionId)) {
         return
       }
@@ -173,7 +173,7 @@ function printResumeHint(): void {
       writeSync(
         1,
         chalk.dim(
-          `\nResume this session with:\nclaude --resume ${resumeArg}\n`,
+          `\nResume this session with:\ncodepilotx --resume ${resumeArg}\n`,
         ),
       )
       resumeHintPrinted = true
@@ -341,6 +341,10 @@ export function gracefulShutdownSync(
     setAppState?: (f: (prev: AppState) => AppState) => void
   },
 ): void {
+  if (embeddedShutdownHandler) {
+    embeddedShutdownHandler({ exitCode, reason })
+    return
+  }
   // Set the exit code that will be used when process naturally exits. Note that we do it
   // here inside the sync version too so that it is possible to determine if
   // gracefulShutdownSync was called by checking process.exitCode.
@@ -362,6 +366,22 @@ let shutdownInProgress = false
 let failsafeTimer: ReturnType<typeof setTimeout> | undefined
 let orphanCheckInterval: ReturnType<typeof setInterval> | undefined
 let pendingShutdown: Promise<void> | undefined
+let embeddedShutdownHandler:
+  | ((request: { exitCode: number; reason: ExitReason }) => void)
+  | null = null
+
+export async function runWithEmbeddedShutdownHandler<T>(
+  handler: (request: { exitCode: number; reason: ExitReason }) => void,
+  operation: () => Promise<T>,
+): Promise<T> {
+  const previousHandler = embeddedShutdownHandler
+  embeddedShutdownHandler = handler
+  try {
+    return await operation()
+  } finally {
+    embeddedShutdownHandler = previousHandler
+  }
+}
 
 /** Check if graceful shutdown is in progress */
 export function isShuttingDown(): boolean {
@@ -398,6 +418,10 @@ export async function gracefulShutdown(
     finalMessage?: string
   },
 ): Promise<void> {
+  if (embeddedShutdownHandler) {
+    embeddedShutdownHandler({ exitCode, reason })
+    return
+  }
   if (shutdownInProgress) {
     return
   }
@@ -407,7 +431,7 @@ export async function gracefulShutdown(
   // failsafe can scale with it. Without this, a user-configured 10s hook
   // budget is silently truncated by the 5s failsafe (gh-32712 follow-up).
   const { executeSessionEndHooks, getSessionEndHookTimeoutMs } = await import(
-    './hooks.js'
+    './hooks/sessionEndHookRunner.js'
   )
   const sessionEndTimeoutMs = getSessionEndHookTimeoutMs()
 

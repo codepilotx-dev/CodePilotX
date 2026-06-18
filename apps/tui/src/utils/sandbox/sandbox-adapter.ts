@@ -49,10 +49,10 @@ import type { SettingsJson } from '../settings/types.js'
 // Settings Converter
 // ============================================================================
 
-import { BASH_TOOL_NAME } from '@claudecode/tui/tools/BashTool/toolName.js'
-import { FILE_EDIT_TOOL_NAME } from '@claudecode/tui/tools/FileEditTool/constants.js'
-import { FILE_READ_TOOL_NAME } from '@claudecode/tui/tools/FileReadTool/prompt.js'
-import { WEB_FETCH_TOOL_NAME } from '@claudecode/tui/tools/WebFetchTool/prompt.js'
+import { BASH_TOOL_NAME } from '@codepilotx/tui/tools/BashTool/toolName.js'
+import { FILE_EDIT_TOOL_NAME } from '@codepilotx/tui/tools/FileEditTool/constants.js'
+import { FILE_READ_TOOL_NAME } from '@codepilotx/tui/tools/FileReadTool/prompt.js'
+import { WEB_FETCH_TOOL_NAME } from '@codepilotx/tui/tools/WebFetchTool/prompt.js'
 import { errorMessage } from '../errors.js'
 import { getClaudeTempDir } from '../permissions/filesystem.js'
 import type { PermissionRuleValue } from '../permissions/PermissionRule.js'
@@ -81,9 +81,9 @@ function permissionRuleExtractPrefix(permissionRule: string): string | null {
 }
 
 /**
- * Resolve Oh-My-AgentCode-specific path patterns for sandbox-runtime.
+ * Resolve CodePilotX-specific path patterns for sandbox-runtime.
  *
- * Oh-My-AgentCode uses special path prefixes in permission rules:
+ * CodePilotX uses special path prefixes in permission rules:
  * - `//path` → absolute from filesystem root (becomes `/path`)
  * - `/path` → relative to settings file directory (becomes `$SETTINGS_DIR/path`)
  * - `~/path` → passed through (sandbox-runtime handles this)
@@ -164,7 +164,7 @@ function shouldAllowManagedReadPathsOnly(): boolean {
 }
 
 /**
- * Convert Oh-My-AgentCode settings format to SandboxRuntimeConfig format
+ * Convert CodePilotX settings format to SandboxRuntimeConfig format
  * (Function exported for testing)
  *
  * @param settings Merged settings (used for sandbox config like network, ripgrep, etc.)
@@ -228,7 +228,7 @@ export function convertToSandboxRuntimeConfig(
   const allowRead: string[] = []
 
   // Always deny writes to settings.json files to prevent sandbox escape
-  // This blocks settings in the original working directory (where Oh-My-AgentCode started)
+  // This blocks settings in the original working directory (where CodePilotX started)
   const settingsPaths = SETTING_SOURCES.map(source =>
     getSettingsFilePathForSource(source),
   ).filter((p): p is string => p !== undefined)

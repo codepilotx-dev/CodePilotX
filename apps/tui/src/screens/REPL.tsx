@@ -252,8 +252,8 @@ import { hasConsoleBillingAccess } from '../utils/billing.js'
 import {
   logEvent,
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-} from '@claudecode/tui/services/analytics/index.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '@claudecode/tui/services/analytics/growthbook.js'
+} from '@codepilotx/tui/services/analytics/index.js'
+import { getFeatureValue_CACHED_MAY_BE_STALE } from '@codepilotx/tui/services/analytics/growthbook.js'
 import {
   textForResubmit,
   handleMessageFromStream,
@@ -476,58 +476,58 @@ const UndercoverAutoCallout =
 /* eslint-enable custom-rules/no-process-env-top-level, @typescript-eslint/no-require-imports */
 import { activityManager } from '../utils/activityManager.js'
 import { createAbortController } from '../utils/abortController.js'
-import { MCPConnectionManager } from '@claudecode/tui/services/mcp/MCPConnectionManager.js'
-import { useFeedbackSurvey } from '@claudecode/tui/components/FeedbackSurvey/useFeedbackSurvey.js'
-import { useMemorySurvey } from '@claudecode/tui/components/FeedbackSurvey/useMemorySurvey.js'
-import { usePostCompactSurvey } from '@claudecode/tui/components/FeedbackSurvey/usePostCompactSurvey.js'
-import { FeedbackSurvey } from '@claudecode/tui/components/FeedbackSurvey/FeedbackSurvey.js'
-import { useInstallMessages } from '@claudecode/tui/hooks/notifs/useInstallMessages.js'
-import { useAwaySummary } from '@claudecode/tui/hooks/useAwaySummary.js'
-import { useChromeExtensionNotification } from '@claudecode/tui/hooks/useChromeExtensionNotification.js'
-import { useOfficialMarketplaceNotification } from '@claudecode/tui/hooks/useOfficialMarketplaceNotification.js'
-import { usePromptsFromClaudeInChrome } from '@claudecode/tui/hooks/usePromptsFromClaudeInChrome.js'
+import { MCPConnectionManager } from '@codepilotx/tui/services/mcp/MCPConnectionManager.js'
+import { useFeedbackSurvey } from '@codepilotx/tui/components/FeedbackSurvey/useFeedbackSurvey.js'
+import { useMemorySurvey } from '@codepilotx/tui/components/FeedbackSurvey/useMemorySurvey.js'
+import { usePostCompactSurvey } from '@codepilotx/tui/components/FeedbackSurvey/usePostCompactSurvey.js'
+import { FeedbackSurvey } from '@codepilotx/tui/components/FeedbackSurvey/FeedbackSurvey.js'
+import { useInstallMessages } from '@codepilotx/tui/hooks/notifs/useInstallMessages.js'
+import { useAwaySummary } from '@codepilotx/tui/hooks/useAwaySummary.js'
+import { useChromeExtensionNotification } from '@codepilotx/tui/hooks/useChromeExtensionNotification.js'
+import { useOfficialMarketplaceNotification } from '@codepilotx/tui/hooks/useOfficialMarketplaceNotification.js'
+import { usePromptsFromClaudeInChrome } from '@codepilotx/tui/hooks/usePromptsFromClaudeInChrome.js'
 import {
   getTipToShowOnSpinner,
   recordShownTip,
-} from '@claudecode/tui/services/tips/tipScheduler.js'
-import type { Theme } from '@claudecode/tui/utils/theme.js'
+} from '@codepilotx/tui/services/tips/tipScheduler.js'
+import type { Theme } from '@codepilotx/tui/utils/theme.js'
 import {
   checkAndDisableBypassPermissionsIfNeeded,
   checkAndDisableAutoModeIfNeeded,
   useKickOffCheckAndDisableBypassPermissionsIfNeeded,
   useKickOffCheckAndDisableAutoModeIfNeeded,
-} from '@claudecode/tui/utils/permissions/bypassPermissionsKillswitch.js'
-import { SandboxManager } from '@claudecode/tui/utils/sandbox/sandbox-adapter.js'
-import { SANDBOX_NETWORK_ACCESS_TOOL_NAME } from '@claudecode/tui/cli/structuredIO.js'
-import { useFileHistorySnapshotInit } from '@claudecode/tui/hooks/useFileHistorySnapshotInit.js'
-import { SandboxPermissionRequest } from '@claudecode/tui/components/permissions/SandboxPermissionRequest.js'
-import { SandboxViolationExpandedView } from '@claudecode/tui/components/SandboxViolationExpandedView.js'
-import { useSettingsErrors } from '@claudecode/tui/hooks/notifs/useSettingsErrors.js'
-import { useMcpConnectivityStatus } from '@claudecode/tui/hooks/notifs/useMcpConnectivityStatus.js'
-import { useAutoModeUnavailableNotification } from '@claudecode/tui/hooks/notifs/useAutoModeUnavailableNotification.js'
-import { AUTO_MODE_DESCRIPTION } from '@claudecode/tui/components/AutoModeOptInDialog.js'
-import { useLspInitializationNotification } from '@claudecode/tui/hooks/notifs/useLspInitializationNotification.js'
-import { useLspPluginRecommendation } from '@claudecode/tui/hooks/useLspPluginRecommendation.js'
-import { LspRecommendationMenu } from '@claudecode/tui/components/LspRecommendation/LspRecommendationMenu.js'
-import { useClaudeCodeHintRecommendation } from '@claudecode/tui/hooks/useClaudeCodeHintRecommendation.js'
-import { PluginHintMenu } from '@claudecode/tui/components/ClaudeCodeHint/PluginHintMenu.js'
+} from '@codepilotx/tui/utils/permissions/bypassPermissionsKillswitch.js'
+import { SandboxManager } from '@codepilotx/tui/utils/sandbox/sandbox-adapter.js'
+import { SANDBOX_NETWORK_ACCESS_TOOL_NAME } from '@codepilotx/tui/cli/structuredIO.js'
+import { useFileHistorySnapshotInit } from '@codepilotx/tui/hooks/useFileHistorySnapshotInit.js'
+import { SandboxPermissionRequest } from '@codepilotx/tui/components/permissions/SandboxPermissionRequest.js'
+import { SandboxViolationExpandedView } from '@codepilotx/tui/components/SandboxViolationExpandedView.js'
+import { useSettingsErrors } from '@codepilotx/tui/hooks/notifs/useSettingsErrors.js'
+import { useMcpConnectivityStatus } from '@codepilotx/tui/hooks/notifs/useMcpConnectivityStatus.js'
+import { useAutoModeUnavailableNotification } from '@codepilotx/tui/hooks/notifs/useAutoModeUnavailableNotification.js'
+import { AUTO_MODE_DESCRIPTION } from '@codepilotx/tui/components/AutoModeOptInDialog.js'
+import { useLspInitializationNotification } from '@codepilotx/tui/hooks/notifs/useLspInitializationNotification.js'
+import { useLspPluginRecommendation } from '@codepilotx/tui/hooks/useLspPluginRecommendation.js'
+import { LspRecommendationMenu } from '@codepilotx/tui/components/LspRecommendation/LspRecommendationMenu.js'
+import { useCodePilotXHintRecommendation } from '@codepilotx/tui/hooks/useCodePilotXHintRecommendation.js'
+import { PluginHintMenu } from '@codepilotx/tui/components/CodePilotXHint/PluginHintMenu.js'
 import {
   DesktopUpsellStartup,
   shouldShowDesktopUpsellStartup,
-} from '@claudecode/tui/components/DesktopUpsell/DesktopUpsellStartup.js'
-import { usePluginInstallationStatus } from '@claudecode/tui/hooks/notifs/usePluginInstallationStatus.js'
-import { usePluginAutoupdateNotification } from '@claudecode/tui/hooks/notifs/usePluginAutoupdateNotification.js'
-import { performStartupChecks } from '@claudecode/tui/utils/plugins/performStartupChecks.js'
-import { UserTextMessage } from '@claudecode/tui/components/messages/UserTextMessage.js'
+} from '@codepilotx/tui/components/DesktopUpsell/DesktopUpsellStartup.js'
+import { usePluginInstallationStatus } from '@codepilotx/tui/hooks/notifs/usePluginInstallationStatus.js'
+import { usePluginAutoupdateNotification } from '@codepilotx/tui/hooks/notifs/usePluginAutoupdateNotification.js'
+import { performStartupChecks } from '@codepilotx/tui/utils/plugins/performStartupChecks.js'
+import { UserTextMessage } from '@codepilotx/tui/components/messages/UserTextMessage.js'
 import { AwsAuthStatusBox } from '../components/AwsAuthStatusBox.js'
-import { useRateLimitWarningNotification } from '@claudecode/tui/hooks/notifs/useRateLimitWarningNotification.js'
-import { useDeprecationWarningNotification } from '@claudecode/tui/hooks/notifs/useDeprecationWarningNotification.js'
-import { useNpmDeprecationNotification } from '@claudecode/tui/hooks/notifs/useNpmDeprecationNotification.js'
-import { useIDEStatusIndicator } from '@claudecode/tui/hooks/notifs/useIDEStatusIndicator.js'
-import { useModelMigrationNotifications } from '@claudecode/tui/hooks/notifs/useModelMigrationNotifications.js'
-import { useCanSwitchToExistingSubscription } from '@claudecode/tui/hooks/notifs/useCanSwitchToExistingSubscription.js'
-import { useTeammateLifecycleNotification } from '@claudecode/tui/hooks/notifs/useTeammateShutdownNotification.js'
-import { useFastModeNotification } from '@claudecode/tui/hooks/notifs/useFastModeNotification.js'
+import { useRateLimitWarningNotification } from '@codepilotx/tui/hooks/notifs/useRateLimitWarningNotification.js'
+import { useDeprecationWarningNotification } from '@codepilotx/tui/hooks/notifs/useDeprecationWarningNotification.js'
+import { useNpmDeprecationNotification } from '@codepilotx/tui/hooks/notifs/useNpmDeprecationNotification.js'
+import { useIDEStatusIndicator } from '@codepilotx/tui/hooks/notifs/useIDEStatusIndicator.js'
+import { useModelMigrationNotifications } from '@codepilotx/tui/hooks/notifs/useModelMigrationNotifications.js'
+import { useCanSwitchToExistingSubscription } from '@codepilotx/tui/hooks/notifs/useCanSwitchToExistingSubscription.js'
+import { useTeammateLifecycleNotification } from '@codepilotx/tui/hooks/notifs/useTeammateShutdownNotification.js'
+import { useFastModeNotification } from '@codepilotx/tui/hooks/notifs/useFastModeNotification.js'
 import {
   AutoRunIssueNotification,
   shouldAutoRunIssue,
@@ -1156,7 +1156,7 @@ export function REPL({
   const {
     recommendation: hintRecommendation,
     handleResponse: handleHintResponse,
-  } = useClaudeCodeHintRecommendation()
+  } = useCodePilotXHintRecommendation()
 
   // Memoize the combined initial tools array to prevent reference changes
   const combinedInitialTools = useMemo(() => {
@@ -1574,7 +1574,7 @@ export function REPL({
   const haikuTitleAttemptedRef = useRef((initialMessages?.length ?? 0) > 0)
   const agentTitle = mainThreadAgentDefinition?.agentType
   const terminalTitle =
-    sessionTitle ?? agentTitle ?? haikuTitle ?? 'Oh-My-AgentCode'
+    sessionTitle ?? agentTitle ?? haikuTitle ?? 'CodePilotX'
   const isWaitingForApproval =
     toolUseConfirmQueue.length > 0 ||
     promptQueue.length > 0 ||
@@ -3583,7 +3583,7 @@ export function REPL({
       // which was broken by SessionStart hook messages (prepended via
       // useDeferredHookMessages) and attachment messages (appended by
       // processTextPrompt) — both pushed length past 1 on turn one, so the
-      // title silently fell through to the "Oh-My-AgentCode" default.
+      // title silently fell through to the "CodePilotX" default.
       if (
         !titleDisabled &&
         !sessionTitle &&
@@ -5123,7 +5123,7 @@ export function REPL({
   // empty to non-empty, not on every length change -- otherwise a render loop
   // (concurrent onQuery thrashing, etc.) spams saveGlobalConfig, which hits
   // ELOCKED under concurrent sessions and falls back to unlocked writes.
-  // That write storm is the primary trigger for ~/.claude.json corruption
+  // That write storm is the primary trigger for ~/.codepilotx/.config.json corruption
   // (GH #3117).
   const hasCountedQueueUseRef = useRef(false)
   useEffect(() => {
@@ -5468,7 +5468,7 @@ export function REPL({
     const handleSuspend = () => {
       // Print suspension instructions
       process.stdout.write(
-        `\nOh-My-AgentCode has been suspended. Run \`fg\` to bring Oh-My-AgentCode back.\nNote: ctrl + z now suspends Oh-My-AgentCode, ctrl + _ undoes input.\n`,
+        `\nCodePilotX has been suspended. Run \`fg\` to bring CodePilotX back.\nNote: ctrl + z now suspends CodePilotX, ctrl + _ undoes input.\n`,
       )
     }
 

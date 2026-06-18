@@ -20,7 +20,7 @@ import {
   getPendingHintSnapshot,
   markShownThisSession,
   subscribeToPendingHint,
-} from '../utils/claudeCodeHints.js'
+} from '../utils/codePilotXHints.js'
 import { logForDebugging } from '../utils/debug.js'
 import {
   disableHintRecommendations,
@@ -34,12 +34,12 @@ import {
   usePluginRecommendationBase,
 } from './usePluginRecommendationBase.js'
 
-type UseClaudeCodeHintRecommendationResult = {
+type UseCodePilotXHintRecommendationResult = {
   recommendation: PluginHintRecommendation | null
   handleResponse: (response: 'yes' | 'no' | 'disable') => void
 }
 
-export function useClaudeCodeHintRecommendation(): UseClaudeCodeHintRecommendationResult {
+export function useCodePilotXHintRecommendation(): UseCodePilotXHintRecommendationResult {
   const pendingHint = React.useSyncExternalStore(
     subscribeToPendingHint,
     getPendingHintSnapshot,
@@ -54,7 +54,7 @@ export function useClaudeCodeHintRecommendation(): UseClaudeCodeHintRecommendati
       const resolved = await resolvePluginHint(pendingHint)
       if (resolved) {
         logForDebugging(
-          `[useClaudeCodeHintRecommendation] surfacing ${resolved.pluginId} from ${resolved.sourceCommand}`,
+          `[useCodePilotXHintRecommendation] surfacing ${resolved.pluginId} from ${resolved.sourceCommand}`,
         )
         markShownThisSession()
       }

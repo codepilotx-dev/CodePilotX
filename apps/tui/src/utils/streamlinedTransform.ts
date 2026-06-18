@@ -8,21 +8,21 @@
  * - Strips tool list and model info from init messages
  */
 
-import type { SDKAssistantMessage } from '@claudecode/tui/entrypoints/agentSdkTypes.js'
-import type { StdoutMessage } from '@claudecode/tui/entrypoints/sdk/controlTypes.js'
-import { FILE_EDIT_TOOL_NAME } from '@claudecode/tui/tools/FileEditTool/constants.js'
-import { FILE_READ_TOOL_NAME } from '@claudecode/tui/tools/FileReadTool/prompt.js'
-import { FILE_WRITE_TOOL_NAME } from '@claudecode/tui/tools/FileWriteTool/prompt.js'
-import { GLOB_TOOL_NAME } from '@claudecode/tui/tools/GlobTool/prompt.js'
-import { GREP_TOOL_NAME } from '@claudecode/tui/tools/GrepTool/prompt.js'
-import { LIST_MCP_RESOURCES_TOOL_NAME } from '@claudecode/tui/tools/ListMcpResourcesTool/prompt.js'
-import { LSP_TOOL_NAME } from '@claudecode/tui/tools/LSPTool/prompt.js'
-import { NOTEBOOK_EDIT_TOOL_NAME } from '@claudecode/tui/tools/NotebookEditTool/constants.js'
-import { TASK_STOP_TOOL_NAME } from '@claudecode/tui/tools/TaskStopTool/prompt.js'
-import { WEB_SEARCH_TOOL_NAME } from '@claudecode/tui/tools/WebSearchTool/prompt.js'
-import { extractTextContent } from '@claudecode/tui/utils/messages.js'
-import { SHELL_TOOL_NAMES } from '@claudecode/tui/utils/shell/shellToolUtils.js'
-import { capitalize } from '@claudecode/tui/utils/stringUtils.js'
+import type { SDKAssistantMessage } from '@codepilotx/tui/entrypoints/agentSdkTypes.js'
+import type { StdoutMessage } from '@codepilotx/tui/entrypoints/sdk/controlTypes.js'
+import { FILE_EDIT_TOOL_NAME } from '@codepilotx/tui/tools/FileEditTool/constants.js'
+import { FILE_READ_TOOL_NAME } from '@codepilotx/tui/tools/FileReadTool/prompt.js'
+import { FILE_WRITE_TOOL_NAME } from '@codepilotx/tui/tools/FileWriteTool/prompt.js'
+import { GLOB_TOOL_NAME } from '@codepilotx/tui/tools/GlobTool/prompt.js'
+import { GREP_TOOL_NAME } from '@codepilotx/tui/tools/GrepTool/prompt.js'
+import { LIST_MCP_RESOURCES_TOOL_NAME } from '@codepilotx/tui/tools/ListMcpResourcesTool/prompt.js'
+import { LSP_TOOL_NAME } from '@codepilotx/tui/tools/LSPTool/prompt.js'
+import { NOTEBOOK_EDIT_TOOL_NAME } from '@codepilotx/tui/tools/NotebookEditTool/constants.js'
+import { TASK_STOP_TOOL_NAME } from '@codepilotx/tui/tools/TaskStopTool/prompt.js'
+import { WEB_SEARCH_TOOL_NAME } from '@codepilotx/tui/tools/WebSearchTool/prompt.js'
+import { extractTextContent } from '@codepilotx/tui/utils/messages.js'
+import { SHELL_TOOL_NAMES } from '@codepilotx/tui/utils/shell/shellToolUtils.js'
+import { capitalize } from '@codepilotx/tui/utils/stringUtils.js'
 
 type ToolCounts = {
   searches: number

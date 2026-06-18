@@ -1,12 +1,12 @@
-import { BASH_TOOL_NAME } from '@claudecode/tui/tools/BashTool/toolName.js'
-import { EXIT_PLAN_MODE_TOOL_NAME } from '@claudecode/tui/tools/ExitPlanModeTool/constants.js'
-import { FILE_EDIT_TOOL_NAME } from '@claudecode/tui/tools/FileEditTool/constants.js'
-import { FILE_READ_TOOL_NAME } from '@claudecode/tui/tools/FileReadTool/prompt.js'
-import { FILE_WRITE_TOOL_NAME } from '@claudecode/tui/tools/FileWriteTool/prompt.js'
-import { GLOB_TOOL_NAME } from '@claudecode/tui/tools/GlobTool/prompt.js'
-import { GREP_TOOL_NAME } from '@claudecode/tui/tools/GrepTool/prompt.js'
-import { NOTEBOOK_EDIT_TOOL_NAME } from '@claudecode/tui/tools/NotebookEditTool/constants.js'
-import { hasEmbeddedSearchTools } from '@claudecode/tui/utils/embeddedTools.js'
+import { BASH_TOOL_NAME } from '@codepilotx/tui/tools/BashTool/toolName.js'
+import { EXIT_PLAN_MODE_TOOL_NAME } from '@codepilotx/tui/tools/ExitPlanModeTool/constants.js'
+import { FILE_EDIT_TOOL_NAME } from '@codepilotx/tui/tools/FileEditTool/constants.js'
+import { FILE_READ_TOOL_NAME } from '@codepilotx/tui/tools/FileReadTool/prompt.js'
+import { FILE_WRITE_TOOL_NAME } from '@codepilotx/tui/tools/FileWriteTool/prompt.js'
+import { GLOB_TOOL_NAME } from '@codepilotx/tui/tools/GlobTool/prompt.js'
+import { GREP_TOOL_NAME } from '@codepilotx/tui/tools/GrepTool/prompt.js'
+import { NOTEBOOK_EDIT_TOOL_NAME } from '@codepilotx/tui/tools/NotebookEditTool/constants.js'
+import { hasEmbeddedSearchTools } from '@codepilotx/tui/utils/embeddedTools.js'
 import { AGENT_TOOL_NAME } from '../constants.js'
 import type { BuiltInAgentDefinition } from '../loadAgentsDir.js'
 
@@ -21,7 +21,7 @@ function getExploreSystemPrompt(): string {
     ? `- Use \`grep\` via ${BASH_TOOL_NAME} for searching file contents with regex`
     : `- Use ${GREP_TOOL_NAME} for searching file contents with regex`
 
-  return `You are a file search specialist for Oh-My-AgentCode, Anthropic's official CLI for Claude. You excel at thoroughly navigating and exploring codebases.
+  return `You are a file search specialist for CodePilotX, an AI coding agent. You excel at thoroughly navigating and exploring codebases.
 
 === CRITICAL: READ-ONLY MODE - NO FILE MODIFICATIONS ===
 This is a READ-ONLY exploration task. You are STRICTLY PROHIBITED from:
@@ -59,7 +59,7 @@ Complete the user's search request efficiently and report your findings clearly.
 export const EXPLORE_AGENT_MIN_QUERIES = 3
 
 const EXPLORE_WHEN_TO_USE =
-  'Fast agent specialized for exploring codebases. Use this when you need to quickly find files by patterns (eg. "@claudecode/tui/components/**/*.tsx"), search code for keywords (eg. "API endpoints"), or answer questions about the codebase (eg. "how do API endpoints work?"). When calling this agent, specify the desired thoroughness level: "quick" for basic searches, "medium" for moderate exploration, or "very thorough" for comprehensive analysis across multiple locations and naming conventions.'
+  'Fast agent specialized for exploring codebases. Use this when you need to quickly find files by patterns (eg. "@codepilotx/tui/components/**/*.tsx"), search code for keywords (eg. "API endpoints"), or answer questions about the codebase (eg. "how do API endpoints work?"). When calling this agent, specify the desired thoroughness level: "quick" for basic searches, "medium" for moderate exploration, or "very thorough" for comprehensive analysis across multiple locations and naming conventions.'
 
 export const EXPLORE_AGENT: BuiltInAgentDefinition = {
   agentType: 'Explore',

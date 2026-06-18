@@ -1,31 +1,31 @@
 import chalk from 'chalk'
-import { logEvent } from '@claudecode/tui/services/analytics/index.js'
+import { logEvent } from '@codepilotx/tui/services/analytics/index.js'
 import {
   getLatestVersion,
   type InstallStatus,
   installGlobalPackage,
-} from '@claudecode/tui/utils/autoUpdater.js'
-import { regenerateCompletionCache } from '@claudecode/tui/utils/completionCache.js'
+} from '@codepilotx/tui/utils/autoUpdater.js'
+import { regenerateCompletionCache } from '@codepilotx/tui/utils/completionCache.js'
 import {
   getGlobalConfig,
   type InstallMethod,
   saveGlobalConfig,
-} from '@claudecode/tui/utils/config.js'
-import { logForDebugging } from '@claudecode/tui/utils/debug.js'
-import { getDoctorDiagnostic } from '@claudecode/tui/utils/doctorDiagnostic.js'
-import { gracefulShutdown } from '@claudecode/tui/utils/gracefulShutdown.js'
+} from '@codepilotx/tui/utils/config.js'
+import { logForDebugging } from '@codepilotx/tui/utils/debug.js'
+import { getDoctorDiagnostic } from '@codepilotx/tui/utils/doctorDiagnostic.js'
+import { gracefulShutdown } from '@codepilotx/tui/utils/gracefulShutdown.js'
 import {
   installOrUpdateClaudePackage,
   localInstallationExists,
-} from '@claudecode/tui/utils/localInstaller.js'
+} from '@codepilotx/tui/utils/localInstaller.js'
 import {
   installLatest as installLatestNative,
   removeInstalledSymlink,
-} from '@claudecode/tui/utils/nativeInstaller/index.js'
-import { getPackageManager } from '@claudecode/tui/utils/nativeInstaller/packageManagers.js'
-import { writeToStdout } from '@claudecode/tui/utils/process.js'
-import { gte } from '@claudecode/tui/utils/semver.js'
-import { getInitialSettings } from '@claudecode/tui/utils/settings/settings.js'
+} from '@codepilotx/tui/utils/nativeInstaller/index.js'
+import { getPackageManager } from '@codepilotx/tui/utils/nativeInstaller/packageManagers.js'
+import { writeToStdout } from '@codepilotx/tui/utils/process.js'
+import { gte } from '@codepilotx/tui/utils/semver.js'
+import { getInitialSettings } from '@codepilotx/tui/utils/settings/settings.js'
 
 export async function update() {
   logEvent('tengu_update_check', {})
@@ -138,7 +138,7 @@ export async function update() {
         writeToStdout('\n')
         writeToStdout('To update, run:\n')
         writeToStdout(
-          chalk.bold('  winget upgrade Anthropic.ClaudeCode') + '\n',
+          chalk.bold('  winget upgrade Anthropic.CodePilotX') + '\n',
         )
       } else {
         writeToStdout('Claude is up to date!\n')
@@ -238,7 +238,7 @@ export async function update() {
 
       if (result.latestVersion === MACRO.VERSION) {
         writeToStdout(
-          chalk.green(`Oh-My-AgentCode is up to date (${MACRO.VERSION})`) + '\n',
+          chalk.green(`CodePilotX is up to date (${MACRO.VERSION})`) + '\n',
         )
       } else {
         writeToStdout(
@@ -252,7 +252,7 @@ export async function update() {
     } catch (error) {
       process.stderr.write('Error: Failed to install native update\n')
       process.stderr.write(String(error) + '\n')
-      process.stderr.write('Try running "claude doctor" for diagnostics\n')
+      process.stderr.write('Try running "codepilotx doctor" for diagnostics\n')
       await gracefulShutdown(1)
     }
   }
@@ -308,7 +308,7 @@ export async function update() {
   // Check if versions match exactly, including any build metadata (like SHA)
   if (latestVersion === MACRO.VERSION) {
     writeToStdout(
-      chalk.green(`Oh-My-AgentCode is up to date (${MACRO.VERSION})`) + '\n',
+      chalk.green(`CodePilotX is up to date (${MACRO.VERSION})`) + '\n',
     )
     await gracefulShutdown(0)
   }
@@ -386,12 +386,12 @@ export async function update() {
       if (useLocalUpdate) {
         process.stderr.write('Try manually updating with:\n')
         process.stderr.write(
-          `  cd ~/.claude/local && npm update ${MACRO.PACKAGE_URL}\n`,
+          `  cd ~/.codepilotx/local && npm update ${MACRO.PACKAGE_URL}\n`,
         )
       } else {
         process.stderr.write('Try running with sudo or fix npm permissions\n')
         process.stderr.write(
-          'Or consider using native installation with: claude install\n',
+          'Or consider using native installation with: codepilotx install\n',
         )
       }
       await gracefulShutdown(1)
@@ -401,11 +401,11 @@ export async function update() {
       if (useLocalUpdate) {
         process.stderr.write('Try manually updating with:\n')
         process.stderr.write(
-          `  cd ~/.claude/local && npm update ${MACRO.PACKAGE_URL}\n`,
+          `  cd ~/.codepilotx/local && npm update ${MACRO.PACKAGE_URL}\n`,
         )
       } else {
         process.stderr.write(
-          'Or consider using native installation with: claude install\n',
+          'Or consider using native installation with: codepilotx install\n',
         )
       }
       await gracefulShutdown(1)

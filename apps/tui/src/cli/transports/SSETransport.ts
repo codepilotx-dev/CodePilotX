@@ -1,12 +1,12 @@
 import axios, { type AxiosError } from 'axios'
-import type { StdoutMessage } from '@claudecode/tui/entrypoints/sdk/controlTypes.js'
+import type { StdoutMessage } from '@codepilotx/tui/entrypoints/sdk/controlTypes.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { logForDiagnosticsNoPII } from '../../utils/diagLogs.js'
 import { errorMessage } from '../../utils/errors.js'
 import { getSessionIngressAuthHeaders } from '../../utils/sessionIngressAuth.js'
 import { sleep } from '../../utils/sleep.js'
 import { jsonParse, jsonStringify } from '../../utils/slowOperations.js'
-import { getClaudeCodeUserAgent } from '../../utils/userAgent.js'
+import { getCodePilotXUserAgent } from '../../utils/userAgent.js'
 import type { Transport } from './Transport.js'
 
 // ---------------------------------------------------------------------------
@@ -256,7 +256,7 @@ export class SSETransport implements Transport {
       ...authHeaders,
       Accept: 'text/event-stream',
       'anthropic-version': '2023-06-01',
-      'User-Agent': getClaudeCodeUserAgent(),
+      'User-Agent': getCodePilotXUserAgent(),
     }
     if (authHeaders['Cookie']) {
       delete headers['Authorization']
@@ -581,7 +581,7 @@ export class SSETransport implements Transport {
       ...authHeaders,
       'Content-Type': 'application/json',
       'anthropic-version': '2023-06-01',
-      'User-Agent': getClaudeCodeUserAgent(),
+      'User-Agent': getCodePilotXUserAgent(),
     }
 
     logForDebugging(

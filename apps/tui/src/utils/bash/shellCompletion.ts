@@ -1,4 +1,4 @@
-import type { SuggestionItem } from '@claudecode/tui/components/PromptInput/PromptInputFooterSuggestions.js'
+import type { SuggestionItem } from '@codepilotx/tui/components/PromptInput/PromptInputFooterSuggestions.js'
 import {
   type ParseEntry,
   quote,

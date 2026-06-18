@@ -208,7 +208,7 @@ export function validatePermissionRule(rule: string): {
         suggestion: 'Use glob patterns like "*" or "**" for file matching',
         examples: [
           `${parsed.toolName}(*.ts) - matches .ts files`,
-          `${parsed.toolName}(@claudecode/tui/**) - matches all files in src`,
+          `${parsed.toolName}(@codepilotx/tui/**) - matches all files in src`,
           `${parsed.toolName}(**/*.test.ts) - matches test files`,
         ],
       }
@@ -228,8 +228,8 @@ export function validatePermissionRule(rule: string): {
         suggestion: 'Wildcards are typically used at path boundaries',
         examples: [
           `${parsed.toolName}(*.js) - all .js files`,
-          `${parsed.toolName}(@claudecode/tui/*) - all files directly in src`,
-          `${parsed.toolName}(@claudecode/tui/**) - all files recursively in src`,
+          `${parsed.toolName}(@codepilotx/tui/*) - all files directly in src`,
+          `${parsed.toolName}(@codepilotx/tui/**) - all files recursively in src`,
         ],
       }
     }

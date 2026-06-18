@@ -1,6 +1,6 @@
 import partition from 'lodash-es/partition.js'
 import React, { useCallback } from 'react'
-import { logEvent } from '@claudecode/tui/services/analytics/index.js'
+import { logEvent } from '@codepilotx/tui/services/analytics/index.js'
 import { Box, Text } from '../ink.js'
 import {
   getSettings_DEPRECATED,

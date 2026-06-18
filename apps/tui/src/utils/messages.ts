@@ -18,9 +18,9 @@ import last from 'lodash-es/last.js'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
-} from '@claudecode/tui/services/analytics/index.js'
-import { sanitizeToolNameForAnalytics } from '@claudecode/tui/services/analytics/metadata.js'
-import type { AgentId } from '@claudecode/tui/types/ids.js'
+} from '@codepilotx/tui/services/analytics/index.js'
+import { sanitizeToolNameForAnalytics } from '@codepilotx/tui/services/analytics/metadata.js'
+import type { AgentId } from '@codepilotx/tui/types/ids.js'
 import { companionIntroText } from '../buddy/prompt.js'
 import { NO_CONTENT_MESSAGE } from '../constants/messages.js'
 import { OUTPUT_STYLE_CONFIG } from '../constants/outputStyles.js'
@@ -102,31 +102,37 @@ import type {
 import type {
   HookEvent,
   SDKAssistantMessageError,
-} from '@claudecode/tui/entrypoints/agentSdkTypes.js'
-import { EXPLORE_AGENT } from '@claudecode/tui/tools/AgentTool/built-in/exploreAgent.js'
-import { PLAN_AGENT } from '@claudecode/tui/tools/AgentTool/built-in/planAgent.js'
-import { areExplorePlanAgentsEnabled } from '@claudecode/tui/tools/AgentTool/builtInAgents.js'
-import { AGENT_TOOL_NAME } from '@claudecode/tui/tools/AgentTool/constants.js'
-import { ASK_USER_QUESTION_TOOL_NAME } from '@claudecode/tui/tools/AskUserQuestionTool/prompt.js'
-import { BashTool } from '@claudecode/tui/tools/BashTool/BashTool.js'
-import { ExitPlanModeV2Tool } from '@claudecode/tui/tools/ExitPlanModeTool/ExitPlanModeV2Tool.js'
-import { FileEditTool } from '@claudecode/tui/tools/FileEditTool/FileEditTool.js'
+} from '@codepilotx/tui/entrypoints/agentSdkTypes.js'
+import { EXPLORE_AGENT } from '@codepilotx/tui/tools/AgentTool/built-in/exploreAgent.js'
+import { PLAN_AGENT } from '@codepilotx/tui/tools/AgentTool/built-in/planAgent.js'
+import { areExplorePlanAgentsEnabled } from '@codepilotx/tui/tools/AgentTool/builtInAgents.js'
+import { AGENT_TOOL_NAME } from '@codepilotx/tui/tools/AgentTool/constants.js'
+import { ASK_USER_QUESTION_TOOL_NAME } from '@codepilotx/tui/tools/AskUserQuestionTool/prompt.js'
+import { BashTool } from '@codepilotx/tui/tools/BashTool/BashTool.js'
+import { ExitPlanModeV2Tool } from '@codepilotx/tui/tools/ExitPlanModeTool/ExitPlanModeV2Tool.js'
+import { FileEditTool } from '@codepilotx/tui/tools/FileEditTool/FileEditTool.js'
 import {
   FILE_READ_TOOL_NAME,
   MAX_LINES_TO_READ,
-} from '@claudecode/tui/tools/FileReadTool/prompt.js'
-import { FileWriteTool } from '@claudecode/tui/tools/FileWriteTool/FileWriteTool.js'
-import { GLOB_TOOL_NAME } from '@claudecode/tui/tools/GlobTool/prompt.js'
-import { GREP_TOOL_NAME } from '@claudecode/tui/tools/GrepTool/prompt.js'
-import type { DeepImmutable } from '@claudecode/tui/types/utils.js'
+} from '@codepilotx/tui/tools/FileReadTool/prompt.js'
+import { FileWriteTool } from '@codepilotx/tui/tools/FileWriteTool/FileWriteTool.js'
+import { GLOB_TOOL_NAME } from '@codepilotx/tui/tools/GlobTool/prompt.js'
+import { GREP_TOOL_NAME } from '@codepilotx/tui/tools/GrepTool/prompt.js'
+import type { DeepImmutable } from '@codepilotx/tui/types/utils.js'
 import { getStrictToolResultPairing } from '../bootstrap/state.js'
 import type { SpinnerMode } from '../components/Spinner.js'
 import {
+  BASH_STDERR_TAG,
+  BASH_STDOUT_TAG,
   COMMAND_ARGS_TAG,
   COMMAND_MESSAGE_TAG,
   COMMAND_NAME_TAG,
   LOCAL_COMMAND_CAVEAT_TAG,
+  LOCAL_COMMAND_STDERR_TAG,
   LOCAL_COMMAND_STDOUT_TAG,
+  TASK_NOTIFICATION_TAG,
+  TEAMMATE_MESSAGE_TAG,
+  TICK_TAG,
 } from '../constants/xml.js'
 import { DiagnosticTrackingService } from '../services/diagnosticTracking.js'
 import {
@@ -235,7 +241,7 @@ export function AUTO_REJECT_MESSAGE(toolName: string): string {
   return `Permission to use ${toolName} has been denied. ${DENIAL_WORKAROUND_GUIDANCE}`
 }
 export function DONT_ASK_REJECT_MESSAGE(toolName: string): string {
-  return `Permission to use ${toolName} has been denied because Oh-My-AgentCode is running in don't ask mode. ${DENIAL_WORKAROUND_GUIDANCE}`
+  return `Permission to use ${toolName} has been denied because CodePilotX is running in don't ask mode. ${DENIAL_WORKAROUND_GUIDANCE}`
 }
 export const NO_RESPONSE_REQUESTED = 'No response requested.'
 
@@ -316,6 +322,101 @@ export function isSyntheticMessage(message: Message): boolean {
     message.message.content[0]?.type === 'text' &&
     SYNTHETIC_MESSAGES.has(message.message.content[0].text)
   )
+}
+
+function isTextBlock(block: ContentBlockParam): block is TextBlockParam {
+  return block.type === 'text'
+}
+
+export function selectableUserMessagesFilter(
+  message: Message,
+): message is UserMessage {
+  if (message.type !== 'user') {
+    return false
+  }
+  if (
+    Array.isArray(message.message.content) &&
+    message.message.content[0]?.type === 'tool_result'
+  ) {
+    return false
+  }
+  if (isSyntheticMessage(message)) {
+    return false
+  }
+  if (message.isMeta) {
+    return false
+  }
+  if (message.isCompactSummary || message.isVisibleInTranscriptOnly) {
+    return false
+  }
+
+  const content = message.message.content
+  const lastBlock =
+    typeof content === 'string' ? null : content[content.length - 1]
+  const messageText =
+    typeof content === 'string'
+      ? content.trim()
+      : lastBlock && isTextBlock(lastBlock)
+        ? lastBlock.text.trim()
+        : ''
+
+  // Filter out non-user-authored messages (command outputs, task notifications, ticks).
+  if (
+    messageText.indexOf(`<${LOCAL_COMMAND_STDOUT_TAG}>`) !== -1 ||
+    messageText.indexOf(`<${LOCAL_COMMAND_STDERR_TAG}>`) !== -1 ||
+    messageText.indexOf(`<${BASH_STDOUT_TAG}>`) !== -1 ||
+    messageText.indexOf(`<${BASH_STDERR_TAG}>`) !== -1 ||
+    messageText.indexOf(`<${TASK_NOTIFICATION_TAG}>`) !== -1 ||
+    messageText.indexOf(`<${TICK_TAG}>`) !== -1 ||
+    messageText.indexOf(`<${TEAMMATE_MESSAGE_TAG}`) !== -1
+  ) {
+    return false
+  }
+  return true
+}
+
+/**
+ * Checks if all messages after the given index are synthetic (interruptions, cancels, etc.)
+ * or non-meaningful content. Returns true if there's nothing meaningful to confirm -
+ * for example, if the user hit enter then immediately cancelled.
+ */
+export function messagesAfterAreOnlySynthetic(
+  messages: Message[],
+  fromIndex: number,
+): boolean {
+  for (let i = fromIndex + 1; i < messages.length; i++) {
+    const msg = messages[i]
+    if (!msg) continue
+
+    // Skip known non-meaningful message types
+    if (isSyntheticMessage(msg)) continue
+    if (isToolUseResultMessage(msg)) continue
+    if (msg.type === 'progress') continue
+    if (msg.type === 'system') continue
+    if (msg.type === 'attachment') continue
+    if (msg.type === 'user' && msg.isMeta) continue
+
+    // Assistant with actual content = meaningful
+    if (msg.type === 'assistant') {
+      const content = msg.message.content
+      if (Array.isArray(content)) {
+        const hasMeaningfulContent = content.some(
+          block =>
+            (block.type === 'text' && block.text.trim()) ||
+            block.type === 'tool_use',
+        )
+        if (hasMeaningfulContent) return false
+      }
+      continue
+    }
+
+    // User messages with real content = meaningful
+    if (msg.type === 'user') {
+      if (!msg.isMeta && !isToolUseResultMessage(msg)) return false
+    }
+  }
+
+  return true
 }
 
 function isSyntheticApiErrorMessage(

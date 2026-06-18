@@ -6,7 +6,7 @@
  * what to do with them (e.g., convert to SDK messages, log, etc.).
  */
 
-import { HOOK_EVENTS } from '@claudecode/tui/entrypoints/sdk/coreTypes.js'
+import { HOOK_EVENTS } from '@codepilotx/tui/entrypoints/sdk/coreTypes.js'
 
 import { logForDebugging } from '../debug.js'
 

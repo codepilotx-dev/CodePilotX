@@ -55,7 +55,7 @@ type Binding = {
  * `setToolJSX`, `sendOSNotification`) are always current.
  *
  * Module-level `let` is a deliberate exception to the no-module-scope-state
- * rule (@claudecode/tui/CLAUDE.md): the dispatcher closure must persist across calls so
+ * rule (@codepilotx/tui/CLAUDE.md): the dispatcher closure must persist across calls so
  * its internal screenshot blob survives, but `ToolUseContext` is per-call.
  * Tests will need to either inject the cache or run serially.
  */

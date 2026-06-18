@@ -1,26 +1,77 @@
 import {
   app,
-  BrowserWindow,
-  dialog,
-  ipcMain,
-  Menu,
   shell,
 } from 'electron'
-import { execFile } from 'node:child_process'
-import { open, readdir, stat } from 'node:fs/promises'
-import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path'
+import { existsSync } from 'node:fs'
+import { stat } from 'node:fs/promises'
+import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { promisify } from 'node:util'
+import { enableConfigs } from '@codepilotx/core/utils/config.js'
 import {
-  getAuthTokenSource,
-  getOauthAccountInfo,
-  hasAnthropicApiKeyAuth,
-} from '@claudecode/core/utils/auth.js'
-import { enableConfigs } from '@claudecode/core/utils/config.js'
+  getMainLoopModel,
+  parseUserSpecifiedModel,
+} from '@codepilotx/tui/utils/model/model.js'
+import {
+  CODEPILOTX_CONFIG_DIR_ENV,
+  LEGACY_CLAUDE_CONFIG_DIR_ENV,
+} from '@codepilotx/tui/utils/envUtils.js'
+import {
+  getSettings_DEPRECATED,
+  updateSettingsForSource,
+} from '@codepilotx/tui/utils/settings/settings.js'
+import { getAuthStatus, getRuntimeStatus } from './authRuntimeService.js'
+import { generateSessionTitle } from '@codepilotx/tui/utils/sessionTitle.js'
+import { saveAiGeneratedTitle } from '@codepilotx/tui/utils/sessionStorage.js'
 import {
   createDesktopAgentSession,
   type DesktopAgentSession,
 } from './agentSession.js'
+import type { DesktopAgentRuntimePreference } from './agentRuntime.js'
+import {
+  createDesktopApiHandlers,
+  registerDesktopIpcHandlers,
+} from './ipc.js'
+import { createDesktopWindowService } from './windowService.js'
+import {
+  assertAllowedWorkspace,
+  checkoutWorkspaceBranch,
+  chooseWorkspace,
+  configureWorkspaceService,
+  getStandaloneWorkspace,
+  getWorkspaceContext,
+  getWorkspaceDiff,
+  listOpenTargets,
+  listWorkspaceFiles,
+  normalizeWorkspacePath,
+  openWorkspace,
+  openPathWithDefaultTarget,
+  readWorkspaceFile,
+  registerAllowedWorkspace,
+  workspaceFromPath,
+} from './workspaceService.js'
+import {
+  fetchProviderBalance,
+  fetchProviderModels,
+  getModelProviderState,
+  listModelProviders,
+  saveModelProvider,
+  saveProviderApiKey,
+} from './modelProviderService.js'
+import {
+  getOpenAgentConfigHomeDir,
+  readDesktopStoredSettings,
+  saveDesktopStoredSettings,
+} from './desktopSettings.js'
+import { desktopDebug } from './desktopDebug.js'
+import {
+  applyDesktopAgentEventToSnapshot,
+  createDesktopSessionSnapshot,
+  desktopSessionTranscriptExists,
+  hydrateDesktopSessionSnapshot,
+  loadDesktopSessionStore,
+  removePendingPermissionFromSnapshot,
+  saveDesktopSessionStore,
+} from './sessionPersistence.js'
 import {
   readDesktopThemeSettings,
   saveDesktopThemeSettings,
@@ -29,53 +80,69 @@ import type {
   CreateDesktopSessionOptions,
   CreateDesktopSessionResult,
   DesktopAgentEvent,
-  DesktopApi,
-  DesktopAuthStatus,
-  DesktopDiffSummary,
-  DesktopFileEntry,
-  DesktopFilePreview,
+  DesktopBuiltinPlugin,
   DesktopPermissionDecision,
   DesktopPermissionMode,
-  DesktopRuntimeStatus,
+  DesktopSessionMetadataPatch,
+  DesktopSessionSettingsSnapshot,
+  DesktopSessionSnapshot,
+  DesktopStoredSettings,
   DesktopThinkingMode,
-  DesktopUiCommand,
   DesktopWorkspace,
 } from '../shared/types.js'
+import {
+  DESKTOP_PERMISSION_MODES,
+  normalizeDesktopPermissionMode,
+} from '../shared/settingsSchema.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
-const execFileAsync = promisify(execFile)
-const IGNORED_DIRECTORY_NAMES = new Set([
-  '.git',
-  'node_modules',
-  'dist',
-  'bun_cache',
-  'release',
-])
-const MAX_FILE_PREVIEW_BYTES = 200_000
-const DESKTOP_PERMISSION_MODES = new Set<DesktopPermissionMode>([
-  'acceptEdits',
-  'bypassPermissions',
-  'default',
-  'dontAsk',
-])
+const DESKTOP_APP_ID = 'local.codepilotx.desktop'
 const DESKTOP_THINKING_MODES = new Set<DesktopThinkingMode>([
   'default',
   'enabled',
   'adaptive',
   'disabled',
 ])
+type DesktopSessionRecord = {
+  session: DesktopAgentSession | null
+  snapshot: DesktopSessionSnapshot
+  resumeExistingSession: boolean
+}
 
-let mainWindow: BrowserWindow | null = null
-const sessions = new Map<string, DesktopAgentSession>()
-const allowedWorkspacePaths = new Set<string>()
+const desktopConfigHomeDir = getOpenAgentConfigHomeDir()
+process.env[CODEPILOTX_CONFIG_DIR_ENV] = desktopConfigHomeDir
+process.env[LEGACY_CLAUDE_CONFIG_DIR_ENV] = desktopConfigHomeDir
+
+const sessions = new Map<string, DesktopSessionRecord>()
+const titleGenerationStartedSessionIds = new Set<string>()
+let activeSessionId: string | null = null
+let sessionStoreLoadPromise: Promise<void> | null = null
+const DESKTOP_BUILTIN_PLUGIN_IDS = ['minimax@builtin'] as const
 
 function rendererUrl(): string {
-  if (!app.isPackaged && process.env.CLAUDE_CODE_DESKTOP_RENDERER_URL) {
-    return process.env.CLAUDE_CODE_DESKTOP_RENDERER_URL
+  const devRendererUrl =
+    process.env.CODEPILOTX_DESKTOP_RENDERER_URL ??
+    process.env.CLAUDE_CODE_DESKTOP_RENDERER_URL
+  if (!app.isPackaged && devRendererUrl) {
+    return devRendererUrl
   }
   return pathToFileURL(join(__dirname, '../renderer/index.html')).toString()
 }
+
+function desktopIconPath(): string | undefined {
+  const iconPath = app.isPackaged
+    ? join(process.resourcesPath, 'icon.ico')
+    : join(__dirname, '..', '..', '..', 'apps', 'desktop', 'build', 'icon.ico')
+  return existsSync(iconPath) ? iconPath : undefined
+}
+
+const windowService = createDesktopWindowService({
+  iconPath: desktopIconPath,
+  rendererUrl,
+  preloadPath: () => join(__dirname, '../preload/index.js'),
+})
+configureWorkspaceService({ getWindow: windowService.getWindow })
 
 function assertTrustedIpcSender(senderUrl: string | undefined): void {
   if (!isTrustedRendererUrl(senderUrl)) {
@@ -121,415 +188,248 @@ function getAgentExecutablePath(): string {
       'app.asar.unpacked',
       'dist',
       'desktop-agent',
-      'claude-local.exe',
+      'codepilotx-local.exe',
     )
   }
-  return join(__dirname, '..', '..', 'desktop-agent', 'claude-local.exe')
+  return join(__dirname, '..', '..', 'desktop-agent', 'codepilotx-local.exe')
 }
 
-function createWindow(): void {
-  mainWindow = new BrowserWindow({
-    width: 1440,
-    height: 920,
-    minWidth: 1080,
-    minHeight: 720,
-    frame: false,
-    title: 'ClaudeCode Local Desktop',
-    webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: true,
-    },
-  })
-
-  mainWindow.setMenuBarVisibility(false)
-  mainWindow.setAutoHideMenuBar(true)
-  if (process.env.NODE_ENV === 'development') {
-    mainWindow.webContents.openDevTools()
+function getDesktopRuntimeSelection(): {
+  preference: DesktopAgentRuntimePreference
+  source: 'default' | 'env'
+} {
+  const value = (
+    process.env.CODEPILOTX_DESKTOP_RUNTIME ??
+    process.env.CLAUDE_CODE_DESKTOP_RUNTIME
+  )?.trim()
+  if (!value) {
+    return { preference: 'auto', source: 'default' }
   }
-  mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
-  mainWindow.webContents.on('will-navigate', (event, url) => {
-    if (url !== rendererUrl()) {
-      event.preventDefault()
-    }
-  })
-
-  void mainWindow.loadURL(rendererUrl())
-  mainWindow.on('closed', () => {
-    mainWindow = null
-  })
-}
-
-function sendUiCommand(command: DesktopUiCommand): void {
-  mainWindow?.webContents.send('desktop:ui-command', command)
-}
-
-function createApplicationMenu(): void {
-  const template = [
-    {
-      label: '文件',
-      submenu: [
-        {
-          label: '新对话',
-          accelerator: 'CmdOrCtrl+N',
-          click: () => sendUiCommand('newConversation'),
-        },
-        {
-          label: '选择项目',
-          accelerator: 'CmdOrCtrl+O',
-          click: () => sendUiCommand('chooseWorkspace'),
-        },
-        {
-          label: '刷新项目',
-          accelerator: 'CmdOrCtrl+R',
-          click: () => sendUiCommand('refreshWorkspace'),
-        },
-        { type: 'separator' as const },
-        { role: 'close' as const, label: '关闭窗口' },
-      ],
-    },
-    {
-      label: '编辑',
-      submenu: [
-        { role: 'undo' as const, label: '撤销' },
-        { role: 'redo' as const, label: '重做' },
-        { type: 'separator' as const },
-        { role: 'cut' as const, label: '剪切' },
-        { role: 'copy' as const, label: '复制' },
-        { role: 'paste' as const, label: '粘贴' },
-        { role: 'selectAll' as const, label: '全选' },
-      ],
-    },
-    {
-      label: '查看',
-      submenu: [
-        { role: 'reload' as const, label: '重新加载' },
-        { role: 'forceReload' as const, label: '强制重新加载' },
-        { role: 'toggleDevTools' as const, label: '开发者工具' },
-        { type: 'separator' as const },
-        { role: 'resetZoom' as const, label: '实际大小' },
-        { role: 'zoomIn' as const, label: '放大' },
-        { role: 'zoomOut' as const, label: '缩小' },
-        { type: 'separator' as const },
-        { role: 'togglefullscreen' as const, label: '切换全屏' },
-      ],
-    },
-    {
-      label: '窗口',
-      submenu: [
-        { role: 'minimize' as const, label: '最小化' },
-        { role: 'zoom' as const, label: '缩放' },
-        { role: 'front' as const, label: '前置全部窗口' },
-      ],
-    },
-    {
-      label: '帮助',
-      submenu: [
-        {
-          label: 'ClaudeCode 本地开发说明',
-          click: () => {
-            void shell.openExternal(
-              'https://github.com/anthropics/claude-code',
-            )
-          },
-        },
-      ],
-    },
-  ]
-  Menu.setApplicationMenu(Menu.buildFromTemplate(template))
-}
-
-function minimizeWindow(): void {
-  mainWindow?.minimize()
-}
-
-function toggleWindowMaximized(): boolean {
-  if (!mainWindow) return false
-  if (mainWindow.isMaximized()) {
-    mainWindow.unmaximize()
-    return false
+  if (
+    value === 'auto' ||
+    value === 'embedded-headless' ||
+    value === 'subprocess'
+  ) {
+    return { preference: value, source: 'env' }
   }
-  mainWindow.maximize()
-  return true
-}
-
-function closeWindow(): void {
-  mainWindow?.close()
-}
-
-function isWindowMaximized(): boolean {
-  return mainWindow?.isMaximized() ?? false
-}
-
-function newWindow(): void {
-  createWindow()
-}
-
-function openSettings(): void {
-  mainWindow?.webContents.send('desktop:ui-command', 'openSettings')
-}
-
-function logOut(): void {
-  mainWindow?.webContents.send('desktop:ui-command', 'logOut')
-}
-
-function exitApp(): void {
-  app.quit()
-}
-
-function emitAgentEvent(event: DesktopAgentEvent): void {
-  mainWindow?.webContents.send('desktop:agent-event', event)
-}
-
-function normalizeWorkspacePath(workspacePath: string): string {
-  const resolvedPath = resolve(workspacePath)
-  return process.platform === 'win32' ? resolvedPath.toLowerCase() : resolvedPath
-}
-
-function registerAllowedWorkspace(workspacePath: string): void {
-  allowedWorkspacePaths.add(normalizeWorkspacePath(workspacePath))
-}
-
-function assertAllowedWorkspace(workspacePath: string): string {
-  const resolvedPath = resolve(workspacePath)
-  if (!allowedWorkspacePaths.has(normalizeWorkspacePath(resolvedPath))) {
-    throw new Error('Workspace must be selected before it can be used.')
+  if (value === 'in-process-headless') {
+    return { preference: 'embedded-headless', source: 'env' }
   }
-  return resolvedPath
+  console.warn(
+    `Ignoring unsupported CODEPILOTX_DESKTOP_RUNTIME value: ${value}`,
+  )
+  return { preference: 'auto', source: 'default' }
 }
 
-function getAuthStatus(): DesktopAuthStatus {
-  const tokenSource = getAuthTokenSource()
-  const account = getOauthAccountInfo()
-  const authenticated = tokenSource.hasToken || hasAnthropicApiKeyAuth()
-
+function getDesktopAgentRuntimeOptions() {
+  const selection = getDesktopRuntimeSelection()
   return {
-    authenticated,
-    method: authenticated ? tokenSource.source : 'none',
-    email: account?.emailAddress ?? null,
-    organizationName: account?.organizationName ?? null,
+    agentExecutablePath: getAgentExecutablePath(),
+    configDirectoryPath: getOpenAgentConfigHomeDir(),
+    runtimePreference: selection.preference,
   }
 }
 
-async function getRuntimeStatus(): Promise<DesktopRuntimeStatus> {
-  const agentExecutablePath = getAgentExecutablePath()
-  try {
-    const fileStat = await stat(agentExecutablePath)
-    return {
-      agentExecutablePath,
-      agentExecutableExists: fileStat.isFile(),
-    }
-  } catch {
-    return {
-      agentExecutablePath,
-      agentExecutableExists: false,
-    }
+function withDesktopMessageTimestamp(event: DesktopAgentEvent): DesktopAgentEvent {
+  if (event.type !== 'message' && event.type !== 'partial_message') {
+    return event
   }
+  return event.createdAt ? event : { ...event, createdAt: new Date().toISOString() }
 }
 
-async function chooseWorkspace(): Promise<DesktopWorkspace | null> {
-  const result = await dialog.showOpenDialog(mainWindow ?? undefined, {
-    title: 'Choose workspace',
-    properties: ['openDirectory'],
+async function ensureSessionStoreLoaded(): Promise<void> {
+  if (!sessionStoreLoadPromise) {
+    sessionStoreLoadPromise = loadDesktopSessionStore().then(store => {
+      sessions.clear()
+      return Promise.all(
+        store.sessions.map(async snapshot => {
+          const resumeExistingSession =
+            await desktopSessionTranscriptExists(snapshot)
+          sessions.set(snapshot.item.id, {
+            session: null,
+            snapshot,
+            resumeExistingSession,
+          })
+          registerAllowedWorkspace(snapshot.workspace.path)
+        }),
+      ).then(() => {
+        activeSessionId = store.activeSessionId
+      })
+    })
+  }
+  await sessionStoreLoadPromise
+}
+
+function persistSessionStore(): void {
+  void saveDesktopSessionStore({
+    activeSessionId,
+    sessions: [...sessions.values()].map(record => record.snapshot),
+  }).catch(error => {
+    console.error('Failed to save desktop sessions.', error)
   })
-  const selected = result.filePaths[0]
-  if (result.canceled || !selected) {
-    return null
-  }
-  return openWorkspace(selected)
 }
 
-async function openWorkspace(workspacePath: string): Promise<DesktopWorkspace> {
-  const resolvedWorkspace = resolve(workspacePath)
-  const workspaceStat = await stat(resolvedWorkspace)
-  if (!workspaceStat.isDirectory()) {
-    throw new Error('Workspace path must be a directory.')
-  }
-  registerAllowedWorkspace(resolvedWorkspace)
-  return workspaceFromPath(resolvedWorkspace)
-}
-
-async function workspaceFromPath(workspacePath: string): Promise<DesktopWorkspace> {
-  const gitInfo = await getWorkspaceGitInfo(workspacePath)
-  return {
-    path: workspacePath,
-    name: basename(workspacePath),
-    branchName: gitInfo.branchName,
-    isGitRepo: gitInfo.isGitRepo,
-  }
-}
-
-async function getWorkspaceContext(workspacePath: string): Promise<DesktopWorkspace> {
-  const resolvedWorkspace = assertAllowedWorkspace(workspacePath)
-  return workspaceFromPath(resolvedWorkspace)
-}
-
-async function getWorkspaceGitInfo(
-  workspacePath: string,
-): Promise<{ branchName: string | null; isGitRepo: boolean }> {
-  try {
-    const { stdout: gitRoot } = await execFileAsync('git', [
-      '-C',
-      workspacePath,
-      'rev-parse',
-      '--show-toplevel',
-    ])
-    const normalizedRoot = resolve(gitRoot.trim())
-    if (normalizedRoot !== resolve(workspacePath)) {
-      return {
-        branchName: await readGitBranchName(workspacePath),
-        isGitRepo: true,
-      }
-    }
-    return {
-      branchName: await readGitBranchName(workspacePath),
-      isGitRepo: true,
-    }
-  } catch {
-    return { branchName: null, isGitRepo: false }
-  }
-}
-
-async function readGitBranchName(workspacePath: string): Promise<string | null> {
-  try {
-    const { stdout } = await execFileAsync('git', [
-      '-C',
-      workspacePath,
-      'branch',
-      '--show-current',
-    ])
-    const branchName = stdout.trim()
-    return branchName || null
-  } catch {
-    return null
-  }
-}
-
-async function listWorkspaceFiles(
-  workspacePath: string,
-): Promise<DesktopFileEntry[]> {
-  const resolvedWorkspace = assertAllowedWorkspace(workspacePath)
-  const entries: DesktopFileEntry[] = []
-
-  async function walk(dir: string, depth: number): Promise<void> {
-    if (depth > 3 || entries.length >= 300) {
+function attachSessionListeners(record: DesktopSessionRecord): void {
+  const session = record.session
+  if (!session) return
+  session.on('event', event => {
+    desktopDebug('agent_event', {
+      sessionId: event.sessionId,
+      type: event.type,
+      ...(event.type === 'status' ? { status: event.status } : {}),
+      ...(event.type === 'message'
+        ? { role: event.role, textLength: event.text.length }
+        : {}),
+      ...(event.type === 'partial_message'
+        ? { textLength: event.text.length }
+        : {}),
+      ...(event.type === 'error' ? { message: event.message } : {}),
+    })
+    const currentRecord = sessions.get(session.sessionId)
+    if (!currentRecord || currentRecord.session !== session) {
+      desktopDebug('agent_event_ignored_stale_session', {
+        sessionId: session.sessionId,
+        type: event.type,
+      })
       return
     }
-
-    const children = (await readdir(dir, { withFileTypes: true })).sort(
-      (left, right) => {
-        if (left.isDirectory() !== right.isDirectory()) {
-          return left.isDirectory() ? -1 : 1
-        }
-        return left.name.localeCompare(right.name)
-      },
+    const timestampedEvent = withDesktopMessageTimestamp(event)
+    currentRecord.snapshot = applyDesktopAgentEventToSnapshot(
+      currentRecord.snapshot,
+      timestampedEvent,
     )
-    for (const child of children) {
-      if (child.isDirectory() && IGNORED_DIRECTORY_NAMES.has(child.name)) {
-        continue
-      }
-      const childPath = join(dir, child.name)
-      const entry: DesktopFileEntry = {
-        name: child.name,
-        path: childPath,
-        type: child.isDirectory() ? 'directory' : 'file',
-        depth,
-      }
-      entries.push(entry)
-      if (child.isDirectory()) {
-        await walk(childPath, depth + 1)
-      }
-      if (entries.length >= 300) {
-        return
-      }
+    persistSessionStore()
+    windowService.emitAgentEvent(timestampedEvent)
+    if (
+      !currentRecord.snapshot.item.standalone &&
+      (timestampedEvent.type === 'done' || timestampedEvent.type === 'error')
+    ) {
+      void getWorkspaceDiff(session.workspacePath).then(diff => {
+        const latestRecord = sessions.get(session.sessionId)
+        if (!latestRecord || latestRecord.session !== session) {
+          return
+        }
+        const diffEvent: DesktopAgentEvent = {
+          type: 'diff',
+          sessionId: session.sessionId,
+          filePath: session.workspacePath,
+          patch: diff.patch,
+        }
+        latestRecord.snapshot = applyDesktopAgentEventToSnapshot(
+          latestRecord.snapshot,
+          diffEvent,
+        )
+        persistSessionStore()
+        windowService.emitAgentEvent(diffEvent)
+      })
     }
-  }
-
-  await walk(resolvedWorkspace, 0)
-  return entries
+  })
 }
 
-async function readWorkspaceFile(
-  workspacePath: string,
-  filePath: string,
-): Promise<DesktopFilePreview> {
-  const resolvedWorkspace = assertAllowedWorkspace(workspacePath)
-  const resolvedFile = resolve(filePath)
-  const workspacePrefix = resolvedWorkspace.endsWith(sep)
-    ? resolvedWorkspace
-    : `${resolvedWorkspace}${sep}`
+function createRuntimeForRecord(record: DesktopSessionRecord): DesktopAgentSession {
+  if (record.session) {
+    return record.session
+  }
+  const session = createDesktopAgentSession(
+    {
+      ...record.snapshot.settings,
+      workspacePath: record.snapshot.workspace.path,
+      sessionId: record.snapshot.item.id,
+      resumeExistingSession: record.resumeExistingSession,
+      suppressStartupMessage: true,
+    },
+    getDesktopAgentRuntimeOptions(),
+  )
+  record.session = session
+  attachSessionListeners(record)
+  return session
+}
 
+async function listSessions(): Promise<DesktopSessionSnapshot[]> {
+  await ensureSessionStoreLoaded()
+  return [...sessions.values()].map(record => record.snapshot)
+}
+
+async function getSession(sessionId: string): Promise<DesktopSessionSnapshot> {
+  const record = await getSessionRecord(sessionId)
   if (
-    resolvedFile !== resolvedWorkspace &&
-    !resolvedFile.startsWith(workspacePrefix)
+    record.snapshot.item.status !== 'running' &&
+    record.snapshot.item.status !== 'waiting'
   ) {
-    throw new Error('File is outside the selected workspace.')
+    record.snapshot = await hydrateDesktopSessionSnapshot(record.snapshot)
+    persistSessionStore()
   }
-
-  const fileStat = await stat(resolvedFile)
-  if (!fileStat.isFile()) {
-    throw new Error('Selected entry is not a file.')
-  }
-
-  const file = await open(resolvedFile, 'r')
-  try {
-    const buffer = Buffer.alloc(Math.min(fileStat.size, MAX_FILE_PREVIEW_BYTES))
-    const { bytesRead } = await file.read(buffer, 0, buffer.length, 0)
-    const truncated = fileStat.size > MAX_FILE_PREVIEW_BYTES
-    return {
-      path: resolvedFile,
-      content: buffer.subarray(0, bytesRead).toString('utf8'),
-      truncated,
-    }
-  } finally {
-    await file.close()
-  }
+  return record.snapshot
 }
 
-async function getWorkspaceDiff(
-  workspacePath: string,
-): Promise<DesktopDiffSummary> {
-  const resolvedWorkspace = assertAllowedWorkspace(workspacePath)
-  try {
-    const [{ stdout: diffOutput }, { stdout: statusOutput }] =
-      await Promise.all([
-        execFileAsync('git', ['-C', resolvedWorkspace, 'diff', '--']),
-        execFileAsync('git', [
-          '-C',
-          resolvedWorkspace,
-          'status',
-          '--short',
-          '--untracked-files=all',
-        ]),
-      ])
-    const status = statusOutput.trim()
-    if (!diffOutput && !status) {
-      return { patch: 'No file changes.' }
-    }
-    return {
-      patch: [
-        status ? `Git status:\n${status}` : null,
-        diffOutput ? `Diff:\n${diffOutput}` : 'Diff:\nNo tracked file diff.',
-      ]
-        .filter(Boolean)
-        .join('\n\n'),
-    }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    return { patch: `Unable to read git diff: ${message}` }
+async function getActiveSessionId(): Promise<string | null> {
+  await ensureSessionStoreLoaded()
+  return activeSessionId
+}
+
+async function setActiveSession(sessionId: string | null): Promise<void> {
+  await ensureSessionStoreLoaded()
+  if (sessionId !== null && !sessions.has(sessionId)) {
+    throw new Error(`Unknown desktop session: ${sessionId}`)
   }
+  activeSessionId = sessionId
+  persistSessionStore()
+}
+
+async function updateSessionMetadata(
+  sessionId: string,
+  patch: DesktopSessionMetadataPatch,
+): Promise<DesktopSessionSnapshot> {
+  const record = await getSessionRecord(sessionId)
+  if (!patch || typeof patch !== 'object') {
+    throw new Error('Desktop session metadata patch must be an object.')
+  }
+
+  const nextItem = { ...record.snapshot.item }
+  if ('pinnedAt' in patch) {
+    nextItem.pinnedAt = normalizeNullableTimestamp(patch.pinnedAt)
+  }
+  if ('archivedAt' in patch) {
+    nextItem.archivedAt = normalizeNullableTimestamp(patch.archivedAt)
+  }
+
+  record.snapshot = {
+    ...record.snapshot,
+    item: nextItem,
+    updatedAt: new Date().toISOString(),
+  }
+  if (nextItem.archivedAt && activeSessionId === sessionId) {
+    activeSessionId =
+      [...sessions.values()].find(
+        item =>
+          item.snapshot.item.id !== sessionId &&
+          !item.snapshot.item.archivedAt,
+      )?.snapshot.item.id ?? null
+  }
+  persistSessionStore()
+  return record.snapshot
+}
+
+async function openExternalURL(url: string): Promise<void> {
+  const parsed = new URL(requireNonEmptyString(url, 'External URL'))
+  if (parsed.protocol !== 'https:') {
+    throw new Error('Only HTTPS external URLs can be opened.')
+  }
+  await shell.openExternal(parsed.toString())
 }
 
 async function createSession(
   options: CreateDesktopSessionOptions,
 ): Promise<CreateDesktopSessionResult> {
+  await ensureSessionStoreLoaded()
   if (!options || typeof options !== 'object') {
     throw new Error('Desktop session options must be an object.')
   }
-  const workspacePath = assertAllowedWorkspace(
-    requireNonEmptyString(options.workspacePath, 'Desktop workspace path'),
-  )
+  const workspace =
+    typeof options.workspacePath === 'string' && options.workspacePath.trim()
+      ? await workspaceFromPath(assertAllowedWorkspace(options.workspacePath))
+      : await getStandaloneWorkspace()
+  const workspacePath = workspace.path
   const permissionMode = normalizePermissionMode(options.permissionMode)
   const model = normalizeOptionalText(options.model)
   const fallbackModel = normalizeOptionalText(options.fallbackModel)
@@ -541,6 +441,17 @@ async function createSession(
     options.additionalDirectories,
     workspacePath,
   )
+  const standalone = workspace.isStandalone === true
+  const settings = createSessionSettingsSnapshot({
+    permissionMode,
+    model,
+    fallbackModel,
+    sessionName,
+    thinkingMode,
+    systemPrompt,
+    appendSystemPrompt,
+    additionalDirectories,
+  })
   const session = createDesktopAgentSession(
     {
       workspacePath,
@@ -553,43 +464,58 @@ async function createSession(
       appendSystemPrompt,
       additionalDirectories,
     },
-    {
-      agentExecutablePath: getAgentExecutablePath(),
-    },
+    getDesktopAgentRuntimeOptions(),
   )
-  sessions.set(session.sessionId, session)
-  session.on('event', event => {
-    if (sessions.get(session.sessionId) !== session) {
-      return
-    }
-    emitAgentEvent(event)
-    if (event.type === 'done' || event.type === 'error') {
-      void getWorkspaceDiff(session.workspacePath).then(diff => {
-        if (sessions.get(session.sessionId) !== session) {
-          return
-        }
-        emitAgentEvent({
-          type: 'diff',
-          sessionId: session.sessionId,
-          filePath: session.workspacePath,
-          patch: diff.patch,
-        })
-      })
-    }
-  })
-  return { sessionId: session.sessionId }
+  const record: DesktopSessionRecord = {
+    session,
+    resumeExistingSession: false,
+    snapshot: createDesktopSessionSnapshot({
+      sessionId: session.sessionId,
+      workspace,
+      standalone,
+      settings,
+    }),
+  }
+  sessions.set(session.sessionId, record)
+  activeSessionId = session.sessionId
+  attachSessionListeners(record)
+  persistSessionStore()
+  return { sessionId: session.sessionId, workspace, standalone }
+}
+
+function createSessionSettingsSnapshot(params: {
+  permissionMode: DesktopPermissionMode
+  model?: string
+  fallbackModel?: string
+  sessionName?: string
+  thinkingMode: DesktopThinkingMode
+  systemPrompt?: string
+  appendSystemPrompt?: string
+  additionalDirectories: string[]
+}): DesktopSessionSettingsSnapshot {
+  const settings: DesktopSessionSettingsSnapshot = {
+    permissionMode: params.permissionMode,
+    thinkingMode: params.thinkingMode,
+    additionalDirectories: params.additionalDirectories,
+  }
+  if (params.model) settings.model = params.model
+  if (params.fallbackModel) settings.fallbackModel = params.fallbackModel
+  if (params.sessionName) settings.sessionName = params.sessionName
+  if (params.systemPrompt) settings.systemPrompt = params.systemPrompt
+  if (params.appendSystemPrompt) {
+    settings.appendSystemPrompt = params.appendSystemPrompt
+  }
+  return settings
 }
 
 function normalizePermissionMode(
   permissionMode: DesktopPermissionMode | undefined,
 ): DesktopPermissionMode {
-  if (!permissionMode) {
-    return 'default'
-  }
-  if (!DESKTOP_PERMISSION_MODES.has(permissionMode)) {
+  const normalized = normalizeDesktopPermissionMode(permissionMode)
+  if (!DESKTOP_PERMISSION_MODES.has(normalized)) {
     throw new Error(`Unsupported desktop permission mode: ${permissionMode}`)
   }
-  return permissionMode
+  return normalized
 }
 
 function normalizeThinkingMode(
@@ -607,6 +533,17 @@ function normalizeThinkingMode(
 function normalizeOptionalText(value: string | undefined): string | undefined {
   const trimmed = value?.trim()
   return trimmed ? trimmed : undefined
+}
+
+function normalizeNullableTimestamp(value: unknown): string | null {
+  if (value === null || value === undefined) {
+    return null
+  }
+  if (typeof value !== 'string') {
+    throw new Error('Session metadata timestamp must be a string or null.')
+  }
+  const trimmed = value.trim()
+  return trimmed ? trimmed : null
 }
 
 async function normalizeAdditionalDirectories(
@@ -635,13 +572,118 @@ async function normalizeAdditionalDirectories(
   return [...normalized.values()]
 }
 
-async function sendUserMessage(sessionId: string, content: string): Promise<void> {
+async function sendUserMessage(
+  sessionId: string,
+  content: string,
+  model?: string,
+): Promise<void> {
+  const startedAt = Date.now()
   const trimmedContent = requireNonEmptyString(
     content,
     'Desktop user message',
   )
-  const session = getSession(sessionId)
-  await session.sendUserMessage(trimmedContent)
+  desktopDebug('send_user_message_start', {
+    sessionId,
+    textLength: trimmedContent.length,
+    modelProvided: model !== undefined,
+  })
+  const record = await getSessionRecord(sessionId)
+  const nextModel = normalizeOptionalText(model)
+  if (model !== undefined) {
+    record.snapshot = {
+      ...record.snapshot,
+      item: {
+        ...record.snapshot.item,
+        model: nextModel ?? null,
+      },
+      settings: {
+        ...record.snapshot.settings,
+        model: nextModel,
+      },
+      updatedAt: new Date().toISOString(),
+    }
+  }
+  const shouldGenerateTitle = shouldGenerateAiTitle(record)
+  const session = createRuntimeForRecord(record)
+  session.setModel(record.snapshot.settings.model)
+  activeSessionId = record.snapshot.item.id
+  persistSessionStore()
+  if (shouldGenerateTitle) {
+    scheduleAiTitleGeneration(record, trimmedContent)
+  }
+  try {
+    await session.sendUserMessage(trimmedContent)
+    desktopDebug('send_user_message_done', {
+      sessionId,
+      durationMs: Date.now() - startedAt,
+    })
+  } catch (error) {
+    desktopDebug('send_user_message_error', {
+      sessionId,
+      durationMs: Date.now() - startedAt,
+      message: error instanceof Error ? error.message : String(error),
+    })
+    throw error
+  }
+}
+
+function shouldGenerateAiTitle(record: DesktopSessionRecord): boolean {
+  const { item, view } = record.snapshot
+  return (
+    !item.sessionName &&
+    !item.aiTitle &&
+    !titleGenerationStartedSessionIds.has(item.id) &&
+    !view.messages.some(message => message.role === 'user')
+  )
+}
+
+function scheduleAiTitleGeneration(
+  record: DesktopSessionRecord,
+  description: string,
+): void {
+  const sessionId = record.snapshot.item.id
+  titleGenerationStartedSessionIds.add(sessionId)
+  const model = getSessionTitleModel(record)
+
+  void generateSessionTitle(
+    description,
+    AbortSignal.timeout(30_000),
+    model,
+  ).then(title => {
+    if (!title) return
+    const latestRecord = sessions.get(sessionId)
+    if (!latestRecord) return
+    if (
+      latestRecord.snapshot.item.sessionName ||
+      latestRecord.snapshot.item.aiTitle
+    ) {
+      return
+    }
+    const event: DesktopAgentEvent = {
+      type: 'session_title',
+      sessionId,
+      title,
+    }
+    try {
+      saveAiGeneratedTitle(
+        sessionId as `${string}-${string}-${string}-${string}-${string}`,
+        title,
+      )
+    } catch {
+      // Best-effort: the desktop overlay still keeps the generated title.
+    }
+    latestRecord.snapshot = applyDesktopAgentEventToSnapshot(
+      latestRecord.snapshot,
+      event,
+    )
+    persistSessionStore()
+    windowService.emitAgentEvent(event)
+  })
+}
+
+function getSessionTitleModel(record: DesktopSessionRecord): string {
+  const model = record.snapshot.settings.model
+  return model ? parseUserSpecifiedModel(model) : getMainLoopModel()
 }
 
 async function respondToPermission(
@@ -661,38 +703,49 @@ async function respondToPermission(
       `Unsupported desktop permission decision: ${decision.behavior}`,
     )
   }
-  const session = getSession(sessionId)
-  await session.respondToPermission(normalizedRequestId, decision)
-}
-
-async function interruptSession(sessionId: string): Promise<void> {
-  const session = getSession(sessionId)
-  await session.interrupt()
-}
-
-async function disposeSession(sessionId: string): Promise<void> {
-  const session = getSession(sessionId)
-  sessions.delete(sessionId)
-  await session.dispose()
-}
-
-function disposeAllSessions(): void {
-  for (const [sessionId, session] of sessions) {
-    sessions.delete(sessionId)
-    void session.dispose()
+  const record = await getSessionRecord(sessionId)
+  record.snapshot = removePendingPermissionFromSnapshot(
+    record.snapshot,
+    normalizedRequestId,
+  )
+  persistSessionStore()
+  if (record.session) {
+    await record.session.respondToPermission(normalizedRequestId, decision)
   }
 }
 
-function getSession(sessionId: string): DesktopAgentSession {
+async function interruptSession(sessionId: string): Promise<void> {
+  const record = await getSessionRecord(sessionId)
+  await record.session?.interrupt()
+}
+
+async function disposeSession(sessionId: string): Promise<void> {
+  const record = await getSessionRecord(sessionId)
+  sessions.delete(sessionId)
+  if (activeSessionId === sessionId) {
+    activeSessionId = [...sessions.keys()][0] ?? null
+  }
+  persistSessionStore()
+  await record.session?.dispose()
+}
+
+function disposeAllSessions(): void {
+  for (const record of sessions.values()) {
+    void record.session?.dispose()
+  }
+}
+
+async function getSessionRecord(sessionId: string): Promise<DesktopSessionRecord> {
+  await ensureSessionStoreLoaded()
   const normalizedSessionId = requireNonEmptyString(
     sessionId,
     'Desktop session id',
   )
-  const session = sessions.get(normalizedSessionId)
-  if (!session) {
+  const record = sessions.get(normalizedSessionId)
+  if (!record) {
     throw new Error(`Unknown desktop session: ${normalizedSessionId}`)
   }
-  return session
+  return record
 }
 
 function requireNonEmptyString(value: unknown, label: string): string {
@@ -706,50 +759,106 @@ function requireNonEmptyString(value: unknown, label: string): string {
   return trimmed
 }
 
+async function listBuiltinPlugins(): Promise<DesktopBuiltinPlugin[]> {
+  const enabledPlugins = getSettings_DEPRECATED().enabledPlugins ?? {}
+  return DESKTOP_BUILTIN_PLUGIN_IDS.map(id => ({
+    id,
+    enabled: enabledPlugins[id] === true,
+  }))
+}
+
+async function setBuiltinPluginEnabled(
+  pluginId: string,
+  enabled: boolean,
+): Promise<DesktopBuiltinPlugin> {
+  if (
+    !DESKTOP_BUILTIN_PLUGIN_IDS.includes(
+      pluginId as (typeof DESKTOP_BUILTIN_PLUGIN_IDS)[number],
+    )
+  ) {
+    throw new Error(`Unknown built-in plugin: ${pluginId}`)
+  }
+
+  const { error } = updateSettingsForSource('userSettings', {
+    enabledPlugins: {
+      [pluginId]: enabled,
+    },
+  })
+  if (error) {
+    throw error
+  }
+  return { id: pluginId, enabled }
+}
+
 function registerIpc(): void {
-  const handlers: Omit<DesktopApi, 'onAgentEvent' | 'onUiCommand'> = {
+  const handlers = createDesktopApiHandlers({
     getAuthStatus: async () => getAuthStatus(),
-    getRuntimeStatus,
+    getRuntimeStatus: async () => {
+      const runtimeSelection = getDesktopRuntimeSelection()
+      return getRuntimeStatus({
+        agentExecutablePath: getAgentExecutablePath(),
+        configDirectoryPath: getOpenAgentConfigHomeDir(),
+        runtimePreference: runtimeSelection.preference,
+        runtimeSelectionSource: runtimeSelection.source,
+      })
+    },
+    getDesktopSettings: readDesktopStoredSettings,
+    saveDesktopSettings: async (settings: DesktopStoredSettings) =>
+      saveDesktopStoredSettings(settings),
+    listBuiltinPlugins,
+    setBuiltinPluginEnabled,
+    listOpenTargets,
+    openPathWithDefaultTarget,
+    listModelProviders: async () => listModelProviders(),
+    getModelProviderState: async () => getModelProviderState(),
+    fetchProviderModels,
+    fetchProviderBalance,
+    saveModelProvider,
+    saveProviderApiKey,
     chooseWorkspace,
     openWorkspace,
     getWorkspaceContext,
+    checkoutWorkspaceBranch,
     listWorkspaceFiles,
     readWorkspaceFile,
     getWorkspaceDiff,
     getThemeSettings: readDesktopThemeSettings,
     saveThemeSettings: saveDesktopThemeSettings,
     createSession,
+    listSessions,
+    getSession,
+    getActiveSessionId,
+    setActiveSession,
+    updateSessionMetadata,
+    openExternalURL,
     sendUserMessage,
     respondToPermission,
     interruptSession,
     disposeSession,
-    minimizeWindow: async () => minimizeWindow(),
-    toggleWindowMaximized: async () => toggleWindowMaximized(),
-    closeWindow: async () => closeWindow(),
-    isWindowMaximized: async () => isWindowMaximized(),
-    newWindow: async () => newWindow(),
-    openSettings: async () => openSettings(),
-    logOut: async () => logOut(),
-    exitApp: async () => exitApp(),
-  }
+    minimizeWindow: async () => windowService.minimizeWindow(),
+    toggleWindowMaximized: async () => windowService.toggleWindowMaximized(),
+    closeWindow: async () => windowService.closeWindow(),
+    isWindowMaximized: async () => windowService.isWindowMaximized(),
+    newWindow: async () => windowService.newWindow(),
+    openDevTools: async () => windowService.openDevTools(),
+    openSettings: async () => windowService.openSettings(),
+    logOut: async () => windowService.logOut(),
+    exitApp: async () => windowService.exitApp(),
+  })
 
-  for (const [name, handler] of Object.entries(handlers)) {
-    ipcMain.handle(`desktop:${name}`, (event, ...args: unknown[]) => {
-      assertTrustedIpcSender(event.senderFrame?.url)
-      return (handler as (...handlerArgs: unknown[]) => unknown)(...args)
-    })
-  }
+  registerDesktopIpcHandlers(handlers, assertTrustedIpcSender)
 }
 
 enableConfigs()
+app.setAppUserModelId(DESKTOP_APP_ID)
 registerIpc()
 
 app.whenReady().then(() => {
-  createApplicationMenu()
-  createWindow()
+  windowService.createApplicationMenu()
+  windowService.createWindow()
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow()
+    if (!windowService.hasOpenWindows()) {
+      windowService.createWindow()
     }
   })
 })

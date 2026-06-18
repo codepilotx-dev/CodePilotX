@@ -1,7 +1,7 @@
 import chalk from 'chalk'
 import * as path from 'path'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { logEvent } from '@claudecode/tui/services/analytics/index.js'
+import { logEvent } from '@codepilotx/tui/services/analytics/index.js'
 import type {
   CommandResultDisplay,
   LocalJSXCommandContext,
@@ -119,7 +119,7 @@ function IDEScreen({
             {isSupportedJetBrainsTerminal()
               ? 'No available IDEs detected. Please install the plugin and restart your IDE:\n' +
                 'https://docs.claude.com/s/claude-code-jetbrains'
-              : 'No available IDEs detected. Make sure your IDE has the Oh-My-AgentCode extension or plugin installed and is running.'}
+              : 'No available IDEs detected. Make sure your IDE has the CodePilotX extension or plugin installed and is running.'}
           </Text>
         )}
 
@@ -140,7 +140,7 @@ function IDEScreen({
           ) && (
             <Box marginTop={1}>
               <Text color="warning">
-                Note: Only one Oh-My-AgentCode instance can be connected to VS Code
+                Note: Only one CodePilotX instance can be connected to VS Code
                 at a time.
               </Text>
             </Box>
@@ -336,7 +336,7 @@ export async function call(
     const availableIDEs = detectedIDEs.filter(ide => ide.isValid)
 
     if (availableIDEs.length === 0) {
-      onDone('No IDEs with Oh-My-AgentCode extension detected.')
+      onDone('No IDEs with CodePilotX extension detected.')
       return null
     }
 

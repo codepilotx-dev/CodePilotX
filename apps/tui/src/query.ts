@@ -22,7 +22,7 @@ const contextCollapse = feature('CONTEXT_COLLAPSE')
 import {
   logEvent,
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-} from '@claudecode/tui/services/analytics/index.js'
+} from '@codepilotx/tui/services/analytics/index.js'
 import { ImageSizeError } from './utils/imageValidation.js'
 import { ImageResizeError } from './utils/imageResizer.js'
 import { findToolByName, type ToolUseContext } from './Tool.js'

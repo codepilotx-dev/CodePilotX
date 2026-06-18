@@ -1,3 +1,4 @@
+import { desktopClient } from '../../services/desktopClient.js'
 import {
   createContext,
   createElement,
@@ -7,7 +8,12 @@ import {
   type ReactNode,
 } from 'react'
 import type { DrawerTab } from '../../uiTypes.js'
-import type { DesktopPermissionMode, DesktopThinkingMode, DesktopWorkspace } from '../../../shared/types.js'
+import type {
+  DesktopPermissionMode,
+  DesktopThinkingMode,
+  DesktopWorkspace,
+  ModelProviderID,
+} from '../../../shared/types.js'
 import {
   type StoredDesktopSettings,
   readStoredDesktopSettings,
@@ -26,6 +32,10 @@ export type UseDesktopSettingsResult = {
   recentWorkspaces: DesktopWorkspace[]
   drawerTab: DrawerTab
   selectedModelPreset: string
+  providerID: ModelProviderID
+  providerBaseURL: string
+  showContextUsage: boolean
+  defaultOpenTargetId: string
   setPermissionMode: (value: DesktopPermissionMode) => void
   setModel: (value: string) => void
   setFallbackModel: (value: string) => void
@@ -39,6 +49,10 @@ export type UseDesktopSettingsResult = {
   ) => void
   setDrawerTab: (value: DrawerTab) => void
   setSelectedModelPreset: (value: string) => void
+  setProviderID: (value: ModelProviderID) => void
+  setProviderBaseURL: (value: string) => void
+  setShowContextUsage: (value: boolean) => void
+  setDefaultOpenTargetId: (value: string) => void
 }
 
 const DesktopSettingsContext = createContext<UseDesktopSettingsResult | null>(
@@ -91,8 +105,55 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
   const [selectedModelPreset, setSelectedModelPreset] = useState<string>(
     initial.selectedModelPreset,
   )
+  const [providerID, setProviderID] = useState<ModelProviderID>(
+    initial.providerID,
+  )
+  const [providerBaseURL, setProviderBaseURL] = useState(
+    initial.providerBaseURL,
+  )
+  const [showContextUsage, setShowContextUsage] = useState(
+    initial.showContextUsage,
+  )
+  const [defaultOpenTargetId, setDefaultOpenTargetId] = useState(
+    initial.defaultOpenTargetId,
+  )
+  const [settingsLoaded, setSettingsLoaded] = useState(false)
 
   useEffect(() => {
+    let mounted = true
+    void desktopClient
+      .getDesktopSettings()
+      .then(settings => {
+        if (!mounted) return
+        setPermissionMode(settings.permissionMode)
+        setModel(settings.model)
+        setFallbackModel(settings.fallbackModel)
+        setSessionName(settings.sessionName)
+        setThinkingMode(settings.thinkingMode)
+        setSystemPrompt(settings.systemPrompt)
+        setAppendSystemPrompt(settings.appendSystemPrompt)
+        setAdditionalDirectories(settings.additionalDirectories)
+        setRecentWorkspaces(settings.recentWorkspaces)
+        setDrawerTab(settings.drawerTab)
+        setSelectedModelPreset(settings.selectedModelPreset)
+        setProviderID(settings.providerID)
+        setProviderBaseURL(settings.providerBaseURL)
+        setShowContextUsage(settings.showContextUsage)
+        setDefaultOpenTargetId(settings.defaultOpenTargetId)
+        setSettingsLoaded(true)
+      })
+      .catch(() => {
+        if (mounted) {
+          setSettingsLoaded(true)
+        }
+      })
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!settingsLoaded) return
     const next: StoredDesktopSettings = {
       permissionMode,
       model,
@@ -105,9 +166,14 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
       recentWorkspaces,
       drawerTab,
       selectedModelPreset,
+      providerID,
+      providerBaseURL,
+      showContextUsage,
+      defaultOpenTargetId,
     }
     storeDesktopSettings(next)
   }, [
+    settingsLoaded,
     permissionMode,
     model,
     fallbackModel,
@@ -119,6 +185,10 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     recentWorkspaces,
     drawerTab,
     selectedModelPreset,
+    providerID,
+    providerBaseURL,
+    showContextUsage,
+    defaultOpenTargetId,
   ])
 
   return {
@@ -133,6 +203,10 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     recentWorkspaces,
     drawerTab,
     selectedModelPreset,
+    providerID,
+    providerBaseURL,
+    showContextUsage,
+    defaultOpenTargetId,
     setPermissionMode,
     setModel,
     setFallbackModel,
@@ -144,5 +218,9 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     setRecentWorkspaces,
     setDrawerTab,
     setSelectedModelPreset,
+    setProviderID,
+    setProviderBaseURL,
+    setShowContextUsage,
+    setDefaultOpenTargetId,
   }
 }

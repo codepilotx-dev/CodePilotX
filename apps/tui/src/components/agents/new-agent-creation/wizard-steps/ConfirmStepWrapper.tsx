@@ -3,8 +3,8 @@ import React, { type ReactNode, useCallback, useState } from 'react'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
-} from '@claudecode/tui/services/analytics/index.js'
-import { useSetAppState } from '@claudecode/tui/state/AppState.js'
+} from '@codepilotx/tui/services/analytics/index.js'
+import { useSetAppState } from '@codepilotx/tui/state/AppState.js'
 import type { Tools } from '../../../../Tool.js'
 import type { AgentDefinition } from '../../../../tools/AgentTool/loadAgentsDir.js'
 import { getActiveAgentsFromList } from '../../../../tools/AgentTool/loadAgentsDir.js'

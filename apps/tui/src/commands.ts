@@ -190,7 +190,7 @@ import stats from './commands/stats/index.js'
 const usageReport: Command = {
   type: 'prompt',
   name: 'insights',
-  description: '生成分析 Oh-My-AgentCode 会话的报告',
+  description: '生成分析 CodePilotX 会话的报告',
   contentLength: 0,
   progressMessage: 'analyzing your sessions',
   source: 'builtin',

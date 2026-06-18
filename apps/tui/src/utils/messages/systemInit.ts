@@ -1,16 +1,16 @@
 import { feature } from 'bun:bundle'
 import { randomUUID } from 'crypto'
-import { getSdkBetas, getSessionId } from '@claudecode/tui/bootstrap/state.js'
-import { DEFAULT_OUTPUT_STYLE_NAME } from '@claudecode/tui/constants/outputStyles.js'
+import { getSdkBetas, getSessionId } from '@codepilotx/tui/bootstrap/state.js'
+import { DEFAULT_OUTPUT_STYLE_NAME } from '@codepilotx/tui/constants/outputStyles.js'
 import type {
   ApiKeySource,
   PermissionMode,
   SDKMessage,
-} from '@claudecode/tui/entrypoints/agentSdkTypes.js'
+} from '@codepilotx/tui/entrypoints/agentSdkTypes.js'
 import {
   AGENT_TOOL_NAME,
   LEGACY_AGENT_TOOL_NAME,
-} from '@claudecode/tui/tools/AgentTool/constants.js'
+} from '@codepilotx/tui/tools/AgentTool/constants.js'
 import { getAnthropicApiKeyWithSource } from '../auth.js'
 import { getCwd } from '../cwd.js'
 import { getFastModeState } from '../fastMode.js'

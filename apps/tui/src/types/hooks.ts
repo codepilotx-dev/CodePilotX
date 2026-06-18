@@ -6,16 +6,16 @@ import {
   HOOK_EVENTS,
   type HookInput,
   type PermissionUpdate,
-} from '@claudecode/tui/entrypoints/agentSdkTypes.js'
+} from '@codepilotx/tui/entrypoints/agentSdkTypes.js'
 import type {
   HookJSONOutput,
   AsyncHookJSONOutput,
   SyncHookJSONOutput,
-} from '@claudecode/tui/entrypoints/agentSdkTypes.js'
-import type { Message } from '@claudecode/tui/types/message.js'
-import type { PermissionResult } from '@claudecode/tui/utils/permissions/PermissionResult.js'
-import { permissionBehaviorSchema } from '@claudecode/tui/utils/permissions/PermissionRule.js'
-import { permissionUpdateSchema } from '@claudecode/tui/utils/permissions/PermissionUpdateSchema.js'
+} from '@codepilotx/tui/entrypoints/agentSdkTypes.js'
+import type { Message } from '@codepilotx/tui/types/message.js'
+import type { PermissionResult } from '@codepilotx/tui/utils/permissions/PermissionResult.js'
+import { permissionBehaviorSchema } from '@codepilotx/tui/utils/permissions/PermissionRule.js'
+import { permissionUpdateSchema } from '@codepilotx/tui/utils/permissions/PermissionUpdateSchema.js'
 import type { AppState } from '../state/AppState.js'
 import type { AttributionState } from '../utils/commitAttribution.js'
 

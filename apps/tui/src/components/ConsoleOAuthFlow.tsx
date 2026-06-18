@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
-} from '@claudecode/tui/services/analytics/index.js'
+} from '@codepilotx/tui/services/analytics/index.js'
 import { installOAuthTokens } from '../cli/handlers/auth.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { setClipboard } from '../ink/termio/osc.js'
@@ -251,7 +251,7 @@ export function ConsoleOAuthFlow({
         setOAuthStatus({ state: 'success' })
         void sendNotification(
           {
-            message: 'Oh-My-AgentCode login successful',
+            message: 'CodePilotX login successful',
             notificationType: 'auth_success',
           },
           terminal,
@@ -423,7 +423,7 @@ function OAuthStatusMessage({
           <Text bold>
             {startingMessage
               ? startingMessage
-              : `Oh-My-AgentCode can be used with your Claude subscription or billed based on API usage through your Console account.`}
+              : `CodePilotX can be used with your Claude subscription or billed based on API usage through your Console account.`}
           </Text>
 
           <Text>Select login method:</Text>
@@ -502,7 +502,7 @@ function OAuthStatusMessage({
 
           <Box flexDirection="column" gap={1}>
             <Text>
-              Oh-My-AgentCode supports Amazon Bedrock, Microsoft Foundry, and Vertex
+              CodePilotX supports Amazon Bedrock, Microsoft Foundry, and Vertex
               AI. Set the required environment variables, then restart Claude
               Code.
             </Text>
@@ -583,7 +583,7 @@ function OAuthStatusMessage({
         <Box flexDirection="column" gap={1}>
           <Box>
             <Spinner />
-            <Text>Creating API key for Oh-My-AgentCode…</Text>
+            <Text>Creating API key for CodePilotX…</Text>
           </Box>
         </Box>
       )

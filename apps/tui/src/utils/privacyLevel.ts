@@ -1,6 +1,6 @@
 /**
  * Privacy level controls how much nonessential network traffic and telemetry
- * Oh-My-AgentCode generates.
+ * CodePilotX generates.
  *
  * Levels are ordered by restrictiveness:
  *   default < no-telemetry < essential-traffic

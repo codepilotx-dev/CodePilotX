@@ -7,7 +7,7 @@ const feedback = {
   aliases: ['bug'],
   type: 'local-jsx',
   name: 'feedback',
-  description: `提交关于 Oh-My-AgentCode 的反馈`,
+  description: `提交关于 CodePilotX 的反馈`,
   argumentHint: '[report]',
   isEnabled: () =>
     !(

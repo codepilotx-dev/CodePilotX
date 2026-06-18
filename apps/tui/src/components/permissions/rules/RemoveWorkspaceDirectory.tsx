@@ -53,7 +53,7 @@ export function RemoveWorkspaceDirectory({
         <Text bold>{directoryPath}</Text>
       </Box>
       <Text>
-        Oh-My-AgentCode will no longer have access to files in this directory.
+        CodePilotX will no longer have access to files in this directory.
       </Text>
       <Select
         onChange={handleSelect}

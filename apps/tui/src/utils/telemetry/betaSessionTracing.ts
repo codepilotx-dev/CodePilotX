@@ -1,5 +1,5 @@
 /**
- * Beta Session Tracing for Oh-My-AgentCode
+ * Beta Session Tracing for CodePilotX
  *
  * This module contains beta tracing features enabled when
  * ENABLE_BETA_TRACING_DETAILED=1 and BETA_TRACING_ENDPOINT are set.

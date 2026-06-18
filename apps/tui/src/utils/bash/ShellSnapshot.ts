@@ -3,7 +3,7 @@ import { execa } from 'execa'
 import { mkdir, stat } from 'fs/promises'
 import * as os from 'os'
 import { join } from 'path'
-import { logEvent } from '@claudecode/tui/services/analytics/index.js'
+import { logEvent } from '@codepilotx/tui/services/analytics/index.js'
 import { registerCleanup } from '../cleanupRegistry.js'
 import { getCwd } from '../cwd.js'
 import { logForDebugging } from '../debug.js'
@@ -263,10 +263,10 @@ function getUserSnapshotContent(configFile: string): string {
 }
 
 /**
- * Generates Oh-My-AgentCode specific snapshot content
+ * Generates CodePilotX specific snapshot content
  * This content is always included regardless of user configuration
  */
-async function getClaudeCodeSnapshotContent(): Promise<string> {
+async function getCodePilotXSnapshotContent(): Promise<string> {
   // Get the appropriate PATH based on platform
   let pathValue = process.env.PATH
   if (getPlatform() === 'windows') {
@@ -350,14 +350,14 @@ async function getSnapshotScript(
   const configFile = getConfigFile(shellPath)
   const isZsh = configFile.endsWith('.zshrc')
 
-  // Generate the user content and Oh-My-AgentCode content
+  // Generate the user content and CodePilotX content
   const userContent = configFileExists
     ? getUserSnapshotContent(configFile)
     : !isZsh
       ? // we need to manually force alias expansion in bash - normally `getUserSnapshotContent` takes care of this
         'echo "shopt -s expand_aliases" >> "$SNAPSHOT_FILE"'
       : ''
-  const claudeCodeContent = await getClaudeCodeSnapshotContent()
+  const claudeCodeContent = await getCodePilotXSnapshotContent()
 
   const script = `SNAPSHOT_FILE=${quote([snapshotFilePath])}
       ${configFileExists ? `source "${configFile}" < /dev/null` : '# No user config file to source'}
@@ -429,7 +429,7 @@ export const createAndSaveSnapshot = async (
 
       if (!configFileExists) {
         logForDebugging(
-          `Shell config file not found: ${configFile}, creating snapshot with Oh-My-AgentCode defaults only`,
+          `Shell config file not found: ${configFile}, creating snapshot with CodePilotX defaults only`,
         )
       }
 

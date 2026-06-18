@@ -38,14 +38,14 @@ import {
   setLoggerProvider,
   setMeterProvider,
   setTracerProvider,
-} from '@claudecode/tui/bootstrap/state.js'
+} from '@codepilotx/tui/bootstrap/state.js'
 import {
   getOtelHeadersFromHelper,
   getSubscriptionType,
   is1PApiCustomer,
   isClaudeAISubscriber,
-} from '@claudecode/tui/utils/auth.js'
-import { getPlatform, getWslVersion } from '@claudecode/tui/utils/platform.js'
+} from '@codepilotx/tui/utils/auth.js'
+import { getPlatform, getWslVersion } from '@codepilotx/tui/utils/platform.js'
 
 import { getCACertificates } from '../caCerts.js'
 import { registerCleanup } from '../cleanupRegistry.js'
@@ -59,7 +59,7 @@ import { jsonStringify } from '../slowOperations.js'
 import { profileCheckpoint } from '../startupProfiler.js'
 import { isBetaTracingEnabled } from './betaSessionTracing.js'
 import { BigQueryMetricsExporter } from './bigqueryExporter.js'
-import { ClaudeCodeDiagLogger } from './logger.js'
+import { CodePilotXDiagLogger } from './logger.js'
 import { initializePerfettoTracing } from './perfettoTracing.js'
 import {
   endInteractionSpan,
@@ -446,7 +446,7 @@ export async function initializeTelemetry() {
     }
   }
 
-  diag.setLogger(new ClaudeCodeDiagLogger(), DiagLogLevel.ERROR)
+  diag.setLogger(new CodePilotXDiagLogger(), DiagLogLevel.ERROR)
 
   // Initialize Perfetto tracing (independent of OTEL)
   // Enable via CLAUDE_CODE_PERFETTO_TRACE=1 or CLAUDE_CODE_PERFETTO_TRACE=<path>

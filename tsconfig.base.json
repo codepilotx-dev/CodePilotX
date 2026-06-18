@@ -17,9 +17,9 @@
     "baseUrl": ".",
     "ignoreDeprecations": "6.0",
     "paths": {
-      "@claudecode/core/*": ["./packages/core/src/*"],
-      "@claudecode/tui/*": ["./apps/tui/src/*"],
-      "@claudecode/desktop/*": ["./apps/desktop/src/*"]
+      "@codepilotx/core/*": ["./packages/core/src/*"],
+      "@codepilotx/tui/*": ["./apps/tui/src/*"],
+      "@codepilotx/desktop/*": ["./apps/desktop/src/*"]
     },
     "types": ["bun", "node"],
     "typeRoots": ["./apps/tui/src/types/local", "./node_modules/@types"]

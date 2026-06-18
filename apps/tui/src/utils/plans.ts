@@ -2,14 +2,14 @@ import { randomUUID } from 'crypto'
 import { copyFile, writeFile } from 'fs/promises'
 import memoize from 'lodash-es/memoize.js'
 import { join, resolve, sep } from 'path'
-import type { AgentId, SessionId } from '@claudecode/tui/types/ids.js'
-import type { LogOption } from '@claudecode/tui/types/logs.js'
+import type { AgentId, SessionId } from '@codepilotx/tui/types/ids.js'
+import type { LogOption } from '@codepilotx/tui/types/logs.js'
 import type {
   AssistantMessage,
   AttachmentMessage,
   SystemFileSnapshotMessage,
   UserMessage,
-} from '@claudecode/tui/types/message.js'
+} from '@codepilotx/tui/types/message.js'
 import { getPlanSlugCache, getSessionId } from '../bootstrap/state.js'
 import { EXIT_PLAN_MODE_V2_TOOL_NAME } from '../tools/ExitPlanModeTool/constants.js'
 import { getCwd } from './cwd.js'
@@ -389,8 +389,10 @@ export async function persistFileSnapshotIfRemote(): Promise<void> {
       snapshotFiles,
     }
 
-    const { recordTranscript } = await import('./sessionStorage.js')
-    await recordTranscript([message])
+    const { recordTranscriptMessages } = await import(
+      './sessionStorageTranscriptBridge.js'
+    )
+    await recordTranscriptMessages([message])
   } catch (error) {
     logError(error)
   }

@@ -1,10 +1,10 @@
-import { isInBundledMode } from '@claudecode/tui/utils/bundledMode.js'
-import { getCurrentInstallationType } from '@claudecode/tui/utils/doctorDiagnostic.js'
-import { isEnvTruthy } from '@claudecode/tui/utils/envUtils.js'
+import { isInBundledMode } from '@codepilotx/tui/utils/bundledMode.js'
+import { getCurrentInstallationType } from '@codepilotx/tui/utils/doctorDiagnostic.js'
+import { isEnvTruthy } from '@codepilotx/tui/utils/envUtils.js'
 import { useStartupNotification } from './useStartupNotification.js'
 
 const NPM_DEPRECATION_MESSAGE =
-  'Oh-My-AgentCode has switched from npm to native installer. Run `claude install` or see https://docs.anthropic.com/en/docs/claude-code/getting-started for more options.'
+  'CodePilotX has switched from npm to native installer. Run `codepilotx install` or see https://docs.anthropic.com/en/docs/claude-code/getting-started for more options.'
 
 export function useNpmDeprecationNotification(): void {
   useStartupNotification(async () => {

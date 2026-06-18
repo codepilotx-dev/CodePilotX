@@ -1,5 +1,5 @@
 import { execa } from 'execa'
-import { getMacOsKeychainStorageServiceName } from '@claudecode/tui/utils/secureStorage/macOsKeychainHelpers.js'
+import { getMacOsKeychainStorageServiceName } from '@codepilotx/tui/utils/secureStorage/macOsKeychainHelpers.js'
 
 export async function maybeRemoveApiKeyFromMacOSKeychainThrows(): Promise<void> {
   if (process.platform === 'darwin') {

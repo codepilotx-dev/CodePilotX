@@ -2,13 +2,13 @@ import axios from 'axios'
 import chalk from 'chalk'
 import { randomUUID } from 'crypto'
 import React from 'react'
-import { getOriginalCwd, getSessionId } from '@claudecode/tui/bootstrap/state.js'
-import { checkGate_CACHED_OR_BLOCKING } from '@claudecode/tui/services/analytics/growthbook.js'
+import { getOriginalCwd, getSessionId } from '@codepilotx/tui/bootstrap/state.js'
+import { checkGate_CACHED_OR_BLOCKING } from '@codepilotx/tui/services/analytics/growthbook.js'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
-} from '@claudecode/tui/services/analytics/index.js'
-import { isPolicyAllowed } from '@claudecode/tui/services/policyLimits/index.js'
+} from '@codepilotx/tui/services/analytics/index.js'
+import { isPolicyAllowed } from '@codepilotx/tui/services/policyLimits/index.js'
 import { z } from 'zod/v4'
 import {
   getTeleportErrors,
@@ -556,7 +556,7 @@ export async function teleportResumeCodeSession(
           'no_access_token' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       })
       throw new Error(
-        'Oh-My-AgentCode web sessions require authentication with a Claude.ai account. API key authentication is not sufficient. OAuth login is disabled in this build.',
+        'CodePilotX web sessions require authentication with a Claude.ai account. API key authentication is not sufficient. OAuth login is disabled in this build.',
       )
     }
 
@@ -594,9 +594,9 @@ export async function teleportResumeCodeSession(
             ? `${repoValidation.sessionHost}/${repoValidation.sessionRepo}`
             : repoValidation.sessionRepo
         throw new TeleportOperationError(
-          `You must run claude --teleport ${sessionId} from a checkout of ${notInRepoDisplay}.`,
+          `You must run codepilotx --teleport ${sessionId} from a checkout of ${notInRepoDisplay}.`,
           chalk.red(
-            `You must run claude --teleport ${sessionId} from a checkout of ${chalk.bold(notInRepoDisplay)}.\n`,
+            `You must run codepilotx --teleport ${sessionId} from a checkout of ${chalk.bold(notInRepoDisplay)}.\n`,
           ),
         )
       }
@@ -619,9 +619,9 @@ export async function teleportResumeCodeSession(
           ? `${repoValidation.currentHost}/${repoValidation.currentRepo}`
           : repoValidation.currentRepo
         throw new TeleportOperationError(
-          `You must run claude --teleport ${sessionId} from a checkout of ${sessionDisplay}.\nThis repo is ${currentDisplay}.`,
+          `You must run codepilotx --teleport ${sessionId} from a checkout of ${sessionDisplay}.\nThis repo is ${currentDisplay}.`,
           chalk.red(
-            `You must run claude --teleport ${sessionId} from a checkout of ${chalk.bold(sessionDisplay)}.\nThis repo is ${chalk.bold(currentDisplay)}.\n`,
+            `You must run codepilotx --teleport ${sessionId} from a checkout of ${chalk.bold(sessionDisplay)}.\nThis repo is ${chalk.bold(currentDisplay)}.\n`,
           ),
         )
       }
@@ -814,7 +814,7 @@ export async function teleportFromSessionsAPI(
       })
       throw new TeleportOperationError(
         `${sessionId} not found.`,
-        `${sessionId} not found.\n${chalk.dim('Run /status in Oh-My-AgentCode to check your account.')}`,
+        `${sessionId} not found.\n${chalk.dim('Run /status in CodePilotX to check your account.')}`,
       )
     }
 

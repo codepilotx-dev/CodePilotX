@@ -2,8 +2,8 @@ import type {
   BetaContentBlock,
   BetaWebSearchTool20250305,
 } from '@anthropic-ai/sdk/resources/beta/messages/messages.mjs'
-import { getAPIProvider } from '@claudecode/tui/utils/model/providers.js'
-import type { PermissionResult } from '@claudecode/tui/utils/permissions/PermissionResult.js'
+import { getAPIProvider } from '@codepilotx/tui/utils/model/providers.js'
+import type { PermissionResult } from '@codepilotx/tui/utils/permissions/PermissionResult.js'
 import { z } from 'zod/v4'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
 import { queryModelWithStreaming } from '../../services/api/claude.js'

@@ -4,7 +4,7 @@
  */
 
 /**
- * A session ID uniquely identifies a Oh-My-AgentCode session.
+ * A session ID uniquely identifies a CodePilotX session.
  * Returned by getSessionId().
  */
 export type SessionId = string & { readonly __brand: 'SessionId' }

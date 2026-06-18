@@ -1,6 +1,6 @@
 /**
  * Utilities for managing shell configuration files (like .bashrc, .zshrc)
- * Used for managing claude aliases and PATH entries
+ * Used for managing CodePilotX aliases and PATH entries
  */
 
 import { open, readFile, stat } from 'fs/promises'
@@ -10,6 +10,7 @@ import { isFsInaccessible } from './errors.js'
 import { getLocalClaudePath } from './localInstaller.js'
 
 export const CLAUDE_ALIAS_REGEX = /^\s*alias\s+claude\s*=/
+export const CODEPILOTX_ALIAS_REGEX = /^\s*alias\s+codepilotx\s*=/
 
 type EnvLike = Record<string, string | undefined>
 
@@ -37,8 +38,8 @@ export function getShellConfigPaths(
 }
 
 /**
- * Filter out installer-created claude aliases from an array of lines
- * Only removes aliases pointing to $HOME/.claude/local/claude
+ * Filter out installer-created CodePilotX and legacy claude aliases from an array of lines
+ * Only removes aliases pointing to installer-created local paths.
  * Preserves custom user aliases that point to other locations
  * Returns the filtered lines and whether our default installer alias was found
  */
@@ -48,21 +49,26 @@ export function filterClaudeAliases(lines: string[]): {
 } {
   let hadAlias = false
   const filtered = lines.filter(line => {
-    // Check if this is a claude alias
-    if (CLAUDE_ALIAS_REGEX.test(line)) {
+    // Check if this is a CodePilotX or legacy claude alias
+    if (CODEPILOTX_ALIAS_REGEX.test(line) || CLAUDE_ALIAS_REGEX.test(line)) {
       // Extract the alias target - handle spaces, quotes, and various formats
       // First try with quotes
-      let match = line.match(/alias\s+claude\s*=\s*["']([^"']+)["']/)
+      let match = line.match(
+        /alias\s+(?:codepilotx|claude)\s*=\s*["']([^"']+)["']/,
+      )
       if (!match) {
         // Try without quotes (capturing until end of line or comment)
-        match = line.match(/alias\s+claude\s*=\s*([^#\n]+)/)
+        match = line.match(/alias\s+(?:codepilotx|claude)\s*=\s*([^#\n]+)/)
       }
 
       if (match && match[1]) {
         const target = match[1].trim()
         // Only remove if it points to the installer location
         // The installer always creates aliases with the full expanded path
-        if (target === getLocalClaudePath()) {
+        if (
+          target === getLocalClaudePath() ||
+          target === join(osHomedir(), '.claude', 'local', 'claude')
+        ) {
           hadAlias = true
           return false // Remove this line
         }
@@ -107,7 +113,7 @@ export async function writeFileLines(
 }
 
 /**
- * Check if a claude alias exists in any shell config file
+ * Check if a CodePilotX alias exists in any shell config file
  * Returns the alias target if found, null otherwise
  * @param options Optional overrides for testing (env, homedir)
  */
@@ -121,9 +127,9 @@ export async function findClaudeAlias(
     if (!lines) continue
 
     for (const line of lines) {
-      if (CLAUDE_ALIAS_REGEX.test(line)) {
+      if (CODEPILOTX_ALIAS_REGEX.test(line)) {
         // Extract the alias target
-        const match = line.match(/alias\s+claude=["']?([^"'\s]+)/)
+        const match = line.match(/alias\s+codepilotx=["']?([^"'\s]+)/)
         if (match && match[1]) {
           return match[1]
         }

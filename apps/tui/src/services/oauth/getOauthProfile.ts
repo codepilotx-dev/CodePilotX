@@ -1,9 +1,9 @@
 import axios from 'axios'
-import { getOauthConfig, OAUTH_BETA_HEADER } from '@claudecode/tui/constants/oauth.js'
-import type { OAuthProfileResponse } from '@claudecode/tui/services/oauth/types.js'
-import { getAnthropicApiKey } from '@claudecode/tui/utils/auth.js'
-import { getGlobalConfig } from '@claudecode/tui/utils/config.js'
-import { logError } from '@claudecode/tui/utils/log.js'
+import { getOauthConfig, OAUTH_BETA_HEADER } from '@codepilotx/tui/constants/oauth.js'
+import type { OAuthProfileResponse } from '@codepilotx/tui/services/oauth/types.js'
+import { getAnthropicApiKey } from '@codepilotx/tui/utils/auth.js'
+import { getGlobalConfig } from '@codepilotx/tui/utils/config.js'
+import { logError } from '@codepilotx/tui/utils/log.js'
 export async function getOauthProfileFromApiKey(): Promise<
   OAuthProfileResponse | undefined
 > {

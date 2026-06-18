@@ -22,6 +22,7 @@ if (process.env.CLAUDE_CODE_REMOTE === 'true') {
 // eslint-disable-next-line custom-rules/no-top-level-side-effects, custom-rules/no-process-env-top-level
 if (feature('ABLATION_BASELINE') && process.env.CLAUDE_CODE_ABLATION_BASELINE) {
   for (const k of [
+    'CODEPILOTX_SIMPLE',
     'CLAUDE_CODE_SIMPLE',
     'CLAUDE_CODE_DISABLE_THINKING',
     'DISABLE_INTERLEAVED_THINKING',
@@ -50,7 +51,7 @@ async function main(): Promise<void> {
   ) {
     // MACRO.VERSION is inlined at build time
     // biome-ignore lint/suspicious/noConsole:: intentional console output
-    console.log(`${MACRO.VERSION} (Oh-My-AgentCode)`)
+    console.log(`${MACRO.VERSION} (CodePilotX)`)
     return
   }
 
@@ -290,6 +291,7 @@ async function main(): Promise<void> {
   // --bare: set SIMPLE early so gates fire during module eval / commander
   // option building (not just inside the action handler).
   if (args.includes('--bare')) {
+    process.env.CODEPILOTX_SIMPLE = '1'
     process.env.CLAUDE_CODE_SIMPLE = '1'
   }
 

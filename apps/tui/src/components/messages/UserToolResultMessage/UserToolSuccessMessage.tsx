@@ -1,7 +1,7 @@
 import { feature } from 'bun:bundle'
 import figures from 'figures'
 import * as React from 'react'
-import { SentryErrorBoundary } from '@claudecode/tui/components/SentryErrorBoundary.js'
+import { SentryErrorBoundary } from '@codepilotx/tui/components/SentryErrorBoundary.js'
 import { Box, Text, useTheme } from '../../../ink.js'
 import { useAppState } from '../../../state/AppState.js'
 import {

@@ -2,7 +2,7 @@
  * Portable session storage utilities.
  *
  * Pure Node.js — no internal dependencies on logging, experiments, or feature
- * flags. Shared between the CLI (@claudecode/tui/utils/sessionStorage.ts) and the VS Code
+ * flags. Shared between the CLI (@codepilotx/tui/utils/sessionStorage.ts) and the VS Code
  * extension (packages/claude-vscode/src/common-host/sessionStorage.ts).
  */
 

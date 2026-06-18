@@ -42,7 +42,7 @@ function SessionInfo({ onDone }: Props): React.ReactNode {
     return (
       <Pane>
         <Text color="warning">
-          Not in remote mode. Start with `claude --remote` to use this command.
+          Not in remote mode. Start with `codepilotx --remote` to use this command.
         </Text>
         <Text dimColor>(press esc to close)</Text>
       </Pane>

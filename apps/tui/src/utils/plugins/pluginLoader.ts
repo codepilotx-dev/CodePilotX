@@ -1,7 +1,7 @@
 /**
  * Plugin Loader Module
  *
- * This module is responsible for discovering, loading, and validating Oh-My-AgentCode plugins
+ * This module is responsible for discovering, loading, and validating CodePilotX plugins
  * from various sources including marketplaces and git repositories.
  *
  * NPM packages are also supported but must be referenced through marketplaces - the marketplace
@@ -3122,7 +3122,7 @@ export const loadAllPlugins = memoize(async (): Promise<PluginLoadResult> => {
  *
  * CLAUDE_CODE_SYNC_PLUGIN_INSTALL=1 delegates to the full loader — that
  * mode explicitly opts into blocking install before first query, and
- * main.tsx's getClaudeCodeMcpConfigs()/getInitialSettings().agent run
+ * main.tsx's getCodePilotXMcpConfigs()/getInitialSettings().agent run
  * BEFORE runHeadless() can warm this cache. First-run CCR/headless has
  * no installed_plugins.json, so cache-only would miss plugin MCP servers
  * and plugin settings (the agent key). The interactive startup win is

@@ -7,29 +7,29 @@ import type {
   BetaMessage,
   BetaStopReason,
 } from '@anthropic-ai/sdk/resources/beta/messages/messages.mjs'
-import { AFK_MODE_BETA_HEADER } from '@claudecode/tui/constants/betas.js'
-import type { SDKAssistantMessageError } from '@claudecode/tui/entrypoints/agentSdkTypes.js'
+import { AFK_MODE_BETA_HEADER } from '@codepilotx/tui/constants/betas.js'
+import type { SDKAssistantMessageError } from '@codepilotx/tui/entrypoints/agentSdkTypes.js'
 import type {
   AssistantMessage,
   Message,
   UserMessage,
-} from '@claudecode/tui/types/message.js'
+} from '@codepilotx/tui/types/message.js'
 import {
   getAnthropicApiKeyWithSource,
   getClaudeAIOAuthTokens,
   getOauthAccountInfo,
   isClaudeAISubscriber,
-} from '@claudecode/tui/utils/auth.js'
+} from '@codepilotx/tui/utils/auth.js'
 import {
   createAssistantAPIErrorMessage,
   NO_RESPONSE_REQUESTED,
-} from '@claudecode/tui/utils/messages.js'
+} from '@codepilotx/tui/utils/messages.js'
 import {
   getDefaultMainLoopModelSetting,
   isNonCustomOpusModel,
-} from '@claudecode/tui/utils/model/model.js'
-import { getModelStrings } from '@claudecode/tui/utils/model/modelStrings.js'
-import { getAPIProvider } from '@claudecode/tui/utils/model/providers.js'
+} from '@codepilotx/tui/utils/model/model.js'
+import { getModelStrings } from '@codepilotx/tui/utils/model/modelStrings.js'
+import { getAPIProvider } from '@codepilotx/tui/utils/model/providers.js'
 import { getIsNonInteractiveSession } from '../../bootstrap/state.js'
 import {
   API_PDF_MAX_PAGES,
@@ -195,7 +195,7 @@ export function getRequestTooLargeErrorMessage(): string {
     : `Request too large (${limits}). Double press esc to go back and try with a smaller file.`
 }
 export const OAUTH_ORG_NOT_ALLOWED_ERROR_MESSAGE =
-  'Your account does not have access to Oh-My-AgentCode. OAuth login is disabled in this build.'
+  'Your account does not have access to CodePilotX. OAuth login is disabled in this build.'
 
 export function getTokenRevokedErrorMessage(): string {
   return getIsNonInteractiveSession()
@@ -210,7 +210,7 @@ export function getOauthOrgNotAllowedErrorMessage(): string {
 }
 
 /**
- * Check if we're in CCR (Oh-My-AgentCode Remote) mode.
+ * Check if we're in CCR (CodePilotX Remote) mode.
  * In CCR mode, auth is handled via JWTs provided by the infrastructure,
  * not via /login. Transient auth errors should suggest retrying, not logging in.
  */
@@ -747,7 +747,7 @@ export function getAssistantMessageFromError(
     })
   }
 
-  // Check for invalid model name error for Ant users. Oh-My-AgentCode may be
+  // Check for invalid model name error for Ant users. CodePilotX may be
   // defaulting to a custom internal-only model for Ants, and there might be
   // Ants using new or unknown org IDs that haven't been gated in.
   if (
@@ -1192,8 +1192,8 @@ export function getErrorMessageIfRefusal(
   logEvent('tengu_refusal_api_response', {})
 
   const baseMessage = getIsNonInteractiveSession()
-    ? `${API_ERROR_MESSAGE_PREFIX}: Oh-My-AgentCode is unable to respond to this request, which appears to violate our Usage Policy (https://www.anthropic.com/legal/aup). Try rephrasing the request or attempting a different approach.`
-    : `${API_ERROR_MESSAGE_PREFIX}: Oh-My-AgentCode is unable to respond to this request, which appears to violate our Usage Policy (https://www.anthropic.com/legal/aup). Please double press esc to edit your last message or start a new session for Oh-My-AgentCode to assist with a different task.`
+    ? `${API_ERROR_MESSAGE_PREFIX}: CodePilotX is unable to respond to this request, which appears to violate our Usage Policy (https://www.anthropic.com/legal/aup). Try rephrasing the request or attempting a different approach.`
+    : `${API_ERROR_MESSAGE_PREFIX}: CodePilotX is unable to respond to this request, which appears to violate our Usage Policy (https://www.anthropic.com/legal/aup). Please double press esc to edit your last message or start a new session for CodePilotX to assist with a different task.`
 
   const modelSuggestion =
     model !== 'claude-sonnet-4-20250514'

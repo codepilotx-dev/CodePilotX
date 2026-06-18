@@ -1,36 +1,28 @@
 import React from 'react'
-import { GeneralSettings } from './GeneralSettings.js'
 import { AppearanceSettings } from './AppearanceSettings.js'
+import { ArchivedConversationsSettings } from './ArchivedConversationsSettings.js'
+import { GeneralSettings } from './GeneralSettings.js'
+import { ModelProviderSettings } from './ModelProviderSettings.js'
+import { SettingsSection } from './SettingsSection.js'
+import { UsageBillingSettings } from './UsageBillingSettings.js'
 
 type Props = {
   activeTab: string
-  legacySettings?: React.ReactNode
+  onError: (message: string) => void
 }
 
-export function SettingsPage({ activeTab, legacySettings }: Props) {
+export function SettingsPage({ activeTab, onError }: Props): React.ReactNode {
+  if (activeTab === 'general') return <GeneralSettings />
+  if (activeTab === 'appearance') return <AppearanceSettings />
+  if (activeTab === 'config') return <ModelProviderSettings onError={onError} />
+  if (activeTab === 'archived') return <ArchivedConversationsSettings />
+  if (activeTab === 'billing') return <UsageBillingSettings />
   return (
-    <div className="settings-page">
-      {/* 
-        Ideally we would switch rendering based on activeTab. 
-        For this task, we only implemented the GeneralSettings 
-      */}
-      {activeTab === 'general' ? (
-        <GeneralSettings />
-      ) : activeTab === 'appearance' ? (
-        <AppearanceSettings />
-      ) : activeTab === 'config' ? (
-        <div className="settings-content-area">
-          <h2 className="settings-section-title">高级配置</h2>
-          <div className="settings-block">
-             {legacySettings}
-          </div>
-        </div>
-      ) : (
-        <div className="settings-content-area">
-          <h2 className="settings-section-title">建设中...</h2>
-          <p className="settings-block-desc">此设置页面暂未实现。</p>
-        </div>
-      )}
+    <div className="settings-content-area">
+      <div className="settings-content-inner">
+        <h2 className="settings-page-title">建设中</h2>
+        <SettingsSection description="此设置页面暂未实现。" />
+      </div>
     </div>
   )
 }

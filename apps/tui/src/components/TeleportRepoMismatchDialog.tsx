@@ -75,7 +75,7 @@ export function TeleportRepoMismatchDialog({
           <Box flexDirection="column" gap={1}>
             {errorMessage && <Text color="error">{errorMessage}</Text>}
             <Text>
-              Open Oh-My-AgentCode in <Text bold>{targetRepo}</Text>:
+              Open CodePilotX in <Text bold>{targetRepo}</Text>:
             </Text>
           </Box>
 
@@ -95,7 +95,7 @@ export function TeleportRepoMismatchDialog({
         <Box flexDirection="column" gap={1}>
           {errorMessage && <Text color="error">{errorMessage}</Text>}
           <Text dimColor>
-            Run claude --teleport from a checkout of {targetRepo}
+            Run codepilotx --teleport from a checkout of {targetRepo}
           </Text>
         </Box>
       )}

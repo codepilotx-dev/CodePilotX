@@ -25,8 +25,8 @@ import { generateHeatmap } from '../utils/heatmap.js'
 import { renderModelName } from '../utils/model/model.js'
 import { copyAnsiToClipboard } from '../utils/screenshotClipboard.js'
 import {
-  aggregateClaudeCodeStatsForRange,
-  type ClaudeCodeStats,
+  aggregateCodePilotXStatsForRange,
+  type CodePilotXStats,
   type DailyModelTokens,
   type StatsDateRange,
 } from '../utils/stats.js'
@@ -52,7 +52,7 @@ type Props = {
 }
 
 type StatsResult =
-  | { type: 'success'; data: ClaudeCodeStats }
+  | { type: 'success'; data: CodePilotXStats }
   | { type: 'error'; message: string }
   | { type: 'empty' }
 
@@ -74,7 +74,7 @@ function getNextDateRange(current: StatsDateRange): StatsDateRange {
  * Always loads all-time stats for the heatmap.
  */
 function createAllTimeStatsPromise(): Promise<StatsResult> {
-  return aggregateClaudeCodeStatsForRange('all')
+  return aggregateCodePilotXStatsForRange('all')
     .then((data): StatsResult => {
       if (!data || data.totalSessions === 0) {
         return { type: 'empty' }
@@ -97,7 +97,7 @@ export function Stats({ onClose }: Props): React.ReactNode {
       fallback={
         <Box marginTop={1}>
           <Spinner />
-          <Text> Loading your Oh-My-AgentCode stats…</Text>
+          <Text> Loading your CodePilotX stats…</Text>
         </Box>
       }
     >
@@ -122,7 +122,7 @@ function StatsContent({
   const allTimeResult = use(allTimePromise)
   const [dateRange, setDateRange] = useState<StatsDateRange>('all')
   const [statsCache, setStatsCache] = useState<
-    Partial<Record<StatsDateRange, ClaudeCodeStats>>
+    Partial<Record<StatsDateRange, CodePilotXStats>>
   >({})
   const [isLoadingFiltered, setIsLoadingFiltered] = useState(false)
   const [activeTab, setActiveTab] = useState<'Overview' | 'Models'>('Overview')
@@ -142,7 +142,7 @@ function StatsContent({
     let cancelled = false
     setIsLoadingFiltered(true)
 
-    aggregateClaudeCodeStatsForRange(dateRange)
+    aggregateCodePilotXStatsForRange(dateRange)
       .then(data => {
         if (!cancelled) {
           setStatsCache(prev => ({ ...prev, [dateRange]: data }))
@@ -210,7 +210,7 @@ function StatsContent({
     return (
       <Box marginTop={1}>
         <Text color="warning">
-          No stats available yet. Start using Oh-My-AgentCode!
+          No stats available yet. Start using CodePilotX!
         </Text>
       </Box>
     )
@@ -290,8 +290,8 @@ function OverviewTab({
   dateRange,
   isLoading,
 }: {
-  stats: ClaudeCodeStats
-  allTimeStats: ClaudeCodeStats
+  stats: CodePilotXStats
+  allTimeStats: CodePilotXStats
   dateRange: StatsDateRange
   isLoading: boolean
 }): React.ReactNode {
@@ -567,7 +567,7 @@ const TIME_COMPARISONS = [
 ]
 
 function generateFunFactoid(
-  stats: ClaudeCodeStats,
+  stats: CodePilotXStats,
   totalTokens: number,
 ): string {
   const factoids: string[] = []
@@ -613,7 +613,7 @@ function ModelsTab({
   dateRange,
   isLoading,
 }: {
-  stats: ClaudeCodeStats
+  stats: CodePilotXStats
   dateRange: StatsDateRange
   isLoading: boolean
 }): React.ReactNode {
@@ -921,7 +921,7 @@ function generateXAxisLabels(
 
 // Screenshot functionality
 async function handleScreenshot(
-  stats: ClaudeCodeStats,
+  stats: CodePilotXStats,
   activeTab: 'Overview' | 'Models',
   setStatus: (status: string | null) => void,
 ): Promise<void> {
@@ -937,7 +937,7 @@ async function handleScreenshot(
 }
 
 function renderStatsToAnsi(
-  stats: ClaudeCodeStats,
+  stats: CodePilotXStats,
   activeTab: 'Overview' | 'Models',
 ): string {
   const lines: string[] = []
@@ -973,7 +973,7 @@ function renderStatsToAnsi(
   return lines.join('\n')
 }
 
-function renderOverviewToAnsi(stats: ClaudeCodeStats): string[] {
+function renderOverviewToAnsi(stats: CodePilotXStats): string[] {
   const lines: string[] = []
   const theme = getTheme(resolveThemeSetting(getGlobalConfig().theme))
   const h = (text: string) => applyColor(text, theme.claude as Color)
@@ -1121,7 +1121,7 @@ function renderOverviewToAnsi(stats: ClaudeCodeStats): string[] {
   return lines
 }
 
-function renderModelsToAnsi(stats: ClaudeCodeStats): string[] {
+function renderModelsToAnsi(stats: CodePilotXStats): string[] {
   const lines: string[] = []
 
   const modelEntries = Object.entries(stats.modelUsage).sort(

@@ -1,6 +1,6 @@
 import axios from 'axios'
 import React, { useEffect, useState } from 'react'
-import { logEvent } from '@claudecode/tui/services/analytics/index.js'
+import { logEvent } from '@codepilotx/tui/services/analytics/index.js'
 import { Spinner } from '../components/Spinner.js'
 import { getOauthConfig } from '../constants/oauth.js'
 import { useTimeout } from '../hooks/useTimeout.js'
@@ -136,7 +136,7 @@ export function PreflightStep({
                   Please check your internet connection and network settings.
                 </Text>
                 <Text>
-                  Note: Oh-My-AgentCode might not be available in your country.
+                  Note: CodePilotX might not be available in your country.
                   Check supported countries at{' '}
                   <Text color="suggestion">
                     https://anthropic.com/supported-countries

@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useEffect } from 'react'
-import { useNotifications } from '@claudecode/tui/context/notifications.js'
+import { useNotifications } from '@codepilotx/tui/context/notifications.js'
 import { getIsRemoteMode } from '../../bootstrap/state.js'
 import { Text } from '../../ink.js'
 import { hasClaudeAiMcpEverConnected } from '../../services/mcp/claudeai.js'

@@ -1,5 +1,5 @@
 import React from 'react'
-import { envDynamic } from '@claudecode/tui/utils/envDynamic.js'
+import { envDynamic } from '@codepilotx/tui/utils/envDynamic.js'
 import { Box, Text } from '../ink.js'
 import { useKeybindings } from '../keybindings/useKeybinding.js'
 import { getGlobalConfig, saveGlobalConfig } from '../utils/config.js'
@@ -47,7 +47,7 @@ export function IdeOnboardingDialog({
         title={
           <>
             <Text color="claude">✻ </Text>
-            <Text>Welcome to Oh-My-AgentCode for {ideName}</Text>
+            <Text>Welcome to CodePilotX for {ideName}</Text>
           </>
         }
         subtitle={
@@ -65,7 +65,7 @@ export function IdeOnboardingDialog({
             and <Text color="suggestion">⧉ selected lines</Text>
           </Text>
           <Text>
-            • Review Oh-My-AgentCode&apos;s changes{' '}
+            • Review CodePilotX&apos;s changes{' '}
             <Text color="diffAddedWord">+11</Text>{' '}
             <Text color="diffRemovedWord">-22</Text> in the comfort of your IDE
           </Text>

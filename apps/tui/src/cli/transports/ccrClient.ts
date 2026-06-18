@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto'
 import type {
   SDKPartialAssistantMessage,
   StdoutMessage,
-} from '@claudecode/tui/entrypoints/sdk/controlTypes.js'
+} from '@codepilotx/tui/entrypoints/sdk/controlTypes.js'
 import { decodeJwtExpiry } from '../../bridge/jwtUtils.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { logForDiagnosticsNoPII } from '../../utils/diagLogs.js'
@@ -21,7 +21,7 @@ import type {
   SessionState,
 } from '../../utils/sessionState.js'
 import { sleep } from '../../utils/sleep.js'
-import { getClaudeCodeUserAgent } from '../../utils/userAgent.js'
+import { getCodePilotXUserAgent } from '../../utils/userAgent.js'
 import {
   RetryableError,
   SerialBatchEventUploader,
@@ -572,7 +572,7 @@ export class CCRClient {
             ...authHeaders,
             'Content-Type': 'application/json',
             'anthropic-version': '2023-06-01',
-            'User-Agent': getClaudeCodeUserAgent(),
+            'User-Agent': getCodePilotXUserAgent(),
           },
           validateStatus: alwaysValidStatus,
           timeout,
@@ -914,7 +914,7 @@ export class CCRClient {
           headers: {
             ...authHeaders,
             'anthropic-version': '2023-06-01',
-            'User-Agent': getClaudeCodeUserAgent(),
+            'User-Agent': getCodePilotXUserAgent(),
           },
           validateStatus: alwaysValidStatus,
           timeout: 30_000,

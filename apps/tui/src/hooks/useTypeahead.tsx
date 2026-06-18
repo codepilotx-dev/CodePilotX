@@ -1,8 +1,8 @@
 import * as React from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNotifications } from '@claudecode/tui/context/notifications.js'
-import { Text } from '@claudecode/tui/ink.js'
-import { logEvent } from '@claudecode/tui/services/analytics/index.js'
+import { useNotifications } from '@codepilotx/tui/context/notifications.js'
+import { Text } from '@codepilotx/tui/ink.js'
+import { logEvent } from '@codepilotx/tui/services/analytics/index.js'
 import { useDebounceCallback } from 'usehooks-ts'
 import { type Command, getCommandName } from '../commands.js'
 import {

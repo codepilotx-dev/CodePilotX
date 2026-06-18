@@ -3,7 +3,9 @@ import { EventEmitter } from 'node:events'
 import {
   createDesktopAgentRuntime,
   type DesktopAgentRuntime,
+  type DesktopAgentRuntimePreference,
 } from './agentRuntime.js'
+import { desktopDebug } from './desktopDebug.js'
 import type {
   CreateDesktopSessionOptions,
   DesktopAgentEvent,
@@ -11,6 +13,7 @@ import type {
   DesktopPermissionRequest,
   DesktopSessionStatus,
 } from '../shared/types.js'
+import { desktopPermissionPolicyForMode } from '../shared/settingsSchema.js'
 
 type DesktopAgentSessionEvents = {
   event: [DesktopAgentEvent]
@@ -21,13 +24,23 @@ type PendingPermission = {
   resolve: (decision: DesktopPermissionDecision) => void
 }
 
+type ResolvedDesktopSessionOptions = CreateDesktopSessionOptions & {
+  workspacePath: string
+  sessionId?: string
+  resumeExistingSession?: boolean
+  suppressStartupMessage?: boolean
+}
+
 export type DesktopAgentSessionRuntimeOptions = {
   agentExecutablePath?: string
+  configDirectoryPath?: string
+  runtimePreference?: DesktopAgentRuntimePreference
 }
 
 export type DesktopAgentSession = {
   sessionId: string
   workspacePath: string
+  setModel(model: string | undefined): void
   sendUserMessage(content: string): Promise<void>
   respondToPermission(
     requestId: string,
@@ -49,23 +62,29 @@ class LocalDesktopAgentSession
   extends EventEmitter
   implements DesktopAgentSession
 {
-  readonly sessionId = randomUUID()
+  readonly sessionId: string
   readonly workspacePath: string
   private disposed = false
   private currentAbortController: AbortController | null = null
   private readonly pendingPermissions = new Map<string, PendingPermission>()
   private readonly runtime: DesktopAgentRuntime
+  private readonly permissionMode: CreateDesktopSessionOptions['permissionMode']
 
   constructor(
-    options: CreateDesktopSessionOptions,
+    options: ResolvedDesktopSessionOptions,
     runtimeOptions: DesktopAgentSessionRuntimeOptions,
   ) {
     super()
+    this.sessionId = options.sessionId ?? randomUUID()
     this.workspacePath = options.workspacePath
+    this.permissionMode = options.permissionMode
     this.runtime = createDesktopAgentRuntime({
       sessionId: this.sessionId,
       workspacePath: this.workspacePath,
       agentExecutablePath: runtimeOptions.agentExecutablePath,
+      configDirectoryPath: runtimeOptions.configDirectoryPath,
+      runtimePreference: runtimeOptions.runtimePreference,
+      resumeExistingSession: options.resumeExistingSession,
       permissionMode: options.permissionMode,
       model: options.model,
       fallbackModel: options.fallbackModel,
@@ -78,7 +97,7 @@ class LocalDesktopAgentSession
       requestPermission: request => this.requestPermission(request),
     })
     queueMicrotask(() => {
-      if (this.disposed) {
+      if (this.disposed || options.suppressStartupMessage) {
         return
       }
       this.emitStatus('idle')
@@ -89,11 +108,23 @@ class LocalDesktopAgentSession
     })
   }
 
+  setModel(model: string | undefined): void {
+    this.runtime.setModel(model)
+  }
+
   async sendUserMessage(content: string): Promise<void> {
     this.assertActive()
     if (this.currentAbortController) {
+      desktopDebug('session_send_rejected_already_running', {
+        sessionId: this.sessionId,
+      })
       throw new Error('Desktop agent session is already running')
     }
+    const startedAt = Date.now()
+    desktopDebug('session_send_start', {
+      sessionId: this.sessionId,
+      textLength: content.length,
+    })
     this.emitMessage('user', content)
     this.emitStatus('running')
 
@@ -103,12 +134,25 @@ class LocalDesktopAgentSession
     try {
       await this.runtime.runUserTurn(content, abortController.signal)
       if (abortController.signal.aborted) {
+        desktopDebug('session_send_aborted', {
+          sessionId: this.sessionId,
+          durationMs: Date.now() - startedAt,
+        })
         return
       }
       this.emitStatus('done')
       this.emit({ type: 'done', sessionId: this.sessionId })
+      desktopDebug('session_send_done', {
+        sessionId: this.sessionId,
+        durationMs: Date.now() - startedAt,
+      })
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
+      desktopDebug('session_send_error', {
+        sessionId: this.sessionId,
+        durationMs: Date.now() - startedAt,
+        message,
+      })
       this.emit({ type: 'error', sessionId: this.sessionId, message })
       this.emitStatus('error')
     } finally {
@@ -132,8 +176,12 @@ class LocalDesktopAgentSession
 
   async interrupt(): Promise<void> {
     if (!this.currentAbortController) {
+      desktopDebug('session_interrupt_ignored_idle', {
+        sessionId: this.sessionId,
+      })
       return
     }
+    desktopDebug('session_interrupt', { sessionId: this.sessionId })
     this.currentAbortController.abort()
     this.emitStatus('done')
     this.emit({ type: 'done', sessionId: this.sessionId })
@@ -156,20 +204,31 @@ class LocalDesktopAgentSession
   private async requestPermission(
     request: DesktopPermissionRequest,
   ): Promise<DesktopPermissionDecision> {
+    const permissionPolicy = desktopPermissionPolicyForMode(
+      this.permissionMode,
+    )
+    const normalizedRequest: DesktopPermissionRequest = {
+      ...request,
+      profile: request.profile ?? permissionPolicy.profile,
+      approvalMode: request.approvalMode ?? permissionPolicy.approvalMode,
+    }
     const decision = await new Promise<DesktopPermissionDecision>(resolve => {
-      this.pendingPermissions.set(request.requestId, { request, resolve })
+      this.pendingPermissions.set(normalizedRequest.requestId, {
+        request: normalizedRequest,
+        resolve,
+      })
       this.emitStatus('waiting')
       this.emit({
         type: 'permission_request',
         sessionId: this.sessionId,
-        request,
+        request: normalizedRequest,
       })
 
       this.currentAbortController?.signal.addEventListener(
         'abort',
         () => {
-          if (!this.pendingPermissions.has(request.requestId)) return
-          this.pendingPermissions.delete(request.requestId)
+          if (!this.pendingPermissions.has(normalizedRequest.requestId)) return
+          this.pendingPermissions.delete(normalizedRequest.requestId)
           resolve({
             behavior: 'deny',
             message: 'Interrupted before approval',
@@ -190,6 +249,7 @@ class LocalDesktopAgentSession
       sessionId: this.sessionId,
       role,
       text,
+      createdAt: new Date().toISOString(),
     })
   }
 
@@ -213,7 +273,7 @@ class LocalDesktopAgentSession
 }
 
 export function createDesktopAgentSession(
-  options: CreateDesktopSessionOptions,
+  options: ResolvedDesktopSessionOptions,
   runtimeOptions: DesktopAgentSessionRuntimeOptions = {},
 ): DesktopAgentSession {
   return new LocalDesktopAgentSession(options, runtimeOptions)

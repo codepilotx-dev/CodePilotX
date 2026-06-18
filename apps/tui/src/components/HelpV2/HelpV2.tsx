@@ -1,6 +1,6 @@
 import * as React from 'react'
-import { useExitOnCtrlCDWithKeybindings } from '@claudecode/tui/hooks/useExitOnCtrlCDWithKeybindings.js'
-import { useShortcutDisplay } from '@claudecode/tui/keybindings/useShortcutDisplay.js'
+import { useExitOnCtrlCDWithKeybindings } from '@codepilotx/tui/hooks/useExitOnCtrlCDWithKeybindings.js'
+import { useShortcutDisplay } from '@codepilotx/tui/keybindings/useShortcutDisplay.js'
 import {
   builtInCommandNames,
   type Command,
@@ -110,7 +110,7 @@ export function HelpV2({ onClose, commands }: Props): React.ReactNode {
           title={
             "external" === 'ant'
               ? '/help'
-              : `Oh-My-AgentCode v${MACRO.VERSION}`
+              : `CodePilotX v${MACRO.VERSION}`
           }
           color="professionalBlue"
           defaultTab="general"

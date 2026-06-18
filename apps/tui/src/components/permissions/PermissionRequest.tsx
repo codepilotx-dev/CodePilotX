@@ -1,7 +1,7 @@
 import { feature } from 'bun:bundle'
 import * as React from 'react'
-import { EnterPlanModeTool } from '@claudecode/tui/tools/EnterPlanModeTool/EnterPlanModeTool.js'
-import { ExitPlanModeV2Tool } from '@claudecode/tui/tools/ExitPlanModeTool/ExitPlanModeV2Tool.js'
+import { EnterPlanModeTool } from '@codepilotx/tui/tools/EnterPlanModeTool/EnterPlanModeTool.js'
+import { ExitPlanModeV2Tool } from '@codepilotx/tui/tools/ExitPlanModeTool/ExitPlanModeV2Tool.js'
 import { useNotifyAfterTimeout } from '../../hooks/useNotifyAfterTimeout.js'
 import { useKeybinding } from '../../keybindings/useKeybinding.js'
 import type { AnyObject, Tool, ToolUseContext } from '../../Tool.js'
@@ -171,11 +171,11 @@ function getNotificationMessage(toolUseConfirm: ToolUseConfirm): string {
   )
 
   if (toolUseConfirm.tool === ExitPlanModeV2Tool) {
-    return 'Oh-My-AgentCode needs your approval for the plan'
+    return 'CodePilotX needs your approval for the plan'
   }
 
   if (toolUseConfirm.tool === EnterPlanModeTool) {
-    return 'Oh-My-AgentCode wants to enter plan mode'
+    return 'CodePilotX wants to enter plan mode'
   }
 
   if (
@@ -186,7 +186,7 @@ function getNotificationMessage(toolUseConfirm: ToolUseConfirm): string {
   }
 
   if (!toolName || toolName.trim() === '') {
-    return 'Oh-My-AgentCode needs your attention'
+    return 'CodePilotX needs your attention'
   }
 
   return `Claude needs your permission to use ${toolName}`

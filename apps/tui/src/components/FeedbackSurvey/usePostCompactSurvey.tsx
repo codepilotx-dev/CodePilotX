@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { isFeedbackSurveyDisabled } from '@claudecode/tui/services/analytics/config.js'
-import { checkStatsigFeatureGate_CACHED_MAY_BE_STALE } from '@claudecode/tui/services/analytics/growthbook.js'
+import { isFeedbackSurveyDisabled } from '@codepilotx/tui/services/analytics/config.js'
+import { checkStatsigFeatureGate_CACHED_MAY_BE_STALE } from '@codepilotx/tui/services/analytics/growthbook.js'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
-} from '@claudecode/tui/services/analytics/index.js'
+} from '@codepilotx/tui/services/analytics/index.js'
 import { shouldUseSessionMemoryCompaction } from '../../services/compact/sessionMemoryCompact.js'
 import type { Message } from '../../types/message.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'

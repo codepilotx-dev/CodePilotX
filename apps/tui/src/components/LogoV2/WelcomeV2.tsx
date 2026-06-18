@@ -1,12 +1,12 @@
 import React from 'react'
-import { Box, Text, useTheme } from '@claudecode/tui/ink.js'
+import { Box, Text, useTheme } from '@codepilotx/tui/ink.js'
 import { env } from '../../utils/env.js'
 
 const WELCOME_V2_WIDTH = 58
 
 export function WelcomeV2(): React.ReactNode {
   const [theme] = useTheme()
-  const welcomeMessage = 'Welcome to Oh-My-AgentCode'
+  const welcomeMessage = 'Welcome to CodePilotX'
 
   if (env.terminal === 'Apple_Terminal') {
     return (

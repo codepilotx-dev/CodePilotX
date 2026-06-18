@@ -323,7 +323,7 @@ const PluginManifestMetadataSchema = lazySchema(() =>
  * Schema for plugin hooks configuration (hooks.json)
  *
  * Defines the hooks that a plugin can provide to intercept and modify
- * Oh-My-AgentCode behavior at various lifecycle events.
+ * CodePilotX behavior at various lifecycle events.
  */
 export const PluginHooksSchema = lazySchema(() =>
   z.object({
@@ -1228,7 +1228,7 @@ export function isLocalPluginSource(source: PluginSource): source is string {
  * For local sources (`file`/`directory`), `installLocation` IS the user's path —
  * it lives outside the plugins cache dir and marketplace operations on it are
  * read-only. For remote sources (`github`/`git`/`url`/`npm`), `installLocation`
- * is a cache-dir entry managed by Oh-My-AgentCode and subject to rm/re-clone.
+ * is a cache-dir entry managed by CodePilotX and subject to rm/re-clone.
  *
  * Contrast with isLocalPluginSource, which operates on PluginSource (the
  * per-plugin source inside a marketplace entry) and checks for `./` prefix.
@@ -1465,10 +1465,10 @@ export const InstalledPluginSchema = lazySchema(() =>
  * Schema for the installed_plugins.json file (V1 format)
  *
  * Contains a version number and maps plugin IDs to their installation metadata.
- * Maintained automatically by Oh-My-AgentCode, not edited by users.
+ * Maintained automatically by CodePilotX, not edited by users.
  *
  * The version field tracks schema changes. When the version doesn't match
- * the current schema version, Oh-My-AgentCode will update the file on next startup.
+ * the current schema version, CodePilotX will update the file on next startup.
  *
  * Example file:
  * {

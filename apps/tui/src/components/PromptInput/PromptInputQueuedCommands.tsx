@@ -1,8 +1,8 @@
 import { feature } from 'bun:bundle'
 import * as React from 'react'
 import { useMemo } from 'react'
-import { Box } from '@claudecode/tui/ink.js'
-import { useAppState } from '@claudecode/tui/state/AppState.js'
+import { Box } from '@codepilotx/tui/ink.js'
+import { useAppState } from '@codepilotx/tui/state/AppState.js'
 import {
   STATUS_TAG,
   SUMMARY_TAG,

@@ -1,5 +1,5 @@
 import type { Attributes } from '@opentelemetry/api'
-import { getSessionId } from '@claudecode/tui/bootstrap/state.js'
+import { getSessionId } from '@codepilotx/tui/bootstrap/state.js'
 import { getOauthAccountInfo } from './auth.js'
 import { getOrCreateUserID } from './config.js'
 import { envDynamic } from './envDynamic.js'

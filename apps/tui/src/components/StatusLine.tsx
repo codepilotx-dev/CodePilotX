@@ -1,9 +1,9 @@
 import { feature } from 'bun:bundle'
 import * as React from 'react'
 import { memo, useCallback, useEffect, useRef } from 'react'
-import { logEvent } from '@claudecode/tui/services/analytics/index.js'
-import { useAppState, useSetAppState } from '@claudecode/tui/state/AppState.js'
-import type { PermissionMode } from '@claudecode/tui/utils/permissions/PermissionMode.js'
+import { logEvent } from '@codepilotx/tui/services/analytics/index.js'
+import { useAppState, useSetAppState } from '@codepilotx/tui/state/AppState.js'
+import type { PermissionMode } from '@codepilotx/tui/utils/permissions/PermissionMode.js'
 import {
   getIsRemoteMode,
   getKairosActive,

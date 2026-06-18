@@ -1,5 +1,5 @@
-import type { Notification } from '@claudecode/tui/context/notifications.js'
-import { type GlobalConfig, getGlobalConfig } from '@claudecode/tui/utils/config.js'
+import type { Notification } from '@codepilotx/tui/context/notifications.js'
+import { type GlobalConfig, getGlobalConfig } from '@codepilotx/tui/utils/config.js'
 import { useStartupNotification } from './useStartupNotification.js'
 
 // Shows a one-time notification right after a model migration writes its

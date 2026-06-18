@@ -343,7 +343,7 @@ export function FullscreenLayout({
     const ink = instances.get(process.stdout)
     if (!ink) return
     ink.onHyperlinkClick = url => {
-      // Most OSC 8 links emitted by Oh-My-AgentCode are file:// URLs from
+      // Most OSC 8 links emitted by CodePilotX are file:// URLs from
       // FilePathLink (FileEdit/FileWrite/FileRead tool output). openBrowser
       // rejects non-http(s) protocols — route file: to openPath instead.
       if (url.startsWith('file:')) {

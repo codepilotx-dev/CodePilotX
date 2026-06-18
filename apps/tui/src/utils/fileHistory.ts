@@ -15,10 +15,10 @@ import {
   getIsNonInteractiveSession,
   getOriginalCwd,
   getSessionId,
-} from '@claudecode/tui/bootstrap/state.js'
-import { logEvent } from '@claudecode/tui/services/analytics/index.js'
-import { notifyVscodeFileUpdated } from '@claudecode/tui/services/mcp/vscodeSdkMcp.js'
-import type { LogOption } from '@claudecode/tui/types/logs.js'
+} from '@codepilotx/tui/bootstrap/state.js'
+import { logEvent } from '@codepilotx/tui/services/analytics/index.js'
+import { notifyVscodeFileUpdated } from '@codepilotx/tui/services/mcp/vscodeSdkMcp.js'
+import type { LogOption } from '@codepilotx/tui/types/logs.js'
 import { inspect } from 'util'
 import { getGlobalConfig } from './config.js'
 import { logForDebugging } from './debug.js'
@@ -207,7 +207,7 @@ export async function fileHistoryMakeSnapshot(
 
   // Phase 1: capture current state with a no-op updater so we know which
   // files to back up. Returning the same reference keeps this a true no-op
-  // for any wrapper that honors same-ref returns (@claudecode/tui/CLAUDE.md wrapper
+  // for any wrapper that honors same-ref returns (@codepilotx/tui/CLAUDE.md wrapper
   // rule). Wrappers that unconditionally spread will trigger one extra
   // re-render; acceptable for a once-per-turn call.
   let captured: FileHistoryState | undefined

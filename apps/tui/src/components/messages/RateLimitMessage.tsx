@@ -1,14 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { extraUsage } from '@claudecode/tui/commands/extra-usage/index.js'
-import { Box, Text } from '@claudecode/tui/ink.js'
-import { useClaudeAiLimits } from '@claudecode/tui/services/claudeAiLimitsHook.js'
-import { shouldProcessMockLimits } from '@claudecode/tui/services/rateLimitMocking.js' // Used for /mock-limits command
+import { extraUsage } from '@codepilotx/tui/commands/extra-usage/index.js'
+import { Box, Text } from '@codepilotx/tui/ink.js'
+import { useClaudeAiLimits } from '@codepilotx/tui/services/claudeAiLimitsHook.js'
+import { shouldProcessMockLimits } from '@codepilotx/tui/services/rateLimitMocking.js' // Used for /mock-limits command
 import {
   getRateLimitTier,
   getSubscriptionType,
   isClaudeAISubscriber,
-} from '@claudecode/tui/utils/auth.js'
-import { hasClaudeAiBillingAccess } from '@claudecode/tui/utils/billing.js'
+} from '@codepilotx/tui/utils/auth.js'
+import { hasClaudeAiBillingAccess } from '@codepilotx/tui/utils/billing.js'
 import { MessageResponse } from '../MessageResponse.js'
 
 type UpsellParams = {

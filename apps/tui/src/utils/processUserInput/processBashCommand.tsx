@@ -1,15 +1,15 @@
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources'
 import { randomUUID } from 'crypto'
 import * as React from 'react'
-import { BashModeProgress } from '@claudecode/tui/components/BashModeProgress.js'
-import type { SetToolJSXFn } from '@claudecode/tui/Tool.js'
-import { BashTool } from '@claudecode/tui/tools/BashTool/BashTool.js'
+import { BashModeProgress } from '@codepilotx/tui/components/BashModeProgress.js'
+import type { SetToolJSXFn } from '@codepilotx/tui/Tool.js'
+import { BashTool } from '@codepilotx/tui/tools/BashTool/BashTool.js'
 import type {
   AttachmentMessage,
   SystemMessage,
   UserMessage,
-} from '@claudecode/tui/types/message.js'
-import type { ShellProgress } from '@claudecode/tui/types/tools.js'
+} from '@codepilotx/tui/types/message.js'
+import type { ShellProgress } from '@codepilotx/tui/types/tools.js'
 import { logEvent } from '../../services/analytics/index.js'
 import { errorMessage, ShellError } from '../errors.js'
 import {
@@ -99,12 +99,12 @@ export async function processBashCommand(
     // native, shouldUseSandbox() returns false regardless (unsupported platform).
     // Lazy-require PowerShellTool so its ~300KB chunk only loads when the
     // user has actually selected the powershell default shell.
-    type PSMod = typeof import('@claudecode/tui/tools/PowerShellTool/PowerShellTool.js')
+    type PSMod = typeof import('@codepilotx/tui/tools/PowerShellTool/PowerShellTool.js')
     let PowerShellTool: PSMod['PowerShellTool'] | null = null
     if (usePowerShell) {
       /* eslint-disable @typescript-eslint/no-require-imports */
       PowerShellTool = (
-        require('@claudecode/tui/tools/PowerShellTool/PowerShellTool.js') as PSMod
+        require('@codepilotx/tui/tools/PowerShellTool/PowerShellTool.js') as PSMod
       ).PowerShellTool
       /* eslint-enable @typescript-eslint/no-require-imports */
     }

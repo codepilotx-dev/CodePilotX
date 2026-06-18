@@ -18,7 +18,7 @@ import {
   formatNumber,
   formatSecondsShort,
 } from '../utils/format.js'
-import type { Theme } from '@claudecode/tui/utils/theme.js'
+import type { Theme } from '@codepilotx/tui/utils/theme.js'
 import { activityManager } from '../utils/activityManager.js'
 import { getSpinnerVerbs } from '../constants/spinnerVerbs.js'
 import { MessageResponse } from './MessageResponse.js'

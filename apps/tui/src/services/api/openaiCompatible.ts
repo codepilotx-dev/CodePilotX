@@ -19,11 +19,13 @@ import {
   normalizeMessagesForAPI,
 } from '../../utils/messages.js'
 import {
+  getProviderModelMetadata,
   getProviderApiKey,
   getSelectedProviderConfig,
   getSelectedProviderID,
 } from '../../utils/model/providerConfig.js'
 import { asSystemPrompt, type SystemPrompt } from '../../utils/systemPromptType.js'
+import type { ThinkingConfig } from '../../utils/thinking.js'
 
 const DEFAULT_OPENAI_MAX_TOKENS = 8192
 // DeepSeek v4 输出上限 384K，模型端默认截断粒度比 OpenAI 大。
@@ -66,6 +68,8 @@ type ChatCompletionChunk = {
   choices?: Array<{
     delta?: {
       content?: string | null
+      reasoning?: string | null
+      reasoning_content?: string | null
       tool_calls?: Array<{
         index?: number
         id?: string
@@ -83,6 +87,8 @@ type ChatCompletionChunk = {
     completion_tokens?: number
     prompt_cache_hit_tokens?: number
     prompt_cache_miss_tokens?: number
+    prompt_tokens_details?: { cached_tokens?: number }
+    completion_tokens_details?: { reasoning_tokens?: number }
   }
 }
 
@@ -91,6 +97,8 @@ type ChatCompletionResponse = {
   choices?: Array<{
     message?: {
       content?: string | null
+      reasoning?: string | null
+      reasoning_content?: string | null
       tool_calls?: OpenAIToolCall[]
     }
     finish_reason?: string | null
@@ -100,7 +108,15 @@ type ChatCompletionResponse = {
     completion_tokens?: number
     prompt_cache_hit_tokens?: number
     prompt_cache_miss_tokens?: number
+    prompt_tokens_details?: { cached_tokens?: number }
+    completion_tokens_details?: { reasoning_tokens?: number }
   }
+}
+
+type OpenAICompatibleUsage = NonNullableUsage & {
+  prompt_cache_hit_tokens?: number
+  prompt_cache_miss_tokens?: number
+  reasoning_tokens?: number
 }
 
 export async function* queryOpenAICompatibleModelWithStreaming({
@@ -108,12 +124,14 @@ export async function* queryOpenAICompatibleModelWithStreaming({
   systemPrompt,
   tools,
   signal,
+  thinkingConfig,
   options,
 }: {
   messages: Message[]
   systemPrompt: SystemPrompt
   tools: Tools
   signal: AbortSignal
+  thinkingConfig?: ThinkingConfig
   options: Options
 }): AsyncGenerator<StreamEvent | AssistantMessage, void> {
   const providerID = getSelectedProviderID()
@@ -142,7 +160,29 @@ export async function* queryOpenAICompatibleModelWithStreaming({
       normalizeMessagesForAPI(messages, tools),
     )
     const apiTools = await buildOpenAITools(tools, options)
-    const sysPromptBlocks = isDeepSeekProvider(providerID)
+    const isDeepSeek = isDeepSeekProvider(providerID)
+    const thinkingParams = isDeepSeek
+      ? deepSeekThinkingRequestParams(thinkingConfig)
+      : isDeepSeekReasoningGatewayModel(providerID, options.model)
+        ? deepSeekGatewayReasoningRequestParams(thinkingConfig)
+        : {}
+    const deepSeekThinkingParams = isDeepSeek
+      ? (thinkingParams as ReturnType<typeof deepSeekThinkingRequestParams>)
+      : {}
+    const deepSeekThinkingEnabled =
+      isDeepSeek && deepSeekThinkingParams.thinking?.type === 'enabled'
+    const toolParams =
+      apiTools.length > 0
+        ? {
+            tools: apiTools,
+            ...(isDeepSeek ? {} : { tool_choice: 'auto' as const }),
+          }
+        : {}
+    const temperatureParams =
+      !deepSeekThinkingEnabled && options.temperatureOverride !== undefined
+        ? { temperature: options.temperatureOverride }
+        : {}
+    const sysPromptBlocks = isDeepSeek
       ? buildDeepSeekSystemBlocks(systemPrompt)
       : [
           {
@@ -152,16 +192,18 @@ export async function* queryOpenAICompatibleModelWithStreaming({
         ]
     const requestBody = {
       model: options.model,
-      messages: [...sysPromptBlocks, ...toOpenAIMessages(normalizedMessages)],
-      ...(apiTools.length > 0 && { tools: apiTools, tool_choice: 'auto' }),
+      messages: [
+        ...sysPromptBlocks,
+        ...toOpenAIMessages(normalizedMessages, providerID),
+      ],
+      ...toolParams,
       max_tokens:
         options.maxOutputTokensOverride ?? defaultMaxTokensForModel(options.model, providerID),
       stream: true,
       stream_options: { include_usage: true },
-      ...(options.temperatureOverride !== undefined && {
-        temperature: options.temperatureOverride,
-      }),
-      ...(isDeepSeekProvider(providerID) && {
+      ...temperatureParams,
+      ...thinkingParams,
+      ...(isDeepSeek && {
         user_id: resolveDeepSeekUserId(options),
       }),
     }
@@ -171,7 +213,7 @@ export async function* queryOpenAICompatibleModelWithStreaming({
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
-        ...(isDeepSeekProvider(providerID) && { 'X-User-Id': resolveDeepSeekUserId(options) }),
+        ...(isDeepSeek && { 'X-User-Id': resolveDeepSeekUserId(options) }),
       },
       body: JSON.stringify(requestBody),
       signal,
@@ -184,12 +226,13 @@ export async function* queryOpenAICompatibleModelWithStreaming({
       throw new Error('Provider returned an empty response body')
     }
 
-    const { content, toolCalls, usage, finishReason, requestID } =
+    const { content, reasoningContent, toolCalls, usage, finishReason, requestID } =
       await readOpenAIStream(response)
 
     const assistant = createAssistantMessage({
       model: options.model,
       content,
+      reasoningContent,
       toolCalls,
       usage,
       finishReason,
@@ -252,13 +295,16 @@ function betaToolToOpenAITool(schema: BetaToolUnion): OpenAITool {
   }
 }
 
-function toOpenAIMessages(messages: (Message & { message?: unknown })[]): ChatMessage[] {
+function toOpenAIMessages(
+  messages: (Message & { message?: unknown })[],
+  providerID: string,
+): ChatMessage[] {
   const result: ChatMessage[] = []
   for (const message of messages) {
     if (message.type === 'user') {
       result.push(...userMessageToOpenAI(message))
     } else if (message.type === 'assistant') {
-      result.push(assistantMessageToOpenAI(message))
+      result.push(assistantMessageToOpenAI(message, providerID))
     }
   }
   return result
@@ -307,7 +353,7 @@ function userMessageToOpenAI(message: Message): ChatMessage[] {
   return messages
 }
 
-function assistantMessageToOpenAI(message: Message): ChatMessage {
+function assistantMessageToOpenAI(message: Message, providerID: string): ChatMessage {
   const content = message.message.content
   const text: string[] = []
   const toolCalls: OpenAIToolCall[] = []
@@ -333,9 +379,12 @@ function assistantMessageToOpenAI(message: Message): ChatMessage {
     }
   }
 
+  const contentText = text.join('\n\n')
   return {
     role: 'assistant',
-    content: text.join('\n\n') || null,
+    content:
+      contentText ||
+      (isDeepSeekProvider(providerID) && toolCalls.length > 0 ? '' : null),
     ...(toolCalls.length > 0 && { tool_calls: toolCalls }),
     ...(toolCalls.length > 0 &&
       reasoningParts.length > 0 && { reasoning_content: reasoningParts.join('\n') }),
@@ -355,61 +404,102 @@ function stringifyToolResult(content: unknown): string {
   return JSON.stringify(content ?? '')
 }
 
-async function readOpenAIStream(response: Response): Promise<{
+type OpenAIStreamResult = {
   content: string
+  reasoningContent: string
   toolCalls: OpenAIToolCall[]
   usage: NonNullableUsage
   finishReason: string | null
   requestID?: string
-}> {
+}
+
+type FrameBoundary = {
+  index: number
+  length: number
+}
+
+function findOpenAIStreamFrameBoundary(buffer: string): FrameBoundary | null {
+  const match = /\r\n\r\n|\n\n|\r\r/.exec(buffer)
+  return match ? { index: match.index, length: match[0].length } : null
+}
+
+/**
+ * @internal exported for regression coverage of OpenAI-compatible SSE parsing.
+ */
+export async function readOpenAIStream(
+  response: Response,
+): Promise<OpenAIStreamResult> {
   const reader = response.body!.getReader()
   const decoder = new TextDecoder()
   let buffer = ''
   let content = ''
+  let reasoningContent = ''
   let finishReason: string | null = null
   let usage = EMPTY_USAGE as NonNullableUsage
   const toolCalls: OpenAIToolCall[] = []
 
-  while (true) {
-    const { value, done } = await reader.read()
-    if (done) break
-    buffer += decoder.decode(value, { stream: true })
-
-    let boundary = buffer.indexOf('\n\n')
-    while (boundary !== -1) {
-      const frame = buffer.slice(0, boundary)
-      buffer = buffer.slice(boundary + 2)
-      for (const line of frame.split('\n')) {
-        const trimmed = line.trim()
-        if (!trimmed.startsWith('data:')) continue
-        const data = trimmed.slice(5).trim()
-        if (!data || data === '[DONE]') continue
-        const chunk = JSON.parse(data) as ChatCompletionChunk
-        const choice = chunk.choices?.[0]
-        if (choice?.delta?.content) {
-          content += choice.delta.content
-        }
-        if (choice?.delta?.tool_calls) {
-          mergeToolCallDeltas(toolCalls, choice.delta.tool_calls)
-        }
-        if (choice?.finish_reason) {
-          finishReason = choice.finish_reason
-        }
-        if (chunk.usage) {
-          usage = usageFromOpenAI(chunk.usage)
-        }
-      }
-      boundary = buffer.indexOf('\n\n')
-    }
-  }
-
-  return {
+  const result = (): OpenAIStreamResult => ({
     content,
+    reasoningContent,
     toolCalls: toolCalls.filter(call => call.function.name),
     usage,
     finishReason,
     requestID: response.headers.get('x-request-id') ?? undefined,
+  })
+
+  const processFrame = (frame: string): boolean => {
+    for (const line of frame.split(/\r\n|\n|\r/)) {
+      const trimmed = line.trim()
+      if (!trimmed.startsWith('data:')) continue
+      const data = trimmed.slice(5).trim()
+      if (!data) continue
+      if (data === '[DONE]') return true
+      const chunk = JSON.parse(data) as ChatCompletionChunk
+      const choice = chunk.choices?.[0]
+      if (choice?.delta?.content) {
+        content += choice.delta.content
+      }
+      if (choice?.delta?.reasoning_content) {
+        reasoningContent += choice.delta.reasoning_content
+      }
+      if (choice?.delta?.reasoning) {
+        reasoningContent += choice.delta.reasoning
+      }
+      if (choice?.delta?.tool_calls) {
+        mergeToolCallDeltas(toolCalls, choice.delta.tool_calls)
+      }
+      if (choice?.finish_reason) {
+        finishReason = choice.finish_reason
+      }
+      if (chunk.usage) {
+        usage = usageFromOpenAI(chunk.usage)
+      }
+    }
+    return false
   }
+
+  while (true) {
+    const { value, done } = await reader.read()
+    if (done) {
+      buffer += decoder.decode()
+      if (buffer.trim() && processFrame(buffer)) return result()
+      break
+    }
+    buffer += decoder.decode(value, { stream: true })
+
+    let boundary = findOpenAIStreamFrameBoundary(buffer)
+    while (boundary) {
+      const frame = buffer.slice(0, boundary.index)
+      buffer = buffer.slice(boundary.index + boundary.length)
+      if (processFrame(frame)) {
+        await reader.cancel().catch(() => {})
+        return result()
+      }
+      boundary = findOpenAIStreamFrameBoundary(buffer)
+    }
+  }
+
+  return result()
 }
 
 function mergeToolCallDeltas(
@@ -437,22 +527,36 @@ function usageFromOpenAI(usage: {
   completion_tokens?: number
   prompt_cache_hit_tokens?: number
   prompt_cache_miss_tokens?: number
+  prompt_tokens_details?: { cached_tokens?: number }
   completion_tokens_details?: { reasoning_tokens?: number }
-}): NonNullableUsage {
-  const hit = usage.prompt_cache_hit_tokens ?? 0
-  const miss = usage.prompt_cache_miss_tokens ?? usage.prompt_tokens ?? 0
+}): OpenAICompatibleUsage {
+  const promptTokens = usage.prompt_tokens ?? 0
+  const hit =
+    usage.prompt_cache_hit_tokens ??
+    usage.prompt_tokens_details?.cached_tokens ??
+    0
+  const miss =
+    usage.prompt_cache_miss_tokens ??
+    (usage.prompt_cache_hit_tokens !== undefined ||
+    usage.prompt_tokens_details?.cached_tokens !== undefined
+      ? Math.max(0, promptTokens - hit)
+      : promptTokens)
   return {
     ...EMPTY_USAGE,
-    input_tokens: hit + miss,
+    input_tokens: promptTokens,
     output_tokens: usage.completion_tokens ?? 0,
     cache_read_input_tokens: hit,
     cache_creation_input_tokens: 0,
+    prompt_cache_hit_tokens: hit,
+    prompt_cache_miss_tokens: miss,
+    reasoning_tokens: usage.completion_tokens_details?.reasoning_tokens ?? 0,
   }
 }
 
 function createAssistantMessage({
   model,
   content,
+  reasoningContent,
   toolCalls,
   usage,
   finishReason,
@@ -462,6 +566,7 @@ function createAssistantMessage({
 }: {
   model: string
   content: string
+  reasoningContent: string
   toolCalls: OpenAIToolCall[]
   usage: NonNullableUsage
   finishReason: string | null
@@ -470,6 +575,13 @@ function createAssistantMessage({
   agentId?: Options['agentId']
 }): AssistantMessage {
   const blocks: BetaContentBlock[] = []
+  if (reasoningContent) {
+    blocks.push({
+      type: 'thinking',
+      thinking: reasoningContent,
+      signature: '',
+    } as BetaContentBlock)
+  }
   if (content) {
     blocks.push({ type: 'text', text: content })
   }
@@ -532,10 +644,60 @@ function isDeepSeekProvider(providerID: string): boolean {
   return providerID === 'deepseek'
 }
 
+function isDeepSeekReasoningGatewayModel(
+  providerID: string,
+  model: string,
+): boolean {
+  if (providerID !== 'openrouter' && providerID !== 'ai-gateway') {
+    return false
+  }
+  return (
+    model.toLowerCase().includes('deepseek') &&
+    getProviderModelMetadata(providerID, model)?.reasoning === true
+  )
+}
+
+function deepSeekThinkingRequestParams(
+  thinkingConfig: ThinkingConfig | undefined,
+): {
+  thinking?: { type: 'enabled' | 'disabled' }
+  reasoning_effort?: 'high' | 'max'
+} {
+  switch (thinkingConfig?.type) {
+    case 'disabled':
+      return { thinking: { type: 'disabled' } }
+    case 'adaptive':
+      return { thinking: { type: 'enabled' }, reasoning_effort: 'high' }
+    case 'enabled':
+      return { thinking: { type: 'enabled' }, reasoning_effort: 'max' }
+    default:
+      return {}
+  }
+}
+
+function deepSeekGatewayReasoningRequestParams(
+  thinkingConfig: ThinkingConfig | undefined,
+): {
+  reasoning: { effort: 'none' | 'high' | 'xhigh' }
+} {
+  switch (thinkingConfig?.type) {
+    case 'disabled':
+      return { reasoning: { effort: 'none' } }
+    case 'enabled':
+      return { reasoning: { effort: 'xhigh' } }
+    default:
+      return { reasoning: { effort: 'high' } }
+  }
+}
+
 function defaultMaxTokensForModel(
   model: string,
   providerID: string,
 ): number {
+  const metadataOutputTokens = getProviderModelMetadata(providerID, model)?.outputTokens
+  if (metadataOutputTokens && metadataOutputTokens > 0) {
+    return metadataOutputTokens
+  }
   if (!isDeepSeekProvider(providerID)) {
     return DEFAULT_OPENAI_MAX_TOKENS
   }
@@ -560,7 +722,7 @@ function buildDeepSeekSystemBlocks(
       },
     ]
   }
-  // 第一个 block 通常是 CLI 身份前缀（"You are Oh-My-AgentCode..."），
+  // 第一个 block 通常是 CLI 身份前缀（"You are CodePilotX..."），
   // 跨 session 不变；其余 block 在多轮中可能动态追加（user context 等）。
   const [stable, ...rest] = blocks
   const out: Array<{ role: 'system'; content: string }> = [
@@ -577,5 +739,5 @@ function buildDeepSeekSystemBlocks(
 // 固定常量足以让同 CLI 进程多轮请求共享 cache prefix 单元，
 // 同时把不同 CLI 实例的缓存空间彼此隔离。
 function resolveDeepSeekUserId(_options: Options): string {
-  return 'claudecode-cli'
+  return 'codepilotx-cli'
 }

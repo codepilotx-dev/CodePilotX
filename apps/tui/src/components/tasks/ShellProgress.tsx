@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react'
 import React from 'react'
-import { Text } from '@claudecode/tui/ink.js'
-import type { TaskStatus } from '@claudecode/tui/Task.js'
-import type { LocalShellTaskState } from '@claudecode/tui/tasks/LocalShellTask/guards.js'
-import type { DeepImmutable } from '@claudecode/tui/types/utils.js'
+import { Text } from '@codepilotx/tui/ink.js'
+import type { TaskStatus } from '@codepilotx/tui/Task.js'
+import type { LocalShellTaskState } from '@codepilotx/tui/tasks/LocalShellTask/guards.js'
+import type { DeepImmutable } from '@codepilotx/tui/types/utils.js'
 
 type TaskStatusTextProps = {
   status: TaskStatus

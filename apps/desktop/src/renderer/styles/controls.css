@@ -2,8 +2,6 @@
 .icon-button,
 .collapse-button,
 .ghost-icon-button {
-  width: 28px;
-  height: 28px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -15,21 +13,11 @@
   -webkit-app-region: no-drag;
 }
 
-.vscode-pill {
-  height: 32px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0 10px;
-  border: 1px solid var(--c-border-soft);
-  border-radius: var(--r-pill);
-  background: var(--c-bg);
-  box-shadow: var(--sh-soft);
-  color: var(--c-icon-soft);
-}
-
-.vscode-pill:hover {
-  background: var(--c-bg-soft);
+.menubar-icon:hover,
+.icon-button:hover,
+.collapse-button:hover,
+.ghost-icon-button:hover {
+  color: var(--c-text);
 }
 
 .menubar-status {

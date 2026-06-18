@@ -16,7 +16,7 @@ function formatTime(date: Date): string {
   return `${h}:${m}:${s}${ampm}`
 }
 
-import { getPlatform } from '@claudecode/tui/utils/platform.js'
+import { getPlatform } from '@codepilotx/tui/utils/platform.js'
 
 export function SandboxViolationExpandedView(): ReactNode {
   const [violations, setViolations] = useState<SandboxViolationEvent[]>([])

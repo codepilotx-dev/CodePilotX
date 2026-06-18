@@ -7,26 +7,26 @@ import type { BasicTracerProvider } from '@opentelemetry/sdk-trace-base'
 import { realpathSync } from 'fs'
 import sumBy from 'lodash-es/sumBy.js'
 import { cwd } from 'process'
-import type { HookEvent, ModelUsage } from '@claudecode/tui/entrypoints/agentSdkTypes.js'
-import type { AgentColorName } from '@claudecode/tui/tools/AgentTool/agentColorManager.js'
-import type { HookCallbackMatcher } from '@claudecode/tui/types/hooks.js'
+import type { HookEvent, ModelUsage } from '@codepilotx/tui/entrypoints/agentSdkTypes.js'
+import type { AgentColorName } from '@codepilotx/tui/tools/AgentTool/agentColorManager.js'
+import type { HookCallbackMatcher } from '@codepilotx/tui/types/hooks.js'
 // Indirection for browser-sdk build (package.json "browser" field swaps
 // crypto.ts for crypto.browser.ts). Pure leaf re-export of node:crypto —
 // zero circular-dep risk. Path-alias import bypasses bootstrap-isolation
 // (rule only checks ./ and / prefixes); explicit disable documents intent.
 // eslint-disable-next-line custom-rules/bootstrap-isolation
-import { randomUUID } from '@claudecode/tui/utils/crypto.js'
-import type { ModelSetting } from '@claudecode/tui/utils/model/model.js'
-import type { ModelStrings } from '@claudecode/tui/utils/model/modelStrings.js'
-import type { SettingSource } from '@claudecode/tui/utils/settings/constants.js'
-import { resetSettingsCache } from '@claudecode/tui/utils/settings/settingsCache.js'
-import type { PluginHookMatcher } from '@claudecode/tui/utils/settings/types.js'
-import { createSignal } from '@claudecode/tui/utils/signal.js'
+import { randomUUID } from '@codepilotx/tui/utils/crypto.js'
+import type { ModelSetting } from '@codepilotx/tui/utils/model/model.js'
+import type { ModelStrings } from '@codepilotx/tui/utils/model/modelStrings.js'
+import type { SettingSource } from '@codepilotx/tui/utils/settings/constants.js'
+import { resetSettingsCache } from '@codepilotx/tui/utils/settings/settingsCache.js'
+import type { PluginHookMatcher } from '@codepilotx/tui/utils/settings/types.js'
+import { createSignal } from '@codepilotx/tui/utils/signal.js'
 
 // Union type for registered hooks - can be SDK callbacks or native plugin hooks
 type RegisteredHookMatcher = HookCallbackMatcher | PluginHookMatcher
 
-import type { SessionId } from '@claudecode/tui/types/ids.js'
+import type { SessionId } from '@codepilotx/tui/types/ids.js'
 
 // DO NOT ADD MORE STATE HERE - BE JUDICIOUS WITH GLOBAL STATE
 
@@ -197,6 +197,8 @@ type State = {
   mainThreadAgentType: string | undefined
   // Remote mode (--remote flag)
   isRemoteMode: boolean
+  // True only when the interactive REPL bridge has an active remote session.
+  replBridgeActive: boolean
   // Direct connect server URL (for display in header)
   directConnectServerUrl: string | undefined
   // System prompt section cache state
@@ -388,11 +390,7 @@ function getInitialState(): State {
     mainThreadAgentType: undefined,
     // Remote mode
     isRemoteMode: false,
-    ...(process.env.USER_TYPE === 'ant'
-      ? {
-          replBridgeActive: false,
-        }
-      : {}),
+    replBridgeActive: false,
     // Direct connect server URL
     directConnectServerUrl: undefined,
     // System prompt section cache state
@@ -966,7 +964,7 @@ export function setMeter(
     description: 'Number of git commits created',
   })
   STATE.costCounter = createCounter('claude_code.cost.usage', {
-    description: 'Cost of the Oh-My-AgentCode session',
+    description: 'Cost of the CodePilotX session',
     unit: 'USD',
   })
   STATE.tokenCounter = createCounter('claude_code.token.usage', {
@@ -1088,6 +1086,14 @@ export function getKairosActive(): boolean {
 
 export function setKairosActive(value: boolean): void {
   STATE.kairosActive = value
+}
+
+export function isReplBridgeActive(): boolean {
+  return STATE.replBridgeActive
+}
+
+export function setReplBridgeActive(value: boolean): void {
+  STATE.replBridgeActive = value
 }
 
 export function getStrictToolResultPairing(): boolean {

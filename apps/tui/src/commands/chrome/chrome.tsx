@@ -147,7 +147,7 @@ function ClaudeInChromeMenu({
       <Box flexDirection="column" gap={1}>
         <Text>
           Claude in Chrome works with the Chrome extension to let you control
-          your browser directly from Oh-My-AgentCode. Navigate websites, fill forms,
+          your browser directly from CodePilotX. Navigate websites, fill forms,
           capture screenshots, record GIFs, and debug with console logs and
           network requests.
         </Text>
@@ -202,9 +202,9 @@ function ClaudeInChromeMenu({
 
             <Text>
               <Text dimColor>Usage: </Text>
-              <Text>claude --chrome</Text>
+              <Text>codepilotx --chrome</Text>
               <Text dimColor> or </Text>
-              <Text>claude --no-chrome</Text>
+              <Text>codepilotx --no-chrome</Text>
             </Text>
 
             <Text dimColor>

@@ -182,9 +182,9 @@ export function parseFrontmatter(
  * @returns Array of expanded strings
  * @example
  * splitPathInFrontmatter("a, b") // returns ["a", "b"]
- * splitPathInFrontmatter("a, src/*.{ts,tsx}") // returns ["a", "@claudecode/tui/*.ts", "@claudecode/tui/*.tsx"]
+ * splitPathInFrontmatter("a, src/*.{ts,tsx}") // returns ["a", "@codepilotx/tui/*.ts", "@codepilotx/tui/*.tsx"]
  * splitPathInFrontmatter("{a,b}/{c,d}") // returns ["a/c", "a/d", "b/c", "b/d"]
- * splitPathInFrontmatter(["a", "@claudecode/tui/*.{ts,tsx}"]) // returns ["a", "@claudecode/tui/*.ts", "@claudecode/tui/*.tsx"]
+ * splitPathInFrontmatter(["a", "@codepilotx/tui/*.{ts,tsx}"]) // returns ["a", "@codepilotx/tui/*.ts", "@codepilotx/tui/*.tsx"]
  */
 export function splitPathInFrontmatter(input: string | string[]): string[] {
   if (Array.isArray(input)) {
@@ -234,7 +234,7 @@ export function splitPathInFrontmatter(input: string | string[]): string[] {
 /**
  * Expands brace patterns in a glob string.
  * @example
- * expandBraces("@claudecode/tui/*.{ts,tsx}") // returns ["@claudecode/tui/*.ts", "@claudecode/tui/*.tsx"]
+ * expandBraces("@codepilotx/tui/*.{ts,tsx}") // returns ["@codepilotx/tui/*.ts", "@codepilotx/tui/*.tsx"]
  * expandBraces("{a,b}/{c,d}") // returns ["a/c", "a/d", "b/c", "b/d"]
  */
 function expandBraces(pattern: string): string[] {

@@ -10,7 +10,7 @@
  */
 
 import { dirname, join } from 'path'
-import { getSessionId } from '@claudecode/tui/bootstrap/state.js'
+import { getSessionId } from '@codepilotx/tui/bootstrap/state.js'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,

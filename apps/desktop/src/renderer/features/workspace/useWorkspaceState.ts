@@ -1,3 +1,4 @@
+import { desktopClient } from '../../services/desktopClient.js'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type {
   DesktopAuthStatus,
@@ -76,7 +77,7 @@ export function useWorkspaceState(
 
   const refreshRuntimeStatus = useCallback(async (): Promise<void> => {
     try {
-      const status = await window.desktopApi.getRuntimeStatus()
+      const status = await desktopClient.getRuntimeStatus()
       setRuntimeStatus(status)
     } catch (error) {
       onErrorRef.current(errorMessageOf(error))
@@ -84,11 +85,27 @@ export function useWorkspaceState(
   }, [])
 
   useEffect(() => {
-    void window.desktopApi
+    void desktopClient
       .getAuthStatus()
       .then(status => setAuthStatus(status))
       .catch((error: unknown) => onErrorRef.current(errorMessageOf(error)))
   }, [])
+
+  useEffect(() => {
+    let mounted = true
+    const refresh = (): void => {
+      void refreshRuntimeStatus().finally(() => {
+        if (!mounted) return
+      })
+    }
+
+    refresh()
+    const timer = window.setInterval(refresh, 5000)
+    return () => {
+      mounted = false
+      window.clearInterval(timer)
+    }
+  }, [refreshRuntimeStatus])
 
   const refreshWorkspace = useCallback(
     async (
@@ -96,11 +113,18 @@ export function useWorkspaceState(
       refreshOptions: RefreshWorkspaceOptions = {},
     ): Promise<void> => {
       if (!target) return
+      if (target.isStandalone) {
+        setWorkspace(null)
+        setFiles([])
+        setDiff(NO_WORKSPACE_DIFF)
+        setSelectedFile(null)
+        return
+      }
       try {
         const [nextContext, nextFiles, nextDiff] = await Promise.all([
-          window.desktopApi.getWorkspaceContext(target.path),
-          window.desktopApi.listWorkspaceFiles(target.path),
-          window.desktopApi.getWorkspaceDiff(target.path),
+          desktopClient.getWorkspaceContext(target.path),
+          desktopClient.listWorkspaceFiles(target.path),
+          desktopClient.getWorkspaceDiff(target.path),
         ])
         if (
           refreshOptions.expectedSessionId !== undefined &&
@@ -149,7 +173,7 @@ export function useWorkspaceState(
       return
     }
     try {
-      const preview = await window.desktopApi.readWorkspaceFile(
+      const preview = await desktopClient.readWorkspaceFile(
         target.path,
         currentSelectedFile.path,
       )
@@ -161,7 +185,7 @@ export function useWorkspaceState(
 
   const chooseWorkspace = useCallback(async (): Promise<DesktopWorkspace | null> => {
     try {
-      const selected = await window.desktopApi.chooseWorkspace()
+      const selected = await desktopClient.chooseWorkspace()
       return selected
     } catch (error) {
       onErrorRef.current(errorMessageOf(error))
@@ -172,7 +196,7 @@ export function useWorkspaceState(
   const openRecentWorkspace = useCallback(
     async (target: DesktopWorkspace): Promise<DesktopWorkspace | null> => {
       try {
-        const selected = await window.desktopApi.openWorkspace(target.path)
+        const selected = await desktopClient.openWorkspace(target.path)
         return selected
       } catch (error) {
         onErrorRef.current(errorMessageOf(error))
@@ -186,7 +210,7 @@ export function useWorkspaceState(
     async (file: DesktopFileEntry): Promise<void> => {
       if (!workspace || file.type !== 'file') return
       try {
-        const preview = await window.desktopApi.readWorkspaceFile(
+        const preview = await desktopClient.readWorkspaceFile(
           workspace.path,
           file.path,
         )

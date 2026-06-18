@@ -3,7 +3,7 @@ import { chmod, open, rename, stat, unlink } from 'fs/promises'
 import mapValues from 'lodash-es/mapValues.js'
 import memoize from 'lodash-es/memoize.js'
 import { dirname, join, parse } from 'path'
-import { getPlatform } from '@claudecode/tui/utils/platform.js'
+import { getPlatform } from '@codepilotx/tui/utils/platform.js'
 import type { PluginError } from '../../types/plugin.js'
 import { getPluginErrorMessage } from '../../types/plugin.js'
 import { isClaudeInChromeMCPServer } from '../../utils/claudeInChrome/common.js'
@@ -513,7 +513,7 @@ function isMcpServerAllowedByPolicy(
  * returned so callers can warn the user.
  *
  * Intended for user-controlled config entry points that bypass the policy filter
- * in getClaudeCodeMcpConfigs(): --mcp-config (main.tsx) and the mcp_set_servers
+ * in getCodePilotXMcpConfigs(): --mcp-config (main.tsx) and the mcp_set_servers
  * control message (print.ts, SDK V2 Query.setMcpServers()).
  *
  * SDK-type servers are exempt — they are SDK-managed transport placeholders,
@@ -1034,7 +1034,7 @@ export function getMcpConfigByName(name: string): ScopedMcpServerConfig | null {
   const { servers: enterpriseServers } = getMcpConfigsByScope('enterprise')
 
   // When MCP is locked to plugin-only, only enterprise servers are reachable
-  // by name. User/project/local servers are blocked — same as getClaudeCodeMcpConfigs().
+  // by name. User/project/local servers are blocked — same as getCodePilotXMcpConfigs().
   if (isRestrictedToPluginOnly('mcp')) {
     return enterpriseServers[name] ?? null
   }
@@ -1060,15 +1060,15 @@ export function getMcpConfigByName(name: string): ScopedMcpServerConfig | null {
 }
 
 /**
- * Get Oh-My-AgentCode MCP configurations (excludes claude.ai servers from the
+ * Get CodePilotX MCP configurations (excludes claude.ai servers from the
  * returned set — they're fetched separately and merged by callers).
  * This is fast: only local file reads; no awaited network calls on the
  * critical path. The optional extraDedupTargets promise (e.g. the in-flight
  * claude.ai connector fetch) is awaited only after loadAllPluginsCacheOnly() completes,
  * so the two overlap rather than serialize.
- * @returns Oh-My-AgentCode server configurations with appropriate scopes
+ * @returns CodePilotX server configurations with appropriate scopes
  */
-export async function getClaudeCodeMcpConfigs(
+export async function getCodePilotXMcpConfigs(
   dynamicServers: Record<string, ScopedMcpServerConfig> = {},
   extraDedupTargets: Promise<
     Record<string, ScopedMcpServerConfig>
@@ -1250,9 +1250,11 @@ export async function getClaudeCodeMcpConfigs(
   return { servers: filtered, errors: mcpErrors }
 }
 
+export const getClaudeCodeMcpConfigs = getCodePilotXMcpConfigs
+
 /**
  * Get all MCP configurations across all scopes, including claude.ai servers.
- * This may be slow due to network calls - use getClaudeCodeMcpConfigs() for fast startup.
+ * This may be slow due to network calls - use getCodePilotXMcpConfigs() for fast startup.
  * @returns All server configurations with appropriate scopes
  */
 export async function getAllMcpConfigs(): Promise<{
@@ -1261,13 +1263,13 @@ export async function getAllMcpConfigs(): Promise<{
 }> {
   // In enterprise mode, don't load claude.ai servers (enterprise has exclusive control)
   if (doesEnterpriseMcpConfigExist()) {
-    return getClaudeCodeMcpConfigs()
+    return getCodePilotXMcpConfigs()
   }
 
-  // Kick off the claude.ai fetch before getClaudeCodeMcpConfigs so it overlaps
+  // Kick off the claude.ai fetch before getCodePilotXMcpConfigs so it overlaps
   // with loadAllPluginsCacheOnly() inside. Memoized — the awaited call below is a cache hit.
   const claudeaiPromise = fetchClaudeAIMcpConfigsIfEligible()
-  const { servers: claudeCodeServers, errors } = await getClaudeCodeMcpConfigs(
+  const { servers: claudeCodeServers, errors } = await getCodePilotXMcpConfigs(
     {},
     claudeaiPromise,
   )

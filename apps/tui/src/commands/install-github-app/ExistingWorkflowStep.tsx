@@ -1,5 +1,5 @@
 import React from 'react'
-import { Select } from '@claudecode/tui/components/CustomSelect/index.js'
+import { Select } from '@codepilotx/tui/components/CustomSelect/index.js'
 import { Box, Text } from '../../ink.js'
 
 interface ExistingWorkflowStepProps {

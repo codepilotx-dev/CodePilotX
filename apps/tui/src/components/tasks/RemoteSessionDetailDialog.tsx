@@ -1,8 +1,8 @@
 import figures from 'figures'
 import React, { useMemo, useState } from 'react'
-import type { SDKMessage } from '@claudecode/tui/entrypoints/agentSdkTypes.js'
-import type { ToolUseContext } from '@claudecode/tui/Tool.js'
-import type { DeepImmutable } from '@claudecode/tui/types/utils.js'
+import type { SDKMessage } from '@codepilotx/tui/entrypoints/agentSdkTypes.js'
+import type { ToolUseContext } from '@codepilotx/tui/Tool.js'
+import type { DeepImmutable } from '@codepilotx/tui/types/utils.js'
 import type { CommandResultDisplay } from '../../commands.js'
 import { DIAMOND_FILLED, DIAMOND_OPEN } from '../../constants/figures.js'
 import { useElapsedTime } from '../../hooks/useElapsedTime.js'
@@ -51,7 +51,7 @@ type Props = {
 export function formatToolUseSummary(name: string, input: unknown): string {
   // plan_ready phase is only reached via ExitPlanMode tool
   if (name === EXIT_PLAN_MODE_V2_TOOL_NAME) {
-    return 'Review the plan in Oh-My-AgentCode on the web'
+    return 'Review the plan in CodePilotX on the web'
   }
   if (!input || typeof input !== 'object') return name
   // AskUserQuestion: show the question text as a CTA, not the tool name.
@@ -161,7 +161,7 @@ function UltraplanSessionDetail({
       >
         <Box flexDirection="column" gap={1}>
           <Text dimColor>
-            This will terminate the Oh-My-AgentCode on the web session.
+            This will terminate the CodePilotX on the web session.
           </Text>
           <Select
             options={[
@@ -217,7 +217,7 @@ function UltraplanSessionDetail({
         <Select
           options={[
             {
-              label: 'Review in Oh-My-AgentCode on the web',
+              label: 'Review in CodePilotX on the web',
               value: 'open' as const,
             },
             ...(onKill && running
@@ -381,11 +381,11 @@ function ReviewSessionDetail({
 
   const options: { label: string; value: MenuAction }[] = completed
     ? [
-        { label: 'Open in Oh-My-AgentCode on the web', value: 'open' },
+        { label: 'Open in CodePilotX on the web', value: 'open' },
         { label: 'Dismiss', value: 'dismiss' },
       ]
     : [
-        { label: 'Open in Oh-My-AgentCode on the web', value: 'open' },
+        { label: 'Open in CodePilotX on the web', value: 'open' },
         ...(onKill && running
           ? [{ label: 'Stop ultrareview', value: 'stop' as const }]
           : []),

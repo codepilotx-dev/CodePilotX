@@ -1,14 +1,14 @@
 import type { ContentBlock } from '@anthropic-ai/sdk/resources/index.mjs'
-import { getUserContext } from '@claudecode/tui/context.js'
-import { queryModelWithoutStreaming } from '@claudecode/tui/services/api/claude.js'
-import { getEmptyToolPermissionContext } from '@claudecode/tui/Tool.js'
-import { AGENT_TOOL_NAME } from '@claudecode/tui/tools/AgentTool/constants.js'
-import { prependUserContext } from '@claudecode/tui/utils/api.js'
+import { getUserContext } from '@codepilotx/tui/context.js'
+import { queryModelWithoutStreaming } from '@codepilotx/tui/services/api/claude.js'
+import { getEmptyToolPermissionContext } from '@codepilotx/tui/Tool.js'
+import { AGENT_TOOL_NAME } from '@codepilotx/tui/tools/AgentTool/constants.js'
+import { prependUserContext } from '@codepilotx/tui/utils/api.js'
 import {
   createUserMessage,
   normalizeMessagesForAPI,
-} from '@claudecode/tui/utils/messages.js'
-import type { ModelName } from '@claudecode/tui/utils/model/model.js'
+} from '@codepilotx/tui/utils/messages.js'
+import type { ModelName } from '@codepilotx/tui/utils/model/model.js'
 import { isAutoMemoryEnabled } from '../../memdir/paths.js'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,

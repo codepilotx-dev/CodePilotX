@@ -1,6 +1,6 @@
 import * as React from 'react'
-import { InterruptedByUser } from '@claudecode/tui/components/InterruptedByUser.js'
-import { MessageResponse } from '@claudecode/tui/components/MessageResponse.js'
+import { InterruptedByUser } from '@codepilotx/tui/components/InterruptedByUser.js'
+import { MessageResponse } from '@codepilotx/tui/components/MessageResponse.js'
 
 export function UserToolCanceledMessage(): React.ReactNode {
   return (

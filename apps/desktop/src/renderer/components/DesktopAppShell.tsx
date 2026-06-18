@@ -3,15 +3,13 @@ import type React from 'react'
 type Props = {
   windowChrome: React.ReactNode
   sidebar: React.ReactNode
-  content: React.ReactNode
-  composer: React.ReactNode
+  children: React.ReactNode
 }
 
-export function DesktopShell({
+export function DesktopAppShell({
   windowChrome,
   sidebar,
-  content,
-
+  children,
 }: Props): React.ReactNode {
   return (
     <div className="app-shell">
@@ -19,10 +17,7 @@ export function DesktopShell({
       <div className="app-body">
         {sidebar}
         <section className="desktop-main">
-          <div className="desktop-main-stage">
-            {content}
-        
-          </div>
+          <div className="desktop-main-stage">{children}</div>
         </section>
       </div>
     </div>

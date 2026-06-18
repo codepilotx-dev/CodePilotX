@@ -2,37 +2,37 @@ import { feature } from 'bun:bundle'
 import type { ToolResultBlockParam } from '@anthropic-ai/sdk/resources/index.mjs'
 import uniqBy from 'lodash-es/uniqBy.js'
 import { dirname } from 'path'
-import { getProjectRoot } from '@claudecode/tui/bootstrap/state.js'
+import { getProjectRoot } from '@codepilotx/tui/bootstrap/state.js'
 import {
   builtInCommandNames,
   findCommand,
   getCommands,
   type PromptCommand,
-} from '@claudecode/tui/commands.js'
+} from '@codepilotx/tui/commands.js'
 import type {
   Tool,
   ToolCallProgress,
   ToolResult,
   ToolUseContext,
   ValidationResult,
-} from '@claudecode/tui/Tool.js'
-import { buildTool, type ToolDef } from '@claudecode/tui/Tool.js'
-import type { Command } from '@claudecode/tui/types/command.js'
+} from '@codepilotx/tui/Tool.js'
+import { buildTool, type ToolDef } from '@codepilotx/tui/Tool.js'
+import type { Command } from '@codepilotx/tui/types/command.js'
 import type {
   AssistantMessage,
   AttachmentMessage,
   Message,
   SystemMessage,
   UserMessage,
-} from '@claudecode/tui/types/message.js'
-import { logForDebugging } from '@claudecode/tui/utils/debug.js'
-import type { PermissionDecision } from '@claudecode/tui/utils/permissions/PermissionResult.js'
-import { getRuleByContentsForTool } from '@claudecode/tui/utils/permissions/permissions.js'
+} from '@codepilotx/tui/types/message.js'
+import { logForDebugging } from '@codepilotx/tui/utils/debug.js'
+import type { PermissionDecision } from '@codepilotx/tui/utils/permissions/PermissionResult.js'
+import { getRuleByContentsForTool } from '@codepilotx/tui/utils/permissions/permissions.js'
 import {
   isOfficialMarketplaceName,
   parsePluginIdentifier,
-} from '@claudecode/tui/utils/plugins/pluginIdentifier.js'
-import { buildPluginCommandTelemetryFields } from '@claudecode/tui/utils/telemetry/pluginTelemetry.js'
+} from '@codepilotx/tui/utils/plugins/pluginIdentifier.js'
+import { buildPluginCommandTelemetryFields } from '@codepilotx/tui/utils/telemetry/pluginTelemetry.js'
 import { z } from 'zod/v4'
 import {
   addInvokedSkill,
@@ -633,7 +633,7 @@ export const SkillTool: Tool<InputSchema, Output, Progress> = buildTool({
 
     // Process the skill with optional args
     const { processPromptSlashCommand } = await import(
-      '@claudecode/tui/utils/processUserInput/processSlashCommand.js'
+      '@codepilotx/tui/utils/processUserInput/processSlashCommand.js'
     )
     const processedCommand = await processPromptSlashCommand(
       commandName,

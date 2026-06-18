@@ -5,9 +5,9 @@ import type {
   ImageBlockParam,
 } from '@anthropic-ai/sdk/resources/messages.mjs'
 import { randomUUID } from 'crypto'
-import type { QuerySource } from '@claudecode/tui/constants/querySource.js'
-import { logEvent } from '@claudecode/tui/services/analytics/index.js'
-import { getContentText } from '@claudecode/tui/utils/messages.js'
+import type { QuerySource } from '@codepilotx/tui/constants/querySource.js'
+import { logEvent } from '@codepilotx/tui/services/analytics/index.js'
+import { getContentText } from '@codepilotx/tui/utils/messages.js'
 import {
   findCommand,
   getCommandName,

@@ -11,7 +11,7 @@ import {
   type InstallMethod,
 } from './config.js'
 import { getCwd } from './cwd.js'
-import { isEnvTruthy } from './envUtils.js'
+import { getClaudeConfigHomeDir, isEnvTruthy } from './envUtils.js'
 import { execFileNoThrow } from './execFileNoThrow.js'
 import { getFsImplementation } from './fsOperations.js'
 import {
@@ -162,6 +162,15 @@ async function getInstallationPath(): Promise<string> {
     }
 
     try {
+      const path = await which('codepilotx')
+      if (path) {
+        return path
+      }
+    } catch {
+      // This function doesn't expect errors
+    }
+
+    try {
       const path = await which('claude')
       if (path) {
         return path
@@ -172,10 +181,16 @@ async function getInstallationPath(): Promise<string> {
 
     // If we can't find it, check common locations
     try {
+      await getFsImplementation().stat(join(homedir(), '.local/bin/codepilotx'))
+      return join(homedir(), '.local/bin/codepilotx')
+    } catch {
+      // Not found
+    }
+    try {
       await getFsImplementation().stat(join(homedir(), '.local/bin/claude'))
       return join(homedir(), '.local/bin/claude')
     } catch {
-      // Not found
+      // Legacy install not found
     }
     return 'native'
   }
@@ -209,7 +224,7 @@ async function detectMultipleInstallations(): Promise<
   const installations: Array<{ type: string; path: string }> = []
 
   // Check for local installation
-  const localPath = join(homedir(), '.claude', 'local')
+  const localPath = join(getClaudeConfigHomeDir(), 'local')
   if (await localInstallationExists()) {
     installations.push({ type: 'npm-local', path: localPath })
   }
@@ -229,24 +244,29 @@ async function detectMultipleInstallations(): Promise<
     const npmPrefix = npmResult.stdout.trim()
     const isWindows = getPlatform() === 'windows'
 
-    // First check for active installations via bin/claude
-    // Linux / macOS have prefix/bin/claude and prefix/lib/node_modules
-    // Windows has prefix/claude and prefix/node_modules
-    const globalBinPath = isWindows
-      ? join(npmPrefix, 'claude')
-      : join(npmPrefix, 'bin', 'claude')
+    // First check for active installations via bin/codepilotx, with legacy
+    // claude bins still reported so users can clean up old installs.
+    const globalBinCandidates = [
+      isWindows
+        ? join(npmPrefix, 'codepilotx')
+        : join(npmPrefix, 'bin', 'codepilotx'),
+      isWindows ? join(npmPrefix, 'claude') : join(npmPrefix, 'bin', 'claude'),
+    ]
 
-    let globalBinExists = false
-    try {
-      await fs.stat(globalBinPath)
-      globalBinExists = true
-    } catch {
-      // Not found
+    let globalBinPath: string | null = null
+    for (const candidate of globalBinCandidates) {
+      try {
+        await fs.stat(candidate)
+        globalBinPath = candidate
+        break
+      } catch {
+        // Not found
+      }
     }
 
-    if (globalBinExists) {
+    if (globalBinPath) {
       // Check if this is actually a Homebrew cask installation, not npm-global
-      // When npm is installed via Homebrew, both can exist at /opt/homebrew/bin/claude
+      // When npm is installed via Homebrew, both can exist at /opt/homebrew/bin/codepilotx
       // We need to resolve the symlink to see where it actually points
       let isCurrentHomebrewInstallation = false
 
@@ -267,7 +287,7 @@ async function detectMultipleInstallations(): Promise<
         installations.push({ type: 'npm-global', path: globalBinPath })
       }
     } else {
-      // If no bin/claude exists, check for orphaned packages (no bin/claude symlink)
+      // If no active bin exists, check for orphaned packages (no bin symlink)
       for (const packageName of packagesToCheck) {
         const globalPackagePath = isWindows
           ? join(npmPrefix, 'node_modules', packageName)
@@ -289,7 +309,7 @@ async function detectMultipleInstallations(): Promise<
   // Check for native installation
 
   // Check common native installation paths
-  const nativeBinPath = join(homedir(), '.local', 'bin', 'claude')
+  const nativeBinPath = join(homedir(), '.local', 'bin', 'codepilotx')
   try {
     await fs.stat(nativeBinPath)
     installations.push({ type: 'native', path: nativeBinPath })
@@ -300,7 +320,7 @@ async function detectMultipleInstallations(): Promise<
   // Also check if config indicates native installation
   const config = getGlobalConfig()
   if (config.installMethod === 'native') {
-    const nativeDataPath = join(homedir(), '.local', 'share', 'claude')
+    const nativeDataPath = join(homedir(), '.local', 'share', 'codepilotx')
     try {
       await fs.stat(nativeDataPath)
       if (!installations.some(i => i.type === 'native')) {
@@ -435,14 +455,14 @@ async function detectConfigurationIssues(
     if (type === 'npm-local' && config.installMethod !== 'local') {
       warnings.push({
         issue: `Running from local installation but config install method is '${config.installMethod}'`,
-        fix: 'Consider using native installation: claude install',
+        fix: 'Consider using native installation: codepilotx install',
       })
     }
 
     if (type === 'native' && config.installMethod !== 'native') {
       warnings.push({
         issue: `Running native installation but config install method is '${config.installMethod}'`,
-        fix: 'Run claude install to update configuration',
+        fix: 'Run codepilotx install to update configuration',
       })
     }
   }
@@ -450,7 +470,7 @@ async function detectConfigurationIssues(
   if (type === 'npm-global' && (await localInstallationExists())) {
     warnings.push({
       issue: 'Local installation exists but not being used',
-      fix: 'Consider using native installation: claude install',
+      fix: 'Consider using native installation: codepilotx install',
     })
   }
 
@@ -459,23 +479,23 @@ async function detectConfigurationIssues(
 
   // Check if running local installation but it's not in PATH
   if (type === 'npm-local') {
-    // Check if claude is already accessible via PATH
-    const whichResult = await which('claude')
-    const claudeInPath = !!whichResult
+    // Check if codepilotx is already accessible via PATH
+    const whichResult = await which('codepilotx')
+    const codePilotXInPath = !!whichResult
 
-    // Only show warning if claude is NOT in PATH AND no valid alias exists
-    if (!claudeInPath && !validAlias) {
+    // Only show warning if codepilotx is NOT in PATH AND no valid alias exists
+    if (!codePilotXInPath && !validAlias) {
       if (existingAlias) {
         // Alias exists but points to invalid target
         warnings.push({
           issue: 'Local installation not accessible',
-          fix: `Alias exists but points to invalid target: ${existingAlias}. Update alias: alias claude="~/.claude/local/claude"`,
+          fix: `Alias exists but points to invalid target: ${existingAlias}. Update alias: alias codepilotx="~/.codepilotx/local/codepilotx"`,
         })
       } else {
         // No alias exists and not in PATH
         warnings.push({
           issue: 'Local installation not accessible',
-          fix: 'Create alias: alias claude="~/.claude/local/claude"',
+          fix: 'Create alias: alias codepilotx="~/.codepilotx/local/codepilotx"',
         })
       }
     }
@@ -580,7 +600,7 @@ export async function getDoctorDiagnostic(): Promise<DiagnosticInfo> {
     if (!hasUpdatePermissions && !getAutoUpdaterDisabledReason()) {
       warnings.push({
         issue: 'Insufficient permissions for auto-updates',
-        fix: 'Do one of: (1) Re-install node without sudo, or (2) Use `claude install` for native installation',
+        fix: 'Do one of: (1) Re-install node without sudo, or (2) Use `codepilotx install` for native installation',
       })
     }
   }

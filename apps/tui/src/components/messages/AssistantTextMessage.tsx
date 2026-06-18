@@ -1,7 +1,7 @@
 import type { TextBlockParam } from '@anthropic-ai/sdk/resources/index.mjs'
 import React, { useContext } from 'react'
-import { ERROR_MESSAGE_USER_ABORT } from '@claudecode/tui/services/compact/compact.js'
-import { isRateLimitErrorMessage } from '@claudecode/tui/services/rateLimitMessages.js'
+import { ERROR_MESSAGE_USER_ABORT } from '@codepilotx/tui/services/compact/compact.js'
+import { isRateLimitErrorMessage } from '@codepilotx/tui/services/rateLimitMessages.js'
 import { BLACK_CIRCLE } from '../../constants/figures.js'
 import { Box, NoSelect, Text } from '../../ink.js'
 import {

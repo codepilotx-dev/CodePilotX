@@ -35,7 +35,7 @@ export async function sendNotification(
   })
 }
 
-const DEFAULT_TITLE = 'Oh-My-AgentCode'
+const DEFAULT_TITLE = 'CodePilotX'
 
 async function sendToChannel(
   channel: string,

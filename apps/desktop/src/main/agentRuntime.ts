@@ -2,6 +2,13 @@ import { randomUUID } from 'node:crypto'
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { createInterface } from 'node:readline'
+import {
+  createDesktopHeadlessRuntime,
+  runDesktopHeadlessTurn,
+  type DesktopHeadlessOutputControls,
+  type DesktopHeadlessRuntime,
+} from '@codepilotx/tui/headless/desktopRuntime.js'
+import type { StdoutMessage } from '@codepilotx/tui/entrypoints/sdk/controlTypes.js'
 import type {
   DesktopAgentEvent,
   DesktopPermissionMode,
@@ -9,11 +16,36 @@ import type {
   DesktopPermissionRequest,
   DesktopThinkingMode,
 } from '../shared/types.js'
+import type { PermissionMode } from '@codepilotx/tui/types/permissions.js'
+import {
+  CODEPILOTX_CONFIG_DIR_ENV,
+  LEGACY_CLAUDE_CONFIG_DIR_ENV,
+} from '@codepilotx/tui/utils/envUtils.js'
+import {
+  buildDesktopContextUsage,
+  getUsageFromAssistantRecord,
+} from './desktopContextUsage.js'
+import {
+  extractPartialText,
+  getMessageContent,
+  getResultErrorMessage,
+  getUpdatedPermissions,
+  summarizeToolInput,
+} from './agentRuntimeSupport.js'
+import { desktopDebug } from './desktopDebug.js'
+
+export type DesktopAgentRuntimePreference =
+  | 'auto'
+  | 'embedded-headless'
+  | 'subprocess'
 
 export type DesktopAgentRuntimeContext = {
   sessionId: string
   workspacePath: string
   agentExecutablePath?: string
+  configDirectoryPath?: string
+  runtimePreference?: DesktopAgentRuntimePreference
+  resumeExistingSession?: boolean
   permissionMode?: DesktopPermissionMode
   model?: string
   fallbackModel?: string
@@ -27,34 +59,76 @@ export type DesktopAgentRuntimeContext = {
 }
 
 export type DesktopAgentRuntime = {
+  setModel(model: string | undefined): void
   runUserTurn(content: string, signal: AbortSignal): Promise<void>
+}
+
+let headlessQueue: Promise<void> = Promise.resolve()
+const DESKTOP_ENABLED_THINKING_BUDGET = 1_000_000_000
+
+function runSerialized<T>(operation: () => Promise<T>): Promise<T> {
+  const run = headlessQueue.then(operation, operation)
+  headlessQueue = run.then(
+    () => undefined,
+    () => undefined,
+  )
+  return run
 }
 
 export function createDesktopAgentRuntime(
   context: DesktopAgentRuntimeContext,
 ): DesktopAgentRuntime {
-  if (!context.agentExecutablePath) {
-    throw new Error('Desktop agent executable path is not configured')
+  const preference = context.runtimePreference ?? 'auto'
+  if (preference === 'subprocess') {
+    desktopDebug('runtime_create_subprocess', {
+      sessionId: context.sessionId,
+      preference,
+    })
+    return new CliDesktopAgentRuntime(context)
   }
-  if (!existsSync(context.agentExecutablePath)) {
-    throw new Error(
-      `Desktop agent executable is missing: ${context.agentExecutablePath}`,
-    )
+  try {
+    desktopDebug('runtime_create_embedded', {
+      sessionId: context.sessionId,
+      preference,
+    })
+    return new InProcessDesktopAgentRuntime(context)
+  } catch (error) {
+    if (
+      preference === 'auto' &&
+      context.agentExecutablePath &&
+      existsSync(context.agentExecutablePath)
+    ) {
+      desktopDebug('runtime_create_embedded_failed_fallback_subprocess', {
+        sessionId: context.sessionId,
+        message: error instanceof Error ? error.message : String(error),
+      })
+      return new CliDesktopAgentRuntime(context)
+    }
+    throw error
   }
-  return new CliDesktopAgentRuntime(context)
 }
 
 class CliDesktopAgentRuntime implements DesktopAgentRuntime {
   private child: ChildProcessWithoutNullStreams | null = null
   private emittedAssistantText = false
+  private hasStartedCliSession = false
   private partialText = ''
   private readonly toolNamesByUseId = new Map<string, string>()
 
   constructor(private readonly context: DesktopAgentRuntimeContext) {}
 
+  setModel(model: string | undefined): void {
+    this.context.model = model
+  }
+
   async runUserTurn(content: string, signal: AbortSignal): Promise<void> {
+    const startedAt = Date.now()
+    desktopDebug('runtime_subprocess_turn_start', {
+      sessionId: this.context.sessionId,
+      textLength: content.length,
+    })
     const executablePath = this.context.agentExecutablePath
-    if (!executablePath) {
+    if (!executablePath || !existsSync(executablePath)) {
       throw new Error('Desktop agent executable path is not configured')
     }
     this.emittedAssistantText = false
@@ -72,8 +146,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
         'stream-json',
         '--include-partial-messages',
         '--replay-user-messages',
-        '--session-id',
-        this.context.sessionId,
+        ...this.sessionResumeArgs(),
         ...permissionModeArgs(this.context.permissionMode),
         ...modelArgs(this.context.model),
         ...fallbackModelArgs(this.context.fallbackModel),
@@ -88,6 +161,14 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
         windowsHide: true,
         env: {
           ...process.env,
+          [CODEPILOTX_CONFIG_DIR_ENV]:
+            this.context.configDirectoryPath ??
+            process.env[CODEPILOTX_CONFIG_DIR_ENV],
+          [LEGACY_CLAUDE_CONFIG_DIR_ENV]:
+            this.context.configDirectoryPath ??
+            process.env[LEGACY_CLAUDE_CONFIG_DIR_ENV],
+          CODEPILOTX_DISABLE_MDM_READ: '1',
+          CODEPILOTX_DISABLE_MIN_VERSION_CHECK: '1',
           CLAUDE_CODE_DISABLE_MDM_READ: '1',
           CLAUDE_CODE_DISABLE_MIN_VERSION_CHECK: '1',
         },
@@ -100,6 +181,10 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
 
     child.stderr.on('data', chunk => {
       const text = String(chunk)
+      desktopDebug('runtime_subprocess_stderr', {
+        sessionId: this.context.sessionId,
+        textLength: text.length,
+      })
       stderr.push(text)
       this.context.emit({
         type: 'tool_result',
@@ -120,6 +205,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
       },
       parent_tool_use_id: null,
     })
+    this.hasStartedCliSession = true
 
     try {
       const exitCode = await new Promise<number | null>((resolve, reject) => {
@@ -128,6 +214,10 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
       })
       await outputDone
       if (signal.aborted) {
+        desktopDebug('runtime_subprocess_turn_aborted', {
+          sessionId: this.context.sessionId,
+          durationMs: Date.now() - startedAt,
+        })
         return
       }
       if (exitCode !== 0) {
@@ -136,6 +226,11 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
             `Desktop agent process exited with code ${exitCode}`,
         )
       }
+      desktopDebug('runtime_subprocess_turn_done', {
+        sessionId: this.context.sessionId,
+        durationMs: Date.now() - startedAt,
+        exitCode,
+      })
     } finally {
       if (this.child === child) {
         this.child = null
@@ -145,6 +240,12 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
         child.stdin.end()
       }
     }
+  }
+
+  private sessionResumeArgs(): string[] {
+    return this.hasStartedCliSession || this.context.resumeExistingSession
+      ? ['--resume', this.context.sessionId]
+      : ['--session-id', this.context.sessionId]
   }
 
   private attachAbortHandler(
@@ -185,6 +286,10 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
       })
       return
     }
+    desktopDebug('runtime_subprocess_stdout_message', {
+      sessionId: this.context.sessionId,
+      type: message.type,
+    })
 
     switch (message.type) {
       case 'assistant':
@@ -216,6 +321,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
   }
 
   private emitAssistantMessage(message: Record<string, unknown>): void {
+    this.emitContextUsage(message)
     const content = getMessageContent(message)
     if (!Array.isArray(content)) {
       return
@@ -267,6 +373,18 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
     }
   }
 
+  private emitContextUsage(message: Record<string, unknown>): void {
+    const usageRecord = getUsageFromAssistantRecord(message)
+    if (!usageRecord) return
+    const usage = buildDesktopContextUsage(usageRecord)
+    if (!usage) return
+    this.context.emit({
+      type: 'context_usage',
+      sessionId: this.context.sessionId,
+      usage,
+    })
+  }
+
   private emitUserMessage(message: Record<string, unknown>): void {
     const content = getMessageContent(message)
     if (!Array.isArray(content)) {
@@ -301,6 +419,9 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
   private emitSystemMessage(message: Record<string, unknown>): void {
     const subtype =
       typeof message.subtype === 'string' ? message.subtype : 'system'
+    if (subtype === 'session_state_changed') {
+      return
+    }
     this.context.emit({
       type: 'message',
       sessionId: this.context.sessionId,
@@ -323,10 +444,10 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
         text: message.result,
       })
     }
+    this.partialText = ''
     if (this.child && !this.child.stdin.destroyed) {
       this.child.stdin.end()
     }
-    this.partialText = ''
   }
 
   private async handleControlRequest(
@@ -340,14 +461,13 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
       message.request && typeof message.request === 'object'
         ? (message.request as Record<string, unknown>)
         : {}
-    const subtype = request.subtype
-    if (subtype !== 'can_use_tool') {
+    if (request.subtype !== 'can_use_tool') {
       this.writeJsonLineToCurrentChild({
         type: 'control_response',
         response: {
           request_id: requestId,
           subtype: 'error',
-          error: `Unsupported control request: ${String(subtype)}`,
+          error: `Unsupported control request: ${String(request.subtype)}`,
         },
       })
       return
@@ -420,16 +540,379 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
   }
 }
 
-function permissionModeArgs(
+class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
+  private emittedAssistantText = false
+  private partialText = ''
+  private resultError: string | null = null
+  private currentSignal: AbortSignal | null = null
+  private readonly toolNamesByUseId = new Map<string, string>()
+  private readonly context: DesktopAgentRuntimeContext
+  private readonly runtime: DesktopHeadlessRuntime
+
+  constructor(context: DesktopAgentRuntimeContext) {
+    this.context = context
+    this.runtime = createDesktopHeadlessRuntime({
+      sessionId: context.sessionId,
+      workspacePath: context.workspacePath,
+      configDirectoryPath: context.configDirectoryPath,
+      resumeExistingSession: context.resumeExistingSession,
+      permissionMode: tuiPermissionMode(context.permissionMode),
+      model: context.model,
+      fallbackModel: context.fallbackModel,
+      sessionName: context.sessionName,
+      thinkingMode: context.thinkingMode,
+      systemPrompt: context.systemPrompt,
+      appendSystemPrompt: context.appendSystemPrompt,
+      additionalDirectories: context.additionalDirectories,
+      onOutput: (message, controls) =>
+        this.handleStructuredOutput(message, controls),
+    })
+  }
+
+  setModel(model: string | undefined): void {
+    this.context.model = model
+    this.runtime.setModel(model)
+  }
+
+  async runUserTurn(content: string, signal: AbortSignal): Promise<void> {
+    const startedAt = Date.now()
+    desktopDebug('runtime_embedded_turn_start', {
+      sessionId: this.context.sessionId,
+      textLength: content.length,
+    })
+    this.emittedAssistantText = false
+    this.partialText = ''
+    this.resultError = null
+    this.toolNamesByUseId.clear()
+    this.currentSignal = signal
+
+    try {
+      await runSerialized(() =>
+        runDesktopHeadlessTurn(this.runtime, content, signal),
+      )
+    } finally {
+      if (this.currentSignal === signal) {
+        this.currentSignal = null
+      }
+    }
+
+    if (signal.aborted) {
+      desktopDebug('runtime_embedded_turn_aborted', {
+        sessionId: this.context.sessionId,
+        durationMs: Date.now() - startedAt,
+      })
+      return
+    }
+    if (this.resultError) {
+      desktopDebug('runtime_embedded_turn_result_error', {
+        sessionId: this.context.sessionId,
+        durationMs: Date.now() - startedAt,
+        message: this.resultError,
+      })
+      throw new Error(this.resultError)
+    }
+    desktopDebug('runtime_embedded_turn_done', {
+      sessionId: this.context.sessionId,
+      durationMs: Date.now() - startedAt,
+    })
+  }
+
+  private async handleStructuredOutput(
+    message: StdoutMessage,
+    controls: DesktopHeadlessOutputControls,
+  ): Promise<void> {
+    const signal = this.currentSignal
+    if (!signal || signal.aborted) {
+      desktopDebug('runtime_embedded_output_ignored_no_signal', {
+        sessionId: this.context.sessionId,
+        type: message.type,
+        aborted: signal?.aborted,
+      })
+      return
+    }
+    desktopDebug('runtime_embedded_output', {
+      sessionId: this.context.sessionId,
+      type: message.type,
+      ...(message.type === 'result'
+        ? {
+            subtype: (message as Record<string, unknown>).subtype,
+            isError: (message as Record<string, unknown>).is_error,
+            error: firstResultError(message as Record<string, unknown>),
+          }
+        : {}),
+    })
+    if (message.type === 'control_request') {
+      await this.handleControlRequest(
+        message as Record<string, unknown>,
+        controls,
+      )
+      return
+    }
+    if (
+      message.type === 'control_cancel_request' ||
+      message.type === 'control_response' ||
+      message.type === 'keep_alive'
+    ) {
+      return
+    }
+    this.handleOutputMessage(message as Record<string, unknown>)
+  }
+
+  private handleOutputMessage(message: Record<string, unknown>): void {
+    switch (message.type) {
+      case 'assistant':
+        this.emitAssistantMessage(message)
+        return
+      case 'system':
+        this.emitSystemMessage(message)
+        return
+      case 'result':
+        this.emitResultMessage(message)
+        return
+      case 'user':
+        this.emitUserMessage(message)
+        return
+      default:
+        return
+    }
+  }
+
+  private emitAssistantMessage(message: Record<string, unknown>): void {
+    this.emitContextUsage(message)
+    const content = getMessageContent(message)
+    if (!Array.isArray(content)) {
+      return
+    }
+
+    for (const block of content) {
+      if (!block || typeof block !== 'object') {
+        continue
+      }
+      const item = block as Record<string, unknown>
+      const partialText = extractPartialText(item)
+      if (partialText) {
+        this.partialText += partialText
+        this.context.emit({
+          type: 'partial_message',
+          sessionId: this.context.sessionId,
+          text: this.partialText,
+        })
+      } else if (item.type === 'text' && typeof item.text === 'string') {
+        this.emittedAssistantText = true
+        this.partialText = ''
+        this.context.emit({
+          type: 'message',
+          sessionId: this.context.sessionId,
+          role: 'assistant',
+          text: item.text,
+        })
+      } else if (item.type === 'tool_use') {
+        const toolName = typeof item.name === 'string' ? item.name : 'Tool'
+        if (typeof item.id === 'string') {
+          this.toolNamesByUseId.set(item.id, toolName)
+        }
+        this.context.emit({
+          type: 'tool_start',
+          sessionId: this.context.sessionId,
+          toolName,
+          summary: summarizeToolInput(toolName, item.input),
+        })
+      } else if (item.type === 'tool_result') {
+        const toolName = this.toolNameForResult(item)
+        this.context.emit({
+          type: 'tool_result',
+          sessionId: this.context.sessionId,
+          toolName,
+          summary: summarizeToolInput(toolName, item.content),
+          isError: item.is_error === true,
+        })
+      }
+    }
+  }
+
+  private emitContextUsage(message: Record<string, unknown>): void {
+    const usageRecord = getUsageFromAssistantRecord(message)
+    if (!usageRecord) return
+    const usage = buildDesktopContextUsage(usageRecord)
+    if (!usage) return
+    this.context.emit({
+      type: 'context_usage',
+      sessionId: this.context.sessionId,
+      usage,
+    })
+  }
+
+  private emitUserMessage(message: Record<string, unknown>): void {
+    const content = getMessageContent(message)
+    if (!Array.isArray(content)) {
+      return
+    }
+
+    for (const block of content) {
+      if (!block || typeof block !== 'object') {
+        continue
+      }
+      const item = block as Record<string, unknown>
+      if (item.type !== 'tool_result') {
+        continue
+      }
+      const toolName = this.toolNameForResult(item)
+      this.context.emit({
+        type: 'tool_result',
+        sessionId: this.context.sessionId,
+        toolName,
+        summary: summarizeToolInput(toolName, item.content),
+        isError: item.is_error === true,
+      })
+    }
+  }
+
+  private toolNameForResult(item: Record<string, unknown>): string {
+    return typeof item.tool_use_id === 'string'
+      ? (this.toolNamesByUseId.get(item.tool_use_id) ?? 'Tool')
+      : 'Tool'
+  }
+
+  private emitSystemMessage(message: Record<string, unknown>): void {
+    const subtype =
+      typeof message.subtype === 'string' ? message.subtype : 'system'
+    if (subtype === 'session_state_changed') {
+      return
+    }
+    this.context.emit({
+      type: 'message',
+      sessionId: this.context.sessionId,
+      role: 'system',
+      text: subtype,
+    })
+  }
+
+  private emitResultMessage(message: Record<string, unknown>): void {
+    if (
+      !this.emittedAssistantText &&
+      typeof message.result === 'string' &&
+      message.result.trim() &&
+      message.result !== this.partialText
+    ) {
+      this.context.emit({
+        type: 'message',
+        sessionId: this.context.sessionId,
+        role: 'assistant',
+        text: message.result,
+      })
+    }
+    if (message.is_error === true) {
+      this.resultError = getResultErrorMessage(message)
+    }
+    this.partialText = ''
+  }
+
+  private async handleControlRequest(
+    message: Record<string, unknown>,
+    controls: DesktopHeadlessOutputControls,
+  ): Promise<void> {
+    const requestId =
+      typeof message.request_id === 'string'
+        ? message.request_id
+        : randomUUID()
+    const request =
+      message.request && typeof message.request === 'object'
+        ? (message.request as Record<string, unknown>)
+        : {}
+    const subtype = request.subtype
+    if (subtype !== 'can_use_tool') {
+      this.injectControlResponse(controls, {
+        type: 'control_response',
+        response: {
+          request_id: requestId,
+          subtype: 'error',
+          error: `Unsupported control request: ${String(subtype)}`,
+        },
+      })
+      return
+    }
+
+    const toolName =
+      typeof request.tool_name === 'string' ? request.tool_name : 'Tool'
+    const input =
+      request.input && typeof request.input === 'object'
+        ? (request.input as Record<string, unknown>)
+        : {}
+    const decision = await this.context.requestPermission({
+      requestId,
+      toolName,
+      input,
+      description:
+        typeof request.description === 'string'
+          ? request.description
+          : summarizeToolInput(toolName, input),
+    })
+
+    if (decision.behavior === 'allow') {
+      const response: Record<string, unknown> = {
+        behavior: 'allow',
+        updatedInput: input,
+        toolUseID: request.tool_use_id,
+        decisionClassification: decision.alwaysAllow
+          ? 'user_permanent'
+          : 'user_temporary',
+      }
+      const updatedPermissions = getUpdatedPermissions(request, decision)
+      if (updatedPermissions.length > 0) {
+        response.updatedPermissions = updatedPermissions
+      }
+      this.injectControlResponse(controls, {
+        type: 'control_response',
+        response: {
+          request_id: requestId,
+          subtype: 'success',
+          response,
+        },
+      })
+    } else {
+      this.injectControlResponse(controls, {
+        type: 'control_response',
+        response: {
+          request_id: requestId,
+          subtype: 'error',
+          error: decision.message ?? 'Permission denied',
+        },
+      })
+    }
+  }
+
+  private injectControlResponse(
+    controls: DesktopHeadlessOutputControls,
+    message: Record<string, unknown>,
+  ): void {
+    controls.injectControlResponse(message)
+  }
+}
+
+function firstResultError(message: Record<string, unknown>): string | undefined {
+  if (!Array.isArray(message.errors)) {
+    return undefined
+  }
+  const first = message.errors.find(item => typeof item === 'string')
+  return typeof first === 'string' ? first.slice(0, 500) : undefined
+}
+
+export function permissionModeArgs(
   permissionMode: DesktopPermissionMode | undefined,
 ): string[] {
-  if (!permissionMode || permissionMode === 'default') {
+  if (permissionMode === 'customConfig') {
     return []
   }
   if (permissionMode === 'bypassPermissions') {
     return ['--dangerously-skip-permissions']
   }
-  return ['--permission-mode', permissionMode]
+  return ['--permission-mode', permissionMode ?? 'default']
+}
+
+function tuiPermissionMode(
+  permissionMode: DesktopPermissionMode | undefined,
+): PermissionMode | undefined {
+  return permissionMode === 'customConfig' ? undefined : permissionMode
 }
 
 function modelArgs(model: string | undefined): string[] {
@@ -447,6 +930,9 @@ function sessionNameArgs(sessionName: string | undefined): string[] {
 function thinkingModeArgs(
   thinkingMode: DesktopThinkingMode | undefined,
 ): string[] {
+  if (thinkingMode === 'enabled') {
+    return ['--max-thinking-tokens', String(DESKTOP_ENABLED_THINKING_BUDGET)]
+  }
   return thinkingMode && thinkingMode !== 'default'
     ? ['--thinking', thinkingMode]
     : []
@@ -470,83 +956,4 @@ function additionalDirectoryArgs(
   return additionalDirectories && additionalDirectories.length > 0
     ? ['--add-dir', ...additionalDirectories]
     : []
-}
-
-function summarizeToolInput(toolName: string, input: unknown): string {
-  if (!input || typeof input !== 'object') {
-    return toolName
-  }
-  const record = input as Record<string, unknown>
-  const target =
-    record.file_path ??
-    record.filePath ??
-    record.pattern ??
-    record.command ??
-    record.url ??
-    record.query
-  return typeof target === 'string' ? `${toolName}: ${target}` : toolName
-}
-
-function extractPartialText(item: Record<string, unknown>): string | null {
-  if (item.type !== 'content_block_delta') {
-    return null
-  }
-  const delta = item.delta
-  if (!delta || typeof delta !== 'object') {
-    return null
-  }
-  const record = delta as Record<string, unknown>
-  return record.type === 'text_delta' && typeof record.text === 'string'
-    ? record.text
-    : null
-}
-
-function getMessageContent(message: Record<string, unknown>): unknown {
-  const wrappedMessage = message.message
-  return wrappedMessage && typeof wrappedMessage === 'object'
-    ? (wrappedMessage as Record<string, unknown>).content
-    : undefined
-}
-
-function getUpdatedPermissions(
-  request: Record<string, unknown>,
-  decision: DesktopPermissionDecision,
-): Record<string, unknown>[] {
-  if (!decision.alwaysAllow || !Array.isArray(request.permission_suggestions)) {
-    return []
-  }
-  return request.permission_suggestions
-    .filter(isPermissionUpdate)
-    .map(update =>
-      update.destination === 'session'
-        ? { ...update, destination: 'localSettings' }
-        : update,
-    )
-}
-
-function isPermissionUpdate(value: unknown): value is Record<string, unknown> {
-  if (!value || typeof value !== 'object') {
-    return false
-  }
-  const update = value as Record<string, unknown>
-  if (typeof update.type !== 'string') {
-    return false
-  }
-  if (typeof update.destination !== 'string') {
-    return false
-  }
-  if (
-    update.type === 'addRules' ||
-    update.type === 'replaceRules' ||
-    update.type === 'removeRules'
-  ) {
-    return Array.isArray(update.rules) && typeof update.behavior === 'string'
-  }
-  if (update.type === 'setMode') {
-    return typeof update.mode === 'string'
-  }
-  if (update.type === 'addDirectories' || update.type === 'removeDirectories') {
-    return Array.isArray(update.directories)
-  }
-  return false
 }

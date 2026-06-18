@@ -1,9 +1,11 @@
 import type {
+  DesktopContextUsage,
   DesktopFilePreview,
-  DesktopPermissionMode,
   DesktopPermissionRequest,
-  DesktopSessionStatus,
-  DesktopThinkingMode,
+  DesktopSessionEvent,
+  DesktopSessionListItem,
+  DesktopSessionMessage,
+  DesktopToolLogEntry,
 } from '../shared/types.js'
 
 export type AppView = 'quickChat' | 'search' | 'plugins' | 'automation'
@@ -15,42 +17,28 @@ export type DrawerTab =
   | 'toolLog'
   | 'settings'
 
-export type Message = {
-  id: string
-  role: 'user' | 'assistant' | 'system'
-  text: string
-  streaming?: boolean
-}
+export type Message = DesktopSessionMessage
 
-export type SessionListItem = {
-  id: string
-  sessionName: string | null
-  workspaceName: string
-  workspacePath: string
-  permissionMode: DesktopPermissionMode
-  model: string | null
-  fallbackModel: string | null
-  thinkingMode: DesktopThinkingMode
-  hasSystemPrompt: boolean
-  hasAppendSystemPrompt: boolean
-  additionalDirectoryCount: number
-  status: DesktopSessionStatus
-  createdAt: string
-}
+export type SessionListItem = DesktopSessionListItem
 
-export type ToolLogEntry = {
-  id: string
-  toolName: string
-  summary: string
-  kind: 'start' | 'result'
-  isError?: boolean
-  expanded: boolean
-  createdAt: string
+export type ToolLogEntry = DesktopToolLogEntry
+
+export function sessionDisplayTitle(session: SessionListItem): string {
+  return (
+    session.sessionName ??
+    session.customTitle ??
+    session.aiTitle ??
+    session.firstPrompt ??
+    session.workspaceName
+  )
 }
 
 export type SessionViewState = {
+  eventModelVersion?: 1
+  events: DesktopSessionEvent[]
   messages: Message[]
   toolLog: ToolLogEntry[]
   pendingPermissions: DesktopPermissionRequest[]
+  contextUsage: DesktopContextUsage | null
   selectedFile: DesktopFilePreview | null
 }

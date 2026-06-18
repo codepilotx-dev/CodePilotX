@@ -79,7 +79,7 @@
 
 .plugins-button.is-primary {
   background: var(--c-text-strong);
-  color: var(--c-text-on-accent);
+  color: var(--c-bg);
   border-color: var(--c-text-strong);
 }
 
@@ -88,8 +88,8 @@
 }
 
 .plugins-button.is-primary:hover {
-  background: #2b2b2b;
-  border-color: #2b2b2b;
+  background: var(--gray-11);
+  border-color: var(--gray-11);
 }
 
 .plugins-more-dots {
@@ -193,10 +193,10 @@
   padding: 48px 32px;
   background:
     linear-gradient(135deg,
-      #e7d7ff 0%,
-      #d6e6ff 38%,
-      #ffd9e8 72%,
-      #fff1d9 100%);
+      var(--purple-4) 0%,
+      var(--blue-4) 38%,
+      var(--pink-4) 72%,
+      var(--amber-4) 100%);
   box-shadow: var(--sh-card-lg);
 }
 
@@ -204,9 +204,9 @@
   position: absolute;
   inset: -40%;
   background:
-    radial-gradient(45% 45% at 20% 30%, rgba(168, 145, 255, 0.55), transparent 70%),
-    radial-gradient(40% 40% at 80% 20%, rgba(120, 200, 255, 0.45), transparent 70%),
-    radial-gradient(50% 50% at 70% 80%, rgba(255, 175, 210, 0.55), transparent 70%);
+    radial-gradient(45% 45% at 20% 30%, var(--purple-7), transparent 70%),
+    radial-gradient(40% 40% at 80% 20%, var(--blue-7), transparent 70%),
+    radial-gradient(50% 50% at 70% 80%, var(--pink-7), transparent 70%);
   filter: blur(40px);
   z-index: -2;
 }
@@ -215,7 +215,7 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(rgba(255, 255, 255, 0.6) 0.5px, transparent 0.6px) 0 0 / 4px 4px;
+    radial-gradient(var(--white-a8) 0.5px, transparent 0.6px) 0 0 / 4px 4px;
   opacity: 0.35;
   mix-blend-mode: overlay;
   z-index: -1;
@@ -235,12 +235,12 @@
   padding: 10px 18px;
   margin: 0;
   border-radius: var(--plugins-radius-pill);
-  background: rgba(255, 255, 255, 0.78);
+  background: var(--white-a10);
   backdrop-filter: blur(6px);
   color: var(--c-text-strong);
   font-size: var(--fs-15);
   font-weight: 500;
-  box-shadow: 0 2px 10px rgba(70, 60, 110, 0.08);
+  box-shadow: 0 2px 10px var(--black-a2);
 }
 
 .plugins-hero-command {
@@ -250,7 +250,7 @@
   font-family: var(--ff-mono);
   font-size: var(--fs-13);
   font-weight: 600;
-  color: #5b3df5;
+  color: var(--purple-11);
 }
 
 .plugins-hero-cta {
@@ -260,18 +260,18 @@
   height: 38px;
   padding: 0 18px;
   border-radius: var(--r-pill);
-  background: #0d0d0d;
-  color: #ffffff;
+  background: var(--gray-12);
+  color: var(--gray-1);
   font-size: var(--fs-13);
   font-weight: 500;
   border: 0;
   cursor: pointer;
-  box-shadow: 0 6px 18px rgba(13, 13, 13, 0.25);
+  box-shadow: 0 6px 18px var(--black-a4);
   transition: transform 120ms ease, background 120ms ease;
 }
 
 .plugins-hero-cta:hover {
-  background: #2b2b2b;
+  background: var(--gray-11);
   transform: translateY(-1px);
 }
 
@@ -292,14 +292,14 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: rgba(13, 13, 13, 0.25);
+  background: var(--black-a4);
   border: 0;
   padding: 0;
   cursor: pointer;
 }
 
 .plugins-hero-dot.is-active button {
-  background: rgba(13, 13, 13, 0.85);
+  background: var(--black-a10);
   width: 8px;
   height: 8px;
 }
@@ -363,20 +363,20 @@
   height: 36px;
   border-radius: 10px;
   flex-shrink: 0;
-  color: #ffffff;
+  color: var(--c-text-on-accent);
 }
 
 /* Brand tone palette */
-.plugins-tone-github { background: #1f1f1f; color: #ffffff; }
-.plugins-tone-chrome { background: linear-gradient(135deg, #ff4f4f, #ffaa3b 60%, #ffd23f); color: #ffffff; }
-.plugins-tone-sheet { background: #1f8f5b; color: #ffffff; }
-.plugins-tone-slides { background: #f59e0b; color: #ffffff; }
-.plugins-tone-slack { background: #4a154b; color: #ffffff; }
-.plugins-tone-data { background: #0f62fe; color: #ffffff; }
-.plugins-tone-design { background: #ff6b9d; color: #ffffff; }
-.plugins-tone-creative { background: #7c3aed; color: #ffffff; }
-.plugins-tone-sales { background: #0ea5e9; color: #ffffff; }
-.plugins-tone-codex { background: linear-gradient(135deg, #6c4cf1, #b46cff); color: #ffffff; }
+.plugins-tone-github { background: var(--gray-12); color: var(--c-text-on-accent); }
+.plugins-tone-chrome { background: linear-gradient(135deg, var(--red-9), var(--orange-9) 60%, var(--amber-9)); color: var(--c-text-on-accent); }
+.plugins-tone-sheet { background: var(--green-9); color: var(--c-text-on-accent); }
+.plugins-tone-slides { background: var(--amber-9); color: var(--c-text-on-accent); }
+.plugins-tone-slack { background: var(--purple-12); color: var(--c-text-on-accent); }
+.plugins-tone-data { background: var(--blue-9); color: var(--c-text-on-accent); }
+.plugins-tone-design { background: var(--pink-9); color: var(--c-text-on-accent); }
+.plugins-tone-creative { background: var(--purple-9); color: var(--c-text-on-accent); }
+.plugins-tone-sales { background: var(--cyan-9); color: var(--c-text-on-accent); }
+.plugins-tone-codex { background: linear-gradient(135deg, var(--purple-9), var(--pink-9)); color: var(--c-text-on-accent); }
 
 .plugins-card-meta {
   min-width: 0;
@@ -515,7 +515,7 @@
 
 .automation-button.is-primary {
   background: var(--c-text-strong);
-  color: var(--c-text-on-accent);
+  color: var(--c-bg);
   border-color: var(--c-text-strong);
 }
 
@@ -524,8 +524,8 @@
 }
 
 .automation-button.is-primary:hover {
-  background: #2b2b2b;
-  border-color: #2b2b2b;
+  background: var(--gray-11);
+  border-color: var(--gray-11);
 }
 
 .automation-canvas {
@@ -550,7 +550,7 @@
   justify-content: center;
   width: 200px;
   height: 140px;
-  color: #c7c7c7;
+  color: var(--gray-7);
 }
 
 .automation-cloud-prompt {

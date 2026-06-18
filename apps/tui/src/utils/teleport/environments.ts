@@ -1,6 +1,6 @@
 import axios from 'axios'
-import { getOauthConfig } from '@claudecode/tui/constants/oauth.js'
-import { getOrganizationUUID } from '@claudecode/tui/services/oauth/client.js'
+import { getOauthConfig } from '@codepilotx/tui/constants/oauth.js'
+import { getOrganizationUUID } from '@codepilotx/tui/services/oauth/client.js'
 import { getClaudeAIOAuthTokens } from '../auth.js'
 import { toError } from '../errors.js'
 import { logError } from '../log.js'
@@ -33,7 +33,7 @@ export async function fetchEnvironments(): Promise<EnvironmentResource[]> {
   const accessToken = getClaudeAIOAuthTokens()?.accessToken
   if (!accessToken) {
     throw new Error(
-      'Oh-My-AgentCode web sessions require authentication with a Claude.ai account. API key authentication is not sufficient. OAuth login is disabled in this build.',
+      'CodePilotX web sessions require authentication with a Claude.ai account. API key authentication is not sufficient. OAuth login is disabled in this build.',
     )
   }
 

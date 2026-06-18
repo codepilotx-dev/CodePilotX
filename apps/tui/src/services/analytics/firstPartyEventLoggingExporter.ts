@@ -8,13 +8,13 @@ import axios from 'axios'
 import { randomUUID } from 'crypto'
 import { appendFile, mkdir, readdir, unlink, writeFile } from 'fs/promises'
 import * as path from 'path'
-import type { CoreUserData } from '@claudecode/tui/utils/user.js'
+import type { CoreUserData } from '@codepilotx/tui/utils/user.js'
 import {
   getIsNonInteractiveSession,
   getSessionId,
 } from '../../bootstrap/state.js'
-import { ClaudeCodeInternalEvent } from '@claudecode/core/types/generated/events_mono/claude_code/v1/claude_code_internal_event.js'
-import { GrowthbookExperimentEvent } from '@claudecode/core/types/generated/events_mono/growthbook/v1/growthbook_experiment_event.js'
+import { ClaudeCodeInternalEvent } from '@codepilotx/core/types/generated/events_mono/claude_code/v1/claude_code_internal_event.js'
+import { GrowthbookExperimentEvent } from '@codepilotx/core/types/generated/events_mono/growthbook/v1/growthbook_experiment_event.js'
 import {
   getClaudeAIOAuthTokens,
   hasProfileScope,
@@ -29,7 +29,7 @@ import { readJSONLFile } from '../../utils/json.js'
 import { logError } from '../../utils/log.js'
 import { sleep } from '../../utils/sleep.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
-import { getClaudeCodeUserAgent } from '../../utils/userAgent.js'
+import { getCodePilotXUserAgent } from '../../utils/userAgent.js'
 import { isOAuthTokenExpired } from '../oauth/client.js'
 import { stripProtoFields } from './index.js'
 import { type EventMetadata, to1PEventFormat } from './metadata.js'
@@ -537,7 +537,7 @@ export class FirstPartyEventLoggingExporter implements LogRecordExporter {
 
     const baseHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
-      'User-Agent': getClaudeCodeUserAgent(),
+      'User-Agent': getCodePilotXUserAgent(),
       'x-service-name': 'claude-code',
     }
 

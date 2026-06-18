@@ -3,13 +3,13 @@ import type {
   ToolUseBlockParam,
 } from '@anthropic-ai/sdk/resources/index.mjs'
 import * as React from 'react'
-import { ConfigurableShortcutHint } from '@claudecode/tui/components/ConfigurableShortcutHint.js'
+import { ConfigurableShortcutHint } from '@codepilotx/tui/components/ConfigurableShortcutHint.js'
 import {
   CtrlOToExpand,
   SubAgentProvider,
-} from '@claudecode/tui/components/CtrlOToExpand.js'
-import { Byline } from '@claudecode/tui/components/design-system/Byline.js'
-import { KeyboardShortcutHint } from '@claudecode/tui/components/design-system/KeyboardShortcutHint.js'
+} from '@codepilotx/tui/components/CtrlOToExpand.js'
+import { Byline } from '@codepilotx/tui/components/design-system/Byline.js'
+import { KeyboardShortcutHint } from '@codepilotx/tui/components/design-system/KeyboardShortcutHint.js'
 import type { z } from 'zod/v4'
 import { AgentProgressLine } from '../../components/AgentProgressLine.js'
 import { FallbackToolUseErrorMessage } from '../../components/FallbackToolUseErrorMessage.js'

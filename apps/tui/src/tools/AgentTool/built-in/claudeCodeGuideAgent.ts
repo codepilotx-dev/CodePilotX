@@ -1,13 +1,13 @@
-import { BASH_TOOL_NAME } from '@claudecode/tui/tools/BashTool/toolName.js'
-import { FILE_READ_TOOL_NAME } from '@claudecode/tui/tools/FileReadTool/prompt.js'
-import { GLOB_TOOL_NAME } from '@claudecode/tui/tools/GlobTool/prompt.js'
-import { GREP_TOOL_NAME } from '@claudecode/tui/tools/GrepTool/prompt.js'
-import { SEND_MESSAGE_TOOL_NAME } from '@claudecode/tui/tools/SendMessageTool/constants.js'
-import { WEB_FETCH_TOOL_NAME } from '@claudecode/tui/tools/WebFetchTool/prompt.js'
-import { WEB_SEARCH_TOOL_NAME } from '@claudecode/tui/tools/WebSearchTool/prompt.js'
-import { isUsing3PServices } from '@claudecode/tui/utils/auth.js'
-import { hasEmbeddedSearchTools } from '@claudecode/tui/utils/embeddedTools.js'
-import { getSettings_DEPRECATED } from '@claudecode/tui/utils/settings/settings.js'
+import { BASH_TOOL_NAME } from '@codepilotx/tui/tools/BashTool/toolName.js'
+import { FILE_READ_TOOL_NAME } from '@codepilotx/tui/tools/FileReadTool/prompt.js'
+import { GLOB_TOOL_NAME } from '@codepilotx/tui/tools/GlobTool/prompt.js'
+import { GREP_TOOL_NAME } from '@codepilotx/tui/tools/GrepTool/prompt.js'
+import { SEND_MESSAGE_TOOL_NAME } from '@codepilotx/tui/tools/SendMessageTool/constants.js'
+import { WEB_FETCH_TOOL_NAME } from '@codepilotx/tui/tools/WebFetchTool/prompt.js'
+import { WEB_SEARCH_TOOL_NAME } from '@codepilotx/tui/tools/WebSearchTool/prompt.js'
+import { isUsing3PServices } from '@codepilotx/tui/utils/auth.js'
+import { hasEmbeddedSearchTools } from '@codepilotx/tui/utils/embeddedTools.js'
+import { getSettings_DEPRECATED } from '@codepilotx/tui/utils/settings/settings.js'
 import { jsonStringify } from '../../../utils/slowOperations.js'
 import type {
   AgentDefinition,
@@ -20,26 +20,26 @@ const CDP_DOCS_MAP_URL = 'https://platform.claude.com/llms.txt'
 
 export const CLAUDE_CODE_GUIDE_AGENT_TYPE = 'claude-code-guide'
 
-function getClaudeCodeGuideBasePrompt(): string {
+function getCodePilotXGuideBasePrompt(): string {
   // Ant-native builds alias find/grep to embedded bfs/ugrep and remove the
   // dedicated Glob/Grep tools, so point at find/grep instead.
   const localSearchHint = hasEmbeddedSearchTools()
     ? `${FILE_READ_TOOL_NAME}, \`find\`, and \`grep\``
     : `${FILE_READ_TOOL_NAME}, ${GLOB_TOOL_NAME}, and ${GREP_TOOL_NAME}`
 
-  return `You are the Claude guide agent. Your primary responsibility is helping users understand and use Oh-My-AgentCode, the Claude Agent SDK, and the Claude API (formerly the Anthropic API) effectively.
+  return `You are the Claude guide agent. Your primary responsibility is helping users understand and use CodePilotX, the Claude Agent SDK, and the Claude API (formerly the Anthropic API) effectively.
 
 **Your expertise spans three domains:**
 
-1. **Oh-My-AgentCode** (the CLI tool): Installation, configuration, hooks, skills, MCP servers, keyboard shortcuts, IDE integrations, settings, and workflows.
+1. **CodePilotX** (the CLI tool): Installation, configuration, hooks, skills, MCP servers, keyboard shortcuts, IDE integrations, settings, and workflows.
 
-2. **Claude Agent SDK**: A framework for building custom AI agents based on Oh-My-AgentCode technology. Available for Node.js/TypeScript and Python.
+2. **Claude Agent SDK**: A framework for building custom AI agents based on CodePilotX technology. Available for Node.js/TypeScript and Python.
 
 3. **Claude API**: The Claude API (formerly known as the Anthropic API) for direct model interaction, tool use, and integrations.
 
 **Documentation sources:**
 
-- **Oh-My-AgentCode docs** (${CLAUDE_CODE_DOCS_MAP_URL}): Fetch this for questions about the Oh-My-AgentCode CLI tool, including:
+- **CodePilotX docs** (${CLAUDE_CODE_DOCS_MAP_URL}): Fetch this for questions about the CodePilotX CLI tool, including:
   - Installation, setup, and getting started
   - Hooks (pre/post command execution)
   - Custom skills
@@ -97,7 +97,7 @@ function getFeedbackGuideline(): string {
 
 export const CLAUDE_CODE_GUIDE_AGENT: BuiltInAgentDefinition = {
   agentType: CLAUDE_CODE_GUIDE_AGENT_TYPE,
-  whenToUse: `Use this agent when the user asks questions ("Can Claude...", "Does Claude...", "How do I...") about: (1) Oh-My-AgentCode (the CLI tool) - features, hooks, slash commands, MCP servers, settings, IDE integrations, keyboard shortcuts; (2) Claude Agent SDK - building custom agents; (3) Claude API (formerly Anthropic API) - API usage, tool use, Anthropic SDK usage. **IMPORTANT:** Before spawning a new agent, check if there is already a running or recently completed claude-code-guide agent that you can continue via ${SEND_MESSAGE_TOOL_NAME}.`,
+  whenToUse: `Use this agent when the user asks questions ("Can Claude...", "Does Claude...", "How do I...") about: (1) CodePilotX (the CLI tool) - features, hooks, slash commands, MCP servers, settings, IDE integrations, keyboard shortcuts; (2) Claude Agent SDK - building custom agents; (3) Claude API (formerly Anthropic API) - API usage, tool use, Anthropic SDK usage. **IMPORTANT:** Before spawning a new agent, check if there is already a running or recently completed claude-code-guide agent that you can continue via ${SEND_MESSAGE_TOOL_NAME}.`,
   // Ant-native builds: Glob/Grep tools are removed; use Bash (with embedded
   // bfs/ugrep via find/grep aliases) for local file search instead.
   tools: hasEmbeddedSearchTools()
@@ -181,7 +181,7 @@ export const CLAUDE_CODE_GUIDE_AGENT: BuiltInAgentDefinition = {
 
     // Add the feedback guideline (conditional based on whether user is using 3P services)
     const feedbackGuideline = getFeedbackGuideline()
-    const basePromptWithFeedback = `${getClaudeCodeGuideBasePrompt()}
+    const basePromptWithFeedback = `${getCodePilotXGuideBasePrompt()}
 ${feedbackGuideline}`
 
     // If we have any context to add, append it to the base system prompt

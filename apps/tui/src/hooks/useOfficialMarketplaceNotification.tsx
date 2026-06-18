@@ -21,7 +21,7 @@ export function useOfficialMarketplaceNotification(): void {
         key: 'marketplace-config-save-failed',
         jsx: (
           <Text color="error">
-            Failed to save marketplace retry info · Check ~/.claude.json
+            Failed to save marketplace retry info · Check ~/.codepilotx/.config.json
             permissions
           </Text>
         ),

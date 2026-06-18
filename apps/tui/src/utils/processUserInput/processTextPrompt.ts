@@ -1,11 +1,11 @@
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources'
 import { randomUUID } from 'crypto'
-import { setPromptId } from '@claudecode/tui/bootstrap/state.js'
+import { setPromptId } from '@codepilotx/tui/bootstrap/state.js'
 import type {
   AttachmentMessage,
   SystemMessage,
   UserMessage,
-} from '@claudecode/tui/types/message.js'
+} from '@codepilotx/tui/types/message.js'
 import { logEvent } from '../../services/analytics/index.js'
 import type { PermissionMode } from '../../types/permissions.js'
 import { createUserMessage } from '../messages.js'

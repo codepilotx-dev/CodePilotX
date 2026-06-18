@@ -3,12 +3,12 @@ import memoize from 'lodash-es/memoize.js'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
-} from '@claudecode/tui/services/analytics/index.js'
-import { getOauthAccountInfo, isConsumerSubscriber } from '@claudecode/tui/utils/auth.js'
-import { logForDebugging } from '@claudecode/tui/utils/debug.js'
-import { gracefulShutdown } from '@claudecode/tui/utils/gracefulShutdown.js'
-import { isEssentialTrafficOnly } from '@claudecode/tui/utils/privacyLevel.js'
-import { writeToStderr } from '@claudecode/tui/utils/process.js'
+} from '@codepilotx/tui/services/analytics/index.js'
+import { getOauthAccountInfo, isConsumerSubscriber } from '@codepilotx/tui/utils/auth.js'
+import { logForDebugging } from '@codepilotx/tui/utils/debug.js'
+import { gracefulShutdown } from '@codepilotx/tui/utils/gracefulShutdown.js'
+import { isEssentialTrafficOnly } from '@codepilotx/tui/utils/privacyLevel.js'
+import { writeToStderr } from '@codepilotx/tui/utils/process.js'
 import { getOauthConfig } from '../../constants/oauth.js'
 import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
 import {
@@ -17,7 +17,7 @@ import {
   withOAuth401Retry,
 } from '../../utils/http.js'
 import { logError } from '../../utils/log.js'
-import { getClaudeCodeUserAgent } from '../../utils/userAgent.js'
+import { getCodePilotXUserAgent } from '../../utils/userAgent.js'
 
 // Cache expiration: 24 hours
 const GROVE_CACHE_EXPIRATION_MS = 24 * 60 * 60 * 1000
@@ -66,7 +66,7 @@ export const getGroveSettings = memoize(
           {
             headers: {
               ...authHeaders.headers,
-              'User-Agent': getClaudeCodeUserAgent(),
+              'User-Agent': getCodePilotXUserAgent(),
             },
           },
         )
@@ -100,7 +100,7 @@ export async function markGroveNoticeViewed(): Promise<void> {
         {
           headers: {
             ...authHeaders.headers,
-            'User-Agent': getClaudeCodeUserAgent(),
+            'User-Agent': getCodePilotXUserAgent(),
           },
         },
       )
@@ -134,7 +134,7 @@ export async function updateGroveSettings(
         {
           headers: {
             ...authHeaders.headers,
-            'User-Agent': getClaudeCodeUserAgent(),
+            'User-Agent': getCodePilotXUserAgent(),
           },
         },
       )

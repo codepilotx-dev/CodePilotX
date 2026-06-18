@@ -1,14 +1,14 @@
 import figures from 'figures'
 import * as React from 'react'
-import { Box, Text } from '@claudecode/tui/ink.js'
+import { Box, Text } from '@codepilotx/tui/ink.js'
 import {
   AGENT_COLOR_TO_THEME_COLOR,
   AGENT_COLORS,
   type AgentColorName,
-} from '@claudecode/tui/tools/AgentTool/agentColorManager.js'
-import type { PromptInputMode } from '@claudecode/tui/types/textInputTypes.js'
-import { getTeammateColor } from '@claudecode/tui/utils/teammate.js'
-import type { Theme } from '@claudecode/tui/utils/theme.js'
+} from '@codepilotx/tui/tools/AgentTool/agentColorManager.js'
+import type { PromptInputMode } from '@codepilotx/tui/types/textInputTypes.js'
+import { getTeammateColor } from '@codepilotx/tui/utils/teammate.js'
+import type { Theme } from '@codepilotx/tui/utils/theme.js'
 import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
 
 type Props = {

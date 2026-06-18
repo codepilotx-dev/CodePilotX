@@ -1,6 +1,6 @@
 import * as React from 'react'
-import { Markdown } from '@claudecode/tui/components/Markdown.js'
-import { MessageResponse } from '@claudecode/tui/components/MessageResponse.js'
+import { Markdown } from '@codepilotx/tui/components/Markdown.js'
+import { MessageResponse } from '@codepilotx/tui/components/MessageResponse.js'
 import { Box, Text } from '../../../ink.js'
 
 type Props = {

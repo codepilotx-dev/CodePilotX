@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto'
-import type { HookEvent } from '@claudecode/tui/entrypoints/agentSdkTypes.js'
+import type { HookEvent } from '@codepilotx/tui/entrypoints/agentSdkTypes.js'
 import { queryModelWithoutStreaming } from '../../services/api/claude.js'
 import type { ToolUseContext } from '../../Tool.js'
 import type { Message } from '../../types/message.js'
@@ -62,7 +62,7 @@ export async function execPromptHook(
       const response = await queryModelWithoutStreaming({
         messages: messagesToQuery,
         systemPrompt: asSystemPrompt([
-          `You are evaluating a hook in Oh-My-AgentCode.
+          `You are evaluating a hook in CodePilotX.
 
 Your response must be a JSON object matching one of the following schemas:
 1. If the condition is met, return: {"ok": true}

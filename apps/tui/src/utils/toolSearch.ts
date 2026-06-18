@@ -28,7 +28,7 @@ import type { Message } from '../types/message.js'
 import {
   countToolDefinitionTokens,
   TOOL_TOKEN_COUNT_OVERHEAD,
-} from './analyzeContext.js'
+} from './toolTokenCounting.js'
 import { count } from './array.js'
 import { getMergedBetas } from './betas.js'
 import { getContextWindowForModel } from './context.js'

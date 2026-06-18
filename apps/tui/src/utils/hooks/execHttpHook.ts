@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { HookEvent } from '@claudecode/tui/entrypoints/agentSdkTypes.js'
+import type { HookEvent } from '@codepilotx/tui/entrypoints/agentSdkTypes.js'
 import { createCombinedAbortSignal } from '../combinedAbortSignal.js'
 import { logForDebugging } from '../debug.js'
 import { errorMessage } from '../errors.js'
@@ -21,23 +21,10 @@ const DEFAULT_HTTP_HOOK_TIMEOUT_MS = 10 * 60 * 1000 // 10 minutes (matches TOOL_
 async function getSandboxProxyConfig(): Promise<
   { host: string; port: number; protocol: string } | undefined
 > {
-  const { SandboxManager } = await import('../sandbox/sandbox-adapter.js')
-
-  if (!SandboxManager.isSandboxingEnabled()) {
-    return undefined
-  }
-
-  // Wait for the sandbox network proxy to finish initializing. In REPL mode,
-  // SandboxManager.initialize() is fire-and-forget so the proxy may not be
-  // ready yet when the first hook fires.
-  await SandboxManager.waitForNetworkInitialization()
-
-  const proxyPort = SandboxManager.getProxyPort()
-  if (!proxyPort) {
-    return undefined
-  }
-
-  return { host: '127.0.0.1', port: proxyPort, protocol: 'http' }
+  const { getSandboxProxyConfig: getConfig } = await import(
+    './sandboxProxyConfig.js'
+  )
+  return getConfig()
 }
 
 /**

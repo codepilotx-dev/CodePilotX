@@ -1,8 +1,8 @@
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
-} from '@claudecode/tui/services/analytics/index.js'
-import { saveGlobalConfig } from '@claudecode/tui/utils/config.js'
+} from '@codepilotx/tui/services/analytics/index.js'
+import { saveGlobalConfig } from '@codepilotx/tui/utils/config.js'
 import {
   CODE_REVIEW_PLUGIN_WORKFLOW_CONTENT,
   PR_BODY,
@@ -233,7 +233,7 @@ export async function setupGitHubActions(
         workflows.push({
           path: '.github/workflows/claude-code-review.yml',
           content: CODE_REVIEW_PLUGIN_WORKFLOW_CONTENT,
-          message: 'Oh-My-AgentCode Review workflow',
+          message: 'CodePilotX Review workflow',
         })
       }
 

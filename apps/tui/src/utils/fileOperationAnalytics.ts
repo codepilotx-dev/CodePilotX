@@ -1,6 +1,6 @@
 import { createHash } from 'crypto'
-import type { AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from '@claudecode/tui/services/analytics/index.js'
-import { logEvent } from '@claudecode/tui/services/analytics/index.js'
+import type { AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from '@codepilotx/tui/services/analytics/index.js'
+import { logEvent } from '@codepilotx/tui/services/analytics/index.js'
 
 /**
  * Creates a truncated SHA256 hash (16 chars) for file paths

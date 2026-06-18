@@ -4,8 +4,8 @@
  *
  * isRemoteManagedSettingsEligible() reads two separate keychain entries
  * SEQUENTIALLY via sync execSync during applySafeConfigEnvironmentVariables():
- *   1. "Oh-My-AgentCode-credentials" (OAuth tokens)  — ~32ms
- *   2. "Oh-My-AgentCode" (legacy API key)            — ~33ms
+ *   1. "CodePilotX-credentials" (OAuth tokens)  — ~32ms
+ *   2. "CodePilotX" (legacy API key)            — ~33ms
  * Sequential cost: ~65ms on every macOS startup.
  *
  * Firing both here lets the subprocesses run in parallel with the ~65ms of

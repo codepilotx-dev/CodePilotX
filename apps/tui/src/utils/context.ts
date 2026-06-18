@@ -4,6 +4,10 @@ import { getGlobalConfig } from './config.js'
 import { isEnvTruthy } from './envUtils.js'
 import { getCanonicalName } from './model/model.js'
 import { getModelCapability } from './model/modelCapabilities.js'
+import {
+  getSelectedProviderConfig,
+  getSelectedProviderModelMetadata,
+} from './model/providerConfig.js'
 
 // Model context window size (200k tokens for all models right now)
 export const MODEL_CONTEXT_WINDOW_DEFAULT = 200_000
@@ -14,6 +18,7 @@ export const COMPACT_MAX_OUTPUT_TOKENS = 20_000
 // Default max output tokens
 const MAX_OUTPUT_TOKENS_DEFAULT = 32_000
 const MAX_OUTPUT_TOKENS_UPPER_LIMIT = 64_000
+const THIRD_PARTY_MAX_OUTPUT_TOKENS_DEFAULT = 8_192
 
 // Capped default for slot-reservation optimization. BQ p99 output = 4,911
 // tokens, so 32k/64k defaults over-reserve 8-16× slot capacity. With the cap
@@ -67,6 +72,11 @@ export function getContextWindowForModel(
   }
 
   // [1m] suffix — explicit client-side opt-in, respected over all detection
+  const thirdPartyContextWindow = getThirdPartyContextWindow(model)
+  if (thirdPartyContextWindow !== undefined) {
+    return thirdPartyContextWindow
+  }
+
   if (has1mContext(model)) {
     return 1_000_000
   }
@@ -95,6 +105,28 @@ export function getContextWindowForModel(
     }
   }
   return MODEL_CONTEXT_WINDOW_DEFAULT
+}
+
+function getThirdPartyContextWindow(model: string): number | undefined {
+  const provider = getSelectedProviderConfig()
+  if (provider.kind === 'anthropic') {
+    return undefined
+  }
+  const metadataWindow = getSelectedProviderModelMetadata(model)?.contextWindow
+  if (metadataWindow && metadataWindow > 0) {
+    return metadataWindow
+  }
+  return getKnownThirdPartyContextWindow(model)
+}
+
+function getKnownThirdPartyContextWindow(model: string): number | undefined {
+  const m = model.toLowerCase()
+  if (m.includes('gpt-4.1')) return 1_000_000
+  if (m.includes('gpt-4o')) return 128_000
+  if (m.includes('gpt-oss-120b')) return 131_072
+  if (m.includes('llama-3.3-70b')) return 131_072
+  if (m.includes('deepseek')) return 64_000
+  return undefined
 }
 
 export function getSonnet1mExpTreatmentEnabled(model: string): boolean {
@@ -153,6 +185,14 @@ export function getModelMaxOutputTokens(model: string): {
   let defaultTokens: number
   let upperLimit: number
 
+  const thirdPartyMaxOutputTokens = getThirdPartyMaxOutputTokens(model)
+  if (thirdPartyMaxOutputTokens !== undefined) {
+    return {
+      default: thirdPartyMaxOutputTokens,
+      upperLimit: thirdPartyMaxOutputTokens,
+    }
+  }
+
   if (process.env.USER_TYPE === 'ant') {
     const antModel = resolveAntModel(model.toLowerCase())
     if (antModel) {
@@ -207,6 +247,40 @@ export function getModelMaxOutputTokens(model: string): {
   }
 
   return { default: defaultTokens, upperLimit }
+}
+
+function getThirdPartyMaxOutputTokens(model: string): number | undefined {
+  const provider = getSelectedProviderConfig()
+  if (provider.kind === 'anthropic') {
+    return undefined
+  }
+
+  const metadataOutputTokens = getSelectedProviderModelMetadata(model)?.outputTokens
+  if (metadataOutputTokens && metadataOutputTokens > 0) {
+    return metadataOutputTokens
+  }
+
+  const knownOutputTokens = getKnownThirdPartyMaxOutputTokens(model)
+  if (knownOutputTokens !== undefined) {
+    return knownOutputTokens
+  }
+
+  const contextWindow = getThirdPartyContextWindow(model) ?? MODEL_CONTEXT_WINDOW_DEFAULT
+  return Math.max(
+    1,
+    Math.min(
+      THIRD_PARTY_MAX_OUTPUT_TOKENS_DEFAULT,
+      Math.floor(contextWindow * 0.25),
+    ),
+  )
+}
+
+function getKnownThirdPartyMaxOutputTokens(model: string): number | undefined {
+  const m = model.toLowerCase()
+  if (m.includes('deepseek') && m.includes('flash')) return 8_192
+  if (m.includes('deepseek')) return 16_384
+  if (m.includes('gpt-4.1') || m.includes('gpt-4o')) return 16_384
+  return undefined
 }
 
 /**

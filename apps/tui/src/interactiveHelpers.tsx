@@ -1,11 +1,11 @@
 import { feature } from 'bun:bundle'
 import { appendFileSync } from 'fs'
 import React from 'react'
-import { logEvent } from '@claudecode/tui/services/analytics/index.js'
+import { logEvent } from '@codepilotx/tui/services/analytics/index.js'
 import {
   gracefulShutdown,
   gracefulShutdownSync,
-} from '@claudecode/tui/utils/gracefulShutdown.js'
+} from '@codepilotx/tui/utils/gracefulShutdown.js'
 import {
   type ChannelEntry,
   getAllowedChannels,
@@ -258,7 +258,7 @@ export async function showSetupScreens(
   setImmediate(() => initializeTelemetryAfterTrust())
 
   if (await isQualifiedForGrove()) {
-    const { GroveDialog } = await import('@claudecode/tui/components/grove/Grove.js')
+    const { GroveDialog } = await import('@codepilotx/tui/components/grove/Grove.js')
     const decision = await showSetupDialog<string>(root, done => (
       <GroveDialog
         showIfAlreadyViewed={false}
@@ -275,7 +275,7 @@ export async function showSetupScreens(
 
   // Check for custom API key
   // On homespace, ANTHROPIC_API_KEY is preserved in process.env for child
-  // processes but ignored by Oh-My-AgentCode itself (see auth.ts).
+  // processes but ignored by CodePilotX itself (see auth.ts).
   if (process.env.ANTHROPIC_API_KEY && !isRunningOnHomespace()) {
     const customApiKeyTruncated = normalizeApiKeyForConfig(
       process.env.ANTHROPIC_API_KEY,

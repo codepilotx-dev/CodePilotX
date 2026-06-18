@@ -1,5 +1,5 @@
-import { HOOK_EVENTS } from '@claudecode/tui/entrypoints/agentSdkTypes.js'
-import type { AppState } from '@claudecode/tui/state/AppState.js'
+import { HOOK_EVENTS } from '@codepilotx/tui/entrypoints/agentSdkTypes.js'
+import type { AppState } from '@codepilotx/tui/state/AppState.js'
 import { logForDebugging } from '../debug.js'
 import type { HooksSettings } from '../settings/types.js'
 import { addSessionHook, removeSessionHook } from './sessionHooks.js'

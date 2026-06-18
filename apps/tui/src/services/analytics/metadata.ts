@@ -28,10 +28,10 @@ import {
   getLinuxDistroInfo,
   detectVcs,
 } from '../../utils/platform.js'
-import type { CoreUserData } from '@claudecode/tui/utils/user.js'
+import type { CoreUserData } from '@codepilotx/tui/utils/user.js'
 import { getAgentContext } from '../../utils/agentContext.js'
-import type { EnvironmentMetadata } from '@claudecode/core/types/generated/events_mono/claude_code/v1/claude_code_internal_event.js'
-import type { PublicApiAuth } from '@claudecode/core/types/generated/events_mono/common/v1/auth.js'
+import type { EnvironmentMetadata } from '@codepilotx/core/types/generated/events_mono/claude_code/v1/claude_code_internal_event.js'
+import type { PublicApiAuth } from '@codepilotx/core/types/generated/events_mono/common/v1/auth.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
 import {
   getAgentId,
@@ -425,7 +425,7 @@ export type EnvContext = {
   isRunningWithBun: boolean
   isCi: boolean
   isClaubbit: boolean
-  isClaudeCodeRemote: boolean
+  isCodePilotXRemote: boolean
   isLocalAgentMode: boolean
   isConductor: boolean
   remoteEnvironmentType?: string
@@ -434,7 +434,7 @@ export type EnvContext = {
   claudeCodeRemoteSessionId?: string
   tags?: string
   isGithubAction: boolean
-  isClaudeCodeAction: boolean
+  isCodePilotXAction: boolean
   isClaudeAiAuth: boolean
   version: string
   versionBase?: string
@@ -593,7 +593,7 @@ const buildEnvContext = memoize(async (): Promise<EnvContext> => {
     isRunningWithBun: env.isRunningWithBun(),
     isCi: isEnvTruthy(process.env.CI),
     isClaubbit: isEnvTruthy(process.env.CLAUBBIT),
-    isClaudeCodeRemote: isEnvTruthy(process.env.CLAUDE_CODE_REMOTE),
+    isCodePilotXRemote: isEnvTruthy(process.env.CLAUDE_CODE_REMOTE),
     isLocalAgentMode: process.env.CLAUDE_CODE_ENTRYPOINT === 'local-agent',
     isConductor: env.isConductor(),
     ...(process.env.CLAUDE_CODE_REMOTE_ENVIRONMENT_TYPE && {
@@ -615,7 +615,7 @@ const buildEnvContext = memoize(async (): Promise<EnvContext> => {
       tags: process.env.CLAUDE_CODE_TAGS,
     }),
     isGithubAction: isEnvTruthy(process.env.GITHUB_ACTIONS),
-    isClaudeCodeAction: isEnvTruthy(process.env.CLAUDE_CODE_ACTION),
+    isCodePilotXAction: isEnvTruthy(process.env.CLAUDE_CODE_ACTION),
     isClaudeAiAuth: isClaudeAISubscriber(),
     version: MACRO.VERSION,
     versionBase: getVersionBase(),
@@ -828,11 +828,11 @@ export function to1PEventFormat(
     is_running_with_bun: envContext.isRunningWithBun,
     is_ci: envContext.isCi,
     is_claubbit: envContext.isClaubbit,
-    is_claude_code_remote: envContext.isClaudeCodeRemote,
+    is_claude_code_remote: envContext.isCodePilotXRemote,
     is_local_agent_mode: envContext.isLocalAgentMode,
     is_conductor: envContext.isConductor,
     is_github_action: envContext.isGithubAction,
-    is_claude_code_action: envContext.isClaudeCodeAction,
+    is_claude_code_action: envContext.isCodePilotXAction,
     is_claude_ai_auth: envContext.isClaudeAiAuth,
     version: envContext.version,
     build_time: envContext.buildTime,

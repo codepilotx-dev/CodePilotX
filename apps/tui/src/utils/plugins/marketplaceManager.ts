@@ -1,5 +1,5 @@
 /**
- * Marketplace manager for Oh-My-AgentCode plugins
+ * Marketplace manager for CodePilotX plugins
  *
  * This module provides functionality to:
  * - Manage known marketplace sources (URLs, GitHub repos, npm packages, local files)
@@ -311,7 +311,7 @@ export async function loadKnownMarketplacesConfigSafe(): Promise<KnownMarketplac
     return await loadKnownMarketplacesConfig()
   } catch {
     // Inner function already logged via logForDebugging. Don't logError here —
-    // corrupted user config isn't a Oh-My-AgentCode bug, shouldn't hit the error file.
+    // corrupted user config isn't a CodePilotX bug, shouldn't hit the error file.
     return {}
   }
 }
@@ -2141,7 +2141,7 @@ export const getMarketplace = memoize(
       throw new Error(
         `Marketplace "${name}" has a relative source path (${entry.source.path}) ` +
           `in known_marketplaces.json — this is stale state from an older ` +
-          `Oh-My-AgentCode version. Run 'claude marketplace remove ${name}' and ` +
+          `CodePilotX version. Run 'claude marketplace remove ${name}' and ` +
           `re-add it from the original project directory.`,
       )
     }

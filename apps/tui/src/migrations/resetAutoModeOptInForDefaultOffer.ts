@@ -1,5 +1,5 @@
 import { feature } from 'bun:bundle'
-import { logEvent } from '@claudecode/tui/services/analytics/index.js'
+import { logEvent } from '@codepilotx/tui/services/analytics/index.js'
 import { getGlobalConfig, saveGlobalConfig } from '../utils/config.js'
 import { logError } from '../utils/log.js'
 import { getAutoModeEnabledState } from '../utils/permissions/permissionSetup.js'
@@ -12,7 +12,7 @@ import {
  * One-shot migration: clear skipAutoPermissionPrompt for users who accepted
  * the old 2-option AutoModeOptInDialog but don't have auto as their default.
  * Re-surfaces the dialog so they see the new "make it my default mode" option.
- * Guard lives in GlobalConfig (~/.claude.json), not settings.json, so it
+ * Guard lives in GlobalConfig (~/.codepilotx/.config.json), not settings.json, so it
  * survives settings resets and doesn't re-arm itself.
  *
  * Only runs when tengu_auto_mode_config.enabled === 'enabled'. For 'opt-in'

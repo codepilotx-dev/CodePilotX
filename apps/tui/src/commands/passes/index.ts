@@ -10,9 +10,9 @@ export default {
   get description() {
     const reward = getCachedReferrerReward()
     if (reward) {
-      return '与朋友分享一周免费 Oh-My-AgentCode，并获得额外用量'
+      return '与朋友分享一周免费 CodePilotX，并获得额外用量'
     }
-    return '与朋友分享一周免费 Oh-My-AgentCode'
+    return '与朋友分享一周免费 CodePilotX'
   },
   get isHidden() {
     const { eligible, hasCache } = checkCachedPassesEligibility()

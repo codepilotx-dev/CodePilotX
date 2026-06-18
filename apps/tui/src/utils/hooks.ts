@@ -1,7 +1,7 @@
 // biome-ignore-all assist/source/organizeImports: ANT-ONLY import markers must not be reordered
 /**
  * Hooks are user-defined shell commands that can be executed at various points
- * in Oh-My-AgentCode's lifecycle.
+ * in CodePilotX's lifecycle.
  */
 import { basename } from 'path'
 import { spawn, type ChildProcessWithoutNullStreams } from 'child_process'
@@ -54,7 +54,7 @@ import {
 import {
   logEvent,
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-} from '@claudecode/tui/services/analytics/index.js'
+} from '@codepilotx/tui/services/analytics/index.js'
 import { logOTelEvent } from './telemetry/events.js'
 import { ALLOWED_OFFICIAL_MARKETPLACE_NAMES } from './plugins/schemas.js'
 import {
@@ -106,11 +106,11 @@ import type {
   ExitReason,
   SyncHookJSONOutput,
   AsyncHookJSONOutput,
-} from '@claudecode/tui/entrypoints/agentSdkTypes.js'
+} from '@codepilotx/tui/entrypoints/agentSdkTypes.js'
 import type { StatusLineCommandInput } from '../types/statusLine.js'
 import type { ElicitResult } from '@modelcontextprotocol/sdk/types.js'
 import type { FileSuggestionCommandInput } from '../types/fileSuggestion.js'
-import type { HookResultMessage } from '@claudecode/tui/types/message.js'
+import type { HookResultMessage } from '@codepilotx/tui/types/message.js'
 import chalk from 'chalk'
 import type {
   HookMatcher,
@@ -1979,7 +1979,7 @@ async function* executeHooks({
     return
   }
 
-  if (isEnvTruthy(process.env.CLAUDE_CODE_SIMPLE)) {
+  if ((isEnvTruthy(process.env.CODEPILOTX_SIMPLE) || isEnvTruthy(process.env.CLAUDE_CODE_SIMPLE))) {
     return
   }
 
@@ -3013,7 +3013,7 @@ async function executeHooksOutsideREPL({
   signal?: AbortSignal
   timeoutMs: number
 }): Promise<HookOutsideReplResult[]> {
-  if (isEnvTruthy(process.env.CLAUDE_CODE_SIMPLE)) {
+  if ((isEnvTruthy(process.env.CODEPILOTX_SIMPLE) || isEnvTruthy(process.env.CLAUDE_CODE_SIMPLE))) {
     return []
   }
 

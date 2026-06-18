@@ -1,10 +1,10 @@
 import { LRUCache } from 'lru-cache'
 import { basename, dirname, join, sep } from 'path'
-import type { SuggestionItem } from '@claudecode/tui/components/PromptInput/PromptInputFooterSuggestions.js'
-import { getCwd } from '@claudecode/tui/utils/cwd.js'
-import { getFsImplementation } from '@claudecode/tui/utils/fsOperations.js'
-import { logError } from '@claudecode/tui/utils/log.js'
-import { expandPath } from '@claudecode/tui/utils/path.js'
+import type { SuggestionItem } from '@codepilotx/tui/components/PromptInput/PromptInputFooterSuggestions.js'
+import { getCwd } from '@codepilotx/tui/utils/cwd.js'
+import { getFsImplementation } from '@codepilotx/tui/utils/fsOperations.js'
+import { logError } from '@codepilotx/tui/utils/log.js'
+import { expandPath } from '@codepilotx/tui/utils/path.js'
 // Types
 export type DirectoryEntry = {
   name: string
@@ -228,7 +228,7 @@ export async function getPathCompletions(
     .slice(0, maxResults)
 
   // Construct relative path based on original partialPath
-  // e.g., if partialPath is "@claudecode/tui/c", directory portion is "@claudecode/tui/"
+  // e.g., if partialPath is "@codepilotx/tui/c", directory portion is "@codepilotx/tui/"
   // Strip leading "./" since it's just used for cwd search
   // Handle both forward slash and platform separator for Windows compatibility
   const hasSeparator = partialPath.includes('/') || partialPath.includes(sep)

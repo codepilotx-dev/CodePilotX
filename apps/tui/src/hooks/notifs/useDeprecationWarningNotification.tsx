@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
-import { useNotifications } from '@claudecode/tui/context/notifications.js'
-import { getModelDeprecationWarning } from '@claudecode/tui/utils/model/deprecation.js'
+import { useNotifications } from '@codepilotx/tui/context/notifications.js'
+import { getModelDeprecationWarning } from '@codepilotx/tui/utils/model/deprecation.js'
 import { getIsRemoteMode } from '../../bootstrap/state.js'
 
 export function useDeprecationWarningNotification(model: string): void {

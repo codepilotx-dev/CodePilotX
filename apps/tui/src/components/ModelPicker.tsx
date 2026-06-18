@@ -1,17 +1,17 @@
 import capitalize from 'lodash-es/capitalize.js'
 import * as React from 'react'
 import { useCallback, useMemo, useState } from 'react'
-import { useExitOnCtrlCDWithKeybindings } from '@claudecode/tui/hooks/useExitOnCtrlCDWithKeybindings.js'
+import { useExitOnCtrlCDWithKeybindings } from '@codepilotx/tui/hooks/useExitOnCtrlCDWithKeybindings.js'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
-} from '@claudecode/tui/services/analytics/index.js'
+} from '@codepilotx/tui/services/analytics/index.js'
 import {
   FAST_MODE_MODEL_DISPLAY,
   isFastModeAvailable,
   isFastModeCooldown,
   isFastModeEnabled,
-} from '@claudecode/tui/utils/fastMode.js'
+} from '@codepilotx/tui/utils/fastMode.js'
 import { Box, Text } from '../ink.js'
 import { useKeybindings } from '../keybindings/useKeybinding.js'
 import { useAppState, useSetAppState } from '../state/AppState.js'
@@ -229,7 +229,7 @@ export function ModelPicker({
           </Text>
           <Text dimColor>
             {headerText ??
-              'Switch between Claude models. Applies to this session and future Oh-My-AgentCode sessions. For other/previous model names, specify with --model.'}
+              'Switch between Claude models. Applies to this session and future CodePilotX sessions. For other/previous model names, specify with --model.'}
           </Text>
           {sessionModel && (
             <Text dimColor>

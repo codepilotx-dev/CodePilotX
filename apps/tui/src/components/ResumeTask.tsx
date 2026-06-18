@@ -1,9 +1,9 @@
 import React, { useCallback, useState } from 'react'
-import { useTerminalSize } from '@claudecode/tui/hooks/useTerminalSize.js'
+import { useTerminalSize } from '@codepilotx/tui/hooks/useTerminalSize.js'
 import {
   type CodeSession,
   fetchCodeSessionsFromSessionsAPI,
-} from '@claudecode/tui/utils/teleport/api.js'
+} from '@codepilotx/tui/utils/teleport/api.js'
 // eslint-disable-next-line custom-rules/prefer-use-keybindings -- raw j/k/arrow list navigation
 import { Box, Text, useInput } from '../ink.js'
 import { useKeybinding } from '../keybindings/useKeybinding.js'
@@ -136,10 +136,10 @@ export function ResumeTask({
       <Box flexDirection="column" padding={1}>
         <Box flexDirection="row">
           <Spinner />
-          <Text bold>Loading Oh-My-AgentCode sessions…</Text>
+          <Text bold>Loading CodePilotX sessions…</Text>
         </Box>
         <Text dimColor>
-          {retrying ? 'Retrying…' : 'Fetching your Oh-My-AgentCode sessions…'}
+          {retrying ? 'Retrying…' : 'Fetching your CodePilotX sessions…'}
         </Text>
       </Box>
     )
@@ -149,7 +149,7 @@ export function ResumeTask({
     return (
       <Box flexDirection="column" padding={1}>
         <Text bold color="error">
-          Error loading Oh-My-AgentCode sessions
+          Error loading CodePilotX sessions
         </Text>
 
         {renderErrorSpecificGuidance(loadErrorType)}
@@ -166,7 +166,7 @@ export function ResumeTask({
     return (
       <Box flexDirection="column" padding={1}>
         <Text bold>
-          No Oh-My-AgentCode sessions found
+          No CodePilotX sessions found
           {currentRepo && <Text> for {currentRepo}</Text>}
         </Text>
         <Box marginTop={1}>
@@ -340,7 +340,7 @@ function renderErrorSpecificGuidance(
     case 'other':
       return (
         <Box marginY={1} flexDirection="row">
-          <Text dimColor>Sorry, Oh-My-AgentCode encountered an error</Text>
+          <Text dimColor>Sorry, CodePilotX encountered an error</Text>
         </Box>
       )
   }

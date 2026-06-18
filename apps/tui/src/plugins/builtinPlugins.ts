@@ -4,7 +4,7 @@
  * Manages built-in plugins that ship with the CLI and can be enabled/disabled
  * by users via the /plugin UI.
  *
- * Built-in plugins differ from bundled skills (@claudecode/tui/skills/bundled/) in that:
+ * Built-in plugins differ from bundled skills (@codepilotx/tui/skills/bundled/) in that:
  * - They appear in the /plugin UI under a "Built-in" section
  * - Users can enable/disable them (persisted to user settings)
  * - They can provide multiple components (skills, hooks, MCP servers)
@@ -15,6 +15,7 @@
 
 import type { Command } from '../commands.js'
 import type { BundledSkillDefinition } from '../skills/bundledSkills.js'
+import type { Tool } from '../Tool.js'
 import type { BuiltinPluginDefinition, LoadedPlugin } from '../types/plugin.js'
 import { getSettings_DEPRECATED } from '../utils/settings/settings.js'
 
@@ -118,6 +119,53 @@ export function getBuiltinPluginSkillCommands(): Command[] {
   }
 
   return commands
+}
+
+/**
+ * Get native tools from enabled built-in plugins.
+ */
+export function getBuiltinPluginTools(): Tool[] {
+  const { enabled } = getBuiltinPlugins()
+  const tools: Tool[] = []
+
+  for (const plugin of enabled) {
+    const definition = BUILTIN_PLUGINS.get(plugin.name)
+    if (definition?.tools) {
+      tools.push(...definition.tools)
+    }
+  }
+
+  return tools
+}
+
+/**
+ * Get system prompt sections from enabled built-in plugins.
+ */
+export async function getBuiltinPluginSystemPromptSections(
+  enabledToolNames?: ReadonlySet<string>,
+): Promise<string[]> {
+  const { enabled } = getBuiltinPlugins()
+  const sections: string[] = []
+
+  for (const plugin of enabled) {
+    const definition = BUILTIN_PLUGINS.get(plugin.name)
+    if (
+      enabledToolNames &&
+      definition?.tools?.length &&
+      !definition.tools.some(tool => enabledToolNames.has(tool.name))
+    ) {
+      continue
+    }
+    const section =
+      typeof definition?.systemPrompt === 'function'
+        ? await definition.systemPrompt()
+        : definition?.systemPrompt
+    if (section) {
+      sections.push(section)
+    }
+  }
+
+  return sections
 }
 
 /**

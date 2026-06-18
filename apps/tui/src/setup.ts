@@ -5,11 +5,11 @@ import chalk from 'chalk'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
-} from '@claudecode/tui/services/analytics/index.js'
-import { getCwd } from '@claudecode/tui/utils/cwd.js'
-import { checkForReleaseNotes } from '@claudecode/tui/utils/releaseNotes.js'
-import { setCwd } from '@claudecode/tui/utils/Shell.js'
-import { initSinks } from '@claudecode/tui/utils/sinks.js'
+} from '@codepilotx/tui/services/analytics/index.js'
+import { getCwd } from '@codepilotx/tui/utils/cwd.js'
+import { checkForReleaseNotes } from '@codepilotx/tui/utils/releaseNotes.js'
+import { setCwd } from '@codepilotx/tui/utils/Shell.js'
+import { initSinks } from '@codepilotx/tui/utils/sinks.js'
 import {
   getIsNonInteractiveSession,
   getProjectRoot,
@@ -72,7 +72,7 @@ export async function setup(
     // biome-ignore lint/suspicious/noConsole:: intentional console output
     console.error(
       chalk.bold.red(
-        'Error: Oh-My-AgentCode requires Node.js version 18 or higher.',
+        'Error: CodePilotX requires Node.js version 18 or higher.',
       ),
     )
     process.exit(1)
@@ -419,7 +419,7 @@ export async function setup(
       // (trusted Anthropic-managed launcher intentionally pre-approving everything).
       // Precedent: permissionSetup.ts:861, applySettingsChange.ts:55 (PR #19116)
       process.env.CLAUDE_CODE_ENTRYPOINT !== 'local-agent' &&
-      // Same for CCD (Oh-My-AgentCode in Desktop) — apps#29127 passes the flag
+      // Same for CCD (CodePilotX in Desktop) — apps#29127 passes the flag
       // unconditionally to unlock mid-session bypass switching
       process.env.CLAUDE_CODE_ENTRYPOINT !== 'claude-desktop'
     ) {

@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react'
-import { isFeedbackSurveyDisabled } from '@claudecode/tui/services/analytics/config.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '@claudecode/tui/services/analytics/growthbook.js'
+import { isFeedbackSurveyDisabled } from '@codepilotx/tui/services/analytics/config.js'
+import { getFeatureValue_CACHED_MAY_BE_STALE } from '@codepilotx/tui/services/analytics/growthbook.js'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
-} from '@claudecode/tui/services/analytics/index.js'
+} from '@codepilotx/tui/services/analytics/index.js'
 import { isAutoMemoryEnabled } from '../../memdir/paths.js'
 import { isPolicyAllowed } from '../../services/policyLimits/index.js'
 import { FILE_READ_TOOL_NAME } from '../../tools/FileReadTool/prompt.js'

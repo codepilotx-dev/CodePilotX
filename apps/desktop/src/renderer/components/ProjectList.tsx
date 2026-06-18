@@ -1,7 +1,7 @@
 import type React from 'react'
 import { FolderOpen, Plus, RefreshCw, X } from 'lucide-react'
 import type { DesktopWorkspace } from '../../shared/types.js'
-import type { SessionListItem } from '../uiTypes.js'
+import { sessionDisplayTitle, type SessionListItem } from '../uiTypes.js'
 
 type Props = {
   workspace: DesktopWorkspace | null
@@ -29,7 +29,10 @@ export function ProjectList({
   onCloseSession,
 }: Props): React.ReactNode {
   const workspaceSessions = workspace
-    ? sessions.filter(session => session.workspacePath === workspace.path)
+    ? sessions.filter(
+        session =>
+          !session.standalone && session.workspacePath === workspace.path,
+      )
     : []
 
   return (
@@ -95,7 +98,7 @@ export function ProjectList({
                 key={session.id}
               >
                 <button className="project-session-button" onClick={() => onSelectSession(session)}>
-                  <span>{session.sessionName ?? session.workspaceName}</span>
+                  <span>{sessionDisplayTitle(session)}</span>
                   <small>
                     {session.createdAt} · {session.status}
                   </small>

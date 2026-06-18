@@ -48,7 +48,7 @@ import { logError } from '../../utils/log.js'
 import {
   logEvent,
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-} from '@claudecode/tui/services/analytics/index.js'
+} from '@codepilotx/tui/services/analytics/index.js'
 import { isBridgeEnabled } from '../../bridge/bridgeEnabled.js'
 import { ThemePicker } from '../ThemePicker.js'
 import {
@@ -75,7 +75,7 @@ import {
   getExternalClaudeMdIncludes,
   getMemoryFiles,
   hasExternalClaudeMdIncludes,
-} from '@claudecode/tui/utils/claudemd.js'
+} from '@codepilotx/tui/utils/claudemd.js'
 import { KeyboardShortcutHint } from '../design-system/KeyboardShortcutHint.js'
 import { ConfigurableShortcutHint } from '../ConfigurableShortcutHint.js'
 import { Byline } from '../design-system/Byline.js'
@@ -92,8 +92,8 @@ import {
   updateSettingsForSource,
 } from '../../utils/settings/settings.js'
 import { getUserMsgOptIn, setUserMsgOptIn } from '../../bootstrap/state.js'
-import { DEFAULT_OUTPUT_STYLE_NAME } from '@claudecode/tui/constants/outputStyles.js'
-import { isEnvTruthy, isRunningOnHomespace } from '@claudecode/tui/utils/envUtils.js'
+import { DEFAULT_OUTPUT_STYLE_NAME } from '@codepilotx/tui/constants/outputStyles.js'
+import { isEnvTruthy, isRunningOnHomespace } from '@codepilotx/tui/utils/envUtils.js'
 import type {
   LocalJSXCommandContext,
   CommandResultDisplay,
@@ -1310,7 +1310,7 @@ export function Config({
     )
     // Check for API key changes
     // On homespace, ANTHROPIC_API_KEY is preserved in process.env for child
-    // processes but ignored by Oh-My-AgentCode itself (see auth.ts).
+    // processes but ignored by CodePilotX itself (see auth.ts).
     const effectiveApiKey = isRunningOnHomespace()
       ? undefined
       : process.env.ANTHROPIC_API_KEY

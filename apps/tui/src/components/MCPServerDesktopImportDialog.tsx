@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react'
-import { gracefulShutdown } from '@claudecode/tui/utils/gracefulShutdown.js'
-import { writeToStdout } from '@claudecode/tui/utils/process.js'
+import { gracefulShutdown } from '@codepilotx/tui/utils/gracefulShutdown.js'
+import { writeToStdout } from '@codepilotx/tui/utils/process.js'
 import { Box, color, Text, useTheme } from '../ink.js'
 import { addMcpConfig, getAllMcpConfigs } from '../services/mcp/config.js'
 import type {

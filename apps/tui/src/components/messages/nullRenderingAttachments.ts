@@ -1,4 +1,4 @@
-import type { Attachment } from '@claudecode/tui/utils/attachments.js'
+import type { Attachment } from '@codepilotx/tui/utils/attachments.js'
 import type { Message, NormalizedMessage } from '../../types/message.js'
 
 /**

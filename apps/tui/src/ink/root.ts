@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { logForDebugging } from '@claudecode/tui/utils/debug.js'
+import { logForDebugging } from '@codepilotx/tui/utils/debug.js'
 import { Stream } from 'stream'
 import type { FrameEvent } from './frame.js'
 import Ink, { type Options as InkOptions } from './ink.js'

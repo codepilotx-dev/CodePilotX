@@ -11,11 +11,14 @@ These instructions apply to the whole `ClaudeCode` tree unless a nested
 - Some files in this checkout include inline `sourceMappingURL` blocks and
   `sourcesContent`. Treat them as part of the current artifact shape: avoid
   broad formatting passes, and keep edits narrowly focused.
+- The app only needs to support desktop pages; do not spend effort adapting
+  pages for non-desktop viewports unless explicitly requested.
 - This checkout may not include package manager or test configuration files.
   Discover available commands before claiming a build or test path exists.
 
 ## Editing Rules
 - Prefer small, local changes that follow the surrounding file style.
+- Prefer UTF-8 when reading code and project files.
 - Preserve existing public exports and runtime behavior unless the task
   explicitly asks for an API change.
 - Keep code ASCII unless the file already requires non-ASCII content.

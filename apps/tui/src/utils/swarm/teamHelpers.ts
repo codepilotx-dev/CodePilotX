@@ -13,6 +13,11 @@ import type { PermissionMode } from '../permissions/PermissionMode.js'
 import { jsonParse, jsonStringify } from '../slowOperations.js'
 import { getTasksDir, notifyTasksUpdated } from '../tasks.js'
 import { getAgentName, getTeamName, isTeammate } from '../teammate.js'
+import { isInsideTmux } from './backends/detection.js'
+import {
+  ensureBackendsRegistered,
+  getBackendByType,
+} from './backends/registry.js'
 import { type BackendType, isPaneBackend } from './backends/types.js'
 import { TEAM_LEAD_NAME } from './constants.js'
 
@@ -592,8 +597,6 @@ export async function cleanupSessionTeams(): Promise<void> {
 /**
  * Best-effort kill of all pane-backed teammate panes for a team.
  * Called from cleanupSessionTeams on ungraceful leader exit (SIGINT/SIGTERM).
- * Dynamic imports avoid adding registry/detection to this module's static
- * dep graph — this only runs at shutdown, so the import cost is irrelevant.
  */
 async function killOrphanedTeammatePanes(teamName: string): Promise<void> {
   const teamFile = readTeamFile(teamName)
@@ -608,11 +611,6 @@ async function killOrphanedTeammatePanes(teamName: string): Promise<void> {
   )
   if (paneMembers.length === 0) return
 
-  const [{ ensureBackendsRegistered, getBackendByType }, { isInsideTmux }] =
-    await Promise.all([
-      import('./backends/registry.js'),
-      import('./backends/detection.js'),
-    ])
   await ensureBackendsRegistered()
   const useExternalSession = !(await isInsideTmux())
 

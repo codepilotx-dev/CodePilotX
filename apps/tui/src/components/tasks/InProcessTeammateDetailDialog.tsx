@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react'
-import type { DeepImmutable } from '@claudecode/tui/types/utils.js'
+import type { DeepImmutable } from '@codepilotx/tui/types/utils.js'
 import { useElapsedTime } from '../../hooks/useElapsedTime.js'
 import type { KeyboardEvent } from '../../ink/events/keyboard-event.js'
 import { Box, Text, useTheme } from '../../ink.js'

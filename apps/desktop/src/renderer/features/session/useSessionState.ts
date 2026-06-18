@@ -1,8 +1,12 @@
+import { desktopClient } from '../../services/desktopClient.js'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
   DesktopAgentEvent,
+  DesktopContextUsage,
   DesktopPermissionMode,
   DesktopPermissionRequest,
+  DesktopSessionEvent,
+  DesktopSessionMetadataPatch,
   DesktopSessionStatus,
   DesktopThinkingMode,
   DesktopWorkspace,
@@ -14,19 +18,23 @@ import type {
   ToolLogEntry,
 } from '../../uiTypes.js'
 import {
+  activateSession,
   closeSessionAction,
   createSessionForWorkspaceAction,
   decidePermissionAction,
   interruptSessionAction,
   selectSessionAction,
   submitSessionMessageAction,
+  updateSessionMetadataAction,
   type CloseSessionResult,
   type SessionActionContext,
   type SessionSettingsSnapshot,
 } from './sessionActions.js'
 import { handleSessionAgentEvent } from './sessionEvents.js'
 import {
+  applySessionView,
   addToolLogEntry as addToolLogEntryToView,
+  createEmptySessionView,
   toggleToolLogEntry as toggleToolLogEntryInView,
   updateSessionView as updateSessionViewState,
   type AddToolLogEntry,
@@ -52,17 +60,22 @@ export type UseSessionStateOptions = {
 
 export type UseSessionStateResult = {
   sessionId: string | null
+  sessionsHydrated: boolean
   sessions: SessionListItem[]
   sessionStatus: DesktopSessionStatus
   messages: Message[]
+  events: DesktopSessionEvent[]
   toolLog: ToolLogEntry[]
   pendingPermissions: DesktopPermissionRequest[]
+  contextUsage: DesktopContextUsage | null
   activeSessionItem: SessionListItem | null
   canSubmit: boolean
   input: string
   setInput: (value: string) => void
-  createSessionForWorkspace: (target?: DesktopWorkspace | null) => Promise<void>
-  submit: () => Promise<void>
+  activateSessionById: (targetSessionId: string | null) => DesktopWorkspace | null
+  createSessionForWorkspace: (target?: DesktopWorkspace | null) => Promise<string | null>
+  submit: (target?: DesktopWorkspace | null) => Promise<void>
+  submitToSession: (targetSessionId: string, value: string) => Promise<void>
   interrupt: () => Promise<void>
   decidePermission: (
     request: DesktopPermissionRequest,
@@ -70,7 +83,11 @@ export type UseSessionStateResult = {
     alwaysAllow?: boolean,
   ) => Promise<void>
   closeSession: (targetSessionId: string) => Promise<CloseSessionResult | null>
-  selectSession: (session: SessionListItem) => DesktopWorkspace
+  updateSessionMetadata: (
+    targetSessionId: string,
+    patch: DesktopSessionMetadataPatch,
+  ) => Promise<CloseSessionResult | null>
+  selectSession: (session: SessionListItem) => DesktopWorkspace | null
   toggleToolLogEntry: (entryId: string) => void
 }
 
@@ -93,19 +110,26 @@ export function useSessionState(
   } = options
 
   const [sessionId, setSessionId] = useState<string | null>(null)
+  const [sessionsHydrated, setSessionsHydrated] = useState(false)
   const [sessions, setSessions] = useState<SessionListItem[]>([])
   const [sessionStatus, setSessionStatus] =
     useState<DesktopSessionStatus>('idle')
   const [messages, setMessages] = useState<Message[]>([])
+  const [events, setEvents] = useState<DesktopSessionEvent[]>([])
   const [toolLog, setToolLog] = useState<ToolLogEntry[]>([])
   const [pendingPermissions, setPendingPermissions] = useState<
     DesktopPermissionRequest[]
   >([])
+  const [contextUsage, setContextUsage] =
+    useState<DesktopContextUsage | null>(null)
   const [input, setInput] = useState('')
 
   const activeSessionIdRef = useRef<string | null>(null)
+  const sessionsRef = useRef<SessionListItem[]>([])
+  const sessionStatusRef = useRef<DesktopSessionStatus>('idle')
   const sessionViewsRef = useRef<Record<string, SessionViewState>>({})
   const sessionWorkspacesRef = useRef<Record<string, DesktopWorkspace>>({})
+  const inputBySessionRef = useRef<Record<string, string>>({})
 
   const onErrorRef = useRef(onError)
   onErrorRef.current = onError
@@ -117,7 +141,13 @@ export function useSessionState(
   onOpenDrawerPermissionsRef.current = onOpenDrawerPermissions
 
   const viewSetters = useMemo<SessionViewStateSetters>(
-    () => ({ setMessages, setToolLog, setPendingPermissions }),
+    () => ({
+      setEvents,
+      setMessages,
+      setToolLog,
+      setPendingPermissions,
+      setContextUsage,
+    }),
     [],
   )
   const viewRefs = useMemo<SessionViewRefs>(
@@ -138,6 +168,23 @@ export function useSessionState(
     [viewSetters],
   )
 
+  useEffect(() => {
+    sessionsRef.current = sessions
+  }, [sessions])
+
+  useEffect(() => {
+    sessionStatusRef.current = sessionStatus
+  }, [sessionStatus])
+
+  const setScopedInput = useCallback((value: string): void => {
+    const key = activeSessionIdRef.current ?? HOME_INPUT_KEY
+    inputBySessionRef.current = {
+      ...inputBySessionRef.current,
+      [key]: value,
+    }
+    setInput(value)
+  }, [])
+
   const updateSessionView = useCallback<UpdateSessionView>(
     (targetSessionId, updater) => {
       updateSessionViewState(
@@ -155,6 +202,105 @@ export function useSessionState(
       addToolLogEntryToView(updateSessionView, targetSessionId, entry)
     },
     [updateSessionView],
+  )
+
+  const applyHydratedSessionSnapshot = useCallback(
+    (snapshot: Awaited<ReturnType<typeof desktopClient.getSession>>): void => {
+      const currentItem = sessionsRef.current.find(
+        session => session.id === snapshot.item.id,
+      )
+      const nextItem: SessionListItem = {
+        ...snapshot.item,
+        sessionName:
+          snapshot.item.sessionName ?? currentItem?.sessionName ?? null,
+        customTitle:
+          snapshot.item.customTitle ?? currentItem?.customTitle ?? null,
+        aiTitle: snapshot.item.aiTitle ?? currentItem?.aiTitle ?? null,
+        firstPrompt:
+          snapshot.item.firstPrompt ?? currentItem?.firstPrompt ?? null,
+      }
+      console.log('[desktop-title-debug] hydrate_apply_snapshot', {
+        id: nextItem.id,
+        isActive: activeSessionIdRef.current === nextItem.id,
+        snapshotSessionName: snapshot.item.sessionName,
+        snapshotCustomTitle: snapshot.item.customTitle,
+        snapshotAiTitle: snapshot.item.aiTitle,
+        snapshotFirstPrompt: snapshot.item.firstPrompt,
+        currentSessionName: currentItem?.sessionName,
+        currentCustomTitle: currentItem?.customTitle,
+        currentAiTitle: currentItem?.aiTitle,
+        currentFirstPrompt: currentItem?.firstPrompt,
+        mergedSessionName: nextItem.sessionName,
+        mergedCustomTitle: nextItem.customTitle,
+        mergedAiTitle: nextItem.aiTitle,
+        mergedFirstPrompt: nextItem.firstPrompt,
+      })
+      const nextView: SessionViewState = {
+        ...snapshot.view,
+        eventModelVersion: snapshot.eventModelVersion,
+        events: snapshot.events ?? [],
+        contextUsage: snapshot.view.contextUsage ?? null,
+        selectedFile:
+          sessionViewsRef.current[snapshot.item.id]?.selectedFile ?? null,
+      }
+      sessionViewsRef.current = {
+        ...sessionViewsRef.current,
+        [snapshot.item.id]: nextView,
+      }
+      sessionWorkspacesRef.current = {
+        ...sessionWorkspacesRef.current,
+        [snapshot.item.id]: snapshot.workspace,
+      }
+      sessionsRef.current = sessionsRef.current.map(session =>
+        session.id === snapshot.item.id ? nextItem : session,
+      )
+      setSessions(current =>
+        current.map(session =>
+          session.id === snapshot.item.id ? nextItem : session,
+        ),
+      )
+      if (activeSessionIdRef.current === snapshot.item.id) {
+        setSessionStatus(nextItem.status)
+        applySessionView(nextView, viewSetters)
+      }
+    },
+    [viewSetters],
+  )
+
+  const hydrateSessionDetails = useCallback(
+    async (targetSessionId: string): Promise<void> => {
+      const target = sessionsRef.current.find(
+        session => session.id === targetSessionId,
+      )
+      const currentView = sessionViewsRef.current[targetSessionId]
+      const hasHydratedContent = Boolean(
+        currentView &&
+          (currentView.messages.length > 0 ||
+            currentView.toolLog.length > 0 ||
+            currentView.events.length > 0),
+      )
+      if (
+        hasHydratedContent ||
+        target?.status === 'running' ||
+        target?.status === 'waiting'
+      ) {
+        return
+      }
+      try {
+        const snapshot = await desktopClient.getSession(targetSessionId)
+        console.log('[desktop-title-debug] hydrate_get_session_result', {
+          id: targetSessionId,
+          sessionName: snapshot.item.sessionName,
+          customTitle: snapshot.item.customTitle,
+          aiTitle: snapshot.item.aiTitle,
+          firstPrompt: snapshot.item.firstPrompt,
+        })
+        applyHydratedSessionSnapshot(snapshot)
+      } catch (error) {
+        onErrorRef.current(errorMessageOf(error))
+      }
+    },
+    [applyHydratedSessionSnapshot],
   )
 
   const toggleToolLogEntry = useCallback(
@@ -182,11 +328,54 @@ export function useSessionState(
   )
 
   useEffect(() => {
-    const unsubscribeAgent = window.desktopApi.onAgentEvent(handleAgentEvent)
+    const unsubscribeAgent = desktopClient.onAgentEvent(handleAgentEvent)
     return () => {
       unsubscribeAgent()
     }
   }, [handleAgentEvent])
+
+  useEffect(() => {
+    let disposed = false
+    async function hydrateSessions(): Promise<void> {
+      try {
+        const sessionSnapshots = await desktopClient.listSessions()
+        if (disposed) return
+
+        const nextSessions = sessionSnapshots.map(snapshot => snapshot.item)
+        const nextViews: Record<string, SessionViewState> = {}
+        const nextWorkspaces: Record<string, DesktopWorkspace> = {}
+        for (const snapshot of sessionSnapshots) {
+          nextViews[snapshot.item.id] = {
+            ...snapshot.view,
+            eventModelVersion: snapshot.eventModelVersion,
+            events: snapshot.events ?? [],
+            contextUsage: snapshot.view.contextUsage ?? null,
+            selectedFile: null,
+          }
+          nextWorkspaces[snapshot.item.id] = snapshot.workspace
+        }
+
+        sessionViewsRef.current = nextViews
+        sessionWorkspacesRef.current = nextWorkspaces
+        sessionsRef.current = nextSessions
+        setSessions(nextSessions)
+
+        activeSessionIdRef.current = null
+        setSessionId(null)
+        setSessionStatus('idle')
+        applySessionView(createEmptySessionView(), viewSetters)
+        setInput(inputBySessionRef.current[HOME_INPUT_KEY] ?? '')
+        setSessionsHydrated(true)
+      } catch (error) {
+        onErrorRef.current(errorMessageOf(error))
+        setSessionsHydrated(true)
+      }
+    }
+    void hydrateSessions()
+    return () => {
+      disposed = true
+    }
+  }, [viewSetters])
 
   const settingsSnapshot = useMemo<SessionSettingsSnapshot>(
     () => ({
@@ -212,14 +401,49 @@ export function useSessionState(
   )
 
   const createSessionForWorkspace = useCallback(
-    async (target: DesktopWorkspace | null): Promise<void> => {
-      await createSessionForWorkspaceAction(
+    async (target: DesktopWorkspace | null): Promise<string | null> =>
+      createSessionForWorkspaceAction(
         actionContext,
         settingsSnapshot,
         target,
-      )
-    },
+      ),
     [actionContext, settingsSnapshot],
+  )
+
+  const activateSessionById = useCallback(
+    (targetSessionId: string | null): DesktopWorkspace | null => {
+      if (!targetSessionId) {
+        activateSession(actionContext, null)
+        setSessionStatus('idle')
+        applySessionView(createEmptySessionView(), viewSetters)
+        setInput(inputBySessionRef.current[HOME_INPUT_KEY] ?? '')
+        return null
+      }
+
+      const targetSession = sessionsRef.current.find(
+        session => session.id === targetSessionId,
+      )
+      if (!targetSession) {
+        return null
+      }
+
+      activateSession(actionContext, targetSessionId)
+      setSessionStatus(targetSession.status)
+      applySessionView(
+        sessionViewsRef.current[targetSessionId] ?? createEmptySessionView(),
+        viewSetters,
+      )
+      void hydrateSessionDetails(targetSessionId)
+      setInput(inputBySessionRef.current[targetSessionId] ?? '')
+      if (targetSession.standalone) {
+        return null
+      }
+      return sessionWorkspacesRef.current[targetSessionId] ?? {
+        name: targetSession.workspaceName,
+        path: targetSession.workspacePath,
+      }
+    },
+    [actionContext, hydrateSessionDetails, viewSetters],
   )
 
   const canSubmit = useMemo(
@@ -233,15 +457,50 @@ export function useSessionState(
     [input, sessionId, sessionStatus],
   )
 
-  const submit = useCallback(async (): Promise<void> => {
+  const submitToSession = useCallback(async (
+    targetSessionId: string,
+    value: string,
+  ): Promise<void> => {
+    const targetStatus =
+      sessionsRef.current.find(session => session.id === targetSessionId)
+        ?.status ??
+      (activeSessionIdRef.current === targetSessionId
+        ? sessionStatusRef.current
+        : 'idle')
     await submitSessionMessageAction(
       onErrorRef,
-      sessionId,
-      input,
-      canSubmit,
-      setInput,
+      targetSessionId,
+      value,
+      Boolean(
+        targetSessionId &&
+          value.trim() &&
+          targetStatus !== 'running' &&
+          targetStatus !== 'waiting',
+      ),
+      model,
+      nextValue => {
+        inputBySessionRef.current = {
+          ...inputBySessionRef.current,
+          [targetSessionId]: nextValue,
+        }
+        if (activeSessionIdRef.current === targetSessionId) {
+          setInput(nextValue)
+        }
+      },
     )
-  }, [canSubmit, input, sessionId])
+  }, [model])
+
+  const submit = useCallback(async (target?: DesktopWorkspace | null): Promise<void> => {
+    const targetSessionId =
+      sessionId ??
+      (await createSessionForWorkspaceAction(
+        actionContext,
+        settingsSnapshot,
+        target ?? null,
+      ))
+    if (!targetSessionId) return
+    await submitToSession(targetSessionId, input)
+  }, [actionContext, input, sessionId, settingsSnapshot, submitToSession])
 
   const interrupt = useCallback(async (): Promise<void> => {
     await interruptSessionAction(onErrorRef, sessionId)
@@ -271,10 +530,27 @@ export function useSessionState(
     [actionContext, sessions],
   )
 
+  const updateSessionMetadata = useCallback(
+    async (
+      targetSessionId: string,
+      patch: DesktopSessionMetadataPatch,
+    ): Promise<CloseSessionResult | null> =>
+      updateSessionMetadataAction(
+        actionContext,
+        sessions,
+        targetSessionId,
+        patch,
+      ),
+    [actionContext, sessions],
+  )
+
   const selectSession = useCallback(
-    (session: SessionListItem): DesktopWorkspace =>
-      selectSessionAction(actionContext, session),
-    [actionContext],
+    (session: SessionListItem): DesktopWorkspace | null => {
+      const workspace = selectSessionAction(actionContext, session)
+      void hydrateSessionDetails(session.id)
+      return workspace
+    },
+    [actionContext, hydrateSessionDetails],
   )
 
   const activeSessionItem = useMemo(
@@ -284,21 +560,33 @@ export function useSessionState(
 
   return {
     sessionId,
+    sessionsHydrated,
     sessions,
     sessionStatus,
     messages,
+    events,
     toolLog,
     pendingPermissions,
+    contextUsage,
     activeSessionItem,
     canSubmit,
     input,
-    setInput,
+    setInput: setScopedInput,
+    activateSessionById,
     createSessionForWorkspace,
     submit,
+    submitToSession,
     interrupt,
     decidePermission,
     closeSession,
+    updateSessionMetadata,
     selectSession,
     toggleToolLogEntry,
   }
+}
+
+const HOME_INPUT_KEY = '__home__'
+
+function errorMessageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
 }

@@ -1,6 +1,6 @@
 import figures from 'figures'
 import * as React from 'react'
-import { Box, Text } from '@claudecode/tui/ink.js'
+import { Box, Text } from '@codepilotx/tui/ink.js'
 
 type Props = {
   hasStash: boolean

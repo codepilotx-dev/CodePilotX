@@ -1,6 +1,6 @@
 import capitalize from 'lodash-es/capitalize.js'
-import type { SettingSource } from '@claudecode/tui/utils/settings/constants.js'
-import { getSettingSourceName } from '@claudecode/tui/utils/settings/constants.js'
+import type { SettingSource } from '@codepilotx/tui/utils/settings/constants.js'
+import { getSettingSourceName } from '@codepilotx/tui/utils/settings/constants.js'
 
 export function getAgentSourceDisplayName(
   source: SettingSource | 'all' | 'built-in' | 'plugin',

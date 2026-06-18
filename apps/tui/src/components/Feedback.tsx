@@ -2,16 +2,16 @@ import axios from 'axios'
 import { readFile, stat } from 'fs/promises'
 import * as React from 'react'
 import { useCallback, useEffect, useState } from 'react'
-import { getLastAPIRequest } from '@claudecode/tui/bootstrap/state.js'
-import { logEventTo1P } from '@claudecode/tui/services/analytics/firstPartyEventLogger.js'
+import { getLastAPIRequest } from '@codepilotx/tui/bootstrap/state.js'
+import { logEventTo1P } from '@codepilotx/tui/services/analytics/firstPartyEventLogger.js'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
-} from '@claudecode/tui/services/analytics/index.js'
+} from '@codepilotx/tui/services/analytics/index.js'
 import {
   getLastAssistantMessage,
   normalizeMessagesForAPI,
-} from '@claudecode/tui/utils/messages.js'
+} from '@codepilotx/tui/utils/messages.js'
 import type { CommandResultDisplay } from '../commands.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { Box, Text, useInput } from '../ink.js'
@@ -450,7 +450,7 @@ export function Feedback({
           <Box marginTop={1}>
             <Text wrap="wrap" dimColor>
               We will use your feedback to debug related issues or to improve{' '}
-              Oh-My-AgentCode&apos;s functionality (eg. to reduce the risk of bugs
+              CodePilotX&apos;s functionality (eg. to reduce the risk of bugs
               occurring in the future).
             </Text>
           </Box>
@@ -590,8 +590,8 @@ async function generateTitle(
   try {
     const response = await queryHaiku({
       systemPrompt: asSystemPrompt([
-        'Generate a concise, technical issue title (max 80 chars) for a public GitHub issue based on this bug report for Oh-My-AgentCode.',
-        'Oh-My-AgentCode is an agentic coding CLI based on the Anthropic API.',
+        'Generate a concise, technical issue title (max 80 chars) for a public GitHub issue based on this bug report for CodePilotX.',
+        'CodePilotX is an agentic coding CLI based on the Anthropic API.',
         'The title should:',
         '- Include the type of issue [Bug] or [Feature Request] as the first thing in the title',
         '- Be concise, specific and descriptive of the actual problem',

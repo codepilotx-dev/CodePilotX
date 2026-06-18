@@ -23,7 +23,7 @@ import { randomUUID } from 'crypto'
 import {
   getAPIProvider,
   isFirstPartyAnthropicBaseUrl,
-} from '@claudecode/tui/utils/model/providers.js'
+} from '@codepilotx/tui/utils/model/providers.js'
 import {
   getAttributionHeader,
   getCLISyspromptPrefix,
@@ -129,7 +129,7 @@ import {
   setPromptCache1hAllowlist,
   setPromptCache1hEligible,
   setThinkingClearLatched,
-} from '@claudecode/tui/bootstrap/state.js'
+} from '@codepilotx/tui/bootstrap/state.js'
 import {
   AFK_MODE_BETA_HEADER,
   CONTEXT_1M_BETA_HEADER,
@@ -140,54 +140,54 @@ import {
   REDACT_THINKING_BETA_HEADER,
   STRUCTURED_OUTPUTS_BETA_HEADER,
   TASK_BUDGETS_BETA_HEADER,
-} from '@claudecode/tui/constants/betas.js'
-import type { QuerySource } from '@claudecode/tui/constants/querySource.js'
-import type { Notification } from '@claudecode/tui/context/notifications.js'
-import { addToTotalSessionCost } from '@claudecode/tui/cost-tracker.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '@claudecode/tui/services/analytics/growthbook.js'
-import type { AgentId } from '@claudecode/tui/types/ids.js'
+} from '@codepilotx/tui/constants/betas.js'
+import type { QuerySource } from '@codepilotx/tui/constants/querySource.js'
+import type { Notification } from '@codepilotx/tui/context/notifications.js'
+import { addToTotalSessionCost } from '@codepilotx/tui/cost-tracker.js'
+import { getFeatureValue_CACHED_MAY_BE_STALE } from '@codepilotx/tui/services/analytics/growthbook.js'
+import type { AgentId } from '@codepilotx/tui/types/ids.js'
 import {
   ADVISOR_TOOL_INSTRUCTIONS,
   getExperimentAdvisorModels,
   isAdvisorEnabled,
   isValidAdvisorModel,
   modelSupportsAdvisor,
-} from '@claudecode/tui/utils/advisor.js'
-import { getAgentContext } from '@claudecode/tui/utils/agentContext.js'
-import { isClaudeAISubscriber } from '@claudecode/tui/utils/auth.js'
+} from '@codepilotx/tui/utils/advisor.js'
+import { getAgentContext } from '@codepilotx/tui/utils/agentContext.js'
+import { isClaudeAISubscriber } from '@codepilotx/tui/utils/auth.js'
 import {
   getToolSearchBetaHeader,
   modelSupportsStructuredOutputs,
   shouldIncludeFirstPartyOnlyBetas,
   shouldUseGlobalCacheScope,
-} from '@claudecode/tui/utils/betas.js'
-import { CLAUDE_IN_CHROME_MCP_SERVER_NAME } from '@claudecode/tui/utils/claudeInChrome/common.js'
-import { CHROME_TOOL_SEARCH_INSTRUCTIONS } from '@claudecode/tui/utils/claudeInChrome/prompt.js'
-import { getMaxThinkingTokensForModel } from '@claudecode/tui/utils/context.js'
-import { logForDebugging } from '@claudecode/tui/utils/debug.js'
-import { logForDiagnosticsNoPII } from '@claudecode/tui/utils/diagLogs.js'
-import { type EffortValue, modelSupportsEffort } from '@claudecode/tui/utils/effort.js'
+} from '@codepilotx/tui/utils/betas.js'
+import { CLAUDE_IN_CHROME_MCP_SERVER_NAME } from '@codepilotx/tui/utils/claudeInChrome/common.js'
+import { CHROME_TOOL_SEARCH_INSTRUCTIONS } from '@codepilotx/tui/utils/claudeInChrome/prompt.js'
+import { getMaxThinkingTokensForModel } from '@codepilotx/tui/utils/context.js'
+import { logForDebugging } from '@codepilotx/tui/utils/debug.js'
+import { logForDiagnosticsNoPII } from '@codepilotx/tui/utils/diagLogs.js'
+import { type EffortValue, modelSupportsEffort } from '@codepilotx/tui/utils/effort.js'
 import {
   isFastModeAvailable,
   isFastModeCooldown,
   isFastModeEnabled,
   isFastModeSupportedByModel,
-} from '@claudecode/tui/utils/fastMode.js'
-import { returnValue } from '@claudecode/tui/utils/generators.js'
-import { headlessProfilerCheckpoint } from '@claudecode/tui/utils/headlessProfiler.js'
-import { isMcpInstructionsDeltaEnabled } from '@claudecode/tui/utils/mcpInstructionsDelta.js'
-import { calculateUSDCost } from '@claudecode/tui/utils/modelCost.js'
-import { endQueryProfile, queryCheckpoint } from '@claudecode/tui/utils/queryProfiler.js'
+} from '@codepilotx/tui/utils/fastMode.js'
+import { returnValue } from '@codepilotx/tui/utils/generators.js'
+import { headlessProfilerCheckpoint } from '@codepilotx/tui/utils/headlessProfiler.js'
+import { isMcpInstructionsDeltaEnabled } from '@codepilotx/tui/utils/mcpInstructionsDelta.js'
+import { calculateUSDCost } from '@codepilotx/tui/utils/modelCost.js'
+import { endQueryProfile, queryCheckpoint } from '@codepilotx/tui/utils/queryProfiler.js'
 import {
   modelSupportsAdaptiveThinking,
   modelSupportsThinking,
   type ThinkingConfig,
-} from '@claudecode/tui/utils/thinking.js'
+} from '@codepilotx/tui/utils/thinking.js'
 import {
   extractDiscoveredToolNames,
   isDeferredToolsDeltaEnabled,
   isToolSearchEnabled,
-} from '@claudecode/tui/utils/toolSearch.js'
+} from '@codepilotx/tui/utils/toolSearch.js'
 import { API_MAX_MEDIA_PER_REQUEST } from '../../constants/apiLimits.js'
 import { ADVISOR_BETA_HEADER } from '../../constants/betas.js'
 import {
@@ -256,7 +256,13 @@ import {
   withRetry,
 } from './withRetry.js'
 import { queryOpenAICompatibleModelWithStreaming } from './openaiCompatible.js'
-import { shouldUseOpenAICompatibleProvider } from '../../utils/model/providerConfig.js'
+import { queryMiniMaxWithAiSdkStreaming } from './minimax.js'
+import { queryAIGatewayWithStreaming } from './aiGateway.js'
+import {
+  shouldUseAiGatewayProvider,
+  shouldUseMiniMaxProvider,
+  shouldUseOpenAICompatibleProvider,
+} from '../../utils/model/providerConfig.js'
 
 // Define a type that represents valid JSON values
 type JsonValue = string | number | boolean | null | JsonObject | JsonArray
@@ -723,6 +729,52 @@ export async function queryModelWithoutStreaming({
   signal: AbortSignal
   options: Options
 }): Promise<AssistantMessage> {
+  if (shouldUseAiGatewayProvider()) {
+    let assistantMessage: AssistantMessage | undefined
+    for await (const message of queryAIGatewayWithStreaming({
+      messages,
+      systemPrompt,
+      tools,
+      signal,
+      _thinkingConfig: thinkingConfig,
+      options,
+    })) {
+      if (message.type === 'assistant') {
+        assistantMessage = message
+      }
+    }
+    if (!assistantMessage) {
+      if (signal.aborted) {
+        throw new APIUserAbortError()
+      }
+      throw new Error('No assistant message found')
+    }
+    return assistantMessage
+  }
+
+  if (shouldUseMiniMaxProvider()) {
+    let assistantMessage: AssistantMessage | undefined
+    for await (const message of queryMiniMaxWithAiSdkStreaming({
+      messages,
+      systemPrompt,
+      tools,
+      signal,
+      _thinkingConfig: thinkingConfig,
+      options,
+    })) {
+      if (message.type === 'assistant') {
+        assistantMessage = message
+      }
+    }
+    if (!assistantMessage) {
+      if (signal.aborted) {
+        throw new APIUserAbortError()
+      }
+      throw new Error('No assistant message found')
+    }
+    return assistantMessage
+  }
+
   if (shouldUseOpenAICompatibleProvider()) {
     let assistantMessage: AssistantMessage | undefined
     for await (const message of queryOpenAICompatibleModelWithStreaming({
@@ -730,6 +782,7 @@ export async function queryModelWithoutStreaming({
       systemPrompt,
       tools,
       signal,
+      thinkingConfig,
       options,
     })) {
       if (message.type === 'assistant') {
@@ -791,12 +844,37 @@ export async function* queryModelWithStreaming({
   StreamEvent | AssistantMessage | SystemAPIErrorMessage,
   void
 > {
+  if (shouldUseAiGatewayProvider()) {
+    yield* queryAIGatewayWithStreaming({
+      messages,
+      systemPrompt,
+      tools,
+      signal,
+      _thinkingConfig: thinkingConfig,
+      options,
+    })
+    return
+  }
+
+  if (shouldUseMiniMaxProvider()) {
+    yield* queryMiniMaxWithAiSdkStreaming({
+      messages,
+      systemPrompt,
+      tools,
+      signal,
+      _thinkingConfig: thinkingConfig,
+      options,
+    })
+    return
+  }
+
   if (shouldUseOpenAICompatibleProvider()) {
     yield* queryOpenAICompatibleModelWithStreaming({
       messages,
       systemPrompt,
       tools,
       signal,
+      thinkingConfig,
       options,
     })
     return
@@ -1228,7 +1306,7 @@ async function* queryModel(
       isModelSupportedForCacheEditing,
       getCachedMCConfig,
     } = await import('../compact/cachedMicrocompact.js')
-    const betas = await import('@claudecode/tui/constants/betas.js')
+    const betas = await import('@codepilotx/tui/constants/betas.js')
     cacheEditingBetaHeader = betas.CACHE_EDITING_BETA_HEADER
     const featureEnabled = isCachedMicrocompactEnabled()
     const modelSupported = isModelSupportedForCacheEditing(options.model)
@@ -2963,6 +3041,10 @@ export function updateUsage(
   if (!partUsage) {
     return { ...usage }
   }
+  const openAICompatibleUsageDetails = updateOpenAICompatibleUsageDetails(
+    usage,
+    partUsage,
+  )
   return {
     input_tokens:
       partUsage.input_tokens !== null && partUsage.input_tokens > 0
@@ -3018,6 +3100,7 @@ export function updateUsage(
     inference_geo: usage.inference_geo,
     iterations: partUsage.iterations ?? usage.iterations,
     speed: (partUsage as BetaUsage).speed ?? usage.speed,
+    ...openAICompatibleUsageDetails,
   }
 }
 
@@ -3029,6 +3112,10 @@ export function accumulateUsage(
   totalUsage: Readonly<NonNullableUsage>,
   messageUsage: Readonly<NonNullableUsage>,
 ): NonNullableUsage {
+  const openAICompatibleUsageDetails = accumulateOpenAICompatibleUsageDetails(
+    totalUsage,
+    messageUsage,
+  )
   return {
     input_tokens: totalUsage.input_tokens + messageUsage.input_tokens,
     cache_creation_input_tokens:
@@ -3069,6 +3156,79 @@ export function accumulateUsage(
     inference_geo: messageUsage.inference_geo, // Use the most recent
     iterations: messageUsage.iterations, // Use the most recent
     speed: messageUsage.speed, // Use the most recent
+    ...openAICompatibleUsageDetails,
+  }
+}
+
+type OpenAICompatibleUsageDetails = {
+  prompt_cache_hit_tokens?: number
+  prompt_cache_miss_tokens?: number
+  reasoning_tokens?: number
+}
+
+function updateOpenAICompatibleUsageDetails(
+  usage: Readonly<NonNullableUsage>,
+  partUsage: BetaMessageDeltaUsage,
+): OpenAICompatibleUsageDetails {
+  const current = usage as OpenAICompatibleUsageDetails
+  const next = partUsage as OpenAICompatibleUsageDetails
+  return {
+    ...(next.prompt_cache_hit_tokens !== undefined ||
+    current.prompt_cache_hit_tokens !== undefined
+      ? {
+          prompt_cache_hit_tokens:
+            next.prompt_cache_hit_tokens ?? current.prompt_cache_hit_tokens ?? 0,
+        }
+      : {}),
+    ...(next.prompt_cache_miss_tokens !== undefined ||
+    current.prompt_cache_miss_tokens !== undefined
+      ? {
+          prompt_cache_miss_tokens:
+            next.prompt_cache_miss_tokens ??
+            current.prompt_cache_miss_tokens ??
+            0,
+        }
+      : {}),
+    ...(next.reasoning_tokens !== undefined ||
+    current.reasoning_tokens !== undefined
+      ? {
+          reasoning_tokens:
+            next.reasoning_tokens ?? current.reasoning_tokens ?? 0,
+        }
+      : {}),
+  }
+}
+
+function accumulateOpenAICompatibleUsageDetails(
+  totalUsage: Readonly<NonNullableUsage>,
+  messageUsage: Readonly<NonNullableUsage>,
+): OpenAICompatibleUsageDetails {
+  const total = totalUsage as OpenAICompatibleUsageDetails
+  const message = messageUsage as OpenAICompatibleUsageDetails
+  return {
+    ...(total.prompt_cache_hit_tokens !== undefined ||
+    message.prompt_cache_hit_tokens !== undefined
+      ? {
+          prompt_cache_hit_tokens:
+            (total.prompt_cache_hit_tokens ?? 0) +
+            (message.prompt_cache_hit_tokens ?? 0),
+        }
+      : {}),
+    ...(total.prompt_cache_miss_tokens !== undefined ||
+    message.prompt_cache_miss_tokens !== undefined
+      ? {
+          prompt_cache_miss_tokens:
+            (total.prompt_cache_miss_tokens ?? 0) +
+            (message.prompt_cache_miss_tokens ?? 0),
+        }
+      : {}),
+    ...(total.reasoning_tokens !== undefined ||
+    message.reasoning_tokens !== undefined
+      ? {
+          reasoning_tokens:
+            (total.reasoning_tokens ?? 0) + (message.reasoning_tokens ?? 0),
+        }
+      : {}),
   }
 }
 
@@ -3328,7 +3488,7 @@ export async function queryHaiku({
 type QueryWithModelOptions = Omit<Options, 'getToolPermissionContext'>
 
 /**
- * Query a specific model through the Oh-My-AgentCode infrastructure.
+ * Query a specific model through the CodePilotX infrastructure.
  * This goes through the full query pipeline including proper authentication,
  * betas, and headers - unlike direct API calls.
  */

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
+import * as Popover from '@radix-ui/react-popover'
 
 type Props = {
   value: string
@@ -12,7 +13,7 @@ type Hsv = {
   v: number
 }
 
-const FALLBACK_HEX = '#0169CC'
+const FALLBACK_HEX = '#0090FF'
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
@@ -153,11 +154,10 @@ function hsvToHex(hsv: Hsv): string {
 function getReadableTextColor(hex: string): string {
   const { r, g, b } = hexToRgb(hex)
   const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255
-  return luminance > 0.58 ? '#111827' : '#FFFFFF'
+  return luminance > 0.58 ? '#202020' : '#FCFCFC'
 }
 
 export function ColorPickerControl({ value, onChange, ariaLabel }: Props) {
-  const rootRef = useRef<HTMLDivElement | null>(null)
   const squareRef = useRef<HTMLDivElement | null>(null)
   const draggingRef = useRef(false)
   const [open, setOpen] = useState(false)
@@ -170,39 +170,10 @@ export function ColorPickerControl({ value, onChange, ariaLabel }: Props) {
     setInputValue(normalized)
   }, [value])
 
-  useEffect(() => {
-    if (!open) return
-
-    function handlePointerDown(event: PointerEvent): void {
-      if (
-        event.target instanceof Node &&
-        rootRef.current &&
-        !rootRef.current.contains(event.target)
-      ) {
-        setOpen(false)
-      }
-    }
-
-    function handleKeyDown(event: KeyboardEvent): void {
-      if (event.key === 'Escape') {
-        setOpen(false)
-      }
-    }
-
-    document.addEventListener('pointerdown', handlePointerDown, true)
-    document.addEventListener('keydown', handleKeyDown)
-    return () => {
-      document.removeEventListener('pointerdown', handlePointerDown, true)
-      document.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [open])
-
   const selectedHex = hsvToHex(hsv)
   const buttonTextColor = getReadableTextColor(selectedHex)
   const swatchBorderColor =
-    buttonTextColor === '#FFFFFF'
-      ? 'rgba(255, 255, 255, 0.7)'
-      : 'rgba(17, 24, 39, 0.2)'
+    buttonTextColor === '#FCFCFC' ? 'var(--white-a9)' : 'var(--black-a4)'
 
   function commitColor(nextHsv: Hsv): void {
     setHsv(nextHsv)
@@ -284,7 +255,8 @@ export function ColorPickerControl({ value, onChange, ariaLabel }: Props) {
   }
 
   return (
-    <div className="appearance-color-picker" ref={rootRef}>
+    <Popover.Root open={open} onOpenChange={setOpen}>
+      <div className="appearance-color-picker">
       <div
         className="appearance-color-trigger"
         style={{
@@ -292,18 +264,17 @@ export function ColorPickerControl({ value, onChange, ariaLabel }: Props) {
           color: buttonTextColor,
         }}
       >
-        <button
-          aria-expanded={open}
-          aria-haspopup="dialog"
-          aria-label={ariaLabel}
-          className="appearance-color-trigger-swatch"
-          onClick={() => setOpen((current) => !current)}
-          type="button"
-          style={{
-            backgroundColor: selectedHex,
-            borderColor: swatchBorderColor,
-          }}
-        />
+        <Popover.Trigger asChild>
+          <button
+            aria-label={ariaLabel}
+            className="appearance-color-trigger-swatch"
+            type="button"
+            style={{
+              backgroundColor: selectedHex,
+              borderColor: swatchBorderColor,
+            }}
+          />
+        </Popover.Trigger>
         <input
           aria-label={`${ariaLabel ?? 'color'} value`}
           className="appearance-color-trigger-value"
@@ -319,8 +290,13 @@ export function ColorPickerControl({ value, onChange, ariaLabel }: Props) {
         />
       </div>
 
-      {open ? (
-        <div className="appearance-color-popover" role="dialog" aria-label={ariaLabel}>
+      <Popover.Portal>
+        <Popover.Content
+          className="appearance-color-popover"
+          sideOffset={8}
+          align="start"
+          aria-label={ariaLabel}
+        >
           <div
             ref={squareRef}
             className="appearance-color-square"
@@ -360,8 +336,9 @@ export function ColorPickerControl({ value, onChange, ariaLabel }: Props) {
               color: selectedHex,
             }}
           />
-        </div>
-      ) : null}
-    </div>
+        </Popover.Content>
+      </Popover.Portal>
+      </div>
+    </Popover.Root>
   )
 }

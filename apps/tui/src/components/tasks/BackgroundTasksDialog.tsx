@@ -8,39 +8,39 @@ import React, {
   useRef,
   useState,
 } from 'react'
-import { isCoordinatorMode } from '@claudecode/tui/coordinator/coordinatorMode.js'
-import { useTerminalSize } from '@claudecode/tui/hooks/useTerminalSize.js'
-import { useAppState, useSetAppState } from '@claudecode/tui/state/AppState.js'
+import { isCoordinatorMode } from '@codepilotx/tui/coordinator/coordinatorMode.js'
+import { useTerminalSize } from '@codepilotx/tui/hooks/useTerminalSize.js'
+import { useAppState, useSetAppState } from '@codepilotx/tui/state/AppState.js'
 import {
   enterTeammateView,
   exitTeammateView,
-} from '@claudecode/tui/state/teammateViewHelpers.js'
-import type { ToolUseContext } from '@claudecode/tui/Tool.js'
+} from '@codepilotx/tui/state/teammateViewHelpers.js'
+import type { ToolUseContext } from '@codepilotx/tui/Tool.js'
 import {
   DreamTask,
   type DreamTaskState,
-} from '@claudecode/tui/tasks/DreamTask/DreamTask.js'
-import { InProcessTeammateTask } from '@claudecode/tui/tasks/InProcessTeammateTask/InProcessTeammateTask.js'
-import type { InProcessTeammateTaskState } from '@claudecode/tui/tasks/InProcessTeammateTask/types.js'
-import type { LocalAgentTaskState } from '@claudecode/tui/tasks/LocalAgentTask/LocalAgentTask.js'
-import { LocalAgentTask } from '@claudecode/tui/tasks/LocalAgentTask/LocalAgentTask.js'
-import type { LocalShellTaskState } from '@claudecode/tui/tasks/LocalShellTask/guards.js'
-import { LocalShellTask } from '@claudecode/tui/tasks/LocalShellTask/LocalShellTask.js'
+} from '@codepilotx/tui/tasks/DreamTask/DreamTask.js'
+import { InProcessTeammateTask } from '@codepilotx/tui/tasks/InProcessTeammateTask/InProcessTeammateTask.js'
+import type { InProcessTeammateTaskState } from '@codepilotx/tui/tasks/InProcessTeammateTask/types.js'
+import type { LocalAgentTaskState } from '@codepilotx/tui/tasks/LocalAgentTask/LocalAgentTask.js'
+import { LocalAgentTask } from '@codepilotx/tui/tasks/LocalAgentTask/LocalAgentTask.js'
+import type { LocalShellTaskState } from '@codepilotx/tui/tasks/LocalShellTask/guards.js'
+import { LocalShellTask } from '@codepilotx/tui/tasks/LocalShellTask/LocalShellTask.js'
 // Type import is erased at build time — safe even though module is ant-gated.
-import type { LocalWorkflowTaskState } from '@claudecode/tui/tasks/LocalWorkflowTask/LocalWorkflowTask.js'
-import type { MonitorMcpTaskState } from '@claudecode/tui/tasks/MonitorMcpTask/MonitorMcpTask.js'
+import type { LocalWorkflowTaskState } from '@codepilotx/tui/tasks/LocalWorkflowTask/LocalWorkflowTask.js'
+import type { MonitorMcpTaskState } from '@codepilotx/tui/tasks/MonitorMcpTask/MonitorMcpTask.js'
 import {
   RemoteAgentTask,
   type RemoteAgentTaskState,
-} from '@claudecode/tui/tasks/RemoteAgentTask/RemoteAgentTask.js'
+} from '@codepilotx/tui/tasks/RemoteAgentTask/RemoteAgentTask.js'
 import {
   type BackgroundTaskState,
   isBackgroundTask,
   type TaskState,
-} from '@claudecode/tui/tasks/types.js'
-import type { DeepImmutable } from '@claudecode/tui/types/utils.js'
-import { intersperse } from '@claudecode/tui/utils/array.js'
-import { TEAM_LEAD_NAME } from '@claudecode/tui/utils/swarm/constants.js'
+} from '@codepilotx/tui/tasks/types.js'
+import type { DeepImmutable } from '@codepilotx/tui/types/utils.js'
+import { intersperse } from '@codepilotx/tui/utils/array.js'
+import { TEAM_LEAD_NAME } from '@codepilotx/tui/utils/swarm/constants.js'
 import { stopUltraplan } from '../../commands/ultraplan.js'
 import type { CommandResultDisplay } from '../../commands.js'
 import { useRegisterOverlay } from '../../context/overlayContext.js'
@@ -138,7 +138,7 @@ const WorkflowDetailDialog = feature('WORKFLOW_SCRIPTS')
     ).WorkflowDetailDialog
   : null
 const workflowTaskModule = feature('WORKFLOW_SCRIPTS')
-  ? (require('@claudecode/tui/tasks/LocalWorkflowTask/LocalWorkflowTask.js') as typeof import('@claudecode/tui/tasks/LocalWorkflowTask/LocalWorkflowTask.js'))
+  ? (require('@codepilotx/tui/tasks/LocalWorkflowTask/LocalWorkflowTask.js') as typeof import('@codepilotx/tui/tasks/LocalWorkflowTask/LocalWorkflowTask.js'))
   : null
 const killWorkflowTask = workflowTaskModule?.killWorkflowTask ?? null
 const skipWorkflowAgent = workflowTaskModule?.skipWorkflowAgent ?? null

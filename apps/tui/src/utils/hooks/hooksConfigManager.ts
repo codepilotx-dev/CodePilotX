@@ -1,5 +1,5 @@
 import memoize from 'lodash-es/memoize.js'
-import type { HookEvent } from '@claudecode/tui/entrypoints/agentSdkTypes.js'
+import type { HookEvent } from '@codepilotx/tui/entrypoints/agentSdkTypes.js'
 import { getRegisteredHooks } from '../../bootstrap/state.js'
 import type { AppState } from '../../state/AppState.js'
 import {

@@ -1,24 +1,24 @@
 import type { BetaContentBlock } from '@anthropic-ai/sdk/resources/beta/messages/messages.mjs'
 import { randomUUID, type UUID } from 'crypto'
-import { getSessionId } from '@claudecode/tui/bootstrap/state.js'
+import { getSessionId } from '@codepilotx/tui/bootstrap/state.js'
 import {
   LOCAL_COMMAND_STDERR_TAG,
   LOCAL_COMMAND_STDOUT_TAG,
-} from '@claudecode/tui/constants/xml.js'
+} from '@codepilotx/tui/constants/xml.js'
 import type {
   SDKAssistantMessage,
   SDKCompactBoundaryMessage,
   SDKMessage,
   SDKRateLimitInfo,
-} from '@claudecode/tui/entrypoints/agentSdkTypes.js'
-import type { ClaudeAILimits } from '@claudecode/tui/services/claudeAiLimits.js'
-import { EXIT_PLAN_MODE_V2_TOOL_NAME } from '@claudecode/tui/tools/ExitPlanModeTool/constants.js'
+} from '@codepilotx/tui/entrypoints/agentSdkTypes.js'
+import type { ClaudeAILimits } from '@codepilotx/tui/services/claudeAiLimits.js'
+import { EXIT_PLAN_MODE_V2_TOOL_NAME } from '@codepilotx/tui/tools/ExitPlanModeTool/constants.js'
 import type {
   AssistantMessage,
   CompactMetadata,
   Message,
-} from '@claudecode/tui/types/message.js'
-import type { DeepImmutable } from '@claudecode/tui/types/utils.js'
+} from '@codepilotx/tui/types/message.js'
+import type { DeepImmutable } from '@codepilotx/tui/types/utils.js'
 import stripAnsi from 'strip-ansi'
 import { createAssistantMessage } from '../messages.js'
 import { getPlan } from '../plans.js'

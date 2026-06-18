@@ -3,20 +3,20 @@ import { useEffect, useRef } from 'react'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
-} from '@claudecode/tui/services/analytics/index.js'
-import { sanitizeToolNameForAnalytics } from '@claudecode/tui/services/analytics/metadata.js'
-import { BashTool } from '@claudecode/tui/tools/BashTool/BashTool.js'
-import { splitCommand_DEPRECATED } from '@claudecode/tui/utils/bash/commands.js'
+} from '@codepilotx/tui/services/analytics/index.js'
+import { sanitizeToolNameForAnalytics } from '@codepilotx/tui/services/analytics/metadata.js'
+import { BashTool } from '@codepilotx/tui/tools/BashTool/BashTool.js'
+import { splitCommand_DEPRECATED } from '@codepilotx/tui/utils/bash/commands.js'
 import type {
   PermissionDecisionReason,
   PermissionResult,
-} from '@claudecode/tui/utils/permissions/PermissionResult.js'
+} from '@codepilotx/tui/utils/permissions/PermissionResult.js'
 import {
   extractRules,
   hasRules,
-} from '@claudecode/tui/utils/permissions/PermissionUpdate.js'
-import { permissionRuleValueToString } from '@claudecode/tui/utils/permissions/permissionRuleParser.js'
-import { SandboxManager } from '@claudecode/tui/utils/sandbox/sandbox-adapter.js'
+} from '@codepilotx/tui/utils/permissions/PermissionUpdate.js'
+import { permissionRuleValueToString } from '@codepilotx/tui/utils/permissions/permissionRuleParser.js'
+import { SandboxManager } from '@codepilotx/tui/utils/sandbox/sandbox-adapter.js'
 import type { ToolUseConfirm } from '../../components/permissions/PermissionRequest.js'
 import { useSetAppState } from '../../state/AppState.js'
 import { env } from '../../utils/env.js'

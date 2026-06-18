@@ -12,22 +12,22 @@ import {
   getTeleportedSessionInfo,
   markFirstTeleportMessageLogged,
   setLastApiCompletionTimestamp,
-} from '@claudecode/tui/bootstrap/state.js'
-import type { QueryChainTracking } from '@claudecode/tui/Tool.js'
-import { isConnectorTextBlock } from '@claudecode/tui/types/connectorText.js'
-import type { AssistantMessage } from '@claudecode/tui/types/message.js'
-import { logForDebugging } from '@claudecode/tui/utils/debug.js'
-import type { EffortLevel } from '@claudecode/tui/utils/effort.js'
-import { logError } from '@claudecode/tui/utils/log.js'
-import { getAPIProviderForStatsig } from '@claudecode/tui/utils/model/providers.js'
-import type { PermissionMode } from '@claudecode/tui/utils/permissions/PermissionMode.js'
-import { jsonStringify } from '@claudecode/tui/utils/slowOperations.js'
-import { logOTelEvent } from '@claudecode/tui/utils/telemetry/events.js'
+} from '@codepilotx/tui/bootstrap/state.js'
+import type { QueryChainTracking } from '@codepilotx/tui/Tool.js'
+import { isConnectorTextBlock } from '@codepilotx/tui/types/connectorText.js'
+import type { AssistantMessage } from '@codepilotx/tui/types/message.js'
+import { logForDebugging } from '@codepilotx/tui/utils/debug.js'
+import type { EffortLevel } from '@codepilotx/tui/utils/effort.js'
+import { logError } from '@codepilotx/tui/utils/log.js'
+import { getAPIProviderForStatsig } from '@codepilotx/tui/utils/model/providers.js'
+import type { PermissionMode } from '@codepilotx/tui/utils/permissions/PermissionMode.js'
+import { jsonStringify } from '@codepilotx/tui/utils/slowOperations.js'
+import { logOTelEvent } from '@codepilotx/tui/utils/telemetry/events.js'
 import {
   endLLMRequestSpan,
   isBetaTracingEnabled,
   type Span,
-} from '@claudecode/tui/utils/telemetry/sessionTracing.js'
+} from '@codepilotx/tui/utils/telemetry/sessionTracing.js'
 import type { NonNullableUsage } from '../../entrypoints/sdk/sdkUtilityTypes.js'
 import { consumeInvokingRequestId } from '../../utils/agentContext.js'
 import {

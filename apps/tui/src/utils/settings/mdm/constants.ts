@@ -8,21 +8,26 @@
 import { homedir, userInfo } from 'os'
 import { join } from 'path'
 
-/** macOS preference domain for Oh-My-AgentCode MDM profiles. */
-export const MACOS_PREFERENCE_DOMAIN = 'com.anthropic.claudecode'
+/** macOS preference domain for CodePilotX MDM profiles. */
+export const MACOS_PREFERENCE_DOMAIN = 'local.codepilotx'
+export const LEGACY_MACOS_PREFERENCE_DOMAIN = 'com.anthropic.claudecode'
 
 /**
- * Windows registry key paths for Oh-My-AgentCode MDM policies.
+ * Windows registry key paths for CodePilotX MDM policies.
  *
  * These keys live under SOFTWARE\Policies which is on the WOW64 shared key
  * list — both 32-bit and 64-bit processes see the same values without
- * redirection. Do not move these to SOFTWARE\ClaudeCode, as SOFTWARE is
+ * redirection. Do not move these to SOFTWARE\CodePilotX, as SOFTWARE is
  * redirected and 32-bit processes would silently read from WOW6432Node.
  * See: https://learn.microsoft.com/en-us/windows/win32/winprog64/shared-registry-keys
  */
 export const WINDOWS_REGISTRY_KEY_PATH_HKLM =
-  'HKLM\\SOFTWARE\\Policies\\ClaudeCode'
+  'HKLM\\SOFTWARE\\Policies\\CodePilotX'
 export const WINDOWS_REGISTRY_KEY_PATH_HKCU =
+  'HKCU\\SOFTWARE\\Policies\\CodePilotX'
+export const LEGACY_WINDOWS_REGISTRY_KEY_PATH_HKLM =
+  'HKLM\\SOFTWARE\\Policies\\ClaudeCode'
+export const LEGACY_WINDOWS_REGISTRY_KEY_PATH_HKCU =
   'HKCU\\SOFTWARE\\Policies\\ClaudeCode'
 
 /** Windows registry value name containing the JSON settings blob. */
@@ -52,17 +57,21 @@ export function getMacOSPlistPaths(): Array<{ path: string; label: string }> {
 
   const paths: Array<{ path: string; label: string }> = []
 
-  if (username) {
+  const domains = [MACOS_PREFERENCE_DOMAIN, LEGACY_MACOS_PREFERENCE_DOMAIN]
+
+  for (const domain of domains) {
+    if (username) {
+      paths.push({
+        path: `/Library/Managed Preferences/${username}/${domain}.plist`,
+        label: 'per-user managed preferences',
+      })
+    }
+
     paths.push({
-      path: `/Library/Managed Preferences/${username}/${MACOS_PREFERENCE_DOMAIN}.plist`,
-      label: 'per-user managed preferences',
+      path: `/Library/Managed Preferences/${domain}.plist`,
+      label: 'device-level managed preferences',
     })
   }
-
-  paths.push({
-    path: `/Library/Managed Preferences/${MACOS_PREFERENCE_DOMAIN}.plist`,
-    label: 'device-level managed preferences',
-  })
 
   // Allow user-writable preferences for local MDM testing in ant builds only.
   if (process.env.USER_TYPE === 'ant') {

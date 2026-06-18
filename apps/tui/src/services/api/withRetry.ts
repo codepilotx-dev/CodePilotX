@@ -5,13 +5,13 @@ import {
   APIError,
   APIUserAbortError,
 } from '@anthropic-ai/sdk'
-import type { QuerySource } from '@claudecode/tui/constants/querySource.js'
-import type { SystemAPIErrorMessage } from '@claudecode/tui/types/message.js'
-import { isAwsCredentialsProviderError } from '@claudecode/tui/utils/aws.js'
-import { logForDebugging } from '@claudecode/tui/utils/debug.js'
-import { logError } from '@claudecode/tui/utils/log.js'
-import { createSystemAPIErrorMessage } from '@claudecode/tui/utils/messages.js'
-import { getAPIProviderForStatsig } from '@claudecode/tui/utils/model/providers.js'
+import type { QuerySource } from '@codepilotx/tui/constants/querySource.js'
+import type { SystemAPIErrorMessage } from '@codepilotx/tui/types/message.js'
+import { isAwsCredentialsProviderError } from '@codepilotx/tui/utils/aws.js'
+import { logForDebugging } from '@codepilotx/tui/utils/debug.js'
+import { logError } from '@codepilotx/tui/utils/log.js'
+import { createSystemAPIErrorMessage } from '@codepilotx/tui/utils/messages.js'
+import { getAPIProviderForStatsig } from '@codepilotx/tui/utils/model/providers.js'
 import {
   clearApiKeyHelperCache,
   clearAwsCredentialsCache,
@@ -327,7 +327,7 @@ export async function* withRetry<T>(
       if (
         is529Error(error) &&
         // If FALLBACK_FOR_ALL_PRIMARY_MODELS is not set, fall through only if the primary model is a non-custom Opus model.
-        // TODO: Revisit if the isNonCustomOpusModel check should still exist, or if isNonCustomOpusModel is a stale artifact of when Oh-My-AgentCode was hardcoded on Opus.
+        // TODO: Revisit if the isNonCustomOpusModel check should still exist, or if isNonCustomOpusModel is a stale artifact of when CodePilotX was hardcoded on Opus.
         (process.env.FALLBACK_FOR_ALL_PRIMARY_MODELS ||
           (!isClaudeAISubscriber() && isNonCustomOpusModel(options.model)))
       ) {

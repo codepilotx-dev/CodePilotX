@@ -1,7 +1,9 @@
-import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
+import { desktopClient } from '../../services/desktopClient.js'
+﻿import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 import type {
   DesktopPermissionMode,
   DesktopPermissionRequest,
+  DesktopSessionMetadataPatch,
   DesktopSessionStatus,
   DesktopThinkingMode,
   DesktopWorkspace,
@@ -52,17 +54,19 @@ export function activateSession(
 ): void {
   context.activeSessionIdRef.current = nextSessionId
   context.setSessionId(nextSessionId)
+  void desktopClient.setActiveSession(nextSessionId).catch(error => {
+    context.onErrorRef.current(errorMessageOf(error))
+  })
 }
 
 export async function createSessionForWorkspaceAction(
   context: SessionActionContext,
   settings: SessionSettingsSnapshot,
   target: DesktopWorkspace | null,
-): Promise<void> {
-  if (!target) return
+): Promise<string | null> {
   try {
-    const session = await window.desktopApi.createSession({
-      workspacePath: target.path,
+    const session = await desktopClient.createSession({
+      workspacePath: target?.path,
       permissionMode: settings.permissionMode,
       model: normalizeOptionalText(settings.model),
       fallbackModel: normalizeOptionalText(settings.fallbackModel),
@@ -74,23 +78,29 @@ export async function createSessionForWorkspaceAction(
         settings.additionalDirectories,
       ),
     })
-    const nextView =
-      context.sessionViewsRef.current[session.sessionId] ??
-      createEmptySessionView()
+    const workspace = session.workspace
+    const nextView = {
+      ...(context.sessionViewsRef.current[session.sessionId] ??
+        createEmptySessionView()),
+      eventModelVersion: 1 as const,
+    }
     context.sessionWorkspacesRef.current = {
       ...context.sessionWorkspacesRef.current,
-      [session.sessionId]: target,
+      [session.sessionId]: workspace,
     }
     setSessionView(context.sessionViewsRef, session.sessionId, nextView)
     activateSession(context, session.sessionId)
     context.setSessionStatus('idle')
     applySessionView(nextView, context.viewSetters)
+    const now = new Date()
     context.setSessions(current => [
       {
         id: session.sessionId,
         sessionName: normalizeOptionalText(settings.sessionName) ?? null,
-        workspaceName: target.name,
-        workspacePath: target.path,
+        aiTitle: null,
+        workspaceName: workspace.name,
+        workspacePath: workspace.path,
+        standalone: session.standalone,
         permissionMode: settings.permissionMode,
         model: normalizeOptionalText(settings.model) ?? null,
         fallbackModel: normalizeOptionalText(settings.fallbackModel) ?? null,
@@ -103,12 +113,15 @@ export async function createSessionForWorkspaceAction(
           settings.additionalDirectories,
         ).length,
         status: 'idle',
-        createdAt: new Date().toLocaleTimeString(),
+        lastMessageAt: now.toISOString(),
+        createdAt: now.toLocaleTimeString(),
       },
       ...current,
     ])
+    return session.sessionId
   } catch (error) {
     context.onErrorRef.current(errorMessageOf(error))
+    return null
   }
 }
 
@@ -117,13 +130,18 @@ export async function submitSessionMessageAction(
   sessionId: string | null,
   input: string,
   canSubmit: boolean,
-  setInput: Dispatch<SetStateAction<string>>,
+  model: string,
+  setInput: (value: string) => void,
 ): Promise<void> {
   const trimmed = input.trim()
   if (!canSubmit || !sessionId) return
   setInput('')
   try {
-    await window.desktopApi.sendUserMessage(sessionId, trimmed)
+    await desktopClient.sendUserMessage(
+      sessionId,
+      trimmed,
+      normalizeOptionalText(model),
+    )
   } catch (error) {
     onErrorRef.current(errorMessageOf(error))
   }
@@ -135,7 +153,7 @@ export async function interruptSessionAction(
 ): Promise<void> {
   if (!sessionId) return
   try {
-    await window.desktopApi.interruptSession(sessionId)
+    await desktopClient.interruptSession(sessionId)
   } catch (error) {
     onErrorRef.current(errorMessageOf(error))
   }
@@ -157,7 +175,7 @@ export async function decidePermissionAction(
     ),
   }))
   try {
-    await window.desktopApi.respondToPermission(sessionId, request.requestId, {
+    await desktopClient.respondToPermission(sessionId, request.requestId, {
       behavior,
       message: behavior === 'deny' ? '在桌面端界面中拒绝' : undefined,
       alwaysAllow,
@@ -173,7 +191,7 @@ export async function closeSessionAction(
   targetSessionId: string,
 ): Promise<CloseSessionResult | null> {
   try {
-    await window.desktopApi.disposeSession(targetSessionId)
+    await desktopClient.disposeSession(targetSessionId)
   } catch (error) {
     context.onErrorRef.current(errorMessageOf(error))
     return null
@@ -207,9 +225,66 @@ export async function closeSessionAction(
     const nextWorkspace = remainingSessionWorkspaces[next.id] ?? {
       name: next.workspaceName,
       path: next.workspacePath,
+      isStandalone: next.standalone,
     }
-    return { nextActiveSession: next, nextWorkspace }
+    return {
+      nextActiveSession: next,
+      nextWorkspace: next.standalone ? null : nextWorkspace,
+    }
   }
+  applySessionView(createEmptySessionView(), context.viewSetters)
+  return { nextActiveSession: null, nextWorkspace: null }
+}
+
+export async function updateSessionMetadataAction(
+  context: SessionActionContext,
+  sessions: SessionListItem[],
+  targetSessionId: string,
+  patch: DesktopSessionMetadataPatch,
+): Promise<CloseSessionResult | null> {
+  let updatedSession: SessionListItem | null = null
+  try {
+    const snapshot = await desktopClient.updateSessionMetadata(
+      targetSessionId,
+      patch,
+    )
+    updatedSession = snapshot.item
+  } catch (error) {
+    context.onErrorRef.current(errorMessageOf(error))
+    return null
+  }
+
+  const updatedSessions = sessions.map(session =>
+    session.id === targetSessionId ? updatedSession! : session,
+  )
+  context.setSessions(updatedSessions)
+
+  const archivedActiveSession =
+    targetSessionId === context.activeSessionIdRef.current &&
+    updatedSession.archivedAt
+  if (!archivedActiveSession) {
+    return { nextActiveSession: null, nextWorkspace: null }
+  }
+
+  const next = updatedSessions.find(session => !session.archivedAt) ?? null
+  activateSession(context, next?.id ?? null)
+  context.setSessionStatus(next?.status ?? 'idle')
+  if (next) {
+    applySessionView(
+      context.sessionViewsRef.current[next.id] ?? createEmptySessionView(),
+      context.viewSetters,
+    )
+    const nextWorkspace = context.sessionWorkspacesRef.current[next.id] ?? {
+      name: next.workspaceName,
+      path: next.workspacePath,
+      isStandalone: next.standalone,
+    }
+    return {
+      nextActiveSession: next,
+      nextWorkspace: next.standalone ? null : nextWorkspace,
+    }
+  }
+
   applySessionView(createEmptySessionView(), context.viewSetters)
   return { nextActiveSession: null, nextWorkspace: null }
 }
@@ -217,13 +292,16 @@ export async function closeSessionAction(
 export function selectSessionAction(
   context: SessionActionContext,
   session: SessionListItem,
-): DesktopWorkspace {
+): DesktopWorkspace | null {
   activateSession(context, session.id)
   context.setSessionStatus(session.status)
   applySessionView(
     context.sessionViewsRef.current[session.id] ?? createEmptySessionView(),
     context.viewSetters,
   )
+  if (session.standalone) {
+    return null
+  }
   return context.sessionWorkspacesRef.current[session.id] ?? {
     name: session.workspaceName,
     path: session.workspacePath,

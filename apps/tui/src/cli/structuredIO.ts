@@ -4,39 +4,39 @@ import type {
   JSONRPCMessage,
 } from '@modelcontextprotocol/sdk/types.js'
 import { randomUUID } from 'crypto'
-import type { AssistantMessage } from '@claudecode/tui//types/message.js'
+import type { AssistantMessage } from '@codepilotx/tui//types/message.js'
 import type {
   HookInput,
   HookJSONOutput,
   PermissionUpdate,
   SDKMessage,
   SDKUserMessage,
-} from '@claudecode/tui/entrypoints/agentSdkTypes.js'
-import { SDKControlElicitationResponseSchema } from '@claudecode/tui/entrypoints/sdk/controlSchemas.js'
+} from '@codepilotx/tui/entrypoints/agentSdkTypes.js'
+import { SDKControlElicitationResponseSchema } from '@codepilotx/tui/entrypoints/sdk/controlSchemas.js'
 import type {
   SDKControlRequest,
   SDKControlResponse,
   StdinMessage,
   StdoutMessage,
-} from '@claudecode/tui/entrypoints/sdk/controlTypes.js'
-import type { CanUseToolFn } from '@claudecode/tui/hooks/useCanUseTool.js'
-import type { Tool, ToolUseContext } from '@claudecode/tui/Tool.js'
-import { type HookCallback, hookJSONOutputSchema } from '@claudecode/tui/types/hooks.js'
-import { logForDebugging } from '@claudecode/tui/utils/debug.js'
-import { logForDiagnosticsNoPII } from '@claudecode/tui/utils/diagLogs.js'
-import { AbortError } from '@claudecode/tui/utils/errors.js'
+} from '@codepilotx/tui/entrypoints/sdk/controlTypes.js'
+import type { CanUseToolFn } from '@codepilotx/tui/hooks/useCanUseTool.js'
+import type { Tool, ToolUseContext } from '@codepilotx/tui/Tool.js'
+import { type HookCallback, hookJSONOutputSchema } from '@codepilotx/tui/types/hooks.js'
+import { logForDebugging } from '@codepilotx/tui/utils/debug.js'
+import { logForDiagnosticsNoPII } from '@codepilotx/tui/utils/diagLogs.js'
+import { AbortError } from '@codepilotx/tui/utils/errors.js'
 import {
   type Output as PermissionToolOutput,
   permissionPromptToolResultToPermissionDecision,
   outputSchema as permissionToolOutputSchema,
-} from '@claudecode/tui/utils/permissions/PermissionPromptToolResultSchema.js'
+} from '@codepilotx/tui/utils/permissions/PermissionPromptToolResultSchema.js'
 import type {
   PermissionDecision,
   PermissionDecisionReason,
-} from '@claudecode/tui/utils/permissions/PermissionResult.js'
-import { hasPermissionsToUseTool } from '@claudecode/tui/utils/permissions/permissions.js'
-import { writeToStdout } from '@claudecode/tui/utils/process.js'
-import { jsonStringify } from '@claudecode/tui/utils/slowOperations.js'
+} from '@codepilotx/tui/utils/permissions/PermissionResult.js'
+import { hasPermissionsToUseTool } from '@codepilotx/tui/utils/permissions/permissions.js'
+import { writeToStdout } from '@codepilotx/tui/utils/process.js'
+import { jsonStringify } from '@codepilotx/tui/utils/slowOperations.js'
 import { z } from 'zod/v4'
 import { notifyCommandLifecycle } from '../utils/commandLifecycle.js'
 import { normalizeControlMessageKeys } from '../utils/controlMessageCompat.js'

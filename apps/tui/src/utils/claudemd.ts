@@ -40,7 +40,7 @@ import {
   sep,
 } from 'path'
 import picomatch from 'picomatch'
-import { logEvent } from '@claudecode/tui/services/analytics/index.js'
+import { logEvent } from '@codepilotx/tui/services/analytics/index.js'
 import {
   getAdditionalDirectoriesForClaudeMd,
   getOriginalCwd,

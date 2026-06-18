@@ -47,9 +47,9 @@ export function autoModeConfigHandler(): void {
 }
 
 const CRITIQUE_SYSTEM_PROMPT =
-  'You are an expert reviewer of auto mode classifier rules for Oh-My-AgentCode.\n' +
+  'You are an expert reviewer of auto mode classifier rules for CodePilotX.\n' +
   '\n' +
-  'Oh-My-AgentCode has an "auto mode" that uses an AI classifier to decide whether ' +
+  'CodePilotX has an "auto mode" that uses an AI classifier to decide whether ' +
   'tool calls should be auto-approved or require user confirmation. Users can ' +
   'write custom rules in three categories:\n' +
   '\n' +

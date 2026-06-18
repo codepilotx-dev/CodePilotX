@@ -1,12 +1,12 @@
-import { BASH_TOOL_NAME } from '@claudecode/tui/tools/BashTool/toolName.js'
-import { EXIT_PLAN_MODE_TOOL_NAME } from '@claudecode/tui/tools/ExitPlanModeTool/constants.js'
-import { FILE_EDIT_TOOL_NAME } from '@claudecode/tui/tools/FileEditTool/constants.js'
-import { FILE_READ_TOOL_NAME } from '@claudecode/tui/tools/FileReadTool/prompt.js'
-import { FILE_WRITE_TOOL_NAME } from '@claudecode/tui/tools/FileWriteTool/prompt.js'
-import { GLOB_TOOL_NAME } from '@claudecode/tui/tools/GlobTool/prompt.js'
-import { GREP_TOOL_NAME } from '@claudecode/tui/tools/GrepTool/prompt.js'
-import { NOTEBOOK_EDIT_TOOL_NAME } from '@claudecode/tui/tools/NotebookEditTool/constants.js'
-import { hasEmbeddedSearchTools } from '@claudecode/tui/utils/embeddedTools.js'
+import { BASH_TOOL_NAME } from '@codepilotx/tui/tools/BashTool/toolName.js'
+import { EXIT_PLAN_MODE_TOOL_NAME } from '@codepilotx/tui/tools/ExitPlanModeTool/constants.js'
+import { FILE_EDIT_TOOL_NAME } from '@codepilotx/tui/tools/FileEditTool/constants.js'
+import { FILE_READ_TOOL_NAME } from '@codepilotx/tui/tools/FileReadTool/prompt.js'
+import { FILE_WRITE_TOOL_NAME } from '@codepilotx/tui/tools/FileWriteTool/prompt.js'
+import { GLOB_TOOL_NAME } from '@codepilotx/tui/tools/GlobTool/prompt.js'
+import { GREP_TOOL_NAME } from '@codepilotx/tui/tools/GrepTool/prompt.js'
+import { NOTEBOOK_EDIT_TOOL_NAME } from '@codepilotx/tui/tools/NotebookEditTool/constants.js'
+import { hasEmbeddedSearchTools } from '@codepilotx/tui/utils/embeddedTools.js'
 import { AGENT_TOOL_NAME } from '../constants.js'
 import type { BuiltInAgentDefinition } from '../loadAgentsDir.js'
 import { EXPLORE_AGENT } from './exploreAgent.js'
@@ -18,7 +18,7 @@ function getPlanV2SystemPrompt(): string {
     ? `\`find\`, \`grep\`, and ${FILE_READ_TOOL_NAME}`
     : `${GLOB_TOOL_NAME}, ${GREP_TOOL_NAME}, and ${FILE_READ_TOOL_NAME}`
 
-  return `You are a software architect and planning specialist for Oh-My-AgentCode. Your role is to explore the codebase and design implementation plans.
+  return `You are a software architect and planning specialist for CodePilotX. Your role is to explore the codebase and design implementation plans.
 
 === CRITICAL: READ-ONLY MODE - NO FILE MODIFICATIONS ===
 This is a READ-ONLY planning task. You are STRICTLY PROHIBITED from:
