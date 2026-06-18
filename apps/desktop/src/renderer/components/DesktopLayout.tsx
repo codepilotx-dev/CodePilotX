@@ -21,7 +21,11 @@ import { SearchContext } from '../context/SearchContext.js'
 import type { SessionListItem } from '../uiTypes.js'
 import { PERMISSION_MODE_OPTIONS, THINKING_MODE_OPTIONS } from '../features/settings/settingsStorage.js'
 import { useDesktopSettings } from '../features/settings/useDesktopSettings.js'
-import { useDesktopLayout } from '../features/layout/useDesktopLayout.js'
+import {
+  SIDEBAR_MAX_WIDTH,
+  SIDEBAR_MIN_WIDTH,
+  useDesktopLayout,
+} from '../features/layout/useDesktopLayout.js'
 import {
   NO_WORKSPACE_DIFF,
   useWorkspaceState,
@@ -86,7 +90,6 @@ export function DesktopLayout(): React.ReactNode {
   const {
     sidebarCollapsed,
     sidebarWidth,
-    viewportWidth,
     setSidebarWidth,
     toggleSidebarCollapsed,
   } = layout
@@ -888,8 +891,8 @@ export function DesktopLayout(): React.ReactNode {
   const sidebar = (
     <SidebarFrame
       collapsed={sidebarCollapsed}
-      maxWidth={Math.round(viewportWidth * 0.2)}
-      minWidth={Math.round(viewportWidth * 0.12)}
+      maxWidth={SIDEBAR_MAX_WIDTH}
+      minWidth={SIDEBAR_MIN_WIDTH}
       width={sidebarWidth}
       onSetWidth={setSidebarWidth}
     >

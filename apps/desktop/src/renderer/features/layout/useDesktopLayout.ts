@@ -1,24 +1,25 @@
 import { useCallback, useEffect, useState } from 'react'
 
 export const SIDEBAR_WIDTH_STORAGE_KEY = 'layout.sidebarWidth'
-export const SIDEBAR_MIN_RATIO = 0.12
-export const SIDEBAR_MAX_RATIO = 0.2
+export const SIDEBAR_MIN_WIDTH = 220
+export const SIDEBAR_MAX_WIDTH = 360
 export const DEFAULT_SIDEBAR_WIDTH = 250
 
-export function clampSidebarWidth(value: number, viewportWidth: number): number {
-  const min = Math.round(viewportWidth * SIDEBAR_MIN_RATIO)
-  const max = Math.round(viewportWidth * SIDEBAR_MAX_RATIO)
-  return Math.min(max, Math.max(min, Math.round(value)))
+export function clampSidebarWidth(value: number): number {
+  return Math.min(
+    SIDEBAR_MAX_WIDTH,
+    Math.max(SIDEBAR_MIN_WIDTH, Math.round(value)),
+  )
 }
 
-export function readStoredSidebarWidth(viewportWidth: number): number {
+export function readStoredSidebarWidth(): number {
   const raw = window.localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY)
-  if (!raw) return clampSidebarWidth(DEFAULT_SIDEBAR_WIDTH, viewportWidth)
+  if (!raw) return clampSidebarWidth(DEFAULT_SIDEBAR_WIDTH)
   const parsed = Number.parseInt(raw, 10)
   if (Number.isNaN(parsed)) {
-    return clampSidebarWidth(DEFAULT_SIDEBAR_WIDTH, viewportWidth)
+    return clampSidebarWidth(DEFAULT_SIDEBAR_WIDTH)
   }
-  return clampSidebarWidth(parsed, viewportWidth)
+  return clampSidebarWidth(parsed)
 }
 
 export type UseDesktopLayoutResult = {
@@ -34,30 +35,23 @@ export function useDesktopLayout(): UseDesktopLayoutResult {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth)
   const [sidebarWidth, setSidebarWidthState] = useState(() =>
-    readStoredSidebarWidth(window.innerWidth),
+    readStoredSidebarWidth(),
   )
 
   useEffect(() => {
     function handleResize(): void {
-      const nextViewportWidth = window.innerWidth
-      setViewportWidth(nextViewportWidth)
-      setSidebarWidthState(current =>
-        clampSidebarWidth(current, nextViewportWidth),
-      )
+      setViewportWidth(window.innerWidth)
     }
 
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  const setSidebarWidth = useCallback(
-    (nextWidth: number): void => {
-      const clamped = clampSidebarWidth(nextWidth, viewportWidth)
-      setSidebarWidthState(clamped)
-      window.localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(clamped))
-    },
-    [viewportWidth],
-  )
+  const setSidebarWidth = useCallback((nextWidth: number): void => {
+    const clamped = clampSidebarWidth(nextWidth)
+    setSidebarWidthState(clamped)
+    window.localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(clamped))
+  }, [])
 
   const toggleSidebarCollapsed = useCallback((): void => {
     setSidebarCollapsed(current => !current)
