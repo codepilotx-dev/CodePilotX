@@ -26,6 +26,13 @@ const api: DesktopApi = {
       pluginId,
       enabled,
     ),
+  listMcpServers: () => ipcRenderer.invoke(desktopApiChannel('listMcpServers')),
+  saveMcpServer: options =>
+    ipcRenderer.invoke(desktopApiChannel('saveMcpServer'), options),
+  removeMcpServer: (name, scope) =>
+    ipcRenderer.invoke(desktopApiChannel('removeMcpServer'), name, scope),
+  setMcpServerEnabled: (name, enabled) =>
+    ipcRenderer.invoke(desktopApiChannel('setMcpServerEnabled'), name, enabled),
   listOpenTargets: () =>
     ipcRenderer.invoke(desktopApiChannel('listOpenTargets')),
   openPathWithDefaultTarget: targetPath =>

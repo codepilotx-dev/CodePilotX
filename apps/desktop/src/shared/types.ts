@@ -141,6 +141,43 @@ export type DesktopStoredSettings = {
   providerBaseURL: string
   showContextUsage: boolean
   defaultOpenTargetId: string
+  gitBranchPrefix: string
+  allowForcePush: boolean
+  commitMessagePrompt: string
+  pullRequestPrompt: string
+}
+
+export type DesktopMcpScope =
+  | 'local'
+  | 'user'
+  | 'project'
+  | 'dynamic'
+  | 'enterprise'
+  | 'claudeai'
+  | 'managed'
+
+export type DesktopEditableMcpScope = 'local' | 'user' | 'project'
+
+export type DesktopMcpTransport = 'stdio' | 'sse' | 'http' | 'ws' | 'sdk' | string
+
+export type DesktopMcpServerConfig = Record<string, unknown>
+
+export type DesktopMcpServerListItem = {
+  name: string
+  scope: DesktopMcpScope
+  type: DesktopMcpTransport
+  summary: string
+  enabled: boolean
+  editable: boolean
+  removable: boolean
+  config: DesktopMcpServerConfig
+}
+
+export type SaveDesktopMcpServerOptions = {
+  originalName?: string
+  name: string
+  scope: DesktopEditableMcpScope
+  config: DesktopMcpServerConfig
 }
 
 export type DesktopThemeMode = 'light' | 'dark' | 'system'
@@ -302,6 +339,10 @@ export type DesktopApi = {
     pluginId: string,
     enabled: boolean,
   ): Promise<DesktopBuiltinPlugin>
+  listMcpServers(): Promise<DesktopMcpServerListItem[]>
+  saveMcpServer(options: SaveDesktopMcpServerOptions): Promise<DesktopMcpServerListItem[]>
+  removeMcpServer(name: string, scope: DesktopEditableMcpScope): Promise<DesktopMcpServerListItem[]>
+  setMcpServerEnabled(name: string, enabled: boolean): Promise<DesktopMcpServerListItem[]>
   listOpenTargets(): Promise<DesktopOpenTarget[]>
   openPathWithDefaultTarget(targetPath: string): Promise<void>
   listModelProviders(): Promise<DesktopModelProviderSummary[]>

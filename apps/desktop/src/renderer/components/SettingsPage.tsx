@@ -2,6 +2,8 @@ import React from 'react'
 import { AppearanceSettings } from './AppearanceSettings.js'
 import { ArchivedConversationsSettings } from './ArchivedConversationsSettings.js'
 import { GeneralSettings } from './GeneralSettings.js'
+import { GitSettings } from './GitSettings.js'
+import { McpSettings } from './McpSettings.js'
 import { ModelProviderSettings } from './ModelProviderSettings.js'
 import { SettingsSection } from './SettingsSection.js'
 import { UsageBillingSettings } from './UsageBillingSettings.js'
@@ -15,6 +17,8 @@ export function SettingsPage({ activeTab, onError }: Props): React.ReactNode {
   if (activeTab === 'general') return <GeneralSettings />
   if (activeTab === 'appearance') return <AppearanceSettings />
   if (activeTab === 'config') return <ModelProviderSettings onError={onError} />
+  if (activeTab === 'mcp') return <McpSettings />
+  if (activeTab === 'git') return <GitSettings />
   if (activeTab === 'archived') return <ArchivedConversationsSettings />
   if (activeTab === 'billing') return <UsageBillingSettings />
   return (

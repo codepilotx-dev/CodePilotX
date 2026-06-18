@@ -23,7 +23,7 @@ const MENU_ITEMS = [
   { id: 'general', label: '常规', icon: Settings },
   { id: 'profile', label: '个人资料', icon: User },
   { id: 'appearance', label: '外观', icon: Palette },
-  { id: 'config', label: '配置', icon: Sliders },
+  { id: 'config', label: 'Agent 配置', icon: Sliders },
   { id: 'personalization', label: '个性化', icon: Sparkles },
   { id: 'shortcuts', label: '键盘快捷键', icon: Keyboard },
   { id: 'mcp', label: 'MCP服务器', icon: Server },

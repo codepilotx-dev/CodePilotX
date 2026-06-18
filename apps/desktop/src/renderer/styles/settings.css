@@ -1088,6 +1088,31 @@
   margin: 0;
 }
 
+.settings-textarea {
+  width: min(360px, 48vw);
+  min-height: 78px;
+  resize: vertical;
+  border: 1px solid var(--c-border);
+  border-radius: 10px;
+  background: var(--c-bg-card);
+  color: var(--c-text);
+  padding: 8px 10px;
+  font-size: var(--fs-13);
+  line-height: 1.45;
+}
+
+.settings-code-textarea {
+  min-height: 150px;
+  font-family: var(--ff-mono);
+}
+
+.settings-empty-state {
+  margin: 0;
+  padding: 18px;
+  color: var(--c-text-soft);
+  font-size: var(--fs-13);
+}
+
 .settings-input-unit {
   font-size: var(--fs-13);
   color: var(--c-text-soft);
@@ -1106,6 +1131,51 @@
   align-items: center;
   gap: 12px;
   white-space: nowrap;
+}
+
+.mcp-server-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: 14px var(--sp-4);
+}
+
+.mcp-server-row + .mcp-server-row {
+  border-top: 1px solid var(--c-border-soft);
+}
+
+.mcp-server-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.mcp-server-title-line {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.mcp-server-title-line h4 {
+  margin: 0;
+  color: var(--c-text-strong);
+  font-size: var(--fs-14);
+  font-weight: 600;
+}
+
+.mcp-server-copy p {
+  margin: 4px 0 0;
+  color: var(--c-text-soft);
+  font-size: var(--fs-13);
+  overflow-wrap: anywhere;
+}
+
+.mcp-server-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-shrink: 0;
 }
 
 .billing-balance-list {
@@ -1416,6 +1486,7 @@
   .settings-input,
   .settings-input-wide,
   .settings-input-narrow,
+  .settings-textarea,
   .settings-dropdown {
     width: 100%;
     max-width: none;

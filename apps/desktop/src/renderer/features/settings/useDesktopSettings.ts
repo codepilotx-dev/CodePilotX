@@ -36,6 +36,10 @@ export type UseDesktopSettingsResult = {
   providerBaseURL: string
   showContextUsage: boolean
   defaultOpenTargetId: string
+  gitBranchPrefix: string
+  allowForcePush: boolean
+  commitMessagePrompt: string
+  pullRequestPrompt: string
   setPermissionMode: (value: DesktopPermissionMode) => void
   setModel: (value: string) => void
   setFallbackModel: (value: string) => void
@@ -53,6 +57,10 @@ export type UseDesktopSettingsResult = {
   setProviderBaseURL: (value: string) => void
   setShowContextUsage: (value: boolean) => void
   setDefaultOpenTargetId: (value: string) => void
+  setGitBranchPrefix: (value: string) => void
+  setAllowForcePush: (value: boolean) => void
+  setCommitMessagePrompt: (value: string) => void
+  setPullRequestPrompt: (value: string) => void
 }
 
 const DesktopSettingsContext = createContext<UseDesktopSettingsResult | null>(
@@ -117,6 +125,16 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
   const [defaultOpenTargetId, setDefaultOpenTargetId] = useState(
     initial.defaultOpenTargetId,
   )
+  const [gitBranchPrefix, setGitBranchPrefix] = useState(
+    initial.gitBranchPrefix,
+  )
+  const [allowForcePush, setAllowForcePush] = useState(initial.allowForcePush)
+  const [commitMessagePrompt, setCommitMessagePrompt] = useState(
+    initial.commitMessagePrompt,
+  )
+  const [pullRequestPrompt, setPullRequestPrompt] = useState(
+    initial.pullRequestPrompt,
+  )
   const [settingsLoaded, setSettingsLoaded] = useState(false)
 
   useEffect(() => {
@@ -140,6 +158,10 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
         setProviderBaseURL(settings.providerBaseURL)
         setShowContextUsage(settings.showContextUsage)
         setDefaultOpenTargetId(settings.defaultOpenTargetId)
+        setGitBranchPrefix(settings.gitBranchPrefix)
+        setAllowForcePush(settings.allowForcePush)
+        setCommitMessagePrompt(settings.commitMessagePrompt)
+        setPullRequestPrompt(settings.pullRequestPrompt)
         setSettingsLoaded(true)
       })
       .catch(() => {
@@ -170,6 +192,10 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
       providerBaseURL,
       showContextUsage,
       defaultOpenTargetId,
+      gitBranchPrefix,
+      allowForcePush,
+      commitMessagePrompt,
+      pullRequestPrompt,
     }
     storeDesktopSettings(next)
   }, [
@@ -189,6 +215,10 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     providerBaseURL,
     showContextUsage,
     defaultOpenTargetId,
+    gitBranchPrefix,
+    allowForcePush,
+    commitMessagePrompt,
+    pullRequestPrompt,
   ])
 
   return {
@@ -207,6 +237,10 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     providerBaseURL,
     showContextUsage,
     defaultOpenTargetId,
+    gitBranchPrefix,
+    allowForcePush,
+    commitMessagePrompt,
+    pullRequestPrompt,
     setPermissionMode,
     setModel,
     setFallbackModel,
@@ -222,5 +256,9 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     setProviderBaseURL,
     setShowContextUsage,
     setDefaultOpenTargetId,
+    setGitBranchPrefix,
+    setAllowForcePush,
+    setCommitMessagePrompt,
+    setPullRequestPrompt,
   }
 }

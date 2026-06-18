@@ -8,6 +8,7 @@ const emptyArgs = z.tuple([])
 const unknownObject = z.record(z.string(), z.unknown())
 const optionalText = z.string().optional()
 const nullableText = z.string().nullable()
+const editableMcpScope = z.enum(['local', 'user', 'project'])
 
 const providerOptions = z.object({
   providerID: z.string(),
@@ -33,6 +34,17 @@ export const DESKTOP_API_ARG_SCHEMAS = {
   saveDesktopSettings: z.tuple([unknownObject]),
   listBuiltinPlugins: emptyArgs,
   setBuiltinPluginEnabled: z.tuple([z.string(), z.boolean()]),
+  listMcpServers: emptyArgs,
+  saveMcpServer: z.tuple([
+    z.object({
+      originalName: optionalText,
+      name: z.string(),
+      scope: editableMcpScope,
+      config: unknownObject,
+    }),
+  ]),
+  removeMcpServer: z.tuple([z.string(), editableMcpScope]),
+  setMcpServerEnabled: z.tuple([z.string(), z.boolean()]),
   listOpenTargets: emptyArgs,
   openPathWithDefaultTarget: z.tuple([z.string()]),
   listModelProviders: emptyArgs,

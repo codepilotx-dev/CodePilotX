@@ -52,6 +52,10 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     providerBaseURL: '',
     showContextUsage: true,
     defaultOpenTargetId: 'default-app',
+    gitBranchPrefix: 'codex/',
+    allowForcePush: false,
+    commitMessagePrompt: '',
+    pullRequestPrompt: '',
   }
 }
 
@@ -102,6 +106,22 @@ export function normalizeDesktopStoredSettings(
     defaultOpenTargetId: stringOrDefault(
       parsed.defaultOpenTargetId,
       defaults.defaultOpenTargetId,
+    ),
+    gitBranchPrefix: stringOrDefault(
+      parsed.gitBranchPrefix,
+      defaults.gitBranchPrefix,
+    ),
+    allowForcePush:
+      typeof parsed.allowForcePush === 'boolean'
+        ? parsed.allowForcePush
+        : defaults.allowForcePush,
+    commitMessagePrompt: stringOrDefault(
+      parsed.commitMessagePrompt,
+      defaults.commitMessagePrompt,
+    ),
+    pullRequestPrompt: stringOrDefault(
+      parsed.pullRequestPrompt,
+      defaults.pullRequestPrompt,
     ),
   }
 }

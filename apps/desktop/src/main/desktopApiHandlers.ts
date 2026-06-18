@@ -16,6 +16,12 @@ import {
   saveProviderApiKey,
 } from './modelProviderService.js'
 import {
+  listDesktopMcpServers,
+  removeDesktopMcpServer,
+  saveDesktopMcpServer,
+  setDesktopMcpServerEnabled,
+} from './mcpSettingsService.js'
+import {
   readDesktopThemeSettings,
   saveDesktopThemeSettings,
 } from './themeSettings.js'
@@ -102,6 +108,10 @@ export function buildDesktopApiHandlers(
     },
     listBuiltinPlugins: dependencies.listBuiltinPlugins,
     setBuiltinPluginEnabled: dependencies.setBuiltinPluginEnabled,
+    listMcpServers: listDesktopMcpServers,
+    saveMcpServer: saveDesktopMcpServer,
+    removeMcpServer: removeDesktopMcpServer,
+    setMcpServerEnabled: setDesktopMcpServerEnabled,
     listOpenTargets,
     openPathWithDefaultTarget,
     listModelProviders: async () => listModelProviders(),

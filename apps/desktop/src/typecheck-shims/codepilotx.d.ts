@@ -295,6 +295,67 @@ declare module '@codepilotx/tui/types/permissions.js' {
     | 'bypassPermissions'
 }
 
+declare module '@codepilotx/tui/services/mcp/types.js' {
+  export type ConfigScope =
+    | 'local'
+    | 'user'
+    | 'project'
+    | 'dynamic'
+    | 'enterprise'
+    | 'claudeai'
+    | 'managed'
+
+  export type McpServerConfig = Record<string, unknown> & {
+    type?: string
+    command?: string
+    args?: string[]
+    url?: string
+    name?: string
+  }
+
+  export type ScopedMcpServerConfig = McpServerConfig & {
+    scope: ConfigScope
+    pluginSource?: string
+  }
+
+  export function McpServerConfigSchema(): {
+    safeParse(value: unknown):
+      | { success: true; data: McpServerConfig }
+      | {
+          success: false
+          error: {
+            issues: Array<{
+              path: Array<string | number>
+              message: string
+            }>
+          }
+        }
+  }
+}
+
+declare module '@codepilotx/tui/services/mcp/config.js' {
+  import type {
+    ConfigScope,
+    ScopedMcpServerConfig,
+  } from '@codepilotx/tui/services/mcp/types.js'
+
+  export function getAllMcpConfigs(): Promise<{
+    servers: Record<string, ScopedMcpServerConfig>
+    errors: unknown[]
+  }>
+  export function addMcpConfig(
+    name: string,
+    config: unknown,
+    scope: ConfigScope,
+  ): Promise<void>
+  export function removeMcpConfig(
+    name: string,
+    scope: ConfigScope,
+  ): Promise<void>
+  export function isMcpServerDisabled(name: string): boolean
+  export function setMcpServerEnabled(name: string, enabled: boolean): void
+}
+
 declare module '@codepilotx/tui/utils/envUtils.js' {
   export const CODEPILOTX_CONFIG_DIR_ENV: string
   export const CODEPILOTX_CONFIG_DIR_NAME: string
