@@ -29,9 +29,7 @@
 .chip-button,
 .chip-button *,
 .meta-chip,
-.meta-chip *,
-.window-menu-item,
-.window-menu-item * {
+.meta-chip * {
   outline: none !important;
   user-select: none;
   -webkit-user-select: none;
@@ -205,30 +203,6 @@
 .popover-sidebar-project {
   top: 100%;
   bottom: auto;
-}
-
-.popover-menu-file,
-.popover-menu-edit,
-.popover-menu-view,
-.popover-menu-window,
-.popover-menu-help {
-  top: calc(100% + 4px);
-  bottom: auto;
-  left: 0;
-  min-width: 260px;
-}
-
-.popover-menu-help {
-  min-width: 280px;
-}
-
-.popover-menu-window {
-  min-width: 200px;
-}
-
-.window-menu-item.active {
-  background: var(--c-bg-hover);
-  color: var(--c-text);
 }
 
 .popover-header {
