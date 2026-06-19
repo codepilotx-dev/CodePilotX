@@ -10,15 +10,20 @@ import type {
 export type QuickChatContextValue = {
   isConversationRoute: boolean
   isConversationLoading: boolean
+  activeSessionId: string | null
+  activeSessionPinnedAt: string | null
   sessionTitle: string | null
   workspaceName: string | null
   workspacePath: string | null
   branchName: string | null
   diff: string
   gitStatus: DesktopGitStatus | null
+  onArchiveSession: () => void
   onCreateBranch: () => void
+  onOpenAutomation: () => void
   onOpenWorkspacePath: () => void
   onRefreshDiff: () => void
+  onToggleSessionPinned: () => void
   onCommitOrPush: () => void
   onCreatePullRequest: () => void
   events: DesktopSessionEvent[]

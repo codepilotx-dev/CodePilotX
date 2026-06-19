@@ -1,5 +1,8 @@
 import React from "react";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
+  AppWindow,
+  Archive,
   ChevronRight,
   Columns2,
   Code2,
@@ -9,13 +12,17 @@ import {
   GitPullRequest,
   Laptop,
   Maximize2,
+  MessageSquarePlus,
   MoreHorizontal,
+  Pencil,
+  Pin,
   RotateCcw,
   Settings,
   Sparkles,
   ThumbsDown,
   ThumbsUp,
   Upload,
+  Workflow,
 } from "lucide-react";
 import { legacyMessagesToSessionEvents } from "../../shared/sessionEventModel.js";
 import type {
@@ -25,11 +32,15 @@ import type {
 import { useQuickChatContext } from "../context/QuickChatContext.js";
 import type { Message } from "../uiTypes.js";
 import { MarkdownMessage } from "./MarkdownMessage.js";
+import { PopoverItem } from "./ui/PopoverItem.js";
+import { PopoverMenu } from "./ui/PopoverMenu.js";
 import { Tooltip } from "./ui/Tooltip.js";
 
 export function ConversationPage(): React.ReactNode {
   const {
     isConversationLoading,
+    activeSessionId,
+    activeSessionPinnedAt,
     sessionTitle,
     events,
     messages,
@@ -38,9 +49,12 @@ export function ConversationPage(): React.ReactNode {
     branchName,
     diff,
     gitStatus,
+    onArchiveSession,
     onCreateBranch,
+    onOpenAutomation,
     onOpenWorkspacePath,
     onRefreshDiff,
+    onToggleSessionPinned,
     onCommitOrPush,
     onCreatePullRequest,
     composer,
@@ -76,6 +90,47 @@ export function ConversationPage(): React.ReactNode {
     [timelineEvents],
   );
   const renderedSessionTitle = sessionTitle ?? fallbackTitle;
+  const [sessionMenuOpen, setSessionMenuOpen] = React.useState(false);
+  const hasActiveSession = Boolean(activeSessionId);
+  const isSessionPinned = Boolean(activeSessionPinnedAt);
+
+  function closeSessionMenu(): void {
+    setSessionMenuOpen(false);
+  }
+
+  function copyText(text: string): void {
+    closeSessionMenu();
+    void navigator.clipboard?.writeText(text).catch(() => undefined);
+  }
+
+  function copySessionDeepLink(): void {
+    if (!activeSessionId) return;
+    const url = new URL(window.location.href);
+    url.pathname = `/sessions/${encodeURIComponent(activeSessionId)}`;
+    url.search = "";
+    url.hash = "";
+    copyText(url.toString());
+  }
+
+  function openBranchFlow(): void {
+    closeSessionMenu();
+    onCreateBranch();
+  }
+
+  function openAutomationView(): void {
+    closeSessionMenu();
+    onOpenAutomation();
+  }
+
+  function toggleSessionPinned(): void {
+    closeSessionMenu();
+    onToggleSessionPinned();
+  }
+
+  function archiveCurrentSession(): void {
+    closeSessionMenu();
+    onArchiveSession();
+  }
 
   return (
     <section className="conversation-page">
@@ -84,15 +139,111 @@ export function ConversationPage(): React.ReactNode {
           <span>
             {isConversationLoading ? "加载对话中" : renderedSessionTitle}
           </span>
-          <Tooltip content="更多操作">
-            <button
-              aria-label="更多会话操作"
-              className="message-action"
-              type="button"
+          <PopoverMenu
+            align="start"
+            className="popover-session-actions"
+            open={sessionMenuOpen}
+            trigger={
+              <button
+                aria-label="更多会话操作"
+                className="message-action"
+                title="更多操作"
+                type="button"
+              >
+                <MoreHorizontal size={16} />
+              </button>
+            }
+            onOpenChange={setSessionMenuOpen}
+          >
+            <PopoverItem
+              icon={<Pin size={14} />}
+              shortcut="Ctrl+Alt+P"
+              disabled={!hasActiveSession}
+              onClick={toggleSessionPinned}
             >
-              <MoreHorizontal size={16} />
-            </button>
-          </Tooltip>
+              {isSessionPinned ? "取消置顶" : "置顶对话"}
+            </PopoverItem>
+            <PopoverItem
+              disabled
+              icon={<Pencil size={14} />}
+              shortcut="Ctrl+Alt+R"
+            >
+              重命名对话
+            </PopoverItem>
+            <PopoverItem
+              disabled={!hasActiveSession}
+              icon={<Archive size={14} />}
+              shortcut="Ctrl+Shift+A"
+              onClick={archiveCurrentSession}
+            >
+              归档对话
+            </PopoverItem>
+            <div className="popover-divider" />
+            <PopoverItem
+              disabled
+              icon={<MessageSquarePlus size={14} />}
+            >
+              打开侧边聊天
+            </PopoverItem>
+            <SessionSubmenu
+              disabled={!hasActiveSession && !workspacePath}
+              icon={<Copy size={14} />}
+              label="复制"
+            >
+              <PopoverItem
+                disabled={!workspacePath}
+                icon={<Copy size={14} />}
+                shortcut="Ctrl+Shift+C"
+                onClick={() => copyText(workspacePath ?? "")}
+              >
+                复制工作目录
+              </PopoverItem>
+              <PopoverItem
+                disabled={!hasActiveSession}
+                icon={<Copy size={14} />}
+                shortcut="Ctrl+Alt+C"
+                onClick={() => copyText(activeSessionId ?? "")}
+              >
+                复制会话 ID
+              </PopoverItem>
+              <PopoverItem
+                disabled={!hasActiveSession}
+                icon={<Copy size={14} />}
+                shortcut="Ctrl+Alt+L"
+                onClick={copySessionDeepLink}
+              >
+                复制深度链接
+              </PopoverItem>
+            </SessionSubmenu>
+            <SessionSubmenu
+              disabled={!workspacePath}
+              icon={<GitBranch size={14} />}
+              label="分支"
+            >
+              <PopoverItem
+                icon={<Laptop size={14} />}
+                onClick={openBranchFlow}
+              >
+                派生到本地
+              </PopoverItem>
+              <PopoverItem disabled icon={<GitBranch size={14} />}>
+                派生到新工作树
+              </PopoverItem>
+            </SessionSubmenu>
+            <PopoverItem
+              icon={<Workflow size={14} />}
+              onClick={openAutomationView}
+            >
+              添加自动化...
+            </PopoverItem>
+            <div className="popover-divider" />
+            <PopoverItem
+              disabled
+              icon={<AppWindow size={14} />}
+            >
+              在新窗口中打开
+            </PopoverItem>
+          </PopoverMenu>
         </div>
         <div className="chat-session-actions">
           <Tooltip content="在编辑器中打开">
@@ -165,6 +316,41 @@ export function ConversationPage(): React.ReactNode {
         </div>
       ) : null}
     </section>
+  );
+}
+
+function SessionSubmenu({
+  children,
+  disabled,
+  icon,
+  label,
+}: {
+  children: React.ReactNode;
+  disabled?: boolean;
+  icon: React.ReactNode;
+  label: string;
+}): React.ReactNode {
+  return (
+    <DropdownMenu.Sub>
+      <DropdownMenu.SubTrigger
+        className="popover-item popover-sub-trigger"
+        disabled={disabled}
+        tabIndex={-1}
+      >
+        <span className="popover-item-icon">{icon}</span>
+        <span className="popover-item-label">{label}</span>
+        <ChevronRight className="popover-item-arrow" size={14} />
+      </DropdownMenu.SubTrigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.SubContent
+          alignOffset={-6}
+          className="popover popover-sub-content popover-auto-width"
+          sideOffset={8}
+        >
+          {children}
+        </DropdownMenu.SubContent>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Sub>
   );
 }
 

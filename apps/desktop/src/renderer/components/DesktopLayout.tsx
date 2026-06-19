@@ -1016,15 +1016,32 @@ export function DesktopLayout(): React.ReactNode {
           value={{
             isConversationRoute,
             isConversationLoading,
+            activeSessionId: activeSessionItem?.id ?? null,
+            activeSessionPinnedAt: activeSessionItem?.pinnedAt ?? null,
             sessionTitle: quickChatSessionTitle,
             workspaceName: currentWorkspace?.name ?? null,
             workspacePath: currentWorkspace?.path ?? null,
             branchName,
             diff: workspace.diff,
             gitStatus,
+            onArchiveSession: () => {
+              if (!activeSessionItem) return
+              void handleUpdateSessionMetadata(activeSessionItem.id, {
+                archivedAt: new Date().toISOString(),
+              })
+            },
             onCreateBranch: () => setGitWorkflowMode('branch'),
+            onOpenAutomation: () => navigate('/automation'),
             onOpenWorkspacePath: handleOpenWorkspacePath,
             onRefreshDiff: handleRefreshDiff,
+            onToggleSessionPinned: () => {
+              if (!activeSessionItem) return
+              void handleUpdateSessionMetadata(activeSessionItem.id, {
+                pinnedAt: activeSessionItem.pinnedAt
+                  ? null
+                  : new Date().toISOString(),
+              })
+            },
             onCommitOrPush: () => setGitWorkflowMode('commitPush'),
             onCreatePullRequest: () => setGitWorkflowMode('pullRequest'),
             events: isQuickChatPage || isConversationLoading ? [] : events,
