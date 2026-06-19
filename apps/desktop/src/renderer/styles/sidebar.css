@@ -15,7 +15,8 @@
     flex-basis 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.desktop-sidebar {
+.desktop-sidebar,
+.desktop-sidebar-hover-overlay {
   --sidebar-pad-x: 8px;
   --sidebar-item-h: 30px;
   --sidebar-item-gap: 8px;
@@ -30,10 +31,9 @@
   width: 0;
   flex-basis: 0;
   overflow: visible;
-  transition: none;
 }
 
-.desktop-sidebar.is-collapsed.is-hover-open {
+.desktop-sidebar-hover-overlay {
   position: absolute;
   left: 0;
   top: 0;
@@ -41,13 +41,15 @@
   z-index: 12;
   width: var(--sidebar-current-w);
   height: auto;
-  flex-basis: var(--sidebar-current-w);
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
-  border-right: 1px solid var(--c-border-soft);
-  box-shadow: 2px 0 8px rgb(0, 0, 0, 0.08);
+  background: var(--c-bg-mask);
+  color: var(--c-text);
+  user-select: none;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.08);
   border-radius: var(--r-md);
   border: 1px solid var(--c-border);
-  transition: none;
   will-change: opacity, transform;
 }
 
@@ -68,11 +70,6 @@
   opacity: 0;
   pointer-events: none;
   transition: none;
-}
-
-.desktop-sidebar.is-collapsed.is-hover-open .sidebar-layout {
-  opacity: 1;
-  pointer-events: auto;
 }
 
 .sidebar-hover-zone {
