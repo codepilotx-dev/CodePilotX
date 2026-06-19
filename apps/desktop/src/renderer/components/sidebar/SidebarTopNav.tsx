@@ -15,7 +15,7 @@ const TOP_NAV_ITEMS: SidebarNavItem[] = [
     view: "quickChat",
     label: "快速对话",
     icon: <SquarePen size={14} />,
-    path: "/",
+    path: "/quick-chat",
   },
   {
     view: "search",
@@ -47,8 +47,6 @@ export function SidebarTopNav({ isActiveView }: Props): React.ReactNode {
       {TOP_NAV_ITEMS.map((item) => (
         <Link
           className={
-            item.view !== "quickChat" &&
-            item.view !== "search" &&
             isActiveView(item.view)
               ? "sidebar-nav-link active"
               : "sidebar-nav-link"

@@ -50,6 +50,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 
 const RUNTIME_WARNING_MESSAGE =
   '桌面端 agent 运行时缺失，发送消息前请先执行 `bun run desktop:agent:build`。'
+const QUICK_CHAT_PATH = '/quick-chat'
 
 export function DesktopLayout(): React.ReactNode {
   const settings = useDesktopSettings()
@@ -161,11 +162,11 @@ export function DesktopLayout(): React.ReactNode {
   const location = useLocation()
   const navigate = useNavigate()
   const routedSessionId = getRoutedSessionId(location.pathname)
-  const isHomePage = location.pathname === '/'
+  const isQuickChatPage = location.pathname === QUICK_CHAT_PATH
   const isConversationRoute = routedSessionId !== null
   const isSettingsRoute = location.pathname === '/settings'
   const fullLocationPath = `${location.pathname}${location.search}${location.hash}`
-  const settingsReturnPathRef = useRef('/')
+  const settingsReturnPathRef = useRef(QUICK_CHAT_PATH)
   const settingsActiveTab =
     new URLSearchParams(location.search).get('tab') ?? 'general'
 
@@ -193,7 +194,7 @@ export function DesktopLayout(): React.ReactNode {
       setDiffState('未选择项目。')
       setSelectedFile(null)
       setErrorMessage(`找不到对话：${routedSessionId}`)
-      navigate('/', { replace: true })
+      navigate(QUICK_CHAT_PATH, { replace: true })
       return
     }
 
@@ -202,7 +203,7 @@ export function DesktopLayout(): React.ReactNode {
       setWorkspaceState(null)
       setDiffState(NO_WORKSPACE_DIFF)
       setSelectedFile(null)
-      navigate('/', { replace: true })
+      navigate(QUICK_CHAT_PATH, { replace: true })
       return
     }
 
@@ -236,7 +237,7 @@ export function DesktopLayout(): React.ReactNode {
     async (): Promise<DesktopWorkspace | null> => {
       const selected = await chooseWorkspace()
       if (!selected) return null
-      navigate('/')
+      navigate(QUICK_CHAT_PATH)
       setWorkspaceState(selected)
       await refreshWorkspace(selected)
       return selected
@@ -248,7 +249,7 @@ export function DesktopLayout(): React.ReactNode {
     async (target: DesktopWorkspace): Promise<DesktopWorkspace | null> => {
       const selected = await openRecentWorkspace(target)
       if (!selected) return null
-      navigate('/')
+      navigate(QUICK_CHAT_PATH)
       setWorkspaceState(selected)
       await refreshWorkspace(selected)
       return selected
@@ -260,7 +261,7 @@ export function DesktopLayout(): React.ReactNode {
     target?: DesktopWorkspace | null,
   ): Promise<void> => {
     if (target === null) {
-      navigate('/')
+      navigate(QUICK_CHAT_PATH)
       activateSessionById(null)
       setWorkspaceState(null)
       setDiffState('未选择项目。')
@@ -273,7 +274,7 @@ export function DesktopLayout(): React.ReactNode {
       const selected = await handleOpenRecentWorkspace(targetWorkspace)
       if (!selected) return
     } else {
-      navigate('/')
+      navigate(QUICK_CHAT_PATH)
     }
     activateSessionById(null)
     setInput('')
@@ -314,7 +315,7 @@ export function DesktopLayout(): React.ReactNode {
   const handleNewConversation = useCallback(async (): Promise<void> => {
     activateSessionById(null)
     setInput('')
-    navigate('/')
+    navigate(QUICK_CHAT_PATH)
   }, [
     activateSessionById,
     navigate,
@@ -352,7 +353,7 @@ export function DesktopLayout(): React.ReactNode {
           void handleNewConversation()
           break
         case 'quickChat':
-          navigate('/')
+          navigate(QUICK_CHAT_PATH)
           break
         case 'openFolder':
           void handleChooseWorkspace()
@@ -690,7 +691,7 @@ export function DesktopLayout(): React.ReactNode {
       navigate(
         result.nextActiveSession
           ? sessionPath(result.nextActiveSession.id)
-          : '/',
+          : QUICK_CHAT_PATH,
         { replace: true },
       )
       if (result.nextActiveSession && result.nextWorkspace) {
@@ -734,7 +735,7 @@ export function DesktopLayout(): React.ReactNode {
     Boolean(input.trim()) &&
     sessionStatus !== 'running' &&
     sessionStatus !== 'waiting' &&
-    (isHomePage || Boolean(routedSessionId))
+    (isQuickChatPage || Boolean(routedSessionId))
   const branchName =
     !currentWorkspace
       ? '无项目'
@@ -793,7 +794,7 @@ export function DesktopLayout(): React.ReactNode {
       setDiffState(NO_WORKSPACE_DIFF)
       setSelectedFile(null)
       if (!isConversationRoute) {
-        navigate('/')
+        navigate(QUICK_CHAT_PATH)
       }
     },
     [
@@ -865,7 +866,7 @@ export function DesktopLayout(): React.ReactNode {
   }
 
   function handleSettingsBack(): void {
-    navigate(settingsReturnPathRef.current || '/')
+    navigate(settingsReturnPathRef.current || QUICK_CHAT_PATH)
   }
 
   const appSidebarContent = (
@@ -906,7 +907,7 @@ export function DesktopLayout(): React.ReactNode {
     </SidebarFrame>
   )
 
-  const composer = isHomePage || isConversationRoute ? (
+  const composer = isQuickChatPage || isConversationRoute ? (
     <ComposerCard
       input={input}
       canSubmit={composerCanSubmit}
@@ -939,7 +940,7 @@ export function DesktopLayout(): React.ReactNode {
       onSubmit={() => {
         void (async () => {
           const submittedInput = input
-          if (isHomePage) {
+          if (isQuickChatPage) {
             setInput('')
             const nextSessionId = currentWorkspace
               ? await createSessionForWorkspace(currentWorkspace)
@@ -1000,8 +1001,8 @@ export function DesktopLayout(): React.ReactNode {
             workspacePath: currentWorkspace?.path ?? null,
             branchName,
             diff: workspace.diff,
-            events: isHomePage || isConversationLoading ? [] : events,
-            messages: isHomePage || isConversationLoading ? [] : messages,
+            events: isQuickChatPage || isConversationLoading ? [] : events,
+            messages: isQuickChatPage || isConversationLoading ? [] : messages,
             sessionStatus,
             composer: isConversationLoading ? null : composer,
           }}
