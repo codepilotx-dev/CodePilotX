@@ -28,7 +28,7 @@
   min-width: 0;
 }
 
-.chat-composer {
+.quick-chat-view .chat-composer {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -58,21 +58,27 @@
 }
 
 .conversation-page {
-  align-self: stretch;
-  color: var(--c-text-strong);
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  gap: 0;
   height: 100%;
   min-height: 0;
   padding: 0;
   width: 100%;
+  position: relative;
 }
 
 .conversation-page .chat-composer {
-  position: relative;
+  position: absolute;
+  bottom: 20px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
+
+
+
 
 .chat-session-header {
   width: 100%;

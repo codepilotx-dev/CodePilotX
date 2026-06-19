@@ -70,7 +70,7 @@
   --chrome-h: 35px;
   --titlebar-h: var(--chrome-h);
   --menubar-h: var(--chrome-h);
-  --composer-w: 860px;
+  --composer-w: 760px;
 }
 
 :root[data-theme='dark'] {
