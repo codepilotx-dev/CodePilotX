@@ -8,14 +8,14 @@ import { GlobalErrorModal } from './GlobalErrorModal.js'
 import { PermissionRequestModal } from './PermissionRequestModal.js'
 import { SettingsSidebarContent } from './SettingsSidebarContent.js'
 import { SidebarFrame } from './SidebarFrame.js'
-import { WindowChrome } from './WindowChrome.js'
+import { MenuBar } from './MenuBar.js'
 import type {
   EditMenuAction,
   FileMenuAction,
   HelpMenuAction,
   ViewMenuAction,
   WindowMenuAction,
-} from './WindowChrome.js'
+} from './MenuBar.js'
 import { QuickChatContext } from '../context/QuickChatContext.js'
 import { SearchContext } from '../context/SearchContext.js'
 import type { SessionListItem } from '../uiTypes.js'
@@ -833,8 +833,8 @@ export function DesktopLayout(): React.ReactNode {
     }
   }, [])
 
-  const windowChrome = (
-    <WindowChrome
+  const menuBar = (
+    <MenuBar
       sidebarCollapsed={sidebarCollapsed}
       isMaximized={isWindowMaximized}
       onToggleSidebar={toggleSidebarCollapsed}
@@ -989,7 +989,7 @@ export function DesktopLayout(): React.ReactNode {
       ) : null}
 
       <DesktopAppShell
-        windowChrome={windowChrome}
+        menuBar={menuBar}
         sidebar={sidebar}
       >
         <QuickChatContext.Provider
