@@ -7,7 +7,7 @@
   flex-direction: column;
   border-radius: 20px;
   background: var(--c-bg-soft);
-  box-shadow: var(--sh-card-lg);
+
   overflow: visible;
 }
 
