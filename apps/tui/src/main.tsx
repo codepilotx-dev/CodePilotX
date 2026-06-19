@@ -2354,7 +2354,7 @@ async function run(): Promise<CommanderCommand> {
             mcpConfig: chromeMcpConfig,
             allowedTools: chromeMcpTools,
             systemPrompt: chromeSystemPrompt,
-          } = setupClaudeInChrome()
+          } = await setupClaudeInChrome()
           dynamicMcpConfig = { ...dynamicMcpConfig, ...chromeMcpConfig }
           allowedTools.push(...chromeMcpTools)
           if (chromeSystemPrompt) {
@@ -2375,7 +2375,7 @@ async function run(): Promise<CommanderCommand> {
         }
       } else if (autoEnableClaudeInChrome) {
         try {
-          const { mcpConfig: chromeMcpConfig } = setupClaudeInChrome()
+          const { mcpConfig: chromeMcpConfig } = await setupClaudeInChrome()
           dynamicMcpConfig = { ...dynamicMcpConfig, ...chromeMcpConfig }
 
           const hint =
@@ -2446,9 +2446,12 @@ async function run(): Promise<CommanderCommand> {
             const { setupComputerUseMCP } = await import(
               '@codepilotx/tui/utils/computerUse/setup.js'
             )
-            const { mcpConfig, allowedTools: cuTools } = setupComputerUseMCP()
-            dynamicMcpConfig = { ...dynamicMcpConfig, ...mcpConfig }
-            allowedTools.push(...cuTools)
+            const computerUseSetup = await setupComputerUseMCP()
+            if (computerUseSetup) {
+              const { mcpConfig, allowedTools: cuTools } = computerUseSetup
+              dynamicMcpConfig = { ...dynamicMcpConfig, ...mcpConfig }
+              allowedTools.push(...cuTools)
+            }
           }
         } catch (error) {
           logForDebugging(

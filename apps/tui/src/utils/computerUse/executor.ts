@@ -27,17 +27,6 @@
  * Clipboard via `pbcopy`/`pbpaste`. No Electron `clipboard` module.
  */
 
-import type {
-  ComputerExecutor,
-  DisplayGeometry,
-  FrontmostApp,
-  InstalledApp,
-  ResolvePrepareCaptureResult,
-  RunningApp,
-  ScreenshotResult,
-} from '@ant/computer-use-mcp'
-
-import { API_RESIZE_PARAMS, targetImageSize } from '@ant/computer-use-mcp'
 import { logForDebugging } from '../debug.js'
 import { errorMessage } from '../errors.js'
 import { execFileNoThrow } from '../execFileNoThrow.js'
@@ -51,6 +40,15 @@ import { drainRunLoop } from './drainRunLoop.js'
 import { notifyExpectedEscape } from './escHotkey.js'
 import { requireComputerUseInput } from './inputLoader.js'
 import { requireComputerUseSwift } from './swiftLoader.js'
+import type {
+  ComputerExecutor,
+  DisplayGeometry,
+  FrontmostApp,
+  InstalledApp,
+  ResolvePrepareCaptureResult,
+  RunningApp,
+  ScreenshotResult,
+} from './types.js'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -64,7 +62,7 @@ function computeTargetDims(
 ): [number, number] {
   const physW = Math.round(logicalW * scaleFactor)
   const physH = Math.round(logicalH * scaleFactor)
-  return targetImageSize(physW, physH, API_RESIZE_PARAMS)
+  return [physW, physH]
 }
 
 async function readClipboardViaPbpaste(): Promise<string> {

@@ -1,4 +1,3 @@
-import { BROWSER_TOOLS } from '@ant/claude-for-chrome-mcp'
 import { chmod, mkdir, readFile, writeFile } from 'fs/promises'
 import { homedir } from 'os'
 import { join } from 'path'
@@ -19,6 +18,11 @@ import {
   isEnvTruthy,
 } from '../envUtils.js'
 import { execFileNoThrowWithCwd } from '../execFileNoThrow.js'
+import {
+  getOptionalPackageAvailability,
+  importOptionalPackage,
+  isOptionalPackageAvailable,
+} from '../optionalPackage.js'
 import { getPlatform } from '../platform.js'
 import { jsonStringify } from '../slowOperations.js'
 import {
@@ -35,6 +39,10 @@ const CHROME_EXTENSION_RECONNECT_URL = 'https://clau.de/chrome/reconnect'
 
 const NATIVE_HOST_IDENTIFIER = 'com.anthropic.claude_code_browser_extension'
 const NATIVE_HOST_MANIFEST_NAME = `${NATIVE_HOST_IDENTIFIER}.json`
+
+type ClaudeForChromeMcpPackage = {
+  BROWSER_TOOLS: Array<{ name: string }>
+}
 
 export function shouldEnableClaudeInChrome(chromeFlag?: boolean): boolean {
   // Disable by default in non-interactive sessions (e.g., SDK, CI)
@@ -74,7 +82,20 @@ export function shouldAutoEnableClaudeInChrome(): boolean {
     return shouldAutoEnable
   }
 
+  const packageAvailable = isOptionalPackageAvailable(
+    '@ant/claude-for-chrome-mcp',
+  )
+  if (!packageAvailable) {
+    const availability = getOptionalPackageAvailability(
+      '@ant/claude-for-chrome-mcp',
+    )
+    logForDebugging(
+      `[Claude in Chrome] Auto-enable skipped: ${availability.reason}`,
+    )
+  }
+
   shouldAutoEnable =
+    packageAvailable &&
     getIsInteractive() &&
     isChromeExtensionInstalled_CACHED_MAY_BE_STALE() &&
     (process.env.USER_TYPE === 'ant' ||
@@ -88,13 +109,25 @@ export function shouldAutoEnableClaudeInChrome(): boolean {
  *
  * @returns MCP config and allowed tools, or throws an error if platform is unsupported
  */
-export function setupClaudeInChrome(): {
+export async function setupClaudeInChrome(): Promise<{
   mcpConfig: Record<string, ScopedMcpServerConfig>
   allowedTools: string[]
   systemPrompt: string
-} {
+}> {
+  const claudeForChrome =
+    await importOptionalPackage<ClaudeForChromeMcpPackage>(
+      '@ant/claude-for-chrome-mcp',
+    )
+  if (!claudeForChrome) {
+    const availability = getOptionalPackageAvailability(
+      '@ant/claude-for-chrome-mcp',
+    )
+    throw new Error(
+      `@ant/claude-for-chrome-mcp is unavailable: ${availability.reason}`,
+    )
+  }
   const isNativeBuild = isInBundledMode()
-  const allowedTools = BROWSER_TOOLS.map(
+  const allowedTools = claudeForChrome.BROWSER_TOOLS.map(
     tool => `mcp__claude-in-chrome__${tool.name}`,
   )
 

@@ -1,9 +1,3 @@
-import {
-  type ClaudeForChromeContext,
-  createClaudeForChromeMcpServer,
-  type Logger,
-  type PermissionMode,
-} from '@ant/claude-for-chrome-mcp'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { format } from 'util'
 import { shutdownDatadog } from '../../services/analytics/datadog.js'
@@ -18,6 +12,10 @@ import { getClaudeAIOAuthTokens } from '../auth.js'
 import { enableConfigs, getGlobalConfig, saveGlobalConfig } from '../config.js'
 import { logForDebugging } from '../debug.js'
 import { isEnvTruthy } from '../envUtils.js'
+import {
+  getOptionalPackageAvailability,
+  importOptionalPackage,
+} from '../optionalPackage.js'
 import { sideQuery } from '../sideQuery.js'
 import { getAllSocketPaths, getSecureSocketPath } from './common.js'
 
@@ -38,6 +36,22 @@ const PERMISSION_MODES: readonly PermissionMode[] = [
   'skip_all_permission_checks',
   'follow_a_plan',
 ]
+
+type PermissionMode = 'ask' | 'skip_all_permission_checks' | 'follow_a_plan'
+
+type Logger = {
+  silly: (message: string, ...args: unknown[]) => void
+  debug: (message: string, ...args: unknown[]) => void
+  info: (message: string, ...args: unknown[]) => void
+  warn: (message: string, ...args: unknown[]) => void
+  error: (message: string, ...args: unknown[]) => void
+}
+
+type ClaudeForChromeContext = Record<string, unknown>
+
+type ClaudeForChromeMcpPackage = {
+  createClaudeForChromeMcpServer: (context: ClaudeForChromeContext) => any
+}
 
 function isPermissionMode(raw: string): raw is PermissionMode {
   return PERMISSION_MODES.some(m => m === raw)
@@ -245,12 +259,30 @@ export function createChromeContext(
   }
 }
 
+export async function createClaudeInChromeMcpServerForCli(
+  context: ClaudeForChromeContext,
+): Promise<any> {
+  const claudeForChrome =
+    await importOptionalPackage<ClaudeForChromeMcpPackage>(
+      '@ant/claude-for-chrome-mcp',
+    )
+  if (!claudeForChrome) {
+    const availability = getOptionalPackageAvailability(
+      '@ant/claude-for-chrome-mcp',
+    )
+    throw new Error(
+      `@ant/claude-for-chrome-mcp is unavailable: ${availability.reason}`,
+    )
+  }
+  return claudeForChrome.createClaudeForChromeMcpServer(context)
+}
+
 export async function runClaudeInChromeMcpServer(): Promise<void> {
   enableConfigs()
   initializeAnalyticsSink()
   const context = createChromeContext()
 
-  const server = createClaudeForChromeMcpServer(context)
+  const server = await createClaudeInChromeMcpServerForCli(context)
   const transport = new StdioServerTransport()
 
   // Exit when parent process dies (stdin pipe closes).

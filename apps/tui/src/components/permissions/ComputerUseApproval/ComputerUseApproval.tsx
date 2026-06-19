@@ -1,9 +1,11 @@
-import { getSentinelCategory } from '@ant/computer-use-mcp/sentinelApps'
 import type {
   CuPermissionRequest,
   CuPermissionResponse,
-} from '@ant/computer-use-mcp/types'
-import { DEFAULT_GRANT_FLAGS } from '@ant/computer-use-mcp/types'
+} from '../../../utils/computerUse/types.js'
+import {
+  DEFAULT_GRANT_FLAGS,
+  getSentinelCategory,
+} from '../../../utils/computerUse/types.js'
 import figures from 'figures'
 import * as React from 'react'
 import { useMemo, useState } from 'react'

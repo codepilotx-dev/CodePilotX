@@ -2,6 +2,10 @@ import type {
   ComputerUseInput,
   ComputerUseInputAPI,
 } from '@ant/computer-use-input'
+import {
+  getOptionalPackageAvailability,
+  requireOptionalPackage,
+} from '../optionalPackage.js'
 
 let cached: ComputerUseInputAPI | undefined
 
@@ -21,8 +25,15 @@ let cached: ComputerUseInputAPI | undefined
  */
 export function requireComputerUseInput(): ComputerUseInputAPI {
   if (cached) return cached
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const input = require('@ant/computer-use-input') as ComputerUseInput
+  const input = requireOptionalPackage<ComputerUseInput>(
+    '@ant/computer-use-input',
+  )
+  if (!input) {
+    const availability = getOptionalPackageAvailability('@ant/computer-use-input')
+    throw new Error(
+      `@ant/computer-use-input is unavailable: ${availability.reason}`,
+    )
+  }
   if (!input.isSupported) {
     throw new Error('@ant/computer-use-input is not supported on this platform')
   }

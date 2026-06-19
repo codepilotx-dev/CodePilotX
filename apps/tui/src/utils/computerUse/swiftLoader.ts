@@ -1,4 +1,8 @@
 import type { ComputerUseAPI } from '@ant/computer-use-swift'
+import {
+  getOptionalPackageAvailability,
+  requireOptionalPackage,
+} from '../optionalPackage.js'
 
 let cached: ComputerUseAPI | undefined
 
@@ -16,8 +20,14 @@ export function requireComputerUseSwift(): ComputerUseAPI {
   if (process.platform !== 'darwin') {
     throw new Error('@ant/computer-use-swift is macOS-only')
   }
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  return (cached ??= require('@ant/computer-use-swift') as ComputerUseAPI)
+  const swift = requireOptionalPackage<ComputerUseAPI>('@ant/computer-use-swift')
+  if (!swift) {
+    const availability = getOptionalPackageAvailability('@ant/computer-use-swift')
+    throw new Error(
+      `@ant/computer-use-swift is unavailable: ${availability.reason}`,
+    )
+  }
+  return (cached ??= swift)
 }
 
 export type { ComputerUseAPI }

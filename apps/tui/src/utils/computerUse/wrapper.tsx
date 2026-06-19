@@ -16,20 +16,15 @@
  * GrowthBook gate `tengu_malort_pedway` (see gates.ts).
  */
 
-import {
-  bindSessionContext,
-  type ComputerUseSessionContext,
-  type CuCallToolResult,
-  type CuPermissionRequest,
-  type CuPermissionResponse,
-  DEFAULT_GRANT_FLAGS,
-  type ScreenshotDims,
-} from '@ant/computer-use-mcp'
 import * as React from 'react'
 import { getSessionId } from '../../bootstrap/state.js'
 import { ComputerUseApproval } from '../../components/permissions/ComputerUseApproval/ComputerUseApproval.js'
 import type { Tool, ToolUseContext } from '../../Tool.js'
 import { logForDebugging } from '../debug.js'
+import {
+  getOptionalPackageAvailability,
+  requireOptionalPackage,
+} from '../optionalPackage.js'
 import {
   checkComputerUseLock,
   tryAcquireComputerUseLock,
@@ -38,6 +33,22 @@ import { registerEscHotkey } from './escHotkey.js'
 import { getChicagoCoordinateMode } from './gates.js'
 import { getComputerUseHostAdapter } from './hostAdapter.js'
 import { getComputerUseMCPRenderingOverrides } from './toolRendering.js'
+import {
+  DEFAULT_GRANT_FLAGS,
+  type ComputerUseSessionContext,
+  type CuCallToolResult,
+  type CuPermissionRequest,
+  type CuPermissionResponse,
+  type ScreenshotDims,
+} from './types.js'
+
+type ComputerUseMcpPackage = {
+  bindSessionContext: (
+    adapter: unknown,
+    coordinateMode: unknown,
+    ctx: ComputerUseSessionContext,
+  ) => (name: string, args: unknown) => Promise<CuCallToolResult>
+}
 
 type CallOverride = Pick<Tool, 'call'>['call']
 
@@ -279,10 +290,17 @@ export function buildSessionContext(): ComputerUseSessionContext {
 
 function getOrBind(): Binding {
   if (binding) return binding
+  const computerUseMcp = requireOptionalPackage<ComputerUseMcpPackage>(
+    '@ant/computer-use-mcp',
+  )
+  if (!computerUseMcp) {
+    const availability = getOptionalPackageAvailability('@ant/computer-use-mcp')
+    throw new Error(`@ant/computer-use-mcp is unavailable: ${availability.reason}`)
+  }
   const ctx = buildSessionContext()
   binding = {
     ctx,
-    dispatch: bindSessionContext(
+    dispatch: computerUseMcp.bindSessionContext(
       getComputerUseHostAdapter(),
       getChicagoCoordinateMode(),
       ctx,

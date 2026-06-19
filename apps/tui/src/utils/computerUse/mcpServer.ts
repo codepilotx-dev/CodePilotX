@@ -1,7 +1,3 @@
-import {
-  buildComputerUseTools,
-  createComputerUseMcpServer,
-} from '@ant/computer-use-mcp'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js'
 import { homedir } from 'os'
@@ -11,9 +7,18 @@ import { shutdown1PEventLogging } from '../../services/analytics/firstPartyEvent
 import { initializeAnalyticsSink } from '../../services/analytics/sink.js'
 import { enableConfigs } from '../config.js'
 import { logForDebugging } from '../debug.js'
+import {
+  getOptionalPackageAvailability,
+  importOptionalPackage,
+} from '../optionalPackage.js'
 import { filterAppsForDescription } from './appNames.js'
 import { getChicagoCoordinateMode } from './gates.js'
 import { getComputerUseHostAdapter } from './hostAdapter.js'
+
+type ComputerUseMcpPackage = {
+  buildComputerUseTools: (...args: unknown[]) => Array<{ name: string }>
+  createComputerUseMcpServer: (...args: unknown[]) => any
+}
 
 const APP_ENUM_TIMEOUT_MS = 1000
 
@@ -57,15 +62,22 @@ async function tryGetInstalledAppNames(): Promise<string[] | undefined> {
  * Real dispatch still goes through `wrapper.tsx`'s `.call()` override; this
  * server exists only to answer ListTools.
  */
-export async function createComputerUseMcpServerForCli(): Promise<
-  ReturnType<typeof createComputerUseMcpServer>
-> {
+export async function createComputerUseMcpServerForCli(): Promise<any> {
+  const computerUseMcp =
+    await importOptionalPackage<ComputerUseMcpPackage>('@ant/computer-use-mcp')
+  if (!computerUseMcp) {
+    const availability = getOptionalPackageAvailability('@ant/computer-use-mcp')
+    throw new Error(`@ant/computer-use-mcp is unavailable: ${availability.reason}`)
+  }
   const adapter = getComputerUseHostAdapter()
   const coordinateMode = getChicagoCoordinateMode()
-  const server = createComputerUseMcpServer(adapter, coordinateMode)
+  const server = computerUseMcp.createComputerUseMcpServer(
+    adapter,
+    coordinateMode,
+  )
 
   const installedAppNames = await tryGetInstalledAppNames()
-  const tools = buildComputerUseTools(
+  const tools = computerUseMcp.buildComputerUseTools(
     adapter.executor.capabilities,
     coordinateMode,
     installedAppNames,

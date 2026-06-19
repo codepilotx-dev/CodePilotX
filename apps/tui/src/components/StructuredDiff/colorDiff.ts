@@ -1,10 +1,12 @@
 import {
-  ColorDiff,
-  ColorFile,
-  getSyntaxTheme as nativeGetSyntaxTheme,
+  ColorDiff as TsColorDiff,
+  ColorFile as TsColorFile,
+  getSyntaxTheme as getTsSyntaxTheme,
+  type NativeModule,
   type SyntaxTheme,
-} from 'color-diff-napi'
+} from '../../native-ts/color-diff/index.js'
 import { isEnvDefinedFalsy } from '../../utils/envUtils.js'
+import { requireOptionalPackage } from '../../utils/optionalPackage.js'
 
 export type ColorModuleUnavailableReason = 'env'
 
@@ -22,16 +24,33 @@ export function getColorModuleUnavailableReason(): ColorModuleUnavailableReason 
   return null
 }
 
-export function expectColorDiff(): typeof ColorDiff | null {
-  return getColorModuleUnavailableReason() === null ? ColorDiff : null
+let cachedColorModule: NativeModule | undefined
+
+function getColorModule(): NativeModule {
+  if (cachedColorModule) return cachedColorModule
+  cachedColorModule =
+    requireOptionalPackage<NativeModule>('color-diff-napi') ?? {
+      ColorDiff: TsColorDiff,
+      ColorFile: TsColorFile,
+      getSyntaxTheme: getTsSyntaxTheme,
+    }
+  return cachedColorModule
 }
 
-export function expectColorFile(): typeof ColorFile | null {
-  return getColorModuleUnavailableReason() === null ? ColorFile : null
+export function expectColorDiff(): typeof TsColorDiff | null {
+  return getColorModuleUnavailableReason() === null
+    ? getColorModule().ColorDiff
+    : null
+}
+
+export function expectColorFile(): typeof TsColorFile | null {
+  return getColorModuleUnavailableReason() === null
+    ? getColorModule().ColorFile
+    : null
 }
 
 export function getSyntaxTheme(themeName: string): SyntaxTheme | null {
   return getColorModuleUnavailableReason() === null
-    ? nativeGetSyntaxTheme(themeName)
+    ? getColorModule().getSyntaxTheme(themeName)
     : null
 }
