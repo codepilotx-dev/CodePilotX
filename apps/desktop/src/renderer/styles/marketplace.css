@@ -366,6 +366,13 @@
   color: var(--c-text-on-accent);
 }
 
+.plugins-card-icon svg {
+  width: var(--app-icon-size);
+  height: var(--app-icon-size);
+  display: block;
+  stroke-width: var(--app-icon-stroke-width);
+}
+
 /* Brand tone palette */
 .plugins-tone-github { background: var(--gray-12); color: var(--c-text-on-accent); }
 .plugins-tone-chrome { background: linear-gradient(135deg, var(--red-9), var(--orange-9) 60%, var(--amber-9)); color: var(--c-text-on-accent); }
@@ -606,4 +613,11 @@
   display: inline-flex;
   align-items: center;
   color: var(--c-text-strong);
+}
+
+.automation-quick-icon svg {
+  width: var(--app-icon-size);
+  height: var(--app-icon-size);
+  display: block;
+  stroke-width: var(--app-icon-stroke-width);
 }

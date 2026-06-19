@@ -1,5 +1,6 @@
 import type React from 'react'
 import { FolderOpen, Plus, RefreshCw, X } from 'lucide-react'
+import { APP_ICON_SIZE } from './ui/iconTokens.js'
 import type { DesktopWorkspace } from '../../shared/types.js'
 import { sessionDisplayTitle, type SessionListItem } from '../uiTypes.js'
 
@@ -44,7 +45,7 @@ export function ProjectList({
         </div>
         <div className="project-panel-actions">
           <button className="ghost-icon-button" onClick={onChooseWorkspace} title="选择项目">
-            <FolderOpen size={16} />
+            <FolderOpen size={APP_ICON_SIZE} />
           </button>
           <button
             className="ghost-icon-button"
@@ -52,7 +53,7 @@ export function ProjectList({
             disabled={!workspace}
             title="刷新项目"
           >
-            <RefreshCw size={16} />
+            <RefreshCw size={APP_ICON_SIZE} />
           </button>
           <button
             className="ghost-icon-button"
@@ -60,7 +61,7 @@ export function ProjectList({
             disabled={!workspace}
             title="新建会话"
           >
-            <Plus size={16} />
+            <Plus size={APP_ICON_SIZE} />
           </button>
         </div>
       </div>
@@ -108,7 +109,7 @@ export function ProjectList({
                   onClick={() => onCloseSession(session.id)}
                   title="关闭会话"
                 >
-                  <X size={14} />
+                  <X size={APP_ICON_SIZE} />
                 </button>
               </div>
             ))

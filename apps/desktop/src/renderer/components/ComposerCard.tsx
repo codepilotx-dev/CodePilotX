@@ -30,6 +30,7 @@ import {
   Wrench,
   Zap,
 } from 'lucide-react'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from './ui/iconTokens.js'
 import type {
   DesktopPermissionMode,
   DesktopSessionStatus,
@@ -59,12 +60,6 @@ type ProviderModelOption = {
   modelPresets: ModelPreset[]
 }
 
-const PERMISSION_MENU_ICON_SIZE = 16
-const PERMISSION_TRIGGER_ICON_SIZE = 18
-const META_CHIP_ICON_SIZE = 14
-const CONTEXT_MENU_ICON_SIZE = 18
-const CONTEXT_PLUGIN_ICON_SIZE = 15
-
 type ComposerDropdown =
   | 'context'
   | 'permission'
@@ -83,32 +78,32 @@ const INSTALLED_CONTEXT_PLUGINS: ContextPlugin[] = [
   {
     name: 'Documents',
     tone: 'docs',
-    icon: <FileText size={CONTEXT_PLUGIN_ICON_SIZE} strokeWidth={2.2} />,
+    icon: <FileText size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
   },
   {
     name: 'PDF',
     tone: 'pdf',
-    icon: <FileText size={CONTEXT_PLUGIN_ICON_SIZE} strokeWidth={2.2} />,
+    icon: <FileText size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
   },
   {
     name: 'Spreadsheets',
     tone: 'sheets',
-    icon: <FileSpreadsheet size={CONTEXT_PLUGIN_ICON_SIZE} strokeWidth={2.2} />,
+    icon: <FileSpreadsheet size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
   },
   {
     name: 'Presentations',
     tone: 'slides',
-    icon: <Presentation size={CONTEXT_PLUGIN_ICON_SIZE} strokeWidth={2.2} />,
+    icon: <Presentation size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
   },
   {
     name: 'GitHub',
     tone: 'github',
-    icon: <GitBranch size={CONTEXT_PLUGIN_ICON_SIZE} strokeWidth={2.2} />,
+    icon: <GitBranch size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
   },
   {
     name: 'OpenAI Developers',
     tone: 'openai',
-    icon: <Sparkles size={CONTEXT_PLUGIN_ICON_SIZE} strokeWidth={2.2} />,
+    icon: <Sparkles size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
   },
 ]
 
@@ -251,14 +246,11 @@ export function ComposerCard({
     setOpenDropdown(null)
   }
 
-  function getPermissionIcon(
-    value: DesktopPermissionMode,
-    size = 14,
-  ): React.ReactNode {
-    if (value === 'default') return <Hand size={size} />
-    if (value === 'bypassPermissions') return <ShieldAlert size={size} />
-    if (value === 'customConfig') return <Wrench size={size} />
-    return <ShieldCheck size={size} />
+  function getPermissionIcon(value: DesktopPermissionMode): React.ReactNode {
+    if (value === 'default') return <Hand size={APP_ICON_SIZE} />
+    if (value === 'bypassPermissions') return <ShieldAlert size={APP_ICON_SIZE} />
+    if (value === 'customConfig') return <Wrench size={APP_ICON_SIZE} />
+    return <ShieldCheck size={APP_ICON_SIZE} />
   }
 
   function getPermissionClassName(value: DesktopPermissionMode): string {
@@ -316,7 +308,7 @@ export function ComposerCard({
     <div className="composer">
       {showFullAccessWarning ? (
         <div className="permission-warning-banner">
-          <ShieldOff size={13} />
+          <ShieldOff size={APP_ICON_SIZE} />
           <span>完全访问权限 · 此对话允许直接读写文件和运行命令</span>
         </div>
       ) : null}
@@ -341,6 +333,7 @@ export function ComposerCard({
             <PopoverMenu
               className="popover-context"
               open={openDropdown === 'context'}
+              side="top"
               onOpenChange={open => setOpenDropdown(open ? 'context' : null)}
               trigger={
                 <IconButton
@@ -350,13 +343,13 @@ export function ComposerCard({
                   ].join(' ')}
                   title="添加上下文"
                 >
-                  <Plus size={18} />
+                  <Plus size={APP_ICON_SIZE} />
                 </IconButton>
               }
             >
               <div className="popover-section">
                 <PopoverItem
-                  icon={<Paperclip size={CONTEXT_MENU_ICON_SIZE} />}
+                  icon={<Paperclip size={APP_ICON_SIZE} />}
                   onClick={() => {
                     onOpenFiles()
                     closeDropdown()
@@ -370,13 +363,13 @@ export function ComposerCard({
                 {renderContextSwitchItem(
                   '计划模式',
                   planModeEnabled,
-                  <ListChecks size={CONTEXT_MENU_ICON_SIZE} />,
+                  <ListChecks size={APP_ICON_SIZE} />,
                   setPlanModeEnabled,
                 )}
                 {renderContextSwitchItem(
                   '追求目标',
                   goalModeEnabled,
-                  <Target size={CONTEXT_MENU_ICON_SIZE} />,
+                  <Target size={APP_ICON_SIZE} />,
                   setGoalModeEnabled,
                 )}
               </div>
@@ -388,10 +381,10 @@ export function ComposerCard({
                     tabIndex={-1}
                   >
                     <span className="popover-item-icon">
-                      <Blocks size={CONTEXT_MENU_ICON_SIZE} />
+                      <Blocks size={APP_ICON_SIZE} />
                     </span>
                     <span className="popover-item-label">插件</span>
-                    <ChevronRight className="popover-item-arrow" size={15} />
+                    <ChevronRight className="popover-item-arrow" size={APP_ICON_SIZE} />
                   </DropdownMenu.SubTrigger>
                   <DropdownMenu.Portal>
                     <DropdownMenu.SubContent
@@ -450,15 +443,12 @@ export function ComposerCard({
                 ].join(' ')}
                 title="选择权限模式"
               >
-                {getPermissionIcon(
-                  permissionMode,
-                  PERMISSION_TRIGGER_ICON_SIZE,
-                )}
+                {getPermissionIcon(permissionMode)}
                 <span className="permission-select-trigger-label">
                   {selectedPermission?.label ?? '默认权限'}
                 </span>
                 <Select.Icon asChild>
-                  <ChevronDown size={12} strokeWidth={2.4} />
+                  <ChevronDown size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                 </Select.Icon>
               </Select.Trigger>
               <Select.Portal>
@@ -478,10 +468,7 @@ export function ComposerCard({
                         value={option.value}
                       >
                         <span className="permission-select-item-icon">
-                          {getPermissionIcon(
-                            option.value,
-                            PERMISSION_MENU_ICON_SIZE,
-                          )}
+                          {getPermissionIcon(option.value)}
                         </span>
                         <span className="permission-select-item-body">
                           <Select.ItemText>{option.label}</Select.ItemText>
@@ -503,7 +490,7 @@ export function ComposerCard({
                           ) : null}
                         </span>
                         <Select.ItemIndicator className="permission-select-item-indicator">
-                          <Check size={14} strokeWidth={2.5} />
+                          <Check size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                         </Select.ItemIndicator>
                       </Select.Item>
                     ))}
@@ -570,6 +557,7 @@ export function ComposerCard({
             <PopoverMenu
               className="popover-model"
               open={openDropdown === 'model'}
+              side="top"
               onOpenChange={open => setOpenDropdown(open ? 'model' : null)}
               trigger={
                 <ChipButton
@@ -688,13 +676,13 @@ export function ComposerCard({
                       {provider.providerID === selectedProviderID ? (
                         <Check
                           className="popover-item-check"
-                          size={14}
-                          strokeWidth={2.5}
+                          size={APP_ICON_SIZE}
+                          strokeWidth={APP_ICON_STROKE_WIDTH}
                         />
                       ) : null}
                       <ChevronRight
                         className="popover-item-arrow"
-                        size={12}
+                        size={APP_ICON_SIZE}
                       />
                     </DropdownMenu.SubTrigger>
                     <DropdownMenu.Portal>
@@ -725,7 +713,7 @@ export function ComposerCard({
                             </PopoverItem>
                           ))}
                           <PopoverItem
-                            icon={<Wrench size={14} />}
+                            icon={<Wrench size={APP_ICON_SIZE} />}
                             selected={
                               provider.providerID === selectedProviderID &&
                               selectedModelPreset === CUSTOM_MODEL_PRESET_ID
@@ -751,7 +739,7 @@ export function ComposerCard({
                 <>
                   <div className="popover-divider" />
                   <PopoverItem
-                    icon={<Zap size={14} />}
+                    icon={<Zap size={APP_ICON_SIZE} />}
                     meta="暂未接入速度切换"
                     disabled
                   >
@@ -762,7 +750,7 @@ export function ComposerCard({
             </PopoverMenu>
 
             <IconButton className="icon-button composer-mic-button" title="语音输入">
-              <Mic size={15} />
+              <Mic size={APP_ICON_SIZE} />
             </IconButton>
             <button
               aria-label={isRunning ? '停止' : '发送'}
@@ -773,9 +761,9 @@ export function ComposerCard({
               type="button"
             >
               {isRunning ? (
-                <Square size={12} fill="currentColor" />
+                <Square size={APP_ICON_SIZE} fill="currentColor" />
               ) : (
-                <ArrowUp size={18} strokeWidth={2.4} />
+                <ArrowUp size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
               )}
             </button>
           </div>
@@ -786,11 +774,12 @@ export function ComposerCard({
         <PopoverMenu
           className="popover-project"
           open={openDropdown === 'project'}
+          side="top"
           onOpenChange={open => setOpenDropdown(open ? 'project' : null)}
           trigger={
             <MetaChip
               active={openDropdown === 'project'}
-              icon={<Folder size={META_CHIP_ICON_SIZE} />}
+              icon={<Folder size={APP_ICON_SIZE} />}
               label={workspace?.name ?? '进入项目工作'}
               title="选择项目"
             />
@@ -807,7 +796,7 @@ export function ComposerCard({
             ) : (
               filteredWorkspaces.map(item => (
                 <PopoverItem
-                  icon={<Folder size={14} />}
+                  icon={<Folder size={APP_ICON_SIZE} />}
                   key={item.path}
                   selected={item.path === workspace?.path}
                   withCheck
@@ -823,7 +812,7 @@ export function ComposerCard({
           </div>
           <div className="popover-divider" />
           <PopoverItem
-            icon={<FolderPlus size={14} />}
+            icon={<FolderPlus size={APP_ICON_SIZE} />}
             withArrow
             onClick={() => {
               onChooseWorkspace()
@@ -839,11 +828,12 @@ export function ComposerCard({
             <PopoverMenu
               className="popover-mode"
               open={openDropdown === 'mode'}
+              side="top"
               onOpenChange={open => setOpenDropdown(open ? 'mode' : null)}
               trigger={
                 <MetaChip
                   active={openDropdown === 'mode'}
-                  icon={<Monitor size={META_CHIP_ICON_SIZE} />}
+                  icon={<Monitor size={APP_ICON_SIZE} />}
                   label="本地模式"
                   title="启动模式"
                 />
@@ -851,13 +841,13 @@ export function ComposerCard({
             >
               <div className="popover-header">启动模式</div>
               <div className="popover-section">
-                <PopoverItem icon={<Monitor size={14} />} selected withCheck>
+                <PopoverItem icon={<Monitor size={APP_ICON_SIZE} />} selected withCheck>
                   本地模式
                 </PopoverItem>
-                <PopoverItem icon={<GitBranch size={14} />} disabled>
+                <PopoverItem icon={<GitBranch size={APP_ICON_SIZE} />} disabled>
                   新工作树
                 </PopoverItem>
-                <PopoverItem icon={<Search size={14} />} disabled>
+                <PopoverItem icon={<Search size={APP_ICON_SIZE} />} disabled>
                   关联 CodePilotX Web
                 </PopoverItem>
               </div>
@@ -866,11 +856,12 @@ export function ComposerCard({
             <PopoverMenu
               className="popover-branch"
               open={openDropdown === 'branch'}
+              side="top"
               onOpenChange={open => setOpenDropdown(open ? 'branch' : null)}
               trigger={
                 <MetaChip
                   active={openDropdown === 'branch'}
-                  icon={<GitBranch size={META_CHIP_ICON_SIZE} />}
+                  icon={<GitBranch size={APP_ICON_SIZE} />}
                   label={branchName}
                   title="选择分支"
                 />
@@ -888,7 +879,7 @@ export function ComposerCard({
                 ) : (
                   filteredBranches.map(branch => (
                     <PopoverItem
-                      icon={<GitBranch size={14} />}
+                      icon={<GitBranch size={APP_ICON_SIZE} />}
                       key={branch}
                       selected={branch === branchName}
                       withCheck={branch === branchName}
@@ -904,7 +895,7 @@ export function ComposerCard({
               </div>
               <div className="popover-divider" />
               <PopoverItem
-                icon={<Plus size={14} />}
+                icon={<Plus size={APP_ICON_SIZE} />}
                 onClick={() => {
                   onCreateBranch()
                   closeDropdown()

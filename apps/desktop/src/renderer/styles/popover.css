@@ -205,6 +205,11 @@
   bottom: auto;
 }
 
+.popover-session-actions {
+  top: 100%;
+  bottom: auto;
+}
+
 .popover-header {
   padding: var(--sp-2) 10px var(--sp-1);
   color: var(--c-text-meta);
@@ -275,12 +280,21 @@
 }
 
 .popover-item-icon {
-  width: 20px;
-  height: 20px;
+  width: var(--app-icon-size);
+  height: var(--app-icon-size);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   color: var(--c-icon);
+}
+
+.popover-item-icon svg,
+.popover-item-check,
+.popover-item-arrow {
+  width: var(--app-icon-size);
+  height: var(--app-icon-size);
+  display: block;
+  stroke-width: var(--app-icon-stroke-width);
 }
 
 .popover-item-label {
@@ -318,6 +332,21 @@
 .popover-item-rich .popover-item-label {
   flex: 1;
   min-width: 0;
+}
+
+.popover-item-shortcut {
+  flex: 0 0 auto;
+  margin-left: 16px;
+  color: var(--c-text-meta);
+  font-size: var(--fs-11);
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+}
+
+.popover-item:disabled .popover-item-shortcut,
+.popover-item[data-disabled] .popover-item-shortcut {
+  color: var(--c-text-disabled);
 }
 
 .popover-item-rich .popover-item-meta {

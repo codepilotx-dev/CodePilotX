@@ -25,8 +25,12 @@
 }
 
 .permission-warning-banner > svg {
+  width: var(--app-icon-size);
+  height: var(--app-icon-size);
+  display: block;
   flex-shrink: 0;
   color: var(--orange-10);
+  stroke-width: var(--app-icon-stroke-width);
 }
 
 :root[data-theme="dark"] .permission-warning-banner {
@@ -197,7 +201,11 @@
 }
 
 .permission-select-trigger > svg:first-child {
+  width: var(--app-icon-size);
+  height: var(--app-icon-size);
+  display: block;
   flex-shrink: 0;
+  stroke-width: var(--app-icon-stroke-width);
 }
 
 .permission-select-trigger-label {
@@ -261,6 +269,13 @@
   flex-shrink: 0;
   margin-top: 0;
   color: var(--c-icon);
+}
+
+.permission-select-item-icon svg {
+  width: var(--app-icon-size);
+  height: var(--app-icon-size);
+  display: block;
+  stroke-width: var(--app-icon-stroke-width);
 }
 
 .permission-select-item-body {

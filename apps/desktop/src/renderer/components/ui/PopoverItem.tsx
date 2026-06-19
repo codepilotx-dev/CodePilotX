@@ -2,6 +2,7 @@ import type React from 'react'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import * as Tooltip from '@radix-ui/react-tooltip'
 import { Check, ChevronRight } from 'lucide-react'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from './iconTokens.js'
 
 type Props = {
   children: React.ReactNode
@@ -10,6 +11,7 @@ type Props = {
   icon?: React.ReactNode
   meta?: React.ReactNode
   selected?: boolean
+  shortcut?: React.ReactNode
   withArrow?: boolean
   withCheck?: boolean
   onClick?: () => void
@@ -24,17 +26,19 @@ export function PopoverItem({
   icon,
   meta,
   selected,
+  shortcut,
   withArrow,
   withCheck,
   onClick,
   onMouseEnter,
   onMouseLeave,
 }: Props): React.ReactNode {
+  const hasRichContent = Boolean(meta) || Boolean(shortcut)
   const item = (
     <DropdownMenu.Item
       className={[
         'popover-item',
-        meta ? 'rich' : '',
+        hasRichContent ? 'rich' : '',
         active ? 'active' : '',
         selected ? 'selected' : '',
       ].join(' ')}
@@ -51,17 +55,20 @@ export function PopoverItem({
       }}
     >
       {icon ? <span className="popover-item-icon">{icon}</span> : null}
-      {meta ? (
+      {hasRichContent ? (
         <span className="popover-item-rich">
           <span className="popover-item-label">{children}</span>
         </span>
       ) : (
         <span className="popover-item-label">{children}</span>
       )}
+      {shortcut ? (
+        <span className="popover-item-shortcut">{shortcut}</span>
+      ) : null}
       {selected && withCheck ? (
-        <Check className="popover-item-check" size={14} strokeWidth={2.5} />
+        <Check className="popover-item-check" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
       ) : withArrow ? (
-        <ChevronRight className="popover-item-arrow" size={12} />
+        <ChevronRight className="popover-item-arrow" size={APP_ICON_SIZE} />
       ) : null}
     </DropdownMenu.Item>
   )

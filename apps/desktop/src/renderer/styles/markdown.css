@@ -180,6 +180,14 @@
   color: var(--c-text);
 }
 
+.md-body .md-code-copy svg {
+  width: var(--app-icon-size);
+  height: var(--app-icon-size);
+  display: block;
+  flex: 0 0 auto;
+  stroke-width: var(--app-icon-stroke-width);
+}
+
 .md-body .md-code-copy.is-copied {
   color: var(--green-11);
 }

@@ -8,6 +8,7 @@ import {
   Pin,
   PinOff,
 } from "lucide-react";
+import { APP_ICON_SIZE } from '../ui/iconTokens.js'
 import { sessionDisplayTitle, type SessionListItem } from "../../uiTypes.js";
 import { IconButton } from "../ui/IconButton.js";
 
@@ -99,7 +100,7 @@ export function SidebarSessionGroup({
                 <Loader2
                   aria-label="加载中"
                   className="sidebar-session-spinner"
-                  size={14}
+                  size={APP_ICON_SIZE}
                 />
               ) : confirmArchiveSessionId === session.id ? (
                 <button
@@ -118,7 +119,7 @@ export function SidebarSessionGroup({
                       onClick={() => onUnpinSession(session)}
                       title="取消置顶"
                     >
-                      <PinOff size={14} />
+                      <PinOff size={APP_ICON_SIZE} />
                     </IconButton>
                   ) : (
                     <IconButton
@@ -126,7 +127,7 @@ export function SidebarSessionGroup({
                       onClick={() => onPinSession(session)}
                       title="置顶"
                     >
-                      <Pin size={14} />
+                      <Pin size={APP_ICON_SIZE} />
                     </IconButton>
                   )}
                   <IconButton
@@ -134,7 +135,7 @@ export function SidebarSessionGroup({
                     onClick={() => setConfirmArchiveSessionId(session.id)}
                     title="归档"
                   >
-                    <Archive size={14} />
+                    <Archive size={APP_ICON_SIZE} />
                   </IconButton>
                 </div>
               ) : (
@@ -155,7 +156,7 @@ export function SidebarSessionGroup({
           onClick={() => onToggleExpanded(groupKey)}
           type="button"
         >
-          {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          {isExpanded ? <ChevronDown size={APP_ICON_SIZE} /> : <ChevronRight size={APP_ICON_SIZE} />}
           <span>{isExpanded ? "收起" : "展开显示"}</span>
         </button>
       ) : null}

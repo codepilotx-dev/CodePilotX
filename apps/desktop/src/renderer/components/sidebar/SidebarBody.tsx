@@ -13,6 +13,7 @@ import {
   PenLine,
   SquarePen,
 } from "lucide-react";
+import { APP_ICON_SIZE } from '../ui/iconTokens.js'
 import type { DesktopWorkspace } from "../../../shared/types.js";
 import type { SessionListItem } from "../../uiTypes.js";
 import { IconButton } from "../ui/IconButton.js";
@@ -82,7 +83,7 @@ export function SidebarBody({
 
       <section className="sidebar-section sidebar-projects-section">
         <SidebarSectionHeader
-          actionIcon={<FolderOpen size={14} />}
+          actionIcon={<FolderOpen size={APP_ICON_SIZE} />}
           actionTitle="选择项目"
           title="项目"
           onAction={onChooseWorkspace}
@@ -167,32 +168,32 @@ function SidebarSectionHeader({
           side="top"
           trigger={
             <button aria-label="更多" className="icon-button" type="button">
-              <MoreHorizontal size={14} />
+              <MoreHorizontal size={APP_ICON_SIZE} />
             </button>
           }
           onOpenChange={setMenuOpen}
         >
-          <PopoverItem icon={<Archive size={14} />} onClick={() => {}}>
+          <PopoverItem icon={<Archive size={APP_ICON_SIZE} />} onClick={() => {}}>
             归档所有聊天
           </PopoverItem>
           <div className="popover-divider" />
-          <SidebarSubmenu icon={<Folder size={14} />} label="整理侧边栏">
-            <PopoverItem icon={<Folder size={14} />} selected withCheck>
+          <SidebarSubmenu icon={<Folder size={APP_ICON_SIZE} />} label="整理侧边栏">
+            <PopoverItem icon={<Folder size={APP_ICON_SIZE} />} selected withCheck>
               按项目
             </PopoverItem>
-            <PopoverItem icon={<Folder size={14} />}>近期项目</PopoverItem>
-            <PopoverItem icon={<Clock3 size={14} />}>按时间顺序</PopoverItem>
-            <PopoverItem icon={<ArrowDown size={14} />}>下移</PopoverItem>
+            <PopoverItem icon={<Folder size={APP_ICON_SIZE} />}>近期项目</PopoverItem>
+            <PopoverItem icon={<Clock3 size={APP_ICON_SIZE} />}>按时间顺序</PopoverItem>
+            <PopoverItem icon={<ArrowDown size={APP_ICON_SIZE} />}>下移</PopoverItem>
           </SidebarSubmenu>
-          <SidebarSubmenu icon={<Clock3 size={14} />} label="排序条件">
-            <PopoverItem icon={<CirclePlus size={14} />}>创建时间</PopoverItem>
-            <PopoverItem icon={<PenLine size={14} />} selected withCheck>
+          <SidebarSubmenu icon={<Clock3 size={APP_ICON_SIZE} />} label="排序条件">
+            <PopoverItem icon={<CirclePlus size={APP_ICON_SIZE} />}>创建时间</PopoverItem>
+            <PopoverItem icon={<PenLine size={APP_ICON_SIZE} />} selected withCheck>
               更新时间
             </PopoverItem>
           </SidebarSubmenu>
         </PopoverMenu>
         <IconButton onClick={onAction} title={actionTitle}>
-          {actionIcon ?? <SquarePen size={14} />}
+          {actionIcon ?? <SquarePen size={APP_ICON_SIZE} />}
         </IconButton>
       </div>
     </div>
@@ -216,7 +217,7 @@ function SidebarSubmenu({
       >
         <span className="popover-item-icon">{icon}</span>
         <span className="popover-item-label">{label}</span>
-        <ChevronRight className="popover-item-arrow" size={14} />
+        <ChevronRight className="popover-item-arrow" size={APP_ICON_SIZE} />
       </DropdownMenu.SubTrigger>
       <DropdownMenu.Portal>
         <DropdownMenu.SubContent

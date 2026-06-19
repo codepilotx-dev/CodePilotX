@@ -67,6 +67,8 @@
   --fs-15: 15px;
   --fs-16: 16px;
   --fs-26: 26px;
+  --app-icon-size: 16px;
+  --app-icon-stroke-width: 2;
   --chrome-h: 35px;
   --titlebar-h: var(--chrome-h);
   --menubar-h: var(--chrome-h);

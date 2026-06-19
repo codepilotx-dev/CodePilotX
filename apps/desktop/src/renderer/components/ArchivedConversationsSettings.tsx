@@ -2,6 +2,7 @@ import { desktopClient } from '../services/desktopClient.js'
 import type React from 'react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ArchiveRestore, Trash2 } from 'lucide-react'
+import { APP_ICON_SIZE } from './ui/iconTokens.js'
 import { sessionDisplayTitle, type SessionListItem } from '../uiTypes.js'
 import { SettingsSection } from './SettingsSection.js'
 
@@ -85,7 +86,7 @@ export function ArchivedConversationsSettings(): React.ReactNode {
                     onClick={() => void restoreSession(session)}
                     type="button"
                   >
-                    <ArchiveRestore size={14} />
+                    <ArchiveRestore size={APP_ICON_SIZE} />
                     <span>恢复</span>
                   </button>
                   <button
@@ -93,7 +94,7 @@ export function ArchivedConversationsSettings(): React.ReactNode {
                     onClick={() => void deleteSession(session)}
                     type="button"
                   >
-                    <Trash2 size={14} />
+                    <Trash2 size={APP_ICON_SIZE} />
                     <span>删除</span>
                   </button>
                 </div>

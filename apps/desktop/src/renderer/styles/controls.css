@@ -28,3 +28,18 @@
 .menubar-status.warning {
   color: var(--c-accent);
 }
+
+.menubar-icon svg,
+.icon-button svg,
+.collapse-button svg,
+.ghost-icon-button svg,
+.window-toolbar-icon svg,
+.message-action svg,
+.meta-chip svg,
+.chip-button svg {
+  width: var(--app-icon-size);
+  height: var(--app-icon-size);
+  display: block;
+  flex: 0 0 auto;
+  stroke-width: var(--app-icon-stroke-width);
+}

@@ -1,7 +1,17 @@
 import React, { useEffect, useMemo, useRef } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import { marked } from 'marked'
 import xssLib from 'xss'
 import hljs from 'highlight.js/lib/common'
+import { Check, Copy } from 'lucide-react'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from './ui/iconTokens.js'
+
+const MD_CODE_COPY_ICON = renderToStaticMarkup(
+  <Copy size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
+)
+const MD_CODE_COPY_DONE_ICON = renderToStaticMarkup(
+  <Check size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
+)
 
 // 初始化 marked：GFM 表格、删除线、自动识别围栏代码块语言、走 highlight.js。
 // 注意 marked.parse 在 v18 默认是异步友好的，这里强制同步返回字符串。
@@ -30,8 +40,8 @@ renderer.code = function (token: { lang?: string | null; text: string }): string
     `<button type="button" class="md-code-copy" data-md-copy data-md-code-text="${escapeAttr(
       safeCode,
     )}" aria-label="复制代码">`,
-    '<span class="md-code-copy-default"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></span>',
-    '<span class="md-code-copy-done"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>',
+    `<span class="md-code-copy-default">${MD_CODE_COPY_ICON}</span>`,
+    `<span class="md-code-copy-done">${MD_CODE_COPY_DONE_ICON}</span>`,
     '<span class="md-code-copy-label">复制</span>',
     '</button>',
     '</div>',
@@ -83,6 +93,24 @@ const XSS_OPTIONS = {
     td: [],
     hr: [],
     img: ['src', 'alt', 'title'],
+    svg: [
+      'aria-hidden',
+      'class',
+      'fill',
+      'focusable',
+      'height',
+      'role',
+      'stroke',
+      'stroke-linecap',
+      'stroke-linejoin',
+      'stroke-width',
+      'viewBox',
+      'viewbox',
+      'width',
+      'xmlns',
+    ],
+    path: ['d'],
+    rect: ['height', 'rx', 'ry', 'width', 'x', 'y'],
   },
   stripIgnoreTag: true,
   stripIgnoreTagBody: ['script', 'style'],

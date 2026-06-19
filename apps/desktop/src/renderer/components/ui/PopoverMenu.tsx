@@ -7,6 +7,7 @@ type Props = {
   className?: string
   open: boolean
   side?: 'top' | 'right' | 'bottom' | 'left'
+  sideOffset?: number
   trigger: React.ReactNode
   autoWidth?: boolean
   textMode?: 'nowrap' | 'wrap'
@@ -19,18 +20,21 @@ export function PopoverMenu({
   className = '',
   open,
   side,
+  sideOffset,
   trigger,
   autoWidth = false,
   textMode = 'nowrap',
   onOpenChange,
 }: Props): React.ReactNode {
-  const dropdownSide =
-    side ?? (className.includes('popover-menu-') ? 'bottom' : 'top')
+  const dropdownSide = side ?? 'bottom'
   const dropdownAlign = align ?? (
     className.includes('popover-model') || className.includes('popover-branch')
       ? 'end'
       : 'start'
   )
+  const dropdownSideOffset =
+    sideOffset ??
+    (className.includes('popover-menu-') ? 4 : 6)
 
   return (
     <Dropdown
@@ -39,7 +43,7 @@ export function PopoverMenu({
       className={className}
       open={open}
       side={dropdownSide}
-      sideOffset={className.includes('popover-menu-') ? 4 : 6}
+      sideOffset={dropdownSideOffset}
       textMode={textMode}
       trigger={trigger}
       onOpenChange={onOpenChange}

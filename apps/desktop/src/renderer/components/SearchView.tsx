@@ -1,5 +1,6 @@
 import type React from 'react'
 import { Search } from 'lucide-react'
+import { APP_ICON_SIZE } from './ui/iconTokens.js'
 import { useSearchContext } from '../context/SearchContext.js'
 import { sessionDisplayTitle } from '../uiTypes.js'
 
@@ -21,7 +22,7 @@ export function SearchView(): React.ReactNode {
         <p>搜索当前内存中的最近项目、会话名称和会话时间。</p>
       </div>
       <label className="search-input-row">
-        <Search size={16} />
+        <Search size={APP_ICON_SIZE} />
         <input
           value={query}
           onChange={event => onQueryChange(event.target.value)}

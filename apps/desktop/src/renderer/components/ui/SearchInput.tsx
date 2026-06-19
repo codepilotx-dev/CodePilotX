@@ -1,5 +1,6 @@
 import type React from 'react'
 import { Search } from 'lucide-react'
+import { APP_ICON_SIZE } from './iconTokens.js'
 
 type Props = {
   placeholder: string
@@ -14,7 +15,7 @@ export function SearchInput({
 }: Props): React.ReactNode {
   return (
     <label className="search-input">
-      <Search size={14} />
+      <Search size={APP_ICON_SIZE} />
       <input
         onChange={event => onChange(event.target.value)}
         placeholder={placeholder}

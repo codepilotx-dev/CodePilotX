@@ -8,6 +8,7 @@ import {
   MessagesSquare,
   SquareTerminal,
 } from 'lucide-react';
+import { APP_ICON_SIZE } from './ui/iconTokens.js'
 import { RadioCard } from './RadioCard.js';
 import { ToggleSwitch } from './ToggleSwitch.js';
 import { SettingsRow } from './SettingsRow.js';
@@ -113,15 +114,15 @@ function renderOpenTargetIcon(target: DesktopOpenTarget): React.ReactNode {
     );
   }
   if (target.kind === 'file-explorer') {
-    return <FolderOpen size={14} />;
+    return <FolderOpen size={APP_ICON_SIZE} />;
   }
   if (target.kind === 'terminal') {
-    return <SquareTerminal size={14} />;
+    return <SquareTerminal size={APP_ICON_SIZE} />;
   }
   if (target.kind === 'editor') {
-    return <Code size={14} />;
+    return <Code size={APP_ICON_SIZE} />;
   }
-  return <File size={14} />;
+  return <File size={APP_ICON_SIZE} />;
 }
 
 export function GeneralSettings() {

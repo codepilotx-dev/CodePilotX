@@ -20,6 +20,7 @@ import {
   Share2,
   Sparkles,
 } from 'lucide-react'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from './ui/iconTokens.js'
 import { desktopClient } from '../services/desktopClient.js'
 import { IconButton } from './ui/IconButton.js'
 
@@ -40,7 +41,7 @@ const PLUGINS: Plugin[] = [
     id: 'computer-use',
     name: 'Computer Use',
     description: 'Control Windows apps from CodePilotX',
-    icon: <Sparkles size={18} strokeWidth={2.2} />,
+    icon: <Sparkles size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
     tone: 'codex',
     installed: true,
   },
@@ -48,7 +49,7 @@ const PLUGINS: Plugin[] = [
     id: 'chrome',
     name: 'Chrome',
     description: 'Control Chrome with CodePilotX',
-    icon: <Eye size={18} strokeWidth={2.2} />,
+    icon: <Eye size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
     tone: 'chrome',
     installed: true,
   },
@@ -56,7 +57,7 @@ const PLUGINS: Plugin[] = [
     id: 'spreadsheets',
     name: 'Spreadsheets',
     description: 'Create and edit spreadsheet files',
-    icon: <FileSpreadsheet size={18} strokeWidth={2.2} />,
+    icon: <FileSpreadsheet size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
     tone: 'sheet',
     installed: true,
   },
@@ -64,7 +65,7 @@ const PLUGINS: Plugin[] = [
     id: 'presentations',
     name: 'Presentations',
     description: 'Create and edit presentations',
-    icon: <Share2 size={18} strokeWidth={2.2} />,
+    icon: <Share2 size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
     tone: 'slides',
     installed: true,
   },
@@ -72,7 +73,7 @@ const PLUGINS: Plugin[] = [
     id: 'github',
     name: 'GitHub',
     description: 'Triage PRs, issues, CI, and publish flows',
-    icon: <GitBranch size={18} strokeWidth={2.2} />,
+    icon: <GitBranch size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
     tone: 'github',
     installed: true,
   },
@@ -81,7 +82,7 @@ const PLUGINS: Plugin[] = [
     builtinPluginId: 'minimax@builtin',
     name: 'MiniMax Media',
     description: 'Generate images, speech, video, and music with MiniMax',
-    icon: <Sparkles size={18} strokeWidth={2.2} />,
+    icon: <Sparkles size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
     tone: 'creative',
     installed: false,
   },
@@ -89,7 +90,7 @@ const PLUGINS: Plugin[] = [
     id: 'slack',
     name: 'Slack',
     description: 'Read and manage Slack',
-    icon: <MessageCircle size={18} strokeWidth={2.2} />,
+    icon: <MessageCircle size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
     tone: 'slack',
     installed: false,
   },
@@ -97,7 +98,7 @@ const PLUGINS: Plugin[] = [
     id: 'data-analytics',
     name: 'Data Analytics',
     description: 'Turn data into clear decisions',
-    icon: <AlertOctagon size={18} strokeWidth={2.2} />,
+    icon: <AlertOctagon size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
     tone: 'data',
     installed: false,
   },
@@ -105,7 +106,7 @@ const PLUGINS: Plugin[] = [
     id: 'product-design',
     name: 'Product Design',
     description: 'Explore and prototype ideas',
-    icon: <PencilRuler size={18} strokeWidth={2.2} />,
+    icon: <PencilRuler size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
     tone: 'design',
     installed: false,
   },
@@ -113,7 +114,7 @@ const PLUGINS: Plugin[] = [
     id: 'creative-production',
     name: 'Creative Production',
     description: 'Create marketing visuals from a brief or...',
-    icon: <Palette size={18} strokeWidth={2.2} />,
+    icon: <Palette size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
     tone: 'creative',
     installed: false,
   },
@@ -121,7 +122,7 @@ const PLUGINS: Plugin[] = [
     id: 'sales',
     name: 'Sales',
     description: 'Prepare sales work faster',
-    icon: <Bell size={18} strokeWidth={2.2} />,
+    icon: <Bell size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
     tone: 'sales',
     installed: false,
   },
@@ -217,12 +218,12 @@ export function PluginsView(): React.ReactNode {
 
         <div className="plugins-actions">
           <button className="plugins-button is-ghost" type="button">
-            <Settings2 size={14} strokeWidth={2.2} />
+            <Settings2 size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             <span>管理</span>
           </button>
           <button className="plugins-button is-primary" type="button">
             <span>创建</span>
-            <ChevronDown size={14} strokeWidth={2.2} />
+            <ChevronDown size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </button>
           <IconButton title="更多操作">
             <span className="plugins-more-dots" aria-hidden="true">
@@ -240,7 +241,7 @@ export function PluginsView(): React.ReactNode {
 
       <div className="plugins-search-row">
         <label className="plugins-search">
-          <Search size={15} strokeWidth={2.2} />
+          <Search size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           <input
             value={query}
             placeholder="搜索插件"
@@ -250,10 +251,10 @@ export function PluginsView(): React.ReactNode {
 
         <button className="plugins-filter" type="button">
           <span className="plugins-filter-owner">
-            <Sparkles size={12} strokeWidth={2.4} />
+            <Sparkles size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             Built by OpenAI
           </span>
-          <ChevronDown size={13} strokeWidth={2.2} />
+          <ChevronDown size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
         </button>
 
         <button
@@ -273,7 +274,7 @@ export function PluginsView(): React.ReactNode {
               ? '未添加'
               : '全部'}
           </span>
-          <ChevronDown size={13} strokeWidth={2.2} />
+          <ChevronDown size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
         </button>
       </div>
 
@@ -283,13 +284,13 @@ export function PluginsView(): React.ReactNode {
         <div className="plugins-hero-content">
           <p className="plugins-hero-pill">
             <code className="plugins-hero-command">
-              <PlayCircle size={13} strokeWidth={2.4} />
+              <PlayCircle size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
               Computer Use
             </code>
             播放一个播放列表,帮我进入专注状态
           </p>
           <button className="plugins-hero-cta" type="button">
-            <MessageSquare size={14} strokeWidth={2.2} />
+            <MessageSquare size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             在对话中试用
           </button>
         </div>
@@ -324,7 +325,7 @@ export function PluginsView(): React.ReactNode {
 
         {visiblePlugins.length === 0 ? (
           <div className="plugins-empty">
-            <Clock size={18} strokeWidth={2} />
+            <Clock size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             <p>没有匹配 "{query}" 的插件。</p>
           </div>
         ) : (
@@ -350,7 +351,7 @@ export function PluginsView(): React.ReactNode {
                   type="button"
                   title={plugin.installed ? '已添加' : '添加到 CodePilotX'}
                 >
-                  {plugin.installed ? <Check size={14} strokeWidth={2.4} /> : <Plus size={14} strokeWidth={2.4} />}
+                  {plugin.installed ? <Check size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} /> : <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
                 </button>
               </li>
             ))}

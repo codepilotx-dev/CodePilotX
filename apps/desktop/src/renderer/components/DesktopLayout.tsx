@@ -1016,6 +1016,7 @@ export function DesktopLayout(): React.ReactNode {
           value={{
             isConversationRoute,
             isConversationLoading,
+            sidebarCollapsed,
             activeSessionId: activeSessionItem?.id ?? null,
             activeSessionPinnedAt: activeSessionItem?.pinnedAt ?? null,
             sessionTitle: quickChatSessionTitle,
@@ -1034,6 +1035,7 @@ export function DesktopLayout(): React.ReactNode {
             onOpenAutomation: () => navigate('/automation'),
             onOpenWorkspacePath: handleOpenWorkspacePath,
             onRefreshDiff: handleRefreshDiff,
+            onToggleSidebar: toggleSidebarCollapsed,
             onToggleSessionPinned: () => {
               if (!activeSessionItem) return
               void handleUpdateSessionMetadata(activeSessionItem.id, {

@@ -11,6 +11,7 @@ import {
   SquarePen,
   X,
 } from "lucide-react";
+import { APP_ICON_SIZE } from '../ui/iconTokens.js'
 import type { DesktopWorkspace } from "../../../shared/types.js";
 import { desktopClient } from "../../services/desktopClient.js";
 import type { SessionListItem } from "../../uiTypes.js";
@@ -74,9 +75,9 @@ export function SidebarProjectGroup({
         >
           <span className="icon-button sidebar-item-icon">
             {project.isGitRepo === true && hovered ? (
-              <FolderGit2 size={14} />
+              <FolderGit2 size={APP_ICON_SIZE} />
             ) : (
-              <FolderOpen size={14} />
+              <FolderOpen size={APP_ICON_SIZE} />
             )}
           </span>
           <span className="sidebar-project-name">{project.name}</span>
@@ -99,31 +100,31 @@ export function SidebarProjectGroup({
                 className="icon-button sidebar-project-action-button"
                 type="button"
               >
-                <MoreHorizontal size={14} />
+                <MoreHorizontal size={APP_ICON_SIZE} />
               </button>
             }
             onOpenChange={setMenuOpen}
           >
-            <PopoverItem icon={<Pin size={14} />} onClick={() => {}}>
+            <PopoverItem icon={<Pin size={APP_ICON_SIZE} />} onClick={() => {}}>
               置顶项目
             </PopoverItem>
             <PopoverItem
-              icon={<FolderOpen size={14} />}
+              icon={<FolderOpen size={APP_ICON_SIZE} />}
               onClick={() => {
                 void desktopClient.openPathWithDefaultTarget(project.path);
               }}
             >
               在资源管理器中打开
             </PopoverItem>
-            <PopoverItem icon={<FolderTree size={14} />} onClick={() => {}}>
+            <PopoverItem icon={<FolderTree size={APP_ICON_SIZE} />} onClick={() => {}}>
               创建永久工作树
             </PopoverItem>
-            <PopoverItem icon={<Pencil size={14} />} onClick={() => {}}>
+            <PopoverItem icon={<Pencil size={APP_ICON_SIZE} />} onClick={() => {}}>
               重命名项目
             </PopoverItem>
             <PopoverItem
               disabled={projectSessions.length === 0}
-              icon={<Archive size={14} />}
+              icon={<Archive size={APP_ICON_SIZE} />}
               onClick={() => {
                 projectSessions.forEach((session) => onArchiveSession(session));
               }}
@@ -131,7 +132,7 @@ export function SidebarProjectGroup({
               归档对话
             </PopoverItem>
             <PopoverItem
-              icon={<X size={14} />}
+              icon={<X size={APP_ICON_SIZE} />}
               onClick={() => onRemoveWorkspace(project)}
             >
               移除
@@ -143,7 +144,7 @@ export function SidebarProjectGroup({
             onClick={() => onCreateSession(project)}
             title="新建对话"
           >
-            <SquarePen size={14} />
+            <SquarePen size={APP_ICON_SIZE} />
           </IconButton>
         </div>
       </div>

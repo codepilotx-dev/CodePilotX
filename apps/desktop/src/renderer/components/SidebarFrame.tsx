@@ -1,6 +1,7 @@
 import type React from "react";
 import { useEffect, useState } from "react";
 import { Bot, History } from "lucide-react";
+import { APP_ICON_SIZE } from './ui/iconTokens.js'
 import { motion } from "motion/react";
 
 type Props = {
@@ -140,9 +141,9 @@ export function SidebarFrame({
           tabIndex={0}
         />
         <div className="icon-button sidebar-brand-floating">
-          <Bot size={14} />
+          <Bot size={APP_ICON_SIZE} />
         </div>
-        <History className="icon-button sidebar-history-watermark" size={14} />
+        <History className="icon-button sidebar-history-watermark" size={APP_ICON_SIZE} />
       </aside>
       {collapsed && hoverOpen ? (
         <motion.aside

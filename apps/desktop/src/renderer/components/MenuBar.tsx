@@ -9,6 +9,7 @@ import {
   Square,
   X,
 } from 'lucide-react'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from './ui/iconTokens.js'
 import { IconButton } from './ui/IconButton.js'
 
 export type FileMenuAction =
@@ -167,16 +168,16 @@ export function MenuBar({
             title={sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'}
           >
             {sidebarCollapsed ? (
-              <PanelLeftOpen size={16} strokeWidth={1.8} />
+              <PanelLeftOpen size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             ) : (
-              <PanelLeftClose size={16} strokeWidth={1.8} />
+              <PanelLeftClose size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             )}
           </IconButton>
           <IconButton className="window-toolbar-icon" title="后退">
-            <ChevronLeft size={16} strokeWidth={1.8} />
+            <ChevronLeft size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
           <IconButton className="window-toolbar-icon" title="前进">
-            <ChevronRight size={16} strokeWidth={1.8} />
+            <ChevronRight size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
 
           <Menubar.Root
@@ -412,21 +413,21 @@ export function MenuBar({
             onClick={onMinimize}
             title="最小化"
           >
-            <Minus size={14} strokeWidth={2} />
+            <Minus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
           <IconButton
             className="window-control-button"
             onClick={onToggleMaximize}
             title={isMaximized ? '还原' : '最大化'}
           >
-            <Square size={13} strokeWidth={1.9} />
+            <Square size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
           <IconButton
             className="window-control-button close"
             onClick={onClose}
             title="关闭"
           >
-            <X size={14} strokeWidth={2} />
+            <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
         </div>
       </div>

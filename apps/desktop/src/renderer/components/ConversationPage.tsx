@@ -3,38 +3,65 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
   AppWindow,
   Archive,
+  ChevronDown,
   ChevronRight,
   Columns2,
   Code2,
   Copy,
+  File,
   FileDiff,
+  FolderOpen,
   GitBranch,
   GitPullRequest,
   Laptop,
-  Maximize2,
   MessageSquarePlus,
   MoreHorizontal,
+  PanelBottom,
+  PanelRight,
   Pencil,
   Pin,
   RotateCcw,
   Settings,
   Sparkles,
+  SquareTerminal,
   ThumbsDown,
   ThumbsUp,
   Upload,
   Workflow,
 } from "lucide-react";
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from './ui/iconTokens.js'
 import { legacyMessagesToSessionEvents } from "../../shared/sessionEventModel.js";
 import type {
   DesktopGitStatus,
+  DesktopOpenTarget,
   DesktopSessionEvent,
 } from "../../shared/types.js";
 import { useQuickChatContext } from "../context/QuickChatContext.js";
+import { useDesktopSettings } from "../features/settings/useDesktopSettings.js";
+import { desktopClient } from "../services/desktopClient.js";
 import type { Message } from "../uiTypes.js";
 import { MarkdownMessage } from "./MarkdownMessage.js";
 import { PopoverItem } from "./ui/PopoverItem.js";
 import { PopoverMenu } from "./ui/PopoverMenu.js";
 import { Tooltip } from "./ui/Tooltip.js";
+
+const FALLBACK_OPEN_TARGETS: DesktopOpenTarget[] = [
+  {
+    id: "default-app",
+    label: "Default app",
+    kind: "default-app",
+  },
+  {
+    id: "file-explorer",
+    label: "File Explorer",
+    kind: "file-explorer",
+  },
+  {
+    id: "terminal",
+    label: "Terminal",
+    kind: "terminal",
+  },
+];
 
 export function ConversationPage(): React.ReactNode {
   const {
@@ -59,6 +86,7 @@ export function ConversationPage(): React.ReactNode {
     onCreatePullRequest,
     composer,
   } = useQuickChatContext();
+  const { defaultOpenTargetId, setDefaultOpenTargetId } = useDesktopSettings();
 
   const conversationMessages = messages.filter(
     (message) => message.role !== "system",
@@ -80,7 +108,14 @@ export function ConversationPage(): React.ReactNode {
         event.role === "assistant" &&
         Boolean(event.content?.trim()),
     );
-  const showEnvironmentPanel = Boolean(workspacePath);
+  const [sessionMenuOpen, setSessionMenuOpen] = React.useState(false);
+  const [openTargetMenuOpen, setOpenTargetMenuOpen] = React.useState(false);
+  const [openTargets, setOpenTargets] =
+    React.useState<DesktopOpenTarget[]>(FALLBACK_OPEN_TARGETS);
+  const [showPinnedSummary, setShowPinnedSummary] = React.useState(true);
+  const [bottomPanelVisible, setBottomPanelVisible] = React.useState(false);
+  const [rightSidebarVisible, setRightSidebarVisible] = React.useState(false);
+  const showEnvironmentPanel = Boolean(workspacePath && showPinnedSummary);
   const showComposerChangeSummary = Boolean(
     workspacePath && gitStatus && gitStatus.files.length > 0,
   );
@@ -90,9 +125,29 @@ export function ConversationPage(): React.ReactNode {
     [timelineEvents],
   );
   const renderedSessionTitle = sessionTitle ?? fallbackTitle;
-  const [sessionMenuOpen, setSessionMenuOpen] = React.useState(false);
   const hasActiveSession = Boolean(activeSessionId);
   const isSessionPinned = Boolean(activeSessionPinnedAt);
+  const selectedOpenTarget =
+    openTargets.find((target) => target.id === defaultOpenTargetId) ??
+    FALLBACK_OPEN_TARGETS[0];
+
+  React.useEffect(() => {
+    let mounted = true;
+    void desktopClient
+      .listOpenTargets()
+      .then((targets) => {
+        if (!mounted) return;
+        setOpenTargets(targets.length ? targets : FALLBACK_OPEN_TARGETS);
+      })
+      .catch(() => {
+        if (mounted) {
+          setOpenTargets(FALLBACK_OPEN_TARGETS);
+        }
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   function closeSessionMenu(): void {
     setSessionMenuOpen(false);
@@ -132,6 +187,29 @@ export function ConversationPage(): React.ReactNode {
     onArchiveSession();
   }
 
+  function openWorkspaceWithDefaultTarget(): void {
+    if (!workspacePath) return;
+    onOpenWorkspacePath();
+  }
+
+  function selectOpenTarget(targetId: string): void {
+    if (!workspacePath) return;
+    setOpenTargetMenuOpen(false);
+    setDefaultOpenTargetId(targetId);
+    void desktopClient
+      .getDesktopSettings()
+      .then((settings) =>
+        desktopClient.saveDesktopSettings({
+          ...settings,
+          defaultOpenTargetId: targetId,
+        }),
+      )
+      .catch(() => undefined)
+      .then(() => {
+        onOpenWorkspacePath();
+      });
+  }
+
   return (
     <section className="conversation-page">
       <header className="chat-session-header">
@@ -150,13 +228,13 @@ export function ConversationPage(): React.ReactNode {
                 title="更多操作"
                 type="button"
               >
-                <MoreHorizontal size={16} />
+                <MoreHorizontal size={APP_ICON_SIZE} />
               </button>
             }
             onOpenChange={setSessionMenuOpen}
           >
             <PopoverItem
-              icon={<Pin size={14} />}
+              icon={<Pin size={APP_ICON_SIZE} />}
               shortcut="Ctrl+Alt+P"
               disabled={!hasActiveSession}
               onClick={toggleSessionPinned}
@@ -165,14 +243,14 @@ export function ConversationPage(): React.ReactNode {
             </PopoverItem>
             <PopoverItem
               disabled
-              icon={<Pencil size={14} />}
+              icon={<Pencil size={APP_ICON_SIZE} />}
               shortcut="Ctrl+Alt+R"
             >
               重命名对话
             </PopoverItem>
             <PopoverItem
               disabled={!hasActiveSession}
-              icon={<Archive size={14} />}
+              icon={<Archive size={APP_ICON_SIZE} />}
               shortcut="Ctrl+Shift+A"
               onClick={archiveCurrentSession}
             >
@@ -181,18 +259,18 @@ export function ConversationPage(): React.ReactNode {
             <div className="popover-divider" />
             <PopoverItem
               disabled
-              icon={<MessageSquarePlus size={14} />}
+              icon={<MessageSquarePlus size={APP_ICON_SIZE} />}
             >
               打开侧边聊天
             </PopoverItem>
             <SessionSubmenu
               disabled={!hasActiveSession && !workspacePath}
-              icon={<Copy size={14} />}
+              icon={<Copy size={APP_ICON_SIZE} />}
               label="复制"
             >
               <PopoverItem
                 disabled={!workspacePath}
-                icon={<Copy size={14} />}
+                icon={<Copy size={APP_ICON_SIZE} />}
                 shortcut="Ctrl+Shift+C"
                 onClick={() => copyText(workspacePath ?? "")}
               >
@@ -200,7 +278,7 @@ export function ConversationPage(): React.ReactNode {
               </PopoverItem>
               <PopoverItem
                 disabled={!hasActiveSession}
-                icon={<Copy size={14} />}
+                icon={<Copy size={APP_ICON_SIZE} />}
                 shortcut="Ctrl+Alt+C"
                 onClick={() => copyText(activeSessionId ?? "")}
               >
@@ -208,7 +286,7 @@ export function ConversationPage(): React.ReactNode {
               </PopoverItem>
               <PopoverItem
                 disabled={!hasActiveSession}
-                icon={<Copy size={14} />}
+                icon={<Copy size={APP_ICON_SIZE} />}
                 shortcut="Ctrl+Alt+L"
                 onClick={copySessionDeepLink}
               >
@@ -217,21 +295,21 @@ export function ConversationPage(): React.ReactNode {
             </SessionSubmenu>
             <SessionSubmenu
               disabled={!workspacePath}
-              icon={<GitBranch size={14} />}
+              icon={<GitBranch size={APP_ICON_SIZE} />}
               label="分支"
             >
               <PopoverItem
-                icon={<Laptop size={14} />}
+                icon={<Laptop size={APP_ICON_SIZE} />}
                 onClick={openBranchFlow}
               >
                 派生到本地
               </PopoverItem>
-              <PopoverItem disabled icon={<GitBranch size={14} />}>
+              <PopoverItem disabled icon={<GitBranch size={APP_ICON_SIZE} />}>
                 派生到新工作树
               </PopoverItem>
             </SessionSubmenu>
             <PopoverItem
-              icon={<Workflow size={14} />}
+              icon={<Workflow size={APP_ICON_SIZE} />}
               onClick={openAutomationView}
             >
               添加自动化...
@@ -239,30 +317,93 @@ export function ConversationPage(): React.ReactNode {
             <div className="popover-divider" />
             <PopoverItem
               disabled
-              icon={<AppWindow size={14} />}
+              icon={<AppWindow size={APP_ICON_SIZE} />}
             >
               在新窗口中打开
             </PopoverItem>
           </PopoverMenu>
         </div>
         <div className="chat-session-actions">
-          <Tooltip content="在编辑器中打开">
+          <div className="open-target-split-button">
+            <Tooltip content={`用 ${selectedOpenTarget.label} 打开`}>
+              <button
+                aria-label={`用 ${selectedOpenTarget.label} 打开`}
+                className="message-action open-target-main"
+                disabled={!workspacePath}
+                type="button"
+                onClick={openWorkspaceWithDefaultTarget}
+              >
+                {renderOpenTargetIcon(selectedOpenTarget)}
+              </button>
+            </Tooltip>
+            <PopoverMenu
+              align="end"
+              className="popover-open-targets"
+              open={openTargetMenuOpen}
+              sideOffset={4}
+              trigger={
+                <button
+                  aria-label="切换默认打开目标"
+                  className="message-action open-target-trigger"
+                  disabled={!workspacePath}
+                  type="button"
+                >
+                  <ChevronDown size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                </button>
+              }
+              onOpenChange={setOpenTargetMenuOpen}
+            >
+              {openTargets.map((target) => (
+                <PopoverItem
+                  icon={renderOpenTargetIcon(target)}
+                  key={target.id}
+                  selected={target.id === defaultOpenTargetId}
+                  withCheck
+                  onClick={() => selectOpenTarget(target.id)}
+                >
+                  {target.label}
+                </PopoverItem>
+              ))}
+            </PopoverMenu>
+          </div>
+          <Tooltip
+            content={showPinnedSummary ? "隐藏置顶摘要" : "显示置顶摘要"}
+          >
             <button
-              aria-label="在编辑器中打开"
+              aria-label={showPinnedSummary ? "隐藏置顶摘要" : "显示置顶摘要"}
+              aria-pressed={showPinnedSummary}
+              className="message-action"
+              disabled={!workspacePath}
+              type="button"
+              onClick={() => setShowPinnedSummary((current) => !current)}
+            >
+              <Columns2 size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            </button>
+          </Tooltip>
+          <Tooltip
+            content={bottomPanelVisible ? "隐藏底部面板" : "显示底部面板"}
+          >
+            <button
+              aria-label={bottomPanelVisible ? "隐藏底部面板" : "显示底部面板"}
+              aria-pressed={bottomPanelVisible}
               className="message-action"
               type="button"
+              onClick={() => setBottomPanelVisible((current) => !current)}
             >
-              <Code2 size={15} strokeWidth={1.8} />
+              <PanelBottom size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             </button>
           </Tooltip>
-          <Tooltip content="分屏">
-            <button aria-label="分屏" className="message-action" type="button">
-              <Columns2 size={15} strokeWidth={1.8} />
-            </button>
-          </Tooltip>
-          <Tooltip content="展开">
-            <button aria-label="展开" className="message-action" type="button">
-              <Maximize2 size={15} strokeWidth={1.8} />
+          <Tooltip
+            content={rightSidebarVisible ? "隐藏右侧边栏" : "显示右侧边栏"}
+          >
+            <button
+              aria-label={rightSidebarVisible ? "隐藏右侧边栏" : "显示右侧边栏"}
+              aria-pressed={rightSidebarVisible}
+              className="message-action"
+              type="button"
+              onClick={() => setRightSidebarVisible((current) => !current)}
+            >
+              <PanelRight size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             </button>
           </Tooltip>
         </div>
@@ -339,7 +480,7 @@ function SessionSubmenu({
       >
         <span className="popover-item-icon">{icon}</span>
         <span className="popover-item-label">{label}</span>
-        <ChevronRight className="popover-item-arrow" size={14} />
+        <ChevronRight className="popover-item-arrow" size={APP_ICON_SIZE} />
       </DropdownMenu.SubTrigger>
       <DropdownMenu.Portal>
         <DropdownMenu.SubContent
@@ -352,6 +493,28 @@ function SessionSubmenu({
       </DropdownMenu.Portal>
     </DropdownMenu.Sub>
   );
+}
+
+function renderOpenTargetIcon(target: DesktopOpenTarget): React.ReactNode {
+  if (target.iconDataUrl) {
+    return (
+      <img
+        alt=""
+        className="chat-open-target-icon"
+        src={target.iconDataUrl}
+      />
+    );
+  }
+  if (target.kind === "file-explorer") {
+    return <FolderOpen size={APP_ICON_SIZE} />;
+  }
+  if (target.kind === "terminal") {
+    return <SquareTerminal size={APP_ICON_SIZE} />;
+  }
+  if (target.kind === "editor") {
+    return <Code2 size={APP_ICON_SIZE} />;
+  }
+  return <File size={APP_ICON_SIZE} />;
 }
 
 function TimelineEvent({
@@ -397,7 +560,7 @@ function TimelineEvent({
     return (
       <article className="timeline-file-event">
         <div className="timeline-event-title">
-          <FileDiff size={14} />
+          <FileDiff size={APP_ICON_SIZE} />
           <span>{event.content ?? "Edited files"}</span>
           {additions !== null || deletions !== null ? (
             <small>
@@ -442,7 +605,7 @@ function ChatMessage({ message }: { message: Message }): React.ReactNode {
       <article className="chat-message-row user">
         <div className="user-message-bubble">{message.text}</div>
         <MessageActionButton label="复制" tip="复制" text={message.text}>
-          <Copy size={14} />
+          <Copy size={APP_ICON_SIZE} />
         </MessageActionButton>
       </article>
     );
@@ -459,16 +622,16 @@ function ChatMessage({ message }: { message: Message }): React.ReactNode {
       {message.role === "assistant" && message.text.trim() ? (
         <div className="assistant-message-actions">
           <MessageActionButton label="复制" tip="复制" text={message.text}>
-            <Copy size={14} />
+            <Copy size={APP_ICON_SIZE} />
           </MessageActionButton>
           <Tooltip content="赞">
             <button aria-label="赞" className="message-action" type="button">
-              <ThumbsUp size={14} />
+              <ThumbsUp size={APP_ICON_SIZE} />
             </button>
           </Tooltip>
           <Tooltip content="踩">
             <button aria-label="踩" className="message-action" type="button">
-              <ThumbsDown size={14} />
+              <ThumbsDown size={APP_ICON_SIZE} />
             </button>
           </Tooltip>
           <Tooltip content="重新生成">
@@ -477,7 +640,7 @@ function ChatMessage({ message }: { message: Message }): React.ReactNode {
               className="message-action"
               type="button"
             >
-              <RotateCcw size={14} />
+              <RotateCcw size={APP_ICON_SIZE} />
             </button>
           </Tooltip>
         </div>
@@ -552,7 +715,7 @@ function EnvironmentPanel({
       <div className="environment-panel-header">
         <span>环境信息</span>
         <button aria-label="环境设置" className="message-action" type="button">
-          <Settings size={16} />
+          <Settings size={APP_ICON_SIZE} />
         </button>
       </div>
 
@@ -565,7 +728,7 @@ function EnvironmentPanel({
             setShowDiff((current) => !current);
           }}
         >
-          <FileDiff size={16} />
+          <FileDiff size={APP_ICON_SIZE} />
           <span>变更{changedFileCount ? ` (${changedFileCount})` : ""}</span>
           <span className="environment-diff-counts">
             <strong>+{formatPanelNumber(diffSummary.additions)}</strong>
@@ -578,25 +741,25 @@ function EnvironmentPanel({
           type="button"
           onClick={onOpenWorkspacePath}
         >
-          <Laptop size={16} />
+          <Laptop size={APP_ICON_SIZE} />
           <span>本地</span>
-          <ChevronRight className="environment-row-chevron" size={13} />
+          <ChevronRight className="environment-row-chevron" size={APP_ICON_SIZE} />
         </button>
         <button
           className="environment-action-row"
           type="button"
           onClick={onCreateBranch}
         >
-          <GitBranch size={16} />
+          <GitBranch size={APP_ICON_SIZE} />
           <span title={gitLabel}>{gitLabel}</span>
-          <ChevronRight className="environment-row-chevron" size={13} />
+          <ChevronRight className="environment-row-chevron" size={APP_ICON_SIZE} />
         </button>
         <button
           className="environment-action-row"
           type="button"
           onClick={onCommitOrPush}
         >
-          <Upload size={16} />
+          <Upload size={APP_ICON_SIZE} />
           <span>提交或推送</span>
         </button>
         <button
@@ -604,7 +767,7 @@ function EnvironmentPanel({
           type="button"
           onClick={onCreatePullRequest}
         >
-          <GitPullRequest size={16} />
+          <GitPullRequest size={APP_ICON_SIZE} />
           <span>创建拉取请求</span>
         </button>
       </div>
@@ -700,9 +863,9 @@ function ThinkingPill(): React.ReactNode {
 
   return (
     <button className="chat-thinking-pill" type="button">
-      <Sparkles size={12} />
+      <Sparkles size={APP_ICON_SIZE} />
       <span>已处理 {formatDuration(seconds)}</span>
-      <ChevronRight size={12} />
+      <ChevronRight size={APP_ICON_SIZE} />
     </button>
   );
 }

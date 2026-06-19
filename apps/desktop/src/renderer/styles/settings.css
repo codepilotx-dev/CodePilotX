@@ -84,8 +84,8 @@
 
 .settings-nav-icon {
   color: var(--c-icon);
-  width: 16px;
-  height: 16px;
+  width: var(--app-icon-size);
+  height: var(--app-icon-size);
   flex-shrink: 0;
 }
 
@@ -402,15 +402,15 @@
 }
 
 .settings-dropdown-icon {
-  width: 14px;
-  height: 14px;
+  width: var(--app-icon-size);
+  height: var(--app-icon-size);
   color: var(--c-icon);
   flex-shrink: 0;
 }
 
 .settings-open-target-icon {
-  width: 16px;
-  height: 16px;
+  width: var(--app-icon-size);
+  height: var(--app-icon-size);
   border-radius: 4px;
   flex-shrink: 0;
   object-fit: contain;
@@ -517,9 +517,11 @@
 }
 
 .settings-button svg {
-  width: 14px;
-  height: 14px;
+  width: var(--app-icon-size);
+  height: var(--app-icon-size);
+  display: block;
   margin-right: 6px;
+  stroke-width: var(--app-icon-stroke-width);
 }
 
 .settings-button.danger {
@@ -640,9 +642,10 @@
 }
 
 .appearance-mode-option svg {
-  width: 18px;
-  height: 18px;
-  stroke-width: 2;
+  width: var(--app-icon-size);
+  height: var(--app-icon-size);
+  display: block;
+  stroke-width: var(--app-icon-stroke-width);
 }
 
 .appearance-mode-option.active {
@@ -719,9 +722,9 @@
 }
 
 .theme-dropdown-trigger .settings-dropdown-icon {
-  width: 15px;
-  height: 15px;
-  stroke-width: 2.4;
+  width: var(--app-icon-size);
+  height: var(--app-icon-size);
+  stroke-width: var(--app-icon-stroke-width);
 }
 
 .theme-dropdown-content {

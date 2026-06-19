@@ -151,6 +151,39 @@
   flex-shrink: 0;
 }
 
+.open-target-split-button {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 4px;
+}
+
+.open-target-split-button .message-action {
+  border: 1px solid var(--c-border-soft);
+  background: var(--c-bg);
+}
+
+.open-target-split-button .message-action:hover,
+.open-target-split-button .message-action[data-state="open"] {
+  background: var(--c-bg-hover);
+}
+
+.open-target-main {
+  border-radius: var(--r-md) 0 0 var(--r-md);
+}
+
+.open-target-trigger {
+  width: 18px;
+  margin-left: -1px;
+  border-radius: 0 var(--r-md) var(--r-md) 0;
+}
+
+.chat-open-target-icon {
+  width: var(--app-icon-size);
+  height: var(--app-icon-size);
+  display: block;
+  object-fit: contain;
+}
+
 .quick-chat-content {
   width: 100%;
   max-width: 760px;
@@ -166,6 +199,7 @@
 }
 
 .quick-chat-workspace.with-environment-panel {
+  display: grid;
   grid-template-columns: minmax(0, 1fr) 350px;
   gap: min(4vw, 48px);
   padding: 0 18px 0 min(5vw, 72px);
@@ -391,8 +425,12 @@
 }
 
 .environment-action-row svg {
+  width: var(--app-icon-size);
+  height: var(--app-icon-size);
+  display: block;
   flex: 0 0 auto;
   color: var(--c-icon);
+  stroke-width: var(--app-icon-stroke-width);
 }
 
 .environment-action-row span:nth-child(2) {
@@ -479,6 +517,22 @@
   color: var(--c-text);
 }
 
+.message-action[aria-pressed="true"],
+.message-action[data-state="open"] {
+  background: var(--c-bg-hover);
+  color: var(--c-text);
+}
+
+.message-action:disabled {
+  color: var(--c-text-disabled);
+  cursor: default;
+  opacity: 0.6;
+}
+
+.message-action:disabled:hover {
+  background: transparent;
+}
+
 .assistant-thinking {
   color: var(--c-text-soft);
   font-size: var(--fs-14);
@@ -558,8 +612,12 @@
 }
 
 .timeline-event-title svg {
+  width: var(--app-icon-size);
+  height: var(--app-icon-size);
+  display: block;
   color: var(--c-accent);
   flex-shrink: 0;
+  stroke-width: var(--app-icon-stroke-width);
 }
 
 .timeline-file-event ul {
@@ -617,11 +675,19 @@
 }
 
 .chat-thinking-pill > svg:first-child {
+  width: var(--app-icon-size);
+  height: var(--app-icon-size);
+  display: block;
   color: var(--c-accent);
+  stroke-width: var(--app-icon-stroke-width);
 }
 
 .chat-thinking-pill > svg:last-child {
+  width: var(--app-icon-size);
+  height: var(--app-icon-size);
+  display: block;
   color: var(--c-text-meta);
+  stroke-width: var(--app-icon-stroke-width);
 }
 
 .utility-view {

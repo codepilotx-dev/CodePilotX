@@ -8,6 +8,7 @@ import {
   Sparkles,
   TerminalSquare,
 } from 'lucide-react'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from './ui/iconTokens.js'
 
 type QuickStart = {
   id: string
@@ -16,9 +17,9 @@ type QuickStart = {
 }
 
 const QUICK_STARTS: QuickStart[] = [
-  { id: 'daily-brief', label: '每日简报', icon: <AlarmClock size={15} strokeWidth={2} /> },
-  { id: 'weekly-review', label: '每周回顾', icon: <CalendarClock size={15} strokeWidth={2} /> },
-  { id: 'project-monitor', label: '项目监控', icon: <FileSearch size={15} strokeWidth={2} /> },
+  { id: 'daily-brief', label: '每日简报', icon: <AlarmClock size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} /> },
+  { id: 'weekly-review', label: '每周回顾', icon: <CalendarClock size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} /> },
+  { id: 'project-monitor', label: '项目监控', icon: <FileSearch size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} /> },
 ]
 
 export function AutomationView(): React.ReactNode {
@@ -37,9 +38,9 @@ export function AutomationView(): React.ReactNode {
             查看模板
           </button>
           <button className="automation-button is-primary" type="button">
-            <Sparkles size={14} strokeWidth={2.2} />
+            <Sparkles size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             <span>通过聊天创建</span>
-            <ChevronDown size={13} strokeWidth={2.2} />
+            <ChevronDown size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </button>
         </div>
       </header>
@@ -47,9 +48,9 @@ export function AutomationView(): React.ReactNode {
       <div className="automation-canvas">
         <div className="automation-empty-state">
           <span className="automation-cloud" aria-hidden="true">
-            <Cloud size={120} strokeWidth={1.4} />
+            <Cloud size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             <span className="automation-cloud-prompt">
-              <TerminalSquare size={26} strokeWidth={2} />
+              <TerminalSquare size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             </span>
           </span>
           <p className="automation-empty-title">创建首个自动化</p>

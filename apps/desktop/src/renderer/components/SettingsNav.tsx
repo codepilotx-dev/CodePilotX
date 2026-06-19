@@ -18,6 +18,7 @@ import {
   CreditCard,
   Anchor
 } from 'lucide-react'
+import { APP_ICON_SIZE } from './ui/iconTokens.js'
 
 const MENU_ITEMS = [
   { id: 'general', label: '常规', icon: Settings },
@@ -49,7 +50,7 @@ export function SettingsNav({ activeTab, onBack, onTabChange }: Props) {
     <nav className="settings-nav" aria-label="设置分类">
       <div className="settings-nav-header">
         <button className="settings-back-btn" onClick={onBack} type="button">
-          <ArrowLeft size={18} />
+          <ArrowLeft size={APP_ICON_SIZE} />
           <span>返回应用</span>
         </button>
       </div>

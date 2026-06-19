@@ -2,6 +2,7 @@ import { forwardRef } from 'react'
 import type React from 'react'
 import { Slot, Slottable } from '@radix-ui/react-slot'
 import { ChevronDown } from 'lucide-react'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from './iconTokens.js'
 
 type Props = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   children: React.ReactNode
@@ -42,7 +43,7 @@ export const ChipButton = forwardRef<HTMLButtonElement, Props>(
         title={title}
       >
         <Slottable>{children}</Slottable>
-        {showChevron ? <ChevronDown size={12} strokeWidth={2.4} /> : null}
+        {showChevron ? <ChevronDown size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} /> : null}
       </Comp>
     )
   },

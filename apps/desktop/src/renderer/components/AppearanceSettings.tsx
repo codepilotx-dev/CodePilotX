@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import * as RadixSlider from '@radix-ui/react-slider'
 import * as Tabs from '@radix-ui/react-tabs'
 import { Laptop, Moon, Sun } from 'lucide-react'
+import { APP_ICON_SIZE } from './ui/iconTokens.js'
 import { SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
 import { SettingsDropdown } from './SettingsDropdown.js'
@@ -33,9 +34,9 @@ const THEME_MODE_OPTIONS: Array<{
   label: string
   icon: React.ReactNode
 }> = [
-  { value: 'light', label: '浅色', icon: <Sun size={24} /> },
-  { value: 'dark', label: '深色', icon: <Moon size={24} /> },
-  { value: 'system', label: '系统', icon: <Laptop size={24} /> },
+  { value: 'light', label: '浅色', icon: <Sun size={APP_ICON_SIZE} /> },
+  { value: 'dark', label: '深色', icon: <Moon size={APP_ICON_SIZE} /> },
+  { value: 'system', label: '系统', icon: <Laptop size={APP_ICON_SIZE} /> },
 ]
 
 const FIXED_THEME_PREVIEW_PANES: Array<{

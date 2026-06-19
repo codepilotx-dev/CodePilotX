@@ -10,6 +10,7 @@ import type {
 export type QuickChatContextValue = {
   isConversationRoute: boolean
   isConversationLoading: boolean
+  sidebarCollapsed: boolean
   activeSessionId: string | null
   activeSessionPinnedAt: string | null
   sessionTitle: string | null
@@ -23,6 +24,7 @@ export type QuickChatContextValue = {
   onOpenAutomation: () => void
   onOpenWorkspacePath: () => void
   onRefreshDiff: () => void
+  onToggleSidebar: () => void
   onToggleSessionPinned: () => void
   onCommitOrPush: () => void
   onCreatePullRequest: () => void

@@ -1,6 +1,7 @@
 import type React from "react";
 import { Link } from "react-router-dom";
 import { Boxes, Clock3, Search, SquarePen } from "lucide-react";
+import { APP_ICON_SIZE } from '../ui/iconTokens.js'
 import type { AppView } from "../../uiTypes.js";
 
 type SidebarNavItem = {
@@ -14,25 +15,25 @@ const TOP_NAV_ITEMS: SidebarNavItem[] = [
   {
     view: "quickChat",
     label: "快速对话",
-    icon: <SquarePen size={14} />,
+    icon: <SquarePen size={APP_ICON_SIZE} />,
     path: "/quick-chat",
   },
   {
     view: "search",
     label: "搜索",
-    icon: <Search size={14} />,
+    icon: <Search size={APP_ICON_SIZE} />,
     path: "/search",
   },
   {
     view: "plugins",
     label: "插件",
-    icon: <Boxes size={14} />,
+    icon: <Boxes size={APP_ICON_SIZE} />,
     path: "/plugins",
   },
   {
     view: "automation",
     label: "自动化",
-    icon: <Clock3 size={14} />,
+    icon: <Clock3 size={APP_ICON_SIZE} />,
     path: "/automation",
   },
 ];

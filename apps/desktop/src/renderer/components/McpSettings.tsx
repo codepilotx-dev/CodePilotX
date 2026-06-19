@@ -1,6 +1,7 @@
 import { desktopClient } from '../services/desktopClient.js'
 import React, { useEffect, useMemo, useState } from 'react'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { APP_ICON_SIZE } from './ui/iconTokens.js'
 import type {
   DesktopEditableMcpScope,
   DesktopMcpServerListItem,
@@ -198,7 +199,7 @@ export function McpSettings(): React.ReactNode {
                 刷新
               </button>
               <button className="settings-button primary" type="button" onClick={() => startCreate()}>
-                <Plus size={14} />
+                <Plus size={APP_ICON_SIZE} />
                 <span>新增</span>
               </button>
             </div>
@@ -232,7 +233,7 @@ export function McpSettings(): React.ReactNode {
                     type="button"
                     onClick={() => startEdit(server)}
                   >
-                    <Pencil size={14} />
+                    <Pencil size={APP_ICON_SIZE} />
                     <span>编辑</span>
                   </button>
                   <button
@@ -241,7 +242,7 @@ export function McpSettings(): React.ReactNode {
                     type="button"
                     onClick={() => void removeServer(server)}
                   >
-                    <Trash2 size={14} />
+                    <Trash2 size={APP_ICON_SIZE} />
                     <span>删除</span>
                   </button>
                 </div>

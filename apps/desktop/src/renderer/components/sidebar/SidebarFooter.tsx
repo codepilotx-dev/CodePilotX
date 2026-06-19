@@ -1,6 +1,7 @@
 import type React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Settings2, Smartphone } from "lucide-react";
+import { APP_ICON_SIZE } from '../ui/iconTokens.js'
 import { IconButton } from "../ui/IconButton.js";
 
 export function SidebarFooter(): React.ReactNode {
@@ -16,7 +17,7 @@ export function SidebarFooter(): React.ReactNode {
         to="/settings"
       >
         <span className="icon-button sidebar-item-icon">
-          <Settings2 size={14} />
+          <Settings2 size={APP_ICON_SIZE} />
         </span>
         <span>设置</span>
       </Link>
@@ -25,7 +26,7 @@ export function SidebarFooter(): React.ReactNode {
         onClick={() => {}}
         title="移动端"
       >
-        <Smartphone size={14} />
+        <Smartphone size={APP_ICON_SIZE} />
       </IconButton>
     </footer>
   );
