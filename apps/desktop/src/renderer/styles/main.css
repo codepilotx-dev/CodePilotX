@@ -34,8 +34,7 @@
   align-items: center;
   gap: var(--sp-3);
   margin-bottom: 18px;
-  width: min(100%, var(--composer-w));
-  flex-shrink: 0;
+  width: 100%;
 }
 
 .quick-chat-view,
@@ -53,7 +52,8 @@
   width: 100%;
   flex: 1;
   min-height: 0;
-  padding: 0 min(4vw, 40px);
+  padding: 0 20px;
+  overflow: auto;
 }
 
 .quick-chat-view.active {
@@ -127,11 +127,11 @@
   gap: 0;
   justify-items: center;
   text-align: center;
+
 }
 
 .quick-chat-hero h1,
 .quick-chat-hero {
-  width: min(100%, 900px);
   color: var(--c-text-strong);
   font-size: 28px;
   font-weight: 400;
@@ -242,7 +242,9 @@
 }
 
 .conversation-stream {
-  width: min(100%, var(--composer-w));
+  width: var(--composer-w);
+  min-width: var(--composer-w);
+  flex: 0 0 var(--composer-w);
   display: flex;
   flex-direction: column;
   gap: var(--sp-5);

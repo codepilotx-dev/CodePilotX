@@ -152,22 +152,17 @@
   text-transform: none;
 }
 
-.sidebar-section-actions {
-  width: 50px !important;
-}
-
 .sidebar-section-actions,
 .sidebar-project-actions,
 .sidebar-session-actions {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: space-around;
-  width: 100%;
+  width: 50px;
 }
 
 .sidebar-section-actions,
 .sidebar-project-actions {
-  flex: 0 0 auto;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.12s ease-out;
@@ -189,14 +184,13 @@
 
 .sidebar-project-button,
 .sidebar-session-button {
-  flex: 1;
+  width: calc(100% - 60px);
   height: 100%;
   display: flex;
   align-items: center;
   gap: var(--sidebar-item-gap);
   padding: 0;
   color: inherit;
-
   text-align: left;
 }
 
@@ -219,7 +213,7 @@
 
 .sidebar-session-meta {
   flex: 0 0 auto;
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: flex-end;
   width: 50px;
