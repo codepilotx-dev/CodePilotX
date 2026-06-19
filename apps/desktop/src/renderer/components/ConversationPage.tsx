@@ -442,7 +442,11 @@ export function ConversationPage(): React.ReactNode {
       </div>
 
       {composer ? (
-        <div className="chat-composer">
+        <div
+          className={`chat-composer ${
+            showEnvironmentPanel ? "with-environment-panel" : ""
+          }`}
+        >
           {showComposerChangeSummary ? (
             <div className="composer-change-summary">
               <span>
