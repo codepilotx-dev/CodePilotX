@@ -70,6 +70,10 @@
   width: 100%;
 }
 
+.conversation-page .chat-composer {
+  position: relative;
+}
+
 .chat-session-header {
   width: 100%;
   display: flex;

@@ -1,7 +1,10 @@
 import { desktopClient } from '../services/desktopClient.js'
 import type React from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { ComposerCard } from './ComposerCard.js'
+import {
+  DesktopComposer,
+  getDesktopComposerBranchName,
+} from './DesktopComposer.js'
 import { DesktopAppShell } from './DesktopAppShell.js'
 import { DesktopSidebar } from './DesktopSidebar.js'
 import { GlobalErrorModal } from './GlobalErrorModal.js'
@@ -19,7 +22,6 @@ import type {
 import { QuickChatContext } from '../context/QuickChatContext.js'
 import { SearchContext } from '../context/SearchContext.js'
 import type { SessionListItem } from '../uiTypes.js'
-import { PERMISSION_MODE_OPTIONS, THINKING_MODE_OPTIONS } from '../features/settings/settingsStorage.js'
 import { useDesktopSettings } from '../features/settings/useDesktopSettings.js'
 import {
   SIDEBAR_MAX_WIDTH,
@@ -731,26 +733,13 @@ export function DesktopLayout(): React.ReactNode {
     isConversationRoute && !isConversationLoading
       ? pendingPermissions[0] ?? null
       : null
-  const composerCanSubmit =
-    Boolean(input.trim()) &&
-    sessionStatus !== 'running' &&
-    sessionStatus !== 'waiting' &&
-    (isQuickChatPage || Boolean(routedSessionId))
-  const branchName =
-    !currentWorkspace
-      ? '无项目'
-      : currentWorkspace.isGitRepo === false
-      ? '未检测到 Git 分支'
-      : currentWorkspace.branchName ?? '未检测到 Git 分支'
+  const branchName = getDesktopComposerBranchName(currentWorkspace)
 
   const search = useDesktopSearch({
     query: searchQuery,
     recentWorkspaces,
     sessions,
   })
-  const hasConversationMessages = messages.some(
-    message => message.role !== 'system',
-  )
   const quickChatSessionTitle =
     activeSessionItem?.sessionName ??
     activeSessionItem?.customTitle ??
@@ -908,13 +897,15 @@ export function DesktopLayout(): React.ReactNode {
   )
 
   const composer = isQuickChatPage || isConversationRoute ? (
-    <ComposerCard
+    <DesktopComposer
       input={input}
-      canSubmit={composerCanSubmit}
+      messages={messages}
+      isQuickChatPage={isQuickChatPage}
+      routedSessionId={routedSessionId}
       sessionStatus={sessionStatus}
       permissionMode={permissionMode}
       thinkingMode={thinkingMode}
-      selectedProviderID={selectedProviderID ?? 'anthropic'}
+      selectedProviderID={selectedProviderID}
       selectedModelPreset={resolvedSelectedModelPreset}
       showThinkingOptions={showThinkingOptions}
       deepSeekThinkingControls={deepSeekThinkingControls}
@@ -922,40 +913,18 @@ export function DesktopLayout(): React.ReactNode {
       contextUsage={contextUsage}
       modelPresets={modelPresets}
       providerOptions={providerModelOptions}
-      permissionOptions={PERMISSION_MODE_OPTIONS}
-      thinkingOptions={THINKING_MODE_OPTIONS}
-      branchName={branchName}
-      branches={currentWorkspace?.branches ?? []}
       recentWorkspaces={recentWorkspaces}
       workspace={currentWorkspace}
-      placeholder={hasConversationMessages ? '要求后续变更' : '随心输入'}
-      onChooseWorkspace={() => void handleChooseWorkspace()}
+      onChooseWorkspace={handleChooseWorkspace}
       onInputChange={setInput}
-      onInterrupt={() => void interrupt()}
+      onInterrupt={interrupt}
       onProviderModelChange={handleProviderModelChange}
-      onOpenFiles={() => {}}
-      onOpenWorkspace={workspaceItem => void handleOpenRecentWorkspace(workspaceItem)}
+      onOpenWorkspace={handleOpenRecentWorkspace}
       onBranchSelect={handleBranchSelect}
       onPermissionChange={setPermissionMode}
-      onSubmit={() => {
-        void (async () => {
-          const submittedInput = input
-          if (isQuickChatPage) {
-            setInput('')
-            const nextSessionId = currentWorkspace
-              ? await createSessionForWorkspace(currentWorkspace)
-              : await createSessionForWorkspace(null)
-            if (!nextSessionId) return
-            navigate(sessionPath(nextSessionId))
-            await submitToSession(nextSessionId, submittedInput)
-            return
-          }
-          if (routedSessionId) {
-            await submitToSession(routedSessionId, submittedInput)
-          }
-        })()
-      }}
       onThinkingChange={setThinkingMode}
+      createSessionForWorkspace={createSessionForWorkspace}
+      submitToSession={submitToSession}
     />
   ) : null
 
