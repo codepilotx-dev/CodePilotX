@@ -48,6 +48,67 @@ export type DesktopDiffSummary = {
   patch: string
 }
 
+export type DesktopGitFileChange = {
+  path: string
+  originalPath?: string
+  status: string
+  stagedStatus: string
+  unstagedStatus: string
+  additions: number | null
+  deletions: number | null
+  isUntracked: boolean
+}
+
+export type DesktopGitStatus = {
+  branchName: string | null
+  upstream: string | null
+  ahead: number
+  behind: number
+  clean: boolean
+  files: DesktopGitFileChange[]
+}
+
+export type DesktopGitStatusResult =
+  | { ok: true; status: DesktopGitStatus }
+  | { ok: false; error: string }
+
+export type CreateBranchInput = {
+  workspacePath: string
+  branchName: string
+  startPoint?: string
+}
+
+export type CommitChangesInput = {
+  workspacePath: string
+  message: string
+  paths: string[]
+}
+
+export type PushBranchInput = {
+  workspacePath: string
+  setUpstream?: boolean
+  forceWithLease?: boolean
+}
+
+export type CreatePullRequestInput = {
+  workspacePath: string
+  title: string
+  body?: string
+  draft?: boolean
+}
+
+export type DesktopGitWorkspaceResult =
+  | { ok: true; workspace: DesktopWorkspace; status: DesktopGitStatus }
+  | { ok: false; error: string }
+
+export type DesktopGitOperationResult =
+  | { ok: true; status: DesktopGitStatus; output?: string }
+  | { ok: false; error: string }
+
+export type DesktopPullRequestResult =
+  | { ok: true; url: string; output?: string }
+  | { ok: false; error: string }
+
 export type DesktopRuntimeStatus = {
   runtimeKind: 'subprocess' | 'in-process-headless' | 'embedded-headless'
   runtimePreference: 'auto' | 'embedded-headless' | 'subprocess'
@@ -371,6 +432,19 @@ export type DesktopApi = {
     workspacePath: string,
     branchName: string,
   ): Promise<DesktopWorkspace>
+  getWorkspaceGitStatus(workspacePath: string): Promise<DesktopGitStatusResult>
+  createWorkspaceBranch(
+    input: CreateBranchInput,
+  ): Promise<DesktopGitWorkspaceResult>
+  commitWorkspaceChanges(
+    input: CommitChangesInput,
+  ): Promise<DesktopGitOperationResult>
+  pushWorkspaceBranch(
+    input: PushBranchInput,
+  ): Promise<DesktopGitOperationResult>
+  createPullRequest(
+    input: CreatePullRequestInput,
+  ): Promise<DesktopPullRequestResult>
   listWorkspaceFiles(workspacePath: string): Promise<DesktopFileEntry[]>
   readWorkspaceFile(workspacePath: string, filePath: string): Promise<DesktopFilePreview>
   getWorkspaceDiff(workspacePath: string): Promise<DesktopDiffSummary>

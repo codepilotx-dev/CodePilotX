@@ -12,10 +12,20 @@ import {
   getStandaloneWorkspacePath,
 } from './standaloneWorkspace.js'
 import type {
+  CommitChangesInput,
+  CreateBranchInput,
+  CreatePullRequestInput,
   DesktopDiffSummary,
   DesktopFileEntry,
   DesktopFilePreview,
+  DesktopGitFileChange,
+  DesktopGitOperationResult,
+  DesktopGitStatus,
+  DesktopGitStatusResult,
+  DesktopGitWorkspaceResult,
   DesktopOpenTarget,
+  DesktopPullRequestResult,
+  PushBranchInput,
   DesktopWorkspace,
 } from '../shared/types.js'
 import {
@@ -502,6 +512,282 @@ export async function checkoutWorkspaceBranch(
   return getWorkspaceContext(resolvedWorkspace)
 }
 
+export async function getWorkspaceGitStatus(
+  workspacePath: string,
+): Promise<DesktopGitStatusResult> {
+  try {
+    const resolvedWorkspace = assertAllowedWorkspace(workspacePath)
+    return { ok: true, status: await readWorkspaceGitStatus(resolvedWorkspace) }
+  } catch (error) {
+    return { ok: false, error: errorMessageOf(error) }
+  }
+}
+
+export async function createWorkspaceBranch(
+  input: CreateBranchInput,
+): Promise<DesktopGitWorkspaceResult> {
+  try {
+    const resolvedWorkspace = assertAllowedWorkspace(input.workspacePath)
+    const branchName = requireNonEmptyString(input.branchName, 'branchName')
+    await assertValidBranchName(branchName)
+    const args = ['-C', resolvedWorkspace, 'checkout', '-b', branchName]
+    const startPoint = input.startPoint?.trim()
+    if (startPoint) {
+      args.push(startPoint)
+    }
+    await execFileAsync('git', args)
+    return {
+      ok: true,
+      workspace: await getWorkspaceContext(resolvedWorkspace),
+      status: await readWorkspaceGitStatus(resolvedWorkspace),
+    }
+  } catch (error) {
+    return { ok: false, error: errorMessageOf(error) }
+  }
+}
+
+export async function commitWorkspaceChanges(
+  input: CommitChangesInput,
+): Promise<DesktopGitOperationResult> {
+  try {
+    const resolvedWorkspace = assertAllowedWorkspace(input.workspacePath)
+    const message = requireNonEmptyString(input.message, 'Commit message')
+    const paths = validateGitPaths(resolvedWorkspace, input.paths)
+    await execFileAsync('git', ['-C', resolvedWorkspace, 'add', '--', ...paths])
+    const { stdout, stderr } = await execFileAsync('git', [
+      '-C',
+      resolvedWorkspace,
+      'commit',
+      '-m',
+      message,
+      '--',
+      ...paths,
+    ])
+    return {
+      ok: true,
+      output: [stdout.trim(), stderr.trim()].filter(Boolean).join('\n'),
+      status: await readWorkspaceGitStatus(resolvedWorkspace),
+    }
+  } catch (error) {
+    return { ok: false, error: errorMessageOf(error) }
+  }
+}
+
+export async function pushWorkspaceBranch(
+  input: PushBranchInput,
+): Promise<DesktopGitOperationResult> {
+  try {
+    const resolvedWorkspace = assertAllowedWorkspace(input.workspacePath)
+    const branchName = await readGitBranchName(resolvedWorkspace)
+    if (!branchName) {
+      throw new Error('Cannot push because no current Git branch was detected.')
+    }
+    const settings = await readDesktopStoredSettings()
+    if (input.forceWithLease && !settings.allowForcePush) {
+      throw new Error('Force push is disabled in Git settings.')
+    }
+    const args = ['-C', resolvedWorkspace, 'push']
+    if (input.forceWithLease) {
+      args.push('--force-with-lease')
+    }
+    if (input.setUpstream) {
+      args.push('--set-upstream', 'origin', branchName)
+    }
+    const { stdout, stderr } = await execFileAsync('git', args)
+    return {
+      ok: true,
+      output: [stdout.trim(), stderr.trim()].filter(Boolean).join('\n'),
+      status: await readWorkspaceGitStatus(resolvedWorkspace),
+    }
+  } catch (error) {
+    return { ok: false, error: errorMessageOf(error) }
+  }
+}
+
+export async function createPullRequest(
+  input: CreatePullRequestInput,
+): Promise<DesktopPullRequestResult> {
+  try {
+    const resolvedWorkspace = assertAllowedWorkspace(input.workspacePath)
+    const title = requireNonEmptyString(input.title, 'Pull request title')
+    await assertCommandAvailable('gh', 'GitHub CLI (gh) is required to create a pull request.')
+    const args = ['pr', 'create', '--title', title]
+    const body = input.body?.trim()
+    if (body) {
+      args.push('--body', body)
+    } else {
+      args.push('--fill')
+    }
+    if (input.draft) {
+      args.push('--draft')
+    }
+    const { stdout, stderr } = await execFileAsync('gh', args, {
+      cwd: resolvedWorkspace,
+    })
+    const output = [stdout.trim(), stderr.trim()].filter(Boolean).join('\n')
+    const url = output.match(/https:\/\/\S+/)?.[0]
+    if (!url) {
+      throw new Error(output || 'GitHub CLI did not return a pull request URL.')
+    }
+    return { ok: true, url, output }
+  } catch (error) {
+    return { ok: false, error: errorMessageOf(error) }
+  }
+}
+
+async function readWorkspaceGitStatus(
+  workspacePath: string,
+): Promise<DesktopGitStatus> {
+  await execFileAsync('git', ['-C', workspacePath, 'rev-parse', '--is-inside-work-tree'])
+  const [{ stdout: branchOutput }, { stdout: statusOutput }] =
+    await Promise.all([
+      execFileAsync('git', ['-C', workspacePath, 'status', '-sb', '--porcelain=v1']),
+      execFileAsync('git', [
+        '-C',
+        workspacePath,
+        'status',
+        '--porcelain=v1',
+        '--untracked-files=all',
+      ]),
+    ])
+  const files = parseGitStatusFiles(statusOutput)
+  const statByPath = await readGitFileStats(workspacePath)
+  const filesWithStats = files.map(file => ({
+    ...file,
+    additions: statByPath.get(file.path)?.additions ?? null,
+    deletions: statByPath.get(file.path)?.deletions ?? null,
+  }))
+  const branch = parseGitBranchStatus(branchOutput)
+  return {
+    branchName: branch.branchName,
+    upstream: branch.upstream,
+    ahead: branch.ahead,
+    behind: branch.behind,
+    clean: filesWithStats.length === 0,
+    files: filesWithStats,
+  }
+}
+
+function parseGitStatusFiles(statusOutput: string): DesktopGitFileChange[] {
+  return statusOutput
+    .split(/\r?\n/)
+    .map(line => line.trimEnd())
+    .filter(Boolean)
+    .map(line => {
+      const stagedStatus = line[0] ?? ' '
+      const unstagedStatus = line[1] ?? ' '
+      const rawPath = line.slice(3)
+      const renameParts = rawPath.split(' -> ')
+      const path = renameParts.at(-1)?.trim() ?? rawPath.trim()
+      const originalPath =
+        renameParts.length > 1 ? renameParts[0]?.trim() : undefined
+      return {
+        path,
+        originalPath,
+        status: `${stagedStatus}${unstagedStatus}`,
+        stagedStatus,
+        unstagedStatus,
+        additions: null,
+        deletions: null,
+        isUntracked: stagedStatus === '?' && unstagedStatus === '?',
+      }
+    })
+}
+
+async function readGitFileStats(
+  workspacePath: string,
+): Promise<Map<string, { additions: number; deletions: number }>> {
+  const stats = new Map<string, { additions: number; deletions: number }>()
+  for (const args of [
+    ['-C', workspacePath, 'diff', '--numstat', '--'],
+    ['-C', workspacePath, 'diff', '--cached', '--numstat', '--'],
+  ]) {
+    const { stdout } = await execFileAsync('git', args)
+    for (const line of stdout.split(/\r?\n/)) {
+      const [added, deleted, filePath] = line.split('\t')
+      if (!filePath) continue
+      const current = stats.get(filePath) ?? { additions: 0, deletions: 0 }
+      stats.set(filePath, {
+        additions: current.additions + parseNumstatValue(added),
+        deletions: current.deletions + parseNumstatValue(deleted),
+      })
+    }
+  }
+  return stats
+}
+
+function parseNumstatValue(value: string | undefined): number {
+  if (!value || value === '-') return 0
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
+function parseGitBranchStatus(statusOutput: string): {
+  branchName: string | null
+  upstream: string | null
+  ahead: number
+  behind: number
+} {
+  const header = statusOutput.split(/\r?\n/)[0] ?? ''
+  if (!header.startsWith('## ')) {
+    return { branchName: null, upstream: null, ahead: 0, behind: 0 }
+  }
+  const withoutPrefix = header.slice(3)
+  const metaMatch = /\[(?<meta>[^\]]+)\]$/.exec(withoutPrefix)
+  const meta = metaMatch?.groups?.meta ?? ''
+  const branchSection = withoutPrefix.replace(/\s+\[[^\]]+\]$/, '')
+  const [branchPart, upstreamPart] = branchSection.split('...')
+  const branchName = branchPart === 'HEAD' ? null : branchPart || null
+  return {
+    branchName,
+    upstream: upstreamPart || null,
+    ahead: parseAheadBehind(meta, 'ahead'),
+    behind: parseAheadBehind(meta, 'behind'),
+  }
+}
+
+function parseAheadBehind(meta: string, key: 'ahead' | 'behind'): number {
+  const match = new RegExp(`${key} (\\d+)`).exec(meta)
+  return match ? Number(match[1]) : 0
+}
+
+async function assertValidBranchName(branchName: string): Promise<void> {
+  try {
+    await execFileAsync('git', ['check-ref-format', '--branch', branchName])
+  } catch {
+    throw new Error('Branch name is not valid.')
+  }
+}
+
+function validateGitPaths(workspacePath: string, paths: string[]): string[] {
+  const uniquePaths = [...new Set(paths.map(path => path.trim()).filter(Boolean))]
+  if (uniquePaths.length === 0) {
+    throw new Error('Select at least one changed file to commit.')
+  }
+  for (const filePath of uniquePaths) {
+    if (filePath.startsWith('-')) {
+      throw new Error(`Refusing to use an unsafe Git path: ${filePath}`)
+    }
+    assertPathInsideAllowedWorkspace(resolve(workspacePath, filePath))
+  }
+  return uniquePaths
+}
+
+async function assertCommandAvailable(
+  command: string,
+  errorMessage: string,
+): Promise<void> {
+  try {
+    if (process.platform === 'win32') {
+      await execFileAsync('where.exe', [command])
+      return
+    }
+    await execFileAsync('which', [command])
+  } catch {
+    throw new Error(errorMessage)
+  }
+}
+
 async function getWorkspaceGitInfo(
   workspacePath: string,
 ): Promise<{ branchName: string | null; branches: string[]; isGitRepo: boolean }> {
@@ -691,4 +977,8 @@ function requireNonEmptyString(value: unknown, label: string): string {
     throw new Error(`${label} cannot be empty.`)
   }
   return trimmed
+}
+
+function errorMessageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
 }

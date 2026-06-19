@@ -18,7 +18,10 @@ import {
   Upload,
 } from "lucide-react";
 import { legacyMessagesToSessionEvents } from "../../shared/sessionEventModel.js";
-import type { DesktopSessionEvent } from "../../shared/types.js";
+import type {
+  DesktopGitStatus,
+  DesktopSessionEvent,
+} from "../../shared/types.js";
 import { useQuickChatContext } from "../context/QuickChatContext.js";
 import type { Message } from "../uiTypes.js";
 import { MarkdownMessage } from "./MarkdownMessage.js";
@@ -34,6 +37,12 @@ export function ConversationPage(): React.ReactNode {
     workspacePath,
     branchName,
     diff,
+    gitStatus,
+    onCreateBranch,
+    onOpenWorkspacePath,
+    onRefreshDiff,
+    onCommitOrPush,
+    onCreatePullRequest,
     composer,
   } = useQuickChatContext();
 
@@ -57,7 +66,11 @@ export function ConversationPage(): React.ReactNode {
         event.role === "assistant" &&
         Boolean(event.content?.trim()),
     );
-  const showEnvironmentPanel = false;
+  const showEnvironmentPanel = Boolean(workspacePath);
+  const showComposerChangeSummary = Boolean(
+    workspacePath && gitStatus && gitStatus.files.length > 0,
+  );
+  const composerDiffSummary = summarizeDiff(diff);
   const fallbackTitle = React.useMemo(
     () => getConversationTitle(timelineEvents),
     [timelineEvents],
@@ -125,12 +138,32 @@ export function ConversationPage(): React.ReactNode {
           <EnvironmentPanel
             branchName={branchName}
             diff={diff}
+            gitStatus={gitStatus}
             workspacePath={workspacePath}
+            onCommitOrPush={onCommitOrPush}
+            onCreateBranch={onCreateBranch}
+            onCreatePullRequest={onCreatePullRequest}
+            onOpenWorkspacePath={onOpenWorkspacePath}
+            onRefreshDiff={onRefreshDiff}
           />
         ) : null}
       </div>
 
-      {composer ? <div className="chat-composer">{composer}</div> : null}
+      {composer ? (
+        <div className="chat-composer">
+          {showComposerChangeSummary ? (
+            <div className="composer-change-summary">
+              <span>
+                {gitStatus?.files.length ?? 0} 个文件已更改
+                <strong> +{formatPanelNumber(composerDiffSummary.additions)}</strong>
+                <em> -{formatPanelNumber(composerDiffSummary.deletions)}</em>
+              </span>
+              <button type="button">审查</button>
+            </div>
+          ) : null}
+          {composer}
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -305,14 +338,28 @@ function getConversationTitle(
 function EnvironmentPanel({
   branchName,
   diff,
+  gitStatus,
   workspacePath,
+  onCommitOrPush,
+  onCreateBranch,
+  onCreatePullRequest,
+  onOpenWorkspacePath,
+  onRefreshDiff,
 }: {
   branchName: string | null;
   diff: string;
+  gitStatus: DesktopGitStatus | null;
   workspacePath: string | null;
+  onCommitOrPush: () => void;
+  onCreateBranch: () => void;
+  onCreatePullRequest: () => void;
+  onOpenWorkspacePath: () => void;
+  onRefreshDiff: () => void;
 }): React.ReactNode {
+  const [showDiff, setShowDiff] = React.useState(false);
   const diffSummary = summarizeDiff(diff);
   const gitLabel = branchName?.trim() || "未检测到 Git 分支";
+  const changedFileCount = gitStatus?.files.length ?? 0;
 
   return (
     <aside className="environment-panel" aria-label="环境信息">
@@ -324,29 +371,53 @@ function EnvironmentPanel({
       </div>
 
       <div className="environment-action-list">
-        <button className="environment-action-row" type="button">
+        <button
+          className="environment-action-row"
+          type="button"
+          onClick={() => {
+            onRefreshDiff();
+            setShowDiff((current) => !current);
+          }}
+        >
           <FileDiff size={16} />
-          <span>变更</span>
+          <span>变更{changedFileCount ? ` (${changedFileCount})` : ""}</span>
           <span className="environment-diff-counts">
             <strong>+{formatPanelNumber(diffSummary.additions)}</strong>
             <em>-{formatPanelNumber(diffSummary.deletions)}</em>
           </span>
         </button>
-        <button className="environment-action-row" type="button">
+        {showDiff ? <pre className="environment-diff-preview">{diff}</pre> : null}
+        <button
+          className="environment-action-row"
+          type="button"
+          onClick={onOpenWorkspacePath}
+        >
           <Laptop size={16} />
           <span>本地</span>
           <ChevronRight className="environment-row-chevron" size={13} />
         </button>
-        <button className="environment-action-row" type="button">
+        <button
+          className="environment-action-row"
+          type="button"
+          onClick={onCreateBranch}
+        >
           <GitBranch size={16} />
           <span title={gitLabel}>{gitLabel}</span>
           <ChevronRight className="environment-row-chevron" size={13} />
         </button>
-        <button className="environment-action-row" type="button">
+        <button
+          className="environment-action-row"
+          type="button"
+          onClick={onCommitOrPush}
+        >
           <Upload size={16} />
           <span>提交或推送</span>
         </button>
-        <button className="environment-action-row" type="button">
+        <button
+          className="environment-action-row"
+          type="button"
+          onClick={onCreatePullRequest}
+        >
           <GitPullRequest size={16} />
           <span>创建拉取请求</span>
         </button>

@@ -21,6 +21,31 @@ const metadataPatch = z.object({
   archivedAt: nullableText.optional(),
 })
 
+const createBranchInput = z.object({
+  workspacePath: z.string(),
+  branchName: z.string(),
+  startPoint: optionalText,
+})
+
+const commitChangesInput = z.object({
+  workspacePath: z.string(),
+  message: z.string(),
+  paths: z.array(z.string()),
+})
+
+const pushBranchInput = z.object({
+  workspacePath: z.string(),
+  setUpstream: z.boolean().optional(),
+  forceWithLease: z.boolean().optional(),
+})
+
+const createPullRequestInput = z.object({
+  workspacePath: z.string(),
+  title: z.string(),
+  body: optionalText,
+  draft: z.boolean().optional(),
+})
+
 const permissionDecision = z.object({
   behavior: z.enum(['allow', 'deny']),
   message: optionalText,
@@ -63,6 +88,11 @@ export const DESKTOP_API_ARG_SCHEMAS = {
   openWorkspace: z.tuple([z.string()]),
   getWorkspaceContext: z.tuple([z.string()]),
   checkoutWorkspaceBranch: z.tuple([z.string(), z.string()]),
+  getWorkspaceGitStatus: z.tuple([z.string()]),
+  createWorkspaceBranch: z.tuple([createBranchInput]),
+  commitWorkspaceChanges: z.tuple([commitChangesInput]),
+  pushWorkspaceBranch: z.tuple([pushBranchInput]),
+  createPullRequest: z.tuple([createPullRequestInput]),
   listWorkspaceFiles: z.tuple([z.string()]),
   readWorkspaceFile: z.tuple([z.string(), z.string()]),
   getWorkspaceDiff: z.tuple([z.string()]),

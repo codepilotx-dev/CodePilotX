@@ -61,6 +61,16 @@ const api: DesktopApi = {
       workspacePath,
       branchName,
     ),
+  getWorkspaceGitStatus: workspacePath =>
+    ipcRenderer.invoke(desktopApiChannel('getWorkspaceGitStatus'), workspacePath),
+  createWorkspaceBranch: input =>
+    ipcRenderer.invoke(desktopApiChannel('createWorkspaceBranch'), input),
+  commitWorkspaceChanges: input =>
+    ipcRenderer.invoke(desktopApiChannel('commitWorkspaceChanges'), input),
+  pushWorkspaceBranch: input =>
+    ipcRenderer.invoke(desktopApiChannel('pushWorkspaceBranch'), input),
+  createPullRequest: input =>
+    ipcRenderer.invoke(desktopApiChannel('createPullRequest'), input),
   listWorkspaceFiles: workspacePath =>
     ipcRenderer.invoke(desktopApiChannel('listWorkspaceFiles'), workspacePath),
   readWorkspaceFile: (workspacePath, filePath) =>

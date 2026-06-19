@@ -4,6 +4,7 @@ import type {
   DesktopAuthStatus,
   DesktopFileEntry,
   DesktopFilePreview,
+  DesktopGitStatus,
   DesktopRuntimeStatus,
   DesktopWorkspace,
 } from '../../../shared/types.js'
@@ -30,6 +31,7 @@ export type UseWorkspaceStateResult = {
   files: DesktopFileEntry[]
   selectedFile: DesktopFilePreview | null
   diff: string
+  gitStatus: DesktopGitStatus | null
   setActiveSessionId: (id: string | null) => void
   refreshRuntimeStatus: () => Promise<void>
   refreshWorkspace: (
@@ -47,7 +49,7 @@ export type UseWorkspaceStateResult = {
 export function useWorkspaceState(
   options: UseWorkspaceStateOptions,
 ): UseWorkspaceStateResult {
-  const [workspace, setWorkspace] = useState<DesktopWorkspace | null>(null)
+  const [workspace, setWorkspaceState] = useState<DesktopWorkspace | null>(null)
   const [authStatus, setAuthStatus] = useState<DesktopAuthStatus | null>(null)
   const [runtimeStatus, setRuntimeStatus] = useState<DesktopRuntimeStatus | null>(
     null,
@@ -57,6 +59,7 @@ export function useWorkspaceState(
     useState<DesktopFilePreview | null>(null)
   const selectedFileRef = useRef<DesktopFilePreview | null>(null)
   const [diff, setDiff] = useState(NO_WORKSPACE_DIFF)
+  const [gitStatus, setGitStatus] = useState<DesktopGitStatus | null>(null)
   const activeSessionIdRef = useRef<string | null>(null)
   const onErrorRef = useRef(options.onError)
   onErrorRef.current = options.onError
@@ -74,6 +77,13 @@ export function useWorkspaceState(
     },
     [],
   )
+
+  const setWorkspace = useCallback((nextWorkspace: DesktopWorkspace | null): void => {
+    setWorkspaceState(nextWorkspace)
+    if (!nextWorkspace) {
+      setGitStatus(null)
+    }
+  }, [])
 
   const refreshRuntimeStatus = useCallback(async (): Promise<void> => {
     try {
@@ -117,14 +127,16 @@ export function useWorkspaceState(
         setWorkspace(null)
         setFiles([])
         setDiff(NO_WORKSPACE_DIFF)
+        setGitStatus(null)
         setSelectedFile(null)
         return
       }
       try {
-        const [nextContext, nextFiles, nextDiff] = await Promise.all([
+        const [nextContext, nextFiles, nextDiff, nextGitStatus] = await Promise.all([
           desktopClient.getWorkspaceContext(target.path),
           desktopClient.listWorkspaceFiles(target.path),
           desktopClient.getWorkspaceDiff(target.path),
+          desktopClient.getWorkspaceGitStatus(target.path),
         ])
         if (
           refreshOptions.expectedSessionId !== undefined &&
@@ -139,6 +151,7 @@ export function useWorkspaceState(
         )
         setFiles(nextFiles)
         setDiff(nextDiff.patch)
+        setGitStatus(nextGitStatus.ok ? nextGitStatus.status : null)
         if (refreshOptions.clearSelectedFile ?? true) {
           setSelectedFile(null)
         } else {
@@ -229,6 +242,7 @@ export function useWorkspaceState(
     files,
     selectedFile,
     diff,
+    gitStatus,
     setActiveSessionId,
     refreshRuntimeStatus,
     refreshWorkspace,
