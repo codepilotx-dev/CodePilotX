@@ -8,6 +8,10 @@ import {
 import { DesktopAppShell } from './DesktopAppShell.js'
 import { DesktopSidebar } from './DesktopSidebar.js'
 import { GlobalErrorModal } from './GlobalErrorModal.js'
+import {
+  GitWorkflowModal,
+  type GitWorkflowMode,
+} from './GitWorkflowModal.js'
 import { PermissionRequestModal } from './PermissionRequestModal.js'
 import { SettingsSidebarContent } from './SettingsSidebarContent.js'
 import { SidebarFrame } from './SidebarFrame.js'
@@ -69,6 +73,10 @@ export function DesktopLayout(): React.ReactNode {
     selectedModelPreset,
     providerID,
     showContextUsage,
+    gitBranchPrefix,
+    allowForcePush,
+    commitMessagePrompt,
+    pullRequestPrompt,
     setPermissionMode,
     setModel,
     setProviderBaseURL,
@@ -88,6 +96,8 @@ export function DesktopLayout(): React.ReactNode {
   const [modelProviders, setModelProviders] = useState<
     DesktopModelProviderSummary[]
   >([])
+  const [gitWorkflowMode, setGitWorkflowMode] =
+    useState<GitWorkflowMode | null>(null)
 
   const layout = useDesktopLayout()
   const {
@@ -118,6 +128,7 @@ export function DesktopLayout(): React.ReactNode {
     setSelectedFile,
     setWorkspace: setWorkspaceState,
     setDiff: setDiffState,
+    gitStatus,
   } = workspace
 
   const session = useSessionState({
@@ -313,6 +324,28 @@ export function DesktopLayout(): React.ReactNode {
     },
     [currentWorkspace, refreshWorkspace, setWorkspaceState],
   )
+
+  const handleWorkspaceChanged = useCallback(
+    async (nextWorkspace: DesktopWorkspace): Promise<void> => {
+      setWorkspaceState(nextWorkspace)
+      await refreshWorkspace(nextWorkspace, { clearSelectedFile: true })
+    },
+    [refreshWorkspace, setWorkspaceState],
+  )
+
+  const handleOpenWorkspacePath = useCallback((): void => {
+    if (!currentWorkspace) return
+    void desktopClient
+      .openPathWithDefaultTarget(currentWorkspace.path)
+      .catch(error =>
+        setErrorMessage(error instanceof Error ? error.message : String(error)),
+      )
+  }, [currentWorkspace])
+
+  const handleRefreshDiff = useCallback((): void => {
+    if (!currentWorkspace) return
+    void refreshWorkspace(currentWorkspace, { clearSelectedFile: false })
+  }, [currentWorkspace, refreshWorkspace])
 
   const handleNewConversation = useCallback(async (): Promise<void> => {
     activateSessionById(null)
@@ -921,6 +954,7 @@ export function DesktopLayout(): React.ReactNode {
       onProviderModelChange={handleProviderModelChange}
       onOpenWorkspace={handleOpenRecentWorkspace}
       onBranchSelect={handleBranchSelect}
+      onCreateBranch={() => setGitWorkflowMode('branch')}
       onPermissionChange={setPermissionMode}
       onThinkingChange={setThinkingMode}
       createSessionForWorkspace={createSessionForWorkspace}
@@ -947,6 +981,23 @@ export function DesktopLayout(): React.ReactNode {
           setRuntimeWarningDismissed(true)
         }}
       />
+      <GitWorkflowModal
+        allowForcePush={allowForcePush}
+        commitMessagePrompt={commitMessagePrompt}
+        gitBranchPrefix={gitBranchPrefix}
+        gitStatus={gitStatus}
+        mode={gitWorkflowMode}
+        pullRequestPrompt={pullRequestPrompt}
+        workspace={currentWorkspace}
+        onClose={() => setGitWorkflowMode(null)}
+        onError={message => setErrorMessage(message)}
+        onRefreshWorkspace={async () => {
+          if (currentWorkspace) {
+            await refreshWorkspace(currentWorkspace, { clearSelectedFile: false })
+          }
+        }}
+        onWorkspaceChanged={handleWorkspaceChanged}
+      />
       {archiveNoticeVisible ? (
         <ArchiveConversationNotice
           onClose={() => setArchiveNoticeVisible(false)}
@@ -970,6 +1021,12 @@ export function DesktopLayout(): React.ReactNode {
             workspacePath: currentWorkspace?.path ?? null,
             branchName,
             diff: workspace.diff,
+            gitStatus,
+            onCreateBranch: () => setGitWorkflowMode('branch'),
+            onOpenWorkspacePath: handleOpenWorkspacePath,
+            onRefreshDiff: handleRefreshDiff,
+            onCommitOrPush: () => setGitWorkflowMode('commitPush'),
+            onCreatePullRequest: () => setGitWorkflowMode('pullRequest'),
             events: isQuickChatPage || isConversationLoading ? [] : events,
             messages: isQuickChatPage || isConversationLoading ? [] : messages,
             sessionStatus,

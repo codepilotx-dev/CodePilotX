@@ -143,6 +143,7 @@ type Props = {
   onOpenFiles: () => void
   onOpenWorkspace: (workspace: DesktopWorkspace) => void
   onBranchSelect: (branch: string) => void
+  onCreateBranch: () => void
   onPermissionChange: (value: DesktopPermissionMode) => void
   onSubmit: () => void
   onThinkingChange: (value: DesktopThinkingMode) => void
@@ -176,6 +177,7 @@ export function ComposerCard({
   onOpenFiles,
   onOpenWorkspace,
   onBranchSelect,
+  onCreateBranch,
   onPermissionChange,
   onSubmit,
   onThinkingChange,
@@ -901,7 +903,13 @@ export function ComposerCard({
                 )}
               </div>
               <div className="popover-divider" />
-              <PopoverItem icon={<Plus size={14} />} disabled>
+              <PopoverItem
+                icon={<Plus size={14} />}
+                onClick={() => {
+                  onCreateBranch()
+                  closeDropdown()
+                }}
+              >
                 创建并检出新分支...
               </PopoverItem>
             </PopoverMenu>

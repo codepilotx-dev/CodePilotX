@@ -153,3 +153,99 @@
   background: var(--c-accent) !important;
   color: var(--c-text-on-accent);
 }
+
+.git-workflow-modal {
+  width: min(720px, 100%);
+}
+
+.git-workflow-form {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+.git-workflow-form label {
+  display: grid;
+  gap: 6px;
+  color: var(--c-text);
+  font-size: var(--fs-13);
+}
+
+.git-workflow-form input,
+.git-workflow-form textarea {
+  width: 100%;
+  min-height: 34px;
+  padding: 8px 10px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+  background: var(--c-bg);
+  color: var(--c-text);
+  font: inherit;
+}
+
+.git-workflow-form textarea {
+  min-height: 92px;
+  resize: vertical;
+}
+
+.git-workflow-files {
+  display: grid;
+  gap: 6px;
+  max-height: 260px;
+  overflow: auto;
+  padding: var(--sp-3);
+  border: 1px solid var(--c-border-soft);
+  border-radius: var(--r-md);
+  background: var(--c-bg-soft);
+}
+
+.git-workflow-files > div,
+.git-workflow-check {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.git-workflow-files > div {
+  justify-content: space-between;
+}
+
+.git-workflow-files button {
+  min-height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--c-border-soft);
+  border-radius: var(--r-md);
+  background: var(--c-bg);
+}
+
+.git-workflow-files label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.git-workflow-files label span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--c-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.git-workflow-files small {
+  color: var(--c-text-meta);
+  font-family: var(--ff-mono);
+}
+
+.git-workflow-check {
+  justify-content: start;
+}
+
+.git-workflow-error {
+  padding: 8px 10px;
+  border: 1px solid var(--red-7);
+  border-radius: var(--r-md);
+  background: var(--red-a2);
+  color: var(--red-11);
+  font-size: var(--fs-13);
+}

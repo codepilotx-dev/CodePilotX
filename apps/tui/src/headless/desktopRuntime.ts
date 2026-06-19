@@ -16,26 +16,13 @@ import {
 import { createStore, type Store } from '../state/store.js'
 import { getDefaultAppState } from '../state/AppStateStore.js'
 import type { Tool, ToolPermissionContext, Tools } from '../Tool.js'
-import { AskUserQuestionTool } from '../tools/AskUserQuestionTool/AskUserQuestionTool.js'
-import { BashTool } from '../tools/BashTool/BashTool.js'
-import { EnterPlanModeTool } from '../tools/EnterPlanModeTool/EnterPlanModeTool.js'
-import { ExitPlanModeV2Tool } from '../tools/ExitPlanModeTool/ExitPlanModeV2Tool.js'
-import { FileEditTool } from '../tools/FileEditTool/FileEditTool.js'
-import { FileReadTool } from '../tools/FileReadTool/FileReadTool.js'
-import { FileWriteTool } from '../tools/FileWriteTool/FileWriteTool.js'
-import { GlobTool } from '../tools/GlobTool/GlobTool.js'
-import { GrepTool } from '../tools/GrepTool/GrepTool.js'
-import { NotebookEditTool } from '../tools/NotebookEditTool/NotebookEditTool.js'
-import { TaskStopTool } from '../tools/TaskStopTool/TaskStopTool.js'
-import { TodoWriteTool } from '../tools/TodoWriteTool/TodoWriteTool.js'
-import { WebFetchTool } from '../tools/WebFetchTool/WebFetchTool.js'
-import { WebSearchTool } from '../tools/WebSearchTool/WebSearchTool.js'
 import {
   MiniMaxImageTool,
   MiniMaxMusicTool,
   MiniMaxSpeechTool,
   MiniMaxVideoTool,
 } from '../tools/MiniMaxTool/MiniMaxTool.js'
+import { getAllBaseTools } from '../tools.js'
 import { initBuiltinPlugins } from '../plugins/bundled/index.js'
 import { runWithCwdOverride } from '../utils/cwd.js'
 import { getDenyRuleForTool } from '../utils/permissions/permissions.js'
@@ -87,6 +74,35 @@ export type DesktopHeadlessRuntime = {
 
 const DESKTOP_ENABLED_THINKING_BUDGET = 1_000_000_000
 const MINIMAX_BUILTIN_PLUGIN_ID = 'minimax@builtin'
+const DESKTOP_WORKFLOW_TOOL_NAMES = new Set([
+  'Agent',
+  'Skill',
+  'TaskOutput',
+  'Bash',
+  'PowerShell',
+  'Read',
+  'Edit',
+  'Write',
+  'NotebookEdit',
+  'Glob',
+  'Grep',
+  'WebFetch',
+  'WebSearch',
+  'TodoWrite',
+  'AskUserQuestion',
+  'EnterPlanMode',
+  'ExitPlanMode',
+  'TaskStop',
+  'TaskCreate',
+  'TaskGet',
+  'TaskUpdate',
+  'TaskList',
+  'ToolSearch',
+  'ListMcpResourcesTool',
+  'ReadMcpResourceTool',
+  'EnterWorktree',
+  'ExitWorktree',
+])
 
 export function createDesktopHeadlessRuntime(
   options: DesktopHeadlessRuntimeOptions,
@@ -424,20 +440,9 @@ function getDesktopHeadlessTools(
   permissionContext: ToolPermissionContext,
 ): Tools {
   const tools: Tool[] = [
-    BashTool,
-    FileReadTool,
-    FileEditTool,
-    FileWriteTool,
-    NotebookEditTool,
-    GlobTool,
-    GrepTool,
-    WebFetchTool,
-    WebSearchTool,
-    TodoWriteTool,
-    AskUserQuestionTool,
-    EnterPlanModeTool,
-    ExitPlanModeV2Tool,
-    TaskStopTool,
+    ...getAllBaseTools().filter(tool =>
+      DESKTOP_WORKFLOW_TOOL_NAMES.has(tool.name),
+    ),
     ...(getSettings_DEPRECATED().enabledPlugins?.[MINIMAX_BUILTIN_PLUGIN_ID] ===
     true
       ? [
@@ -448,7 +453,12 @@ function getDesktopHeadlessTools(
         ]
       : []),
   ]
-  return tools.filter(
+  const seen = new Set<string>()
+  return tools.filter(tool => {
+    if (seen.has(tool.name)) return false
+    seen.add(tool.name)
+    return true
+  }).filter(
     tool => !getDenyRuleForTool(permissionContext, tool) && tool.isEnabled(),
   )
 }
