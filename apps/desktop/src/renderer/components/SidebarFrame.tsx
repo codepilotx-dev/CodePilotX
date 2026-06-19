@@ -1,6 +1,7 @@
 import type React from "react";
 import { useEffect, useState } from "react";
 import { Bot, History } from "lucide-react";
+import { motion } from "motion/react";
 
 type Props = {
   children: React.ReactNode;
@@ -22,12 +23,24 @@ export function SidebarFrame({
   onSetWidth,
 }: Props): React.ReactNode {
   const [hoverOpen, setHoverOpen] = useState(false);
+  const [hoverClosing, setHoverClosing] = useState(false);
   const [resizing, setResizing] = useState(false);
   const [start, setStart] = useState({ x: 0, width });
+
+  function openHoverSidebar(): void {
+    setHoverClosing(false);
+    setHoverOpen(true);
+  }
+
+  function closeHoverSidebar(): void {
+    if (!hoverOpen || hoverClosing) return;
+    setHoverClosing(true);
+  }
 
   useEffect(() => {
     if (!collapsed) {
       setHoverOpen(false);
+      setHoverClosing(false);
     }
   }, [collapsed]);
 
@@ -95,46 +108,72 @@ export function SidebarFrame({
   }
 
   return (
-    <aside
-      aria-label="侧边栏"
-      className={[
-        "desktop-sidebar",
-        collapsed ? "is-collapsed" : "",
-        collapsed && hoverOpen ? "is-hover-open" : "",
-        resizing ? "is-resizing" : "",
-      ].join(" ")}
-      onPointerLeave={() => {
-        if (collapsed) {
-          setHoverOpen(false);
-        }
-      }}
-      style={{ "--sidebar-current-w": `${width}px` } as React.CSSProperties}
-    >
+    <>
       {collapsed && !hoverOpen ? (
         <div
           aria-hidden="true"
           className="sidebar-hover-zone"
-          onPointerEnter={() => setHoverOpen(true)}
+          onPointerEnter={openHoverSidebar}
         />
       ) : null}
-      {children}
+      <motion.aside
+        aria-label="侧边栏"
+        animate={
+          collapsed && hoverOpen
+            ? {
+                opacity: hoverClosing ? 0 : 1,
+                x: hoverClosing ? -8 : 0,
+              }
+            : {
+                opacity: collapsed ? 0 : 1,
+                x: collapsed ? -10 : 0,
+              }
+        }
+        className={[
+          "desktop-sidebar",
+          collapsed ? "is-collapsed" : "",
+          collapsed && hoverOpen ? "is-hover-open" : "",
+          collapsed && hoverClosing ? "is-hover-closing" : "",
+          resizing ? "is-resizing" : "",
+        ].join(" ")}
+        onPointerEnter={() => {
+          if (collapsed && hoverOpen) {
+            openHoverSidebar();
+          }
+        }}
+        onPointerLeave={() => {
+          if (collapsed) {
+            closeHoverSidebar();
+          }
+        }}
+        onAnimationComplete={() => {
+          if (hoverClosing) {
+            setHoverOpen(false);
+            setHoverClosing(false);
+          }
+        }}
+        style={{ "--sidebar-current-w": `${width}px` } as React.CSSProperties}
+        transition={{ duration: 0.14, ease: [0.16, 1, 0.3, 1] }}
+      >
+        {children}
 
-      <div
-        aria-label="调整侧边栏宽度"
-        aria-orientation="vertical"
-        aria-valuemax={maxWidth}
-        aria-valuemin={minWidth}
-        aria-valuenow={width}
-        className="sidebar-resizer"
-        onKeyDown={handleResizeKey}
-        onPointerDown={startResize}
-        role="separator"
-        tabIndex={0}
-      />
-      <div className="icon-button sidebar-brand-floating">
-        <Bot size={14} />
-      </div>
-      <History className="icon-button sidebar-history-watermark" size={14} />
-    </aside>
+        <div
+          aria-label="调整侧边栏宽度"
+          aria-orientation="vertical"
+          aria-valuemax={maxWidth}
+          aria-valuemin={minWidth}
+          aria-valuenow={width}
+          className="sidebar-resizer"
+          onKeyDown={handleResizeKey}
+          onPointerDown={startResize}
+          role="separator"
+          tabIndex={0}
+        />
+        <div className="icon-button sidebar-brand-floating">
+          <Bot size={14} />
+        </div>
+        <History className="icon-button sidebar-history-watermark" size={14} />
+      </motion.aside>
+    </>
   );
 }

@@ -44,8 +44,11 @@
   flex-basis: var(--sidebar-current-w);
   overflow: hidden;
   border-right: 1px solid var(--c-border-soft);
-  box-shadow: var(--sh-popover);
+  box-shadow: 2px 0 8px rgb(0, 0, 0, 0.08);
+  border-radius: var(--r-md);
+  border: 1px solid var(--c-border);
   transition: none;
+  will-change: opacity, transform;
 }
 
 .sidebar-layout {
