@@ -48,8 +48,9 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 35px;
+  gap: 45px;
   width: 100%;
+  max-width: 760px;
   flex: 1;
   min-height: 0;
   padding: 0 20px;
@@ -127,7 +128,6 @@
   gap: 0;
   justify-items: center;
   text-align: center;
-
 }
 
 .quick-chat-hero h1,
