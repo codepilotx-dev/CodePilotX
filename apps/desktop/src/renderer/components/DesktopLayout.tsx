@@ -90,9 +90,14 @@ export function DesktopLayout(): React.ReactNode {
   const {
     sidebarCollapsed,
     sidebarWidth,
+    setSidebarCollapsed,
     setSidebarWidth,
     toggleSidebarCollapsed,
   } = layout
+
+  const collapseSidebar = useCallback((): void => {
+    setSidebarCollapsed(true)
+  }, [setSidebarCollapsed])
 
   const workspace = useWorkspaceState({
     onError: (message: string) => setErrorMessage(message || null),
@@ -894,6 +899,7 @@ export function DesktopLayout(): React.ReactNode {
       maxWidth={SIDEBAR_MAX_WIDTH}
       minWidth={SIDEBAR_MIN_WIDTH}
       width={sidebarWidth}
+      onCollapse={collapseSidebar}
       onSetWidth={setSidebarWidth}
     >
       {isSettingsRoute ? settingsSidebarContent : appSidebarContent}

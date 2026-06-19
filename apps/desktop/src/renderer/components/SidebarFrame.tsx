@@ -8,6 +8,7 @@ type Props = {
   maxWidth: number;
   minWidth: number;
   width: number;
+  onCollapse: () => void;
   onSetWidth: (width: number) => void;
 };
 
@@ -17,22 +18,41 @@ export function SidebarFrame({
   maxWidth,
   minWidth,
   width,
+  onCollapse,
   onSetWidth,
 }: Props): React.ReactNode {
+  const [hoverOpen, setHoverOpen] = useState(false);
   const [resizing, setResizing] = useState(false);
   const [start, setStart] = useState({ x: 0, width });
 
   useEffect(() => {
-    if (!resizing) return;
-
-    function handlePointerMove(event: PointerEvent): void {
-      onSetWidth(start.width + event.clientX - start.x);
+    if (!collapsed) {
+      setHoverOpen(false);
     }
+  }, [collapsed]);
+
+  useEffect(() => {
+    if (!resizing) return;
 
     function stopResize(): void {
       setResizing(false);
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
+    }
+
+    function collapseResize(): void {
+      stopResize();
+      onCollapse();
+    }
+
+    function handlePointerMove(event: PointerEvent): void {
+      const nextWidth = start.width + event.clientX - start.x;
+      if (nextWidth <= minWidth) {
+        onSetWidth(minWidth);
+        collapseResize();
+        return;
+      }
+      onSetWidth(nextWidth);
     }
 
     document.addEventListener("pointermove", handlePointerMove);
@@ -47,7 +67,7 @@ export function SidebarFrame({
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
     };
-  }, [onSetWidth, resizing, start.width, start.x]);
+  }, [minWidth, onCollapse, onSetWidth, resizing, start.width, start.x]);
 
   function startResize(event: React.PointerEvent<HTMLDivElement>): void {
     if (collapsed) return;
@@ -80,10 +100,23 @@ export function SidebarFrame({
       className={[
         "desktop-sidebar",
         collapsed ? "is-collapsed" : "",
+        collapsed && hoverOpen ? "is-hover-open" : "",
         resizing ? "is-resizing" : "",
       ].join(" ")}
+      onPointerLeave={() => {
+        if (collapsed) {
+          setHoverOpen(false);
+        }
+      }}
       style={{ "--sidebar-current-w": `${width}px` } as React.CSSProperties}
     >
+      {collapsed && !hoverOpen ? (
+        <div
+          aria-hidden="true"
+          className="sidebar-hover-zone"
+          onPointerEnter={() => setHoverOpen(true)}
+        />
+      ) : null}
       {children}
 
       <div
