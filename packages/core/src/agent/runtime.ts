@@ -110,6 +110,7 @@ export type AgentRuntimeEvent =
       toolName: string
       summary: string
       isError?: boolean
+      metadata?: Record<string, unknown>
       sourceThreadId?: string
       sourceLabel?: string
     }

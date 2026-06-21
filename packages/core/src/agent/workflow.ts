@@ -785,13 +785,29 @@ function statusToThreadEvents(
 function sourceMetadata(
   event: AgentRuntimeEvent,
 ): Record<string, unknown> | undefined {
-  if (!('sourceThreadId' in event || 'sourceLabel' in event)) {
-    return undefined
+  const metadata =
+    'metadata' in event && isRecord(event.metadata) ? event.metadata : undefined
+  const source: Record<string, unknown> = {}
+
+  if ('sourceThreadId' in event && event.sourceThreadId) {
+    source.sourceThreadId = event.sourceThreadId
   }
-  return {
-    ...(event.sourceThreadId ? { sourceThreadId: event.sourceThreadId } : {}),
-    ...(event.sourceLabel ? { sourceLabel: event.sourceLabel } : {}),
+  if ('sourceLabel' in event && event.sourceLabel) {
+    source.sourceLabel = event.sourceLabel
   }
+
+  return mergeMetadata(metadata, source)
+}
+
+function mergeMetadata(
+  ...parts: Array<Record<string, unknown> | undefined>
+): Record<string, unknown> | undefined {
+  const merged = Object.assign({}, ...parts.filter(Boolean))
+  return Object.keys(merged).length > 0 ? merged : undefined
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object'
 }
 
 function eventCreatedAt(event: AgentRuntimeEvent): string | undefined {

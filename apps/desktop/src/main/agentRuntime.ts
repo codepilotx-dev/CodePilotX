@@ -26,6 +26,7 @@ import {
   getUsageFromAssistantRecord,
 } from './desktopContextUsage.js'
 import {
+  buildToolResultMetadata,
   extractPartialText,
   getMessageContent,
   getResultErrorMessage,
@@ -192,6 +193,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
         toolName: 'Agent stderr',
         summary: text.trim(),
         isError: true,
+        metadata: { stderr: text.trim(), content: text.trim(), result: text },
       })
     })
 
@@ -368,6 +370,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
           toolName,
           summary: summarizeToolInput(toolName, item.content),
           isError: item.is_error === true,
+          metadata: buildToolResultMetadata(item.content),
         })
       }
     }
@@ -406,6 +409,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
         toolName,
         summary: summarizeToolInput(toolName, item.content),
         isError: item.is_error === true,
+        metadata: buildToolResultMetadata(item.content),
       })
     }
   }
@@ -725,6 +729,7 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
           toolName,
           summary: summarizeToolInput(toolName, item.content),
           isError: item.is_error === true,
+          metadata: buildToolResultMetadata(item.content),
         })
       }
     }
@@ -763,6 +768,7 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
         toolName,
         summary: summarizeToolInput(toolName, item.content),
         isError: item.is_error === true,
+        metadata: buildToolResultMetadata(item.content),
       })
     }
   }

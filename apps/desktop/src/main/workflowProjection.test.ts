@@ -151,6 +151,47 @@ test('same-name tools in one turn get distinct ids and FIFO results', () => {
   expect(new Set(itemIds).size).toBe(4)
 })
 
+test('failed tool results keep readable metadata through projection', () => {
+  const p = projector()
+  const events = [
+    { type: 'status', sessionId, status: 'running' } as const,
+    {
+      type: 'tool_start',
+      sessionId,
+      toolName: 'Glob',
+      summary: 'Glob: *',
+    } as const,
+    {
+      type: 'tool_result',
+      sessionId,
+      toolName: 'Glob',
+      summary: 'Glob',
+      isError: true,
+      metadata: {
+        stderr: 'ripgrep executable not found',
+        output: 'Install rg or configure bundled path',
+      },
+    } as const,
+  ].flatMap(event => p.project(event))
+
+  const result = events.find(
+    event => 'item' in event && event.item.type === 'tool_result',
+  )
+
+  expect(result).toMatchObject({
+    type: 'item.completed',
+    item: {
+      type: 'tool_result',
+      status: 'failed',
+      isError: true,
+      metadata: {
+        stderr: 'ripgrep executable not found',
+        output: 'Install rg or configure bundled path',
+      },
+    },
+  })
+})
+
 test('permission decisions project into the active workflow turn', () => {
   const p = projector()
   p.project({ type: 'status', sessionId, status: 'running' })

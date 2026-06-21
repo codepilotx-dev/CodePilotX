@@ -15,6 +15,54 @@ export function summarizeToolInput(toolName: string, input: unknown): string {
   return typeof target === 'string' ? `${toolName}: ${target}` : toolName
 }
 
+export function buildToolResultMetadata(
+  result: unknown,
+): Record<string, unknown> | undefined {
+  const metadata: Record<string, unknown> = {}
+  const content = metadataValueToText(result)
+  if (content) {
+    metadata.content = content
+  }
+  if (result !== undefined) {
+    metadata.result = result
+  }
+
+  if (isRecord(result)) {
+    for (const key of [
+      'stderr',
+      'stdout',
+      'output',
+      'error',
+      'message',
+      'text',
+      'content',
+    ]) {
+      const text = metadataValueToText(result[key])
+      if (text) metadata[key] = text
+    }
+  }
+
+  return Object.keys(metadata).length > 0 ? metadata : undefined
+}
+
+function metadataValueToText(value: unknown): string | undefined {
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  if (Array.isArray(value)) {
+    const text = value
+      .map(item => metadataValueToText(item))
+      .filter((part): part is string => Boolean(part))
+      .join('\n')
+    return text || undefined
+  }
+  if (!isRecord(value)) return undefined
+  return (
+    metadataValueToText(value.text) ??
+    metadataValueToText(value.content) ??
+    metadataValueToText(value.message)
+  )
+}
+
 export function extractPartialText(item: Record<string, unknown>): string | null {
   if (item.type !== 'content_block_delta') {
     return null
@@ -65,6 +113,10 @@ export function getUpdatedPermissions(
         ? { ...update, destination: 'localSettings' }
         : update,
     )
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object'
 }
 
 function isPermissionUpdate(value: unknown): value is Record<string, unknown> {

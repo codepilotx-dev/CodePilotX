@@ -114,6 +114,7 @@ declare module '@codepilotx/core/agent/runtime.js' {
         toolName: string
         summary: string
         isError?: boolean
+        metadata?: Record<string, unknown>
         sourceThreadId?: string
         sourceLabel?: string
       }

@@ -131,6 +131,36 @@ test('tool start and result map to tool item lifecycle events', () => {
   })
 })
 
+test('failed runtime tool result preserves readable metadata', () => {
+  const events = agentRuntimeEventToThreadEvents(
+    {
+      type: 'tool_result',
+      sessionId: 'session-1',
+      toolName: 'Glob',
+      summary: 'Glob',
+      isError: true,
+      metadata: {
+        stderr: 'ripgrep executable not found',
+        output: 'Install rg or configure bundled path',
+      },
+    },
+    ids,
+  )
+
+  expect(events[0]).toMatchObject({
+    type: 'item.completed',
+    item: {
+      type: 'tool_result',
+      status: 'failed',
+      isError: true,
+      metadata: {
+        stderr: 'ripgrep executable not found',
+        output: 'Install rg or configure bundled path',
+      },
+    },
+  })
+})
+
 test('permission request preserves the existing request id', () => {
   const events = agentRuntimeEventToThreadEvents(
     {
