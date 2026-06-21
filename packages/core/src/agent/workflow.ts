@@ -195,6 +195,20 @@ export type WorkflowEventEnvelopeOptions = {
   sequence?: number
 }
 
+export type WorkflowContractFixtureName =
+  | 'minimal_success'
+  | 'streaming_message'
+  | 'tool_lifecycle'
+  | 'permission_lifecycle'
+  | 'file_change'
+  | 'turn_failure'
+
+export type WorkflowContractFixtureOptions = {
+  threadId?: ThreadId
+  turnId?: TurnId
+  createdAt?: string
+}
+
 export function createWorkflowId(prefix: string, seed?: string): string {
   const suffix = seed
     ? seed.replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-+|-+$/g, '')
@@ -276,6 +290,258 @@ export function createTurnStartedEvent(
     createdAt: now(),
     ...(input === undefined ? {} : { input }),
   }
+}
+
+export function createWorkflowContractFixture(
+  name: WorkflowContractFixtureName,
+  options: WorkflowContractFixtureOptions = {},
+): ThreadEvent[] {
+  const threadId = options.threadId ?? 'thread-contract'
+  const turnId = options.turnId ?? 'turn-contract'
+  const createdAt = options.createdAt ?? '2026-06-22T00:00:00.000Z'
+  const ids = { threadId, turnId }
+  const base: ThreadEvent[] = [
+    {
+      type: 'thread.started',
+      threadId,
+      createdAt,
+      metadata: { fixture: name },
+    },
+    {
+      type: 'turn.started',
+      threadId,
+      turnId,
+      createdAt,
+      input: 'contract input',
+      metadata: { fixture: name },
+    },
+  ]
+
+  switch (name) {
+    case 'minimal_success':
+      base.push(
+        itemEvent(
+          'item.completed',
+          ids,
+          {
+            id: 'item-agent-message',
+            type: 'agent_message',
+            threadId,
+            turnId,
+            status: 'completed',
+            createdAt,
+            text: 'contract response',
+          },
+          createdAt,
+        ),
+        {
+          type: 'turn.completed',
+          threadId,
+          turnId,
+          createdAt,
+          finalResponse: 'contract response',
+          stopReason: 'fixture',
+        },
+      )
+      break
+    case 'streaming_message':
+      base.push(
+        itemEvent(
+          'item.updated',
+          ids,
+          {
+            id: 'item-agent-message-streaming',
+            type: 'agent_message',
+            threadId,
+            turnId,
+            status: 'in_progress',
+            createdAt,
+            updatedAt: createdAt,
+            text: 'contract',
+            streaming: true,
+          },
+          createdAt,
+        ),
+        itemEvent(
+          'item.completed',
+          ids,
+          {
+            id: 'item-agent-message-streaming',
+            type: 'agent_message',
+            threadId,
+            turnId,
+            status: 'completed',
+            createdAt,
+            updatedAt: createdAt,
+            text: 'contract response',
+          },
+          createdAt,
+        ),
+        {
+          type: 'turn.completed',
+          threadId,
+          turnId,
+          createdAt,
+          finalResponse: 'contract response',
+          stopReason: 'fixture',
+        },
+      )
+      break
+    case 'tool_lifecycle':
+      base.push(
+        itemEvent(
+          'item.started',
+          ids,
+          {
+            id: 'item-tool-call',
+            type: 'tool_call',
+            threadId,
+            turnId,
+            status: 'in_progress',
+            createdAt,
+            toolName: 'Read',
+            summary: 'Read file',
+            toolUseId: 'tool-use-contract',
+          },
+          createdAt,
+        ),
+        itemEvent(
+          'item.completed',
+          ids,
+          {
+            id: 'item-tool-result',
+            type: 'tool_result',
+            threadId,
+            turnId,
+            status: 'completed',
+            createdAt,
+            toolName: 'Read',
+            summary: 'Read complete',
+            toolUseId: 'tool-use-contract',
+            metadata: { content: 'file contents' },
+          },
+          createdAt,
+        ),
+        {
+          type: 'turn.completed',
+          threadId,
+          turnId,
+          createdAt,
+          finalResponse: 'Read complete',
+          stopReason: 'fixture',
+        },
+      )
+      break
+    case 'permission_lifecycle': {
+      const request: AgentPermissionRequest = {
+        requestId: 'permission-contract',
+        toolName: 'Edit',
+        input: { file_path: 'a.ts' },
+        description: 'Edit a.ts',
+      }
+      base.push(
+        itemEvent(
+          'item.started',
+          ids,
+          {
+            id: 'item-permission-request',
+            type: 'permission_request',
+            threadId,
+            turnId,
+            status: 'in_progress',
+            createdAt,
+            request,
+          },
+          createdAt,
+        ),
+        itemEvent(
+          'item.completed',
+          ids,
+          {
+            id: 'item-permission-request',
+            type: 'permission_request',
+            threadId,
+            turnId,
+            status: 'completed',
+            createdAt,
+            updatedAt: createdAt,
+            request,
+            metadata: { decision: 'allow' },
+          },
+          createdAt,
+        ),
+        {
+          type: 'turn.completed',
+          threadId,
+          turnId,
+          createdAt,
+          finalResponse: 'Permission handled',
+          stopReason: 'fixture',
+        },
+      )
+      break
+    }
+    case 'file_change':
+      base.push(
+        itemEvent(
+          'item.completed',
+          ids,
+          {
+            id: 'item-file-change',
+            type: 'file_change',
+            threadId,
+            turnId,
+            status: 'completed',
+            createdAt,
+            filePath: 'a.ts',
+            patch: '@@ -1 +1 @@',
+          },
+          createdAt,
+        ),
+        {
+          type: 'turn.completed',
+          threadId,
+          turnId,
+          createdAt,
+          finalResponse: 'Changed a.ts',
+          stopReason: 'fixture',
+        },
+      )
+      break
+    case 'turn_failure':
+      base.push(
+        itemEvent(
+          'item.completed',
+          ids,
+          {
+            id: 'item-error',
+            type: 'error',
+            threadId,
+            turnId,
+            status: 'failed',
+            createdAt,
+            message: 'Fixture failure',
+            code: 'fixture_error',
+          },
+          createdAt,
+        ),
+        {
+          type: 'turn.failed',
+          threadId,
+          turnId,
+          createdAt,
+          error: { message: 'Fixture failure', code: 'fixture_error' },
+        },
+      )
+      break
+  }
+
+  return base.map((event, index) =>
+    normalizeThreadEvent(event, {
+      sequence: index + 1,
+      eventId: `event-contract-${name}-${index + 1}`,
+    }),
+  )
 }
 
 export function agentRuntimeEventToThreadEvents(

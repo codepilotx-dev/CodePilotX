@@ -3,8 +3,9 @@ import {
   WorkflowEventSchemaVersion,
   agentRuntimeEventToThreadEvents,
   createPermissionRequestDecisionEvent,
+  createWorkflowContractFixture,
 } from './workflow.js'
-import type { WorkflowEventIds } from './workflow.js'
+import type { ThreadEvent, WorkflowEventIds } from './workflow.js'
 
 const ids: WorkflowEventIds = {
   threadId: 'thread-1',
@@ -178,3 +179,125 @@ test('done and error runtime events map to terminal turn events', () => {
     error: { message: 'Failed' },
   })
 })
+
+test('workflow contract fixture normalizes the minimal successful turn chain', () => {
+  const events = createWorkflowContractFixture('minimal_success', {
+    threadId: 'thread-fixture',
+    turnId: 'turn-fixture',
+  })
+
+  expect(events.map(event => event.type)).toEqual([
+    'thread.started',
+    'turn.started',
+    'item.completed',
+    'turn.completed',
+  ])
+  expect(events.map(event => event.sequence)).toEqual([1, 2, 3, 4])
+  expect(events.map(event => event.schemaVersion)).toEqual([
+    WorkflowEventSchemaVersion,
+    WorkflowEventSchemaVersion,
+    WorkflowEventSchemaVersion,
+    WorkflowEventSchemaVersion,
+  ])
+  expect(events.map(event => event.eventId)).toEqual([
+    'event-contract-minimal_success-1',
+    'event-contract-minimal_success-2',
+    'event-contract-minimal_success-3',
+    'event-contract-minimal_success-4',
+  ])
+  expect(events[2]).toMatchObject({
+    threadId: 'thread-fixture',
+    turnId: 'turn-fixture',
+    item: {
+      id: 'item-agent-message',
+      threadId: 'thread-fixture',
+      turnId: 'turn-fixture',
+      type: 'agent_message',
+      status: 'completed',
+    },
+  })
+})
+
+test('workflow contract fixtures cover item update and terminal turn states', () => {
+  const streaming = createWorkflowContractFixture('streaming_message')
+  const failed = createWorkflowContractFixture('turn_failure')
+
+  expect(streaming.map(event => event.type)).toEqual([
+    'thread.started',
+    'turn.started',
+    'item.updated',
+    'item.completed',
+    'turn.completed',
+  ])
+  expect(streaming[2]).toMatchObject({
+    type: 'item.updated',
+    item: {
+      type: 'agent_message',
+      status: 'in_progress',
+      streaming: true,
+    },
+  })
+  expect(failed.at(-1)).toMatchObject({
+    type: 'turn.failed',
+    error: { message: 'Fixture failure', code: 'fixture_error' },
+  })
+})
+
+test('workflow contract fixtures cover tool permission file and error item shapes', () => {
+  const toolItem = itemEvents(createWorkflowContractFixture('tool_lifecycle'))
+  const permissionItem = itemEvents(
+    createWorkflowContractFixture('permission_lifecycle'),
+  )
+  const fileItem = itemEvents(createWorkflowContractFixture('file_change'))
+  const errorItem = itemEvents(createWorkflowContractFixture('turn_failure'))
+
+  expect(toolItem).toEqual([
+    expect.objectContaining({
+      type: 'tool_call',
+      status: 'in_progress',
+      toolName: 'Read',
+      toolUseId: 'tool-use-contract',
+    }),
+    expect.objectContaining({
+      type: 'tool_result',
+      status: 'completed',
+      toolName: 'Read',
+      toolUseId: 'tool-use-contract',
+      metadata: { content: 'file contents' },
+    }),
+  ])
+  expect(permissionItem).toEqual([
+    expect.objectContaining({
+      type: 'permission_request',
+      status: 'in_progress',
+      request: expect.objectContaining({ requestId: 'permission-contract' }),
+    }),
+    expect.objectContaining({
+      type: 'permission_request',
+      status: 'completed',
+      metadata: { decision: 'allow' },
+    }),
+  ])
+  expect(fileItem).toEqual([
+    expect.objectContaining({
+      type: 'file_change',
+      status: 'completed',
+      filePath: 'a.ts',
+      patch: '@@ -1 +1 @@',
+    }),
+  ])
+  expect(errorItem).toEqual([
+    expect.objectContaining({
+      type: 'error',
+      status: 'failed',
+      message: 'Fixture failure',
+      code: 'fixture_error',
+    }),
+  ])
+})
+
+function itemEvents(events: ThreadEvent[]) {
+  return events
+    .filter(event => 'item' in event)
+    .map(event => ('item' in event ? event.item : null))
+}
