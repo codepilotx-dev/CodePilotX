@@ -188,6 +188,118 @@ declare module '@codepilotx/core/agent/permissions.js' {
   ): AgentPermissionPolicy
 }
 
+declare module '@codepilotx/core/agent/workflow.js' {
+  import type { AgentPermissionRequest } from '@codepilotx/core/agent/permissions.js'
+  import type {
+    AgentContextUsage,
+    AgentRuntimeEvent,
+  } from '@codepilotx/core/agent/runtime.js'
+
+  export type ThreadId = string
+  export type TurnId = string
+  export type TurnItemId = string
+  export type TurnStatus =
+    | 'idle'
+    | 'running'
+    | 'waiting'
+    | 'completed'
+    | 'failed'
+    | 'interrupted'
+  export type TurnItemType =
+    | 'user_message'
+    | 'agent_message'
+    | 'reasoning'
+    | 'tool_call'
+    | 'tool_result'
+    | 'permission_request'
+    | 'file_change'
+    | 'error'
+  export type TurnItemStatus = 'in_progress' | 'completed' | 'failed'
+  export type TurnItem = {
+    id: TurnItemId
+    threadId: ThreadId
+    turnId: TurnId
+    type: TurnItemType
+    status: TurnItemStatus
+    createdAt: string
+    updatedAt?: string
+    metadata?: Record<string, unknown>
+    text?: string
+    streaming?: boolean
+    toolName?: string
+    summary?: string
+    isError?: boolean
+    request?: AgentPermissionRequest
+    filePath?: string
+    patch?: string
+    message?: string
+    code?: string
+  }
+  export type ThreadEvent =
+    | {
+        type: 'thread.started'
+        threadId: ThreadId
+        createdAt: string
+        metadata?: Record<string, unknown>
+      }
+    | {
+        type: 'turn.started'
+        threadId: ThreadId
+        turnId: TurnId
+        createdAt: string
+        input?: unknown
+        metadata?: Record<string, unknown>
+      }
+    | {
+        type: 'item.started' | 'item.updated' | 'item.completed'
+        threadId: ThreadId
+        turnId: TurnId
+        item: TurnItem
+        createdAt: string
+      }
+    | {
+        type: 'turn.completed'
+        threadId: ThreadId
+        turnId: TurnId
+        createdAt: string
+        finalResponse: string
+        usage?: AgentContextUsage | Record<string, unknown>
+        stopReason?: string | null
+        costUsd?: number
+        metadata?: Record<string, unknown>
+      }
+    | {
+        type: 'turn.failed'
+        threadId: ThreadId
+        turnId: TurnId
+        createdAt: string
+        error: { message: string; code?: string }
+      }
+    | {
+        type: 'turn.interrupted'
+        threadId: ThreadId
+        turnId: TurnId
+        createdAt: string
+        reason?: string
+      }
+  export type WorkflowEventIds = {
+    threadId: ThreadId
+    turnId: TurnId
+    now?: () => string
+    itemId?: (kind: TurnItemType | string, seed?: string) => TurnItemId
+  }
+  export function createWorkflowId(prefix: string, seed?: string): string
+  export function createThreadStartedEvent(
+    threadId: ThreadId,
+    metadata?: Record<string, unknown>,
+    now?: () => string,
+  ): Extract<ThreadEvent, { type: 'thread.started' }>
+  export function agentRuntimeEventToThreadEvents(
+    event: AgentRuntimeEvent,
+    ids: WorkflowEventIds,
+  ): ThreadEvent[]
+}
+
 declare module '@codepilotx/core/models/provider.js' {
   export type ModelProviderID = string
   export type ModelProviderKind =

@@ -5,6 +5,7 @@ import type {
   DesktopGitStatus,
   DesktopSessionEvent,
   DesktopSessionStatus,
+  DesktopWorkflowEvent,
 } from '../../shared/types.js'
 
 export type QuickChatContextValue = {
@@ -29,6 +30,7 @@ export type QuickChatContextValue = {
   onCommitOrPush: () => void
   onCreatePullRequest: () => void
   events: DesktopSessionEvent[]
+  workflowEvents: DesktopWorkflowEvent[]
   messages: Message[]
   sessionStatus: DesktopSessionStatus
   composer: React.ReactNode

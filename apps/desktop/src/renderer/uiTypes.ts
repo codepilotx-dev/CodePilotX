@@ -6,6 +6,7 @@ import type {
   DesktopSessionListItem,
   DesktopSessionMessage,
   DesktopToolLogEntry,
+  DesktopWorkflowEvent,
 } from '../shared/types.js'
 
 export type AppView = 'quickChat' | 'search' | 'plugins' | 'automation'
@@ -36,6 +37,7 @@ export function sessionDisplayTitle(session: SessionListItem): string {
 export type SessionViewState = {
   eventModelVersion?: 1
   events: DesktopSessionEvent[]
+  workflowEvents: DesktopWorkflowEvent[]
   messages: Message[]
   toolLog: ToolLogEntry[]
   pendingPermissions: DesktopPermissionRequest[]

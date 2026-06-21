@@ -9,6 +9,7 @@ import type {
   DesktopSessionMetadataPatch,
   DesktopSessionStatus,
   DesktopThinkingMode,
+  DesktopWorkflowEvent,
   DesktopWorkspace,
 } from '../../../shared/types.js'
 import type {
@@ -65,6 +66,7 @@ export type UseSessionStateResult = {
   sessionStatus: DesktopSessionStatus
   messages: Message[]
   events: DesktopSessionEvent[]
+  workflowEvents: DesktopWorkflowEvent[]
   toolLog: ToolLogEntry[]
   pendingPermissions: DesktopPermissionRequest[]
   contextUsage: DesktopContextUsage | null
@@ -116,6 +118,7 @@ export function useSessionState(
     useState<DesktopSessionStatus>('idle')
   const [messages, setMessages] = useState<Message[]>([])
   const [events, setEvents] = useState<DesktopSessionEvent[]>([])
+  const [workflowEvents, setWorkflowEvents] = useState<DesktopWorkflowEvent[]>([])
   const [toolLog, setToolLog] = useState<ToolLogEntry[]>([])
   const [pendingPermissions, setPendingPermissions] = useState<
     DesktopPermissionRequest[]
@@ -143,6 +146,7 @@ export function useSessionState(
   const viewSetters = useMemo<SessionViewStateSetters>(
     () => ({
       setEvents,
+      setWorkflowEvents,
       setMessages,
       setToolLog,
       setPendingPermissions,
@@ -239,6 +243,8 @@ export function useSessionState(
         ...snapshot.view,
         eventModelVersion: snapshot.eventModelVersion,
         events: snapshot.events ?? [],
+        workflowEvents:
+          sessionViewsRef.current[snapshot.item.id]?.workflowEvents ?? [],
         contextUsage: snapshot.view.contextUsage ?? null,
         selectedFile:
           sessionViewsRef.current[snapshot.item.id]?.selectedFile ?? null,
@@ -327,12 +333,33 @@ export function useSessionState(
     [addToolLogEntry, updateSessionView],
   )
 
+  const handleWorkflowEvent = useCallback(
+    (event: DesktopWorkflowEvent): void => {
+      if (!sessionsRef.current.some(session => session.id === event.threadId)) {
+        return
+      }
+      updateSessionView(event.threadId, view => ({
+        ...view,
+        workflowEvents: [...view.workflowEvents, event],
+      }))
+    },
+    [updateSessionView],
+  )
+
   useEffect(() => {
     const unsubscribeAgent = desktopClient.onAgentEvent(handleAgentEvent)
     return () => {
       unsubscribeAgent()
     }
   }, [handleAgentEvent])
+
+  useEffect(() => {
+    const unsubscribeWorkflow =
+      desktopClient.onWorkflowEvent(handleWorkflowEvent)
+    return () => {
+      unsubscribeWorkflow()
+    }
+  }, [handleWorkflowEvent])
 
   useEffect(() => {
     let disposed = false
@@ -349,6 +376,7 @@ export function useSessionState(
             ...snapshot.view,
             eventModelVersion: snapshot.eventModelVersion,
             events: snapshot.events ?? [],
+            workflowEvents: [],
             contextUsage: snapshot.view.contextUsage ?? null,
             selectedFile: null,
           }
@@ -565,6 +593,7 @@ export function useSessionState(
     sessionStatus,
     messages,
     events,
+    workflowEvents,
     toolLog,
     pendingPermissions,
     contextUsage,

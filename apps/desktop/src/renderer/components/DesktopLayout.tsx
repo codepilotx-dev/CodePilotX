@@ -158,6 +158,7 @@ export function DesktopLayout(): React.ReactNode {
     sessions,
     sessionStatus,
     events,
+    workflowEvents,
     messages,
     contextUsage,
     pendingPermissions,
@@ -1047,6 +1048,8 @@ export function DesktopLayout(): React.ReactNode {
             onCommitOrPush: () => setGitWorkflowMode('commitPush'),
             onCreatePullRequest: () => setGitWorkflowMode('pullRequest'),
             events: isQuickChatPage || isConversationLoading ? [] : events,
+            workflowEvents:
+              isQuickChatPage || isConversationLoading ? [] : workflowEvents,
             messages: isQuickChatPage || isConversationLoading ? [] : messages,
             sessionStatus,
             composer: isConversationLoading ? null : composer,

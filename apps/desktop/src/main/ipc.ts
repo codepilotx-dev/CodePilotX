@@ -8,7 +8,7 @@ import type { DesktopApi } from '../shared/types.js'
 
 export type DesktopApiHandlers = Omit<
   DesktopApi,
-  'onAgentEvent' | 'onUiCommand'
+  'onAgentEvent' | 'onWorkflowEvent' | 'onUiCommand'
 >
 
 export function registerDesktopIpcHandlers(

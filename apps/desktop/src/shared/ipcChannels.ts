@@ -2,7 +2,7 @@ import type { DesktopApi } from './types.js'
 
 export type DesktopApiMethod = Exclude<
   keyof DesktopApi,
-  'onAgentEvent' | 'onUiCommand'
+  'onAgentEvent' | 'onWorkflowEvent' | 'onUiCommand'
 >
 
 export const DESKTOP_API_METHODS = [
@@ -65,4 +65,5 @@ export function desktopApiChannel(method: DesktopApiMethod): string {
 }
 
 export const DESKTOP_AGENT_EVENT_CHANNEL = 'desktop:agent-event'
+export const DESKTOP_WORKFLOW_EVENT_CHANNEL = 'desktop:workflow-event'
 export const DESKTOP_UI_COMMAND_CHANNEL = 'desktop:ui-command'

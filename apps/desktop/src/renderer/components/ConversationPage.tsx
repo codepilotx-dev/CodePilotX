@@ -35,6 +35,7 @@ import type {
   DesktopGitStatus,
   DesktopOpenTarget,
   DesktopSessionEvent,
+  DesktopWorkflowEvent,
 } from "../../shared/types.js";
 import { useQuickChatContext } from "../context/QuickChatContext.js";
 import { useDesktopSettings } from "../features/settings/useDesktopSettings.js";
@@ -70,6 +71,7 @@ export function ConversationPage(): React.ReactNode {
     activeSessionPinnedAt,
     sessionTitle,
     events,
+    workflowEvents,
     messages,
     sessionStatus,
     workspacePath,
@@ -119,6 +121,8 @@ export function ConversationPage(): React.ReactNode {
   const [showPinnedSummary, setShowPinnedSummary] = React.useState(true);
   const [bottomPanelVisible, setBottomPanelVisible] = React.useState(false);
   const [rightSidebarVisible, setRightSidebarVisible] = React.useState(false);
+  const [workflowTimelineVisible, setWorkflowTimelineVisible] =
+    React.useState(false);
   const showReviewSidebar = Boolean(!isConversationLoading && rightSidebarVisible);
   const showEnvironmentPanel = Boolean(
     workspacePath && showPinnedSummary && !showReviewSidebar,
@@ -400,6 +404,28 @@ export function ConversationPage(): React.ReactNode {
             </button>
           </Tooltip>
           <Tooltip
+            content={
+              workflowTimelineVisible
+                ? "隐藏 workflow 事件"
+                : "显示 workflow 事件"
+            }
+          >
+            <button
+              aria-label={
+                workflowTimelineVisible
+                  ? "隐藏 workflow 事件"
+                  : "显示 workflow 事件"
+              }
+              aria-pressed={workflowTimelineVisible}
+              className="message-action"
+              disabled={!hasActiveSession}
+              type="button"
+              onClick={() => setWorkflowTimelineVisible((current) => !current)}
+            >
+              <Workflow size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            </button>
+          </Tooltip>
+          <Tooltip
             content={bottomPanelVisible ? "隐藏底部面板" : "显示底部面板"}
           >
             <button
@@ -442,13 +468,18 @@ export function ConversationPage(): React.ReactNode {
             {isConversationLoading ? (
               <div className="assistant-thinking">加载对话中</div>
             ) : (
-              timelineItems.map((item) => (
-                <TimelineItem
-                  item={item}
-                  key={item.id}
-                  onReviewFiles={openReviewSidebar}
-                />
-              ))
+              <>
+                {workflowTimelineVisible ? (
+                  <WorkflowDebugTimeline events={workflowEvents} />
+                ) : null}
+                {timelineItems.map((item) => (
+                  <TimelineItem
+                    item={item}
+                    key={item.id}
+                    onReviewFiles={openReviewSidebar}
+                  />
+                ))}
+              </>
             )}
             {!isConversationLoading && showThinking ? <ThinkingPill /> : null}
           </div>
@@ -501,6 +532,137 @@ export function ConversationPage(): React.ReactNode {
       ) : null}
     </section>
   );
+}
+
+function WorkflowDebugTimeline({
+  events,
+}: {
+  events: DesktopWorkflowEvent[];
+}): React.ReactNode {
+  const visibleEvents = events.slice(-60).reverse();
+
+  return (
+    <section className="workflow-debug-timeline">
+      <div className="workflow-debug-timeline-header">
+        <span>Workflow 事件</span>
+        <small>{events.length} 条</small>
+      </div>
+      {visibleEvents.length === 0 ? (
+        <div className="workflow-debug-empty">暂无 workflow 事件</div>
+      ) : (
+        <div className="workflow-debug-list">
+          {visibleEvents.map((event, index) => (
+            <article
+              className={`workflow-debug-event ${workflowEventTone(event)}`}
+              key={`${event.type}-${event.threadId}-${event.createdAt}-${index}`}
+            >
+              <div className="workflow-debug-event-header">
+                <strong>{event.type}</strong>
+                <time>{formatWorkflowTime(event.createdAt)}</time>
+              </div>
+              <div className="workflow-debug-event-grid">
+                <span>thread</span>
+                <code>{event.threadId}</code>
+                {"turnId" in event ? (
+                  <>
+                    <span>turn</span>
+                    <code>{event.turnId}</code>
+                  </>
+                ) : null}
+                {"item" in event ? (
+                  <>
+                    <span>item</span>
+                    <code>
+                      {event.item.type} / {event.item.status}
+                    </code>
+                  </>
+                ) : null}
+                {workflowEventDetail(event).map((detail) => (
+                  <React.Fragment key={detail.label}>
+                    <span>{detail.label}</span>
+                    <code>{detail.value}</code>
+                  </React.Fragment>
+                ))}
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function workflowEventDetail(
+  event: DesktopWorkflowEvent,
+): Array<{ label: string; value: string }> {
+  if ("item" in event) {
+    const item = event.item;
+    if (item.type === "tool_call" || item.type === "tool_result") {
+      return [
+        {
+          label: "tool",
+          value: "toolName" in item ? item.toolName : "tool",
+        },
+      ];
+    }
+    if (item.type === "permission_request") {
+      return [
+        {
+          label: "request",
+          value:
+            "request" in item && item.request
+              ? item.request.requestId
+              : "permission",
+        },
+      ];
+    }
+    if (item.type === "error") {
+      return [
+        {
+          label: "error",
+          value: "message" in item ? item.message : "error",
+        },
+      ];
+    }
+    if (item.type === "file_change") {
+      return [
+        {
+          label: "file",
+          value: "filePath" in item ? item.filePath : "file",
+        },
+      ];
+    }
+  }
+
+  if (event.type === "turn.completed") {
+    return [
+      {
+        label: "stop",
+        value: event.stopReason ?? "completed",
+      },
+    ];
+  }
+  if (event.type === "turn.failed") {
+    return [{ label: "error", value: event.error.message }];
+  }
+  if (event.type === "turn.interrupted") {
+    return [{ label: "reason", value: event.reason ?? "interrupted" }];
+  }
+  return [];
+}
+
+function workflowEventTone(event: DesktopWorkflowEvent): string {
+  if (event.type === "turn.failed") return "error";
+  if ("item" in event && event.item.status === "failed") return "error";
+  if (event.type === "turn.completed") return "success";
+  if (event.type === "turn.interrupted") return "warning";
+  return "neutral";
+}
+
+function formatWorkflowTime(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleTimeString();
 }
 
 function SessionSubmenu({

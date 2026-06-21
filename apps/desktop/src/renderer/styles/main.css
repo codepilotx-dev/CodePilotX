@@ -892,6 +892,98 @@
   padding-top: 0;
 }
 
+.workflow-debug-timeline {
+  width: min(760px, 100%);
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--c-border-soft);
+  border-radius: var(--r-md);
+  background: var(--c-bg-soft);
+  color: var(--c-text);
+  font-size: var(--fs-13);
+}
+
+.workflow-debug-timeline-header,
+.workflow-debug-event-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.workflow-debug-timeline-header span,
+.workflow-debug-event-header strong {
+  color: var(--c-text);
+  font-weight: 600;
+}
+
+.workflow-debug-timeline-header small,
+.workflow-debug-event-header time,
+.workflow-debug-empty {
+  color: var(--c-text-meta);
+  font-size: var(--fs-12);
+}
+
+.workflow-debug-list {
+  display: grid;
+  gap: 8px;
+}
+
+.workflow-debug-event {
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--c-border-soft);
+  border-radius: var(--r-sm);
+  background: var(--c-surface);
+}
+
+.workflow-debug-event.error {
+  border-color: color-mix(
+    in srgb,
+    var(--c-diff-removed) 55%,
+    var(--c-border-soft)
+  );
+}
+
+.workflow-debug-event.success {
+  border-color: color-mix(
+    in srgb,
+    var(--c-diff-added) 45%,
+    var(--c-border-soft)
+  );
+}
+
+.workflow-debug-event.warning {
+  border-color: color-mix(
+    in srgb,
+    var(--c-accent) 45%,
+    var(--c-border-soft)
+  );
+}
+
+.workflow-debug-event-grid {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 5px 10px;
+  align-items: start;
+}
+
+.workflow-debug-event-grid span {
+  color: var(--c-text-meta);
+  font-size: var(--fs-12);
+}
+
+.workflow-debug-event-grid code {
+  overflow: hidden;
+  color: var(--c-text-soft);
+  font-family: var(--ff-mono);
+  font-size: var(--fs-12);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .timeline-status-event,
 .timeline-system-event small {
   color: var(--c-text-meta);

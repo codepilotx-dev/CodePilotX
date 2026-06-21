@@ -1,11 +1,21 @@
 import { app, BrowserWindow, Menu, screen, shell } from 'electron'
 import type { Display, Rectangle } from 'electron'
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import type { DesktopAgentEvent, DesktopUiCommand } from '../shared/types.js'
+import {
+  agentRuntimeEventToThreadEvents,
+  createThreadStartedEvent,
+  createWorkflowId,
+} from '@codepilotx/core/agent/workflow.js'
+import type {
+  DesktopAgentEvent,
+  DesktopUiCommand,
+  DesktopWorkflowEvent,
+} from '../shared/types.js'
 import {
   DESKTOP_AGENT_EVENT_CHANNEL,
   DESKTOP_UI_COMMAND_CHANNEL,
+  DESKTOP_WORKFLOW_EVENT_CHANNEL,
 } from '../shared/ipcChannels.js'
 import { getDesktopConfigDirectoryPath } from './desktopSettings.js'
 
@@ -33,6 +43,7 @@ export type DesktopWindowService = {
   getWindow(): BrowserWindow | null
   hasOpenWindows(): boolean
   emitAgentEvent(event: DesktopAgentEvent): void
+  emitWorkflowEvent(event: DesktopWorkflowEvent): void
   sendUiCommand(command: DesktopUiCommand): void
   minimizeWindow(): void
   toggleWindowMaximized(): boolean
@@ -52,6 +63,8 @@ export function createDesktopWindowService(options: {
 }): DesktopWindowService {
   let mainWindow: BrowserWindow | null = null
   let windowStateSaveTimer: ReturnType<typeof setTimeout> | null = null
+  const workflowThreads = new Set<string>()
+  const workflowTurns = new Map<string, string>()
 
   function createWindow(): void {
     const restoredWindowState = getRestoredWindowState()
@@ -213,6 +226,83 @@ export function createDesktopWindowService(options: {
 
   function emitAgentEvent(event: DesktopAgentEvent): void {
     mainWindow?.webContents.send(DESKTOP_AGENT_EVENT_CHANNEL, event)
+    for (const workflowEvent of projectAgentEventToWorkflowEvents(event)) {
+      emitWorkflowEvent(workflowEvent)
+    }
+  }
+
+  function emitWorkflowEvent(event: DesktopWorkflowEvent): void {
+    mainWindow?.webContents.send(DESKTOP_WORKFLOW_EVENT_CHANNEL, event)
+    appendWorkflowEventLog(event)
+  }
+
+  function projectAgentEventToWorkflowEvents(
+    event: DesktopAgentEvent,
+  ): DesktopWorkflowEvent[] {
+    const now = new Date().toISOString()
+    const threadId =
+      'sourceThreadId' in event && event.sourceThreadId
+        ? event.sourceThreadId
+        : event.sessionId
+    const turnId = turnIdForAgentEvent(event)
+    const events: DesktopWorkflowEvent[] = []
+
+    if (!workflowThreads.has(threadId)) {
+      workflowThreads.add(threadId)
+      events.push(
+        createThreadStartedEvent(
+          threadId,
+          { sessionId: event.sessionId, source: 'desktop-runtime' },
+          () => now,
+        ),
+      )
+    }
+
+    if (event.type === 'status' && event.status !== 'running') {
+      return events
+    }
+
+    events.push(
+      ...agentRuntimeEventToThreadEvents(event, {
+        threadId,
+        turnId,
+        now: () => now,
+        itemId: (kind, seed) => createWorkflowId(String(kind), seed),
+      }),
+    )
+
+    if (event.type === 'done' || event.type === 'error') {
+      workflowTurns.delete(event.sessionId)
+    }
+
+    return events
+  }
+
+  function turnIdForAgentEvent(event: DesktopAgentEvent): string {
+    if (event.type === 'status' && event.status === 'running') {
+      const turnId = createWorkflowId('turn')
+      workflowTurns.set(event.sessionId, turnId)
+      return turnId
+    }
+    const existing = workflowTurns.get(event.sessionId)
+    if (existing) {
+      return existing
+    }
+    const turnId = createWorkflowId('turn')
+    workflowTurns.set(event.sessionId, turnId)
+    return turnId
+  }
+
+  function appendWorkflowEventLog(event: DesktopWorkflowEvent): void {
+    if (process.env.CODEPILOTX_WORKFLOW_EVENT_LOG !== '1') {
+      return
+    }
+    try {
+      const logPath = join(getDesktopConfigDirectoryPath(), 'workflow-events.jsonl')
+      appendFileSync(logPath, `${JSON.stringify(event)}\n`, 'utf8')
+    } catch {
+      // Debug logging must not affect the agent event stream.
+    }
   }
 
   function registerWindowStatePersistence(window: BrowserWindow): void {
@@ -252,6 +342,7 @@ export function createDesktopWindowService(options: {
     getWindow: () => mainWindow,
     hasOpenWindows: () => BrowserWindow.getAllWindows().length > 0,
     emitAgentEvent,
+    emitWorkflowEvent,
     sendUiCommand,
     minimizeWindow,
     toggleWindowMaximized,

@@ -2,12 +2,14 @@ import { contextBridge, ipcRenderer } from 'electron'
 import {
   DESKTOP_AGENT_EVENT_CHANNEL,
   DESKTOP_UI_COMMAND_CHANNEL,
+  DESKTOP_WORKFLOW_EVENT_CHANNEL,
   desktopApiChannel,
 } from '../shared/ipcChannels.js'
 import type {
   DesktopAgentEvent,
   DesktopApi,
   DesktopUiCommand,
+  DesktopWorkflowEvent,
 } from '../shared/types.js'
 
 const api: DesktopApi = {
@@ -137,6 +139,16 @@ const api: DesktopApi = {
     }
     ipcRenderer.on(DESKTOP_AGENT_EVENT_CHANNEL, listener)
     return () => ipcRenderer.off(DESKTOP_AGENT_EVENT_CHANNEL, listener)
+  },
+  onWorkflowEvent: callback => {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      payload: DesktopWorkflowEvent,
+    ) => {
+      callback(payload)
+    }
+    ipcRenderer.on(DESKTOP_WORKFLOW_EVENT_CHANNEL, listener)
+    return () => ipcRenderer.off(DESKTOP_WORKFLOW_EVENT_CHANNEL, listener)
   },
   onUiCommand: callback => {
     const listener = (

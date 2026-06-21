@@ -14,6 +14,7 @@ import type {
   AgentPermissionRequest,
   DesktopAgentPermissionMode,
 } from '@codepilotx/core/agent/permissions.js'
+import type { ThreadEvent } from '@codepilotx/core/agent/workflow.js'
 import type {
   ModelMetadata,
   ModelProviderID as CoreModelProviderID,
@@ -360,6 +361,8 @@ export type DesktopSessionMetadataPatch = {
 
 export type DesktopAgentEvent = AgentRuntimeEvent
 
+export type DesktopWorkflowEvent = ThreadEvent
+
 export type CreateDesktopSessionOptions = {
   workspacePath?: string
   permissionMode?: DesktopPermissionMode
@@ -482,5 +485,6 @@ export type DesktopApi = {
   logOut(): Promise<void>
   exitApp(): Promise<void>
   onAgentEvent(callback: (event: DesktopAgentEvent) => void): () => void
+  onWorkflowEvent(callback: (event: DesktopWorkflowEvent) => void): () => void
   onUiCommand(callback: (command: DesktopUiCommand) => void): () => void
 }
