@@ -75,13 +75,18 @@
 .conversation-page .chat-composer {
   position: absolute;
   left: 0;
-  bottom: 15px;
+  bottom: 0;
   width: 100%;
   padding: 0 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+}
+
+.conversation-page .composer {
+  background: var(--c-bg);
+  padding-bottom: 15px;
 }
 
 .conversation-page .chat-composer.with-environment-panel {
@@ -99,7 +104,8 @@
   padding: 0 22px;
   border: 1px solid var(--c-border-soft);
   border-radius: 20px 20px 0 0;
-  background: var(--c-bg);
+  background: rgba(252, 252, 252, 0.5);
+  backdrop-filter: blur(10px);
   color: var(--c-text-placeholder);
   font-size: var(--fs-14);
   box-shadow: var(--sh-card);
@@ -193,7 +199,7 @@
   width: 100%;
   max-width: var(--composer-w);
   margin: 30px auto 0;
-  padding: 0 20px 150px;
+  padding: 0 20px 180px;
 }
 
 .quick-chat-workspace {
@@ -201,7 +207,7 @@
   width: 100%;
   min-height: 0;
   position: relative;
-  overflow: scroll;
+  overflow-y: scroll;
 }
 
 .quick-chat-workspace.with-environment-panel {
