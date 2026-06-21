@@ -314,6 +314,118 @@
   color: inherit;
 }
 
+.sidebar-footer-trigger {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+
+.popover-sidebar-footer .popover-section {
+  padding: 0;
+}
+
+.popover-usage-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 8px 8px;
+  overflow: hidden;
+  will-change: height, opacity;
+}
+
+.popover-usage-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--r-md);
+  color: var(--c-text-soft);
+  font-size: var(--fs-13);
+  line-height: 1.4;
+}
+
+.popover-usage-label {
+  color: var(--c-text);
+  font-weight: 500;
+}
+
+.popover-usage-track {
+  position: relative;
+  width: 100%;
+  height: 4px;
+  border-radius: var(--r-round);
+  background: var(--c-border-row);
+  overflow: hidden;
+}
+
+.popover-usage-fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-round);
+  background: var(--c-accent);
+  transition: width 0.18s ease-out;
+}
+
+.popover-usage-percent {
+  color: var(--c-text-meta);
+  font-size: var(--fs-12);
+  font-variant-numeric: tabular-nums;
+}
+
+.popover-usage-detail {
+  color: var(--c-text-meta);
+  font-size: var(--fs-12);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.popover-usage-divider {
+  height: 1px;
+  margin: 4px 8px;
+  background: var(--c-border-row);
+}
+
+.popover-usage-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--c-text);
+  font-size: var(--fs-13);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease-out;
+  -webkit-app-region: no-drag;
+}
+
+.popover-usage-action:hover {
+  background: var(--c-bg-row-hover);
+}
+
+.popover-usage-action-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.popover-usage-action-icon {
+  flex: 0 0 auto;
+  width: var(--app-icon-size);
+  height: var(--app-icon-size);
+  color: var(--c-icon-arrow);
+  stroke-width: var(--app-icon-stroke-width);
+}
+
 .sidebar-resizer {
   position: absolute;
   top: 0;

@@ -1,7 +1,7 @@
 import type React from 'react'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import * as Tooltip from '@radix-ui/react-tooltip'
-import { Check, ChevronRight } from 'lucide-react'
+import { Check, ChevronDown, ChevronRight, ChevronUp } from 'lucide-react'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from './iconTokens.js'
 
 type Props = {
@@ -13,7 +13,9 @@ type Props = {
   selected?: boolean
   shortcut?: React.ReactNode
   withArrow?: boolean
+  arrowDirection?: 'up' | 'down' | 'right'
   withCheck?: boolean
+  keepOpen?: boolean
   onClick?: () => void
   onMouseEnter?: () => void
   onMouseLeave?: () => void
@@ -28,7 +30,9 @@ export function PopoverItem({
   selected,
   shortcut,
   withArrow,
+  arrowDirection = 'right',
   withCheck,
+  keepOpen,
   onClick,
   onMouseEnter,
   onMouseLeave,
@@ -51,6 +55,9 @@ export function PopoverItem({
           event.preventDefault()
           return
         }
+        if (keepOpen) {
+          event.preventDefault()
+        }
         onClick?.()
       }}
     >
@@ -68,7 +75,13 @@ export function PopoverItem({
       {selected && withCheck ? (
         <Check className="popover-item-check" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
       ) : withArrow ? (
-        <ChevronRight className="popover-item-arrow" size={APP_ICON_SIZE} />
+        arrowDirection === 'down' ? (
+          <ChevronDown className="popover-item-arrow" size={APP_ICON_SIZE} />
+        ) : arrowDirection === 'up' ? (
+          <ChevronUp className="popover-item-arrow" size={APP_ICON_SIZE} />
+        ) : (
+          <ChevronRight className="popover-item-arrow" size={APP_ICON_SIZE} />
+        )
       ) : null}
     </DropdownMenu.Item>
   )

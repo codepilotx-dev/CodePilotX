@@ -36,7 +36,7 @@ import {
   appendUniqueWorkflowEvent,
   dedupeWorkflowEvents,
 } from './workflowEventDedup.js'
-import { deriveWorkflowSessionState } from '../../../shared/workflowReducer.js'
+import { deriveWorkflowViewPatch } from './workflowViewPatch.js'
 import {
   applySessionView,
   addToolLogEntry as addToolLogEntryToView,
@@ -244,7 +244,7 @@ export function useSessionState(
         mergedAiTitle: nextItem.aiTitle,
         mergedFirstPrompt: nextItem.firstPrompt,
       })
-      const nextView: SessionViewState = {
+      const snapshotView: SessionViewState = {
         ...snapshot.view,
         eventModelVersion: snapshot.eventModelVersion,
         events: snapshot.events ?? [],
@@ -256,6 +256,14 @@ export function useSessionState(
         contextUsage: snapshot.view.contextUsage ?? null,
         selectedFile:
           sessionViewsRef.current[snapshot.item.id]?.selectedFile ?? null,
+      }
+      const nextView: SessionViewState = {
+        ...snapshotView,
+        ...deriveWorkflowViewPatch(
+          snapshotView.workflowEvents,
+          snapshotView,
+          snapshot.item.id,
+        ),
       }
       sessionViewsRef.current = {
         ...sessionViewsRef.current,
@@ -346,13 +354,22 @@ export function useSessionState(
       if (!sessionsRef.current.some(session => session.id === event.threadId)) {
         return
       }
+      const shouldOpenPermissions =
+        event.threadId === activeSessionIdRef.current &&
+        'item' in event &&
+        event.item.type === 'permission_request' &&
+        event.item.status === 'in_progress'
       updateSessionView(event.threadId, view => ({
         ...view,
-        ...workflowViewPatch(
+        ...deriveWorkflowViewPatch(
           appendUniqueWorkflowEvent(view.workflowEvents, event),
           view,
+          event.threadId,
         ),
       }))
+      if (shouldOpenPermissions) {
+        onOpenDrawerPermissionsRef.current()
+      }
     },
     [updateSessionView],
   )
@@ -383,13 +400,21 @@ export function useSessionState(
         const nextViews: Record<string, SessionViewState> = {}
         const nextWorkspaces: Record<string, DesktopWorkspace> = {}
         for (const snapshot of sessionSnapshots) {
-          nextViews[snapshot.item.id] = {
+          const snapshotView: SessionViewState = {
             ...snapshot.view,
             eventModelVersion: snapshot.eventModelVersion,
             events: snapshot.events ?? [],
             workflowEvents: dedupeWorkflowEvents(snapshot.workflowEvents ?? []),
             contextUsage: snapshot.view.contextUsage ?? null,
             selectedFile: null,
+          }
+          nextViews[snapshot.item.id] = {
+            ...snapshotView,
+            ...deriveWorkflowViewPatch(
+              snapshotView.workflowEvents,
+              snapshotView,
+              snapshot.item.id,
+            ),
           }
           nextWorkspaces[snapshot.item.id] = snapshot.workspace
         }
@@ -626,23 +651,6 @@ export function useSessionState(
 }
 
 const HOME_INPUT_KEY = '__home__'
-
-function workflowViewPatch(
-  workflowEvents: DesktopWorkflowEvent[],
-  currentView: SessionViewState,
-): Pick<SessionViewState, 'workflowEvents' | 'pendingPermissions'> {
-  const uniqueWorkflowEvents = dedupeWorkflowEvents(workflowEvents)
-  const derived = deriveWorkflowSessionState(uniqueWorkflowEvents)
-  const hasPermissionEvents = uniqueWorkflowEvents.some(
-    event => 'item' in event && event.item.type === 'permission_request',
-  )
-  return {
-    workflowEvents: uniqueWorkflowEvents,
-    pendingPermissions: hasPermissionEvents
-      ? derived.pendingPermissions
-      : currentView.pendingPermissions,
-  }
-}
 
 function errorMessageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error)

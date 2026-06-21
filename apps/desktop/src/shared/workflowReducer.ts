@@ -11,6 +11,8 @@ export type WorkflowToolRun = {
   toolName: string
   callContent: string
   resultContent: string
+  callCreatedAt?: string
+  resultCreatedAt?: string
   isError: boolean
   isRunning: boolean
 }
@@ -133,6 +135,7 @@ export function deriveWorkflowSessionState(
         toolName: item.toolName,
         callContent: item.summary,
         resultContent: '',
+        callCreatedAt: event.createdAt,
         isError: false,
         isRunning: item.status === 'in_progress',
       })
@@ -159,6 +162,8 @@ export function deriveWorkflowSessionState(
         toolName: item.toolName,
         callContent: existing?.callContent ?? '',
         resultContent: item.summary,
+        callCreatedAt: existing?.callCreatedAt,
+        resultCreatedAt: event.createdAt,
         isError: item.isError === true || item.status === 'failed',
         isRunning: false,
       })
@@ -248,6 +253,8 @@ function upsertToolRun(
     ...next,
     callContent: next.callContent || current?.callContent || '',
     resultContent: next.resultContent || current?.resultContent || '',
+    callCreatedAt: next.callCreatedAt ?? current?.callCreatedAt,
+    resultCreatedAt: next.resultCreatedAt ?? current?.resultCreatedAt,
     isError: next.isError || current?.isError === true,
   })
 }

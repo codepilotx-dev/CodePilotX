@@ -102,6 +102,28 @@ test('workflow reducer reports duplicate, missing result, and sequence issues', 
   expect(derived.diagnostics.missingToolResults).toEqual(['tool-a', 'tool-c'])
 })
 
+test('workflow reducer carries tool result error state and timestamps', () => {
+  const derived = deriveWorkflowSessionState(
+    [
+      toolCall('e1', 1, 'tool-a', 'Bash', 'bun test'),
+      toolResult('e2', 2, 'tool-a', 'Bash', 'failed', true),
+    ],
+    'thread-1',
+  )
+
+  expect(derived.toolRuns).toMatchObject([
+    {
+      toolUseId: 'tool-a',
+      callContent: 'bun test',
+      resultContent: 'failed',
+      callCreatedAt: base.createdAt,
+      resultCreatedAt: base.createdAt,
+      isError: true,
+      isRunning: false,
+    },
+  ])
+})
+
 function toolCall(
   eventId: string,
   sequence: number,
@@ -133,6 +155,7 @@ function toolResult(
   toolUseId: string,
   toolName: string,
   summary: string,
+  isError = false,
 ): DesktopWorkflowEvent {
   return {
     eventId,
@@ -142,12 +165,13 @@ function toolResult(
     item: {
       id: `tool_result-${toolUseId}`,
       type: 'tool_result',
-      status: 'completed',
+      status: isError ? 'failed' : 'completed',
       createdAt: base.createdAt,
       ...base,
       toolName,
       toolUseId,
       summary,
+      isError,
     },
   }
 }

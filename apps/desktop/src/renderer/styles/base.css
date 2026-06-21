@@ -205,6 +205,7 @@ body {
   background: var(--c-bg);
   color: var(--c-text);
   font-family: var(--ff-sans);
+  font-size: var(--fs-ui);
   scrollbar-color: var(--c-scrollbar) transparent;
   scrollbar-width: thin;
 }
