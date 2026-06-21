@@ -147,6 +147,79 @@ test('parallel same-name SDK tool calls pair by toolUseId', () => {
   ])
 })
 
+test('failed tool result maps readable result metadata', () => {
+  const events = sdkMessageToThreadEvents(
+    {
+      type: 'user',
+      uuid: 'user-1',
+      tool_use_result: {
+        stderr: 'command failed',
+        stdout: 'partial output',
+      },
+      message: {
+        content: [
+          {
+            type: 'tool_result',
+            tool_use_id: 'tool-1',
+            is_error: true,
+            content: 'Bash',
+          },
+        ],
+      },
+    },
+    ids,
+  )
+
+  expect(events[0]).toMatchObject({
+    type: 'item.completed',
+    item: {
+      type: 'tool_result',
+      status: 'failed',
+      summary: 'Bash',
+      isError: true,
+      metadata: {
+        content: 'Bash',
+        stderr: 'command failed',
+        stdout: 'partial output',
+        result: {
+          stderr: 'command failed',
+          stdout: 'partial output',
+        },
+      },
+    },
+  })
+})
+
+test('tool result metadata keeps block content when no structured result exists', () => {
+  const events = sdkMessageToThreadEvents(
+    {
+      type: 'user',
+      uuid: 'user-1',
+      message: {
+        content: [
+          {
+            type: 'tool_result',
+            tool_use_id: 'tool-1',
+            content: [{ type: 'text', text: 'plain output' }],
+          },
+        ],
+      },
+    },
+    ids,
+  )
+
+  expect(events[0]).toMatchObject({
+    type: 'item.completed',
+    item: {
+      type: 'tool_result',
+      summary: 'plain output',
+      metadata: {
+        content: 'plain output',
+      },
+    },
+  })
+})
+
 test('result success and error map to terminal turn events', () => {
   expect(
     sdkMessageToThreadEvents(

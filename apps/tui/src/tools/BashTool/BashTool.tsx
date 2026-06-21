@@ -63,6 +63,7 @@ import type { ExecResult } from '../../utils/ShellCommand.js'
 import { SandboxManager } from '../../utils/sandbox/sandbox-adapter.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import { semanticNumber } from '../../utils/semanticNumber.js'
+import { isBashToolEnabled } from '../../utils/shell/shellToolUtils.js'
 import { EndTruncatingAccumulator } from '../../utils/stringUtils.js'
 import { getTaskOutputPath } from '../../utils/task/diskOutput.js'
 import { TaskOutput } from '../../utils/task/TaskOutput.js'
@@ -734,6 +735,9 @@ export const BashTool = buildTool({
     const desc =
       input.description ?? truncate(input.command, TOOL_SUMMARY_MAX_LENGTH)
     return `Running ${desc}`
+  },
+  isEnabled(): boolean {
+    return isBashToolEnabled()
   },
   async validateInput(input: BashToolInput): Promise<ValidationResult> {
     if (

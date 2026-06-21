@@ -1,5 +1,6 @@
 import type { ChildProcess, ExecFileException } from 'child_process'
 import { execFile, spawn } from 'child_process'
+import { constants as fsConstants, accessSync, existsSync } from 'fs'
 import memoize from 'lodash-es/memoize.js'
 import { homedir } from 'os'
 import * as path from 'path'
@@ -28,6 +29,29 @@ type RipgrepConfig = {
   argv0?: string
 }
 
+function findSystemRipgrepConfig(): RipgrepConfig | null {
+  const { cmd: systemPath } = findExecutable('rg', [])
+  if (systemPath === 'rg') {
+    return null
+  }
+
+  // SECURITY: Use command name 'rg' instead of systemPath to prevent PATH hijacking
+  // If we used systemPath, a malicious ./rg.exe in current directory could be executed
+  // Using just 'rg' lets the OS resolve it safely with NoDefaultCurrentDirectoryInExePath protection
+  return { mode: 'system', command: 'rg', args: [] }
+}
+
+function canUseRipgrepBinary(command: string): boolean {
+  try {
+    accessSync(command, fsConstants.X_OK)
+    return true
+  } catch {
+    // Windows frequently does not report POSIX execute bits. Existence is
+    // enough for a concrete .exe path; spawn will surface permission failures.
+    return process.platform === 'win32' && existsSync(command)
+  }
+}
+
 const getRipgrepConfig = memoize((): RipgrepConfig => {
   const userWantsSystemRipgrep = isEnvDefinedFalsy(
     process.env.USE_BUILTIN_RIPGREP,
@@ -35,12 +59,9 @@ const getRipgrepConfig = memoize((): RipgrepConfig => {
 
   // Try system ripgrep if user wants it
   if (userWantsSystemRipgrep) {
-    const { cmd: systemPath } = findExecutable('rg', [])
-    if (systemPath !== 'rg') {
-      // SECURITY: Use command name 'rg' instead of systemPath to prevent PATH hijacking
-      // If we used systemPath, a malicious ./rg.exe in current directory could be executed
-      // Using just 'rg' lets the OS resolve it safely with NoDefaultCurrentDirectoryInExePath protection
-      return { mode: 'system', command: 'rg', args: [] }
+    const systemConfig = findSystemRipgrepConfig()
+    if (systemConfig) {
+      return systemConfig
     }
   }
 
@@ -60,6 +81,18 @@ const getRipgrepConfig = memoize((): RipgrepConfig => {
     process.platform === 'win32'
       ? path.resolve(rgRoot, `${process.arch}-win32`, 'rg.exe')
       : path.resolve(rgRoot, `${process.arch}-${process.platform}`, 'rg')
+
+  if (canUseRipgrepBinary(command)) {
+    return { mode: 'builtin', command, args: [] }
+  }
+
+  const systemConfig = findSystemRipgrepConfig()
+  if (systemConfig) {
+    logForDebugging(
+      `Built-in ripgrep not found at ${command}; falling back to system ripgrep`,
+    )
+    return systemConfig
+  }
 
   return { mode: 'builtin', command, args: [] }
 })

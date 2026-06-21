@@ -67,6 +67,28 @@ function isExecutable(shellPath: string): boolean {
   }
 }
 
+function getWindowsPosixShellCandidates(): string[] {
+  if (process.platform !== 'win32') {
+    return []
+  }
+
+  const programFiles = process.env.ProgramFiles ?? 'C:\\Program Files'
+  const programFilesX86 =
+    process.env['ProgramFiles(x86)'] ?? 'C:\\Program Files (x86)'
+  const localAppData = process.env.LOCALAPPDATA
+
+  return [
+    `${programFiles}\\Git\\bin\\bash.exe`,
+    `${programFiles}\\Git\\usr\\bin\\bash.exe`,
+    `${programFilesX86}\\Git\\bin\\bash.exe`,
+    `${programFilesX86}\\Git\\usr\\bin\\bash.exe`,
+    localAppData ? `${localAppData}\\Programs\\Git\\bin\\bash.exe` : null,
+    localAppData ? `${localAppData}\\Programs\\Git\\usr\\bin\\bash.exe` : null,
+    'C:\\msys64\\usr\\bin\\bash.exe',
+    'C:\\msys2\\usr\\bin\\bash.exe',
+  ].filter((candidate): candidate is string => candidate !== null)
+}
+
 /**
  * Determines the best available shell to use.
  */
@@ -98,14 +120,20 @@ export async function findSuitableShell(): Promise<string> {
   // Try to locate shells using which (uses Bun.which when available)
   const [zshPath, bashPath] = await Promise.all([which('zsh'), which('bash')])
 
-  // Populate shell paths from which results and fallback locations
-  const shellPaths = ['/bin', '/usr/bin', '/usr/local/bin', '/opt/homebrew/bin']
+  // Populate shell paths from which results and fallback locations.
+  // On Windows there are no POSIX default directories, so probe common Git
+  // Bash/MSYS install locations instead of failing before PATH users can recover.
+  const shellPaths =
+    process.platform === 'win32'
+      ? []
+      : ['/bin', '/usr/bin', '/usr/local/bin', '/opt/homebrew/bin']
 
   // Order shells based on user preference
   const shellOrder = preferBash ? ['bash', 'zsh'] : ['zsh', 'bash']
   const supportedShells = shellOrder.flatMap(shell =>
     shellPaths.map(path => `${path}/${shell}`),
   )
+  supportedShells.push(...getWindowsPosixShellCandidates())
 
   // Add discovered paths to the beginning of our search list
   // Put the user's preferred shell type first
@@ -127,8 +155,9 @@ export async function findSuitableShell(): Promise<string> {
   // If no valid shell found, throw a helpful error
   if (!shellPath) {
     const errorMsg =
-      'No suitable shell found. CodePilotX requires a Posix shell environment. ' +
-      'Please ensure you have a valid shell installed and the SHELL environment variable set.'
+      process.platform === 'win32'
+        ? 'No suitable POSIX shell found. CodePilotX Bash tool requires bash or zsh; install Git for Windows with Git Bash, add bash.exe to PATH, or set CLAUDE_CODE_SHELL to the full bash.exe path. Use PowerShellTool for native PowerShell commands.'
+        : 'No suitable shell found. CodePilotX requires a Posix shell environment. Please ensure you have a valid shell installed and the SHELL environment variable set.'
     logError(new Error(errorMsg))
     throw new Error(errorMsg)
   }

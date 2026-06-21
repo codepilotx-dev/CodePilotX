@@ -150,6 +150,11 @@ function userMessageToEvents(
       events.push(itemEvent('item.completed', ids, item, createdAt))
     } else if (block.type === 'tool_result') {
       const toolUseId = readString(block.tool_use_id)
+      const contentText = extractText(block.content)
+      const resultMetadata = toolResultMetadata(
+        message.tool_use_result,
+        contentText,
+      )
       const item: ToolResultTurnItem = {
         id: itemId('tool_result', toolUseId),
         type: 'tool_result',
@@ -158,12 +163,13 @@ function userMessageToEvents(
         status: block.is_error ? 'failed' : 'completed',
         createdAt,
         toolName: toolUseId ?? 'tool',
-        summary: extractText(block.content) ?? '',
+        summary: contentText ?? '',
         ...(toolUseId ? { toolUseId } : {}),
         ...(block.is_error ? { isError: true } : {}),
         metadata: {
           ...messageMetadata(message),
           toolUseId,
+          ...resultMetadata,
           result: message.tool_use_result,
         },
       }
@@ -326,6 +332,31 @@ function extractText(content: unknown): string | undefined {
     })
     .filter((part): part is string => Boolean(part))
     .join('\n')
+}
+
+function toolResultMetadata(
+  result: unknown,
+  contentText: string | undefined,
+): Record<string, unknown> {
+  const metadata: Record<string, unknown> = {}
+  if (contentText) metadata.content = contentText
+  if (!isRecord(result)) return metadata
+
+  for (const key of [
+    'stdout',
+    'stderr',
+    'output',
+    'error',
+    'message',
+    'text',
+    'content',
+  ]) {
+    const value = result[key]
+    const text = extractText(value) ?? readString(value)
+    if (text) metadata[key] = text
+  }
+
+  return metadata
 }
 
 function messageMetadata(message: UnknownRecord): Record<string, unknown> {
