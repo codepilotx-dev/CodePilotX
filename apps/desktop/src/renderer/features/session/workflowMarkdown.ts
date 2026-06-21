@@ -95,7 +95,7 @@ function formatDiagnosticsSummary(
 function formatConsistencyDiagnosticsSummary(
   diagnostics: WorkflowConsistencyDiagnostics,
 ): string {
-  return `${workflowConsistencyIssueCount(diagnostics)} 个（缺 terminal ${
+  return `${workflowConsistencyIssueCount(diagnostics)} 个（缺 turn 终止事件 ${
     diagnostics.missingTurnCompletions.length
   }，未配对 call ${
     diagnostics.unpairedToolCalls.length

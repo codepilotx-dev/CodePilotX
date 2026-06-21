@@ -83,8 +83,9 @@ test('buildWorkflowMarkdownReport includes consistency diagnostics', () => {
   })
 
   expect(markdown).toContain(
-    '- 一致性诊断: 6 个（缺 terminal 1，未配对 call 1，孤立 result 1，未决权限 1，最终回复不一致 1，混入 thread 1）',
+    '- 一致性诊断: 6 个（缺 turn 终止事件 1，未配对 call 1，孤立 result 1，未决权限 1，最终回复不一致 1，混入 thread 1）',
   )
+  expect(markdown).not.toContain('缺 terminal')
 })
 
 test('buildWorkflowMarkdownReport expands failed tool result metadata', () => {

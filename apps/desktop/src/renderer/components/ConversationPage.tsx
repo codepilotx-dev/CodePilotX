@@ -709,7 +709,7 @@ function WorkflowConsistencySummary({
   return (
     <div className="workflow-debug-diagnostics">
       一致性：{total} 个
-      <span>缺 terminal {diagnostics.missingTurnCompletions.length}</span>
+      <span>缺 turn 终止事件 {diagnostics.missingTurnCompletions.length}</span>
       <span>未配对 call {diagnostics.unpairedToolCalls.length}</span>
       <span>孤立 result {diagnostics.unpairedToolResults.length}</span>
       <span>未决权限 {diagnostics.pendingPermissionRequests.length}</span>
