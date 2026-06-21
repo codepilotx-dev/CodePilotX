@@ -67,6 +67,8 @@ type DesktopSessionOverlay = {
   createdAt?: string
   lastMessageAt?: string | null
   updatedAt?: string
+  workflowEvents?: DesktopWorkflowEvent[]
+  workflowEventModelVersion?: 1
   legacySnapshot?: DesktopSessionSnapshot
 }
 
@@ -162,6 +164,8 @@ export async function saveDesktopSessionStore(
         createdAt: overlay.createdAt,
         lastMessageAt: overlay.lastMessageAt,
         updatedAt: overlay.updatedAt,
+        workflowEvents: overlay.workflowEvents,
+        workflowEventModelVersion: overlay.workflowEventModelVersion,
       }
     }),
   }
@@ -371,6 +375,34 @@ export function applyDesktopAgentEventToSnapshot(
   return next
 }
 
+export function applyDesktopWorkflowEventsToSnapshot(
+  snapshot: DesktopSessionSnapshot,
+  workflowEvents: DesktopWorkflowEvent[],
+): DesktopSessionSnapshot {
+  const normalizedEvents = workflowEvents.flatMap(normalizeWorkflowEvent)
+  if (normalizedEvents.length === 0) return snapshot
+
+  const existingEvents =
+    snapshot.workflowEventModelVersion === 1 && snapshot.workflowEvents
+      ? snapshot.workflowEvents.flatMap(normalizeWorkflowEvent)
+      : []
+  const seen = new Set(existingEvents.map(workflowEventKey))
+  const appendedEvents = normalizedEvents.filter(event => {
+    const key = workflowEventKey(event)
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+  if (appendedEvents.length === 0) return snapshot
+
+  return {
+    ...snapshot,
+    workflowEvents: [...existingEvents, ...appendedEvents],
+    workflowEventModelVersion: 1,
+    updatedAt: new Date().toISOString(),
+  }
+}
+
 export function removePendingPermissionFromSnapshot(
   snapshot: DesktopSessionSnapshot,
   requestId: string,
@@ -429,6 +461,10 @@ function normalizeSessionOverlay(value: unknown): DesktopSessionOverlay[] {
   if (!workspace) return []
   const normalizedWorkspace = normalizeStandaloneWorkspace(workspace)
   const settings = normalizeSettingsSnapshot(raw.settings)
+  const workflowEvents =
+    raw.workflowEventModelVersion === 1 && Array.isArray(raw.workflowEvents)
+      ? raw.workflowEvents.flatMap(normalizeWorkflowEvent)
+      : undefined
   return [
     {
       id: raw.id,
@@ -447,6 +483,8 @@ function normalizeSessionOverlay(value: unknown): DesktopSessionOverlay[] {
       createdAt: stringOrUndefined(raw.createdAt),
       lastMessageAt: normalizeTimestampString(raw.lastMessageAt),
       updatedAt: stringOrUndefined(raw.updatedAt),
+      workflowEvents,
+      workflowEventModelVersion: workflowEvents ? 1 : undefined,
     },
   ]
 }
@@ -631,6 +669,10 @@ function snapshotFromTranscriptLog(
     },
     events: parsed.events,
     eventModelVersion: 1,
+    workflowEvents: overlay?.workflowEvents
+      ? [...overlay.workflowEvents]
+      : undefined,
+    workflowEventModelVersion: overlay?.workflowEvents ? 1 : undefined,
     updatedAt: overlay?.updatedAt ?? lastMessageAt,
   }
 }
@@ -690,6 +732,8 @@ function snapshotFromOverlay(overlay: DesktopSessionOverlay): DesktopSessionSnap
     view: createEmptyViewSnapshot(),
     events: [],
     eventModelVersion: 1,
+    workflowEvents: overlay.workflowEvents ? [...overlay.workflowEvents] : [],
+    workflowEventModelVersion: 1,
     updatedAt: overlay.updatedAt ?? createdAt,
   }
 }
@@ -713,6 +757,13 @@ function overlayFromSnapshot(
     createdAt: normalizedSnapshot.item.createdAt,
     lastMessageAt: normalizedSnapshot.item.lastMessageAt ?? null,
     updatedAt: normalizedSnapshot.updatedAt,
+    workflowEvents:
+      normalizedSnapshot.workflowEventModelVersion === 1 &&
+      normalizedSnapshot.workflowEvents
+        ? [...normalizedSnapshot.workflowEvents]
+        : undefined,
+    workflowEventModelVersion:
+      normalizedSnapshot.workflowEventModelVersion === 1 ? 1 : undefined,
     legacySnapshot: legacySnapshot
       ? normalizeSnapshotStandalone(legacySnapshot)
       : undefined,
@@ -1217,6 +1268,19 @@ function normalizeWorkflowEvent(value: unknown): DesktopWorkflowEvent[] {
     return [normalizeThreadEvent({ ...event, createdAt } as DesktopWorkflowEvent)]
   }
   return [normalizeThreadEvent({ ...event, createdAt } as DesktopWorkflowEvent)]
+}
+
+function workflowEventKey(event: DesktopWorkflowEvent): string {
+  if (event.eventId) return `eventId:${event.eventId}`
+  const turnId = 'turnId' in event ? event.turnId : ''
+  const itemId = 'item' in event ? event.item.id : ''
+  return [
+    event.type,
+    event.threadId,
+    turnId,
+    itemId,
+    event.createdAt,
+  ].join(':')
 }
 
 function isWorkflowEventType(

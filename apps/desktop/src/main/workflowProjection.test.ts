@@ -150,3 +150,33 @@ test('same-name tools in one turn get distinct ids and FIFO results', () => {
   ])
   expect(new Set(itemIds).size).toBe(4)
 })
+
+test('permission decisions project into the active workflow turn', () => {
+  const p = projector()
+  p.project({ type: 'status', sessionId, status: 'running' })
+  const request = {
+    requestId: 'permission-1',
+    toolName: 'Edit',
+    input: { file_path: 'a.ts' },
+    description: 'Edit a.ts',
+  }
+
+  const events = p.projectPermissionDecision(sessionId, request, {
+    behavior: 'allow',
+  })
+
+  expect(events).toHaveLength(1)
+  expect(events[0]).toMatchObject({
+    type: 'item.completed',
+    threadId: sessionId,
+    turnId: 'turn-1',
+    item: {
+      type: 'permission_request',
+      status: 'completed',
+      request,
+      metadata: { decision: 'allow' },
+    },
+  })
+  expect(typeof events[0]?.eventId).toBe('string')
+  expect(events[0]?.sequence).toBe(3)
+})

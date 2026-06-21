@@ -39,6 +39,7 @@ import { getOpenAgentConfigHomeDir } from './desktopSettings.js'
 import { desktopDebug } from './desktopDebug.js'
 import {
   applyDesktopAgentEventToSnapshot,
+  applyDesktopWorkflowEventsToSnapshot,
   createDesktopSessionSnapshot,
   desktopSessionTranscriptExists,
   hydrateDesktopSessionSnapshot,
@@ -267,8 +268,11 @@ function attachSessionListeners(record: DesktopSessionRecord): void {
       currentRecord.snapshot,
       timestampedEvent,
     )
+    currentRecord.snapshot = applyDesktopWorkflowEventsToSnapshot(
+      currentRecord.snapshot,
+      windowService.emitAgentEvent(timestampedEvent),
+    )
     persistSessionStore()
-    windowService.emitAgentEvent(timestampedEvent)
     if (
       !currentRecord.snapshot.item.standalone &&
       (timestampedEvent.type === 'done' || timestampedEvent.type === 'error')
@@ -288,8 +292,11 @@ function attachSessionListeners(record: DesktopSessionRecord): void {
           latestRecord.snapshot,
           diffEvent,
         )
+        latestRecord.snapshot = applyDesktopWorkflowEventsToSnapshot(
+          latestRecord.snapshot,
+          windowService.emitAgentEvent(diffEvent),
+        )
         persistSessionStore()
-        windowService.emitAgentEvent(diffEvent)
       })
     }
   })
@@ -637,8 +644,11 @@ function scheduleAiTitleGeneration(
       latestRecord.snapshot,
       event,
     )
+    latestRecord.snapshot = applyDesktopWorkflowEventsToSnapshot(
+      latestRecord.snapshot,
+      windowService.emitAgentEvent(event),
+    )
     persistSessionStore()
-    windowService.emitAgentEvent(event)
   })
 }
 
@@ -672,10 +682,13 @@ async function respondToPermission(
     record.snapshot,
     normalizedRequestId,
   )
-  persistSessionStore()
   if (pendingRequest) {
-    windowService.emitPermissionDecision(sessionId, pendingRequest, decision)
+    record.snapshot = applyDesktopWorkflowEventsToSnapshot(
+      record.snapshot,
+      windowService.emitPermissionDecision(sessionId, pendingRequest, decision),
+    )
   }
+  persistSessionStore()
   if (record.session) {
     await record.session.respondToPermission(normalizedRequestId, decision)
   }

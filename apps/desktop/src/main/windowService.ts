@@ -2,6 +2,7 @@ import { app, BrowserWindow, Menu, screen, shell } from 'electron'
 import type { Display, Rectangle } from 'electron'
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { normalizeThreadEvent } from '@codepilotx/core/agent/workflow.js'
 import type {
   DesktopAgentEvent,
   DesktopPermissionDecision,
@@ -40,13 +41,13 @@ export type DesktopWindowService = {
   createApplicationMenu(): void
   getWindow(): BrowserWindow | null
   hasOpenWindows(): boolean
-  emitAgentEvent(event: DesktopAgentEvent): void
-  emitWorkflowEvent(event: DesktopWorkflowEvent): void
+  emitAgentEvent(event: DesktopAgentEvent): DesktopWorkflowEvent[]
+  emitWorkflowEvent(event: DesktopWorkflowEvent): DesktopWorkflowEvent
   emitPermissionDecision(
     sessionId: string,
     request: DesktopPermissionRequest,
     decision: DesktopPermissionDecision,
-  ): void
+  ): DesktopWorkflowEvent[]
   readWorkflowEventLog(): Promise<DesktopWorkflowEvent[]>
   sendUiCommand(command: DesktopUiCommand): void
   minimizeWindow(): void
@@ -227,30 +228,25 @@ export function createDesktopWindowService(options: {
     app.quit()
   }
 
-  function emitAgentEvent(event: DesktopAgentEvent): void {
+  function emitAgentEvent(event: DesktopAgentEvent): DesktopWorkflowEvent[] {
     mainWindow?.webContents.send(DESKTOP_AGENT_EVENT_CHANNEL, event)
-    for (const workflowEvent of workflowProjector.project(event)) {
-      emitWorkflowEvent(workflowEvent)
-    }
+    return workflowProjector.project(event).map(emitWorkflowEvent)
   }
 
-  function emitWorkflowEvent(event: DesktopWorkflowEvent): void {
+  function emitWorkflowEvent(event: DesktopWorkflowEvent): DesktopWorkflowEvent {
     mainWindow?.webContents.send(DESKTOP_WORKFLOW_EVENT_CHANNEL, event)
     appendWorkflowEventLog(event)
+    return event
   }
 
   function emitPermissionDecision(
     sessionId: string,
     request: DesktopPermissionRequest,
     decision: DesktopPermissionDecision,
-  ): void {
-    for (const workflowEvent of workflowProjector.projectPermissionDecision(
-      sessionId,
-      request,
-      decision,
-    )) {
-      emitWorkflowEvent(workflowEvent)
-    }
+  ): DesktopWorkflowEvent[] {
+    return workflowProjector
+      .projectPermissionDecision(sessionId, request, decision)
+      .map(emitWorkflowEvent)
   }
 
   async function readWorkflowEventLog(): Promise<DesktopWorkflowEvent[]> {
@@ -263,7 +259,9 @@ export function createDesktopWindowService(options: {
           if (!line.trim()) return []
           try {
             const parsed = JSON.parse(line) as DesktopWorkflowEvent
-            return isWorkflowEventLike(parsed) ? [parsed] : []
+            return isWorkflowEventLike(parsed)
+              ? [normalizeThreadEvent(parsed)]
+              : []
           } catch {
             return []
           }
@@ -279,6 +277,7 @@ export function createDesktopWindowService(options: {
     }
     try {
       const logPath = workflowEventLogPath()
+      mkdirSync(dirname(logPath), { recursive: true })
       appendFileSync(logPath, `${JSON.stringify(event)}\n`, 'utf8')
     } catch {
       // Debug logging must not affect the agent event stream.

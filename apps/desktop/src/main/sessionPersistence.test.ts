@@ -10,10 +10,14 @@ import {
 } from '@codepilotx/tui/utils/envUtils.js'
 import { getProjectDir } from '@codepilotx/tui/utils/sessionStorage.js'
 import {
+  applyDesktopWorkflowEventsToSnapshot,
+  createDesktopSessionSnapshot,
   getDesktopSessionIndexPath,
   loadDesktopSessionStore,
+  saveDesktopSessionStore,
 } from './sessionPersistence.js'
 import { getStandaloneWorkspacePath } from './standaloneWorkspace.js'
+import type { DesktopWorkflowEvent } from '../shared/types.js'
 
 test('transcript-only standalone chat restores outside project groups', async () => {
   await withDesktopConfig(async () => {
@@ -161,6 +165,81 @@ test('legacy snapshot workflow events are normalized on restore', async () => {
   })
 })
 
+test('overlay workflow events are saved and restored without transcript state', async () => {
+  await withDesktopConfig(async configDir => {
+    const sessionId = randomUUID()
+    const now = new Date('2026-01-01T00:00:00.000Z').toISOString()
+    const projectPath = join(configDir, 'workflow-overlay-project')
+    const snapshot = applyDesktopWorkflowEventsToSnapshot(
+      createDesktopSessionSnapshot({
+        sessionId,
+        workspace: {
+          path: projectPath,
+          name: 'workflow-overlay-project',
+          branchName: null,
+          isGitRepo: false,
+        },
+        standalone: false,
+        settings: {
+          permissionMode: 'default',
+          thinkingMode: 'default',
+          additionalDirectories: [],
+        },
+      }),
+      [threadStarted(sessionId, now)],
+    )
+
+    await saveDesktopSessionStore({
+      activeSessionId: sessionId,
+      sessions: [snapshot],
+    })
+
+    const store = await loadDesktopSessionStore()
+    const restored = store.sessions.find(item => item.item.id === sessionId)
+
+    expect(restored?.workflowEvents).toHaveLength(1)
+    expect(restored?.workflowEvents?.[0]).toMatchObject({
+      type: 'thread.started',
+      schemaVersion: WorkflowEventSchemaVersion,
+      threadId: sessionId,
+    })
+  })
+})
+
+test('applying workflow events normalizes events and skips duplicates', () => {
+  const sessionId = randomUUID()
+  const now = new Date('2026-01-01T00:00:00.000Z').toISOString()
+  const snapshot = createDesktopSessionSnapshot({
+    sessionId,
+    workspace: {
+      path: 'D:\\project',
+      name: 'project',
+      branchName: null,
+      isGitRepo: false,
+    },
+    standalone: false,
+    settings: {
+      permissionMode: 'default',
+      thinkingMode: 'default',
+      additionalDirectories: [],
+    },
+  })
+  const event = threadStarted(sessionId, now)
+
+  const next = applyDesktopWorkflowEventsToSnapshot(snapshot, [
+    event,
+    event,
+    { type: 'not-real' } as unknown as DesktopWorkflowEvent,
+  ])
+
+  expect(next.workflowEvents).toHaveLength(1)
+  expect(next.workflowEvents?.[0]).toMatchObject({
+    eventId: expect.any(String),
+    schemaVersion: WorkflowEventSchemaVersion,
+    threadId: sessionId,
+  })
+})
+
 async function withDesktopConfig(
   run: (configDir: string) => Promise<void>,
 ): Promise<void> {
@@ -243,5 +322,17 @@ function sessionItem(sessionId: string, projectPath: string, now: string) {
     status: 'done',
     lastMessageAt: now,
     createdAt: now,
+  }
+}
+
+function threadStarted(
+  sessionId: string,
+  createdAt: string,
+): DesktopWorkflowEvent {
+  return {
+    eventId: 'workflow-event-1',
+    type: 'thread.started',
+    threadId: sessionId,
+    createdAt,
   }
 }
