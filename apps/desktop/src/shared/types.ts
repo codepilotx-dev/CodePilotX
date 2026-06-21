@@ -277,6 +277,10 @@ export type DesktopThemeCustomTheme = {
 export type DesktopThemeSettings = {
   mode: DesktopThemeMode
   activeThemeIds: Record<DesktopThemeVariant, string>
+  fontSizes: {
+    code: number
+    ui: number
+  }
   customThemes: DesktopThemeCustomTheme[]
   presetOverrides: Record<string, DesktopThemeConfigV1>
 }

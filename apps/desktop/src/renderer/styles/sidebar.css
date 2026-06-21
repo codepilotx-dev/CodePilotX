@@ -18,7 +18,6 @@
 .desktop-sidebar,
 .desktop-sidebar-hover-overlay {
   --sidebar-pad-x: 8px;
-  --sidebar-item-h: 30px;
   --sidebar-item-gap: 8px;
   --sidebar-item-radius: 6px;
 }
@@ -126,7 +125,7 @@
   padding: 5px var(--sidebar-pad-x);
   border-radius: var(--sidebar-item-radius);
   color: var(--c-text-soft);
-  font-size: 14px;
+  font-size: var(--fs-14);
   font-weight: 400;
   text-align: left;
   text-decoration: none;

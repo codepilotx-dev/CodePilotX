@@ -60,6 +60,8 @@
     -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC",
     "Helvetica Neue", Arial, "Microsoft YaHei", sans-serif;
   --ff-mono: "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+  --fs-ui: 14px;
+  --fs-code: 12px;
   --fs-11: 11px;
   --fs-12: 12px;
   --fs-13: 13px;

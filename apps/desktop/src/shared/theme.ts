@@ -133,6 +133,10 @@ export const DEFAULT_DESKTOP_THEME_SETTINGS: DesktopThemeSettings = {
     light: DEFAULT_LIGHT_THEME_ID,
     dark: DEFAULT_DARK_THEME_ID,
   },
+  fontSizes: {
+    code: 12,
+    ui: 14,
+  },
   customThemes: [],
   presetOverrides: {},
 }
@@ -363,6 +367,7 @@ export function normalizeDesktopThemeSettings(
   return {
     mode: isDesktopThemeMode(value.mode) ? value.mode : 'light',
     activeThemeIds,
+    fontSizes: normalizeDesktopThemeFontSizes(value.fontSizes),
     customThemes,
     presetOverrides,
   }
@@ -593,6 +598,28 @@ function normalizeContrast(value: unknown, fallback: number): number {
     return fallback
   }
   return Math.max(0, Math.min(100, Math.round(value)))
+}
+
+function normalizeDesktopThemeFontSizes(
+  value: unknown,
+): DesktopThemeSettings['fontSizes'] {
+  const fontSizes = isRecord(value) ? value : {}
+  return {
+    code: normalizeFontSize(fontSizes.code, 12, 10, 20),
+    ui: normalizeFontSize(fontSizes.ui, 14, 11, 20),
+  }
+}
+
+function normalizeFontSize(
+  value: unknown,
+  fallback: number,
+  min: number,
+  max: number,
+): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return fallback
+  }
+  return Math.max(min, Math.min(max, Math.round(value)))
 }
 
 function normalizeHexColor(value: unknown, fallback: string): string {

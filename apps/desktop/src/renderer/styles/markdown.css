@@ -38,28 +38,28 @@
 }
 
 .md-body h1 {
-  font-size: 20px;
+  font-size: calc(var(--fs-14) + 6px);
   border-bottom: 1px solid var(--c-border-soft);
   padding-bottom: 6px;
 }
 
 .md-body h2 {
-  font-size: 17px;
+  font-size: calc(var(--fs-14) + 3px);
   border-bottom: 1px solid var(--c-border-faint);
   padding-bottom: 4px;
 }
 
 .md-body h3 {
-  font-size: 15px;
+  font-size: var(--fs-15);
 }
 
 .md-body h4 {
-  font-size: 14px;
+  font-size: var(--fs-14);
 }
 
 .md-body h5,
 .md-body h6 {
-  font-size: 13px;
+  font-size: var(--fs-13);
   color: var(--c-text-soft);
 }
 
@@ -130,7 +130,7 @@
   border: 1px solid var(--c-border-faint);
   color: var(--c-accent);
   font-family: var(--ff-mono);
-  font-size: 12.5px;
+  font-size: var(--fs-code);
   line-height: 1.5;
   word-break: break-all;
 }
@@ -156,7 +156,7 @@
 .md-body .md-code-lang {
   color: var(--c-text-meta);
   font-family: var(--ff-mono);
-  font-size: 10.5px;
+  font-size: calc(var(--fs-code) - 2px);
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -168,7 +168,7 @@
   padding: 3px 7px;
   border-radius: 5px;
   color: var(--c-text-meta);
-  font-size: 11px;
+  font-size: var(--fs-11);
   line-height: 1;
   transition:
     background 0.15s ease-out,
@@ -218,7 +218,7 @@
   overflow-x: auto;
   background: transparent;
   font-family: var(--ff-mono);
-  font-size: 12.5px;
+  font-size: var(--fs-code);
   line-height: 1.55;
 }
 
@@ -319,7 +319,7 @@
   margin: 0 0 var(--sp-3);
   border-collapse: collapse;
   width: 100%;
-  font-size: 13px;
+  font-size: var(--fs-13);
   border: 1px solid var(--c-border-soft);
   border-radius: var(--r-md);
   overflow: hidden;

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import * as RadixSlider from '@radix-ui/react-slider'
 import * as Tabs from '@radix-ui/react-tabs'
 import { Laptop, Moon, Sun } from 'lucide-react'
@@ -91,16 +91,52 @@ function Slider({
 function NumberInput({
   value,
   onChange,
+  min,
+  max,
+  step = 1,
 }: {
   value: number
   onChange: (v: number) => void
+  min: number
+  max: number
+  step?: number
 }) {
+  const [inputValue, setInputValue] = useState(String(value))
+
+  useEffect(() => {
+    setInputValue(String(value))
+  }, [value])
+
+  const handleChange = (nextValue: string): void => {
+    setInputValue(nextValue)
+    if (!nextValue.trim()) return
+
+    const parsed = Number.parseInt(nextValue, 10)
+    if (!Number.isFinite(parsed)) return
+    onChange(clampNumber(parsed, min, max))
+  }
+
+  const handleBlur = (): void => {
+    const parsed = Number.parseInt(inputValue, 10)
+    if (!Number.isFinite(parsed)) {
+      setInputValue(String(value))
+      return
+    }
+    const nextValue = clampNumber(parsed, min, max)
+    setInputValue(String(nextValue))
+    onChange(nextValue)
+  }
+
   return (
     <div className="settings-input settings-input-compact">
       <input
         type="number"
-        value={value}
-        onChange={e => onChange(parseInt(e.target.value, 10))}
+        min={min}
+        max={max}
+        step={step}
+        value={inputValue}
+        onBlur={handleBlur}
+        onChange={e => handleChange(e.target.value)}
         className="settings-input-number"
       />
       <span className="settings-input-unit">px</span>
@@ -141,8 +177,6 @@ export function AppearanceSettings() {
   const [reduceMotion, setReduceMotion] = useState<'system' | 'on' | 'off'>(
     'system',
   )
-  const [uiFontSize, setUiFontSize] = useState(14)
-  const [codeFontSize, setCodeFontSize] = useState(12)
   const [diffMarker, setDiffMarker] = useState<'color' | '+/-'>('color')
   const [pet, setPet] = useState('codex')
   const activeThemeOptions = getThemeDropdownOptions(settings, resolvedVariant)
@@ -195,6 +229,18 @@ export function AppearanceSettings() {
         },
       },
     }))
+  }
+
+  const updateFontSizes = (
+    patch: Partial<DesktopThemeSettings['fontSizes']>,
+  ): void => {
+    void saveSettings({
+      ...settings,
+      fontSizes: {
+        ...settings.fontSizes,
+        ...patch,
+      },
+    })
   }
 
   const handleCopyTheme = (): void => {
@@ -484,13 +530,25 @@ export function AppearanceSettings() {
           <SettingsRow
             title="UI 字号"
             description="调整 CodePilotX UI 使用的基准字号"
-            control={<NumberInput value={uiFontSize} onChange={setUiFontSize} />}
+            control={
+              <NumberInput
+                value={settings.fontSizes.ui}
+                min={11}
+                max={20}
+                onChange={ui => updateFontSizes({ ui })}
+              />
+            }
           />
           <SettingsRow
             title="代码字号"
             description="调整聊天和差异视图中的代码字号"
             control={
-              <NumberInput value={codeFontSize} onChange={setCodeFontSize} />
+              <NumberInput
+                value={settings.fontSizes.code}
+                min={10}
+                max={20}
+                onChange={code => updateFontSizes({ code })}
+              />
             }
           />
           <SettingsRow
@@ -767,6 +825,10 @@ function ThemeOptionIcon({
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0
+}
+
+function clampNumber(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, Math.round(value)))
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -71,6 +71,15 @@ const THEME_VARIABLES = [
   '--c-skill',
   '--ff-sans',
   '--ff-mono',
+  '--fs-ui',
+  '--fs-code',
+  '--fs-11',
+  '--fs-12',
+  '--fs-13',
+  '--fs-14',
+  '--fs-15',
+  '--fs-16',
+  '--fs-26',
 ]
 
 export function DesktopThemeProvider({
@@ -257,6 +266,17 @@ function applyDesktopTheme(
     '--ff-mono',
     `${formatFontFamilyStack(theme.fonts.code)}, ui-monospace, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace`,
   )
+  const uiFontSize = clamp(settings.fontSizes.ui, 11, 20)
+  const codeFontSize = clamp(settings.fontSizes.code, 10, 20)
+  root.style.setProperty('--fs-ui', `${uiFontSize}px`)
+  root.style.setProperty('--fs-code', `${codeFontSize}px`)
+  root.style.setProperty('--fs-11', `${uiFontSize - 3}px`)
+  root.style.setProperty('--fs-12', `${uiFontSize - 2}px`)
+  root.style.setProperty('--fs-13', `${uiFontSize - 1}px`)
+  root.style.setProperty('--fs-14', `${uiFontSize}px`)
+  root.style.setProperty('--fs-15', `${uiFontSize + 1}px`)
+  root.style.setProperty('--fs-16', `${uiFontSize + 2}px`)
+  root.style.setProperty('--fs-26', `${uiFontSize + 12}px`)
 }
 
 function getSystemThemeVariant(): DesktopThemeVariant {

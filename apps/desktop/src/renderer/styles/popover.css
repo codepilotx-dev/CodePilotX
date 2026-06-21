@@ -96,7 +96,7 @@
 }
 
 .context-menu-switch-item {
-  min-height: 40px;
+  padding-block: 6px;
 }
 
 .context-menu-switch {
@@ -131,7 +131,6 @@
 }
 
 .context-menu-sub-trigger {
-  min-height: 40px;
   cursor: default;
 }
 
@@ -142,7 +141,6 @@
 }
 
 .context-plugin-item {
-  min-height: 46px;
   gap: 12px;
   font-size: var(--fs-14);
 }
@@ -372,7 +370,7 @@
   border-radius: 6px;
   background: var(--c-ink);
   color: var(--c-text-on-accent);
-  font-size: 12px;
+  font-size: var(--fs-12);
   line-height: 1.4;
   font-weight: 500;
   box-shadow: 0 4px 12px var(--black-a3);

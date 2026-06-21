@@ -33,7 +33,6 @@
   display: flex;
   align-items: center;
   gap: var(--sidebar-item-gap);
-  min-height: 34px;
   padding: 6px var(--sidebar-pad-x);
   border-radius: var(--sidebar-item-radius);
   color: var(--c-text-soft);
@@ -135,7 +134,6 @@
   display: flex;
   align-items: center;
   gap: var(--sidebar-item-gap);
-  min-height: 34px;
   padding: 6px var(--sidebar-pad-x);
   border-radius: 12px;
   color: var(--c-text);
@@ -190,7 +188,7 @@
 }
 
 .settings-page-title {
-  font-size: 22px;
+  font-size: calc(var(--fs-14) + 8px);
   font-weight: 600;
   margin: 0 0 var(--sp-7) 0;
   color: var(--c-text-strong);
@@ -516,7 +514,6 @@
 .settings-dropdown-item {
   display: flex;
   align-items: center;
-  min-height: 28px;
   padding: 5px 8px;
   border-radius: var(--r-sm);
   color: var(--c-text);
@@ -630,7 +627,7 @@
 
 /* --- Appearance Settings --- */
 .appearance-theme-preview {
-  font-size: 14px;
+  font-size: var(--fs-14);
   padding: 0;
   border: 1px solid var(--c-border-soft);
   border-radius: var(--r-lg);
@@ -653,7 +650,7 @@
 .appearance-mode-title {
   margin: 0 0 9px;
   color: var(--c-text-strong);
-  font-size: 16px;
+  font-size: var(--fs-16);
   font-weight: 500;
   line-height: 1.2;
   letter-spacing: 0;
@@ -662,7 +659,7 @@
 .appearance-mode-desc {
   margin: 0;
   color: var(--c-text-soft);
-  font-size: 14px;
+  font-size: var(--fs-14);
   line-height: 1.28;
   letter-spacing: 0;
 }
@@ -689,7 +686,7 @@
   border-radius: 18px;
   background: transparent;
   color: var(--c-text-soft);
-  font-size: 14px;
+  font-size: var(--fs-14);
   font-weight: 500;
   line-height: 1;
   letter-spacing: 0;
@@ -821,7 +818,6 @@
 }
 
 .theme-dropdown-content .settings-dropdown-item {
-  min-height: 28px;
   padding: 5px 8px;
   border-radius: var(--r-sm);
   font-size: var(--fs-13);
@@ -844,7 +840,7 @@
   flex: 1;
   padding: 0;
   font-family: var(--ff-mono);
-  font-size: 14px;
+  font-size: var(--fs-code);
   display: flex;
   flex-direction: column;
   overflow-x: scroll;
@@ -1370,7 +1366,7 @@
 .settings-hero-copy h3 {
   margin: 0 0 6px;
   color: var(--c-text-strong);
-  font-size: 22px;
+  font-size: calc(var(--fs-14) + 8px);
   font-weight: 650;
   letter-spacing: -0.02em;
 }
