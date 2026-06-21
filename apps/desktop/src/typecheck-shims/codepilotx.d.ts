@@ -148,9 +148,27 @@ declare module '@codepilotx/core/agent/permissions.js' {
     | 'auto-approve-edits'
     | 'bypass'
     | 'config'
+  export type AgentPermissionAction =
+    | 'read'
+    | 'write'
+    | 'shell'
+    | 'network'
+    | 'mcp'
+  export type AgentPermissionEffect = 'allow' | 'ask' | 'deny'
+  export type AgentSandboxPolicy = AgentPermissionProfile
+  export type AgentPermissionActionScopes = Partial<
+    Record<AgentPermissionAction, AgentPermissionEffect>
+  >
+  export type AgentToolPermissionOverrides = Record<
+    string,
+    AgentPermissionActionScopes
+  >
   export type AgentPermissionPolicy = {
     profile: AgentPermissionProfile
     approvalMode: AgentApprovalMode
+    sandboxPolicy?: AgentSandboxPolicy
+    actionScopes?: AgentPermissionActionScopes
+    toolOverrides?: AgentToolPermissionOverrides
   }
   export type AgentPermissionDecision = {
     behavior: 'allow' | 'deny'
@@ -183,9 +201,22 @@ declare module '@codepilotx/core/agent/permissions.js' {
   export function normalizeDesktopAgentPermissionMode(
     mode: unknown,
   ): DesktopAgentPermissionMode
+  export function normalizeAgentPermissionPolicy(
+    policy: Partial<AgentPermissionPolicy> | undefined,
+  ): AgentPermissionPolicy
   export function permissionPolicyForDesktopMode(
     mode: DesktopAgentPermissionMode | undefined,
   ): AgentPermissionPolicy
+  export function resolvePermissionEffect(
+    policy: AgentPermissionPolicy,
+    action: AgentPermissionAction,
+    toolName?: string,
+  ): AgentPermissionEffect
+  export function shouldPromptForPermission(
+    policy: AgentPermissionPolicy,
+    action: AgentPermissionAction,
+    toolName?: string,
+  ): boolean
 }
 
 declare module '@codepilotx/core/agent/workflow.js' {

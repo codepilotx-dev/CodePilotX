@@ -17,9 +17,27 @@ export const AGENT_APPROVAL_MODES = [
 
 export type AgentApprovalMode = (typeof AGENT_APPROVAL_MODES)[number]
 
+export type AgentPermissionAction = 'read' | 'write' | 'shell' | 'network' | 'mcp'
+
+export type AgentPermissionEffect = 'allow' | 'ask' | 'deny'
+
+export type AgentSandboxPolicy = AgentPermissionProfile
+
+export type AgentPermissionActionScopes = Partial<
+  Record<AgentPermissionAction, AgentPermissionEffect>
+>
+
+export type AgentToolPermissionOverrides = Record<
+  string,
+  AgentPermissionActionScopes
+>
+
 export type AgentPermissionPolicy = {
   profile: AgentPermissionProfile
   approvalMode: AgentApprovalMode
+  sandboxPolicy?: AgentSandboxPolicy
+  actionScopes?: AgentPermissionActionScopes
+  toolOverrides?: AgentToolPermissionOverrides
 }
 
 export const DEFAULT_AGENT_PERMISSION_POLICY: AgentPermissionPolicy = {
@@ -128,35 +146,80 @@ export function permissionPolicyForDesktopMode(
 ): AgentPermissionPolicy {
   switch (normalizeDesktopAgentPermissionMode(mode)) {
     case 'auto':
-      return {
+      return normalizeAgentPermissionPolicy({
         profile: 'workspace-write',
         approvalMode: 'auto-review',
-      }
+      })
     case 'bypassPermissions':
-      return {
+      return normalizeAgentPermissionPolicy({
         profile: 'danger-full-access',
         approvalMode: 'bypass',
-      }
+      })
     case 'customConfig':
-      return {
+      return normalizeAgentPermissionPolicy({
         profile: 'workspace-write',
         approvalMode: 'config',
-      }
+      })
     case 'default':
-      return DEFAULT_AGENT_PERMISSION_POLICY
+      return normalizeAgentPermissionPolicy(DEFAULT_AGENT_PERMISSION_POLICY)
   }
 }
 
 export const permissionPolicyForLegacyMode = permissionPolicyForDesktopMode
 
+export function normalizeAgentPermissionPolicy(
+  policy: Partial<AgentPermissionPolicy> | undefined,
+): AgentPermissionPolicy {
+  const profile = isAgentPermissionProfile(policy?.profile)
+    ? policy.profile
+    : DEFAULT_AGENT_PERMISSION_POLICY.profile
+  const approvalMode = isAgentApprovalMode(policy?.approvalMode)
+    ? policy.approvalMode
+    : DEFAULT_AGENT_PERMISSION_POLICY.approvalMode
+
+  return {
+    profile,
+    approvalMode,
+    sandboxPolicy: isAgentPermissionProfile(policy?.sandboxPolicy)
+      ? policy.sandboxPolicy
+      : profile,
+    ...(policy?.actionScopes ? { actionScopes: policy.actionScopes } : {}),
+    ...(policy?.toolOverrides ? { toolOverrides: policy.toolOverrides } : {}),
+  }
+}
+
+export function resolvePermissionEffect(
+  policy: AgentPermissionPolicy,
+  action: AgentPermissionAction,
+  toolName?: string,
+): AgentPermissionEffect {
+  const normalized = normalizeAgentPermissionPolicy(policy)
+  if (normalized.approvalMode === 'bypass') return 'allow'
+
+  const toolOverride = toolName
+    ? normalized.toolOverrides?.[toolName]?.[action]
+    : undefined
+  if (toolOverride) return toolOverride
+
+  const actionScope = normalized.actionScopes?.[action]
+  if (actionScope) return actionScope
+
+  if (normalized.profile === 'read-only') {
+    return action === 'read' ? 'allow' : 'ask'
+  }
+  if (
+    normalized.approvalMode === 'auto-approve-edits' &&
+    action === 'write'
+  ) {
+    return 'allow'
+  }
+  return action === 'read' ? 'allow' : 'ask'
+}
+
 export function shouldPromptForPermission(
   policy: AgentPermissionPolicy,
-  action: 'read' | 'write' | 'shell' | 'network' | 'mcp',
+  action: AgentPermissionAction,
+  toolName?: string,
 ): boolean {
-  if (policy.approvalMode === 'bypass') return false
-  if (policy.profile === 'read-only') return action !== 'read'
-  if (policy.approvalMode === 'auto-approve-edits' && action === 'write') {
-    return false
-  }
-  return action !== 'read'
+  return resolvePermissionEffect(policy, action, toolName) === 'ask'
 }
