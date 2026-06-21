@@ -65,6 +65,28 @@ test('buildWorkflowMarkdownReport includes diagnostics and log diagnostics', () 
   expect(markdown).toContain('- 日志备注: 事件日志未启用\\|无日志事件')
 })
 
+test('buildWorkflowMarkdownReport includes consistency diagnostics', () => {
+  const markdown = buildWorkflowMarkdownReport({
+    activeSessionId: 'thread-1',
+    diagnostics: emptyDiagnostics,
+    consistencyDiagnostics: {
+      missingTurnCompletions: ['turn-1'],
+      unpairedToolCalls: ['tool-1'],
+      unpairedToolResults: ['tool-2'],
+      pendingPermissionRequests: ['permission-1'],
+      finalResponseMismatches: [
+        { workflow: 'Workflow final', transcript: 'Transcript final' },
+      ],
+      mixedThreadIds: ['thread-2'],
+    },
+    events: [toolCall('tool-call', 2, 'Bash', 'bun test')],
+  })
+
+  expect(markdown).toContain(
+    '- 一致性诊断: 6 个（缺 terminal 1，未配对 call 1，孤立 result 1，未决权限 1，最终回复不一致 1，混入 thread 1）',
+  )
+})
+
 test('buildWorkflowMarkdownReport expands failed tool result metadata', () => {
   const markdown = buildWorkflowMarkdownReport({
     activeSessionId: 'thread-1',

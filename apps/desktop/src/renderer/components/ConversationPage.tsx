@@ -44,6 +44,11 @@ import {
   buildWorkflowMarkdownReport,
   type WorkflowMarkdownLogDiagnostics,
 } from "../features/session/workflowMarkdown.js";
+import {
+  deriveWorkflowConsistencyDiagnostics,
+  workflowConsistencyIssueCount,
+  type WorkflowConsistencyDiagnostics,
+} from "../features/session/workflowConsistency.js";
 import { desktopClient } from "../services/desktopClient.js";
 import type { Message } from "../uiTypes.js";
 import { MarkdownMessage } from "./MarkdownMessage.js";
@@ -101,6 +106,15 @@ export function ConversationPage(): React.ReactNode {
   const workflowDerivedState = React.useMemo(
     () => deriveWorkflowSessionState(workflowEvents, activeSessionId),
     [activeSessionId, workflowEvents],
+  );
+  const workflowConsistencyDiagnostics = React.useMemo(
+    () =>
+      deriveWorkflowConsistencyDiagnostics({
+        activeSessionId,
+        currentView: { messages },
+        workflowEvents,
+      }),
+    [activeSessionId, messages, workflowEvents],
   );
   const timelineEvents = React.useMemo(
     () => {
@@ -484,6 +498,7 @@ export function ConversationPage(): React.ReactNode {
                 {workflowTimelineVisible ? (
                   <WorkflowDebugTimeline
                     activeSessionId={activeSessionId}
+                    consistencyDiagnostics={workflowConsistencyDiagnostics}
                     diagnostics={workflowDerivedState.diagnostics}
                     events={workflowEvents}
                   />
@@ -552,10 +567,12 @@ export function ConversationPage(): React.ReactNode {
 
 function WorkflowDebugTimeline({
   activeSessionId,
+  consistencyDiagnostics,
   diagnostics,
   events,
 }: {
   activeSessionId: string | null;
+  consistencyDiagnostics: WorkflowConsistencyDiagnostics;
   diagnostics: ReturnType<typeof deriveWorkflowSessionState>["diagnostics"];
   events: DesktopWorkflowEvent[];
 }): React.ReactNode {
@@ -598,6 +615,7 @@ function WorkflowDebugTimeline({
   function copyWorkflowMarkdown(): void {
     const markdown = buildWorkflowMarkdownReport({
       activeSessionId,
+      consistencyDiagnostics,
       diagnostics,
       events,
       logDiagnostics,
@@ -624,6 +642,7 @@ function WorkflowDebugTimeline({
         label="当前"
         total={events.length}
       />
+      <WorkflowConsistencySummary diagnostics={consistencyDiagnostics} />
       {logDiagnostics ? (
         <>
           <WorkflowDiagnosticsSummary
@@ -678,6 +697,25 @@ function WorkflowDebugTimeline({
         </div>
       )}
     </section>
+  );
+}
+
+function WorkflowConsistencySummary({
+  diagnostics,
+}: {
+  diagnostics: WorkflowConsistencyDiagnostics;
+}): React.ReactNode {
+  const total = workflowConsistencyIssueCount(diagnostics);
+  return (
+    <div className="workflow-debug-diagnostics">
+      一致性：{total} 个
+      <span>缺 terminal {diagnostics.missingTurnCompletions.length}</span>
+      <span>未配对 call {diagnostics.unpairedToolCalls.length}</span>
+      <span>孤立 result {diagnostics.unpairedToolResults.length}</span>
+      <span>未决权限 {diagnostics.pendingPermissionRequests.length}</span>
+      <span>回复不一致 {diagnostics.finalResponseMismatches.length}</span>
+      <span>混入 thread {diagnostics.mixedThreadIds.length}</span>
+    </div>
   );
 }
 

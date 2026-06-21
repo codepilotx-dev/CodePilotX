@@ -1,5 +1,7 @@
 import type { WorkflowReducerDiagnostics } from '../../../shared/workflowReducer.js'
 import type { DesktopWorkflowEvent } from '../../../shared/types.js'
+import type { WorkflowConsistencyDiagnostics } from './workflowConsistency.js'
+import { workflowConsistencyIssueCount } from './workflowConsistency.js'
 
 export type WorkflowMarkdownLogDiagnostics = {
   count: number
@@ -9,6 +11,7 @@ export type WorkflowMarkdownLogDiagnostics = {
 
 export type WorkflowMarkdownOptions = {
   activeSessionId: string | null
+  consistencyDiagnostics?: WorkflowConsistencyDiagnostics | null
   diagnostics: WorkflowReducerDiagnostics
   events: DesktopWorkflowEvent[]
   limit?: number
@@ -17,6 +20,7 @@ export type WorkflowMarkdownOptions = {
 
 export function buildWorkflowMarkdownReport({
   activeSessionId,
+  consistencyDiagnostics,
   diagnostics,
   events,
   limit = 60,
@@ -34,6 +38,14 @@ export function buildWorkflowMarkdownReport({
     `- 导出事件: ${visibleEvents.length} 条`,
     `- 当前诊断: ${formatDiagnosticsSummary(diagnostics)}`,
   ]
+
+  if (consistencyDiagnostics) {
+    lines.push(
+      `- 一致性诊断: ${formatConsistencyDiagnosticsSummary(
+        consistencyDiagnostics,
+      )}`,
+    )
+  }
 
   if (logDiagnostics) {
     lines.push(
@@ -78,6 +90,22 @@ function formatDiagnosticsSummary(
   const outOfOrder = diagnostics.outOfOrderSequences.length
   const total = duplicate + missing + outOfOrder
   return `${total} 个（重复 ${duplicate}，未完成工具 ${missing}，乱序 ${outOfOrder}）`
+}
+
+function formatConsistencyDiagnosticsSummary(
+  diagnostics: WorkflowConsistencyDiagnostics,
+): string {
+  return `${workflowConsistencyIssueCount(diagnostics)} 个（缺 terminal ${
+    diagnostics.missingTurnCompletions.length
+  }，未配对 call ${
+    diagnostics.unpairedToolCalls.length
+  }，孤立 result ${
+    diagnostics.unpairedToolResults.length
+  }，未决权限 ${
+    diagnostics.pendingPermissionRequests.length
+  }，最终回复不一致 ${
+    diagnostics.finalResponseMismatches.length
+  }，混入 thread ${diagnostics.mixedThreadIds.length}）`
 }
 
 function formatWorkflowItem(event: DesktopWorkflowEvent): string {
