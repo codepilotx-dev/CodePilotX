@@ -8,8 +8,16 @@ export type WorkflowFinalResponseMismatch = {
   transcript: string
 }
 
+export type WorkflowMissingTurnCompletion = {
+  turnId: string
+  lastEventType: string
+  lastEventCreatedAt: string
+  likelyStillRunning: boolean
+}
+
 export type WorkflowConsistencyDiagnostics = {
   missingTurnCompletions: string[]
+  missingTurnCompletionDetails: WorkflowMissingTurnCompletion[]
   unpairedToolCalls: string[]
   unpairedToolResults: string[]
   pendingPermissionRequests: string[]
@@ -40,6 +48,7 @@ export function deriveWorkflowConsistencyDiagnostics({
 
   return {
     missingTurnCompletions: findMissingTurnCompletions(scopedEvents),
+    missingTurnCompletionDetails: findMissingTurnCompletionDetails(scopedEvents),
     unpairedToolCalls: findUnpairedToolCalls(scopedEvents),
     unpairedToolResults: findUnpairedToolResults(scopedEvents),
     pendingPermissionRequests: derived.pendingPermissions
@@ -85,6 +94,24 @@ function findMissingTurnCompletions(
   }
 
   return [...started].filter(turnId => !terminal.has(turnId))
+}
+
+function findMissingTurnCompletionDetails(
+  events: DesktopWorkflowEvent[],
+): WorkflowMissingTurnCompletion[] {
+  const missing = new Set(findMissingTurnCompletions(events))
+  return [...missing].map(turnId => {
+    const turnEvents = events.filter(
+      event => 'turnId' in event && event.turnId === turnId,
+    )
+    const lastEvent = turnEvents[turnEvents.length - 1]
+    return {
+      turnId,
+      lastEventType: lastEvent?.type ?? 'unknown',
+      lastEventCreatedAt: lastEvent?.createdAt ?? '',
+      likelyStillRunning: Boolean(lastEvent),
+    }
+  })
 }
 
 function findUnpairedToolCalls(events: DesktopWorkflowEvent[]): string[] {

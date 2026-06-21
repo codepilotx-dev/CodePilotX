@@ -21,6 +21,14 @@ test('deriveWorkflowConsistencyDiagnostics reports incomplete turns and unpaired
     unpairedToolCalls: ['tool-1'],
     unpairedToolResults: ['tool-orphan'],
   })
+  expect(diagnostics.missingTurnCompletionDetails).toEqual([
+    {
+      turnId: 'turn-1',
+      lastEventType: 'item.completed',
+      lastEventCreatedAt: '2026-06-22T00:00:02.000Z',
+      likelyStillRunning: true,
+    },
+  ])
   expect(workflowConsistencyIssueCount(diagnostics)).toBe(3)
 })
 

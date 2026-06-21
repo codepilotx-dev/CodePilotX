@@ -71,6 +71,14 @@ test('buildWorkflowMarkdownReport includes consistency diagnostics', () => {
     diagnostics: emptyDiagnostics,
     consistencyDiagnostics: {
       missingTurnCompletions: ['turn-1'],
+      missingTurnCompletionDetails: [
+        {
+          turnId: 'turn-1',
+          lastEventType: 'item.completed',
+          lastEventCreatedAt: '2026-06-22T00:00:03.000Z',
+          likelyStillRunning: true,
+        },
+      ],
       unpairedToolCalls: ['tool-1'],
       unpairedToolResults: ['tool-2'],
       pendingPermissionRequests: ['permission-1'],
@@ -86,6 +94,10 @@ test('buildWorkflowMarkdownReport includes consistency diagnostics', () => {
     '- 一致性诊断: 6 个（缺 turn 终止事件 1，未配对 call 1，孤立 result 1，未决权限 1，最终回复不一致 1，混入 thread 1）',
   )
   expect(markdown).not.toContain('缺 terminal')
+  expect(markdown).toContain('## 缺 turn 终止事件')
+  expect(markdown).toContain('| turn | 最后事件 | 最后时间 | 判断 |')
+  expect(markdown).toContain('| turn-1 | item.completed |')
+  expect(markdown).toContain('可能仍在运行或复制过早')
 })
 
 test('buildWorkflowMarkdownReport expands failed tool result metadata', () => {

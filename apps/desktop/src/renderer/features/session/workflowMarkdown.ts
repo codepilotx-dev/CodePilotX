@@ -57,6 +57,28 @@ export function buildWorkflowMarkdownReport({
     }
   }
 
+  if (
+    consistencyDiagnostics?.missingTurnCompletionDetails &&
+    consistencyDiagnostics.missingTurnCompletionDetails.length > 0
+  ) {
+    lines.push(
+      '',
+      '## 缺 turn 终止事件',
+      '',
+      '| turn | 最后事件 | 最后时间 | 判断 |',
+      '| --- | --- | --- | --- |',
+    )
+    for (const detail of consistencyDiagnostics.missingTurnCompletionDetails) {
+      lines.push(
+        `| ${tableCell(detail.turnId)} | ${tableCell(
+          detail.lastEventType,
+        )} | ${tableCell(formatWorkflowTime(detail.lastEventCreatedAt))} | ${tableCell(
+          detail.likelyStillRunning ? '可能仍在运行或复制过早' : '缺少事件上下文',
+        )} |`,
+      )
+    }
+  }
+
   lines.push(
     '',
     '| 时间 | 类型 | thread | turn | item | detail |',
