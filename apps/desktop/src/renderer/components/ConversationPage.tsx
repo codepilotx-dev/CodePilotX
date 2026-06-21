@@ -40,6 +40,10 @@ import type {
 } from "../../shared/types.js";
 import { useQuickChatContext } from "../context/QuickChatContext.js";
 import { useDesktopSettings } from "../features/settings/useDesktopSettings.js";
+import {
+  buildWorkflowMarkdownReport,
+  type WorkflowMarkdownLogDiagnostics,
+} from "../features/session/workflowMarkdown.js";
 import { desktopClient } from "../services/desktopClient.js";
 import type { Message } from "../uiTypes.js";
 import { MarkdownMessage } from "./MarkdownMessage.js";
@@ -556,11 +560,8 @@ function WorkflowDebugTimeline({
   events: DesktopWorkflowEvent[];
 }): React.ReactNode {
   const visibleEvents = events.slice(-60).reverse();
-  const [logDiagnostics, setLogDiagnostics] = React.useState<{
-    count: number;
-    diagnostics: ReturnType<typeof deriveWorkflowSessionState>["diagnostics"];
-    note?: string;
-  } | null>(null);
+  const [logDiagnostics, setLogDiagnostics] =
+    React.useState<WorkflowMarkdownLogDiagnostics | null>(null);
 
   function inspectWorkflowLog(): void {
     void desktopClient
@@ -594,14 +595,29 @@ function WorkflowDebugTimeline({
       });
   }
 
+  function copyWorkflowMarkdown(): void {
+    const markdown = buildWorkflowMarkdownReport({
+      activeSessionId,
+      diagnostics,
+      events,
+      logDiagnostics,
+    });
+    void navigator.clipboard?.writeText(markdown).catch(() => undefined);
+  }
+
   return (
     <section className="workflow-debug-timeline">
       <div className="workflow-debug-timeline-header">
         <span>Workflow 事件</span>
-        <small>{events.length} 条</small>
-        <button type="button" onClick={inspectWorkflowLog}>
-          检查日志
-        </button>
+        <div className="workflow-debug-timeline-actions">
+          <small>{events.length} 条</small>
+          <button type="button" onClick={copyWorkflowMarkdown}>
+            复制 MD
+          </button>
+          <button type="button" onClick={inspectWorkflowLog}>
+            检查日志
+          </button>
+        </div>
       </div>
       <WorkflowDiagnosticsSummary
         diagnostics={diagnostics}
@@ -680,10 +696,35 @@ function WorkflowDiagnosticsSummary({
     diagnostics.outOfOrderSequences.length;
   return (
     <div className="workflow-debug-empty">
-      {label}: {total} 条，{issues} 个诊断
-      {issues > 0
-        ? `（重复 ${diagnostics.duplicateEventIds.length}，未完成工具 ${diagnostics.missingToolResults.length}，乱序 ${diagnostics.outOfOrderSequences.length}）`
-        : ""}
+      <div>
+        {label}: {total} 条，{issues} 个诊断
+        {issues > 0
+          ? `（重复 ${diagnostics.duplicateEventIds.length}，未完成工具 ${diagnostics.missingToolResults.length}，乱序 ${diagnostics.outOfOrderSequences.length}）`
+          : ""}
+      </div>
+      {issues > 0 ? (
+        <div className="workflow-debug-diagnostic-list">
+          {diagnostics.duplicateEventIds.length > 0 ? (
+            <span>
+              重复: {diagnostics.duplicateEventIds.slice(0, 3).join(", ")}
+            </span>
+          ) : null}
+          {diagnostics.missingToolResults.length > 0 ? (
+            <span>
+              未完成工具: {diagnostics.missingToolResults.slice(0, 3).join(", ")}
+            </span>
+          ) : null}
+          {diagnostics.outOfOrderSequences.length > 0 ? (
+            <span>
+              乱序:{" "}
+              {diagnostics.outOfOrderSequences
+                .slice(0, 3)
+                .map(({ previous, current }) => `${previous}->${current}`)
+                .join(", ")}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

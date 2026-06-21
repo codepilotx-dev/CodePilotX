@@ -906,11 +906,24 @@
   font-weight: 600;
 }
 
+.workflow-debug-timeline-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .workflow-debug-timeline-header small,
 .workflow-debug-event-header time,
 .workflow-debug-empty {
   color: var(--c-text-meta);
   font-size: var(--fs-12);
+}
+
+.workflow-debug-diagnostic-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-top: 4px;
 }
 
 .workflow-debug-list {
