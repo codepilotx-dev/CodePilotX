@@ -3,6 +3,8 @@ import { randomUUID } from 'crypto'
 import type {
   ThreadEvent,
   ThreadId,
+  TurnItem,
+  TurnItemEvent,
   TurnId,
   TurnStatus,
 } from '@codepilotx/core/agent/workflow.js'
@@ -38,8 +40,27 @@ export type ThreadRuntimeState = {
   currentTurnId?: TurnId
 }
 
+export type ThreadRuntimeResumeState = Partial<ThreadRuntimeState> & {
+  nextSequence?: number
+  startedEventEmitted?: boolean
+  metadata?: Record<string, unknown>
+}
+
+export type ThreadRuntimeForkOptions = {
+  threadId?: ThreadId
+  settings?: ThreadRuntimeSettings
+  metadata?: Record<string, unknown>
+}
+
+export type ThreadRuntimeLifecycleResult = {
+  threadId: ThreadId
+  state: ThreadRuntimeState
+  event: ThreadEvent
+}
+
 type ThreadRecord = ThreadRuntimeState & {
   engine: QueryEngine
+  settings: ThreadRuntimeSettings
   startedEventEmitted: boolean
   nextSequence: number
 }
@@ -62,10 +83,74 @@ export class ThreadRuntime {
       status: 'idle',
       createdAt,
       engine,
+      settings,
       startedEventEmitted: false,
       nextSequence: 0,
     })
     return { threadId, status: 'idle', createdAt }
+  }
+
+  resumeThread(
+    threadId: ThreadId,
+    settings: ThreadRuntimeSettings,
+    state: ThreadRuntimeResumeState = {},
+  ): ThreadRuntimeLifecycleResult {
+    const createdAt = state.createdAt ?? this.now()
+    const record: ThreadRecord = {
+      threadId,
+      status: state.status ?? 'idle',
+      createdAt,
+      currentTurnId: state.currentTurnId,
+      engine: new QueryEngine({ ...settings, threadId }),
+      settings: { ...settings, threadId },
+      startedEventEmitted: state.startedEventEmitted ?? true,
+      nextSequence: state.nextSequence ?? 0,
+    }
+    this.threads.set(threadId, record)
+
+    const event = this.decorateEvent(
+      record,
+      createThreadStartedEvent(
+        threadId,
+        { ...(state.metadata ?? {}), resumed: true, createdAt },
+        this.now,
+      ),
+    )
+    return { threadId, state: this.getThreadState(threadId), event }
+  }
+
+  forkThread(
+    sourceThreadId: ThreadId,
+    options: ThreadRuntimeForkOptions = {},
+  ): ThreadRuntimeLifecycleResult {
+    const source = this.requireThread(sourceThreadId)
+    const threadId = options.threadId ?? this.createId('thread')
+    const settings = { ...(options.settings ?? source.settings), threadId }
+    const createdAt = this.now()
+    const record: ThreadRecord = {
+      threadId,
+      status: 'idle',
+      createdAt,
+      engine: new QueryEngine(settings),
+      settings,
+      startedEventEmitted: true,
+      nextSequence: 0,
+    }
+    this.threads.set(threadId, record)
+
+    const event = this.decorateEvent(
+      record,
+      createThreadStartedEvent(
+        threadId,
+        {
+          ...(options.metadata ?? {}),
+          forkedFromThreadId: sourceThreadId,
+          createdAt,
+        },
+        this.now,
+      ),
+    )
+    return { threadId, state: this.getThreadState(threadId), event }
   }
 
   async *sendTurn(
@@ -151,10 +236,47 @@ export class ThreadRuntime {
     })
   }
 
+  rollbackTurn(threadId: ThreadId, turnId: TurnId): ThreadEvent {
+    const record = this.requireThread(threadId)
+    record.status = 'idle'
+    if (record.currentTurnId === turnId) {
+      record.currentTurnId = undefined
+    }
+    return this.decorateEvent(record, {
+      type: 'turn.interrupted',
+      threadId,
+      turnId,
+      createdAt: this.now(),
+      reason: 'rollbackTurn',
+    })
+  }
+
+  injectItem(
+    threadId: ThreadId,
+    turnId: TurnId,
+    item: TurnItem,
+    type: TurnItemEvent['type'] = 'item.completed',
+  ): TurnItemEvent {
+    const record = this.requireThread(threadId)
+    return this.decorateEvent(record, {
+      type,
+      threadId,
+      turnId,
+      item: {
+        ...item,
+        threadId,
+        turnId,
+      },
+      createdAt: this.now(),
+    }) as TurnItemEvent
+  }
+
   getThreadState(threadId: ThreadId): ThreadRuntimeState {
     const {
       engine: _engine,
+      settings: _settings,
       startedEventEmitted: _startedEventEmitted,
+      nextSequence: _nextSequence,
       ...state
     } = this.requireThread(threadId)
     return state
