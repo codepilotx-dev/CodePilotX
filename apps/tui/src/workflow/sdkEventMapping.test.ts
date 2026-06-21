@@ -190,6 +190,47 @@ test('failed tool result maps readable result metadata', () => {
   })
 })
 
+test('failed tool result extracts nested readable metadata', () => {
+  const events = sdkMessageToThreadEvents(
+    {
+      type: 'user',
+      uuid: 'user-1',
+      tool_use_result: {
+        error: { message: 'Read failed' },
+        output: [{ text: 'No such file' }],
+      },
+      message: {
+        content: [
+          {
+            type: 'tool_result',
+            tool_use_id: 'tool-1',
+            is_error: true,
+            content: 'Read',
+          },
+        ],
+      },
+    },
+    ids,
+  )
+
+  expect(events[0]).toMatchObject({
+    type: 'item.completed',
+    item: {
+      type: 'tool_result',
+      status: 'failed',
+      metadata: {
+        content: 'Read',
+        error: 'message=Read failed',
+        output: 'No such file',
+        result: {
+          error: { message: 'Read failed' },
+          output: [{ text: 'No such file' }],
+        },
+      },
+    },
+  })
+})
+
 test('tool result metadata keeps block content when no structured result exists', () => {
   const events = sdkMessageToThreadEvents(
     {

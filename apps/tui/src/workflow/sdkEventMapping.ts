@@ -352,11 +352,56 @@ function toolResultMetadata(
     'content',
   ]) {
     const value = result[key]
-    const text = extractText(value) ?? readString(value)
+    const text = metadataValueToText(value)
     if (text) metadata[key] = text
   }
 
   return metadata
+}
+
+function metadataValueToText(value: unknown): string | undefined {
+  const direct = readString(value)
+  if (direct) return direct
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+
+  if (Array.isArray(value)) {
+    const text = value
+      .map(item => metadataArrayItemToText(item))
+      .filter((part): part is string => Boolean(part))
+      .join('\n')
+    return text || undefined
+  }
+
+  if (!isRecord(value)) return undefined
+
+  const recordDirect = readString(value.text) ?? readString(value.content)
+  if (recordDirect) return recordDirect
+
+  const details = ['message', 'error', 'stderr', 'stdout', 'output']
+    .map(key => {
+      const text = metadataValueToText(value[key])
+      return text ? `${key}=${text}` : undefined
+    })
+    .filter((part): part is string => Boolean(part))
+  if (details.length > 0) return details.join('; ')
+
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return undefined
+  }
+}
+
+function metadataArrayItemToText(value: unknown): string | undefined {
+  if (isRecord(value)) {
+    return (
+      readString(value.text) ??
+      readString(value.content) ??
+      readString(value.message) ??
+      metadataValueToText(value)
+    )
+  }
+  return metadataValueToText(value)
 }
 
 function messageMetadata(message: UnknownRecord): Record<string, unknown> {
