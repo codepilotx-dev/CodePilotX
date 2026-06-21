@@ -275,11 +275,6 @@
 .empty-canvas-card p,
 .message-card p,
 .placeholder-card p,
-.setting-runtime p,
-.permission-card p,
-.tool-entry p,
-.drawer-preview pre,
-.diff-panel,
 .muted-copy {
   font-size: var(--fs-14);
   line-height: 1.6;
@@ -293,10 +288,7 @@
 
 .empty-canvas-card,
 .utility-card,
-.message-card,
-.drawer-preview,
-.tool-entry,
-.permission-card {
+.message-card {
   border: 1px solid var(--c-border-soft);
   background: var(--c-surface);
   box-shadow: var(--sh-card);
@@ -1227,9 +1219,7 @@
   padding: var(--sp-5);
 }
 
-.utility-card h2,
-.drawer-section strong,
-.setting-field span {
+.utility-card h2 {
   color: var(--c-text-strong);
   font-size: var(--fs-13);
   font-weight: 600;

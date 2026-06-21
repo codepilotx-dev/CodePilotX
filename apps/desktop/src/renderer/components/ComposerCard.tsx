@@ -107,6 +107,13 @@ const INSTALLED_CONTEXT_PLUGINS: ContextPlugin[] = [
   },
 ]
 
+const PERMISSION_CHIP_CLASS_NAMES: Record<DesktopPermissionMode, string> = {
+  auto: 'permission-chip permission-chip-auto',
+  bypassPermissions: 'permission-chip permission-chip-bypassPermissions',
+  customConfig: 'permission-chip permission-chip-customConfig',
+  default: 'permission-chip permission-chip-default',
+}
+
 type Props = {
   input: string
   canSubmit: boolean
@@ -254,7 +261,7 @@ export function ComposerCard({
   }
 
   function getPermissionClassName(value: DesktopPermissionMode): string {
-    return `permission-chip permission-chip-${value}`
+    return PERMISSION_CHIP_CLASS_NAMES[value]
   }
 
   function renderContextSwitchItem(

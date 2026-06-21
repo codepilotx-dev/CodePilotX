@@ -1,6 +1,4 @@
-.menubar-icon,
 .icon-button,
-.collapse-button,
 .ghost-icon-button {
   display: inline-flex;
   align-items: center;
@@ -13,25 +11,12 @@
   -webkit-app-region: no-drag;
 }
 
-.menubar-icon:hover,
 .icon-button:hover,
-.collapse-button:hover,
 .ghost-icon-button:hover {
   color: var(--c-text);
 }
 
-.menubar-status {
-  color: var(--c-text-meta);
-  font-size: var(--fs-12);
-}
-
-.menubar-status.warning {
-  color: var(--c-accent);
-}
-
-.menubar-icon svg,
 .icon-button svg,
-.collapse-button svg,
 .ghost-icon-button svg,
 .window-toolbar-icon svg,
 .message-action svg,

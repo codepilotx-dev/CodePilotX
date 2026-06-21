@@ -28,6 +28,22 @@
   gap: var(--sp-3);
 }
 
+.permission-modal-actions button {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  padding: 0 10px;
+  border: 1px solid var(--c-border-soft);
+  border-radius: var(--r-md);
+  background: var(--c-bg);
+}
+
+.permission-modal-actions button:hover {
+  background: var(--c-bg-hover);
+}
+
 .global-error-toast {
   position: fixed;
   top: 20px;
@@ -150,7 +166,7 @@
 }
 
 .primary-button {
-  background: var(--c-accent) !important;
+  background: var(--c-accent);
   color: var(--c-text-on-accent);
 }
 

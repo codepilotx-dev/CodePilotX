@@ -288,12 +288,6 @@
   line-height: 1.5;
 }
 
-.settings-row-value {
-  color: var(--c-text-soft);
-  font-size: var(--fs-13);
-  white-space: nowrap;
-}
-
 .settings-row-link {
   color: var(--c-accent);
   text-decoration: none;
@@ -558,22 +552,9 @@
   border: 1px solid var(--c-border-soft);
   border-radius: 11px;
   flex-shrink: 0;
-  /* font-size: 15px; */
   font-weight: 700;
   letter-spacing: 0;
   box-shadow: inset 0 1px 0 var(--white-a7);
-}
-
-.settings-dropdown-wrap {
-  position: relative;
-  display: inline-block;
-}
-
-.settings-dropdown-native {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  cursor: pointer;
 }
 
 /* --- Button --- */
@@ -606,11 +587,6 @@
 
 .settings-button.danger {
   color: var(--c-danger);
-}
-
-.settings-error-text {
-  color: var(--c-danger);
-  font-size: var(--fs-13);
 }
 
 /* --- Segmented Control --- */
@@ -1310,11 +1286,6 @@
   font-size: var(--fs-13);
   font-variant-numeric: tabular-nums;
   text-align: right;
-}
-
-.archived-session-card {
-  display: flex;
-  flex-direction: column;
 }
 
 .archived-empty {
