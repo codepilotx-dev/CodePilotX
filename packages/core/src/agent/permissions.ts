@@ -221,5 +221,5 @@ export function shouldPromptForPermission(
   action: AgentPermissionAction,
   toolName?: string,
 ): boolean {
-  return resolvePermissionEffect(policy, action, toolName) === 'ask'
+  return resolvePermissionEffect(policy, action, toolName) !== 'allow'
 }

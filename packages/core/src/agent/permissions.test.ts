@@ -99,9 +99,10 @@ test('permission effect resolution supports action scopes and per-tool overrides
   expect(resolvePermissionEffect(policy, 'network')).toBe('deny')
   expect(resolvePermissionEffect(policy, 'network', 'WebFetch')).toBe('allow')
   expect(resolvePermissionEffect(policy, 'shell', 'Bash')).toBe('deny')
-  expect(shouldPromptForPermission(policy, 'network')).toBe(false)
+  expect(shouldPromptForPermission(policy, 'network')).toBe(true)
+  expect(shouldPromptForPermission(policy, 'network', 'WebFetch')).toBe(false)
   expect(shouldPromptForPermission(policy, 'shell')).toBe(true)
-  expect(shouldPromptForPermission(policy, 'shell', 'Bash')).toBe(false)
+  expect(shouldPromptForPermission(policy, 'shell', 'Bash')).toBe(true)
 })
 
 test('bypass approval mode still allows every action before local tool rules', () => {
