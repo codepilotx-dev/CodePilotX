@@ -552,7 +552,6 @@
   font-size: var(--fs-14);
 }
 
-.timeline-tool-event,
 .timeline-file-event,
 .timeline-system-event {
   max-width: min(680px, 100%);
@@ -563,46 +562,113 @@
   font-size: var(--fs-13);
 }
 
-.timeline-tool-event {
-  overflow: hidden;
+.timeline-command-group {
+  max-width: min(680px, 100%);
+  color: var(--c-text);
+  font-size: var(--fs-13);
 }
 
-.timeline-tool-event summary {
-  min-height: 34px;
+.timeline-command-group-summary {
+  width: fit-content;
+  min-height: 24px;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 7px 10px;
+  gap: 6px;
+  margin-bottom: 8px;
+  color: var(--c-text-meta);
+  font-size: var(--fs-13);
+  list-style: none;
   cursor: pointer;
 }
 
-.timeline-tool-event summary span,
-.timeline-status-event,
-.timeline-file-event small {
+.timeline-command-group-summary::-webkit-details-marker {
+  display: none;
+}
+
+.timeline-command-group-summary svg {
+  width: var(--app-icon-size);
+  height: var(--app-icon-size);
+  display: block;
+  flex: 0 0 auto;
+  color: var(--c-icon);
+  stroke-width: var(--app-icon-stroke-width);
+}
+
+.timeline-command-group-chevron {
+  transition: transform 0.15s ease-out;
+}
+
+.timeline-command-group:not([open]) .timeline-command-group-chevron {
+  transform: rotate(-90deg);
+}
+
+.timeline-command-list {
+  display: grid;
+  gap: 8px;
+}
+
+.timeline-command-card {
+  overflow: hidden;
+  border: 1px solid var(--c-border-soft);
+  border-radius: var(--r-md);
+  background: var(--c-bg-soft);
+  box-shadow: var(--sh-card);
+}
+
+.timeline-command-card.error {
+  border-color: color-mix(in srgb, var(--c-diff-removed) 55%, var(--c-border-soft));
+}
+
+.timeline-command-card-header {
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 10px 5px;
   color: var(--c-text-meta);
   font-size: var(--fs-12);
 }
 
-.timeline-tool-event summary strong {
-  color: var(--c-text-strong);
-  font-size: var(--fs-13);
+.timeline-command-card-header span {
+  color: var(--c-text-meta);
   font-weight: 600;
 }
 
-.timeline-tool-event pre {
-  max-height: 240px;
+.timeline-command-card-header small {
+  color: var(--c-text-meta);
+  font-size: var(--fs-12);
+  font-weight: 400;
+}
+
+.timeline-command-card.error .timeline-command-card-header small {
+  color: var(--c-diff-removed);
+}
+
+.timeline-command-input,
+.timeline-command-output {
   overflow: auto;
   margin: 0;
   padding: 0 10px 10px;
   color: var(--c-text-soft);
-  font-family: var(--font-code);
+  font-family: var(--ff-mono);
   font-size: var(--fs-12);
   line-height: 1.5;
   white-space: pre-wrap;
 }
 
-.timeline-tool-event.error {
-  border-color: var(--c-diff-removed);
+.timeline-command-output {
+  max-height: 260px;
+}
+
+.timeline-command-input + .timeline-command-output {
+  padding-top: 0;
+}
+
+.timeline-status-event,
+.timeline-file-event small {
+  color: var(--c-text-meta);
+  font-size: var(--fs-12);
 }
 
 .timeline-file-event {

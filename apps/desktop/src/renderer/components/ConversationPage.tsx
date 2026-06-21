@@ -100,6 +100,10 @@ export function ConversationPage(): React.ReactNode {
       ),
     [conversationMessages, events],
   );
+  const timelineItems = React.useMemo(
+    () => groupTimelineToolEvents(timelineEvents),
+    [timelineEvents],
+  );
   const showThinking =
     (sessionStatus === "running" || sessionStatus === "waiting") &&
     !timelineEvents.some(
@@ -419,8 +423,8 @@ export function ConversationPage(): React.ReactNode {
             {isConversationLoading ? (
               <div className="assistant-thinking">加载对话中</div>
             ) : (
-              timelineEvents.map((event) => (
-                <TimelineEvent event={event} key={event.id} />
+              timelineItems.map((item) => (
+                <TimelineItem item={item} key={item.id} />
               ))
             )}
             {!isConversationLoading && showThinking ? <ThinkingPill /> : null}
@@ -521,11 +525,29 @@ function renderOpenTargetIcon(target: DesktopOpenTarget): React.ReactNode {
   return <File size={APP_ICON_SIZE} />;
 }
 
-function TimelineEvent({
-  event,
-}: {
-  event: DesktopSessionEvent;
-}): React.ReactNode {
+type TimelineToolRun = {
+  id: string;
+  toolName: string;
+  callContent: string;
+  resultContent: string;
+  isError: boolean;
+  isRunning: boolean;
+};
+
+type TimelineToolGroup = {
+  id: string;
+  type: "tool_group";
+  runs: TimelineToolRun[];
+};
+
+type TimelineItem = DesktopSessionEvent | TimelineToolGroup;
+
+function TimelineItem({ item }: { item: TimelineItem }): React.ReactNode {
+  if (item.type === "tool_group") {
+    return <TimelineToolGroupView group={item} />;
+  }
+
+  const event = item;
   if (event.type === "message" || event.type === "assistant_delta") {
     return (
       <ChatMessage
@@ -541,18 +563,7 @@ function TimelineEvent({
   }
 
   if (event.type === "tool_call" || event.type === "tool_result") {
-    const toolName = stringMetadata(event, "toolName") ?? "Tool";
-    const isError =
-      event.type === "tool_result" && event.metadata?.isError === true;
-    return (
-      <details className={`timeline-tool-event ${isError ? "error" : ""}`}>
-        <summary>
-          <span>{event.type === "tool_call" ? "Running" : "Result"}</span>
-          <strong>{toolName}</strong>
-        </summary>
-        {event.content ? <pre>{event.content}</pre> : null}
-      </details>
-    );
+    return null;
   }
 
   if (event.type === "file_patch") {
@@ -601,6 +612,51 @@ function TimelineEvent({
   }
 
   return null;
+}
+
+function TimelineToolGroupView({
+  group,
+}: {
+  group: TimelineToolGroup;
+}): React.ReactNode {
+  const commandCount = group.runs.length;
+
+  return (
+    <details className="timeline-command-group" open>
+      <summary className="timeline-command-group-summary">
+        <SquareTerminal size={APP_ICON_SIZE} />
+        <span>
+          {commandCount === 1 ? "已运行命令" : `已运行 ${commandCount} 条命令`}
+        </span>
+        <ChevronDown
+          className="timeline-command-group-chevron"
+          size={APP_ICON_SIZE}
+          strokeWidth={APP_ICON_STROKE_WIDTH}
+        />
+      </summary>
+      <div className="timeline-command-list">
+        {group.runs.map((run) => (
+          <article
+            className={`timeline-command-card ${run.isError ? "error" : ""}`}
+            key={run.id}
+          >
+            <div className="timeline-command-card-header">
+              <span>{displayToolName(run.toolName)}</span>
+              <small>
+                {run.isRunning ? "运行中" : run.isError ? "失败" : "成功"}
+              </small>
+            </div>
+            {run.callContent ? (
+              <pre className="timeline-command-input">{formatToolInput(run)}</pre>
+            ) : null}
+            {run.resultContent ? (
+              <pre className="timeline-command-output">{run.resultContent}</pre>
+            ) : null}
+          </article>
+        ))}
+      </div>
+    </details>
+  );
 }
 
 function ChatMessage({ message }: { message: Message }): React.ReactNode {
@@ -813,6 +869,105 @@ function foldTimelineEvents(
   return folded;
 }
 
+function groupTimelineToolEvents(
+  sourceEvents: DesktopSessionEvent[],
+): TimelineItem[] {
+  const items: TimelineItem[] = [];
+  let pendingToolEvents: DesktopSessionEvent[] = [];
+
+  function flushToolEvents(): void {
+    if (pendingToolEvents.length === 0) return;
+    const group = buildToolGroup(pendingToolEvents);
+    if (group) {
+      items.push(group);
+    }
+    pendingToolEvents = [];
+  }
+
+  for (const event of sourceEvents) {
+    if (event.type === "tool_call" || event.type === "tool_result") {
+      pendingToolEvents.push(event);
+      continue;
+    }
+    flushToolEvents();
+    items.push(event);
+  }
+
+  flushToolEvents();
+  return items;
+}
+
+function buildToolGroup(events: DesktopSessionEvent[]): TimelineToolGroup | null {
+  const runs: TimelineToolRun[] = [];
+
+  for (const event of events) {
+    const toolName = stringMetadata(event, "toolName") ?? "Tool";
+    const content = normalizedToolContent(event, toolName);
+
+    if (event.type === "tool_call") {
+      runs.push({
+        id: event.id,
+        toolName,
+        callContent: content,
+        resultContent: "",
+        isError: false,
+        isRunning: true,
+      });
+      continue;
+    }
+
+    const pendingRun =
+      findPendingToolRun(runs, toolName) ?? findPendingToolRun(runs);
+    if (pendingRun) {
+      pendingRun.resultContent = content;
+      pendingRun.isError = event.metadata?.isError === true;
+      pendingRun.isRunning = false;
+      continue;
+    }
+
+    if (!content && event.metadata?.isError !== true) {
+      continue;
+    }
+    runs.push({
+      id: event.id,
+      toolName,
+      callContent: "",
+      resultContent: content,
+      isError: event.metadata?.isError === true,
+      isRunning: false,
+    });
+  }
+
+  const visibleRuns = runs.filter(
+    (run) =>
+      run.callContent ||
+      run.resultContent ||
+      run.isError ||
+      run.isRunning,
+  );
+
+  if (visibleRuns.length === 0) return null;
+
+  return {
+    id: `tool-group-${events[0]?.id ?? "empty"}`,
+    type: "tool_group",
+    runs: visibleRuns,
+  };
+}
+
+function findPendingToolRun(
+  runs: TimelineToolRun[],
+  toolName?: string,
+): TimelineToolRun | null {
+  for (let index = runs.length - 1; index >= 0; index -= 1) {
+    const run = runs[index];
+    if (!run || !run.isRunning) continue;
+    if (toolName && run.toolName !== toolName) continue;
+    return run;
+  }
+  return null;
+}
+
 function stringMetadata(
   event: DesktopSessionEvent,
   key: string,
@@ -827,6 +982,28 @@ function numberMetadata(
 ): number | null {
   const value = event.metadata?.[key];
   return typeof value === "number" ? value : null;
+}
+
+function displayToolName(toolName: string): string {
+  return toolName === "Bash" ? "Shell" : toolName;
+}
+
+function normalizedToolContent(
+  event: DesktopSessionEvent,
+  toolName: string,
+): string {
+  const content = event.content?.trim() ?? "";
+  if (!content) return "";
+  if (event.type === "tool_result" && content === toolName) return "";
+  const prefix = `${toolName}:`;
+  return content.startsWith(prefix) ? content.slice(prefix.length).trim() : content;
+}
+
+function formatToolInput(run: TimelineToolRun): string {
+  if (displayToolName(run.toolName) === "Shell") {
+    return `$ ${run.callContent}`;
+  }
+  return run.callContent;
 }
 
 function summarizeDiff(diff: string): { additions: number; deletions: number } {
