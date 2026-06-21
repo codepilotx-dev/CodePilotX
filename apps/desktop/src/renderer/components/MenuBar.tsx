@@ -3,6 +3,7 @@ import * as Menubar from '@radix-ui/react-menubar'
 import {
   ChevronLeft,
   ChevronRight,
+  Copy,
   Minus,
   PanelLeftClose,
   PanelLeftOpen,
@@ -420,7 +421,11 @@ export function MenuBar({
             onClick={onToggleMaximize}
             title={isMaximized ? '还原' : '最大化'}
           >
-            <Square size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            {isMaximized ? (
+              <Copy size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            ) : (
+              <Square size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            )}
           </IconButton>
           <IconButton
             className="window-control-button close"
