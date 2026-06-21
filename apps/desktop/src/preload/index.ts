@@ -102,6 +102,8 @@ const api: DesktopApi = {
       sessionId,
       patch,
     ),
+  readWorkflowEventLog: () =>
+    ipcRenderer.invoke(desktopApiChannel('readWorkflowEventLog')),
   openExternalURL: url =>
     ipcRenderer.invoke(desktopApiChannel('openExternalURL'), url),
   sendUserMessage: (sessionId, content, model) =>

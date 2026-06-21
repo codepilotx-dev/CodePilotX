@@ -665,11 +665,17 @@ async function respondToPermission(
     )
   }
   const record = await getSessionRecord(sessionId)
+  const pendingRequest = record.snapshot.view.pendingPermissions.find(
+    request => request.requestId === normalizedRequestId,
+  )
   record.snapshot = removePendingPermissionFromSnapshot(
     record.snapshot,
     normalizedRequestId,
   )
   persistSessionStore()
+  if (pendingRequest) {
+    windowService.emitPermissionDecision(sessionId, pendingRequest, decision)
+  }
   if (record.session) {
     await record.session.respondToPermission(normalizedRequestId, decision)
   }

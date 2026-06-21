@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from './ui/iconTokens.js'
 import { legacyMessagesToSessionEvents } from "../../shared/sessionEventModel.js";
+import { deriveWorkflowSessionState } from "../../shared/workflowReducer.js";
 import type {
   DesktopGitStatus,
   DesktopOpenTarget,
@@ -93,14 +94,21 @@ export function ConversationPage(): React.ReactNode {
   const conversationMessages = messages.filter(
     (message) => message.role !== "system",
   );
+  const workflowDerivedState = React.useMemo(
+    () => deriveWorkflowSessionState(workflowEvents, activeSessionId),
+    [activeSessionId, workflowEvents],
+  );
   const timelineEvents = React.useMemo(
-    () =>
-      foldTimelineEvents(
-        events.length > 0
-          ? events
-          : legacyMessagesToSessionEvents("legacy", conversationMessages),
-      ),
-    [conversationMessages, events],
+    () => {
+      const sourceEvents =
+        workflowDerivedState.events.length > 0
+          ? workflowDerivedState.events
+          : events.length > 0
+            ? events
+            : legacyMessagesToSessionEvents("legacy", conversationMessages);
+      return foldTimelineEvents(sourceEvents);
+    },
+    [conversationMessages, events, workflowDerivedState.events],
   );
   const timelineItems = React.useMemo(
     () => groupTimelineToolEvents(timelineEvents),
@@ -470,7 +478,11 @@ export function ConversationPage(): React.ReactNode {
             ) : (
               <>
                 {workflowTimelineVisible ? (
-                  <WorkflowDebugTimeline events={workflowEvents} />
+                  <WorkflowDebugTimeline
+                    activeSessionId={activeSessionId}
+                    diagnostics={workflowDerivedState.diagnostics}
+                    events={workflowEvents}
+                  />
                 ) : null}
                 {timelineItems.map((item) => (
                   <TimelineItem
@@ -535,18 +547,79 @@ export function ConversationPage(): React.ReactNode {
 }
 
 function WorkflowDebugTimeline({
+  activeSessionId,
+  diagnostics,
   events,
 }: {
+  activeSessionId: string | null;
+  diagnostics: ReturnType<typeof deriveWorkflowSessionState>["diagnostics"];
   events: DesktopWorkflowEvent[];
 }): React.ReactNode {
   const visibleEvents = events.slice(-60).reverse();
+  const [logDiagnostics, setLogDiagnostics] = React.useState<{
+    count: number;
+    diagnostics: ReturnType<typeof deriveWorkflowSessionState>["diagnostics"];
+    note?: string;
+  } | null>(null);
+
+  function inspectWorkflowLog(): void {
+    void desktopClient
+      .readWorkflowEventLog()
+      .then((logEvents) => {
+        const filteredEvents = activeSessionId
+          ? logEvents.filter((event) => event.threadId === activeSessionId)
+          : logEvents;
+        setLogDiagnostics({
+          count: filteredEvents.length,
+          diagnostics: deriveWorkflowSessionState(
+            filteredEvents,
+            activeSessionId,
+          ).diagnostics,
+          note:
+            filteredEvents.length === 0
+              ? "事件日志未启用或无日志事件"
+              : undefined,
+        });
+      })
+      .catch(() => {
+        setLogDiagnostics({
+          count: 0,
+          diagnostics: {
+            duplicateEventIds: [],
+            missingToolResults: [],
+            outOfOrderSequences: [],
+          },
+          note: "事件日志未启用或无日志事件",
+        });
+      });
+  }
 
   return (
     <section className="workflow-debug-timeline">
       <div className="workflow-debug-timeline-header">
         <span>Workflow 事件</span>
         <small>{events.length} 条</small>
+        <button type="button" onClick={inspectWorkflowLog}>
+          检查日志
+        </button>
       </div>
+      <WorkflowDiagnosticsSummary
+        diagnostics={diagnostics}
+        label="当前"
+        total={events.length}
+      />
+      {logDiagnostics ? (
+        <>
+          <WorkflowDiagnosticsSummary
+            diagnostics={logDiagnostics.diagnostics}
+            label="日志"
+            total={logDiagnostics.count}
+          />
+          {logDiagnostics.note ? (
+            <div className="workflow-debug-empty">{logDiagnostics.note}</div>
+          ) : null}
+        </>
+      ) : null}
       {visibleEvents.length === 0 ? (
         <div className="workflow-debug-empty">暂无 workflow 事件</div>
       ) : (
@@ -589,6 +662,29 @@ function WorkflowDebugTimeline({
         </div>
       )}
     </section>
+  );
+}
+
+function WorkflowDiagnosticsSummary({
+  diagnostics,
+  label,
+  total,
+}: {
+  diagnostics: ReturnType<typeof deriveWorkflowSessionState>["diagnostics"];
+  label: string;
+  total: number;
+}): React.ReactNode {
+  const issues =
+    diagnostics.duplicateEventIds.length +
+    diagnostics.missingToolResults.length +
+    diagnostics.outOfOrderSequences.length;
+  return (
+    <div className="workflow-debug-empty">
+      {label}: {total} 条，{issues} 个诊断
+      {issues > 0
+        ? `（重复 ${diagnostics.duplicateEventIds.length}，未完成工具 ${diagnostics.missingToolResults.length}，乱序 ${diagnostics.outOfOrderSequences.length}）`
+        : ""}
+    </div>
   );
 }
 

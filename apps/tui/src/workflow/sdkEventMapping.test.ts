@@ -97,6 +97,7 @@ test('assistant tool_use and user tool_result preserve one tool lifecycle', () =
       id: 'tool_call-tool-1',
       type: 'tool_call',
       toolName: 'Read',
+      toolUseId: 'tool-1',
     },
   })
   expect(completed[0]).toMatchObject({
@@ -105,8 +106,45 @@ test('assistant tool_use and user tool_result preserve one tool lifecycle', () =
       id: 'tool_result-tool-1',
       type: 'tool_result',
       status: 'completed',
+      toolUseId: 'tool-1',
     },
   })
+})
+
+test('parallel same-name SDK tool calls pair by toolUseId', () => {
+  const started = sdkMessageToThreadEvents(
+    {
+      type: 'assistant',
+      message: {
+        content: [
+          { type: 'tool_use', id: 'tool-a', name: 'Read', input: {} },
+          { type: 'tool_use', id: 'tool-b', name: 'Read', input: {} },
+        ],
+      },
+    },
+    ids,
+  )
+  const completed = sdkMessageToThreadEvents(
+    {
+      type: 'user',
+      message: {
+        content: [
+          { type: 'tool_result', tool_use_id: 'tool-b', content: 'b' },
+          { type: 'tool_result', tool_use_id: 'tool-a', content: 'a' },
+        ],
+      },
+    },
+    ids,
+  )
+
+  expect(started.map(event => ('item' in event ? event.item.toolUseId : null))).toEqual([
+    'tool-a',
+    'tool-b',
+  ])
+  expect(completed.map(event => ('item' in event ? event.item.toolUseId : null))).toEqual([
+    'tool-b',
+    'tool-a',
+  ])
 })
 
 test('result success and error map to terminal turn events', () => {

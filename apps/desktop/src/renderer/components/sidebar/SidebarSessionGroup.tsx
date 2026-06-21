@@ -8,7 +8,7 @@ import {
   Pin,
   PinOff,
 } from "lucide-react";
-import { APP_ICON_SIZE } from '../ui/iconTokens.js'
+import { APP_ICON_SIZE } from "../ui/iconTokens.js";
 import { sessionDisplayTitle, type SessionListItem } from "../../uiTypes.js";
 import { IconButton } from "../ui/IconButton.js";
 
@@ -46,7 +46,9 @@ export function SidebarSessionGroup({
   const [confirmArchiveSessionId, setConfirmArchiveSessionId] = useState<
     string | null
   >(null);
-  const visibleSessions = isExpanded ? sessions : sessions.slice(0, GROUP_LIMIT);
+  const visibleSessions = isExpanded
+    ? sessions
+    : sessions.slice(0, GROUP_LIMIT);
 
   return (
     <>
@@ -156,8 +158,7 @@ export function SidebarSessionGroup({
           onClick={() => onToggleExpanded(groupKey)}
           type="button"
         >
-          {isExpanded ? <ChevronDown size={APP_ICON_SIZE} /> : <ChevronRight size={APP_ICON_SIZE} />}
-          <span>{isExpanded ? "收起" : "展开显示"}</span>
+          <span>{isExpanded ? "折叠显示" : "展开显示"}</span>
         </button>
       ) : null}
     </>

@@ -8,6 +8,9 @@ import type {
 export type ThreadId = string
 export type TurnId = string
 export type TurnItemId = string
+export type WorkflowEventId = string
+
+export const WorkflowEventSchemaVersion = 1 as const
 
 export type TurnStatus =
   | 'idle'
@@ -59,12 +62,14 @@ export type ToolCallTurnItem = TurnItemCommon & {
   type: 'tool_call'
   toolName: string
   summary: string
+  toolUseId?: string
 }
 
 export type ToolResultTurnItem = TurnItemCommon & {
   type: 'tool_result'
   toolName: string
   summary: string
+  toolUseId?: string
   isError?: boolean
 }
 
@@ -96,6 +101,9 @@ export type TurnItem =
   | ErrorTurnItem
 
 export type ThreadStartedEvent = {
+  eventId?: WorkflowEventId
+  schemaVersion?: typeof WorkflowEventSchemaVersion
+  sequence?: number
   type: 'thread.started'
   threadId: ThreadId
   createdAt: string
@@ -103,6 +111,9 @@ export type ThreadStartedEvent = {
 }
 
 export type TurnStartedEvent = {
+  eventId?: WorkflowEventId
+  schemaVersion?: typeof WorkflowEventSchemaVersion
+  sequence?: number
   type: 'turn.started'
   threadId: ThreadId
   turnId: TurnId
@@ -112,6 +123,9 @@ export type TurnStartedEvent = {
 }
 
 export type TurnItemEvent = {
+  eventId?: WorkflowEventId
+  schemaVersion?: typeof WorkflowEventSchemaVersion
+  sequence?: number
   type: 'item.started' | 'item.updated' | 'item.completed'
   threadId: ThreadId
   turnId: TurnId
@@ -120,6 +134,9 @@ export type TurnItemEvent = {
 }
 
 export type TurnCompletedEvent = {
+  eventId?: WorkflowEventId
+  schemaVersion?: typeof WorkflowEventSchemaVersion
+  sequence?: number
   type: 'turn.completed'
   threadId: ThreadId
   turnId: TurnId
@@ -132,6 +149,9 @@ export type TurnCompletedEvent = {
 }
 
 export type TurnFailedEvent = {
+  eventId?: WorkflowEventId
+  schemaVersion?: typeof WorkflowEventSchemaVersion
+  sequence?: number
   type: 'turn.failed'
   threadId: ThreadId
   turnId: TurnId
@@ -143,6 +163,9 @@ export type TurnFailedEvent = {
 }
 
 export type TurnInterruptedEvent = {
+  eventId?: WorkflowEventId
+  schemaVersion?: typeof WorkflowEventSchemaVersion
+  sequence?: number
   type: 'turn.interrupted'
   threadId: ThreadId
   turnId: TurnId
@@ -163,6 +186,13 @@ export type WorkflowEventIds = {
   turnId: TurnId
   now?: () => string
   itemId?: (kind: TurnItemType | string, seed?: string) => TurnItemId
+  eventId?: (event: ThreadEvent, sequence?: number) => WorkflowEventId
+  sequence?: () => number
+}
+
+export type WorkflowEventEnvelopeOptions = {
+  eventId?: WorkflowEventId
+  sequence?: number
 }
 
 export function createWorkflowId(prefix: string, seed?: string): string {
@@ -170,6 +200,54 @@ export function createWorkflowId(prefix: string, seed?: string): string {
     ? seed.replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-+|-+$/g, '')
     : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
   return `${prefix}-${suffix || 'item'}`
+}
+
+export function normalizeThreadEvent(
+  event: ThreadEvent,
+  options: WorkflowEventEnvelopeOptions = {},
+): ThreadEvent {
+  const sequence = event.sequence ?? options.sequence
+  return {
+    ...event,
+    schemaVersion: event.schemaVersion ?? WorkflowEventSchemaVersion,
+    ...(sequence === undefined ? {} : { sequence }),
+    eventId:
+      event.eventId ??
+      options.eventId ??
+      createWorkflowId('event', workflowEventSeed(event, sequence)),
+  } as ThreadEvent
+}
+
+export function createPermissionRequestDecisionEvent(params: {
+  threadId: ThreadId
+  turnId: TurnId
+  request: AgentPermissionRequest
+  behavior: 'allow' | 'deny' | 'cancel'
+  createdAt?: string
+  sequence?: number
+  eventId?: string
+}): TurnItemEvent {
+  const createdAt = params.createdAt ?? defaultNow()
+  const item: PermissionRequestTurnItem = {
+    id: createWorkflowId('permission_request', params.request.requestId),
+    type: 'permission_request',
+    threadId: params.threadId,
+    turnId: params.turnId,
+    status: params.behavior === 'allow' ? 'completed' : 'failed',
+    createdAt,
+    updatedAt: createdAt,
+    request: params.request,
+    metadata: { decision: params.behavior },
+  }
+  return normalizeThreadEvent(
+    itemEvent(
+      'item.completed',
+      { threadId: params.threadId, turnId: params.turnId },
+      item,
+      createdAt,
+    ),
+    { eventId: params.eventId, sequence: params.sequence },
+  ) as TurnItemEvent
 }
 
 export function createThreadStartedEvent(
@@ -237,7 +315,7 @@ export function agentRuntimeEventToThreadEvents(
               text: event.text,
               metadata: { ...(metadata ?? {}), role: event.role },
             }
-      return [itemEvent('item.completed', ids, item, createdAt)]
+      return decorateThreadEvents([itemEvent('item.completed', ids, item, createdAt)], ids)
     }
     case 'partial_message': {
       const item: AgentMessageTurnItem = {
@@ -252,9 +330,10 @@ export function agentRuntimeEventToThreadEvents(
         streaming: true,
         ...(metadata ? { metadata } : {}),
       }
-      return [itemEvent('item.updated', ids, item, createdAt)]
+      return decorateThreadEvents([itemEvent('item.updated', ids, item, createdAt)], ids)
     }
     case 'tool_start': {
+      const toolUseId = createWorkflowId('tool_use', `${event.toolName}-start`)
       const item: ToolCallTurnItem = {
         id: itemId('tool_call', `${event.toolName}-start`),
         type: 'tool_call',
@@ -264,11 +343,13 @@ export function agentRuntimeEventToThreadEvents(
         createdAt,
         toolName: event.toolName,
         summary: event.summary,
+        toolUseId,
         ...(metadata ? { metadata } : {}),
       }
-      return [itemEvent('item.started', ids, item, createdAt)]
+      return decorateThreadEvents([itemEvent('item.started', ids, item, createdAt)], ids)
     }
     case 'tool_result': {
+      const toolUseId = createWorkflowId('tool_use', `${event.toolName}-result`)
       const item: ToolResultTurnItem = {
         id: itemId('tool_result', `${event.toolName}-result`),
         type: 'tool_result',
@@ -278,10 +359,11 @@ export function agentRuntimeEventToThreadEvents(
         createdAt,
         toolName: event.toolName,
         summary: event.summary,
+        toolUseId,
         ...(event.isError ? { isError: true } : {}),
         ...(metadata ? { metadata } : {}),
       }
-      return [itemEvent('item.completed', ids, item, createdAt)]
+      return decorateThreadEvents([itemEvent('item.completed', ids, item, createdAt)], ids)
     }
     case 'permission_request': {
       const item: PermissionRequestTurnItem = {
@@ -294,7 +376,7 @@ export function agentRuntimeEventToThreadEvents(
         request: event.request,
         ...(metadata ? { metadata } : {}),
       }
-      return [itemEvent('item.started', ids, item, createdAt)]
+      return decorateThreadEvents([itemEvent('item.started', ids, item, createdAt)], ids)
     }
     case 'diff': {
       const item: FileChangeTurnItem = {
@@ -308,7 +390,7 @@ export function agentRuntimeEventToThreadEvents(
         patch: event.patch,
         ...(metadata ? { metadata } : {}),
       }
-      return [itemEvent('item.completed', ids, item, createdAt)]
+      return decorateThreadEvents([itemEvent('item.completed', ids, item, createdAt)], ids)
     }
     case 'error': {
       const item: ErrorTurnItem = {
@@ -320,7 +402,7 @@ export function agentRuntimeEventToThreadEvents(
         createdAt,
         message: event.message,
       }
-      return [
+      return decorateThreadEvents([
         itemEvent('item.completed', ids, item, createdAt),
         {
           type: 'turn.failed',
@@ -329,12 +411,12 @@ export function agentRuntimeEventToThreadEvents(
           createdAt,
           error: { message: event.message },
         },
-      ]
+      ], ids)
     }
     case 'status':
-      return statusToThreadEvents(event.status, ids, createdAt)
+      return decorateThreadEvents(statusToThreadEvents(event.status, ids, createdAt), ids)
     case 'done':
-      return [
+      return decorateThreadEvents([
         {
           type: 'turn.completed',
           threadId: ids.threadId,
@@ -343,7 +425,7 @@ export function agentRuntimeEventToThreadEvents(
           finalResponse: '',
           stopReason: 'done',
         },
-      ]
+      ], ids)
     case 'context_usage':
     case 'session_title':
       return []
@@ -363,6 +445,33 @@ function itemEvent(
     item,
     createdAt,
   }
+}
+
+function decorateThreadEvents(
+  events: ThreadEvent[],
+  ids: Pick<WorkflowEventIds, 'eventId' | 'sequence'>,
+): ThreadEvent[] {
+  return events.map(event => {
+    const sequence = event.sequence ?? ids.sequence?.()
+    return normalizeThreadEvent(event, {
+      sequence,
+      eventId: ids.eventId?.(event, sequence),
+    })
+  })
+}
+
+function workflowEventSeed(event: ThreadEvent, sequence?: number): string {
+  const turnId = 'turnId' in event ? event.turnId : 'thread'
+  const itemId = 'item' in event ? event.item.id : undefined
+  return [
+    event.threadId,
+    turnId,
+    event.type,
+    itemId,
+    sequence ?? event.createdAt,
+  ]
+    .filter((part): part is string | number => part !== undefined)
+    .join('-')
 }
 
 function statusToThreadEvents(

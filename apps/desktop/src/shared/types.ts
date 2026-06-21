@@ -351,6 +351,8 @@ export type DesktopSessionSnapshot = {
   view: DesktopSessionViewSnapshot
   events?: DesktopSessionEvent[]
   eventModelVersion?: 1
+  workflowEvents?: DesktopWorkflowEvent[]
+  workflowEventModelVersion?: 1
   updatedAt: string
 }
 
@@ -462,6 +464,7 @@ export type DesktopApi = {
     sessionId: string,
     patch: DesktopSessionMetadataPatch,
   ): Promise<DesktopSessionSnapshot>
+  readWorkflowEventLog(): Promise<DesktopWorkflowEvent[]>
   openExternalURL(url: string): Promise<void>
   sendUserMessage(
     sessionId: string,

@@ -44,6 +44,7 @@ export const DESKTOP_API_METHODS = [
   'getActiveSessionId',
   'setActiveSession',
   'updateSessionMetadata',
+  'readWorkflowEventLog',
   'openExternalURL',
   'sendUserMessage',
   'respondToPermission',

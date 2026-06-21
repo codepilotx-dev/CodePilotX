@@ -198,6 +198,8 @@ declare module '@codepilotx/core/agent/workflow.js' {
   export type ThreadId = string
   export type TurnId = string
   export type TurnItemId = string
+  export type WorkflowEventId = string
+  export const WorkflowEventSchemaVersion: 1
   export type TurnStatus =
     | 'idle'
     | 'running'
@@ -228,6 +230,7 @@ declare module '@codepilotx/core/agent/workflow.js' {
     streaming?: boolean
     toolName?: string
     summary?: string
+    toolUseId?: string
     isError?: boolean
     request?: AgentPermissionRequest
     filePath?: string
@@ -238,12 +241,18 @@ declare module '@codepilotx/core/agent/workflow.js' {
   export type ThreadEvent =
     | {
         type: 'thread.started'
+        eventId?: WorkflowEventId
+        schemaVersion?: 1
+        sequence?: number
         threadId: ThreadId
         createdAt: string
         metadata?: Record<string, unknown>
       }
     | {
         type: 'turn.started'
+        eventId?: WorkflowEventId
+        schemaVersion?: 1
+        sequence?: number
         threadId: ThreadId
         turnId: TurnId
         createdAt: string
@@ -252,6 +261,9 @@ declare module '@codepilotx/core/agent/workflow.js' {
       }
     | {
         type: 'item.started' | 'item.updated' | 'item.completed'
+        eventId?: WorkflowEventId
+        schemaVersion?: 1
+        sequence?: number
         threadId: ThreadId
         turnId: TurnId
         item: TurnItem
@@ -259,6 +271,9 @@ declare module '@codepilotx/core/agent/workflow.js' {
       }
     | {
         type: 'turn.completed'
+        eventId?: WorkflowEventId
+        schemaVersion?: 1
+        sequence?: number
         threadId: ThreadId
         turnId: TurnId
         createdAt: string
@@ -270,6 +285,9 @@ declare module '@codepilotx/core/agent/workflow.js' {
       }
     | {
         type: 'turn.failed'
+        eventId?: WorkflowEventId
+        schemaVersion?: 1
+        sequence?: number
         threadId: ThreadId
         turnId: TurnId
         createdAt: string
@@ -277,6 +295,9 @@ declare module '@codepilotx/core/agent/workflow.js' {
       }
     | {
         type: 'turn.interrupted'
+        eventId?: WorkflowEventId
+        schemaVersion?: 1
+        sequence?: number
         threadId: ThreadId
         turnId: TurnId
         createdAt: string
@@ -287,7 +308,22 @@ declare module '@codepilotx/core/agent/workflow.js' {
     turnId: TurnId
     now?: () => string
     itemId?: (kind: TurnItemType | string, seed?: string) => TurnItemId
+    eventId?: (event: ThreadEvent, sequence?: number) => WorkflowEventId
+    sequence?: () => number
   }
+  export function normalizeThreadEvent(
+    event: ThreadEvent,
+    options?: { eventId?: string; sequence?: number },
+  ): ThreadEvent
+  export function createPermissionRequestDecisionEvent(params: {
+    threadId: ThreadId
+    turnId: TurnId
+    request: AgentPermissionRequest
+    behavior: 'allow' | 'deny' | 'cancel'
+    createdAt?: string
+    sequence?: number
+    eventId?: string
+  }): Extract<ThreadEvent, { type: 'item.started' | 'item.updated' | 'item.completed' }>
   export function createWorkflowId(prefix: string, seed?: string): string
   export function createThreadStartedEvent(
     threadId: ThreadId,

@@ -10,7 +10,10 @@ import type {
   UserMessageTurnItem,
   WorkflowEventIds,
 } from '@codepilotx/core/agent/workflow.js'
-import { createWorkflowId } from '@codepilotx/core/agent/workflow.js'
+import {
+  createWorkflowId,
+  normalizeThreadEvent,
+} from '@codepilotx/core/agent/workflow.js'
 import type { SDKMessage } from '../entrypoints/agentSdkTypes.js'
 
 type UnknownRecord = Record<string, unknown>
@@ -64,7 +67,7 @@ function assistantMessageToEvents(
         text: block.text,
         metadata: messageMetadata(message),
       }
-      events.push(itemEvent('item.completed', ids, item, createdAt))
+      events.push(decorateThreadEvent(itemEvent('item.completed', ids, item, createdAt), ids))
     } else if (
       (block.type === 'thinking' || block.type === 'redacted_thinking') &&
       typeof block.thinking === 'string'
@@ -79,7 +82,7 @@ function assistantMessageToEvents(
         text: block.thinking,
         metadata: messageMetadata(message),
       }
-      events.push(itemEvent('item.completed', ids, item, createdAt))
+      events.push(decorateThreadEvent(itemEvent('item.completed', ids, item, createdAt), ids))
     } else if (
       block.type === 'tool_use' &&
       typeof block.name === 'string' &&
@@ -94,13 +97,14 @@ function assistantMessageToEvents(
         createdAt,
         toolName: block.name,
         summary: block.name,
+        toolUseId: block.id,
         metadata: {
           ...messageMetadata(message),
           toolUseId: block.id,
           input: block.input,
         },
       }
-      events.push(itemEvent('item.started', ids, item, createdAt))
+      events.push(decorateThreadEvent(itemEvent('item.started', ids, item, createdAt), ids))
     }
   }
 
@@ -114,7 +118,7 @@ function assistantMessageToEvents(
       createdAt,
       message: readString(message.error) ?? 'Assistant message failed',
     }
-    events.push(itemEvent('item.completed', ids, item, createdAt))
+    events.push(decorateThreadEvent(itemEvent('item.completed', ids, item, createdAt), ids))
   }
 
   return events
@@ -155,6 +159,7 @@ function userMessageToEvents(
         createdAt,
         toolName: toolUseId ?? 'tool',
         summary: extractText(block.content) ?? '',
+        ...(toolUseId ? { toolUseId } : {}),
         ...(block.is_error ? { isError: true } : {}),
         metadata: {
           ...messageMetadata(message),
@@ -162,7 +167,7 @@ function userMessageToEvents(
           result: message.tool_use_result,
         },
       }
-      events.push(itemEvent('item.completed', ids, item, createdAt))
+      events.push(decorateThreadEvent(itemEvent('item.completed', ids, item, createdAt), ids))
     }
   }
 
@@ -178,7 +183,7 @@ function resultMessageToEvents(
   const result = readString(message.result) ?? ''
   if (isError) {
     return [
-      {
+      normalizeThreadEvent({
         type: 'turn.failed',
         threadId: ids.threadId,
         turnId: ids.turnId,
@@ -189,12 +194,12 @@ function resultMessageToEvents(
             ? { code: readString(message.subtype) }
             : {}),
         },
-      },
+      }, nextEnvelope(ids)),
     ]
   }
 
   return [
-    {
+    normalizeThreadEvent({
       type: 'turn.completed',
       threadId: ids.threadId,
       turnId: ids.turnId,
@@ -217,7 +222,7 @@ function resultMessageToEvents(
         fastModeState: message.fast_mode_state,
         uuid: message.uuid,
       },
-    },
+    }, nextEnvelope(ids)),
   ]
 }
 
@@ -241,7 +246,7 @@ function systemMessageToEvents(
       compactMetadata: message.compact_metadata,
     },
   }
-  return [itemEvent('item.completed', ids, item, createdAt)]
+  return [decorateThreadEvent(itemEvent('item.completed', ids, item, createdAt), ids)]
 }
 
 function toolProgressToEvents(
@@ -262,9 +267,10 @@ function toolProgressToEvents(
     updatedAt: createdAt,
     toolName,
     summary: `${toolName} running`,
+    ...(toolUseId ? { toolUseId } : {}),
     metadata: messageMetadata(message),
   }
-  return [itemEvent('item.updated', ids, item, createdAt)]
+  return [decorateThreadEvent(itemEvent('item.updated', ids, item, createdAt), ids)]
 }
 
 function itemEvent(
@@ -280,6 +286,23 @@ function itemEvent(
     item,
     createdAt,
   }
+}
+
+function decorateThreadEvent(
+  event: ThreadEvent,
+  ids: Pick<WorkflowEventIds, 'eventId' | 'sequence'>,
+): ThreadEvent {
+  const envelope = nextEnvelope(ids)
+  return normalizeThreadEvent(event, {
+    ...envelope,
+    eventId: ids.eventId?.(event, envelope.sequence),
+  })
+}
+
+function nextEnvelope(
+  ids: Pick<WorkflowEventIds, 'sequence'>,
+): { sequence?: number } {
+  return { sequence: ids.sequence?.() }
 }
 
 function contentToBlocks(content: unknown): unknown[] {

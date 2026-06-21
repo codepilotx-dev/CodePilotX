@@ -145,6 +145,7 @@ export function buildDesktopApiHandlers(
     getActiveSessionId: dependencies.getActiveSessionId,
     setActiveSession: dependencies.setActiveSession,
     updateSessionMetadata: dependencies.updateSessionMetadata,
+    readWorkflowEventLog: async () => windowService.readWorkflowEventLog(),
     openExternalURL,
     sendUserMessage: dependencies.sendUserMessage,
     respondToPermission: dependencies.respondToPermission,

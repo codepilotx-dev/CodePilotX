@@ -33,6 +33,11 @@ import {
 } from './sessionActions.js'
 import { handleSessionAgentEvent } from './sessionEvents.js'
 import {
+  appendUniqueWorkflowEvent,
+  dedupeWorkflowEvents,
+} from './workflowEventDedup.js'
+import { deriveWorkflowSessionState } from '../../../shared/workflowReducer.js'
+import {
   applySessionView,
   addToolLogEntry as addToolLogEntryToView,
   createEmptySessionView,
@@ -243,8 +248,11 @@ export function useSessionState(
         ...snapshot.view,
         eventModelVersion: snapshot.eventModelVersion,
         events: snapshot.events ?? [],
-        workflowEvents:
-          sessionViewsRef.current[snapshot.item.id]?.workflowEvents ?? [],
+        workflowEvents: dedupeWorkflowEvents(
+          sessionViewsRef.current[snapshot.item.id]?.workflowEvents ??
+            snapshot.workflowEvents ??
+            [],
+        ),
         contextUsage: snapshot.view.contextUsage ?? null,
         selectedFile:
           sessionViewsRef.current[snapshot.item.id]?.selectedFile ?? null,
@@ -340,7 +348,10 @@ export function useSessionState(
       }
       updateSessionView(event.threadId, view => ({
         ...view,
-        workflowEvents: [...view.workflowEvents, event],
+        ...workflowViewPatch(
+          appendUniqueWorkflowEvent(view.workflowEvents, event),
+          view,
+        ),
       }))
     },
     [updateSessionView],
@@ -376,7 +387,7 @@ export function useSessionState(
             ...snapshot.view,
             eventModelVersion: snapshot.eventModelVersion,
             events: snapshot.events ?? [],
-            workflowEvents: [],
+            workflowEvents: dedupeWorkflowEvents(snapshot.workflowEvents ?? []),
             contextUsage: snapshot.view.contextUsage ?? null,
             selectedFile: null,
           }
@@ -615,6 +626,23 @@ export function useSessionState(
 }
 
 const HOME_INPUT_KEY = '__home__'
+
+function workflowViewPatch(
+  workflowEvents: DesktopWorkflowEvent[],
+  currentView: SessionViewState,
+): Pick<SessionViewState, 'workflowEvents' | 'pendingPermissions'> {
+  const uniqueWorkflowEvents = dedupeWorkflowEvents(workflowEvents)
+  const derived = deriveWorkflowSessionState(uniqueWorkflowEvents)
+  const hasPermissionEvents = uniqueWorkflowEvents.some(
+    event => 'item' in event && event.item.type === 'permission_request',
+  )
+  return {
+    workflowEvents: uniqueWorkflowEvents,
+    pendingPermissions: hasPermissionEvents
+      ? derived.pendingPermissions
+      : currentView.pendingPermissions,
+  }
+}
 
 function errorMessageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error)

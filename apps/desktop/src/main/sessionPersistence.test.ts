@@ -3,6 +3,7 @@ import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { expect, test } from 'bun:test'
+import { WorkflowEventSchemaVersion } from '@codepilotx/core/agent/workflow.js'
 import {
   CODEPILOTX_CONFIG_DIR_ENV,
   LEGACY_CLAUDE_CONFIG_DIR_ENV,
@@ -97,6 +98,69 @@ test('real project transcript remains project-scoped', async () => {
   })
 })
 
+test('legacy snapshot workflow events are normalized on restore', async () => {
+  await withDesktopConfig(async configDir => {
+    const sessionId = randomUUID()
+    const now = new Date('2026-01-01T00:00:00.000Z').toISOString()
+    const projectPath = join(configDir, 'workflow-project')
+    const indexPath = getDesktopSessionIndexPath()
+    await mkdir(dirname(indexPath), { recursive: true })
+    await writeFile(
+      indexPath,
+      JSON.stringify(
+        {
+          activeSessionId: sessionId,
+          sessions: [
+            {
+              item: sessionItem(sessionId, projectPath, now),
+              workspace: {
+                path: projectPath,
+                name: 'workflow-project',
+                branchName: null,
+                isGitRepo: false,
+              },
+              settings: {
+                permissionMode: 'default',
+                thinkingMode: 'default',
+                additionalDirectories: [],
+              },
+              view: {
+                messages: [],
+                toolLog: [],
+                pendingPermissions: [],
+                contextUsage: null,
+              },
+              events: [],
+              eventModelVersion: 1,
+              workflowEvents: [
+                {
+                  type: 'thread.started',
+                  threadId: sessionId,
+                  createdAt: now,
+                },
+              ],
+              workflowEventModelVersion: 1,
+              updatedAt: now,
+            },
+          ],
+        },
+        null,
+        2,
+      ),
+      'utf8',
+    )
+
+    const store = await loadDesktopSessionStore()
+    const snapshot = store.sessions.find(item => item.item.id === sessionId)
+
+    expect(snapshot?.workflowEvents?.[0]).toMatchObject({
+      type: 'thread.started',
+      schemaVersion: WorkflowEventSchemaVersion,
+      threadId: sessionId,
+    })
+  })
+})
+
 async function withDesktopConfig(
   run: (configDir: string) => Promise<void>,
 ): Promise<void> {
@@ -146,5 +210,38 @@ function restoreEnv(key: string, value: string | undefined): void {
     delete process.env[key]
   } else {
     process.env[key] = value
+  }
+}
+
+function sessionItem(sessionId: string, projectPath: string, now: string) {
+  return {
+    id: sessionId,
+    sessionName: null,
+    aiTitle: null,
+    customTitle: null,
+    tag: null,
+    summary: null,
+    gitBranch: null,
+    firstPrompt: null,
+    prNumber: null,
+    prUrl: null,
+    prRepository: null,
+    transcriptPath: null,
+    fileSize: null,
+    workspaceName: 'workflow-project',
+    workspacePath: projectPath,
+    standalone: false,
+    pinnedAt: null,
+    archivedAt: null,
+    permissionMode: 'default',
+    model: null,
+    fallbackModel: null,
+    thinkingMode: 'default',
+    hasSystemPrompt: false,
+    hasAppendSystemPrompt: false,
+    additionalDirectoryCount: 0,
+    status: 'done',
+    lastMessageAt: now,
+    createdAt: now,
   }
 }

@@ -10,6 +10,7 @@ import {
   createThreadStartedEvent,
   createTurnStartedEvent,
   createWorkflowId,
+  normalizeThreadEvent,
 } from '@codepilotx/core/agent/workflow.js'
 import { QueryEngine, type QueryEngineConfig } from '../QueryEngine.js'
 import { sdkMessageToThreadEvents } from './sdkEventMapping.js'
@@ -40,6 +41,7 @@ export type ThreadRuntimeState = {
 type ThreadRecord = ThreadRuntimeState & {
   engine: QueryEngine
   startedEventEmitted: boolean
+  nextSequence: number
 }
 
 export class ThreadRuntime {
@@ -61,6 +63,7 @@ export class ThreadRuntime {
       createdAt,
       engine,
       startedEventEmitted: false,
+      nextSequence: 0,
     })
     return { threadId, status: 'idle', createdAt }
   }
@@ -77,13 +80,19 @@ export class ThreadRuntime {
 
     if (!record.startedEventEmitted) {
       record.startedEventEmitted = true
-      yield createThreadStartedEvent(
-        threadId,
-        { createdAt: record.createdAt },
-        this.now,
+      yield this.decorateEvent(
+        record,
+        createThreadStartedEvent(
+          threadId,
+          { createdAt: record.createdAt },
+          this.now,
+        ),
       )
     }
-    yield createTurnStartedEvent(threadId, turnId, input, this.now)
+    yield this.decorateEvent(
+      record,
+      createTurnStartedEvent(threadId, turnId, input, this.now),
+    )
 
     try {
       for await (const sdkMessage of record.engine.submitMessage(input, {
@@ -94,6 +103,7 @@ export class ThreadRuntime {
           threadId,
           turnId,
           now: this.now,
+          sequence: () => this.nextSequence(record),
           itemId: (kind, seed) =>
             this.createId(seed ? `${kind}-${seed}` : String(kind)),
         })
@@ -111,7 +121,7 @@ export class ThreadRuntime {
     } catch (error) {
       record.status = 'failed'
       record.currentTurnId = undefined
-      yield {
+      yield this.decorateEvent(record, {
         type: 'turn.failed',
         threadId,
         turnId,
@@ -119,7 +129,7 @@ export class ThreadRuntime {
         error: {
           message: error instanceof Error ? error.message : String(error),
         },
-      }
+      })
     }
   }
 
@@ -132,13 +142,13 @@ export class ThreadRuntime {
     const interruptedTurnId = record.currentTurnId ?? turnId ?? this.createId('turn')
     record.status = 'interrupted'
     record.currentTurnId = undefined
-    return {
+    return this.decorateEvent(record, {
       type: 'turn.interrupted',
       threadId,
       turnId: interruptedTurnId,
       createdAt: this.now(),
       reason: 'interruptTurn',
-    }
+    })
   }
 
   getThreadState(threadId: ThreadId): ThreadRuntimeState {
@@ -156,5 +166,18 @@ export class ThreadRuntime {
       throw new Error(`Unknown thread ${threadId}`)
     }
     return record
+  }
+
+  private decorateEvent(record: ThreadRecord, event: ThreadEvent): ThreadEvent {
+    const sequence = this.nextSequence(record)
+    return normalizeThreadEvent(event, {
+      sequence,
+      eventId: this.createId(`event-${record.threadId}-${sequence}`),
+    })
+  }
+
+  private nextSequence(record: ThreadRecord): number {
+    record.nextSequence += 1
+    return record.nextSequence
   }
 }

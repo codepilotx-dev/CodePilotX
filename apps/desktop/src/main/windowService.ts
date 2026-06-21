@@ -2,13 +2,10 @@ import { app, BrowserWindow, Menu, screen, shell } from 'electron'
 import type { Display, Rectangle } from 'electron'
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import {
-  agentRuntimeEventToThreadEvents,
-  createThreadStartedEvent,
-  createWorkflowId,
-} from '@codepilotx/core/agent/workflow.js'
 import type {
   DesktopAgentEvent,
+  DesktopPermissionDecision,
+  DesktopPermissionRequest,
   DesktopUiCommand,
   DesktopWorkflowEvent,
 } from '../shared/types.js'
@@ -18,6 +15,7 @@ import {
   DESKTOP_WORKFLOW_EVENT_CHANNEL,
 } from '../shared/ipcChannels.js'
 import { getDesktopConfigDirectoryPath } from './desktopSettings.js'
+import { DesktopWorkflowProjector } from './workflowProjection.js'
 
 const DEFAULT_WINDOW_WIDTH = 1440
 const DEFAULT_WINDOW_HEIGHT = 920
@@ -44,6 +42,12 @@ export type DesktopWindowService = {
   hasOpenWindows(): boolean
   emitAgentEvent(event: DesktopAgentEvent): void
   emitWorkflowEvent(event: DesktopWorkflowEvent): void
+  emitPermissionDecision(
+    sessionId: string,
+    request: DesktopPermissionRequest,
+    decision: DesktopPermissionDecision,
+  ): void
+  readWorkflowEventLog(): Promise<DesktopWorkflowEvent[]>
   sendUiCommand(command: DesktopUiCommand): void
   minimizeWindow(): void
   toggleWindowMaximized(): boolean
@@ -63,8 +67,7 @@ export function createDesktopWindowService(options: {
 }): DesktopWindowService {
   let mainWindow: BrowserWindow | null = null
   let windowStateSaveTimer: ReturnType<typeof setTimeout> | null = null
-  const workflowThreads = new Set<string>()
-  const workflowTurns = new Map<string, string>()
+  const workflowProjector = new DesktopWorkflowProjector()
 
   function createWindow(): void {
     const restoredWindowState = getRestoredWindowState()
@@ -226,7 +229,7 @@ export function createDesktopWindowService(options: {
 
   function emitAgentEvent(event: DesktopAgentEvent): void {
     mainWindow?.webContents.send(DESKTOP_AGENT_EVENT_CHANNEL, event)
-    for (const workflowEvent of projectAgentEventToWorkflowEvents(event)) {
+    for (const workflowEvent of workflowProjector.project(event)) {
       emitWorkflowEvent(workflowEvent)
     }
   }
@@ -236,61 +239,38 @@ export function createDesktopWindowService(options: {
     appendWorkflowEventLog(event)
   }
 
-  function projectAgentEventToWorkflowEvents(
-    event: DesktopAgentEvent,
-  ): DesktopWorkflowEvent[] {
-    const now = new Date().toISOString()
-    const threadId =
-      'sourceThreadId' in event && event.sourceThreadId
-        ? event.sourceThreadId
-        : event.sessionId
-    const turnId = turnIdForAgentEvent(event)
-    const events: DesktopWorkflowEvent[] = []
-
-    if (!workflowThreads.has(threadId)) {
-      workflowThreads.add(threadId)
-      events.push(
-        createThreadStartedEvent(
-          threadId,
-          { sessionId: event.sessionId, source: 'desktop-runtime' },
-          () => now,
-        ),
-      )
+  function emitPermissionDecision(
+    sessionId: string,
+    request: DesktopPermissionRequest,
+    decision: DesktopPermissionDecision,
+  ): void {
+    for (const workflowEvent of workflowProjector.projectPermissionDecision(
+      sessionId,
+      request,
+      decision,
+    )) {
+      emitWorkflowEvent(workflowEvent)
     }
-
-    if (event.type === 'status' && event.status !== 'running') {
-      return events
-    }
-
-    events.push(
-      ...agentRuntimeEventToThreadEvents(event, {
-        threadId,
-        turnId,
-        now: () => now,
-        itemId: (kind, seed) => createWorkflowId(String(kind), seed),
-      }),
-    )
-
-    if (event.type === 'done' || event.type === 'error') {
-      workflowTurns.delete(event.sessionId)
-    }
-
-    return events
   }
 
-  function turnIdForAgentEvent(event: DesktopAgentEvent): string {
-    if (event.type === 'status' && event.status === 'running') {
-      const turnId = createWorkflowId('turn')
-      workflowTurns.set(event.sessionId, turnId)
-      return turnId
+  async function readWorkflowEventLog(): Promise<DesktopWorkflowEvent[]> {
+    try {
+      const logPath = workflowEventLogPath()
+      const raw = readFileSync(logPath, 'utf8')
+      return raw
+        .split(/\r?\n/)
+        .flatMap(line => {
+          if (!line.trim()) return []
+          try {
+            const parsed = JSON.parse(line) as DesktopWorkflowEvent
+            return isWorkflowEventLike(parsed) ? [parsed] : []
+          } catch {
+            return []
+          }
+        })
+    } catch {
+      return []
     }
-    const existing = workflowTurns.get(event.sessionId)
-    if (existing) {
-      return existing
-    }
-    const turnId = createWorkflowId('turn')
-    workflowTurns.set(event.sessionId, turnId)
-    return turnId
   }
 
   function appendWorkflowEventLog(event: DesktopWorkflowEvent): void {
@@ -298,11 +278,15 @@ export function createDesktopWindowService(options: {
       return
     }
     try {
-      const logPath = join(getDesktopConfigDirectoryPath(), 'workflow-events.jsonl')
+      const logPath = workflowEventLogPath()
       appendFileSync(logPath, `${JSON.stringify(event)}\n`, 'utf8')
     } catch {
       // Debug logging must not affect the agent event stream.
     }
+  }
+
+  function workflowEventLogPath(): string {
+    return join(getDesktopConfigDirectoryPath(), 'workflow-events.jsonl')
   }
 
   function registerWindowStatePersistence(window: BrowserWindow): void {
@@ -343,6 +327,8 @@ export function createDesktopWindowService(options: {
     hasOpenWindows: () => BrowserWindow.getAllWindows().length > 0,
     emitAgentEvent,
     emitWorkflowEvent,
+    emitPermissionDecision,
+    readWorkflowEventLog,
     sendUiCommand,
     minimizeWindow,
     toggleWindowMaximized,
@@ -421,6 +407,23 @@ function writeDesktopWindowState(state: DesktopWindowState): void {
 
 function getDesktopWindowStatePath(): string {
   return join(getDesktopConfigDirectoryPath(), WINDOW_STATE_FILE_NAME)
+}
+
+function isWorkflowEventLike(value: unknown): value is DesktopWorkflowEvent {
+  if (!value || typeof value !== 'object') return false
+  const event = value as Partial<DesktopWorkflowEvent>
+  return (
+    typeof event.threadId === 'string' &&
+    typeof event.createdAt === 'string' &&
+    (event.type === 'thread.started' ||
+      event.type === 'turn.started' ||
+      event.type === 'item.started' ||
+      event.type === 'item.updated' ||
+      event.type === 'item.completed' ||
+      event.type === 'turn.completed' ||
+      event.type === 'turn.failed' ||
+      event.type === 'turn.interrupted')
+  )
 }
 
 function normalizeDesktopWindowState(value: unknown): DesktopWindowState | null {

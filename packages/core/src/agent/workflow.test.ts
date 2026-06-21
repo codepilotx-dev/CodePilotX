@@ -1,5 +1,9 @@
 import { expect, test } from 'bun:test'
-import { agentRuntimeEventToThreadEvents } from './workflow.js'
+import {
+  WorkflowEventSchemaVersion,
+  agentRuntimeEventToThreadEvents,
+  createPermissionRequestDecisionEvent,
+} from './workflow.js'
 import type { WorkflowEventIds } from './workflow.js'
 
 const ids: WorkflowEventIds = {
@@ -22,6 +26,8 @@ test('assistant runtime message maps to a completed agent_message item', () => {
 
   expect(events).toHaveLength(1)
   expect(events[0]).toMatchObject({
+    schemaVersion: WorkflowEventSchemaVersion,
+    eventId: expect.any(String),
     type: 'item.completed',
     threadId: 'thread-1',
     turnId: 'turn-1',
@@ -29,6 +35,34 @@ test('assistant runtime message maps to a completed agent_message item', () => {
       type: 'agent_message',
       status: 'completed',
       text: 'Done',
+    },
+  })
+})
+
+test('permission decision maps request to a terminal item state', () => {
+  const event = createPermissionRequestDecisionEvent({
+    threadId: 'thread-1',
+    turnId: 'turn-1',
+    behavior: 'deny',
+    createdAt: '2026-06-22T00:00:00.000Z',
+    sequence: 7,
+    request: {
+      requestId: 'permission-123',
+      toolName: 'Edit',
+      input: { file_path: 'a.ts' },
+      description: 'Edit a.ts',
+    },
+  })
+
+  expect(event).toMatchObject({
+    schemaVersion: WorkflowEventSchemaVersion,
+    sequence: 7,
+    type: 'item.completed',
+    item: {
+      type: 'permission_request',
+      status: 'failed',
+      request: { requestId: 'permission-123' },
+      metadata: { decision: 'deny' },
     },
   })
 })

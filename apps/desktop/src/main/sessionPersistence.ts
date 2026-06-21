@@ -4,6 +4,7 @@ import {
   isAgentApprovalMode,
   isAgentPermissionProfile,
 } from '@codepilotx/core/agent/permissions.js'
+import { normalizeThreadEvent } from '@codepilotx/core/agent/workflow.js'
 import {
   getProjectDir,
   loadAllProjectsMessageLogs,
@@ -25,6 +26,7 @@ import type {
   DesktopSessionStatus,
   DesktopSessionViewSnapshot,
   DesktopToolLogEntry,
+  DesktopWorkflowEvent,
   DesktopWorkspace,
 } from '../shared/types.js'
 import { desktopAgentEventToSessionEvent } from '../shared/sessionEventModel.js'
@@ -214,6 +216,8 @@ export function createDesktopSessionSnapshot(params: {
     view: createEmptyViewSnapshot(),
     events: [],
     eventModelVersion: 1,
+    workflowEvents: [],
+    workflowEventModelVersion: 1,
     updatedAt: now.toISOString(),
   }
 }
@@ -233,6 +237,10 @@ export function applyDesktopAgentEventToSnapshot(
     },
     events: snapshot.events ? [...snapshot.events] : undefined,
     eventModelVersion: snapshot.eventModelVersion,
+    workflowEvents: snapshot.workflowEvents
+      ? [...snapshot.workflowEvents]
+      : undefined,
+    workflowEventModelVersion: snapshot.workflowEventModelVersion,
     updatedAt: new Date().toISOString(),
   }
   const sessionEvent = desktopAgentEventToSessionEvent(event)
@@ -458,6 +466,11 @@ function normalizeSessionSnapshot(value: unknown): DesktopSessionSnapshot[] {
     snapshot.eventModelVersion === 1 && Array.isArray(snapshot.events)
       ? snapshot.events.flatMap(normalizeSessionEvent)
       : undefined
+  const workflowEvents =
+    snapshot.workflowEventModelVersion === 1 &&
+    Array.isArray(snapshot.workflowEvents)
+      ? snapshot.workflowEvents.flatMap(normalizeWorkflowEvent)
+      : undefined
   const settings = normalizeSettingsSnapshot(snapshot.settings)
   const effectiveModel =
     validModelName(view.contextUsage?.model) ??
@@ -501,6 +514,8 @@ function normalizeSessionSnapshot(value: unknown): DesktopSessionSnapshot[] {
       },
       events,
       eventModelVersion: events ? 1 : undefined,
+      workflowEvents,
+      workflowEventModelVersion: workflowEvents ? 1 : undefined,
       updatedAt,
     },
   ]
@@ -1180,6 +1195,43 @@ function normalizeSessionEvent(value: unknown): DesktopSessionEvent[] {
         typeof event.sourceLabel === 'string' ? event.sourceLabel : undefined,
     },
   ]
+}
+
+function normalizeWorkflowEvent(value: unknown): DesktopWorkflowEvent[] {
+  if (!value || typeof value !== 'object') return []
+  const event = value as Partial<DesktopWorkflowEvent>
+  if (!isWorkflowEventType(event.type)) return []
+  if (typeof event.threadId !== 'string') return []
+  const createdAt = normalizeTimestampString(event.createdAt)
+  if (!createdAt) return []
+  if (event.type === 'thread.started') {
+    return [normalizeThreadEvent({ ...event, createdAt } as DesktopWorkflowEvent)]
+  }
+  if (typeof event.turnId !== 'string') return []
+  if (
+    event.type === 'item.started' ||
+    event.type === 'item.updated' ||
+    event.type === 'item.completed'
+  ) {
+    if (!event.item || typeof event.item !== 'object') return []
+    return [normalizeThreadEvent({ ...event, createdAt } as DesktopWorkflowEvent)]
+  }
+  return [normalizeThreadEvent({ ...event, createdAt } as DesktopWorkflowEvent)]
+}
+
+function isWorkflowEventType(
+  value: unknown,
+): value is DesktopWorkflowEvent['type'] {
+  return (
+    value === 'thread.started' ||
+    value === 'turn.started' ||
+    value === 'item.started' ||
+    value === 'item.updated' ||
+    value === 'item.completed' ||
+    value === 'turn.completed' ||
+    value === 'turn.failed' ||
+    value === 'turn.interrupted'
+  )
 }
 
 function isSessionEventType(

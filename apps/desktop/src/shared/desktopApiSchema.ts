@@ -104,6 +104,7 @@ export const DESKTOP_API_ARG_SCHEMAS = {
   getActiveSessionId: emptyArgs,
   setActiveSession: z.tuple([z.string().nullable()]),
   updateSessionMetadata: z.tuple([z.string(), metadataPatch]),
+  readWorkflowEventLog: emptyArgs,
   openExternalURL: z.tuple([z.string()]),
   sendUserMessage: z.tuple([z.string(), z.string(), optionalText]),
   respondToPermission: z.tuple([z.string(), z.string(), permissionDecision]),
