@@ -946,7 +946,7 @@ export function Config({
     {
       id: 'model',
       label: 'Model',
-      value: mainLoopModel === null ? 'Default (recommended)' : mainLoopModel,
+      value: mainLoopModel === null ? 'No model selected' : mainLoopModel,
       type: 'managedEnum' as const,
       onChange: onChangeMainModelConfig,
     },

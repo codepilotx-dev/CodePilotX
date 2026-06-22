@@ -4,7 +4,6 @@ export type ModelProviderKind =
   | 'anthropic'
   | 'openai-compatible'
   | 'minimax'
-  | 'ai-gateway'
 
 export type ModelMetadata = {
   id: string
@@ -12,6 +11,7 @@ export type ModelMetadata = {
   label?: string
   description?: string
   badge?: string
+  iconURL?: string
   contextWindow?: number
   outputTokens?: number
   inputCost?: number

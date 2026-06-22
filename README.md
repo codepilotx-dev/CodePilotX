@@ -6,7 +6,7 @@ CodePilotX 是一个面向本地开发工作流的 AI coding agent。它提供 C
 
 ## 亮点
 
-- 多模型 provider 架构：内置 Anthropic、OpenAI、OpenRouter、DeepSeek、MiniMax、Groq、AI Gateway 和自定义 OpenAI-compatible 网关。
+- 多模型 provider 架构：内置 Anthropic、OpenAI、OpenRouter、DeepSeek、MiniMax、Groq 和自定义 OpenAI-compatible 网关。
 - 一键连接流程：通过 `/connect` 在 TUI 中选择 provider、输入 API key、拉取模型列表并保存默认模型。
 - CLI + 桌面双入口：同一套本地 agent 能力可在终端和桌面端复用。
 - 安全凭据存储：provider API key 支持环境变量，也支持写入本地 secure storage。

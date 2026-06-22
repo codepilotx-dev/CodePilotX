@@ -1,5 +1,6 @@
 import { expect, test } from 'bun:test'
 import {
+  buildOpenAICompatibleFetchInit,
   buildOpenAICompatibleProviderRequestParams,
   readOpenAIStream,
 } from './openaiCompatible.js'
@@ -107,6 +108,33 @@ test('zhipu zero temperature uses deterministic sampling flag', () => {
   })
 })
 
+test('zhipu chat request uses configured proxy fetch options', () => {
+  const originalHTTPProxy = process.env.HTTP_PROXY
+  const originalHttpProxy = process.env.http_proxy
+  delete process.env.http_proxy
+  process.env.HTTP_PROXY = 'http://127.0.0.1:7890'
+  try {
+    const init = buildOpenAICompatibleFetchInit({
+      apiKey: 'test-key',
+      isDeepSeek: false,
+      signal: new AbortController().signal,
+    })
+
+    expect(init).toMatchObject(
+      typeof Bun !== 'undefined'
+        ? { proxy: 'http://127.0.0.1:7890' }
+        : { dispatcher: expect.anything() },
+    )
+    expect(init.headers).toMatchObject({
+      Authorization: 'Bearer test-key',
+      'Content-Type': 'application/json',
+    })
+  } finally {
+    restoreEnv('HTTP_PROXY', originalHTTPProxy)
+    restoreEnv('http_proxy', originalHttpProxy)
+  }
+})
+
 test('readOpenAIStream accumulates zhipu reasoning, tool calls, and cached tokens', async () => {
   const encoder = new TextEncoder()
   const stream = new ReadableStream<Uint8Array>({
@@ -175,3 +203,11 @@ test('readOpenAIStream accumulates zhipu reasoning, tool calls, and cached token
   expect(result.usage.input_tokens).toBe(10)
   expect(result.usage.cache_read_input_tokens).toBe(7)
 })
+
+function restoreEnv(key: string, value: string | undefined): void {
+  if (value === undefined) {
+    delete process.env[key]
+  } else {
+    process.env[key] = value
+  }
+}

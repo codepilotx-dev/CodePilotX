@@ -39,10 +39,12 @@ function ConnectProvider({
       return
     }
 
-    const result = saveProviderApiKey(providerID, apiKey)
-    if (!result.success) {
-      onDone(result.warning ?? 'Failed to save provider API key.')
-      return
+    if (apiKey.trim()) {
+      const result = saveProviderApiKey(providerID, apiKey)
+      if (!result.success) {
+        onDone(result.warning ?? 'Failed to save provider API key.')
+        return
+      }
     }
 
     saveSelectedProvider({
@@ -112,25 +114,10 @@ function ConnectProvider({
               label: 'Custom gateway',
               description: '设置自定义 OpenAI-compatible base URL',
             },
-            {
-              value: 'anthropic',
-              label: 'Anthropic',
-              description: '使用内置 Anthropic adapter',
-            },
           ]}
           onChange={value => {
             const selected = value as ModelProviderID
             setProviderID(selected)
-            if (selected === 'anthropic') {
-              saveSelectedProvider({ providerID: 'anthropic', modelID: undefined })
-              setAppState(prev => ({
-                ...prev,
-                mainLoopModel: null,
-                mainLoopModelForSession: null,
-              }))
-              onDone('Connected Anthropic and restored the default Claude model.')
-              return
-            }
             if (selected === 'custom') {
               setStep('baseURL')
               return

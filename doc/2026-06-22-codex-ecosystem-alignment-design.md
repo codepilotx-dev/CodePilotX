@@ -15,7 +15,7 @@ ClaudeCode 现状已经具备可承接本目标的基础：
 - `packages/core/src/agent/workflow.ts` 已定义 `ThreadEvent`、`TurnItem`、workflow fixture 与 runtime event 映射，是现有 desktop workflow replay 的事实事件模型。
 - `apps/desktop/src/main/sessionPersistence.ts` 通过 transcript 加 overlay 管理桌面 session，并持久化 `workflowEvents`，但权威状态仍分散在 transcript、overlay、运行中 registry。
 - `apps/desktop/src/main/desktopJsonRpcAppServerBridge.ts` 目前是可开关的镜像桥，主要验证 desktop 到 app-server 的并行事件接入，不是完整 v2 线协议。
-- `packages/core/src/models/provider.ts` 与 `apps/tui/src/utils/model/providerConfig.ts` 已有 provider 抽象、模型 catalog、DeepSeek/MiniMax/OpenAI-compatible/AI Gateway/OpenRouter/Groq 基础配置。
+- `packages/core/src/models/provider.ts` 与 `apps/tui/src/utils/model/providerConfig.ts` 已有 provider 抽象、模型 catalog、DeepSeek/MiniMax/OpenAI-compatible/OpenRouter/Groq 基础配置；Vercel AI Gateway 目录仅用于补充模型图标。
 - `apps/tui/src/tools/MiniMaxTool/` 已有 MiniMax 图片、语音、视频、音乐、视觉、文件、quota 工具链。
 
 CodeX 快照中，v2 协议更细：`Thread` 包含 `id/sessionId/forkedFromId/preview/ephemeral/modelProvider/createdAt/updatedAt/status/cwd/source/name/turns`，turn/item 通知分拆为 `thread/*`、`turn/*`、`item/*`，并有 schema fixture 生成与漂移检查。ClaudeCode 应对齐这些语义和字段命名，而不是继续扩展当前私有 v1 形态。
@@ -33,7 +33,7 @@ CodeX 快照中，v2 协议更细：`Thread` 包含 `id/sessionId/forkedFromId/p
 
 - 不把 ClaudeCode 主循环迁移到 Rust。
 - 不以 `D:\VueProject\CodeX` 作为代码底座或直接覆盖 ClaudeCode 架构。
-- 不在首轮深挖 OpenAI-compatible/custom/AI Gateway/OpenRouter/Groq 的高级能力，只保持基础可用与回归覆盖。
+- 不在首轮深挖 OpenAI-compatible/custom/OpenRouter/Groq 的高级能力，只保持基础可用与回归覆盖。
 - 不继续扩大当前私有 app-server v1 协议；v1 后续只作为兼容入口和迁移桥。
 - 不在本设计阶段修改业务代码。
 
@@ -409,7 +409,7 @@ MiniMax 分为 chat provider 与媒体工具：
 
 ### Basic providers
 
-OpenAI-compatible/custom/AI Gateway/OpenRouter/Groq 首轮保持：
+OpenAI-compatible/custom/OpenRouter/Groq 首轮保持：
 
 - list models
 - stream response

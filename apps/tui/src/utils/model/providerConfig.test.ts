@@ -21,6 +21,58 @@ const ZHIPU_DEFAULT_MODELS = [
   'glm-4v-flash',
 ]
 
+test('gateway catalog enriches model icons without exposing an AI Gateway provider', async () => {
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = (async input => {
+    const url = String(input)
+    if (url.includes('models.dev')) {
+      return new Response(
+        JSON.stringify({
+          openai: {
+            name: 'OpenAI',
+            env: ['OPENAI_API_KEY'],
+            models: {
+              'gpt-4.1': {
+                name: 'GPT-4.1',
+                modalities: { input: ['text'], output: ['text'] },
+              },
+            },
+          },
+        }),
+      )
+    }
+    if (url.includes('ai-gateway.vercel.sh')) {
+      return new Response(
+        JSON.stringify({
+          data: [
+            {
+              id: 'openai/gpt-4.1',
+              owned_by: 'openai',
+              name: 'GPT-4.1',
+              type: 'language',
+              tags: ['tool-use'],
+            },
+          ],
+        }),
+      )
+    }
+    throw new Error(`Unexpected fetch: ${url}`)
+  }) as typeof fetch
+  try {
+    const providers = await listProviderConfigs()
+    const openai = providers.find(provider => provider.providerID === 'openai')
+
+    expect(providers.some(provider => provider.providerID === 'ai-gateway')).toBe(false)
+    expect(openai?.modelMetadata?.['gpt-4.1']).toMatchObject({
+      gatewayModelId: 'openai/gpt-4.1',
+      iconURL: 'https://models.dev/logos/openai.svg',
+      catalogSources: ['models.dev', 'gateway'],
+    })
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
 test('zhipu is available as a built-in OpenAI-compatible provider', async () => {
   const originalFetch = globalThis.fetch
   globalThis.fetch = async () => {
@@ -39,6 +91,7 @@ test('zhipu is available as a built-in OpenAI-compatible provider', async () => 
       envVars: ['ZAI_API_KEY'],
       defaultModels: ZHIPU_DEFAULT_MODELS,
     })
+    expect(providers.some(provider => provider.providerID === 'anthropic')).toBe(false)
     expect(zhipu?.modelMetadata?.['glm-5.2']).toMatchObject({
       contextWindow: 1_000_000,
       outputTokens: 131_072,
@@ -132,6 +185,36 @@ test('zhipu model listing merges live catalog with curated defaults', async () =
   }
 })
 
+test('zhipu model listing uses configured proxy fetch options', async () => {
+  const originalFetch = globalThis.fetch
+  const originalHTTPProxy = process.env.HTTP_PROXY
+  const originalHttpProxy = process.env.http_proxy
+  const seenInits: RequestInit[] = []
+  delete process.env.http_proxy
+  process.env.HTTP_PROXY = 'http://127.0.0.1:7890'
+  globalThis.fetch = (async (_input, init) => {
+    seenInits.push(init ?? {})
+    return new Response(JSON.stringify({ data: [{ id: 'glm-5.2' }] }))
+  }) as typeof fetch
+  try {
+    await fetchProviderModels({
+      providerID: 'zhipu',
+      apiKey: 'test-key',
+      baseURL: PROVIDER_CONFIGS.zhipu?.baseURL,
+    })
+
+    expect(seenInits[0]).toMatchObject(
+      typeof Bun !== 'undefined'
+        ? { proxy: 'http://127.0.0.1:7890' }
+        : { dispatcher: expect.anything() },
+    )
+  } finally {
+    globalThis.fetch = originalFetch
+    restoreEnv('HTTP_PROXY', originalHTTPProxy)
+    restoreEnv('http_proxy', originalHttpProxy)
+  }
+})
+
 test('zhipu model listing falls back to curated defaults without an API key', async () => {
   const result = await fetchProviderModels({
     providerID: 'zhipu',
@@ -169,3 +252,11 @@ test('zhipu model listing formats API business errors', async () => {
     globalThis.fetch = originalFetch
   }
 })
+
+function restoreEnv(key: string, value: string | undefined): void {
+  if (value === undefined) {
+    delete process.env[key]
+  } else {
+    process.env[key] = value
+  }
+}

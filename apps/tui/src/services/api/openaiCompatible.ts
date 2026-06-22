@@ -24,6 +24,7 @@ import {
   getSelectedProviderConfig,
   getSelectedProviderID,
 } from '../../utils/model/providerConfig.js'
+import { getProxyFetchOptions } from '../../utils/proxy.js'
 import { asSystemPrompt, type SystemPrompt } from '../../utils/systemPromptType.js'
 import type { ThinkingConfig } from '../../utils/thinking.js'
 
@@ -242,14 +243,13 @@ export async function* queryOpenAICompatibleModelWithStreaming({
     }
 
     const response = await fetch(joinURL(baseURL, '/chat/completions'), {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        ...(isDeepSeek && { 'X-User-Id': resolveDeepSeekUserId(options) }),
-      },
+      ...buildOpenAICompatibleFetchInit({
+        apiKey,
+        isDeepSeek,
+        signal,
+        userID: isDeepSeek ? resolveDeepSeekUserId(options) : undefined,
+      }),
       body: JSON.stringify(requestBody),
-      signal,
     })
 
     if (!response.ok) {
@@ -282,6 +282,29 @@ export async function* queryOpenAICompatibleModelWithStreaming({
       content: errorMessage(error),
       apiError: 'api_error',
     })
+  }
+}
+
+export function buildOpenAICompatibleFetchInit({
+  apiKey,
+  isDeepSeek,
+  signal,
+  userID,
+}: {
+  apiKey: string
+  isDeepSeek: boolean
+  signal: AbortSignal
+  userID?: string
+}): RequestInit {
+  return {
+    ...(getProxyFetchOptions() as RequestInit),
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      ...(isDeepSeek && userID ? { 'X-User-Id': userID } : {}),
+    },
+    signal,
   }
 }
 
@@ -685,7 +708,7 @@ function isDeepSeekReasoningGatewayModel(
   providerID: string,
   model: string,
 ): boolean {
-  if (providerID !== 'openrouter' && providerID !== 'ai-gateway') {
+  if (providerID !== 'openrouter') {
     return false
   }
   return (

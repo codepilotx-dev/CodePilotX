@@ -157,16 +157,6 @@ export class CannotRetryError extends Error {
   }
 }
 
-export class FallbackTriggeredError extends Error {
-  constructor(
-    public readonly originalModel: string,
-    public readonly fallbackModel: string,
-  ) {
-    super(`Model fallback triggered: ${originalModel} -> ${fallbackModel}`)
-    this.name = 'FallbackTriggeredError'
-  }
-}
-
 export async function* withRetry<T>(
   getClient: () => Promise<Anthropic>,
   operation: (
@@ -333,23 +323,6 @@ export async function* withRetry<T>(
       ) {
         consecutive529Errors++
         if (consecutive529Errors >= MAX_529_RETRIES) {
-          // Check if fallback model is specified
-          if (options.fallbackModel) {
-            logEvent('tengu_api_opus_fallback_triggered', {
-              original_model:
-                options.model as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-              fallback_model:
-                options.fallbackModel as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-              provider: getAPIProviderForStatsig(),
-            })
-
-            // Throw special error to indicate fallback was triggered
-            throw new FallbackTriggeredError(
-              options.model,
-              options.fallbackModel,
-            )
-          }
-
           if (
             process.env.USER_TYPE === 'external' &&
             !process.env.IS_SANDBOX &&

@@ -18,16 +18,13 @@ import { getAPIProvider } from './providers.js'
 import { isModelAllowed } from './modelAllowlist.js'
 import {
   getCanonicalName,
-  getClaudeAiUserDefaultModelDescription,
   getDefaultSonnetModel,
   getDefaultOpusModel,
   getDefaultHaikuModel,
-  getDefaultMainLoopModelSetting,
   getMarketingNameForModel,
   getUserSpecifiedModelSetting,
   isOpus1mMergeEnabled,
   getOpus46PricingSuffix,
-  renderDefaultModelSetting,
   type ModelSetting,
 } from './model.js'
 import { has1mContext } from '../context.js'
@@ -46,37 +43,6 @@ export type ModelOption = {
   label: string
   description: string
   descriptionForModel?: string
-}
-
-export function getDefaultOptionForUser(fastMode = false): ModelOption {
-  if (process.env.USER_TYPE === 'ant') {
-    const currentModel = renderDefaultModelSetting(
-      getDefaultMainLoopModelSetting(),
-    )
-    return {
-      value: null,
-      label: 'Default (recommended)',
-      description: `Use the default model for Ants (currently ${currentModel})`,
-      descriptionForModel: `Default model (currently ${currentModel})`,
-    }
-  }
-
-  // Subscribers
-  if (isClaudeAISubscriber()) {
-    return {
-      value: null,
-      label: 'Default (recommended)',
-      description: getClaudeAiUserDefaultModelDescription(fastMode),
-    }
-  }
-
-  // PAYG
-  const is3P = getAPIProvider() !== 'firstParty'
-  return {
-    value: null,
-    label: 'Default (recommended)',
-    description: `Use the default model (currently ${renderDefaultModelSetting(getDefaultMainLoopModelSetting())})${is3P ? '' : ` · ${formatModelPricing(COST_TIER_3_15)}`}`,
-  }
 }
 
 function getCustomSonnetOption(): ModelOption | undefined {
@@ -284,7 +250,6 @@ function getModelOptionsBase(fastMode = false): ModelOption[] {
     }))
 
     return [
-      getDefaultOptionForUser(),
       ...antModelOptions,
       getMergedOpus1MOption(fastMode),
       getSonnet46Option(),
@@ -296,7 +261,7 @@ function getModelOptionsBase(fastMode = false): ModelOption[] {
   if (isClaudeAISubscriber()) {
     if (isMaxSubscriber() || isTeamPremiumSubscriber()) {
       // Max and Team Premium users: Opus is default, show Sonnet as alternative
-      const premiumOptions = [getDefaultOptionForUser(fastMode)]
+      const premiumOptions: ModelOption[] = []
       if (!isOpus1mMergeEnabled() && checkOpus1mAccess()) {
         premiumOptions.push(getMaxOpus46_1MOption(fastMode))
       }
@@ -311,7 +276,7 @@ function getModelOptionsBase(fastMode = false): ModelOption[] {
     }
 
     // Pro/Team Standard/Enterprise users: Sonnet is default, show Opus as alternative
-    const standardOptions = [getDefaultOptionForUser(fastMode)]
+    const standardOptions: ModelOption[] = []
     if (checkSonnet1mAccess()) {
       standardOptions.push(getMaxSonnet46_1MOption())
     }
@@ -331,7 +296,7 @@ function getModelOptionsBase(fastMode = false): ModelOption[] {
 
   // PAYG 1P API: Default (Sonnet) + Sonnet 1M + Opus 4.6 + Opus 1M + Haiku
   if (getAPIProvider() === 'firstParty') {
-    const payg1POptions = [getDefaultOptionForUser(fastMode)]
+    const payg1POptions: ModelOption[] = []
     if (checkSonnet1mAccess()) {
       payg1POptions.push(getSonnet46_1MOption())
     }
@@ -348,7 +313,7 @@ function getModelOptionsBase(fastMode = false): ModelOption[] {
   }
 
   // PAYG 3P: Default (Sonnet 4.5) + Sonnet (3P custom) or Sonnet 4.6/1M + Opus (3P custom) or Opus 4.1/Opus 4.6/Opus1M + Haiku + Opus 4.1
-  const payg3pOptions = [getDefaultOptionForUser(fastMode)]
+  const payg3pOptions: ModelOption[] = []
 
   const customSonnet = getCustomSonnetOption()
   if (customSonnet !== undefined) {
@@ -472,11 +437,6 @@ export function getModelOptions(fastMode = false): ModelOption[] {
       getCachedProviderModels(getSelectedProviderID()) ??
       selectedProvider.defaultModels
     const options: ModelOption[] = [
-      {
-        value: null,
-        label: 'Default (recommended)',
-        description: `Use ${formatProviderModel(getSelectedProviderID(), getDefaultMainLoopModelSetting())}`,
-      },
       ...providerModels.map(model => ({
         value: model,
         label: model,

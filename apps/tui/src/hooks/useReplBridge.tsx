@@ -479,7 +479,8 @@ export function useReplBridge(
               abortControllerRef.current?.abort()
             },
             onSetModel(model) {
-              const resolved = model === 'default' ? null : (model ?? null)
+              if (model === 'default') return
+              const resolved = model ?? null
               setMainLoopModelOverride(resolved)
               setAppState(prev => {
                 if (prev.mainLoopModelForSession === resolved) return prev

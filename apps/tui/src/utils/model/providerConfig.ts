@@ -1,4 +1,5 @@
 import { getSecureStorage } from '../secureStorage/index.js'
+import { getProxyFetchOptions } from '../proxy.js'
 import { getSettings_DEPRECATED, updateSettingsForSource } from '../settings/settings.js'
 
 export type ModelProviderID = string
@@ -7,7 +8,6 @@ export type ModelProviderKind =
   | 'anthropic'
   | 'openai-compatible'
   | 'minimax'
-  | 'ai-gateway'
 
 export type ProviderModelMetadata = {
   id: string
@@ -15,6 +15,7 @@ export type ProviderModelMetadata = {
   label?: string
   description?: string
   badge?: string
+  iconURL?: string
   contextWindow?: number
   outputTokens?: number
   inputCost?: number
@@ -93,7 +94,6 @@ export type ProviderBalanceResult = {
 const MODELS_DEV_API_URL = 'https://models.dev/api.json'
 const MODELS_DEV_LOGO_BASE_URL = 'https://models.dev/logos'
 const AI_GATEWAY_MODELS_URL = 'https://ai-gateway.vercel.sh/v1/models'
-const AI_GATEWAY_DEFAULT_BASE_URL = 'https://ai-gateway.vercel.sh/v3/ai'
 const AI_GATEWAY_PROVIDER_ID = 'ai-gateway'
 const MINIMAX_TOKEN_PLAN_BASE_URL = 'https://www.minimaxi.com'
 
@@ -286,27 +286,6 @@ export const ZHIPU_MODEL_METADATA: Record<string, ProviderModelMetadata> = {
 }
 
 export const PROVIDER_CONFIGS: Record<string, ProviderConfig> = {
-  [AI_GATEWAY_PROVIDER_ID]: {
-    providerID: AI_GATEWAY_PROVIDER_ID,
-    kind: 'ai-gateway',
-    displayName: 'AI Gateway',
-    baseURL: AI_GATEWAY_DEFAULT_BASE_URL,
-    apiKeyEnvVar: 'AI_GATEWAY_API_KEY',
-    envVars: ['AI_GATEWAY_API_KEY'],
-    defaultModels: ['openai/gpt-4.1', 'anthropic/claude-sonnet-4.5'],
-    docURL: 'https://vercel.com/docs/ai-gateway',
-    logoURL: `${MODELS_DEV_LOGO_BASE_URL}/vercel.svg`,
-    gatewaySource: true,
-  },
-  anthropic: {
-    providerID: 'anthropic',
-    kind: 'anthropic',
-    displayName: 'Anthropic',
-    envVars: ['ANTHROPIC_API_KEY'],
-    apiKeyEnvVar: 'ANTHROPIC_API_KEY',
-    logoURL: `${MODELS_DEV_LOGO_BASE_URL}/anthropic.svg`,
-    defaultModels: [],
-  },
   openai: {
     providerID: 'openai',
     kind: 'openai-compatible',
@@ -326,7 +305,6 @@ export const PROVIDER_CONFIGS: Record<string, ProviderConfig> = {
     envVars: ['OPENROUTER_API_KEY'],
     logoURL: `${MODELS_DEV_LOGO_BASE_URL}/openrouter.svg`,
     defaultModels: [
-      'anthropic/claude-sonnet-4.5',
       'openai/gpt-4.1',
       'deepseek/deepseek-chat',
     ],
@@ -420,8 +398,6 @@ export async function getProviderConfigCatalog(): Promise<Record<string, Provide
 export async function listProviderConfigs(): Promise<ProviderConfig[]> {
   const catalog = await getProviderConfigCatalog()
   return Object.values(catalog).sort((a, b) => {
-    if (a.providerID === AI_GATEWAY_PROVIDER_ID) return -1
-    if (b.providerID === AI_GATEWAY_PROVIDER_ID) return 1
     const aBuiltIn = a.providerID in PROVIDER_CONFIGS ? 0 : 1
     const bBuiltIn = b.providerID in PROVIDER_CONFIGS ? 0 : 1
     return aBuiltIn - bBuiltIn || a.displayName.localeCompare(b.displayName)
@@ -454,13 +430,13 @@ async function fetchProviderConfigCatalog(): Promise<Record<string, ProviderConf
 }
 
 async function fetchModelsDevProviders(): Promise<Record<string, ModelsDevProvider>> {
-  const response = await fetch(MODELS_DEV_API_URL)
+  const response = await fetch(MODELS_DEV_API_URL, proxyRequestInit())
   if (!response.ok) throw new Error(`${response.status} ${response.statusText}`)
   return (await response.json()) as Record<string, ModelsDevProvider>
 }
 
 async function fetchGatewayModels(): Promise<GatewayModel[]> {
-  const response = await fetch(AI_GATEWAY_MODELS_URL)
+  const response = await fetch(AI_GATEWAY_MODELS_URL, proxyRequestInit())
   if (!response.ok) throw new Error(`${response.status} ${response.statusText}`)
   const parsed = (await response.json()) as { data?: GatewayModel[] }
   return Array.isArray(parsed.data) ? parsed.data : []
@@ -471,6 +447,7 @@ function mergeModelsDevCatalog(
   modelsDevProviders: Record<string, ModelsDevProvider>,
 ): void {
   for (const [providerID, provider] of Object.entries(modelsDevProviders)) {
+    if (providerID === 'anthropic') continue
     if (!provider || typeof provider !== 'object') continue
     const fromModelsDev = providerFromModelsDev(providerID, provider)
     const existing = catalog[providerID]
@@ -495,20 +472,18 @@ function mergeGatewayCatalog(
   catalog: Record<string, ProviderConfig>,
   gatewayModels: GatewayModel[],
 ): void {
-  const gatewayProvider = catalog[AI_GATEWAY_PROVIDER_ID] ?? PROVIDER_CONFIGS[AI_GATEWAY_PROVIDER_ID]!
-  const languageModels = gatewayModels.filter(model => model.type === 'language')
-  const gatewayMetadata: Record<string, ProviderModelMetadata> = {}
-  for (const model of languageModels) {
+  for (const model of gatewayModels.filter(model => model.type === 'language')) {
     if (typeof model.id !== 'string' || !model.id.trim()) continue
-    gatewayMetadata[model.id] = normalizeGatewayModelMetadata(model)
-  }
-  catalog[AI_GATEWAY_PROVIDER_ID] = {
-    ...gatewayProvider,
-    defaultModels: Object.keys(gatewayMetadata).length
-      ? Object.keys(gatewayMetadata)
-      : gatewayProvider.defaultModels,
-    modelMetadata: mergeModelMetadata(gatewayProvider.modelMetadata, gatewayMetadata),
-    gatewaySource: true,
+    const split = splitProviderModel(model.id)
+    if (!split) continue
+    const provider = catalog[split.providerID]
+    if (!provider) continue
+    catalog[split.providerID] = {
+      ...provider,
+      modelMetadata: mergeModelMetadata(provider.modelMetadata, {
+        [split.modelID]: normalizeGatewayModelIconMetadata(model, split),
+      }),
+    }
   }
 }
 
@@ -589,41 +564,24 @@ function normalizeModelsDevModelMetadata(
   }
 }
 
-function normalizeGatewayModelMetadata(model: GatewayModel): ProviderModelMetadata {
-  const tags = normalizeStringArray(model.tags)
+function normalizeGatewayModelIconMetadata(
+  model: GatewayModel,
+  split: { providerID: ModelProviderID; modelID: string },
+): ProviderModelMetadata {
+  const owner =
+    typeof model.owned_by === 'string' && model.owned_by.trim()
+      ? model.owned_by.trim().toLowerCase()
+      : split.providerID
   return {
-    id: model.id,
-    name: typeof model.name === 'string' ? model.name : undefined,
-    label: typeof model.name === 'string' ? model.name : model.id,
-    description: typeof model.description === 'string' ? model.description : undefined,
-    contextWindow: numberOrUndefined(model.context_window),
-    outputTokens: numberOrUndefined(model.max_tokens),
-    inputCost: gatewayCostPerMillion(model.pricing?.input),
-    outputCost: gatewayCostPerMillion(model.pricing?.output),
-    cacheReadCost: gatewayCostPerMillion(model.pricing?.input_cache_read),
-    reasoning: tags.includes('reasoning'),
-    toolCall: tags.includes('tool-use'),
-    structuredOutput: tags.includes('structured-output'),
-    vision: tags.includes('vision'),
-    modalities: {
-      input: [
-        'text',
-        ...(tags.includes('vision') ? ['image'] : []),
-        ...(tags.includes('file-input') ? ['file'] : []),
-      ],
-      output: ['text'],
-    },
+    id: split.modelID,
+    iconURL: `${MODELS_DEV_LOGO_BASE_URL}/${owner}.svg`,
     catalogSources: ['gateway'],
     gatewayModelId: model.id,
-    modelsDevProviderId: typeof model.owned_by === 'string' ? model.owned_by : undefined,
-    modelType: typeof model.type === 'string' ? model.type : undefined,
-    tags,
+    modelsDevProviderId: owner,
   }
 }
 
 function inferProviderKind(providerID: string): ModelProviderKind {
-  if (providerID === AI_GATEWAY_PROVIDER_ID) return 'ai-gateway'
-  if (providerID === 'anthropic') return 'anthropic'
   if (providerID === 'minimax') return 'minimax'
   return 'openai-compatible'
 }
@@ -644,7 +602,8 @@ function buildFallbackProviderConfig(providerID: string): ProviderConfig {
 export function getSelectedProviderID(): ModelProviderID {
   const settings = getSettings_DEPRECATED() || {}
   const provider = settings.provider
-  return typeof provider === 'string' && provider.trim() ? provider : 'anthropic'
+  if (provider === AI_GATEWAY_PROVIDER_ID) return 'minimax'
+  return typeof provider === 'string' && provider.trim() ? provider : 'minimax'
 }
 
 export function getSelectedProviderConfig(): ProviderConfig {
@@ -755,10 +714,6 @@ function getProviderEnvVars(provider: ProviderConfig): string[] {
   )
 }
 
-export function shouldUseAiGatewayProvider(): boolean {
-  return getSelectedProviderConfig().kind === 'ai-gateway'
-}
-
 export function shouldUseOpenAICompatibleProvider(): boolean {
   return getSelectedProviderConfig().kind === 'openai-compatible'
 }
@@ -784,10 +739,6 @@ export async function fetchProviderModels(params: {
       ? getSelectedProviderConfig()
       : await getProviderConfig(providerID)
 
-  if (provider.kind === 'ai-gateway') {
-    providerModelCache.set(providerID, provider.defaultModels)
-    return { models: provider.defaultModels }
-  }
   if (provider.kind !== 'openai-compatible') return { models: provider.defaultModels }
 
   const baseURL = params.baseURL ?? provider.baseURL
@@ -807,6 +758,7 @@ export async function fetchProviderModels(params: {
 
   try {
     const response = await fetch(joinURL(baseURL, '/models'), {
+      ...proxyRequestInit(),
       method: 'GET',
       headers: { Authorization: `Bearer ${apiKey}` },
     })
@@ -880,6 +832,7 @@ export async function fetchProviderBalance(params: {
 
   try {
     const response = await fetch(joinURL(baseURL, '/user/balance'), {
+      ...proxyRequestInit(),
       method: 'GET',
       headers: { Authorization: `Bearer ${apiKey}` },
     })
@@ -940,6 +893,7 @@ async function fetchMiniMaxTokenPlanUsage({
     const response = await fetch(
       joinURL(MINIMAX_TOKEN_PLAN_BASE_URL, '/v1/token_plan/remains'),
       {
+        ...proxyRequestInit(),
         method: 'GET',
         headers: {
           Authorization: `Bearer ${apiKey}`,
@@ -1018,17 +972,15 @@ async function fetchMiniMaxTokenPlanUsage({
   }
 }
 
+function proxyRequestInit(): RequestInit {
+  return getProxyFetchOptions() as RequestInit
+}
+
 function mergeSources(
   first: ProviderModelMetadata['catalogSources'],
   second: ProviderModelMetadata['catalogSources'],
 ): ProviderModelMetadata['catalogSources'] {
   return Array.from(new Set([...(first ?? []), ...(second ?? [])]))
-}
-
-function gatewayCostPerMillion(value: unknown): number | undefined {
-  if (typeof value !== 'string' && typeof value !== 'number') return undefined
-  const parsed = Number(value)
-  return Number.isFinite(parsed) ? parsed * 1_000_000 : undefined
 }
 
 function joinURL(baseURL: string, path: string): string {
@@ -1208,11 +1160,6 @@ type GatewayModel = {
   max_tokens?: unknown
   type?: unknown
   tags?: unknown
-  pricing?: {
-    input?: unknown
-    output?: unknown
-    input_cache_read?: unknown
-  }
 }
 
 type MiniMaxTokenPlanResponse = {

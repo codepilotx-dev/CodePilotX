@@ -23,7 +23,6 @@ import {
   checkSonnet1mAccess,
 } from '../../utils/model/check1mAccess.js'
 import {
-  getDefaultMainLoopModelSetting,
   isOpus1mMergeEnabled,
   renderDefaultModelSetting,
 } from '../../utils/model/model.js'
@@ -145,10 +144,17 @@ function SetModelAndClose({
 }): React.ReactNode {
   const isFastMode = useAppState(s => s.fastMode)
   const setAppState = useSetAppState()
-  const model = args === 'default' ? null : args
+  const model = args
 
   React.useEffect(() => {
     async function handleModelChange(): Promise<void> {
+      if (model.toLowerCase() === 'default') {
+        onDone('The default model option has been removed. Select a specific model ID.', {
+          display: 'system',
+        })
+        return
+      }
+
       if (model && !isModelAllowed(model)) {
         onDone(
           `Model '${model}' is not available. Your organization restricts model selection.`,
@@ -171,12 +177,6 @@ function SetModelAndClose({
           `Sonnet 4.6 with 1M context is not available for your account. Learn more: https://code.claude.com/docs/en/model-config#extended-context-with-1m`,
           { display: 'system' },
         )
-        return
-      }
-
-      // Skip validation for default model
-      if (!model) {
-        setModel(null)
         return
       }
 
@@ -330,8 +330,6 @@ export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
 }
 
 function renderModelLabel(model: string | null): string {
-  const rendered = renderDefaultModelSetting(
-    model ?? getDefaultMainLoopModelSetting(),
-  )
-  return model === null ? `${rendered} (default)` : rendered
+  if (model === null) return 'No model selected'
+  return renderDefaultModelSetting(model)
 }

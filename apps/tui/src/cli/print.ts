@@ -2182,7 +2182,7 @@ function runHeadlessStreaming(
               taskBudget: options.taskBudget,
               canUseTool,
               userSpecifiedModel: activeUserSpecifiedModel,
-              fallbackModel: options.fallbackModel,
+              fallbackModel: undefined,
               jsonSchema: getInitJsonSchema() ?? options.jsonSchema,
               mutableMessages,
               getReadFileCache: () =>
@@ -2953,10 +2953,14 @@ function runHeadlessStreaming(
           // now fired by onChangeAppState (with externalized mode name).
         } else if (message.request.subtype === 'set_model') {
           const requestedModel = message.request.model ?? 'default'
-          const model =
-            requestedModel === 'default'
-              ? getDefaultMainLoopModel()
-              : requestedModel
+          if (requestedModel === 'default') {
+            sendControlResponseError(
+              message,
+              'The default model option has been removed. Select a specific model ID.',
+            )
+            continue
+          }
+          const model = requestedModel
           activeUserSpecifiedModel = model
           setMainLoopModelOverride(model)
           notifySessionMetadataChanged({ model })
@@ -3964,8 +3968,12 @@ function runHeadlessStreaming(
                     abortController?.abort()
                   },
                   onSetModel(model) {
-                    const resolved =
-                      model === 'default' ? getDefaultMainLoopModel() : model
+                    if (model === 'default') {
+                      throw new Error(
+                        'The default model option has been removed. Select a specific model ID.',
+                      )
+                    }
+                    const resolved = model
                     activeUserSpecifiedModel = resolved
                     setMainLoopModelOverride(resolved)
                   },

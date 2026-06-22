@@ -99,7 +99,7 @@ export function getMainLoopModel(): ModelName {
   if (model !== undefined && model !== null) {
     return parseUserSpecifiedModel(model)
   }
-  return getDefaultMainLoopModel()
+  throw new Error('No model selected. Choose a specific model before starting a session.')
 }
 
 export function getBestModel(): ModelName {
@@ -570,15 +570,7 @@ export function isLegacyModelRemapEnabled(): boolean {
 export function modelDisplayString(model: ModelSetting): string {
   const selectedProvider = getSelectedProviderID()
   if (model === null) {
-    if (selectedProvider !== 'anthropic') {
-      return `Default (${formatProviderModel(selectedProvider, getDefaultMainLoopModel())})`
-    }
-    if (process.env.USER_TYPE === 'ant') {
-      return `Default for Ants (${renderDefaultModelSetting(getDefaultMainLoopModelSetting())})`
-    } else if (isClaudeAISubscriber()) {
-      return `Default (${getClaudeAiUserDefaultModelDescription()})`
-    }
-    return `Default (${getDefaultMainLoopModel()})`
+    return 'No model selected'
   }
   const resolvedModel = parseUserSpecifiedModel(model)
   const rendered =
