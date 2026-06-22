@@ -682,8 +682,18 @@ function checkScriptBlockInjection(
     }
   }
 
-  // Check if all commands are either safe script block consumers or don't use script blocks
-  const allCommandsSafe = getAllCommands(parsed).every(cmd => {
+  const commandsWithScriptBlocks = getAllCommands(parsed).filter(cmd =>
+    commandHasScriptBlockArg(cmd),
+  )
+  if (commandsWithScriptBlocks.length === 0) {
+    return {
+      behavior: 'ask',
+      message: 'Command contains script block that may execute arbitrary code',
+    }
+  }
+
+  // Check if all commands that consume script blocks are safe consumers.
+  const allCommandsSafe = commandsWithScriptBlocks.every(cmd => {
     const lower = cmd.name.toLowerCase()
     // Safe filtering/output cmdlets
     if (SAFE_SCRIPT_BLOCK_CMDLETS.has(lower)) {
@@ -706,6 +716,10 @@ function checkScriptBlockInjection(
     behavior: 'ask',
     message: 'Command contains script block that may execute arbitrary code',
   }
+}
+
+function commandHasScriptBlockArg(cmd: ParsedCommandElement): boolean {
+  return cmd.elementTypes?.slice(1).includes('ScriptBlock') === true
 }
 
 /**

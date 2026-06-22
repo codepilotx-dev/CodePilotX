@@ -52,6 +52,7 @@ import {
 } from "../features/session/workflowConsistency.js";
 import { desktopClient } from "../services/desktopClient.js";
 import type { Message } from "../uiTypes.js";
+import { InlineApprovalCard } from "./InlineApprovalCard.js";
 import { MarkdownMessage } from "./MarkdownMessage.js";
 import { PopoverItem } from "./ui/PopoverItem.js";
 import { PopoverMenu } from "./ui/PopoverMenu.js";
@@ -97,6 +98,8 @@ export function ConversationPage(): React.ReactNode {
     onToggleSessionPinned,
     onCommitOrPush,
     onCreatePullRequest,
+    onDecidePermission,
+    pendingPermissions,
     composer,
   } = useQuickChatContext();
   const { defaultOpenTargetId, setDefaultOpenTargetId } = useDesktopSettings();
@@ -168,6 +171,7 @@ export function ConversationPage(): React.ReactNode {
   const selectedOpenTarget =
     openTargets.find((target) => target.id === defaultOpenTargetId) ??
     FALLBACK_OPEN_TARGETS[0];
+  const activePermissionRequest = pendingPermissions[0] ?? null;
 
   React.useEffect(() => {
     let mounted = true;
@@ -559,6 +563,12 @@ export function ConversationPage(): React.ReactNode {
               </span>
               <button type="button" onClick={openReviewSidebar}>审查</button>
             </div>
+          ) : null}
+          {activePermissionRequest ? (
+            <InlineApprovalCard
+              request={activePermissionRequest}
+              onDecide={onDecidePermission}
+            />
           ) : null}
           {composer}
         </div>

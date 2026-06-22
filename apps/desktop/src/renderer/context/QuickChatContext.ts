@@ -3,6 +3,7 @@ import { createContext, useContext } from 'react'
 import type { Message } from '../uiTypes.js'
 import type {
   DesktopGitStatus,
+  DesktopPermissionRequest,
   DesktopSessionEvent,
   DesktopSessionStatus,
   DesktopWorkflowEvent,
@@ -29,9 +30,15 @@ export type QuickChatContextValue = {
   onToggleSessionPinned: () => void
   onCommitOrPush: () => void
   onCreatePullRequest: () => void
+  onDecidePermission: (
+    request: DesktopPermissionRequest,
+    behavior: 'allow' | 'deny',
+    alwaysAllow?: boolean,
+  ) => void
   events: DesktopSessionEvent[]
   workflowEvents: DesktopWorkflowEvent[]
   messages: Message[]
+  pendingPermissions: DesktopPermissionRequest[]
   sessionStatus: DesktopSessionStatus
   composer: React.ReactNode
 }

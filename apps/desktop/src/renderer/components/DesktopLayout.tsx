@@ -12,7 +12,6 @@ import {
   GitWorkflowModal,
   type GitWorkflowMode,
 } from './GitWorkflowModal.js'
-import { PermissionRequestModal } from './PermissionRequestModal.js'
 import { SettingsSidebarContent } from './SettingsSidebarContent.js'
 import { SidebarFrame } from './SidebarFrame.js'
 import { MenuBar } from './MenuBar.js'
@@ -48,7 +47,6 @@ import type {
   DesktopModelMetadata,
   DesktopModelProviderSummary,
   DesktopModelProviderState,
-  DesktopPermissionRequest,
   DesktopWorkspace,
   ModelProviderID,
 } from '../../shared/types.js'
@@ -763,10 +761,6 @@ export function DesktopLayout(): React.ReactNode {
       ? RUNTIME_WARNING_MESSAGE
       : null
   const visibleErrorMessage = errorMessage ?? runtimeWarningMessage
-  const activePermissionRequest: DesktopPermissionRequest | null =
-    isConversationRoute && !isConversationLoading
-      ? pendingPermissions[0] ?? null
-      : null
   const branchName = getDesktopComposerBranchName(currentWorkspace)
 
   const search = useDesktopSearch({
@@ -965,13 +959,6 @@ export function DesktopLayout(): React.ReactNode {
 
   return (
     <div className="desktop-frame">
-      <PermissionRequestModal
-        request={activePermissionRequest}
-        onDecide={(request, behavior, alwaysAllow) => {
-          void decidePermission(request, behavior, alwaysAllow)
-        }}
-      />
-
       <GlobalErrorModal
         message={visibleErrorMessage}
         onDismiss={() => {
@@ -1047,10 +1034,15 @@ export function DesktopLayout(): React.ReactNode {
             },
             onCommitOrPush: () => setGitWorkflowMode('commitPush'),
             onCreatePullRequest: () => setGitWorkflowMode('pullRequest'),
+            onDecidePermission: (request, behavior, alwaysAllow) => {
+              void decidePermission(request, behavior, alwaysAllow)
+            },
             events: isQuickChatPage || isConversationLoading ? [] : events,
             workflowEvents:
               isQuickChatPage || isConversationLoading ? [] : workflowEvents,
             messages: isQuickChatPage || isConversationLoading ? [] : messages,
+            pendingPermissions:
+              isQuickChatPage || isConversationLoading ? [] : pendingPermissions,
             sessionStatus,
             composer: isConversationLoading ? null : composer,
           }}

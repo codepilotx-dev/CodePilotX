@@ -422,7 +422,11 @@ export function MenuBar({
             title={isMaximized ? '还原' : '最大化'}
           >
             {isMaximized ? (
-              <Copy size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              <Copy
+                className="window-restore-icon"
+                size={APP_ICON_SIZE}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
             ) : (
               <Square size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             )}

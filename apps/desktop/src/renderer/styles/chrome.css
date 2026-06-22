@@ -176,6 +176,10 @@
   background: var(--c-bg-hover);
 }
 
+.window-restore-icon {
+  transform: scaleX(-1);
+}
+
 .window-control-button.close:hover {
   background: var(--red-9);
   color: var(--c-text-on-accent);

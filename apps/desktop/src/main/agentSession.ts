@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { EventEmitter } from 'node:events'
+import { basename, isAbsolute, relative, resolve } from 'node:path'
 import {
   createDesktopAgentRuntime,
   type DesktopAgentRuntime,
@@ -220,6 +221,7 @@ class LocalDesktopAgentSession
     const policyDecision = resolveDesktopPermissionPolicyDecision(
       permissionPolicy,
       normalizedRequest,
+      this.workspacePath,
     )
     if (policyDecision) {
       return policyDecision
@@ -294,6 +296,7 @@ export function createDesktopAgentSession(
 export function resolveDesktopPermissionPolicyDecision(
   policy: AgentPermissionPolicy,
   request: DesktopPermissionRequest,
+  workspacePath?: string,
 ): DesktopPermissionDecision | null {
   const action = permissionActionForDesktopTool(request.toolName)
   const effect = resolvePermissionEffect(policy, action, request.toolName)
@@ -309,7 +312,105 @@ export function resolveDesktopPermissionPolicyDecision(
       message: `Permission denied by ${policy.profile} permission profile`,
     }
   }
+  if (shouldAllowWorkspaceWrite(policy, action, request, workspacePath)) {
+    return {
+      behavior: 'allow',
+      alwaysAllow: true,
+    }
+  }
   return null
+}
+
+const WORKSPACE_WRITE_APPROVAL_MODES = new Set([
+  'prompt',
+  'auto-review',
+  'auto-approve-edits',
+])
+
+const SENSITIVE_WORKSPACE_DIRECTORIES = new Set([
+  '.git',
+  '.claude',
+  '.vscode',
+  '.idea',
+])
+
+const SENSITIVE_WORKSPACE_FILES = new Set([
+  '.gitconfig',
+  '.gitmodules',
+  '.bashrc',
+  '.bash_profile',
+  '.zshrc',
+  '.zprofile',
+  '.profile',
+  '.ripgreprc',
+  '.mcp.json',
+  '.claude.json',
+])
+
+function shouldAllowWorkspaceWrite(
+  policy: AgentPermissionPolicy,
+  action: AgentPermissionAction,
+  request: DesktopPermissionRequest,
+  workspacePath: string | undefined,
+): boolean {
+  if (action !== 'write') return false
+  if (!workspacePath) return false
+  if (policy.profile !== 'workspace-write') return false
+  if (!WORKSPACE_WRITE_APPROVAL_MODES.has(policy.approvalMode)) return false
+
+  const filePath = desktopRequestFilePath(request)
+  if (!filePath) return false
+  if (isNetworkPath(filePath)) return false
+
+  const resolvedWorkspacePath = resolve(workspacePath)
+  const resolvedFilePath = resolve(resolvedWorkspacePath, filePath)
+  if (!isPathInsideWorkspace(resolvedWorkspacePath, resolvedFilePath)) {
+    return false
+  }
+  return !isSensitiveWorkspacePath(resolvedFilePath, resolvedWorkspacePath)
+}
+
+function desktopRequestFilePath(
+  request: DesktopPermissionRequest,
+): string | null {
+  const filePath = request.input.file_path ?? request.input.filePath
+  return typeof filePath === 'string' && filePath.trim() ? filePath : null
+}
+
+function isPathInsideWorkspace(
+  workspacePath: string,
+  filePath: string,
+): boolean {
+  const normalizedWorkspace = normalizePathForPolicy(workspacePath)
+  const normalizedFile = normalizePathForPolicy(filePath)
+  const relativePath = relative(normalizedWorkspace, normalizedFile)
+  return (
+    relativePath === '' ||
+    (!relativePath.startsWith('..') && !isAbsolute(relativePath))
+  )
+}
+
+function isSensitiveWorkspacePath(
+  filePath: string,
+  workspacePath: string,
+): boolean {
+  const relativePath = relative(workspacePath, filePath)
+  const segments = relativePath
+    .split(/[\\/]+/)
+    .map(segment => segment.toLowerCase())
+  if (segments.some(segment => SENSITIVE_WORKSPACE_DIRECTORIES.has(segment))) {
+    return true
+  }
+  return SENSITIVE_WORKSPACE_FILES.has(basename(filePath).toLowerCase())
+}
+
+function isNetworkPath(filePath: string): boolean {
+  return filePath.startsWith('\\\\') || filePath.startsWith('//')
+}
+
+function normalizePathForPolicy(filePath: string): string {
+  const resolvedPath = resolve(filePath)
+  return process.platform === 'win32' ? resolvedPath.toLowerCase() : resolvedPath
 }
 
 export function permissionActionForDesktopTool(

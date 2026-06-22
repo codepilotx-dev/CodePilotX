@@ -2,6 +2,8 @@ import type React from "react";
 import { useState } from "react";
 import {
   Archive,
+  ChevronDown,
+  ExternalLink,
   FolderGit2,
   FolderOpen,
   FolderTree,
@@ -22,6 +24,7 @@ import { SidebarSessionGroup } from "./SidebarSessionGroup.js";
 
 type Props = {
   activeSessionId: string | null;
+  collapsedProjectPaths: Set<string>;
   expandedGroups: Record<string, boolean>;
   now: number;
   project: DesktopWorkspace;
@@ -34,11 +37,13 @@ type Props = {
   onRemoveWorkspace: (workspace: DesktopWorkspace) => void;
   onSelectSession: (session: SessionListItem) => void;
   onToggleExpanded: (groupKey: string) => void;
+  onToggleProjectCollapsed: (projectPath: string) => void;
   onUnpinSession: (session: SessionListItem) => void;
 };
 
 export function SidebarProjectGroup({
   activeSessionId,
+  collapsedProjectPaths,
   expandedGroups,
   now,
   project,
@@ -51,6 +56,7 @@ export function SidebarProjectGroup({
   onRemoveWorkspace,
   onSelectSession,
   onToggleExpanded,
+  onToggleProjectCollapsed,
   onUnpinSession,
 }: Props): React.ReactNode {
   const [hovered, setHovered] = useState(false);
@@ -60,34 +66,52 @@ export function SidebarProjectGroup({
     (session) => !session.standalone && session.workspacePath === project.path,
   );
   const actionsVisible = hovered || menuOpen;
+  const isExpanded = !collapsedProjectPaths.has(project.path);
+  const isCurrent = workspace?.path === project.path;
 
   return (
     <section className="sidebar-project" onMouseLeave={() => setHovered(false)}>
       <div
+        aria-current={isCurrent ? "page" : undefined}
+        aria-expanded={isExpanded}
         className="sidebar-project-header"
+        onClick={() => onToggleProjectCollapsed(project.path)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onToggleProjectCollapsed(project.path);
+          }
+        }}
         onMouseEnter={() => setHovered(true)}
+        role="button"
+        tabIndex={0}
       >
-        <button
-          aria-current={workspace?.path === project.path ? "page" : undefined}
-          className="sidebar-project-button"
-          onClick={() => onOpenWorkspace(project)}
-          type="button"
-        >
-          <span className="icon-button sidebar-item-icon">
-            {project.isGitRepo === true && hovered ? (
-              <FolderGit2 size={APP_ICON_SIZE} />
-            ) : (
-              <FolderOpen size={APP_ICON_SIZE} />
-            )}
-          </span>
-          <span className="sidebar-project-name">{project.name}</span>
-        </button>
+        <span className="icon-button sidebar-item-icon">
+          {project.isGitRepo === true && hovered ? (
+            <FolderGit2 size={APP_ICON_SIZE} />
+          ) : (
+            <FolderOpen size={APP_ICON_SIZE} />
+          )}
+        </span>
+        <span className="sidebar-project-name">{project.name}</span>
+        {projectSessions.length > 0 ? (
+          <ChevronDown
+            aria-hidden="true"
+            className={
+              isExpanded
+                ? "sidebar-project-chevron is-expanded"
+                : "sidebar-project-chevron"
+            }
+            size={APP_ICON_SIZE}
+          />
+        ) : null}
         <div
           className={
             actionsVisible
               ? "sidebar-project-actions is-visible"
               : "sidebar-project-actions"
           }
+          onClick={(event) => event.stopPropagation()}
         >
           <PopoverMenu
             autoWidth
@@ -105,6 +129,12 @@ export function SidebarProjectGroup({
             }
             onOpenChange={setMenuOpen}
           >
+            <PopoverItem
+              icon={<ExternalLink size={APP_ICON_SIZE} />}
+              onClick={() => onOpenWorkspace(project)}
+            >
+              打开项目
+            </PopoverItem>
             <PopoverItem icon={<Pin size={APP_ICON_SIZE} />} onClick={() => {}}>
               置顶项目
             </PopoverItem>
@@ -149,7 +179,7 @@ export function SidebarProjectGroup({
         </div>
       </div>
 
-      {projectSessions.length > 0 ? (
+      {projectSessions.length > 0 && isExpanded ? (
         <SidebarSessionGroup
           activeSessionId={activeSessionId}
           groupKey={groupKey}

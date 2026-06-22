@@ -24,6 +24,7 @@ import { SidebarSessionGroup } from "./SidebarSessionGroup.js";
 
 type Props = {
   activeSessionId: string | null;
+  collapsedProjectPaths: Set<string>;
   expandedGroups: Record<string, boolean>;
   now: number;
   pinnedSessions: SessionListItem[];
@@ -39,11 +40,13 @@ type Props = {
   onRemoveWorkspace: (workspace: DesktopWorkspace) => void;
   onSelectSession: (session: SessionListItem) => void;
   onToggleExpanded: (groupKey: string) => void;
+  onToggleProjectCollapsed: (projectPath: string) => void;
   onUnpinSession: (session: SessionListItem) => void;
 };
 
 export function SidebarBody({
   activeSessionId,
+  collapsedProjectPaths,
   expandedGroups,
   now,
   pinnedSessions,
@@ -59,82 +62,87 @@ export function SidebarBody({
   onRemoveWorkspace,
   onSelectSession,
   onToggleExpanded,
+  onToggleProjectCollapsed,
   onUnpinSession,
 }: Props): React.ReactNode {
   return (
     <div className="sidebar-body">
-      {pinnedSessions.length > 0 ? (
-        <section className="sidebar-section">
-          <h2 className="sidebar-section-title">置顶</h2>
-          <SidebarSessionGroup
-            activeSessionId={activeSessionId}
-            groupKey="pinned"
-            isExpanded={expandedGroups.pinned === true}
-            now={now}
-            sessions={pinnedSessions}
-            onArchiveSession={onArchiveSession}
-            onPinSession={onPinSession}
-            onSelectSession={onSelectSession}
-            onToggleExpanded={onToggleExpanded}
-            onUnpinSession={onUnpinSession}
-          />
-        </section>
-      ) : null}
-
-      <section className="sidebar-section sidebar-projects-section">
-        <SidebarSectionHeader
-          actionIcon={<FolderOpen size={APP_ICON_SIZE} />}
-          actionTitle="选择项目"
-          title="项目"
-          onAction={onChooseWorkspace}
-        />
-        {projectWorkspaces.length === 0 ? (
-          <p className="sidebar-empty">暂无最近项目</p>
-        ) : (
-          projectWorkspaces.map((project) => (
-            <SidebarProjectGroup
+      <div className="sidebar-section-group">
+        {pinnedSessions.length > 0 ? (
+          <section className="sidebar-section">
+            <h2 className="sidebar-section-title">置顶</h2>
+            <SidebarSessionGroup
               activeSessionId={activeSessionId}
-              expandedGroups={expandedGroups}
-              key={project.path}
+              groupKey="pinned"
+              isExpanded={expandedGroups.pinned === true}
               now={now}
-              project={project}
-              sessions={unpinnedSessions}
-              workspace={workspace}
+              sessions={pinnedSessions}
               onArchiveSession={onArchiveSession}
-              onCreateSession={onCreateSession}
-              onOpenWorkspace={onOpenWorkspace}
               onPinSession={onPinSession}
-              onRemoveWorkspace={onRemoveWorkspace}
               onSelectSession={onSelectSession}
               onToggleExpanded={onToggleExpanded}
               onUnpinSession={onUnpinSession}
             />
-          ))
-        )}
-      </section>
+          </section>
+        ) : null}
 
-      <section className="sidebar-section">
-        <SidebarSectionHeader
-          title="对话"
-          onAction={() => onCreateSession(null)}
-        />
-        {standaloneSessions.length === 0 ? (
-          <p className="sidebar-empty">暂无对话</p>
-        ) : (
-          <SidebarSessionGroup
-            activeSessionId={activeSessionId}
-            groupKey="standalone"
-            isExpanded={expandedGroups.standalone === true}
-            now={now}
-            sessions={standaloneSessions}
-            onArchiveSession={onArchiveSession}
-            onPinSession={onPinSession}
-            onSelectSession={onSelectSession}
-            onToggleExpanded={onToggleExpanded}
-            onUnpinSession={onUnpinSession}
+        <section className="sidebar-section sidebar-projects-section">
+          <SidebarSectionHeader
+            actionIcon={<FolderOpen size={APP_ICON_SIZE} />}
+            actionTitle="选择项目"
+            title="项目"
+            onAction={onChooseWorkspace}
           />
-        )}
-      </section>
+          {projectWorkspaces.length === 0 ? (
+            <p className="sidebar-empty">暂无最近项目</p>
+          ) : (
+            projectWorkspaces.map((project) => (
+              <SidebarProjectGroup
+                activeSessionId={activeSessionId}
+                collapsedProjectPaths={collapsedProjectPaths}
+                expandedGroups={expandedGroups}
+                key={project.path}
+                now={now}
+                project={project}
+                sessions={unpinnedSessions}
+                workspace={workspace}
+                onArchiveSession={onArchiveSession}
+                onCreateSession={onCreateSession}
+                onOpenWorkspace={onOpenWorkspace}
+                onPinSession={onPinSession}
+                onRemoveWorkspace={onRemoveWorkspace}
+                onSelectSession={onSelectSession}
+                onToggleExpanded={onToggleExpanded}
+                onToggleProjectCollapsed={onToggleProjectCollapsed}
+                onUnpinSession={onUnpinSession}
+              />
+            ))
+          )}
+        </section>
+
+        <section className="sidebar-section">
+          <SidebarSectionHeader
+            title="对话"
+            onAction={() => onCreateSession(null)}
+          />
+          {standaloneSessions.length === 0 ? (
+            <p className="sidebar-empty">暂无对话</p>
+          ) : (
+            <SidebarSessionGroup
+              activeSessionId={activeSessionId}
+              groupKey="standalone"
+              isExpanded={expandedGroups.standalone === true}
+              now={now}
+              sessions={standaloneSessions}
+              onArchiveSession={onArchiveSession}
+              onPinSession={onPinSession}
+              onSelectSession={onSelectSession}
+              onToggleExpanded={onToggleExpanded}
+              onUnpinSession={onUnpinSession}
+            />
+          )}
+        </section>
+      </div>
     </div>
   );
 }
