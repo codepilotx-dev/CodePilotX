@@ -24,6 +24,7 @@ import {
 } from './agentSession.js'
 import type { DesktopAgentRuntimePreference } from './agentRuntime.js'
 import { buildDesktopApiHandlers } from './desktopApiHandlers.js'
+import { createDesktopJsonRpcAppServerBridge } from './desktopJsonRpcAppServerBridge.js'
 import { registerDesktopIpcHandlers } from './ipc.js'
 import { createDesktopWindowService } from './windowService.js'
 import {
@@ -111,6 +112,19 @@ const windowService = createDesktopWindowService({
   iconPath: desktopIconPath,
   rendererUrl,
   preloadPath: () => join(__dirname, '../preload/index.js'),
+})
+const jsonRpcAppServerThreadIds = new Set<string>()
+const jsonRpcAppServerBridge = createDesktopJsonRpcAppServerBridge({
+  onWorkflowEvent: event => {
+    const emittedEvent = windowService.emitWorkflowEvent(event)
+    const record = sessions.get(emittedEvent.threadId)
+    if (record) {
+      record.snapshot = applyDesktopWorkflowEventsToSnapshot(record.snapshot, [
+        emittedEvent,
+      ])
+      persistSessionStore()
+    }
+  },
 })
 configureWorkspaceService({ getWindow: windowService.getWindow })
 
@@ -447,6 +461,7 @@ async function createSession(
   sessions.set(session.sessionId, record)
   activeSessionId = session.sessionId
   attachSessionListeners(record)
+  startJsonRpcAppServerThread(session.sessionId)
   persistSessionStore()
   return { sessionId: session.sessionId, workspace, standalone }
 }
@@ -579,6 +594,8 @@ async function sendUserMessage(
   if (shouldGenerateTitle) {
     scheduleAiTitleGeneration(record, trimmedContent)
   }
+  await startJsonRpcAppServerThread(sessionId)
+  await startJsonRpcAppServerTurn(sessionId, trimmedContent)
   try {
     await session.sendUserMessage(trimmedContent)
     desktopDebug('send_user_message_done', {
@@ -650,6 +667,39 @@ function scheduleAiTitleGeneration(
     )
     persistSessionStore()
   })
+}
+
+async function startJsonRpcAppServerThread(sessionId: string): Promise<void> {
+  if (!jsonRpcAppServerBridge || jsonRpcAppServerThreadIds.has(sessionId)) {
+    return
+  }
+  jsonRpcAppServerThreadIds.add(sessionId)
+  try {
+    await jsonRpcAppServerBridge.startThread(sessionId)
+  } catch (error) {
+    jsonRpcAppServerThreadIds.delete(sessionId)
+    desktopDebug('json_rpc_app_server_thread_start_failed', {
+      sessionId,
+      message: error instanceof Error ? error.message : String(error),
+    })
+  }
+}
+
+async function startJsonRpcAppServerTurn(
+  sessionId: string,
+  content: string,
+): Promise<void> {
+  if (!jsonRpcAppServerBridge) {
+    return
+  }
+  try {
+    await jsonRpcAppServerBridge.startTurn(sessionId, content)
+  } catch (error) {
+    desktopDebug('json_rpc_app_server_turn_start_failed', {
+      sessionId,
+      message: error instanceof Error ? error.message : String(error),
+    })
+  }
 }
 
 function getSessionTitleModel(record: DesktopSessionRecord): string {

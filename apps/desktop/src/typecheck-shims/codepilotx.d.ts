@@ -362,6 +362,12 @@ declare module '@codepilotx/core/agent/workflow.js' {
     metadata?: Record<string, unknown>,
     now?: () => string,
   ): Extract<ThreadEvent, { type: 'thread.started' }>
+  export function createTurnStartedEvent(
+    threadId: ThreadId,
+    turnId: TurnId,
+    input?: unknown,
+    now?: () => string,
+  ): Extract<ThreadEvent, { type: 'turn.started' }>
   export function agentRuntimeEventToThreadEvents(
     event: AgentRuntimeEvent,
     ids: WorkflowEventIds,
@@ -523,6 +529,41 @@ declare module '@codepilotx/tui/headless/desktopRuntime.js' {
     content: string,
     signal: AbortSignal,
   ): Promise<void>
+}
+
+declare module '@codepilotx/tui/appServer/protocol.js' {
+  export type JsonRpcTurnStartResult = {
+    threadId: string
+    turnId: string
+    eventCount: number
+  }
+}
+
+declare module '@codepilotx/tui/appServer/server.js' {
+  import type { ThreadEvent } from '@codepilotx/core/agent/workflow.js'
+  import type { JsonRpcTurnStartResult } from '@codepilotx/tui/appServer/protocol.js'
+
+  export class JsonRpcAppServer {
+    constructor(
+      registry?: unknown,
+      options?: {
+        onThreadEvent?: (event: ThreadEvent) => void | Promise<void>
+      },
+    )
+    startThread(params: {
+      threadId?: string
+      settings: unknown
+    }): Promise<{
+      threadId: string
+      status: string
+      createdAt: string
+    }>
+    startTurn(params: {
+      threadId: string
+      turnId?: string
+      input: unknown
+    }): Promise<JsonRpcTurnStartResult>
+  }
 }
 
 declare module '@codepilotx/tui/entrypoints/sdk/controlTypes.js' {
