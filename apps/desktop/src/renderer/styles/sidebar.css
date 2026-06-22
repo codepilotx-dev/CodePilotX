@@ -182,7 +182,6 @@
 .sidebar-nav-link:hover,
 .sidebar-nav-link.active,
 .sidebar-project-header:hover,
-.sidebar-project-header:focus-within,
 .sidebar-session-row:hover,
 .sidebar-session-row.active,
 .sidebar-settings-link:hover,
@@ -192,18 +191,14 @@
 
 .sidebar-nav-link.active,
 .sidebar-session-row.active,
-.sidebar-settings-link.active,
-.sidebar-project-header[aria-current="page"] {
+.sidebar-settings-link.active {
   color: var(--c-text-strong);
-  font-weight: 600;
   background: var(--c-bg-hover);
 }
 
 .sidebar-nav-link:hover .sidebar-item-icon,
 .sidebar-nav-link.active .sidebar-item-icon,
 .sidebar-project-header:hover .sidebar-item-icon,
-.sidebar-project-header:focus-within .sidebar-item-icon,
-.sidebar-project-header[aria-current="page"] .sidebar-item-icon,
 .sidebar-settings-link:hover .sidebar-item-icon,
 .sidebar-settings-link.active .sidebar-item-icon {
   color: var(--c-text-soft);
@@ -310,19 +305,16 @@
 }
 
 .sidebar-project-header:hover .sidebar-project-actions,
-.sidebar-project-header:focus-within .sidebar-project-actions,
 .sidebar-project-actions.is-visible {
   pointer-events: auto;
 }
 
 .sidebar-project-header:hover .sidebar-project-chevron,
-.sidebar-project-header:focus-within .sidebar-project-chevron,
 .sidebar-project-actions.is-visible .sidebar-project-chevron {
   opacity: 0;
 }
 
 .sidebar-project-header:hover .sidebar-project-action-items,
-.sidebar-project-header:focus-within .sidebar-project-action-items,
 .sidebar-project-actions.is-visible .sidebar-project-action-items {
   opacity: 1;
   pointer-events: auto;
