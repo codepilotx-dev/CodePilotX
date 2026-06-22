@@ -14,6 +14,11 @@ import type {
   DesktopSessionStatus,
 } from '../shared/types.js'
 import { desktopPermissionPolicyForMode } from '../shared/settingsSchema.js'
+import type {
+  AgentPermissionAction,
+  AgentPermissionPolicy,
+} from '@codepilotx/core/agent/permissions.js'
+import { resolvePermissionEffect } from '@codepilotx/core/agent/permissions.js'
 
 type DesktopAgentSessionEvents = {
   event: [DesktopAgentEvent]
@@ -212,6 +217,13 @@ class LocalDesktopAgentSession
       profile: request.profile ?? permissionPolicy.profile,
       approvalMode: request.approvalMode ?? permissionPolicy.approvalMode,
     }
+    const policyDecision = resolveDesktopPermissionPolicyDecision(
+      permissionPolicy,
+      normalizedRequest,
+    )
+    if (policyDecision) {
+      return policyDecision
+    }
     const decision = await new Promise<DesktopPermissionDecision>(resolve => {
       this.pendingPermissions.set(normalizedRequest.requestId, {
         request: normalizedRequest,
@@ -277,4 +289,54 @@ export function createDesktopAgentSession(
   runtimeOptions: DesktopAgentSessionRuntimeOptions = {},
 ): DesktopAgentSession {
   return new LocalDesktopAgentSession(options, runtimeOptions)
+}
+
+export function resolveDesktopPermissionPolicyDecision(
+  policy: AgentPermissionPolicy,
+  request: DesktopPermissionRequest,
+): DesktopPermissionDecision | null {
+  const action = permissionActionForDesktopTool(request.toolName)
+  const effect = resolvePermissionEffect(policy, action, request.toolName)
+  if (effect === 'allow') {
+    return {
+      behavior: 'allow',
+      alwaysAllow: true,
+    }
+  }
+  if (effect === 'deny') {
+    return {
+      behavior: 'deny',
+      message: `Permission denied by ${policy.profile} permission profile`,
+    }
+  }
+  return null
+}
+
+export function permissionActionForDesktopTool(
+  toolName: string,
+): AgentPermissionAction {
+  const normalized = toolName.toLowerCase()
+  if (
+    normalized === 'read' ||
+    normalized === 'ls' ||
+    normalized === 'glob' ||
+    normalized === 'grep'
+  ) {
+    return 'read'
+  }
+  if (
+    normalized === 'edit' ||
+    normalized === 'multiedit' ||
+    normalized === 'write' ||
+    normalized === 'notebookedit'
+  ) {
+    return 'write'
+  }
+  if (normalized === 'webfetch' || normalized === 'websearch') {
+    return 'network'
+  }
+  if (normalized.startsWith('mcp__') || normalized.includes('mcp')) {
+    return 'mcp'
+  }
+  return 'shell'
 }
