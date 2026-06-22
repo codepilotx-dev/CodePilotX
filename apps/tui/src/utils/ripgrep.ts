@@ -30,6 +30,13 @@ type RipgrepConfig = {
 }
 
 function findSystemRipgrepConfig(): RipgrepConfig | null {
+  const overridePath =
+    process.env.CODEPILOTX_RIPGREP_PATH ??
+    process.env.CLAUDE_CODE_RIPGREP_PATH
+  if (overridePath && canUseRipgrepBinary(overridePath)) {
+    return { mode: 'system', command: overridePath, args: [] }
+  }
+
   const { cmd: systemPath } = findExecutable('rg', [])
   if (systemPath === 'rg') {
     return null
@@ -96,6 +103,11 @@ const getRipgrepConfig = memoize((): RipgrepConfig => {
 
   return { mode: 'builtin', command, args: [] }
 })
+
+export function resetRipgrepConfigCache(): void {
+  getRipgrepConfig.cache.clear?.()
+  ripgrepStatus = null
+}
 
 export function ripgrepCommand(): {
   rgPath: string

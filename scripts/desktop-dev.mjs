@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { resolve } from 'node:path'
 import { build, createServer } from 'vite'
@@ -25,6 +25,22 @@ const cleanups = []
 
 function log(message) {
   process.stdout.write(`[desktop:dev] ${message}\n`)
+}
+
+function resolveRipgrepPath() {
+  const command = process.platform === 'win32' ? 'where.exe' : 'which'
+  const result = spawnSync(command, ['rg'], {
+    cwd: root,
+    encoding: 'utf8',
+    shell: false,
+  })
+  if (result.status !== 0 || !result.stdout) {
+    return undefined
+  }
+  return result.stdout
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .find(Boolean)
 }
 
 function run(command, args) {
@@ -101,6 +117,7 @@ function startElectron() {
   if (shuttingDown) return
 
   log('starting Electron')
+  const ripgrepPath = resolveRipgrepPath()
   electronProcess = spawn(electronPath, [mainEntry], {
     cwd: root,
     stdio: 'inherit',
@@ -109,6 +126,13 @@ function startElectron() {
       NODE_ENV: 'development',
       CODEPILOTX_DESKTOP_RENDERER_URL: rendererUrl,
       CLAUDE_CODE_DESKTOP_RENDERER_URL: rendererUrl,
+      USE_BUILTIN_RIPGREP: process.env.USE_BUILTIN_RIPGREP ?? '0',
+      ...(ripgrepPath
+        ? {
+            CODEPILOTX_RIPGREP_PATH: ripgrepPath,
+            CLAUDE_CODE_RIPGREP_PATH: ripgrepPath,
+          }
+        : {}),
       ...(runtimeMode
         ? {
             CODEPILOTX_DESKTOP_RUNTIME: runtimeMode,
