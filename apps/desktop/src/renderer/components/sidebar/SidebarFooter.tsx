@@ -16,6 +16,7 @@ import { desktopClient } from '../../services/desktopClient.js'
 import { IconButton } from "../ui/IconButton.js";
 import { PopoverItem } from "../ui/PopoverItem.js";
 import { PopoverMenu } from "../ui/PopoverMenu.js";
+import { SidebarRow } from "./SidebarRow.js";
 
 const USAGE_ROWS = [
   { label: "5 小时", percent: 79, detail: "06:26" },
@@ -36,19 +37,17 @@ export function SidebarFooter(): React.ReactNode {
         open={menuOpen}
         side="top"
         trigger={
-          <button
-            className={
-              settingsActive
-                ? "sidebar-settings-link sidebar-footer-trigger active"
-                : "sidebar-settings-link sidebar-footer-trigger"
-            }
-            type="button"
+          <SidebarRow
+            active={settingsActive}
+            asChild
+            className="sidebar-settings-link"
+            labelClassName="sidebar-settings-label"
+            leading={<Settings2 size={APP_ICON_SIZE} />}
           >
-            <span className="icon-button sidebar-item-icon">
-              <Settings2 size={APP_ICON_SIZE} />
-            </span>
-            <span>设置</span>
-          </button>
+            <button className="sidebar-footer-trigger" type="button">
+              设置
+            </button>
+          </SidebarRow>
         }
         onOpenChange={setMenuOpen}
       >

@@ -40,9 +40,6 @@ export function DesktopSidebar({
 }: Props): React.ReactNode {
   const location = useLocation();
   const [relativeNow, setRelativeNow] = useState(() => Date.now());
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(
-    {},
-  );
   const [collapsedProjectPaths, setCollapsedProjectPaths] = useState<
     Set<string>
   >(() => new Set());
@@ -81,13 +78,6 @@ export function DesktopSidebar({
     return location.pathname === `/${view}`;
   }
 
-  function toggleGroup(groupKey: string): void {
-    setExpandedGroups((current) => ({
-      ...current,
-      [groupKey]: !current[groupKey],
-    }));
-  }
-
   const toggleProjectCollapsed = useCallback((projectPath: string): void => {
     setCollapsedProjectPaths((current) => {
       const next = new Set(current);
@@ -120,7 +110,6 @@ export function DesktopSidebar({
       <SidebarBody
         activeSessionId={activeSessionId}
         collapsedProjectPaths={collapsedProjectPaths}
-        expandedGroups={expandedGroups}
         now={relativeNow}
         pinnedSessions={pinnedSessions}
         projectWorkspaces={projectWorkspaces}
@@ -134,7 +123,6 @@ export function DesktopSidebar({
         onPinSession={pinSession}
         onRemoveWorkspace={onRemoveWorkspace}
         onSelectSession={onSelectSession}
-        onToggleExpanded={toggleGroup}
         onToggleProjectCollapsed={toggleProjectCollapsed}
         onUnpinSession={unpinSession}
       />

@@ -1,10 +1,11 @@
 import type React from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Archive, Loader2, Pin, PinOff } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { APP_ICON_SIZE } from "../ui/iconTokens.js";
 import { sessionDisplayTitle, type SessionListItem } from "../../uiTypes.js";
 import { IconButton } from "../ui/IconButton.js";
+import { SidebarRow } from "./SidebarRow.js";
 
 const GROUP_LIMIT = 5;
 const EXTRA_SESSIONS_TRANSITION = {
@@ -18,43 +19,48 @@ const DAY_MS = 24 * HOUR_MS;
 type Props = {
   activeSessionId: string | null;
   groupKey: string;
-  isExpanded: boolean;
   now: number;
   sessions: SessionListItem[];
   onArchiveSession: (session: SessionListItem) => void;
   onPinSession: (session: SessionListItem) => void;
   onSelectSession: (session: SessionListItem) => void;
-  onToggleExpanded: (groupKey: string) => void;
   onUnpinSession: (session: SessionListItem) => void;
 };
 
 export function SidebarSessionGroup({
   activeSessionId,
   groupKey,
-  isExpanded,
   now,
   sessions,
   onArchiveSession,
   onPinSession,
   onSelectSession,
-  onToggleExpanded,
   onUnpinSession,
 }: Props): React.ReactNode {
   const [hoveredSessionId, setHoveredSessionId] = useState<string | null>(null);
   const [confirmArchiveSessionId, setConfirmArchiveSessionId] = useState<
     string | null
   >(null);
-  const { baseSessions, extraSessions, hasOverflow } =
-    getSidebarSessionDisplayGroups(sessions, isExpanded);
+  const [visibleLimit, setVisibleLimit] = useState(GROUP_LIMIT);
+  const {
+    baseSessions,
+    canCollapse,
+    canShowMore,
+    extraSessions,
+    hasOverflow,
+  } = getSidebarSessionDisplayGroups(sessions, visibleLimit);
+
+  useEffect(() => {
+    setVisibleLimit(GROUP_LIMIT);
+  }, [groupKey]);
 
   function renderSessionRow(session: SessionListItem): React.ReactNode {
     return (
-      <li
-        className={
-          session.id === activeSessionId
-            ? "sidebar-session-row active"
-            : "sidebar-session-row"
-        }
+      <SidebarRow
+        active={session.id === activeSessionId}
+        as="li"
+        className="sidebar-session-row"
+        indent="session"
         key={session.id}
         onMouseEnter={() => setHoveredSessionId(session.id)}
         onMouseLeave={() => {
@@ -65,6 +71,66 @@ export function SidebarSessionGroup({
             current === session.id ? null : current,
           );
         }}
+        trailing={
+          <div
+            className={
+              confirmArchiveSessionId === session.id
+                ? "sidebar-session-meta confirming-archive"
+                : "sidebar-session-meta"
+            }
+          >
+            {session.status === "running" ? (
+              <Loader2
+                aria-label="加载中"
+                className="sidebar-session-spinner"
+                size={APP_ICON_SIZE}
+              />
+            ) : confirmArchiveSessionId === session.id ? (
+              <button
+                className="sidebar-session-confirm-archive-button"
+                onClick={() => onArchiveSession(session)}
+                title="确认归档"
+                type="button"
+              >
+                确认
+              </button>
+            ) : hoveredSessionId === session.id ? (
+              <div className="sidebar-session-actions">
+                {session.pinnedAt ? (
+                  <IconButton
+                    className="icon-button sidebar-session-action-button"
+                    onClick={() => onUnpinSession(session)}
+                    title="取消置顶"
+                  >
+                    <PinOff size={APP_ICON_SIZE} />
+                  </IconButton>
+                ) : (
+                  <IconButton
+                    className="icon-button sidebar-session-action-button"
+                    onClick={() => onPinSession(session)}
+                    title="置顶"
+                  >
+                    <Pin size={APP_ICON_SIZE} />
+                  </IconButton>
+                )}
+                <IconButton
+                  className="icon-button sidebar-session-action-button"
+                  onClick={() => setConfirmArchiveSessionId(session.id)}
+                  title="归档"
+                >
+                  <Archive size={APP_ICON_SIZE} />
+                </IconButton>
+              </div>
+            ) : (
+              <span className="sidebar-session-time">
+                {formatRelativeConversationTime(
+                  session.lastMessageAt ?? session.createdAt,
+                  now,
+                )}
+              </span>
+            )}
+          </div>
+        }
       >
         <button
           className="sidebar-session-button"
@@ -86,65 +152,7 @@ export function SidebarSessionGroup({
             {sessionDisplayTitle(session)}
           </span>
         </button>
-        <div
-          className={
-            confirmArchiveSessionId === session.id
-              ? "sidebar-session-meta confirming-archive"
-              : "sidebar-session-meta"
-          }
-        >
-          {session.status === "running" ? (
-            <Loader2
-              aria-label="加载中"
-              className="sidebar-session-spinner"
-              size={APP_ICON_SIZE}
-            />
-          ) : confirmArchiveSessionId === session.id ? (
-            <button
-              className="sidebar-session-confirm-archive-button"
-              onClick={() => onArchiveSession(session)}
-              title="确认归档"
-              type="button"
-            >
-              确认
-            </button>
-          ) : hoveredSessionId === session.id ? (
-            <div className="sidebar-session-actions">
-              {session.pinnedAt ? (
-                <IconButton
-                  className="icon-button sidebar-session-action-button"
-                  onClick={() => onUnpinSession(session)}
-                  title="取消置顶"
-                >
-                  <PinOff size={APP_ICON_SIZE} />
-                </IconButton>
-              ) : (
-                <IconButton
-                  className="icon-button sidebar-session-action-button"
-                  onClick={() => onPinSession(session)}
-                  title="置顶"
-                >
-                  <Pin size={APP_ICON_SIZE} />
-                </IconButton>
-              )}
-              <IconButton
-                className="icon-button sidebar-session-action-button"
-                onClick={() => setConfirmArchiveSessionId(session.id)}
-                title="归档"
-              >
-                <Archive size={APP_ICON_SIZE} />
-              </IconButton>
-            </div>
-          ) : (
-            <span className="sidebar-session-time">
-              {formatRelativeConversationTime(
-                session.lastMessageAt ?? session.createdAt,
-                now,
-              )}
-            </span>
-          )}
-        </div>
-      </li>
+      </SidebarRow>
     );
   }
 
@@ -168,14 +176,31 @@ export function SidebarSessionGroup({
         ) : null}
       </AnimatePresence>
       {hasOverflow ? (
-        <button
-          aria-expanded={isExpanded}
-          className="sidebar-show-more-button"
-          onClick={() => onToggleExpanded(groupKey)}
-          type="button"
-        >
-          <span>{isExpanded ? "折叠显示" : "展开显示"}</span>
-        </button>
+        <div className="sidebar-show-more-actions">
+          {canShowMore ? (
+            <button
+              aria-expanded={canCollapse}
+              className="sidebar-show-more-button"
+              onClick={() =>
+                setVisibleLimit((current) =>
+                  Math.min(current + GROUP_LIMIT, sessions.length),
+                )
+              }
+              type="button"
+            >
+              <span>展开显示</span>
+            </button>
+          ) : null}
+          {canCollapse ? (
+            <button
+              className="sidebar-show-more-button"
+              onClick={() => setVisibleLimit(GROUP_LIMIT)}
+              type="button"
+            >
+              <span>折叠显示</span>
+            </button>
+          ) : null}
+        </div>
       ) : null}
     </>
   );
@@ -183,16 +208,26 @@ export function SidebarSessionGroup({
 
 export function getSidebarSessionDisplayGroups<T>(
   sessions: readonly T[],
-  isExpanded: boolean,
+  visibleLimit: number,
 ): {
   baseSessions: T[];
+  canCollapse: boolean;
+  canShowMore: boolean;
   extraSessions: T[];
   hasOverflow: boolean;
 } {
   const hasOverflow = sessions.length > GROUP_LIMIT;
+  const clampedVisibleLimit = Math.min(
+    Math.max(GROUP_LIMIT, visibleLimit),
+    sessions.length,
+  );
   return {
     baseSessions: sessions.slice(0, GROUP_LIMIT),
-    extraSessions: hasOverflow && isExpanded ? sessions.slice(GROUP_LIMIT) : [],
+    canCollapse: clampedVisibleLimit > GROUP_LIMIT,
+    canShowMore: clampedVisibleLimit < sessions.length,
+    extraSessions: hasOverflow
+      ? sessions.slice(GROUP_LIMIT, clampedVisibleLimit)
+      : [],
     hasOverflow,
   };
 }

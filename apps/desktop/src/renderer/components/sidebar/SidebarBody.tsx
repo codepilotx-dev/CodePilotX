@@ -25,7 +25,6 @@ import { SidebarSessionGroup } from "./SidebarSessionGroup.js";
 type Props = {
   activeSessionId: string | null;
   collapsedProjectPaths: Set<string>;
-  expandedGroups: Record<string, boolean>;
   now: number;
   pinnedSessions: SessionListItem[];
   projectWorkspaces: DesktopWorkspace[];
@@ -39,7 +38,6 @@ type Props = {
   onPinSession: (session: SessionListItem) => void;
   onRemoveWorkspace: (workspace: DesktopWorkspace) => void;
   onSelectSession: (session: SessionListItem) => void;
-  onToggleExpanded: (groupKey: string) => void;
   onToggleProjectCollapsed: (projectPath: string) => void;
   onUnpinSession: (session: SessionListItem) => void;
 };
@@ -47,7 +45,6 @@ type Props = {
 export function SidebarBody({
   activeSessionId,
   collapsedProjectPaths,
-  expandedGroups,
   now,
   pinnedSessions,
   projectWorkspaces,
@@ -61,7 +58,6 @@ export function SidebarBody({
   onPinSession,
   onRemoveWorkspace,
   onSelectSession,
-  onToggleExpanded,
   onToggleProjectCollapsed,
   onUnpinSession,
 }: Props): React.ReactNode {
@@ -74,13 +70,11 @@ export function SidebarBody({
             <SidebarSessionGroup
               activeSessionId={activeSessionId}
               groupKey="pinned"
-              isExpanded={expandedGroups.pinned === true}
               now={now}
               sessions={pinnedSessions}
               onArchiveSession={onArchiveSession}
               onPinSession={onPinSession}
               onSelectSession={onSelectSession}
-              onToggleExpanded={onToggleExpanded}
               onUnpinSession={onUnpinSession}
             />
           </section>
@@ -100,7 +94,6 @@ export function SidebarBody({
               <SidebarProjectGroup
                 activeSessionId={activeSessionId}
                 collapsedProjectPaths={collapsedProjectPaths}
-                expandedGroups={expandedGroups}
                 key={project.path}
                 now={now}
                 project={project}
@@ -112,7 +105,6 @@ export function SidebarBody({
                 onPinSession={onPinSession}
                 onRemoveWorkspace={onRemoveWorkspace}
                 onSelectSession={onSelectSession}
-                onToggleExpanded={onToggleExpanded}
                 onToggleProjectCollapsed={onToggleProjectCollapsed}
                 onUnpinSession={onUnpinSession}
               />
@@ -131,13 +123,11 @@ export function SidebarBody({
             <SidebarSessionGroup
               activeSessionId={activeSessionId}
               groupKey="standalone"
-              isExpanded={expandedGroups.standalone === true}
               now={now}
               sessions={standaloneSessions}
               onArchiveSession={onArchiveSession}
               onPinSession={onPinSession}
               onSelectSession={onSelectSession}
-              onToggleExpanded={onToggleExpanded}
               onUnpinSession={onUnpinSession}
             />
           )}
