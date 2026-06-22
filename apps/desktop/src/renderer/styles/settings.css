@@ -1241,29 +1241,34 @@
 
 .billing-provider-panel {
   display: grid;
-  gap: 16px;
-  padding: 18px;
+  gap: 14px;
+  padding: 14px 18px;
 }
 
 .billing-summary-block {
-  display: grid;
-  gap: 4px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
   min-width: 0;
 }
 
 .billing-summary-block strong {
   color: var(--c-text-strong);
-  font-size: calc(var(--fs-14) + 8px);
+  font-size: calc(var(--fs-14) + 4px);
   font-weight: 650;
-  line-height: 1.15;
+  line-height: 1.2;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .billing-summary-block p {
   margin: 0;
   color: var(--c-text-soft);
   font-size: var(--fs-13);
-  line-height: 1.5;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .billing-status {
@@ -1278,6 +1283,26 @@
   color: var(--c-text-soft);
   font-size: var(--fs-12);
   font-weight: 600;
+  flex-shrink: 0;
+}
+
+.billing-expand-toggle {
+  margin-left: auto;
+  padding: 4px 10px;
+  border: 1px solid var(--c-border-soft);
+  border-radius: var(--r-pill);
+  background: var(--c-bg-card);
+  color: var(--c-text-soft);
+  font-size: var(--fs-12);
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.billing-expand-toggle:hover {
+  color: var(--c-text-strong);
+  border-color: var(--c-border);
+  background: var(--c-bg-hover);
 }
 
 .billing-status.ok {

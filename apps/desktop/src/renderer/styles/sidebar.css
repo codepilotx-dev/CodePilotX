@@ -514,6 +514,35 @@
   background: var(--c-border-row);
 }
 
+.popover-usage-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px 2px;
+  min-width: 0;
+}
+
+.popover-usage-header-name {
+  color: var(--c-text);
+  font-size: var(--fs-13);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.popover-usage-empty {
+  padding: 12px 10px;
+  color: var(--c-text-meta);
+  font-size: var(--fs-12);
+  line-height: 1.5;
+  text-align: center;
+}
+
+.popover-usage-empty-error {
+  color: var(--c-text-soft);
+}
+
 .popover-usage-action {
   display: flex;
   align-items: center;

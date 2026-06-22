@@ -180,6 +180,8 @@ function DeepSeekBalanceSection({
   result: DesktopProviderBalanceResult | null
   onRefresh: () => Promise<void>
 }): React.ReactNode {
+  const [expanded, setExpanded] = useState(false)
+  const hasDetails = Boolean(result?.balances.length)
   return (
     <SettingsSection
       title="DeepSeek"
@@ -201,11 +203,21 @@ function DeepSeekBalanceSection({
             {result?.isAvailable ? '账户可用' : '账户状态'}
           </span>
           <strong>{formatDeepSeekPrimaryBalance(result)}</strong>
-          <p>{formatBalanceSummary(result)}</p>
+          <p>{formatDeepSeekInlineBreakdown(result)}</p>
+          {hasDetails ? (
+            <button
+              aria-expanded={expanded}
+              className="billing-expand-toggle"
+              type="button"
+              onClick={() => setExpanded(value => !value)}
+            >
+              {expanded ? '▴ 收起明细' : '▾ 展开明细'}
+            </button>
+          ) : null}
         </div>
-        {result?.balances.length ? (
+        {hasDetails && expanded ? (
           <div className="billing-metric-grid">
-            {result.balances.map(item => (
+            {result?.balances.map(item => (
               <React.Fragment key={item.currency}>
                 <BillingMetric
                   label="币种"
@@ -238,7 +250,9 @@ function MiniMaxUsageSection({
   result: DesktopProviderBalanceResult | null
   onRefresh: () => Promise<void>
 }): React.ReactNode {
+  const [expanded, setExpanded] = useState(false)
   const usages = result?.tokenPlanUsages ?? []
+  const hasDetails = usages.length > 0
   return (
     <SettingsSection
       title="MiniMax Token Plan"
@@ -260,9 +274,19 @@ function MiniMaxUsageSection({
             {result?.isAvailable ? 'Token Plan 可用' : '账户状态'}
           </span>
           <strong>{formatMiniMaxPrimarySummary(result)}</strong>
-          <p>{formatMiniMaxUsageSummary(result)}</p>
+          <p>{formatMiniMaxInlineBreakdown(result)}</p>
+          {hasDetails ? (
+            <button
+              aria-expanded={expanded}
+              className="billing-expand-toggle"
+              type="button"
+              onClick={() => setExpanded(value => !value)}
+            >
+              {expanded ? '▴ 收起明细' : '▾ 展开明细'}
+            </button>
+          ) : null}
         </div>
-        {usages.length ? (
+        {hasDetails && expanded ? (
           <div className="billing-usage-grid">
             {usages.map(item => (
               <MiniMaxUsageCard
@@ -396,24 +420,25 @@ function ProgressBar({ value }: { value: number }): React.ReactNode {
   )
 }
 
-function formatBalanceSummary(
-  balance: DesktopProviderBalanceResult | null,
+function formatDeepSeekInlineBreakdown(
+  result: DesktopProviderBalanceResult | null,
 ): string {
-  if (!balance) {
-    return '正在查询余额'
-  }
-  if (balance.error) {
-    return balance.error
-  }
-  if (balance.balances.length === 0) {
-    return balance.isAvailable
+  if (!result) return '正在查询余额'
+  if (result.error) return result.error
+  if (result.balances.length === 0) {
+    return result.isAvailable
       ? '接口未返回余额明细'
       : '账户当前不可用'
   }
-  const balances = balance.balances
-    .map(item => `${item.currency} ${item.totalBalance}`)
-    .join('，')
-  return balance.isAvailable ? `余额 ${balances}` : `余额不足：${balances}`
+  return result.balances
+    .map(item => {
+      const parts = [`充值 ${item.toppedUpBalance || '0'}`]
+      if (item.grantedBalance && item.grantedBalance !== '0') {
+        parts.push(`赠送 ${item.grantedBalance}`)
+      }
+      return parts.join(' · ')
+    })
+    .join(' / ')
 }
 
 function formatDeepSeekPrimaryBalance(
@@ -431,33 +456,28 @@ function formatMiniMaxPrimarySummary(
   if (result.error) return '查询失败'
   const primary = getPrimaryMiniMaxUsage(result.tokenPlanUsages ?? [])
   if (!primary) return result.isAvailable ? '已连接' : '不可用'
+  const percent = primary.currentIntervalRemainingPercent ?? '-'
+  return `${formatMiniMaxResourceName(primary.modelName)} ${percent}%`
+}
+
+function formatMiniMaxInlineBreakdown(
+  result: DesktopProviderBalanceResult | null,
+): string {
+  if (!result) return '正在查询 Token Plan 用量'
+  if (result.error) return result.error
+  const primary = getPrimaryMiniMaxUsage(result.tokenPlanUsages ?? [])
+  if (!primary) {
+    return result.isAvailable ? '接口未返回用量明细' : '账户当前不可用'
+  }
+  const count = formatCountPair(
+    primary.currentIntervalRemainingCount,
+    primary.currentIntervalTotalCount,
+  )
   const weekly =
     primary.currentWeeklyRemainingPercent == null
       ? ''
       : ` · 周 ${primary.currentWeeklyRemainingPercent}%`
-  return `${primary.currentIntervalRemainingPercent ?? '-'}% 可用${weekly}`
-}
-
-function formatMiniMaxUsageSummary(
-  result: DesktopProviderBalanceResult | null,
-): string {
-  if (!result) {
-    return '正在查询 Token Plan 用量'
-  }
-  if (result.error) {
-    return result.error
-  }
-  const usages = result.tokenPlanUsages ?? []
-  if (usages.length === 0) {
-    return result.isAvailable ? '接口未返回用量明细' : '账户当前不可用'
-  }
-  return usages
-    .map(item => `${formatMiniMaxResourceName(item.modelName)} ${formatMiniMaxUsageValue(
-      item.currentIntervalRemainingPercent,
-      item.currentIntervalRemainingCount,
-      item.currentIntervalTotalCount,
-    )}`)
-    .join('，')
+  return count === '-' ? weekly.replace(/^ · /, '') : `${count}${weekly}`
 }
 
 function formatMiniMaxUsageValue(
