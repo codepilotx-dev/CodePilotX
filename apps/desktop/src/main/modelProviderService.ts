@@ -123,6 +123,9 @@ export async function saveModelProvider(
   const providerID = normalizeProviderID(options.providerID)
   const modelID =
     typeof options.modelID === 'string' ? options.modelID.trim() : undefined
+  if (!modelID) {
+    throw new Error('Model provider connection requires a specific model.')
+  }
   const baseURL = normalizeOptionalText(options.baseURL)
   const provider = await getProviderConfig(providerID)
   const result = saveSelectedProvider({

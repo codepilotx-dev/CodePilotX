@@ -62,7 +62,10 @@ export function DesktopLayout(): React.ReactNode {
   const {
     permissionMode,
     model,
-    fallbackModel,
+    smallFastModel,
+    haikuModel,
+    sonnetModel,
+    opusModel,
     sessionName,
     thinkingMode,
     systemPrompt,
@@ -134,7 +137,10 @@ export function DesktopLayout(): React.ReactNode {
   const session = useSessionState({
     permissionMode,
     model,
-    fallbackModel,
+    smallFastModel,
+    haikuModel,
+    sonnetModel,
+    opusModel,
     sessionName,
     thinkingMode,
     systemPrompt,
@@ -478,9 +484,6 @@ export function DesktopLayout(): React.ReactNode {
     () =>
       buildModelPresets(
         providerState?.models ?? providerState?.provider.defaultModels ?? [],
-        providerState?.provider.displayName
-          ? `默认模型 (${providerState.provider.displayName})`
-          : '默认模型',
       ),
     [providerState],
   )
@@ -501,10 +504,7 @@ export function DesktopLayout(): React.ReactNode {
         return {
           providerID: provider.providerID,
           displayName: provider.displayName,
-          modelPresets: buildModelPresets(
-            models,
-            `默认模型 (${provider.displayName})`,
-          ),
+          modelPresets: buildModelPresets(models),
         }
       })
     },
@@ -1142,7 +1142,7 @@ function isDeepSeekThinkingModel({
   if (providerID === 'deepseek') {
     return true
   }
-  if (providerID !== 'openrouter' && providerID !== 'ai-gateway') {
+  if (providerID !== 'openrouter') {
     return false
   }
   return model.toLowerCase().includes('deepseek') && metadata?.reasoning === true

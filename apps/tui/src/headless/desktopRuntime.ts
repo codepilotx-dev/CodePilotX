@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages.mjs'
 import { runHeadless } from '../cli/print.js'
 import { StructuredIO } from '../cli/structuredIO.js'
 import type {
@@ -56,7 +57,10 @@ export type DesktopHeadlessRuntimeOptions = {
   resumeExistingSession?: boolean
   permissionMode?: PermissionMode
   model?: string
-  fallbackModel?: string
+  smallFastModel?: string
+  haikuModel?: string
+  sonnetModel?: string
+  opusModel?: string
   sessionName?: string
   thinkingMode?: DesktopHeadlessThinkingMode
   systemPrompt?: string
@@ -71,7 +75,10 @@ export type DesktopHeadlessRuntimeOptions = {
 
 export type DesktopHeadlessRuntime = {
   setModel(model: string | undefined): void
-  runUserTurn(content: string, signal: AbortSignal): Promise<void>
+  runUserTurn(
+    content: string | ContentBlockParam[],
+    signal: AbortSignal,
+  ): Promise<void>
 }
 
 const DESKTOP_ENABLED_THINKING_BUDGET = 1_000_000_000
@@ -115,7 +122,7 @@ export function createDesktopHeadlessRuntime(
 
 export async function runDesktopHeadlessTurn(
   runtime: DesktopHeadlessRuntime,
-  content: string,
+  content: string | ContentBlockParam[],
   signal: AbortSignal,
 ): Promise<void> {
   await runtime.runUserTurn(content, signal)
@@ -138,18 +145,26 @@ class EmbeddedDesktopHeadlessRuntime implements DesktopHeadlessRuntime {
     process.env.CLAUDE_CODE_DISABLE_MIN_VERSION_CHECK = '1'
     process.env.CLAUDE_CODE_ENTRYPOINT = 'desktop'
     process.env.USE_BUILTIN_RIPGREP = '0'
+    applyTaskModelEnv(options)
     resetRipgrepConfigCache()
   }
 
   setModel(model: string | undefined): void {
     this.options.model = model
+    applyTaskModelEnv(this.options)
   }
 
-  async runUserTurn(content: string, signal: AbortSignal): Promise<void> {
+  async runUserTurn(
+    content: string | ContentBlockParam[],
+    signal: AbortSignal,
+  ): Promise<void> {
+    if (!this.options.model?.trim()) {
+      throw new Error('Desktop headless runtime requires a specific model.')
+    }
     const startedAt = Date.now()
     logDesktopHeadless('turn_start', {
       sessionId: this.options.sessionId,
-      textLength: content.length,
+      textLength: getHeadlessInputTextLength(content),
     })
     await runWithCwdOverride(this.options.workspacePath, async () => {
       if (signal.aborted) {
@@ -202,7 +217,7 @@ class EmbeddedDesktopHeadlessRuntime implements DesktopHeadlessRuntime {
               systemPrompt: this.options.systemPrompt,
               appendSystemPrompt: this.options.appendSystemPrompt,
               userSpecifiedModel: this.options.model,
-              fallbackModel: this.options.fallbackModel,
+              fallbackModel: undefined,
               teleport: undefined,
               sdkUrl: undefined,
               replayUserMessages: true,
@@ -254,7 +269,7 @@ class EmbeddedDesktopHeadlessRuntime implements DesktopHeadlessRuntime {
   }
 
   private createStructuredIO(
-    inputPrompt: string | AsyncIterable<string>,
+    inputPrompt: string | ContentBlockParam[] | AsyncIterable<string>,
     signal: AbortSignal,
   ): StructuredIO {
     let structuredIO: StructuredIO
@@ -309,12 +324,12 @@ class DesktopHeadlessInput implements AsyncIterable<string> {
 
   constructor(
     private readonly sessionId: string,
-    prompt: string,
+    prompt: string | ContentBlockParam[],
     private readonly signal: AbortSignal,
   ) {
     logDesktopHeadless('input_create', {
       sessionId,
-      textLength: prompt.length,
+      textLength: getHeadlessInputTextLength(prompt),
     })
     this.enqueueUserPrompt(prompt)
     if (signal.aborted) {
@@ -358,7 +373,7 @@ class DesktopHeadlessInput implements AsyncIterable<string> {
     this.close()
   }
 
-  private enqueueUserPrompt(prompt: string): void {
+  private enqueueUserPrompt(prompt: string | ContentBlockParam[]): void {
     this.enqueue({
       type: 'user',
       session_id: this.sessionId,
@@ -469,8 +484,20 @@ function getDesktopHeadlessTools(
 
 async function* structuredInputFromPrompt(
   sessionId: string,
-  inputPrompt: string | AsyncIterable<string>,
+  inputPrompt: string | ContentBlockParam[] | AsyncIterable<string>,
 ): AsyncIterable<string> {
+  if (Array.isArray(inputPrompt)) {
+    yield `${JSON.stringify({
+      type: 'user',
+      session_id: sessionId,
+      message: {
+        role: 'user',
+        content: inputPrompt,
+      },
+      parent_tool_use_id: null,
+    })}\n`
+    return
+  }
   if (typeof inputPrompt !== 'string') {
     yield* inputPrompt
     return
@@ -484,6 +511,29 @@ async function* structuredInputFromPrompt(
     },
     parent_tool_use_id: null,
   })}\n`
+}
+
+function getHeadlessInputTextLength(
+  content: string | ContentBlockParam[],
+): number {
+  if (typeof content === 'string') return content.length
+  return content.reduce((sum, block) => {
+    if (block.type === 'text') return sum + block.text.length
+    return sum
+  }, 0)
+}
+
+function applyTaskModelEnv(options: DesktopHeadlessRuntimeOptions): void {
+  const mainModel = options.model?.trim()
+  if (!mainModel) return
+  process.env.ANTHROPIC_SMALL_FAST_MODEL =
+    options.smallFastModel?.trim() || mainModel
+  process.env.ANTHROPIC_DEFAULT_HAIKU_MODEL =
+    options.haikuModel?.trim() || mainModel
+  process.env.ANTHROPIC_DEFAULT_SONNET_MODEL =
+    options.sonnetModel?.trim() || mainModel
+  process.env.ANTHROPIC_DEFAULT_OPUS_MODEL =
+    options.opusModel?.trim() || mainModel
 }
 
 function thinkingConfigFromDesktopMode(

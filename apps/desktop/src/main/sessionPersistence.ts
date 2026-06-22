@@ -1096,6 +1096,10 @@ function normalizeSettingsSnapshot(
     permissionMode: normalizeDesktopPermissionMode(settings.permissionMode),
     model: stringOrUndefined(settings.model),
     fallbackModel: stringOrUndefined(settings.fallbackModel),
+    smallFastModel: stringOrUndefined(settings.smallFastModel),
+    haikuModel: stringOrUndefined(settings.haikuModel),
+    sonnetModel: stringOrUndefined(settings.sonnetModel),
+    opusModel: stringOrUndefined(settings.opusModel),
     sessionName: stringOrUndefined(settings.sessionName),
     thinkingMode:
       settings.thinkingMode === 'enabled' ||

@@ -24,6 +24,10 @@ export type UseDesktopSettingsResult = {
   permissionMode: DesktopPermissionMode
   model: string
   fallbackModel: string
+  smallFastModel: string
+  haikuModel: string
+  sonnetModel: string
+  opusModel: string
   sessionName: string
   thinkingMode: DesktopThinkingMode
   systemPrompt: string
@@ -44,6 +48,10 @@ export type UseDesktopSettingsResult = {
   setPermissionMode: (value: DesktopPermissionMode) => void
   setModel: (value: string) => void
   setFallbackModel: (value: string) => void
+  setSmallFastModel: (value: string) => void
+  setHaikuModel: (value: string) => void
+  setSonnetModel: (value: string) => void
+  setOpusModel: (value: string) => void
   setSessionName: (value: string) => void
   setThinkingMode: (value: DesktopThinkingMode) => void
   setSystemPrompt: (value: string) => void
@@ -96,6 +104,10 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
   )
   const [model, setModel] = useState(initial.model)
   const [fallbackModel, setFallbackModel] = useState(initial.fallbackModel)
+  const [smallFastModel, setSmallFastModel] = useState(initial.smallFastModel)
+  const [haikuModel, setHaikuModel] = useState(initial.haikuModel)
+  const [sonnetModel, setSonnetModel] = useState(initial.sonnetModel)
+  const [opusModel, setOpusModel] = useState(initial.opusModel)
   const [sessionName, setSessionName] = useState(initial.sessionName)
   const [thinkingMode, setThinkingMode] = useState<DesktopThinkingMode>(
     initial.thinkingMode,
@@ -147,6 +159,10 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
         setPermissionMode(settings.permissionMode)
         setModel(settings.model)
         setFallbackModel(settings.fallbackModel)
+        setSmallFastModel(settings.smallFastModel)
+        setHaikuModel(settings.haikuModel)
+        setSonnetModel(settings.sonnetModel)
+        setOpusModel(settings.opusModel)
         setSessionName(settings.sessionName)
         setThinkingMode(settings.thinkingMode)
         setSystemPrompt(settings.systemPrompt)
@@ -180,7 +196,11 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     const next: StoredDesktopSettings = {
       permissionMode,
       model,
-      fallbackModel,
+      fallbackModel: '',
+      smallFastModel,
+      haikuModel,
+      sonnetModel,
+      opusModel,
       sessionName,
       thinkingMode,
       systemPrompt,
@@ -203,7 +223,10 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     settingsLoaded,
     permissionMode,
     model,
-    fallbackModel,
+    smallFastModel,
+    haikuModel,
+    sonnetModel,
+    opusModel,
     sessionName,
     thinkingMode,
     systemPrompt,
@@ -226,6 +249,10 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     permissionMode,
     model,
     fallbackModel,
+    smallFastModel,
+    haikuModel,
+    sonnetModel,
+    opusModel,
     sessionName,
     thinkingMode,
     systemPrompt,
@@ -246,6 +273,10 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     setPermissionMode,
     setModel,
     setFallbackModel,
+    setSmallFastModel,
+    setHaikuModel,
+    setSonnetModel,
+    setOpusModel,
     setSessionName,
     setThinkingMode,
     setSystemPrompt,

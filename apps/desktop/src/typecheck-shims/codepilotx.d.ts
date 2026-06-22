@@ -508,13 +508,13 @@ declare module '@codepilotx/core/models/provider.js' {
     | 'anthropic'
     | 'openai-compatible'
     | 'minimax'
-    | 'ai-gateway'
   export type ModelMetadata = {
     id: string
     name?: string
     label?: string
     description?: string
     badge?: string
+    iconURL?: string
     contextWindow?: number
     outputTokens?: number
     inputCost?: number
@@ -608,7 +608,7 @@ declare module '@codepilotx/tui/headless/desktopRuntime.js' {
   ): DesktopHeadlessRuntime
   export function runDesktopHeadlessTurn(
     runtime: DesktopHeadlessRuntime,
-    content: string,
+    content: string | unknown[],
     signal: AbortSignal,
   ): Promise<void>
 }

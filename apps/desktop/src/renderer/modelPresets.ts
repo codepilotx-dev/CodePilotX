@@ -5,24 +5,17 @@ export type ModelPreset = {
   shortLabel?: string
 }
 
-export const DEFAULT_MODEL_PRESET_ID = '__default__'
 export const CUSTOM_MODEL_PRESET_ID = '__custom__'
 
 export const MODEL_PRESETS: ModelPreset[] = buildModelPresets([])
 
-export function buildModelPresets(
-  models: string[],
-  defaultLabel = '默认模型',
-): ModelPreset[] {
-  return [
-    { id: DEFAULT_MODEL_PRESET_ID, label: defaultLabel, value: '' },
-    ...models.map(model => ({
-      id: model,
-      label: getModelDisplayLabel(model),
-      value: model,
-      shortLabel: shortenModelLabel(model),
-    })),
-  ]
+export function buildModelPresets(models: string[]): ModelPreset[] {
+  return models.map(model => ({
+    id: model,
+    label: getModelDisplayLabel(model),
+    value: model,
+    shortLabel: shortenModelLabel(model),
+  }))
 }
 
 export function getModelDisplayLabel(model: string): string {

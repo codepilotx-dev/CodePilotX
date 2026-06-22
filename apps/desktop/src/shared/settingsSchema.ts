@@ -40,6 +40,10 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     permissionMode: 'default',
     model: '',
     fallbackModel: '',
+    smallFastModel: '',
+    haikuModel: '',
+    sonnetModel: '',
+    opusModel: '',
     sessionName: '',
     thinkingMode: 'default',
     systemPrompt: '',
@@ -48,7 +52,7 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     recentWorkspaces: [],
     drawerTab: 'files',
     selectedModelPreset: '',
-    providerID: 'anthropic',
+    providerID: 'minimax',
     providerBaseURL: '',
     showContextUsage: true,
     defaultOpenTargetId: 'default-app',
@@ -71,6 +75,13 @@ export function normalizeDesktopStoredSettings(
     permissionMode: normalizeDesktopPermissionMode(parsed.permissionMode),
     model: stringOrDefault(parsed.model, defaults.model),
     fallbackModel: stringOrDefault(parsed.fallbackModel, defaults.fallbackModel),
+    smallFastModel: stringOrDefault(
+      parsed.smallFastModel,
+      defaults.smallFastModel,
+    ),
+    haikuModel: stringOrDefault(parsed.haikuModel, defaults.haikuModel),
+    sonnetModel: stringOrDefault(parsed.sonnetModel, defaults.sonnetModel),
+    opusModel: stringOrDefault(parsed.opusModel, defaults.opusModel),
     sessionName: stringOrDefault(parsed.sessionName, defaults.sessionName),
     thinkingMode: isDesktopThinkingMode(parsed.thinkingMode)
       ? parsed.thinkingMode
@@ -92,7 +103,9 @@ export function normalizeDesktopStoredSettings(
       parsed.selectedModelPreset,
       defaults.selectedModelPreset,
     ),
-    providerID: isModelProviderID(parsed.providerID)
+    providerID: parsed.providerID === 'anthropic'
+      ? defaults.providerID
+      : isModelProviderID(parsed.providerID)
       ? parsed.providerID
       : defaults.providerID,
     providerBaseURL: stringOrDefault(
