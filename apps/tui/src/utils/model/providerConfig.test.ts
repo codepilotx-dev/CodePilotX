@@ -1,0 +1,171 @@
+import { expect, test } from 'bun:test'
+import {
+  fetchProviderModels,
+  listProviderConfigs,
+  PROVIDER_CONFIGS,
+} from './providerConfig.js'
+
+const ZHIPU_DEFAULT_MODELS = [
+  'glm-5.2',
+  'glm-5.1',
+  'glm-5',
+  'glm-5-turbo',
+  'glm-4.7',
+  'glm-4.7-flash',
+  'glm-4.6',
+  'glm-4.5-air',
+  'glm-4-flash-250414',
+  'glm-5v-turbo',
+  'glm-4.6v-flash',
+  'glm-4.1v-thinking-flash',
+  'glm-4v-flash',
+]
+
+test('zhipu is available as a built-in OpenAI-compatible provider', async () => {
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = async () => {
+    throw new Error('network disabled in test')
+  }
+  try {
+    const providers = await listProviderConfigs()
+    const zhipu = providers.find(provider => provider.providerID === 'zhipu')
+
+    expect(zhipu).toMatchObject({
+      providerID: 'zhipu',
+      kind: 'openai-compatible',
+      displayName: '智谱 BigModel',
+      baseURL: 'https://open.bigmodel.cn/api/paas/v4/',
+      apiKeyEnvVar: 'ZAI_API_KEY',
+      envVars: ['ZAI_API_KEY'],
+      defaultModels: ZHIPU_DEFAULT_MODELS,
+    })
+    expect(zhipu?.modelMetadata?.['glm-5.2']).toMatchObject({
+      contextWindow: 1_000_000,
+      outputTokens: 131_072,
+      reasoning: true,
+      toolCall: true,
+      structuredOutput: true,
+      vision: false,
+    })
+    expect(zhipu?.modelMetadata?.['glm-4.7-flash']).toMatchObject({
+      contextWindow: 200_000,
+      outputTokens: 131_072,
+      reasoning: true,
+      toolCall: true,
+      structuredOutput: true,
+      vision: false,
+    })
+    expect(zhipu?.modelMetadata?.['glm-4-flash-250414']).toMatchObject({
+      contextWindow: 128_000,
+      outputTokens: 32_768,
+      toolCall: true,
+      structuredOutput: true,
+      vision: false,
+    })
+    expect(zhipu?.modelMetadata?.['glm-4.6v-flash']).toMatchObject({
+      contextWindow: 128_000,
+      outputTokens: 32_768,
+      reasoning: true,
+      toolCall: true,
+      structuredOutput: true,
+      vision: true,
+    })
+    expect(zhipu?.modelMetadata?.['glm-4.1v-thinking-flash']).toMatchObject({
+      contextWindow: 64_000,
+      outputTokens: 32_768,
+      reasoning: true,
+      vision: true,
+    })
+    expect(zhipu?.modelMetadata?.['glm-4v-flash']).toMatchObject({
+      contextWindow: 16_000,
+      outputTokens: 1_024,
+      vision: true,
+    })
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+test('zhipu model listing merges live catalog with curated defaults', async () => {
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = async () =>
+    new Response(
+      JSON.stringify({
+        data: [
+          { id: 'glm-5.2' },
+          { id: 'glm-5.1' },
+          { id: 'glm-5' },
+          { id: 'glm-5-turbo' },
+          { id: 'glm-4.7' },
+          { id: 'glm-4.6' },
+          { id: 'glm-4.5' },
+          { id: 'glm-4.5-air' },
+        ],
+      }),
+    )
+  try {
+    const result = await fetchProviderModels({
+      providerID: 'zhipu',
+      apiKey: 'test-key',
+      baseURL: PROVIDER_CONFIGS.zhipu?.baseURL,
+    })
+
+    expect(result.models).toEqual([
+      'glm-5.2',
+      'glm-5.1',
+      'glm-5',
+      'glm-5-turbo',
+      'glm-4.7',
+      'glm-4.6',
+      'glm-4.5',
+      'glm-4.5-air',
+      'glm-4.7-flash',
+      'glm-4-flash-250414',
+      'glm-5v-turbo',
+      'glm-4.6v-flash',
+      'glm-4.1v-thinking-flash',
+      'glm-4v-flash',
+    ])
+    expect(result.error).toBeUndefined()
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+test('zhipu model listing falls back to curated defaults without an API key', async () => {
+  const result = await fetchProviderModels({
+    providerID: 'zhipu',
+    apiKey: '',
+    baseURL: PROVIDER_CONFIGS.zhipu?.baseURL,
+  })
+
+  expect(result.models).toEqual(ZHIPU_DEFAULT_MODELS)
+  expect(result.error).toBe('智谱 BigModel API key is not configured.')
+})
+
+test('zhipu model listing formats API business errors', async () => {
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = async () =>
+    new Response(
+      JSON.stringify({
+        error: {
+          code: '1211',
+          message: '模型不存在，请检查模型代码',
+        },
+      }),
+      { status: 404, statusText: 'Not Found' },
+    )
+  try {
+    const result = await fetchProviderModels({
+      providerID: 'zhipu',
+      apiKey: 'test-key',
+      baseURL: PROVIDER_CONFIGS.zhipu?.baseURL,
+    })
+
+    expect(result.models).toEqual(ZHIPU_DEFAULT_MODELS)
+    expect(result.error).toContain('404 model not found')
+    expect(result.error).toContain('1211')
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})

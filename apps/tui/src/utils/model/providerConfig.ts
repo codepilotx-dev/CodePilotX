@@ -120,6 +120,171 @@ export const DEEPSEEK_MODEL_METADATA: Record<string, ProviderModelMetadata> = {
   },
 }
 
+export const ZHIPU_MODEL_METADATA: Record<string, ProviderModelMetadata> = {
+  'glm-5.2': {
+    id: 'glm-5.2',
+    label: 'GLM-5.2',
+    description: 'Flagship coding and long-context agent model',
+    badge: 'Flagship',
+    contextWindow: 1_000_000,
+    outputTokens: 131_072,
+    reasoning: true,
+    toolCall: true,
+    structuredOutput: true,
+    vision: false,
+    modalities: { input: ['text'], output: ['text'] },
+  },
+  'glm-5.1': {
+    id: 'glm-5.1',
+    label: 'GLM-5.1',
+    description: 'High-intelligence base model for long-running agent work',
+    contextWindow: 200_000,
+    outputTokens: 131_072,
+    reasoning: true,
+    toolCall: true,
+    structuredOutput: true,
+    vision: false,
+    modalities: { input: ['text'], output: ['text'] },
+  },
+  'glm-5': {
+    id: 'glm-5',
+    label: 'GLM-5',
+    description: 'Agentic planning and coding model',
+    contextWindow: 200_000,
+    outputTokens: 131_072,
+    reasoning: true,
+    toolCall: true,
+    structuredOutput: true,
+    vision: false,
+    modalities: { input: ['text'], output: ['text'] },
+  },
+  'glm-5-turbo': {
+    id: 'glm-5-turbo',
+    label: 'GLM-5-Turbo',
+    description: 'Fast model for complex long tasks',
+    contextWindow: 200_000,
+    outputTokens: 131_072,
+    reasoning: true,
+    toolCall: true,
+    structuredOutput: true,
+    vision: false,
+    modalities: { input: ['text'], output: ['text'] },
+  },
+  'glm-4.7': {
+    id: 'glm-4.7',
+    label: 'GLM-4.7',
+    description: 'General conversation, reasoning, coding, and agent model',
+    contextWindow: 200_000,
+    outputTokens: 131_072,
+    reasoning: true,
+    toolCall: true,
+    structuredOutput: true,
+    vision: false,
+    modalities: { input: ['text'], output: ['text'] },
+  },
+  'glm-4.7-flash': {
+    id: 'glm-4.7-flash',
+    label: 'GLM-4.7-Flash',
+    description: 'Free general model based on GLM-4.7',
+    badge: 'Free',
+    contextWindow: 200_000,
+    outputTokens: 131_072,
+    reasoning: true,
+    toolCall: true,
+    structuredOutput: true,
+    vision: false,
+    modalities: { input: ['text'], output: ['text'] },
+  },
+  'glm-4.6': {
+    id: 'glm-4.6',
+    label: 'GLM-4.6',
+    description: 'Advanced coding, complex reasoning, and tool-use model',
+    contextWindow: 200_000,
+    outputTokens: 131_072,
+    reasoning: true,
+    toolCall: true,
+    structuredOutput: true,
+    vision: false,
+    modalities: { input: ['text'], output: ['text'] },
+  },
+  'glm-4.5-air': {
+    id: 'glm-4.5-air',
+    label: 'GLM-4.5-Air',
+    description: 'Cost-effective lightweight reasoning and coding model',
+    contextWindow: 128_000,
+    outputTokens: 98_304,
+    reasoning: true,
+    toolCall: true,
+    structuredOutput: true,
+    vision: false,
+    modalities: { input: ['text'], output: ['text'] },
+  },
+  'glm-4-flash-250414': {
+    id: 'glm-4-flash-250414',
+    label: 'GLM-4-Flash-250414',
+    description: 'Free long-context model for multilingual and tool-use tasks',
+    badge: 'Free',
+    contextWindow: 128_000,
+    outputTokens: 32_768,
+    reasoning: false,
+    toolCall: true,
+    structuredOutput: true,
+    vision: false,
+    modalities: { input: ['text'], output: ['text'] },
+  },
+  'glm-5v-turbo': {
+    id: 'glm-5v-turbo',
+    label: 'GLM-5V-Turbo',
+    description: 'Multimodal coding model with vision support',
+    contextWindow: 200_000,
+    outputTokens: 131_072,
+    reasoning: true,
+    toolCall: true,
+    structuredOutput: true,
+    vision: true,
+    modalities: { input: ['text', 'image'], output: ['text'] },
+  },
+  'glm-4.6v-flash': {
+    id: 'glm-4.6v-flash',
+    label: 'GLM-4.6V-Flash',
+    description: 'Free visual reasoning model with tool use and long context',
+    badge: 'Free',
+    contextWindow: 128_000,
+    outputTokens: 32_768,
+    reasoning: true,
+    toolCall: true,
+    structuredOutput: true,
+    vision: true,
+    modalities: { input: ['text', 'image', 'video', 'file'], output: ['text'] },
+  },
+  'glm-4.1v-thinking-flash': {
+    id: 'glm-4.1v-thinking-flash',
+    label: 'GLM-4.1V-Thinking-Flash',
+    description: 'Free visual reasoning model for multimodal understanding',
+    badge: 'Free',
+    contextWindow: 64_000,
+    outputTokens: 32_768,
+    reasoning: true,
+    toolCall: false,
+    structuredOutput: false,
+    vision: true,
+    modalities: { input: ['text', 'image', 'video', 'file'], output: ['text'] },
+  },
+  'glm-4v-flash': {
+    id: 'glm-4v-flash',
+    label: 'GLM-4V-Flash',
+    description: 'Free lightweight image understanding model',
+    badge: 'Free',
+    contextWindow: 16_000,
+    outputTokens: 1_024,
+    reasoning: false,
+    toolCall: false,
+    structuredOutput: false,
+    vision: true,
+    modalities: { input: ['text', 'image'], output: ['text'] },
+  },
+}
+
 export const PROVIDER_CONFIGS: Record<string, ProviderConfig> = {
   [AI_GATEWAY_PROVIDER_ID]: {
     providerID: AI_GATEWAY_PROVIDER_ID,
@@ -176,6 +341,31 @@ export const PROVIDER_CONFIGS: Record<string, ProviderConfig> = {
     logoURL: `${MODELS_DEV_LOGO_BASE_URL}/deepseek.svg`,
     defaultModels: ['deepseek-v4-pro', 'deepseek-v4-flash'],
     modelMetadata: DEEPSEEK_MODEL_METADATA,
+  },
+  zhipu: {
+    providerID: 'zhipu',
+    kind: 'openai-compatible',
+    displayName: '智谱 BigModel',
+    baseURL: 'https://open.bigmodel.cn/api/paas/v4/',
+    apiKeyEnvVar: 'ZAI_API_KEY',
+    envVars: ['ZAI_API_KEY'],
+    defaultModels: [
+      'glm-5.2',
+      'glm-5.1',
+      'glm-5',
+      'glm-5-turbo',
+      'glm-4.7',
+      'glm-4.7-flash',
+      'glm-4.6',
+      'glm-4.5-air',
+      'glm-4-flash-250414',
+      'glm-5v-turbo',
+      'glm-4.6v-flash',
+      'glm-4.1v-thinking-flash',
+      'glm-4v-flash',
+    ],
+    modelMetadata: ZHIPU_MODEL_METADATA,
+    docURL: 'https://docs.bigmodel.cn/cn/guide/develop/openai/introduction.md',
   },
   minimax: {
     providerID: 'minimax',
@@ -637,14 +827,25 @@ export async function fetchProviderModels(params: {
     if (models.length === 0) {
       return { models: provider.defaultModels, error: 'Provider returned no models.' }
     }
-    providerModelCache.set(providerID, models)
-    return { models }
+    const mergedModels =
+      providerID === 'zhipu'
+        ? mergeProviderModels(models, provider.defaultModels)
+        : models
+    providerModelCache.set(providerID, mergedModels)
+    return { models: mergedModels }
   } catch (error) {
     return {
       models: provider.defaultModels,
       error: error instanceof Error ? error.message : String(error),
     }
   }
+}
+
+function mergeProviderModels(
+  liveModels: string[],
+  curatedModels: string[],
+): string[] {
+  return Array.from(new Set([...liveModels, ...curatedModels]))
 }
 
 export async function fetchProviderBalance(params: {
@@ -839,25 +1040,38 @@ async function formatProviderHTTPError(
   response: Response,
 ): Promise<string> {
   const rawText = await response.text()
-  const apiMessage = extractProviderErrorMessage(rawText)
+  const apiError = extractProviderError(rawText)
   const prefix =
     providerID === 'deepseek'
       ? formatDeepSeekHTTPStatus(response.status)
+      : providerID === 'zhipu'
+        ? formatZhipuHTTPStatus(response.status, apiError.code)
       : `${response.status} ${response.statusText}`
-  return apiMessage ? `${prefix}: ${apiMessage}` : prefix
+  const message = apiError.message
+  if (!message) return prefix
+  return `${prefix}: ${apiError.code ? `${apiError.code} ` : ''}${message}`
 }
 
-function extractProviderErrorMessage(rawText: string): string | null {
-  if (!rawText.trim()) return null
+function extractProviderError(rawText: string): {
+  code?: string
+  message: string | null
+} {
+  if (!rawText.trim()) return { message: null }
   try {
     const parsed = JSON.parse(rawText) as {
-      error?: { message?: unknown }
+      error?: { code?: unknown; message?: unknown }
+      code?: unknown
       message?: unknown
     }
     const message = parsed.error?.message ?? parsed.message
-    return typeof message === 'string' && message.trim() ? message.trim() : null
+    const code = parsed.error?.code ?? parsed.code
+    return {
+      ...(typeof code === 'string' && code.trim() ? { code: code.trim() } : {}),
+      message:
+        typeof message === 'string' && message.trim() ? message.trim() : null,
+    }
   } catch {
-    return rawText.trim()
+    return { message: rawText.trim() }
   }
 }
 
@@ -898,6 +1112,39 @@ function normalizeModalities(value: unknown): string[] {
 
 function numberOrUndefined(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+}
+
+function formatZhipuHTTPStatus(status: number, businessCode?: string): string {
+  switch (businessCode) {
+    case '1000':
+    case '1002':
+      return `${status} authentication failed`
+    case '1211':
+      return `${status} model not found`
+    case '1261':
+      return `${status} prompt too long`
+    case '1302':
+    case '1303':
+      return `${status} rate limit exceeded`
+    case '1311':
+      return `${status} model access unavailable`
+    case '1312':
+      return `${status} model overloaded`
+    case '1313':
+      return `${status} fair-use rate limited`
+  }
+  switch (status) {
+    case 400:
+      return '400 request parameter error'
+    case 401:
+      return '401 authentication failed'
+    case 429:
+      return '429 rate limit or account quota exceeded'
+    case 500:
+      return '500 Zhipu service error'
+    default:
+      return `${status} Zhipu request failed`
+  }
 }
 
 function numberOrNull(value: unknown): number | null {

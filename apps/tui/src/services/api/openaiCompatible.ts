@@ -119,6 +119,48 @@ type OpenAICompatibleUsage = NonNullableUsage & {
   reasoning_tokens?: number
 }
 
+type OpenAICompatibleProviderRequestParams = {
+  thinking?: { type: 'enabled' | 'disabled' }
+  reasoning_effort?: 'high' | 'max'
+  reasoning?: { effort: 'none' | 'high' | 'xhigh' }
+  temperature?: number
+  do_sample?: false
+}
+
+export function buildOpenAICompatibleProviderRequestParams({
+  providerID,
+  model,
+  thinkingConfig,
+  temperatureOverride,
+}: {
+  providerID: string
+  model: string
+  thinkingConfig?: ThinkingConfig
+  temperatureOverride?: number
+}): OpenAICompatibleProviderRequestParams {
+  const thinkingParams = isDeepSeekProvider(providerID)
+    ? deepSeekThinkingRequestParams(thinkingConfig)
+    : isDeepSeekReasoningGatewayModel(providerID, model)
+      ? deepSeekGatewayReasoningRequestParams(thinkingConfig)
+      : isZhipuProvider(providerID)
+        ? zhipuThinkingRequestParams(thinkingConfig)
+        : {}
+  const deepSeekThinkingEnabled =
+    isDeepSeekProvider(providerID) &&
+    (thinkingParams as ReturnType<typeof deepSeekThinkingRequestParams>)
+      .thinking?.type === 'enabled'
+  const temperatureParams =
+    temperatureOverride === undefined || deepSeekThinkingEnabled
+      ? {}
+      : isZhipuProvider(providerID) && temperatureOverride === 0
+        ? { do_sample: false as const }
+        : { temperature: temperatureOverride }
+  return {
+    ...thinkingParams,
+    ...temperatureParams,
+  }
+}
+
 export async function* queryOpenAICompatibleModelWithStreaming({
   messages,
   systemPrompt,
@@ -161,26 +203,18 @@ export async function* queryOpenAICompatibleModelWithStreaming({
     )
     const apiTools = await buildOpenAITools(tools, options)
     const isDeepSeek = isDeepSeekProvider(providerID)
-    const thinkingParams = isDeepSeek
-      ? deepSeekThinkingRequestParams(thinkingConfig)
-      : isDeepSeekReasoningGatewayModel(providerID, options.model)
-        ? deepSeekGatewayReasoningRequestParams(thinkingConfig)
-        : {}
-    const deepSeekThinkingParams = isDeepSeek
-      ? (thinkingParams as ReturnType<typeof deepSeekThinkingRequestParams>)
-      : {}
-    const deepSeekThinkingEnabled =
-      isDeepSeek && deepSeekThinkingParams.thinking?.type === 'enabled'
+    const providerParams = buildOpenAICompatibleProviderRequestParams({
+      providerID,
+      model: options.model,
+      thinkingConfig,
+      temperatureOverride: options.temperatureOverride,
+    })
     const toolParams =
       apiTools.length > 0
         ? {
             tools: apiTools,
             ...(isDeepSeek ? {} : { tool_choice: 'auto' as const }),
           }
-        : {}
-    const temperatureParams =
-      !deepSeekThinkingEnabled && options.temperatureOverride !== undefined
-        ? { temperature: options.temperatureOverride }
         : {}
     const sysPromptBlocks = isDeepSeek
       ? buildDeepSeekSystemBlocks(systemPrompt)
@@ -201,8 +235,7 @@ export async function* queryOpenAICompatibleModelWithStreaming({
         options.maxOutputTokensOverride ?? defaultMaxTokensForModel(options.model, providerID),
       stream: true,
       stream_options: { include_usage: true },
-      ...temperatureParams,
-      ...thinkingParams,
+      ...providerParams,
       ...(isDeepSeek && {
         user_id: resolveDeepSeekUserId(options),
       }),
@@ -644,6 +677,10 @@ function isDeepSeekProvider(providerID: string): boolean {
   return providerID === 'deepseek'
 }
 
+function isZhipuProvider(providerID: string): boolean {
+  return providerID === 'zhipu'
+}
+
 function isDeepSeekReasoningGatewayModel(
   providerID: string,
   model: string,
@@ -687,6 +724,24 @@ function deepSeekGatewayReasoningRequestParams(
       return { reasoning: { effort: 'xhigh' } }
     default:
       return { reasoning: { effort: 'high' } }
+  }
+}
+
+function zhipuThinkingRequestParams(
+  thinkingConfig: ThinkingConfig | undefined,
+): {
+  thinking?: { type: 'enabled' | 'disabled' }
+  reasoning_effort?: 'high' | 'max'
+} {
+  switch (thinkingConfig?.type) {
+    case 'disabled':
+      return { thinking: { type: 'disabled' } }
+    case 'adaptive':
+      return { thinking: { type: 'enabled' }, reasoning_effort: 'high' }
+    case 'enabled':
+      return { thinking: { type: 'enabled' }, reasoning_effort: 'max' }
+    default:
+      return {}
   }
 }
 
