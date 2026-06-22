@@ -1,5 +1,16 @@
 import { expect, test } from 'bun:test'
+import { readFileSync } from 'node:fs'
 import { buildWorkspaceCodexContextDiagnostics } from './codexContextDiagnostics.js'
+
+test('renderer codex diagnostics entrypoint avoids Node-only core imports', () => {
+  const source = readFileSync(
+    'apps/desktop/src/renderer/features/session/codexContextDiagnostics.ts',
+    'utf8',
+  )
+
+  expect(source).not.toContain('@codepilotx/core/agent/codexContextDiagnostics.js')
+  expect(source).not.toContain('node:')
+})
 
 test('buildWorkspaceCodexContextDiagnostics reads root guidance and project config with existing file API', async () => {
   const diagnostics = await buildWorkspaceCodexContextDiagnostics({

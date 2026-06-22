@@ -16,6 +16,7 @@ import {
   DESKTOP_WORKFLOW_EVENT_CHANNEL,
 } from '../shared/ipcChannels.js'
 import { getDesktopConfigDirectoryPath } from './desktopSettings.js'
+import { isDevToolsShortcut } from './desktopDevToolsShortcut.js'
 import { DesktopWorkflowProjector } from './workflowProjection.js'
 
 const DEFAULT_WINDOW_WIDTH = 1440
@@ -98,6 +99,11 @@ export function createDesktopWindowService(options: {
       if (url !== options.rendererUrl()) {
         event.preventDefault()
       }
+    })
+    mainWindow.webContents.on('before-input-event', (event, input) => {
+      if (!isDevToolsShortcut(input)) return
+      event.preventDefault()
+      openDevTools()
     })
 
     void mainWindow.loadURL(options.rendererUrl())

@@ -1,7 +1,7 @@
 import {
   buildCodexContextDiagnosticsFromWorkspaceFiles,
   type CodexSkillDiagnostic,
-} from '@codepilotx/core/agent/codexContextDiagnostics.js'
+} from '@codepilotx/core/agent/codexContextDiagnosticsShared.js'
 import type { AgentPermissionPolicy } from '@codepilotx/core/agent/permissions.js'
 import type { DesktopFilePreview } from '../../../shared/types.js'
 
