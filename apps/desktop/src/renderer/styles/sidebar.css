@@ -205,16 +205,14 @@
 }
 
 .sidebar-section-actions,
-.sidebar-project-actions,
 .sidebar-session-actions {
   display: flex;
   align-items: center;
   justify-content: space-around;
-  width: 50px;
+  width: 60px;
 }
 
-.sidebar-section-actions,
-.sidebar-project-actions {
+.sidebar-section-actions {
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.12s ease-out;
@@ -222,8 +220,7 @@
 
 .sidebar-section-header:hover .sidebar-section-actions,
 .sidebar-section-header:focus-within .sidebar-section-actions,
-.sidebar-section-actions.is-visible,
-.sidebar-project-actions.is-visible {
+.sidebar-section-actions.is-visible {
   opacity: 1;
   pointer-events: auto;
 }
@@ -251,6 +248,7 @@
   flex: 0 0 auto;
   color: var(--c-text-meta);
   transition:
+    opacity 0.12s ease-out,
     transform 0.18s ease,
     color 0.12s ease-out;
   transform: rotate(-90deg);
@@ -260,10 +258,46 @@
   transform: rotate(0deg);
 }
 
+.sidebar-project-actions {
+  position: relative;
+  flex: 0 0 auto;
+  width: 60px;
+  min-height: var(--app-icon-size);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  opacity: 1;
+  pointer-events: none;
+}
+
+.sidebar-project-action-items {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease-out;
+}
+
+.sidebar-project-header:hover .sidebar-project-actions,
+.sidebar-project-header:focus-within .sidebar-project-actions,
+.sidebar-project-actions.is-visible {
+  pointer-events: auto;
+}
+
 .sidebar-project-header:hover .sidebar-project-chevron,
 .sidebar-project-header:focus-within .sidebar-project-chevron,
-.sidebar-project-header[aria-current="page"] .sidebar-project-chevron {
-  color: var(--c-text-soft);
+.sidebar-project-actions.is-visible .sidebar-project-chevron {
+  opacity: 0;
+}
+
+.sidebar-project-header:hover .sidebar-project-action-items,
+.sidebar-project-header:focus-within .sidebar-project-action-items,
+.sidebar-project-actions.is-visible .sidebar-project-action-items {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .sidebar-project-button,
@@ -293,12 +327,12 @@
 
 .sidebar-session-list-extra {
   overflow: hidden;
-  will-change: height, opacity, transform;
+  will-change: height, opacity;
 }
 
 .sidebar-session-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 50px;
+  grid-template-columns: minmax(0, 1fr) 60px;
   justify-content: stretch;
   padding-left: 30px;
 }
@@ -308,7 +342,7 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  width: 50px;
+  width: 60px;
 }
 
 .sidebar-session-confirm-archive-button {

@@ -156,10 +156,10 @@ export function SidebarSessionGroup({
       <AnimatePresence initial={false}>
         {extraSessions.length > 0 ? (
           <motion.ul
-            animate={{ height: "auto", opacity: 1, y: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
             className="sidebar-session-list sidebar-session-list-extra"
-            exit={{ height: 0, opacity: 0, y: -4 }}
-            initial={{ height: 0, opacity: 0, y: -4 }}
+            exit={{ height: 0, opacity: 0 }}
+            initial={{ height: 0, opacity: 0 }}
             key={`${groupKey}-extra-sessions`}
             transition={EXTRA_SESSIONS_TRANSITION}
           >

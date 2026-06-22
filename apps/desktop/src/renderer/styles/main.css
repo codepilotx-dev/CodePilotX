@@ -89,6 +89,16 @@
   padding-bottom: 15px;
 }
 
+.conversation-page .chat-composer .inline-approval-card {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  z-index: 30;
+  width: calc(100% - 40px);
+  margin-bottom: 0;
+  transform: translateX(-50%);
+}
+
 .conversation-page .chat-composer.with-environment-panel {
   width: calc(100% - 368px - min(4vw, 48px));
 }
@@ -295,7 +305,7 @@
 
 .inline-approval-card {
   width: 100%;
-  max-width: calc(var(--composer-w) - 60px);
+  max-width: var(--composer-w);
   display: grid;
   gap: 18px;
   margin-bottom: 10px;
@@ -1116,11 +1126,7 @@
 }
 
 .workflow-debug-event.warning {
-  border-color: color-mix(
-    in srgb,
-    var(--c-accent) 45%,
-    var(--c-border-soft)
-  );
+  border-color: color-mix(in srgb, var(--c-accent) 45%, var(--c-border-soft));
 }
 
 .workflow-debug-event-grid {

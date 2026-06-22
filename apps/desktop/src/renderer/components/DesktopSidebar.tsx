@@ -131,6 +131,7 @@ export function DesktopSidebar({
         onChooseWorkspace={onChooseWorkspace}
         onCreateSession={onCreateSession}
         onOpenWorkspace={onOpenWorkspace}
+        onPinSession={pinSession}
         onRemoveWorkspace={onRemoveWorkspace}
         onSelectSession={onSelectSession}
         onToggleExpanded={toggleGroup}

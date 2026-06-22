@@ -94,88 +94,92 @@ export function SidebarProjectGroup({
           )}
         </span>
         <span className="sidebar-project-name">{project.name}</span>
-        {projectSessions.length > 0 ? (
-          <ChevronDown
-            aria-hidden="true"
-            className={
-              isExpanded
-                ? "sidebar-project-chevron is-expanded"
-                : "sidebar-project-chevron"
-            }
-            size={APP_ICON_SIZE}
-          />
-        ) : null}
         <div
           className={
             actionsVisible
               ? "sidebar-project-actions is-visible"
               : "sidebar-project-actions"
           }
-          onClick={(event) => event.stopPropagation()}
         >
-          <PopoverMenu
-            autoWidth
-            className="popover-sidebar-project"
-            open={menuOpen}
-            side="bottom"
-            trigger={
-              <button
-                aria-label="更多"
-                className="icon-button sidebar-project-action-button"
-                type="button"
+          {projectSessions.length > 0 ? (
+            <ChevronDown
+              aria-hidden="true"
+              className={
+                isExpanded
+                  ? "sidebar-project-chevron is-expanded"
+                  : "sidebar-project-chevron"
+              }
+              size={APP_ICON_SIZE}
+            />
+          ) : null}
+          <div
+            className="sidebar-project-action-items"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <PopoverMenu
+              autoWidth
+              className="popover-sidebar-project"
+              open={menuOpen}
+              side="bottom"
+              trigger={
+                <button
+                  aria-label="更多"
+                  className="icon-button sidebar-project-action-button"
+                  type="button"
+                >
+                  <MoreHorizontal size={APP_ICON_SIZE} />
+                </button>
+              }
+              onOpenChange={setMenuOpen}
+            >
+              <PopoverItem
+                icon={<ExternalLink size={APP_ICON_SIZE} />}
+                onClick={() => onOpenWorkspace(project)}
               >
-                <MoreHorizontal size={APP_ICON_SIZE} />
-              </button>
-            }
-            onOpenChange={setMenuOpen}
-          >
-            <PopoverItem
-              icon={<ExternalLink size={APP_ICON_SIZE} />}
-              onClick={() => onOpenWorkspace(project)}
-            >
-              打开项目
-            </PopoverItem>
-            <PopoverItem icon={<Pin size={APP_ICON_SIZE} />} onClick={() => {}}>
-              置顶项目
-            </PopoverItem>
-            <PopoverItem
-              icon={<FolderOpen size={APP_ICON_SIZE} />}
-              onClick={() => {
-                void desktopClient.openPathWithDefaultTarget(project.path);
-              }}
-            >
-              在资源管理器中打开
-            </PopoverItem>
-            <PopoverItem icon={<FolderTree size={APP_ICON_SIZE} />} onClick={() => {}}>
-              创建永久工作树
-            </PopoverItem>
-            <PopoverItem icon={<Pencil size={APP_ICON_SIZE} />} onClick={() => {}}>
-              重命名项目
-            </PopoverItem>
-            <PopoverItem
-              disabled={projectSessions.length === 0}
-              icon={<Archive size={APP_ICON_SIZE} />}
-              onClick={() => {
-                projectSessions.forEach((session) => onArchiveSession(session));
-              }}
-            >
-              归档对话
-            </PopoverItem>
-            <PopoverItem
-              icon={<X size={APP_ICON_SIZE} />}
-              onClick={() => onRemoveWorkspace(project)}
-            >
-              移除
-            </PopoverItem>
-          </PopoverMenu>
+                打开项目
+              </PopoverItem>
+              <PopoverItem icon={<Pin size={APP_ICON_SIZE} />} onClick={() => {}}>
+                置顶项目
+              </PopoverItem>
+              <PopoverItem
+                icon={<FolderOpen size={APP_ICON_SIZE} />}
+                onClick={() => {
+                  void desktopClient.openPathWithDefaultTarget(project.path);
+                }}
+              >
+                在资源管理器中打开
+              </PopoverItem>
+              <PopoverItem icon={<FolderTree size={APP_ICON_SIZE} />} onClick={() => {}}>
+                创建永久工作树
+              </PopoverItem>
+              <PopoverItem icon={<Pencil size={APP_ICON_SIZE} />} onClick={() => {}}>
+                重命名项目
+              </PopoverItem>
+              <PopoverItem
+                disabled={projectSessions.length === 0}
+                icon={<Archive size={APP_ICON_SIZE} />}
+                onClick={() => {
+                  projectSessions.forEach((session) => onArchiveSession(session));
+                }}
+              >
+                归档对话
+              </PopoverItem>
+              <PopoverItem
+                icon={<X size={APP_ICON_SIZE} />}
+                onClick={() => onRemoveWorkspace(project)}
+              >
+                移除
+              </PopoverItem>
+            </PopoverMenu>
 
-          <IconButton
-            className="icon-button sidebar-project-action-button"
-            onClick={() => onCreateSession(project)}
-            title="新建对话"
-          >
-            <SquarePen size={APP_ICON_SIZE} />
-          </IconButton>
+            <IconButton
+              className="icon-button sidebar-project-action-button"
+              onClick={() => onCreateSession(project)}
+              title="新建对话"
+            >
+              <SquarePen size={APP_ICON_SIZE} />
+            </IconButton>
+          </div>
         </div>
       </div>
 
