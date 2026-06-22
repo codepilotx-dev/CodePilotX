@@ -1,3 +1,4 @@
+import type { CodexContextDiagnostics } from '@codepilotx/core/agent/codexContextDiagnostics.js'
 import type { WorkflowReducerDiagnostics } from '../../../shared/workflowReducer.js'
 import type { DesktopWorkflowEvent } from '../../../shared/types.js'
 import type { WorkflowConsistencyDiagnostics } from './workflowConsistency.js'
@@ -11,6 +12,7 @@ export type WorkflowMarkdownLogDiagnostics = {
 
 export type WorkflowMarkdownOptions = {
   activeSessionId: string | null
+  codexContextDiagnostics?: CodexContextDiagnostics | null
   consistencyDiagnostics?: WorkflowConsistencyDiagnostics | null
   diagnostics: WorkflowReducerDiagnostics
   events: DesktopWorkflowEvent[]
@@ -20,6 +22,7 @@ export type WorkflowMarkdownOptions = {
 
 export function buildWorkflowMarkdownReport({
   activeSessionId,
+  codexContextDiagnostics,
   consistencyDiagnostics,
   diagnostics,
   events,
@@ -55,6 +58,10 @@ export function buildWorkflowMarkdownReport({
     if (logDiagnostics.note) {
       lines.push(`- 日志备注: ${markdownInline(logDiagnostics.note)}`)
     }
+  }
+
+  if (codexContextDiagnostics) {
+    appendCodexContextDiagnostics(lines, codexContextDiagnostics)
   }
 
   if (
@@ -102,6 +109,117 @@ export function buildWorkflowMarkdownReport({
   }
 
   return `${lines.join('\n')}\n`
+}
+
+function appendCodexContextDiagnostics(
+  lines: string[],
+  diagnostics: CodexContextDiagnostics,
+): void {
+  lines.push('', '## Codex 上下文快照', '')
+
+  if (diagnostics.guidanceSources.length > 0) {
+    lines.push(
+      '### 指导文件',
+      '',
+      '| 文件 | 层级 | override | hash | 摘要 |',
+      '| --- | --- | --- | --- | --- |',
+    )
+    for (const source of diagnostics.guidanceSources) {
+      lines.push(
+        `| ${tableCell(source.relativePath)} | ${tableCell(
+          String(source.level),
+        )} | ${tableCell(source.isOverride ? '是' : '否')} | ${tableCell(
+          source.contentHash,
+        )} | ${tableCell(source.summary)} |`,
+      )
+    }
+  } else {
+    lines.push('- 指导文件: 未发现')
+  }
+
+  const config = diagnostics.projectConfig
+  lines.push(
+    '',
+    `- Codex config: ${markdownInline(
+      config.path ? displayCodexPath(config.path) : '未发现',
+    )}`,
+  )
+  if (config.ignoredProjectKeys.length > 0) {
+    lines.push(
+      `- 忽略项目级配置键: ${markdownInline(
+        config.ignoredProjectKeys.join(', '),
+      )}`,
+    )
+  }
+  for (const diagnostic of config.diagnostics) {
+    lines.push(`- 配置诊断: ${markdownInline(diagnostic)}`)
+  }
+
+  if (diagnostics.permissionProfile) {
+    const profile = diagnostics.permissionProfile
+    lines.push(
+      `- 权限 profile: ${markdownInline(
+        `${profile.profile} / approval=${profile.approvalMode} / sandbox=${
+          profile.sandboxPolicy ?? profile.profile
+        }`,
+      )}`,
+    )
+  }
+
+  const visibilityRows = [
+    ...(config.config.mcpServers ?? []).map(server => ({
+      name: server.name,
+      kind: 'mcp',
+      source: server.source,
+      detail: formatMcpServerDetail(server),
+    })),
+    ...(config.config.hooks ?? []).map(hook => ({
+      name: hook.event,
+      kind: 'hook',
+      source: hook.source,
+      detail: compactParts([
+        hook.matcher ? `matcher=${hook.matcher}` : null,
+        hook.commands.length > 0
+          ? `commands=${hook.commands.join(', ')}`
+          : null,
+      ]),
+    })),
+    ...diagnostics.skills.map(skill => ({
+      name: skill.name,
+      kind: 'skill',
+      source: skill.path,
+      detail: skill.description ?? '',
+    })),
+  ]
+
+  if (visibilityRows.length > 0) {
+    lines.push(
+      '',
+      '### hooks / MCP / skills',
+      '',
+      '| 名称 | 类型 | 来源 | detail |',
+      '| --- | --- | --- | --- |',
+    )
+    for (const row of visibilityRows) {
+      lines.push(
+        `| ${tableCell(row.name)} | ${tableCell(row.kind)} | ${tableCell(
+          row.source,
+        )} | ${tableCell(row.detail)} |`,
+      )
+    }
+  }
+}
+
+function formatMcpServerDetail(
+  server: NonNullable<CodexContextDiagnostics['projectConfig']['config']['mcpServers']>[number],
+): string {
+  if (server.command) {
+    return compactParts([
+      `command=${[server.command, ...(server.args ?? [])].join(' ')}`,
+    ])
+  }
+  if (server.url) return `url=${server.url}`
+  return ''
 }
 
 function formatDiagnosticsSummary(
@@ -278,6 +396,12 @@ function tableCell(value: string): string {
 
 function markdownInline(value: string): string {
   return value.replace(/\r?\n/g, ' ').replace(/\|/g, '\\|').trim()
+}
+
+function displayCodexPath(value: string): string {
+  const normalized = value.replace(/\\/g, '/')
+  const codexIndex = normalized.lastIndexOf('/.codex/')
+  return codexIndex >= 0 ? normalized.slice(codexIndex + 1) : normalized
 }
 
 function truncate(value: string): string {

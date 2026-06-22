@@ -100,6 +100,83 @@ test('buildWorkflowMarkdownReport includes consistency diagnostics', () => {
   expect(markdown).toContain('可能仍在运行或复制过早')
 })
 
+test('buildWorkflowMarkdownReport includes Codex context diagnostics snapshot', () => {
+  const markdown = buildWorkflowMarkdownReport({
+    activeSessionId: 'thread-1',
+    diagnostics: emptyDiagnostics,
+    codexContextDiagnostics: {
+      guidanceSources: [
+        {
+          path: 'D:\\VueProject\\ClaudeCode\\AGENTS.md',
+          relativePath: 'AGENTS.md',
+          level: 0,
+          isOverride: false,
+          contentHash: '0123456789abcdef',
+          summary: '# Root|中文',
+        },
+      ],
+      projectConfig: {
+        path: 'D:\\VueProject\\ClaudeCode\\.codex\\config.toml',
+        config: {
+          approval: 'prompt',
+          sandbox: 'workspace-write',
+          projectRootMarkers: ['.git', 'package.json'],
+          mcpServers: [
+            {
+              name: 'docs',
+              source: '.codex/config.toml',
+              command: 'npx',
+              args: ['-y', 'docs-mcp'],
+            },
+          ],
+          hooks: [
+            {
+              event: 'PreToolUse',
+              matcher: '^Bash$',
+              commands: ['echo check|safe'],
+              source: '.codex/config.toml',
+            },
+          ],
+        },
+        ignoredProjectKeys: ['model_provider'],
+        diagnostics: [],
+      },
+      permissionProfile: {
+        profile: 'workspace-write',
+        approvalMode: 'prompt',
+        sandboxPolicy: 'workspace-write',
+      },
+      skills: [
+        {
+          name: 'openai-docs',
+          description: 'OpenAI docs lookup',
+          path: 'skills/openai-docs/SKILL.md',
+        },
+      ],
+    },
+    events: [],
+  })
+
+  expect(markdown).toContain('## Codex 上下文快照')
+  expect(markdown).toContain(
+    '| AGENTS.md | 0 | 否 | 0123456789abcdef | # Root\\|中文 |',
+  )
+  expect(markdown).toContain('- Codex config: .codex/config.toml')
+  expect(markdown).toContain('- 忽略项目级配置键: model_provider')
+  expect(markdown).toContain(
+    '- 权限 profile: workspace-write / approval=prompt / sandbox=workspace-write',
+  )
+  expect(markdown).toContain(
+    '| docs | mcp | .codex/config.toml | command=npx -y docs-mcp |',
+  )
+  expect(markdown).toContain(
+    '| PreToolUse | hook | .codex/config.toml | matcher=^Bash$; commands=echo check\\|safe |',
+  )
+  expect(markdown).toContain(
+    '| openai-docs | skill | skills/openai-docs/SKILL.md | OpenAI docs lookup |',
+  )
+})
+
 test('buildWorkflowMarkdownReport expands failed tool result metadata', () => {
   const markdown = buildWorkflowMarkdownReport({
     activeSessionId: 'thread-1',

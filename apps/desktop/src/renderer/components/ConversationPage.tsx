@@ -44,6 +44,7 @@ import {
   buildWorkflowMarkdownReport,
   type WorkflowMarkdownLogDiagnostics,
 } from "../features/session/workflowMarkdown.js";
+import { buildWorkspaceCodexContextDiagnostics } from "../features/session/codexContextDiagnostics.js";
 import {
   deriveWorkflowConsistencyDiagnostics,
   workflowConsistencyIssueCount,
@@ -501,6 +502,7 @@ export function ConversationPage(): React.ReactNode {
                     consistencyDiagnostics={workflowConsistencyDiagnostics}
                     diagnostics={workflowDerivedState.diagnostics}
                     events={workflowEvents}
+                    workspacePath={workspacePath}
                   />
                 ) : null}
                 {timelineItems.map((item) => (
@@ -570,11 +572,13 @@ function WorkflowDebugTimeline({
   consistencyDiagnostics,
   diagnostics,
   events,
+  workspacePath,
 }: {
   activeSessionId: string | null;
   consistencyDiagnostics: WorkflowConsistencyDiagnostics;
   diagnostics: ReturnType<typeof deriveWorkflowSessionState>["diagnostics"];
   events: DesktopWorkflowEvent[];
+  workspacePath: string | null;
 }): React.ReactNode {
   const visibleEvents = events.slice(-60).reverse();
   const [logDiagnostics, setLogDiagnostics] =
@@ -613,14 +617,25 @@ function WorkflowDebugTimeline({
   }
 
   function copyWorkflowMarkdown(): void {
+    void copyWorkflowMarkdownAsync();
+  }
+
+  async function copyWorkflowMarkdownAsync(): Promise<void> {
+    const codexContextDiagnostics = workspacePath
+      ? await buildWorkspaceCodexContextDiagnostics({
+          workspacePath,
+          readWorkspaceFile: desktopClient.readWorkspaceFile,
+        })
+      : null;
     const markdown = buildWorkflowMarkdownReport({
       activeSessionId,
+      codexContextDiagnostics,
       consistencyDiagnostics,
       diagnostics,
       events,
       logDiagnostics,
     });
-    void navigator.clipboard?.writeText(markdown).catch(() => undefined);
+    await navigator.clipboard?.writeText(markdown).catch(() => undefined);
   }
 
   return (

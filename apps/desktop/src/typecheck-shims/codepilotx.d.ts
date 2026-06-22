@@ -368,6 +368,56 @@ declare module '@codepilotx/core/agent/workflow.js' {
   ): ThreadEvent[]
 }
 
+declare module '@codepilotx/core/agent/codexContextDiagnostics.js' {
+  import type { AgentPermissionPolicy } from '@codepilotx/core/agent/permissions.js'
+
+  export type CodexGuidanceSource = {
+    path: string
+    relativePath: string
+    level: number
+    isOverride: boolean
+    contentHash: string
+    summary: string
+  }
+  export type CodexMcpServerDiagnostic = {
+    name: string
+    source: string
+    command?: string
+    args?: string[]
+    url?: string
+  }
+  export type CodexHookDiagnostic = {
+    event: string
+    matcher?: string
+    commands: string[]
+    source: string
+  }
+  export type CodexSkillDiagnostic = {
+    name: string
+    description?: string
+    path: string
+  }
+  export type CodexProjectConfig = {
+    approval?: string
+    sandbox?: string
+    projectRootMarkers?: string[]
+    mcpServers?: CodexMcpServerDiagnostic[]
+    hooks?: CodexHookDiagnostic[]
+  }
+  export type CodexProjectConfigDiagnostics = {
+    path: string | null
+    config: CodexProjectConfig
+    ignoredProjectKeys: string[]
+    diagnostics: string[]
+  }
+  export type CodexContextDiagnostics = {
+    guidanceSources: CodexGuidanceSource[]
+    projectConfig: CodexProjectConfigDiagnostics
+    permissionProfile?: AgentPermissionPolicy
+    skills: CodexSkillDiagnostic[]
+  }
+}
+
 declare module '@codepilotx/core/models/provider.js' {
   export type ModelProviderID = string
   export type ModelProviderKind =
