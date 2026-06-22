@@ -13,6 +13,7 @@ import type {
   DesktopPermissionDecision,
   DesktopPermissionRequest,
   DesktopSessionStatus,
+  DesktopUserMessageContent,
 } from '../shared/types.js'
 import { desktopPermissionPolicyForMode } from '../shared/settingsSchema.js'
 import type {
@@ -47,7 +48,7 @@ export type DesktopAgentSession = {
   sessionId: string
   workspacePath: string
   setModel(model: string | undefined): void
-  sendUserMessage(content: string): Promise<void>
+  sendUserMessage(content: DesktopUserMessageContent, previewText: string): Promise<void>
   respondToPermission(
     requestId: string,
     decision: DesktopPermissionDecision,
@@ -93,7 +94,10 @@ class LocalDesktopAgentSession
       resumeExistingSession: options.resumeExistingSession,
       permissionMode: options.permissionMode,
       model: options.model,
-      fallbackModel: options.fallbackModel,
+      smallFastModel: options.smallFastModel,
+      haikuModel: options.haikuModel,
+      sonnetModel: options.sonnetModel,
+      opusModel: options.opusModel,
       sessionName: options.sessionName,
       thinkingMode: options.thinkingMode,
       systemPrompt: options.systemPrompt,
@@ -109,7 +113,7 @@ class LocalDesktopAgentSession
       this.emitStatus('idle')
       this.emitMessage(
         'system',
-        `Workspace attached: ${options.workspacePath} (${options.sessionName ?? 'untitled'} session, ${options.permissionMode ?? 'default'} permissions, ${options.model ?? 'default'} model, ${options.fallbackModel ?? 'none'} fallback, ${options.thinkingMode ?? 'default'} thinking, ${options.systemPrompt ? 'custom' : 'default'} system prompt, ${options.additionalDirectories?.length ?? 0} extra dirs)`,
+        `Workspace attached: ${options.workspacePath} (${options.sessionName ?? 'untitled'} session, ${options.permissionMode ?? 'default'} permissions, ${options.model ?? 'none'} model, ${options.thinkingMode ?? 'default'} thinking, ${options.systemPrompt ? 'custom' : 'default'} system prompt, ${options.additionalDirectories?.length ?? 0} extra dirs)`,
       )
     })
   }
@@ -118,7 +122,10 @@ class LocalDesktopAgentSession
     this.runtime.setModel(model)
   }
 
-  async sendUserMessage(content: string): Promise<void> {
+  async sendUserMessage(
+    content: DesktopUserMessageContent,
+    previewText: string,
+  ): Promise<void> {
     this.assertActive()
     if (this.currentAbortController) {
       desktopDebug('session_send_rejected_already_running', {
@@ -129,9 +136,9 @@ class LocalDesktopAgentSession
     const startedAt = Date.now()
     desktopDebug('session_send_start', {
       sessionId: this.sessionId,
-      textLength: content.length,
+      textLength: previewText.length,
     })
-    this.emitMessage('user', content)
+    this.emitMessage('user', previewText)
     this.emitStatus('running')
 
     const abortController = new AbortController()

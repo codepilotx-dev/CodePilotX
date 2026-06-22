@@ -1,13 +1,18 @@
+import { useMemo, useState } from 'react'
 import type React from 'react'
 import { useNavigate } from 'react-router-dom'
 import type {
+  DesktopComposerAttachment,
   DesktopContextUsage,
   DesktopPermissionMode,
   DesktopSessionStatus,
   DesktopThinkingMode,
+  DesktopUserMessageInput,
   DesktopWorkspace,
   ModelProviderID,
 } from '../../shared/types.js'
+import { hasBlockingComposerAttachmentErrors } from '../../shared/desktopUserMessage.js'
+import { desktopClient } from '../services/desktopClient.js'
 import {
   PERMISSION_MODE_OPTIONS,
   THINKING_MODE_OPTIONS,
@@ -57,7 +62,10 @@ type Props = {
   createSessionForWorkspace: (
     target?: DesktopWorkspace | null,
   ) => Promise<string | null>
-  submitToSession: (targetSessionId: string, value: string) => Promise<void>
+  submitToSession: (
+    targetSessionId: string,
+    value: DesktopUserMessageInput,
+  ) => Promise<void>
 }
 
 export function DesktopComposer({
@@ -91,11 +99,18 @@ export function DesktopComposer({
   submitToSession,
 }: Props): React.ReactNode {
   const navigate = useNavigate()
+  const [attachments, setAttachments] = useState<DesktopComposerAttachment[]>([])
+  const hasAttachmentErrors = hasBlockingComposerAttachmentErrors(attachments)
   const canSubmit =
-    Boolean(input.trim()) &&
+    (Boolean(input.trim()) || attachments.length > 0) &&
+    !hasAttachmentErrors &&
     sessionStatus !== 'running' &&
     sessionStatus !== 'waiting' &&
     (isQuickChatPage || Boolean(routedSessionId))
+  const attachmentIds = useMemo(
+    () => new Set(attachments.map(attachment => attachment.id)),
+    [attachments],
+  )
   const branchName = getDesktopComposerBranchName(workspace)
   const hasConversationMessages = messages.some(
     message => message.role !== 'system',
@@ -104,20 +119,52 @@ export function DesktopComposer({
   function handleSubmit(): void {
     void (async () => {
       const submittedInput = input
+      const submittedAttachments = attachments
+      const messageInput = {
+        text: submittedInput,
+        attachments: submittedAttachments,
+      }
       if (isQuickChatPage) {
         onInputChange('')
+        setAttachments([])
         const nextSessionId = workspace
           ? await createSessionForWorkspace(workspace)
           : await createSessionForWorkspace(null)
         if (!nextSessionId) return
         navigate(sessionPath(nextSessionId))
-        await submitToSession(nextSessionId, submittedInput)
+        await submitToSession(nextSessionId, messageInput)
         return
       }
       if (routedSessionId) {
-        await submitToSession(routedSessionId, submittedInput)
+        setAttachments([])
+        await submitToSession(routedSessionId, messageInput)
       }
     })()
+  }
+
+  async function handleOpenFiles(): Promise<void> {
+    const selected = await desktopClient.chooseComposerFiles()
+    appendAttachments(selected)
+  }
+
+  async function handleAddFilePaths(filePaths: string[]): Promise<void> {
+    if (filePaths.length === 0) return
+    const selected = await desktopClient.readComposerFiles(filePaths)
+    appendAttachments(selected)
+  }
+
+  function appendAttachments(nextAttachments: DesktopComposerAttachment[]): void {
+    if (nextAttachments.length === 0) return
+    setAttachments(current => [
+      ...current,
+      ...nextAttachments.filter(attachment => !attachmentIds.has(attachment.id)),
+    ])
+  }
+
+  function handleRemoveAttachment(attachmentId: string): void {
+    setAttachments(current =>
+      current.filter(attachment => attachment.id !== attachmentId),
+    )
   }
 
   return (
@@ -141,12 +188,15 @@ export function DesktopComposer({
       branches={workspace?.branches ?? []}
       recentWorkspaces={recentWorkspaces}
       workspace={workspace}
+      attachments={attachments}
       placeholder={hasConversationMessages ? '要求后续变更' : '随心输入'}
       onChooseWorkspace={() => void onChooseWorkspace()}
       onInputChange={onInputChange}
       onInterrupt={() => void onInterrupt()}
       onProviderModelChange={onProviderModelChange}
-      onOpenFiles={() => {}}
+      onAddFiles={filePaths => void handleAddFilePaths(filePaths)}
+      onOpenFiles={() => void handleOpenFiles()}
+      onRemoveAttachment={handleRemoveAttachment}
       onOpenWorkspace={workspaceItem => void onOpenWorkspace(workspaceItem)}
       onBranchSelect={branch => void onBranchSelect(branch)}
       onCreateBranch={onCreateBranch}

@@ -36,6 +36,8 @@ export const DESKTOP_API_METHODS = [
   'listWorkspaceFiles',
   'readWorkspaceFile',
   'readOptionalWorkspaceFile',
+  'chooseComposerFiles',
+  'readComposerFiles',
   'getWorkspaceDiff',
   'getThemeSettings',
   'saveThemeSettings',

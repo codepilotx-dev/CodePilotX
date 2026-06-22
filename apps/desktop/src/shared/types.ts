@@ -15,6 +15,7 @@ import type {
   DesktopAgentPermissionMode,
 } from '@codepilotx/core/agent/permissions.js'
 import type { ThreadEvent } from '@codepilotx/core/agent/workflow.js'
+import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages.mjs'
 import type {
   ModelMetadata,
   ModelProviderID as CoreModelProviderID,
@@ -45,6 +46,38 @@ export type DesktopFilePreview = {
   content: string
   truncated: boolean
 }
+
+export type DesktopComposerAttachmentKind =
+  | 'image'
+  | 'document'
+  | 'text'
+  | 'audio'
+  | 'video'
+  | 'binary'
+
+export type DesktopComposerAttachmentStatus = 'ready' | 'error'
+
+export type DesktopComposerAttachment = {
+  id: string
+  name: string
+  path: string
+  mediaType: string
+  sizeBytes: number
+  kind: DesktopComposerAttachmentKind
+  status: DesktopComposerAttachmentStatus
+  error?: string
+  contentBase64?: string
+  previewDataUrl?: string
+  textContent?: string
+  truncated?: boolean
+}
+
+export type DesktopUserMessageInput = {
+  text: string
+  attachments?: DesktopComposerAttachment[]
+}
+
+export type DesktopUserMessageContent = string | ContentBlockParam[]
 
 export type DesktopDiffSummary = {
   patch: string
@@ -194,6 +227,10 @@ export type DesktopStoredSettings = {
   permissionMode: DesktopPermissionMode
   model: string
   fallbackModel: string
+  smallFastModel: string
+  haikuModel: string
+  sonnetModel: string
+  opusModel: string
   sessionName: string
   thinkingMode: DesktopThinkingMode
   systemPrompt: string
@@ -333,6 +370,10 @@ export type DesktopSessionSettingsSnapshot = {
   permissionMode: DesktopPermissionMode
   model?: string
   fallbackModel?: string
+  smallFastModel?: string
+  haikuModel?: string
+  sonnetModel?: string
+  opusModel?: string
   sessionName?: string
   thinkingMode: DesktopThinkingMode
   systemPrompt?: string
@@ -377,6 +418,10 @@ export type CreateDesktopSessionOptions = {
   permissionMode?: DesktopPermissionMode
   model?: string
   fallbackModel?: string
+  smallFastModel?: string
+  haikuModel?: string
+  sonnetModel?: string
+  opusModel?: string
   sessionName?: string
   thinkingMode?: DesktopThinkingMode
   systemPrompt?: string
@@ -463,6 +508,8 @@ export type DesktopApi = {
     workspacePath: string,
     filePath: string,
   ): Promise<DesktopFilePreview | null>
+  chooseComposerFiles(): Promise<DesktopComposerAttachment[]>
+  readComposerFiles(filePaths: string[]): Promise<DesktopComposerAttachment[]>
   getWorkspaceDiff(workspacePath: string): Promise<DesktopDiffSummary>
   getThemeSettings(): Promise<DesktopThemeSettings>
   saveThemeSettings(settings: DesktopThemeSettings): Promise<void>
@@ -479,7 +526,7 @@ export type DesktopApi = {
   openExternalURL(url: string): Promise<void>
   sendUserMessage(
     sessionId: string,
-    content: string,
+    content: DesktopUserMessageInput,
     model?: string,
   ): Promise<void>
   respondToPermission(

@@ -112,6 +112,10 @@ const api: DesktopApi = {
     ipcRenderer.invoke(desktopApiChannel('readWorkflowEventLog')),
   openExternalURL: url =>
     ipcRenderer.invoke(desktopApiChannel('openExternalURL'), url),
+  chooseComposerFiles: () =>
+    ipcRenderer.invoke(desktopApiChannel('chooseComposerFiles')),
+  readComposerFiles: filePaths =>
+    ipcRenderer.invoke(desktopApiChannel('readComposerFiles'), filePaths),
   sendUserMessage: (sessionId, content, model) =>
     ipcRenderer.invoke(
       desktopApiChannel('sendUserMessage'),

@@ -8,6 +8,7 @@ import type { ThreadEvent, ThreadId, TurnId } from '@codepilotx/core/agent/workf
 import { JsonRpcAppServer } from '@codepilotx/tui/appServer/server.js'
 import type { JsonRpcTurnStartResult } from '@codepilotx/tui/appServer/protocol.js'
 import type { DesktopWorkflowEvent } from '../shared/types.js'
+import type { DesktopUserMessageContent } from '../shared/types.js'
 
 export const DESKTOP_JSON_RPC_APP_SERVER_ENV =
   'CODEPILOTX_JSON_RPC_APP_SERVER' as const
@@ -16,7 +17,7 @@ export type DesktopJsonRpcAppServerBridge = {
   startThread(threadId: ThreadId): Promise<void>
   startTurn(
     threadId: ThreadId,
-    input: string,
+    input: DesktopUserMessageContent,
     turnId?: TurnId,
   ): Promise<JsonRpcTurnStartResult>
 }

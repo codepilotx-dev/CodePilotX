@@ -9,6 +9,7 @@ import type {
   DesktopSessionMetadataPatch,
   DesktopSessionStatus,
   DesktopThinkingMode,
+  DesktopUserMessageInput,
   DesktopWorkflowEvent,
   DesktopWorkspace,
 } from '../../../shared/types.js'
@@ -52,7 +53,10 @@ import {
 export type UseSessionStateOptions = {
   permissionMode: DesktopPermissionMode
   model: string
-  fallbackModel: string
+  smallFastModel: string
+  haikuModel: string
+  sonnetModel: string
+  opusModel: string
   sessionName: string
   thinkingMode: DesktopThinkingMode
   systemPrompt: string
@@ -82,7 +86,10 @@ export type UseSessionStateResult = {
   activateSessionById: (targetSessionId: string | null) => DesktopWorkspace | null
   createSessionForWorkspace: (target?: DesktopWorkspace | null) => Promise<string | null>
   submit: (target?: DesktopWorkspace | null) => Promise<void>
-  submitToSession: (targetSessionId: string, value: string) => Promise<void>
+  submitToSession: (
+    targetSessionId: string,
+    value: DesktopUserMessageInput,
+  ) => Promise<void>
   interrupt: () => Promise<void>
   decidePermission: (
     request: DesktopPermissionRequest,
@@ -104,7 +111,10 @@ export function useSessionState(
   const {
     permissionMode,
     model,
-    fallbackModel,
+    smallFastModel,
+    haikuModel,
+    sonnetModel,
+    opusModel,
     sessionName,
     thinkingMode,
     systemPrompt,
@@ -445,7 +455,10 @@ export function useSessionState(
     () => ({
       permissionMode,
       model,
-      fallbackModel,
+      smallFastModel,
+      haikuModel,
+      sonnetModel,
+      opusModel,
       sessionName,
       thinkingMode,
       systemPrompt,
@@ -455,10 +468,13 @@ export function useSessionState(
     [
       additionalDirectories,
       appendSystemPrompt,
-      fallbackModel,
+      haikuModel,
       model,
+      opusModel,
       permissionMode,
       sessionName,
+      smallFastModel,
+      sonnetModel,
       systemPrompt,
       thinkingMode,
     ],
@@ -523,7 +539,7 @@ export function useSessionState(
 
   const submitToSession = useCallback(async (
     targetSessionId: string,
-    value: string,
+    value: DesktopUserMessageInput,
   ): Promise<void> => {
     const targetStatus =
       sessionsRef.current.find(session => session.id === targetSessionId)
@@ -536,8 +552,8 @@ export function useSessionState(
       targetSessionId,
       value,
       Boolean(
-        targetSessionId &&
-          value.trim() &&
+          targetSessionId &&
+          (value.text.trim() || (value.attachments?.length ?? 0) > 0) &&
           targetStatus !== 'running' &&
           targetStatus !== 'waiting',
       ),
@@ -563,7 +579,7 @@ export function useSessionState(
         target ?? null,
       ))
     if (!targetSessionId) return
-    await submitToSession(targetSessionId, input)
+    await submitToSession(targetSessionId, { text: input })
   }, [actionContext, input, sessionId, settingsSnapshot, submitToSession])
 
   const interrupt = useCallback(async (): Promise<void> => {

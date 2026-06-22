@@ -62,3 +62,44 @@ test('desktop JSON-RPC app-server bridge emits thread lifecycle notifications wh
     'thread-desktop',
   ])
 })
+
+test('desktop JSON-RPC app-server bridge accepts content block turn input', async () => {
+  const events: DesktopWorkflowEvent[] = []
+  const bridge = createDesktopJsonRpcAppServerBridge({
+    env: {
+      CODEPILOTX_JSON_RPC_APP_SERVER: '1',
+    },
+    onWorkflowEvent: event => {
+      events.push(event)
+    },
+    now: () => '2026-06-22T00:00:00.000Z',
+    createId: (prefix, seed) => `${prefix}-${seed ?? 'generated'}`,
+  })
+
+  await bridge?.startThread('thread-desktop')
+  await bridge?.startTurn('thread-desktop', [
+    { type: 'text', text: 'describe' },
+    {
+      type: 'image',
+      source: {
+        type: 'base64',
+        media_type: 'image/png',
+        data: 'aW1hZ2U=',
+      },
+    },
+  ])
+
+  expect(events.find(event => event.type === 'turn.started')).toMatchObject({
+    input: [
+      { type: 'text', text: 'describe' },
+      {
+        type: 'image',
+        source: {
+          type: 'base64',
+          media_type: 'image/png',
+          data: 'aW1hZ2U=',
+        },
+      },
+    ],
+  })
+})

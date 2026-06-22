@@ -52,6 +52,26 @@ const permissionDecision = z.object({
   alwaysAllow: z.boolean().optional(),
 })
 
+const composerAttachment = z.object({
+  id: z.string(),
+  name: z.string(),
+  path: z.string(),
+  mediaType: z.string(),
+  sizeBytes: z.number(),
+  kind: z.enum(['image', 'document', 'text', 'audio', 'video', 'binary']),
+  status: z.enum(['ready', 'error']),
+  error: optionalText,
+  contentBase64: optionalText,
+  previewDataUrl: optionalText,
+  textContent: optionalText,
+  truncated: z.boolean().optional(),
+})
+
+const userMessageInput = z.object({
+  text: z.string(),
+  attachments: z.array(composerAttachment).optional(),
+})
+
 export const DESKTOP_API_ARG_SCHEMAS = {
   getAuthStatus: emptyArgs,
   getRuntimeStatus: emptyArgs,
@@ -96,6 +116,8 @@ export const DESKTOP_API_ARG_SCHEMAS = {
   listWorkspaceFiles: z.tuple([z.string()]),
   readWorkspaceFile: z.tuple([z.string(), z.string()]),
   readOptionalWorkspaceFile: z.tuple([z.string(), z.string()]),
+  chooseComposerFiles: emptyArgs,
+  readComposerFiles: z.tuple([z.array(z.string())]),
   getWorkspaceDiff: z.tuple([z.string()]),
   getThemeSettings: emptyArgs,
   saveThemeSettings: z.tuple([unknownObject]),
@@ -107,7 +129,7 @@ export const DESKTOP_API_ARG_SCHEMAS = {
   updateSessionMetadata: z.tuple([z.string(), metadataPatch]),
   readWorkflowEventLog: emptyArgs,
   openExternalURL: z.tuple([z.string()]),
-  sendUserMessage: z.tuple([z.string(), z.string(), optionalText]),
+  sendUserMessage: z.tuple([z.string(), userMessageInput, optionalText]),
   respondToPermission: z.tuple([z.string(), z.string(), permissionDecision]),
   interruptSession: z.tuple([z.string()]),
   disposeSession: z.tuple([z.string()]),
