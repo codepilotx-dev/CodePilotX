@@ -35,6 +35,7 @@ import {
   NO_WORKSPACE_DIFF,
   useWorkspaceState,
 } from '../features/workspace/useWorkspaceState.js'
+import { shouldRestoreLastWorkspace } from '../features/workspace/lastWorkspaceRestore.js'
 import { useSessionState } from '../features/session/useSessionState.js'
 import { useDesktopCommands } from '../features/session/useDesktopCommands.js'
 import { useDesktopSearch } from '../features/search/useDesktopSearch.js'
@@ -75,6 +76,7 @@ export function DesktopLayout(): React.ReactNode {
     allowForcePush,
     commitMessagePrompt,
     pullRequestPrompt,
+    settingsLoaded,
     setPermissionMode,
     setModel,
     setProviderBaseURL,
@@ -179,6 +181,7 @@ export function DesktopLayout(): React.ReactNode {
   const isSettingsRoute = location.pathname === '/settings'
   const fullLocationPath = `${location.pathname}${location.search}${location.hash}`
   const settingsReturnPathRef = useRef(QUICK_CHAT_PATH)
+  const lastWorkspaceRestoreAttemptedRef = useRef(false)
   const settingsActiveTab =
     new URLSearchParams(location.search).get('tab') ?? 'general'
 
@@ -268,6 +271,30 @@ export function DesktopLayout(): React.ReactNode {
     },
     [navigate, openRecentWorkspace, refreshWorkspace, setWorkspaceState],
   )
+
+  useEffect(() => {
+    if (
+      !shouldRestoreLastWorkspace({
+        settingsLoaded,
+        isQuickChatPage,
+        hasCurrentWorkspace: Boolean(currentWorkspace),
+        hasAttemptedRestore: lastWorkspaceRestoreAttemptedRef.current,
+        recentWorkspaceCount: recentWorkspaces.length,
+      })
+    ) {
+      return
+    }
+    const lastWorkspace = recentWorkspaces[0]
+    if (!lastWorkspace) return
+    lastWorkspaceRestoreAttemptedRef.current = true
+    void handleOpenRecentWorkspace(lastWorkspace)
+  }, [
+    currentWorkspace,
+    handleOpenRecentWorkspace,
+    isQuickChatPage,
+    recentWorkspaces,
+    settingsLoaded,
+  ])
 
   const handleCreateSession = useCallback(async (
     target?: DesktopWorkspace | null,

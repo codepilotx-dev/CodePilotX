@@ -40,6 +40,7 @@ export type UseDesktopSettingsResult = {
   allowForcePush: boolean
   commitMessagePrompt: string
   pullRequestPrompt: string
+  settingsLoaded: boolean
   setPermissionMode: (value: DesktopPermissionMode) => void
   setModel: (value: string) => void
   setFallbackModel: (value: string) => void
@@ -241,6 +242,7 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     allowForcePush,
     commitMessagePrompt,
     pullRequestPrompt,
+    settingsLoaded,
     setPermissionMode,
     setModel,
     setFallbackModel,
