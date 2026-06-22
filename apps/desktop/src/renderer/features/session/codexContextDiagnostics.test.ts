@@ -50,6 +50,72 @@ test('buildWorkspaceCodexContextDiagnostics reads root guidance and project conf
   ])
 })
 
+test('buildWorkspaceCodexContextDiagnostics follows core guidance layering from root to cwd', async () => {
+  const diagnostics = await buildWorkspaceCodexContextDiagnostics({
+    workspacePath: 'D:\\VueProject\\ClaudeCode',
+    cwdPath: 'D:\\VueProject\\ClaudeCode\\apps\\desktop',
+    readWorkspaceFile: async (_workspacePath, filePath) => {
+      const normalized = filePath.replace(/\\/g, '/')
+      if (normalized.endsWith('/AGENTS.md')) {
+        if (normalized.endsWith('/apps/desktop/AGENTS.md')) {
+          return {
+            path: filePath,
+            content: '# Ignored desktop normal',
+            truncated: false,
+          }
+        }
+        if (normalized.endsWith('/apps/AGENTS.md')) {
+          return {
+            path: filePath,
+            content: '# Apps guidance',
+            truncated: false,
+          }
+        }
+        return {
+          path: filePath,
+          content: '# Root guidance',
+          truncated: false,
+        }
+      }
+      if (normalized.endsWith('/apps/desktop/AGENTS.override.md')) {
+        return {
+          path: filePath,
+          content: '# Desktop override',
+          truncated: false,
+        }
+      }
+      if (normalized.endsWith('/.codex/config.toml')) {
+        return {
+          path: filePath,
+          content: [
+            'approval = "prompt"',
+            'profile = "work"',
+            'otel = "ignored"',
+          ].join('\n'),
+          truncated: false,
+        }
+      }
+      throw new Error(`missing ${filePath}`)
+    },
+  })
+
+  expect(diagnostics.guidanceSources.map(source => source.relativePath)).toEqual([
+    'AGENTS.md',
+    'apps/AGENTS.md',
+    'apps/desktop/AGENTS.override.md',
+  ])
+  expect(diagnostics.guidanceSources.map(source => source.level)).toEqual([
+    0,
+    1,
+    2,
+  ])
+  expect(diagnostics.guidanceSources[2]?.isOverride).toBe(true)
+  expect(diagnostics.projectConfig.ignoredProjectKeys).toEqual([
+    'otel',
+    'profile',
+  ])
+})
+
 test('buildWorkspaceCodexContextDiagnostics tolerates missing optional files', async () => {
   const diagnostics = await buildWorkspaceCodexContextDiagnostics({
     workspacePath: 'D:\\VueProject\\ClaudeCode',

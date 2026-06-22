@@ -66,6 +66,25 @@ export type BuildCodexContextDiagnosticsOptions =
     skills?: CodexSkillDiagnostic[]
   }
 
+export type CodexWorkspaceTextFile = {
+  path?: string
+  content: string
+}
+
+export type CodexWorkspaceFileReader = (
+  relativePath: string,
+) => Promise<CodexWorkspaceTextFile | null>
+
+export type DiscoverCodexGuidanceFromWorkspaceOptions =
+  DiscoverCodexGuidanceOptions & {
+    readFile: CodexWorkspaceFileReader
+  }
+
+export type BuildCodexContextDiagnosticsFromWorkspaceOptions =
+  BuildCodexContextDiagnosticsOptions & {
+    readFile: CodexWorkspaceFileReader
+  }
+
 const PROJECT_CONFIG_SOURCE = '.codex/config.toml'
 const PROJECT_IGNORED_KEYS = new Set([
   'openai_base_url',
@@ -89,6 +108,29 @@ export async function buildCodexContextDiagnostics({
   const [guidanceSources, projectConfig] = await Promise.all([
     discoverCodexGuidanceSources({ cwd, projectRoot }),
     readCodexProjectConfig(projectRoot),
+  ])
+  return {
+    guidanceSources,
+    projectConfig,
+    ...(permissionProfile ? { permissionProfile } : {}),
+    skills,
+  }
+}
+
+export async function buildCodexContextDiagnosticsFromWorkspaceFiles({
+  cwd,
+  permissionProfile,
+  projectRoot,
+  readFile,
+  skills = [],
+}: BuildCodexContextDiagnosticsFromWorkspaceOptions): Promise<CodexContextDiagnostics> {
+  const [guidanceSources, projectConfig] = await Promise.all([
+    discoverCodexGuidanceSourcesFromWorkspaceFiles({
+      cwd,
+      projectRoot,
+      readFile,
+    }),
+    readCodexProjectConfigFromWorkspaceFiles(projectRoot, readFile),
   ])
   return {
     guidanceSources,
@@ -132,6 +174,43 @@ export async function discoverCodexGuidanceSources({
   return sources
 }
 
+export async function discoverCodexGuidanceSourcesFromWorkspaceFiles({
+  cwd,
+  projectRoot,
+  readFile,
+}: DiscoverCodexGuidanceFromWorkspaceOptions): Promise<CodexGuidanceSource[]> {
+  const root = resolve(projectRoot)
+  const current = resolve(cwd)
+  const directories = directoriesFromRoot(root, current)
+  const sources: CodexGuidanceSource[] = []
+
+  for (let level = 0; level < directories.length; level += 1) {
+    const directory = directories[level]
+    const overrideRelativePath = normalizePath(
+      relative(root, join(directory, 'AGENTS.override.md')),
+    )
+    const normalRelativePath = normalizePath(
+      relative(root, join(directory, 'AGENTS.md')),
+    )
+    const override = await readFile(overrideRelativePath)
+    const normal = override ? null : await readFile(normalRelativePath)
+    const selected = override ?? normal
+    if (!selected) continue
+
+    sources.push(
+      guidanceSourceFromContent({
+        absolutePath: selected.path ?? join(root, override ? overrideRelativePath : normalRelativePath),
+        content: selected.content,
+        isOverride: Boolean(override),
+        level,
+        relativePath: override ? overrideRelativePath : normalRelativePath,
+      }),
+    )
+  }
+
+  return sources
+}
+
 export async function readCodexProjectConfig(
   projectRoot: string,
 ): Promise<CodexProjectConfigDiagnostics> {
@@ -146,6 +225,32 @@ export async function readCodexProjectConfig(
   }
 
   const content = await readFile(configPath, 'utf8')
+  return readCodexProjectConfigFromContent(configPath, content)
+}
+
+export async function readCodexProjectConfigFromWorkspaceFiles(
+  projectRoot: string,
+  readFile: CodexWorkspaceFileReader,
+): Promise<CodexProjectConfigDiagnostics> {
+  const config = await readFile(PROJECT_CONFIG_SOURCE)
+  if (!config) {
+    return {
+      path: null,
+      config: {},
+      ignoredProjectKeys: [],
+      diagnostics: [],
+    }
+  }
+  return readCodexProjectConfigFromContent(
+    config.path ?? join(resolve(projectRoot), PROJECT_CONFIG_SOURCE),
+    config.content,
+  )
+}
+
+export function readCodexProjectConfigFromContent(
+  configPath: string,
+  content: string,
+): CodexProjectConfigDiagnostics {
   try {
     return {
       path: configPath,
@@ -376,6 +481,29 @@ function summarizeMarkdown(content: string): string {
     .slice(0, 3)
     .join(' ')
     .slice(0, 160)
+}
+
+function guidanceSourceFromContent({
+  absolutePath,
+  content,
+  isOverride,
+  level,
+  relativePath,
+}: {
+  absolutePath: string
+  content: string
+  isOverride: boolean
+  level: number
+  relativePath: string
+}): CodexGuidanceSource {
+  return {
+    path: absolutePath,
+    relativePath,
+    level,
+    isOverride,
+    contentHash: hashContent(content),
+    summary: summarizeMarkdown(content),
+  }
 }
 
 function hashContent(content: string): string {

@@ -416,6 +416,20 @@ declare module '@codepilotx/core/agent/codexContextDiagnostics.js' {
     permissionProfile?: AgentPermissionPolicy
     skills: CodexSkillDiagnostic[]
   }
+  export type CodexWorkspaceTextFile = {
+    path?: string
+    content: string
+  }
+  export type CodexWorkspaceFileReader = (
+    relativePath: string,
+  ) => Promise<CodexWorkspaceTextFile | null>
+  export function buildCodexContextDiagnosticsFromWorkspaceFiles(options: {
+    projectRoot: string
+    cwd: string
+    readFile: CodexWorkspaceFileReader
+    permissionProfile?: AgentPermissionPolicy
+    skills?: CodexSkillDiagnostic[]
+  }): Promise<CodexContextDiagnostics>
 }
 
 declare module '@codepilotx/core/models/provider.js' {
