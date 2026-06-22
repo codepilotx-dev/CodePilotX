@@ -24,6 +24,7 @@ import {
 } from './agentSession.js'
 import type { DesktopAgentRuntimePreference } from './agentRuntime.js'
 import { buildDesktopApiHandlers } from './desktopApiHandlers.js'
+import { applyDesktopAgentRuntimeEnvDefaults } from './desktopRuntimeEnv.js'
 import { createDesktopJsonRpcAppServerBridge } from './desktopJsonRpcAppServerBridge.js'
 import { registerDesktopIpcHandlers } from './ipc.js'
 import { createDesktopWindowService } from './windowService.js'
@@ -849,6 +850,7 @@ function registerIpc(): void {
   registerDesktopIpcHandlers(handlers, assertTrustedIpcSender)
 }
 
+applyDesktopAgentRuntimeEnvDefaults()
 enableConfigs()
 app.setAppUserModelId(DESKTOP_APP_ID)
 registerIpc()

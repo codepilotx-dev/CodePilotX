@@ -12,6 +12,10 @@ export type WorkspaceCodexContextDiagnosticsOptions = {
     workspacePath: string,
     filePath: string,
   ) => Promise<DesktopFilePreview>
+  readOptionalWorkspaceFile?: (
+    workspacePath: string,
+    filePath: string,
+  ) => Promise<DesktopFilePreview | null>
   permissionProfile?: AgentPermissionPolicy
   skills?: CodexSkillDiagnostic[]
 }
@@ -19,6 +23,7 @@ export type WorkspaceCodexContextDiagnosticsOptions = {
 export async function buildWorkspaceCodexContextDiagnostics({
   cwdPath,
   permissionProfile,
+  readOptionalWorkspaceFile,
   readWorkspaceFile,
   skills = [],
   workspacePath,
@@ -29,10 +34,12 @@ export async function buildWorkspaceCodexContextDiagnostics({
     projectRoot: workspacePath,
     readFile: async relativePath => {
       try {
-        const preview = await readWorkspaceFile(
+        const readFilePreview = readOptionalWorkspaceFile ?? readWorkspaceFile
+        const preview = await readFilePreview(
           workspacePath,
           joinWorkspacePath(workspacePath, relativePath),
         )
+        if (!preview) return null
         return {
           path: preview.path,
           content: preview.content,

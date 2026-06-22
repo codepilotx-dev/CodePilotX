@@ -28,6 +28,7 @@ import {
 import type { DesktopApiHandlers } from './ipc.js'
 import { createDesktopApiHandlers } from './ipc.js'
 import type { DesktopAgentRuntimePreference } from './agentRuntime.js'
+import { readOptionalWorkspaceFile } from './optionalWorkspaceFile.js'
 import type { DesktopWindowService } from './windowService.js'
 import {
   checkoutWorkspaceBranch,
@@ -136,6 +137,8 @@ export function buildDesktopApiHandlers(
     createPullRequest,
     listWorkspaceFiles,
     readWorkspaceFile,
+    readOptionalWorkspaceFile: (workspacePath, filePath) =>
+      readOptionalWorkspaceFile(readWorkspaceFile, workspacePath, filePath),
     getWorkspaceDiff,
     getThemeSettings: readDesktopThemeSettings,
     saveThemeSettings: saveDesktopThemeSettings,

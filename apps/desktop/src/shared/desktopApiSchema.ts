@@ -95,6 +95,7 @@ export const DESKTOP_API_ARG_SCHEMAS = {
   createPullRequest: z.tuple([createPullRequestInput]),
   listWorkspaceFiles: z.tuple([z.string()]),
   readWorkspaceFile: z.tuple([z.string(), z.string()]),
+  readOptionalWorkspaceFile: z.tuple([z.string(), z.string()]),
   getWorkspaceDiff: z.tuple([z.string()]),
   getThemeSettings: emptyArgs,
   saveThemeSettings: z.tuple([unknownObject]),

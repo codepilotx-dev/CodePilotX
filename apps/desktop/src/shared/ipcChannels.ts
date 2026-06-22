@@ -35,6 +35,7 @@ export const DESKTOP_API_METHODS = [
   'createPullRequest',
   'listWorkspaceFiles',
   'readWorkspaceFile',
+  'readOptionalWorkspaceFile',
   'getWorkspaceDiff',
   'getThemeSettings',
   'saveThemeSettings',

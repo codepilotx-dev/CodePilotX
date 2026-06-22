@@ -456,6 +456,10 @@ export type DesktopApi = {
   ): Promise<DesktopPullRequestResult>
   listWorkspaceFiles(workspacePath: string): Promise<DesktopFileEntry[]>
   readWorkspaceFile(workspacePath: string, filePath: string): Promise<DesktopFilePreview>
+  readOptionalWorkspaceFile(
+    workspacePath: string,
+    filePath: string,
+  ): Promise<DesktopFilePreview | null>
   getWorkspaceDiff(workspacePath: string): Promise<DesktopDiffSummary>
   getThemeSettings(): Promise<DesktopThemeSettings>
   saveThemeSettings(settings: DesktopThemeSettings): Promise<void>
