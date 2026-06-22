@@ -297,7 +297,9 @@
 }
 
 .sidebar-session-row {
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 50px;
+  justify-content: stretch;
   padding-left: 30px;
 }
 

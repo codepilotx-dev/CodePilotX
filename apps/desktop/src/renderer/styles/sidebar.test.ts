@@ -8,10 +8,10 @@ const sidebarCss = readFileSync(
 
 function cssBlockFor(selector: string): string {
   const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const match = sidebarCss.match(
-    new RegExp(`${escapedSelector}[\\s\\S]*?\\{([^}]*)\\}`),
+  const matches = Array.from(
+    sidebarCss.matchAll(new RegExp(`${escapedSelector}[\\s\\S]*?\\{([^}]*)\\}`, 'g')),
   )
-  return match?.[1] ?? ''
+  return matches.at(-1)?.[1] ?? ''
 }
 
 test('sidebar title flex items can shrink before applying ellipsis', () => {
@@ -21,4 +21,11 @@ test('sidebar title flex items can shrink before applying ellipsis', () => {
   expect(titleBlock).toContain('min-width: 0;')
   expect(buttonBlock).toContain('flex: 1 1 auto;')
   expect(buttonBlock).toContain('min-width: 0;')
+})
+
+test('sidebar session rows reserve a fixed metadata column', () => {
+  const rowBlock = cssBlockFor('.sidebar-session-row')
+
+  expect(rowBlock).toContain('display: grid;')
+  expect(rowBlock).toContain('grid-template-columns: minmax(0, 1fr) 50px;')
 })

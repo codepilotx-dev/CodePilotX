@@ -62,6 +62,7 @@ export type DesktopHeadlessRuntimeOptions = {
   systemPrompt?: string
   appendSystemPrompt?: string
   additionalDirectories?: string[]
+  permissionPromptToolName?: string
   onOutput(
     message: StdoutMessage,
     controls: DesktopHeadlessOutputControls,
@@ -190,7 +191,7 @@ class EmbeddedDesktopHeadlessRuntime implements DesktopHeadlessRuntime {
               verbose: true,
               outputFormat: 'stream-json',
               jsonSchema: undefined,
-              permissionPromptToolName: undefined,
+              permissionPromptToolName: this.options.permissionPromptToolName,
               allowedTools: undefined,
               thinkingConfig: thinkingConfigFromDesktopMode(
                 this.options.thinkingMode,

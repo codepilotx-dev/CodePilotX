@@ -4,7 +4,7 @@
 
 **Goal:** Ensure long sidebar project/session titles truncate with an ellipsis instead of overlapping the right-side time or action icons.
 
-**Architecture:** The sidebar rows are rendered by `SidebarProjectGroup.tsx` and `SidebarSessionGroup.tsx`, with layout controlled by `apps/desktop/src/renderer/styles/sidebar.css`. The root cause is flex min-content sizing: title spans already have ellipsis rules, but their flex containers do not consistently allow shrinking, so long text can push into fixed-width meta/actions. Fix this at the CSS layout boundary by giving row labels and row buttons `min-width: 0`, and by making session/project buttons flex into the remaining space instead of using a width calculation.
+**Architecture:** The sidebar rows are rendered by `SidebarProjectGroup.tsx` and `SidebarSessionGroup.tsx`, with layout controlled by `apps/desktop/src/renderer/styles/sidebar.css`. The first fix added shrink boundaries to title spans and buttons, but the screenshot still shows the session row letting the title and time compete in a single flex line. Fix the row boundary by making session rows a two-column grid: `minmax(0, 1fr)` for the title button and a fixed metadata column for time/actions.
 
 **Tech Stack:** CSS, TypeScript test with Bun, Node `fs`.
 
@@ -24,8 +24,10 @@
 - Modify: `apps/desktop/src/renderer/styles/sidebar.css`
   - Add shrink boundaries for sidebar text labels and row buttons.
   - Replace fragile session/project button width math with flex sizing.
+  - Make session rows a grid with a shrinkable title column and fixed metadata column.
 - Create: `apps/desktop/src/renderer/styles/sidebar.test.ts`
   - Read `sidebar.css` and assert the flex/ellipsis rules required for long titles.
+  - Assert that session rows reserve a fixed metadata column with `grid-template-columns: minmax(0, 1fr) 50px`.
 
 ## Task 1: Fix Sidebar Title Truncation
 
@@ -36,6 +38,7 @@
 **Interfaces:**
 - Consumes: existing CSS class names `.sidebar-project-button`, `.sidebar-session-button`, `.sidebar-project-name`, `.sidebar-session-title`, `.sidebar-item-label`, `.sidebar-settings-link span:last-child`.
 - Produces: CSS rules that allow long sidebar labels to shrink and display ellipsis.
+- Produces: session rows with stable two-column layout so title text cannot overlap the timestamp/action column.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -58,6 +61,13 @@ test('sidebar title flex items can shrink before applying ellipsis', () => {
     /\.sidebar-project-button,[\s\S]*\.sidebar-session-button\s*\{[\s\S]*flex:\s*1\s+1\s+auto;[\s\S]*min-width:\s*0;/,
   )
 })
+
+test('sidebar session rows reserve a fixed metadata column', () => {
+  const rowBlock = cssBlockFor('.sidebar-session-row')
+
+  expect(rowBlock).toContain('display: grid;')
+  expect(rowBlock).toContain('grid-template-columns: minmax(0, 1fr) 50px;')
+})
 ```
 
 - [ ] **Step 2: Run the test to verify it fails**
@@ -68,7 +78,7 @@ Run:
 bun test apps/desktop/src/renderer/styles/sidebar.test.ts
 ```
 
-Expected: FAIL because the current sidebar CSS does not declare `min-width: 0` for title flex items or `flex: 1 1 auto` plus `min-width: 0` for the row buttons.
+Expected: FAIL because the current sidebar CSS does not declare the two-column grid layout for `.sidebar-session-row`.
 
 - [ ] **Step 3: Apply the CSS fix**
 
@@ -101,6 +111,17 @@ Update the shared button rule:
   padding: 0;
   color: inherit;
   text-align: left;
+}
+```
+
+Update the session row rule:
+
+```css
+.sidebar-session-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 50px;
+  justify-content: stretch;
+  padding-left: 30px;
 }
 ```
 

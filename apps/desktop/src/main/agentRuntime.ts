@@ -149,6 +149,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
         '--replay-user-messages',
         ...this.sessionResumeArgs(),
         ...permissionModeArgs(this.context.permissionMode),
+        ...permissionPromptToolArgs(),
         ...modelArgs(this.context.model),
         ...fallbackModelArgs(this.context.fallbackModel),
         ...sessionNameArgs(this.context.sessionName),
@@ -568,6 +569,7 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
       systemPrompt: context.systemPrompt,
       appendSystemPrompt: context.appendSystemPrompt,
       additionalDirectories: context.additionalDirectories,
+      permissionPromptToolName: permissionPromptToolName(),
       onOutput: (message, controls) =>
         this.handleStructuredOutput(message, controls),
     })
@@ -913,6 +915,14 @@ export function permissionModeArgs(
     return ['--dangerously-skip-permissions']
   }
   return ['--permission-mode', permissionMode ?? 'default']
+}
+
+export function permissionPromptToolName(): string {
+  return 'stdio'
+}
+
+export function permissionPromptToolArgs(): string[] {
+  return ['--permission-prompt-tool', permissionPromptToolName()]
 }
 
 function tuiPermissionMode(
