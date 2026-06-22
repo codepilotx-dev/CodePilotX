@@ -81,6 +81,12 @@ const api: DesktopApi = {
       workspacePath,
       filePath,
     ),
+  readOptionalWorkspaceFile: (workspacePath, filePath) =>
+    ipcRenderer.invoke(
+      desktopApiChannel('readOptionalWorkspaceFile'),
+      workspacePath,
+      filePath,
+    ),
   getWorkspaceDiff: workspacePath =>
     ipcRenderer.invoke(desktopApiChannel('getWorkspaceDiff'), workspacePath),
   getThemeSettings: () =>

@@ -68,6 +68,24 @@ test('forkThread creates an idle child thread with fork metadata', () => {
   })
 })
 
+test('startThread returns a thread started event for protocol clients', () => {
+  const runtime = createRuntime()
+
+  const result = runtime.startThread({
+    ...createSettings(),
+    threadId: 'thread-start',
+  })
+
+  expect(result.event).toMatchObject({
+    type: 'thread.started',
+    threadId: 'thread-start',
+    sequence: 1,
+    metadata: {
+      createdAt: '2026-06-22T00:00:00.000Z',
+    },
+  })
+})
+
 test('rollbackTurn resets active facade state and emits an interrupted turn event', () => {
   const runtime = createRuntime()
   runtime.resumeThread('thread-rollback', createSettings(), {

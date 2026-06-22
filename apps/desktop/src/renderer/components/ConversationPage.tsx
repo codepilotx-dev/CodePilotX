@@ -625,6 +625,7 @@ function WorkflowDebugTimeline({
       ? await buildWorkspaceCodexContextDiagnostics({
           workspacePath,
           readWorkspaceFile: desktopClient.readWorkspaceFile,
+          readOptionalWorkspaceFile: desktopClient.readOptionalWorkspaceFile,
         })
       : null;
     const markdown = buildWorkflowMarkdownReport({

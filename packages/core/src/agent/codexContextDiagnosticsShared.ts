@@ -1,6 +1,3 @@
-import { createHash } from 'node:crypto'
-import { access, readFile } from 'node:fs/promises'
-import { dirname, join, relative, resolve, sep } from 'node:path'
 import type { AgentPermissionPolicy } from './permissions.js'
 
 export type CodexGuidanceSource = {
@@ -55,6 +52,15 @@ export type CodexContextDiagnostics = {
   skills: CodexSkillDiagnostic[]
 }
 
+export type CodexWorkspaceTextFile = {
+  path?: string
+  content: string
+}
+
+export type CodexWorkspaceFileReader = (
+  relativePath: string,
+) => Promise<CodexWorkspaceTextFile | null>
+
 export type DiscoverCodexGuidanceOptions = {
   projectRoot: string
   cwd: string
@@ -65,15 +71,6 @@ export type BuildCodexContextDiagnosticsOptions =
     permissionProfile?: AgentPermissionPolicy
     skills?: CodexSkillDiagnostic[]
   }
-
-export type CodexWorkspaceTextFile = {
-  path?: string
-  content: string
-}
-
-export type CodexWorkspaceFileReader = (
-  relativePath: string,
-) => Promise<CodexWorkspaceTextFile | null>
 
 export type DiscoverCodexGuidanceFromWorkspaceOptions =
   DiscoverCodexGuidanceOptions & {
@@ -99,24 +96,6 @@ const PROJECT_IGNORED_KEYS = new Set([
   'otel',
 ])
 
-export async function buildCodexContextDiagnostics({
-  cwd,
-  permissionProfile,
-  projectRoot,
-  skills = [],
-}: BuildCodexContextDiagnosticsOptions): Promise<CodexContextDiagnostics> {
-  const [guidanceSources, projectConfig] = await Promise.all([
-    discoverCodexGuidanceSources({ cwd, projectRoot }),
-    readCodexProjectConfig(projectRoot),
-  ])
-  return {
-    guidanceSources,
-    projectConfig,
-    ...(permissionProfile ? { permissionProfile } : {}),
-    skills,
-  }
-}
-
 export async function buildCodexContextDiagnosticsFromWorkspaceFiles({
   cwd,
   permissionProfile,
@@ -140,57 +119,25 @@ export async function buildCodexContextDiagnosticsFromWorkspaceFiles({
   }
 }
 
-export async function discoverCodexGuidanceSources({
-  cwd,
-  projectRoot,
-}: DiscoverCodexGuidanceOptions): Promise<CodexGuidanceSource[]> {
-  const root = resolve(projectRoot)
-  const current = resolve(cwd)
-  const directories = directoriesFromRoot(root, current)
-  const sources: CodexGuidanceSource[] = []
-
-  for (let level = 0; level < directories.length; level += 1) {
-    const directory = directories[level]
-    const overridePath = join(directory, 'AGENTS.override.md')
-    const normalPath = join(directory, 'AGENTS.md')
-    const selectedPath = (await pathExists(overridePath))
-      ? overridePath
-      : (await pathExists(normalPath))
-        ? normalPath
-        : null
-    if (!selectedPath) continue
-
-    const content = await readFile(selectedPath, 'utf8')
-    sources.push({
-      path: selectedPath,
-      relativePath: normalizePath(relative(root, selectedPath)),
-      level,
-      isOverride: selectedPath.endsWith('AGENTS.override.md'),
-      contentHash: hashContent(content),
-      summary: summarizeMarkdown(content),
-    })
-  }
-
-  return sources
-}
-
 export async function discoverCodexGuidanceSourcesFromWorkspaceFiles({
   cwd,
   projectRoot,
   readFile,
 }: DiscoverCodexGuidanceFromWorkspaceOptions): Promise<CodexGuidanceSource[]> {
-  const root = resolve(projectRoot)
-  const current = resolve(cwd)
+  const root = normalizeAbsolutePath(projectRoot)
+  const current = normalizeAbsolutePath(cwd)
   const directories = directoriesFromRoot(root, current)
   const sources: CodexGuidanceSource[] = []
 
   for (let level = 0; level < directories.length; level += 1) {
     const directory = directories[level]
-    const overrideRelativePath = normalizePath(
-      relative(root, join(directory, 'AGENTS.override.md')),
+    const overrideRelativePath = relativeFromRoot(
+      root,
+      joinWorkspacePath(directory, 'AGENTS.override.md'),
     )
-    const normalRelativePath = normalizePath(
-      relative(root, join(directory, 'AGENTS.md')),
+    const normalRelativePath = relativeFromRoot(
+      root,
+      joinWorkspacePath(directory, 'AGENTS.md'),
     )
     const override = await readFile(overrideRelativePath)
     const normal = override ? null : await readFile(normalRelativePath)
@@ -198,8 +145,10 @@ export async function discoverCodexGuidanceSourcesFromWorkspaceFiles({
     if (!selected) continue
 
     sources.push(
-      guidanceSourceFromContent({
-        absolutePath: selected.path ?? join(root, override ? overrideRelativePath : normalRelativePath),
+      await guidanceSourceFromContent({
+        absolutePath:
+          selected.path ??
+          joinWorkspacePath(root, override ? overrideRelativePath : normalRelativePath),
         content: selected.content,
         isOverride: Boolean(override),
         level,
@@ -209,23 +158,6 @@ export async function discoverCodexGuidanceSourcesFromWorkspaceFiles({
   }
 
   return sources
-}
-
-export async function readCodexProjectConfig(
-  projectRoot: string,
-): Promise<CodexProjectConfigDiagnostics> {
-  const configPath = join(resolve(projectRoot), '.codex', 'config.toml')
-  if (!(await pathExists(configPath))) {
-    return {
-      path: null,
-      config: {},
-      ignoredProjectKeys: [],
-      diagnostics: [],
-    }
-  }
-
-  const content = await readFile(configPath, 'utf8')
-  return readCodexProjectConfigFromContent(configPath, content)
 }
 
 export async function readCodexProjectConfigFromWorkspaceFiles(
@@ -242,7 +174,7 @@ export async function readCodexProjectConfigFromWorkspaceFiles(
     }
   }
   return readCodexProjectConfigFromContent(
-    config.path ?? join(resolve(projectRoot), PROJECT_CONFIG_SOURCE),
+    config.path ?? joinWorkspacePath(projectRoot, PROJECT_CONFIG_SOURCE),
     config.content,
   )
 }
@@ -270,10 +202,9 @@ export function readCodexProjectConfigFromContent(
   }
 }
 
-function parseCodexProjectConfig(content: string): Omit<
-  CodexProjectConfigDiagnostics,
-  'path'
-> {
+function parseCodexProjectConfig(
+  content: string,
+): Omit<CodexProjectConfigDiagnostics, 'path'> {
   const config: CodexProjectConfig = {}
   const ignoredProjectKeys = new Set<string>()
   const diagnostics: string[] = []
@@ -399,15 +330,14 @@ function parseCodexProjectConfig(content: string): Omit<
 }
 
 function directoriesFromRoot(root: string, cwd: string): string[] {
-  const relativePath = relative(root, cwd)
-  if (relativePath.startsWith('..') || relativePath === '') {
-    return relativePath === '' ? [root] : [root, cwd]
-  }
-  const parts = relativePath.split(sep).filter(Boolean)
+  if (cwd === root) return [root]
+  if (!cwd.startsWith(`${root}/`)) return [root, cwd]
+
+  const parts = cwd.slice(root.length + 1).split('/').filter(Boolean)
   const directories = [root]
   let current = root
   for (const part of parts) {
-    current = join(current, part)
+    current = joinWorkspacePath(current, part)
     directories.push(current)
   }
   return directories
@@ -483,7 +413,7 @@ function summarizeMarkdown(content: string): string {
     .slice(0, 160)
 }
 
-function guidanceSourceFromContent({
+async function guidanceSourceFromContent({
   absolutePath,
   content,
   isOverride,
@@ -495,30 +425,57 @@ function guidanceSourceFromContent({
   isOverride: boolean
   level: number
   relativePath: string
-}): CodexGuidanceSource {
+}): Promise<CodexGuidanceSource> {
   return {
     path: absolutePath,
     relativePath,
     level,
     isOverride,
-    contentHash: hashContent(content),
+    contentHash: await hashContent(content),
     summary: summarizeMarkdown(content),
   }
 }
 
-function hashContent(content: string): string {
-  return createHash('sha256').update(content).digest('hex').slice(0, 16)
-}
-
-function normalizePath(path: string): string {
-  return path.split(sep).join('/')
-}
-
-async function pathExists(path: string): Promise<boolean> {
-  try {
-    await access(path)
-    return true
-  } catch {
-    return false
+async function hashContent(content: string): Promise<string> {
+  if (globalThis.crypto?.subtle) {
+    const digest = await globalThis.crypto.subtle.digest(
+      'SHA-256',
+      new TextEncoder().encode(content),
+    )
+    return [...new Uint8Array(digest)]
+      .map(byte => byte.toString(16).padStart(2, '0'))
+      .join('')
+      .slice(0, 16)
   }
+  return fallbackHashContent(content)
+}
+
+function fallbackHashContent(content: string): string {
+  let hash = 0xcbf29ce484222325n
+  const prime = 0x100000001b3n
+  const mask = 0xffffffffffffffffn
+  for (const byte of new TextEncoder().encode(content)) {
+    hash ^= BigInt(byte)
+    hash = (hash * prime) & mask
+  }
+  return hash.toString(16).padStart(16, '0').slice(0, 16)
+}
+
+function normalizeAbsolutePath(path: string): string {
+  return path.replace(/\\/g, '/').replace(/\/+$/g, '')
+}
+
+function relativeFromRoot(root: string, target: string): string {
+  const normalizedTarget = normalizeAbsolutePath(target)
+  if (normalizedTarget === root) return ''
+  if (normalizedTarget.startsWith(`${root}/`)) {
+    return normalizedTarget.slice(root.length + 1)
+  }
+  return normalizedTarget
+}
+
+function joinWorkspacePath(base: string, path: string): string {
+  const normalizedBase = normalizeAbsolutePath(base)
+  const normalizedPath = path.replace(/\\/g, '/').replace(/^\/+/g, '')
+  return `${normalizedBase}/${normalizedPath}`.replace(/\/+/g, '/')
 }

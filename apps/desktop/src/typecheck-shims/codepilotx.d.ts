@@ -362,6 +362,12 @@ declare module '@codepilotx/core/agent/workflow.js' {
     metadata?: Record<string, unknown>,
     now?: () => string,
   ): Extract<ThreadEvent, { type: 'thread.started' }>
+  export function createTurnStartedEvent(
+    threadId: ThreadId,
+    turnId: TurnId,
+    input?: unknown,
+    now?: () => string,
+  ): Extract<ThreadEvent, { type: 'turn.started' }>
   export function agentRuntimeEventToThreadEvents(
     event: AgentRuntimeEvent,
     ids: WorkflowEventIds,
@@ -416,6 +422,84 @@ declare module '@codepilotx/core/agent/codexContextDiagnostics.js' {
     permissionProfile?: AgentPermissionPolicy
     skills: CodexSkillDiagnostic[]
   }
+  export type CodexWorkspaceTextFile = {
+    path?: string
+    content: string
+  }
+  export type CodexWorkspaceFileReader = (
+    relativePath: string,
+  ) => Promise<CodexWorkspaceTextFile | null>
+  export function buildCodexContextDiagnosticsFromWorkspaceFiles(options: {
+    projectRoot: string
+    cwd: string
+    readFile: CodexWorkspaceFileReader
+    permissionProfile?: AgentPermissionPolicy
+    skills?: CodexSkillDiagnostic[]
+  }): Promise<CodexContextDiagnostics>
+}
+
+declare module '@codepilotx/core/agent/codexContextDiagnosticsShared.js' {
+  import type { AgentPermissionPolicy } from '@codepilotx/core/agent/permissions.js'
+
+  export type CodexGuidanceSource = {
+    path: string
+    relativePath: string
+    level: number
+    isOverride: boolean
+    contentHash: string
+    summary: string
+  }
+  export type CodexMcpServerDiagnostic = {
+    name: string
+    source: string
+    command?: string
+    args?: string[]
+    url?: string
+  }
+  export type CodexHookDiagnostic = {
+    event: string
+    matcher?: string
+    commands: string[]
+    source: string
+  }
+  export type CodexSkillDiagnostic = {
+    name: string
+    description?: string
+    path: string
+  }
+  export type CodexProjectConfig = {
+    approval?: string
+    sandbox?: string
+    projectRootMarkers?: string[]
+    mcpServers?: CodexMcpServerDiagnostic[]
+    hooks?: CodexHookDiagnostic[]
+  }
+  export type CodexProjectConfigDiagnostics = {
+    path: string | null
+    config: CodexProjectConfig
+    ignoredProjectKeys: string[]
+    diagnostics: string[]
+  }
+  export type CodexContextDiagnostics = {
+    guidanceSources: CodexGuidanceSource[]
+    projectConfig: CodexProjectConfigDiagnostics
+    permissionProfile?: AgentPermissionPolicy
+    skills: CodexSkillDiagnostic[]
+  }
+  export type CodexWorkspaceTextFile = {
+    path?: string
+    content: string
+  }
+  export type CodexWorkspaceFileReader = (
+    relativePath: string,
+  ) => Promise<CodexWorkspaceTextFile | null>
+  export function buildCodexContextDiagnosticsFromWorkspaceFiles(options: {
+    projectRoot: string
+    cwd: string
+    readFile: CodexWorkspaceFileReader
+    permissionProfile?: AgentPermissionPolicy
+    skills?: CodexSkillDiagnostic[]
+  }): Promise<CodexContextDiagnostics>
 }
 
 declare module '@codepilotx/core/models/provider.js' {
@@ -509,6 +593,41 @@ declare module '@codepilotx/tui/headless/desktopRuntime.js' {
     content: string,
     signal: AbortSignal,
   ): Promise<void>
+}
+
+declare module '@codepilotx/tui/appServer/protocol.js' {
+  export type JsonRpcTurnStartResult = {
+    threadId: string
+    turnId: string
+    eventCount: number
+  }
+}
+
+declare module '@codepilotx/tui/appServer/server.js' {
+  import type { ThreadEvent } from '@codepilotx/core/agent/workflow.js'
+  import type { JsonRpcTurnStartResult } from '@codepilotx/tui/appServer/protocol.js'
+
+  export class JsonRpcAppServer {
+    constructor(
+      registry?: unknown,
+      options?: {
+        onThreadEvent?: (event: ThreadEvent) => void | Promise<void>
+      },
+    )
+    startThread(params: {
+      threadId?: string
+      settings: unknown
+    }): Promise<{
+      threadId: string
+      status: string
+      createdAt: string
+    }>
+    startTurn(params: {
+      threadId: string
+      turnId?: string
+      input: unknown
+    }): Promise<JsonRpcTurnStartResult>
+  }
 }
 
 declare module '@codepilotx/tui/entrypoints/sdk/controlTypes.js' {

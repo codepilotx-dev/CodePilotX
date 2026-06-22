@@ -37,6 +37,7 @@ import {
   CODEPILOTX_CONFIG_DIR_ENV,
   LEGACY_CLAUDE_CONFIG_DIR_ENV,
 } from '../utils/envUtils.js'
+import { resetRipgrepConfigCache } from '../utils/ripgrep.js'
 
 export type DesktopHeadlessThinkingMode =
   | 'default'
@@ -135,6 +136,8 @@ class EmbeddedDesktopHeadlessRuntime implements DesktopHeadlessRuntime {
     process.env.CLAUDE_CODE_DISABLE_MDM_READ = '1'
     process.env.CLAUDE_CODE_DISABLE_MIN_VERSION_CHECK = '1'
     process.env.CLAUDE_CODE_ENTRYPOINT = 'desktop'
+    process.env.USE_BUILTIN_RIPGREP = '0'
+    resetRipgrepConfigCache()
   }
 
   setModel(model: string | undefined): void {
