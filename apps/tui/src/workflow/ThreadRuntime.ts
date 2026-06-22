@@ -25,6 +25,7 @@ export type ThreadRuntimeStartResult = {
   threadId: ThreadId
   status: TurnStatus
   createdAt: string
+  event: ThreadEvent
 }
 
 export type ThreadRuntimeTurnOptions = {
@@ -78,16 +79,21 @@ export class ThreadRuntime {
     const threadId = settings.threadId ?? this.createId('thread')
     const createdAt = this.now()
     const engine = new QueryEngine(settings)
-    this.threads.set(threadId, {
+    const record: ThreadRecord = {
       threadId,
       status: 'idle',
       createdAt,
       engine,
       settings,
-      startedEventEmitted: false,
+      startedEventEmitted: true,
       nextSequence: 0,
-    })
-    return { threadId, status: 'idle', createdAt }
+    }
+    this.threads.set(threadId, record)
+    const event = this.decorateEvent(
+      record,
+      createThreadStartedEvent(threadId, { createdAt }, () => createdAt),
+    )
+    return { threadId, status: 'idle', createdAt, event }
   }
 
   resumeThread(
@@ -113,7 +119,7 @@ export class ThreadRuntime {
       createThreadStartedEvent(
         threadId,
         { ...(state.metadata ?? {}), resumed: true, createdAt },
-        this.now,
+        () => createdAt,
       ),
     )
     return { threadId, state: this.getThreadState(threadId), event }
@@ -147,7 +153,7 @@ export class ThreadRuntime {
           forkedFromThreadId: sourceThreadId,
           createdAt,
         },
-        this.now,
+        () => createdAt,
       ),
     )
     return { threadId, state: this.getThreadState(threadId), event }
