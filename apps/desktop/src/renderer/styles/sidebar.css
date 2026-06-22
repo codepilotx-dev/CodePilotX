@@ -237,6 +237,11 @@
   list-style: none;
 }
 
+.sidebar-session-list-extra {
+  overflow: hidden;
+  will-change: height, opacity, transform;
+}
+
 .sidebar-session-row {
   justify-content: space-between;
   padding-left: 30px;
