@@ -136,7 +136,7 @@ class EmbeddedDesktopHeadlessRuntime implements DesktopHeadlessRuntime {
     process.env.CLAUDE_CODE_DISABLE_MDM_READ = '1'
     process.env.CLAUDE_CODE_DISABLE_MIN_VERSION_CHECK = '1'
     process.env.CLAUDE_CODE_ENTRYPOINT = 'desktop'
-    process.env.USE_BUILTIN_RIPGREP ??= '0'
+    process.env.USE_BUILTIN_RIPGREP = '0'
     resetRipgrepConfigCache()
   }
 

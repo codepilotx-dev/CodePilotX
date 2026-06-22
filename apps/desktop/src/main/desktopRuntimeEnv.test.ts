@@ -9,12 +9,12 @@ test('applyDesktopAgentRuntimeEnvDefaults prefers system ripgrep for desktop run
   expect(env.USE_BUILTIN_RIPGREP).toBe('0')
 })
 
-test('applyDesktopAgentRuntimeEnvDefaults preserves explicit ripgrep choice', () => {
+test('applyDesktopAgentRuntimeEnvDefaults overrides builtin ripgrep for desktop runtime', () => {
   const env: Record<string, string | undefined> = {
     USE_BUILTIN_RIPGREP: '1',
   }
 
   applyDesktopAgentRuntimeEnvDefaults(env)
 
-  expect(env.USE_BUILTIN_RIPGREP).toBe('1')
+  expect(env.USE_BUILTIN_RIPGREP).toBe('0')
 })

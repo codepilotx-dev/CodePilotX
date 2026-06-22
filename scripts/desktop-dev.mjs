@@ -126,7 +126,7 @@ function startElectron() {
       NODE_ENV: 'development',
       CODEPILOTX_DESKTOP_RENDERER_URL: rendererUrl,
       CLAUDE_CODE_DESKTOP_RENDERER_URL: rendererUrl,
-      USE_BUILTIN_RIPGREP: process.env.USE_BUILTIN_RIPGREP ?? '0',
+      USE_BUILTIN_RIPGREP: '0',
       ...(ripgrepPath
         ? {
             CODEPILOTX_RIPGREP_PATH: ripgrepPath,
