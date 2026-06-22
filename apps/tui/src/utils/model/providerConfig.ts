@@ -64,9 +64,29 @@ export type ProviderBalanceInfo = {
   toppedUpBalance: string
 }
 
+export type ProviderTokenPlanUsageInfo = {
+  modelName: string
+  currentIntervalTotalCount: number | null
+  currentIntervalRemainingCount: number | null
+  currentIntervalStartTime: number | null
+  currentIntervalEndTime: number | null
+  currentIntervalRemainingTime: number | null
+  currentIntervalStatus: number | null
+  currentIntervalRemainingPercent: number | null
+  currentWeeklyTotalCount: number | null
+  currentWeeklyRemainingCount: number | null
+  currentWeeklyStatus: number | null
+  currentWeeklyRemainingPercent: number | null
+  weeklyStartTime: number | null
+  weeklyEndTime: number | null
+  weeklyRemainingTime: number | null
+  weeklyBoostPermille: number | null
+}
+
 export type ProviderBalanceResult = {
   isAvailable: boolean
   balances: ProviderBalanceInfo[]
+  tokenPlanUsages?: ProviderTokenPlanUsageInfo[]
   error?: string
 }
 
@@ -75,6 +95,7 @@ const MODELS_DEV_LOGO_BASE_URL = 'https://models.dev/logos'
 const AI_GATEWAY_MODELS_URL = 'https://ai-gateway.vercel.sh/v1/models'
 const AI_GATEWAY_DEFAULT_BASE_URL = 'https://ai-gateway.vercel.sh/v3/ai'
 const AI_GATEWAY_PROVIDER_ID = 'ai-gateway'
+const MINIMAX_TOKEN_PLAN_BASE_URL = 'https://www.minimaxi.com'
 
 const providerModelCache = new Map<string, string[]>()
 let providerCatalogCache: Record<string, ProviderConfig> | null = null
@@ -637,6 +658,12 @@ export async function fetchProviderBalance(params: {
       ? getSelectedProviderConfig()
       : await getProviderConfig(providerID)
 
+  if (providerID === 'minimax') {
+    return fetchMiniMaxTokenPlanUsage({
+      apiKey: params.apiKey ?? getProviderApiKey(providerID),
+    })
+  }
+
   if (providerID !== 'deepseek') {
     return {
       isAvailable: false,
@@ -689,6 +716,102 @@ export async function fetchProviderBalance(params: {
     return {
       isAvailable: false,
       balances: [],
+      error: error instanceof Error ? error.message : String(error),
+    }
+  }
+}
+
+async function fetchMiniMaxTokenPlanUsage({
+  apiKey,
+}: {
+  apiKey?: string
+}): Promise<ProviderBalanceResult> {
+  if (!apiKey) {
+    return {
+      isAvailable: false,
+      balances: [],
+      tokenPlanUsages: [],
+      error: 'MiniMax API key is not configured.',
+    }
+  }
+
+  try {
+    const response = await fetch(
+      joinURL(MINIMAX_TOKEN_PLAN_BASE_URL, '/v1/token_plan/remains'),
+      {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+      },
+    )
+    if (!response.ok) {
+      return {
+        isAvailable: false,
+        balances: [],
+        tokenPlanUsages: [],
+        error: await formatProviderHTTPError('minimax', response),
+      }
+    }
+    const parsed = (await response.json()) as MiniMaxTokenPlanResponse
+    const baseRespError = extractMiniMaxBaseRespError(parsed)
+    if (baseRespError) {
+      return {
+        isAvailable: false,
+        balances: [],
+        tokenPlanUsages: [],
+        error: baseRespError,
+      }
+    }
+    return {
+      isAvailable: true,
+      balances: [],
+      tokenPlanUsages: (parsed.model_remains ?? []).flatMap(item => {
+        if (!item || typeof item !== 'object') return []
+        const modelName =
+          typeof item.model_name === 'string' && item.model_name.trim()
+            ? item.model_name
+            : 'MiniMax Token Plan'
+        return [
+          {
+            modelName,
+            currentIntervalTotalCount: numberOrNull(
+              item.current_interval_total_count,
+            ),
+            currentIntervalRemainingCount: numberOrNull(
+              item.current_interval_usage_count,
+            ),
+            currentIntervalStartTime: numberOrNull(item.start_time),
+            currentIntervalEndTime: numberOrNull(item.end_time),
+            currentIntervalRemainingTime: numberOrNull(item.remains_time),
+            currentIntervalStatus: numberOrNull(item.current_interval_status),
+            currentIntervalRemainingPercent: numberOrNull(
+              item.current_interval_remaining_percent,
+            ),
+            currentWeeklyTotalCount: numberOrNull(
+              item.current_weekly_total_count,
+            ),
+            currentWeeklyRemainingCount: numberOrNull(
+              item.current_weekly_usage_count,
+            ),
+            currentWeeklyStatus: numberOrNull(item.current_weekly_status),
+            currentWeeklyRemainingPercent: numberOrNull(
+              item.current_weekly_remaining_percent,
+            ),
+            weeklyStartTime: numberOrNull(item.weekly_start_time),
+            weeklyEndTime: numberOrNull(item.weekly_end_time),
+            weeklyRemainingTime: numberOrNull(item.weekly_remains_time),
+            weeklyBoostPermille: numberOrNull(item.weekly_boost_permille),
+          },
+        ]
+      }),
+    }
+  } catch (error) {
+    return {
+      isAvailable: false,
+      balances: [],
+      tokenPlanUsages: [],
       error: error instanceof Error ? error.message : String(error),
     }
   }
@@ -777,6 +900,29 @@ function numberOrUndefined(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined
 }
 
+function numberOrNull(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  return null
+}
+
+function extractMiniMaxBaseRespError(
+  parsed: MiniMaxTokenPlanResponse,
+): string | null {
+  const baseResp = parsed.base_resp
+  if (!baseResp || typeof baseResp !== 'object') return null
+  const statusCode = baseResp.status_code
+  if (statusCode === 0 || statusCode === '0' || statusCode == null) return null
+  const statusMessage =
+    typeof baseResp.status_msg === 'string' && baseResp.status_msg.trim()
+      ? baseResp.status_msg.trim()
+      : 'MiniMax Token Plan request failed'
+  return `${statusCode} ${statusMessage}`
+}
+
 type ModelsDevProvider = {
   id?: string
   env?: unknown
@@ -820,4 +966,31 @@ type GatewayModel = {
     output?: unknown
     input_cache_read?: unknown
   }
+}
+
+type MiniMaxTokenPlanResponse = {
+  model_remains?: MiniMaxTokenPlanRemain[]
+  base_resp?: {
+    status_code?: unknown
+    status_msg?: unknown
+  }
+}
+
+type MiniMaxTokenPlanRemain = {
+  model_name?: unknown
+  start_time?: unknown
+  end_time?: unknown
+  remains_time?: unknown
+  current_interval_total_count?: unknown
+  current_interval_usage_count?: unknown
+  current_interval_status?: unknown
+  current_interval_remaining_percent?: unknown
+  current_weekly_total_count?: unknown
+  current_weekly_usage_count?: unknown
+  current_weekly_status?: unknown
+  current_weekly_remaining_percent?: unknown
+  weekly_start_time?: unknown
+  weekly_end_time?: unknown
+  weekly_remains_time?: unknown
+  weekly_boost_permille?: unknown
 }

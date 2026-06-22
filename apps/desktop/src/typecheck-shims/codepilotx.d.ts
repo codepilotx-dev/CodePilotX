@@ -553,6 +553,24 @@ declare module '@codepilotx/core/models/provider.js' {
     grantedBalance: string
     toppedUpBalance: string
   }
+  export type ProviderTokenPlanUsageInfo = {
+    modelName: string
+    currentIntervalTotalCount: number | null
+    currentIntervalRemainingCount: number | null
+    currentIntervalStartTime: number | null
+    currentIntervalEndTime: number | null
+    currentIntervalRemainingTime: number | null
+    currentIntervalStatus: number | null
+    currentIntervalRemainingPercent: number | null
+    currentWeeklyTotalCount: number | null
+    currentWeeklyRemainingCount: number | null
+    currentWeeklyStatus: number | null
+    currentWeeklyRemainingPercent: number | null
+    weeklyStartTime: number | null
+    weeklyEndTime: number | null
+    weeklyRemainingTime: number | null
+    weeklyBoostPermille: number | null
+  }
 }
 
 declare module '@codepilotx/core/utils/auth.js' {
@@ -827,6 +845,7 @@ declare module '@codepilotx/tui/utils/model/providerConfig.js' {
   }): Promise<{
     isAvailable: boolean
     balances: import('@codepilotx/core/models/provider.js').ProviderBalanceInfo[]
+    tokenPlanUsages?: import('@codepilotx/core/models/provider.js').ProviderTokenPlanUsageInfo[]
     error?: string
   }>
   export function saveSelectedProvider(options: {

@@ -21,6 +21,7 @@ import type {
   ModelProviderKind,
   ModelProviderSummary,
   ProviderBalanceInfo,
+  ProviderTokenPlanUsageInfo,
 } from '@codepilotx/core/models/provider.js'
 
 export type DesktopAuthStatus = {
@@ -174,10 +175,12 @@ export type DesktopProviderModelListResult = {
 }
 
 export type DesktopProviderBalanceInfo = ProviderBalanceInfo
+export type DesktopProviderTokenPlanUsageInfo = ProviderTokenPlanUsageInfo
 
 export type DesktopProviderBalanceResult = {
   isAvailable: boolean
   balances: DesktopProviderBalanceInfo[]
+  tokenPlanUsages?: DesktopProviderTokenPlanUsageInfo[]
   error?: string
 }
 
