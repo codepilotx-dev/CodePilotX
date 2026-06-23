@@ -2,7 +2,7 @@ import type { DesktopApi } from './types.js'
 
 export type DesktopApiMethod = Exclude<
   keyof DesktopApi,
-  'onAgentEvent' | 'onWorkflowEvent' | 'onUiCommand'
+  'onAgentEvent' | 'onWorkflowEvent' | 'onUiCommand' | 'onUpdateStatusChange'
 >
 
 export const DESKTOP_API_METHODS = [
@@ -64,6 +64,9 @@ export const DESKTOP_API_METHODS = [
   'openSettings',
   'logOut',
   'exitApp',
+  'checkForUpdates',
+  'downloadUpdate',
+  'quitAndInstall',
 ] as const satisfies readonly DesktopApiMethod[]
 
 export function desktopApiChannel(method: DesktopApiMethod): string {
@@ -73,3 +76,4 @@ export function desktopApiChannel(method: DesktopApiMethod): string {
 export const DESKTOP_AGENT_EVENT_CHANNEL = 'desktop:agent-event'
 export const DESKTOP_WORKFLOW_EVENT_CHANNEL = 'desktop:workflow-event'
 export const DESKTOP_UI_COMMAND_CHANNEL = 'desktop:ui-command'
+export const DESKTOP_UPDATE_STATUS_CHANNEL = 'desktop:update-status'

@@ -468,6 +468,14 @@ export type DesktopUiCommand =
   | 'openSettings'
   | 'logOut'
 
+export type DesktopUpdateStatus =
+  | { phase: 'checking' }
+  | { phase: 'available'; version: string }
+  | { phase: 'downloading'; percent: number }
+  | { phase: 'downloaded' }
+  | { phase: 'error'; message: string }
+  | { phase: 'no-update' }
+
 export type DesktopApi = {
   getAuthStatus(): Promise<DesktopAuthStatus>
   getRuntimeStatus(): Promise<DesktopRuntimeStatus>
@@ -573,4 +581,8 @@ export type DesktopApi = {
   onAgentEvent(callback: (event: DesktopAgentEvent) => void): () => void
   onWorkflowEvent(callback: (event: DesktopWorkflowEvent) => void): () => void
   onUiCommand(callback: (command: DesktopUiCommand) => void): () => void
+  checkForUpdates(): Promise<void>
+  downloadUpdate(): Promise<void>
+  quitAndInstall(): Promise<void>
+  onUpdateStatusChange(callback: (status: DesktopUpdateStatus) => void): () => void
 }
