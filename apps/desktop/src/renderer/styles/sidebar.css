@@ -619,3 +619,18 @@
     transform: rotate(360deg);
   }
 }
+
+.sidebar-settings-icon-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.sidebar-update-dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #f0b400;
+}

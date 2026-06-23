@@ -175,6 +175,7 @@ declare module '@codepilotx/core/agent/permissions.js' {
     behavior: 'allow' | 'deny'
     message?: string
     alwaysAllow?: boolean
+    updatedInput?: Record<string, unknown>
   }
   export type AgentPermissionRequest = {
     requestId: string

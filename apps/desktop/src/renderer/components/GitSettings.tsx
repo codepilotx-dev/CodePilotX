@@ -63,6 +63,7 @@ export function GitSettings(): React.ReactNode {
             control={
               <textarea
                 className="settings-textarea"
+                rows={4}
                 value={commitMessagePrompt}
                 placeholder="使用内置默认"
                 onChange={event => setCommitMessagePrompt(event.target.value)}
@@ -75,6 +76,7 @@ export function GitSettings(): React.ReactNode {
             control={
               <textarea
                 className="settings-textarea"
+                rows={4}
                 value={pullRequestPrompt}
                 placeholder="使用内置默认"
                 onChange={event => setPullRequestPrompt(event.target.value)}

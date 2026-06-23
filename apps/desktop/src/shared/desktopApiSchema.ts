@@ -50,6 +50,7 @@ const permissionDecision = z.object({
   behavior: z.enum(['allow', 'deny']),
   message: optionalText,
   alwaysAllow: z.boolean().optional(),
+  updatedInput: unknownObject.optional(),
 })
 
 const composerAttachment = z.object({
@@ -144,6 +145,9 @@ export const DESKTOP_API_ARG_SCHEMAS = {
   openSettings: emptyArgs,
   logOut: emptyArgs,
   exitApp: emptyArgs,
+  checkForUpdates: emptyArgs,
+  downloadUpdate: emptyArgs,
+  quitAndInstall: emptyArgs,
 } as const satisfies Record<DesktopApiMethod, z.ZodTuple>
 
 export function validateDesktopApiArgs(

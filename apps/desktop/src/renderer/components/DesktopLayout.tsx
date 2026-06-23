@@ -278,6 +278,22 @@ export function DesktopLayout(): React.ReactNode {
     [navigate, openRecentWorkspace, refreshWorkspace, setWorkspaceState],
   )
 
+  const handleClearWorkspace = useCallback((): void => {
+    navigate(QUICK_CHAT_PATH)
+    activateSessionById(null)
+    setWorkspaceState(null)
+    setDiffState(NO_WORKSPACE_DIFF)
+    setSelectedFile(null)
+    setInput('')
+  }, [
+    activateSessionById,
+    navigate,
+    setDiffState,
+    setInput,
+    setSelectedFile,
+    setWorkspaceState,
+  ])
+
   useEffect(() => {
     if (
       !shouldRestoreLastWorkspace({
@@ -946,6 +962,7 @@ export function DesktopLayout(): React.ReactNode {
       onInterrupt={interrupt}
       onProviderModelChange={handleProviderModelChange}
       onOpenWorkspace={handleOpenRecentWorkspace}
+      onClearWorkspace={handleClearWorkspace}
       onBranchSelect={handleBranchSelect}
       onCreateBranch={() => setGitWorkflowMode('branch')}
       onPermissionChange={setPermissionMode}
@@ -1011,6 +1028,7 @@ export function DesktopLayout(): React.ReactNode {
             branchName,
             diff: workspace.diff,
             gitStatus,
+            recentWorkspaces,
             onArchiveSession: () => {
               if (!activeSessionItem) return
               void handleUpdateSessionMetadata(activeSessionItem.id, {
@@ -1032,8 +1050,11 @@ export function DesktopLayout(): React.ReactNode {
             },
             onCommitOrPush: () => setGitWorkflowMode('commitPush'),
             onCreatePullRequest: () => setGitWorkflowMode('pullRequest'),
-            onDecidePermission: (request, behavior, alwaysAllow) => {
-              void decidePermission(request, behavior, alwaysAllow)
+            onChooseWorkspace: handleChooseWorkspace,
+            onOpenWorkspace: handleOpenRecentWorkspace,
+            onClearWorkspace: handleClearWorkspace,
+            onDecidePermission: (request, behavior, alwaysAllow, updatedInput) => {
+              void decidePermission(request, behavior, alwaysAllow, updatedInput)
             },
             events: isQuickChatPage || isConversationLoading ? [] : events,
             workflowEvents:

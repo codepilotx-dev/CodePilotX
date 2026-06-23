@@ -5,8 +5,11 @@
   z-index: 1000;
   display: inline-block;
   width: max-content;
-  min-width: 240px;
-  max-width: min(420px, calc(100vw - 32px));
+  min-width: 200px;
+  max-width: min(360px, calc(100vw - 32px));
+  max-height: min(420px, calc(100vh - 96px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 6px;
   border: 1px solid var(--black-a2);
   border-radius: var(--r-lg);
@@ -45,7 +48,8 @@
 
 .popover-model {
   max-height: min(320px, calc(100vh - 96px));
-  overflow: visible;
+
+  overflow-y: scroll;
 }
 
 .popover-provider-list {
@@ -67,7 +71,8 @@
 }
 
 .popover-model-submenu {
-  min-width: 260px;
+  min-width: 220px;
+  max-width: 320px;
   max-height: min(
     360px,
     var(--radix-dropdown-menu-content-available-height, calc(100vh - 96px))
@@ -86,11 +91,16 @@
 }
 
 .popover-mode {
-  min-width: 220px;
+  min-width: 200px;
+  max-width: 240px;
+  max-height: min(320px, calc(100vh - 96px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .popover-context {
-  min-width: 244px;
+  min-width: 200px;
+  max-width: 260px;
   padding: 8px;
   border-radius: 18px;
 }
@@ -135,9 +145,13 @@
 }
 
 .context-plugin-submenu {
-  min-width: 316px;
+  min-width: 240px;
+  max-width: 320px;
+  max-height: min(360px, calc(100vh - 96px));
   padding: 10px;
   border-radius: 18px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .context-plugin-item {

@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowUpRight,
   CircleUser,
+  Download,
   Gauge,
   LogOut,
   Send,
@@ -17,6 +18,7 @@ import type {
   DesktopModelProviderState,
   DesktopProviderBalanceResult,
   DesktopProviderTokenPlanUsageInfo,
+  DesktopUpdateStatus,
   ModelProviderID,
 } from '../../../shared/types.js'
 import { IconButton } from "../ui/IconButton.js";
@@ -56,6 +58,12 @@ export function SidebarFooter(): React.ReactNode {
   const [usageExpanded, setUsageExpanded] = useState(false);
   const [usage, setUsage] = useState<ProviderUsageState>(EMPTY_USAGE);
   const settingsActive = location.pathname === "/settings";
+  const [updateStatus, setUpdateStatus] = useState<DesktopUpdateStatus | null>(null)
+
+  useEffect(() => {
+    const unsubscribe = desktopClient.onUpdateStatusChange(setUpdateStatus)
+    return unsubscribe
+  }, [])
 
   const refreshUsage = useCallback(async (): Promise<void> => {
     setUsage(previous => ({ ...previous, loading: true, error: null }));
@@ -117,7 +125,14 @@ export function SidebarFooter(): React.ReactNode {
             asChild
             className="sidebar-settings-link"
             labelClassName="sidebar-settings-label"
-            leading={<Settings2 size={APP_ICON_SIZE} />}
+            leading={
+              <span className="sidebar-settings-icon-wrap">
+                <Settings2 size={APP_ICON_SIZE} />
+                {updateStatus?.phase === 'available' ? (
+                  <span className="sidebar-update-dot" />
+                ) : null}
+              </span>
+            }
           >
             <button className="sidebar-footer-trigger" type="button">
               设置
@@ -230,6 +245,26 @@ export function SidebarFooter(): React.ReactNode {
                 ) : null}
               </AnimatePresence>
             </>
+          ) : null}
+          {(updateStatus?.phase === 'available' ||
+            updateStatus?.phase === 'downloading' ||
+            updateStatus?.phase === 'downloaded') ? (
+            <PopoverItem
+              icon={<Download size={APP_ICON_SIZE} />}
+              onClick={() => {
+                if (updateStatus.phase === 'downloaded') {
+                  void desktopClient.quitAndInstall()
+                } else if (updateStatus.phase === 'available') {
+                  void desktopClient.downloadUpdate()
+                }
+              }}
+            >
+              {updateStatus.phase === 'downloaded'
+                ? '重启安装'
+                : updateStatus.phase === 'downloading'
+                  ? `下载中 ${Math.round(updateStatus.percent)}%`
+                  : '安装更新'}
+            </PopoverItem>
           ) : null}
           <PopoverItem
             icon={<LogOut size={APP_ICON_SIZE} />}

@@ -64,7 +64,7 @@ test('resolveDesktopPermissionPolicyDecision short-circuits allow and deny effec
   ).toBe(null)
 })
 
-test('default workspace-write policy allows ordinary workspace edits', () => {
+test('default workspace-write policy prompts for ordinary workspace edits', () => {
   const workspacePath = resolve('tmp', 'desktop-workspace')
   const request = {
     requestId: 'permission-edit',
@@ -84,10 +84,7 @@ test('default workspace-write policy allows ordinary workspace edits', () => {
       request,
       workspacePath,
     ),
-  ).toEqual({
-    behavior: 'allow',
-    alwaysAllow: true,
-  })
+  ).toBe(null)
 })
 
 test('auto workspace-write policy allows ordinary workspace writes', () => {

@@ -93,6 +93,7 @@ export function PersonalizationSettings(): React.ReactNode {
         >
           <textarea
             className="settings-textarea settings-textarea-tall"
+            rows={10}
             onChange={event => setDraftInstructions(event.target.value)}
             placeholder="1、用 utf-8 读取文件！&#10;2、不写测试"
             value={draftInstructions}

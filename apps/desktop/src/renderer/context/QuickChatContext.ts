@@ -7,6 +7,7 @@ import type {
   DesktopSessionEvent,
   DesktopSessionStatus,
   DesktopWorkflowEvent,
+  DesktopWorkspace,
 } from '../../shared/types.js'
 
 export type QuickChatContextValue = {
@@ -21,6 +22,7 @@ export type QuickChatContextValue = {
   branchName: string | null
   diff: string
   gitStatus: DesktopGitStatus | null
+  recentWorkspaces: DesktopWorkspace[]
   onArchiveSession: () => void
   onCreateBranch: () => void
   onOpenAutomation: () => void
@@ -30,10 +32,14 @@ export type QuickChatContextValue = {
   onToggleSessionPinned: () => void
   onCommitOrPush: () => void
   onCreatePullRequest: () => void
+  onChooseWorkspace: () => Promise<DesktopWorkspace | null>
+  onOpenWorkspace: (workspace: DesktopWorkspace) => Promise<DesktopWorkspace | null>
+  onClearWorkspace: () => void
   onDecidePermission: (
     request: DesktopPermissionRequest,
     behavior: 'allow' | 'deny',
     alwaysAllow?: boolean,
+    updatedInput?: Record<string, unknown>,
   ) => void
   events: DesktopSessionEvent[]
   workflowEvents: DesktopWorkflowEvent[]

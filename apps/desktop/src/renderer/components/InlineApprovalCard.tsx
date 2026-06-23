@@ -1,14 +1,13 @@
 import React from 'react'
 import { ArrowDown, ArrowUp, CornerDownLeft, Pencil } from 'lucide-react'
 import type { DesktopPermissionRequest } from '../../shared/types.js'
+import { AskUserQuestionApproval } from './AskUserQuestionApproval.js'
 
-type ApprovalChoice = 'allow' | 'alwaysAllow' | 'deny'
+type ApprovalChoice = 'allow' | 'alwaysAllow'
 
-export type InlineApprovalSummary = {
-  label: string
-  additions: number | null
-  deletions: number | null
-  accent: 'file' | 'tool'
+export type InlineApprovalCommand = {
+  full: string
+  hint: string
 }
 
 export type InlineApprovalCardProps = {
@@ -17,8 +16,11 @@ export type InlineApprovalCardProps = {
     request: DesktopPermissionRequest,
     behavior: 'allow' | 'deny',
     alwaysAllow?: boolean,
+    updatedInput?: Record<string, unknown>,
   ) => void
 }
+
+const COMMAND_HINT_MAX_LENGTH = 56
 
 export function InlineApprovalCard({
   request,
@@ -26,41 +28,43 @@ export function InlineApprovalCard({
 }: InlineApprovalCardProps): React.ReactNode {
   const [selectedChoice, setSelectedChoice] =
     React.useState<ApprovalChoice>('allow')
-  const summary = buildInlineApprovalSummary(request)
+  const [feedback, setFeedback] = React.useState('')
+  const command = buildInlineApprovalCommand(request)
+
+  if (request.toolName === 'AskUserQuestion') {
+    return (
+      <section className="inline-approval-card" aria-label="回答问题">
+        <AskUserQuestionApproval
+          request={request}
+          onReject={() => onDecide(request, 'deny')}
+          onSubmit={updatedInput =>
+            onDecide(request, 'allow', false, updatedInput)
+          }
+        />
+      </section>
+    )
+  }
 
   function submitChoice(): void {
-    if (selectedChoice === 'allow') {
-      onDecide(request, 'allow')
+    if (feedback.trim()) {
+      onDecide(request, 'deny', false, { feedback: feedback.trim() })
       return
     }
     if (selectedChoice === 'alwaysAllow') {
       onDecide(request, 'allow', true)
       return
     }
-    onDecide(request, 'deny')
+    onDecide(request, 'allow')
   }
 
   return (
     <section className="inline-approval-card" aria-label="等待审批">
       <header className="inline-approval-header">
-        <h2>是否应用这些更改?</h2>
+        <h2>{request.description}</h2>
       </header>
 
       <div className="inline-approval-summary">
-        <span className={`inline-approval-target ${summary.accent}`}>
-          {summary.label}
-        </span>
-        {summary.additions !== null ? (
-          <span className="inline-approval-additions">
-            +{summary.additions}
-          </span>
-        ) : null}
-        {summary.deletions !== null ? (
-          <span className="inline-approval-deletions">
-            -{summary.deletions}
-          </span>
-        ) : null}
-        <span className="inline-approval-dot" />
+        <code className="inline-approval-command">{command.full}</code>
       </div>
 
       <div className="inline-approval-options" role="radiogroup">
@@ -72,17 +76,33 @@ export function InlineApprovalCard({
         />
         <ApprovalOption
           index={2}
-          label="是，且本次会话不再询问"
+          label="是，且对于以后续内容开头的命令不再询问"
+          hint={command.hint}
           selected={selectedChoice === 'alwaysAllow'}
           onSelect={() => setSelectedChoice('alwaysAllow')}
         />
-        <ApprovalOption
-          muted
-          indexIcon={<Pencil size={16} />}
-          label="否，请告知 Codex 如何调整"
-          selected={selectedChoice === 'deny'}
-          onSelect={() => setSelectedChoice('deny')}
-        />
+        <label
+          className={
+            feedback.trim()
+              ? 'inline-approval-option custom filled'
+              : 'inline-approval-option custom'
+          }
+        >
+          <span className="inline-approval-option-index">
+            <Pencil size={14} />
+          </span>
+          <input
+            className="inline-approval-feedback-input"
+            placeholder="否，请告知 Codex 如何调整"
+            type="text"
+            value={feedback}
+            onChange={event => {
+              const next = event.target.value
+              setFeedback(next)
+              if (next.trim()) setSelectedChoice('allow')
+            }}
+          />
+        </label>
       </div>
 
       <div className="inline-approval-footer">
@@ -110,6 +130,7 @@ function ApprovalOption({
   index,
   indexIcon,
   label,
+  hint,
   muted = false,
   selected,
   onSelect,
@@ -117,6 +138,7 @@ function ApprovalOption({
   index?: number
   indexIcon?: React.ReactNode
   label: string
+  hint?: string
   muted?: boolean
   selected: boolean
   onSelect: () => void
@@ -138,7 +160,12 @@ function ApprovalOption({
       <span className="inline-approval-option-index">
         {indexIcon ?? index}
       </span>
-      <span className="inline-approval-option-label">{label}</span>
+      <span className="inline-approval-option-label">
+        {label}
+        {hint ? (
+          <span className="inline-approval-option-hint"> {hint}</span>
+        ) : null}
+      </span>
       {selected ? (
         <span className="inline-approval-option-arrows" aria-hidden="true">
           <ArrowUp size={14} />
@@ -149,29 +176,57 @@ function ApprovalOption({
   )
 }
 
-export function buildInlineApprovalSummary(
+export function buildInlineApprovalCommand(
   request: DesktopPermissionRequest,
-): InlineApprovalSummary {
-  const filePath = request.input.file_path ?? request.input.filePath
-  const additions = numberFromInput(request.input.additions)
-  const deletions = numberFromInput(request.input.deletions)
-  if (typeof filePath === 'string' && filePath.trim()) {
-    return {
-      label: filePath,
-      additions,
-      deletions,
-      accent: 'file',
-    }
-  }
-
+): InlineApprovalCommand {
+  const full = formatCommandLine(request)
   return {
-    label: request.description || request.toolName,
-    additions: null,
-    deletions: null,
-    accent: 'tool',
+    full,
+    hint: truncateCommand(full, COMMAND_HINT_MAX_LENGTH),
   }
 }
 
-function numberFromInput(value: unknown): number | null {
-  return typeof value === 'number' && Number.isFinite(value) ? value : null
+function formatCommandLine(request: DesktopPermissionRequest): string {
+  const { toolName, input } = request
+  const filePath = stringValue(input.file_path) ?? stringValue(input.filePath)
+  const isFileTool =
+    toolName === 'Edit' ||
+    toolName === 'Write' ||
+    toolName === 'MultiEdit' ||
+    toolName === 'Read'
+
+  if (isFileTool) {
+    return filePath ? `${toolName} ${filePath}` : toolName
+  }
+
+  const parts: string[] = [toolName]
+  for (const [key, value] of Object.entries(input)) {
+    if (key === 'file_path' || key === 'filePath') continue
+    const flag = key.length === 1 ? `-${key}` : `-${key}`
+    if (typeof value === 'string') {
+      parts.push(`${flag} ${quoteIfNeeded(value)}`)
+    } else if (typeof value === 'number' || typeof value === 'boolean') {
+      parts.push(`${flag} ${String(value)}`)
+    } else if (value !== null && value !== undefined) {
+      parts.push(`${flag} ${JSON.stringify(value)}`)
+    }
+  }
+  return parts.join(' ')
+}
+
+function quoteIfNeeded(value: string): string {
+  if (value === '') return "''"
+  if (/[\s'"$`]/.test(value)) {
+    return `'${value.replace(/'/g, "''")}'`
+  }
+  return value
+}
+
+function truncateCommand(value: string, maxLength: number): string {
+  if (value.length <= maxLength) return value
+  return `${value.slice(0, maxLength)}…`
+}
+
+function stringValue(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value : null
 }

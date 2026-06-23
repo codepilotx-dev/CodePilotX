@@ -84,8 +84,8 @@
 
 .menubar-content {
   z-index: 1000;
-  min-width: 260px;
-  max-width: min(420px, calc(100vw - 32px));
+  min-width: 200px;
+  max-width: min(360px, calc(100vw - 32px));
   max-height: var(--radix-menubar-content-available-height);
   overflow-y: auto;
   padding: 6px;
@@ -100,11 +100,13 @@
 }
 
 .menubar-content-help {
-  min-width: 280px;
+  min-width: 220px;
+  max-width: 360px;
 }
 
 .menubar-content-window {
-  min-width: 200px;
+  min-width: 160px;
+  max-width: 280px;
 }
 
 .menubar-item {

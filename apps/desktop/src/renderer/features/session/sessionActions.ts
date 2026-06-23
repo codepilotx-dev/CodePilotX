@@ -179,6 +179,7 @@ export async function decidePermissionAction(
   request: DesktopPermissionRequest,
   behavior: 'allow' | 'deny',
   alwaysAllow = false,
+  updatedInput?: Record<string, unknown>,
 ): Promise<void> {
   if (!sessionId) return
   updateSessionView(sessionId, view => ({
@@ -192,6 +193,7 @@ export async function decidePermissionAction(
       behavior,
       message: behavior === 'deny' ? '在桌面端界面中拒绝' : undefined,
       alwaysAllow,
+      updatedInput,
     })
   } catch (error) {
     onErrorRef.current(errorMessageOf(error))

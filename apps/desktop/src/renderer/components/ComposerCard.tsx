@@ -10,7 +10,6 @@ import {
   ChevronRight,
   FileText,
   Folder,
-  FolderPlus,
   FileSpreadsheet,
   GitBranch,
   Hand,
@@ -49,6 +48,7 @@ import { MetaChip } from './ui/MetaChip.js'
 import { PopoverItem } from './ui/PopoverItem.js'
 import { PopoverMenu } from './ui/PopoverMenu.js'
 import { SearchInput } from './ui/SearchInput.js'
+import { ProjectSwitcherPopover } from './ProjectSwitcherPopover.js'
 
 type Option<T extends string> = {
   value: T
@@ -151,6 +151,7 @@ type Props = {
   onOpenFiles: () => void
   onRemoveAttachment?: (attachmentId: string) => void
   onOpenWorkspace: (workspace: DesktopWorkspace) => void
+  onClearWorkspace: () => void
   onBranchSelect: (branch: string) => void
   onCreateBranch: () => void
   onPermissionChange: (value: DesktopPermissionMode) => void
@@ -190,6 +191,7 @@ export function ComposerCard({
   onOpenFiles,
   onRemoveAttachment,
   onOpenWorkspace,
+  onClearWorkspace,
   onBranchSelect,
   onCreateBranch,
   onPermissionChange,
@@ -200,7 +202,6 @@ export function ComposerCard({
   const [openDropdown, setOpenDropdown] = useState<ComposerDropdown | null>(
     null,
   )
-  const [projectSearch, setProjectSearch] = useState('')
   const [branchSearch, setBranchSearch] = useState('')
   const [planModeEnabled, setPlanModeEnabled] = useState(false)
   const [goalModeEnabled, setGoalModeEnabled] = useState(false)
@@ -236,17 +237,6 @@ export function ComposerCard({
         ? '超高'
         : '高'
     : (selectedThinking?.label ?? '默认')
-
-  const filteredWorkspaces = useMemo(() => {
-    const keyword = projectSearch.trim().toLowerCase()
-    if (!keyword) return recentWorkspaces
-    return recentWorkspaces.filter(item =>
-      [item.name, item.path, item.branchName ?? '']
-        .join(' ')
-        .toLowerCase()
-        .includes(keyword),
-    )
-  }, [projectSearch, recentWorkspaces])
 
   const filteredBranches = useMemo(() => {
     const availableBranches =
@@ -874,11 +864,21 @@ export function ComposerCard({
       </div>
 
       <div className="composer-bottom">
-        <PopoverMenu
-          className="popover-project"
-          open={openDropdown === 'project'}
+        <ProjectSwitcherPopover
           side="top"
+          open={openDropdown === 'project'}
           onOpenChange={open => setOpenDropdown(open ? 'project' : null)}
+          recentWorkspaces={recentWorkspaces}
+          workspace={workspace}
+          onOpenWorkspace={onOpenWorkspace}
+          onChooseWorkspace={() => {
+            onChooseWorkspace()
+            closeDropdown()
+          }}
+          onClearWorkspace={() => {
+            onClearWorkspace()
+            closeDropdown()
+          }}
           trigger={
             <MetaChip
               active={openDropdown === 'project'}
@@ -887,44 +887,7 @@ export function ComposerCard({
               title="选择项目"
             />
           }
-        >
-          <SearchInput
-            value={projectSearch}
-            onChange={setProjectSearch}
-            placeholder="搜索项目"
-          />
-          <div className="popover-section">
-            {filteredWorkspaces.length === 0 ? (
-              <div className="popover-empty">无匹配项目</div>
-            ) : (
-              filteredWorkspaces.map(item => (
-                <PopoverItem
-                  icon={<Folder size={APP_ICON_SIZE} />}
-                  key={item.path}
-                  selected={item.path === workspace?.path}
-                  withCheck
-                  onClick={() => {
-                    onOpenWorkspace(item)
-                    closeDropdown()
-                  }}
-                >
-                  {item.name}
-                </PopoverItem>
-              ))
-            )}
-          </div>
-          <div className="popover-divider" />
-          <PopoverItem
-            icon={<FolderPlus size={APP_ICON_SIZE} />}
-            withArrow
-            onClick={() => {
-              onChooseWorkspace()
-              closeDropdown()
-            }}
-          >
-            添加新项目
-          </PopoverItem>
-        </PopoverMenu>
+        />
 
         {workspace ? (
           <>

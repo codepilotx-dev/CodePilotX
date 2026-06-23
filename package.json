@@ -88,6 +88,7 @@
     "cli-boxes": "latest",
     "code-excerpt": "latest",
     "diff": "latest",
+    "electron-updater": "^6.8.9",
     "emoji-regex": "latest",
     "env-paths": "latest",
     "execa": "latest",
