@@ -29,6 +29,7 @@ import {
 } from './themeSettings.js'
 import type { DesktopApiHandlers } from './ipc.js'
 import { createDesktopApiHandlers } from './ipc.js'
+import { desktopAutoUpdater } from './autoUpdater.js'
 import type { DesktopAgentRuntimePreference } from './agentRuntime.js'
 import {
   chooseDesktopComposerFiles,
@@ -174,6 +175,15 @@ export function buildDesktopApiHandlers(
     openSettings: async () => windowService.openSettings(),
     logOut: async () => windowService.logOut(),
     exitApp: async () => windowService.exitApp(),
+    checkForUpdates: async () => {
+      desktopAutoUpdater?.checkForUpdates()
+    },
+    downloadUpdate: async () => {
+      desktopAutoUpdater?.downloadUpdate()
+    },
+    quitAndInstall: async () => {
+      desktopAutoUpdater?.quitAndInstall()
+    },
   })
 }
 

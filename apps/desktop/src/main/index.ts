@@ -28,6 +28,8 @@ import { applyDesktopAgentRuntimeEnvDefaults } from './desktopRuntimeEnv.js'
 import { createDesktopJsonRpcAppServerBridge } from './desktopJsonRpcAppServerBridge.js'
 import { registerDesktopIpcHandlers } from './ipc.js'
 import { createDesktopWindowService } from './windowService.js'
+import { createDesktopAutoUpdater } from './autoUpdater.js'
+import { DESKTOP_UPDATE_STATUS_CHANNEL } from '../shared/ipcChannels.js'
 import {
   assertAllowedWorkspace,
   configureWorkspaceService,
@@ -906,6 +908,13 @@ applyDesktopAgentRuntimeEnvDefaults()
 enableConfigs()
 app.setAppUserModelId(DESKTOP_APP_ID)
 registerIpc()
+
+createDesktopAutoUpdater({
+  onStatusChange: (status) => {
+    const window = windowService.getWindow()
+    window?.webContents.send(DESKTOP_UPDATE_STATUS_CHANNEL, status)
+  },
+})
 
 app.whenReady().then(() => {
   windowService.createApplicationMenu()
