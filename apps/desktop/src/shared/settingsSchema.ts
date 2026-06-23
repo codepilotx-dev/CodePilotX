@@ -8,6 +8,8 @@ import type { AgentPermissionPolicy } from '@codepilotx/core/agent/permissions.j
 import type {
   DesktopDrawerTab,
   DesktopPermissionMode,
+  DesktopPersonality,
+  DesktopSandboxMode,
   DesktopStoredSettings,
   DesktopThinkingMode,
   DesktopWorkspace,
@@ -23,6 +25,20 @@ export const DESKTOP_THINKING_MODES = new Set<DesktopThinkingMode>([
   'enabled',
   'adaptive',
   'disabled',
+])
+
+export const DESKTOP_SANDBOX_MODES = new Set<DesktopSandboxMode>([
+  'read-only',
+  'workspace-write',
+  'full-access',
+  'danger-full-access',
+])
+
+export const DESKTOP_PERSONALITIES = new Set<DesktopPersonality>([
+  'pragmatic',
+  'friendly',
+  'concise',
+  'encouraging',
 ])
 
 export const DESKTOP_DRAWER_TABS = new Set<DesktopDrawerTab>([
@@ -60,6 +76,13 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     allowForcePush: false,
     commitMessagePrompt: '',
     pullRequestPrompt: '',
+    sandboxMode: 'workspace-write',
+    allowNetworkAccess: true,
+    installCodexDependencies: true,
+    personality: 'pragmatic',
+    customInstructions: '',
+    enableMemory: false,
+    skipToolAidedChats: false,
   }
 }
 
@@ -154,6 +177,32 @@ export function normalizeDesktopStoredSettings(
       parsed.pullRequestPrompt,
       defaults.pullRequestPrompt,
     ),
+    sandboxMode: isDesktopSandboxMode(parsed.sandboxMode)
+      ? parsed.sandboxMode
+      : defaults.sandboxMode,
+    allowNetworkAccess:
+      typeof parsed.allowNetworkAccess === 'boolean'
+        ? parsed.allowNetworkAccess
+        : defaults.allowNetworkAccess,
+    installCodexDependencies:
+      typeof parsed.installCodexDependencies === 'boolean'
+        ? parsed.installCodexDependencies
+        : defaults.installCodexDependencies,
+    personality: isDesktopPersonality(parsed.personality)
+      ? parsed.personality
+      : defaults.personality,
+    customInstructions: stringOrDefault(
+      parsed.customInstructions,
+      defaults.customInstructions,
+    ),
+    enableMemory:
+      typeof parsed.enableMemory === 'boolean'
+        ? parsed.enableMemory
+        : defaults.enableMemory,
+    skipToolAidedChats:
+      typeof parsed.skipToolAidedChats === 'boolean'
+        ? parsed.skipToolAidedChats
+        : defaults.skipToolAidedChats,
   }
 }
 
@@ -217,6 +266,24 @@ export function isDesktopThinkingMode(
   return (
     typeof value === 'string' &&
     DESKTOP_THINKING_MODES.has(value as DesktopThinkingMode)
+  )
+}
+
+export function isDesktopSandboxMode(
+  value: unknown,
+): value is DesktopSandboxMode {
+  return (
+    typeof value === 'string' &&
+    DESKTOP_SANDBOX_MODES.has(value as DesktopSandboxMode)
+  )
+}
+
+export function isDesktopPersonality(
+  value: unknown,
+): value is DesktopPersonality {
+  return (
+    typeof value === 'string' &&
+    DESKTOP_PERSONALITIES.has(value as DesktopPersonality)
   )
 }
 

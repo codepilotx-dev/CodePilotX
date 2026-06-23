@@ -1,11 +1,12 @@
 import React from 'react'
 import { AppearanceSettings } from './AppearanceSettings.js'
 import { ArchivedConversationsSettings } from './ArchivedConversationsSettings.js'
+import { ConfigSettings } from './ConfigSettings.js'
 import { GeneralSettings } from './GeneralSettings.js'
 import { GitSettings } from './GitSettings.js'
 import { McpSettings } from './McpSettings.js'
 import { ModelConnectionSettings } from './ModelConnectionSettings.js'
-import { ModelProviderSettings } from './ModelProviderSettings.js'
+import { PersonalizationSettings } from './PersonalizationSettings.js'
 import { SettingsSection } from './SettingsSection.js'
 import { UsageBillingSettings } from './UsageBillingSettings.js'
 
@@ -17,10 +18,11 @@ type Props = {
 export function SettingsPage({ activeTab, onError }: Props): React.ReactNode {
   if (activeTab === 'general') return <GeneralSettings />
   if (activeTab === 'appearance') return <AppearanceSettings />
-  if (activeTab === 'config') return <ModelProviderSettings />
+  if (activeTab === 'config') return <ConfigSettings />
   if (activeTab === 'connections') return <ModelConnectionSettings onError={onError} />
   if (activeTab === 'mcp') return <McpSettings />
   if (activeTab === 'git') return <GitSettings />
+  if (activeTab === 'personalization') return <PersonalizationSettings />
   if (activeTab === 'archived') return <ArchivedConversationsSettings />
   if (activeTab === 'billing') return <UsageBillingSettings />
   return (

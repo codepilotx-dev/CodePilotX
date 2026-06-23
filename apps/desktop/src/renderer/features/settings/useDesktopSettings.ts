@@ -10,6 +10,8 @@ import {
 import type { DrawerTab } from '../../uiTypes.js'
 import type {
   DesktopPermissionMode,
+  DesktopPersonality,
+  DesktopSandboxMode,
   DesktopThinkingMode,
   DesktopWorkspace,
   ModelProviderID,
@@ -44,6 +46,13 @@ export type UseDesktopSettingsResult = {
   allowForcePush: boolean
   commitMessagePrompt: string
   pullRequestPrompt: string
+  sandboxMode: DesktopSandboxMode
+  allowNetworkAccess: boolean
+  installCodexDependencies: boolean
+  personality: DesktopPersonality
+  customInstructions: string
+  enableMemory: boolean
+  skipToolAidedChats: boolean
   settingsLoaded: boolean
   setPermissionMode: (value: DesktopPermissionMode) => void
   setModel: (value: string) => void
@@ -70,6 +79,13 @@ export type UseDesktopSettingsResult = {
   setAllowForcePush: (value: boolean) => void
   setCommitMessagePrompt: (value: string) => void
   setPullRequestPrompt: (value: string) => void
+  setSandboxMode: (value: DesktopSandboxMode) => void
+  setAllowNetworkAccess: (value: boolean) => void
+  setInstallCodexDependencies: (value: boolean) => void
+  setPersonality: (value: DesktopPersonality) => void
+  setCustomInstructions: (value: string) => void
+  setEnableMemory: (value: boolean) => void
+  setSkipToolAidedChats: (value: boolean) => void
 }
 
 const DesktopSettingsContext = createContext<UseDesktopSettingsResult | null>(
@@ -148,6 +164,25 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
   const [pullRequestPrompt, setPullRequestPrompt] = useState(
     initial.pullRequestPrompt,
   )
+  const [sandboxMode, setSandboxMode] = useState<DesktopSandboxMode>(
+    initial.sandboxMode,
+  )
+  const [allowNetworkAccess, setAllowNetworkAccess] = useState(
+    initial.allowNetworkAccess,
+  )
+  const [installCodexDependencies, setInstallCodexDependencies] = useState(
+    initial.installCodexDependencies,
+  )
+  const [personality, setPersonality] = useState<DesktopPersonality>(
+    initial.personality,
+  )
+  const [customInstructions, setCustomInstructions] = useState(
+    initial.customInstructions,
+  )
+  const [enableMemory, setEnableMemory] = useState(initial.enableMemory)
+  const [skipToolAidedChats, setSkipToolAidedChats] = useState(
+    initial.skipToolAidedChats,
+  )
   const [settingsLoaded, setSettingsLoaded] = useState(false)
 
   useEffect(() => {
@@ -179,6 +214,13 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
         setAllowForcePush(settings.allowForcePush)
         setCommitMessagePrompt(settings.commitMessagePrompt)
         setPullRequestPrompt(settings.pullRequestPrompt)
+        setSandboxMode(settings.sandboxMode)
+        setAllowNetworkAccess(settings.allowNetworkAccess)
+        setInstallCodexDependencies(settings.installCodexDependencies)
+        setPersonality(settings.personality)
+        setCustomInstructions(settings.customInstructions)
+        setEnableMemory(settings.enableMemory)
+        setSkipToolAidedChats(settings.skipToolAidedChats)
         setSettingsLoaded(true)
       })
       .catch(() => {
@@ -217,6 +259,13 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
       allowForcePush,
       commitMessagePrompt,
       pullRequestPrompt,
+      sandboxMode,
+      allowNetworkAccess,
+      installCodexDependencies,
+      personality,
+      customInstructions,
+      enableMemory,
+      skipToolAidedChats,
     }
     storeDesktopSettings(next)
   }, [
@@ -243,6 +292,13 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     allowForcePush,
     commitMessagePrompt,
     pullRequestPrompt,
+    sandboxMode,
+    allowNetworkAccess,
+    installCodexDependencies,
+    personality,
+    customInstructions,
+    enableMemory,
+    skipToolAidedChats,
   ])
 
   return {
@@ -269,6 +325,13 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     allowForcePush,
     commitMessagePrompt,
     pullRequestPrompt,
+    sandboxMode,
+    allowNetworkAccess,
+    installCodexDependencies,
+    personality,
+    customInstructions,
+    enableMemory,
+    skipToolAidedChats,
     settingsLoaded,
     setPermissionMode,
     setModel,
@@ -293,5 +356,12 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     setAllowForcePush,
     setCommitMessagePrompt,
     setPullRequestPrompt,
+    setSandboxMode,
+    setAllowNetworkAccess,
+    setInstallCodexDependencies,
+    setPersonality,
+    setCustomInstructions,
+    setEnableMemory,
+    setSkipToolAidedChats,
   }
 }

@@ -1732,3 +1732,19 @@
     min-width: 0;
   }
 }
+
+/* --- Config / Personalization settings --- */
+.settings-textarea-tall {
+  min-height: 200px;
+  font-family: var(--ff-mono);
+  line-height: 1.55;
+}
+
+.settings-version-value {
+  font-variant-numeric: tabular-nums;
+  font-family: var(--ff-mono);
+}
+
+.settings-config-actions {
+  align-items: center;
+}

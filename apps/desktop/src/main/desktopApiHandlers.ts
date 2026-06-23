@@ -1,4 +1,5 @@
 import { shell } from 'electron'
+import { join } from 'node:path'
 import {
   getAuthStatus,
   getRuntimeStatus,
@@ -158,6 +159,7 @@ export function buildDesktopApiHandlers(
     setActiveSession: dependencies.setActiveSession,
     updateSessionMetadata: dependencies.updateSessionMetadata,
     readWorkflowEventLog: async () => windowService.readWorkflowEventLog(),
+    openConfigFile: async () => openConfigFile(dependencies.getRuntimeOptions()),
     openExternalURL,
     sendUserMessage: dependencies.sendUserMessage,
     respondToPermission: dependencies.respondToPermission,
@@ -187,6 +189,21 @@ async function openExternalURL(url: string): Promise<void> {
     throw new Error('Only HTTPS external URLs can be opened.')
   }
   await shell.openExternal(parsed.toString())
+}
+
+async function openConfigFile(options: {
+  configDirectoryPath: string
+}): Promise<{ path: string }> {
+  const configDirectory = requireNonEmptyString(
+    options.configDirectoryPath,
+    'Config directory path',
+  )
+  const configPath = join(configDirectory, 'config.toml')
+  const errorMessage = await shell.openPath(configPath)
+  if (errorMessage) {
+    throw new Error(errorMessage)
+  }
+  return { path: configPath }
 }
 
 function requireNonEmptyString(value: unknown, label: string): string {

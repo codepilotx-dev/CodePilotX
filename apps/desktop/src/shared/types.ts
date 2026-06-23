@@ -225,6 +225,18 @@ export type SaveDesktopModelProviderOptions = {
   baseURL?: string
 }
 
+export type DesktopSandboxMode =
+  | 'read-only'
+  | 'workspace-write'
+  | 'full-access'
+  | 'danger-full-access'
+
+export type DesktopPersonality =
+  | 'pragmatic'
+  | 'friendly'
+  | 'concise'
+  | 'encouraging'
+
 export type DesktopStoredSettings = {
   permissionMode: DesktopPermissionMode
   model: string
@@ -249,6 +261,13 @@ export type DesktopStoredSettings = {
   allowForcePush: boolean
   commitMessagePrompt: string
   pullRequestPrompt: string
+  sandboxMode: DesktopSandboxMode
+  allowNetworkAccess: boolean
+  installCodexDependencies: boolean
+  personality: DesktopPersonality
+  customInstructions: string
+  enableMemory: boolean
+  skipToolAidedChats: boolean
 }
 
 export type DesktopMcpScope =
@@ -528,6 +547,7 @@ export type DesktopApi = {
     patch: DesktopSessionMetadataPatch,
   ): Promise<DesktopSessionSnapshot>
   readWorkflowEventLog(): Promise<DesktopWorkflowEvent[]>
+  openConfigFile(): Promise<{ path: string }>
   openExternalURL(url: string): Promise<void>
   sendUserMessage(
     sessionId: string,
