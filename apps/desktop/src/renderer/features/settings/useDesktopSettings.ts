@@ -24,6 +24,10 @@ export type UseDesktopSettingsResult = {
   permissionMode: DesktopPermissionMode
   model: string
   fallbackModel: string
+  smallFastModel: string
+  fastModel: string
+  defaultModel: string
+  deepModel: string
   sessionName: string
   thinkingMode: DesktopThinkingMode
   systemPrompt: string
@@ -40,9 +44,14 @@ export type UseDesktopSettingsResult = {
   allowForcePush: boolean
   commitMessagePrompt: string
   pullRequestPrompt: string
+  settingsLoaded: boolean
   setPermissionMode: (value: DesktopPermissionMode) => void
   setModel: (value: string) => void
   setFallbackModel: (value: string) => void
+  setSmallFastModel: (value: string) => void
+  setFastModel: (value: string) => void
+  setDefaultModel: (value: string) => void
+  setDeepModel: (value: string) => void
   setSessionName: (value: string) => void
   setThinkingMode: (value: DesktopThinkingMode) => void
   setSystemPrompt: (value: string) => void
@@ -95,6 +104,10 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
   )
   const [model, setModel] = useState(initial.model)
   const [fallbackModel, setFallbackModel] = useState(initial.fallbackModel)
+  const [smallFastModel, setSmallFastModel] = useState(initial.smallFastModel)
+  const [fastModel, setFastModel] = useState(initial.fastModel)
+  const [defaultModel, setDefaultModel] = useState(initial.defaultModel)
+  const [deepModel, setDeepModel] = useState(initial.deepModel)
   const [sessionName, setSessionName] = useState(initial.sessionName)
   const [thinkingMode, setThinkingMode] = useState<DesktopThinkingMode>(
     initial.thinkingMode,
@@ -146,6 +159,10 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
         setPermissionMode(settings.permissionMode)
         setModel(settings.model)
         setFallbackModel(settings.fallbackModel)
+        setSmallFastModel(settings.smallFastModel)
+        setFastModel(settings.fastModel)
+        setDefaultModel(settings.defaultModel)
+        setDeepModel(settings.deepModel)
         setSessionName(settings.sessionName)
         setThinkingMode(settings.thinkingMode)
         setSystemPrompt(settings.systemPrompt)
@@ -179,7 +196,11 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     const next: StoredDesktopSettings = {
       permissionMode,
       model,
-      fallbackModel,
+      fallbackModel: '',
+      smallFastModel,
+      fastModel,
+      defaultModel,
+      deepModel,
       sessionName,
       thinkingMode,
       systemPrompt,
@@ -202,7 +223,10 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     settingsLoaded,
     permissionMode,
     model,
-    fallbackModel,
+    smallFastModel,
+    fastModel,
+    defaultModel,
+    deepModel,
     sessionName,
     thinkingMode,
     systemPrompt,
@@ -225,6 +249,10 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     permissionMode,
     model,
     fallbackModel,
+    smallFastModel,
+    fastModel,
+    defaultModel,
+    deepModel,
     sessionName,
     thinkingMode,
     systemPrompt,
@@ -241,9 +269,14 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     allowForcePush,
     commitMessagePrompt,
     pullRequestPrompt,
+    settingsLoaded,
     setPermissionMode,
     setModel,
     setFallbackModel,
+    setSmallFastModel,
+    setFastModel,
+    setDefaultModel,
+    setDeepModel,
     setSessionName,
     setThinkingMode,
     setSystemPrompt,

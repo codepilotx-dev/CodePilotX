@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { createHashRouter, Navigate } from 'react-router-dom'
 import { AutomationView } from './components/AutomationView.js'
 import { ConversationPage } from './components/ConversationPage.js'
 import { DesktopLayout } from './components/DesktopLayout.js'
@@ -7,7 +7,7 @@ import { QuickChatView } from './components/QuickChatView.js'
 import { SearchView } from './components/SearchView.js'
 import { SettingsLayout } from './components/SettingsLayout.js'
 
-const router = createBrowserRouter([
+const router = createHashRouter([
   {
     path: '/',
     element: <DesktopLayout />,

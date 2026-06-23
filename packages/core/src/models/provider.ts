@@ -4,7 +4,6 @@ export type ModelProviderKind =
   | 'anthropic'
   | 'openai-compatible'
   | 'minimax'
-  | 'ai-gateway'
 
 export type ModelMetadata = {
   id: string
@@ -12,6 +11,7 @@ export type ModelMetadata = {
   label?: string
   description?: string
   badge?: string
+  iconURL?: string
   contextWindow?: number
   outputTokens?: number
   inputCost?: number
@@ -84,6 +84,25 @@ export type ProviderBalanceInfo = {
   totalBalance: string
   grantedBalance: string
   toppedUpBalance: string
+}
+
+export type ProviderTokenPlanUsageInfo = {
+  modelName: string
+  currentIntervalTotalCount: number | null
+  currentIntervalRemainingCount: number | null
+  currentIntervalStartTime: number | null
+  currentIntervalEndTime: number | null
+  currentIntervalRemainingTime: number | null
+  currentIntervalStatus: number | null
+  currentIntervalRemainingPercent: number | null
+  currentWeeklyTotalCount: number | null
+  currentWeeklyRemainingCount: number | null
+  currentWeeklyStatus: number | null
+  currentWeeklyRemainingPercent: number | null
+  weeklyStartTime: number | null
+  weeklyEndTime: number | null
+  weeklyRemainingTime: number | null
+  weeklyBoostPermille: number | null
 }
 
 export type ProviderDisplayErrorCode =

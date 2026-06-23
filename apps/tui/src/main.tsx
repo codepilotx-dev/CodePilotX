@@ -389,6 +389,7 @@ const autoModeStateModule = feature('TRANSCRIPT_CLASSIFIER')
 // TeleportRepoMismatchDialog, TeleportResumeWrapper dynamically imported at call sites
 import { migrateAutoUpdatesToSettings } from './migrations/migrateAutoUpdatesToSettings.js'
 import { migrateBypassPermissionsAcceptedToSettings } from './migrations/migrateBypassPermissionsAcceptedToSettings.js'
+import { migrateClaudeAliasesToModelTiers } from './migrations/migrateClaudeAliasesToModelTiers.js'
 import { migrateEnableAllProjectMcpServersToSettings } from './migrations/migrateEnableAllProjectMcpServersToSettings.js'
 import { migrateFennecToOpus } from './migrations/migrateFennecToOpus.js'
 import { migrateLegacyOpusToCurrent } from './migrations/migrateLegacyOpusToCurrent.js'
@@ -579,7 +580,7 @@ async function logStartupTelemetry(): Promise<void> {
 
 // @[MODEL LAUNCH]: Consider any migrations you may need for model strings. See migrateSonnet1mToSonnet45.ts for an example.
 // Bump this when adding a new sync migration so existing users re-run the set.
-const CURRENT_MIGRATION_VERSION = 11
+const CURRENT_MIGRATION_VERSION = 12
 function runMigrations(): void {
   if (getGlobalConfig().migrationVersion !== CURRENT_MIGRATION_VERSION) {
     migrateAutoUpdatesToSettings()
@@ -597,6 +598,7 @@ function runMigrations(): void {
     if ("external" === 'ant') {
       migrateFennecToOpus()
     }
+    migrateClaudeAliasesToModelTiers()
     saveGlobalConfig(prev =>
       prev.migrationVersion === CURRENT_MIGRATION_VERSION
         ? prev
@@ -1616,7 +1618,7 @@ async function run(): Promise<CommanderCommand> {
     // @[MODEL LAUNCH]: Update the example model ID in the --model help text.
     .option(
       '--model <model>',
-      `Model for the current session. Provide an alias for the latest model (e.g. 'sonnet' or 'opus') or a model's full name (e.g. 'claude-sonnet-4-6').`,
+      `Model for the current session. Provide a task-tier alias (fast, default, deep, plan) or a model's full name (e.g. 'claude-sonnet-4-6').`,
     )
     .addOption(
       new Option(
@@ -1643,7 +1645,7 @@ async function run(): Promise<CommanderCommand> {
     )
     .option(
       '--fallback-model <model>',
-      'Enable automatic fallback to specified model when default model is overloaded (only works with --print)',
+      'Ignored compatibility option. Automatic model fallback has been removed.',
     )
     .addOption(
       new Option(
@@ -2095,16 +2097,6 @@ async function run(): Promise<CommanderCommand> {
 
       // Get isNonInteractiveSession from state (was set before init())
       const isNonInteractiveSession = getIsNonInteractiveSession()
-
-      // Validate that fallback model is different from main model
-      if (fallbackModel && options.model && fallbackModel === options.model) {
-        process.stderr.write(
-          chalk.red(
-            'Error: Fallback model cannot be the same as the main model. Please specify a different model for --fallback-model.\n',
-          ),
-        )
-        process.exit(1)
-      }
 
       // Handle system prompt options
       let systemPrompt = options.systemPrompt
@@ -2940,12 +2932,18 @@ async function run(): Promise<CommanderCommand> {
         await initializeGrowthBook()
       }
 
-      // Special case the default model with the null keyword
+      if (options.model === 'default') {
+        process.stderr.write(
+          chalk.red(
+            'Error: The default model option has been removed. Please specify a concrete model ID.\n',
+          ),
+        )
+        process.exit(1)
+      }
+
       // NOTE: Model resolution happens after setup() to ensure trust is established before AWS auth
-      const userSpecifiedModel =
-        options.model === 'default' ? getDefaultMainLoopModel() : options.model
-      const userSpecifiedFallbackModel =
-        fallbackModel === 'default' ? getDefaultMainLoopModel() : fallbackModel
+      const userSpecifiedModel = options.model
+      const userSpecifiedFallbackModel = undefined
 
       // Reuse preSetupCwd unless setup() chdir'd (worktreeEnabled). Saves a
       // getCwd() syscall in the common path.
@@ -3065,15 +3063,21 @@ async function run(): Promise<CommanderCommand> {
           mainThreadAgentDefinition.model,
         )
       }
+      if (!effectiveModel) {
+        process.stderr.write(
+          chalk.red(
+            'Error: No model selected. Please specify a concrete model ID with --model or settings.model.\n',
+          ),
+        )
+        process.exit(1)
+      }
 
       setMainLoopModelOverride(effectiveModel)
 
       // Compute resolved model for hooks (use user-specified model at launch)
       setInitialMainLoopModel(getUserSpecifiedModelSetting() || null)
       const initialMainLoopModel = getInitialMainLoopModel()
-      const resolvedInitialModel = parseUserSpecifiedModel(
-        initialMainLoopModel ?? getDefaultMainLoopModel(),
-      )
+      const resolvedInitialModel = parseUserSpecifiedModel(initialMainLoopModel!)
 
       let advisorModel: string | undefined
       if (isAdvisorEnabled()) {

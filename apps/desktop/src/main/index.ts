@@ -39,6 +39,7 @@ import {
 } from './workspaceService.js'
 import { getOpenAgentConfigHomeDir } from './desktopSettings.js'
 import { desktopDebug } from './desktopDebug.js'
+import { getModelProviderState } from './modelProviderService.js'
 import {
   applyDesktopAgentEventToSnapshot,
   applyDesktopWorkflowEventsToSnapshot,
@@ -60,8 +61,15 @@ import type {
   DesktopSessionSettingsSnapshot,
   DesktopSessionSnapshot,
   DesktopThinkingMode,
+  DesktopUserMessageContent,
+  DesktopUserMessageInput,
   DesktopWorkspace,
 } from '../shared/types.js'
+import {
+  buildDesktopUserMessageContent,
+  desktopUserMessageInputToPreviewText,
+  hasBlockingComposerAttachmentErrors,
+} from '../shared/desktopUserMessage.js'
 import {
   DESKTOP_PERMISSION_MODES,
   normalizeDesktopPermissionMode,
@@ -415,7 +423,11 @@ async function createSession(
   const workspacePath = workspace.path
   const permissionMode = normalizePermissionMode(options.permissionMode)
   const model = normalizeOptionalText(options.model)
-  const fallbackModel = normalizeOptionalText(options.fallbackModel)
+  await assertCurrentProviderUsable(model)
+  const smallFastModel = normalizeOptionalText(options.smallFastModel)
+  const fastModel = normalizeOptionalText(options.fastModel)
+  const defaultModel = normalizeOptionalText(options.defaultModel)
+  const deepModel = normalizeOptionalText(options.deepModel)
   const sessionName = normalizeOptionalText(options.sessionName)
   const thinkingMode = normalizeThinkingMode(options.thinkingMode)
   const systemPrompt = normalizeOptionalText(options.systemPrompt)
@@ -428,7 +440,10 @@ async function createSession(
   const settings = createSessionSettingsSnapshot({
     permissionMode,
     model,
-    fallbackModel,
+    smallFastModel,
+    fastModel,
+    defaultModel,
+    deepModel,
     sessionName,
     thinkingMode,
     systemPrompt,
@@ -440,7 +455,10 @@ async function createSession(
       workspacePath,
       permissionMode,
       model,
-      fallbackModel,
+      smallFastModel,
+      fastModel,
+      defaultModel,
+      deepModel,
       sessionName,
       thinkingMode,
       systemPrompt,
@@ -470,7 +488,10 @@ async function createSession(
 function createSessionSettingsSnapshot(params: {
   permissionMode: DesktopPermissionMode
   model?: string
-  fallbackModel?: string
+  smallFastModel?: string
+  fastModel?: string
+  defaultModel?: string
+  deepModel?: string
   sessionName?: string
   thinkingMode: DesktopThinkingMode
   systemPrompt?: string
@@ -483,7 +504,10 @@ function createSessionSettingsSnapshot(params: {
     additionalDirectories: params.additionalDirectories,
   }
   if (params.model) settings.model = params.model
-  if (params.fallbackModel) settings.fallbackModel = params.fallbackModel
+  if (params.smallFastModel) settings.smallFastModel = params.smallFastModel
+  if (params.fastModel) settings.fastModel = params.fastModel
+  if (params.defaultModel) settings.defaultModel = params.defaultModel
+  if (params.deepModel) settings.deepModel = params.deepModel
   if (params.sessionName) settings.sessionName = params.sessionName
   if (params.systemPrompt) settings.systemPrompt = params.systemPrompt
   if (params.appendSystemPrompt) {
@@ -558,14 +582,18 @@ async function normalizeAdditionalDirectories(
 
 async function sendUserMessage(
   sessionId: string,
-  content: string,
+  input: DesktopUserMessageInput,
   model?: string,
 ): Promise<void> {
   const startedAt = Date.now()
   const trimmedContent = requireNonEmptyString(
-    content,
+    desktopUserMessageInputToPreviewText(input),
     'Desktop user message',
   )
+  if (hasBlockingComposerAttachmentErrors(input.attachments)) {
+    throw new Error('Desktop user message contains attachment errors.')
+  }
+  const runtimeContent = buildDesktopUserMessageContent(input)
   desktopDebug('send_user_message_start', {
     sessionId,
     textLength: trimmedContent.length,
@@ -573,6 +601,9 @@ async function sendUserMessage(
   })
   const record = await getSessionRecord(sessionId)
   const nextModel = normalizeOptionalText(model)
+  const effectiveModel =
+    model !== undefined ? nextModel : record.snapshot.settings.model
+  await assertCurrentProviderUsable(effectiveModel)
   if (model !== undefined) {
     record.snapshot = {
       ...record.snapshot,
@@ -596,9 +627,9 @@ async function sendUserMessage(
     scheduleAiTitleGeneration(record, trimmedContent)
   }
   await startJsonRpcAppServerThread(sessionId)
-  await startJsonRpcAppServerTurn(sessionId, trimmedContent)
+  await startJsonRpcAppServerTurn(sessionId, runtimeContent)
   try {
-    await session.sendUserMessage(trimmedContent)
+    await session.sendUserMessage(runtimeContent, trimmedContent)
     desktopDebug('send_user_message_done', {
       sessionId,
       durationMs: Date.now() - startedAt,
@@ -610,6 +641,27 @@ async function sendUserMessage(
       message: error instanceof Error ? error.message : String(error),
     })
     throw error
+  }
+}
+
+async function assertCurrentProviderUsable(
+  model: string | undefined,
+): Promise<void> {
+  if (!model?.trim()) {
+    throw new Error('未配置模型，请先在设置中配置模型。')
+  }
+  const providerState = await getModelProviderState()
+  if (!providerState.apiKeyConfigured) {
+    throw new Error(
+      providerState.configurationMessage ??
+        '未配置模型，请先在设置中配置模型。',
+    )
+  }
+  if (providerState.provider.requiresBaseURL && !providerState.baseURL?.trim()) {
+    throw new Error(
+      providerState.configurationMessage ??
+        '未配置模型，请先在设置中配置 Base URL。',
+    )
   }
 }
 
@@ -688,7 +740,7 @@ async function startJsonRpcAppServerThread(sessionId: string): Promise<void> {
 
 async function startJsonRpcAppServerTurn(
   sessionId: string,
-  content: string,
+  content: DesktopUserMessageContent,
 ): Promise<void> {
   if (!jsonRpcAppServerBridge) {
     return

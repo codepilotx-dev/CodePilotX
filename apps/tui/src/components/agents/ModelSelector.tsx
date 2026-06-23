@@ -16,7 +16,7 @@ export function ModelSelector({
 }: ModelSelectorProps): React.ReactNode {
   const modelOptions = React.useMemo(() => {
     const base = getAgentModelOptions()
-    // If the agent's current model is a full ID (e.g. 'claude-opus-4-5') not
+    // If the agent's current model is a full ID (e.g. 'glm-5.2') not
     // in the alias list, inject it as an option so it can round-trip through
     // confirm without being overwritten.
     if (initialModel && !base.some(o => o.value === initialModel)) {
@@ -32,7 +32,7 @@ export function ModelSelector({
     return base
   }, [initialModel])
 
-  const defaultModel = initialModel ?? 'sonnet'
+  const defaultModel = initialModel ?? 'default'
 
   return (
     <Box flexDirection="column">

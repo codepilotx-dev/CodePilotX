@@ -28,6 +28,7 @@ import {
   Square,
   Target,
   Wrench,
+  X,
   Zap,
 } from 'lucide-react'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from './ui/iconTokens.js'
@@ -37,6 +38,7 @@ import type {
   DesktopThinkingMode,
   DesktopWorkspace,
   DesktopContextUsage,
+  DesktopComposerAttachment,
   ModelProviderID,
 } from '../../shared/types.js'
 import type { ModelPreset } from '../modelPresets.js'
@@ -122,6 +124,8 @@ type Props = {
   thinkingMode: DesktopThinkingMode
   selectedProviderID: ModelProviderID
   selectedModelPreset: string
+  modelConfigured?: boolean
+  modelConfigurationMessage?: string
   showThinkingOptions: boolean
   deepSeekThinkingControls: boolean
   showContextUsage: boolean
@@ -134,6 +138,7 @@ type Props = {
   branches: string[]
   recentWorkspaces: DesktopWorkspace[]
   workspace: DesktopWorkspace | null
+  attachments?: DesktopComposerAttachment[]
   placeholder?: string
   onChooseWorkspace: () => void
   onInputChange: (value: string) => void
@@ -142,7 +147,9 @@ type Props = {
     providerID: ModelProviderID,
     modelPresetID: string,
   ) => void
+  onAddFiles?: (filePaths: string[]) => void
   onOpenFiles: () => void
+  onRemoveAttachment?: (attachmentId: string) => void
   onOpenWorkspace: (workspace: DesktopWorkspace) => void
   onBranchSelect: (branch: string) => void
   onCreateBranch: () => void
@@ -159,6 +166,8 @@ export function ComposerCard({
   thinkingMode,
   selectedProviderID,
   selectedModelPreset,
+  modelConfigured = true,
+  modelConfigurationMessage,
   showThinkingOptions,
   deepSeekThinkingControls,
   showContextUsage,
@@ -171,12 +180,15 @@ export function ComposerCard({
   branches,
   recentWorkspaces,
   workspace,
+  attachments = [],
   placeholder = '随心输入',
   onChooseWorkspace,
   onInputChange,
   onInterrupt,
   onProviderModelChange,
+  onAddFiles,
   onOpenFiles,
+  onRemoveAttachment,
   onOpenWorkspace,
   onBranchSelect,
   onCreateBranch,
@@ -203,11 +215,15 @@ export function ComposerCard({
     provider => provider.providerID === selectedProviderID,
   )
   const selectedModelLabel =
-    selectedModelPreset === CUSTOM_MODEL_PRESET_ID
+    !modelConfigured
+      ? '未配置模型'
+      : selectedModelPreset === CUSTOM_MODEL_PRESET_ID
       ? '自定义模型'
       : (selectedModel?.shortLabel ?? selectedModel?.label ?? selectedModelPreset)
   const selectedModelTitle =
-    selectedModelPreset === CUSTOM_MODEL_PRESET_ID
+    !modelConfigured
+      ? '未配置模型'
+      : selectedModelPreset === CUSTOM_MODEL_PRESET_ID
       ? '自定义模型'
       : (selectedModel?.label ?? selectedModelPreset)
   const selectedThinking = thinkingOptions.find(
@@ -251,6 +267,22 @@ export function ComposerCard({
 
   function closeDropdown(): void {
     setOpenDropdown(null)
+  }
+
+  function handleFileDrop(event: React.DragEvent<HTMLDivElement>): void {
+    if (!onAddFiles) return
+    const filePaths = getFilePathsFromFileList(event.dataTransfer.files)
+    if (filePaths.length === 0) return
+    event.preventDefault()
+    onAddFiles(filePaths)
+  }
+
+  function handlePaste(event: React.ClipboardEvent<HTMLTextAreaElement>): void {
+    if (!onAddFiles) return
+    const filePaths = getFilePathsFromFileList(event.clipboardData.files)
+    if (filePaths.length === 0) return
+    event.preventDefault()
+    onAddFiles(filePaths)
   }
 
   function getPermissionIcon(value: DesktopPermissionMode): React.ReactNode {
@@ -312,7 +344,15 @@ export function ComposerCard({
     promptCacheTotalTokens > 0 || reasoningTokens > 0
 
   return (
-    <div className="composer">
+    <div
+      className="composer"
+      onDragOver={event => {
+        if (event.dataTransfer.types.includes('Files')) {
+          event.preventDefault()
+        }
+      }}
+      onDrop={handleFileDrop}
+    >
       {showFullAccessWarning ? (
         <div className="permission-warning-banner">
           <ShieldOff size={APP_ICON_SIZE} />
@@ -320,6 +360,52 @@ export function ComposerCard({
         </div>
       ) : null}
       <div className="composer-top">
+        {attachments.length > 0 ? (
+          <div className="composer-attachments" aria-label="已添加附件">
+            {attachments.map(attachment => (
+              <div
+                className={[
+                  'composer-attachment-card',
+                  `composer-attachment-${attachment.kind}`,
+                  attachment.status === 'error' ? 'error' : '',
+                ].join(' ')}
+                key={attachment.id}
+                title={attachment.error ?? attachment.path}
+              >
+                {attachment.kind === 'image' && attachment.previewDataUrl ? (
+                  <img
+                    alt={attachment.name}
+                    className="composer-attachment-thumbnail"
+                    src={attachment.previewDataUrl}
+                  />
+                ) : (
+                  <span className="composer-attachment-file-icon">
+                    <FileText size={APP_ICON_SIZE} />
+                  </span>
+                )}
+                <span className="composer-attachment-body">
+                  <span className="composer-attachment-name">
+                    {attachment.name}
+                  </span>
+                  <span className="composer-attachment-meta">
+                    {attachment.status === 'error'
+                      ? attachment.error
+                      : attachmentTypeLabel(attachment)}
+                  </span>
+                </span>
+                <button
+                  aria-label={`移除 ${attachment.name}`}
+                  className="composer-attachment-remove"
+                  onClick={() => onRemoveAttachment?.(attachment.id)}
+                  title="移除附件"
+                  type="button"
+                >
+                  <X size={12} strokeWidth={2.25} />
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : null}
         <div className="composer-input">
           <textarea
             ref={textareaRef}
@@ -330,6 +416,7 @@ export function ComposerCard({
               event.preventDefault()
               if (canSubmit) onSubmit()
             }}
+            onPaste={handlePaste}
             placeholder={placeholder}
             rows={1}
           />
@@ -665,6 +752,9 @@ export function ComposerCard({
               ) : null}
               <div className="popover-header">提供商</div>
               <div className="popover-section popover-provider-list">
+                {providerOptions.length === 0 ? (
+                  <div className="popover-empty">未配置模型</div>
+                ) : null}
                 {providerOptions.map(provider => (
                   <DropdownMenu.Sub key={provider.providerID}>
                     <DropdownMenu.SubTrigger
@@ -764,7 +854,13 @@ export function ComposerCard({
               className="send-button"
               disabled={!isRunning && !canSubmit}
               onClick={isRunning ? onInterrupt : onSubmit}
-              title={isRunning ? '停止' : '发送'}
+              title={
+                isRunning
+                  ? '停止'
+                  : modelConfigured
+                    ? '发送'
+                    : (modelConfigurationMessage ?? '未配置模型')
+              }
               type="button"
             >
               {isRunning ? (
@@ -931,4 +1027,29 @@ function formatCompactNumber(value: number): string {
 
 function trimNumber(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(1)
+}
+
+function attachmentTypeLabel(attachment: DesktopComposerAttachment): string {
+  const extension = attachment.name.split('.').pop()
+  if (extension && extension !== attachment.name) return extension.toUpperCase()
+  switch (attachment.kind) {
+    case 'image':
+      return 'IMAGE'
+    case 'document':
+      return 'DOCUMENT'
+    case 'text':
+      return 'TEXT'
+    case 'audio':
+      return 'AUDIO'
+    case 'video':
+      return 'VIDEO'
+    default:
+      return 'FILE'
+  }
+}
+
+function getFilePathsFromFileList(files: FileList): string[] {
+  return Array.from(files)
+    .map(file => (file as File & { path?: string }).path)
+    .filter((path): path is string => typeof path === 'string' && path.length > 0)
 }

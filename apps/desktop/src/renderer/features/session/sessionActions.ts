@@ -6,8 +6,10 @@ import type {
   DesktopSessionMetadataPatch,
   DesktopSessionStatus,
   DesktopThinkingMode,
+  DesktopUserMessageInput,
   DesktopWorkspace,
 } from '../../../shared/types.js'
+import { desktopUserMessageInputToPreviewText } from '../../../shared/desktopUserMessage.js'
 import type { SessionListItem, SessionViewState } from '../../uiTypes.js'
 import {
   normalizeOptionalText,
@@ -24,7 +26,10 @@ import {
 export type SessionSettingsSnapshot = {
   permissionMode: DesktopPermissionMode
   model: string
-  fallbackModel: string
+  smallFastModel: string
+  fastModel: string
+  defaultModel: string
+  deepModel: string
   sessionName: string
   thinkingMode: DesktopThinkingMode
   systemPrompt: string
@@ -69,7 +74,10 @@ export async function createSessionForWorkspaceAction(
       workspacePath: target?.path,
       permissionMode: settings.permissionMode,
       model: normalizeOptionalText(settings.model),
-      fallbackModel: normalizeOptionalText(settings.fallbackModel),
+      smallFastModel: normalizeOptionalText(settings.smallFastModel),
+      fastModel: normalizeOptionalText(settings.fastModel),
+      defaultModel: normalizeOptionalText(settings.defaultModel),
+      deepModel: normalizeOptionalText(settings.deepModel),
       sessionName: normalizeOptionalText(settings.sessionName),
       thinkingMode: settings.thinkingMode,
       systemPrompt: normalizeOptionalText(settings.systemPrompt),
@@ -103,7 +111,7 @@ export async function createSessionForWorkspaceAction(
         standalone: session.standalone,
         permissionMode: settings.permissionMode,
         model: normalizeOptionalText(settings.model) ?? null,
-        fallbackModel: normalizeOptionalText(settings.fallbackModel) ?? null,
+        fallbackModel: null,
         thinkingMode: settings.thinkingMode,
         hasSystemPrompt: Boolean(normalizeOptionalText(settings.systemPrompt)),
         hasAppendSystemPrompt: Boolean(
@@ -128,22 +136,27 @@ export async function createSessionForWorkspaceAction(
 export async function submitSessionMessageAction(
   onErrorRef: MutableRefObject<(message: string) => void>,
   sessionId: string | null,
-  input: string,
+  input: DesktopUserMessageInput,
   canSubmit: boolean,
   model: string,
   setInput: (value: string) => void,
 ): Promise<void> {
-  const trimmed = input.trim()
+  const trimmed = input.text.trim()
+  const attachments = input.attachments ?? []
   if (!canSubmit || !sessionId) return
   setInput('')
   try {
     await desktopClient.sendUserMessage(
       sessionId,
-      trimmed,
+      {
+        text: trimmed,
+        attachments,
+      },
       normalizeOptionalText(model),
     )
   } catch (error) {
     onErrorRef.current(errorMessageOf(error))
+    setInput(desktopUserMessageInputToPreviewText(input))
   }
 }
 

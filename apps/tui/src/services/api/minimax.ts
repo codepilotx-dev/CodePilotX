@@ -22,6 +22,7 @@ import {
 import {
   getProviderApiKey,
   getSelectedProviderConfig,
+  getSelectedProviderID,
 } from '../../utils/model/providerConfig.js'
 import { asSystemPrompt, type SystemPrompt } from '../../utils/systemPromptType.js'
 import type { ThinkingConfig } from '../../utils/thinking.js'
@@ -61,12 +62,13 @@ export async function* queryMiniMaxWithAiSdkStreaming({
   _thinkingConfig?: ThinkingConfig
   options: Options
 }): AsyncGenerator<StreamEvent | AssistantMessage, void> {
+  const providerID = getSelectedProviderID()
   const provider = getSelectedProviderConfig()
-  const apiKey = getProviderApiKey('minimax')
+  const apiKey = getProviderApiKey(providerID)
   if (!apiKey) {
     yield createAssistantAPIErrorMessage({
       content:
-        'MiniMax API key is not configured. Run /connect to save it, or set MINIMAX_API_KEY.',
+        `${provider.displayName} API key is not configured. Run /connect to save it, or set ${provider.apiKeyEnvVar ?? 'the provider API key environment variable'}.`,
       apiError: 'authentication_error',
     })
     return

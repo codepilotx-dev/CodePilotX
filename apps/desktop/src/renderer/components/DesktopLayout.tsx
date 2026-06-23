@@ -12,7 +12,6 @@ import {
   GitWorkflowModal,
   type GitWorkflowMode,
 } from './GitWorkflowModal.js'
-import { PermissionRequestModal } from './PermissionRequestModal.js'
 import { SettingsSidebarContent } from './SettingsSidebarContent.js'
 import { SidebarFrame } from './SidebarFrame.js'
 import { MenuBar } from './MenuBar.js'
@@ -36,6 +35,7 @@ import {
   NO_WORKSPACE_DIFF,
   useWorkspaceState,
 } from '../features/workspace/useWorkspaceState.js'
+import { shouldRestoreLastWorkspace } from '../features/workspace/lastWorkspaceRestore.js'
 import { useSessionState } from '../features/session/useSessionState.js'
 import { useDesktopCommands } from '../features/session/useDesktopCommands.js'
 import { useDesktopSearch } from '../features/search/useDesktopSearch.js'
@@ -48,7 +48,6 @@ import type {
   DesktopModelMetadata,
   DesktopModelProviderSummary,
   DesktopModelProviderState,
-  DesktopPermissionRequest,
   DesktopWorkspace,
   ModelProviderID,
 } from '../../shared/types.js'
@@ -63,7 +62,10 @@ export function DesktopLayout(): React.ReactNode {
   const {
     permissionMode,
     model,
-    fallbackModel,
+    smallFastModel,
+    fastModel,
+    defaultModel,
+    deepModel,
     sessionName,
     thinkingMode,
     systemPrompt,
@@ -77,6 +79,7 @@ export function DesktopLayout(): React.ReactNode {
     allowForcePush,
     commitMessagePrompt,
     pullRequestPrompt,
+    settingsLoaded,
     setPermissionMode,
     setModel,
     setProviderBaseURL,
@@ -134,7 +137,10 @@ export function DesktopLayout(): React.ReactNode {
   const session = useSessionState({
     permissionMode,
     model,
-    fallbackModel,
+    smallFastModel,
+    fastModel,
+    defaultModel,
+    deepModel,
     sessionName,
     thinkingMode,
     systemPrompt,
@@ -181,6 +187,7 @@ export function DesktopLayout(): React.ReactNode {
   const isSettingsRoute = location.pathname === '/settings'
   const fullLocationPath = `${location.pathname}${location.search}${location.hash}`
   const settingsReturnPathRef = useRef(QUICK_CHAT_PATH)
+  const lastWorkspaceRestoreAttemptedRef = useRef(false)
   const settingsActiveTab =
     new URLSearchParams(location.search).get('tab') ?? 'general'
 
@@ -270,6 +277,30 @@ export function DesktopLayout(): React.ReactNode {
     },
     [navigate, openRecentWorkspace, refreshWorkspace, setWorkspaceState],
   )
+
+  useEffect(() => {
+    if (
+      !shouldRestoreLastWorkspace({
+        settingsLoaded,
+        isQuickChatPage,
+        hasCurrentWorkspace: Boolean(currentWorkspace),
+        hasAttemptedRestore: lastWorkspaceRestoreAttemptedRef.current,
+        recentWorkspaceCount: recentWorkspaces.length,
+      })
+    ) {
+      return
+    }
+    const lastWorkspace = recentWorkspaces[0]
+    if (!lastWorkspace) return
+    lastWorkspaceRestoreAttemptedRef.current = true
+    void handleOpenRecentWorkspace(lastWorkspace)
+  }, [
+    currentWorkspace,
+    handleOpenRecentWorkspace,
+    isQuickChatPage,
+    recentWorkspaces,
+    settingsLoaded,
+  ])
 
   const handleCreateSession = useCallback(async (
     target?: DesktopWorkspace | null,
@@ -453,9 +484,6 @@ export function DesktopLayout(): React.ReactNode {
     () =>
       buildModelPresets(
         providerState?.models ?? providerState?.provider.defaultModels ?? [],
-        providerState?.provider.displayName
-          ? `默认模型 (${providerState.provider.displayName})`
-          : '默认模型',
       ),
     [providerState],
   )
@@ -476,10 +504,7 @@ export function DesktopLayout(): React.ReactNode {
         return {
           providerID: provider.providerID,
           displayName: provider.displayName,
-          modelPresets: buildModelPresets(
-            models,
-            `默认模型 (${provider.displayName})`,
-          ),
+          modelPresets: buildModelPresets(models),
         }
       })
     },
@@ -511,6 +536,9 @@ export function DesktopLayout(): React.ReactNode {
     deepSeekThinkingControls ||
     selectedProviderSummary?.kind === 'anthropic' ||
     selectedModelMetadata?.reasoning === true
+  const modelConfigured = providerState?.modelConfigured === true
+  const modelConfigurationMessage =
+    providerState?.configurationMessage ?? '未配置模型，请先在设置中配置模型。'
 
   useEffect(() => {
     const activeModel = activeSessionItem?.model?.trim()
@@ -672,22 +700,7 @@ export function DesktopLayout(): React.ReactNode {
 
   const handleSelectSession = useCallback(
     (sessionItem: SessionListItem): void => {
-      console.log("[desktop-title-debug] layout_select_session_start", {
-        id: sessionItem.id,
-        currentSessionId: sessionId,
-        routedSessionId,
-        sessionName: sessionItem.sessionName,
-        customTitle: sessionItem.customTitle,
-        aiTitle: sessionItem.aiTitle,
-        firstPrompt: sessionItem.firstPrompt,
-      })
       const nextWorkspace = activateSessionById(sessionItem.id)
-      console.log("[desktop-title-debug] layout_select_session_after_activate", {
-        id: sessionItem.id,
-        nextWorkspace: nextWorkspace
-          ? { name: nextWorkspace.name, path: nextWorkspace.path }
-          : null,
-      })
       navigate(sessionPath(sessionItem.id))
       if (!nextWorkspace) {
         setWorkspaceState(null)
@@ -763,10 +776,6 @@ export function DesktopLayout(): React.ReactNode {
       ? RUNTIME_WARNING_MESSAGE
       : null
   const visibleErrorMessage = errorMessage ?? runtimeWarningMessage
-  const activePermissionRequest: DesktopPermissionRequest | null =
-    isConversationRoute && !isConversationLoading
-      ? pendingPermissions[0] ?? null
-      : null
   const branchName = getDesktopComposerBranchName(currentWorkspace)
 
   const search = useDesktopSearch({
@@ -787,25 +796,6 @@ export function DesktopLayout(): React.ReactNode {
         : activeSessionItem?.aiTitle
           ? 'aiTitle'
           : null
-
-  useEffect(() => {
-    if (!activeSessionItem) return
-    console.log("[desktop-title-debug] layout_active_title", {
-      id: activeSessionItem.id,
-      routedSessionId,
-      sessionName: activeSessionItem.sessionName,
-      customTitle: activeSessionItem.customTitle,
-      aiTitle: activeSessionItem.aiTitle,
-      firstPrompt: activeSessionItem.firstPrompt,
-      quickChatSessionTitle,
-      quickChatSessionTitleSource,
-    })
-  }, [
-    activeSessionItem,
-    quickChatSessionTitle,
-    quickChatSessionTitleSource,
-    routedSessionId,
-  ])
 
   const handleRemoveWorkspace = useCallback(
     (target: DesktopWorkspace): void => {
@@ -941,6 +931,8 @@ export function DesktopLayout(): React.ReactNode {
       thinkingMode={thinkingMode}
       selectedProviderID={selectedProviderID}
       selectedModelPreset={resolvedSelectedModelPreset}
+      modelConfigured={modelConfigured}
+      modelConfigurationMessage={modelConfigurationMessage}
       showThinkingOptions={showThinkingOptions}
       deepSeekThinkingControls={deepSeekThinkingControls}
       showContextUsage={showContextUsage}
@@ -965,13 +957,6 @@ export function DesktopLayout(): React.ReactNode {
 
   return (
     <div className="desktop-frame">
-      <PermissionRequestModal
-        request={activePermissionRequest}
-        onDecide={(request, behavior, alwaysAllow) => {
-          void decidePermission(request, behavior, alwaysAllow)
-        }}
-      />
-
       <GlobalErrorModal
         message={visibleErrorMessage}
         onDismiss={() => {
@@ -1047,10 +1032,15 @@ export function DesktopLayout(): React.ReactNode {
             },
             onCommitOrPush: () => setGitWorkflowMode('commitPush'),
             onCreatePullRequest: () => setGitWorkflowMode('pullRequest'),
+            onDecidePermission: (request, behavior, alwaysAllow) => {
+              void decidePermission(request, behavior, alwaysAllow)
+            },
             events: isQuickChatPage || isConversationLoading ? [] : events,
             workflowEvents:
               isQuickChatPage || isConversationLoading ? [] : workflowEvents,
             messages: isQuickChatPage || isConversationLoading ? [] : messages,
+            pendingPermissions:
+              isQuickChatPage || isConversationLoading ? [] : pendingPermissions,
             sessionStatus,
             composer: isConversationLoading ? null : composer,
           }}
@@ -1123,7 +1113,7 @@ function isDeepSeekThinkingModel({
   if (providerID === 'deepseek') {
     return true
   }
-  if (providerID !== 'openrouter' && providerID !== 'ai-gateway') {
+  if (providerID !== 'openrouter') {
     return false
   }
   return model.toLowerCase().includes('deepseek') && metadata?.reasoning === true

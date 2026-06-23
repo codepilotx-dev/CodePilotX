@@ -1,5 +1,9 @@
 import { expect, test } from 'bun:test'
-import { readOpenAIStream } from './openaiCompatible.js'
+import {
+  buildOpenAICompatibleFetchInit,
+  buildOpenAICompatibleProviderRequestParams,
+  readOpenAIStream,
+} from './openaiCompatible.js'
 
 function openAIChunk(data: object): string {
   return `data: ${JSON.stringify(data)}`
@@ -64,3 +68,146 @@ test('readOpenAIStream flushes a final frame when the provider closes without DO
   expect(result.usage.input_tokens).toBe(3)
   expect(result.usage.output_tokens).toBe(2)
 })
+
+test('zhipu enabled thinking uses native thinking and max reasoning effort', () => {
+  expect(
+    buildOpenAICompatibleProviderRequestParams({
+      providerID: 'zhipu',
+      model: 'glm-5.2',
+      thinkingConfig: { type: 'enabled' },
+    }),
+  ).toEqual({
+    thinking: { type: 'enabled' },
+    reasoning_effort: 'max',
+  })
+})
+
+test('zhipu disabled thinking omits reasoning effort', () => {
+  expect(
+    buildOpenAICompatibleProviderRequestParams({
+      providerID: 'zhipu',
+      model: 'glm-5.2',
+      thinkingConfig: { type: 'disabled' },
+    }),
+  ).toEqual({
+    thinking: { type: 'disabled' },
+  })
+})
+
+test('zhipu zero temperature uses deterministic sampling flag', () => {
+  expect(
+    buildOpenAICompatibleProviderRequestParams({
+      providerID: 'zhipu',
+      model: 'glm-5.2',
+      thinkingConfig: { type: 'disabled' },
+      temperatureOverride: 0,
+    }),
+  ).toEqual({
+    thinking: { type: 'disabled' },
+    do_sample: false,
+  })
+})
+
+test('zhipu chat request uses configured proxy fetch options', () => {
+  const originalHTTPProxy = process.env.HTTP_PROXY
+  const originalHttpProxy = process.env.http_proxy
+  delete process.env.http_proxy
+  process.env.HTTP_PROXY = 'http://127.0.0.1:7890'
+  try {
+    const init = buildOpenAICompatibleFetchInit({
+      apiKey: 'test-key',
+      isDeepSeek: false,
+      signal: new AbortController().signal,
+    })
+
+    expect(init).toMatchObject(
+      typeof Bun !== 'undefined'
+        ? { proxy: 'http://127.0.0.1:7890' }
+        : { dispatcher: expect.anything() },
+    )
+    expect(init.headers).toMatchObject({
+      Authorization: 'Bearer test-key',
+      'Content-Type': 'application/json',
+    })
+  } finally {
+    restoreEnv('HTTP_PROXY', originalHTTPProxy)
+    restoreEnv('http_proxy', originalHttpProxy)
+  }
+})
+
+test('readOpenAIStream accumulates zhipu reasoning, tool calls, and cached tokens', async () => {
+  const encoder = new TextEncoder()
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(
+        encoder.encode(
+          [
+            openAIChunk({
+              choices: [
+                {
+                  delta: {
+                    reasoning_content: 'think',
+                    tool_calls: [
+                      {
+                        index: 0,
+                        id: 'call_1',
+                        type: 'function',
+                        function: { name: 'read_file', arguments: '{"p"' },
+                      },
+                    ],
+                  },
+                },
+              ],
+            }),
+            openAIChunk({
+              choices: [
+                {
+                  delta: {
+                    content: 'done',
+                    tool_calls: [
+                      {
+                        index: 0,
+                        function: { arguments: ':"x"}' },
+                      },
+                    ],
+                  },
+                  finish_reason: 'tool_calls',
+                },
+              ],
+              usage: {
+                prompt_tokens: 10,
+                completion_tokens: 4,
+                prompt_tokens_details: { cached_tokens: 7 },
+              },
+            }),
+            'data: [DONE]',
+            '',
+          ].join('\n\n'),
+        ),
+      )
+    },
+  })
+
+  const result = await readOpenAIStream(new Response(stream))
+
+  expect(result.reasoningContent).toBe('think')
+  expect(result.content).toBe('done')
+  expect(result.finishReason).toBe('tool_calls')
+  expect(result.toolCalls).toEqual([
+    {
+      id: 'call_1',
+      type: 'function',
+      function: { name: 'read_file', arguments: '{"p":"x"}' },
+    },
+  ])
+  expect(result.usage.input_tokens).toBe(10)
+  expect(result.usage.cache_read_input_tokens).toBe(7)
+})
+
+function restoreEnv(key: string, value: string | undefined): void {
+  if (value === undefined) {
+    delete process.env[key]
+  } else {
+    process.env[key] = value
+  }
+}

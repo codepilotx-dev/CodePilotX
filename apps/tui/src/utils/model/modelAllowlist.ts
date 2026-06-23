@@ -4,19 +4,33 @@ import { parseUserSpecifiedModel } from './model.js'
 import { resolveOverriddenModel } from './modelStrings.js'
 
 /**
- * Check if a model belongs to a given family by checking if its name
- * (or resolved name) contains the family identifier.
+ * Check if a model belongs to a given tier by checking if its name
+ * (or resolved name) contains a family identifier for that tier.
  */
 function modelBelongsToFamily(model: string, family: string): boolean {
-  if (model.includes(family)) {
+  const identifiers = getTierFamilyIdentifiers(family)
+  if (identifiers.some(identifier => model.includes(identifier))) {
     return true
   }
-  // Resolve aliases like "best" → "claude-opus-4-6" to check family membership
+  // Resolve aliases like "deep" to a concrete model to check family membership.
   if (isModelAlias(model)) {
     const resolved = parseUserSpecifiedModel(model).toLowerCase()
-    return resolved.includes(family)
+    return identifiers.some(identifier => resolved.includes(identifier))
   }
   return false
+}
+
+function getTierFamilyIdentifiers(family: string): string[] {
+  switch (family) {
+    case 'deep':
+      return ['opus']
+    case 'default':
+      return ['sonnet']
+    case 'fast':
+      return ['haiku']
+    default:
+      return [family]
+  }
 }
 
 /**
@@ -58,8 +72,8 @@ function modelMatchesVersionPrefix(model: string, entry: string): boolean {
 
 /**
  * Check if a family alias is narrowed by more specific entries in the allowlist.
- * When the allowlist contains both "opus" and "opus-4-5", the specific entry
- * takes precedence — "opus" alone would be a wildcard, but "opus-4-5" narrows
+ * When the allowlist contains both "deep" and "opus-4-5", the specific entry
+ * takes precedence — "deep" alone would be a wildcard, but "opus-4-5" narrows
  * it to only that version.
  */
 function familyHasSpecificEntries(
@@ -71,16 +85,18 @@ function familyHasSpecificEntries(
       continue
     }
     // Check if entry is a version-qualified variant of this family
-    // e.g., "opus-4-5" or "claude-opus-4-5-20251101" for the "opus" family
+    // e.g., "opus-4-5" or "claude-opus-4-5-20251101" for the "deep" tier
     // Must match at a segment boundary (followed by '-' or end) to avoid
-    // false positives like "opusplan" matching "opus"
-    const idx = entry.indexOf(family)
-    if (idx === -1) {
-      continue
-    }
-    const afterFamily = idx + family.length
-    if (afterFamily === entry.length || entry[afterFamily] === '-') {
-      return true
+    // false positives from unrelated words that contain the family identifier.
+    for (const identifier of getTierFamilyIdentifiers(family)) {
+      const idx = entry.indexOf(identifier)
+      if (idx === -1) {
+        continue
+      }
+      const afterFamily = idx + identifier.length
+      if (afterFamily === entry.length || entry[afterFamily] === '-') {
+        return true
+      }
     }
   }
   return false
@@ -91,9 +107,9 @@ function familyHasSpecificEntries(
  * If availableModels is not set, all models are allowed.
  *
  * Matching tiers:
- * 1. Family aliases ("opus", "sonnet", "haiku") — wildcard for the entire family,
- *    UNLESS more specific entries for that family also exist (e.g., "opus-4-5").
- *    In that case, the family wildcard is ignored and only the specific entries apply.
+ * 1. Tier aliases ("deep", "default", "fast") — wildcard for the mapped model family,
+ *    UNLESS more specific entries for that tier also exist (e.g., "opus-4-5").
+ *    In that case, the tier wildcard is ignored and only the specific entries apply.
  * 2. Version prefixes ("opus-4-5", "claude-opus-4-5") — any build of that version
  * 3. Full model IDs ("claude-opus-4-5-20251101") — exact match only
  */
@@ -113,8 +129,8 @@ export function isModelAllowed(model: string): boolean {
 
   // Direct match (alias-to-alias or full-name-to-full-name)
   // Skip family aliases that have been narrowed by specific entries —
-  // e.g., "opus" in ["opus", "opus-4-5"] should NOT directly match,
-  // because the admin intends to restrict to opus 4.5 only.
+  // e.g., "deep" in ["deep", "opus-4-5"] should NOT directly match,
+  // because the admin intends to restrict to that version only.
   if (normalizedAllowlist.includes(normalizedModel)) {
     if (
       !isModelFamilyAlias(normalizedModel) ||
@@ -126,7 +142,7 @@ export function isModelAllowed(model: string): boolean {
 
   // Family-level aliases in the allowlist match any model in that family,
   // but only if no more specific entries exist for that family.
-  // e.g., ["opus"] allows all opus, but ["opus", "opus-4-5"] only allows opus 4.5.
+  // e.g., ["deep"] allows all deep-tier models, but ["deep", "opus-4-5"] only allows that version.
   for (const entry of normalizedAllowlist) {
     if (
       isModelFamilyAlias(entry) &&

@@ -39,7 +39,7 @@ export type ModelName = string
 export type ModelSetting = ModelName | ModelAlias | null
 
 export function getSmallFastModel(): ModelName {
-  return process.env.ANTHROPIC_SMALL_FAST_MODEL || getDefaultHaikuModel()
+  return process.env.ANTHROPIC_SMALL_FAST_MODEL || getDefaultFastModel()
 }
 
 export function isNonCustomOpusModel(model: ModelName): boolean {
@@ -99,17 +99,17 @@ export function getMainLoopModel(): ModelName {
   if (model !== undefined && model !== null) {
     return parseUserSpecifiedModel(model)
   }
-  return getDefaultMainLoopModel()
+  throw new Error('No model selected. Choose a specific model before starting a session.')
 }
 
 export function getBestModel(): ModelName {
-  return getDefaultOpusModel()
+  return getDefaultDeepModel()
 }
 
-// @[MODEL LAUNCH]: Update the default Opus model (3P providers may lag so keep defaults unchanged).
-export function getDefaultOpusModel(): ModelName {
-  if (process.env.ANTHROPIC_DEFAULT_OPUS_MODEL) {
-    return process.env.ANTHROPIC_DEFAULT_OPUS_MODEL
+// @[MODEL LAUNCH]: Update the default deep model (3P providers may lag so keep defaults unchanged).
+export function getDefaultDeepModel(): ModelName {
+  if (process.env.CODEPILOTX_DEEP_MODEL) {
+    return process.env.CODEPILOTX_DEEP_MODEL
   }
   // 3P providers (Bedrock, Vertex, Foundry) — kept as a separate branch
   // even when values match, since 3P availability lags firstParty and
@@ -120,10 +120,10 @@ export function getDefaultOpusModel(): ModelName {
   return getModelStrings().opus46
 }
 
-// @[MODEL LAUNCH]: Update the default Sonnet model (3P providers may lag so keep defaults unchanged).
-export function getDefaultSonnetModel(): ModelName {
-  if (process.env.ANTHROPIC_DEFAULT_SONNET_MODEL) {
-    return process.env.ANTHROPIC_DEFAULT_SONNET_MODEL
+// @[MODEL LAUNCH]: Update the default model (3P providers may lag so keep defaults unchanged).
+export function getDefaultModel(): ModelName {
+  if (process.env.CODEPILOTX_DEFAULT_MODEL) {
+    return process.env.CODEPILOTX_DEFAULT_MODEL
   }
   // Default to Sonnet 4.5 for 3P since they may not have 4.6 yet
   if (getAPIProvider() !== 'firstParty') {
@@ -132,15 +132,19 @@ export function getDefaultSonnetModel(): ModelName {
   return getModelStrings().sonnet46
 }
 
-// @[MODEL LAUNCH]: Update the default Haiku model (3P providers may lag so keep defaults unchanged).
-export function getDefaultHaikuModel(): ModelName {
-  if (process.env.ANTHROPIC_DEFAULT_HAIKU_MODEL) {
-    return process.env.ANTHROPIC_DEFAULT_HAIKU_MODEL
+// @[MODEL LAUNCH]: Update the default fast model (3P providers may lag so keep defaults unchanged).
+export function getDefaultFastModel(): ModelName {
+  if (process.env.CODEPILOTX_FAST_MODEL) {
+    return process.env.CODEPILOTX_FAST_MODEL
   }
 
   // Haiku 4.5 is available on all platforms (first-party, Foundry, Bedrock, Vertex)
   return getModelStrings().haiku45
 }
+
+export const getDefaultOpusModel = getDefaultDeepModel
+export const getDefaultSonnetModel = getDefaultModel
+export const getDefaultHaikuModel = getDefaultFastModel
 
 /**
  * Get the model to use for runtime, depending on the runtime context.
@@ -154,18 +158,18 @@ export function getRuntimeMainLoopModel(params: {
 }): ModelName {
   const { permissionMode, mainLoopModel, exceeds200kTokens = false } = params
 
-  // opusplan uses Opus in plan mode without [1m] suffix.
+  // plan uses the deep tier in plan mode without changing the saved alias.
   if (
-    getUserSpecifiedModelSetting() === 'opusplan' &&
+    getUserSpecifiedModelSetting() === 'plan' &&
     permissionMode === 'plan' &&
     !exceeds200kTokens
   ) {
-    return getDefaultOpusModel()
+    return getDefaultDeepModel()
   }
 
-  // sonnetplan by default
-  if (getUserSpecifiedModelSetting() === 'haiku' && permissionMode === 'plan') {
-    return getDefaultSonnetModel()
+  // Fast task models fall back to the default tier during plan mode.
+  if (getUserSpecifiedModelSetting() === 'fast' && permissionMode === 'plan') {
+    return getDefaultModel()
   }
 
   return mainLoopModel
@@ -183,30 +187,30 @@ export function getRuntimeMainLoopModel(params: {
 export function getDefaultMainLoopModelSetting(): ModelName | ModelAlias {
   const selectedProvider = getSelectedProviderConfig()
   if (selectedProvider.kind !== 'anthropic') {
-    return selectedProvider.defaultModels[0] ?? getDefaultSonnetModel()
+    return selectedProvider.defaultModels[0] ?? getDefaultModel()
   }
 
   // Ants default to defaultModel from flag config, or Opus 1M if not configured
   if (process.env.USER_TYPE === 'ant') {
     return (
       getAntModelOverrideConfig()?.defaultModel ??
-      getDefaultOpusModel() + '[1m]'
+      getDefaultDeepModel() + '[1m]'
     )
   }
 
   // Max users get Opus as default
   if (isMaxSubscriber()) {
-    return getDefaultOpusModel() + (isOpus1mMergeEnabled() ? '[1m]' : '')
+    return getDefaultDeepModel() + (isOpus1mMergeEnabled() ? '[1m]' : '')
   }
 
   // Team Premium gets Opus (same as Max)
   if (isTeamPremiumSubscriber()) {
-    return getDefaultOpusModel() + (isOpus1mMergeEnabled() ? '[1m]' : '')
+    return getDefaultDeepModel() + (isOpus1mMergeEnabled() ? '[1m]' : '')
   }
 
   // PAYG (1P and 3P), Enterprise, Team Standard, and Pro get Sonnet as default
   // Note that PAYG (3P) may default to an older Sonnet model
-  return getDefaultSonnetModel()
+  return getDefaultModel()
 }
 
 /**
@@ -298,18 +302,18 @@ export function getClaudeAiUserDefaultModelDescription(
 ): string {
   if (isMaxSubscriber() || isTeamPremiumSubscriber()) {
     if (isOpus1mMergeEnabled()) {
-      return `Opus 4.6 with 1M context · Most capable for complex work${fastMode ? getOpus46PricingSuffix(true) : ''}`
+      return `Deep tier with 1M context · Most capable for complex work${fastMode ? getOpus46PricingSuffix(true) : ''}`
     }
-    return `Opus 4.6 · Most capable for complex work${fastMode ? getOpus46PricingSuffix(true) : ''}`
+    return `Deep tier · Most capable for complex work${fastMode ? getOpus46PricingSuffix(true) : ''}`
   }
-  return 'Sonnet 4.6 · Best for everyday tasks'
+  return 'Default tier · Best for everyday tasks'
 }
 
 export function renderDefaultModelSetting(
   setting: ModelName | ModelAlias,
 ): string {
-  if (setting === 'opusplan') {
-    return 'Opus 4.6 in plan mode, else Sonnet 4.6'
+  if (setting === 'plan') {
+    return 'Deep tier in plan mode, else default tier'
   }
   return renderModelName(parseUserSpecifiedModel(setting))
 }
@@ -333,7 +337,7 @@ export function isOpus1mMergeEnabled(): boolean {
   // config-loading subprocess can have OAuth tokens with valid scopes but no
   // subscriptionType field (stale or partial refresh). Without this guard,
   // isProSubscriber() returns false for such users and the merge leaks
-  // opus[1m] into the model dropdown — the API then rejects it with a
+  // deep[1m] into the model dropdown — the API then rejects it with a
   // misleading "rate limit reached" error.
   if (isClaudeAISubscriber() && getSubscriptionType() === null) {
     return false
@@ -342,8 +346,8 @@ export function isOpus1mMergeEnabled(): boolean {
 }
 
 export function renderModelSetting(setting: ModelName | ModelAlias): string {
-  if (setting === 'opusplan') {
-    return 'Opus Plan'
+  if (setting === 'plan') {
+    return 'Plan'
   }
   if (isModelAlias(setting)) {
     return capitalize(setting)
@@ -451,7 +455,7 @@ export function getPublicModelName(model: ModelName): string {
  * This function intentionally does not support version numbers to align with
  * the model switcher.
  *
- * Supports [1m] suffix on any model alias (e.g., haiku[1m], sonnet[1m]) to enable
+ * Supports [1m] suffix on any model alias (e.g., default[1m], deep[1m]) to enable
  * 1M context window without requiring each variant to be in MODEL_ALIASES.
  *
  * @param modelInput The model alias or name provided by the user.
@@ -469,22 +473,20 @@ export function parseUserSpecifiedModel(
 
   if (isModelAlias(modelString)) {
     switch (modelString) {
-      case 'opusplan':
-        return getDefaultSonnetModel() + (has1mTag ? '[1m]' : '') // Sonnet is default, Opus in plan mode
-      case 'sonnet':
-        return getDefaultSonnetModel() + (has1mTag ? '[1m]' : '')
-      case 'haiku':
-        return getDefaultHaikuModel() + (has1mTag ? '[1m]' : '')
-      case 'opus':
-        return getDefaultOpusModel() + (has1mTag ? '[1m]' : '')
-      case 'best':
-        return getBestModel()
+      case 'plan':
+        return getDefaultModel() + (has1mTag ? '[1m]' : '')
+      case 'default':
+        return getDefaultModel() + (has1mTag ? '[1m]' : '')
+      case 'fast':
+        return getDefaultFastModel() + (has1mTag ? '[1m]' : '')
+      case 'deep':
+        return getDefaultDeepModel() + (has1mTag ? '[1m]' : '')
       default:
     }
   }
 
   // Opus 4/4.1 are no longer available on the first-party API (same as
-  // Claude.ai) — silently remap to the current Opus default. The 'opus'
+  // Claude.ai) — silently remap to the current deep-tier default. The legacy 'opus'
   // alias already resolves to 4.6, so the only users on these explicit
   // strings pinned them in settings/env/--model/SDK before 4.5 launched.
   // 3P providers may not yet have 4.6 capacity, so pass through unchanged.
@@ -493,7 +495,7 @@ export function parseUserSpecifiedModel(
     isLegacyOpusFirstParty(modelString) &&
     isLegacyModelRemapEnabled()
   ) {
-    return getDefaultOpusModel() + (has1mTag ? '[1m]' : '')
+    return getDefaultDeepModel() + (has1mTag ? '[1m]' : '')
   }
 
   if (process.env.USER_TYPE === 'ant') {
@@ -523,14 +525,14 @@ export function parseUserSpecifiedModel(
  * Resolves a skill's `model:` frontmatter against the current model, carrying
  * the `[1m]` suffix over when the target family supports it.
  *
- * A skill author writing `model: opus` means "use opus-class reasoning" — not
- * "downgrade to 200K". If the user is on opus[1m] at 230K tokens and invokes a
- * skill with `model: opus`, passing the bare alias through drops the effective
+ * A skill author writing `model: deep` means "use deep-tier reasoning" — not
+ * "downgrade to 200K". If the user is on deep[1m] at 230K tokens and invokes a
+ * skill with `model: deep`, passing the bare alias through drops the effective
  * context window from 1M to 200K, which trips autocompact at 23% apparent usage
  * and surfaces "Context limit reached" even though nothing overflowed.
  *
- * We only carry [1m] when the target actually supports it (sonnet/opus). A skill
- * with `model: haiku` on a 1M session still downgrades — haiku has no 1M variant,
+ * We only carry [1m] when the target actually supports it (default/deep). A skill
+ * with `model: fast` on a 1M session still downgrades — fast has no 1M variant,
  * so the autocompact that follows is correct. Skills that already specify [1m]
  * are left untouched.
  */
@@ -542,7 +544,7 @@ export function resolveSkillModelOverride(
     return skillModel
   }
   // modelSupports1M matches on canonical IDs ('claude-opus-4-6', 'claude-sonnet-4');
-  // a bare 'opus' alias falls through getCanonicalName unmatched. Resolve first.
+  // a bare tier alias falls through getCanonicalName unmatched. Resolve first.
   if (modelSupports1M(parseUserSpecifiedModel(skillModel))) {
     return skillModel + '[1m]'
   }
@@ -570,15 +572,7 @@ export function isLegacyModelRemapEnabled(): boolean {
 export function modelDisplayString(model: ModelSetting): string {
   const selectedProvider = getSelectedProviderID()
   if (model === null) {
-    if (selectedProvider !== 'anthropic') {
-      return `Default (${formatProviderModel(selectedProvider, getDefaultMainLoopModel())})`
-    }
-    if (process.env.USER_TYPE === 'ant') {
-      return `Default for Ants (${renderDefaultModelSetting(getDefaultMainLoopModelSetting())})`
-    } else if (isClaudeAISubscriber()) {
-      return `Default (${getClaudeAiUserDefaultModelDescription()})`
-    }
-    return `Default (${getDefaultMainLoopModel()})`
+    return 'No model selected'
   }
   const resolvedModel = parseUserSpecifiedModel(model)
   const rendered =

@@ -118,10 +118,9 @@ Codex CLI 的核心入口在：
 - DeepSeek：`DEEPSEEK_API_KEY`
 - MiniMax：`MINIMAX_API_KEY`
 - Groq：`GROQ_API_KEY`
-- AI Gateway：`AI_GATEWAY_API_KEY`
 - Custom OpenAI-compatible：`CUSTOM_PROVIDER_API_KEY`
 
-当前项目还会从 `models.dev` 和 Vercel AI Gateway 拉 provider/model catalog，并在 DeepSeek 上做余额查询、错误提示、模型 metadata 和 thinking/output token 适配。MiniMax 是独立 provider，并包含媒体工具链。
+当前项目还会从 `models.dev` 拉 provider/model catalog，并使用 Vercel AI Gateway 目录补充模型图标；DeepSeek 上做余额查询、错误提示、模型 metadata 和 thinking/output token 适配。MiniMax 是独立 provider，并包含媒体工具链。
 
 Codex CLI 的 provider 配置集中在 Rust `codex-rs/model-provider-info` 和 `codex-rs/config`。它的内置中心是 OpenAI/ChatGPT：
 

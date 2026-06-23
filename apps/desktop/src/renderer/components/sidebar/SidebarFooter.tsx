@@ -1,5 +1,5 @@
 import type React from "react";
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowUpRight,
@@ -13,21 +13,96 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import { APP_ICON_SIZE } from '../ui/iconTokens.js'
 import { desktopClient } from '../../services/desktopClient.js'
+import type {
+  DesktopModelProviderState,
+  DesktopProviderBalanceResult,
+  DesktopProviderTokenPlanUsageInfo,
+  ModelProviderID,
+} from '../../../shared/types.js'
 import { IconButton } from "../ui/IconButton.js";
 import { PopoverItem } from "../ui/PopoverItem.js";
 import { PopoverMenu } from "../ui/PopoverMenu.js";
+import { SidebarRow } from "./SidebarRow.js";
 
-const USAGE_ROWS = [
-  { label: "5 小时", percent: 79, detail: "06:26" },
-  { label: "1 周", percent: 61, detail: "6月25日" },
-];
+const BILLING_PROVIDER_IDS: ReadonlySet<ModelProviderID> = new Set([
+  "deepseek",
+  "minimax",
+]);
+
+type PopoverUsageRow = {
+  label: string;
+  percent: number;
+  detail: string;
+};
+
+type ProviderUsageState = {
+  providerID: ModelProviderID | null;
+  displayName: string | null;
+  balance: DesktopProviderBalanceResult | null;
+  loading: boolean;
+  error: string | null;
+};
+
+const EMPTY_USAGE: ProviderUsageState = {
+  providerID: null,
+  displayName: null,
+  balance: null,
+  loading: false,
+  error: null,
+};
 
 export function SidebarFooter(): React.ReactNode {
   const location = useLocation();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [usageExpanded, setUsageExpanded] = useState(false);
+  const [usage, setUsage] = useState<ProviderUsageState>(EMPTY_USAGE);
   const settingsActive = location.pathname === "/settings";
+
+  const refreshUsage = useCallback(async (): Promise<void> => {
+    setUsage(previous => ({ ...previous, loading: true, error: null }));
+    try {
+      const providerState = await desktopClient.getModelProviderState();
+      const providerID = providerState.selectedProviderID;
+      if (!BILLING_PROVIDER_IDS.has(providerID) || !providerState.apiKeyConfigured) {
+        setUsage({
+          providerID,
+          displayName: providerState.provider.displayName,
+          balance: null,
+          loading: false,
+          error: null,
+        });
+        return;
+      }
+      const balance = await desktopClient.fetchProviderBalance({ providerID });
+      setUsage({
+        providerID,
+        displayName: providerState.provider.displayName,
+        balance,
+        loading: false,
+        error: balance.error ?? null,
+      });
+    } catch (fetchError) {
+      setUsage(previous => ({
+        ...previous,
+        loading: false,
+        error:
+          fetchError instanceof Error
+            ? fetchError.message
+            : String(fetchError),
+      }));
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    void refreshUsage();
+  }, [menuOpen, refreshUsage]);
+
+  const usageRows = useMemo<PopoverUsageRow[]>(
+    () => buildUsageRows(usage),
+    [usage],
+  );
 
   return (
     <footer className="sidebar-footer">
@@ -36,19 +111,17 @@ export function SidebarFooter(): React.ReactNode {
         open={menuOpen}
         side="top"
         trigger={
-          <button
-            className={
-              settingsActive
-                ? "sidebar-settings-link sidebar-footer-trigger active"
-                : "sidebar-settings-link sidebar-footer-trigger"
-            }
-            type="button"
+          <SidebarRow
+            active={settingsActive}
+            asChild
+            className="sidebar-settings-link"
+            labelClassName="sidebar-settings-label"
+            leading={<Settings2 size={APP_ICON_SIZE} />}
           >
-            <span className="icon-button sidebar-item-icon">
-              <Settings2 size={APP_ICON_SIZE} />
-            </span>
-            <span>设置</span>
-          </button>
+            <button className="sidebar-footer-trigger" type="button">
+              设置
+            </button>
+          </SidebarRow>
         }
         onOpenChange={setMenuOpen}
       >
@@ -103,25 +176,45 @@ export function SidebarFooter(): React.ReactNode {
                 key="usage-panel"
                 transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
               >
-                {USAGE_ROWS.map(row => (
-                  <div className="popover-usage-row" key={row.label}>
-                    <span className="popover-usage-label">{row.label}</span>
-                    <span className="popover-usage-track">
-                      <span
-                        className="popover-usage-fill"
-                        style={{ width: `${row.percent}%` }}
-                      />
-                    </span>
-                    <span className="popover-usage-percent">
-                      {row.percent}%
-                    </span>
-                    <span className="popover-usage-detail">{row.detail}</span>
+                <div className="popover-usage-header">
+                  <span className="popover-usage-header-name">
+                    {usage.displayName ?? "当前模型"}
+                  </span>
+                </div>
+                {usageRows.length > 0 ? (
+                  usageRows.map(row => (
+                    <div className="popover-usage-row" key={row.label}>
+                      <span className="popover-usage-label">{row.label}</span>
+                      <span className="popover-usage-track">
+                        <span
+                          className="popover-usage-fill"
+                          style={{ width: `${row.percent}%` }}
+                        />
+                      </span>
+                      <span className="popover-usage-percent">
+                        {row.percent}%
+                      </span>
+                      <span className="popover-usage-detail">{row.detail}</span>
+                    </div>
+                  ))
+                ) : usage.loading ? (
+                  <div className="popover-usage-empty">正在查询用量…</div>
+                ) : usage.error ? (
+                  <div className="popover-usage-empty popover-usage-empty-error">
+                    {usage.error}
                   </div>
-                ))}
+                ) : (
+                  <div className="popover-usage-empty">
+                    当前提供商未返回用量数据
+                  </div>
+                )}
                 <div className="popover-usage-divider" />
                 <button
                   className="popover-usage-action"
-                  onClick={() => setMenuOpen(false)}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    navigate("/settings?tab=billing");
+                  }}
                   type="button"
                 >
                   <span className="popover-usage-action-label">了解更多</span>
@@ -153,4 +246,86 @@ export function SidebarFooter(): React.ReactNode {
       </IconButton>
     </footer>
   );
+}
+
+function buildUsageRows(usage: ProviderUsageState): PopoverUsageRow[] {
+  const { balance } = usage;
+  if (!balance) return [];
+  if (usage.providerID === "minimax") {
+    return buildMiniMaxRows(balance.tokenPlanUsages ?? []);
+  }
+  if (usage.providerID === "deepseek") {
+    return buildDeepSeekRows(balance.balances);
+  }
+  return [];
+}
+
+function buildMiniMaxRows(
+  usages: DesktopProviderTokenPlanUsageInfo[],
+): PopoverUsageRow[] {
+  const primary = usages.find(item => item.modelName === "general") ?? usages[0];
+  if (!primary) return [];
+  const rows: PopoverUsageRow[] = [];
+  const intervalPercent = primary.currentIntervalRemainingPercent ?? 0;
+  rows.push({
+    label: "5 小时",
+    percent: clampPercent(intervalPercent),
+    detail: formatRemainingWindow(
+      primary.currentIntervalRemainingTime,
+      primary.currentIntervalEndTime,
+    ),
+  });
+  if (primary.currentWeeklyRemainingPercent != null) {
+    rows.push({
+      label: "1 周",
+      percent: clampPercent(primary.currentWeeklyRemainingPercent),
+      detail: formatRemainingWindow(
+        primary.weeklyRemainingTime,
+        primary.weeklyEndTime,
+      ),
+    });
+  }
+  return rows;
+}
+
+function buildDeepSeekRows(
+  balances: DesktopProviderBalanceResult["balances"],
+): PopoverUsageRow[] {
+  if (balances.length === 0) return [];
+  return balances.map(item => ({
+    label: item.currency,
+    percent: 100,
+    detail: `余额 ${item.totalBalance}`,
+  }));
+}
+
+function clampPercent(value: number): number {
+  if (Number.isNaN(value)) return 0;
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function formatRemainingWindow(
+  remainingTime: number | null,
+  endTime: number | null,
+): string {
+  if (remainingTime != null && remainingTime > 0) {
+    return formatDuration(remainingTime);
+  }
+  if (endTime != null && endTime > 0) {
+    return new Date(endTime).toLocaleDateString("zh-CN", {
+      month: "long",
+      day: "numeric",
+    });
+  }
+  return "—";
+}
+
+function formatDuration(milliseconds: number): string {
+  const totalMinutes = Math.max(1, Math.ceil(milliseconds / 60000));
+  if (totalMinutes < 60) return `${totalMinutes} 分钟`;
+  const hours = Math.floor(totalMinutes / 60);
+  const restMinutes = totalMinutes % 60;
+  return restMinutes
+    ? `${hours} 小时 ${restMinutes} 分`
+    : `${hours} 小时`;
 }

@@ -8,6 +8,7 @@ import {
   saveDesktopStoredSettings,
 } from './desktopSettings.js'
 import {
+  deleteProviderApiKey,
   fetchProviderBalance,
   fetchProviderModels,
   getModelProviderState,
@@ -28,6 +29,10 @@ import {
 import type { DesktopApiHandlers } from './ipc.js'
 import { createDesktopApiHandlers } from './ipc.js'
 import type { DesktopAgentRuntimePreference } from './agentRuntime.js'
+import {
+  chooseDesktopComposerFiles,
+  readDesktopComposerAttachments,
+} from './desktopComposerAttachments.js'
 import { readOptionalWorkspaceFile } from './optionalWorkspaceFile.js'
 import type { DesktopWindowService } from './windowService.js'
 import {
@@ -55,6 +60,7 @@ import type {
   DesktopSessionMetadataPatch,
   DesktopSessionSnapshot,
   DesktopStoredSettings,
+  DesktopUserMessageInput,
 } from '../shared/types.js'
 
 export type DesktopApiHandlerDependencies = {
@@ -83,7 +89,7 @@ export type DesktopApiHandlerDependencies = {
   ): Promise<DesktopSessionSnapshot>
   sendUserMessage(
     sessionId: string,
-    content: string,
+    content: DesktopUserMessageInput,
     model?: string,
   ): Promise<void>
   respondToPermission(
@@ -126,6 +132,7 @@ export function buildDesktopApiHandlers(
     fetchProviderBalance,
     saveModelProvider,
     saveProviderApiKey,
+    deleteProviderApiKey,
     chooseWorkspace,
     openWorkspace,
     getWorkspaceContext,
@@ -139,6 +146,8 @@ export function buildDesktopApiHandlers(
     readWorkspaceFile,
     readOptionalWorkspaceFile: (workspacePath, filePath) =>
       readOptionalWorkspaceFile(readWorkspaceFile, workspacePath, filePath),
+    chooseComposerFiles: chooseDesktopComposerFiles,
+    readComposerFiles: readDesktopComposerAttachments,
     getWorkspaceDiff,
     getThemeSettings: readDesktopThemeSettings,
     saveThemeSettings: saveDesktopThemeSettings,

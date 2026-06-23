@@ -15,6 +15,7 @@ import type {
   DesktopPermissionDecision,
   DesktopPermissionRequest,
   DesktopThinkingMode,
+  DesktopUserMessageContent,
 } from '../shared/types.js'
 import type { PermissionMode } from '@codepilotx/tui/types/permissions.js'
 import {
@@ -50,6 +51,10 @@ export type DesktopAgentRuntimeContext = {
   permissionMode?: DesktopPermissionMode
   model?: string
   fallbackModel?: string
+  smallFastModel?: string
+  fastModel?: string
+  defaultModel?: string
+  deepModel?: string
   sessionName?: string
   thinkingMode?: DesktopThinkingMode
   systemPrompt?: string
@@ -61,7 +66,7 @@ export type DesktopAgentRuntimeContext = {
 
 export type DesktopAgentRuntime = {
   setModel(model: string | undefined): void
-  runUserTurn(content: string, signal: AbortSignal): Promise<void>
+  runUserTurn(content: DesktopUserMessageContent, signal: AbortSignal): Promise<void>
 }
 
 let headlessQueue: Promise<void> = Promise.resolve()
@@ -122,11 +127,14 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
     this.context.model = model
   }
 
-  async runUserTurn(content: string, signal: AbortSignal): Promise<void> {
+  async runUserTurn(
+    content: DesktopUserMessageContent,
+    signal: AbortSignal,
+  ): Promise<void> {
     const startedAt = Date.now()
     desktopDebug('runtime_subprocess_turn_start', {
       sessionId: this.context.sessionId,
-      textLength: content.length,
+      textLength: getDesktopUserMessageContentTextLength(content),
     })
     const executablePath = this.context.agentExecutablePath
     if (!executablePath || !existsSync(executablePath)) {
@@ -149,8 +157,8 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
         '--replay-user-messages',
         ...this.sessionResumeArgs(),
         ...permissionModeArgs(this.context.permissionMode),
+        ...permissionPromptToolArgs(),
         ...modelArgs(this.context.model),
-        ...fallbackModelArgs(this.context.fallbackModel),
         ...sessionNameArgs(this.context.sessionName),
         ...thinkingModeArgs(this.context.thinkingMode),
         ...systemPromptArgs(this.context.systemPrompt),
@@ -172,6 +180,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
           CODEPILOTX_DISABLE_MIN_VERSION_CHECK: '1',
           CLAUDE_CODE_DISABLE_MDM_READ: '1',
           CLAUDE_CODE_DISABLE_MIN_VERSION_CHECK: '1',
+          ...taskModelEnv(this.context),
         },
       },
     )
@@ -562,12 +571,16 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
       resumeExistingSession: context.resumeExistingSession,
       permissionMode: tuiPermissionMode(context.permissionMode),
       model: context.model,
-      fallbackModel: context.fallbackModel,
+      smallFastModel: context.smallFastModel,
+      fastModel: context.fastModel,
+      defaultModel: context.defaultModel,
+      deepModel: context.deepModel,
       sessionName: context.sessionName,
       thinkingMode: context.thinkingMode,
       systemPrompt: context.systemPrompt,
       appendSystemPrompt: context.appendSystemPrompt,
       additionalDirectories: context.additionalDirectories,
+      permissionPromptToolName: permissionPromptToolName(),
       onOutput: (message, controls) =>
         this.handleStructuredOutput(message, controls),
     })
@@ -578,11 +591,14 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
     this.runtime.setModel(model)
   }
 
-  async runUserTurn(content: string, signal: AbortSignal): Promise<void> {
+  async runUserTurn(
+    content: DesktopUserMessageContent,
+    signal: AbortSignal,
+  ): Promise<void> {
     const startedAt = Date.now()
     desktopDebug('runtime_embedded_turn_start', {
       sessionId: this.context.sessionId,
-      textLength: content.length,
+      textLength: getDesktopUserMessageContentTextLength(content),
     })
     this.emittedAssistantText = false
     this.partialText = ''
@@ -915,6 +931,24 @@ export function permissionModeArgs(
   return ['--permission-mode', permissionMode ?? 'default']
 }
 
+function getDesktopUserMessageContentTextLength(
+  content: DesktopUserMessageContent,
+): number {
+  if (typeof content === 'string') return content.length
+  return content.reduce((sum, block) => {
+    if (block.type === 'text') return sum + block.text.length
+    return sum
+  }, 0)
+}
+
+export function permissionPromptToolName(): string {
+  return 'stdio'
+}
+
+export function permissionPromptToolArgs(): string[] {
+  return ['--permission-prompt-tool', permissionPromptToolName()]
+}
+
 function tuiPermissionMode(
   permissionMode: DesktopPermissionMode | undefined,
 ): PermissionMode | undefined {
@@ -925,8 +959,21 @@ function modelArgs(model: string | undefined): string[] {
   return model ? ['--model', model] : []
 }
 
-function fallbackModelArgs(fallbackModel: string | undefined): string[] {
-  return fallbackModel ? ['--fallback-model', fallbackModel] : []
+export function taskModelEnv(
+  context: DesktopAgentRuntimeContext,
+): Record<string, string> {
+  const mainModel = context.model?.trim()
+  if (!mainModel) return {}
+  return {
+    ANTHROPIC_SMALL_FAST_MODEL:
+      context.smallFastModel?.trim() || mainModel,
+    CODEPILOTX_FAST_MODEL:
+      context.fastModel?.trim() || mainModel,
+    CODEPILOTX_DEFAULT_MODEL:
+      context.defaultModel?.trim() || mainModel,
+    CODEPILOTX_DEEP_MODEL:
+      context.deepModel?.trim() || mainModel,
+  }
 }
 
 function sessionNameArgs(sessionName: string | undefined): string[] {

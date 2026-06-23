@@ -1,6 +1,6 @@
 import type React from "react";
 import { useLocation } from "react-router-dom";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   DesktopSessionMetadataPatch,
   DesktopWorkspace,
@@ -40,9 +40,9 @@ export function DesktopSidebar({
 }: Props): React.ReactNode {
   const location = useLocation();
   const [relativeNow, setRelativeNow] = useState(() => Date.now());
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(
-    {},
-  );
+  const [collapsedProjectPaths, setCollapsedProjectPaths] = useState<
+    Set<string>
+  >(() => new Set());
 
   useEffect(() => {
     const timer = window.setInterval(() => setRelativeNow(Date.now()), 30_000);
@@ -78,12 +78,17 @@ export function DesktopSidebar({
     return location.pathname === `/${view}`;
   }
 
-  function toggleGroup(groupKey: string): void {
-    setExpandedGroups((current) => ({
-      ...current,
-      [groupKey]: !current[groupKey],
-    }));
-  }
+  const toggleProjectCollapsed = useCallback((projectPath: string): void => {
+    setCollapsedProjectPaths((current) => {
+      const next = new Set(current);
+      if (next.has(projectPath)) {
+        next.delete(projectPath);
+      } else {
+        next.add(projectPath);
+      }
+      return next;
+    });
+  }, []);
 
   function pinSession(session: SessionListItem): void {
     onUpdateSessionMetadata(session.id, { pinnedAt: new Date().toISOString() });
@@ -104,7 +109,7 @@ export function DesktopSidebar({
       <SidebarTopNav isActiveView={isActiveView} />
       <SidebarBody
         activeSessionId={activeSessionId}
-        expandedGroups={expandedGroups}
+        collapsedProjectPaths={collapsedProjectPaths}
         now={relativeNow}
         pinnedSessions={pinnedSessions}
         projectWorkspaces={projectWorkspaces}
@@ -118,7 +123,7 @@ export function DesktopSidebar({
         onPinSession={pinSession}
         onRemoveWorkspace={onRemoveWorkspace}
         onSelectSession={onSelectSession}
-        onToggleExpanded={toggleGroup}
+        onToggleProjectCollapsed={toggleProjectCollapsed}
         onUnpinSession={unpinSession}
       />
       <SidebarFooter />

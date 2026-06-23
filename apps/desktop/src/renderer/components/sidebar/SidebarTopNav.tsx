@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Boxes, Clock3, Search, SquarePen } from "lucide-react";
 import { APP_ICON_SIZE } from '../ui/iconTokens.js'
 import type { AppView } from "../../uiTypes.js";
+import { SidebarRow } from "./SidebarRow.js";
 
 type SidebarNavItem = {
   view: AppView;
@@ -46,18 +47,20 @@ export function SidebarTopNav({ isActiveView }: Props): React.ReactNode {
   return (
     <nav className="sidebar-top-nav" aria-label="快捷入口">
       {TOP_NAV_ITEMS.map((item) => (
-        <Link
+        <SidebarRow
+          active={isActiveView(item.view)}
+          asChild
           className={
             isActiveView(item.view)
               ? "sidebar-nav-link active"
               : "sidebar-nav-link"
           }
           key={item.view}
-          to={item.path}
+          labelClassName="sidebar-item-label"
+          leading={item.icon}
         >
-          <span className="icon-button sidebar-item-icon">{item.icon}</span>
-          <span className="sidebar-item-label">{item.label}</span>
-        </Link>
+          <Link to={item.path}>{item.label}</Link>
+        </SidebarRow>
       ))}
     </nav>
   );

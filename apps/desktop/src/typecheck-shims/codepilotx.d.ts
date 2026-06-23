@@ -508,13 +508,13 @@ declare module '@codepilotx/core/models/provider.js' {
     | 'anthropic'
     | 'openai-compatible'
     | 'minimax'
-    | 'ai-gateway'
   export type ModelMetadata = {
     id: string
     name?: string
     label?: string
     description?: string
     badge?: string
+    iconURL?: string
     contextWindow?: number
     outputTokens?: number
     inputCost?: number
@@ -553,6 +553,24 @@ declare module '@codepilotx/core/models/provider.js' {
     grantedBalance: string
     toppedUpBalance: string
   }
+  export type ProviderTokenPlanUsageInfo = {
+    modelName: string
+    currentIntervalTotalCount: number | null
+    currentIntervalRemainingCount: number | null
+    currentIntervalStartTime: number | null
+    currentIntervalEndTime: number | null
+    currentIntervalRemainingTime: number | null
+    currentIntervalStatus: number | null
+    currentIntervalRemainingPercent: number | null
+    currentWeeklyTotalCount: number | null
+    currentWeeklyRemainingCount: number | null
+    currentWeeklyStatus: number | null
+    currentWeeklyRemainingPercent: number | null
+    weeklyStartTime: number | null
+    weeklyEndTime: number | null
+    weeklyRemainingTime: number | null
+    weeklyBoostPermille: number | null
+  }
 }
 
 declare module '@codepilotx/core/utils/auth.js' {
@@ -590,7 +608,7 @@ declare module '@codepilotx/tui/headless/desktopRuntime.js' {
   ): DesktopHeadlessRuntime
   export function runDesktopHeadlessTurn(
     runtime: DesktopHeadlessRuntime,
-    content: string,
+    content: string | unknown[],
     signal: AbortSignal,
   ): Promise<void>
 }
@@ -809,6 +827,22 @@ declare module '@codepilotx/tui/utils/model/providerConfig.js' {
     baseURL?: string
   }
   export function getSelectedProviderID(): string
+  export function getProviderCatalogDiagnostics(): {
+    modelsDev: {
+      status: 'idle' | 'fulfilled' | 'rejected'
+      providerCount?: number
+      usableProviderCount?: number
+      filteredMissingApiCount?: number
+      error?: string
+    }
+    gateway: {
+      status: 'idle' | 'fulfilled' | 'rejected'
+      modelCount?: number
+      error?: string
+    }
+    providerCount: number
+    providerIds: string[]
+  }
   export function isModelProviderID(value: unknown): value is string
   export function getCachedProviderModels(providerID: string): string[] | null
   export function getProviderApiKeySource(providerID: string): string | null
@@ -827,6 +861,7 @@ declare module '@codepilotx/tui/utils/model/providerConfig.js' {
   }): Promise<{
     isAvailable: boolean
     balances: import('@codepilotx/core/models/provider.js').ProviderBalanceInfo[]
+    tokenPlanUsages?: import('@codepilotx/core/models/provider.js').ProviderTokenPlanUsageInfo[]
     error?: string
   }>
   export function saveSelectedProvider(options: {
@@ -837,5 +872,8 @@ declare module '@codepilotx/tui/utils/model/providerConfig.js' {
   export function saveProviderApiKey(
     providerID: string,
     apiKey: string,
+  ): { success: boolean; warning?: string }
+  export function deleteProviderApiKey(
+    providerID: string,
   ): { success: boolean; warning?: string }
 }

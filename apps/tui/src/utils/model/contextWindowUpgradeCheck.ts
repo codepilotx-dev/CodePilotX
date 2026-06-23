@@ -12,16 +12,16 @@ function getAvailableUpgrade(): {
   multiplier: number
 } | null {
   const currentModelSetting = getUserSpecifiedModelSetting()
-  if (currentModelSetting === 'opus' && checkOpus1mAccess()) {
+  if (currentModelSetting === 'deep' && checkOpus1mAccess()) {
     return {
-      alias: 'opus[1m]',
-      name: 'Opus 1M',
+      alias: 'deep[1m]',
+      name: 'Deep 1M',
       multiplier: 5,
     }
-  } else if (currentModelSetting === 'sonnet' && checkSonnet1mAccess()) {
+  } else if (currentModelSetting === 'default' && checkSonnet1mAccess()) {
     return {
-      alias: 'sonnet[1m]',
-      name: 'Sonnet 1M',
+      alias: 'default[1m]',
+      name: 'Default 1M',
       multiplier: 5,
     }
   }

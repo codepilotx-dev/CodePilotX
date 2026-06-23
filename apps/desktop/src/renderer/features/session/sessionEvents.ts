@@ -130,11 +130,6 @@ export function handleSessionAgentEvent(
   }
 
   if (event.type === 'session_title') {
-    console.log('[desktop-title-debug] session_title_event', {
-      sessionId: event.sessionId,
-      title: event.title,
-      isActive: event.sessionId === activeSessionIdRef.current,
-    })
     setSessions(current =>
       current.map(session =>
         session.id === event.sessionId

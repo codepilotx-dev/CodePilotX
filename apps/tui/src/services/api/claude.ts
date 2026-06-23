@@ -250,16 +250,13 @@ import {
 } from './promptCacheBreakDetection.js'
 import {
   CannotRetryError,
-  FallbackTriggeredError,
   is529Error,
   type RetryContext,
   withRetry,
 } from './withRetry.js'
 import { queryOpenAICompatibleModelWithStreaming } from './openaiCompatible.js'
 import { queryMiniMaxWithAiSdkStreaming } from './minimax.js'
-import { queryAIGatewayWithStreaming } from './aiGateway.js'
 import {
-  shouldUseAiGatewayProvider,
   shouldUseMiniMaxProvider,
   shouldUseOpenAICompatibleProvider,
 } from '../../utils/model/providerConfig.js'
@@ -729,29 +726,6 @@ export async function queryModelWithoutStreaming({
   signal: AbortSignal
   options: Options
 }): Promise<AssistantMessage> {
-  if (shouldUseAiGatewayProvider()) {
-    let assistantMessage: AssistantMessage | undefined
-    for await (const message of queryAIGatewayWithStreaming({
-      messages,
-      systemPrompt,
-      tools,
-      signal,
-      _thinkingConfig: thinkingConfig,
-      options,
-    })) {
-      if (message.type === 'assistant') {
-        assistantMessage = message
-      }
-    }
-    if (!assistantMessage) {
-      if (signal.aborted) {
-        throw new APIUserAbortError()
-      }
-      throw new Error('No assistant message found')
-    }
-    return assistantMessage
-  }
-
   if (shouldUseMiniMaxProvider()) {
     let assistantMessage: AssistantMessage | undefined
     for await (const message of queryMiniMaxWithAiSdkStreaming({
@@ -844,18 +818,6 @@ export async function* queryModelWithStreaming({
   StreamEvent | AssistantMessage | SystemAPIErrorMessage,
   void
 > {
-  if (shouldUseAiGatewayProvider()) {
-    yield* queryAIGatewayWithStreaming({
-      messages,
-      systemPrompt,
-      tools,
-      signal,
-      _thinkingConfig: thinkingConfig,
-      options,
-    })
-    return
-  }
-
   if (shouldUseMiniMaxProvider()) {
     yield* queryMiniMaxWithAiSdkStreaming({
       messages,
@@ -1009,7 +971,7 @@ export async function* executeNonStreamingRequest(
     },
     {
       model: retryOptions.model,
-      fallbackModel: retryOptions.fallbackModel,
+      fallbackModel: undefined,
       thinkingConfig: retryOptions.thinkingConfig,
       ...(isFastModeEnabled() && { fastMode: retryOptions.fastMode }),
       signal: retryOptions.signal,
@@ -1950,7 +1912,7 @@ async function* queryModel(
       },
       {
         model: options.model,
-        fallbackModel: options.fallbackModel,
+        fallbackModel: undefined,
         thinkingConfig,
         ...(isFastModeEnabled() ? { fastMode: isFastMode } : false),
         signal,
@@ -2665,7 +2627,7 @@ async function* queryModel(
         { model: options.model, source: options.querySource },
         {
           model: options.model,
-          fallbackModel: options.fallbackModel,
+          fallbackModel: undefined,
           thinkingConfig,
           ...(isFastModeEnabled() && { fastMode: isFastMode }),
           signal,
@@ -2709,14 +2671,6 @@ async function* queryModel(
       clearStreamIdleTimers()
     }
   } catch (errorFromRetry) {
-    // FallbackTriggeredError must propagate to query.ts, which performs the
-    // actual model switch. Swallowing it here would turn the fallback into a
-    // no-op — the user would just see "Model fallback triggered: X -> Y" as
-    // an error message with no actual retry on the fallback model.
-    if (errorFromRetry instanceof FallbackTriggeredError) {
-      throw errorFromRetry
-    }
-
     // Check if this is a 404 error during stream creation that should trigger
     // non-streaming fallback. This handles gateways that return 404 for streaming
     // endpoints but work fine with non-streaming. Before v2.1.8, BetaMessageStream
@@ -2764,7 +2718,7 @@ async function* queryModel(
           { model: options.model, source: options.querySource },
           {
             model: options.model,
-            fallbackModel: options.fallbackModel,
+            fallbackModel: undefined,
             thinkingConfig,
             ...(isFastModeEnabled() && { fastMode: isFastMode }),
             signal,
@@ -2801,11 +2755,6 @@ async function* queryModel(
 
         // Continue to success logging below
       } catch (fallbackError) {
-        // Propagate model-fallback signal to query.ts (see comment above).
-        if (fallbackError instanceof FallbackTriggeredError) {
-          throw fallbackError
-        }
-
         // Fallback also failed, handle as normal error
         logForDebugging(
           `Non-streaming fallback also failed: ${errorMessage(fallbackError)}`,

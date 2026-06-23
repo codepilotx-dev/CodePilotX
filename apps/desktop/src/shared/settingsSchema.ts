@@ -40,6 +40,10 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     permissionMode: 'default',
     model: '',
     fallbackModel: '',
+    smallFastModel: '',
+    fastModel: '',
+    defaultModel: '',
+    deepModel: '',
     sessionName: '',
     thinkingMode: 'default',
     systemPrompt: '',
@@ -48,7 +52,7 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     recentWorkspaces: [],
     drawerTab: 'files',
     selectedModelPreset: '',
-    providerID: 'anthropic',
+    providerID: 'minimax',
     providerBaseURL: '',
     showContextUsage: true,
     defaultOpenTargetId: 'default-app',
@@ -69,8 +73,33 @@ export function normalizeDesktopStoredSettings(
   const defaults = defaultDesktopStoredSettings()
   return {
     permissionMode: normalizeDesktopPermissionMode(parsed.permissionMode),
-    model: stringOrDefault(parsed.model, defaults.model),
+    model: migrateModelAlias(stringOrDefault(parsed.model, defaults.model)),
     fallbackModel: stringOrDefault(parsed.fallbackModel, defaults.fallbackModel),
+    smallFastModel: stringOrDefault(
+      parsed.smallFastModel,
+      defaults.smallFastModel,
+    ),
+    fastModel: stringOrDefault(
+      parsed.fastModel,
+      stringOrDefault(
+        (parsed as { haikuModel?: unknown }).haikuModel,
+        defaults.fastModel,
+      ),
+    ),
+    defaultModel: stringOrDefault(
+      parsed.defaultModel,
+      stringOrDefault(
+        (parsed as { sonnetModel?: unknown }).sonnetModel,
+        defaults.defaultModel,
+      ),
+    ),
+    deepModel: stringOrDefault(
+      parsed.deepModel,
+      stringOrDefault(
+        (parsed as { opusModel?: unknown }).opusModel,
+        defaults.deepModel,
+      ),
+    ),
     sessionName: stringOrDefault(parsed.sessionName, defaults.sessionName),
     thinkingMode: isDesktopThinkingMode(parsed.thinkingMode)
       ? parsed.thinkingMode
@@ -92,7 +121,9 @@ export function normalizeDesktopStoredSettings(
       parsed.selectedModelPreset,
       defaults.selectedModelPreset,
     ),
-    providerID: isModelProviderID(parsed.providerID)
+    providerID: parsed.providerID === 'anthropic'
+      ? defaults.providerID
+      : isModelProviderID(parsed.providerID)
       ? parsed.providerID
       : defaults.providerID,
     providerBaseURL: stringOrDefault(
@@ -202,4 +233,24 @@ export function isModelProviderID(value: unknown): value is ModelProviderID {
 
 function stringOrDefault(value: unknown, fallback: string): string {
   return typeof value === 'string' ? value : fallback
+}
+
+function migrateModelAlias(model: string): string {
+  switch (model) {
+    case 'haiku':
+      return 'fast'
+    case 'sonnet':
+      return 'default'
+    case 'opus':
+    case 'best':
+      return 'deep'
+    case 'opusplan':
+      return 'plan'
+    case 'sonnet[1m]':
+      return 'default[1m]'
+    case 'opus[1m]':
+      return 'deep[1m]'
+    default:
+      return model
+  }
 }

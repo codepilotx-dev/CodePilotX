@@ -805,8 +805,8 @@ export const SkillTool: Tool<InputSchema, Output, Progress> = buildTool({
           }
         }
 
-        // Carry [1m] suffix over — otherwise a skill with `model: opus` on an
-        // opus[1m] session drops the effective window to 200K and trips autocompact.
+        // Carry [1m] suffix over — otherwise a skill with `model: deep` on a
+        // deep[1m] session drops the effective window to 200K and trips autocompact.
         if (model) {
           modifiedContext = {
             ...modifiedContext,

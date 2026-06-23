@@ -9,6 +9,7 @@ import type {
   DesktopSessionMetadataPatch,
   DesktopSessionStatus,
   DesktopThinkingMode,
+  DesktopUserMessageInput,
   DesktopWorkflowEvent,
   DesktopWorkspace,
 } from '../../../shared/types.js'
@@ -52,7 +53,10 @@ import {
 export type UseSessionStateOptions = {
   permissionMode: DesktopPermissionMode
   model: string
-  fallbackModel: string
+  smallFastModel: string
+  fastModel: string
+  defaultModel: string
+  deepModel: string
   sessionName: string
   thinkingMode: DesktopThinkingMode
   systemPrompt: string
@@ -82,7 +86,10 @@ export type UseSessionStateResult = {
   activateSessionById: (targetSessionId: string | null) => DesktopWorkspace | null
   createSessionForWorkspace: (target?: DesktopWorkspace | null) => Promise<string | null>
   submit: (target?: DesktopWorkspace | null) => Promise<void>
-  submitToSession: (targetSessionId: string, value: string) => Promise<void>
+  submitToSession: (
+    targetSessionId: string,
+    value: DesktopUserMessageInput,
+  ) => Promise<void>
   interrupt: () => Promise<void>
   decidePermission: (
     request: DesktopPermissionRequest,
@@ -104,7 +111,10 @@ export function useSessionState(
   const {
     permissionMode,
     model,
-    fallbackModel,
+    smallFastModel,
+    fastModel,
+    defaultModel,
+    deepModel,
     sessionName,
     thinkingMode,
     systemPrompt,
@@ -228,22 +238,6 @@ export function useSessionState(
         firstPrompt:
           snapshot.item.firstPrompt ?? currentItem?.firstPrompt ?? null,
       }
-      console.log('[desktop-title-debug] hydrate_apply_snapshot', {
-        id: nextItem.id,
-        isActive: activeSessionIdRef.current === nextItem.id,
-        snapshotSessionName: snapshot.item.sessionName,
-        snapshotCustomTitle: snapshot.item.customTitle,
-        snapshotAiTitle: snapshot.item.aiTitle,
-        snapshotFirstPrompt: snapshot.item.firstPrompt,
-        currentSessionName: currentItem?.sessionName,
-        currentCustomTitle: currentItem?.customTitle,
-        currentAiTitle: currentItem?.aiTitle,
-        currentFirstPrompt: currentItem?.firstPrompt,
-        mergedSessionName: nextItem.sessionName,
-        mergedCustomTitle: nextItem.customTitle,
-        mergedAiTitle: nextItem.aiTitle,
-        mergedFirstPrompt: nextItem.firstPrompt,
-      })
       const snapshotView: SessionViewState = {
         ...snapshot.view,
         eventModelVersion: snapshot.eventModelVersion,
@@ -310,13 +304,6 @@ export function useSessionState(
       }
       try {
         const snapshot = await desktopClient.getSession(targetSessionId)
-        console.log('[desktop-title-debug] hydrate_get_session_result', {
-          id: targetSessionId,
-          sessionName: snapshot.item.sessionName,
-          customTitle: snapshot.item.customTitle,
-          aiTitle: snapshot.item.aiTitle,
-          firstPrompt: snapshot.item.firstPrompt,
-        })
         applyHydratedSessionSnapshot(snapshot)
       } catch (error) {
         onErrorRef.current(errorMessageOf(error))
@@ -445,7 +432,10 @@ export function useSessionState(
     () => ({
       permissionMode,
       model,
-      fallbackModel,
+      smallFastModel,
+      fastModel,
+      defaultModel,
+      deepModel,
       sessionName,
       thinkingMode,
       systemPrompt,
@@ -455,10 +445,13 @@ export function useSessionState(
     [
       additionalDirectories,
       appendSystemPrompt,
-      fallbackModel,
+      fastModel,
       model,
+      deepModel,
       permissionMode,
       sessionName,
+      smallFastModel,
+      defaultModel,
       systemPrompt,
       thinkingMode,
     ],
@@ -523,7 +516,7 @@ export function useSessionState(
 
   const submitToSession = useCallback(async (
     targetSessionId: string,
-    value: string,
+    value: DesktopUserMessageInput,
   ): Promise<void> => {
     const targetStatus =
       sessionsRef.current.find(session => session.id === targetSessionId)
@@ -536,8 +529,8 @@ export function useSessionState(
       targetSessionId,
       value,
       Boolean(
-        targetSessionId &&
-          value.trim() &&
+          targetSessionId &&
+          (value.text.trim() || (value.attachments?.length ?? 0) > 0) &&
           targetStatus !== 'running' &&
           targetStatus !== 'waiting',
       ),
@@ -563,7 +556,7 @@ export function useSessionState(
         target ?? null,
       ))
     if (!targetSessionId) return
-    await submitToSession(targetSessionId, input)
+    await submitToSession(targetSessionId, { text: input })
   }, [actionContext, input, sessionId, settingsSnapshot, submitToSession])
 
   const interrupt = useCallback(async (): Promise<void> => {

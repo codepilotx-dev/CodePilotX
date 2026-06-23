@@ -51,6 +51,8 @@ const api: DesktopApi = {
     ipcRenderer.invoke(desktopApiChannel('saveModelProvider'), options),
   saveProviderApiKey: (providerID, apiKey) =>
     ipcRenderer.invoke(desktopApiChannel('saveProviderApiKey'), providerID, apiKey),
+  deleteProviderApiKey: providerID =>
+    ipcRenderer.invoke(desktopApiChannel('deleteProviderApiKey'), providerID),
   chooseWorkspace: () =>
     ipcRenderer.invoke(desktopApiChannel('chooseWorkspace')),
   openWorkspace: workspacePath =>
@@ -112,6 +114,10 @@ const api: DesktopApi = {
     ipcRenderer.invoke(desktopApiChannel('readWorkflowEventLog')),
   openExternalURL: url =>
     ipcRenderer.invoke(desktopApiChannel('openExternalURL'), url),
+  chooseComposerFiles: () =>
+    ipcRenderer.invoke(desktopApiChannel('chooseComposerFiles')),
+  readComposerFiles: filePaths =>
+    ipcRenderer.invoke(desktopApiChannel('readComposerFiles'), filePaths),
   sendUserMessage: (sessionId, content, model) =>
     ipcRenderer.invoke(
       desktopApiChannel('sendUserMessage'),

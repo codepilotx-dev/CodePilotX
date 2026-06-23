@@ -49,10 +49,11 @@
   top: 20px;
   left: 50%;
   z-index: 10000;
-  max-width: min(560px, calc(100vw - 32px));
+  max-width: min(880px, calc(100vw - 32px));
+  max-height: min(70vh, 520px);
   min-height: 34px;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--sp-2);
   padding: 7px 10px 7px 13px;
   border: 1px solid var(--black-a2);
@@ -67,9 +68,9 @@
 
 .global-error-toast span {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .global-error-toast button {

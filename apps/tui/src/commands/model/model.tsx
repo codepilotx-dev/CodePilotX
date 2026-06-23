@@ -23,7 +23,6 @@ import {
   checkSonnet1mAccess,
 } from '../../utils/model/check1mAccess.js'
 import {
-  getDefaultMainLoopModelSetting,
   isOpus1mMergeEnabled,
   renderDefaultModelSetting,
 } from '../../utils/model/model.js'
@@ -145,10 +144,17 @@ function SetModelAndClose({
 }): React.ReactNode {
   const isFastMode = useAppState(s => s.fastMode)
   const setAppState = useSetAppState()
-  const model = args === 'default' ? null : args
+  const model = args
 
   React.useEffect(() => {
     async function handleModelChange(): Promise<void> {
+      if (model.toLowerCase() === 'default') {
+        onDone('The default model option has been removed. Select a specific model ID.', {
+          display: 'system',
+        })
+        return
+      }
+
       if (model && !isModelAllowed(model)) {
         onDone(
           `Model '${model}' is not available. Your organization restricts model selection.`,
@@ -171,12 +177,6 @@ function SetModelAndClose({
           `Sonnet 4.6 with 1M context is not available for your account. Learn more: https://code.claude.com/docs/en/model-config#extended-context-with-1m`,
           { display: 'system' },
         )
-        return
-      }
-
-      // Skip validation for default model
-      if (!model) {
-        setModel(null)
         return
       }
 
@@ -265,18 +265,18 @@ function isOpus1mUnavailable(model: string): boolean {
   return (
     !checkOpus1mAccess() &&
     !isOpus1mMergeEnabled() &&
-    m.includes('opus') &&
+    (m.includes('deep') || m.includes('opus')) &&
     m.includes('[1m]')
   )
 }
 
 function isSonnet1mUnavailable(model: string): boolean {
   const m = model.toLowerCase()
-  // Warn about Sonnet and Sonnet 4.6, but not Sonnet 4.5 since that had
+  // Warn about the default tier and Sonnet 4.6, but not Sonnet 4.5 since that had
   // a different access criteria.
   return (
     !checkSonnet1mAccess() &&
-    (m.includes('sonnet[1m]') || m.includes('sonnet-4-6[1m]'))
+    (m.includes('default[1m]') || m.includes('sonnet-4-6[1m]'))
   )
 }
 
@@ -330,8 +330,6 @@ export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
 }
 
 function renderModelLabel(model: string | null): string {
-  const rendered = renderDefaultModelSetting(
-    model ?? getDefaultMainLoopModelSetting(),
-  )
-  return model === null ? `${rendered} (default)` : rendered
+  if (model === null) return 'No model selected'
+  return renderDefaultModelSetting(model)
 }

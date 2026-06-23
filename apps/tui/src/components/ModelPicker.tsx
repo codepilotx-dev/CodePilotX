@@ -25,7 +25,6 @@ import {
   toPersistableEffort,
 } from '../utils/effort.js'
 import {
-  getDefaultMainLoopModel,
   type ModelSetting,
   modelDisplayString,
   parseUserSpecifiedModel,
@@ -60,8 +59,6 @@ export type Props = {
   skipSettingsWrite?: boolean
 }
 
-const NO_PREFERENCE = '__NO_PREFERENCE__'
-
 export function ModelPicker({
   initial,
   sessionModel,
@@ -76,7 +73,7 @@ export function ModelPicker({
   const exitState = useExitOnCtrlCDWithKeybindings()
   const maxVisible = 10
 
-  const initialValue = initial === null ? NO_PREFERENCE : initial
+  const initialValue = initial ?? undefined
   const [focusedValue, setFocusedValue] = useState<string | undefined>(
     initialValue,
   )
@@ -118,10 +115,9 @@ export function ModelPicker({
 
   const selectOptions = useMemo(
     () =>
-      optionsWithInitial.map(opt => ({
-        ...opt,
-        value: opt.value === null ? NO_PREFERENCE : opt.value,
-      })),
+      optionsWithInitial.flatMap(opt =>
+        opt.value === null ? [] : [{ ...opt, value: opt.value }],
+      ),
     [optionsWithInitial],
   )
   const initialFocusValue = useMemo(
@@ -213,10 +209,6 @@ export function ModelPicker({
       hasToggledEffort && selectedModel && modelSupportsEffort(selectedModel)
         ? effort
         : undefined
-    if (value === NO_PREFERENCE) {
-      onSelect(null, selectedEffort)
-      return
-    }
     onSelect(value, selectedEffort)
   }
 
@@ -323,9 +315,7 @@ export function ModelPicker({
 
 function resolveOptionModel(value?: string): string | undefined {
   if (!value) return undefined
-  return value === NO_PREFERENCE
-    ? getDefaultMainLoopModel()
-    : parseUserSpecifiedModel(value)
+  return parseUserSpecifiedModel(value)
 }
 
 function EffortLevelIndicator({
@@ -360,7 +350,8 @@ function cycleEffortLevel(
 }
 
 function getDefaultEffortLevelForOption(value?: string): EffortLevel {
-  const resolved = resolveOptionModel(value) ?? getDefaultMainLoopModel()
+  const resolved = resolveOptionModel(value)
+  if (!resolved) return 'high'
   const defaultValue = getDefaultEffortForModel(resolved)
   return defaultValue !== undefined
     ? convertEffortValueToLevel(defaultValue)
