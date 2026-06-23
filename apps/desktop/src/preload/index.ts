@@ -3,6 +3,7 @@ import {
   DESKTOP_AGENT_EVENT_CHANNEL,
   DESKTOP_UI_COMMAND_CHANNEL,
   DESKTOP_WORKFLOW_EVENT_CHANNEL,
+  DESKTOP_UPDATE_STATUS_CHANNEL,
   desktopApiChannel,
 } from '../shared/ipcChannels.js'
 import type {
@@ -10,6 +11,7 @@ import type {
   DesktopApi,
   DesktopUiCommand,
   DesktopWorkflowEvent,
+  DesktopUpdateStatus,
 } from '../shared/types.js'
 
 const api: DesktopApi = {
@@ -175,6 +177,22 @@ const api: DesktopApi = {
     }
     ipcRenderer.on(DESKTOP_UI_COMMAND_CHANNEL, listener)
     return () => ipcRenderer.off(DESKTOP_UI_COMMAND_CHANNEL, listener)
+  },
+  checkForUpdates: () =>
+    ipcRenderer.invoke(desktopApiChannel('checkForUpdates')),
+  downloadUpdate: () =>
+    ipcRenderer.invoke(desktopApiChannel('downloadUpdate')),
+  quitAndInstall: () =>
+    ipcRenderer.invoke(desktopApiChannel('quitAndInstall')),
+  onUpdateStatusChange: callback => {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      status: DesktopUpdateStatus,
+    ) => {
+      callback(status)
+    }
+    ipcRenderer.on(DESKTOP_UPDATE_STATUS_CHANNEL, listener)
+    return () => ipcRenderer.off(DESKTOP_UPDATE_STATUS_CHANNEL, listener)
   },
 }
 
