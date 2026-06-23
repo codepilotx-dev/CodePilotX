@@ -318,6 +318,33 @@ export function getProxyFetchOptions(opts?: { forAnthropicAPI?: boolean }): {
   return { ...base, ...getTLSFetchOptions() }
 }
 
+export async function proxyFetch(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): Promise<Response> {
+  const options = {
+    ...getProxyFetchOptions(),
+    ...init,
+  } as RequestInit & {
+    dispatcher?: undici.Dispatcher
+    proxy?: string
+    unix?: string
+  }
+
+  if (options.dispatcher && typeof Bun === 'undefined') {
+    // Keep the dispatcher and fetch implementation from the same undici package.
+    // Node/Electron global fetch may bundle a different undici version.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const undiciMod = require('undici') as typeof undici
+    return (await undiciMod.fetch(
+      input as Parameters<typeof undiciMod.fetch>[0],
+      options as Parameters<typeof undiciMod.fetch>[1],
+    )) as unknown as Response
+  }
+
+  return fetch(input, options)
+}
+
 /**
  * Configure global HTTP agents for both axios and undici
  * This ensures all HTTP requests use the proxy and/or mTLS if configured

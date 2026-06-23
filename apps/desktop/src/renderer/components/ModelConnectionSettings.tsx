@@ -15,6 +15,7 @@ import {
 import { SettingsDropdown } from './SettingsDropdown.js'
 import { SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
+import { fullErrorMessage } from '../utils/errors.js'
 
 const BUILT_IN_PROVIDER_IDS = new Set([
   'openai',
@@ -22,13 +23,41 @@ const BUILT_IN_PROVIDER_IDS = new Set([
   'deepseek',
   'minimax',
   'groq',
-  'custom',
 ])
 
 const NO_MODEL_OPTION = '__no_models_available__'
 
 type Props = {
   onError: (message: string) => void
+}
+
+export function getProviderSelectionState(
+  provider: DesktopModelProviderSummary | undefined,
+): { baseURL: string; model: string } {
+  return {
+    baseURL: provider?.baseURL ?? '',
+    model: provider?.defaultModels[0] ?? '',
+  }
+}
+
+export function getProviderConnectionState({
+  provider,
+  model,
+  providerModels,
+  baseURL,
+  baseURLEditable,
+}: {
+  provider: DesktopModelProviderSummary | undefined
+  model: string
+  providerModels: string[]
+  baseURL: string
+  baseURLEditable: boolean
+}): { baseURL: string; model: string } {
+  const defaultSelection = getProviderSelectionState(provider)
+  return {
+    baseURL: baseURLEditable ? baseURL : defaultSelection.baseURL,
+    model: providerModels.includes(model) ? model : defaultSelection.model,
+  }
 }
 
 export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
@@ -55,14 +84,14 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
       desktopClient.listModelProviders(),
       desktopClient.getModelProviderState(),
     ])
-      .then(([nextProviders, nextState]) => {
+.then(([nextProviders, nextState]) => {
         if (!mounted) return
         setProviders(nextProviders)
         applyProviderState(nextState)
       })
       .catch(error => {
         if (!mounted) return
-        const message = error instanceof Error ? error.message : String(error)
+        const message = fullErrorMessage(error)
         setModelError(message)
         onError(message)
       })
@@ -86,20 +115,34 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
     selectedProviderState?.modelMetadata ?? selectedProvider?.modelMetadata ?? {}
   const selectedModelMetadata = model ? modelMetadata[model] : undefined
   const requiresBaseURL = Boolean(selectedProvider?.requiresBaseURL)
-  const baseURLEditable = requiresBaseURL || providerID === 'custom'
+  const baseURLEditable = requiresBaseURL
   const apiKeySource = selectedProviderState?.apiKeySource ?? null
   const apiKeyConfigured = Boolean(selectedProviderState?.apiKeyConfigured)
 
   useEffect(() => {
     if (providerID === providerState?.selectedProviderID) return
-    const firstModel = selectedProvider?.defaultModels[0] ?? ''
-    setBaseURL(selectedProvider?.baseURL ?? '')
-    setModel(firstModel)
+    const nextSelection = getProviderSelectionState(selectedProvider)
+    setBaseURL(nextSelection.baseURL)
+    setModel(nextSelection.model)
     setModelQuery('')
     setBalanceStatus(null)
     setStatus(null)
     setModelError(null)
   }, [providerID, providerState, selectedProvider])
+
+  function applyProviderSelection(
+    nextProviderID: ModelProviderID,
+    nextProvider: DesktopModelProviderSummary | undefined,
+  ): void {
+    const nextSelection = getProviderSelectionState(nextProvider)
+    setProviderID(nextProviderID)
+    setBaseURL(nextSelection.baseURL)
+    setModel(nextSelection.model)
+    setModelQuery('')
+    setBalanceStatus(null)
+    setStatus(null)
+    setModelError(null)
+  }
 
   const filteredProviderOptions = useMemo(() => {
     const query = providerQuery.trim().toLowerCase()
@@ -146,7 +189,7 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
       ? getModelDescription(model)
       : null
 
-  function applyProviderState(nextState: DesktopModelProviderState): void {
+function applyProviderState(nextState: DesktopModelProviderState): void {
     const nextModel =
       nextState.model ||
       nextState.models[0] ||
@@ -175,6 +218,8 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
         baseURL,
         apiKeyConfigured: false,
         apiKeySource: null,
+        modelConfigured: false,
+        configurationMessage: '未配置模型，请先在设置中配置模型。',
         models: cleanModels,
         modelMetadata,
         error,
@@ -188,7 +233,7 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
     setModelError(null)
     setStatus('正在刷新模型目录...')
     try {
-      const result = await desktopClient.fetchProviderModels({
+const result = await desktopClient.fetchProviderModels({
         providerID,
         apiKey: apiKey.trim() || undefined,
         baseURL: baseURL.trim() || undefined,
@@ -227,7 +272,7 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
         apiKey: apiKey.trim() || undefined,
         baseURL: baseURL.trim() || undefined,
       })
-      const [modelsResult, balanceResult] = isDeepSeek
+const [modelsResult, balanceResult] = isDeepSeek
         ? await Promise.all([modelsRequest, fetchBalance()])
         : [await modelsRequest, null]
       applyFetchedModels(modelsResult.models, modelsResult.error)
@@ -259,7 +304,7 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
     setBusy(true)
     setModelError(null)
     try {
-      const nextState = await desktopClient.saveModelProvider({
+const nextState = await desktopClient.saveModelProvider({
         providerID,
         modelID: model.trim(),
         baseURL: baseURL.trim() || undefined,
@@ -274,7 +319,7 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
     }
   }
 
-  async function saveApiKey(): Promise<void> {
+async function saveApiKey(): Promise<void> {
     if (!apiKey.trim()) {
       setModelError('请输入 API 密钥。')
       return
@@ -282,17 +327,30 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
     setBusy(true)
     setModelError(null)
     try {
-      const nextState = await desktopClient.saveProviderApiKey(
+const nextState = await desktopClient.saveProviderApiKey(
         providerID,
         apiKey.trim(),
       )
       setApiKey('')
+      const nextConnection = getProviderConnectionState({
+        provider: selectedProvider,
+        model,
+        providerModels,
+        baseURL,
+        baseURLEditable,
+      })
       setProviderState(current => {
         if (current && current.selectedProviderID === providerID) {
           return {
             ...current,
+            model: nextConnection.model,
+            baseURL: nextConnection.baseURL,
             apiKeyConfigured: true,
             apiKeySource: nextState.apiKeySource ?? 'secureStorage',
+            modelConfigured: Boolean(nextConnection.model),
+            configurationMessage: nextConnection.model
+              ? undefined
+              : '未配置模型，请先在设置中选择模型。',
             provider: {
               ...current.provider,
               apiKeyConfigured: true,
@@ -306,10 +364,14 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
             ...selectedProvider,
             apiKeyConfigured: true,
           },
-          model,
-          baseURL,
+          model: nextConnection.model,
+          baseURL: nextConnection.baseURL,
           apiKeyConfigured: true,
           apiKeySource: nextState.apiKeySource ?? 'secureStorage',
+          modelConfigured: Boolean(nextConnection.model),
+          configurationMessage: nextConnection.model
+            ? undefined
+            : '未配置模型，请先在设置中选择模型。',
           models: providerModels,
           modelMetadata,
         }
@@ -331,8 +393,55 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
     }
   }
 
+  async function clearApiKey(): Promise<void> {
+    if (!apiKeyConfigured) return
+    setBusy(true)
+    setModelError(null)
+    try {
+const nextState = await desktopClient.deleteProviderApiKey(providerID)
+      setApiKey('')
+      setProviderState(current => {
+        if (current && current.selectedProviderID === providerID) {
+          return {
+            ...current,
+            apiKeyConfigured: false,
+            apiKeySource: nextState.apiKeySource,
+            modelConfigured: false,
+            configurationMessage: '未配置模型，请先在设置中配置模型。',
+            provider: {
+              ...current.provider,
+              apiKeyConfigured: false,
+            },
+          }
+        }
+        if (!selectedProvider) return current
+        return {
+          selectedProviderID: providerID,
+          provider: {
+            ...selectedProvider,
+            apiKeyConfigured: false,
+          },
+          model,
+          baseURL,
+          apiKeyConfigured: false,
+          apiKeySource: nextState.apiKeySource,
+          modelConfigured: false,
+          configurationMessage: '未配置模型，请先在设置中配置模型。',
+          models: providerModels,
+          modelMetadata,
+        }
+      })
+      setStatus('API 密钥已删除。')
+      window.dispatchEvent(new Event('desktop:model-provider-changed'))
+    } catch (error) {
+      showOperationError(error)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   function showOperationError(error: unknown): void {
-    const message = errorMessageOf(error)
+    const message = fullErrorMessage(error)
     setModelError(message)
     setStatus(null)
     onError(message)
@@ -340,7 +449,13 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
 
   const providerOptions = filteredProviderOptions.length
     ? filteredProviderOptions
-    : [{ value: providerID, label: providerID }]
+    : [
+        {
+          value: NO_MODEL_OPTION,
+          label: providers.length ? '无匹配供应商' : '未加载供应商',
+          detail: providers.length ? '请调整搜索条件' : '请检查 catalog 网络连接',
+        },
+      ]
   const dropdownModelOptions = modelOptions.length
     ? modelOptions
     : [{ value: NO_MODEL_OPTION, label: '未加载模型', detail: '请先刷新目录' }]
@@ -399,7 +514,14 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
                 ariaLabel="模型供应商"
                 value={providerID}
                 options={providerOptions}
-                onChange={value => setProviderID(value as ModelProviderID)}
+                onChange={value => {
+                  if (value === NO_MODEL_OPTION) return
+                  const nextProviderID = value as ModelProviderID
+                  const nextProvider = providers.find(
+                    provider => provider.providerID === nextProviderID,
+                  )
+                  applyProviderSelection(nextProviderID, nextProvider)
+                }}
               />
             }
           />
@@ -444,6 +566,14 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
                   onClick={() => void saveApiKey()}
                 >
                   保存
+                </button>
+                <button
+                  className="settings-button settings-button-danger"
+                  disabled={busy || !apiKeyConfigured}
+                  type="button"
+                  onClick={() => void clearApiKey()}
+                >
+                  删除
                 </button>
               </div>
             }
@@ -667,10 +797,10 @@ function baseURLDescription(
   isMiniMax: boolean,
 ): string {
   if (!provider) return '选择供应商后会显示其默认 endpoint。'
-  if (provider.requiresBaseURL) return '该 Models.dev 供应商需要兼容 OpenAI 的 Base URL。'
+  if (provider.requiresBaseURL) return '该供应商需要兼容 OpenAI 的 Base URL。'
   if (provider.providerID === 'deepseek') return 'DeepSeek 使用内置的 OpenAI 兼容 endpoint。'
   if (isMiniMax) return 'MiniMax 使用内置的 Anthropic 兼容 endpoint。'
-  return '内置供应商的 Base URL 由应用管理。'
+  return 'Base URL 来自 Models.dev catalog。'
 }
 
 function providerEnvDescription(provider: DesktopModelProviderSummary | undefined): string {
@@ -800,18 +930,4 @@ function formatBalanceStatus(result: DesktopProviderBalanceResult): string {
 function openExternalLink(event: React.MouseEvent<HTMLAnchorElement>): void {
   event.preventDefault()
   void desktopClient.openExternalURL(event.currentTarget.href)
-}
-
-function errorMessageOf(error: unknown): string {
-  if (error instanceof Error) return error.message
-  if (typeof error === 'string') return error
-  if (
-    error &&
-    typeof error === 'object' &&
-    'message' in error &&
-    typeof error.message === 'string'
-  ) {
-    return error.message
-  }
-  return String(error ?? '发生未知错误。')
 }

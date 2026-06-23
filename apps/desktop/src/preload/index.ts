@@ -51,6 +51,8 @@ const api: DesktopApi = {
     ipcRenderer.invoke(desktopApiChannel('saveModelProvider'), options),
   saveProviderApiKey: (providerID, apiKey) =>
     ipcRenderer.invoke(desktopApiChannel('saveProviderApiKey'), providerID, apiKey),
+  deleteProviderApiKey: providerID =>
+    ipcRenderer.invoke(desktopApiChannel('deleteProviderApiKey'), providerID),
   chooseWorkspace: () =>
     ipcRenderer.invoke(desktopApiChannel('chooseWorkspace')),
   openWorkspace: workspacePath =>

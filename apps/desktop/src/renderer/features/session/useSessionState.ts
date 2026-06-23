@@ -238,22 +238,6 @@ export function useSessionState(
         firstPrompt:
           snapshot.item.firstPrompt ?? currentItem?.firstPrompt ?? null,
       }
-      console.log('[desktop-title-debug] hydrate_apply_snapshot', {
-        id: nextItem.id,
-        isActive: activeSessionIdRef.current === nextItem.id,
-        snapshotSessionName: snapshot.item.sessionName,
-        snapshotCustomTitle: snapshot.item.customTitle,
-        snapshotAiTitle: snapshot.item.aiTitle,
-        snapshotFirstPrompt: snapshot.item.firstPrompt,
-        currentSessionName: currentItem?.sessionName,
-        currentCustomTitle: currentItem?.customTitle,
-        currentAiTitle: currentItem?.aiTitle,
-        currentFirstPrompt: currentItem?.firstPrompt,
-        mergedSessionName: nextItem.sessionName,
-        mergedCustomTitle: nextItem.customTitle,
-        mergedAiTitle: nextItem.aiTitle,
-        mergedFirstPrompt: nextItem.firstPrompt,
-      })
       const snapshotView: SessionViewState = {
         ...snapshot.view,
         eventModelVersion: snapshot.eventModelVersion,
@@ -320,13 +304,6 @@ export function useSessionState(
       }
       try {
         const snapshot = await desktopClient.getSession(targetSessionId)
-        console.log('[desktop-title-debug] hydrate_get_session_result', {
-          id: targetSessionId,
-          sessionName: snapshot.item.sessionName,
-          customTitle: snapshot.item.customTitle,
-          aiTitle: snapshot.item.aiTitle,
-          firstPrompt: snapshot.item.firstPrompt,
-        })
         applyHydratedSessionSnapshot(snapshot)
       } catch (error) {
         onErrorRef.current(errorMessageOf(error))

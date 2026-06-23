@@ -104,6 +104,7 @@ export const DESKTOP_API_ARG_SCHEMAS = {
     }),
   ]),
   saveProviderApiKey: z.tuple([z.string(), z.string()]),
+  deleteProviderApiKey: z.tuple([z.string()]),
   chooseWorkspace: emptyArgs,
   openWorkspace: z.tuple([z.string()]),
   getWorkspaceContext: z.tuple([z.string()]),

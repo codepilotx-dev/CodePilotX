@@ -39,6 +39,7 @@ import {
 } from './workspaceService.js'
 import { getOpenAgentConfigHomeDir } from './desktopSettings.js'
 import { desktopDebug } from './desktopDebug.js'
+import { getModelProviderState } from './modelProviderService.js'
 import {
   applyDesktopAgentEventToSnapshot,
   applyDesktopWorkflowEventsToSnapshot,
@@ -422,9 +423,7 @@ async function createSession(
   const workspacePath = workspace.path
   const permissionMode = normalizePermissionMode(options.permissionMode)
   const model = normalizeOptionalText(options.model)
-  if (!model) {
-    throw new Error('Please choose a specific model before starting a session.')
-  }
+  await assertCurrentProviderUsable(model)
   const smallFastModel = normalizeOptionalText(options.smallFastModel)
   const haikuModel = normalizeOptionalText(options.haikuModel)
   const sonnetModel = normalizeOptionalText(options.sonnetModel)
@@ -602,6 +601,9 @@ async function sendUserMessage(
   })
   const record = await getSessionRecord(sessionId)
   const nextModel = normalizeOptionalText(model)
+  const effectiveModel =
+    model !== undefined ? nextModel : record.snapshot.settings.model
+  await assertCurrentProviderUsable(effectiveModel)
   if (model !== undefined) {
     record.snapshot = {
       ...record.snapshot,
@@ -639,6 +641,27 @@ async function sendUserMessage(
       message: error instanceof Error ? error.message : String(error),
     })
     throw error
+  }
+}
+
+async function assertCurrentProviderUsable(
+  model: string | undefined,
+): Promise<void> {
+  if (!model?.trim()) {
+    throw new Error('未配置模型，请先在设置中配置模型。')
+  }
+  const providerState = await getModelProviderState()
+  if (!providerState.apiKeyConfigured) {
+    throw new Error(
+      providerState.configurationMessage ??
+        '未配置模型，请先在设置中配置模型。',
+    )
+  }
+  if (providerState.provider.requiresBaseURL && !providerState.baseURL?.trim()) {
+    throw new Error(
+      providerState.configurationMessage ??
+        '未配置模型，请先在设置中配置 Base URL。',
+    )
   }
 }
 

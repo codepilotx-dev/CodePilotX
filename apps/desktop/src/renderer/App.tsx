@@ -6,13 +6,14 @@ import { DesktopThemeProvider } from './features/theme/themeContext.js'
 import { TooltipProvider } from './components/ui/Tooltip.js'
 import { GlobalErrorModal } from './components/GlobalErrorModal.js'
 import { useEffect, useState } from 'react'
+import { fullErrorMessage } from './utils/errors.js'
 
 export function App(): React.ReactNode {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   useEffect(() => {
     const showError = (error: unknown): void => {
-      setErrorMessage(errorMessageOf(error))
+      setErrorMessage(fullErrorMessage(error))
     }
     const handleError = (event: ErrorEvent): void => {
       event.preventDefault()
@@ -54,18 +55,4 @@ export function App(): React.ReactNode {
       </DesktopSettingsProvider>
     </DesktopThemeProvider>
   )
-}
-
-function errorMessageOf(error: unknown): string {
-  if (error instanceof Error) return error.message
-  if (typeof error === 'string') return error
-  if (
-    error &&
-    typeof error === 'object' &&
-    'message' in error &&
-    typeof error.message === 'string'
-  ) {
-    return error.message
-  }
-  return String(error ?? '发生未知错误。')
 }

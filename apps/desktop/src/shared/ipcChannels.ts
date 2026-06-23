@@ -24,6 +24,7 @@ export const DESKTOP_API_METHODS = [
   'fetchProviderBalance',
   'saveModelProvider',
   'saveProviderApiKey',
+  'deleteProviderApiKey',
   'chooseWorkspace',
   'openWorkspace',
   'getWorkspaceContext',

@@ -6,9 +6,10 @@ import { useSetAppState } from '../../state/AppState.js'
 import type { LocalJSXCommandCall } from '../../types/command.js'
 import {
   type ModelProviderID,
-  PROVIDER_CONFIGS,
+  type ProviderConfig,
   fetchProviderModels,
   getProviderDisplayName,
+  listProviderConfigs,
   saveProviderApiKey,
   saveSelectedProvider,
 } from '../../utils/model/providerConfig.js'
@@ -22,7 +23,8 @@ function ConnectProvider({
 }): React.ReactNode {
   const setAppState = useSetAppState()
   const [step, setStep] = React.useState<Step>('provider')
-  const [providerID, setProviderID] = React.useState<ModelProviderID>('openai')
+  const [providers, setProviders] = React.useState<ProviderConfig[]>([])
+  const [providerID, setProviderID] = React.useState<ModelProviderID>('minimax')
   const [baseURL, setBaseURL] = React.useState('')
   const [apiKey, setApiKey] = React.useState('')
   const [modelInput, setModelInput] = React.useState('')
@@ -30,7 +32,26 @@ function ConnectProvider({
   const [modelLoadError, setModelLoadError] = React.useState<string | null>(null)
   const [cursorOffset, setCursorOffset] = React.useState(0)
 
-  const provider = PROVIDER_CONFIGS[providerID]
+  const provider = providers.find(item => item.providerID === providerID)
+
+  React.useEffect(() => {
+    let mounted = true
+    void listProviderConfigs()
+      .then(nextProviders => {
+        if (!mounted) return
+        setProviders(nextProviders)
+        if (!nextProviders.some(item => item.providerID === providerID)) {
+          setProviderID(nextProviders[0]?.providerID ?? 'minimax')
+        }
+      })
+      .catch(error => {
+        if (!mounted) return
+        onDone(error instanceof Error ? error.message : String(error))
+      })
+    return () => {
+      mounted = false
+    }
+  }, [onDone, providerID])
 
   function save(modelID: string): void {
     const trimmedModel = modelID.trim()
@@ -50,7 +71,6 @@ function ConnectProvider({
     saveSelectedProvider({
       providerID,
       modelID: trimmedModel,
-      baseURL: providerID === 'custom' ? baseURL.trim() : undefined,
     })
     setAppState(prev => ({
       ...prev,
@@ -66,7 +86,6 @@ function ConnectProvider({
     void fetchProviderModels({
       providerID,
       apiKey: nextApiKey,
-      baseURL: providerID === 'custom' ? baseURL.trim() : undefined,
     }).then(result => {
       setAvailableModels(result.models)
       setModelLoadError(result.error ?? null)
@@ -76,6 +95,14 @@ function ConnectProvider({
   }
 
   if (step === 'provider') {
+    if (providers.length === 0) {
+      return (
+        <Box flexDirection="column">
+          <Text color="remember" bold={true}>Loading providers</Text>
+          <Text dimColor={true}>Fetching provider catalog from Models.dev...</Text>
+        </Box>
+      )
+    }
     return (
       <Box flexDirection="column">
         <Box marginBottom={1} flexDirection="column">
@@ -83,45 +110,14 @@ function ConnectProvider({
           <Text dimColor={true}>Choose a model provider.</Text>
         </Box>
         <Select
-          options={[
-            {
-              value: 'openai',
-              label: 'OpenAI',
-              description: 'https://api.openai.com/v1',
-            },
-            {
-              value: 'openrouter',
-              label: 'OpenRouter',
-              description: 'https://openrouter.ai/api/v1',
-            },
-            {
-              value: 'deepseek',
-              label: 'DeepSeek',
-              description: 'https://api.deepseek.com · 启用硬盘缓存 (命中 0.025元/M)',
-            },
-            {
-              value: 'minimax',
-              label: 'MiniMax',
-              description: 'https://api.minimaxi.com/anthropic/v1',
-            },
-            {
-              value: 'groq',
-              label: 'Groq',
-              description: 'https://api.groq.com/openai/v1',
-            },
-            {
-              value: 'custom',
-              label: 'Custom gateway',
-              description: '设置自定义 OpenAI-compatible base URL',
-            },
-          ]}
+          options={providers.map(item => ({
+            value: item.providerID,
+            label: item.displayName,
+            description: item.baseURL ?? item.docURL ?? item.providerID,
+          }))}
           onChange={value => {
             const selected = value as ModelProviderID
             setProviderID(selected)
-            if (selected === 'custom') {
-              setStep('baseURL')
-              return
-            }
             setStep('apiKey')
           }}
           onCancel={() => onDone('Connect cancelled')}
@@ -200,7 +196,7 @@ function ConnectProvider({
     )
   }
 
-  const providerModels = availableModels ?? provider.defaultModels
+  const providerModels = availableModels ?? provider?.defaultModels ?? []
   if (step === 'model' && providerModels.length > 0) {
     return (
       <Box flexDirection="column">

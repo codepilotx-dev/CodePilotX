@@ -37,6 +37,8 @@ type Props = {
   thinkingMode: DesktopThinkingMode
   selectedProviderID?: ModelProviderID
   selectedModelPreset: string
+  modelConfigured: boolean
+  modelConfigurationMessage?: string
   showThinkingOptions: boolean
   deepSeekThinkingControls: boolean
   showContextUsage: boolean
@@ -78,6 +80,8 @@ export function DesktopComposer({
   thinkingMode,
   selectedProviderID,
   selectedModelPreset,
+  modelConfigured,
+  modelConfigurationMessage,
   showThinkingOptions,
   deepSeekThinkingControls,
   showContextUsage,
@@ -104,6 +108,7 @@ export function DesktopComposer({
   const canSubmit =
     (Boolean(input.trim()) || attachments.length > 0) &&
     !hasAttachmentErrors &&
+    modelConfigured &&
     sessionStatus !== 'running' &&
     sessionStatus !== 'waiting' &&
     (isQuickChatPage || Boolean(routedSessionId))
@@ -118,6 +123,7 @@ export function DesktopComposer({
 
   function handleSubmit(): void {
     void (async () => {
+      if (!modelConfigured) return
       const submittedInput = input
       const submittedAttachments = attachments
       const messageInput = {
@@ -176,6 +182,8 @@ export function DesktopComposer({
       thinkingMode={thinkingMode}
       selectedProviderID={selectedProviderID ?? 'anthropic'}
       selectedModelPreset={selectedModelPreset}
+      modelConfigured={modelConfigured}
+      modelConfigurationMessage={modelConfigurationMessage}
       showThinkingOptions={showThinkingOptions}
       deepSeekThinkingControls={deepSeekThinkingControls}
       showContextUsage={showContextUsage}
@@ -189,7 +197,13 @@ export function DesktopComposer({
       recentWorkspaces={recentWorkspaces}
       workspace={workspace}
       attachments={attachments}
-      placeholder={hasConversationMessages ? '要求后续变更' : '随心输入'}
+      placeholder={
+        modelConfigured
+          ? hasConversationMessages
+            ? '要求后续变更'
+            : '随心输入'
+          : '未配置模型，请先在设置中配置模型'
+      }
       onChooseWorkspace={() => void onChooseWorkspace()}
       onInputChange={onInputChange}
       onInterrupt={() => void onInterrupt()}

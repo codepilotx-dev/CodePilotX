@@ -197,6 +197,8 @@ export type DesktopModelProviderState = {
   baseURL?: string
   apiKeyConfigured: boolean
   apiKeySource: string | null
+  modelConfigured: boolean
+  configurationMessage?: string
   models: string[]
   modelMetadata?: Record<string, DesktopModelMetadata>
   error?: string
@@ -481,6 +483,9 @@ export type DesktopApi = {
   saveProviderApiKey(
     providerID: ModelProviderID,
     apiKey: string,
+  ): Promise<DesktopModelProviderState>
+  deleteProviderApiKey(
+    providerID: ModelProviderID,
   ): Promise<DesktopModelProviderState>
   chooseWorkspace(): Promise<DesktopWorkspace | null>
   openWorkspace(workspacePath: string): Promise<DesktopWorkspace>

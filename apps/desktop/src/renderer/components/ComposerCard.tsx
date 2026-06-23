@@ -124,6 +124,8 @@ type Props = {
   thinkingMode: DesktopThinkingMode
   selectedProviderID: ModelProviderID
   selectedModelPreset: string
+  modelConfigured?: boolean
+  modelConfigurationMessage?: string
   showThinkingOptions: boolean
   deepSeekThinkingControls: boolean
   showContextUsage: boolean
@@ -164,6 +166,8 @@ export function ComposerCard({
   thinkingMode,
   selectedProviderID,
   selectedModelPreset,
+  modelConfigured = true,
+  modelConfigurationMessage,
   showThinkingOptions,
   deepSeekThinkingControls,
   showContextUsage,
@@ -211,11 +215,15 @@ export function ComposerCard({
     provider => provider.providerID === selectedProviderID,
   )
   const selectedModelLabel =
-    selectedModelPreset === CUSTOM_MODEL_PRESET_ID
+    !modelConfigured
+      ? '未配置模型'
+      : selectedModelPreset === CUSTOM_MODEL_PRESET_ID
       ? '自定义模型'
       : (selectedModel?.shortLabel ?? selectedModel?.label ?? selectedModelPreset)
   const selectedModelTitle =
-    selectedModelPreset === CUSTOM_MODEL_PRESET_ID
+    !modelConfigured
+      ? '未配置模型'
+      : selectedModelPreset === CUSTOM_MODEL_PRESET_ID
       ? '自定义模型'
       : (selectedModel?.label ?? selectedModelPreset)
   const selectedThinking = thinkingOptions.find(
@@ -744,6 +752,9 @@ export function ComposerCard({
               ) : null}
               <div className="popover-header">提供商</div>
               <div className="popover-section popover-provider-list">
+                {providerOptions.length === 0 ? (
+                  <div className="popover-empty">未配置模型</div>
+                ) : null}
                 {providerOptions.map(provider => (
                   <DropdownMenu.Sub key={provider.providerID}>
                     <DropdownMenu.SubTrigger
@@ -843,7 +854,13 @@ export function ComposerCard({
               className="send-button"
               disabled={!isRunning && !canSubmit}
               onClick={isRunning ? onInterrupt : onSubmit}
-              title={isRunning ? '停止' : '发送'}
+              title={
+                isRunning
+                  ? '停止'
+                  : modelConfigured
+                    ? '发送'
+                    : (modelConfigurationMessage ?? '未配置模型')
+              }
               type="button"
             >
               {isRunning ? (

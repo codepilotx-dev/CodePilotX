@@ -827,6 +827,22 @@ declare module '@codepilotx/tui/utils/model/providerConfig.js' {
     baseURL?: string
   }
   export function getSelectedProviderID(): string
+  export function getProviderCatalogDiagnostics(): {
+    modelsDev: {
+      status: 'idle' | 'fulfilled' | 'rejected'
+      providerCount?: number
+      usableProviderCount?: number
+      filteredMissingApiCount?: number
+      error?: string
+    }
+    gateway: {
+      status: 'idle' | 'fulfilled' | 'rejected'
+      modelCount?: number
+      error?: string
+    }
+    providerCount: number
+    providerIds: string[]
+  }
   export function isModelProviderID(value: unknown): value is string
   export function getCachedProviderModels(providerID: string): string[] | null
   export function getProviderApiKeySource(providerID: string): string | null
@@ -856,5 +872,8 @@ declare module '@codepilotx/tui/utils/model/providerConfig.js' {
   export function saveProviderApiKey(
     providerID: string,
     apiKey: string,
+  ): { success: boolean; warning?: string }
+  export function deleteProviderApiKey(
+    providerID: string,
   ): { success: boolean; warning?: string }
 }

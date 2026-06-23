@@ -33,7 +33,6 @@ import { getSettings_DEPRECATED } from '../utils/settings/settings.js'
 import type { ThinkingConfig } from '../utils/thinking.js'
 import { asSessionId } from '../types/ids.js'
 import { runWithEmbeddedShutdownHandler } from '../utils/gracefulShutdown.js'
-import { logForDebugging } from '../utils/debug.js'
 import {
   CODEPILOTX_CONFIG_DIR_ENV,
   LEGACY_CLAUDE_CONFIG_DIR_ENV,
@@ -419,7 +418,6 @@ function logDesktopHeadless(
   console.info(
     `[desktop-headless] ${new Date().toISOString()} ${event}${suffix}`,
   )
-  logForDebugging(`[desktop-headless] ${event}${suffix}`)
 }
 
 function firstResultError(message: Record<string, unknown>): string | undefined {

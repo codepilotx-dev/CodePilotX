@@ -8,6 +8,7 @@ import {
   saveDesktopStoredSettings,
 } from './desktopSettings.js'
 import {
+  deleteProviderApiKey,
   fetchProviderBalance,
   fetchProviderModels,
   getModelProviderState,
@@ -131,6 +132,7 @@ export function buildDesktopApiHandlers(
     fetchProviderBalance,
     saveModelProvider,
     saveProviderApiKey,
+    deleteProviderApiKey,
     chooseWorkspace,
     openWorkspace,
     getWorkspaceContext,

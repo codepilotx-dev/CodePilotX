@@ -24,7 +24,7 @@ import {
   getSelectedProviderConfig,
   getSelectedProviderID,
 } from '../../utils/model/providerConfig.js'
-import { getProxyFetchOptions } from '../../utils/proxy.js'
+import { getProxyFetchOptions, proxyFetch } from '../../utils/proxy.js'
 import { asSystemPrompt, type SystemPrompt } from '../../utils/systemPromptType.js'
 import type { ThinkingConfig } from '../../utils/thinking.js'
 
@@ -242,7 +242,7 @@ export async function* queryOpenAICompatibleModelWithStreaming({
       }),
     }
 
-    const response = await fetch(joinURL(baseURL, '/chat/completions'), {
+    const response = await proxyFetch(joinURL(baseURL, '/chat/completions'), {
       ...buildOpenAICompatibleFetchInit({
         apiKey,
         isDeepSeek,
@@ -701,7 +701,7 @@ function isDeepSeekProvider(providerID: string): boolean {
 }
 
 function isZhipuProvider(providerID: string): boolean {
-  return providerID === 'zhipu'
+  return providerID === 'zhipuai' || providerID === 'zhipu'
 }
 
 function isDeepSeekReasoningGatewayModel(

@@ -536,6 +536,9 @@ export function DesktopLayout(): React.ReactNode {
     deepSeekThinkingControls ||
     selectedProviderSummary?.kind === 'anthropic' ||
     selectedModelMetadata?.reasoning === true
+  const modelConfigured = providerState?.modelConfigured === true
+  const modelConfigurationMessage =
+    providerState?.configurationMessage ?? '未配置模型，请先在设置中配置模型。'
 
   useEffect(() => {
     const activeModel = activeSessionItem?.model?.trim()
@@ -697,22 +700,7 @@ export function DesktopLayout(): React.ReactNode {
 
   const handleSelectSession = useCallback(
     (sessionItem: SessionListItem): void => {
-      console.log("[desktop-title-debug] layout_select_session_start", {
-        id: sessionItem.id,
-        currentSessionId: sessionId,
-        routedSessionId,
-        sessionName: sessionItem.sessionName,
-        customTitle: sessionItem.customTitle,
-        aiTitle: sessionItem.aiTitle,
-        firstPrompt: sessionItem.firstPrompt,
-      })
       const nextWorkspace = activateSessionById(sessionItem.id)
-      console.log("[desktop-title-debug] layout_select_session_after_activate", {
-        id: sessionItem.id,
-        nextWorkspace: nextWorkspace
-          ? { name: nextWorkspace.name, path: nextWorkspace.path }
-          : null,
-      })
       navigate(sessionPath(sessionItem.id))
       if (!nextWorkspace) {
         setWorkspaceState(null)
@@ -808,25 +796,6 @@ export function DesktopLayout(): React.ReactNode {
         : activeSessionItem?.aiTitle
           ? 'aiTitle'
           : null
-
-  useEffect(() => {
-    if (!activeSessionItem) return
-    console.log("[desktop-title-debug] layout_active_title", {
-      id: activeSessionItem.id,
-      routedSessionId,
-      sessionName: activeSessionItem.sessionName,
-      customTitle: activeSessionItem.customTitle,
-      aiTitle: activeSessionItem.aiTitle,
-      firstPrompt: activeSessionItem.firstPrompt,
-      quickChatSessionTitle,
-      quickChatSessionTitleSource,
-    })
-  }, [
-    activeSessionItem,
-    quickChatSessionTitle,
-    quickChatSessionTitleSource,
-    routedSessionId,
-  ])
 
   const handleRemoveWorkspace = useCallback(
     (target: DesktopWorkspace): void => {
@@ -962,6 +931,8 @@ export function DesktopLayout(): React.ReactNode {
       thinkingMode={thinkingMode}
       selectedProviderID={selectedProviderID}
       selectedModelPreset={resolvedSelectedModelPreset}
+      modelConfigured={modelConfigured}
+      modelConfigurationMessage={modelConfigurationMessage}
       showThinkingOptions={showThinkingOptions}
       deepSeekThinkingControls={deepSeekThinkingControls}
       showContextUsage={showContextUsage}

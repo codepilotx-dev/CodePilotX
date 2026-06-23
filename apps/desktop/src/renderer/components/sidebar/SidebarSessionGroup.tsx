@@ -134,16 +134,7 @@ export function SidebarSessionGroup({
       >
         <button
           className="sidebar-session-button"
-          onClick={() => {
-            console.log("[desktop-title-debug] sidebar_select", {
-              id: session.id,
-              isActive: session.id === activeSessionId,
-              sessionName: session.sessionName,
-              customTitle: session.customTitle,
-              aiTitle: session.aiTitle,
-              firstPrompt: session.firstPrompt,
-              displayTitle: sessionDisplayTitle(session),
-            });
+onClick={() => {
             onSelectSession(session);
           }}
           type="button"
