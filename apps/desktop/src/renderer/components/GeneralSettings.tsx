@@ -252,7 +252,7 @@ export function GeneralSettings() {
         <SettingsSection title='权限'>
           <SettingsRow
             title='默认权限'
-            description='默认情况下，CodePilotX 可以读取并编辑其工作区中的文件。必要时，它可以请求额外的访问权限。'
+            description='默认情况下，CodePilotX 可以自动读取工作区内容；写入文件、运行命令、联网和 MCP 请求需要你授权。'
             control={
               <ToggleSwitch
                 checked={defaultPermOn}
@@ -283,7 +283,7 @@ export function GeneralSettings() {
             description={
               <>
                 当 CodePilotX
-                以完全访问权限运行时，无需你批准，即可编辑你的电脑上的任何文件并运行联网命令。这会显著增加数据丢失、泄露或意外行为的风险。
+                以完全访问权限运行时，无需你批准，即可自动放行所有权限工具，编辑你的电脑上的任何文件并运行联网命令。这会显著增加数据丢失、泄露或意外行为的风险。
                 <LearnMoreLink />
               </>
             }

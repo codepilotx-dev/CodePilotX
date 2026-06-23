@@ -34,6 +34,7 @@ export type QuickChatContextValue = {
     request: DesktopPermissionRequest,
     behavior: 'allow' | 'deny',
     alwaysAllow?: boolean,
+    updatedInput?: Record<string, unknown>,
   ) => void
   events: DesktopSessionEvent[]
   workflowEvents: DesktopWorkflowEvent[]

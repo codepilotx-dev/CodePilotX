@@ -49,6 +49,7 @@ export type AgentPermissionDecision = {
   behavior: 'allow' | 'deny'
   message?: string
   alwaysAllow?: boolean
+  updatedInput?: Record<string, unknown>
 }
 
 export type AgentPermissionRequest = {

@@ -1032,8 +1032,8 @@ export function DesktopLayout(): React.ReactNode {
             },
             onCommitOrPush: () => setGitWorkflowMode('commitPush'),
             onCreatePullRequest: () => setGitWorkflowMode('pullRequest'),
-            onDecidePermission: (request, behavior, alwaysAllow) => {
-              void decidePermission(request, behavior, alwaysAllow)
+            onDecidePermission: (request, behavior, alwaysAllow, updatedInput) => {
+              void decidePermission(request, behavior, alwaysAllow, updatedInput)
             },
             events: isQuickChatPage || isConversationLoading ? [] : events,
             workflowEvents:

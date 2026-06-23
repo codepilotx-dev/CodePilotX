@@ -305,6 +305,9 @@ export function resolveDesktopPermissionPolicyDecision(
   request: DesktopPermissionRequest,
   workspacePath?: string,
 ): DesktopPermissionDecision | null {
+  if (requiresDesktopUserInteraction(request.toolName)) {
+    return null
+  }
   const action = permissionActionForDesktopTool(request.toolName)
   const effect = resolvePermissionEffect(policy, action, request.toolName)
   if (effect === 'allow') {
@@ -329,9 +332,13 @@ export function resolveDesktopPermissionPolicyDecision(
 }
 
 const WORKSPACE_WRITE_APPROVAL_MODES = new Set([
-  'prompt',
   'auto-review',
   'auto-approve-edits',
+])
+
+const DESKTOP_USER_INTERACTION_TOOLS = new Set([
+  'askuserquestion',
+  'exitplanmode',
 ])
 
 const SENSITIVE_WORKSPACE_DIRECTORIES = new Set([
@@ -418,6 +425,10 @@ function isNetworkPath(filePath: string): boolean {
 function normalizePathForPolicy(filePath: string): string {
   const resolvedPath = resolve(filePath)
   return process.platform === 'win32' ? resolvedPath.toLowerCase() : resolvedPath
+}
+
+function requiresDesktopUserInteraction(toolName: string): boolean {
+  return DESKTOP_USER_INTERACTION_TOOLS.has(toolName.toLowerCase())
 }
 
 export function permissionActionForDesktopTool(

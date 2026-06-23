@@ -95,6 +95,7 @@ export type UseSessionStateResult = {
     request: DesktopPermissionRequest,
     behavior: 'allow' | 'deny',
     alwaysAllow?: boolean,
+    updatedInput?: Record<string, unknown>,
   ) => Promise<void>
   closeSession: (targetSessionId: string) => Promise<CloseSessionResult | null>
   updateSessionMetadata: (
@@ -568,6 +569,7 @@ export function useSessionState(
       request: DesktopPermissionRequest,
       behavior: 'allow' | 'deny',
       alwaysAllow = false,
+      updatedInput?: Record<string, unknown>,
     ): Promise<void> => {
       await decidePermissionAction(
         onErrorRef,
@@ -576,6 +578,7 @@ export function useSessionState(
         request,
         behavior,
         alwaysAllow,
+        updatedInput,
       )
     },
     [sessionId, updateSessionView],

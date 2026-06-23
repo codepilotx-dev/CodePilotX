@@ -1,6 +1,7 @@
 import type React from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import type { DesktopPermissionRequest } from '../../shared/types.js'
+import { AskUserQuestionApproval } from './AskUserQuestionApproval.js'
 
 export type PermissionRequestModalProps = {
   request: DesktopPermissionRequest | null
@@ -8,6 +9,7 @@ export type PermissionRequestModalProps = {
     request: DesktopPermissionRequest,
     behavior: 'allow' | 'deny',
     alwaysAllow?: boolean,
+    updatedInput?: Record<string, unknown>,
   ) => void
 }
 
@@ -34,28 +36,40 @@ export function PermissionRequestModal({
               <Dialog.Description asChild>
                 <p>{request.description}</p>
               </Dialog.Description>
-              <code>{JSON.stringify(request.input)}</code>
-              <div className="permission-modal-actions">
-                <button
-                  className="primary-button"
-                  onClick={() => onDecide(request, 'allow')}
-                  type="button"
-                >
-                  允许
-                </button>
-                <button
-                  onClick={() => onDecide(request, 'allow', true)}
-                  type="button"
-                >
-                  始终允许
-                </button>
-                <button
-                  onClick={() => onDecide(request, 'deny')}
-                  type="button"
-                >
-                  拒绝
-                </button>
-              </div>
+              {request.toolName === 'AskUserQuestion' ? (
+                <AskUserQuestionApproval
+                  request={request}
+                  onReject={() => onDecide(request, 'deny')}
+                  onSubmit={updatedInput =>
+                    onDecide(request, 'allow', false, updatedInput)
+                  }
+                />
+              ) : (
+                <>
+                  <code>{JSON.stringify(request.input)}</code>
+                  <div className="permission-modal-actions">
+                    <button
+                      className="primary-button"
+                      onClick={() => onDecide(request, 'allow')}
+                      type="button"
+                    >
+                      允许
+                    </button>
+                    <button
+                      onClick={() => onDecide(request, 'allow', true)}
+                      type="button"
+                    >
+                      始终允许
+                    </button>
+                    <button
+                      onClick={() => onDecide(request, 'deny')}
+                      type="button"
+                    >
+                      拒绝
+                    </button>
+                  </div>
+                </>
+              )}
             </Dialog.Content>
           </Dialog.Overlay>
         ) : null}

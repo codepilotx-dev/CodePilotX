@@ -18,7 +18,7 @@ export const PERMISSION_MODE_OPTIONS: Array<{
   {
     value: "default",
     label: "默认权限",
-    detail: "CodePilotX 在沙盒中自动运行命令。",
+    detail: "CodePilotX 可自动读取；写入、命令、联网和 MCP 请求需要你授权。",
   },
   {
     value: "auto",
@@ -29,7 +29,7 @@ export const PERMISSION_MODE_OPTIONS: Array<{
   {
     value: "bypassPermissions",
     label: "完全访问权限",
-    detail: "CodePilotX 对你的计算机拥有完全访问权限（风险升高）",
+    detail: "CodePilotX 会自动放行所有权限工具（风险升高）",
   },
   {
     value: "customConfig",

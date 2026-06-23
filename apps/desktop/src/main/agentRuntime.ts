@@ -505,7 +505,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
     if (decision.behavior === 'allow') {
       const response: Record<string, unknown> = {
         behavior: 'allow',
-        updatedInput: input,
+        updatedInput: decision.updatedInput ?? input,
         toolUseID: request.tool_use_id,
         decisionClassification: decision.alwaysAllow
           ? 'user_permanent'
@@ -873,7 +873,7 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
     if (decision.behavior === 'allow') {
       const response: Record<string, unknown> = {
         behavior: 'allow',
-        updatedInput: input,
+        updatedInput: decision.updatedInput ?? input,
         toolUseID: request.tool_use_id,
         decisionClassification: decision.alwaysAllow
           ? 'user_permanent'

@@ -50,6 +50,7 @@ const permissionDecision = z.object({
   behavior: z.enum(['allow', 'deny']),
   message: optionalText,
   alwaysAllow: z.boolean().optional(),
+  updatedInput: unknownObject.optional(),
 })
 
 const composerAttachment = z.object({
