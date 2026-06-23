@@ -7,23 +7,22 @@ import type {
 } from '../../shared/types.js'
 import { SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
+import {
+  BILLING_PROVIDERS,
+  type BillingProviderEntry,
+} from '../utils/billingProviders.js'
 
-type BillingProviderID = 'deepseek' | 'minimax'
-
-const BILLING_PROVIDERS: Array<{
-  providerID: BillingProviderID
-  displayName: string
-}> = [
-  { providerID: 'deepseek', displayName: 'DeepSeek' },
-  { providerID: 'minimax', displayName: 'MiniMax' },
-]
+type ConfiguredBillingProvider = {
+  providerID: ModelProviderID
+  entry: BillingProviderEntry
+}
 
 export function UsageBillingSettings(): React.ReactNode {
   const [balances, setBalances] = useState<
-    Partial<Record<BillingProviderID, DesktopProviderBalanceResult>>
+    Partial<Record<ModelProviderID, DesktopProviderBalanceResult>>
   >({})
   const [configuredBillingProviders, setConfiguredBillingProviders] = useState<
-    BillingProviderID[]
+    ConfiguredBillingProvider[]
   >([])
   const [hasConfiguredProvider, setHasConfiguredProvider] = useState<
     boolean | null
@@ -39,12 +38,15 @@ export function UsageBillingSettings(): React.ReactNode {
       setHasConfiguredProvider(
         providers.some(provider => provider.apiKeyConfigured),
       )
-      const supportedProviders = BILLING_PROVIDERS.filter(provider =>
-        providers.some(
-          item =>
-            item.providerID === provider.providerID && item.apiKeyConfigured,
-        ),
-      ).map(provider => provider.providerID)
+      const supportedProviders: ConfiguredBillingProvider[] = []
+      for (const entry of BILLING_PROVIDERS) {
+        const match = providers.find(
+          item => entry.matches(item.providerID) && item.apiKeyConfigured,
+        )
+        if (match) {
+          supportedProviders.push({ providerID: match.providerID, entry })
+        }
+      }
       setConfiguredBillingProviders(supportedProviders)
       if (supportedProviders.length === 0) {
         setBalances({})
@@ -52,7 +54,7 @@ export function UsageBillingSettings(): React.ReactNode {
       }
 
       const results = await Promise.all(
-        supportedProviders.map(async providerID => {
+        supportedProviders.map(async ({ providerID }) => {
           const result = await desktopClient.fetchProviderBalance({
             providerID,
           })
@@ -78,7 +80,7 @@ export function UsageBillingSettings(): React.ReactNode {
   const configuredProviderLabels = useMemo(
     () =>
       configuredBillingProviders
-        .map(providerID => providerDisplayName(providerID))
+        .map(({ entry }) => entry.displayName)
         .join('、'),
     [configuredBillingProviders],
   )
@@ -147,8 +149,8 @@ export function UsageBillingSettings(): React.ReactNode {
                 />
               </SettingsSection>
             ) : null}
-            {configuredBillingProviders.map(providerID =>
-              providerID === 'minimax' ? (
+            {configuredBillingProviders.map(({ providerID, entry }) =>
+              entry.id === 'minimax' ? (
                 <MiniMaxUsageSection
                   key={providerID}
                   loading={loading}
@@ -536,11 +538,4 @@ function getPrimaryMiniMaxUsage(
 
 function formatNumber(value: number): string {
   return new Intl.NumberFormat('zh-CN').format(value)
-}
-
-function providerDisplayName(providerID: ModelProviderID): string {
-  return (
-    BILLING_PROVIDERS.find(provider => provider.providerID === providerID)
-      ?.displayName ?? providerID
-  )
 }

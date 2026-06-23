@@ -23,11 +23,7 @@ import { IconButton } from "../ui/IconButton.js";
 import { PopoverItem } from "../ui/PopoverItem.js";
 import { PopoverMenu } from "../ui/PopoverMenu.js";
 import { SidebarRow } from "./SidebarRow.js";
-
-const BILLING_PROVIDER_IDS: ReadonlySet<ModelProviderID> = new Set([
-  "deepseek",
-  "minimax",
-]);
+import { isBillingProviderID } from '../../utils/billingProviders.js'
 
 type PopoverUsageRow = {
   label: string;
@@ -39,6 +35,7 @@ type ProviderUsageState = {
   providerID: ModelProviderID | null;
   displayName: string | null;
   balance: DesktopProviderBalanceResult | null;
+  modelConfigured: boolean;
   loading: boolean;
   error: string | null;
 };
@@ -47,6 +44,7 @@ const EMPTY_USAGE: ProviderUsageState = {
   providerID: null,
   displayName: null,
   balance: null,
+  modelConfigured: false,
   loading: false,
   error: null,
 };
@@ -64,9 +62,10 @@ export function SidebarFooter(): React.ReactNode {
     try {
       const providerState = await desktopClient.getModelProviderState();
       const providerID = providerState.selectedProviderID;
-      if (!BILLING_PROVIDER_IDS.has(providerID) || !providerState.apiKeyConfigured) {
+      if (!isBillingProviderID(providerID) || !providerState.apiKeyConfigured) {
         setUsage({
           providerID,
+          modelConfigured: providerState.modelConfigured,
           displayName: providerState.provider.displayName,
           balance: null,
           loading: false,
@@ -77,6 +76,7 @@ export function SidebarFooter(): React.ReactNode {
       const balance = await desktopClient.fetchProviderBalance({ providerID });
       setUsage({
         providerID,
+        modelConfigured: providerState.modelConfigured,
         displayName: providerState.provider.displayName,
         balance,
         loading: false,
@@ -85,6 +85,7 @@ export function SidebarFooter(): React.ReactNode {
     } catch (fetchError) {
       setUsage(previous => ({
         ...previous,
+        modelConfigured: previous.modelConfigured,
         loading: false,
         error:
           fetchError instanceof Error
@@ -157,75 +158,79 @@ export function SidebarFooter(): React.ReactNode {
         </div>
         <div className="popover-divider" />
         <div className="popover-section">
-          <PopoverItem
-            icon={<Gauge size={APP_ICON_SIZE} />}
-            withArrow
-            arrowDirection={usageExpanded ? "up" : "down"}
-            keepOpen
-            onClick={() => setUsageExpanded(prev => !prev)}
-          >
-            剩余用量
-          </PopoverItem>
-          <AnimatePresence initial={false}>
-            {usageExpanded ? (
-              <motion.div
-                animate={{ height: "auto", opacity: 1, y: 0 }}
-                className="popover-usage-panel"
-                exit={{ height: 0, opacity: 0, y: -4 }}
-                initial={{ height: 0, opacity: 0, y: -4 }}
-                key="usage-panel"
-                transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+          {isBillingProviderID(usage.providerID) && usage.modelConfigured ? (
+            <>
+              <PopoverItem
+                icon={<Gauge size={APP_ICON_SIZE} />}
+                withArrow
+                arrowDirection={usageExpanded ? "up" : "down"}
+                keepOpen
+                onClick={() => setUsageExpanded(prev => !prev)}
               >
-                <div className="popover-usage-header">
-                  <span className="popover-usage-header-name">
-                    {usage.displayName ?? "当前模型"}
-                  </span>
-                </div>
-                {usageRows.length > 0 ? (
-                  usageRows.map(row => (
-                    <div className="popover-usage-row" key={row.label}>
-                      <span className="popover-usage-label">{row.label}</span>
-                      <span className="popover-usage-track">
-                        <span
-                          className="popover-usage-fill"
-                          style={{ width: `${row.percent}%` }}
-                        />
+                剩余用量
+              </PopoverItem>
+              <AnimatePresence initial={false}>
+                {usageExpanded ? (
+                  <motion.div
+                    animate={{ height: "auto", opacity: 1, y: 0 }}
+                    className="popover-usage-panel"
+                    exit={{ height: 0, opacity: 0, y: -4 }}
+                    initial={{ height: 0, opacity: 0, y: -4 }}
+                    key="usage-panel"
+                    transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                  >
+                    <div className="popover-usage-header">
+                      <span className="popover-usage-header-name">
+                        {usage.displayName ?? "当前模型"}
                       </span>
-                      <span className="popover-usage-percent">
-                        {row.percent}%
-                      </span>
-                      <span className="popover-usage-detail">{row.detail}</span>
                     </div>
-                  ))
-                ) : usage.loading ? (
-                  <div className="popover-usage-empty">正在查询用量…</div>
-                ) : usage.error ? (
-                  <div className="popover-usage-empty popover-usage-empty-error">
-                    {usage.error}
-                  </div>
-                ) : (
-                  <div className="popover-usage-empty">
-                    当前提供商未返回用量数据
-                  </div>
-                )}
-                <div className="popover-usage-divider" />
-                <button
-                  className="popover-usage-action"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    navigate("/settings?tab=billing");
-                  }}
-                  type="button"
-                >
-                  <span className="popover-usage-action-label">了解更多</span>
-                  <ArrowUpRight
-                    className="popover-usage-action-icon"
-                    size={APP_ICON_SIZE}
-                  />
-                </button>
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
+                    {usageRows.length > 0 ? (
+                      usageRows.map(row => (
+                        <div className="popover-usage-row" key={row.label}>
+                          <span className="popover-usage-label">{row.label}</span>
+                          <span className="popover-usage-track">
+                            <span
+                              className="popover-usage-fill"
+                              style={{ width: `${row.percent}%` }}
+                            />
+                          </span>
+                          <span className="popover-usage-percent">
+                            {row.percent}%
+                          </span>
+                          <span className="popover-usage-detail">{row.detail}</span>
+                        </div>
+                      ))
+                    ) : usage.loading ? (
+                      <div className="popover-usage-empty">正在查询用量…</div>
+                    ) : usage.error ? (
+                      <div className="popover-usage-empty popover-usage-empty-error">
+                        {usage.error}
+                      </div>
+                    ) : (
+                      <div className="popover-usage-empty">
+                        当前提供商未返回用量数据
+                      </div>
+                    )}
+                    <div className="popover-usage-divider" />
+                    <button
+                      className="popover-usage-action"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        navigate("/settings?tab=billing");
+                      }}
+                      type="button"
+                    >
+                      <span className="popover-usage-action-label">了解更多</span>
+                      <ArrowUpRight
+                        className="popover-usage-action-icon"
+                        size={APP_ICON_SIZE}
+                      />
+                    </button>
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
+            </>
+          ) : null}
           <PopoverItem
             icon={<LogOut size={APP_ICON_SIZE} />}
             onClick={() => {
@@ -251,10 +256,11 @@ export function SidebarFooter(): React.ReactNode {
 function buildUsageRows(usage: ProviderUsageState): PopoverUsageRow[] {
   const { balance } = usage;
   if (!balance) return [];
-  if (usage.providerID === "minimax") {
+  const providerID = usage.providerID;
+  if (providerID === "minimax" || providerID?.startsWith("minimax-")) {
     return buildMiniMaxRows(balance.tokenPlanUsages ?? []);
   }
-  if (usage.providerID === "deepseek") {
+  if (providerID === "deepseek") {
     return buildDeepSeekRows(balance.balances);
   }
   return [];

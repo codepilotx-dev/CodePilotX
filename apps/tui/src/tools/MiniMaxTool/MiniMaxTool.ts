@@ -561,6 +561,7 @@ export const MiniMaxQuotaTool = buildTool({
       baseURL: 'https://www.minimaxi.com',
       path: '/v1/token_plan/remains',
       method: 'GET',
+      includeContentType: true,
     })
     return { data: { action: 'quota', response } }
   },

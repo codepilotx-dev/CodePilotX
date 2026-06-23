@@ -23,19 +23,23 @@ export async function minimaxJSON<T = MiniMaxJSON>({
   body,
   query,
   baseURL = MINIMAX_API_BASE_URL,
+  includeContentType = false,
 }: {
   path: string
   method?: 'GET' | 'POST' | 'DELETE'
   body?: MiniMaxJSON
   query?: Record<string, string | number | boolean | undefined>
   baseURL?: string
+  includeContentType?: boolean
 }): Promise<T> {
   const url = buildURL(baseURL, path, query)
   const response = await fetch(url, {
     method,
     headers: {
       Authorization: `Bearer ${requireMiniMaxApiKey()}`,
-      ...(body ? { 'Content-Type': 'application/json' } : {}),
+      ...(body || includeContentType
+        ? { 'Content-Type': 'application/json' }
+        : {}),
     },
     ...(body ? { body: JSON.stringify(body) } : {}),
   })

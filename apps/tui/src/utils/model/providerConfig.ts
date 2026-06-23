@@ -96,6 +96,7 @@ const MODELS_DEV_LOGO_BASE_URL = "https://models.dev/logos";
 const AI_GATEWAY_MODELS_URL = "https://ai-gateway.vercel.sh/v1/models";
 const AI_GATEWAY_PROVIDER_ID = "ai-gateway";
 const MINIMAX_TOKEN_PLAN_BASE_URL = "https://www.minimaxi.com";
+const MINIMAX_TOKEN_PLAN_ENDPOINT = "/v1/token_plan/remains";
 
 const providerModelCache = new Map<string, string[]>();
 let providerCatalogCache: Record<string, ProviderConfig> | null = null;
@@ -1010,7 +1011,7 @@ export async function fetchProviderBalance(
 
 async function fetchMiniMaxTokenPlanUsage({
   apiKey,
-  baseURL,
+  baseURL: _baseURL,
 }: {
   apiKey?: string;
   baseURL?: string;
@@ -1026,10 +1027,7 @@ async function fetchMiniMaxTokenPlanUsage({
 
   try {
     const response = await proxyFetch(
-      joinURL(
-        getMiniMaxTokenPlanBaseURL(baseURL),
-        "/v1/token_plan/remains",
-      ),
+      joinURL(MINIMAX_TOKEN_PLAN_BASE_URL, MINIMAX_TOKEN_PLAN_ENDPOINT),
       {
         method: "GET",
         headers: {
@@ -1107,20 +1105,6 @@ async function fetchMiniMaxTokenPlanUsage({
       error: errorMessageOf(error),
     };
   }
-}
-
-function getMiniMaxTokenPlanBaseURL(baseURL: string | undefined): string {
-  if (!baseURL) return MINIMAX_TOKEN_PLAN_BASE_URL;
-  try {
-    const url = new URL(baseURL);
-    if (url.hostname === "api.minimax.io") return "https://api.minimax.io";
-    if (url.hostname === "api.minimaxi.com") return "https://api.minimaxi.com";
-    if (url.hostname === "www.minimax.io") return "https://www.minimax.io";
-    if (url.hostname === "www.minimaxi.com") return "https://www.minimaxi.com";
-  } catch {
-    return MINIMAX_TOKEN_PLAN_BASE_URL;
-  }
-  return MINIMAX_TOKEN_PLAN_BASE_URL;
 }
 
 function mergeSources(
