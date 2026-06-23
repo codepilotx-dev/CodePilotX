@@ -260,13 +260,26 @@
 
 .quick-chat-hero .project-name {
   padding: 3px 5px;
+  border: 0;
+  background: transparent;
   border-radius: 20px;
   font-size: inherit;
   font-weight: inherit;
   color: inherit;
+  cursor: pointer;
+  font-family: inherit;
+  line-height: inherit;
 }
 
-.quick-chat-hero .project-name:hover {
+.quick-chat-hero .project-name:hover:not(:disabled) {
+  background: var(--c-bg-hover);
+}
+
+.quick-chat-hero .project-name:disabled {
+  cursor: default;
+}
+
+.quick-chat-hero .project-name[aria-expanded="true"] {
   background: var(--c-bg-hover);
 }
 
@@ -1011,9 +1024,8 @@
 }
 
 .review-diff-line {
-  min-width: max-content;
   display: grid;
-  grid-template-columns: 42px 42px minmax(360px, 1fr);
+  grid-template-columns: 42px 42px minmax(0, 1fr);
   align-items: stretch;
   color: var(--c-text);
   white-space: pre;
@@ -1341,7 +1353,6 @@
 }
 
 .timeline-file-event-header {
-  min-height: 80px;
   display: flex;
   align-items: center;
   justify-content: space-between;

@@ -308,6 +308,7 @@ export function McpSettings(): React.ReactNode {
             control={
               <textarea
                 className="settings-textarea settings-code-textarea"
+                rows={8}
                 spellCheck={false}
                 value={form.configText}
                 onChange={event =>

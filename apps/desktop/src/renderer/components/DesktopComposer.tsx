@@ -57,6 +57,7 @@ type Props = {
   onOpenWorkspace: (
     workspace: DesktopWorkspace,
   ) => Promise<DesktopWorkspace | null>
+  onClearWorkspace: () => void
   onBranchSelect: (branch: string) => Promise<void>
   onCreateBranch: () => void
   onPermissionChange: (value: DesktopPermissionMode) => void
@@ -95,6 +96,7 @@ export function DesktopComposer({
   onInterrupt,
   onProviderModelChange,
   onOpenWorkspace,
+  onClearWorkspace,
   onBranchSelect,
   onCreateBranch,
   onPermissionChange,
@@ -212,6 +214,7 @@ export function DesktopComposer({
       onOpenFiles={() => void handleOpenFiles()}
       onRemoveAttachment={handleRemoveAttachment}
       onOpenWorkspace={workspaceItem => void onOpenWorkspace(workspaceItem)}
+      onClearWorkspace={onClearWorkspace}
       onBranchSelect={branch => void onBranchSelect(branch)}
       onCreateBranch={onCreateBranch}
       onPermissionChange={onPermissionChange}

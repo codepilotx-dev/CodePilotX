@@ -436,7 +436,6 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--sp-2);
-  min-width: 120px;
   padding: 6px 10px;
   border: 1px solid var(--c-border-soft);
   border-radius: var(--r-md);
@@ -914,7 +913,6 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  min-width: 156px;
   height: 30px;
   padding: 0 12px 0 10px;
   border-radius: 10px;
@@ -1098,7 +1096,6 @@
 }
 
 .settings-input {
-  min-width: 220px;
   border: 1px solid var(--c-border);
   border-radius: 10px;
   background: var(--c-bg-card);
@@ -1145,7 +1142,6 @@
 
 .settings-textarea {
   width: min(360px, 48vw);
-  min-height: 78px;
   resize: vertical;
   border: 1px solid var(--c-border);
   border-radius: 10px;
@@ -1157,7 +1153,6 @@
 }
 
 .settings-code-textarea {
-  min-height: 150px;
   font-family: var(--ff-mono);
 }
 
@@ -1576,7 +1571,6 @@
   display: grid;
   gap: 3px;
   align-content: center;
-  min-height: 54px;
   padding: 10px 12px;
   border: 1px solid var(--c-border-soft);
   border-radius: 14px;
@@ -1616,14 +1610,6 @@
   font-size: var(--fs-12);
   font-weight: 600;
   white-space: nowrap;
-}
-
-.settings-input-wide {
-  min-width: 280px;
-}
-
-.settings-secret-actions .settings-input {
-  min-width: 220px;
 }
 
 .settings-button.primary {
@@ -1735,7 +1721,6 @@
 
 /* --- Config / Personalization settings --- */
 .settings-textarea-tall {
-  min-height: 200px;
   font-family: var(--ff-mono);
   line-height: 1.55;
 }

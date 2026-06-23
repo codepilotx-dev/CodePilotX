@@ -187,7 +187,6 @@
   overflow: hidden;
   border-radius: 22px;
   border: 1px solid var(--c-border-soft);
-  min-height: 230px;
   display: grid;
   place-items: center;
   padding: 48px 32px;

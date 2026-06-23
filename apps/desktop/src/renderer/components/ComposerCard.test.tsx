@@ -32,6 +32,7 @@ const baseProps = {
   onProviderModelChange: () => {},
   onOpenFiles: () => {},
   onOpenWorkspace: () => {},
+  onClearWorkspace: () => {},
   onBranchSelect: () => {},
   onCreateBranch: () => {},
   onPermissionChange: () => {},

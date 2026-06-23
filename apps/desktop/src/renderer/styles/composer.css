@@ -431,7 +431,6 @@
   z-index: 2000;
   display: grid;
   gap: 4px;
-  min-width: 170px;
   padding: 8px 12px 10px;
   border: 1px solid var(--black-a2);
   border-radius: 9px;
