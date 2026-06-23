@@ -27,9 +27,9 @@ export type SessionSettingsSnapshot = {
   permissionMode: DesktopPermissionMode
   model: string
   smallFastModel: string
-  haikuModel: string
-  sonnetModel: string
-  opusModel: string
+  fastModel: string
+  defaultModel: string
+  deepModel: string
   sessionName: string
   thinkingMode: DesktopThinkingMode
   systemPrompt: string
@@ -75,9 +75,9 @@ export async function createSessionForWorkspaceAction(
       permissionMode: settings.permissionMode,
       model: normalizeOptionalText(settings.model),
       smallFastModel: normalizeOptionalText(settings.smallFastModel),
-      haikuModel: normalizeOptionalText(settings.haikuModel),
-      sonnetModel: normalizeOptionalText(settings.sonnetModel),
-      opusModel: normalizeOptionalText(settings.opusModel),
+      fastModel: normalizeOptionalText(settings.fastModel),
+      defaultModel: normalizeOptionalText(settings.defaultModel),
+      deepModel: normalizeOptionalText(settings.deepModel),
       sessionName: normalizeOptionalText(settings.sessionName),
       thinkingMode: settings.thinkingMode,
       systemPrompt: normalizeOptionalText(settings.systemPrompt),

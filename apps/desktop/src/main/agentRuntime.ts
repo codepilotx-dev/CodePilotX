@@ -52,9 +52,9 @@ export type DesktopAgentRuntimeContext = {
   model?: string
   fallbackModel?: string
   smallFastModel?: string
-  haikuModel?: string
-  sonnetModel?: string
-  opusModel?: string
+  fastModel?: string
+  defaultModel?: string
+  deepModel?: string
   sessionName?: string
   thinkingMode?: DesktopThinkingMode
   systemPrompt?: string
@@ -572,9 +572,9 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
       permissionMode: tuiPermissionMode(context.permissionMode),
       model: context.model,
       smallFastModel: context.smallFastModel,
-      haikuModel: context.haikuModel,
-      sonnetModel: context.sonnetModel,
-      opusModel: context.opusModel,
+      fastModel: context.fastModel,
+      defaultModel: context.defaultModel,
+      deepModel: context.deepModel,
       sessionName: context.sessionName,
       thinkingMode: context.thinkingMode,
       systemPrompt: context.systemPrompt,
@@ -959,18 +959,20 @@ function modelArgs(model: string | undefined): string[] {
   return model ? ['--model', model] : []
 }
 
-function taskModelEnv(context: DesktopAgentRuntimeContext): Record<string, string> {
+export function taskModelEnv(
+  context: DesktopAgentRuntimeContext,
+): Record<string, string> {
   const mainModel = context.model?.trim()
   if (!mainModel) return {}
   return {
     ANTHROPIC_SMALL_FAST_MODEL:
       context.smallFastModel?.trim() || mainModel,
-    ANTHROPIC_DEFAULT_HAIKU_MODEL:
-      context.haikuModel?.trim() || mainModel,
-    ANTHROPIC_DEFAULT_SONNET_MODEL:
-      context.sonnetModel?.trim() || mainModel,
-    ANTHROPIC_DEFAULT_OPUS_MODEL:
-      context.opusModel?.trim() || mainModel,
+    CODEPILOTX_FAST_MODEL:
+      context.fastModel?.trim() || mainModel,
+    CODEPILOTX_DEFAULT_MODEL:
+      context.defaultModel?.trim() || mainModel,
+    CODEPILOTX_DEEP_MODEL:
+      context.deepModel?.trim() || mainModel,
   }
 }
 

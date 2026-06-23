@@ -57,9 +57,9 @@ export type DesktopHeadlessRuntimeOptions = {
   permissionMode?: PermissionMode
   model?: string
   smallFastModel?: string
-  haikuModel?: string
-  sonnetModel?: string
-  opusModel?: string
+  fastModel?: string
+  defaultModel?: string
+  deepModel?: string
   sessionName?: string
   thinkingMode?: DesktopHeadlessThinkingMode
   systemPrompt?: string
@@ -526,12 +526,12 @@ function applyTaskModelEnv(options: DesktopHeadlessRuntimeOptions): void {
   if (!mainModel) return
   process.env.ANTHROPIC_SMALL_FAST_MODEL =
     options.smallFastModel?.trim() || mainModel
-  process.env.ANTHROPIC_DEFAULT_HAIKU_MODEL =
-    options.haikuModel?.trim() || mainModel
-  process.env.ANTHROPIC_DEFAULT_SONNET_MODEL =
-    options.sonnetModel?.trim() || mainModel
-  process.env.ANTHROPIC_DEFAULT_OPUS_MODEL =
-    options.opusModel?.trim() || mainModel
+  process.env.CODEPILOTX_FAST_MODEL =
+    options.fastModel?.trim() || mainModel
+  process.env.CODEPILOTX_DEFAULT_MODEL =
+    options.defaultModel?.trim() || mainModel
+  process.env.CODEPILOTX_DEEP_MODEL =
+    options.deepModel?.trim() || mainModel
 }
 
 function thinkingConfigFromDesktopMode(

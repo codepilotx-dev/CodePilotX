@@ -1097,9 +1097,9 @@ function normalizeSettingsSnapshot(
     model: stringOrUndefined(settings.model),
     fallbackModel: stringOrUndefined(settings.fallbackModel),
     smallFastModel: stringOrUndefined(settings.smallFastModel),
-    haikuModel: stringOrUndefined(settings.haikuModel),
-    sonnetModel: stringOrUndefined(settings.sonnetModel),
-    opusModel: stringOrUndefined(settings.opusModel),
+    fastModel: stringOrUndefined(settings.fastModel),
+    defaultModel: stringOrUndefined(settings.defaultModel),
+    deepModel: stringOrUndefined(settings.deepModel),
     sessionName: stringOrUndefined(settings.sessionName),
     thinkingMode:
       settings.thinkingMode === 'enabled' ||

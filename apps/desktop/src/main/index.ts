@@ -425,9 +425,9 @@ async function createSession(
   const model = normalizeOptionalText(options.model)
   await assertCurrentProviderUsable(model)
   const smallFastModel = normalizeOptionalText(options.smallFastModel)
-  const haikuModel = normalizeOptionalText(options.haikuModel)
-  const sonnetModel = normalizeOptionalText(options.sonnetModel)
-  const opusModel = normalizeOptionalText(options.opusModel)
+  const fastModel = normalizeOptionalText(options.fastModel)
+  const defaultModel = normalizeOptionalText(options.defaultModel)
+  const deepModel = normalizeOptionalText(options.deepModel)
   const sessionName = normalizeOptionalText(options.sessionName)
   const thinkingMode = normalizeThinkingMode(options.thinkingMode)
   const systemPrompt = normalizeOptionalText(options.systemPrompt)
@@ -441,9 +441,9 @@ async function createSession(
     permissionMode,
     model,
     smallFastModel,
-    haikuModel,
-    sonnetModel,
-    opusModel,
+    fastModel,
+    defaultModel,
+    deepModel,
     sessionName,
     thinkingMode,
     systemPrompt,
@@ -456,9 +456,9 @@ async function createSession(
       permissionMode,
       model,
       smallFastModel,
-      haikuModel,
-      sonnetModel,
-      opusModel,
+      fastModel,
+      defaultModel,
+      deepModel,
       sessionName,
       thinkingMode,
       systemPrompt,
@@ -489,9 +489,9 @@ function createSessionSettingsSnapshot(params: {
   permissionMode: DesktopPermissionMode
   model?: string
   smallFastModel?: string
-  haikuModel?: string
-  sonnetModel?: string
-  opusModel?: string
+  fastModel?: string
+  defaultModel?: string
+  deepModel?: string
   sessionName?: string
   thinkingMode: DesktopThinkingMode
   systemPrompt?: string
@@ -505,9 +505,9 @@ function createSessionSettingsSnapshot(params: {
   }
   if (params.model) settings.model = params.model
   if (params.smallFastModel) settings.smallFastModel = params.smallFastModel
-  if (params.haikuModel) settings.haikuModel = params.haikuModel
-  if (params.sonnetModel) settings.sonnetModel = params.sonnetModel
-  if (params.opusModel) settings.opusModel = params.opusModel
+  if (params.fastModel) settings.fastModel = params.fastModel
+  if (params.defaultModel) settings.defaultModel = params.defaultModel
+  if (params.deepModel) settings.deepModel = params.deepModel
   if (params.sessionName) settings.sessionName = params.sessionName
   if (params.systemPrompt) settings.systemPrompt = params.systemPrompt
   if (params.appendSystemPrompt) {

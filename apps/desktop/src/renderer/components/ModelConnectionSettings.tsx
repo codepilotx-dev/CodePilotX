@@ -628,7 +628,7 @@ const nextState = await desktopClient.deleteProviderApiKey(providerID)
 
         <SettingsSection
           title="任务模型"
-          description="这些模型对应 Claude 原版的快速、Haiku、Sonnet、Opus 四个任务入口；留空时会使用上面的会话主模型。"
+          description="这些模型对应轻量、常规和深度任务入口；留空时会使用上面的会话主模型。"
         >
           <SettingsRow
             title="快速模型"
@@ -643,38 +643,38 @@ const nextState = await desktopClient.deleteProviderApiKey(providerID)
             }
           />
           <SettingsRow
-            title="Haiku 角色模型"
-            description="用于原 Haiku 角色入口；未配置时使用主模型。"
+            title="快速任务模型"
+            description="用于低成本子任务、轻量 Agent 和辅助生成；未配置时使用主模型。"
             control={
               <SettingsDropdown
-                ariaLabel="Haiku 角色模型"
-                value={taskModelValue(settings.haikuModel, taskModelOptions)}
+                ariaLabel="快速任务模型"
+                value={taskModelValue(settings.fastModel, taskModelOptions)}
                 options={taskModelOptions}
-                onChange={settings.setHaikuModel}
+                onChange={settings.setFastModel}
               />
             }
           />
           <SettingsRow
-            title="Sonnet 角色模型"
-            description="用于原 Sonnet 角色入口；未配置时使用主模型。"
+            title="默认任务模型"
+            description="用于常规 Agent、计划外的主力任务入口；未配置时使用主模型。"
             control={
               <SettingsDropdown
-                ariaLabel="Sonnet 角色模型"
-                value={taskModelValue(settings.sonnetModel, taskModelOptions)}
+                ariaLabel="默认任务模型"
+                value={taskModelValue(settings.defaultModel, taskModelOptions)}
                 options={taskModelOptions}
-                onChange={settings.setSonnetModel}
+                onChange={settings.setDefaultModel}
               />
             }
           />
           <SettingsRow
-            title="Opus 角色模型"
-            description="用于原 Opus 角色入口；未配置时使用主模型。"
+            title="深度任务模型"
+            description="用于高质量推理、复杂修改和深度审查；未配置时使用主模型。"
             control={
               <SettingsDropdown
-                ariaLabel="Opus 角色模型"
-                value={taskModelValue(settings.opusModel, taskModelOptions)}
+                ariaLabel="深度任务模型"
+                value={taskModelValue(settings.deepModel, taskModelOptions)}
                 options={taskModelOptions}
-                onChange={settings.setOpusModel}
+                onChange={settings.setDeepModel}
               />
             }
           />

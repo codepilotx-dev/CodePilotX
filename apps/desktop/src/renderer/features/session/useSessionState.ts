@@ -54,9 +54,9 @@ export type UseSessionStateOptions = {
   permissionMode: DesktopPermissionMode
   model: string
   smallFastModel: string
-  haikuModel: string
-  sonnetModel: string
-  opusModel: string
+  fastModel: string
+  defaultModel: string
+  deepModel: string
   sessionName: string
   thinkingMode: DesktopThinkingMode
   systemPrompt: string
@@ -112,9 +112,9 @@ export function useSessionState(
     permissionMode,
     model,
     smallFastModel,
-    haikuModel,
-    sonnetModel,
-    opusModel,
+    fastModel,
+    defaultModel,
+    deepModel,
     sessionName,
     thinkingMode,
     systemPrompt,
@@ -433,9 +433,9 @@ export function useSessionState(
       permissionMode,
       model,
       smallFastModel,
-      haikuModel,
-      sonnetModel,
-      opusModel,
+      fastModel,
+      defaultModel,
+      deepModel,
       sessionName,
       thinkingMode,
       systemPrompt,
@@ -445,13 +445,13 @@ export function useSessionState(
     [
       additionalDirectories,
       appendSystemPrompt,
-      haikuModel,
+      fastModel,
       model,
-      opusModel,
+      deepModel,
       permissionMode,
       sessionName,
       smallFastModel,
-      sonnetModel,
+      defaultModel,
       systemPrompt,
       thinkingMode,
     ],

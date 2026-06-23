@@ -25,9 +25,9 @@ export type UseDesktopSettingsResult = {
   model: string
   fallbackModel: string
   smallFastModel: string
-  haikuModel: string
-  sonnetModel: string
-  opusModel: string
+  fastModel: string
+  defaultModel: string
+  deepModel: string
   sessionName: string
   thinkingMode: DesktopThinkingMode
   systemPrompt: string
@@ -49,9 +49,9 @@ export type UseDesktopSettingsResult = {
   setModel: (value: string) => void
   setFallbackModel: (value: string) => void
   setSmallFastModel: (value: string) => void
-  setHaikuModel: (value: string) => void
-  setSonnetModel: (value: string) => void
-  setOpusModel: (value: string) => void
+  setFastModel: (value: string) => void
+  setDefaultModel: (value: string) => void
+  setDeepModel: (value: string) => void
   setSessionName: (value: string) => void
   setThinkingMode: (value: DesktopThinkingMode) => void
   setSystemPrompt: (value: string) => void
@@ -105,9 +105,9 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
   const [model, setModel] = useState(initial.model)
   const [fallbackModel, setFallbackModel] = useState(initial.fallbackModel)
   const [smallFastModel, setSmallFastModel] = useState(initial.smallFastModel)
-  const [haikuModel, setHaikuModel] = useState(initial.haikuModel)
-  const [sonnetModel, setSonnetModel] = useState(initial.sonnetModel)
-  const [opusModel, setOpusModel] = useState(initial.opusModel)
+  const [fastModel, setFastModel] = useState(initial.fastModel)
+  const [defaultModel, setDefaultModel] = useState(initial.defaultModel)
+  const [deepModel, setDeepModel] = useState(initial.deepModel)
   const [sessionName, setSessionName] = useState(initial.sessionName)
   const [thinkingMode, setThinkingMode] = useState<DesktopThinkingMode>(
     initial.thinkingMode,
@@ -160,9 +160,9 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
         setModel(settings.model)
         setFallbackModel(settings.fallbackModel)
         setSmallFastModel(settings.smallFastModel)
-        setHaikuModel(settings.haikuModel)
-        setSonnetModel(settings.sonnetModel)
-        setOpusModel(settings.opusModel)
+        setFastModel(settings.fastModel)
+        setDefaultModel(settings.defaultModel)
+        setDeepModel(settings.deepModel)
         setSessionName(settings.sessionName)
         setThinkingMode(settings.thinkingMode)
         setSystemPrompt(settings.systemPrompt)
@@ -198,9 +198,9 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
       model,
       fallbackModel: '',
       smallFastModel,
-      haikuModel,
-      sonnetModel,
-      opusModel,
+      fastModel,
+      defaultModel,
+      deepModel,
       sessionName,
       thinkingMode,
       systemPrompt,
@@ -224,9 +224,9 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     permissionMode,
     model,
     smallFastModel,
-    haikuModel,
-    sonnetModel,
-    opusModel,
+    fastModel,
+    defaultModel,
+    deepModel,
     sessionName,
     thinkingMode,
     systemPrompt,
@@ -250,9 +250,9 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     model,
     fallbackModel,
     smallFastModel,
-    haikuModel,
-    sonnetModel,
-    opusModel,
+    fastModel,
+    defaultModel,
+    deepModel,
     sessionName,
     thinkingMode,
     systemPrompt,
@@ -274,9 +274,9 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     setModel,
     setFallbackModel,
     setSmallFastModel,
-    setHaikuModel,
-    setSonnetModel,
-    setOpusModel,
+    setFastModel,
+    setDefaultModel,
+    setDeepModel,
     setSessionName,
     setThinkingMode,
     setSystemPrompt,

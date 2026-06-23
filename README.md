@@ -196,6 +196,20 @@ CodePilotX 默认使用：
 
 项目级 `.claude/`、`CLAUDE.md`、插件和 MCP 相关路径继续保留，方便复用既有 Claude Code 生态。
 
+## 任务模型档位
+
+CodePilotX 使用三档任务模型接口，不再暴露 Claude 家族名作为配置入口：
+
+```json
+{
+  "CODEPILOTX_FAST_MODEL": "glm-4.5-air",
+  "CODEPILOTX_DEFAULT_MODEL": "glm-5.2[1m]",
+  "CODEPILOTX_DEEP_MODEL": "glm-5.2[1m]"
+}
+```
+
+对应 CLI alias 为 `fast`、`default`、`deep`、`plan`。`plan` 在普通模式使用默认档位，在计划模式使用深度档位。
+
 ## 开发注意事项
 
 - `.ts` 和 `.tsx` 文件中的 import 仍保留 `.js` 后缀风格。

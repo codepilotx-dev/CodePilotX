@@ -1777,7 +1777,7 @@ export function getFirstMeaningfulUserMessageTextContent<T extends Message>(
         const commandName = commandNameTag.replace(/^\//, '')
 
         // If it's a built-in command, then it's unlikely to provide
-        // meaningful context (e.g. `/model sonnet`)
+        // meaningful context (e.g. `/model default`)
         if (builtInCommandNames().has(commandName)) {
           continue
         } else {

@@ -230,9 +230,9 @@ export type DesktopStoredSettings = {
   model: string
   fallbackModel: string
   smallFastModel: string
-  haikuModel: string
-  sonnetModel: string
-  opusModel: string
+  fastModel: string
+  defaultModel: string
+  deepModel: string
   sessionName: string
   thinkingMode: DesktopThinkingMode
   systemPrompt: string
@@ -373,9 +373,9 @@ export type DesktopSessionSettingsSnapshot = {
   model?: string
   fallbackModel?: string
   smallFastModel?: string
-  haikuModel?: string
-  sonnetModel?: string
-  opusModel?: string
+  fastModel?: string
+  defaultModel?: string
+  deepModel?: string
   sessionName?: string
   thinkingMode: DesktopThinkingMode
   systemPrompt?: string
@@ -421,9 +421,9 @@ export type CreateDesktopSessionOptions = {
   model?: string
   fallbackModel?: string
   smallFastModel?: string
-  haikuModel?: string
-  sonnetModel?: string
-  opusModel?: string
+  fastModel?: string
+  defaultModel?: string
+  deepModel?: string
   sessionName?: string
   thinkingMode?: DesktopThinkingMode
   systemPrompt?: string

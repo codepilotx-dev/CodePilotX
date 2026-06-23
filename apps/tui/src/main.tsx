@@ -389,6 +389,7 @@ const autoModeStateModule = feature('TRANSCRIPT_CLASSIFIER')
 // TeleportRepoMismatchDialog, TeleportResumeWrapper dynamically imported at call sites
 import { migrateAutoUpdatesToSettings } from './migrations/migrateAutoUpdatesToSettings.js'
 import { migrateBypassPermissionsAcceptedToSettings } from './migrations/migrateBypassPermissionsAcceptedToSettings.js'
+import { migrateClaudeAliasesToModelTiers } from './migrations/migrateClaudeAliasesToModelTiers.js'
 import { migrateEnableAllProjectMcpServersToSettings } from './migrations/migrateEnableAllProjectMcpServersToSettings.js'
 import { migrateFennecToOpus } from './migrations/migrateFennecToOpus.js'
 import { migrateLegacyOpusToCurrent } from './migrations/migrateLegacyOpusToCurrent.js'
@@ -579,7 +580,7 @@ async function logStartupTelemetry(): Promise<void> {
 
 // @[MODEL LAUNCH]: Consider any migrations you may need for model strings. See migrateSonnet1mToSonnet45.ts for an example.
 // Bump this when adding a new sync migration so existing users re-run the set.
-const CURRENT_MIGRATION_VERSION = 11
+const CURRENT_MIGRATION_VERSION = 12
 function runMigrations(): void {
   if (getGlobalConfig().migrationVersion !== CURRENT_MIGRATION_VERSION) {
     migrateAutoUpdatesToSettings()
@@ -597,6 +598,7 @@ function runMigrations(): void {
     if ("external" === 'ant') {
       migrateFennecToOpus()
     }
+    migrateClaudeAliasesToModelTiers()
     saveGlobalConfig(prev =>
       prev.migrationVersion === CURRENT_MIGRATION_VERSION
         ? prev
@@ -1616,7 +1618,7 @@ async function run(): Promise<CommanderCommand> {
     // @[MODEL LAUNCH]: Update the example model ID in the --model help text.
     .option(
       '--model <model>',
-      `Model for the current session. Provide an alias for the latest model (e.g. 'sonnet' or 'opus') or a model's full name (e.g. 'claude-sonnet-4-6').`,
+      `Model for the current session. Provide a task-tier alias (fast, default, deep, plan) or a model's full name (e.g. 'claude-sonnet-4-6').`,
     )
     .addOption(
       new Option(

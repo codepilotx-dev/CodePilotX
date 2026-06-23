@@ -265,18 +265,18 @@ function isOpus1mUnavailable(model: string): boolean {
   return (
     !checkOpus1mAccess() &&
     !isOpus1mMergeEnabled() &&
-    m.includes('opus') &&
+    (m.includes('deep') || m.includes('opus')) &&
     m.includes('[1m]')
   )
 }
 
 function isSonnet1mUnavailable(model: string): boolean {
   const m = model.toLowerCase()
-  // Warn about Sonnet and Sonnet 4.6, but not Sonnet 4.5 since that had
+  // Warn about the default tier and Sonnet 4.6, but not Sonnet 4.5 since that had
   // a different access criteria.
   return (
     !checkSonnet1mAccess() &&
-    (m.includes('sonnet[1m]') || m.includes('sonnet-4-6[1m]'))
+    (m.includes('default[1m]') || m.includes('sonnet-4-6[1m]'))
   )
 }
 

@@ -10,22 +10,22 @@ export type ModelCapabilityOverride =
 
 const TIERS = [
   {
-    modelEnvVar: 'ANTHROPIC_DEFAULT_OPUS_MODEL',
-    capabilitiesEnvVar: 'ANTHROPIC_DEFAULT_OPUS_MODEL_SUPPORTED_CAPABILITIES',
+    modelEnvVar: 'CODEPILOTX_DEEP_MODEL',
+    capabilitiesEnvVar: 'CODEPILOTX_DEEP_MODEL_SUPPORTED_CAPABILITIES',
   },
   {
-    modelEnvVar: 'ANTHROPIC_DEFAULT_SONNET_MODEL',
-    capabilitiesEnvVar: 'ANTHROPIC_DEFAULT_SONNET_MODEL_SUPPORTED_CAPABILITIES',
+    modelEnvVar: 'CODEPILOTX_DEFAULT_MODEL',
+    capabilitiesEnvVar: 'CODEPILOTX_DEFAULT_MODEL_SUPPORTED_CAPABILITIES',
   },
   {
-    modelEnvVar: 'ANTHROPIC_DEFAULT_HAIKU_MODEL',
-    capabilitiesEnvVar: 'ANTHROPIC_DEFAULT_HAIKU_MODEL_SUPPORTED_CAPABILITIES',
+    modelEnvVar: 'CODEPILOTX_FAST_MODEL',
+    capabilitiesEnvVar: 'CODEPILOTX_FAST_MODEL_SUPPORTED_CAPABILITIES',
   },
 ] as const
 
 /**
  * Check whether a 3p model capability override is set for a model that matches one of
- * the pinned ANTHROPIC_DEFAULT_*_MODEL env vars.
+ * the pinned CODEPILOTX_*_MODEL env vars.
  */
 export const get3PModelCapabilityOverride = memoize(
   (model: string, capability: ModelCapabilityOverride): boolean | undefined => {

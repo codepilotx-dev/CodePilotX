@@ -172,7 +172,7 @@ const baseInputSchema = lazySchema(() =>
       .optional()
       .describe('The type of specialized agent to use for this task'),
     model: z
-      .enum(['sonnet', 'opus', 'haiku'])
+      .enum(['fast', 'default', 'deep'])
       .optional()
       .describe(
         "Optional model override for this agent. Takes precedence over the agent definition's model frontmatter. If omitted, uses the agent definition's model, or inherits from the parent.",
