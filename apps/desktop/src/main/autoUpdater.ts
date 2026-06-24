@@ -1,8 +1,8 @@
-import electronUpdater from 'electron-updater'
+import * as electronUpdater from 'electron-updater'
 import type { DesktopUpdateStatus } from '../shared/types.js'
 
 const FEED_URL = process.env.CODEPILOTX_UPDATE_FEED_URL ?? ''
-const { autoUpdater } = electronUpdater
+const autoUpdater = electronUpdater.autoUpdater
 
 export type DesktopAutoUpdater = {
   checkForUpdates(): Promise<void>
