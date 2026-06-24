@@ -1,6 +1,8 @@
 import { desktopClient } from '../services/desktopClient.js'
 ﻿import React, { useEffect, useMemo, useState } from 'react'
 import type {
+  DesktopCopilotAuthStatus,
+  DesktopCopilotLoginStatus,
   DesktopModelMetadata,
   DesktopModelProviderState,
   DesktopModelProviderSummary,
@@ -77,6 +79,11 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
   const [balanceStatus, setBalanceStatus] = useState<string | null>(null)
   const [status, setStatus] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [copilotAuth, setCopilotAuth] =
+    useState<DesktopCopilotAuthStatus | null>(null)
+  const [copilotLogin, setCopilotLogin] =
+    useState<DesktopCopilotLoginStatus | null>(null)
+  const [browserOpenedForCode, setBrowserOpenedForCode] = useState<string | null>(null)
 
   useEffect(() => {
     let mounted = true
@@ -106,6 +113,9 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
   )
   const isDeepSeek = providerID === 'deepseek'
   const isMiniMax = providerID === 'minimax'
+  const isGitHubCopilot =
+    selectedProvider?.kind === 'github-copilot' ||
+    providerID === 'github-copilot'
   const selectedProviderState =
     providerState?.selectedProviderID === providerID ? providerState : null
   const providerModels = (
@@ -129,6 +139,154 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
     setStatus(null)
     setModelError(null)
   }, [providerID, providerState, selectedProvider])
+
+  useEffect(() => {
+    if (!isGitHubCopilot) {
+      setCopilotAuth(null)
+      return
+    }
+    let mounted = true
+    void desktopClient.getCopilotAuthStatus()
+      .then(status => {
+        if (mounted) setCopilotAuth(status)
+      })
+      .catch(() => {
+        if (mounted) {
+          setCopilotAuth({
+            authenticated: false,
+            error: '无法读取 GitHub Copilot 登录状态。',
+          })
+        }
+      })
+    return () => {
+      mounted = false
+    }
+  }, [isGitHubCopilot])
+
+  async function startCopilotLogin(): Promise<void> {
+    setBusy(true)
+    setModelError(null)
+    setStatus(null)
+    setBrowserOpenedForCode(null)
+    try {
+      const initial = await desktopClient.startCopilotLogin()
+      setCopilotLogin(initial)
+      if (initial.state === 'failed') {
+        setStatus(initial.error ?? '启动 Copilot 登录失败。')
+        setBusy(false)
+        return
+      }
+      if (initial.deviceCode) {
+        setStatus(
+          `请在浏览器中输入设备码 ${initial.deviceCode} 完成登录。`,
+        )
+      } else {
+        setStatus('正在启动 Copilot 登录流程...')
+      }
+      if (initial.verificationUrl && initial.deviceCode) {
+        try {
+          await desktopClient.openExternalURL(initial.verificationUrl)
+          setBrowserOpenedForCode(initial.deviceCode)
+        } catch {
+          // user can click the link manually
+        }
+      }
+      void pollCopilotLoginUntilDone()
+    } catch (error) {
+      showOperationError(error)
+      setBusy(false)
+    }
+  }
+
+  async function pollCopilotLoginUntilDone(): Promise<void> {
+    let attempts = 0
+    const maxAttempts = 150
+    while (attempts < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      attempts += 1
+      try {
+        const status = await desktopClient.pollCopilotLogin()
+        setCopilotLogin(status)
+        if (status.auth) {
+          setCopilotAuth(status.auth)
+          if (status.auth.authenticated) {
+            setStatus(
+              status.auth.user
+                ? `已登录为 ${status.auth.user}。`
+                : 'GitHub Copilot 已登录。',
+            )
+            setBrowserOpenedForCode(null)
+            setBusy(false)
+            return
+          }
+        }
+        if (status.state === 'completed') {
+          if (status.auth?.authenticated) return
+          setStatus('Copilot CLI 报告登录完成，但 SDK 仍未检测到登录。请点击「刷新状态」重试。')
+          setBrowserOpenedForCode(null)
+          setBusy(false)
+          return
+        }
+        if (status.state === 'failed') {
+          setStatus(status.error ?? 'Copilot 登录失败。')
+          setBrowserOpenedForCode(null)
+          setBusy(false)
+          return
+        }
+      } catch (error) {
+        setStatus(`轮询登录状态时出错：${fullErrorMessage(error)}`)
+        setBrowserOpenedForCode(null)
+        setBusy(false)
+        return
+      }
+    }
+    setStatus('等待登录超时。请重试或点击「刷新状态」查看最新状态。')
+    setBrowserOpenedForCode(null)
+    setBusy(false)
+  }
+
+  async function cancelCopilotLoginFlow(): Promise<void> {
+    setBusy(true)
+    try {
+      await desktopClient.cancelCopilotLogin()
+      setCopilotLogin(null)
+      setBrowserOpenedForCode(null)
+      setStatus('已取消 Copilot 登录流程。')
+    } catch (error) {
+      showOperationError(error)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function refreshCopilotAuth(): Promise<void> {
+    setBusy(true)
+    setStatus(null)
+    try {
+      const [auth, login] = await Promise.all([
+        desktopClient.getCopilotAuthStatus(),
+        desktopClient.pollCopilotLogin(),
+      ])
+      setCopilotAuth(auth)
+      setCopilotLogin(login)
+      if (auth.authenticated) {
+        setStatus(
+          auth.user
+            ? `已登录为 ${auth.user}。`
+            : 'GitHub Copilot 已登录。',
+        )
+        setBrowserOpenedForCode(null)
+      } else if (login.state === 'awaiting_auth' && login.deviceCode) {
+        setStatus(`等待用户在浏览器中输入设备码 ${login.deviceCode}。`)
+      } else {
+        setStatus('未检测到 Copilot 登录。可点击「使用 GitHub 登录」启动登录窗口。')
+      }
+    } catch (error) {
+      showOperationError(error)
+    } finally {
+      setBusy(false)
+    }
+  }
 
   function applyProviderSelection(
     nextProviderID: ModelProviderID,
@@ -484,7 +642,37 @@ const nextState = await desktopClient.deleteProviderApiKey(providerID)
             </p>
           </div>
           <div className="settings-status-grid">
-            <StatusPill label="API 密钥" value={formatApiKeyState(apiKeySource, apiKeyConfigured)} tone={apiKeyConfigured ? 'ok' : 'warn'} />
+            <StatusPill
+              label={isGitHubCopilot ? 'GitHub 登录' : 'API 密钥'}
+              value={
+                isGitHubCopilot
+                  ? copilotAuth?.authenticated
+                    ? copilotAuth.user
+                      ? `已登录 · ${copilotAuth.user}`
+                      : '已登录'
+                    : copilotLogin?.state === 'awaiting_auth'
+                      ? '等待设备码'
+                      : copilotLogin?.state === 'starting'
+                        ? '启动中'
+                        : copilotLogin?.state === 'failed'
+                          ? '登录失败'
+                          : copilotAuth?.error
+                            ? '异常'
+                            : '未登录'
+                  : formatApiKeyState(apiKeySource, apiKeyConfigured)
+              }
+              tone={
+                isGitHubCopilot
+                  ? copilotAuth?.authenticated
+                    ? 'ok'
+                    : copilotLogin?.state === 'awaiting_auth'
+                      ? 'pending'
+                      : 'warn'
+                  : apiKeyConfigured
+                    ? 'ok'
+                    : 'warn'
+              }
+            />
             <StatusPill label="类型" value={selectedProvider?.kind ?? 'openai-compatible'} />
             <StatusPill label="来源" value={selectedProvider?.modelsDevSource ? 'Models.dev' : '内置'} />
           </div>
@@ -525,59 +713,190 @@ const nextState = await desktopClient.deleteProviderApiKey(providerID)
               />
             }
           />
-          <SettingsRow
-            title="Base URL"
-            description={baseURLDescription(selectedProvider, isMiniMax)}
-            control={
-              <input
-                className="settings-input settings-input-wide"
-                readOnly={!baseURLEditable}
-                value={baseURL}
-                placeholder={selectedProvider?.baseURL ?? 'https://.../v1'}
-                onChange={event => setBaseURL(event.target.value)}
-              />
-            }
-          />
+          {!isGitHubCopilot ? (
+            <SettingsRow
+              title="Base URL"
+              description={baseURLDescription(selectedProvider, isMiniMax)}
+              control={
+                <input
+                  className="settings-input settings-input-wide"
+                  readOnly={!baseURLEditable}
+                  value={baseURL}
+                  placeholder={selectedProvider?.baseURL ?? 'https://.../v1'}
+                  onChange={event => setBaseURL(event.target.value)}
+                />
+              }
+            />
+          ) : null}
         </SettingsSection>
 
         <SettingsSection
           title="凭据"
-          description="API 密钥保存在安全存储中，环境变量优先级更高。"
+          description={
+            isGitHubCopilot
+              ? 'GitHub Copilot 通过本地 Copilot CLI 完成 OAuth 登录，无需 API 密钥。'
+              : 'API 密钥保存在安全存储中，环境变量优先级更高。'
+          }
         >
-          <SettingsRow
-            title="API 密钥"
-            description={apiKeySource ? `当前来源：${apiKeySource}` : providerEnvDescription(selectedProvider)}
-            control={
-              <div className="settings-inline-actions settings-secret-actions">
-                <span className={`settings-chip ${apiKeyConfigured ? 'ok' : 'warn'}`}>
-                  {formatApiKeyState(apiKeySource, apiKeyConfigured)}
-                </span>
-                <input
-                  className="settings-input"
-                  value={apiKey}
-                  placeholder="输入后保存"
-                  type="password"
-                  onChange={event => setApiKey(event.target.value)}
-                />
-                <button
-                  className="settings-button"
-                  disabled={busy}
-                  type="button"
-                  onClick={() => void saveApiKey()}
-                >
-                  保存
-                </button>
-                <button
-                  className="settings-button settings-button-danger"
-                  disabled={busy || !apiKeyConfigured}
-                  type="button"
-                  onClick={() => void clearApiKey()}
-                >
-                  删除
-                </button>
-              </div>
-            }
-          />
+          {isGitHubCopilot ? (
+            <SettingsRow
+              title="GitHub 账户"
+              description={
+                copilotAuth?.authenticated
+                  ? `已通过 Copilot CLI 登录（${copilotAuth.user ?? copilotAuth.method ?? '已认证'}）。新会话可直接使用 Copilot 模型。`
+                  : copilotLogin?.state === 'awaiting_auth' && copilotLogin.deviceCode
+                    ? `请在已打开的浏览器窗口中输入设备码完成登录；如未自动打开，请点击下方按钮。`
+                    : '使用 GitHub 账号登录 Copilot CLI（支持 Copilot Free / Pro / Business / Enterprise 订阅）。'
+              }
+              control={
+                <div className="settings-copilot-auth">
+                  <div className="settings-inline-actions settings-secret-actions">
+                    <span
+                      className={`settings-chip ${
+                        copilotAuth?.authenticated
+                          ? 'ok'
+                          : copilotLogin?.state === 'awaiting_auth'
+                            ? 'pending'
+                            : 'warn'
+                      }`}
+                    >
+                      {copilotAuth?.authenticated
+                        ? copilotAuth.user
+                          ? `已登录 · ${copilotAuth.user}`
+                          : '已登录'
+                        : copilotLogin?.state === 'awaiting_auth'
+                          ? '等待登录'
+                          : copilotLogin?.state === 'starting'
+                            ? '启动中'
+                            : copilotLogin?.state === 'failed'
+                              ? '登录失败'
+                              : '未登录'}
+                    </span>
+                    {copilotLogin?.state === 'awaiting_auth' && copilotLogin.deviceCode ? (
+                      <button
+                        className="settings-button"
+                        disabled={busy}
+                        type="button"
+                        onClick={() => void cancelCopilotLoginFlow()}
+                      >
+                        取消登录
+                      </button>
+                    ) : (
+                      <button
+                        className="settings-button"
+                        disabled={busy || copilotLogin?.state === 'starting'}
+                        type="button"
+                        onClick={() => void startCopilotLogin()}
+                      >
+                        {copilotAuth?.authenticated ? '重新登录' : '使用 GitHub 登录'}
+                      </button>
+                    )}
+                    <button
+                      className="settings-button"
+                      disabled={busy}
+                      type="button"
+                      onClick={() => void refreshCopilotAuth()}
+                    >
+                      刷新状态
+                    </button>
+                  </div>
+                  {copilotLogin?.state === 'awaiting_auth' && copilotLogin.deviceCode ? (
+                    <div className="settings-copilot-device-code">
+                      <label className="settings-copilot-device-code-label">
+                        设备码
+                      </label>
+                      <div className="settings-copilot-device-code-row">
+                        <input
+                          className="settings-input settings-input-mono"
+                          readOnly
+                          value={copilotLogin.deviceCode}
+                          onFocus={event => event.currentTarget.select()}
+                        />
+                        <button
+                          className="settings-button"
+                          type="button"
+                          onClick={() => {
+                            void navigator.clipboard?.writeText(
+                              copilotLogin.deviceCode ?? '',
+                            )
+                          }}
+                        >
+                          复制
+                        </button>
+                      </div>
+                      {copilotLogin.verificationUrl ? (
+                        <div className="settings-copilot-verification">
+                          <a
+                            className="settings-row-link"
+                            href={copilotLogin.verificationUrl}
+                            onClick={event => {
+                              event.preventDefault()
+                              void desktopClient.openExternalURL(
+                                copilotLogin.verificationUrl!,
+                              )
+                            }}
+                            rel="noreferrer"
+                            target="_blank"
+                          >
+                            {copilotLogin.verificationUrl}
+                          </a>
+                          <button
+                            className="settings-button"
+                            type="button"
+                            onClick={() =>
+                              void desktopClient.openExternalURL(
+                                copilotLogin.verificationUrl!,
+                              )
+                            }
+                          >
+                            打开浏览器
+                          </button>
+                        </div>
+                      ) : null}
+                      <p className="settings-copilot-hint">
+                        若浏览器未自动打开，请点击上方「打开浏览器」按钮。Copilot CLI 正在等待 GitHub 返回授权结果...
+                      </p>
+                    </div>
+                  ) : null}
+                </div>
+              }
+            />
+          ) : (
+            <SettingsRow
+              title="API 密钥"
+              description={apiKeySource ? `当前来源：${apiKeySource}` : providerEnvDescription(selectedProvider)}
+              control={
+                <div className="settings-inline-actions settings-secret-actions">
+                  <span className={`settings-chip ${apiKeyConfigured ? 'ok' : 'warn'}`}>
+                    {formatApiKeyState(apiKeySource, apiKeyConfigured)}
+                  </span>
+                  <input
+                    className="settings-input"
+                    value={apiKey}
+                    placeholder="输入后保存"
+                    type="password"
+                    onChange={event => setApiKey(event.target.value)}
+                  />
+                  <button
+                    className="settings-button"
+                    disabled={busy}
+                    type="button"
+                    onClick={() => void saveApiKey()}
+                  >
+                    保存
+                  </button>
+                  <button
+                    className="settings-button settings-button-danger"
+                    disabled={busy || !apiKeyConfigured}
+                    type="button"
+                    onClick={() => void clearApiKey()}
+                  >
+                    删除
+                  </button>
+                </div>
+              }
+            />
+          )}
         </SettingsSection>
 
         <SettingsSection
@@ -763,7 +1082,7 @@ function StatusPill({
 }: {
   label: string
   value: string
-  tone?: 'ok' | 'warn'
+  tone?: 'ok' | 'warn' | 'pending'
 }): React.ReactNode {
   return (
     <div className={`settings-status-pill ${tone ?? ''}`}>

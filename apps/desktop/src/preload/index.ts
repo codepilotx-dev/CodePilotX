@@ -55,6 +55,14 @@ const api: DesktopApi = {
     ipcRenderer.invoke(desktopApiChannel('saveProviderApiKey'), providerID, apiKey),
   deleteProviderApiKey: providerID =>
     ipcRenderer.invoke(desktopApiChannel('deleteProviderApiKey'), providerID),
+  getCopilotAuthStatus: () =>
+    ipcRenderer.invoke(desktopApiChannel('getCopilotAuthStatus')),
+  startCopilotLogin: () =>
+    ipcRenderer.invoke(desktopApiChannel('startCopilotLogin')),
+  pollCopilotLogin: () =>
+    ipcRenderer.invoke(desktopApiChannel('pollCopilotLogin')),
+  cancelCopilotLogin: () =>
+    ipcRenderer.invoke(desktopApiChannel('cancelCopilotLogin')),
   chooseWorkspace: () =>
     ipcRenderer.invoke(desktopApiChannel('chooseWorkspace')),
   openWorkspace: workspacePath =>

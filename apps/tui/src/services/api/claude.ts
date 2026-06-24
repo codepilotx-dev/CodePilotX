@@ -256,7 +256,9 @@ import {
 } from './withRetry.js'
 import { queryOpenAICompatibleModelWithStreaming } from './openaiCompatible.js'
 import { queryMiniMaxWithAiSdkStreaming } from './minimax.js'
+import { queryCopilotSdkWithStreaming } from './copilotSdk.js'
 import {
+  shouldUseGitHubCopilotProvider,
   shouldUseMiniMaxProvider,
   shouldUseOpenAICompatibleProvider,
 } from '../../utils/model/providerConfig.js'
@@ -772,6 +774,28 @@ export async function queryModelWithoutStreaming({
     return assistantMessage
   }
 
+  if (shouldUseGitHubCopilotProvider()) {
+    let assistantMessage: AssistantMessage | undefined
+    for await (const message of queryCopilotSdkWithStreaming({
+      messages,
+      systemPrompt,
+      tools,
+      signal,
+      options,
+    })) {
+      if (message.type === 'assistant') {
+        assistantMessage = message
+      }
+    }
+    if (!assistantMessage) {
+      if (signal.aborted) {
+        throw new APIUserAbortError()
+      }
+      throw new Error('No assistant message found')
+    }
+    return assistantMessage
+  }
+
   // Store the assistant message but continue consuming the generator to ensure
   // logAPISuccessAndDuration gets called (which happens after all yields)
   let assistantMessage: AssistantMessage | undefined
@@ -837,6 +861,17 @@ export async function* queryModelWithStreaming({
       tools,
       signal,
       thinkingConfig,
+      options,
+    })
+    return
+  }
+
+  if (shouldUseGitHubCopilotProvider()) {
+    yield* queryCopilotSdkWithStreaming({
+      messages,
+      systemPrompt,
+      tools,
+      signal,
       options,
     })
     return

@@ -219,6 +219,29 @@ export type DesktopProviderBalanceResult = {
   error?: string
 }
 
+export type DesktopCopilotAuthStatus = {
+  authenticated: boolean
+  user?: string | null
+  method?: string | null
+  error?: string
+}
+
+export type DesktopCopilotLoginState =
+  | 'idle'
+  | 'starting'
+  | 'awaiting_auth'
+  | 'completed'
+  | 'failed'
+
+export type DesktopCopilotLoginStatus = {
+  state: DesktopCopilotLoginState
+  deviceCode: string | null
+  verificationUrl: string | null
+  error: string | null
+  auth: DesktopCopilotAuthStatus | null
+  elapsedMs: number
+}
+
 export type SaveDesktopModelProviderOptions = {
   providerID: ModelProviderID
   modelID?: string
@@ -514,6 +537,10 @@ export type DesktopApi = {
   deleteProviderApiKey(
     providerID: ModelProviderID,
   ): Promise<DesktopModelProviderState>
+  getCopilotAuthStatus(): Promise<DesktopCopilotAuthStatus>
+  startCopilotLogin(): Promise<DesktopCopilotLoginStatus>
+  pollCopilotLogin(): Promise<DesktopCopilotLoginStatus>
+  cancelCopilotLogin(): Promise<{ cancelled: boolean }>
   chooseWorkspace(): Promise<DesktopWorkspace | null>
   openWorkspace(workspacePath: string): Promise<DesktopWorkspace>
   getWorkspaceContext(workspacePath: string): Promise<DesktopWorkspace>

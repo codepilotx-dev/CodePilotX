@@ -46,11 +46,10 @@
   left: auto;
 }
 
-.popover-model {
+/* .popover-model {
   max-height: min(320px, calc(100vh - 96px));
-
   overflow-y: scroll;
-}
+} */
 
 .popover-provider-list {
   max-height: min(220px, calc(100vh - 220px));
@@ -132,11 +131,11 @@
   transition: transform 0.15s ease-out;
 }
 
-.context-menu-switch[aria-checked='true'] {
+.context-menu-switch[aria-checked="true"] {
   background: var(--c-accent);
 }
 
-.context-menu-switch[aria-checked='true'] .context-menu-switch-thumb {
+.context-menu-switch[aria-checked="true"] .context-menu-switch-thumb {
   transform: translateX(20px);
 }
 
@@ -196,15 +195,15 @@
   background: var(--purple-9);
 }
 
-:root[data-theme='dark'] .context-menu-switch {
+:root[data-theme="dark"] .context-menu-switch {
   background: var(--gray-6);
 }
 
-:root[data-theme='dark'] .context-menu-switch[aria-checked='true'] {
+:root[data-theme="dark"] .context-menu-switch[aria-checked="true"] {
   background: var(--c-accent);
 }
 
-:root[data-theme='dark'] .context-plugin-icon-github {
+:root[data-theme="dark"] .context-plugin-icon-github {
   color: var(--gray-12);
 }
 

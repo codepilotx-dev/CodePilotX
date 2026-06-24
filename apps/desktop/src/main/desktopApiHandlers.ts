@@ -18,6 +18,12 @@ import {
   saveProviderApiKey,
 } from './modelProviderService.js'
 import {
+  getCopilotAuthStatus,
+  startCopilotLogin,
+  pollCopilotLogin,
+  cancelCopilotLogin,
+} from './copilotAuthService.js'
+import {
   listDesktopMcpServers,
   removeDesktopMcpServer,
   saveDesktopMcpServer,
@@ -135,6 +141,10 @@ export function buildDesktopApiHandlers(
     saveModelProvider,
     saveProviderApiKey,
     deleteProviderApiKey,
+    getCopilotAuthStatus,
+    startCopilotLogin,
+    pollCopilotLogin,
+    cancelCopilotLogin,
     chooseWorkspace,
     openWorkspace,
     getWorkspaceContext,

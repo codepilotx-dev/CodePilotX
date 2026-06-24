@@ -43,6 +43,7 @@
     "@aws-sdk/credential-provider-node": "latest",
     "@azure/identity": "latest",
     "@commander-js/extra-typings": "latest",
+    "@github/copilot-sdk": "latest",
     "@growthbook/growthbook": "latest",
     "@modelcontextprotocol/sdk": "latest",
     "@opentelemetry/api": "latest",

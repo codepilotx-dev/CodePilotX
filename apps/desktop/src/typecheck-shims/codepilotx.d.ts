@@ -509,6 +509,7 @@ declare module '@codepilotx/core/models/provider.js' {
     | 'anthropic'
     | 'openai-compatible'
     | 'minimax'
+    | 'github-copilot'
   export type ModelMetadata = {
     id: string
     name?: string

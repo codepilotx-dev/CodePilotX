@@ -4,6 +4,7 @@ export type ModelProviderKind =
   | 'anthropic'
   | 'openai-compatible'
   | 'minimax'
+  | 'github-copilot'
 
 export type ModelMetadata = {
   id: string

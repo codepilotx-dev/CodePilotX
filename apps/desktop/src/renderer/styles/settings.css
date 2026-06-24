@@ -1599,6 +1599,63 @@
   color: var(--amber-11);
 }
 
+.settings-status-pill.pending strong,
+.settings-chip.pending {
+  color: var(--accent-11, var(--c-accent, currentColor));
+}
+
+.settings-copilot-auth {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.settings-copilot-device-code {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--c-border-soft);
+  border-radius: var(--r-md, 6px);
+  background: var(--c-bg-card);
+}
+
+.settings-copilot-device-code-label {
+  font-size: var(--fs-12);
+  font-weight: 600;
+  color: var(--c-text-soft);
+}
+
+.settings-copilot-device-code-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.settings-copilot-device-code-row .settings-input {
+  flex: 1;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 18px;
+  letter-spacing: 0.08em;
+  text-align: center;
+}
+
+.settings-copilot-verification {
+  font-size: var(--fs-12);
+  word-break: break-all;
+}
+
+.settings-copilot-verification a {
+  color: var(--c-accent);
+}
+
+.settings-copilot-hint {
+  margin: 0;
+  font-size: var(--fs-12);
+  color: var(--c-text-soft);
+}
+
 .settings-chip {
   display: inline-flex;
   align-items: center;

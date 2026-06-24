@@ -28,7 +28,6 @@ import {
   Target,
   Wrench,
   X,
-  Zap,
 } from 'lucide-react'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from './ui/iconTokens.js'
 import type {
@@ -822,18 +821,6 @@ export function ComposerCard({
                   </DropdownMenu.Sub>
                 ))}
               </div>
-              {!deepSeekThinkingControls ? (
-                <>
-                  <div className="popover-divider" />
-                  <PopoverItem
-                    icon={<Zap size={APP_ICON_SIZE} />}
-                    meta="暂未接入速度切换"
-                    disabled
-                  >
-                    快速
-                  </PopoverItem>
-                </>
-              ) : null}
             </PopoverMenu>
 
             <IconButton className="icon-button composer-mic-button" title="语音输入">

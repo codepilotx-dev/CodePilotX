@@ -7,7 +7,11 @@ import {
 
 export type ModelProviderID = string;
 
-export type ModelProviderKind = "anthropic" | "openai-compatible" | "minimax";
+export type ModelProviderKind =
+  | "anthropic"
+  | "openai-compatible"
+  | "minimax"
+  | "github-copilot";
 
 export type ProviderModelMetadata = {
   id: string;
@@ -97,6 +101,13 @@ const AI_GATEWAY_MODELS_URL = "https://ai-gateway.vercel.sh/v1/models";
 const AI_GATEWAY_PROVIDER_ID = "ai-gateway";
 const MINIMAX_TOKEN_PLAN_BASE_URL = "https://www.minimaxi.com";
 const MINIMAX_TOKEN_PLAN_ENDPOINT = "/v1/token_plan/remains";
+export const GITHUB_COPILOT_PROVIDER_ID = "github-copilot";
+const GITHUB_COPILOT_DEFAULT_MODELS = [
+  "claude-sonnet-4.5",
+  "claude-sonnet-4",
+  "gpt-5",
+  "gpt-4.1",
+];
 
 const providerModelCache = new Map<string, string[]>();
 let providerCatalogCache: Record<string, ProviderConfig> | null = null;
@@ -616,7 +627,18 @@ function inferProviderKind(
   if (isMiniMaxProviderID(providerID) || provider?.npm === "@ai-sdk/anthropic") {
     return "minimax";
   }
+  if (isGitHubCopilotProviderID(providerID)) {
+    return "github-copilot";
+  }
   return "openai-compatible";
+}
+
+function isGitHubCopilotProviderID(providerID: string): boolean {
+  return (
+    providerID === GITHUB_COPILOT_PROVIDER_ID ||
+    providerID === "copilot" ||
+    providerID.startsWith("github-")
+  );
 }
 
 function hasModelsDevAPI(provider: ModelsDevProvider): boolean {
@@ -661,6 +683,17 @@ export function getProviderCatalogDiagnostics(): ProviderCatalogDiagnostics {
 }
 
 function buildFallbackProviderConfig(providerID: string): ProviderConfig {
+  if (isGitHubCopilotProviderID(providerID)) {
+    return {
+      providerID,
+      kind: "github-copilot",
+      displayName: "GitHub Copilot",
+      envVars: ["GITHUB_TOKEN", "GH_TOKEN"],
+      defaultModels: GITHUB_COPILOT_DEFAULT_MODELS,
+      docURL: "https://docs.github.com/en/copilot",
+      logoURL: "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png",
+    };
+  }
   const settings = getSettings_DEPRECATED() || {};
   const baseURL =
     typeof settings.providerBaseURL === "string"
@@ -829,6 +862,10 @@ export function shouldUseOpenAICompatibleProvider(): boolean {
 
 export function shouldUseMiniMaxProvider(): boolean {
   return getSelectedProviderConfig().kind === "minimax";
+}
+
+export function shouldUseGitHubCopilotProvider(): boolean {
+  return getSelectedProviderConfig().kind === "github-copilot";
 }
 
 export function getCachedProviderModels(
