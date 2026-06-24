@@ -56,6 +56,7 @@ export const DESKTOP_API_METHODS = [
   'getActiveSessionId',
   'setActiveSession',
   'updateSessionMetadata',
+  'setSessionPermissionMode',
   'readWorkflowEventLog',
   'openConfigFile',
   'openExternalURL',

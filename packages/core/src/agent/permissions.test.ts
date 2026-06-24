@@ -7,13 +7,14 @@ import {
   shouldPromptForPermission,
 } from './permissions.js'
 
-test('legacy desktop permission modes migrate to the current four modes', () => {
+test('legacy desktop permission modes migrate to the current modes', () => {
   expect(normalizeDesktopAgentPermissionMode('acceptEdits')).toBe('auto')
   expect(normalizeDesktopAgentPermissionMode('dontAsk')).toBe('customConfig')
   expect(normalizeDesktopAgentPermissionMode('default')).toBe('default')
   expect(normalizeDesktopAgentPermissionMode('bypassPermissions')).toBe(
     'bypassPermissions',
   )
+  expect(normalizeDesktopAgentPermissionMode('plan')).toBe('plan')
   expect(normalizeDesktopAgentPermissionMode(undefined)).toBe('default')
 })
 
@@ -38,6 +39,11 @@ test('desktop permission modes map to shared policies', () => {
     approvalMode: 'config',
     sandboxPolicy: 'workspace-write',
   })
+  expect(permissionPolicyForDesktopMode('plan')).toEqual({
+    profile: 'read-only',
+    approvalMode: 'plan',
+    sandboxPolicy: 'read-only',
+  })
 })
 
 test('default policy prompts for mutating local agent actions', () => {
@@ -48,6 +54,18 @@ test('default policy prompts for mutating local agent actions', () => {
   expect(shouldPromptForPermission(policy, 'shell')).toBe(true)
   expect(shouldPromptForPermission(policy, 'network')).toBe(true)
   expect(shouldPromptForPermission(policy, 'mcp')).toBe(true)
+})
+
+test('plan mode is read-only and prompts for every mutating action', () => {
+  const policy = permissionPolicyForDesktopMode('plan')
+
+  expect(shouldPromptForPermission(policy, 'read')).toBe(false)
+  expect(shouldPromptForPermission(policy, 'write')).toBe(true)
+  expect(shouldPromptForPermission(policy, 'shell')).toBe(true)
+  expect(shouldPromptForPermission(policy, 'network')).toBe(true)
+  expect(shouldPromptForPermission(policy, 'mcp')).toBe(true)
+  expect(resolvePermissionEffect(policy, 'write')).toBe('ask')
+  expect(resolvePermissionEffect(policy, 'read')).toBe('allow')
 })
 
 test('read-only profile blocks non-read actions through the permission gate', () => {

@@ -108,6 +108,8 @@ export function ConversationPage(): React.ReactNode {
     onCommitOrPush,
     onCreatePullRequest,
     onDecidePermission,
+    onAcceptExitPlanMode,
+    permissionMode,
     pendingPermissions,
     composer,
   } = useQuickChatContext();
@@ -645,7 +647,9 @@ export function ConversationPage(): React.ReactNode {
           {activePermissionRequest ? (
             <InlineApprovalCard
               request={activePermissionRequest}
+              currentPermissionMode={permissionMode}
               onDecide={onDecidePermission}
+              onAcceptExitPlanMode={onAcceptExitPlanMode}
             />
           ) : null}
           {composer}

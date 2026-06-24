@@ -442,6 +442,28 @@ async function updateSessionMetadata(
   return record.snapshot
 }
 
+async function setSessionPermissionMode(
+  sessionId: string,
+  mode: DesktopPermissionMode,
+): Promise<DesktopSessionSnapshot> {
+  const record = await getSessionRecord(sessionId)
+  const nextMode = normalizePermissionMode(mode)
+  createRuntimeForRecord(record).setPermissionMode(nextMode)
+  const nextItem = { ...record.snapshot.item, permissionMode: nextMode }
+  const nextSettings = {
+    ...record.snapshot.settings,
+    permissionMode: nextMode,
+  }
+  record.snapshot = {
+    ...record.snapshot,
+    item: nextItem,
+    settings: nextSettings,
+    updatedAt: new Date().toISOString(),
+  }
+  persistSessionStore()
+  return record.snapshot
+}
+
 async function createSession(
   options: CreateDesktopSessionOptions,
 ): Promise<CreateDesktopSessionResult> {
@@ -968,7 +990,7 @@ function registerIpc(): void {
         runtimeSelectionSource: runtimeSelection.source,
       }
     },
-    listBuiltinPlugins,
+listBuiltinPlugins,
     setBuiltinPluginEnabled,
     listSlashCommands,
     createSession,
@@ -977,6 +999,7 @@ function registerIpc(): void {
     getActiveSessionId,
     setActiveSession,
     updateSessionMetadata,
+    setSessionPermissionMode,
     sendUserMessage,
     respondToPermission,
     interruptSession,

@@ -70,6 +70,7 @@ import type {
   CreateDesktopSessionResult,
   DesktopBuiltinPlugin,
   DesktopPermissionDecision,
+  DesktopPermissionMode,
   DesktopSlashCommandSuggestion,
   DesktopSessionMetadataPatch,
   DesktopSessionSnapshot,
@@ -101,6 +102,10 @@ export type DesktopApiHandlerDependencies = {
   updateSessionMetadata(
     sessionId: string,
     patch: DesktopSessionMetadataPatch,
+  ): Promise<DesktopSessionSnapshot>
+  setSessionPermissionMode(
+    sessionId: string,
+    mode: DesktopPermissionMode,
   ): Promise<DesktopSessionSnapshot>
   sendUserMessage(
     sessionId: string,
@@ -180,6 +185,7 @@ export function buildDesktopApiHandlers(
     getActiveSessionId: dependencies.getActiveSessionId,
     setActiveSession: dependencies.setActiveSession,
     updateSessionMetadata: dependencies.updateSessionMetadata,
+    setSessionPermissionMode: dependencies.setSessionPermissionMode,
     readWorkflowEventLog: async () => windowService.readWorkflowEventLog(),
     openConfigFile: async () => openConfigFile(dependencies.getRuntimeOptions()),
     openExternalURL,

@@ -11,6 +11,7 @@ import {
   ChevronDown,
   ChevronRight,
   CircleGauge,
+  Compass,
   FileText,
   Folder,
   FileSpreadsheet,
@@ -20,6 +21,7 @@ import {
   ListChecks,
   Mic,
   Monitor,
+  Palette,
   Paperclip,
   Plus,
   Presentation,
@@ -74,42 +76,57 @@ type ComposerDropdown =
   | 'mode'
   | 'branch'
 
+type ContextPluginTone =
+  | 'docs'
+  | 'pdf'
+  | 'sheets'
+  | 'slides'
+  | 'template'
+  | 'browser'
+
 type ContextPlugin = {
   name: string
-  tone: 'docs' | 'pdf' | 'sheets' | 'slides' | 'github' | 'openai'
+  description: string
+  tone: ContextPluginTone
   icon: React.ReactNode
 }
 
 const INSTALLED_CONTEXT_PLUGINS: ContextPlugin[] = [
   {
     name: 'Documents',
+    description: 'Create and edit document artifacts',
     tone: 'docs',
     icon: <FileText size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
   },
   {
     name: 'PDF',
+    description: 'Read, create, and verify PDF files',
     tone: 'pdf',
     icon: <FileText size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
   },
   {
     name: 'Spreadsheets',
+    description: 'Create and edit spreadsheet files',
     tone: 'sheets',
     icon: <FileSpreadsheet size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
   },
   {
     name: 'Presentations',
+    description: 'Create and edit presentation files',
     tone: 'slides',
     icon: <Presentation size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
   },
   {
-    name: 'GitHub',
-    tone: 'github',
-    icon: <GitBranch size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
+    name: 'Template Creator',
+    description: 'Create or update personal artifact templates',
+    tone: 'template',
+    icon: <Palette size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
   },
   {
-    name: 'OpenAI Developers',
-    tone: 'openai',
-    icon: <Sparkles size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
+    name: '浏览器',
+    description: 'Control the in-app browser with Codex',
+    tone: 'browser',
+    icon: <Compass size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
   },
 ]
 
@@ -118,6 +135,7 @@ const PERMISSION_CHIP_CLASS_NAMES: Record<DesktopPermissionMode, string> = {
   bypassPermissions: 'permission-chip permission-chip-bypassPermissions',
   customConfig: 'permission-chip permission-chip-customConfig',
   default: 'permission-chip permission-chip-default',
+  plan: 'permission-chip permission-chip-plan',
 }
 
 type Props = {
@@ -160,6 +178,7 @@ type Props = {
   onBranchSelect: (branch: string) => void
   onCreateBranch: () => void
   onPermissionChange: (value: DesktopPermissionMode) => void
+  onPlanModeToggle?: (enabled: boolean, previousMode: DesktopPermissionMode) => void
   onSubmit: () => void
   onThinkingChange: (value: DesktopThinkingMode) => void
 }
@@ -199,8 +218,9 @@ export function ComposerCard({
   onOpenWorkspace,
   onClearWorkspace,
   onBranchSelect,
-  onCreateBranch,
+onCreateBranch,
   onPermissionChange,
+  onPlanModeToggle,
   onSubmit,
   onThinkingChange,
 }: Props): React.ReactNode {
@@ -209,7 +229,7 @@ export function ComposerCard({
     null,
   )
   const [branchSearch, setBranchSearch] = useState('')
-  const [planModeEnabled, setPlanModeEnabled] = useState(false)
+  const planModeEnabled = permissionMode === 'plan'
   const [goalModeEnabled, setGoalModeEnabled] = useState(false)
   const [slashSelectedIndex, setSlashSelectedIndex] = useState(0)
   const [dismissedSlashInput, setDismissedSlashInput] = useState<string | null>(
@@ -322,6 +342,7 @@ export function ComposerCard({
     if (value === 'default') return <Hand size={APP_ICON_SIZE} />
     if (value === 'bypassPermissions') return <ShieldAlert size={APP_ICON_SIZE} />
     if (value === 'customConfig') return <Wrench size={APP_ICON_SIZE} />
+    if (value === 'plan') return <ListChecks size={APP_ICON_SIZE} />
     return <ShieldCheck size={APP_ICON_SIZE} />
   }
 
@@ -334,6 +355,7 @@ export function ComposerCard({
     enabled: boolean,
     icon: React.ReactNode,
     onToggle: (enabled: boolean) => void,
+    description?: string,
   ): React.ReactNode {
     return (
       <DropdownMenu.Item
@@ -345,7 +367,12 @@ export function ComposerCard({
         }}
       >
         <span className="popover-item-icon">{icon}</span>
-        <span className="popover-item-label">{label}</span>
+        <span className="popover-item-rich">
+          <span className="popover-item-label">{label}</span>
+          {description ? (
+            <span className="popover-item-description">{description}</span>
+          ) : null}
+        </span>
         <span
           aria-checked={enabled}
           className="context-menu-switch"
@@ -390,6 +417,12 @@ export function ComposerCard({
         <div className="permission-warning-banner">
           <ShieldOff size={APP_ICON_SIZE} />
           <span>完全访问权限 · 此对话允许直接读写文件和运行命令</span>
+        </div>
+      ) : null}
+      {planModeEnabled ? (
+        <div className="permission-plan-banner">
+          <ListChecks size={APP_ICON_SIZE} />
+          <span>计划模式 · 当前会话只允许读取；写入、命令与联网请求会被逐项询问</span>
         </div>
       ) : null}
       <div className="composer-top">
@@ -508,6 +541,7 @@ export function ComposerCard({
                 </IconButton>
               }
             >
+              <div className="popover-section-title">Add</div>
               <div className="popover-section">
                 <PopoverItem
                   icon={<Paperclip size={APP_ICON_SIZE} />}
@@ -516,71 +550,49 @@ export function ComposerCard({
                     closeDropdown()
                   }}
                 >
-                  添加照片和文件
+                  Files and folders
                 </PopoverItem>
-              </div>
-              <div className="popover-divider" />
-              <div className="popover-section">
+                <PopoverItem
+                  icon={<Target size={APP_ICON_SIZE} />}
+                  meta="设置 Codex 将持续努力实现的目标"
+                  onClick={closeDropdown}
+                >
+                  目标
+                </PopoverItem>
                 {renderContextSwitchItem(
                   '计划模式',
                   planModeEnabled,
                   <ListChecks size={APP_ICON_SIZE} />,
-                  setPlanModeEnabled,
-                )}
-                {renderContextSwitchItem(
-                  '追求目标',
-                  goalModeEnabled,
-                  <Target size={APP_ICON_SIZE} />,
-                  setGoalModeEnabled,
+                  (next: boolean) => {
+                    if (onPlanModeToggle) {
+                      onPlanModeToggle(next, permissionMode)
+                    } else {
+                      onPermissionChange(next ? 'plan' : 'default')
+                    }
+                  },
+                  '开启计划模式',
                 )}
               </div>
-              <div className="popover-divider" />
+              <div className="popover-section-title">插件</div>
               <div className="popover-section">
-                <DropdownMenu.Sub>
-                  <DropdownMenu.SubTrigger
-                    className="popover-item context-menu-sub-trigger"
-                    tabIndex={-1}
+                {INSTALLED_CONTEXT_PLUGINS.map(plugin => (
+                  <PopoverItem
+                    key={plugin.name}
+                    meta={plugin.description}
+                    keepOpen
+                    onClick={closeDropdown}
                   >
-                    <span className="popover-item-icon">
-                      <Blocks size={APP_ICON_SIZE} />
-                    </span>
-                    <span className="popover-item-label">插件</span>
-                    <ChevronRight className="popover-item-arrow" size={APP_ICON_SIZE} />
-                  </DropdownMenu.SubTrigger>
-                  <DropdownMenu.Portal>
-                    <DropdownMenu.SubContent
-                      alignOffset={-8}
-                      className="popover popover-sub-content context-plugin-submenu"
-                      sideOffset={8}
+                    <span
+                      className={[
+                        'context-plugin-icon',
+                        `context-plugin-icon-${plugin.tone}`,
+                      ].join(' ')}
                     >
-                      <div className="popover-header">
-                        {INSTALLED_CONTEXT_PLUGINS.length} 个已安装插件
-                      </div>
-                      <div className="popover-section">
-                        {INSTALLED_CONTEXT_PLUGINS.map(plugin => (
-                          <DropdownMenu.Item
-                            className="popover-item context-plugin-item"
-                            key={plugin.name}
-                            tabIndex={-1}
-                            onSelect={event => event.preventDefault()}
-                          >
-                            <span
-                              className={[
-                                'context-plugin-icon',
-                                `context-plugin-icon-${plugin.tone}`,
-                              ].join(' ')}
-                            >
-                              {plugin.icon}
-                            </span>
-                            <span className="popover-item-label">
-                              {plugin.name}
-                            </span>
-                          </DropdownMenu.Item>
-                        ))}
-                      </div>
-                    </DropdownMenu.SubContent>
-                  </DropdownMenu.Portal>
-                </DropdownMenu.Sub>
+                      {plugin.icon}
+                    </span>
+                    <span className="popover-item-label">{plugin.name}</span>
+                  </PopoverItem>
+                ))}
               </div>
             </PopoverMenu>
             <Select.Root

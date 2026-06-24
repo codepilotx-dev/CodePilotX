@@ -1,7 +1,11 @@
 import React from 'react'
-import { ArrowDown, ArrowUp, CornerDownLeft, Pencil } from 'lucide-react'
-import type { DesktopPermissionRequest } from '../../shared/types.js'
+import { ArrowDown, ArrowUp, CornerDownLeft, Info, Pencil } from 'lucide-react'
+import type {
+  DesktopPermissionMode,
+  DesktopPermissionRequest,
+} from '../../shared/types.js'
 import { AskUserQuestionApproval } from './AskUserQuestionApproval.js'
+import { ExitPlanModeApproval } from './ExitPlanModeApproval.js'
 
 type ApprovalChoice = 'allow' | 'alwaysAllow'
 
@@ -12,11 +16,16 @@ export type InlineApprovalCommand = {
 
 export type InlineApprovalCardProps = {
   request: DesktopPermissionRequest
+  currentPermissionMode?: DesktopPermissionMode
   onDecide: (
     request: DesktopPermissionRequest,
     behavior: 'allow' | 'deny',
     alwaysAllow?: boolean,
     updatedInput?: Record<string, unknown>,
+  ) => void
+  onAcceptExitPlanMode?: (
+    request: DesktopPermissionRequest,
+    nextMode: DesktopPermissionMode,
   ) => void
 }
 
@@ -24,7 +33,9 @@ const COMMAND_HINT_MAX_LENGTH = 56
 
 export function InlineApprovalCard({
   request,
+  currentPermissionMode,
   onDecide,
+  onAcceptExitPlanMode,
 }: InlineApprovalCardProps): React.ReactNode {
   const [selectedChoice, setSelectedChoice] =
     React.useState<ApprovalChoice>('allow')
@@ -40,6 +51,25 @@ export function InlineApprovalCard({
           onSubmit={updatedInput =>
             onDecide(request, 'allow', false, updatedInput)
           }
+        />
+      </section>
+    )
+  }
+
+  if (request.toolName === 'ExitPlanMode') {
+    return (
+      <section className="inline-approval-card" aria-label="接受计划">
+        <ExitPlanModeApproval
+          request={request}
+          currentMode={currentPermissionMode ?? 'plan'}
+          onAccept={nextMode => {
+            if (onAcceptExitPlanMode) {
+              onAcceptExitPlanMode(request, nextMode)
+              return
+            }
+            onDecide(request, 'allow')
+          }}
+          onRevise={() => onDecide(request, 'deny')}
         />
       </section>
     )
@@ -81,20 +111,23 @@ export function InlineApprovalCard({
           selected={selectedChoice === 'alwaysAllow'}
           onSelect={() => setSelectedChoice('alwaysAllow')}
         />
-        <label
+      </div>
+
+      <div className="inline-approval-fixed-option">
+        <div
           className={
             feedback.trim()
-              ? 'inline-approval-option custom filled'
-              : 'inline-approval-option custom'
+              ? 'inline-approval-note filled'
+              : 'inline-approval-note'
           }
         >
-          <span className="inline-approval-option-index">
-            <Pencil size={14} />
+          <span className="inline-approval-note-icon" aria-hidden="true">
+            <Pencil size={16} />
           </span>
-          <input
+          <textarea
             className="inline-approval-feedback-input"
             placeholder="否，请告知 Codex 如何调整"
-            type="text"
+            rows={1}
             value={feedback}
             onChange={event => {
               const next = event.target.value
@@ -102,25 +135,25 @@ export function InlineApprovalCard({
               if (next.trim()) setSelectedChoice('allow')
             }}
           />
-        </label>
-      </div>
+        </div>
 
-      <div className="inline-approval-footer">
-        <button
-          className="inline-approval-skip"
-          type="button"
-          onClick={() => onDecide(request, 'deny')}
-        >
-          跳过
-        </button>
-        <button
-          className="inline-approval-submit"
-          type="button"
-          onClick={submitChoice}
-        >
-          提交
-          <CornerDownLeft size={16} />
-        </button>
+        <div className="inline-approval-actions">
+          <button
+            className="inline-approval-skip"
+            type="button"
+            onClick={() => onDecide(request, 'deny')}
+          >
+            跳过
+          </button>
+          <button
+            className="inline-approval-submit"
+            type="button"
+            onClick={submitChoice}
+          >
+            提交
+            <CornerDownLeft size={14} />
+          </button>
+        </div>
       </div>
     </section>
   )
@@ -165,6 +198,9 @@ function ApprovalOption({
         {hint ? (
           <span className="inline-approval-option-hint"> {hint}</span>
         ) : null}
+      </span>
+      <span className="inline-approval-option-info" aria-hidden="true">
+        <Info size={14} />
       </span>
       {selected ? (
         <span className="inline-approval-option-arrows" aria-hidden="true">

@@ -13,6 +13,7 @@ export const AGENT_APPROVAL_MODES = [
   'auto-approve-edits',
   'bypass',
   'config',
+  'plan',
 ] as const
 
 export type AgentApprovalMode = (typeof AGENT_APPROVAL_MODES)[number]
@@ -66,6 +67,7 @@ export type DesktopAgentPermissionMode =
   | 'bypassPermissions'
   | 'customConfig'
   | 'default'
+  | 'plan'
 
 export type LegacyAgentPermissionMode =
   | 'acceptEdits'
@@ -78,6 +80,7 @@ export const DESKTOP_AGENT_PERMISSION_MODES = [
   'bypassPermissions',
   'customConfig',
   'default',
+  'plan',
 ] as const satisfies readonly DesktopAgentPermissionMode[]
 
 export const LEGACY_AGENT_PERMISSION_MODES = [
@@ -133,6 +136,7 @@ export function normalizeDesktopAgentPermissionMode(
     case 'bypassPermissions':
     case 'customConfig':
     case 'default':
+    case 'plan':
       return mode
     case undefined:
       return 'default'
@@ -160,6 +164,11 @@ export function permissionPolicyForDesktopMode(
       return normalizeAgentPermissionPolicy({
         profile: 'workspace-write',
         approvalMode: 'config',
+      })
+    case 'plan':
+      return normalizeAgentPermissionPolicy({
+        profile: 'read-only',
+        approvalMode: 'plan',
       })
     case 'default':
       return normalizeAgentPermissionPolicy(DEFAULT_AGENT_PERMISSION_POLICY)

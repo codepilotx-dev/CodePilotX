@@ -304,6 +304,33 @@ export async function updateSessionMetadataAction(
   return { nextActiveSession: null, nextWorkspace: null }
 }
 
+export async function setSessionPermissionModeAction(
+  context: SessionActionContext,
+  sessions: SessionListItem[],
+  targetSessionId: string,
+  mode: DesktopPermissionMode,
+): Promise<SessionListItem | null> {
+  try {
+    const snapshot = await desktopClient.setSessionPermissionMode(
+      targetSessionId,
+      mode,
+    )
+    const updatedItem = snapshot.item
+    context.setSessions(
+      sessions.map(session =>
+        session.id === targetSessionId ? updatedItem : session,
+      ),
+    )
+    if (targetSessionId === context.activeSessionIdRef.current) {
+      context.setSessionStatus(updatedItem.status)
+    }
+    return updatedItem
+  } catch (error) {
+    context.onErrorRef.current(errorMessageOf(error))
+    return null
+  }
+}
+
 export function selectSessionAction(
   context: SessionActionContext,
   session: SessionListItem,

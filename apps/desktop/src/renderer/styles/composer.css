@@ -392,6 +392,11 @@
   --permission-chip-color: var(--orange-11);
 }
 
+.permission-chip-plan {
+  --permission-chip-bg: var(--accent-a3);
+  --permission-chip-color: var(--accent-11);
+}
+
 .permission-select-trigger {
   min-width: 0;
 }
@@ -592,4 +597,64 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
+}
+
+.home-debug-toolbar {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  background: var(--c-bg);
+  border: 1px solid var(--c-border-soft);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px var(--black-a2);
+  z-index: 100;
+}
+
+.home-debug-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: var(--fs-13);
+  color: var(--c-text-meta);
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.home-debug-tool:hover {
+  background: var(--c-bg-hover);
+  color: var(--c-text-strong);
+}
+
+.home-debug-tool.active {
+  background: var(--c-text-strong);
+  color: var(--c-bg);
+}
+
+.home-debug-tool.active:hover {
+  background: var(--gray-11, var(--c-text));
+  color: var(--c-bg);
+}
+
+.home-debug-tool-icon {
+  flex-shrink: 0;
+}
+
+.home-debug-tool-label {
+  white-space: nowrap;
+}
+
+.home-debug-panel {
+  width: 100%;
+  max-width: var(--composer-w, 760px);
+  margin: 0 auto;
 }

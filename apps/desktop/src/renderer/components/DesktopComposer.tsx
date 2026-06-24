@@ -62,6 +62,10 @@ type Props = {
   onBranchSelect: (branch: string) => Promise<void>
   onCreateBranch: () => void
   onPermissionChange: (value: DesktopPermissionMode) => void
+  onPlanModeToggle?: (
+    enabled: boolean,
+    previousMode: DesktopPermissionMode,
+  ) => void
   onThinkingChange: (value: DesktopThinkingMode) => void
   createSessionForWorkspace: (
     target?: DesktopWorkspace | null,
@@ -101,6 +105,7 @@ export function DesktopComposer({
   onBranchSelect,
   onCreateBranch,
   onPermissionChange,
+  onPlanModeToggle,
   onThinkingChange,
   createSessionForWorkspace,
   submitToSession,
@@ -253,6 +258,7 @@ export function DesktopComposer({
       onBranchSelect={branch => void onBranchSelect(branch)}
       onCreateBranch={onCreateBranch}
       onPermissionChange={onPermissionChange}
+      onPlanModeToggle={onPlanModeToggle}
       onSubmit={handleSubmit}
       onThinkingChange={onThinkingChange}
     />

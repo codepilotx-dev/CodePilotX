@@ -99,10 +99,75 @@
 }
 
 .popover-context {
-  min-width: 200px;
-  max-width: 260px;
+  min-width: 280px;
+  max-width: 360px;
   padding: 8px;
   border-radius: 18px;
+}
+
+.popover-context .popover-section-title {
+  padding: 6px 12px 2px;
+  color: var(--c-text-meta);
+  font-size: var(--fs-11);
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: none;
+}
+
+.popover-context .popover-section-title:not(:first-child) {
+  margin-top: 4px;
+}
+
+.popover-context .popover-item {
+  gap: 12px;
+  padding: 8px 12px;
+}
+
+.popover-context .popover-item-rich {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.popover-context .popover-item-rich .popover-item-label {
+  font-weight: 500;
+  color: var(--c-text-strong);
+}
+
+.popover-context .popover-item-description {
+  display: block;
+  color: var(--c-text-meta);
+  font-size: var(--fs-12);
+  line-height: 1.4;
+  font-weight: 400;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  word-break: break-word;
+}
+
+.popover-context .context-menu-switch {
+  width: 36px;
+  height: 22px;
+  margin-left: 0;
+}
+
+.popover-context .context-menu-switch-thumb {
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+}
+
+.popover-context .context-menu-switch[aria-checked="true"] .context-menu-switch-thumb {
+  transform: translateX(14px);
+}
+
+.popover-context .context-plugin-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
 }
 
 .context-menu-switch-item {
@@ -184,6 +249,14 @@
 
 .context-plugin-icon-slides {
   background: var(--amber-9);
+}
+
+.context-plugin-icon-template {
+  background: var(--pink-9);
+}
+
+.context-plugin-icon-browser {
+  background: var(--cyan-9);
 }
 
 .context-plugin-icon-github {

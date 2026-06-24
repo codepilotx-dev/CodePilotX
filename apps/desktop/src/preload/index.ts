@@ -128,6 +128,12 @@ const api: DesktopApi = {
       sessionId,
       patch,
     ),
+  setSessionPermissionMode: (sessionId, mode) =>
+    ipcRenderer.invoke(
+      desktopApiChannel('setSessionPermissionMode'),
+      sessionId,
+      mode,
+    ),
   readWorkflowEventLog: () =>
     ipcRenderer.invoke(desktopApiChannel('readWorkflowEventLog')),
   openConfigFile: () =>

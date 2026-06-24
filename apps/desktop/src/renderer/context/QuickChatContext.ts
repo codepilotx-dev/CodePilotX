@@ -3,6 +3,7 @@ import { createContext, useContext } from 'react'
 import type { Message } from '../uiTypes.js'
 import type {
   DesktopGitStatus,
+  DesktopPermissionMode,
   DesktopPermissionRequest,
   DesktopSessionEvent,
   DesktopSessionStatus,
@@ -23,6 +24,7 @@ export type QuickChatContextValue = {
   diff: string
   gitStatus: DesktopGitStatus | null
   recentWorkspaces: DesktopWorkspace[]
+  permissionMode: DesktopPermissionMode
   onArchiveSession: () => void
   onCreateBranch: () => void
   onOpenAutomation: () => void
@@ -40,6 +42,10 @@ export type QuickChatContextValue = {
     behavior: 'allow' | 'deny',
     alwaysAllow?: boolean,
     updatedInput?: Record<string, unknown>,
+  ) => void
+  onAcceptExitPlanMode: (
+    request: DesktopPermissionRequest,
+    nextMode: DesktopPermissionMode,
   ) => void
   events: DesktopSessionEvent[]
   workflowEvents: DesktopWorkflowEvent[]

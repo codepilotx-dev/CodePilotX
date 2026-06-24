@@ -644,6 +644,10 @@ export type DesktopApi = {
     sessionId: string,
     patch: DesktopSessionMetadataPatch,
   ): Promise<DesktopSessionSnapshot>
+  setSessionPermissionMode(
+    sessionId: string,
+    mode: DesktopPermissionMode,
+  ): Promise<DesktopSessionSnapshot>
   readWorkflowEventLog(): Promise<DesktopWorkflowEvent[]>
   openConfigFile(): Promise<{ path: string }>
   openExternalURL(url: string): Promise<void>

@@ -149,6 +149,7 @@ declare module '@codepilotx/core/agent/permissions.js' {
     | 'auto-approve-edits'
     | 'bypass'
     | 'config'
+    | 'plan'
   export type AgentPermissionAction =
     | 'read'
     | 'write'
@@ -190,6 +191,7 @@ declare module '@codepilotx/core/agent/permissions.js' {
     | 'bypassPermissions'
     | 'customConfig'
     | 'default'
+    | 'plan'
   export const DESKTOP_AGENT_PERMISSION_MODES: readonly DesktopAgentPermissionMode[]
   export function isAgentApprovalMode(
     value: unknown,

@@ -48,6 +48,7 @@ import type {
   DesktopModelMetadata,
   DesktopModelProviderSummary,
   DesktopModelProviderState,
+  DesktopPermissionMode,
   DesktopWorkspace,
   ModelProviderID,
 } from '../../shared/types.js'
@@ -176,6 +177,7 @@ export function DesktopLayout(): React.ReactNode {
     interrupt,
     decidePermission,
     updateSessionMetadata,
+    setSessionPermissionMode,
     activeSessionItem,
   } = session
 
@@ -188,6 +190,7 @@ export function DesktopLayout(): React.ReactNode {
   const fullLocationPath = `${location.pathname}${location.search}${location.hash}`
   const settingsReturnPathRef = useRef(QUICK_CHAT_PATH)
   const lastWorkspaceRestoreAttemptedRef = useRef(false)
+  const previousNonPlanModeRef = useRef<DesktopPermissionMode>('default')
   const settingsActiveTab =
     new URLSearchParams(location.search).get('tab') ?? 'general'
 
@@ -714,6 +717,32 @@ export function DesktopLayout(): React.ReactNode {
     ],
   )
 
+  const handlePermissionChange = useCallback(
+    (value: DesktopPermissionMode): void => {
+      setPermissionMode(value)
+      if (!sessionId) return
+      if (value !== 'plan' && previousNonPlanModeRef.current !== value) {
+        previousNonPlanModeRef.current = value
+      }
+      void setSessionPermissionMode(sessionId, value)
+    },
+    [sessionId, setPermissionMode, setSessionPermissionMode],
+  )
+
+  const handlePlanModeToggle = useCallback(
+    (enabled: boolean, currentMode: DesktopPermissionMode): void => {
+      if (enabled) {
+        if (currentMode !== 'plan') {
+          previousNonPlanModeRef.current = currentMode
+        }
+        handlePermissionChange('plan')
+        return
+      }
+      handlePermissionChange(previousNonPlanModeRef.current)
+    },
+    [handlePermissionChange],
+  )
+
   const handleSelectSession = useCallback(
     (sessionItem: SessionListItem): void => {
       const nextWorkspace = activateSessionById(sessionItem.id)
@@ -965,7 +994,8 @@ export function DesktopLayout(): React.ReactNode {
       onClearWorkspace={handleClearWorkspace}
       onBranchSelect={handleBranchSelect}
       onCreateBranch={() => setGitWorkflowMode('branch')}
-      onPermissionChange={setPermissionMode}
+      onPermissionChange={handlePermissionChange}
+      onPlanModeToggle={handlePlanModeToggle}
       onThinkingChange={setThinkingMode}
       createSessionForWorkspace={createSessionForWorkspace}
       submitToSession={submitToSession}
@@ -1056,6 +1086,11 @@ export function DesktopLayout(): React.ReactNode {
             onDecidePermission: (request, behavior, alwaysAllow, updatedInput) => {
               void decidePermission(request, behavior, alwaysAllow, updatedInput)
             },
+            onAcceptExitPlanMode: (request, nextMode) => {
+              void handlePermissionChange(nextMode)
+              void decidePermission(request, 'allow')
+            },
+            permissionMode,
             events: isQuickChatPage || isConversationLoading ? [] : events,
             workflowEvents:
               isQuickChatPage || isConversationLoading ? [] : workflowEvents,

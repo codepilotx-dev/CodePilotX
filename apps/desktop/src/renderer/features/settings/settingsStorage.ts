@@ -21,6 +21,11 @@ export const PERMISSION_MODE_OPTIONS: Array<{
     detail: "CodePilotX 可自动读取；写入、命令、联网和 MCP 请求需要你授权。",
   },
   {
+    value: "plan",
+    label: "计划模式",
+    detail: "CodePilotX 只能读取；写入、命令、联网和 MCP 请求会被拦截，需你逐项确认。",
+  },
+  {
     value: "auto",
     label: "自动审查",
     detail:

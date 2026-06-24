@@ -28,6 +28,14 @@ const metadataPatch = z.object({
   archivedAt: nullableText.optional(),
 })
 
+const permissionModeSchema = z.enum([
+  'default',
+  'auto',
+  'bypassPermissions',
+  'customConfig',
+  'plan',
+])
+
 const createBranchInput = z.object({
   workspacePath: z.string(),
   branchName: z.string(),
@@ -150,6 +158,7 @@ export const DESKTOP_API_ARG_SCHEMAS = {
   getActiveSessionId: emptyArgs,
   setActiveSession: z.tuple([z.string().nullable()]),
   updateSessionMetadata: z.tuple([z.string(), metadataPatch]),
+  setSessionPermissionMode: z.tuple([z.string(), permissionModeSchema]),
   readWorkflowEventLog: emptyArgs,
   openConfigFile: emptyArgs,
   openExternalURL: z.tuple([z.string()]),
