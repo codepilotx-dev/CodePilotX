@@ -493,6 +493,44 @@ export type DesktopBuiltinPlugin = {
   enabled: boolean
 }
 
+export type DesktopSkillOwnerFilter = 'all' | 'official' | 'community'
+
+export type DesktopSkillCatalogOptions = {
+  query?: string
+  owner?: DesktopSkillOwnerFilter
+  view?: 'all-time' | 'trending' | 'hot'
+  page?: number
+  perPage?: number
+}
+
+export type DesktopSkillCatalogItem = {
+  id: string
+  slug: string
+  name: string
+  source: string
+  installs: number
+  sourceType: string
+  installUrl: string | null
+  url: string
+  isDuplicate: boolean
+  installed: boolean
+}
+
+export type DesktopSkillCatalogResult = {
+  skills: DesktopSkillCatalogItem[]
+  page: number
+  perPage: number
+  total?: number
+  hasMore: boolean
+}
+
+export type DesktopSkillInstallResult = {
+  id: string
+  slug: string
+  installed: boolean
+  installPath: string
+}
+
 export type DesktopSlashCommandSuggestion = {
   name: string
   title: string
@@ -526,6 +564,10 @@ export type DesktopApi = {
     pluginId: string,
     enabled: boolean,
   ): Promise<DesktopBuiltinPlugin>
+  listSkillsCatalog(
+    options?: DesktopSkillCatalogOptions,
+  ): Promise<DesktopSkillCatalogResult>
+  installSkill(skillId: string): Promise<DesktopSkillInstallResult>
   listSlashCommands(workspacePath?: string): Promise<DesktopSlashCommandSuggestion[]>
   listMcpServers(): Promise<DesktopMcpServerListItem[]>
   saveMcpServer(options: SaveDesktopMcpServerOptions): Promise<DesktopMcpServerListItem[]>

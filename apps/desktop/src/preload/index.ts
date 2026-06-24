@@ -30,6 +30,10 @@ const api: DesktopApi = {
       pluginId,
       enabled,
     ),
+  listSkillsCatalog: options =>
+    ipcRenderer.invoke(desktopApiChannel('listSkillsCatalog'), options),
+  installSkill: skillId =>
+    ipcRenderer.invoke(desktopApiChannel('installSkill'), skillId),
   listSlashCommands: workspacePath =>
     ipcRenderer.invoke(desktopApiChannel('listSlashCommands'), workspacePath),
   listMcpServers: () => ipcRenderer.invoke(desktopApiChannel('listMcpServers')),

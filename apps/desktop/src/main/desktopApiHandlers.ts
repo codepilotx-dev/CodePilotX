@@ -33,6 +33,10 @@ import {
   readDesktopThemeSettings,
   saveDesktopThemeSettings,
 } from './themeSettings.js'
+import {
+  installDesktopSkill,
+  listDesktopSkillCatalog,
+} from './skillsCatalogService.js'
 import type { DesktopApiHandlers } from './ipc.js'
 import { createDesktopApiHandlers } from './ipc.js'
 import { desktopAutoUpdater } from './autoUpdater.js'
@@ -131,6 +135,8 @@ export function buildDesktopApiHandlers(
     },
     listBuiltinPlugins: dependencies.listBuiltinPlugins,
     setBuiltinPluginEnabled: dependencies.setBuiltinPluginEnabled,
+    listSkillsCatalog: listDesktopSkillCatalog,
+    installSkill: installDesktopSkill,
     listSlashCommands: dependencies.listSlashCommands,
     listMcpServers: listDesktopMcpServers,
     saveMcpServer: saveDesktopMcpServer,

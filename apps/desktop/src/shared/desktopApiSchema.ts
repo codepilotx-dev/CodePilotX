@@ -9,6 +9,13 @@ const unknownObject = z.record(z.string(), z.unknown())
 const optionalText = z.string().optional()
 const nullableText = z.string().nullable()
 const editableMcpScope = z.enum(['local', 'user', 'project'])
+const skillCatalogOptions = z.object({
+  query: optionalText,
+  owner: z.enum(['all', 'official', 'community']).optional(),
+  view: z.enum(['all-time', 'trending', 'hot']).optional(),
+  page: z.number().int().min(0).optional(),
+  perPage: z.number().int().min(1).max(100).optional(),
+})
 
 const providerOptions = z.object({
   providerID: z.string(),
@@ -86,6 +93,8 @@ export const DESKTOP_API_ARG_SCHEMAS = {
   saveDesktopSettings: z.tuple([unknownObject]),
   listBuiltinPlugins: emptyArgs,
   setBuiltinPluginEnabled: z.tuple([z.string(), z.boolean()]),
+  listSkillsCatalog: z.tuple([skillCatalogOptions.optional()]),
+  installSkill: z.tuple([z.string()]),
   listSlashCommands: z.tuple([z.string().optional()]),
   listMcpServers: emptyArgs,
   saveMcpServer: z.tuple([

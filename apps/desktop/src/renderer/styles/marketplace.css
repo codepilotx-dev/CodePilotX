@@ -446,6 +446,12 @@
   font-size: var(--fs-13);
 }
 
+.plugins-empty-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
 /* ===== Automation View ===== */
 
 .automation-view {
