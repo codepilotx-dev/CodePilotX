@@ -9,6 +9,7 @@ import type {
   DesktopDrawerTab,
   DesktopPermissionMode,
   DesktopPersonality,
+  DesktopReviewView,
   DesktopSandboxMode,
   DesktopStoredSettings,
   DesktopThinkingMode,
@@ -39,6 +40,11 @@ export const DESKTOP_PERSONALITIES = new Set<DesktopPersonality>([
   'friendly',
   'concise',
   'encouraging',
+])
+
+export const DESKTOP_REVIEW_VIEWS = new Set<DesktopReviewView>([
+  'inline',
+  'split',
 ])
 
 export const DESKTOP_DRAWER_TABS = new Set<DesktopDrawerTab>([
@@ -83,6 +89,7 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     customInstructions: '',
     enableMemory: false,
     skipToolAidedChats: false,
+    reviewView: 'inline',
   }
 }
 
@@ -203,6 +210,9 @@ export function normalizeDesktopStoredSettings(
       typeof parsed.skipToolAidedChats === 'boolean'
         ? parsed.skipToolAidedChats
         : defaults.skipToolAidedChats,
+    reviewView: isDesktopReviewView(parsed.reviewView)
+      ? parsed.reviewView
+      : defaults.reviewView,
   }
 }
 
@@ -284,6 +294,15 @@ export function isDesktopPersonality(
   return (
     typeof value === 'string' &&
     DESKTOP_PERSONALITIES.has(value as DesktopPersonality)
+  )
+}
+
+export function isDesktopReviewView(
+  value: unknown,
+): value is DesktopReviewView {
+  return (
+    typeof value === 'string' &&
+    DESKTOP_REVIEW_VIEWS.has(value as DesktopReviewView)
   )
 }
 

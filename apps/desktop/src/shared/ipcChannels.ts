@@ -38,6 +38,7 @@ export const DESKTOP_API_METHODS = [
   'createWorkspaceBranch',
   'commitWorkspaceChanges',
   'pushWorkspaceBranch',
+  'discardWorkspaceChanges',
   'createPullRequest',
   'listWorkspaceFiles',
   'readWorkspaceFile',

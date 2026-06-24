@@ -85,6 +85,8 @@ const api: DesktopApi = {
     ipcRenderer.invoke(desktopApiChannel('commitWorkspaceChanges'), input),
   pushWorkspaceBranch: input =>
     ipcRenderer.invoke(desktopApiChannel('pushWorkspaceBranch'), input),
+  discardWorkspaceChanges: input =>
+    ipcRenderer.invoke(desktopApiChannel('discardWorkspaceChanges'), input),
   createPullRequest: input =>
     ipcRenderer.invoke(desktopApiChannel('createPullRequest'), input),
   listWorkspaceFiles: workspacePath =>

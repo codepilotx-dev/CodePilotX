@@ -39,6 +39,12 @@ const pushBranchInput = z.object({
   forceWithLease: z.boolean().optional(),
 })
 
+const discardWorkspaceChangesInput = z.object({
+  workspacePath: z.string(),
+  paths: z.array(z.string()),
+  includeUntracked: z.boolean().optional(),
+})
+
 const createPullRequestInput = z.object({
   workspacePath: z.string(),
   title: z.string(),
@@ -119,6 +125,7 @@ export const DESKTOP_API_ARG_SCHEMAS = {
   createWorkspaceBranch: z.tuple([createBranchInput]),
   commitWorkspaceChanges: z.tuple([commitChangesInput]),
   pushWorkspaceBranch: z.tuple([pushBranchInput]),
+  discardWorkspaceChanges: z.tuple([discardWorkspaceChangesInput]),
   createPullRequest: z.tuple([createPullRequestInput]),
   listWorkspaceFiles: z.tuple([z.string()]),
   readWorkspaceFile: z.tuple([z.string(), z.string()]),

@@ -15,6 +15,7 @@ import type {
   CommitChangesInput,
   CreateBranchInput,
   CreatePullRequestInput,
+  DiscardWorkspaceChangesInput,
   DesktopDiffSummary,
   DesktopFileEntry,
   DesktopFilePreview,
@@ -602,6 +603,74 @@ export async function pushWorkspaceBranch(
   } catch (error) {
     return { ok: false, error: errorMessageOf(error) }
   }
+}
+
+export async function discardWorkspaceChanges(
+  input: DiscardWorkspaceChangesInput,
+): Promise<DesktopGitOperationResult> {
+  try {
+    const resolvedWorkspace = assertAllowedWorkspace(input.workspacePath)
+    const paths = validateGitPaths(resolvedWorkspace, input.paths)
+    const output: string[] = []
+    const trackedPaths = await filterTrackedPaths(resolvedWorkspace, paths)
+    if (trackedPaths.length > 0) {
+      const { stdout, stderr } = await execFileAsync('git', [
+        '-C',
+        resolvedWorkspace,
+        'checkout',
+        '--',
+        ...trackedPaths,
+      ])
+      output.push(
+        `[checkout] ${[stdout, stderr].map(s => s.trim()).filter(Boolean).join('\n') || 'ok'}`,
+      )
+    }
+    if (input.includeUntracked) {
+      const untrackedPaths = paths.filter(p => !trackedPaths.includes(p))
+      if (untrackedPaths.length > 0) {
+        const { stdout, stderr } = await execFileAsync('git', [
+          '-C',
+          resolvedWorkspace,
+          'clean',
+          '-f',
+          '--',
+          ...untrackedPaths,
+        ])
+        output.push(
+          `[clean] ${[stdout, stderr].map(s => s.trim()).filter(Boolean).join('\n') || 'ok'}`,
+        )
+      }
+    }
+    return {
+      ok: true,
+      output: output.join('\n'),
+      status: await readWorkspaceGitStatus(resolvedWorkspace),
+    }
+  } catch (error) {
+    return { ok: false, error: errorMessageOf(error) }
+  }
+}
+
+async function filterTrackedPaths(
+  workspacePath: string,
+  paths: string[],
+): Promise<string[]> {
+  if (paths.length === 0) return []
+  const { stdout } = await execFileAsync('git', [
+    '-C',
+    workspacePath,
+    'ls-files',
+    '-z',
+    '--',
+    ...paths,
+  ]).catch(() => ({ stdout: '' }))
+  const tracked = new Set(
+    (stdout as string)
+      .split('\0')
+      .map(line => line.trim())
+      .filter(Boolean),
+  )
+  return paths.filter(p => tracked.has(p))
 }
 
 export async function createPullRequest(

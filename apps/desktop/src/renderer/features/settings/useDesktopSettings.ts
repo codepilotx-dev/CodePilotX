@@ -11,6 +11,7 @@ import type { DrawerTab } from '../../uiTypes.js'
 import type {
   DesktopPermissionMode,
   DesktopPersonality,
+  DesktopReviewView,
   DesktopSandboxMode,
   DesktopThinkingMode,
   DesktopWorkspace,
@@ -53,6 +54,7 @@ export type UseDesktopSettingsResult = {
   customInstructions: string
   enableMemory: boolean
   skipToolAidedChats: boolean
+  reviewView: DesktopReviewView
   settingsLoaded: boolean
   setPermissionMode: (value: DesktopPermissionMode) => void
   setModel: (value: string) => void
@@ -86,6 +88,7 @@ export type UseDesktopSettingsResult = {
   setCustomInstructions: (value: string) => void
   setEnableMemory: (value: boolean) => void
   setSkipToolAidedChats: (value: boolean) => void
+  setReviewView: (value: DesktopReviewView) => void
 }
 
 const DesktopSettingsContext = createContext<UseDesktopSettingsResult | null>(
@@ -183,6 +186,9 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
   const [skipToolAidedChats, setSkipToolAidedChats] = useState(
     initial.skipToolAidedChats,
   )
+  const [reviewView, setReviewView] = useState<DesktopReviewView>(
+    initial.reviewView,
+  )
   const [settingsLoaded, setSettingsLoaded] = useState(false)
 
   useEffect(() => {
@@ -221,6 +227,7 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
         setCustomInstructions(settings.customInstructions)
         setEnableMemory(settings.enableMemory)
         setSkipToolAidedChats(settings.skipToolAidedChats)
+        setReviewView(settings.reviewView)
         setSettingsLoaded(true)
       })
       .catch(() => {
@@ -266,6 +273,7 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
       customInstructions,
       enableMemory,
       skipToolAidedChats,
+      reviewView,
     }
     storeDesktopSettings(next)
   }, [
@@ -299,6 +307,7 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     customInstructions,
     enableMemory,
     skipToolAidedChats,
+    reviewView,
   ])
 
   return {
@@ -332,6 +341,7 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     customInstructions,
     enableMemory,
     skipToolAidedChats,
+    reviewView,
     settingsLoaded,
     setPermissionMode,
     setModel,
@@ -363,5 +373,6 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     setCustomInstructions,
     setEnableMemory,
     setSkipToolAidedChats,
+    setReviewView,
   }
 }

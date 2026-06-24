@@ -132,6 +132,12 @@ export type CreatePullRequestInput = {
   draft?: boolean
 }
 
+export type DiscardWorkspaceChangesInput = {
+  workspacePath: string
+  paths: string[]
+  includeUntracked?: boolean
+}
+
 export type DesktopGitWorkspaceResult =
   | { ok: true; workspace: DesktopWorkspace; status: DesktopGitStatus }
   | { ok: false; error: string }
@@ -260,6 +266,8 @@ export type DesktopPersonality =
   | 'concise'
   | 'encouraging'
 
+export type DesktopReviewView = 'inline' | 'split'
+
 export type DesktopStoredSettings = {
   permissionMode: DesktopPermissionMode
   model: string
@@ -291,6 +299,7 @@ export type DesktopStoredSettings = {
   customInstructions: string
   enableMemory: boolean
   skipToolAidedChats: boolean
+  reviewView: DesktopReviewView
 }
 
 export type DesktopMcpScope =
@@ -566,6 +575,9 @@ export type DesktopApi = {
   ): Promise<DesktopGitOperationResult>
   pushWorkspaceBranch(
     input: PushBranchInput,
+  ): Promise<DesktopGitOperationResult>
+  discardWorkspaceChanges(
+    input: DiscardWorkspaceChangesInput,
   ): Promise<DesktopGitOperationResult>
   createPullRequest(
     input: CreatePullRequestInput,
