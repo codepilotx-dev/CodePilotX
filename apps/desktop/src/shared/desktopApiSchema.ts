@@ -80,6 +80,7 @@ export const DESKTOP_API_ARG_SCHEMAS = {
   saveDesktopSettings: z.tuple([unknownObject]),
   listBuiltinPlugins: emptyArgs,
   setBuiltinPluginEnabled: z.tuple([z.string(), z.boolean()]),
+  listSlashCommands: z.tuple([z.string().optional()]),
   listMcpServers: emptyArgs,
   saveMcpServer: z.tuple([
     z.object({

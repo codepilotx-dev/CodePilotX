@@ -30,6 +30,8 @@ const api: DesktopApi = {
       pluginId,
       enabled,
     ),
+  listSlashCommands: workspacePath =>
+    ipcRenderer.invoke(desktopApiChannel('listSlashCommands'), workspacePath),
   listMcpServers: () => ipcRenderer.invoke(desktopApiChannel('listMcpServers')),
   saveMcpServer: options =>
     ipcRenderer.invoke(desktopApiChannel('saveMcpServer'), options),

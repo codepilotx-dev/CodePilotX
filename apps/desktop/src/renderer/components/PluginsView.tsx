@@ -80,8 +80,8 @@ const PLUGINS: Plugin[] = [
   {
     id: 'minimax',
     builtinPluginId: 'minimax@builtin',
-    name: 'MiniMax Media',
-    description: 'Generate images, speech, video, and music with MiniMax',
+    name: 'MiniMax',
+    description: 'Generate media, inspect images, manage files, and query quota',
     icon: <Sparkles size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
     tone: 'creative',
     installed: false,
@@ -182,11 +182,11 @@ export function PluginsView(): React.ReactNode {
     })
   }, [enabledBuiltinPlugins, filter, query])
 
-  async function enablePlugin(plugin: Plugin): Promise<void> {
+  async function togglePlugin(plugin: Plugin): Promise<void> {
     if (!plugin.builtinPluginId) return
     const result = await desktopClient.setBuiltinPluginEnabled(
       plugin.builtinPluginId,
-      true,
+      !plugin.installed,
     )
     setEnabledBuiltinPlugins(current => ({
       ...current,
@@ -346,10 +346,16 @@ export function PluginsView(): React.ReactNode {
                       ? 'plugins-card-action is-installed'
                       : 'plugins-card-action'
                   }
-                  disabled={plugin.installed}
-                  onClick={() => { void enablePlugin(plugin) }}
+                  disabled={plugin.installed && !plugin.builtinPluginId}
+                  onClick={() => { void togglePlugin(plugin) }}
                   type="button"
-                  title={plugin.installed ? '已添加' : '添加到 CodePilotX'}
+                  title={
+                    plugin.installed
+                      ? plugin.builtinPluginId
+                        ? '从 CodePilotX 移除'
+                        : '已添加'
+                      : '添加到 CodePilotX'
+                  }
                 >
                   {plugin.installed ? <Check size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} /> : <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
                 </button>

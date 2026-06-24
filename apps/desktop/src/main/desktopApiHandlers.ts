@@ -65,6 +65,7 @@ import type {
   CreateDesktopSessionResult,
   DesktopBuiltinPlugin,
   DesktopPermissionDecision,
+  DesktopSlashCommandSuggestion,
   DesktopSessionMetadataPatch,
   DesktopSessionSnapshot,
   DesktopStoredSettings,
@@ -84,6 +85,7 @@ export type DesktopApiHandlerDependencies = {
     pluginId: string,
     enabled: boolean,
   ): Promise<DesktopBuiltinPlugin>
+  listSlashCommands(workspacePath?: string): Promise<DesktopSlashCommandSuggestion[]>
   createSession(
     options: CreateDesktopSessionOptions,
   ): Promise<CreateDesktopSessionResult>
@@ -128,6 +130,7 @@ export function buildDesktopApiHandlers(
     },
     listBuiltinPlugins: dependencies.listBuiltinPlugins,
     setBuiltinPluginEnabled: dependencies.setBuiltinPluginEnabled,
+    listSlashCommands: dependencies.listSlashCommands,
     listMcpServers: listDesktopMcpServers,
     saveMcpServer: saveDesktopMcpServer,
     removeMcpServer: removeDesktopMcpServer,

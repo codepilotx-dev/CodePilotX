@@ -1,6 +1,7 @@
 import { useCallback, useEffect } from 'react'
 import type { Command } from '../commands.js'
 import { useNotifications } from '../context/notifications.js'
+import { getBuiltinPluginSkillCommands } from '../plugins/builtinPlugins.js'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
@@ -73,7 +74,10 @@ export function useManagePlugins({
       let agents: AgentDefinition[] = []
 
       try {
-        commands = await getPluginCommands()
+        commands = [
+          ...(await getPluginCommands()),
+          ...getBuiltinPluginSkillCommands(),
+        ]
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : String(error)

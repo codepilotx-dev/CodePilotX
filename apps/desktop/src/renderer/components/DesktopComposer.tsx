@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type React from 'react'
 import { useNavigate } from 'react-router-dom'
 import type {
   DesktopComposerAttachment,
   DesktopContextUsage,
   DesktopPermissionMode,
+  DesktopSlashCommandSuggestion,
   DesktopSessionStatus,
   DesktopThinkingMode,
   DesktopUserMessageInput,
@@ -106,6 +107,9 @@ export function DesktopComposer({
 }: Props): React.ReactNode {
   const navigate = useNavigate()
   const [attachments, setAttachments] = useState<DesktopComposerAttachment[]>([])
+  const [slashCommands, setSlashCommands] = useState<
+    DesktopSlashCommandSuggestion[]
+  >([])
   const hasAttachmentErrors = hasBlockingComposerAttachmentErrors(attachments)
   const canSubmit =
     (Boolean(input.trim()) || attachments.length > 0) &&
@@ -122,6 +126,36 @@ export function DesktopComposer({
   const hasConversationMessages = messages.some(
     message => message.role !== 'system',
   )
+  useEffect(() => {
+    let cancelled = false
+    desktopClient
+      .listSlashCommands(workspace?.path)
+      .then(commands => {
+        if (!cancelled) setSlashCommands(commands)
+      })
+      .catch(() => {
+        if (!cancelled) setSlashCommands([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [workspace?.path])
+
+  useEffect(() => {
+    if (!input.trimStart().startsWith('/')) return
+    let cancelled = false
+    desktopClient
+      .listSlashCommands(workspace?.path)
+      .then(commands => {
+        if (!cancelled) setSlashCommands(commands)
+      })
+      .catch(() => {
+        if (!cancelled) setSlashCommands([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [input, workspace?.path])
 
   function handleSubmit(): void {
     void (async () => {
@@ -199,6 +233,7 @@ export function DesktopComposer({
       recentWorkspaces={recentWorkspaces}
       workspace={workspace}
       attachments={attachments}
+      slashCommands={slashCommands}
       placeholder={
         modelConfigured
           ? hasConversationMessages

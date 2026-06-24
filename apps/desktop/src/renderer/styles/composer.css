@@ -172,6 +172,104 @@
   color: var(--c-text-mute);
 }
 
+.slash-command-palette {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 14px);
+  z-index: 1200;
+  max-height: min(560px, calc(100vh - 230px));
+  padding: 12px 14px;
+  border: 1px solid var(--c-border);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--c-bg) 92%, transparent);
+  box-shadow: 0 22px 70px var(--black-a2);
+  overflow-y: auto;
+  backdrop-filter: blur(18px);
+}
+
+.slash-command-section {
+  display: grid;
+  gap: 4px;
+}
+
+.slash-command-section + .slash-command-section {
+  margin-top: 14px;
+}
+
+.slash-command-section-title {
+  padding: 4px 8px 8px;
+  color: var(--c-text-soft);
+  font-size: var(--fs-13);
+  line-height: 18px;
+}
+
+.slash-command-item {
+  width: 100%;
+  min-height: 40px;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  color: var(--c-text);
+  text-align: left;
+}
+
+.slash-command-item:hover,
+.slash-command-item.is-selected {
+  background: var(--c-bg-row-hover);
+}
+
+.slash-command-item-icon {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--c-icon);
+}
+
+.slash-command-item-body {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+}
+
+.slash-command-item-title {
+  flex: 0 0 auto;
+  color: var(--c-text);
+  font-size: var(--fs-14);
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.slash-command-item-description {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--c-text-soft);
+  font-size: var(--fs-13);
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.slash-command-item-scope {
+  padding-left: 16px;
+  color: var(--c-text-soft);
+  font-size: var(--fs-13);
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+:root[data-theme="dark"] .slash-command-palette {
+  border-color: var(--white-a2);
+  background: color-mix(in srgb, var(--c-bg) 88%, transparent);
+  box-shadow: 0 22px 70px var(--black-a5);
+}
+
 .composer-toolbar,
 .toolbar-left,
 .toolbar-right,

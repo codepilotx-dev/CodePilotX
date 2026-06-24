@@ -750,6 +750,30 @@ declare module '@codepilotx/tui/utils/settings/settings.js' {
   ): { error?: Error }
 }
 
+declare module '@codepilotx/tui/commands.js' {
+  export type Command = {
+    type: 'prompt' | 'local' | 'local-jsx'
+    name: string
+    description: string
+    source?: string
+    isHidden?: boolean
+    userInvocable?: boolean
+    isEnabled?: () => boolean
+    userFacingName?: () => string
+  }
+  export function getCommands(cwd: string): Promise<Command[]>
+  export function getCommandName(command: Command): string
+  export function formatDescriptionWithSource(command: Command): string
+}
+
+declare module '@codepilotx/tui/plugins/bundled/index.js' {
+  export function initBuiltinPlugins(): void
+}
+
+declare module '@codepilotx/tui/utils/plugins/cacheUtils.js' {
+  export function clearAllCaches(): void
+}
+
 declare module '@codepilotx/tui/utils/model/model.js' {
   export function getMainLoopModel(): string
   export function parseUserSpecifiedModel(model: string): string

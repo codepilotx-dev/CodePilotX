@@ -12,6 +12,7 @@ export const DESKTOP_API_METHODS = [
   'saveDesktopSettings',
   'listBuiltinPlugins',
   'setBuiltinPluginEnabled',
+  'listSlashCommands',
   'listMcpServers',
   'saveMcpServer',
   'removeMcpServer',

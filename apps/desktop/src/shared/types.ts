@@ -484,6 +484,14 @@ export type DesktopBuiltinPlugin = {
   enabled: boolean
 }
 
+export type DesktopSlashCommandSuggestion = {
+  name: string
+  title: string
+  description: string
+  category: 'command' | 'skill'
+  scope?: string
+}
+
 export type DesktopUiCommand =
   | 'newConversation'
   | 'chooseWorkspace'
@@ -509,6 +517,7 @@ export type DesktopApi = {
     pluginId: string,
     enabled: boolean,
   ): Promise<DesktopBuiltinPlugin>
+  listSlashCommands(workspacePath?: string): Promise<DesktopSlashCommandSuggestion[]>
   listMcpServers(): Promise<DesktopMcpServerListItem[]>
   saveMcpServer(options: SaveDesktopMcpServerOptions): Promise<DesktopMcpServerListItem[]>
   removeMcpServer(name: string, scope: DesktopEditableMcpScope): Promise<DesktopMcpServerListItem[]>

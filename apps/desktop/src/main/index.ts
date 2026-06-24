@@ -5,6 +5,12 @@ import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { enableConfigs } from '@codepilotx/core/utils/config.js'
 import {
+  formatDescriptionWithSource,
+  getCommandName,
+  getCommands,
+} from '@codepilotx/tui/commands.js'
+import { initBuiltinPlugins } from '@codepilotx/tui/plugins/bundled/index.js'
+import {
   getMainLoopModel,
   parseUserSpecifiedModel,
 } from '@codepilotx/tui/utils/model/model.js'
@@ -16,6 +22,7 @@ import {
   getSettings_DEPRECATED,
   updateSettingsForSource,
 } from '@codepilotx/tui/utils/settings/settings.js'
+import { clearAllCaches } from '@codepilotx/tui/utils/plugins/cacheUtils.js'
 import { generateSessionTitle } from '@codepilotx/tui/utils/sessionTitle.js'
 import { saveAiGeneratedTitle } from '@codepilotx/tui/utils/sessionStorage.js'
 import {
@@ -59,6 +66,7 @@ import type {
   DesktopBuiltinPlugin,
   DesktopPermissionDecision,
   DesktopPermissionMode,
+  DesktopSlashCommandSuggestion,
   DesktopSessionMetadataPatch,
   DesktopSessionSettingsSnapshot,
   DesktopSessionSnapshot,
@@ -101,6 +109,29 @@ const titleGenerationStartedSessionIds = new Set<string>()
 let activeSessionId: string | null = null
 let sessionStoreLoadPromise: Promise<void> | null = null
 const DESKTOP_BUILTIN_PLUGIN_IDS = ['minimax@builtin'] as const
+const DESKTOP_PRIMARY_SLASH_COMMANDS = [
+  'effort',
+  'model',
+  'branch',
+  'status',
+  'goal',
+  'plan',
+  'remember',
+] as const
+const DESKTOP_PRIMARY_SLASH_COMMAND_SET = new Set<string>(
+  DESKTOP_PRIMARY_SLASH_COMMANDS,
+)
+const DESKTOP_SLASH_COMMAND_TITLE_OVERRIDES: Record<string, string> = {
+  effort: '推理模式',
+  model: '模型',
+  branch: '派生',
+  status: '状态',
+  goal: '目标',
+  plan: '计划模式',
+  remember: '记忆',
+}
+
+initBuiltinPlugins()
 
 function rendererUrl(): string {
   const devRendererUrl =
@@ -852,6 +883,55 @@ async function listBuiltinPlugins(): Promise<DesktopBuiltinPlugin[]> {
   }))
 }
 
+async function listSlashCommands(
+  workspacePath?: string,
+): Promise<DesktopSlashCommandSuggestion[]> {
+  const cwd = workspacePath
+    ? normalizeWorkspacePath(workspacePath)
+    : (await getStandaloneWorkspace()).path
+  const commands = await getCommands(cwd)
+  const suggestions = commands
+    .filter(command => command.userInvocable !== false)
+    .filter(command => !command.isHidden)
+    .filter(command => command.isEnabled?.() ?? true)
+    .filter(command => {
+      const name = getCommandName(command)
+      return (
+        DESKTOP_PRIMARY_SLASH_COMMAND_SET.has(name) ||
+        (command.type === 'prompt' && command.source !== 'builtin')
+      )
+    })
+    .map(command => {
+      const name = getCommandName(command)
+      const isSkill = command.type === 'prompt'
+      return {
+        name,
+        title: DESKTOP_SLASH_COMMAND_TITLE_OVERRIDES[name] ?? name,
+        description: formatDescriptionWithSource(command),
+        category: isSkill ? 'skill' : 'command',
+        ...(isSkill && { scope: '个人' }),
+      } satisfies DesktopSlashCommandSuggestion
+    })
+
+  return suggestions.sort((a, b) => {
+    const aPrimary = DESKTOP_PRIMARY_SLASH_COMMANDS.indexOf(
+      a.name as (typeof DESKTOP_PRIMARY_SLASH_COMMANDS)[number],
+    )
+    const bPrimary = DESKTOP_PRIMARY_SLASH_COMMANDS.indexOf(
+      b.name as (typeof DESKTOP_PRIMARY_SLASH_COMMANDS)[number],
+    )
+    if (aPrimary !== -1 || bPrimary !== -1) {
+      if (aPrimary === -1) return 1
+      if (bPrimary === -1) return -1
+      return aPrimary - bPrimary
+    }
+    if (a.category !== b.category) {
+      return a.category === 'command' ? -1 : 1
+    }
+    return a.title.localeCompare(b.title)
+  })
+}
+
 async function setBuiltinPluginEnabled(
   pluginId: string,
   enabled: boolean,
@@ -872,6 +952,7 @@ async function setBuiltinPluginEnabled(
   if (error) {
     throw error
   }
+  clearAllCaches()
   return { id: pluginId, enabled }
 }
 
@@ -889,6 +970,7 @@ function registerIpc(): void {
     },
     listBuiltinPlugins,
     setBuiltinPluginEnabled,
+    listSlashCommands,
     createSession,
     listSessions,
     getSession,
