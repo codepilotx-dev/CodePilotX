@@ -2,6 +2,7 @@ import { desktopClient } from '../../services/desktopClient.js'
 import {
   createContext,
   createElement,
+  useCallback,
   useContext,
   useEffect,
   useState,
@@ -44,6 +45,11 @@ export type UseDesktopSettingsResult = {
   showContextUsage: boolean
   defaultOpenTargetId: string
   gitBranchPrefix: string
+  gitPrMergeMethod: 'merge' | 'squash'
+  gitShowPrIconsInSidebar: boolean
+  gitDraftPullRequest: boolean
+  gitAutoDeleteWorktree: boolean
+  gitAutoDeleteWorktreeLimit: number
   allowForcePush: boolean
   commitMessagePrompt: string
   pullRequestPrompt: string
@@ -81,6 +87,11 @@ export type UseDesktopSettingsResult = {
   setShowContextUsage: (value: boolean) => void
   setDefaultOpenTargetId: (value: string) => void
   setGitBranchPrefix: (value: string) => void
+  setGitPrMergeMethod: (value: 'merge' | 'squash') => void
+  setGitShowPrIconsInSidebar: (value: boolean) => void
+  setGitDraftPullRequest: (value: boolean) => void
+  setGitAutoDeleteWorktree: (value: boolean) => void
+  setGitAutoDeleteWorktreeLimit: (value: number) => void
   setAllowForcePush: (value: boolean) => void
   setCommitMessagePrompt: (value: string) => void
   setPullRequestPrompt: (value: string) => void
@@ -93,8 +104,9 @@ export type UseDesktopSettingsResult = {
   setEnableMemory: (value: boolean) => void
   setSkipToolAidedChats: (value: boolean) => void
   setGithubMemorySyncEnabled: (value: boolean) => void
-  setGithubMemoryRepository: (value: string) => void
+setGithubMemoryRepository: (value: string) => void
   setReviewView: (value: DesktopReviewView) => void
+  flushDesktopSettings: () => Promise<void>
 }
 
 const DesktopSettingsContext = createContext<UseDesktopSettingsResult | null>(
@@ -166,6 +178,21 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
   const [gitBranchPrefix, setGitBranchPrefix] = useState(
     initial.gitBranchPrefix,
   )
+  const [gitPrMergeMethod, setGitPrMergeMethod] = useState<'merge' | 'squash'>(
+    initial.gitPrMergeMethod,
+  )
+  const [gitShowPrIconsInSidebar, setGitShowPrIconsInSidebar] = useState(
+    initial.gitShowPrIconsInSidebar,
+  )
+  const [gitDraftPullRequest, setGitDraftPullRequest] = useState(
+    initial.gitDraftPullRequest,
+  )
+  const [gitAutoDeleteWorktree, setGitAutoDeleteWorktree] = useState(
+    initial.gitAutoDeleteWorktree,
+  )
+  const [gitAutoDeleteWorktreeLimit, setGitAutoDeleteWorktreeLimit] = useState(
+    initial.gitAutoDeleteWorktreeLimit,
+  )
   const [allowForcePush, setAllowForcePush] = useState(initial.allowForcePush)
   const [commitMessagePrompt, setCommitMessagePrompt] = useState(
     initial.commitMessagePrompt,
@@ -232,6 +259,11 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
         setShowContextUsage(settings.showContextUsage)
         setDefaultOpenTargetId(settings.defaultOpenTargetId)
         setGitBranchPrefix(settings.gitBranchPrefix)
+        setGitPrMergeMethod(settings.gitPrMergeMethod)
+        setGitShowPrIconsInSidebar(settings.gitShowPrIconsInSidebar)
+        setGitDraftPullRequest(settings.gitDraftPullRequest)
+        setGitAutoDeleteWorktree(settings.gitAutoDeleteWorktree)
+        setGitAutoDeleteWorktreeLimit(settings.gitAutoDeleteWorktreeLimit)
         setAllowForcePush(settings.allowForcePush)
         setCommitMessagePrompt(settings.commitMessagePrompt)
         setPullRequestPrompt(settings.pullRequestPrompt)
@@ -281,6 +313,11 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
       showContextUsage,
       defaultOpenTargetId,
       gitBranchPrefix,
+      gitPrMergeMethod,
+      gitShowPrIconsInSidebar,
+      gitDraftPullRequest,
+      gitAutoDeleteWorktree,
+      gitAutoDeleteWorktreeLimit,
       allowForcePush,
       commitMessagePrompt,
       pullRequestPrompt,
@@ -317,7 +354,100 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     providerBaseURL,
     showContextUsage,
     defaultOpenTargetId,
+gitBranchPrefix,
+    gitPrMergeMethod,
+    gitShowPrIconsInSidebar,
+    gitDraftPullRequest,
+    gitAutoDeleteWorktree,
+    gitAutoDeleteWorktreeLimit,
+    allowForcePush,
+    commitMessagePrompt,
+    pullRequestPrompt,
+    githubOAuthClientId,
+    sandboxMode,
+    allowNetworkAccess,
+    installCodexDependencies,
+    personality,
+    customInstructions,
+    enableMemory,
+    skipToolAidedChats,
+    githubMemorySyncEnabled,
+    githubMemoryRepository,
+    reviewView,
+  ])
+
+  const flushDesktopSettings = useCallback(async (): Promise<void> => {
+    const snapshot: StoredDesktopSettings = {
+      permissionMode,
+      model,
+      fallbackModel: '',
+      smallFastModel,
+      fastModel,
+      defaultModel,
+      deepModel,
+      sessionName,
+      thinkingMode,
+      systemPrompt,
+      appendSystemPrompt,
+      additionalDirectories,
+      recentWorkspaces,
+      drawerTab,
+      selectedModelPreset,
+      providerID,
+      providerBaseURL,
+      showContextUsage,
+      defaultOpenTargetId,
+      gitBranchPrefix,
+      gitPrMergeMethod,
+      gitShowPrIconsInSidebar,
+      gitDraftPullRequest,
+      gitAutoDeleteWorktree,
+      gitAutoDeleteWorktreeLimit,
+      allowForcePush,
+      commitMessagePrompt,
+      pullRequestPrompt,
+      githubOAuthClientId,
+      sandboxMode,
+      allowNetworkAccess,
+      installCodexDependencies,
+      personality,
+      customInstructions,
+      enableMemory,
+      skipToolAidedChats,
+      githubMemorySyncEnabled,
+      githubMemoryRepository,
+      reviewView,
+    }
+    try {
+      await desktopClient.saveDesktopSettings(snapshot)
+    } catch {
+      // Persistence is best-effort; the next state change will retry.
+    }
+  }, [
+    permissionMode,
+    model,
+    smallFastModel,
+    fastModel,
+    defaultModel,
+    deepModel,
+    sessionName,
+    thinkingMode,
+    systemPrompt,
+    appendSystemPrompt,
+    additionalDirectories,
+    recentWorkspaces,
+    drawerTab,
+    selectedModelPreset,
+    providerID,
+    providerBaseURL,
+    showContextUsage,
+    defaultOpenTargetId,
     gitBranchPrefix,
+    gitPrMergeMethod,
+    gitShowPrIconsInSidebar,
+    gitDraftPullRequest,
+    gitAutoDeleteWorktree,
+    gitAutoDeleteWorktreeLimit,
     allowForcePush,
     commitMessagePrompt,
     pullRequestPrompt,
@@ -353,8 +483,13 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     providerID,
     providerBaseURL,
     showContextUsage,
-    defaultOpenTargetId,
+defaultOpenTargetId,
     gitBranchPrefix,
+    gitPrMergeMethod,
+    gitShowPrIconsInSidebar,
+    gitDraftPullRequest,
+    gitAutoDeleteWorktree,
+    gitAutoDeleteWorktreeLimit,
     allowForcePush,
     commitMessagePrompt,
     pullRequestPrompt,
@@ -390,6 +525,11 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     setShowContextUsage,
     setDefaultOpenTargetId,
     setGitBranchPrefix,
+    setGitPrMergeMethod,
+    setGitShowPrIconsInSidebar,
+    setGitDraftPullRequest,
+    setGitAutoDeleteWorktree,
+    setGitAutoDeleteWorktreeLimit,
     setAllowForcePush,
     setCommitMessagePrompt,
     setPullRequestPrompt,
@@ -402,7 +542,8 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     setEnableMemory,
     setSkipToolAidedChats,
     setGithubMemorySyncEnabled,
-    setGithubMemoryRepository,
+setGithubMemoryRepository,
     setReviewView,
+    flushDesktopSettings,
   }
 }

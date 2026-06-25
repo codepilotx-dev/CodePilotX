@@ -533,7 +533,12 @@ export type DesktopStoredSettings = {
   providerBaseURL: string
   showContextUsage: boolean
   defaultOpenTargetId: string
-  gitBranchPrefix: string
+gitBranchPrefix: string
+  gitPrMergeMethod: 'merge' | 'squash'
+  gitShowPrIconsInSidebar: boolean
+  gitDraftPullRequest: boolean
+  gitAutoDeleteWorktree: boolean
+  gitAutoDeleteWorktreeLimit: number
   allowForcePush: boolean
   commitMessagePrompt: string
   pullRequestPrompt: string

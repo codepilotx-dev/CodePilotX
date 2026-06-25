@@ -78,7 +78,12 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     providerBaseURL: '',
     showContextUsage: true,
     defaultOpenTargetId: 'default-app',
-    gitBranchPrefix: 'codex/',
+gitBranchPrefix: 'codex/',
+    gitPrMergeMethod: 'merge',
+    gitShowPrIconsInSidebar: true,
+    gitDraftPullRequest: true,
+    gitAutoDeleteWorktree: true,
+    gitAutoDeleteWorktreeLimit: 15,
     allowForcePush: false,
     commitMessagePrompt: '',
     pullRequestPrompt: '',
@@ -174,6 +179,25 @@ export function normalizeDesktopStoredSettings(
     gitBranchPrefix: stringOrDefault(
       parsed.gitBranchPrefix,
       defaults.gitBranchPrefix,
+    ),
+    gitPrMergeMethod: isDesktopGitPrMergeMethod(parsed.gitPrMergeMethod)
+      ? parsed.gitPrMergeMethod
+      : defaults.gitPrMergeMethod,
+    gitShowPrIconsInSidebar:
+      typeof parsed.gitShowPrIconsInSidebar === 'boolean'
+        ? parsed.gitShowPrIconsInSidebar
+        : defaults.gitShowPrIconsInSidebar,
+    gitDraftPullRequest:
+      typeof parsed.gitDraftPullRequest === 'boolean'
+        ? parsed.gitDraftPullRequest
+        : defaults.gitDraftPullRequest,
+    gitAutoDeleteWorktree:
+      typeof parsed.gitAutoDeleteWorktree === 'boolean'
+        ? parsed.gitAutoDeleteWorktree
+        : defaults.gitAutoDeleteWorktree,
+    gitAutoDeleteWorktreeLimit: normalizeGitWorktreeLimit(
+      parsed.gitAutoDeleteWorktreeLimit,
+      defaults.gitAutoDeleteWorktreeLimit,
     ),
     allowForcePush:
       typeof parsed.allowForcePush === 'boolean'
@@ -326,6 +350,25 @@ export function isDesktopDrawerTab(value: unknown): value is DesktopDrawerTab {
     typeof value === 'string' &&
     DESKTOP_DRAWER_TABS.has(value as DesktopDrawerTab)
   )
+}
+
+export const DESKTOP_GIT_PR_MERGE_METHODS = new Set<'merge' | 'squash'>([
+  'merge',
+  'squash',
+])
+
+export function isDesktopGitPrMergeMethod(
+  value: unknown,
+): value is 'merge' | 'squash' {
+  return typeof value === 'string' && DESKTOP_GIT_PR_MERGE_METHODS.has(value as 'merge' | 'squash')
+}
+
+export function normalizeGitWorktreeLimit(
+  value: unknown,
+  fallback: number,
+): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback
+  return Math.max(1, Math.floor(value))
 }
 
 export function isModelProviderID(value: unknown): value is ModelProviderID {

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
+import { SegmentedControl } from './SegmentedControl.js'
 import { ToggleSwitch } from './ToggleSwitch.js'
 import { useDesktopSettings } from '../features/settings/useDesktopSettings.js'
 import { desktopClient } from '../services/desktopClient.js'
@@ -9,10 +10,25 @@ import type {
   DesktopGithubLoginStatus,
 } from '../../shared/types.js'
 
+const PR_MERGE_OPTIONS: Array<{ value: 'merge' | 'squash'; label: string }> = [
+  { value: 'merge', label: '合并' },
+  { value: 'squash', label: '压缩' },
+]
+
 export function GitSettings(): React.ReactNode {
   const {
     gitBranchPrefix,
     setGitBranchPrefix,
+    gitPrMergeMethod,
+    setGitPrMergeMethod,
+    gitShowPrIconsInSidebar,
+    setGitShowPrIconsInSidebar,
+    gitDraftPullRequest,
+    setGitDraftPullRequest,
+    gitAutoDeleteWorktree,
+    setGitAutoDeleteWorktree,
+    gitAutoDeleteWorktreeLimit,
+    setGitAutoDeleteWorktreeLimit,
     allowForcePush,
     setAllowForcePush,
     commitMessagePrompt,
@@ -21,12 +37,15 @@ export function GitSettings(): React.ReactNode {
     setPullRequestPrompt,
     githubOAuthClientId,
     setGithubOAuthClientId,
+    flushDesktopSettings,
   } = useDesktopSettings()
   const [githubAuth, setGithubAuth] =
     useState<DesktopGithubAuthStatus | null>(null)
   const [githubLogin, setGithubLogin] =
     useState<DesktopGithubLoginStatus | null>(null)
   const [githubBusy, setGithubBusy] = useState(false)
+  const [commitSaveState, setCommitSaveState] = useState<'idle' | 'saved'>('idle')
+  const [prSaveState, setPrSaveState] = useState<'idle' | 'saved'>('idle')
 
   useEffect(() => {
     let mounted = true
@@ -52,6 +71,22 @@ export function GitSettings(): React.ReactNode {
     }, 2000)
     return () => window.clearInterval(timer)
   }, [githubLogin])
+
+  useEffect(() => {
+    if (commitSaveState === 'saved') {
+      const timer = window.setTimeout(() => setCommitSaveState('idle'), 2000)
+      return () => window.clearTimeout(timer)
+    }
+    return undefined
+  }, [commitSaveState])
+
+  useEffect(() => {
+    if (prSaveState === 'saved') {
+      const timer = window.setTimeout(() => setPrSaveState('idle'), 2000)
+      return () => window.clearTimeout(timer)
+    }
+    return undefined
+  }, [prSaveState])
 
   const startGithubLogin = async (): Promise<void> => {
     setGithubBusy(true)
@@ -79,6 +114,16 @@ export function GitSettings(): React.ReactNode {
     }
   }
 
+  const handleCommitSave = async (): Promise<void> => {
+    await flushDesktopSettings()
+    setCommitSaveState('saved')
+  }
+
+  const handlePrSave = async (): Promise<void> => {
+    await flushDesktopSettings()
+    setPrSaveState('saved')
+  }
+
   const githubStatusText = githubAuth?.authenticated
     ? `已登录 ${githubAuth.user?.login ?? 'GitHub'}`
     : !githubOAuthClientId.trim() && githubAuth?.configured === false
@@ -103,9 +148,141 @@ export function GitSettings(): React.ReactNode {
     <div className="settings-content-area">
       <div className="settings-content-inner">
         <h2 className="settings-page-title">Git</h2>
-        <p className="settings-page-desc">
-          配置 Codex 风格的分支命名和 Git 工作流提示词。v1 先保存这些偏好，后续可接入提交和 PR 命令。
-        </p>
+
+        <SettingsSection>
+          <SettingsRow
+            title="分支前缀"
+            description="在 Codex 中创建新分支时使用的前缀"
+            control={
+              <input
+                className="settings-input settings-input-narrow"
+                value={gitBranchPrefix}
+                placeholder="codex/"
+                onChange={event => setGitBranchPrefix(event.target.value)}
+              />
+            }
+          />
+          <SettingsRow
+            title="拉取请求合并方法"
+            description="选择 Codex 合并拉取请求的方法"
+            control={
+              <SegmentedControl
+                value={gitPrMergeMethod}
+                options={PR_MERGE_OPTIONS}
+                onChange={setGitPrMergeMethod}
+              />
+            }
+          />
+          <SettingsRow
+            title="在侧边栏显示 PR 图标"
+            description="在侧边栏的对话行中显示 PR 状态图标"
+            control={
+              <ToggleSwitch
+                checked={gitShowPrIconsInSidebar}
+                onChange={setGitShowPrIconsInSidebar}
+                ariaLabel="在侧边栏显示 PR 图标"
+              />
+            }
+          />
+          <SettingsRow
+            title="始终强制推送"
+            description="从 Codex 推送时使用 --force-with-lease 参数"
+            control={
+              <ToggleSwitch
+                checked={allowForcePush}
+                onChange={setAllowForcePush}
+                ariaLabel="始终强制推送"
+              />
+            }
+          />
+          <SettingsRow
+            title="创建草稿拉取请求"
+            description="从 Codex 创建 PR 时默认使用草稿拉取请求"
+            control={
+              <ToggleSwitch
+                checked={gitDraftPullRequest}
+                onChange={setGitDraftPullRequest}
+                ariaLabel="创建草稿拉取请求"
+              />
+            }
+          />
+          <SettingsRow
+            title="自动删除旧工作树"
+            description="推荐大多数用户启用。仅当你需要手动管理旧工作树和磁盘使用空间时，再关闭此功能。"
+            control={
+              <ToggleSwitch
+                checked={gitAutoDeleteWorktree}
+                onChange={setGitAutoDeleteWorktree}
+                ariaLabel="自动删除旧工作树"
+              />
+            }
+          />
+          <SettingsRow
+            title="自动删除限制"
+            description="自动清理较旧工作树前保留的 Codex 工作树数量。Codex 会在删除前为工作树创建快照，因此被清理的工作树应始终可恢复。"
+            control={
+              <input
+                className="settings-input settings-input-narrow"
+                type="number"
+                min={1}
+                step={1}
+                value={gitAutoDeleteWorktreeLimit}
+                onChange={event => {
+                  const next = Number(event.target.value)
+                  if (Number.isFinite(next)) {
+                    setGitAutoDeleteWorktreeLimit(
+                      Math.max(1, Math.floor(next)),
+                    )
+                  }
+                }}
+              />
+            }
+          />
+          <SettingsRow
+            title="提交指令"
+            description="已添加到提交信息生成提示中"
+            control={
+              <div className="settings-git-instruction-control">
+                <textarea
+                  className="settings-textarea"
+                  rows={4}
+                  value={commitMessagePrompt}
+                  placeholder="添加提交消息指引..."
+                  onChange={event => setCommitMessagePrompt(event.target.value)}
+                />
+                <button
+                  type="button"
+                  className="settings-button"
+                  onClick={() => void handleCommitSave()}
+                >
+                  {commitSaveState === 'saved' ? '已保存' : '保存'}
+                </button>
+              </div>
+            }
+          />
+          <SettingsRow
+            title="拉取请求指令"
+            description="已添加到 PR 标题/描述生成提示中"
+            control={
+              <div className="settings-git-instruction-control">
+                <textarea
+                  className="settings-textarea"
+                  rows={4}
+                  value={pullRequestPrompt}
+                  placeholder="添加拉取请求消息指引..."
+                  onChange={event => setPullRequestPrompt(event.target.value)}
+                />
+                <button
+                  type="button"
+                  className="settings-button"
+                  onClick={() => void handlePrSave()}
+                >
+                  {prSaveState === 'saved' ? '已保存' : '保存'}
+                </button>
+              </div>
+            }
+          />
+        </SettingsSection>
 
         <SettingsSection
           title="GitHub 账号"
@@ -192,67 +369,6 @@ export function GitSettings(): React.ReactNode {
                   </button>
                 )}
               </div>
-            }
-          />
-        </SettingsSection>
-
-        <SettingsSection
-          title="分支与推送"
-          description="这些设置用于标准化新分支和高风险 Git 操作。"
-        >
-          <SettingsRow
-            title="分支前缀"
-            description="新建工作分支时使用的默认前缀。"
-            control={
-              <input
-                className="settings-input settings-input-narrow"
-                value={gitBranchPrefix}
-                placeholder="codex/"
-                onChange={event => setGitBranchPrefix(event.target.value)}
-              />
-            }
-          />
-          <SettingsRow
-            title="允许 force push"
-            description="关闭时，桌面端默认不鼓励高风险强推操作。"
-            control={
-              <ToggleSwitch
-                checked={allowForcePush}
-                onChange={setAllowForcePush}
-                ariaLabel="允许 force push"
-              />
-            }
-          />
-        </SettingsSection>
-
-        <SettingsSection
-          title="提示词"
-          description="留空表示使用内置默认提示词。"
-        >
-          <SettingsRow
-            title="Commit message 提示词"
-            description="用于生成提交信息的额外偏好。"
-            control={
-              <textarea
-                className="settings-textarea"
-                rows={4}
-                value={commitMessagePrompt}
-                placeholder="使用内置默认"
-                onChange={event => setCommitMessagePrompt(event.target.value)}
-              />
-            }
-          />
-          <SettingsRow
-            title="Pull request 描述提示词"
-            description="用于生成 PR 描述的额外偏好。"
-            control={
-              <textarea
-                className="settings-textarea"
-                rows={4}
-                value={pullRequestPrompt}
-                placeholder="使用内置默认"
-                onChange={event => setPullRequestPrompt(event.target.value)}
-              />
             }
           />
         </SettingsSection>
