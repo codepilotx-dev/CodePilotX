@@ -119,6 +119,7 @@
     "sharp": "latest",
     "shell-quote": "latest",
     "signal-exit": "latest",
+    "smol-toml": "^1.7.0",
     "stack-utils": "latest",
     "strip-ansi": "latest",
     "supports-hyperlinks": "latest",
