@@ -1,14 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react'
+﻿import React, { useEffect, useMemo, useState } from 'react'
 import {
   Edit3,
-  ExternalLink,
   GitFork,
   Globe,
-  Lock,
   Mail,
   MapPin,
   RefreshCw,
-  Share2,
   Star,
   User,
 } from 'lucide-react'
@@ -123,21 +120,8 @@ export function ProfileSettings(): React.ReactNode {
     <div className="settings-content-area profile-dashboard-area">
       <div className="profile-dashboard">
         <header className="profile-dashboard-header">
-          <h2>个人资料</h2>
+          <h2>用户设置</h2>
           <div className="profile-dashboard-actions">
-            <button
-              className="profile-action-button"
-              disabled={!user?.htmlUrl}
-              onClick={() => user?.htmlUrl && void desktopClient.openExternalURL(user.htmlUrl)}
-              type="button"
-            >
-              <Share2 />
-              分享
-            </button>
-            <button className="profile-action-button" type="button">
-              <Lock />
-              私有
-            </button>
             <button
               className="profile-action-button"
               disabled={!user?.htmlUrl}
@@ -147,6 +131,17 @@ export function ProfileSettings(): React.ReactNode {
               <Edit3 />
               编辑
             </button>
+            <button
+              className="profile-action-button"
+              disabled={loading}
+              onClick={() => void loadGithubAuth()}
+              type="button"
+              title={loading ? '正在刷新中...' : '刷新'}
+            >
+              <RefreshCw />
+              {loading ? '刷新中...' : '刷新'}
+            </button>
+
           </div>
         </header>
 
@@ -168,7 +163,7 @@ export function ProfileSettings(): React.ReactNode {
           </div>
           <h1>{user?.name || user?.login || 'GitHub Profile'}</h1>
           <div className="profile-identity">
-            {user ? `@${user.login}` : '未连接 GitHub'}
+            {user ? `@${user.login}` : '未登录 GitHub'}
             {githubOverview ? <span>GitHub</span> : null}
           </div>
           {githubOverview?.user.bio ? (
@@ -199,18 +194,18 @@ export function ProfileSettings(): React.ReactNode {
             <section className="profile-stat-strip" aria-label="GitHub 统计">
               <ProfileMetric label="公开仓库" value={githubOverview.user.repositoryCount} />
               <ProfileMetric label="Starred" value={githubOverview.user.starredRepositoryCount} />
-              <ProfileMetric label="年度贡献" value={githubOverview.contributions.totalContributions} />
+              <ProfileMetric label="今年贡献" value={githubOverview.contributions.totalContributions} />
               <ProfileMetric label="Commit 贡献" value={githubOverview.contributions.totalCommitContributions} />
-              <ProfileMetric label="私有贡献" value={githubOverview.contributions.restrictedContributionsCount} />
+              <ProfileMetric label="受限贡献" value={githubOverview.contributions.restrictedContributionsCount} />
             </section>
 
             <section className="profile-activity-panel">
               <div className="profile-panel-heading">
                 <h3>GitHub 活动</h3>
                 <div>
-                  <span>每日</span>
-                  <span>每周</span>
-                  <span>累计</span>
+                  <span>周</span>
+                  <span>月</span>
+                  <span>年</span>
                 </div>
               </div>
               <div className="profile-contribution-map">
@@ -242,13 +237,13 @@ export function ProfileSettings(): React.ReactNode {
             </section>
 
             <section className="profile-lower-grid">
-              <div className="profile-insights">
-                <h3>活动洞察</h3>
+                <div className="profile-insights">
+                <h3>活动概览</h3>
                 <ProfileInsight label="Commit 贡献" value={githubOverview.contributions.totalCommitContributions} />
                 <ProfileInsight label="Pull request 贡献" value={githubOverview.contributions.totalPullRequestContributions} />
                 <ProfileInsight label="Issue 贡献" value={githubOverview.contributions.totalIssueContributions} />
                 <ProfileInsight label="Review 贡献" value={githubOverview.contributions.totalPullRequestReviewContributions} />
-                <ProfileInsight label="私有贡献" value={githubOverview.contributions.restrictedContributionsCount} />
+                <ProfileInsight label="受限贡献" value={githubOverview.contributions.restrictedContributionsCount} />
               </div>
 
               <div className="profile-repositories">
@@ -260,7 +255,7 @@ export function ProfileSettings(): React.ReactNode {
                   />
                 ))}
                 {repositories.length === 0 ? (
-                  <p className="profile-empty-copy">还没有可展示的仓库数据。</p>
+                  <p className="profile-empty-copy">暂无可显示的数据。</p>
                 ) : null}
               </div>
             </section>
@@ -271,7 +266,8 @@ export function ProfileSettings(): React.ReactNode {
               {loading
                 ? '正在读取 GitHub 资料...'
                 : githubOverviewError ??
-                  '连接 GitHub 后，这里会显示头像、仓库、贡献热力图和活动洞察。'}
+                  '连接 GitHub 失败，请稍后重试。'
+              }
             </p>
             <div className="profile-empty-actions">
               <button
@@ -288,7 +284,7 @@ export function ProfileSettings(): React.ReactNode {
                 onClick={() => navigate('/settings?tab=git')}
                 type="button"
               >
-                前往 Git 页
+                前往 Git 设置
               </button>
             </div>
           </section>
@@ -458,7 +454,7 @@ function monthLabels(
     if (!day) return
     const month = formatter.format(new Date(day.date))
     if (month !== lastMonth) {
-      labels.push({ label: `${month}月`, index })
+      labels.push({ label: `${month}`, index })
       lastMonth = month
     }
   })
@@ -489,6 +485,9 @@ function statusEmojiGlyph(value: string | null | undefined): string {
     case 'speech_balloon':
       return '💬'
     default:
-      return value ? '💬' : '☺'
+      return value ? '💬' : ''
   }
 }
+
+
+
