@@ -85,6 +85,7 @@ export function DesktopLayout(): React.ReactNode {
     systemPrompt,
     appendSystemPrompt,
     additionalDirectories,
+    askUserQuestionMaxQuestions,
     recentWorkspaces,
     selectedModelPreset,
     providerID,
@@ -176,6 +177,7 @@ export function DesktopLayout(): React.ReactNode {
     systemPrompt,
     appendSystemPrompt,
     additionalDirectories,
+    askUserQuestionMaxQuestions,
     onError: (message: string) => setErrorMessage(message),
     onDiffForActive: (patch: string) => setDiffState(patch),
     onRefreshActiveWorkspace: (sessionId: string) => {

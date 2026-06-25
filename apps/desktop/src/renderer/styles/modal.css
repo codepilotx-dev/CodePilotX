@@ -73,6 +73,12 @@
   overflow-wrap: anywhere;
 }
 
+.global-error-toast.status {
+  align-items: center;
+  max-height: none;
+  font-size: var(--fs-13);
+}
+
 .global-error-toast button {
   width: 22px;
   height: 22px;

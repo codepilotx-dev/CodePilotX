@@ -3453,7 +3453,7 @@ Start by quickly scanning a few key files to form an initial understanding of th
 ### Asking Good Questions
 
 - Never ask what you could find out by reading the code
-- Batch related questions together (use multi-question ${ASK_USER_QUESTION_TOOL_NAME} calls)
+- Respect the ${ASK_USER_QUESTION_TOOL_NAME} question limit. When only one question is allowed, ask the highest-priority question first and use later rounds for follow-ups.
 - Focus on things only the user can answer: requirements, preferences, tradeoffs, edge case priorities
 - Scale depth to the task — a vague feature request needs many rounds; a focused bug fix may need one or none
 

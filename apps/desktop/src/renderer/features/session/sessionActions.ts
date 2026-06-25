@@ -1,6 +1,7 @@
 import { desktopClient } from '../../services/desktopClient.js'
 ﻿import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 import type {
+  DesktopAskUserQuestionMaxQuestions,
   DesktopPermissionMode,
   DesktopPermissionRequest,
   DesktopSessionMetadataPatch,
@@ -35,6 +36,7 @@ export type SessionSettingsSnapshot = {
   systemPrompt: string
   appendSystemPrompt: string
   additionalDirectories: string
+  askUserQuestionMaxQuestions: DesktopAskUserQuestionMaxQuestions
 }
 
 export type SessionActionContext = {
@@ -85,6 +87,7 @@ export async function createSessionForWorkspaceAction(
       additionalDirectories: parseAdditionalDirectories(
         settings.additionalDirectories,
       ),
+      askUserQuestionMaxQuestions: settings.askUserQuestionMaxQuestions,
     })
     const workspace = session.workspace
     const nextView = {

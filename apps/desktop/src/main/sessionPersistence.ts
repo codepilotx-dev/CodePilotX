@@ -31,7 +31,13 @@ import type {
   DesktopWorkspace,
 } from '../shared/types.js'
 import { desktopAgentEventToSessionEvent } from '../shared/sessionEventModel.js'
-import { normalizeDesktopPermissionMode } from '../shared/settingsSchema.js'
+import {
+  normalizeDesktopApprovalPolicy,
+  normalizeDesktopApprovalsReviewer,
+  normalizeAskUserQuestionMaxQuestions,
+  normalizeDesktopPermissionProfile,
+  normalizeDesktopPermissionMode,
+} from '../shared/settingsSchema.js'
 import { getDesktopConfigDirectoryPath } from './desktopSettings.js'
 import {
   buildDesktopContextUsage,
@@ -207,6 +213,9 @@ export function createDesktopSessionSnapshot(params: {
       standalone,
       pinnedAt: null,
       archivedAt: null,
+      permissionProfile: params.settings.permissionProfile,
+      approvalPolicy: params.settings.approvalPolicy,
+      approvalsReviewer: params.settings.approvalsReviewer,
       permissionMode: params.settings.permissionMode,
       model: params.settings.model ?? null,
       fallbackModel: params.settings.fallbackModel ?? null,
@@ -653,6 +662,9 @@ function snapshotFromTranscriptLog(
     standalone,
     pinnedAt: overlay?.pinnedAt ?? null,
     archivedAt: overlay?.archivedAt ?? null,
+    permissionProfile: settings.permissionProfile,
+    approvalPolicy: settings.approvalPolicy,
+    approvalsReviewer: settings.approvalsReviewer,
     permissionMode: settings.permissionMode,
     model: effectiveModel ?? null,
     fallbackModel: settings.fallbackModel ?? null,
@@ -729,6 +741,9 @@ function snapshotFromOverlay(overlay: DesktopSessionOverlay): DesktopSessionSnap
       standalone,
       pinnedAt: overlay.pinnedAt ?? null,
       archivedAt: overlay.archivedAt ?? null,
+      permissionProfile: settings.permissionProfile,
+      approvalPolicy: settings.approvalPolicy,
+      approvalsReviewer: settings.approvalsReviewer,
       permissionMode: settings.permissionMode,
       model: settings.model ?? null,
       fallbackModel: settings.fallbackModel ?? null,
@@ -1060,6 +1075,13 @@ function normalizeSessionItem(
     standalone: item.standalone === true,
     pinnedAt: nullableString(item.pinnedAt),
     archivedAt: nullableString(item.archivedAt),
+    permissionProfile: normalizeDesktopPermissionProfile(
+      item.permissionProfile,
+    ),
+    approvalPolicy: normalizeDesktopApprovalPolicy(item.approvalPolicy),
+    approvalsReviewer: normalizeDesktopApprovalsReviewer(
+      item.approvalsReviewer,
+    ),
     permissionMode: normalizeDesktopPermissionMode(item.permissionMode),
     model: typeof item.model === 'string' ? item.model : null,
     fallbackModel:
@@ -1113,6 +1135,13 @@ function normalizeSettingsSnapshot(
       ? (value as Partial<DesktopSessionSettingsSnapshot>)
       : {}
   return {
+    permissionProfile: normalizeDesktopPermissionProfile(
+      settings.permissionProfile,
+    ),
+    approvalPolicy: normalizeDesktopApprovalPolicy(settings.approvalPolicy),
+    approvalsReviewer: normalizeDesktopApprovalsReviewer(
+      settings.approvalsReviewer,
+    ),
     permissionMode: normalizeDesktopPermissionMode(settings.permissionMode),
     model: stringOrUndefined(settings.model),
     fallbackModel: stringOrUndefined(settings.fallbackModel),
@@ -1134,14 +1163,21 @@ function normalizeSettingsSnapshot(
           (directory): directory is string => typeof directory === 'string',
         )
       : [],
+    askUserQuestionMaxQuestions: normalizeAskUserQuestionMaxQuestions(
+      settings.askUserQuestionMaxQuestions,
+    ),
   }
 }
 
 function defaultSettingsSnapshot(): DesktopSessionSettingsSnapshot {
   return {
+    permissionProfile: ':workspace',
+    approvalPolicy: 'on-request',
+    approvalsReviewer: 'user',
     permissionMode: 'default',
     thinkingMode: 'default',
     additionalDirectories: [],
+    askUserQuestionMaxQuestions: 1,
   }
 }
 

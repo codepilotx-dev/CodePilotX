@@ -67,8 +67,8 @@ import type {
   CreateDesktopSessionResult,
   DesktopAgentEvent,
   DesktopBuiltinPlugin,
+  DesktopApprovalPolicy,
   DesktopPermissionDecision,
-  DesktopPermissionMode,
   DesktopReviewComment,
   DesktopSlashCommandSuggestion,
   DesktopSessionMetadataPatch,
@@ -87,8 +87,10 @@ import {
   hasBlockingComposerAttachmentErrors,
 } from '../shared/desktopUserMessage.js'
 import {
-  DESKTOP_PERMISSION_MODES,
-  normalizeDesktopPermissionMode,
+  normalizeDesktopApprovalPolicy,
+  normalizeDesktopApprovalsReviewer,
+  normalizeAskUserQuestionMaxQuestions,
+  normalizeDesktopPermissionProfile,
 } from '../shared/settingsSchema.js'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -561,17 +563,30 @@ function normalizeReviewCommentInput(
   }
 }
 
-async function setSessionPermissionMode(
+async function setSessionPermissionProfile(
   sessionId: string,
-  mode: DesktopPermissionMode,
+  profile: string,
+  approvalPolicy?: DesktopApprovalPolicy,
 ): Promise<DesktopSessionSnapshot> {
   const record = await getSessionRecord(sessionId)
-  const nextMode = normalizePermissionMode(mode)
-  createRuntimeForRecord(record).setPermissionMode(nextMode)
-  const nextItem = { ...record.snapshot.item, permissionMode: nextMode }
+  const nextProfile = normalizeDesktopPermissionProfile(profile)
+  const nextApprovalPolicy = normalizeDesktopApprovalPolicy(
+    approvalPolicy,
+    record.snapshot.settings.approvalPolicy,
+  )
+  createRuntimeForRecord(record).setPermissionProfile(
+    nextProfile,
+    nextApprovalPolicy,
+  )
+  const nextItem = {
+    ...record.snapshot.item,
+    permissionProfile: nextProfile,
+    approvalPolicy: nextApprovalPolicy,
+  }
   const nextSettings = {
     ...record.snapshot.settings,
-    permissionMode: nextMode,
+    permissionProfile: nextProfile,
+    approvalPolicy: nextApprovalPolicy,
   }
   record.snapshot = {
     ...record.snapshot,
@@ -595,7 +610,13 @@ async function createSession(
       ? await workspaceFromPath(assertAllowedWorkspace(options.workspacePath))
       : await getStandaloneWorkspace()
   const workspacePath = workspace.path
-  const permissionMode = normalizePermissionMode(options.permissionMode)
+  const permissionProfile = normalizeDesktopPermissionProfile(
+    options.permissionProfile,
+  )
+  const approvalPolicy = normalizeDesktopApprovalPolicy(options.approvalPolicy)
+  const approvalsReviewer = normalizeDesktopApprovalsReviewer(
+    options.approvalsReviewer,
+  )
   const model = normalizeOptionalText(options.model)
   await assertCurrentProviderUsable(model)
   const smallFastModel = normalizeOptionalText(options.smallFastModel)
@@ -606,13 +627,18 @@ async function createSession(
   const thinkingMode = normalizeThinkingMode(options.thinkingMode)
   const systemPrompt = normalizeOptionalText(options.systemPrompt)
   const appendSystemPrompt = normalizeOptionalText(options.appendSystemPrompt)
+  const askUserQuestionMaxQuestions = normalizeAskUserQuestionMaxQuestions(
+    options.askUserQuestionMaxQuestions,
+  )
   const additionalDirectories = await normalizeAdditionalDirectories(
     options.additionalDirectories,
     workspacePath,
   )
   const standalone = workspace.isStandalone === true
   const settings = createSessionSettingsSnapshot({
-    permissionMode,
+    permissionProfile,
+    approvalPolicy,
+    approvalsReviewer,
     model,
     smallFastModel,
     fastModel,
@@ -623,11 +649,14 @@ async function createSession(
     systemPrompt,
     appendSystemPrompt,
     additionalDirectories,
+    askUserQuestionMaxQuestions,
   })
   const session = createDesktopAgentSession(
     {
       workspacePath,
-      permissionMode,
+      permissionProfile,
+      approvalPolicy,
+      approvalsReviewer,
       model,
       smallFastModel,
       fastModel,
@@ -638,6 +667,7 @@ async function createSession(
       systemPrompt,
       appendSystemPrompt,
       additionalDirectories,
+      askUserQuestionMaxQuestions,
     },
     getDesktopAgentRuntimeOptions(),
   )
@@ -660,7 +690,9 @@ async function createSession(
 }
 
 function createSessionSettingsSnapshot(params: {
-  permissionMode: DesktopPermissionMode
+  permissionProfile: string
+  approvalPolicy: DesktopApprovalPolicy
+  approvalsReviewer: DesktopSessionSettingsSnapshot['approvalsReviewer']
   model?: string
   smallFastModel?: string
   fastModel?: string
@@ -671,11 +703,16 @@ function createSessionSettingsSnapshot(params: {
   systemPrompt?: string
   appendSystemPrompt?: string
   additionalDirectories: string[]
+  askUserQuestionMaxQuestions: DesktopSessionSettingsSnapshot['askUserQuestionMaxQuestions']
 }): DesktopSessionSettingsSnapshot {
   const settings: DesktopSessionSettingsSnapshot = {
-    permissionMode: params.permissionMode,
+    permissionProfile: params.permissionProfile,
+    approvalPolicy: params.approvalPolicy,
+    approvalsReviewer: params.approvalsReviewer,
+    permissionMode: 'default',
     thinkingMode: params.thinkingMode,
     additionalDirectories: params.additionalDirectories,
+    askUserQuestionMaxQuestions: params.askUserQuestionMaxQuestions,
   }
   if (params.model) settings.model = params.model
   if (params.smallFastModel) settings.smallFastModel = params.smallFastModel
@@ -688,16 +725,6 @@ function createSessionSettingsSnapshot(params: {
     settings.appendSystemPrompt = params.appendSystemPrompt
   }
   return settings
-}
-
-function normalizePermissionMode(
-  permissionMode: DesktopPermissionMode | undefined,
-): DesktopPermissionMode {
-  const normalized = normalizeDesktopPermissionMode(permissionMode)
-  if (!DESKTOP_PERMISSION_MODES.has(normalized)) {
-    throw new Error(`Unsupported desktop permission mode: ${permissionMode}`)
-  }
-  return normalized
 }
 
 function normalizeThinkingMode(
@@ -1122,7 +1149,7 @@ function registerIpc(): void {
     saveSessionReviewComment,
     resolveSessionReviewComment,
     deleteSessionReviewComment,
-    setSessionPermissionMode,
+    setSessionPermissionMode: setSessionPermissionProfile,
     sendUserMessage,
     respondToPermission,
     interruptSession,

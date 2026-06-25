@@ -296,6 +296,16 @@ export type DesktopSessionStatus = AgentSessionStatus
 
 export type DesktopPermissionMode = DesktopAgentPermissionMode
 
+export type DesktopPermissionProfile = string
+
+export type DesktopApprovalPolicy =
+  | 'untrusted'
+  | 'on-request'
+  | 'on-failure'
+  | 'never'
+
+export type DesktopApprovalsReviewer = 'user' | 'auto'
+
 export type DesktopThinkingMode = AgentThinkingMode
 
 export type DesktopDrawerTab =
@@ -531,7 +541,12 @@ export type DesktopPersonality =
 
 export type DesktopReviewView = 'inline' | 'split'
 
+export type DesktopAskUserQuestionMaxQuestions = 1 | 2 | 3 | 4
+
 export type DesktopStoredSettings = {
+  permissionProfile?: DesktopPermissionProfile
+  approvalPolicy?: DesktopApprovalPolicy
+  approvalsReviewer?: DesktopApprovalsReviewer
   permissionMode: DesktopPermissionMode
   model: string
   fallbackModel: string
@@ -561,8 +576,8 @@ gitBranchPrefix: string
   commitMessagePrompt: string
   pullRequestPrompt: string
   githubOAuthClientId: string
-  sandboxMode: DesktopSandboxMode
-  allowNetworkAccess: boolean
+  sandboxMode?: DesktopSandboxMode
+  allowNetworkAccess?: boolean
   installCodexDependencies: boolean
   personality: DesktopPersonality
   customInstructions: string
@@ -571,6 +586,7 @@ gitBranchPrefix: string
   githubMemorySyncEnabled: boolean
   githubMemoryRepository: string
   reviewView: DesktopReviewView
+  askUserQuestionMaxQuestions: DesktopAskUserQuestionMaxQuestions
   browserAllowedSites: string[]
 }
 
@@ -679,6 +695,9 @@ export type DesktopSessionListItem = {
   standalone?: boolean
   pinnedAt?: string | null
   archivedAt?: string | null
+  permissionProfile?: DesktopPermissionProfile
+  approvalPolicy?: DesktopApprovalPolicy
+  approvalsReviewer?: DesktopApprovalsReviewer
   permissionMode: DesktopPermissionMode
   model: string | null
   fallbackModel: string | null
@@ -692,6 +711,9 @@ export type DesktopSessionListItem = {
 }
 
 export type DesktopSessionSettingsSnapshot = {
+  permissionProfile?: DesktopPermissionProfile
+  approvalPolicy?: DesktopApprovalPolicy
+  approvalsReviewer?: DesktopApprovalsReviewer
   permissionMode: DesktopPermissionMode
   model?: string
   fallbackModel?: string
@@ -704,6 +726,7 @@ export type DesktopSessionSettingsSnapshot = {
   systemPrompt?: string
   appendSystemPrompt?: string
   additionalDirectories: string[]
+  askUserQuestionMaxQuestions?: DesktopAskUserQuestionMaxQuestions
 }
 
 export type DesktopSessionViewSnapshot = {
@@ -741,6 +764,9 @@ export type DesktopWorkflowEvent = ThreadEvent
 
 export type CreateDesktopSessionOptions = {
   workspacePath?: string
+  permissionProfile?: DesktopPermissionProfile
+  approvalPolicy?: DesktopApprovalPolicy
+  approvalsReviewer?: DesktopApprovalsReviewer
   permissionMode?: DesktopPermissionMode
   model?: string
   fallbackModel?: string
@@ -753,6 +779,7 @@ export type CreateDesktopSessionOptions = {
   systemPrompt?: string
   appendSystemPrompt?: string
   additionalDirectories?: string[]
+  askUserQuestionMaxQuestions?: DesktopAskUserQuestionMaxQuestions
 }
 
 export type CreateDesktopSessionResult = {

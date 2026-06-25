@@ -41,6 +41,14 @@ export type DesktopAgentRuntimePreference =
   | 'embedded-headless'
   | 'subprocess'
 
+export type DesktopCodexApprovalPolicy =
+  | 'untrusted'
+  | 'on-request'
+  | 'on-failure'
+  | 'never'
+
+export type DesktopCodexApprovalsReviewer = 'user' | 'auto'
+
 export type DesktopAgentRuntimeContext = {
   sessionId: string
   workspacePath: string
@@ -48,6 +56,9 @@ export type DesktopAgentRuntimeContext = {
   configDirectoryPath?: string
   runtimePreference?: DesktopAgentRuntimePreference
   resumeExistingSession?: boolean
+  permissionProfile?: string
+  approvalPolicy?: DesktopCodexApprovalPolicy
+  approvalsReviewer?: DesktopCodexApprovalsReviewer
   permissionMode?: DesktopPermissionMode
   model?: string
   fallbackModel?: string
@@ -60,6 +71,7 @@ export type DesktopAgentRuntimeContext = {
   systemPrompt?: string
   appendSystemPrompt?: string
   additionalDirectories?: string[]
+  askUserQuestionMaxQuestions?: number
   emit(event: DesktopAgentEvent): void
   requestPermission(request: DesktopPermissionRequest): Promise<DesktopPermissionDecision>
 }
@@ -156,7 +168,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
         '--include-partial-messages',
         '--replay-user-messages',
         ...this.sessionResumeArgs(),
-        ...permissionModeArgs(this.context.permissionMode),
+        ...codexPermissionConfigArgs(this.context),
         ...permissionPromptToolArgs(),
         ...modelArgs(this.context.model),
         ...sessionNameArgs(this.context.sessionName),
@@ -178,6 +190,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
             process.env[LEGACY_CLAUDE_CONFIG_DIR_ENV],
           CODEPILOTX_DISABLE_MDM_READ: '1',
           CODEPILOTX_DISABLE_MIN_VERSION_CHECK: '1',
+          ...askUserQuestionMaxQuestionsEnv(this.context),
           CLAUDE_CODE_DISABLE_MDM_READ: '1',
           CLAUDE_CODE_DISABLE_MIN_VERSION_CHECK: '1',
           ...taskModelEnv(this.context),
@@ -569,6 +582,9 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
       workspacePath: context.workspacePath,
       configDirectoryPath: context.configDirectoryPath,
       resumeExistingSession: context.resumeExistingSession,
+      permissionProfile: context.permissionProfile,
+      approvalPolicy: context.approvalPolicy,
+      approvalsReviewer: context.approvalsReviewer,
       permissionMode: tuiPermissionMode(context.permissionMode),
       model: context.model,
       smallFastModel: context.smallFastModel,
@@ -580,6 +596,7 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
       systemPrompt: context.systemPrompt,
       appendSystemPrompt: context.appendSystemPrompt,
       additionalDirectories: context.additionalDirectories,
+      askUserQuestionMaxQuestions: context.askUserQuestionMaxQuestions,
       permissionPromptToolName: permissionPromptToolName(),
       onOutput: (message, controls) =>
         this.handleStructuredOutput(message, controls),
@@ -931,6 +948,26 @@ export function permissionModeArgs(
   return ['--permission-mode', permissionMode ?? 'default']
 }
 
+export type DesktopCodexPermissionConfigArgs = {
+  permissionProfile?: string
+  approvalPolicy?: DesktopCodexApprovalPolicy
+  approvalsReviewer?: DesktopCodexApprovalsReviewer
+}
+
+export function codexPermissionConfigArgs(
+  config: DesktopCodexPermissionConfigArgs,
+): string[] {
+  return [
+    ...codexConfigOverrideArg('default_permissions', config.permissionProfile),
+    ...codexConfigOverrideArg('approval_policy', config.approvalPolicy),
+    ...codexConfigOverrideArg('approvals_reviewer', config.approvalsReviewer),
+  ]
+}
+
+function codexConfigOverrideArg(key: string, value: string | undefined): string[] {
+  return value ? ['--config', `${key}=${JSON.stringify(value)}`] : []
+}
+
 function getDesktopUserMessageContentTextLength(
   content: DesktopUserMessageContent,
 ): number {
@@ -1009,4 +1046,16 @@ function additionalDirectoryArgs(
   return additionalDirectories && additionalDirectories.length > 0
     ? ['--add-dir', ...additionalDirectories]
     : []
+}
+
+export function askUserQuestionMaxQuestionsEnv(context: {
+  askUserQuestionMaxQuestions?: number
+}): Record<string, string> {
+  return context.askUserQuestionMaxQuestions
+    ? {
+        CODEPILOTX_ASK_USER_QUESTION_MAX_QUESTIONS: String(
+          context.askUserQuestionMaxQuestions,
+        ),
+      }
+    : {}
 }

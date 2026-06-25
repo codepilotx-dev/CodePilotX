@@ -70,6 +70,14 @@ const REVIEW_OPTIONS: Array<{ value: DesktopReviewView; label: string }> = [
   { value: 'split', label: '分离视图' },
 ];
 
+const ASK_USER_QUESTION_OPTIONS: Array<{ value: '1' | '2' | '3' | '4'; label: string }> = [
+  { value: '1', label: '1' },
+  { value: '2', label: '2' },
+  { value: '3', label: '3' },
+  { value: '4', label: '4' },
+];
+type AskUserQuestionOptionValue = (typeof ASK_USER_QUESTION_OPTIONS)[number]['value'];
+
 type WorkMode = 'coding' | 'daily';
 
 const WORK_MODES: Array<{
@@ -126,7 +134,13 @@ function renderOpenTargetIcon(target: DesktopOpenTarget): React.ReactNode {
   return <File size={APP_ICON_SIZE} />;
 }
 
-export function GeneralSettings() {
+type GeneralSettingsProps = {
+  onNotice?: (message: string) => void
+}
+
+export function GeneralSettings({
+  onNotice,
+}: GeneralSettingsProps = {}) {
   const {
     thinkingMode,
     setThinkingMode,
@@ -138,6 +152,9 @@ export function GeneralSettings() {
     setDefaultOpenTargetId,
     reviewView,
     setReviewView,
+    askUserQuestionMaxQuestions,
+    setAskUserQuestionMaxQuestions,
+    flushDesktopSettings,
   } = useDesktopSettings();
 
   const [openTargets, setOpenTargets] =
@@ -156,6 +173,10 @@ export function GeneralSettings() {
   const [notifyOnComplete, setNotifyOnComplete] = useState('unfocused');
   const [notifyPermission, setNotifyPermission] = useState(true);
   const [notifyQuestions, setNotifyQuestions] = useState(true);
+  const [
+    pendingAskQuestionLimitNotice,
+    setPendingAskQuestionLimitNotice,
+  ] = useState<AskUserQuestionOptionValue | null>(null);
 
   const workMode: WorkMode = thinkingMode === 'adaptive' ? 'daily' : 'coding';
   const handleWorkMode = (next: WorkMode) => {
@@ -179,6 +200,30 @@ export function GeneralSettings() {
     if (checked) setPermissionMode('customConfig');
     else setPermissionMode('default');
   };
+
+  useEffect(() => {
+    if (
+      pendingAskQuestionLimitNotice !== String(askUserQuestionMaxQuestions)
+    ) {
+      return
+    }
+    let cancelled = false
+    void flushDesktopSettings().then(() => {
+      if (cancelled) return
+      onNotice?.('设置将在新对话中生效')
+      setPendingAskQuestionLimitNotice(current =>
+        current === pendingAskQuestionLimitNotice ? null : current,
+      )
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [
+    askUserQuestionMaxQuestions,
+    flushDesktopSettings,
+    onNotice,
+    pendingAskQuestionLimitNotice,
+  ]);
 
   useEffect(() => {
     let mounted = true;
@@ -394,6 +439,31 @@ export function GeneralSettings() {
                 value={reviewView}
                 options={REVIEW_OPTIONS}
                 onChange={setReviewView}
+              />
+            }
+          />
+          <SettingsRow
+            title='最大同时问题数'
+            description='模型一次可向你提出的问题数量；多题会在对话框中分页显示。此设置仅影响新对话。'
+            control={
+              <SegmentedControl
+                value={String(askUserQuestionMaxQuestions) as '1' | '2' | '3' | '4'}
+                options={ASK_USER_QUESTION_OPTIONS}
+                onChange={value => {
+                  const nextValue =
+                    typeof value === 'function'
+                      ? value(
+                          String(
+                            askUserQuestionMaxQuestions,
+                          ) as AskUserQuestionOptionValue,
+                        )
+                      : value
+                  if (nextValue === String(askUserQuestionMaxQuestions)) return
+                  setAskUserQuestionMaxQuestions(
+                    Number(nextValue) as 1 | 2 | 3 | 4,
+                  )
+                  setPendingAskQuestionLimitNotice(nextValue)
+                }}
               />
             }
           />
