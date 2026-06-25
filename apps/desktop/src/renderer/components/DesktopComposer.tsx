@@ -60,6 +60,7 @@ type Props = {
   ) => Promise<DesktopWorkspace | null>
   onCloneGithub: () => void
   onClearWorkspace: () => void
+  onOpenBrowser?: () => void
   onBranchSelect: (branch: string) => Promise<void>
   onCreateBranch: () => void
   onPermissionChange: (value: DesktopPermissionMode) => void
@@ -104,6 +105,7 @@ export function DesktopComposer({
   onOpenWorkspace,
   onCloneGithub,
   onClearWorkspace,
+  onOpenBrowser,
   onBranchSelect,
   onCreateBranch,
   onPermissionChange,
@@ -258,6 +260,7 @@ export function DesktopComposer({
       onOpenWorkspace={workspaceItem => void onOpenWorkspace(workspaceItem)}
       onCloneGithub={onCloneGithub}
       onClearWorkspace={onClearWorkspace}
+      onOpenBrowser={onOpenBrowser}
       onBranchSelect={branch => void onBranchSelect(branch)}
       onCreateBranch={onCreateBranch}
       onPermissionChange={onPermissionChange}

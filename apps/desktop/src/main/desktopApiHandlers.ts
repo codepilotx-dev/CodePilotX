@@ -8,6 +8,7 @@ import {
   readDesktopStoredSettings,
   saveDesktopStoredSettings,
 } from './desktopSettings.js'
+import { mergeDesktopBrowserAllowedSites } from '../shared/settingsSchema.js'
 import {
   deleteProviderApiKey,
   fetchProviderBalance,
@@ -58,6 +59,7 @@ import {
 } from './desktopComposerAttachments.js'
 import { readOptionalWorkspaceFile } from './optionalWorkspaceFile.js'
 import type { DesktopWindowService } from './windowService.js'
+import type { DesktopBrowserService } from './browserService.js'
 import {
   checkoutWorkspaceBranch,
   chooseWorkspace,
@@ -95,6 +97,7 @@ import type {
 
 export type DesktopApiHandlerDependencies = {
   windowService: DesktopWindowService
+  browserService: DesktopBrowserService
   getRuntimeOptions(): {
     agentExecutablePath: string
     configDirectoryPath: string
@@ -158,10 +161,26 @@ export function buildDesktopApiHandlers(
       return settings
     },
     saveDesktopSettings: async (settings: DesktopStoredSettings) => {
-      const savedSettings = await saveDesktopStoredSettings(settings)
+      const currentSettings = await readDesktopStoredSettings()
+      const savedSettings = await saveDesktopStoredSettings({
+        ...settings,
+        browserAllowedSites: mergeDesktopBrowserAllowedSites(
+          currentSettings.browserAllowedSites,
+          settings.browserAllowedSites,
+        ),
+      })
       registerRecentWorkspaces(savedSettings)
       return savedSettings
     },
+    getBrowserState: dependencies.browserService.getState,
+    openBrowser: dependencies.browserService.open,
+    navigateBrowser: dependencies.browserService.navigate,
+    reloadBrowser: dependencies.browserService.reload,
+    goBackBrowser: dependencies.browserService.goBack,
+    goForwardBrowser: dependencies.browserService.goForward,
+    closeBrowser: dependencies.browserService.close,
+    setBrowserBounds: dependencies.browserService.setBounds,
+    clearBrowserAllowedSites: dependencies.browserService.clearAllowedSites,
     listBuiltinPlugins: dependencies.listBuiltinPlugins,
     setBuiltinPluginEnabled: dependencies.setBuiltinPluginEnabled,
     listSkillsCatalog: listDesktopSkillCatalog,
@@ -237,6 +256,7 @@ export function buildDesktopApiHandlers(
     isWindowMaximized: async () => windowService.isWindowMaximized(),
     newWindow: async () => windowService.newWindow(),
     openDevTools: async () => windowService.openDevTools(),
+    closeDevTools: async () => windowService.closeDevTools(),
     openSettings: async () => windowService.openSettings(),
     logOut: async () => windowService.logOut(),
     exitApp: async () => windowService.exitApp(),

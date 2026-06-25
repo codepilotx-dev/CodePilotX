@@ -554,13 +554,6 @@
   font-weight: 600;
 }
 
-.profile-panel-heading div {
-  display: flex;
-  gap: 18px;
-  color: var(--c-text-soft);
-  font-size: var(--fs-13);
-}
-
 .profile-contribution-map {
   overflow-x: auto;
 }
@@ -584,12 +577,18 @@
 }
 
 .profile-contribution-months {
-  display: flex;
-  justify-content: space-between;
+  position: relative;
+  height: 18px;
   min-width: 720px;
   margin-top: 12px;
   color: var(--c-text-soft);
   font-size: var(--fs-13);
+}
+
+.profile-contribution-months span {
+  position: absolute;
+  top: 0;
+  white-space: nowrap;
 }
 
 .profile-lower-grid {
@@ -2296,4 +2295,19 @@
 
 .settings-git-instruction-control .settings-button {
   flex-shrink: 0;
+}
+
+/* --- Browser settings --- */
+.browser-settings-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  color: var(--c-text-soft);
+  font-size: var(--fs-14);
+}
+
+.browser-allowed-sites {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
 }

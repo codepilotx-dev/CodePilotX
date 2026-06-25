@@ -159,6 +159,23 @@
   background: var(--c-border-row);
 }
 
+.menubar-debug-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
+  padding: 0 2px;
+  color: var(--c-text-soft);
+  font-size: var(--fs-11);
+  white-space: nowrap;
+  -webkit-app-region: no-drag;
+}
+
+.menubar-debug-mode-label {
+  color: var(--c-text-soft);
+  font-size: var(--fs-12);
+}
+
 .window-controls {
   display: flex;
   align-items: center;

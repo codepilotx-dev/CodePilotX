@@ -1,6 +1,7 @@
 import React from 'react'
 import { AppearanceSettings } from './AppearanceSettings.js'
 import { ArchivedConversationsSettings } from './ArchivedConversationsSettings.js'
+import { BrowserSettings } from './BrowserSettings.js'
 import { ConfigSettings } from './ConfigSettings.js'
 import { GeneralSettings } from './GeneralSettings.js'
 import { GitSettings } from './GitSettings.js'
@@ -27,6 +28,7 @@ export function SettingsPage({ activeTab, onError }: Props): React.ReactNode {
   if (activeTab === 'personalization') return <PersonalizationSettings />
   if (activeTab === 'archived') return <ArchivedConversationsSettings />
   if (activeTab === 'billing') return <UsageBillingSettings />
+  if (activeTab === 'browser') return <BrowserSettings />
   return (
     <div className="settings-content-area">
       <div className="settings-content-inner">

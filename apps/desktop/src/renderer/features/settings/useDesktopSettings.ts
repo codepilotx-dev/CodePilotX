@@ -64,6 +64,7 @@ export type UseDesktopSettingsResult = {
   githubMemorySyncEnabled: boolean
   githubMemoryRepository: string
   reviewView: DesktopReviewView
+  browserAllowedSites: string[]
   settingsLoaded: boolean
   setPermissionMode: (value: DesktopPermissionMode) => void
   setModel: (value: string) => void
@@ -106,6 +107,7 @@ export type UseDesktopSettingsResult = {
   setGithubMemorySyncEnabled: (value: boolean) => void
 setGithubMemoryRepository: (value: string) => void
   setReviewView: (value: DesktopReviewView) => void
+  setBrowserAllowedSites: (value: string[]) => void
   flushDesktopSettings: () => Promise<void>
 }
 
@@ -231,6 +233,9 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
   const [reviewView, setReviewView] = useState<DesktopReviewView>(
     initial.reviewView,
   )
+  const [browserAllowedSites, setBrowserAllowedSites] = useState<string[]>(
+    initial.browserAllowedSites,
+  )
   const [settingsLoaded, setSettingsLoaded] = useState(false)
 
   useEffect(() => {
@@ -278,6 +283,7 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
         setGithubMemorySyncEnabled(settings.githubMemorySyncEnabled)
         setGithubMemoryRepository(settings.githubMemoryRepository)
         setReviewView(settings.reviewView)
+        setBrowserAllowedSites(settings.browserAllowedSites)
         setSettingsLoaded(true)
       })
       .catch(() => {
@@ -332,6 +338,7 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
       githubMemorySyncEnabled,
       githubMemoryRepository,
       reviewView,
+      browserAllowedSites,
     }
     storeDesktopSettings(next)
   }, [
@@ -374,6 +381,7 @@ gitBranchPrefix,
     githubMemorySyncEnabled,
     githubMemoryRepository,
     reviewView,
+    browserAllowedSites,
   ])
 
   const flushDesktopSettings = useCallback(async (): Promise<void> => {
@@ -417,6 +425,7 @@ gitBranchPrefix,
       githubMemorySyncEnabled,
       githubMemoryRepository,
       reviewView,
+      browserAllowedSites,
     }
     try {
       await desktopClient.saveDesktopSettings(snapshot)
@@ -462,6 +471,7 @@ gitBranchPrefix,
     githubMemorySyncEnabled,
     githubMemoryRepository,
     reviewView,
+    browserAllowedSites,
   ])
 
   return {
@@ -504,6 +514,7 @@ defaultOpenTargetId,
     githubMemorySyncEnabled,
     githubMemoryRepository,
     reviewView,
+    browserAllowedSites,
     settingsLoaded,
     setPermissionMode,
     setModel,
@@ -544,6 +555,7 @@ defaultOpenTargetId,
     setGithubMemorySyncEnabled,
 setGithubMemoryRepository,
     setReviewView,
+    setBrowserAllowedSites,
     flushDesktopSettings,
   }
 }

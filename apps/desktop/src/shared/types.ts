@@ -259,6 +259,24 @@ export type DesktopRuntimeStatus = {
   configDirectoryPath: string
 }
 
+export type DesktopBrowserBounds = {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+export type DesktopBrowserState = {
+  open: boolean
+  url: string
+  title: string
+  loading: boolean
+  canGoBack: boolean
+  canGoForward: boolean
+  error: string | null
+  allowedSites: string[]
+}
+
 export type DesktopOpenTargetKind =
   | 'default-app'
   | 'file-explorer'
@@ -553,6 +571,7 @@ gitBranchPrefix: string
   githubMemorySyncEnabled: boolean
   githubMemoryRepository: string
   reviewView: DesktopReviewView
+  browserAllowedSites: string[]
 }
 
 export type DesktopMcpScope =
@@ -828,6 +847,15 @@ export type DesktopApi = {
   getRuntimeStatus(): Promise<DesktopRuntimeStatus>
   getDesktopSettings(): Promise<DesktopStoredSettings>
   saveDesktopSettings(settings: DesktopStoredSettings): Promise<DesktopStoredSettings>
+  getBrowserState(): Promise<DesktopBrowserState>
+  openBrowser(url?: string): Promise<DesktopBrowserState>
+  navigateBrowser(url: string): Promise<DesktopBrowserState>
+  reloadBrowser(): Promise<DesktopBrowserState>
+  goBackBrowser(): Promise<DesktopBrowserState>
+  goForwardBrowser(): Promise<DesktopBrowserState>
+  closeBrowser(): Promise<DesktopBrowserState>
+  setBrowserBounds(bounds: DesktopBrowserBounds): Promise<DesktopBrowserState>
+  clearBrowserAllowedSites(): Promise<DesktopBrowserState>
   listBuiltinPlugins(): Promise<DesktopBuiltinPlugin[]>
   setBuiltinPluginEnabled(
     pluginId: string,
@@ -970,6 +998,7 @@ export type DesktopApi = {
   isWindowMaximized(): Promise<boolean>
   newWindow(): Promise<void>
   openDevTools(): Promise<void>
+  closeDevTools(): Promise<void>
   openSettings(): Promise<void>
   logOut(): Promise<void>
   exitApp(): Promise<void>

@@ -98,6 +98,7 @@ gitBranchPrefix: 'codex/',
     githubMemorySyncEnabled: false,
     githubMemoryRepository: '',
     reviewView: 'inline',
+    browserAllowedSites: [],
   }
 }
 
@@ -252,6 +253,10 @@ export function normalizeDesktopStoredSettings(
     reviewView: isDesktopReviewView(parsed.reviewView)
       ? parsed.reviewView
       : defaults.reviewView,
+    browserAllowedSites: normalizeStringList(
+      parsed.browserAllowedSites,
+      defaults.browserAllowedSites,
+    ),
   }
 }
 
@@ -287,6 +292,15 @@ export function upsertRecentWorkspace(
   if (workspace.isStandalone) return workspaces
   const filtered = workspaces.filter(item => item.path !== workspace.path)
   return [workspace, ...filtered].slice(0, MAX_RECENT_WORKSPACES)
+}
+
+export function mergeDesktopBrowserAllowedSites(
+  current: string[],
+  incoming: string[],
+): string[] {
+  return [...current, ...incoming].filter(
+    (site, index, sites) => sites.indexOf(site) === index,
+  )
 }
 
 export function isDesktopPermissionMode(
@@ -377,6 +391,11 @@ export function isModelProviderID(value: unknown): value is ModelProviderID {
 
 function stringOrDefault(value: unknown, fallback: string): string {
   return typeof value === 'string' ? value : fallback
+}
+
+function normalizeStringList(value: unknown, fallback: string[]): string[] {
+  if (!Array.isArray(value)) return fallback
+  return value.filter(item => typeof item === 'string')
 }
 
 function migrateModelAlias(model: string): string {

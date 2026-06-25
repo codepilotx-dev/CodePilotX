@@ -22,6 +22,19 @@ const api: DesktopApi = {
     ipcRenderer.invoke(desktopApiChannel('getDesktopSettings')),
   saveDesktopSettings: settings =>
     ipcRenderer.invoke(desktopApiChannel('saveDesktopSettings'), settings),
+  getBrowserState: () => ipcRenderer.invoke(desktopApiChannel('getBrowserState')),
+  openBrowser: url => ipcRenderer.invoke(desktopApiChannel('openBrowser'), url),
+  navigateBrowser: url =>
+    ipcRenderer.invoke(desktopApiChannel('navigateBrowser'), url),
+  reloadBrowser: () => ipcRenderer.invoke(desktopApiChannel('reloadBrowser')),
+  goBackBrowser: () => ipcRenderer.invoke(desktopApiChannel('goBackBrowser')),
+  goForwardBrowser: () =>
+    ipcRenderer.invoke(desktopApiChannel('goForwardBrowser')),
+  closeBrowser: () => ipcRenderer.invoke(desktopApiChannel('closeBrowser')),
+  setBrowserBounds: bounds =>
+    ipcRenderer.invoke(desktopApiChannel('setBrowserBounds'), bounds),
+  clearBrowserAllowedSites: () =>
+    ipcRenderer.invoke(desktopApiChannel('clearBrowserAllowedSites')),
   listBuiltinPlugins: () =>
     ipcRenderer.invoke(desktopApiChannel('listBuiltinPlugins')),
   setBuiltinPluginEnabled: (pluginId, enabled) =>
@@ -198,6 +211,7 @@ const api: DesktopApi = {
     ipcRenderer.invoke(desktopApiChannel('isWindowMaximized')),
   newWindow: () => ipcRenderer.invoke(desktopApiChannel('newWindow')),
   openDevTools: () => ipcRenderer.invoke(desktopApiChannel('openDevTools')),
+  closeDevTools: () => ipcRenderer.invoke(desktopApiChannel('closeDevTools')),
   openSettings: () => ipcRenderer.invoke(desktopApiChannel('openSettings')),
   logOut: () => ipcRenderer.invoke(desktopApiChannel('logOut')),
   exitApp: () => ipcRenderer.invoke(desktopApiChannel('exitApp')),

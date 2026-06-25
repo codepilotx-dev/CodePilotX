@@ -36,6 +36,7 @@ import { applyDesktopAgentRuntimeEnvDefaults } from './desktopRuntimeEnv.js'
 import { createDesktopJsonRpcAppServerBridge } from './desktopJsonRpcAppServerBridge.js'
 import { registerDesktopIpcHandlers } from './ipc.js'
 import { createDesktopWindowService } from './windowService.js'
+import { createDesktopBrowserService } from './browserService.js'
 import { createDesktopAutoUpdater } from './autoUpdater.js'
 import { DESKTOP_UPDATE_STATUS_CHANNEL } from '../shared/ipcChannels.js'
 import {
@@ -159,6 +160,9 @@ const windowService = createDesktopWindowService({
   iconPath: desktopIconPath,
   rendererUrl,
   preloadPath: () => join(__dirname, '../preload/index.js'),
+})
+const browserService = createDesktopBrowserService({
+  getWindow: windowService.getWindow,
 })
 const jsonRpcAppServerThreadIds = new Set<string>()
 const jsonRpcAppServerBridge = createDesktopJsonRpcAppServerBridge({
@@ -1096,6 +1100,7 @@ async function setBuiltinPluginEnabled(
 function registerIpc(): void {
   const handlers = buildDesktopApiHandlers({
     windowService,
+    browserService,
     getRuntimeOptions: () => {
       const runtimeSelection = getDesktopRuntimeSelection()
       return {

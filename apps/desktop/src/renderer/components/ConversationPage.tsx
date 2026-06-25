@@ -63,7 +63,6 @@ import { deriveReviewTurns } from "../features/session/reviewTurns.js";
 import type { Message } from "../uiTypes.js";
 import { InlineApprovalCard } from "./InlineApprovalCard.js";
 import { MarkdownMessage } from "./MarkdownMessage.js";
-import { WorkspaceReviewSidebar } from "./review/WorkspaceReviewSidebar.js";
 import { PopoverItem } from "./ui/PopoverItem.js";
 import { PopoverMenu } from "./ui/PopoverMenu.js";
 import { Tooltip } from "./ui/Tooltip.js";
@@ -110,9 +109,12 @@ export function ConversationPage(): React.ReactNode {
     onCreatePullRequest,
     onDecidePermission,
     onAcceptExitPlanMode,
+    onOpenRightDock,
     permissionMode,
     pendingPermissions,
     composer,
+    rightDockOpen,
+    rightDockTool,
   } = useQuickChatContext();
   const {
     defaultOpenTargetId,
@@ -167,7 +169,6 @@ export function ConversationPage(): React.ReactNode {
     React.useState<DesktopOpenTarget[]>(FALLBACK_OPEN_TARGETS);
   const [showPinnedSummary, setShowPinnedSummary] = React.useState(true);
   const [bottomPanelVisible, setBottomPanelVisible] = React.useState(false);
-  const [rightSidebarVisible, setRightSidebarVisible] = React.useState(false);
   const [isRefreshingDiff, setIsRefreshingDiff] = React.useState(false);
   const handleRefreshDiff = React.useCallback(() => {
     if (isRefreshingDiff) return;
@@ -190,7 +191,7 @@ export function ConversationPage(): React.ReactNode {
     [messages],
   );
   const handleRunCodeReview = React.useCallback(() => {
-    setRightSidebarVisible(true);
+    onOpenRightDock('review');
     onRefreshDiff();
     void submitReviewAction({
       sessionId: activeSessionId,
@@ -198,7 +199,7 @@ export function ConversationPage(): React.ReactNode {
       diff,
       model,
     });
-  }, [activeSessionId, diff, gitStatus, model, onRefreshDiff]);
+  }, [activeSessionId, diff, gitStatus, model, onOpenRightDock, onRefreshDiff]);
   const handleDiscardChanges = React.useCallback(
     async (paths: string[]) => {
       if (!workspacePath) return;
@@ -224,9 +225,8 @@ export function ConversationPage(): React.ReactNode {
   );
   const [workflowTimelineVisible, setWorkflowTimelineVisible] =
     React.useState(false);
-  const showReviewSidebar = Boolean(!isConversationLoading && rightSidebarVisible);
   const showEnvironmentPanel = Boolean(
-    workspacePath && showPinnedSummary && !showReviewSidebar,
+    workspacePath && showPinnedSummary && !rightDockOpen,
   );
   const showComposerChangeSummary = Boolean(
     workspacePath && gitStatus && gitStatus.files.length > 0,
@@ -324,15 +324,13 @@ export function ConversationPage(): React.ReactNode {
   }
 
   function toggleReviewSidebar(): void {
-    if (!rightSidebarVisible) {
-      onRefreshDiff();
-    }
-    setRightSidebarVisible((current) => !current);
+    onOpenRightDock('review');
+    onRefreshDiff();
   }
 
   function openReviewSidebar(): void {
     onRefreshDiff();
-    setRightSidebarVisible(true);
+    onOpenRightDock('review');
   }
 
   return (
@@ -541,11 +539,15 @@ export function ConversationPage(): React.ReactNode {
             </button>
           </Tooltip>
           <Tooltip
-            content={rightSidebarVisible ? "隐藏右侧边栏" : "显示右侧边栏"}
+            content={
+              rightDockOpen && rightDockTool === 'review'
+                ? "右侧审查已打开"
+                : "显示右侧审查"
+            }
           >
             <button
-              aria-label={rightSidebarVisible ? "隐藏右侧边栏" : "显示右侧边栏"}
-              aria-pressed={rightSidebarVisible}
+              aria-label="显示右侧审查"
+              aria-pressed={rightDockOpen && rightDockTool === 'review'}
               className="message-action"
               type="button"
               onClick={toggleReviewSidebar}
@@ -558,11 +560,7 @@ export function ConversationPage(): React.ReactNode {
 
       <div
         className={`quick-chat-workspace ${
-          showReviewSidebar
-            ? "with-review-sidebar"
-            : showEnvironmentPanel
-              ? "with-environment-panel"
-              : ""
+          showEnvironmentPanel ? "with-environment-panel" : ""
         }`}
       >
         <div className="quick-chat-content">
@@ -607,28 +605,12 @@ export function ConversationPage(): React.ReactNode {
             onRefreshDiff={onRefreshDiff}
           />
         ) : null}
-        {showReviewSidebar ? (
-          <WorkspaceReviewSidebar
-            activeSessionId={activeSessionId}
-            isRefreshing={isRefreshingDiff}
-            reviewView={reviewView}
-            sessionStatus={sessionStatus}
-            workspacePath={workspacePath}
-            onClose={() => setRightSidebarVisible(false)}
-            onOpenWorkspacePath={onOpenWorkspacePath}
-            onRefreshDiff={handleRefreshDiff}
-          />
-        ) : null}
       </div>
 
       {composer ? (
         <div
           className={`chat-composer ${
-            showReviewSidebar
-              ? "with-review-sidebar"
-              : showEnvironmentPanel
-                ? "with-environment-panel"
-                : ""
+            showEnvironmentPanel ? "with-environment-panel" : ""
           }`}
         >
           {showComposerChangeSummary ? (

@@ -35,6 +35,13 @@ const metadataPatch = z.object({
   archivedAt: nullableText.optional(),
 })
 
+const browserBounds = z.object({
+  x: z.number().finite(),
+  y: z.number().finite(),
+  width: z.number().finite().min(0),
+  height: z.number().finite().min(0),
+})
+
 const permissionModeSchema = z.enum([
   'default',
   'auto',
@@ -188,6 +195,15 @@ export const DESKTOP_API_ARG_SCHEMAS = {
   getRuntimeStatus: emptyArgs,
   getDesktopSettings: emptyArgs,
   saveDesktopSettings: z.tuple([unknownObject]),
+  getBrowserState: emptyArgs,
+  openBrowser: z.tuple([z.string().optional()]),
+  navigateBrowser: z.tuple([z.string()]),
+  reloadBrowser: emptyArgs,
+  goBackBrowser: emptyArgs,
+  goForwardBrowser: emptyArgs,
+  closeBrowser: emptyArgs,
+  setBrowserBounds: z.tuple([browserBounds]),
+  clearBrowserAllowedSites: emptyArgs,
   listBuiltinPlugins: emptyArgs,
   setBuiltinPluginEnabled: z.tuple([z.string(), z.boolean()]),
   listSkillsCatalog: z.tuple([skillCatalogOptions.optional()]),
@@ -275,6 +291,7 @@ export const DESKTOP_API_ARG_SCHEMAS = {
   isWindowMaximized: emptyArgs,
   newWindow: emptyArgs,
   openDevTools: emptyArgs,
+  closeDevTools: emptyArgs,
   openSettings: emptyArgs,
   logOut: emptyArgs,
   exitApp: emptyArgs,

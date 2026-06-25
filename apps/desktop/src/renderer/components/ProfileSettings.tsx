@@ -72,6 +72,11 @@ export function ProfileSettings(): React.ReactNode {
     () => maxContribution(githubOverview?.contributions.weeks ?? []),
     [githubOverview],
   )
+  const contributionWeeks = githubOverview?.contributions.weeks ?? []
+  const contributionGridWidth =
+    contributionWeeks.length > 0
+      ? contributionWeeks.length * CONTRIBUTION_COL_WIDTH - CONTRIBUTION_GAP
+      : 0
   const currentStatus = githubOverview?.user.status ?? null
 
   const openStatusEditor = (): void => {
@@ -202,14 +207,12 @@ export function ProfileSettings(): React.ReactNode {
             <section className="profile-activity-panel">
               <div className="profile-panel-heading">
                 <h3>GitHub 活动</h3>
-                <div>
-                  <span>周</span>
-                  <span>月</span>
-                  <span>年</span>
-                </div>
               </div>
               <div className="profile-contribution-map">
-                <div className="profile-contribution-grid">
+                <div
+                  className="profile-contribution-grid"
+                  style={{ width: contributionGridWidth }}
+                >
                   {githubOverview.contributions.weeks.map((week, weekIndex) => (
                     <div className="profile-contribution-week" key={weekIndex}>
                       {week.days.map(day => (
@@ -228,9 +231,17 @@ export function ProfileSettings(): React.ReactNode {
                     </div>
                   ))}
                 </div>
-                <div className="profile-contribution-months">
+                <div
+                  className="profile-contribution-months"
+                  style={{ width: contributionGridWidth }}
+                >
                   {monthLabels(githubOverview.contributions.weeks).map(item => (
-                    <span key={`${item.label}-${item.index}`}>{item.label}</span>
+                    <span
+                      key={`${item.label}-${item.index}`}
+                      style={{ left: item.index * CONTRIBUTION_COL_WIDTH }}
+                    >
+                      {item.label}
+                    </span>
                   ))}
                 </div>
               </div>
@@ -433,6 +444,10 @@ function maxContribution(weeks: DesktopGithubContributionWeek[]): number {
     ...weeks.flatMap(week => week.days.map(day => day.count)),
   )
 }
+
+const CONTRIBUTION_CELL = 14
+const CONTRIBUTION_GAP = 5
+const CONTRIBUTION_COL_WIDTH = CONTRIBUTION_CELL + CONTRIBUTION_GAP
 
 function contributionColor(count: number, max: number): string {
   if (count <= 0) return '#f0f1f3'

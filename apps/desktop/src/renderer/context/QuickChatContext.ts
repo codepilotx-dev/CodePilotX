@@ -10,6 +10,7 @@ import type {
   DesktopWorkflowEvent,
   DesktopWorkspace,
 } from '../../shared/types.js'
+import type { RightDockTool } from '../components/rightDockState.js'
 
 export type QuickChatContextValue = {
   isConversationRoute: boolean
@@ -29,6 +30,7 @@ export type QuickChatContextValue = {
   onCreateBranch: () => void
   onOpenAutomation: () => void
   onOpenWorkspacePath: () => void
+  onOpenRightDock: (tool: RightDockTool) => void
   onRefreshDiff: () => void
   onToggleSidebar: () => void
   onToggleSessionPinned: () => void
@@ -53,6 +55,8 @@ export type QuickChatContextValue = {
   pendingPermissions: DesktopPermissionRequest[]
   sessionStatus: DesktopSessionStatus
   composer: React.ReactNode
+  rightDockOpen: boolean
+  rightDockTool: RightDockTool
 }
 
 export const QuickChatContext = createContext<QuickChatContextValue | null>(null)

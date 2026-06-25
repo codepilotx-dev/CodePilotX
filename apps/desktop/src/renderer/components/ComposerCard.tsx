@@ -176,6 +176,7 @@ type Props = {
   onOpenWorkspace: (workspace: DesktopWorkspace) => void
   onCloneGithub?: () => void
   onClearWorkspace: () => void
+  onOpenBrowser?: () => void
   onBranchSelect: (branch: string) => void
   onCreateBranch: () => void
   onPermissionChange: (value: DesktopPermissionMode) => void
@@ -219,6 +220,7 @@ export function ComposerCard({
   onOpenWorkspace,
   onCloneGithub,
   onClearWorkspace,
+  onOpenBrowser,
   onBranchSelect,
 onCreateBranch,
   onPermissionChange,
@@ -582,7 +584,12 @@ onCreateBranch,
                     key={plugin.name}
                     meta={plugin.description}
                     keepOpen
-                    onClick={closeDropdown}
+                    onClick={() => {
+                      if (plugin.tone === 'browser') {
+                        onOpenBrowser?.()
+                      }
+                      closeDropdown()
+                    }}
                   >
                     <span
                       className={[

@@ -57,6 +57,7 @@ export type DesktopWindowService = {
   isWindowMaximized(): boolean
   newWindow(): void
   openDevTools(): void
+  closeDevTools(): void
   openSettings(): void
   logOut(): void
   exitApp(): void
@@ -222,6 +223,10 @@ export function createDesktopWindowService(options: {
     mainWindow?.webContents.openDevTools()
   }
 
+  function closeDevTools(): void {
+    mainWindow?.webContents.closeDevTools()
+  }
+
   function openSettings(): void {
     sendUiCommand('openSettings')
   }
@@ -341,6 +346,7 @@ export function createDesktopWindowService(options: {
     isWindowMaximized,
     newWindow,
     openDevTools,
+    closeDevTools,
     openSettings,
     logOut,
     exitApp,
