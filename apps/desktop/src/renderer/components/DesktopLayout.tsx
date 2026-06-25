@@ -6,12 +6,19 @@ import {
   getDesktopComposerBranchName,
 } from './DesktopComposer.js'
 import { DesktopAppShell } from './DesktopAppShell.js'
+import { RightDock } from './RightDock.js'
+import {
+  applyRightDockAction,
+  type RightDockState,
+  type RightDockTool,
+} from './rightDockState.js'
 import { DesktopSidebar } from './DesktopSidebar.js'
 import { GlobalErrorModal } from './GlobalErrorModal.js'
 import {
   GitWorkflowModal,
   type GitWorkflowMode,
 } from './GitWorkflowModal.js'
+import { GithubRepositoryModal } from './GithubRepositoryModal.js'
 import { SettingsSidebarContent } from './SettingsSidebarContent.js'
 import { SidebarFrame } from './SidebarFrame.js'
 import { MenuBar } from './MenuBar.js'
@@ -48,6 +55,8 @@ import type {
   DesktopModelMetadata,
   DesktopModelProviderSummary,
   DesktopModelProviderState,
+  DesktopBrowserState,
+  DesktopPermissionMode,
   DesktopWorkspace,
   ModelProviderID,
 } from '../../shared/types.js'
@@ -56,6 +65,11 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 const RUNTIME_WARNING_MESSAGE =
   '桌面端 agent 运行时缺失，发送消息前请先执行 `bun run desktop:agent:build`。'
 const QUICK_CHAT_PATH = '/quick-chat'
+const RIGHT_DOCK_WIDTH_STORAGE_KEY = 'codex.desktop.rightDockWidth'
+const RIGHT_DOCK_MIN_WIDTH = 480
+const RIGHT_DOCK_MAX_WIDTH = 960
+const RIGHT_DOCK_DEFAULT_WIDTH = 760
+const RIGHT_DOCK_MAIN_MIN_WIDTH = 360
 
 export function DesktopLayout(): React.ReactNode {
   const settings = useDesktopSettings()
@@ -75,6 +89,7 @@ export function DesktopLayout(): React.ReactNode {
     selectedModelPreset,
     providerID,
     showContextUsage,
+    reviewView,
     gitBranchPrefix,
     allowForcePush,
     commitMessagePrompt,
@@ -101,6 +116,18 @@ export function DesktopLayout(): React.ReactNode {
   >([])
   const [gitWorkflowMode, setGitWorkflowMode] =
     useState<GitWorkflowMode | null>(null)
+  const [githubRepositoryModalOpen, setGithubRepositoryModalOpen] =
+    useState(false)
+  const [browserState, setBrowserState] = useState<DesktopBrowserState | null>(
+    null,
+  )
+  const [rightDockState, setRightDockState] = useState<RightDockState>({
+    open: false,
+    activeTool: 'review',
+  })
+  const [rightDockWidth, setRightDockWidth] = useState(() =>
+    getInitialRightDockWidth(),
+  )
 
   const layout = useDesktopLayout()
   const {
@@ -123,11 +150,14 @@ export function DesktopLayout(): React.ReactNode {
   })
   const {
     workspace: currentWorkspace,
+    files: workspaceFiles,
+    selectedFile,
     runtimeStatus,
     setActiveSessionId,
     refreshWorkspace,
     chooseWorkspace,
     openRecentWorkspace,
+    previewFile,
     setSelectedFile,
     setWorkspace: setWorkspaceState,
     setDiff: setDiffState,
@@ -176,6 +206,7 @@ export function DesktopLayout(): React.ReactNode {
     interrupt,
     decidePermission,
     updateSessionMetadata,
+    setSessionPermissionMode,
     activeSessionItem,
   } = session
 
@@ -188,6 +219,7 @@ export function DesktopLayout(): React.ReactNode {
   const fullLocationPath = `${location.pathname}${location.search}${location.hash}`
   const settingsReturnPathRef = useRef(QUICK_CHAT_PATH)
   const lastWorkspaceRestoreAttemptedRef = useRef(false)
+  const previousNonPlanModeRef = useRef<DesktopPermissionMode>('default')
   const settingsActiveTab =
     new URLSearchParams(location.search).get('tab') ?? 'general'
 
@@ -294,6 +326,15 @@ export function DesktopLayout(): React.ReactNode {
     setWorkspaceState,
   ])
 
+  const handleGithubWorkspaceCloned = useCallback(
+    (selected: DesktopWorkspace): void => {
+      navigate(QUICK_CHAT_PATH)
+      setWorkspaceState(selected)
+      void refreshWorkspace(selected)
+    },
+    [navigate, refreshWorkspace, setWorkspaceState],
+  )
+
   useEffect(() => {
     if (
       !shouldRestoreLastWorkspace({
@@ -395,6 +436,75 @@ export function DesktopLayout(): React.ReactNode {
     void refreshWorkspace(currentWorkspace, { clearSelectedFile: false })
   }, [currentWorkspace, refreshWorkspace])
 
+  const refreshBrowserState = useCallback((): void => {
+    void desktopClient
+      .getBrowserState()
+      .then(setBrowserState)
+      .catch(error =>
+        setErrorMessage(error instanceof Error ? error.message : String(error)),
+      )
+  }, [])
+
+  const openRightDockTool = useCallback((tool: RightDockTool): void => {
+    setRightDockState(current =>
+      applyRightDockAction(current, { type: 'openTool', tool }),
+    )
+  }, [])
+
+  const closeRightDock = useCallback((): void => {
+    setRightDockState(current => applyRightDockAction(current, { type: 'close' }))
+  }, [])
+
+  const handleSetRightDockWidth = useCallback((nextWidth: number): void => {
+    setRightDockWidth(clampRightDockWidth(nextWidth))
+  }, [])
+
+  const handleResetRightDockWidth = useCallback((): void => {
+    setRightDockWidth(clampRightDockWidth(RIGHT_DOCK_DEFAULT_WIDTH))
+  }, [])
+
+  const handleOpenBrowser = useCallback((): void => {
+    openRightDockTool('browser')
+    void desktopClient
+      .openBrowser()
+      .then(setBrowserState)
+      .catch(error =>
+        setErrorMessage(error instanceof Error ? error.message : String(error)),
+      )
+  }, [openRightDockTool])
+
+  const handleOpenFilesDock = useCallback((): void => {
+    openRightDockTool('files')
+  }, [openRightDockTool])
+
+  const handleRightDockToolSelect = useCallback(
+    (tool: RightDockTool): void => {
+      if (tool === 'browser') {
+        handleOpenBrowser()
+        return
+      }
+      openRightDockTool(tool)
+    },
+    [handleOpenBrowser, openRightDockTool],
+  )
+
+  const handleReloadBrowser = useCallback((): void => {
+    void desktopClient
+      .reloadBrowser()
+      .then(setBrowserState)
+      .catch(error =>
+        setErrorMessage(error instanceof Error ? error.message : String(error)),
+      )
+  }, [])
+
+  const handleBrowserAnnotation = useCallback(
+    (annotation: string): void => {
+      const separator = input.trim() ? '\n\n' : ''
+      setInput(`${input}${separator}${annotation}`)
+    },
+    [input, setInput],
+  )
+
   const handleNewConversation = useCallback(async (): Promise<void> => {
     activateSessionById(null)
     setInput('')
@@ -422,6 +532,43 @@ export function DesktopLayout(): React.ReactNode {
       setErrorMessage('已退出登录。本地桌面端暂无持久账号切换，请重启应用。')
     },
   })
+
+  useEffect(() => {
+    refreshBrowserState()
+  }, [refreshBrowserState])
+
+  useEffect(() => {
+    if (!browserState?.open) return
+    const id = window.setInterval(refreshBrowserState, 1000)
+    return () => window.clearInterval(id)
+  }, [browserState?.open, refreshBrowserState])
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      RIGHT_DOCK_WIDTH_STORAGE_KEY,
+      String(rightDockWidth),
+    )
+  }, [rightDockWidth])
+
+  useEffect(() => {
+    const onResize = (): void => {
+      setRightDockWidth(current => clampRightDockWidth(current))
+    }
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (!event.ctrlKey || !event.shiftKey || event.key.toLowerCase() !== 'b') {
+        return
+      }
+      event.preventDefault()
+      handleOpenBrowser()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [handleOpenBrowser])
 
   const handleFileMenuAction = useCallback(
     (action: FileMenuAction): void => {
@@ -464,9 +611,38 @@ export function DesktopLayout(): React.ReactNode {
     (action: ViewMenuAction): void => {
       if (action === 'toggleSidebar') {
         toggleSidebarCollapsed()
+        return
+      }
+      if (action === 'openBrowserTab') {
+        handleOpenBrowser()
+        return
+      }
+      if (action === 'toggleFileTree') {
+        handleOpenFilesDock()
+        return
+      }
+      if (action === 'toggleSidePanel') {
+        setRightDockState(current =>
+          current.open
+            ? applyRightDockAction(current, { type: 'close' })
+            : applyRightDockAction(current, {
+                type: 'openTool',
+                tool: current.activeTool,
+              }),
+        )
+        return
+      }
+      if (action === 'reloadBrowserPage') {
+        handleReloadBrowser()
+        return
       }
     },
-    [toggleSidebarCollapsed],
+    [
+      handleOpenBrowser,
+      handleOpenFilesDock,
+      handleReloadBrowser,
+      toggleSidebarCollapsed,
+    ],
   )
 
   const handleWindowMenuAction = useCallback(
@@ -482,9 +658,6 @@ export function DesktopLayout(): React.ReactNode {
           break
         case 'close':
           void desktopClient.closeWindow()
-          break
-        case 'debug':
-          void desktopClient.openDevTools()
           break
       }
     },
@@ -712,6 +885,32 @@ export function DesktopLayout(): React.ReactNode {
       setProviderID,
       setSelectedModelPreset,
     ],
+  )
+
+  const handlePermissionChange = useCallback(
+    (value: DesktopPermissionMode): void => {
+      setPermissionMode(value)
+      if (!sessionId) return
+      if (value !== 'plan' && previousNonPlanModeRef.current !== value) {
+        previousNonPlanModeRef.current = value
+      }
+      void setSessionPermissionMode(sessionId, value)
+    },
+    [sessionId, setPermissionMode, setSessionPermissionMode],
+  )
+
+  const handlePlanModeToggle = useCallback(
+    (enabled: boolean, currentMode: DesktopPermissionMode): void => {
+      if (enabled) {
+        if (currentMode !== 'plan') {
+          previousNonPlanModeRef.current = currentMode
+        }
+        handlePermissionChange('plan')
+        return
+      }
+      handlePermissionChange(previousNonPlanModeRef.current)
+    },
+    [handlePermissionChange],
   )
 
   const handleSelectSession = useCallback(
@@ -962,10 +1161,13 @@ export function DesktopLayout(): React.ReactNode {
       onInterrupt={interrupt}
       onProviderModelChange={handleProviderModelChange}
       onOpenWorkspace={handleOpenRecentWorkspace}
+      onCloneGithub={() => setGithubRepositoryModalOpen(true)}
       onClearWorkspace={handleClearWorkspace}
+      onOpenBrowser={handleOpenBrowser}
       onBranchSelect={handleBranchSelect}
       onCreateBranch={() => setGitWorkflowMode('branch')}
-      onPermissionChange={setPermissionMode}
+      onPermissionChange={handlePermissionChange}
+      onPlanModeToggle={handlePlanModeToggle}
       onThinkingChange={setThinkingMode}
       createSessionForWorkspace={createSessionForWorkspace}
       submitToSession={submitToSession}
@@ -1000,6 +1202,12 @@ export function DesktopLayout(): React.ReactNode {
           }
         }}
         onWorkspaceChanged={handleWorkspaceChanged}
+      />
+      <GithubRepositoryModal
+        open={githubRepositoryModalOpen}
+        onClose={() => setGithubRepositoryModalOpen(false)}
+        onError={message => setErrorMessage(message)}
+        onWorkspaceCloned={handleGithubWorkspaceCloned}
       />
       {archiveNoticeVisible ? (
         <ArchiveConversationNotice
@@ -1038,6 +1246,7 @@ export function DesktopLayout(): React.ReactNode {
             onCreateBranch: () => setGitWorkflowMode('branch'),
             onOpenAutomation: () => navigate('/automation'),
             onOpenWorkspacePath: handleOpenWorkspacePath,
+            onOpenRightDock: openRightDockTool,
             onRefreshDiff: handleRefreshDiff,
             onToggleSidebar: toggleSidebarCollapsed,
             onToggleSessionPinned: () => {
@@ -1056,6 +1265,11 @@ export function DesktopLayout(): React.ReactNode {
             onDecidePermission: (request, behavior, alwaysAllow, updatedInput) => {
               void decidePermission(request, behavior, alwaysAllow, updatedInput)
             },
+            onAcceptExitPlanMode: (request, nextMode) => {
+              void handlePermissionChange(nextMode)
+              void decidePermission(request, 'allow')
+            },
+            permissionMode,
             events: isQuickChatPage || isConversationLoading ? [] : events,
             workflowEvents:
               isQuickChatPage || isConversationLoading ? [] : workflowEvents,
@@ -1064,6 +1278,8 @@ export function DesktopLayout(): React.ReactNode {
               isQuickChatPage || isConversationLoading ? [] : pendingPermissions,
             sessionStatus,
             composer: isConversationLoading ? null : composer,
+            rightDockOpen: rightDockState.open,
+            rightDockTool: rightDockState.activeTool,
           }}
         >
           <SearchContext.Provider
@@ -1076,7 +1292,42 @@ export function DesktopLayout(): React.ReactNode {
               onSelectSession: handleSelectSession,
             }}
           >
-            <Outlet />
+            <div
+              className={
+                rightDockState.open
+                  ? 'desktop-main-browser-layout'
+                  : 'desktop-main-browser-layout browser-closed'
+              }
+            >
+              <div className="desktop-main-route">
+                <Outlet />
+              </div>
+              {rightDockState.open ? (
+                <RightDock
+                  state={rightDockState}
+                  browserState={browserState}
+                  files={workspaceFiles}
+                  isRefreshingReview={false}
+                  maxWidth={RIGHT_DOCK_MAX_WIDTH}
+                  minWidth={RIGHT_DOCK_MIN_WIDTH}
+                  reviewView={reviewView}
+                  selectedFile={selectedFile}
+                  sessionId={sessionId}
+                  sessionStatus={sessionStatus}
+                  width={rightDockWidth}
+                  workspace={currentWorkspace}
+                  onAppendBrowserAnnotation={handleBrowserAnnotation}
+                  onBrowserStateChange={setBrowserState}
+                  onClose={closeRightDock}
+                  onOpenTool={handleRightDockToolSelect}
+                  onOpenWorkspacePath={handleOpenWorkspacePath}
+                  onPreviewFile={file => void previewFile(file)}
+                  onRefreshReview={handleRefreshDiff}
+                  onResetWidth={handleResetRightDockWidth}
+                  onSetWidth={handleSetRightDockWidth}
+                />
+              ) : null}
+            </div>
           </SearchContext.Provider>
         </QuickChatContext.Provider>
       </DesktopAppShell>
@@ -1120,6 +1371,21 @@ function getRoutedSessionId(pathname: string): string | null {
 
 function sessionPath(sessionId: string): string {
   return `/sessions/${encodeURIComponent(sessionId)}`
+}
+
+function getInitialRightDockWidth(): number {
+  const stored = Number(window.localStorage.getItem(RIGHT_DOCK_WIDTH_STORAGE_KEY))
+  return clampRightDockWidth(stored || RIGHT_DOCK_DEFAULT_WIDTH)
+}
+
+function clampRightDockWidth(width: number): number {
+  const viewportMax = Math.max(
+    RIGHT_DOCK_MIN_WIDTH,
+    window.innerWidth - RIGHT_DOCK_MAIN_MIN_WIDTH,
+  )
+  const maxWidth = Math.min(RIGHT_DOCK_MAX_WIDTH, viewportMax)
+  const safeWidth = Number.isFinite(width) ? width : RIGHT_DOCK_DEFAULT_WIDTH
+  return Math.min(maxWidth, Math.max(RIGHT_DOCK_MIN_WIDTH, Math.round(safeWidth)))
 }
 
 function isDeepSeekThinkingModel({

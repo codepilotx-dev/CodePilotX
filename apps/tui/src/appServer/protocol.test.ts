@@ -2,6 +2,7 @@ import { expect, test } from 'bun:test'
 import {
   APP_SERVER_METHODS,
   APP_SERVER_PROTOCOL_VERSION,
+  SESSION_SNAPSHOT_UPDATED_NOTIFICATION,
   THREAD_EVENT_NOTIFICATION,
   createJsonRpcProtocolFixtures,
 } from './protocol.js'
@@ -24,7 +25,10 @@ test('initialize fixture exposes app-server protocol capabilities', () => {
       capabilities: {
         transports: ['stdio'],
         methods: APP_SERVER_METHODS,
-        notifications: [THREAD_EVENT_NOTIFICATION],
+        notifications: [
+          THREAD_EVENT_NOTIFICATION,
+          SESSION_SNAPSHOT_UPDATED_NOTIFICATION,
+        ],
       },
     },
   })

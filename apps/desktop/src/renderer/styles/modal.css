@@ -265,3 +265,135 @@
   color: var(--red-11);
   font-size: var(--fs-13);
 }
+
+.github-repository-modal {
+  width: min(760px, 100%);
+}
+
+.github-login-panel {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border: 1px solid var(--c-border-soft);
+  border-radius: var(--r-md);
+  background: var(--c-bg-soft);
+}
+
+.github-login-panel h3,
+.github-login-panel p {
+  margin: 0;
+}
+
+.github-login-panel h3 {
+  color: var(--c-text-strong);
+  font-size: var(--fs-14);
+}
+
+.github-login-panel p {
+  margin-top: 3px;
+  color: var(--c-text-soft);
+  font-size: var(--fs-13);
+  line-height: 1.45;
+}
+
+.github-repository-search {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--c-border-soft);
+  border-radius: var(--r-md);
+  background: var(--c-bg);
+}
+
+.github-repository-search input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--c-text);
+  font: inherit;
+}
+
+.github-repository-list {
+  display: grid;
+  max-height: min(52vh, 440px);
+  overflow: auto;
+  border: 1px solid var(--c-border-soft);
+  border-radius: var(--r-md);
+  background: var(--c-bg);
+}
+
+.github-repository-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: 12px;
+}
+
+.github-repository-row + .github-repository-row {
+  border-top: 1px solid var(--c-border-soft);
+}
+
+.github-repository-main {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: 4px;
+}
+
+.github-repository-title {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.github-repository-title strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--c-text-strong);
+  font-size: var(--fs-14);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.github-repository-title span {
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 7px;
+  border: 1px solid var(--c-border-soft);
+  border-radius: var(--r-pill);
+  color: var(--c-text-soft);
+  font-size: var(--fs-12);
+  flex-shrink: 0;
+}
+
+.github-repository-main p,
+.github-repository-main small,
+.github-repository-empty {
+  margin: 0;
+  color: var(--c-text-soft);
+  font-size: var(--fs-13);
+}
+
+.github-repository-main p {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.github-repository-main small {
+  font-size: var(--fs-12);
+}
+
+.github-repository-empty {
+  padding: var(--sp-5);
+  text-align: center;
+}

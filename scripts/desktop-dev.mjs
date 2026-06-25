@@ -6,7 +6,7 @@ import { build, createServer } from 'vite'
 const require = createRequire(import.meta.url)
 const root = resolve(import.meta.dirname, '..')
 const electronPath = require('electron')
-const rendererUrl = 'http://127.0.0.1:5173/'
+const rendererUrl = 'http://127.0.0.1:5000/'
 const mainEntry = resolve(root, 'dist/desktop/main/index.js')
 const desktopRuntimeEnv =
   process.env.CODEPILOTX_DESKTOP_RUNTIME ??
@@ -69,7 +69,7 @@ async function startRendererServer() {
     configFile: resolve(root, 'apps/desktop/vite.desktop.config.ts'),
     server: {
       host: '127.0.0.1',
-      port: 5173,
+      port: 5000,
       strictPort: true,
     },
   })

@@ -1220,9 +1220,20 @@ export function REPL({
     }
   }, [mainThreadAgentDefinition, mergedTools])
 
+  // Built-in plugin commands are toggled through the plugin state. Drop any
+  // startup-cached copies from localCommands so enable/disable changes are
+  // reflected by plugins.commands immediately after plugin refresh.
+  const localCommandsWithoutBuiltinPluginCommands = useMemo(
+    () =>
+      localCommands.filter(
+        command => !command.pluginInfo?.repository.endsWith('@builtin'),
+      ),
+    [localCommands],
+  )
+
   // Merge commands from local state, plugins, and MCP
   const commandsWithPlugins = useMergedCommands(
-    localCommands,
+    localCommandsWithoutBuiltinPluginCommands,
     plugins.commands as Command[],
   )
   const mergedCommands = useMergedCommands(

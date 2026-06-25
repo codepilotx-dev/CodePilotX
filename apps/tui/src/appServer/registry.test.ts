@@ -47,6 +47,39 @@ test('turn/start streams runtime events to the caller', async () => {
   })
 })
 
+test('session/getSnapshot replays recorded ThreadEvents into a session view', async () => {
+  const registry = new AppServerThreadRegistry(createRuntime())
+  registry.startThread({
+    threadId: 'thread-jsonrpc',
+    settings: createSettings(),
+  })
+
+  for await (const _event of registry.startTurn({
+    threadId: 'thread-jsonrpc',
+    turnId: 'turn-jsonrpc',
+    input: 'hello',
+  })) {
+    // drain event stream
+  }
+
+  const snapshot = registry.getSessionSnapshot({ threadId: 'thread-jsonrpc' })
+
+  expect(snapshot).toMatchObject({
+    threadId: 'thread-jsonrpc',
+    eventCount: 4,
+    updatedAt: '2026-06-22T00:00:03.000Z',
+    view: {
+      turnStatus: 'done',
+      messages: [
+        {
+          role: 'assistant',
+          text: 'hi',
+        },
+      ],
+    },
+  })
+})
+
 test('interrupting an unknown thread returns a JSON-RPC app error', () => {
   const registry = new AppServerThreadRegistry(createRuntime())
 

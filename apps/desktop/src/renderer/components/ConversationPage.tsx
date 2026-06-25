@@ -8,8 +8,11 @@ import {
   Columns2,
   Code2,
   Copy,
+  ExternalLink,
+  Eye,
   File,
   FileDiff,
+  Filter,
   FolderOpen,
   GitBranch,
   GitPullRequest,
@@ -21,8 +24,10 @@ import {
   Pencil,
   Pin,
   RotateCcw,
+  Search,
   Settings,
   Sparkles,
+  Sliders,
   SquareTerminal,
   ThumbsDown,
   ThumbsUp,
@@ -35,7 +40,9 @@ import { deriveWorkflowSessionState } from "../../shared/workflowReducer.js";
 import type {
   DesktopGitStatus,
   DesktopOpenTarget,
+  DesktopReviewView,
   DesktopSessionEvent,
+  DesktopSessionStatus,
   DesktopWorkflowEvent,
 } from "../../shared/types.js";
 import { useQuickChatContext } from "../context/QuickChatContext.js";
@@ -51,6 +58,8 @@ import {
   type WorkflowConsistencyDiagnostics,
 } from "../features/session/workflowConsistency.js";
 import { desktopClient } from "../services/desktopClient.js";
+import { submitReviewAction } from "../features/session/reviewAction.js";
+import { deriveReviewTurns } from "../features/session/reviewTurns.js";
 import type { Message } from "../uiTypes.js";
 import { InlineApprovalCard } from "./InlineApprovalCard.js";
 import { MarkdownMessage } from "./MarkdownMessage.js";
@@ -99,10 +108,20 @@ export function ConversationPage(): React.ReactNode {
     onCommitOrPush,
     onCreatePullRequest,
     onDecidePermission,
+    onAcceptExitPlanMode,
+    onOpenRightDock,
+    permissionMode,
     pendingPermissions,
     composer,
+    rightDockOpen,
+    rightDockTool,
   } = useQuickChatContext();
-  const { defaultOpenTargetId, setDefaultOpenTargetId } = useDesktopSettings();
+  const {
+    defaultOpenTargetId,
+    setDefaultOpenTargetId,
+    reviewView,
+    model,
+  } = useDesktopSettings();
 
   const conversationMessages = messages.filter(
     (message) => message.role !== "system",
@@ -150,12 +169,64 @@ export function ConversationPage(): React.ReactNode {
     React.useState<DesktopOpenTarget[]>(FALLBACK_OPEN_TARGETS);
   const [showPinnedSummary, setShowPinnedSummary] = React.useState(true);
   const [bottomPanelVisible, setBottomPanelVisible] = React.useState(false);
-  const [rightSidebarVisible, setRightSidebarVisible] = React.useState(false);
+  const [isRefreshingDiff, setIsRefreshingDiff] = React.useState(false);
+  const handleRefreshDiff = React.useCallback(() => {
+    if (isRefreshingDiff) return;
+    setIsRefreshingDiff(true);
+    try {
+      onRefreshDiff();
+    } finally {
+      window.setTimeout(() => setIsRefreshingDiff(false), 600);
+    }
+  }, [isRefreshingDiff, onRefreshDiff]);
+  const conversationMessagesForReview = React.useMemo(
+    () =>
+      messages
+        .filter((m) => m.role === "user" || m.role === "assistant")
+        .map((m) => ({
+          role: m.role,
+          text: m.text,
+          createdAt: m.createdAt,
+        })),
+    [messages],
+  );
+  const handleRunCodeReview = React.useCallback(() => {
+    onOpenRightDock('review');
+    onRefreshDiff();
+    void submitReviewAction({
+      sessionId: activeSessionId,
+      gitStatus,
+      diff,
+      model,
+    });
+  }, [activeSessionId, diff, gitStatus, model, onOpenRightDock, onRefreshDiff]);
+  const handleDiscardChanges = React.useCallback(
+    async (paths: string[]) => {
+      if (!workspacePath) return;
+      if (paths.length === 0) return;
+      try {
+        const result = await desktopClient.discardWorkspaceChanges({
+          workspacePath,
+          paths,
+          includeUntracked: true,
+        });
+        if ("error" in result) {
+          window.alert(`放弃编辑失败：${result.error}`);
+          return;
+        }
+        onRefreshDiff();
+      } catch (error) {
+        window.alert(
+          `放弃编辑失败：${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    },
+    [onRefreshDiff, workspacePath],
+  );
   const [workflowTimelineVisible, setWorkflowTimelineVisible] =
     React.useState(false);
-  const showReviewSidebar = Boolean(!isConversationLoading && rightSidebarVisible);
   const showEnvironmentPanel = Boolean(
-    workspacePath && showPinnedSummary && !showReviewSidebar,
+    workspacePath && showPinnedSummary && !rightDockOpen,
   );
   const showComposerChangeSummary = Boolean(
     workspacePath && gitStatus && gitStatus.files.length > 0,
@@ -253,15 +324,13 @@ export function ConversationPage(): React.ReactNode {
   }
 
   function toggleReviewSidebar(): void {
-    if (!rightSidebarVisible) {
-      onRefreshDiff();
-    }
-    setRightSidebarVisible((current) => !current);
+    onOpenRightDock('review');
+    onRefreshDiff();
   }
 
   function openReviewSidebar(): void {
     onRefreshDiff();
-    setRightSidebarVisible(true);
+    onOpenRightDock('review');
   }
 
   return (
@@ -470,11 +539,15 @@ export function ConversationPage(): React.ReactNode {
             </button>
           </Tooltip>
           <Tooltip
-            content={rightSidebarVisible ? "隐藏右侧边栏" : "显示右侧边栏"}
+            content={
+              rightDockOpen && rightDockTool === 'review'
+                ? "右侧审查已打开"
+                : "显示右侧审查"
+            }
           >
             <button
-              aria-label={rightSidebarVisible ? "隐藏右侧边栏" : "显示右侧边栏"}
-              aria-pressed={rightSidebarVisible}
+              aria-label="显示右侧审查"
+              aria-pressed={rightDockOpen && rightDockTool === 'review'}
               className="message-action"
               type="button"
               onClick={toggleReviewSidebar}
@@ -487,11 +560,7 @@ export function ConversationPage(): React.ReactNode {
 
       <div
         className={`quick-chat-workspace ${
-          showReviewSidebar
-            ? "with-review-sidebar"
-            : showEnvironmentPanel
-              ? "with-environment-panel"
-              : ""
+          showEnvironmentPanel ? "with-environment-panel" : ""
         }`}
       >
         <div className="quick-chat-content">
@@ -513,6 +582,8 @@ export function ConversationPage(): React.ReactNode {
                   <TimelineItem
                     item={item}
                     key={item.id}
+                    onDiscardChanges={(paths) => void handleDiscardChanges(paths)}
+                    onReviewCode={handleRunCodeReview}
                     onReviewFiles={openReviewSidebar}
                   />
                 ))}
@@ -534,24 +605,12 @@ export function ConversationPage(): React.ReactNode {
             onRefreshDiff={onRefreshDiff}
           />
         ) : null}
-        {showReviewSidebar ? (
-          <ReviewSidebar
-            diff={diff}
-            gitStatus={gitStatus}
-            onClose={() => setRightSidebarVisible(false)}
-            onRefreshDiff={onRefreshDiff}
-          />
-        ) : null}
       </div>
 
       {composer ? (
         <div
           className={`chat-composer ${
-            showReviewSidebar
-              ? "with-review-sidebar"
-              : showEnvironmentPanel
-                ? "with-environment-panel"
-                : ""
+            showEnvironmentPanel ? "with-environment-panel" : ""
           }`}
         >
           {showComposerChangeSummary ? (
@@ -561,13 +620,15 @@ export function ConversationPage(): React.ReactNode {
                 <strong> +{formatPanelNumber(composerDiffSummary.additions)}</strong>
                 <em> -{formatPanelNumber(composerDiffSummary.deletions)}</em>
               </span>
-              <button type="button" onClick={openReviewSidebar}>审查</button>
+              <button type="button" onClick={handleRunCodeReview}>审查</button>
             </div>
           ) : null}
           {activePermissionRequest ? (
             <InlineApprovalCard
               request={activePermissionRequest}
+              currentPermissionMode={permissionMode}
               onDecide={onDecidePermission}
+              onAcceptExitPlanMode={onAcceptExitPlanMode}
             />
           ) : null}
           {composer}
@@ -943,9 +1004,13 @@ type TimelineItem = DesktopSessionEvent | TimelineToolGroup;
 function TimelineItem({
   item,
   onReviewFiles,
+  onReviewCode,
+  onDiscardChanges,
 }: {
   item: TimelineItem;
   onReviewFiles: () => void;
+  onReviewCode: () => void;
+  onDiscardChanges: (paths: string[]) => void;
 }): React.ReactNode {
   if (item.type === "tool_group") {
     return <TimelineToolGroupView group={item} />;
@@ -982,6 +1047,19 @@ function TimelineItem({
       additions ?? files.reduce((total, file) => total + Number(file.additions ?? 0), 0);
     const totalDeletions =
       deletions ?? files.reduce((total, file) => total + Number(file.deletions ?? 0), 0);
+    const filePaths = files
+      .map(file => (typeof file.path === "string" ? file.path : null))
+      .filter((p): p is string => Boolean(p));
+    const filePathFromMetadata =
+      typeof event.metadata?.filePath === "string"
+        ? (event.metadata.filePath as string)
+        : null;
+    const discardPaths =
+      filePaths.length > 0
+        ? filePaths
+        : filePathFromMetadata
+          ? [filePathFromMetadata]
+          : [];
     return (
       <article className="timeline-file-event">
         <div className="timeline-file-event-header">
@@ -998,14 +1076,24 @@ function TimelineItem({
             </span>
           </div>
           <div className="timeline-file-event-actions">
-            <button className="timeline-file-event-ghost-button" type="button">
+            <button
+              className="timeline-file-event-ghost-button"
+              disabled={discardPaths.length === 0}
+              type="button"
+              onClick={() => {
+                if (discardPaths.length === 0) return;
+                if (window.confirm(`确认放弃 ${discardPaths.length} 个文件的编辑？`)) {
+                  onDiscardChanges(discardPaths);
+                }
+              }}
+            >
               撤销
               <RotateCcw size={APP_ICON_SIZE} />
             </button>
             <button
               className="timeline-file-event-review-button"
               type="button"
-              onClick={onReviewFiles}
+              onClick={onReviewCode}
             >
               审核
             </button>
@@ -1183,6 +1271,7 @@ type ReviewDiffLine = {
   oldLine: number | null;
   newLine: number | null;
   content: string;
+  unmodifiedBefore?: number;
 };
 
 type ReviewFile = {
@@ -1195,20 +1284,81 @@ type ReviewFile = {
   lines: ReviewDiffLine[];
 };
 
+type ReviewSplitRow = {
+  id: string;
+  unmodifiedBefore?: number;
+  hunk?: { content: string };
+  meta?: { content: string };
+  left: { number: number | null; content: string; tone: "removed" | "context" | "empty" };
+  right: { number: number | null; content: string; tone: "added" | "context" | "empty" };
+  paired: boolean;
+};
+
+type ReviewFilter = "all" | "added" | "modified" | "removed";
+
+function filterStatusForFile(file: { status: string; isUntracked: boolean }): ReviewFilter {
+  if (file.isUntracked) return "added";
+  const trimmed = file.status.trim();
+  if (trimmed.startsWith("A") || trimmed.startsWith("??")) return "added";
+  if (trimmed.startsWith("D")) return "removed";
+  return "modified";
+}
+
 function ReviewSidebar({
   diff,
   gitStatus,
+  events,
+  messages,
+  sessionStatus,
+  isRefreshing,
+  reviewView,
+  workspacePath,
   onClose,
   onRefreshDiff,
+  onOpenWorkspacePath,
+  onRunCodeReview,
 }: {
   diff: string;
   gitStatus: DesktopGitStatus | null;
+  events: DesktopSessionEvent[];
+  messages: Array<{ role: string; text: string; createdAt?: string }>;
+  sessionStatus: DesktopSessionStatus;
+  isRefreshing: boolean;
+  reviewView: DesktopReviewView;
+  workspacePath: string | null;
   onClose: () => void;
   onRefreshDiff: () => void;
+  onOpenWorkspacePath: () => void;
+  onRunCodeReview: () => void;
 }): React.ReactNode {
+  const turnGroup = React.useMemo(
+    () => deriveReviewTurns(events),
+    [events],
+  );
+  const turns = turnGroup.turns;
+  const [selectedTurnId, setSelectedTurnId] = React.useState<string | null>(null);
+  const [turnMenuOpen, setTurnMenuOpen] = React.useState(false);
+  const selectedTurn = React.useMemo(
+    () => turns.find((turn) => turn.id === selectedTurnId) ?? null,
+    [turns, selectedTurnId],
+  );
+  const effectiveDiff = selectedTurn ? selectedTurn.patch || diff : diff;
+  const effectiveGitStatus = React.useMemo<DesktopGitStatus | null>(() => {
+    if (!gitStatus) return null;
+    if (!selectedTurn) return gitStatus;
+    if (selectedTurn.files.length === 0) return gitStatus;
+    const allowed = new Set(selectedTurn.files.map((f) => f.path));
+    const filteredFiles = gitStatus.files.filter((f) => allowed.has(f.path));
+    return {
+      ...gitStatus,
+      files: filteredFiles,
+      clean: filteredFiles.length === 0,
+    };
+  }, [gitStatus, selectedTurn]);
+
   const files = React.useMemo(
-    () => buildReviewFiles(diff, gitStatus),
-    [diff, gitStatus],
+    () => buildReviewFiles(effectiveDiff, effectiveGitStatus),
+    [effectiveDiff, effectiveGitStatus],
   );
   const totals = React.useMemo(
     () =>
@@ -1222,6 +1372,18 @@ function ReviewSidebar({
     [files],
   );
   const [selectedPath, setSelectedPath] = React.useState<string | null>(null);
+  const [search, setSearch] = React.useState("");
+  const [filter, setFilter] = React.useState<ReviewFilter>("all");
+  const [filterMenuOpen, setFilterMenuOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    if (
+      selectedTurnId &&
+      !turns.some((turn) => turn.id === selectedTurnId)
+    ) {
+      setSelectedTurnId(null);
+    }
+  }, [turns, selectedTurnId]);
 
   React.useEffect(() => {
     if (files.length === 0) {
@@ -1235,27 +1397,156 @@ function ReviewSidebar({
     );
   }, [files]);
 
+  const visibleFiles = React.useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return files.filter((file) => {
+      if (query && !file.path.toLowerCase().includes(query)) return false;
+      if (filter === "all") return true;
+      return filterStatusForFile(file) === filter;
+    });
+  }, [files, search, filter]);
+
+  React.useEffect(() => {
+    if (visibleFiles.length === 0) {
+      if (files.length > 0 && selectedPath && !visibleFiles.some((f) => f.path === selectedPath)) {
+        setSelectedPath(visibleFiles[0]?.path ?? null);
+      }
+      return;
+    }
+    if (!selectedPath || !visibleFiles.some((file) => file.path === selectedPath)) {
+      setSelectedPath(visibleFiles[0]?.path ?? null);
+    }
+  }, [visibleFiles, files, selectedPath]);
+
   const selectedFile =
-    files.find((file) => file.path === selectedPath) ?? files[0] ?? null;
+    visibleFiles.find((file) => file.path === selectedPath) ??
+    visibleFiles[0] ??
+    null;
+
+  const lastUserMessage = React.useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      const m = messages[i];
+      if (m?.role === "user" && m.text.trim()) return m;
+    }
+    return null;
+  }, [messages]);
+
+  const totalChangedFiles = React.useMemo(() => {
+    if (!gitStatus) return 0;
+    return gitStatus.files.length;
+  }, [gitStatus]);
+
+  const turnMenuLabel = selectedTurn
+    ? `第 ${turns.findIndex((t) => t.id === selectedTurn.id) + 1} 轮`
+    : `全部轮次`;
+
+  const sessionBusy =
+    sessionStatus === "running" || sessionStatus === "waiting";
 
   return (
     <aside className="review-sidebar" aria-label="代码审查">
       <div className="review-sidebar-toolbar">
         <div className="review-sidebar-title">
-          <button className="review-sidebar-title-button" type="button">
-            上轮对话
-            <ChevronDown size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-          </button>
+          <PopoverMenu
+            align="start"
+            className="popover-review-turns"
+            open={turnMenuOpen}
+            sideOffset={4}
+            trigger={
+              <button
+                className="review-sidebar-title-button"
+                type="button"
+                title="切换审查的对话轮次"
+              >
+                {turnMenuLabel}
+                <ChevronDown
+                  size={APP_ICON_SIZE}
+                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                />
+              </button>
+            }
+            onOpenChange={setTurnMenuOpen}
+          >
+            <PopoverItem
+              selected={selectedTurnId === null}
+              withCheck
+              onClick={() => {
+                setSelectedTurnId(null);
+                setTurnMenuOpen(false);
+              }}
+            >
+              全部轮次
+            </PopoverItem>
+            {turns.length === 0 ? (
+              <PopoverItem disabled>暂无 file_patch 事件</PopoverItem>
+            ) : (
+              turns
+                .slice()
+                .reverse()
+                .map((turn) => (
+                  <PopoverItem
+                    key={turn.id}
+                    selected={turn.id === selectedTurnId}
+                    withCheck
+                    onClick={() => {
+                      setSelectedTurnId(turn.id);
+                      setTurnMenuOpen(false);
+                    }}
+                  >
+                    <span className="popover-turn-label">
+                      <strong>第 {turn.index} 轮</strong>
+                      <small>
+                        {truncateToWidth(turn.userMessageText, 60)}
+                      </small>
+                      <small className="popover-turn-stats">
+                        {turn.files.length} 个文件
+                        <span className="diff-added">
+                          +{formatPanelNumber(turn.additions)}
+                        </span>
+                        <span className="diff-removed">
+                          -{formatPanelNumber(turn.deletions)}
+                        </span>
+                      </small>
+                    </span>
+                  </PopoverItem>
+                ))
+            )}
+          </PopoverMenu>
           <span className="review-sidebar-counts">
             <strong>+{formatPanelNumber(totals.additions)}</strong>
             <em>-{formatPanelNumber(totals.deletions)}</em>
           </span>
         </div>
         <div className="review-sidebar-actions">
-          <Tooltip content="刷新变更">
+          <Tooltip content="运行代码审查">
+            <button
+              aria-label="运行代码审查"
+              className="message-action"
+              disabled={sessionBusy}
+              type="button"
+              onClick={onRunCodeReview}
+            >
+              <Sparkles size={APP_ICON_SIZE} />
+            </button>
+          </Tooltip>
+          <Tooltip content="搜索文件">
+            <button
+              aria-label="搜索文件"
+              className="message-action"
+              type="button"
+              onClick={() => {
+                const value = window.prompt("搜索文件路径", search);
+                if (value !== null) setSearch(value);
+              }}
+            >
+              <Search size={APP_ICON_SIZE} />
+            </button>
+          </Tooltip>
+          <Tooltip content={isRefreshing ? "刷新中..." : "刷新变更"}>
             <button
               aria-label="刷新变更"
               className="message-action"
+              disabled={isRefreshing}
               type="button"
               onClick={onRefreshDiff}
             >
@@ -1266,14 +1557,88 @@ function ReviewSidebar({
             <button
               aria-label="打开工作区"
               className="message-action"
+              disabled={!workspacePath}
               type="button"
+              onClick={onOpenWorkspacePath}
             >
               <FolderOpen size={APP_ICON_SIZE} />
             </button>
           </Tooltip>
-          <Tooltip content="筛选">
-            <button aria-label="筛选" className="message-action" type="button">
-              <Settings size={APP_ICON_SIZE} />
+          <PopoverMenu
+            align="end"
+            className="popover-review-filter"
+            open={filterMenuOpen}
+            sideOffset={4}
+            trigger={
+              <Tooltip content="筛选">
+                <button
+                  aria-label="筛选"
+                  aria-pressed={filter !== "all"}
+                  className="message-action"
+                  type="button"
+                >
+                  <Filter size={APP_ICON_SIZE} />
+                </button>
+              </Tooltip>
+            }
+            onOpenChange={setFilterMenuOpen}
+          >
+            <PopoverItem
+              selected={filter === "all"}
+              withCheck
+              onClick={() => {
+                setFilter("all");
+                setFilterMenuOpen(false);
+              }}
+            >
+              全部
+            </PopoverItem>
+            <PopoverItem
+              selected={filter === "added"}
+              withCheck
+              onClick={() => {
+                setFilter("added");
+                setFilterMenuOpen(false);
+              }}
+            >
+              新增
+            </PopoverItem>
+            <PopoverItem
+              selected={filter === "modified"}
+              withCheck
+              onClick={() => {
+                setFilter("modified");
+                setFilterMenuOpen(false);
+              }}
+            >
+              修改
+            </PopoverItem>
+            <PopoverItem
+              selected={filter === "removed"}
+              withCheck
+              onClick={() => {
+                setFilter("removed");
+                setFilterMenuOpen(false);
+              }}
+            >
+              删除
+            </PopoverItem>
+          </PopoverMenu>
+          <Tooltip
+            content={
+              reviewView === "inline" ? "行内视图（只读）" : "分离视图（只读）"
+            }
+          >
+            <button
+              aria-label="审阅视图（只读）"
+              className="message-action"
+              type="button"
+            >
+              {reviewView === "inline" ? (
+                <Sliders size={APP_ICON_SIZE} />
+              ) : (
+                <Columns2 size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              )}
             </button>
           </Tooltip>
           <Tooltip content="关闭右侧边栏">
@@ -1289,11 +1654,35 @@ function ReviewSidebar({
         </div>
       </div>
 
-      {selectedFile ? <ReviewDiffPreview file={selectedFile} /> : null}
+      {selectedTurn || lastUserMessage || totalChangedFiles > 0 ? (
+        <div
+          className="review-sidebar-context"
+          title={
+            selectedTurn
+              ? selectedTurn.userMessageText
+              : "全部轮次（累积变更）"
+          }
+        >
+          <Eye size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+          <span>
+            {selectedTurn
+              ? `第 ${turns.findIndex((t) => t.id === selectedTurn.id) + 1} 轮 · ${truncateToWidth(selectedTurn.userMessageText, 60)}`
+              : `全部轮次 · 累积 ${formatPanelNumber(totalChangedFiles)} 个文件变更`}
+          </span>
+        </div>
+      ) : null}
+
+      {selectedFile ? (
+        <ReviewDiffPreview
+          file={selectedFile}
+          view={reviewView}
+          workspacePath={workspacePath}
+        />
+      ) : null}
 
       <div className="review-file-list" role="list">
-        {files.length > 0 ? (
-          files.map((file) => (
+        {visibleFiles.length > 0 ? (
+          visibleFiles.map((file) => (
             <button
               className={`review-file-row ${
                 file.path === selectedFile?.path ? "active" : ""
@@ -1312,14 +1701,26 @@ function ReviewSidebar({
             </button>
           ))
         ) : (
-          <div className="review-empty-state">暂无文件变更。</div>
+          <div className="review-empty-state">
+            {files.length === 0
+              ? "暂无文件变更。"
+              : "当前筛选下没有匹配的文件。"}
+          </div>
         )}
       </div>
     </aside>
   );
 }
 
-function ReviewDiffPreview({ file }: { file: ReviewFile }): React.ReactNode {
+function ReviewDiffPreview({
+  file,
+  view,
+  workspacePath,
+}: {
+  file: ReviewFile;
+  view: DesktopReviewView;
+  workspacePath: string | null;
+}): React.ReactNode {
   return (
     <section className="review-diff-preview" aria-label={`${file.path} diff`}>
       <div className="review-file-row active preview-header">
@@ -1329,24 +1730,29 @@ function ReviewDiffPreview({ file }: { file: ReviewFile }): React.ReactNode {
           <strong>+{formatPanelNumber(file.additions)}</strong>
           <em>-{formatPanelNumber(file.deletions)}</em>
         </span>
+        <Tooltip content="在文件管理器中打开">
+          <button
+            aria-label="在文件管理器中打开"
+            className="message-action review-file-open"
+            disabled={!workspacePath}
+            type="button"
+            onClick={() => {
+              if (!workspacePath) return;
+              void desktopClient.openPathWithDefaultTarget(
+                `${workspacePath}/${file.path}`,
+              );
+            }}
+          >
+            <ExternalLink size={APP_ICON_SIZE} />
+          </button>
+        </Tooltip>
       </div>
       {file.lines.length > 0 ? (
-        <div className="review-diff-lines">
-          {file.lines.map((line) => (
-            <div
-              className={`review-diff-line ${line.type}`}
-              key={line.id}
-            >
-              <span className="review-diff-line-number">
-                {line.oldLine ?? ""}
-              </span>
-              <span className="review-diff-line-number">
-                {line.newLine ?? ""}
-              </span>
-              <code>{line.content || " "}</code>
-            </div>
-          ))}
-        </div>
+        view === "split" ? (
+          <ReviewDiffSplit lines={file.lines} />
+        ) : (
+          <ReviewDiffInline lines={file.lines} />
+        )
       ) : (
         <div className="review-empty-state">
           {file.isUntracked
@@ -1355,6 +1761,125 @@ function ReviewDiffPreview({ file }: { file: ReviewFile }): React.ReactNode {
         </div>
       )}
     </section>
+  );
+}
+
+function ReviewDiffInline({ lines }: { lines: ReviewDiffLine[] }): React.ReactNode {
+  return (
+    <div className="review-diff-lines review-diff-inline">
+      {lines.map((line) => {
+        if (line.type === "meta") {
+          return (
+            <div className={`review-diff-row ${line.type}`} key={line.id}>
+              <span className="review-diff-line-content">{line.content}</span>
+            </div>
+          );
+        }
+        if (line.type === "hunk") {
+          return (
+            <React.Fragment key={line.id}>
+              {line.unmodifiedBefore && line.unmodifiedBefore > 0 ? (
+                <div className="review-diff-unmodified">
+                  {line.unmodifiedBefore} unmodified lines
+                </div>
+              ) : null}
+              <div className={`review-diff-row ${line.type}`}>
+                <span className="review-diff-line-content">{line.content}</span>
+              </div>
+            </React.Fragment>
+          );
+        }
+        const lineNumber =
+          line.type === "added" ? line.newLine : line.oldLine;
+        return (
+          <div className={`review-diff-row ${line.type}`} key={line.id}>
+            <span
+              className={`review-diff-line-number ${
+                line.type === "added"
+                  ? "added"
+                  : line.type === "removed"
+                    ? "removed"
+                    : ""
+              }`}
+            >
+              {lineNumber ?? ""}
+            </span>
+            <code className="review-diff-line-content">
+              {line.content || " "}
+            </code>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ReviewDiffSplit({ lines }: { lines: ReviewDiffLine[] }): React.ReactNode {
+  const rows = React.useMemo(() => splitDiffLines(lines), [lines]);
+  return (
+    <div className="review-diff-lines review-diff-split">
+      {rows.map((row) => {
+        if (row.hunk) {
+          return (
+            <div className="review-diff-row hunk" key={row.id}>
+              <span className="review-diff-line-content">{row.hunk.content}</span>
+            </div>
+          );
+        }
+        if (row.meta) {
+          return (
+            <div className="review-diff-row meta" key={row.id}>
+              <span className="review-diff-line-content">{row.meta.content}</span>
+            </div>
+          );
+        }
+        return (
+          <React.Fragment key={row.id}>
+            {row.unmodifiedBefore && row.unmodifiedBefore > 0 ? (
+              <div className="review-diff-unmodified">
+                {row.unmodifiedBefore} unmodified lines
+              </div>
+            ) : null}
+            <div
+              className={`review-diff-split-row ${
+                row.paired ? "paired" : "single"
+              }`}
+            >
+              <div
+                className={`review-diff-side ${row.left.tone}`}
+                data-tone={row.left.tone}
+              >
+                <span
+                  className={`review-diff-line-number ${
+                    row.left.tone === "removed" ? "removed" : ""
+                  }`}
+                >
+                  {row.left.number ?? ""}
+                </span>
+                <code className="review-diff-line-content">
+                  {row.left.tone === "empty" ? " " : row.left.content}
+                </code>
+              </div>
+              <div
+                className={`review-diff-side ${row.right.tone}`}
+                data-tone={row.right.tone}
+              >
+                <span
+                  className={`review-diff-line-number ${
+                    row.right.tone === "added" ? "added" : ""
+                  }`}
+                >
+                  {row.right.number ?? ""}
+                </span>
+                <code className="review-diff-line-content">
+                  {row.right.tone === "empty" ? " " : row.right.content}
+                </code>
+              </div>
+            </div>
+          </React.Fragment>
+        );
+      })}
+    </div>
   );
 }
 
@@ -1390,6 +1915,8 @@ function parseWorkspaceDiffFiles(diff: string): ReviewFile[] {
   let oldLine = 0;
   let newLine = 0;
   let lineId = 0;
+  let expectedNewLine = 0;
+  let expectedOldLine = 0;
 
   function pushCurrent(): void {
     if (current) {
@@ -1411,6 +1938,8 @@ function parseWorkspaceDiffFiles(diff: string): ReviewFile[] {
       oldLine = 0;
       newLine = 0;
       lineId = 0;
+      expectedNewLine = 0;
+      expectedOldLine = 0;
       continue;
     }
 
@@ -1418,15 +1947,21 @@ function parseWorkspaceDiffFiles(diff: string): ReviewFile[] {
 
     const hunkMatch = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(rawLine);
     if (hunkMatch) {
-      oldLine = Number(hunkMatch[1]);
-      newLine = Number(hunkMatch[2]);
+      const hunkOldStart = Number(hunkMatch[1]);
+      const hunkNewStart = Number(hunkMatch[2]);
+      const skipped = Math.max(0, hunkNewStart - expectedNewLine - 1);
+      oldLine = hunkOldStart;
+      newLine = hunkNewStart;
       current.lines.push({
         id: `${current.path}-${lineId++}`,
         type: "hunk",
         oldLine: null,
         newLine: null,
         content: rawLine,
+        unmodifiedBefore: skipped,
       });
+      expectedOldLine = hunkOldStart;
+      expectedNewLine = hunkNewStart;
       continue;
     }
 
@@ -1460,6 +1995,7 @@ function parseWorkspaceDiffFiles(diff: string): ReviewFile[] {
         content: rawLine,
       });
       newLine += 1;
+      expectedNewLine = newLine;
       continue;
     }
 
@@ -1473,6 +2009,7 @@ function parseWorkspaceDiffFiles(diff: string): ReviewFile[] {
         content: rawLine,
       });
       oldLine += 1;
+      expectedOldLine = oldLine;
       continue;
     }
 
@@ -1486,6 +2023,8 @@ function parseWorkspaceDiffFiles(diff: string): ReviewFile[] {
       });
       oldLine += 1;
       newLine += 1;
+      expectedOldLine = oldLine;
+      expectedNewLine = newLine;
       continue;
     }
 
@@ -1502,6 +2041,145 @@ function parseWorkspaceDiffFiles(diff: string): ReviewFile[] {
 
   pushCurrent();
   return files;
+}
+
+function splitDiffLines(lines: ReviewDiffLine[]): ReviewSplitRow[] {
+  const rows: ReviewSplitRow[] = [];
+  const pending: ReviewDiffLine[] = [];
+
+  function flushPending(): void {
+    if (pending.length === 0) return;
+    if (pending.length === 1) {
+      const removed = pending[0];
+      rows.push({
+        id: `${removed.id}-split`,
+        left: {
+          number: removed.oldLine,
+          content: stripDiffPrefix(removed.content),
+          tone: "removed",
+        },
+        right: { number: null, content: "", tone: "empty" },
+        paired: false,
+      });
+    } else {
+      const leftCount = pending.filter((p) => p.type === "removed").length;
+      const rightCount = pending.filter((p) => p.type === "added").length;
+      const paired = leftCount === rightCount && leftCount > 0;
+      if (paired) {
+        const removedParts = pending.filter((p) => p.type === "removed");
+        const addedParts = pending.filter((p) => p.type === "added");
+        for (let i = 0; i < leftCount; i += 1) {
+          rows.push({
+            id: `${pending[0].id}-split-${i}`,
+            left: {
+              number: removedParts[i]?.oldLine ?? null,
+              content: removedParts[i]
+                ? stripDiffPrefix(removedParts[i].content)
+                : "",
+              tone: "removed",
+            },
+            right: {
+              number: addedParts[i]?.newLine ?? null,
+              content: addedParts[i]
+                ? stripDiffPrefix(addedParts[i].content)
+                : "",
+              tone: "added",
+            },
+            paired: true,
+          });
+        }
+      } else {
+        for (const part of pending) {
+          if (part.type === "removed") {
+            rows.push({
+              id: `${part.id}-split`,
+              left: {
+                number: part.oldLine,
+                content: stripDiffPrefix(part.content),
+                tone: "removed",
+              },
+              right: { number: null, content: "", tone: "empty" },
+              paired: false,
+            });
+          } else if (part.type === "added") {
+            rows.push({
+              id: `${part.id}-split`,
+              left: { number: null, content: "", tone: "empty" },
+              right: {
+                number: part.newLine,
+                content: stripDiffPrefix(part.content),
+                tone: "added",
+              },
+              paired: false,
+            });
+          }
+        }
+      }
+    }
+    pending.length = 0;
+  }
+
+  for (const line of lines) {
+    if (line.type === "hunk") {
+      flushPending();
+      rows.push({
+        id: `${line.id}-split`,
+        hunk: { content: line.content },
+        left: { number: null, content: "", tone: "empty" },
+        right: { number: null, content: "", tone: "empty" },
+        paired: false,
+        unmodifiedBefore: line.unmodifiedBefore,
+      });
+      continue;
+    }
+    if (line.type === "meta") {
+      flushPending();
+      rows.push({
+        id: `${line.id}-split`,
+        meta: { content: line.content },
+        left: { number: null, content: "", tone: "empty" },
+        right: { number: null, content: "", tone: "empty" },
+        paired: false,
+      });
+      continue;
+    }
+    if (line.type === "context") {
+      flushPending();
+      rows.push({
+        id: `${line.id}-split`,
+        left: {
+          number: line.oldLine,
+          content: stripDiffPrefix(line.content),
+          tone: "context",
+        },
+        right: {
+          number: line.newLine,
+          content: stripDiffPrefix(line.content),
+          tone: "context",
+        },
+        paired: false,
+      });
+      continue;
+    }
+    pending.push(line);
+  }
+  flushPending();
+  return rows;
+}
+
+function stripDiffPrefix(content: string): string {
+  if (content.length === 0) return content;
+  const prefix = content[0];
+  if (prefix === "+" || prefix === "-" || prefix === " ") {
+    return content.slice(1);
+  }
+  return content;
+}
+
+function truncateToWidth(text: string, max: number): string {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (normalized.length <= max) return normalized;
+  return `${normalized.slice(0, Math.max(1, max - 1))}…`;
 }
 
 function parseDiffPath(line: string): string {

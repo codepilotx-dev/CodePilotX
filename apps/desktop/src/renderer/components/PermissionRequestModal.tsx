@@ -1,21 +1,32 @@
 import type React from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
-import type { DesktopPermissionRequest } from '../../shared/types.js'
+import type {
+  DesktopPermissionMode,
+  DesktopPermissionRequest,
+} from '../../shared/types.js'
 import { AskUserQuestionApproval } from './AskUserQuestionApproval.js'
+import { ExitPlanModeApproval } from './ExitPlanModeApproval.js'
 
 export type PermissionRequestModalProps = {
   request: DesktopPermissionRequest | null
+  currentPermissionMode?: DesktopPermissionMode
   onDecide: (
     request: DesktopPermissionRequest,
     behavior: 'allow' | 'deny',
     alwaysAllow?: boolean,
     updatedInput?: Record<string, unknown>,
   ) => void
+  onAcceptExitPlanMode?: (
+    request: DesktopPermissionRequest,
+    nextMode: DesktopPermissionMode,
+  ) => void
 }
 
 export function PermissionRequestModal({
   request,
+  currentPermissionMode,
   onDecide,
+  onAcceptExitPlanMode,
 }: PermissionRequestModalProps): React.ReactNode {
   return (
     <Dialog.Root open={Boolean(request)}>
@@ -43,6 +54,19 @@ export function PermissionRequestModal({
                   onSubmit={updatedInput =>
                     onDecide(request, 'allow', false, updatedInput)
                   }
+                />
+              ) : request.toolName === 'ExitPlanMode' ? (
+                <ExitPlanModeApproval
+                  request={request}
+                  currentMode={currentPermissionMode ?? 'plan'}
+                  onAccept={nextMode => {
+                    if (onAcceptExitPlanMode) {
+                      onAcceptExitPlanMode(request, nextMode)
+                    } else {
+                      onDecide(request, 'allow')
+                    }
+                  }}
+                  onRevise={() => onDecide(request, 'deny')}
                 />
               ) : (
                 <>

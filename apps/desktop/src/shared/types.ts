@@ -83,6 +83,105 @@ export type DesktopDiffSummary = {
   patch: string
 }
 
+export type DesktopReviewScope = 'unstaged' | 'staged'
+
+export type DesktopReviewSide = 'left' | 'right'
+
+export type DesktopReviewLineType = 'added' | 'removed' | 'context' | 'meta'
+
+export type DesktopReviewDiffLine = {
+  id: string
+  type: DesktopReviewLineType
+  oldLine: number | null
+  newLine: number | null
+  content: string
+  raw: string
+}
+
+export type DesktopReviewDiffHunk = {
+  id: string
+  header: string
+  oldStart: number
+  oldLines: number
+  newStart: number
+  newLines: number
+  patch: string
+  lines: DesktopReviewDiffLine[]
+}
+
+export type DesktopReviewDiffFile = {
+  path: string
+  originalPath?: string
+  status: string
+  additions: number
+  deletions: number
+  isUntracked: boolean
+  hunks: DesktopReviewDiffHunk[]
+}
+
+export type DesktopReviewScopeSummary = {
+  scope: DesktopReviewScope
+  changedFiles: number
+  additions: number
+  deletions: number
+}
+
+export type DesktopReviewDiffInput = {
+  workspacePath: string
+  scope?: DesktopReviewScope
+}
+
+export type DesktopReviewDiffResult = {
+  scopes: DesktopReviewScopeSummary[]
+  activeScope: DesktopReviewScope
+  files: DesktopReviewDiffFile[]
+  status: DesktopGitStatus
+}
+
+export type DesktopReviewOperationAction = 'stage' | 'unstage' | 'revert'
+
+export type DesktopReviewOperationTarget =
+  | { type: 'file'; path: string }
+  | { type: 'hunk'; path: string; hunkId: string }
+
+export type DesktopReviewOperationInput = {
+  workspacePath: string
+  scope: DesktopReviewScope
+  action: DesktopReviewOperationAction
+  target: DesktopReviewOperationTarget
+}
+
+export type DesktopReviewOperationResult =
+  | { ok: true; status: DesktopGitStatus; reviewDiff: DesktopReviewDiffResult; output?: string }
+  | { ok: false; error: string }
+
+export type DesktopReviewCommentStatus = 'open' | 'resolved'
+
+export type DesktopReviewComment = {
+  id: string
+  sessionId: string
+  filePath: string
+  side: DesktopReviewSide
+  lineNumber: number
+  lineContent: string
+  body: string
+  status: DesktopReviewCommentStatus
+  createdAt: string
+  updatedAt: string
+}
+
+export type SaveSessionReviewCommentInput = {
+  sessionId: string
+  comment:
+    | Omit<DesktopReviewComment, 'id' | 'sessionId' | 'status' | 'createdAt' | 'updatedAt'>
+    | DesktopReviewComment
+}
+
+export type SessionReviewCommentInput = {
+  sessionId: string
+  commentId: string
+}
+
 export type DesktopGitFileChange = {
   path: string
   originalPath?: string
@@ -132,6 +231,12 @@ export type CreatePullRequestInput = {
   draft?: boolean
 }
 
+export type DiscardWorkspaceChangesInput = {
+  workspacePath: string
+  paths: string[]
+  includeUntracked?: boolean
+}
+
 export type DesktopGitWorkspaceResult =
   | { ok: true; workspace: DesktopWorkspace; status: DesktopGitStatus }
   | { ok: false; error: string }
@@ -152,6 +257,24 @@ export type DesktopRuntimeStatus = {
   agentExecutableExists: boolean
   subprocessFallbackAvailable: boolean
   configDirectoryPath: string
+}
+
+export type DesktopBrowserBounds = {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+export type DesktopBrowserState = {
+  open: boolean
+  url: string
+  title: string
+  loading: boolean
+  canGoBack: boolean
+  canGoForward: boolean
+  error: string | null
+  allowedSites: string[]
 }
 
 export type DesktopOpenTargetKind =
@@ -242,6 +365,152 @@ export type DesktopCopilotLoginStatus = {
   elapsedMs: number
 }
 
+export type DesktopGithubUser = {
+  login: string
+  id: number
+  name: string | null
+  avatarUrl: string | null
+  htmlUrl: string
+}
+
+export type DesktopGithubAuthStatus = {
+  configured: boolean
+  authenticated: boolean
+  user: DesktopGithubUser | null
+  error?: string
+}
+
+export type DesktopGithubLoginState =
+  | 'idle'
+  | 'starting'
+  | 'awaiting_auth'
+  | 'completed'
+  | 'failed'
+
+export type DesktopGithubLoginStatus = {
+  state: DesktopGithubLoginState
+  userCode: string | null
+  verificationUri: string | null
+  expiresAt: string | null
+  error: string | null
+  auth: DesktopGithubAuthStatus | null
+  elapsedMs: number
+}
+
+export type StartGithubLoginInput = {
+  clientId?: string
+}
+
+export type DesktopGithubRepository = {
+  id: number
+  name: string
+  fullName: string
+  owner: string
+  private: boolean
+  fork: boolean
+  archived: boolean
+  disabled: boolean
+  cloneUrl: string
+  sshUrl: string
+  htmlUrl: string
+  description: string | null
+  defaultBranch: string
+  pushedAt: string | null
+  updatedAt: string | null
+}
+
+export type DesktopGithubRepositoryListResult =
+  | { ok: true; repositories: DesktopGithubRepository[] }
+  | { ok: false; error: string }
+
+export type CloneGithubRepositoryInput = {
+  repository: DesktopGithubRepository
+}
+
+export type DesktopGithubCloneResult =
+  | { ok: true; workspace: DesktopWorkspace }
+  | { ok: false; error: string }
+
+export type DesktopGithubProfileRepository = {
+  id: string
+  name: string
+  fullName: string
+  url: string
+  description: string | null
+  isPrivate: boolean
+  isFork: boolean
+  primaryLanguage: {
+    name: string
+    color: string | null
+  } | null
+  stargazerCount: number
+  forkCount: number
+  updatedAt: string
+}
+
+export type DesktopGithubContributionDay = {
+  date: string
+  count: number
+  color: string
+}
+
+export type DesktopGithubContributionWeek = {
+  days: DesktopGithubContributionDay[]
+}
+
+export type DesktopGithubUserStatus = {
+  emoji: string | null
+  message: string | null
+  indicatesLimitedAvailability: boolean
+  expiresAt: string | null
+}
+
+export type DesktopGithubUserStatusInput = {
+  emoji: string
+  message: string
+  limitedAvailability: boolean
+  expiresAt?: string | null
+}
+
+export type DesktopGithubUserStatusResult =
+  | { ok: true; status: DesktopGithubUserStatus | null }
+  | { ok: false; error: string }
+
+export type DesktopGithubProfileOverview = {
+  user: DesktopGithubUser & {
+    bio: string | null
+    company: string | null
+    location: string | null
+    websiteUrl: string | null
+    email: string | null
+    followers: number
+    following: number
+    repositoryCount: number
+    starredRepositoryCount: number
+    status: DesktopGithubUserStatus | null
+  }
+  organizations: Array<{
+    login: string
+    avatarUrl: string
+    url: string
+  }>
+  pinnedRepositories: DesktopGithubProfileRepository[]
+  popularRepositories: DesktopGithubProfileRepository[]
+  contributions: {
+    totalContributions: number
+    totalCommitContributions: number
+    totalIssueContributions: number
+    totalPullRequestContributions: number
+    totalPullRequestReviewContributions: number
+    restrictedContributionsCount: number
+    weeks: DesktopGithubContributionWeek[]
+  }
+}
+
+export type DesktopGithubProfileOverviewResult =
+  | { ok: true; overview: DesktopGithubProfileOverview }
+  | { ok: false; error: string }
+
 export type SaveDesktopModelProviderOptions = {
   providerID: ModelProviderID
   modelID?: string
@@ -259,6 +528,8 @@ export type DesktopPersonality =
   | 'friendly'
   | 'concise'
   | 'encouraging'
+
+export type DesktopReviewView = 'inline' | 'split'
 
 export type DesktopStoredSettings = {
   permissionMode: DesktopPermissionMode
@@ -280,10 +551,16 @@ export type DesktopStoredSettings = {
   providerBaseURL: string
   showContextUsage: boolean
   defaultOpenTargetId: string
-  gitBranchPrefix: string
+gitBranchPrefix: string
+  gitPrMergeMethod: 'merge' | 'squash'
+  gitShowPrIconsInSidebar: boolean
+  gitDraftPullRequest: boolean
+  gitAutoDeleteWorktree: boolean
+  gitAutoDeleteWorktreeLimit: number
   allowForcePush: boolean
   commitMessagePrompt: string
   pullRequestPrompt: string
+  githubOAuthClientId: string
   sandboxMode: DesktopSandboxMode
   allowNetworkAccess: boolean
   installCodexDependencies: boolean
@@ -291,6 +568,10 @@ export type DesktopStoredSettings = {
   customInstructions: string
   enableMemory: boolean
   skipToolAidedChats: boolean
+  githubMemorySyncEnabled: boolean
+  githubMemoryRepository: string
+  reviewView: DesktopReviewView
+  browserAllowedSites: string[]
 }
 
 export type DesktopMcpScope =
@@ -445,6 +726,7 @@ export type DesktopSessionSnapshot = {
   eventModelVersion?: 1
   workflowEvents?: DesktopWorkflowEvent[]
   workflowEventModelVersion?: 1
+  reviewComments?: DesktopReviewComment[]
   updatedAt: string
 }
 
@@ -484,6 +766,67 @@ export type DesktopBuiltinPlugin = {
   enabled: boolean
 }
 
+export type DesktopSkillOwnerFilter = 'all' | 'official' | 'community'
+
+export type DesktopSkillCatalogOptions = {
+  query?: string
+  owner?: DesktopSkillOwnerFilter
+  view?: 'all-time' | 'trending' | 'hot'
+  page?: number
+  perPage?: number
+}
+
+export type DesktopSkillCatalogItem = {
+  id: string
+  slug: string
+  name: string
+  source: string
+  installs: number
+  sourceType: string
+  installUrl: string | null
+  url: string
+  isDuplicate: boolean
+  installed: boolean
+  audit: DesktopSkillAudit | null
+}
+
+export type DesktopSkillCatalogResult = {
+  skills: DesktopSkillCatalogItem[]
+  page: number
+  perPage: number
+  total?: number
+  hasMore: boolean
+}
+
+export type DesktopSkillAuditStatus = 'pass' | 'warn' | 'fail'
+
+export type DesktopSkillAudit = {
+  status: DesktopSkillAuditStatus
+  summary: string
+  providerCount: number
+  auditedAt: string | null
+}
+
+export type DesktopSkillInstallOptions = {
+  id: string
+  installUrl?: string | null
+}
+
+export type DesktopSkillInstallResult = {
+  id: string
+  slug: string
+  installed: boolean
+  installPath: string
+}
+
+export type DesktopSlashCommandSuggestion = {
+  name: string
+  title: string
+  description: string
+  category: 'command' | 'skill'
+  scope?: string
+}
+
 export type DesktopUiCommand =
   | 'newConversation'
   | 'chooseWorkspace'
@@ -504,11 +847,27 @@ export type DesktopApi = {
   getRuntimeStatus(): Promise<DesktopRuntimeStatus>
   getDesktopSettings(): Promise<DesktopStoredSettings>
   saveDesktopSettings(settings: DesktopStoredSettings): Promise<DesktopStoredSettings>
+  getBrowserState(): Promise<DesktopBrowserState>
+  openBrowser(url?: string): Promise<DesktopBrowserState>
+  navigateBrowser(url: string): Promise<DesktopBrowserState>
+  reloadBrowser(): Promise<DesktopBrowserState>
+  goBackBrowser(): Promise<DesktopBrowserState>
+  goForwardBrowser(): Promise<DesktopBrowserState>
+  closeBrowser(): Promise<DesktopBrowserState>
+  setBrowserBounds(bounds: DesktopBrowserBounds): Promise<DesktopBrowserState>
+  clearBrowserAllowedSites(): Promise<DesktopBrowserState>
   listBuiltinPlugins(): Promise<DesktopBuiltinPlugin[]>
   setBuiltinPluginEnabled(
     pluginId: string,
     enabled: boolean,
   ): Promise<DesktopBuiltinPlugin>
+  listSkillsCatalog(
+    options?: DesktopSkillCatalogOptions,
+  ): Promise<DesktopSkillCatalogResult>
+  installSkill(
+    skill: string | DesktopSkillInstallOptions,
+  ): Promise<DesktopSkillInstallResult>
+  listSlashCommands(workspacePath?: string): Promise<DesktopSlashCommandSuggestion[]>
   listMcpServers(): Promise<DesktopMcpServerListItem[]>
   saveMcpServer(options: SaveDesktopMcpServerOptions): Promise<DesktopMcpServerListItem[]>
   removeMcpServer(name: string, scope: DesktopEditableMcpScope): Promise<DesktopMcpServerListItem[]>
@@ -541,6 +900,21 @@ export type DesktopApi = {
   startCopilotLogin(): Promise<DesktopCopilotLoginStatus>
   pollCopilotLogin(): Promise<DesktopCopilotLoginStatus>
   cancelCopilotLogin(): Promise<{ cancelled: boolean }>
+  getGithubAuthStatus(): Promise<DesktopGithubAuthStatus>
+  startGithubLogin(
+    input?: StartGithubLoginInput,
+  ): Promise<DesktopGithubLoginStatus>
+  pollGithubLogin(): Promise<DesktopGithubLoginStatus>
+  logoutGithub(): Promise<DesktopGithubAuthStatus>
+  listGithubRepositories(): Promise<DesktopGithubRepositoryListResult>
+  getGithubProfileOverview(): Promise<DesktopGithubProfileOverviewResult>
+  setGithubUserStatus(
+    input: DesktopGithubUserStatusInput,
+  ): Promise<DesktopGithubUserStatusResult>
+  clearGithubUserStatus(): Promise<DesktopGithubUserStatusResult>
+  cloneGithubRepository(
+    input: CloneGithubRepositoryInput,
+  ): Promise<DesktopGithubCloneResult>
   chooseWorkspace(): Promise<DesktopWorkspace | null>
   openWorkspace(workspacePath: string): Promise<DesktopWorkspace>
   getWorkspaceContext(workspacePath: string): Promise<DesktopWorkspace>
@@ -558,9 +932,18 @@ export type DesktopApi = {
   pushWorkspaceBranch(
     input: PushBranchInput,
   ): Promise<DesktopGitOperationResult>
+  discardWorkspaceChanges(
+    input: DiscardWorkspaceChangesInput,
+  ): Promise<DesktopGitOperationResult>
   createPullRequest(
     input: CreatePullRequestInput,
   ): Promise<DesktopPullRequestResult>
+  getWorkspaceReviewDiff(
+    input: DesktopReviewDiffInput,
+  ): Promise<DesktopReviewDiffResult>
+  applyWorkspaceReviewOperation(
+    input: DesktopReviewOperationInput,
+  ): Promise<DesktopReviewOperationResult>
   listWorkspaceFiles(workspacePath: string): Promise<DesktopFileEntry[]>
   readWorkspaceFile(workspacePath: string, filePath: string): Promise<DesktopFilePreview>
   readOptionalWorkspaceFile(
@@ -580,6 +963,19 @@ export type DesktopApi = {
   updateSessionMetadata(
     sessionId: string,
     patch: DesktopSessionMetadataPatch,
+  ): Promise<DesktopSessionSnapshot>
+  saveSessionReviewComment(
+    input: SaveSessionReviewCommentInput,
+  ): Promise<DesktopSessionSnapshot>
+  resolveSessionReviewComment(
+    input: SessionReviewCommentInput,
+  ): Promise<DesktopSessionSnapshot>
+  deleteSessionReviewComment(
+    input: SessionReviewCommentInput,
+  ): Promise<DesktopSessionSnapshot>
+  setSessionPermissionMode(
+    sessionId: string,
+    mode: DesktopPermissionMode,
   ): Promise<DesktopSessionSnapshot>
   readWorkflowEventLog(): Promise<DesktopWorkflowEvent[]>
   openConfigFile(): Promise<{ path: string }>
@@ -602,6 +998,7 @@ export type DesktopApi = {
   isWindowMaximized(): Promise<boolean>
   newWindow(): Promise<void>
   openDevTools(): Promise<void>
+  closeDevTools(): Promise<void>
   openSettings(): Promise<void>
   logOut(): Promise<void>
   exitApp(): Promise<void>

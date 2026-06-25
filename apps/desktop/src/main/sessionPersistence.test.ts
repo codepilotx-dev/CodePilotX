@@ -206,6 +206,72 @@ test('overlay workflow events are saved and restored without transcript state', 
   })
 })
 
+test('review comments are saved, restored, and invalid records are ignored', async () => {
+  await withDesktopConfig(async configDir => {
+    const sessionId = randomUUID()
+    const now = new Date('2026-01-01T00:00:00.000Z').toISOString()
+    const projectPath = join(configDir, 'review-comment-project')
+    const snapshot = createDesktopSessionSnapshot({
+      sessionId,
+      workspace: {
+        path: projectPath,
+        name: 'review-comment-project',
+        branchName: null,
+        isGitRepo: false,
+      },
+      standalone: false,
+      settings: {
+        permissionMode: 'default',
+        thinkingMode: 'default',
+        additionalDirectories: [],
+      },
+    })
+    snapshot.reviewComments = [
+      {
+        id: 'review-comment-1',
+        sessionId,
+        filePath: 'src/index.ts',
+        side: 'right',
+        lineNumber: 12,
+        lineContent: 'const value = nextValue',
+        body: '这里需要处理空值。',
+        status: 'open',
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: '',
+        sessionId,
+        filePath: 'src/bad.ts',
+        side: 'right',
+        lineNumber: 1,
+        lineContent: 'bad',
+        body: 'bad',
+        status: 'open',
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]
+
+    await saveDesktopSessionStore({
+      activeSessionId: sessionId,
+      sessions: [snapshot],
+    })
+
+    const store = await loadDesktopSessionStore()
+    const restored = store.sessions.find(item => item.item.id === sessionId)
+
+    expect(restored?.reviewComments).toEqual([
+      expect.objectContaining({
+        id: 'review-comment-1',
+        filePath: 'src/index.ts',
+        lineNumber: 12,
+        status: 'open',
+      }),
+    ])
+  })
+})
+
 test('applying workflow events normalizes events and skips duplicates', () => {
   const sessionId = randomUUID()
   const now = new Date('2026-01-01T00:00:00.000Z').toISOString()

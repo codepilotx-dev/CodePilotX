@@ -18,11 +18,19 @@ import {
   Search,
   Settings2,
   Share2,
+  ShieldAlert,
+  ShieldCheck,
+  ShieldX,
   Sparkles,
 } from 'lucide-react'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from './ui/iconTokens.js'
 import { desktopClient } from '../services/desktopClient.js'
 import { IconButton } from './ui/IconButton.js'
+import type {
+  DesktopSkillAuditStatus,
+  DesktopSkillCatalogItem,
+  DesktopSkillOwnerFilter,
+} from '../../shared/types.js'
 
 type PluginTone = 'github' | 'chrome' | 'sheet' | 'slides' | 'slack' | 'data' | 'design' | 'creative' | 'sales' | 'codex'
 
@@ -80,8 +88,8 @@ const PLUGINS: Plugin[] = [
   {
     id: 'minimax',
     builtinPluginId: 'minimax@builtin',
-    name: 'MiniMax Media',
-    description: 'Generate images, speech, video, and music with MiniMax',
+    name: 'MiniMax',
+    description: 'Generate media, inspect images, manage files, and query quota',
     icon: <Sparkles size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
     tone: 'creative',
     installed: false,
@@ -131,15 +139,21 @@ const PLUGINS: Plugin[] = [
 const HERO_SLIDES = 5
 
 type Filter = 'all' | 'installed' | 'available'
-type Owner = 'openai' | 'all' | 'community'
 type Tab = 'plugins' | 'skills'
 
 export function PluginsView(): React.ReactNode {
   const [tab, setTab] = useState<Tab>('plugins')
   const [activeSlide, setActiveSlide] = useState(1)
   const [query, setQuery] = useState('')
-  const [owner, setOwner] = useState<Owner>('openai')
+  const [owner, setOwner] = useState<DesktopSkillOwnerFilter>('official')
   const [filter, setFilter] = useState<Filter>('all')
+  const [skills, setSkills] = useState<DesktopSkillCatalogItem[]>([])
+  const [skillsLoading, setSkillsLoading] = useState(false)
+  const [skillsError, setSkillsError] = useState<string | null>(null)
+  const [skillsReloadKey, setSkillsReloadKey] = useState(0)
+  const [installingSkillIds, setInstallingSkillIds] = useState<Set<string>>(
+    () => new Set(),
+  )
   const [enabledBuiltinPlugins, setEnabledBuiltinPlugins] = useState<
     Record<string, boolean>
   >({})
@@ -164,6 +178,40 @@ export function PluginsView(): React.ReactNode {
     }
   }, [])
 
+  useEffect(() => {
+    if (tab !== 'skills') return
+    let cancelled = false
+    setSkillsLoading(true)
+    setSkillsError(null)
+    desktopClient
+      .listSkillsCatalog({
+        query,
+        owner,
+        view: 'trending',
+        page: 0,
+        perPage: 24,
+      })
+      .then(result => {
+        if (cancelled) return
+        setSkills(result.skills)
+      })
+      .catch(error => {
+        if (cancelled) return
+        setSkills([])
+        setSkillsError(
+          error instanceof Error ? error.message : '技能目录加载失败。',
+        )
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setSkillsLoading(false)
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [owner, query, skillsReloadKey, tab])
+
   const visiblePlugins = useMemo(() => {
     const keyword = query.trim().toLowerCase()
     return PLUGINS.map(plugin => ({
@@ -182,17 +230,57 @@ export function PluginsView(): React.ReactNode {
     })
   }, [enabledBuiltinPlugins, filter, query])
 
-  async function enablePlugin(plugin: Plugin): Promise<void> {
+  const visibleSkills = useMemo(() => {
+    return skills.filter(skill => {
+      if (filter === 'installed' && !skill.installed) return false
+      if (filter === 'available' && skill.installed) return false
+      return true
+    })
+  }, [filter, skills])
+
+  async function togglePlugin(plugin: Plugin): Promise<void> {
     if (!plugin.builtinPluginId) return
     const result = await desktopClient.setBuiltinPluginEnabled(
       plugin.builtinPluginId,
-      true,
+      !plugin.installed,
     )
     setEnabledBuiltinPlugins(current => ({
       ...current,
       [result.id]: result.enabled,
     }))
   }
+
+  async function installSkill(skill: DesktopSkillCatalogItem): Promise<void> {
+    if (skill.installed || installingSkillIds.has(skill.id)) return
+    setInstallingSkillIds(current => new Set(current).add(skill.id))
+    setSkillsError(null)
+    try {
+      const result = await desktopClient.installSkill({
+        id: skill.id,
+        installUrl: skill.installUrl,
+      })
+      setSkills(current =>
+        current.map(item =>
+          item.id === result.id
+            ? { ...item, installed: result.installed }
+            : item,
+        ),
+      )
+    } catch (error) {
+      setSkillsError(
+        error instanceof Error ? error.message : '技能安装失败。',
+      )
+    } finally {
+      setInstallingSkillIds(current => {
+        const next = new Set(current)
+        next.delete(skill.id)
+        return next
+      })
+    }
+  }
+
+  const isSkillsTab = tab === 'skills'
+  const listCount = isSkillsTab ? visibleSkills.length : visiblePlugins.length
 
   return (
     <section className="plugins-view">
@@ -236,7 +324,7 @@ export function PluginsView(): React.ReactNode {
       </header>
 
       <div className="plugins-hero-header">
-        <h1>让 CodePilotX 按你的方式工作</h1>
+        <h1>{isSkillsTab ? '从 skills.sh 添加可复用技能' : '让 CodePilotX 按你的方式工作'}</h1>
       </div>
 
       <div className="plugins-search-row">
@@ -244,15 +332,34 @@ export function PluginsView(): React.ReactNode {
           <Search size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           <input
             value={query}
-            placeholder="搜索插件"
+            placeholder={isSkillsTab ? '搜索技能' : '搜索插件'}
             onChange={event => setQuery(event.target.value)}
           />
         </label>
 
-        <button className="plugins-filter" type="button">
+        <button
+          className="plugins-filter"
+          onClick={() => {
+            if (!isSkillsTab) return
+            setOwner(current =>
+              current === 'official'
+                ? 'all'
+                : current === 'all'
+                ? 'community'
+                : 'official',
+            )
+          }}
+          type="button"
+        >
           <span className="plugins-filter-owner">
             <Sparkles size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-            Built by OpenAI
+            {isSkillsTab
+              ? owner === 'official'
+                ? 'Official'
+                : owner === 'community'
+                ? 'Community'
+                : 'All skills'
+              : 'Built by OpenAI'}
           </span>
           <ChevronDown size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
         </button>
@@ -285,13 +392,21 @@ export function PluginsView(): React.ReactNode {
           <p className="plugins-hero-pill">
             <code className="plugins-hero-command">
               <PlayCircle size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-              Computer Use
+              {isSkillsTab ? 'skills.sh' : 'Computer Use'}
             </code>
-            播放一个播放列表,帮我进入专注状态
+            {isSkillsTab ? '搜索、安装并在对话中调用专业技能' : '播放一个播放列表,帮我进入专注状态'}
           </p>
-          <button className="plugins-hero-cta" type="button">
+          <button
+            className="plugins-hero-cta"
+            onClick={() => {
+              if (isSkillsTab) {
+                void desktopClient.openExternalURL('https://skills.sh')
+              }
+            }}
+            type="button"
+          >
             <MessageSquare size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-            在对话中试用
+            {isSkillsTab ? '打开 skills.sh' : '在对话中试用'}
           </button>
         </div>
 
@@ -319,15 +434,85 @@ export function PluginsView(): React.ReactNode {
 
       <section className="plugins-section">
         <header className="plugins-section-header">
-          <h2>Featured</h2>
-          <span className="plugins-section-count">{visiblePlugins.length}</span>
+          <h2>{isSkillsTab ? 'Skills' : 'Featured'}</h2>
+          <span className="plugins-section-count">{listCount}</span>
         </header>
 
-        {visiblePlugins.length === 0 ? (
+        {isSkillsTab && skillsError ? (
+          <div className="plugins-empty">
+            <AlertOctagon size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <p>{skillsError}</p>
+            <div className="plugins-empty-actions">
+              <button
+                className="plugins-button is-primary"
+                onClick={() => setSkillsReloadKey(current => current + 1)}
+                type="button"
+              >
+                重试
+              </button>
+              <button
+                className="plugins-button is-ghost"
+                onClick={() => {
+                  void desktopClient.openExternalURL('https://skills.sh')
+                }}
+                type="button"
+              >
+                打开 skills.sh
+              </button>
+            </div>
+          </div>
+        ) : isSkillsTab && skillsLoading ? (
           <div className="plugins-empty">
             <Clock size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-            <p>没有匹配 "{query}" 的插件。</p>
+            <p>正在加载 skills.sh 技能目录...</p>
           </div>
+        ) : listCount === 0 ? (
+          <div className="plugins-empty">
+            <Clock size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <p>没有匹配 "{query}" 的{isSkillsTab ? '技能' : '插件'}。</p>
+          </div>
+        ) : isSkillsTab ? (
+          <ul className="plugins-grid">
+            {visibleSkills.map(skill => {
+              const installing = installingSkillIds.has(skill.id)
+              return (
+                <li className="plugins-card" data-tone="codex" key={skill.id}>
+                  <span className="plugins-card-icon plugins-tone-codex">
+                    <Sparkles size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                  </span>
+                  <div className="plugins-card-meta">
+                    <div className="plugins-card-title-row">
+                      <h3>{skill.name}</h3>
+                      {skill.audit ? (
+                        <span
+                          className={`plugins-audit-badge is-${skill.audit.status}`}
+                          title={skill.audit.summary}
+                        >
+                          {renderAuditIcon(skill.audit.status)}
+                          {skill.audit.status}
+                        </span>
+                      ) : null}
+                    </div>
+                    <p>{skill.source} · {skill.installs.toLocaleString()} installs</p>
+                  </div>
+                  <button
+                    aria-pressed={skill.installed}
+                    className={
+                      skill.installed
+                        ? 'plugins-card-action is-installed'
+                        : 'plugins-card-action'
+                    }
+                    disabled={skill.installed || installing}
+                    onClick={() => { void installSkill(skill) }}
+                    type="button"
+                    title={skill.installed ? '已添加' : '添加到 CodePilotX'}
+                  >
+                    {skill.installed || installing ? <Check size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} /> : <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
         ) : (
           <ul className="plugins-grid">
             {visiblePlugins.map(plugin => (
@@ -346,10 +531,16 @@ export function PluginsView(): React.ReactNode {
                       ? 'plugins-card-action is-installed'
                       : 'plugins-card-action'
                   }
-                  disabled={plugin.installed}
-                  onClick={() => { void enablePlugin(plugin) }}
+                  disabled={plugin.installed && !plugin.builtinPluginId}
+                  onClick={() => { void togglePlugin(plugin) }}
                   type="button"
-                  title={plugin.installed ? '已添加' : '添加到 CodePilotX'}
+                  title={
+                    plugin.installed
+                      ? plugin.builtinPluginId
+                        ? '从 CodePilotX 移除'
+                        : '已添加'
+                      : '添加到 CodePilotX'
+                  }
                 >
                   {plugin.installed ? <Check size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} /> : <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
                 </button>
@@ -362,4 +553,13 @@ export function PluginsView(): React.ReactNode {
   )
 }
 
+function renderAuditIcon(status: DesktopSkillAuditStatus): React.ReactNode {
+  if (status === 'pass') {
+    return <ShieldCheck size={12} strokeWidth={APP_ICON_STROKE_WIDTH} />
+  }
+  if (status === 'warn') {
+    return <ShieldAlert size={12} strokeWidth={APP_ICON_STROKE_WIDTH} />
+  }
+  return <ShieldX size={12} strokeWidth={APP_ICON_STROKE_WIDTH} />
+}
 

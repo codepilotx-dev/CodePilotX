@@ -17,13 +17,9 @@ import {
 import { createStore, type Store } from '../state/store.js'
 import { getDefaultAppState } from '../state/AppStateStore.js'
 import type { Tool, ToolPermissionContext, Tools } from '../Tool.js'
-import {
-  MiniMaxImageTool,
-  MiniMaxMusicTool,
-  MiniMaxSpeechTool,
-  MiniMaxVideoTool,
-} from '../tools/MiniMaxTool/MiniMaxTool.js'
+import { MiniMaxTools } from '../tools/MiniMaxTool/MiniMaxTool.js'
 import { getAllBaseTools } from '../tools.js'
+import { getCommands } from '../commands.js'
 import { initBuiltinPlugins } from '../plugins/bundled/index.js'
 import { runWithCwdOverride } from '../utils/cwd.js'
 import { getDenyRuleForTool } from '../utils/permissions/permissions.js'
@@ -180,6 +176,7 @@ class EmbeddedDesktopHeadlessRuntime implements DesktopHeadlessRuntime {
       this.currentInput = input
       this.prepareGlobalSessionState()
       try {
+        const commands = await getCommands(this.options.workspacePath)
         logDesktopHeadless('run_headless_start', {
           sessionId: this.options.sessionId,
           resume:
@@ -191,7 +188,7 @@ class EmbeddedDesktopHeadlessRuntime implements DesktopHeadlessRuntime {
             input,
             () => this.store.getState(),
             this.store.setState,
-            [],
+            commands,
             this.tools,
             {},
             [],
@@ -462,12 +459,7 @@ function getDesktopHeadlessTools(
     ),
     ...(getSettings_DEPRECATED().enabledPlugins?.[MINIMAX_BUILTIN_PLUGIN_ID] ===
     true
-      ? [
-          MiniMaxImageTool,
-          MiniMaxSpeechTool,
-          MiniMaxVideoTool,
-          MiniMaxMusicTool,
-        ]
+      ? MiniMaxTools
       : []),
   ]
   const seen = new Set<string>()

@@ -5,17 +5,23 @@ import * as Select from '@radix-ui/react-select'
 import {
   ArrowUp,
   Blocks,
+  Box,
+  Brain,
   Check,
   ChevronDown,
   ChevronRight,
+  CircleGauge,
+  Compass,
   FileText,
   Folder,
   FileSpreadsheet,
   GitBranch,
+  GitFork,
   Hand,
   ListChecks,
   Mic,
   Monitor,
+  Palette,
   Paperclip,
   Plus,
   Presentation,
@@ -37,6 +43,7 @@ import type {
   DesktopWorkspace,
   DesktopContextUsage,
   DesktopComposerAttachment,
+  DesktopSlashCommandSuggestion,
   ModelProviderID,
 } from '../../shared/types.js'
 import type { ModelPreset } from '../modelPresets.js'
@@ -69,42 +76,57 @@ type ComposerDropdown =
   | 'mode'
   | 'branch'
 
+type ContextPluginTone =
+  | 'docs'
+  | 'pdf'
+  | 'sheets'
+  | 'slides'
+  | 'template'
+  | 'browser'
+
 type ContextPlugin = {
   name: string
-  tone: 'docs' | 'pdf' | 'sheets' | 'slides' | 'github' | 'openai'
+  description: string
+  tone: ContextPluginTone
   icon: React.ReactNode
 }
 
 const INSTALLED_CONTEXT_PLUGINS: ContextPlugin[] = [
   {
     name: 'Documents',
+    description: 'Create and edit document artifacts',
     tone: 'docs',
     icon: <FileText size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
   },
   {
     name: 'PDF',
+    description: 'Read, create, and verify PDF files',
     tone: 'pdf',
     icon: <FileText size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
   },
   {
     name: 'Spreadsheets',
+    description: 'Create and edit spreadsheet files',
     tone: 'sheets',
     icon: <FileSpreadsheet size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
   },
   {
     name: 'Presentations',
+    description: 'Create and edit presentation files',
     tone: 'slides',
     icon: <Presentation size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
   },
   {
-    name: 'GitHub',
-    tone: 'github',
-    icon: <GitBranch size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
+    name: 'Template Creator',
+    description: 'Create or update personal artifact templates',
+    tone: 'template',
+    icon: <Palette size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
   },
   {
-    name: 'OpenAI Developers',
-    tone: 'openai',
-    icon: <Sparkles size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
+    name: '浏览器',
+    description: 'Control the in-app browser with Codex',
+    tone: 'browser',
+    icon: <Compass size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
   },
 ]
 
@@ -113,6 +135,7 @@ const PERMISSION_CHIP_CLASS_NAMES: Record<DesktopPermissionMode, string> = {
   bypassPermissions: 'permission-chip permission-chip-bypassPermissions',
   customConfig: 'permission-chip permission-chip-customConfig',
   default: 'permission-chip permission-chip-default',
+  plan: 'permission-chip permission-chip-plan',
 }
 
 type Props = {
@@ -138,6 +161,7 @@ type Props = {
   recentWorkspaces: DesktopWorkspace[]
   workspace: DesktopWorkspace | null
   attachments?: DesktopComposerAttachment[]
+  slashCommands?: DesktopSlashCommandSuggestion[]
   placeholder?: string
   onChooseWorkspace: () => void
   onInputChange: (value: string) => void
@@ -150,10 +174,13 @@ type Props = {
   onOpenFiles: () => void
   onRemoveAttachment?: (attachmentId: string) => void
   onOpenWorkspace: (workspace: DesktopWorkspace) => void
+  onCloneGithub?: () => void
   onClearWorkspace: () => void
+  onOpenBrowser?: () => void
   onBranchSelect: (branch: string) => void
   onCreateBranch: () => void
   onPermissionChange: (value: DesktopPermissionMode) => void
+  onPlanModeToggle?: (enabled: boolean, previousMode: DesktopPermissionMode) => void
   onSubmit: () => void
   onThinkingChange: (value: DesktopThinkingMode) => void
 }
@@ -181,6 +208,7 @@ export function ComposerCard({
   recentWorkspaces,
   workspace,
   attachments = [],
+  slashCommands = [],
   placeholder = '随心输入',
   onChooseWorkspace,
   onInputChange,
@@ -190,10 +218,13 @@ export function ComposerCard({
   onOpenFiles,
   onRemoveAttachment,
   onOpenWorkspace,
+  onCloneGithub,
   onClearWorkspace,
+  onOpenBrowser,
   onBranchSelect,
-  onCreateBranch,
+onCreateBranch,
   onPermissionChange,
+  onPlanModeToggle,
   onSubmit,
   onThinkingChange,
 }: Props): React.ReactNode {
@@ -202,8 +233,12 @@ export function ComposerCard({
     null,
   )
   const [branchSearch, setBranchSearch] = useState('')
-  const [planModeEnabled, setPlanModeEnabled] = useState(false)
+  const planModeEnabled = permissionMode === 'plan'
   const [goalModeEnabled, setGoalModeEnabled] = useState(false)
+  const [slashSelectedIndex, setSlashSelectedIndex] = useState(0)
+  const [dismissedSlashInput, setDismissedSlashInput] = useState<string | null>(
+    null,
+  )
 
   const selectedPermission = permissionOptions.find(
     option => option.value === permissionMode,
@@ -247,6 +282,31 @@ export function ComposerCard({
     return availableBranches.filter(branch => branch.toLowerCase().includes(keyword))
   }, [branchName, branchSearch, branches])
 
+  const slashInput = input.trimStart()
+  const slashQuery =
+    slashInput.startsWith('/') && !/\s/.test(slashInput.slice(1))
+      ? slashInput.slice(1).toLowerCase()
+      : null
+  const visibleSlashCommands = useMemo(() => {
+    if (slashQuery === null) return []
+    return slashCommands.filter(command => {
+      if (!slashQuery) return true
+      return (
+        command.name.toLowerCase().includes(slashQuery) ||
+        command.title.toLowerCase().includes(slashQuery) ||
+        command.description.toLowerCase().includes(slashQuery)
+      )
+    })
+  }, [slashCommands, slashQuery])
+  const showSlashPalette =
+    slashQuery !== null &&
+    input !== dismissedSlashInput &&
+    visibleSlashCommands.length > 0
+
+  useEffect(() => {
+    setSlashSelectedIndex(0)
+  }, [slashQuery, visibleSlashCommands.length])
+
   useEffect(() => {
     const textarea = textareaRef.current
     if (!textarea) return
@@ -256,6 +316,14 @@ export function ComposerCard({
 
   function closeDropdown(): void {
     setOpenDropdown(null)
+  }
+
+  function selectSlashCommand(command: DesktopSlashCommandSuggestion): void {
+    onInputChange(`/${command.name} `)
+    setDismissedSlashInput(null)
+    requestAnimationFrame(() => {
+      textareaRef.current?.focus()
+    })
   }
 
   function handleFileDrop(event: React.DragEvent<HTMLDivElement>): void {
@@ -278,6 +346,7 @@ export function ComposerCard({
     if (value === 'default') return <Hand size={APP_ICON_SIZE} />
     if (value === 'bypassPermissions') return <ShieldAlert size={APP_ICON_SIZE} />
     if (value === 'customConfig') return <Wrench size={APP_ICON_SIZE} />
+    if (value === 'plan') return <ListChecks size={APP_ICON_SIZE} />
     return <ShieldCheck size={APP_ICON_SIZE} />
   }
 
@@ -290,6 +359,7 @@ export function ComposerCard({
     enabled: boolean,
     icon: React.ReactNode,
     onToggle: (enabled: boolean) => void,
+    description?: string,
   ): React.ReactNode {
     return (
       <DropdownMenu.Item
@@ -301,7 +371,12 @@ export function ComposerCard({
         }}
       >
         <span className="popover-item-icon">{icon}</span>
-        <span className="popover-item-label">{label}</span>
+        <span className="popover-item-rich">
+          <span className="popover-item-label">{label}</span>
+          {description ? (
+            <span className="popover-item-description">{description}</span>
+          ) : null}
+        </span>
         <span
           aria-checked={enabled}
           className="context-menu-switch"
@@ -346,6 +421,12 @@ export function ComposerCard({
         <div className="permission-warning-banner">
           <ShieldOff size={APP_ICON_SIZE} />
           <span>完全访问权限 · 此对话允许直接读写文件和运行命令</span>
+        </div>
+      ) : null}
+      {planModeEnabled ? (
+        <div className="permission-plan-banner">
+          <ListChecks size={APP_ICON_SIZE} />
+          <span>计划模式 · 当前会话只允许读取；写入、命令与联网请求会被逐项询问</span>
         </div>
       ) : null}
       <div className="composer-top">
@@ -401,6 +482,31 @@ export function ComposerCard({
             value={input}
             onChange={event => onInputChange(event.target.value)}
             onKeyDown={event => {
+              if (showSlashPalette) {
+                if (event.key === 'ArrowDown') {
+                  event.preventDefault()
+                  setSlashSelectedIndex(index =>
+                    Math.min(index + 1, visibleSlashCommands.length - 1),
+                  )
+                  return
+                }
+                if (event.key === 'ArrowUp') {
+                  event.preventDefault()
+                  setSlashSelectedIndex(index => Math.max(index - 1, 0))
+                  return
+                }
+                if (event.key === 'Escape') {
+                  event.preventDefault()
+                  setDismissedSlashInput(input)
+                  return
+                }
+                if (event.key === 'Enter' && !event.shiftKey) {
+                  event.preventDefault()
+                  const command = visibleSlashCommands[slashSelectedIndex]
+                  if (command) selectSlashCommand(command)
+                  return
+                }
+              }
               if (event.key !== 'Enter' || event.shiftKey) return
               event.preventDefault()
               if (canSubmit) onSubmit()
@@ -410,6 +516,15 @@ export function ComposerCard({
             rows={1}
           />
         </div>
+
+        {showSlashPalette ? (
+          <SlashCommandPalette
+            commands={visibleSlashCommands}
+            selectedIndex={slashSelectedIndex}
+            onHover={setSlashSelectedIndex}
+            onSelect={selectSlashCommand}
+          />
+        ) : null}
 
         <div className="composer-toolbar">
           <div className="toolbar-left">
@@ -430,6 +545,7 @@ export function ComposerCard({
                 </IconButton>
               }
             >
+              <div className="popover-section-title">Add</div>
               <div className="popover-section">
                 <PopoverItem
                   icon={<Paperclip size={APP_ICON_SIZE} />}
@@ -438,71 +554,54 @@ export function ComposerCard({
                     closeDropdown()
                   }}
                 >
-                  添加照片和文件
+                  Files and folders
                 </PopoverItem>
-              </div>
-              <div className="popover-divider" />
-              <div className="popover-section">
+                <PopoverItem
+                  icon={<Target size={APP_ICON_SIZE} />}
+                  meta="设置 Codex 将持续努力实现的目标"
+                  onClick={closeDropdown}
+                >
+                  目标
+                </PopoverItem>
                 {renderContextSwitchItem(
                   '计划模式',
                   planModeEnabled,
                   <ListChecks size={APP_ICON_SIZE} />,
-                  setPlanModeEnabled,
-                )}
-                {renderContextSwitchItem(
-                  '追求目标',
-                  goalModeEnabled,
-                  <Target size={APP_ICON_SIZE} />,
-                  setGoalModeEnabled,
+                  (next: boolean) => {
+                    if (onPlanModeToggle) {
+                      onPlanModeToggle(next, permissionMode)
+                    } else {
+                      onPermissionChange(next ? 'plan' : 'default')
+                    }
+                  },
+                  '开启计划模式',
                 )}
               </div>
-              <div className="popover-divider" />
+              <div className="popover-section-title">插件</div>
               <div className="popover-section">
-                <DropdownMenu.Sub>
-                  <DropdownMenu.SubTrigger
-                    className="popover-item context-menu-sub-trigger"
-                    tabIndex={-1}
+                {INSTALLED_CONTEXT_PLUGINS.map(plugin => (
+                  <PopoverItem
+                    key={plugin.name}
+                    meta={plugin.description}
+                    keepOpen
+                    onClick={() => {
+                      if (plugin.tone === 'browser') {
+                        onOpenBrowser?.()
+                      }
+                      closeDropdown()
+                    }}
                   >
-                    <span className="popover-item-icon">
-                      <Blocks size={APP_ICON_SIZE} />
-                    </span>
-                    <span className="popover-item-label">插件</span>
-                    <ChevronRight className="popover-item-arrow" size={APP_ICON_SIZE} />
-                  </DropdownMenu.SubTrigger>
-                  <DropdownMenu.Portal>
-                    <DropdownMenu.SubContent
-                      alignOffset={-8}
-                      className="popover popover-sub-content context-plugin-submenu"
-                      sideOffset={8}
+                    <span
+                      className={[
+                        'context-plugin-icon',
+                        `context-plugin-icon-${plugin.tone}`,
+                      ].join(' ')}
                     >
-                      <div className="popover-header">
-                        {INSTALLED_CONTEXT_PLUGINS.length} 个已安装插件
-                      </div>
-                      <div className="popover-section">
-                        {INSTALLED_CONTEXT_PLUGINS.map(plugin => (
-                          <DropdownMenu.Item
-                            className="popover-item context-plugin-item"
-                            key={plugin.name}
-                            tabIndex={-1}
-                            onSelect={event => event.preventDefault()}
-                          >
-                            <span
-                              className={[
-                                'context-plugin-icon',
-                                `context-plugin-icon-${plugin.tone}`,
-                              ].join(' ')}
-                            >
-                              {plugin.icon}
-                            </span>
-                            <span className="popover-item-label">
-                              {plugin.name}
-                            </span>
-                          </DropdownMenu.Item>
-                        ))}
-                      </div>
-                    </DropdownMenu.SubContent>
-                  </DropdownMenu.Portal>
-                </DropdownMenu.Sub>
+                      {plugin.icon}
+                    </span>
+                    <span className="popover-item-label">{plugin.name}</span>
+                  </PopoverItem>
+                ))}
               </div>
             </PopoverMenu>
             <Select.Root
@@ -862,6 +961,10 @@ export function ComposerCard({
             onChooseWorkspace()
             closeDropdown()
           }}
+          onCloneGithub={() => {
+            onCloneGithub?.()
+            closeDropdown()
+          }}
           onClearWorkspace={() => {
             onClearWorkspace()
             closeDropdown()
@@ -977,6 +1080,120 @@ function formatCompactNumber(value: number): string {
 
 function trimNumber(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(1)
+}
+
+function getSlashCommandIcon(command: DesktopSlashCommandSuggestion): React.ReactNode {
+  switch (command.name) {
+    case 'effort':
+      return <Brain size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+    case 'model':
+      return <Box size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+    case 'branch':
+      return <GitFork size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+    case 'status':
+      return (
+        <CircleGauge size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+      )
+    case 'plan':
+      return <ListChecks size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+    case 'remember':
+    case 'goal':
+      return <Brain size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+    default:
+      return <Sparkles size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+  }
+}
+
+function SlashCommandPalette({
+  commands,
+  selectedIndex,
+  onHover,
+  onSelect,
+}: {
+  commands: DesktopSlashCommandSuggestion[]
+  selectedIndex: number
+  onHover: (index: number) => void
+  onSelect: (command: DesktopSlashCommandSuggestion) => void
+}): React.ReactNode {
+  const commandItems = commands.filter(command => command.category === 'command')
+  const skillItems = commands.filter(command => command.category === 'skill')
+  const skillOffset = commandItems.length
+
+  return (
+    <div className="slash-command-palette" role="listbox">
+      {commandItems.length > 0 ? (
+        <SlashCommandSection
+          commands={commandItems}
+          offset={0}
+          selectedIndex={selectedIndex}
+          title={null}
+          onHover={onHover}
+          onSelect={onSelect}
+        />
+      ) : null}
+      {skillItems.length > 0 ? (
+        <SlashCommandSection
+          commands={skillItems}
+          offset={skillOffset}
+          selectedIndex={selectedIndex}
+          title="技能"
+          onHover={onHover}
+          onSelect={onSelect}
+        />
+      ) : null}
+    </div>
+  )
+}
+
+function SlashCommandSection({
+  commands,
+  offset,
+  selectedIndex,
+  title,
+  onHover,
+  onSelect,
+}: {
+  commands: DesktopSlashCommandSuggestion[]
+  offset: number
+  selectedIndex: number
+  title: string | null
+  onHover: (index: number) => void
+  onSelect: (command: DesktopSlashCommandSuggestion) => void
+}): React.ReactNode {
+  return (
+    <div className="slash-command-section">
+      {title ? <div className="slash-command-section-title">{title}</div> : null}
+      {commands.map((command, index) => {
+        const absoluteIndex = offset + index
+        const selected = absoluteIndex === selectedIndex
+        return (
+          <button
+            aria-selected={selected}
+            className={[
+              'slash-command-item',
+              selected ? 'is-selected' : '',
+            ].join(' ')}
+            key={command.name}
+            onClick={() => onSelect(command)}
+            onMouseEnter={() => onHover(absoluteIndex)}
+            role="option"
+            type="button"
+          >
+            <span className="slash-command-item-icon">{getSlashCommandIcon(command)}</span>
+            <span className="slash-command-item-body">
+              <span className="slash-command-item-title">{command.title}</span>
+              <span className="slash-command-item-description">
+                {command.description}
+              </span>
+            </span>
+            {command.scope ? (
+              <span className="slash-command-item-scope">{command.scope}</span>
+            ) : null}
+          </button>
+        )
+      })}
+    </div>
+  )
 }
 
 function attachmentTypeLabel(attachment: DesktopComposerAttachment): string {

@@ -149,6 +149,7 @@ declare module '@codepilotx/core/agent/permissions.js' {
     | 'auto-approve-edits'
     | 'bypass'
     | 'config'
+    | 'plan'
   export type AgentPermissionAction =
     | 'read'
     | 'write'
@@ -190,6 +191,7 @@ declare module '@codepilotx/core/agent/permissions.js' {
     | 'bypassPermissions'
     | 'customConfig'
     | 'default'
+    | 'plan'
   export const DESKTOP_AGENT_PERMISSION_MODES: readonly DesktopAgentPermissionMode[]
   export function isAgentApprovalMode(
     value: unknown,
@@ -503,6 +505,45 @@ declare module '@codepilotx/core/agent/codexContextDiagnosticsShared.js' {
   }): Promise<CodexContextDiagnostics>
 }
 
+declare module '@codepilotx/core/agent/workflowView.js' {
+  import type {
+    AgentPermissionRequest,
+    AgentSessionEvent,
+    AgentSessionMessage,
+    AgentSessionStatus,
+  } from '@codepilotx/core/agent/runtime.js'
+  import type { ThreadEvent } from '@codepilotx/core/agent/workflow.js'
+
+  export type WorkflowToolRun = {
+    id: string
+    toolUseId: string
+    toolName: string
+    callContent: string
+    resultContent: string
+    callCreatedAt?: string
+    resultCreatedAt?: string
+    isError: boolean
+    isRunning: boolean
+  }
+  export type WorkflowSessionViewDiagnostics = {
+    duplicateEventIds: string[]
+    missingToolResults: string[]
+    outOfOrderSequences: Array<{ previous: number; current: number }>
+  }
+  export type WorkflowSessionView = {
+    messages: AgentSessionMessage[]
+    events: AgentSessionEvent[]
+    toolRuns: WorkflowToolRun[]
+    pendingPermissions: AgentPermissionRequest[]
+    turnStatus: AgentSessionStatus
+    diagnostics: WorkflowSessionViewDiagnostics
+  }
+  export function deriveWorkflowSessionView(
+    workflowEvents: ThreadEvent[],
+    threadId?: string | null,
+  ): WorkflowSessionView
+}
+
 declare module '@codepilotx/core/models/provider.js' {
   export type ModelProviderID = string
   export type ModelProviderKind =
@@ -549,6 +590,38 @@ declare module '@codepilotx/core/models/provider.js' {
     gatewaySource?: boolean
     requiresBaseURL?: boolean
   }
+  export type ModelProviderConfig = Omit<
+    ModelProviderSummary,
+    'apiKeyConfigured'
+  > & {
+    apiKeyEnvVar?: string
+  }
+  export type ModelProviderState = {
+    selectedProviderID: ModelProviderID
+    provider: ModelProviderSummary
+    model: string
+    baseURL?: string
+    apiKeyConfigured: boolean
+    apiKeySource: string | null
+    modelConfigured: boolean
+    configurationMessage?: string
+    models: string[]
+    modelMetadata?: Record<string, ModelMetadata>
+    error?: string
+  }
+  export function isModelProviderID(value: unknown): value is ModelProviderID
+  export function createModelProviderSummary(
+    provider: ModelProviderConfig,
+    apiKeySource?: string | null,
+  ): ModelProviderSummary
+  export function createModelProviderState(params: {
+    selectedProviderID: ModelProviderID
+    provider: ModelProviderConfig
+    model?: string
+    baseURL?: string
+    apiKeySource?: string | null
+    models?: string[]
+  }): ModelProviderState
   export type ProviderBalanceInfo = {
     currency: string
     totalBalance: string
@@ -748,6 +821,30 @@ declare module '@codepilotx/tui/utils/settings/settings.js' {
     source: string,
     settings: Record<string, unknown>,
   ): { error?: Error }
+}
+
+declare module '@codepilotx/tui/commands.js' {
+  export type Command = {
+    type: 'prompt' | 'local' | 'local-jsx'
+    name: string
+    description: string
+    source?: string
+    isHidden?: boolean
+    userInvocable?: boolean
+    isEnabled?: () => boolean
+    userFacingName?: () => string
+  }
+  export function getCommands(cwd: string): Promise<Command[]>
+  export function getCommandName(command: Command): string
+  export function formatDescriptionWithSource(command: Command): string
+}
+
+declare module '@codepilotx/tui/plugins/bundled/index.js' {
+  export function initBuiltinPlugins(): void
+}
+
+declare module '@codepilotx/tui/utils/plugins/cacheUtils.js' {
+  export function clearAllCaches(): void
 }
 
 declare module '@codepilotx/tui/utils/model/model.js' {

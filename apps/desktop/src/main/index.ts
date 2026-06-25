@@ -1,9 +1,16 @@
 import { app } from 'electron'
+import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { stat } from 'node:fs/promises'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { enableConfigs } from '@codepilotx/core/utils/config.js'
+import {
+  formatDescriptionWithSource,
+  getCommandName,
+  getCommands,
+} from '@codepilotx/tui/commands.js'
+import { initBuiltinPlugins } from '@codepilotx/tui/plugins/bundled/index.js'
 import {
   getMainLoopModel,
   parseUserSpecifiedModel,
@@ -16,6 +23,7 @@ import {
   getSettings_DEPRECATED,
   updateSettingsForSource,
 } from '@codepilotx/tui/utils/settings/settings.js'
+import { clearAllCaches } from '@codepilotx/tui/utils/plugins/cacheUtils.js'
 import { generateSessionTitle } from '@codepilotx/tui/utils/sessionTitle.js'
 import { saveAiGeneratedTitle } from '@codepilotx/tui/utils/sessionStorage.js'
 import {
@@ -28,6 +36,7 @@ import { applyDesktopAgentRuntimeEnvDefaults } from './desktopRuntimeEnv.js'
 import { createDesktopJsonRpcAppServerBridge } from './desktopJsonRpcAppServerBridge.js'
 import { registerDesktopIpcHandlers } from './ipc.js'
 import { createDesktopWindowService } from './windowService.js'
+import { createDesktopBrowserService } from './browserService.js'
 import { createDesktopAutoUpdater } from './autoUpdater.js'
 import { DESKTOP_UPDATE_STATUS_CHANNEL } from '../shared/ipcChannels.js'
 import {
@@ -39,6 +48,7 @@ import {
   registerAllowedWorkspace,
   workspaceFromPath,
 } from './workspaceService.js'
+import { configureGithubService } from './githubService.js'
 import { getOpenAgentConfigHomeDir } from './desktopSettings.js'
 import { desktopDebug } from './desktopDebug.js'
 import { getModelProviderState } from './modelProviderService.js'
@@ -59,6 +69,8 @@ import type {
   DesktopBuiltinPlugin,
   DesktopPermissionDecision,
   DesktopPermissionMode,
+  DesktopReviewComment,
+  DesktopSlashCommandSuggestion,
   DesktopSessionMetadataPatch,
   DesktopSessionSettingsSnapshot,
   DesktopSessionSnapshot,
@@ -66,6 +78,8 @@ import type {
   DesktopUserMessageContent,
   DesktopUserMessageInput,
   DesktopWorkspace,
+  SaveSessionReviewCommentInput,
+  SessionReviewCommentInput,
 } from '../shared/types.js'
 import {
   buildDesktopUserMessageContent,
@@ -101,6 +115,29 @@ const titleGenerationStartedSessionIds = new Set<string>()
 let activeSessionId: string | null = null
 let sessionStoreLoadPromise: Promise<void> | null = null
 const DESKTOP_BUILTIN_PLUGIN_IDS = ['minimax@builtin'] as const
+const DESKTOP_PRIMARY_SLASH_COMMANDS = [
+  'effort',
+  'model',
+  'branch',
+  'status',
+  'goal',
+  'plan',
+  'remember',
+] as const
+const DESKTOP_PRIMARY_SLASH_COMMAND_SET = new Set<string>(
+  DESKTOP_PRIMARY_SLASH_COMMANDS,
+)
+const DESKTOP_SLASH_COMMAND_TITLE_OVERRIDES: Record<string, string> = {
+  effort: '推理模式',
+  model: '模型',
+  branch: '派生',
+  status: '状态',
+  goal: '目标',
+  plan: '计划模式',
+  remember: '记忆',
+}
+
+initBuiltinPlugins()
 
 function rendererUrl(): string {
   const devRendererUrl =
@@ -124,6 +161,9 @@ const windowService = createDesktopWindowService({
   rendererUrl,
   preloadPath: () => join(__dirname, '../preload/index.js'),
 })
+const browserService = createDesktopBrowserService({
+  getWindow: windowService.getWindow,
+})
 const jsonRpcAppServerThreadIds = new Set<string>()
 const jsonRpcAppServerBridge = createDesktopJsonRpcAppServerBridge({
   onWorkflowEvent: event => {
@@ -138,6 +178,7 @@ const jsonRpcAppServerBridge = createDesktopJsonRpcAppServerBridge({
   },
 })
 configureWorkspaceService({ getWindow: windowService.getWindow })
+configureGithubService({ getWindow: windowService.getWindow })
 
 function assertTrustedIpcSender(senderUrl: string | undefined): void {
   if (!isTrustedRendererUrl(senderUrl)) {
@@ -406,6 +447,137 @@ async function updateSessionMetadata(
           item.snapshot.item.id !== sessionId &&
           !item.snapshot.item.archivedAt,
       )?.snapshot.item.id ?? null
+  }
+  persistSessionStore()
+  return record.snapshot
+}
+
+async function saveSessionReviewComment(
+  input: SaveSessionReviewCommentInput,
+): Promise<DesktopSessionSnapshot> {
+  const record = await getSessionRecord(input.sessionId)
+  const comment = normalizeReviewCommentInput(input, record.snapshot.item.id)
+  const comments = record.snapshot.reviewComments ?? []
+  const existingIndex = comments.findIndex(item => item.id === comment.id)
+  const nextComments =
+    existingIndex >= 0
+      ? comments.map(item => (item.id === comment.id ? comment : item))
+      : [...comments, comment]
+  record.snapshot = {
+    ...record.snapshot,
+    reviewComments: nextComments,
+    updatedAt: new Date().toISOString(),
+  }
+  persistSessionStore()
+  return record.snapshot
+}
+
+async function resolveSessionReviewComment(
+  input: SessionReviewCommentInput,
+): Promise<DesktopSessionSnapshot> {
+  return updateSessionReviewCommentStatus(input, 'resolved')
+}
+
+async function deleteSessionReviewComment(
+  input: SessionReviewCommentInput,
+): Promise<DesktopSessionSnapshot> {
+  const record = await getSessionRecord(input.sessionId)
+  record.snapshot = {
+    ...record.snapshot,
+    reviewComments: (record.snapshot.reviewComments ?? []).filter(
+      comment => comment.id !== input.commentId,
+    ),
+    updatedAt: new Date().toISOString(),
+  }
+  persistSessionStore()
+  return record.snapshot
+}
+
+async function updateSessionReviewCommentStatus(
+  input: SessionReviewCommentInput,
+  status: DesktopReviewComment['status'],
+): Promise<DesktopSessionSnapshot> {
+  const record = await getSessionRecord(input.sessionId)
+  const now = new Date().toISOString()
+  let found = false
+  const reviewComments = (record.snapshot.reviewComments ?? []).map(comment => {
+    if (comment.id !== input.commentId) return comment
+    found = true
+    return { ...comment, status, updatedAt: now }
+  })
+  if (!found) {
+    throw new Error('Review comment was not found.')
+  }
+  record.snapshot = {
+    ...record.snapshot,
+    reviewComments,
+    updatedAt: now,
+  }
+  persistSessionStore()
+  return record.snapshot
+}
+
+function normalizeReviewCommentInput(
+  input: SaveSessionReviewCommentInput,
+  sessionId: string,
+): DesktopReviewComment {
+  const raw = input.comment
+  const now = new Date().toISOString()
+  const id =
+    'id' in raw && typeof raw.id === 'string' && raw.id.trim()
+      ? raw.id.trim()
+      : `review-comment-${randomUUID()}`
+  const filePath = requireNonEmptyString(raw.filePath, 'Review comment file path')
+  const lineContent =
+    typeof raw.lineContent === 'string' ? raw.lineContent : ''
+  const body = requireNonEmptyString(raw.body, 'Review comment body')
+  if (raw.side !== 'left' && raw.side !== 'right') {
+    throw new Error('Review comment side must be left or right.')
+  }
+  if (
+    typeof raw.lineNumber !== 'number' ||
+    !Number.isInteger(raw.lineNumber) ||
+    raw.lineNumber < 1
+  ) {
+    throw new Error('Review comment line number must be a positive integer.')
+  }
+  return {
+    id,
+    sessionId,
+    filePath,
+    side: raw.side,
+    lineNumber: raw.lineNumber,
+    lineContent,
+    body,
+    status:
+      'status' in raw && raw.status === 'resolved' ? 'resolved' : 'open',
+    createdAt:
+      'createdAt' in raw &&
+      typeof raw.createdAt === 'string' &&
+      raw.createdAt.trim()
+        ? raw.createdAt
+        : now,
+    updatedAt: now,
+  }
+}
+
+async function setSessionPermissionMode(
+  sessionId: string,
+  mode: DesktopPermissionMode,
+): Promise<DesktopSessionSnapshot> {
+  const record = await getSessionRecord(sessionId)
+  const nextMode = normalizePermissionMode(mode)
+  createRuntimeForRecord(record).setPermissionMode(nextMode)
+  const nextItem = { ...record.snapshot.item, permissionMode: nextMode }
+  const nextSettings = {
+    ...record.snapshot.settings,
+    permissionMode: nextMode,
+  }
+  record.snapshot = {
+    ...record.snapshot,
+    item: nextItem,
+    settings: nextSettings,
+    updatedAt: new Date().toISOString(),
   }
   persistSessionStore()
   return record.snapshot
@@ -852,6 +1024,55 @@ async function listBuiltinPlugins(): Promise<DesktopBuiltinPlugin[]> {
   }))
 }
 
+async function listSlashCommands(
+  workspacePath?: string,
+): Promise<DesktopSlashCommandSuggestion[]> {
+  const cwd = workspacePath
+    ? normalizeWorkspacePath(workspacePath)
+    : (await getStandaloneWorkspace()).path
+  const commands = await getCommands(cwd)
+  const suggestions = commands
+    .filter(command => command.userInvocable !== false)
+    .filter(command => !command.isHidden)
+    .filter(command => command.isEnabled?.() ?? true)
+    .filter(command => {
+      const name = getCommandName(command)
+      return (
+        DESKTOP_PRIMARY_SLASH_COMMAND_SET.has(name) ||
+        (command.type === 'prompt' && command.source !== 'builtin')
+      )
+    })
+    .map(command => {
+      const name = getCommandName(command)
+      const isSkill = command.type === 'prompt'
+      return {
+        name,
+        title: DESKTOP_SLASH_COMMAND_TITLE_OVERRIDES[name] ?? name,
+        description: formatDescriptionWithSource(command),
+        category: isSkill ? 'skill' : 'command',
+        ...(isSkill && { scope: '个人' }),
+      } satisfies DesktopSlashCommandSuggestion
+    })
+
+  return suggestions.sort((a, b) => {
+    const aPrimary = DESKTOP_PRIMARY_SLASH_COMMANDS.indexOf(
+      a.name as (typeof DESKTOP_PRIMARY_SLASH_COMMANDS)[number],
+    )
+    const bPrimary = DESKTOP_PRIMARY_SLASH_COMMANDS.indexOf(
+      b.name as (typeof DESKTOP_PRIMARY_SLASH_COMMANDS)[number],
+    )
+    if (aPrimary !== -1 || bPrimary !== -1) {
+      if (aPrimary === -1) return 1
+      if (bPrimary === -1) return -1
+      return aPrimary - bPrimary
+    }
+    if (a.category !== b.category) {
+      return a.category === 'command' ? -1 : 1
+    }
+    return a.title.localeCompare(b.title)
+  })
+}
+
 async function setBuiltinPluginEnabled(
   pluginId: string,
   enabled: boolean,
@@ -872,12 +1093,14 @@ async function setBuiltinPluginEnabled(
   if (error) {
     throw error
   }
+  clearAllCaches()
   return { id: pluginId, enabled }
 }
 
 function registerIpc(): void {
   const handlers = buildDesktopApiHandlers({
     windowService,
+    browserService,
     getRuntimeOptions: () => {
       const runtimeSelection = getDesktopRuntimeSelection()
       return {
@@ -889,12 +1112,17 @@ function registerIpc(): void {
     },
     listBuiltinPlugins,
     setBuiltinPluginEnabled,
+    listSlashCommands,
     createSession,
     listSessions,
     getSession,
     getActiveSessionId,
     setActiveSession,
     updateSessionMetadata,
+    saveSessionReviewComment,
+    resolveSessionReviewComment,
+    deleteSessionReviewComment,
+    setSessionPermissionMode,
     sendUserMessage,
     respondToPermission,
     interruptSession,

@@ -3,12 +3,14 @@ import { createContext, useContext } from 'react'
 import type { Message } from '../uiTypes.js'
 import type {
   DesktopGitStatus,
+  DesktopPermissionMode,
   DesktopPermissionRequest,
   DesktopSessionEvent,
   DesktopSessionStatus,
   DesktopWorkflowEvent,
   DesktopWorkspace,
 } from '../../shared/types.js'
+import type { RightDockTool } from '../components/rightDockState.js'
 
 export type QuickChatContextValue = {
   isConversationRoute: boolean
@@ -23,10 +25,12 @@ export type QuickChatContextValue = {
   diff: string
   gitStatus: DesktopGitStatus | null
   recentWorkspaces: DesktopWorkspace[]
+  permissionMode: DesktopPermissionMode
   onArchiveSession: () => void
   onCreateBranch: () => void
   onOpenAutomation: () => void
   onOpenWorkspacePath: () => void
+  onOpenRightDock: (tool: RightDockTool) => void
   onRefreshDiff: () => void
   onToggleSidebar: () => void
   onToggleSessionPinned: () => void
@@ -41,12 +45,18 @@ export type QuickChatContextValue = {
     alwaysAllow?: boolean,
     updatedInput?: Record<string, unknown>,
   ) => void
+  onAcceptExitPlanMode: (
+    request: DesktopPermissionRequest,
+    nextMode: DesktopPermissionMode,
+  ) => void
   events: DesktopSessionEvent[]
   workflowEvents: DesktopWorkflowEvent[]
   messages: Message[]
   pendingPermissions: DesktopPermissionRequest[]
   sessionStatus: DesktopSessionStatus
   composer: React.ReactNode
+  rightDockOpen: boolean
+  rightDockTool: RightDockTool
 }
 
 export const QuickChatContext = createContext<QuickChatContextValue | null>(null)

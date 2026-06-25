@@ -22,6 +22,19 @@ const api: DesktopApi = {
     ipcRenderer.invoke(desktopApiChannel('getDesktopSettings')),
   saveDesktopSettings: settings =>
     ipcRenderer.invoke(desktopApiChannel('saveDesktopSettings'), settings),
+  getBrowserState: () => ipcRenderer.invoke(desktopApiChannel('getBrowserState')),
+  openBrowser: url => ipcRenderer.invoke(desktopApiChannel('openBrowser'), url),
+  navigateBrowser: url =>
+    ipcRenderer.invoke(desktopApiChannel('navigateBrowser'), url),
+  reloadBrowser: () => ipcRenderer.invoke(desktopApiChannel('reloadBrowser')),
+  goBackBrowser: () => ipcRenderer.invoke(desktopApiChannel('goBackBrowser')),
+  goForwardBrowser: () =>
+    ipcRenderer.invoke(desktopApiChannel('goForwardBrowser')),
+  closeBrowser: () => ipcRenderer.invoke(desktopApiChannel('closeBrowser')),
+  setBrowserBounds: bounds =>
+    ipcRenderer.invoke(desktopApiChannel('setBrowserBounds'), bounds),
+  clearBrowserAllowedSites: () =>
+    ipcRenderer.invoke(desktopApiChannel('clearBrowserAllowedSites')),
   listBuiltinPlugins: () =>
     ipcRenderer.invoke(desktopApiChannel('listBuiltinPlugins')),
   setBuiltinPluginEnabled: (pluginId, enabled) =>
@@ -30,6 +43,12 @@ const api: DesktopApi = {
       pluginId,
       enabled,
     ),
+  listSkillsCatalog: options =>
+    ipcRenderer.invoke(desktopApiChannel('listSkillsCatalog'), options),
+  installSkill: skillId =>
+    ipcRenderer.invoke(desktopApiChannel('installSkill'), skillId),
+  listSlashCommands: workspacePath =>
+    ipcRenderer.invoke(desktopApiChannel('listSlashCommands'), workspacePath),
   listMcpServers: () => ipcRenderer.invoke(desktopApiChannel('listMcpServers')),
   saveMcpServer: options =>
     ipcRenderer.invoke(desktopApiChannel('saveMcpServer'), options),
@@ -63,6 +82,24 @@ const api: DesktopApi = {
     ipcRenderer.invoke(desktopApiChannel('pollCopilotLogin')),
   cancelCopilotLogin: () =>
     ipcRenderer.invoke(desktopApiChannel('cancelCopilotLogin')),
+  getGithubAuthStatus: () =>
+    ipcRenderer.invoke(desktopApiChannel('getGithubAuthStatus')),
+  startGithubLogin: input =>
+    ipcRenderer.invoke(desktopApiChannel('startGithubLogin'), input),
+  pollGithubLogin: () =>
+    ipcRenderer.invoke(desktopApiChannel('pollGithubLogin')),
+  logoutGithub: () =>
+    ipcRenderer.invoke(desktopApiChannel('logoutGithub')),
+  listGithubRepositories: () =>
+    ipcRenderer.invoke(desktopApiChannel('listGithubRepositories')),
+  getGithubProfileOverview: () =>
+    ipcRenderer.invoke(desktopApiChannel('getGithubProfileOverview')),
+  setGithubUserStatus: input =>
+    ipcRenderer.invoke(desktopApiChannel('setGithubUserStatus'), input),
+  clearGithubUserStatus: () =>
+    ipcRenderer.invoke(desktopApiChannel('clearGithubUserStatus')),
+  cloneGithubRepository: input =>
+    ipcRenderer.invoke(desktopApiChannel('cloneGithubRepository'), input),
   chooseWorkspace: () =>
     ipcRenderer.invoke(desktopApiChannel('chooseWorkspace')),
   openWorkspace: workspacePath =>
@@ -83,8 +120,14 @@ const api: DesktopApi = {
     ipcRenderer.invoke(desktopApiChannel('commitWorkspaceChanges'), input),
   pushWorkspaceBranch: input =>
     ipcRenderer.invoke(desktopApiChannel('pushWorkspaceBranch'), input),
+  discardWorkspaceChanges: input =>
+    ipcRenderer.invoke(desktopApiChannel('discardWorkspaceChanges'), input),
   createPullRequest: input =>
     ipcRenderer.invoke(desktopApiChannel('createPullRequest'), input),
+  getWorkspaceReviewDiff: input =>
+    ipcRenderer.invoke(desktopApiChannel('getWorkspaceReviewDiff'), input),
+  applyWorkspaceReviewOperation: input =>
+    ipcRenderer.invoke(desktopApiChannel('applyWorkspaceReviewOperation'), input),
   listWorkspaceFiles: workspacePath =>
     ipcRenderer.invoke(desktopApiChannel('listWorkspaceFiles'), workspacePath),
   readWorkspaceFile: (workspacePath, filePath) =>
@@ -119,6 +162,18 @@ const api: DesktopApi = {
       desktopApiChannel('updateSessionMetadata'),
       sessionId,
       patch,
+    ),
+  saveSessionReviewComment: input =>
+    ipcRenderer.invoke(desktopApiChannel('saveSessionReviewComment'), input),
+  resolveSessionReviewComment: input =>
+    ipcRenderer.invoke(desktopApiChannel('resolveSessionReviewComment'), input),
+  deleteSessionReviewComment: input =>
+    ipcRenderer.invoke(desktopApiChannel('deleteSessionReviewComment'), input),
+  setSessionPermissionMode: (sessionId, mode) =>
+    ipcRenderer.invoke(
+      desktopApiChannel('setSessionPermissionMode'),
+      sessionId,
+      mode,
     ),
   readWorkflowEventLog: () =>
     ipcRenderer.invoke(desktopApiChannel('readWorkflowEventLog')),
@@ -156,6 +211,7 @@ const api: DesktopApi = {
     ipcRenderer.invoke(desktopApiChannel('isWindowMaximized')),
   newWindow: () => ipcRenderer.invoke(desktopApiChannel('newWindow')),
   openDevTools: () => ipcRenderer.invoke(desktopApiChannel('openDevTools')),
+  closeDevTools: () => ipcRenderer.invoke(desktopApiChannel('closeDevTools')),
   openSettings: () => ipcRenderer.invoke(desktopApiChannel('openSettings')),
   logOut: () => ipcRenderer.invoke(desktopApiChannel('logOut')),
   exitApp: () => ipcRenderer.invoke(desktopApiChannel('exitApp')),

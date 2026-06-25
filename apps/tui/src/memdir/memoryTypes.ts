@@ -11,24 +11,13 @@
  * trivial without reasoning through a helper's conditional rendering.
  */
 
-export const MEMORY_TYPES = [
-  'user',
-  'feedback',
-  'project',
-  'reference',
-] as const
+import {
+  MEMORY_TYPES,
+  parseMemoryType,
+  type MemoryType,
+} from '@codepilotx/core/memory/state.js'
 
-export type MemoryType = (typeof MEMORY_TYPES)[number]
-
-/**
- * Parse a raw frontmatter value into a MemoryType.
- * Invalid or missing values return undefined — legacy files without a
- * `type:` field keep working, files with unknown types degrade gracefully.
- */
-export function parseMemoryType(raw: unknown): MemoryType | undefined {
-  if (typeof raw !== 'string') return undefined
-  return MEMORY_TYPES.find(t => t === raw)
-}
+export { MEMORY_TYPES, parseMemoryType, type MemoryType }
 
 /**
  * `## Types of memory` section for COMBINED mode (private + team directories).

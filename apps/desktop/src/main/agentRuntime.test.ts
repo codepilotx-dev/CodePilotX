@@ -5,13 +5,14 @@ import {
   permissionPromptToolName,
 } from './agentRuntime.js'
 
-test('permissionModeArgs maps desktop four-mode permissions to CLI args', () => {
+test('permissionModeArgs maps desktop permission modes to CLI args', () => {
   expect(permissionModeArgs('default')).toEqual(['--permission-mode', 'default'])
   expect(permissionModeArgs('auto')).toEqual(['--permission-mode', 'auto'])
   expect(permissionModeArgs('bypassPermissions')).toEqual([
     '--dangerously-skip-permissions',
   ])
   expect(permissionModeArgs('customConfig')).toEqual([])
+  expect(permissionModeArgs('plan')).toEqual(['--permission-mode', 'plan'])
   expect(permissionModeArgs(undefined)).toEqual([
     '--permission-mode',
     'default',

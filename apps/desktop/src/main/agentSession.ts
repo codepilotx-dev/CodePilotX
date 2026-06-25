@@ -11,6 +11,7 @@ import type {
   CreateDesktopSessionOptions,
   DesktopAgentEvent,
   DesktopPermissionDecision,
+  DesktopPermissionMode,
   DesktopPermissionRequest,
   DesktopSessionStatus,
   DesktopUserMessageContent,
@@ -48,6 +49,7 @@ export type DesktopAgentSession = {
   sessionId: string
   workspacePath: string
   setModel(model: string | undefined): void
+  setPermissionMode(mode: DesktopPermissionMode): void
   sendUserMessage(content: DesktopUserMessageContent, previewText: string): Promise<void>
   respondToPermission(
     requestId: string,
@@ -75,7 +77,7 @@ class LocalDesktopAgentSession
   private currentAbortController: AbortController | null = null
   private readonly pendingPermissions = new Map<string, PendingPermission>()
   private readonly runtime: DesktopAgentRuntime
-  private readonly permissionMode: CreateDesktopSessionOptions['permissionMode']
+  private permissionMode: DesktopPermissionMode
 
   constructor(
     options: ResolvedDesktopSessionOptions,
@@ -84,7 +86,7 @@ class LocalDesktopAgentSession
     super()
     this.sessionId = options.sessionId ?? randomUUID()
     this.workspacePath = options.workspacePath
-    this.permissionMode = options.permissionMode
+    this.permissionMode = options.permissionMode ?? 'default'
     this.runtime = createDesktopAgentRuntime({
       sessionId: this.sessionId,
       workspacePath: this.workspacePath,
@@ -120,6 +122,14 @@ class LocalDesktopAgentSession
 
   setModel(model: string | undefined): void {
     this.runtime.setModel(model)
+  }
+
+  setPermissionMode(mode: DesktopPermissionMode): void {
+    this.permissionMode = mode
+    desktopDebug('session_permission_mode_changed', {
+      sessionId: this.sessionId,
+      permissionMode: mode,
+    })
   }
 
   async sendUserMessage(

@@ -44,7 +44,7 @@ import {
   uninstallPluginOp,
   updatePluginOp,
 } from '../../services/plugins/pluginOperations.js'
-import { useAppState } from '../../state/AppState.js'
+import { useAppState, useSetAppState } from '../../state/AppState.js'
 import type { Tool } from '../../Tool.js'
 import type { LoadedPlugin, PluginError } from '../../types/plugin.js'
 import { count } from '../../utils/array.js'
@@ -75,6 +75,7 @@ import {
   parsePluginIdentifier,
 } from '../../utils/plugins/pluginIdentifier.js'
 import { loadAllPlugins } from '../../utils/plugins/pluginLoader.js'
+import { refreshActivePlugins } from '../../utils/plugins/refresh.js'
 import {
   loadPluginOptions,
   type PluginOptionSchema,
@@ -526,6 +527,7 @@ export function ManagePlugins({
   const mcpClients = useAppState(s => s.mcp.clients)
   const mcpTools = useAppState(s => s.mcp.tools)
   const pluginErrors = useAppState(s => s.plugins.errors)
+  const setAppState = useSetAppState()
   const flaggedPlugins = getFlaggedPlugins()
 
   // Search state
@@ -1312,6 +1314,24 @@ export function ManagePlugins({
         }
       }
 
+      if (isBuiltin && (operation === 'enable' || operation === 'disable')) {
+        await refreshActivePlugins(setAppState)
+
+        const operationName = operation === 'enable' ? 'Enabled' : 'Disabled'
+        const depWarn =
+          reverseDependents && reverseDependents.length > 0
+            ? ` · required by ${reverseDependents.join(', ')}`
+            : ''
+        setResult(`✓ ${operationName} ${selectedPlugin.plugin.name}${depWarn}.`)
+
+        if (onManageComplete) {
+          await onManageComplete()
+        }
+
+        setParentViewState({ type: 'menu' })
+        return
+      }
+
       // Operations (enable, disable, uninstall, update) now use centralized functions
       // that handle their own settings updates, so we only need to clear caches here
       clearAllCaches()
@@ -1407,7 +1427,11 @@ export function ManagePlugins({
               } else {
                 await disablePluginOp(pluginId)
               }
-              clearAllCaches()
+              if (isBuiltin) {
+                await refreshActivePlugins(setAppState)
+              } else {
+                clearAllCaches()
+              }
             } catch (err) {
               logError(err)
             }
@@ -1421,7 +1445,11 @@ export function ManagePlugins({
               } else {
                 await enablePluginOp(pluginId)
               }
-              clearAllCaches()
+              if (isBuiltin) {
+                await refreshActivePlugins(setAppState)
+              } else {
+                clearAllCaches()
+              }
             } catch (err) {
               logError(err)
             }
@@ -1437,6 +1465,7 @@ export function ManagePlugins({
     filteredItems,
     pendingToggles,
     pluginStates,
+    setAppState,
     toggleMcpServer,
   ])
 

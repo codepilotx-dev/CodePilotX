@@ -26,6 +26,7 @@ import {
   decidePermissionAction,
   interruptSessionAction,
   selectSessionAction,
+  setSessionPermissionModeAction,
   submitSessionMessageAction,
   updateSessionMetadataAction,
   type CloseSessionResult,
@@ -102,6 +103,10 @@ export type UseSessionStateResult = {
     targetSessionId: string,
     patch: DesktopSessionMetadataPatch,
   ) => Promise<CloseSessionResult | null>
+  setSessionPermissionMode: (
+    targetSessionId: string,
+    mode: DesktopPermissionMode,
+  ) => Promise<SessionListItem | null>
   selectSession: (session: SessionListItem) => DesktopWorkspace | null
   toggleToolLogEntry: (entryId: string) => void
 }
@@ -604,6 +609,20 @@ export function useSessionState(
     [actionContext, sessions],
   )
 
+  const setSessionPermissionMode = useCallback(
+    async (
+      targetSessionId: string,
+      mode: DesktopPermissionMode,
+    ): Promise<SessionListItem | null> =>
+      setSessionPermissionModeAction(
+        actionContext,
+        sessions,
+        targetSessionId,
+        mode,
+      ),
+    [actionContext, sessions],
+  )
+
   const selectSession = useCallback(
     (session: SessionListItem): DesktopWorkspace | null => {
       const workspace = selectSessionAction(actionContext, session)
@@ -641,6 +660,7 @@ export function useSessionState(
     decidePermission,
     closeSession,
     updateSessionMetadata,
+    setSessionPermissionMode,
     selectSession,
     toggleToolLogEntry,
   }

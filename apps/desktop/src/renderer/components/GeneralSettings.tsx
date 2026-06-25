@@ -19,6 +19,7 @@ import { useDesktopSettings } from '../features/settings/useDesktopSettings.js';
 import type {
   DesktopOpenTarget,
   DesktopPermissionMode,
+  DesktopReviewView,
 } from '../../shared/types.js';
 
 const FALLBACK_OPEN_TARGETS: DesktopOpenTarget[] = [
@@ -64,9 +65,9 @@ const FOLLOW_UP_OPTIONS: Array<{ value: 'queue' | 'steer'; label: string }> = [
   { value: 'steer', label: '引导' },
 ];
 
-const REVIEW_OPTIONS: Array<{ value: 'inline' | 'detached'; label: string }> = [
+const REVIEW_OPTIONS: Array<{ value: DesktopReviewView; label: string }> = [
   { value: 'inline', label: '行内视图' },
-  { value: 'detached', label: '分离视图' },
+  { value: 'split', label: '分离视图' },
 ];
 
 type WorkMode = 'coding' | 'daily';
@@ -135,6 +136,8 @@ export function GeneralSettings() {
     setShowContextUsage,
     defaultOpenTargetId,
     setDefaultOpenTargetId,
+    reviewView,
+    setReviewView,
   } = useDesktopSettings();
 
   const [openTargets, setOpenTargets] =
@@ -145,7 +148,6 @@ export function GeneralSettings() {
   const [longPromptShortcut, setLongPromptShortcut] = useState(false);
   const [speed, setSpeed] = useState('standard');
   const [followUp, setFollowUp] = useState<'queue' | 'steer'>('steer');
-  const [reviewView, setReviewView] = useState<'inline' | 'detached'>('inline');
   const [suggestPrompts, setSuggestPrompts] = useState(true);
   const [popupShortcut] = useState<string | null>(null);
   const [popupNoProjectChat, setPopupNoProjectChat] = useState(false);
@@ -386,7 +388,7 @@ export function GeneralSettings() {
           />
           <SettingsRow
             title='代码审查'
-            description='尽可能在当前对话中启动 /review，或发起单独的审查对话'
+            description='审阅侧栏中 diff 的展示方式：行内视图（叠加显示）或分离视图（左右对照）'
             control={
               <SegmentedControl
                 value={reviewView}

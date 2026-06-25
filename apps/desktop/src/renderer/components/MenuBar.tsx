@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from './ui/iconTokens.js'
 import { IconButton } from './ui/IconButton.js'
+import { ToggleSwitch } from './ToggleSwitch.js'
 
 export type FileMenuAction =
   | 'close'
@@ -50,7 +51,7 @@ export type ViewMenuAction =
   | 'actualSize'
   | 'toggleFullScreen'
 
-export type WindowMenuAction = 'minimize' | 'zoom' | 'close' | 'debug'
+export type WindowMenuAction = 'minimize' | 'zoom' | 'close'
 
 export type HelpMenuAction =
   | 'codexDocumentation'
@@ -110,6 +111,15 @@ function MenuItem({
         <span className="menubar-shortcut">{shortcut}</span>
       ) : null}
     </Menubar.Item>
+  )
+}
+
+function DebugModeToggle(): React.ReactNode {
+  return (
+    <label className="menubar-debug-mode">
+      <span className="menubar-debug-mode-label">调试模式</span>
+      <ToggleSwitch checked={false} onChange={() => {}} ariaLabel="调试模式" />
+    </label>
   )
 }
 
@@ -353,7 +363,7 @@ export function MenuBar({
                 关闭
               </MenuItem>
               <MenuSeparator />
-              <MenuItem onSelect={() => onWindowMenuAction('debug')}>
+              <MenuItem onSelect={() => {}}>
                 调试...
               </MenuItem>
             </AppMenu>
@@ -406,6 +416,7 @@ export function MenuBar({
               </MenuItem>
             </AppMenu>
           </Menubar.Root>
+          <DebugModeToggle />
         </div>
 
         <div className="window-controls">

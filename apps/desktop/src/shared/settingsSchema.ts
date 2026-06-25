@@ -9,6 +9,7 @@ import type {
   DesktopDrawerTab,
   DesktopPermissionMode,
   DesktopPersonality,
+  DesktopReviewView,
   DesktopSandboxMode,
   DesktopStoredSettings,
   DesktopThinkingMode,
@@ -39,6 +40,11 @@ export const DESKTOP_PERSONALITIES = new Set<DesktopPersonality>([
   'friendly',
   'concise',
   'encouraging',
+])
+
+export const DESKTOP_REVIEW_VIEWS = new Set<DesktopReviewView>([
+  'inline',
+  'split',
 ])
 
 export const DESKTOP_DRAWER_TABS = new Set<DesktopDrawerTab>([
@@ -72,10 +78,16 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     providerBaseURL: '',
     showContextUsage: true,
     defaultOpenTargetId: 'default-app',
-    gitBranchPrefix: 'codex/',
+gitBranchPrefix: 'codex/',
+    gitPrMergeMethod: 'merge',
+    gitShowPrIconsInSidebar: true,
+    gitDraftPullRequest: true,
+    gitAutoDeleteWorktree: true,
+    gitAutoDeleteWorktreeLimit: 15,
     allowForcePush: false,
     commitMessagePrompt: '',
     pullRequestPrompt: '',
+    githubOAuthClientId: '',
     sandboxMode: 'workspace-write',
     allowNetworkAccess: true,
     installCodexDependencies: true,
@@ -83,6 +95,10 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     customInstructions: '',
     enableMemory: false,
     skipToolAidedChats: false,
+    githubMemorySyncEnabled: false,
+    githubMemoryRepository: '',
+    reviewView: 'inline',
+    browserAllowedSites: [],
   }
 }
 
@@ -165,6 +181,25 @@ export function normalizeDesktopStoredSettings(
       parsed.gitBranchPrefix,
       defaults.gitBranchPrefix,
     ),
+    gitPrMergeMethod: isDesktopGitPrMergeMethod(parsed.gitPrMergeMethod)
+      ? parsed.gitPrMergeMethod
+      : defaults.gitPrMergeMethod,
+    gitShowPrIconsInSidebar:
+      typeof parsed.gitShowPrIconsInSidebar === 'boolean'
+        ? parsed.gitShowPrIconsInSidebar
+        : defaults.gitShowPrIconsInSidebar,
+    gitDraftPullRequest:
+      typeof parsed.gitDraftPullRequest === 'boolean'
+        ? parsed.gitDraftPullRequest
+        : defaults.gitDraftPullRequest,
+    gitAutoDeleteWorktree:
+      typeof parsed.gitAutoDeleteWorktree === 'boolean'
+        ? parsed.gitAutoDeleteWorktree
+        : defaults.gitAutoDeleteWorktree,
+    gitAutoDeleteWorktreeLimit: normalizeGitWorktreeLimit(
+      parsed.gitAutoDeleteWorktreeLimit,
+      defaults.gitAutoDeleteWorktreeLimit,
+    ),
     allowForcePush:
       typeof parsed.allowForcePush === 'boolean'
         ? parsed.allowForcePush
@@ -176,6 +211,10 @@ export function normalizeDesktopStoredSettings(
     pullRequestPrompt: stringOrDefault(
       parsed.pullRequestPrompt,
       defaults.pullRequestPrompt,
+    ),
+    githubOAuthClientId: stringOrDefault(
+      parsed.githubOAuthClientId,
+      defaults.githubOAuthClientId,
     ),
     sandboxMode: isDesktopSandboxMode(parsed.sandboxMode)
       ? parsed.sandboxMode
@@ -203,6 +242,21 @@ export function normalizeDesktopStoredSettings(
       typeof parsed.skipToolAidedChats === 'boolean'
         ? parsed.skipToolAidedChats
         : defaults.skipToolAidedChats,
+    githubMemorySyncEnabled:
+      typeof parsed.githubMemorySyncEnabled === 'boolean'
+        ? parsed.githubMemorySyncEnabled
+        : defaults.githubMemorySyncEnabled,
+    githubMemoryRepository: stringOrDefault(
+      parsed.githubMemoryRepository,
+      defaults.githubMemoryRepository,
+    ),
+    reviewView: isDesktopReviewView(parsed.reviewView)
+      ? parsed.reviewView
+      : defaults.reviewView,
+    browserAllowedSites: normalizeStringList(
+      parsed.browserAllowedSites,
+      defaults.browserAllowedSites,
+    ),
   }
 }
 
@@ -238,6 +292,15 @@ export function upsertRecentWorkspace(
   if (workspace.isStandalone) return workspaces
   const filtered = workspaces.filter(item => item.path !== workspace.path)
   return [workspace, ...filtered].slice(0, MAX_RECENT_WORKSPACES)
+}
+
+export function mergeDesktopBrowserAllowedSites(
+  current: string[],
+  incoming: string[],
+): string[] {
+  return [...current, ...incoming].filter(
+    (site, index, sites) => sites.indexOf(site) === index,
+  )
 }
 
 export function isDesktopPermissionMode(
@@ -287,11 +350,39 @@ export function isDesktopPersonality(
   )
 }
 
+export function isDesktopReviewView(
+  value: unknown,
+): value is DesktopReviewView {
+  return (
+    typeof value === 'string' &&
+    DESKTOP_REVIEW_VIEWS.has(value as DesktopReviewView)
+  )
+}
+
 export function isDesktopDrawerTab(value: unknown): value is DesktopDrawerTab {
   return (
     typeof value === 'string' &&
     DESKTOP_DRAWER_TABS.has(value as DesktopDrawerTab)
   )
+}
+
+export const DESKTOP_GIT_PR_MERGE_METHODS = new Set<'merge' | 'squash'>([
+  'merge',
+  'squash',
+])
+
+export function isDesktopGitPrMergeMethod(
+  value: unknown,
+): value is 'merge' | 'squash' {
+  return typeof value === 'string' && DESKTOP_GIT_PR_MERGE_METHODS.has(value as 'merge' | 'squash')
+}
+
+export function normalizeGitWorktreeLimit(
+  value: unknown,
+  fallback: number,
+): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback
+  return Math.max(1, Math.floor(value))
 }
 
 export function isModelProviderID(value: unknown): value is ModelProviderID {
@@ -300,6 +391,11 @@ export function isModelProviderID(value: unknown): value is ModelProviderID {
 
 function stringOrDefault(value: unknown, fallback: string): string {
   return typeof value === 'string' ? value : fallback
+}
+
+function normalizeStringList(value: unknown, fallback: string[]): string[] {
+  if (!Array.isArray(value)) return fallback
+  return value.filter(item => typeof item === 'string')
 }
 
 function migrateModelAlias(model: string): string {

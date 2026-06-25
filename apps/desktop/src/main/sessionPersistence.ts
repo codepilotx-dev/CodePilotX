@@ -18,6 +18,7 @@ import type {
   DesktopAgentEvent,
   DesktopContextUsage,
   DesktopPermissionRequest,
+  DesktopReviewComment,
   DesktopSessionEvent,
   DesktopSessionListItem,
   DesktopSessionMessage,
@@ -69,6 +70,7 @@ type DesktopSessionOverlay = {
   updatedAt?: string
   workflowEvents?: DesktopWorkflowEvent[]
   workflowEventModelVersion?: 1
+  reviewComments?: DesktopReviewComment[]
   legacySnapshot?: DesktopSessionSnapshot
 }
 
@@ -166,6 +168,7 @@ export async function saveDesktopSessionStore(
         updatedAt: overlay.updatedAt,
         workflowEvents: overlay.workflowEvents,
         workflowEventModelVersion: overlay.workflowEventModelVersion,
+        reviewComments: overlay.reviewComments,
       }
     }),
   }
@@ -222,6 +225,7 @@ export function createDesktopSessionSnapshot(params: {
     eventModelVersion: 1,
     workflowEvents: [],
     workflowEventModelVersion: 1,
+    reviewComments: [],
     updatedAt: now.toISOString(),
   }
 }
@@ -245,6 +249,9 @@ export function applyDesktopAgentEventToSnapshot(
       ? [...snapshot.workflowEvents]
       : undefined,
     workflowEventModelVersion: snapshot.workflowEventModelVersion,
+    reviewComments: snapshot.reviewComments
+      ? [...snapshot.reviewComments]
+      : undefined,
     updatedAt: new Date().toISOString(),
   }
   const sessionEvent = desktopAgentEventToSessionEvent(event)
@@ -465,6 +472,9 @@ function normalizeSessionOverlay(value: unknown): DesktopSessionOverlay[] {
     raw.workflowEventModelVersion === 1 && Array.isArray(raw.workflowEvents)
       ? raw.workflowEvents.flatMap(normalizeWorkflowEvent)
       : undefined
+  const reviewComments = Array.isArray(raw.reviewComments)
+    ? raw.reviewComments.flatMap(normalizeReviewComment)
+    : undefined
   return [
     {
       id: raw.id,
@@ -485,6 +495,7 @@ function normalizeSessionOverlay(value: unknown): DesktopSessionOverlay[] {
       updatedAt: stringOrUndefined(raw.updatedAt),
       workflowEvents,
       workflowEventModelVersion: workflowEvents ? 1 : undefined,
+      reviewComments,
     },
   ]
 }
@@ -509,6 +520,9 @@ function normalizeSessionSnapshot(value: unknown): DesktopSessionSnapshot[] {
     Array.isArray(snapshot.workflowEvents)
       ? snapshot.workflowEvents.flatMap(normalizeWorkflowEvent)
       : undefined
+  const reviewComments = Array.isArray(snapshot.reviewComments)
+    ? snapshot.reviewComments.flatMap(normalizeReviewComment)
+    : undefined
   const settings = normalizeSettingsSnapshot(snapshot.settings)
   const effectiveModel =
     validModelName(view.contextUsage?.model) ??
@@ -554,6 +568,7 @@ function normalizeSessionSnapshot(value: unknown): DesktopSessionSnapshot[] {
       eventModelVersion: events ? 1 : undefined,
       workflowEvents,
       workflowEventModelVersion: workflowEvents ? 1 : undefined,
+      reviewComments,
       updatedAt,
     },
   ]
@@ -673,6 +688,7 @@ function snapshotFromTranscriptLog(
       ? [...overlay.workflowEvents]
       : undefined,
     workflowEventModelVersion: overlay?.workflowEvents ? 1 : undefined,
+    reviewComments: overlay?.reviewComments ? [...overlay.reviewComments] : [],
     updatedAt: overlay?.updatedAt ?? lastMessageAt,
   }
 }
@@ -734,6 +750,7 @@ function snapshotFromOverlay(overlay: DesktopSessionOverlay): DesktopSessionSnap
     eventModelVersion: 1,
     workflowEvents: overlay.workflowEvents ? [...overlay.workflowEvents] : [],
     workflowEventModelVersion: 1,
+    reviewComments: overlay.reviewComments ? [...overlay.reviewComments] : [],
     updatedAt: overlay.updatedAt ?? createdAt,
   }
 }
@@ -764,6 +781,9 @@ function overlayFromSnapshot(
         : undefined,
     workflowEventModelVersion:
       normalizedSnapshot.workflowEventModelVersion === 1 ? 1 : undefined,
+    reviewComments: normalizedSnapshot.reviewComments
+      ? [...normalizedSnapshot.reviewComments]
+      : undefined,
     legacySnapshot: legacySnapshot
       ? normalizeSnapshotStandalone(legacySnapshot)
       : undefined,
@@ -1248,6 +1268,47 @@ function normalizeSessionEvent(value: unknown): DesktopSessionEvent[] {
           : undefined,
       sourceLabel:
         typeof event.sourceLabel === 'string' ? event.sourceLabel : undefined,
+    },
+  ]
+}
+
+function normalizeReviewComment(value: unknown): DesktopReviewComment[] {
+  if (!value || typeof value !== 'object') return []
+  const comment = value as Partial<DesktopReviewComment>
+  const createdAt = normalizeTimestampString(comment.createdAt)
+  const updatedAt = normalizeTimestampString(comment.updatedAt)
+  if (
+    typeof comment.id !== 'string' ||
+    !comment.id.trim() ||
+    typeof comment.sessionId !== 'string' ||
+    !comment.sessionId.trim() ||
+    typeof comment.filePath !== 'string' ||
+    !comment.filePath.trim() ||
+    (comment.side !== 'left' && comment.side !== 'right') ||
+    typeof comment.lineNumber !== 'number' ||
+    !Number.isInteger(comment.lineNumber) ||
+    comment.lineNumber < 1 ||
+    typeof comment.lineContent !== 'string' ||
+    typeof comment.body !== 'string' ||
+    !comment.body.trim() ||
+    (comment.status !== 'open' && comment.status !== 'resolved') ||
+    !createdAt ||
+    !updatedAt
+  ) {
+    return []
+  }
+  return [
+    {
+      id: comment.id,
+      sessionId: comment.sessionId,
+      filePath: comment.filePath,
+      side: comment.side,
+      lineNumber: comment.lineNumber,
+      lineContent: comment.lineContent,
+      body: comment.body,
+      status: comment.status,
+      createdAt,
+      updatedAt,
     },
   ]
 }

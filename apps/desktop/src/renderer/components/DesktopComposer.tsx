@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type React from 'react'
 import { useNavigate } from 'react-router-dom'
 import type {
   DesktopComposerAttachment,
   DesktopContextUsage,
   DesktopPermissionMode,
+  DesktopSlashCommandSuggestion,
   DesktopSessionStatus,
   DesktopThinkingMode,
   DesktopUserMessageInput,
@@ -57,10 +58,16 @@ type Props = {
   onOpenWorkspace: (
     workspace: DesktopWorkspace,
   ) => Promise<DesktopWorkspace | null>
+  onCloneGithub: () => void
   onClearWorkspace: () => void
+  onOpenBrowser?: () => void
   onBranchSelect: (branch: string) => Promise<void>
   onCreateBranch: () => void
   onPermissionChange: (value: DesktopPermissionMode) => void
+  onPlanModeToggle?: (
+    enabled: boolean,
+    previousMode: DesktopPermissionMode,
+  ) => void
   onThinkingChange: (value: DesktopThinkingMode) => void
   createSessionForWorkspace: (
     target?: DesktopWorkspace | null,
@@ -96,16 +103,22 @@ export function DesktopComposer({
   onInterrupt,
   onProviderModelChange,
   onOpenWorkspace,
+  onCloneGithub,
   onClearWorkspace,
+  onOpenBrowser,
   onBranchSelect,
   onCreateBranch,
   onPermissionChange,
+  onPlanModeToggle,
   onThinkingChange,
   createSessionForWorkspace,
   submitToSession,
 }: Props): React.ReactNode {
   const navigate = useNavigate()
   const [attachments, setAttachments] = useState<DesktopComposerAttachment[]>([])
+  const [slashCommands, setSlashCommands] = useState<
+    DesktopSlashCommandSuggestion[]
+  >([])
   const hasAttachmentErrors = hasBlockingComposerAttachmentErrors(attachments)
   const canSubmit =
     (Boolean(input.trim()) || attachments.length > 0) &&
@@ -122,6 +135,36 @@ export function DesktopComposer({
   const hasConversationMessages = messages.some(
     message => message.role !== 'system',
   )
+  useEffect(() => {
+    let cancelled = false
+    desktopClient
+      .listSlashCommands(workspace?.path)
+      .then(commands => {
+        if (!cancelled) setSlashCommands(commands)
+      })
+      .catch(() => {
+        if (!cancelled) setSlashCommands([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [workspace?.path])
+
+  useEffect(() => {
+    if (!input.trimStart().startsWith('/')) return
+    let cancelled = false
+    desktopClient
+      .listSlashCommands(workspace?.path)
+      .then(commands => {
+        if (!cancelled) setSlashCommands(commands)
+      })
+      .catch(() => {
+        if (!cancelled) setSlashCommands([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [input, workspace?.path])
 
   function handleSubmit(): void {
     void (async () => {
@@ -199,6 +242,7 @@ export function DesktopComposer({
       recentWorkspaces={recentWorkspaces}
       workspace={workspace}
       attachments={attachments}
+      slashCommands={slashCommands}
       placeholder={
         modelConfigured
           ? hasConversationMessages
@@ -214,10 +258,13 @@ export function DesktopComposer({
       onOpenFiles={() => void handleOpenFiles()}
       onRemoveAttachment={handleRemoveAttachment}
       onOpenWorkspace={workspaceItem => void onOpenWorkspace(workspaceItem)}
+      onCloneGithub={onCloneGithub}
       onClearWorkspace={onClearWorkspace}
+      onOpenBrowser={onOpenBrowser}
       onBranchSelect={branch => void onBranchSelect(branch)}
       onCreateBranch={onCreateBranch}
       onPermissionChange={onPermissionChange}
+      onPlanModeToggle={onPlanModeToggle}
       onSubmit={handleSubmit}
       onThinkingChange={onThinkingChange}
     />

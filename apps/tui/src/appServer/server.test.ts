@@ -9,8 +9,12 @@ test('initialize returns protocol version and supported capabilities', async () 
     protocolVersion: 1,
     capabilities: {
       transports: ['stdio'],
-      methods: expect.arrayContaining(['thread/start', 'turn/start']),
-      notifications: ['thread/event'],
+      methods: expect.arrayContaining([
+        'thread/start',
+        'turn/start',
+        'session/getSnapshot',
+      ]),
+      notifications: ['thread/event', 'session/snapshot.updated'],
     },
   })
 })
@@ -40,8 +44,10 @@ test('thread/start emits a thread event notification', async () => {
 
 test('turn/start emits every streamed thread event before resolving', async () => {
   const notifications: ThreadEvent[] = []
+  const snapshots: Array<{ threadId: string; eventCount: number }> = []
   const server = new JsonRpcAppServer(createRegistry(), {
     onThreadEvent: event => notifications.push(event),
+    onSessionSnapshotUpdated: snapshot => snapshots.push(snapshot),
   })
 
   const result = await server.startTurn({
@@ -59,6 +65,32 @@ test('turn/start emits every streamed thread event before resolving', async () =
     'turn.started',
     'turn.completed',
   ])
+  expect(snapshots).toMatchObject([
+    {
+      threadId: 'thread-jsonrpc',
+      eventCount: 2,
+    },
+  ])
+})
+
+test('session/getSnapshot returns the backend-derived session view', async () => {
+  const server = new JsonRpcAppServer(createRegistry())
+
+  await expect(
+    server.getSessionSnapshot({ threadId: 'thread-jsonrpc' }),
+  ).resolves.toMatchObject({
+    threadId: 'thread-jsonrpc',
+    eventCount: 2,
+    view: {
+      turnStatus: 'done',
+      messages: [
+        {
+          role: 'assistant',
+          text: 'hi',
+        },
+      ],
+    },
+  })
 })
 
 test('unknown thread errors include JSON-RPC error data', async () => {
@@ -143,6 +175,32 @@ function createRegistry(options: { throwUnknown?: boolean } = {}) {
     },
     injectItem() {
       throw new Error('not used')
+    },
+    getSessionSnapshot(params: { threadId: string }) {
+      return {
+        threadId: params.threadId,
+        eventCount: 2,
+        updatedAt: '2026-06-22T00:00:02.000Z',
+        view: {
+          messages: [
+            {
+              id: 'event-agent-message',
+              role: 'assistant' as const,
+              text: 'hi',
+              createdAt: '2026-06-22T00:00:02.000Z',
+            },
+          ],
+          events: [],
+          toolRuns: [],
+          pendingPermissions: [],
+          turnStatus: 'done' as const,
+          diagnostics: {
+            duplicateEventIds: [],
+            missingToolResults: [],
+            outOfOrderSequences: [],
+          },
+        },
+      }
     },
   }
 }
