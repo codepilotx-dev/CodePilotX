@@ -1,4 +1,5 @@
 import { app } from 'electron'
+import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { stat } from 'node:fs/promises'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
@@ -67,6 +68,7 @@ import type {
   DesktopBuiltinPlugin,
   DesktopPermissionDecision,
   DesktopPermissionMode,
+  DesktopReviewComment,
   DesktopSlashCommandSuggestion,
   DesktopSessionMetadataPatch,
   DesktopSessionSettingsSnapshot,
@@ -75,6 +77,8 @@ import type {
   DesktopUserMessageContent,
   DesktopUserMessageInput,
   DesktopWorkspace,
+  SaveSessionReviewCommentInput,
+  SessionReviewCommentInput,
 } from '../shared/types.js'
 import {
   buildDesktopUserMessageContent,
@@ -442,6 +446,115 @@ async function updateSessionMetadata(
   }
   persistSessionStore()
   return record.snapshot
+}
+
+async function saveSessionReviewComment(
+  input: SaveSessionReviewCommentInput,
+): Promise<DesktopSessionSnapshot> {
+  const record = await getSessionRecord(input.sessionId)
+  const comment = normalizeReviewCommentInput(input, record.snapshot.item.id)
+  const comments = record.snapshot.reviewComments ?? []
+  const existingIndex = comments.findIndex(item => item.id === comment.id)
+  const nextComments =
+    existingIndex >= 0
+      ? comments.map(item => (item.id === comment.id ? comment : item))
+      : [...comments, comment]
+  record.snapshot = {
+    ...record.snapshot,
+    reviewComments: nextComments,
+    updatedAt: new Date().toISOString(),
+  }
+  persistSessionStore()
+  return record.snapshot
+}
+
+async function resolveSessionReviewComment(
+  input: SessionReviewCommentInput,
+): Promise<DesktopSessionSnapshot> {
+  return updateSessionReviewCommentStatus(input, 'resolved')
+}
+
+async function deleteSessionReviewComment(
+  input: SessionReviewCommentInput,
+): Promise<DesktopSessionSnapshot> {
+  const record = await getSessionRecord(input.sessionId)
+  record.snapshot = {
+    ...record.snapshot,
+    reviewComments: (record.snapshot.reviewComments ?? []).filter(
+      comment => comment.id !== input.commentId,
+    ),
+    updatedAt: new Date().toISOString(),
+  }
+  persistSessionStore()
+  return record.snapshot
+}
+
+async function updateSessionReviewCommentStatus(
+  input: SessionReviewCommentInput,
+  status: DesktopReviewComment['status'],
+): Promise<DesktopSessionSnapshot> {
+  const record = await getSessionRecord(input.sessionId)
+  const now = new Date().toISOString()
+  let found = false
+  const reviewComments = (record.snapshot.reviewComments ?? []).map(comment => {
+    if (comment.id !== input.commentId) return comment
+    found = true
+    return { ...comment, status, updatedAt: now }
+  })
+  if (!found) {
+    throw new Error('Review comment was not found.')
+  }
+  record.snapshot = {
+    ...record.snapshot,
+    reviewComments,
+    updatedAt: now,
+  }
+  persistSessionStore()
+  return record.snapshot
+}
+
+function normalizeReviewCommentInput(
+  input: SaveSessionReviewCommentInput,
+  sessionId: string,
+): DesktopReviewComment {
+  const raw = input.comment
+  const now = new Date().toISOString()
+  const id =
+    'id' in raw && typeof raw.id === 'string' && raw.id.trim()
+      ? raw.id.trim()
+      : `review-comment-${randomUUID()}`
+  const filePath = requireNonEmptyString(raw.filePath, 'Review comment file path')
+  const lineContent =
+    typeof raw.lineContent === 'string' ? raw.lineContent : ''
+  const body = requireNonEmptyString(raw.body, 'Review comment body')
+  if (raw.side !== 'left' && raw.side !== 'right') {
+    throw new Error('Review comment side must be left or right.')
+  }
+  if (
+    typeof raw.lineNumber !== 'number' ||
+    !Number.isInteger(raw.lineNumber) ||
+    raw.lineNumber < 1
+  ) {
+    throw new Error('Review comment line number must be a positive integer.')
+  }
+  return {
+    id,
+    sessionId,
+    filePath,
+    side: raw.side,
+    lineNumber: raw.lineNumber,
+    lineContent,
+    body,
+    status:
+      'status' in raw && raw.status === 'resolved' ? 'resolved' : 'open',
+    createdAt:
+      'createdAt' in raw &&
+      typeof raw.createdAt === 'string' &&
+      raw.createdAt.trim()
+        ? raw.createdAt
+        : now,
+    updatedAt: now,
+  }
 }
 
 async function setSessionPermissionMode(
@@ -992,7 +1105,7 @@ function registerIpc(): void {
         runtimeSelectionSource: runtimeSelection.source,
       }
     },
-listBuiltinPlugins,
+    listBuiltinPlugins,
     setBuiltinPluginEnabled,
     listSlashCommands,
     createSession,
@@ -1001,6 +1114,9 @@ listBuiltinPlugins,
     getActiveSessionId,
     setActiveSession,
     updateSessionMetadata,
+    saveSessionReviewComment,
+    resolveSessionReviewComment,
+    deleteSessionReviewComment,
     setSessionPermissionMode,
     sendUserMessage,
     respondToPermission,

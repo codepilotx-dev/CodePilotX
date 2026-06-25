@@ -79,6 +79,12 @@ const api: DesktopApi = {
     ipcRenderer.invoke(desktopApiChannel('logoutGithub')),
   listGithubRepositories: () =>
     ipcRenderer.invoke(desktopApiChannel('listGithubRepositories')),
+  getGithubProfileOverview: () =>
+    ipcRenderer.invoke(desktopApiChannel('getGithubProfileOverview')),
+  setGithubUserStatus: input =>
+    ipcRenderer.invoke(desktopApiChannel('setGithubUserStatus'), input),
+  clearGithubUserStatus: () =>
+    ipcRenderer.invoke(desktopApiChannel('clearGithubUserStatus')),
   cloneGithubRepository: input =>
     ipcRenderer.invoke(desktopApiChannel('cloneGithubRepository'), input),
   chooseWorkspace: () =>
@@ -105,6 +111,10 @@ const api: DesktopApi = {
     ipcRenderer.invoke(desktopApiChannel('discardWorkspaceChanges'), input),
   createPullRequest: input =>
     ipcRenderer.invoke(desktopApiChannel('createPullRequest'), input),
+  getWorkspaceReviewDiff: input =>
+    ipcRenderer.invoke(desktopApiChannel('getWorkspaceReviewDiff'), input),
+  applyWorkspaceReviewOperation: input =>
+    ipcRenderer.invoke(desktopApiChannel('applyWorkspaceReviewOperation'), input),
   listWorkspaceFiles: workspacePath =>
     ipcRenderer.invoke(desktopApiChannel('listWorkspaceFiles'), workspacePath),
   readWorkspaceFile: (workspacePath, filePath) =>
@@ -140,6 +150,12 @@ const api: DesktopApi = {
       sessionId,
       patch,
     ),
+  saveSessionReviewComment: input =>
+    ipcRenderer.invoke(desktopApiChannel('saveSessionReviewComment'), input),
+  resolveSessionReviewComment: input =>
+    ipcRenderer.invoke(desktopApiChannel('resolveSessionReviewComment'), input),
+  deleteSessionReviewComment: input =>
+    ipcRenderer.invoke(desktopApiChannel('deleteSessionReviewComment'), input),
   setSessionPermissionMode: (sessionId, mode) =>
     ipcRenderer.invoke(
       desktopApiChannel('setSessionPermissionMode'),

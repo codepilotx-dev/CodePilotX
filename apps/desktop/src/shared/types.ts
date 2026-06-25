@@ -83,6 +83,105 @@ export type DesktopDiffSummary = {
   patch: string
 }
 
+export type DesktopReviewScope = 'unstaged' | 'staged'
+
+export type DesktopReviewSide = 'left' | 'right'
+
+export type DesktopReviewLineType = 'added' | 'removed' | 'context' | 'meta'
+
+export type DesktopReviewDiffLine = {
+  id: string
+  type: DesktopReviewLineType
+  oldLine: number | null
+  newLine: number | null
+  content: string
+  raw: string
+}
+
+export type DesktopReviewDiffHunk = {
+  id: string
+  header: string
+  oldStart: number
+  oldLines: number
+  newStart: number
+  newLines: number
+  patch: string
+  lines: DesktopReviewDiffLine[]
+}
+
+export type DesktopReviewDiffFile = {
+  path: string
+  originalPath?: string
+  status: string
+  additions: number
+  deletions: number
+  isUntracked: boolean
+  hunks: DesktopReviewDiffHunk[]
+}
+
+export type DesktopReviewScopeSummary = {
+  scope: DesktopReviewScope
+  changedFiles: number
+  additions: number
+  deletions: number
+}
+
+export type DesktopReviewDiffInput = {
+  workspacePath: string
+  scope?: DesktopReviewScope
+}
+
+export type DesktopReviewDiffResult = {
+  scopes: DesktopReviewScopeSummary[]
+  activeScope: DesktopReviewScope
+  files: DesktopReviewDiffFile[]
+  status: DesktopGitStatus
+}
+
+export type DesktopReviewOperationAction = 'stage' | 'unstage' | 'revert'
+
+export type DesktopReviewOperationTarget =
+  | { type: 'file'; path: string }
+  | { type: 'hunk'; path: string; hunkId: string }
+
+export type DesktopReviewOperationInput = {
+  workspacePath: string
+  scope: DesktopReviewScope
+  action: DesktopReviewOperationAction
+  target: DesktopReviewOperationTarget
+}
+
+export type DesktopReviewOperationResult =
+  | { ok: true; status: DesktopGitStatus; reviewDiff: DesktopReviewDiffResult; output?: string }
+  | { ok: false; error: string }
+
+export type DesktopReviewCommentStatus = 'open' | 'resolved'
+
+export type DesktopReviewComment = {
+  id: string
+  sessionId: string
+  filePath: string
+  side: DesktopReviewSide
+  lineNumber: number
+  lineContent: string
+  body: string
+  status: DesktopReviewCommentStatus
+  createdAt: string
+  updatedAt: string
+}
+
+export type SaveSessionReviewCommentInput = {
+  sessionId: string
+  comment:
+    | Omit<DesktopReviewComment, 'id' | 'sessionId' | 'status' | 'createdAt' | 'updatedAt'>
+    | DesktopReviewComment
+}
+
+export type SessionReviewCommentInput = {
+  sessionId: string
+  commentId: string
+}
+
 export type DesktopGitFileChange = {
   path: string
   originalPath?: string
@@ -314,6 +413,86 @@ export type DesktopGithubCloneResult =
   | { ok: true; workspace: DesktopWorkspace }
   | { ok: false; error: string }
 
+export type DesktopGithubProfileRepository = {
+  id: string
+  name: string
+  fullName: string
+  url: string
+  description: string | null
+  isPrivate: boolean
+  isFork: boolean
+  primaryLanguage: {
+    name: string
+    color: string | null
+  } | null
+  stargazerCount: number
+  forkCount: number
+  updatedAt: string
+}
+
+export type DesktopGithubContributionDay = {
+  date: string
+  count: number
+  color: string
+}
+
+export type DesktopGithubContributionWeek = {
+  days: DesktopGithubContributionDay[]
+}
+
+export type DesktopGithubUserStatus = {
+  emoji: string | null
+  message: string | null
+  indicatesLimitedAvailability: boolean
+  expiresAt: string | null
+}
+
+export type DesktopGithubUserStatusInput = {
+  emoji: string
+  message: string
+  limitedAvailability: boolean
+  expiresAt?: string | null
+}
+
+export type DesktopGithubUserStatusResult =
+  | { ok: true; status: DesktopGithubUserStatus | null }
+  | { ok: false; error: string }
+
+export type DesktopGithubProfileOverview = {
+  user: DesktopGithubUser & {
+    bio: string | null
+    company: string | null
+    location: string | null
+    websiteUrl: string | null
+    email: string | null
+    followers: number
+    following: number
+    repositoryCount: number
+    starredRepositoryCount: number
+    status: DesktopGithubUserStatus | null
+  }
+  organizations: Array<{
+    login: string
+    avatarUrl: string
+    url: string
+  }>
+  pinnedRepositories: DesktopGithubProfileRepository[]
+  popularRepositories: DesktopGithubProfileRepository[]
+  contributions: {
+    totalContributions: number
+    totalCommitContributions: number
+    totalIssueContributions: number
+    totalPullRequestContributions: number
+    totalPullRequestReviewContributions: number
+    restrictedContributionsCount: number
+    weeks: DesktopGithubContributionWeek[]
+  }
+}
+
+export type DesktopGithubProfileOverviewResult =
+  | { ok: true; overview: DesktopGithubProfileOverview }
+  | { ok: false; error: string }
+
 export type SaveDesktopModelProviderOptions = {
   providerID: ModelProviderID
   modelID?: string
@@ -523,6 +702,7 @@ export type DesktopSessionSnapshot = {
   eventModelVersion?: 1
   workflowEvents?: DesktopWorkflowEvent[]
   workflowEventModelVersion?: 1
+  reviewComments?: DesktopReviewComment[]
   updatedAt: string
 }
 
@@ -694,6 +874,11 @@ export type DesktopApi = {
   pollGithubLogin(): Promise<DesktopGithubLoginStatus>
   logoutGithub(): Promise<DesktopGithubAuthStatus>
   listGithubRepositories(): Promise<DesktopGithubRepositoryListResult>
+  getGithubProfileOverview(): Promise<DesktopGithubProfileOverviewResult>
+  setGithubUserStatus(
+    input: DesktopGithubUserStatusInput,
+  ): Promise<DesktopGithubUserStatusResult>
+  clearGithubUserStatus(): Promise<DesktopGithubUserStatusResult>
   cloneGithubRepository(
     input: CloneGithubRepositoryInput,
   ): Promise<DesktopGithubCloneResult>
@@ -720,6 +905,12 @@ export type DesktopApi = {
   createPullRequest(
     input: CreatePullRequestInput,
   ): Promise<DesktopPullRequestResult>
+  getWorkspaceReviewDiff(
+    input: DesktopReviewDiffInput,
+  ): Promise<DesktopReviewDiffResult>
+  applyWorkspaceReviewOperation(
+    input: DesktopReviewOperationInput,
+  ): Promise<DesktopReviewOperationResult>
   listWorkspaceFiles(workspacePath: string): Promise<DesktopFileEntry[]>
   readWorkspaceFile(workspacePath: string, filePath: string): Promise<DesktopFilePreview>
   readOptionalWorkspaceFile(
@@ -739,6 +930,15 @@ export type DesktopApi = {
   updateSessionMetadata(
     sessionId: string,
     patch: DesktopSessionMetadataPatch,
+  ): Promise<DesktopSessionSnapshot>
+  saveSessionReviewComment(
+    input: SaveSessionReviewCommentInput,
+  ): Promise<DesktopSessionSnapshot>
+  resolveSessionReviewComment(
+    input: SessionReviewCommentInput,
+  ): Promise<DesktopSessionSnapshot>
+  deleteSessionReviewComment(
+    input: SessionReviewCommentInput,
   ): Promise<DesktopSessionSnapshot>
   setSessionPermissionMode(
     sessionId: string,

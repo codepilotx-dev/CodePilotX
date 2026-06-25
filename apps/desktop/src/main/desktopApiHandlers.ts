@@ -26,9 +26,12 @@ import {
 import {
   cloneGithubRepository,
   getGithubAuthStatus,
+  getGithubProfileOverview,
   listGithubRepositories,
   logoutGithub,
   pollGithubLogin,
+  clearGithubUserStatus,
+  setGithubUserStatus,
   startGithubLogin,
 } from './githubService.js'
 import {
@@ -62,9 +65,11 @@ import {
   createPullRequest,
   createWorkspaceBranch,
   discardWorkspaceChanges,
+  applyWorkspaceReviewOperation,
   getWorkspaceGitStatus,
   getWorkspaceContext,
   getWorkspaceDiff,
+  getWorkspaceReviewDiff,
   listOpenTargets,
   listWorkspaceFiles,
   openPathWithDefaultTarget,
@@ -84,6 +89,8 @@ import type {
   DesktopSessionSnapshot,
   DesktopStoredSettings,
   DesktopUserMessageInput,
+  SaveSessionReviewCommentInput,
+  SessionReviewCommentInput,
 } from '../shared/types.js'
 
 export type DesktopApiHandlerDependencies = {
@@ -110,6 +117,15 @@ export type DesktopApiHandlerDependencies = {
   updateSessionMetadata(
     sessionId: string,
     patch: DesktopSessionMetadataPatch,
+  ): Promise<DesktopSessionSnapshot>
+  saveSessionReviewComment(
+    input: SaveSessionReviewCommentInput,
+  ): Promise<DesktopSessionSnapshot>
+  resolveSessionReviewComment(
+    input: SessionReviewCommentInput,
+  ): Promise<DesktopSessionSnapshot>
+  deleteSessionReviewComment(
+    input: SessionReviewCommentInput,
   ): Promise<DesktopSessionSnapshot>
   setSessionPermissionMode(
     sessionId: string,
@@ -173,6 +189,9 @@ export function buildDesktopApiHandlers(
     pollGithubLogin,
     logoutGithub,
     listGithubRepositories,
+    getGithubProfileOverview,
+    setGithubUserStatus,
+    clearGithubUserStatus,
     cloneGithubRepository,
     chooseWorkspace,
     openWorkspace,
@@ -184,6 +203,8 @@ export function buildDesktopApiHandlers(
     pushWorkspaceBranch,
     discardWorkspaceChanges,
     createPullRequest,
+    getWorkspaceReviewDiff,
+    applyWorkspaceReviewOperation,
     listWorkspaceFiles,
     readWorkspaceFile,
     readOptionalWorkspaceFile: (workspacePath, filePath) =>
@@ -199,6 +220,9 @@ export function buildDesktopApiHandlers(
     getActiveSessionId: dependencies.getActiveSessionId,
     setActiveSession: dependencies.setActiveSession,
     updateSessionMetadata: dependencies.updateSessionMetadata,
+    saveSessionReviewComment: dependencies.saveSessionReviewComment,
+    resolveSessionReviewComment: dependencies.resolveSessionReviewComment,
+    deleteSessionReviewComment: dependencies.deleteSessionReviewComment,
     setSessionPermissionMode: dependencies.setSessionPermissionMode,
     readWorkflowEventLog: async () => windowService.readWorkflowEventLog(),
     openConfigFile: async () => openConfigFile(dependencies.getRuntimeOptions()),

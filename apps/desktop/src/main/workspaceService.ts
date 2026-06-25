@@ -1,6 +1,8 @@
 import { app, dialog, shell, type BrowserWindow } from 'electron'
 import { execFile, spawn } from 'node:child_process'
-import { mkdir, open, readdir, stat } from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
+import { mkdir, open, readdir, stat, unlink, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve, sep } from 'node:path'
 import { promisify } from 'node:util'
 import {
@@ -26,6 +28,13 @@ import type {
   DesktopGitWorkspaceResult,
   DesktopOpenTarget,
   DesktopPullRequestResult,
+  DesktopReviewDiffFile,
+  DesktopReviewDiffInput,
+  DesktopReviewDiffLine,
+  DesktopReviewDiffResult,
+  DesktopReviewOperationInput,
+  DesktopReviewOperationResult,
+  DesktopReviewScope,
   PushBranchInput,
   DesktopWorkspace,
 } from '../shared/types.js'
@@ -1034,6 +1043,385 @@ export async function getWorkspaceDiff(
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     return { patch: `Unable to read git diff: ${message}` }
+  }
+}
+
+export async function getWorkspaceReviewDiff(
+  input: DesktopReviewDiffInput,
+): Promise<DesktopReviewDiffResult> {
+  const resolvedWorkspace = assertAllowedWorkspace(input.workspacePath)
+  const activeScope: DesktopReviewScope =
+    input.scope === 'staged' ? 'staged' : 'unstaged'
+  const status = await readWorkspaceGitStatus(resolvedWorkspace)
+  const [unstagedPatch, stagedPatch] = await Promise.all([
+    readReviewPatch(resolvedWorkspace, 'unstaged'),
+    readReviewPatch(resolvedWorkspace, 'staged'),
+  ])
+  const unstagedFiles = parseReviewPatch(unstagedPatch, 'unstaged', status)
+  const stagedFiles = parseReviewPatch(stagedPatch, 'staged', status)
+  appendUntrackedReviewFiles(unstagedFiles, status)
+  const files = activeScope === 'staged' ? stagedFiles : unstagedFiles
+
+  return {
+    scopes: [
+      summarizeReviewScope('unstaged', unstagedFiles),
+      summarizeReviewScope('staged', stagedFiles),
+    ],
+    activeScope,
+    files,
+    status,
+  }
+}
+
+export async function applyWorkspaceReviewOperation(
+  input: DesktopReviewOperationInput,
+): Promise<DesktopReviewOperationResult> {
+  try {
+    const resolvedWorkspace = assertAllowedWorkspace(input.workspacePath)
+    const targetPath = requireNonEmptyString(
+      input.target.path,
+      'Review target path',
+    )
+    validateGitPaths(resolvedWorkspace, [targetPath])
+
+    if (input.target.type === 'file') {
+      await applyFileReviewOperation(resolvedWorkspace, input, targetPath)
+    } else {
+      await applyHunkReviewOperation(resolvedWorkspace, input, targetPath)
+    }
+
+    const reviewDiff = await getWorkspaceReviewDiff({
+      workspacePath: resolvedWorkspace,
+      scope: input.scope,
+    })
+    return { ok: true, status: reviewDiff.status, reviewDiff }
+  } catch (error) {
+    return { ok: false, error: errorMessageOf(error) }
+  }
+}
+
+async function readReviewPatch(
+  workspacePath: string,
+  scope: DesktopReviewScope,
+): Promise<string> {
+  const args =
+    scope === 'staged'
+      ? ['-C', workspacePath, 'diff', '--cached', '--']
+      : ['-C', workspacePath, 'diff', '--']
+  const { stdout } = await execFileAsync('git', args)
+  return stdout
+}
+
+function parseReviewPatch(
+  patch: string,
+  scope: DesktopReviewScope,
+  status: DesktopGitStatus,
+): DesktopReviewDiffFile[] {
+  const files: DesktopReviewDiffFile[] = []
+  let current: DesktopReviewDiffFile | null = null
+  let fileHeader: string[] = []
+  let currentHunk: ReviewHunkDraft | null = null
+  let oldLine = 0
+  let newLine = 0
+  let hunkIndex = 0
+  let lineIndex = 0
+
+  function finishHunk(): void {
+    if (!current || !currentHunk) return
+    const id = reviewHunkId(
+      current.path,
+      hunkIndex,
+      currentHunk.oldStart,
+      currentHunk.newStart,
+    )
+    current.hunks.push({
+      id,
+      header: currentHunk.header,
+      oldStart: currentHunk.oldStart,
+      oldLines: currentHunk.oldLines,
+      newStart: currentHunk.newStart,
+      newLines: currentHunk.newLines,
+      patch: [...fileHeader, ...currentHunk.rawLines].join('\n') + '\n',
+      lines: currentHunk.lines,
+    })
+    hunkIndex += 1
+    currentHunk = null
+  }
+
+  function finishFile(): void {
+    finishHunk()
+    if (current) files.push(current)
+    current = null
+    fileHeader = []
+    currentHunk = null
+    oldLine = 0
+    newLine = 0
+    hunkIndex = 0
+    lineIndex = 0
+  }
+
+  for (const rawLine of patch.split(/\r?\n/)) {
+    if (!rawLine && !currentHunk) continue
+    if (rawLine.startsWith('diff --git ')) {
+      finishFile()
+      const path = parseDiffPath(rawLine)
+      const statusFile = status.files.find(file => file.path === path)
+      current = {
+        path,
+        originalPath: statusFile?.originalPath,
+        status: scopedReviewStatus(statusFile, scope),
+        additions: 0,
+        deletions: 0,
+        isUntracked: false,
+        hunks: [],
+      }
+      fileHeader = [rawLine]
+      continue
+    }
+
+    if (!current) continue
+
+    const hunkMatch = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/.exec(rawLine)
+    if (hunkMatch) {
+      finishHunk()
+      oldLine = Number(hunkMatch[1])
+      newLine = Number(hunkMatch[3])
+      currentHunk = {
+        header: rawLine,
+        oldStart: oldLine,
+        oldLines: Number(hunkMatch[2] ?? '1'),
+        newStart: newLine,
+        newLines: Number(hunkMatch[4] ?? '1'),
+        rawLines: [rawLine],
+        lines: [],
+      }
+      continue
+    }
+
+    if (!currentHunk) {
+      fileHeader.push(rawLine)
+      continue
+    }
+
+    currentHunk.rawLines.push(rawLine)
+    const id = `${current.path}:${hunkIndex}:${lineIndex++}`
+    if (rawLine.startsWith('+')) {
+      current.additions += 1
+      currentHunk.lines.push({
+        id,
+        type: 'added',
+        oldLine: null,
+        newLine,
+        content: rawLine.slice(1),
+        raw: rawLine,
+      })
+      newLine += 1
+      continue
+    }
+    if (rawLine.startsWith('-')) {
+      current.deletions += 1
+      currentHunk.lines.push({
+        id,
+        type: 'removed',
+        oldLine,
+        newLine: null,
+        content: rawLine.slice(1),
+        raw: rawLine,
+      })
+      oldLine += 1
+      continue
+    }
+    if (rawLine.startsWith(' ')) {
+      currentHunk.lines.push({
+        id,
+        type: 'context',
+        oldLine,
+        newLine,
+        content: rawLine.slice(1),
+        raw: rawLine,
+      })
+      oldLine += 1
+      newLine += 1
+      continue
+    }
+    currentHunk.lines.push({
+      id,
+      type: 'meta',
+      oldLine: null,
+      newLine: null,
+      content: rawLine,
+      raw: rawLine,
+    })
+  }
+
+  finishFile()
+  return files
+}
+
+type ReviewHunkDraft = {
+  header: string
+  oldStart: number
+  oldLines: number
+  newStart: number
+  newLines: number
+  rawLines: string[]
+  lines: DesktopReviewDiffLine[]
+}
+
+function parseDiffPath(diffHeader: string): string {
+  const quotedMatch = /^diff --git "a\/(.+)" "b\/(.+)"$/.exec(diffHeader)
+  if (quotedMatch?.[2]) {
+    return unescapeGitPath(quotedMatch[2])
+  }
+
+  const bPrefixIndex = diffHeader.lastIndexOf(' b/')
+  if (bPrefixIndex >= 0) {
+    return diffHeader.slice(bPrefixIndex + 3)
+  }
+
+  const parts = diffHeader.split(' ')
+  const last = parts.at(-1) ?? ''
+  return last.startsWith('b/') ? last.slice(2) : last
+}
+
+function unescapeGitPath(path: string): string {
+  return path
+    .replace(/\\t/g, '\t')
+    .replace(/\\n/g, '\n')
+    .replace(/\\"/g, '"')
+    .replace(/\\\\/g, '\\')
+}
+
+function appendUntrackedReviewFiles(
+  files: DesktopReviewDiffFile[],
+  status: DesktopGitStatus,
+): void {
+  const seen = new Set(files.map(file => file.path))
+  for (const file of status.files) {
+    if (!file.isUntracked || seen.has(file.path)) continue
+    files.push({
+      path: file.path,
+      status: file.status,
+      additions: file.additions ?? 0,
+      deletions: file.deletions ?? 0,
+      isUntracked: true,
+      hunks: [],
+    })
+  }
+}
+
+function summarizeReviewScope(
+  scope: DesktopReviewScope,
+  files: DesktopReviewDiffFile[],
+) {
+  return {
+    scope,
+    changedFiles: files.length,
+    additions: files.reduce((total, file) => total + file.additions, 0),
+    deletions: files.reduce((total, file) => total + file.deletions, 0),
+  }
+}
+
+function scopedReviewStatus(
+  file: DesktopGitFileChange | undefined,
+  scope: DesktopReviewScope,
+): string {
+  if (!file) return scope === 'staged' ? 'M ' : ' M'
+  return scope === 'staged'
+    ? `${file.stagedStatus} `
+    : ` ${file.unstagedStatus}`
+}
+
+function reviewHunkId(
+  path: string,
+  index: number,
+  oldStart: number,
+  newStart: number,
+): string {
+  return `${path}:${index}:${oldStart}:${newStart}`
+}
+
+async function applyFileReviewOperation(
+  workspacePath: string,
+  input: DesktopReviewOperationInput,
+  path: string,
+): Promise<void> {
+  if (input.scope === 'unstaged' && input.action === 'stage') {
+    await execFileAsync('git', ['-C', workspacePath, 'add', '--', path])
+    return
+  }
+  if (input.scope === 'staged' && input.action === 'unstage') {
+    await execFileAsync('git', [
+      '-C',
+      workspacePath,
+      'restore',
+      '--staged',
+      '--',
+      path,
+    ])
+    return
+  }
+  if (input.scope === 'unstaged' && input.action === 'revert') {
+    const trackedPaths = await filterTrackedPaths(workspacePath, [path])
+    if (trackedPaths.length > 0) {
+      await execFileAsync('git', [
+        '-C',
+        workspacePath,
+        'restore',
+        '--worktree',
+        '--',
+        path,
+      ])
+    } else {
+      await execFileAsync('git', ['-C', workspacePath, 'clean', '-f', '--', path])
+    }
+    return
+  }
+  throw new Error(`Unsupported review operation: ${input.scope} ${input.action}`)
+}
+
+async function applyHunkReviewOperation(
+  workspacePath: string,
+  input: DesktopReviewOperationInput,
+  path: string,
+): Promise<void> {
+  const target = input.target
+  if (target.type !== 'hunk') return
+  const reviewDiff = await getWorkspaceReviewDiff({
+    workspacePath,
+    scope: input.scope,
+  })
+  const file = reviewDiff.files.find(item => item.path === path)
+  const hunk = file?.hunks.find(item => item.id === target.hunkId)
+  if (!hunk) {
+    throw new Error('Review hunk was not found in the current diff.')
+  }
+  if (input.scope === 'unstaged' && input.action === 'stage') {
+    await gitApplyPatch(workspacePath, hunk.patch, ['--cached'])
+    return
+  }
+  if (input.scope === 'staged' && input.action === 'unstage') {
+    await gitApplyPatch(workspacePath, hunk.patch, ['--cached', '--reverse'])
+    return
+  }
+  if (input.scope === 'unstaged' && input.action === 'revert') {
+    await gitApplyPatch(workspacePath, hunk.patch, ['--reverse'])
+    return
+  }
+  throw new Error(`Unsupported review hunk operation: ${input.scope} ${input.action}`)
+}
+
+async function gitApplyPatch(
+  workspacePath: string,
+  patch: string,
+  args: string[],
+): Promise<void> {
+  const patchPath = join(tmpdir(), `codepilotx-review-${randomUUID()}.patch`)
+  await writeFile(patchPath, patch, 'utf8')
+  try {
+    await execFileAsync('git', ['-C', workspacePath, 'apply', ...args, patchPath])
+  } finally {
+    await unlink(patchPath).catch(() => undefined)
   }
 }
 

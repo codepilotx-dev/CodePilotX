@@ -312,59 +312,493 @@
   color: var(--c-text-soft);
 }
 
-.profile-github-card {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-  padding: 14px var(--sp-4);
-  border-bottom: 1px solid var(--c-border-soft);
+.profile-dashboard-area {
+  padding: 0;
 }
 
-.profile-github-avatar {
-  width: 48px;
-  height: 48px;
-  border: 1px solid var(--c-border-soft);
+.profile-dashboard {
+  min-height: 100%;
+  padding: 28px 24px 80px;
+  background-color: var(--c-bg);
+}
+
+.profile-dashboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  max-width: 1120px;
+  margin: 0 auto;
+  padding-bottom: 56px;
+}
+
+.profile-dashboard-header h2 {
+  margin: 0;
+  font-size: var(--fs-16);
+  font-weight: 600;
+  color: var(--c-text-strong);
+}
+
+.profile-dashboard-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+}
+
+.profile-action-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  color: var(--c-text);
+  font-size: var(--fs-14);
+  cursor: pointer;
+}
+
+.profile-action-button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.profile-action-button svg {
+  width: var(--app-icon-size);
+  height: var(--app-icon-size);
+  stroke-width: var(--app-icon-stroke-width);
+}
+
+.profile-hero {
+  max-width: 920px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.profile-avatar-wrap {
+  position: relative;
+  width: 112px;
+  height: 112px;
+  margin: 0 auto 18px;
+}
+
+.profile-avatar {
+  width: 112px;
+  height: 112px;
   border-radius: 50%;
-  background-color: var(--c-bg-subtle);
-  color: var(--c-text-soft);
+  background-color: #b89148;
+  color: white;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
+  font-size: 36px;
   overflow: hidden;
 }
 
-.profile-github-avatar img {
+.profile-avatar img {
   width: 100%;
   height: 100%;
   display: block;
   object-fit: cover;
 }
 
-.profile-github-avatar svg {
-  width: 24px;
-  height: 24px;
+.profile-avatar svg {
+  width: 44px;
+  height: 44px;
   stroke-width: var(--app-icon-stroke-width);
 }
 
-.profile-github-copy {
-  flex: 1;
-  min-width: 0;
+.profile-avatar-badge {
+  position: absolute;
+  right: -3px;
+  bottom: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 3px solid var(--c-bg);
+  border-radius: 50%;
+  background-color: var(--c-bg);
+  color: var(--c-text);
+  font-size: 16px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px var(--black-a2);
 }
 
-.profile-github-name {
-  font-size: var(--fs-15);
-  font-weight: 600;
+.profile-hero h1 {
+  margin: 0;
+  font-size: 28px;
+  line-height: 1.2;
+  font-weight: 500;
   color: var(--c-text-strong);
+}
+
+.profile-identity {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 12px;
+  color: var(--c-text-soft);
+  font-size: var(--fs-15);
+}
+
+.profile-identity span {
+  padding: 2px 8px;
+  border: 1px solid var(--c-border-soft);
+  border-radius: 999px;
+  font-size: var(--fs-12);
+}
+
+.profile-bio {
+  max-width: 540px;
+  margin: 16px auto 0;
+  color: var(--c-text);
+  font-size: var(--fs-14);
+  line-height: 1.6;
+}
+
+.profile-status-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 560px;
+  margin-top: 12px;
+  padding: 6px 10px;
+  border: 1px solid var(--c-border-soft);
+  border-radius: 999px;
+  color: var(--c-text);
+  font-size: var(--fs-13);
+}
+
+.profile-status-line strong {
+  padding-left: 6px;
+  color: var(--c-text-soft);
+  font-weight: 500;
+}
+
+.profile-meta-line {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin-top: 14px;
+  color: var(--c-text-soft);
+  font-size: var(--fs-13);
+}
+
+.profile-meta-line span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.profile-meta-line svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: var(--app-icon-stroke-width);
+}
+
+.profile-stat-strip {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  max-width: 760px;
+  margin: 56px auto 0;
+  border: 1px solid var(--c-border-soft);
+  border-radius: 16px;
+  background-color: var(--c-bg);
+  overflow: hidden;
+}
+
+.profile-metric {
+  padding: 14px 20px;
+  text-align: center;
+  border-right: 1px solid var(--c-border-soft);
+}
+
+.profile-metric:last-child {
+  border-right: none;
+}
+
+.profile-metric strong {
+  display: block;
+  color: var(--c-text-strong);
+  font-size: var(--fs-17);
+  font-weight: 600;
+}
+
+.profile-metric span {
+  display: block;
+  margin-top: 4px;
+  color: var(--c-text-soft);
+  font-size: var(--fs-13);
+}
+
+.profile-activity-panel {
+  max-width: 760px;
+  margin: 50px auto 0;
+}
+
+.profile-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.profile-panel-heading h3,
+.profile-insights h3,
+.profile-repositories h3 {
+  margin: 0;
+  color: var(--c-text-strong);
+  font-size: var(--fs-16);
+  font-weight: 600;
+}
+
+.profile-panel-heading div {
+  display: flex;
+  gap: 18px;
+  color: var(--c-text-soft);
+  font-size: var(--fs-13);
+}
+
+.profile-contribution-map {
+  overflow-x: auto;
+}
+
+.profile-contribution-grid {
+  display: flex;
+  gap: 5px;
+  min-width: 720px;
+}
+
+.profile-contribution-week {
+  display: grid;
+  grid-template-rows: repeat(7, 14px);
+  gap: 5px;
+}
+
+.profile-contribution-day {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+}
+
+.profile-contribution-months {
+  display: flex;
+  justify-content: space-between;
+  min-width: 720px;
+  margin-top: 12px;
+  color: var(--c-text-soft);
+  font-size: var(--fs-13);
+}
+
+.profile-lower-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 48px;
+  max-width: 760px;
+  margin: 52px auto 0;
+}
+
+.profile-insight-row,
+.profile-repository-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  min-height: 32px;
+  margin-top: 8px;
+  color: var(--c-text-soft);
+  font-size: var(--fs-14);
+}
+
+.profile-insight-row strong {
+  color: var(--c-text);
+  font-weight: 500;
+}
+
+.profile-repository-row {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.profile-repository-row:hover .profile-repository-name {
+  color: var(--c-accent);
+}
+
+.profile-repository-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.profile-repository-name {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--c-text);
 }
 
-.profile-github-meta {
-  margin-top: 2px;
+.profile-repository-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--c-text-soft);
+  flex-shrink: 0;
+}
+
+.profile-repository-count svg {
+  width: 13px;
+  height: 13px;
+  stroke-width: var(--app-icon-stroke-width);
+}
+
+.profile-empty-state {
+  max-width: 520px;
+  margin: 60px auto 0;
+  text-align: center;
+  color: var(--c-text-soft);
+}
+
+.profile-empty-actions {
+  display: flex;
+  justify-content: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-4);
+}
+
+.profile-empty-copy {
+  margin: 12px 0 0;
+  color: var(--c-text-soft);
+  font-size: var(--fs-13);
+}
+
+.profile-status-popover {
+  position: fixed;
+  top: 132px;
+  left: 50%;
+  z-index: 40;
+  width: 480px;
+  max-width: calc(100vw - 48px);
+  transform: translateX(-50%);
+  border: 1px solid var(--c-border);
+  border-radius: 12px;
+  background-color: var(--c-bg);
+  box-shadow: 0 18px 44px var(--black-a3);
+}
+
+.profile-status-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--c-border-soft);
+}
+
+.profile-status-popover-header button {
+  border: 0;
+  background: transparent;
+  color: var(--c-text-soft);
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.profile-status-field {
+  display: block;
+  padding: 16px;
+}
+
+.profile-status-field > span {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--c-text-strong);
+  font-size: var(--fs-13);
+  font-weight: 600;
+}
+
+.profile-status-field > div {
+  display: grid;
+  grid-template-columns: 170px minmax(0, 1fr);
+  gap: var(--sp-2);
+}
+
+.profile-status-field select,
+.profile-status-field input {
+  min-height: 32px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+  background-color: var(--c-bg);
+  color: var(--c-text);
+  font-size: var(--fs-13);
+  padding: 0 10px;
+}
+
+.profile-status-checkbox {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 0 16px 16px;
+  color: var(--c-text);
+  font-size: var(--fs-13);
+}
+
+.profile-status-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+  padding: 14px 16px;
+  border-top: 1px solid var(--c-border-soft);
+}
+
+.github-device-code-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  padding: 14px var(--sp-4);
+  border-bottom: 1px solid var(--c-border-soft);
+  background-color: var(--c-bg-subtle);
+}
+
+.github-device-code-card.compact {
+  margin-top: var(--sp-3);
+  padding: 12px;
+  border: 1px solid var(--c-border-soft);
+  border-radius: var(--r-md);
+}
+
+.github-device-code-label {
+  font-size: var(--fs-12);
+  color: var(--c-text-soft);
+  margin-bottom: 4px;
+}
+
+.github-device-code-value {
+  font-family: var(--font-mono);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--c-text-strong);
+}
+
+.github-device-code-card p {
+  margin: 6px 0 0;
   font-size: var(--fs-13);
   color: var(--c-text-soft);
+  line-height: 1.5;
+}
+
+.github-device-code-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-shrink: 0;
 }
 
 /* --- Radio Card --- */

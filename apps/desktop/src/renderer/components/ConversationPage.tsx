@@ -63,6 +63,7 @@ import { deriveReviewTurns } from "../features/session/reviewTurns.js";
 import type { Message } from "../uiTypes.js";
 import { InlineApprovalCard } from "./InlineApprovalCard.js";
 import { MarkdownMessage } from "./MarkdownMessage.js";
+import { WorkspaceReviewSidebar } from "./review/WorkspaceReviewSidebar.js";
 import { PopoverItem } from "./ui/PopoverItem.js";
 import { PopoverMenu } from "./ui/PopoverMenu.js";
 import { Tooltip } from "./ui/Tooltip.js";
@@ -607,19 +608,15 @@ export function ConversationPage(): React.ReactNode {
           />
         ) : null}
         {showReviewSidebar ? (
-          <ReviewSidebar
-            diff={diff}
-            events={events}
-            gitStatus={gitStatus}
+          <WorkspaceReviewSidebar
+            activeSessionId={activeSessionId}
             isRefreshing={isRefreshingDiff}
-            messages={conversationMessagesForReview}
             reviewView={reviewView}
             sessionStatus={sessionStatus}
             workspacePath={workspacePath}
             onClose={() => setRightSidebarVisible(false)}
             onOpenWorkspacePath={onOpenWorkspacePath}
             onRefreshDiff={handleRefreshDiff}
-            onRunCodeReview={handleRunCodeReview}
           />
         ) : null}
       </div>

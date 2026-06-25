@@ -18,9 +18,15 @@ import type {
   DesktopGithubAuthStatus,
   DesktopGithubCloneResult,
   DesktopGithubLoginStatus,
+  DesktopGithubProfileOverview,
+  DesktopGithubProfileOverviewResult,
+  DesktopGithubProfileRepository,
   DesktopGithubRepository,
   DesktopGithubRepositoryListResult,
   DesktopGithubUser,
+  DesktopGithubUserStatus,
+  DesktopGithubUserStatusInput,
+  DesktopGithubUserStatusResult,
   StartGithubLoginInput,
 } from '../shared/types.js'
 import { readDesktopStoredSettings } from './desktopSettings.js'
@@ -34,8 +40,9 @@ const GITHUB_API_VERSION = '2022-11-28'
 const DEVICE_CODE_URL = 'https://github.com/login/device/code'
 const ACCESS_TOKEN_URL = 'https://github.com/login/oauth/access_token'
 const GITHUB_API_URL = 'https://api.github.com'
+const GITHUB_GRAPHQL_URL = 'https://api.github.com/graphql'
 const AUTH_STORAGE_FILE = 'github-auth.json'
-const OAUTH_SCOPE = 'repo read:user'
+const OAUTH_SCOPE = 'repo user'
 
 type StoredGithubAuth = {
   login: string
@@ -249,6 +256,52 @@ export async function listGithubRepositories(): Promise<DesktopGithubRepositoryL
   }
 }
 
+export async function getGithubProfileOverview(): Promise<DesktopGithubProfileOverviewResult> {
+  try {
+    const token = await requireGithubToken()
+    const data = await fetchGithubGraphql(token, GITHUB_PROFILE_QUERY)
+    const viewer = objectValue(objectValue(data).viewer)
+    return { ok: true, overview: normalizeGithubProfileOverview(viewer) }
+  } catch (error) {
+    return { ok: false, error: errorMessageOf(error) }
+  }
+}
+
+export async function setGithubUserStatus(
+  input: DesktopGithubUserStatusInput,
+): Promise<DesktopGithubUserStatusResult> {
+  try {
+    const token = await requireGithubToken()
+    const data = await fetchGithubGraphql(token, GITHUB_SET_STATUS_MUTATION, {
+      emoji: normalizeStatusEmoji(input.emoji),
+      message: input.message.trim().slice(0, 80),
+      limitedAvailability: input.limitedAvailability,
+      expiresAt: input.expiresAt ?? null,
+    })
+    const status = objectValue(objectValue(data).changeUserStatus).status
+    return {
+      ok: true,
+      status: status ? normalizeUserStatus(objectValue(status)) : null,
+    }
+  } catch (error) {
+    return { ok: false, error: errorMessageOf(error) }
+  }
+}
+
+export async function clearGithubUserStatus(): Promise<DesktopGithubUserStatusResult> {
+  try {
+    const token = await requireGithubToken()
+    const data = await fetchGithubGraphql(token, GITHUB_CLEAR_STATUS_MUTATION)
+    const status = objectValue(objectValue(data).clearUserStatus).status
+    return {
+      ok: true,
+      status: status ? normalizeUserStatus(objectValue(status)) : null,
+    }
+  } catch (error) {
+    return { ok: false, error: errorMessageOf(error) }
+  }
+}
+
 export async function cloneGithubRepository(
   input: CloneGithubRepositoryInput,
 ): Promise<DesktopGithubCloneResult> {
@@ -338,6 +391,33 @@ async function pollAccessToken(
   return (await response.json()) as TokenResponse
 }
 
+async function fetchGithubGraphql(
+  token: string,
+  query: string,
+  variables?: Record<string, unknown>,
+): Promise<unknown> {
+  const response = await fetch(GITHUB_GRAPHQL_URL, {
+    method: 'POST',
+    headers: githubApiHeaders(token),
+    body: JSON.stringify({ query, variables }),
+  })
+  if (!response.ok) {
+    throw new Error(await githubErrorMessage(response))
+  }
+  const payload = (await response.json()) as {
+    data?: unknown
+    errors?: Array<{ message?: unknown }>
+  }
+  if (payload.errors?.length) {
+    const message = payload.errors
+      .map(error => typeof error.message === 'string' ? error.message : null)
+      .filter(Boolean)
+      .join('; ')
+    throw new Error(message || 'GitHub GraphQL request failed.')
+  }
+  return payload.data
+}
+
 async function fetchGithubUser(token: string): Promise<DesktopGithubUser> {
   const response = await fetch(`${GITHUB_API_URL}/user`, {
     headers: githubApiHeaders(token),
@@ -399,6 +479,142 @@ function normalizeRepository(value: unknown): DesktopGithubRepository {
     pushedAt: nullableStringValue(data.pushed_at),
     updatedAt: nullableStringValue(data.updated_at),
   }
+}
+
+function normalizeGithubProfileOverview(
+  viewer: Record<string, unknown>,
+): DesktopGithubProfileOverview {
+  const contributions = objectValue(viewer.contributionsCollection)
+  const calendar = objectValue(contributions.contributionCalendar)
+  return {
+    user: {
+      login: stringValue(viewer.login),
+      id: numberValue(viewer.databaseId),
+      name: nullableStringValue(viewer.name),
+      avatarUrl: nullableStringValue(viewer.avatarUrl),
+      htmlUrl: stringValue(viewer.url),
+      bio: nullableStringValue(viewer.bio),
+      company: nullableStringValue(viewer.company),
+      location: nullableStringValue(viewer.location),
+      websiteUrl: nullableStringValue(viewer.websiteUrl),
+      email: nullableStringValue(viewer.email),
+      followers: totalCountOf(viewer.followers),
+      following: totalCountOf(viewer.following),
+      repositoryCount: totalCountOf(viewer.repositories),
+      starredRepositoryCount: totalCountOf(viewer.starredRepositories),
+      status: viewer.status ? normalizeUserStatus(objectValue(viewer.status)) : null,
+    },
+    organizations: [],
+    pinnedRepositories: repositoryNodesOf(viewer.pinnedItems),
+    popularRepositories: repositoryNodesOf(viewer.topRepositories),
+    contributions: {
+      totalContributions: numberValue(calendar.totalContributions),
+      totalCommitContributions: numberValue(
+        contributions.totalCommitContributions,
+      ),
+      totalIssueContributions: numberValue(
+        contributions.totalIssueContributions,
+      ),
+      totalPullRequestContributions: numberValue(
+        contributions.totalPullRequestContributions,
+      ),
+      totalPullRequestReviewContributions: numberValue(
+        contributions.totalPullRequestReviewContributions,
+      ),
+      restrictedContributionsCount: numberValue(
+        contributions.restrictedContributionsCount,
+      ),
+      weeks: objectArrayOf(calendar.weeks).map(week => ({
+        days: objectArrayOf(week.contributionDays).map(day => ({
+          date: stringValue(day.date),
+          count: numberValue(day.contributionCount),
+          color: stringValue(day.color),
+        })),
+      })),
+    },
+  }
+}
+
+function normalizeUserStatus(
+  value: Record<string, unknown>,
+): DesktopGithubUserStatus {
+  return {
+    emoji: nullableStringValue(value.emoji),
+    message: nullableStringValue(value.message),
+    indicatesLimitedAvailability: booleanValue(
+      value.indicatesLimitedAvailability,
+    ),
+    expiresAt: nullableStringValue(value.expiresAt),
+  }
+}
+
+function normalizeStatusEmoji(value: string): string {
+  const trimmed = value.trim()
+  if (!trimmed) return ':speech_balloon:'
+  if (trimmed.startsWith(':') && trimmed.endsWith(':')) return trimmed
+  return `:${trimmed.replace(/^:+|:+$/g, '')}:`
+}
+
+function repositoryNodesOf(value: unknown): DesktopGithubProfileRepository[] {
+  return nodesOf(value)
+    .filter(node => stringValue(node.__typename) === 'Repository')
+    .map(normalizeProfileRepository)
+}
+
+function normalizeProfileRepository(
+  value: Record<string, unknown>,
+): DesktopGithubProfileRepository {
+  const owner = objectValue(value.owner)
+  const language = value.primaryLanguage
+    ? objectValue(value.primaryLanguage)
+    : null
+  return {
+    id: stringValue(value.id),
+    name: stringValue(value.name),
+    fullName: `${stringValue(owner.login)}/${stringValue(value.name)}`,
+    url: stringValue(value.url),
+    description: nullableStringValue(value.description),
+    isPrivate: booleanValue(value.isPrivate),
+    isFork: booleanValue(value.isFork),
+    primaryLanguage: language
+      ? {
+          name: stringValue(language.name),
+          color: nullableStringValue(language.color),
+        }
+      : null,
+    stargazerCount: numberValue(value.stargazerCount),
+    forkCount: numberValue(value.forkCount),
+    updatedAt: stringValue(value.updatedAt),
+  }
+}
+
+function totalCountOf(value: unknown): number {
+  return numberValue(objectValue(value).totalCount)
+}
+
+function nodesOf(value: unknown): Record<string, unknown>[] {
+  const nodes = objectValue(value).nodes
+  if (!Array.isArray(nodes)) return []
+  return nodes.flatMap(node =>
+    node && typeof node === 'object'
+      ? [node as Record<string, unknown>]
+      : [],
+  )
+}
+
+function objectArrayOf(value: unknown): Record<string, unknown>[] {
+  if (!Array.isArray(value)) return []
+  return value.flatMap(item =>
+    item && typeof item === 'object'
+      ? [item as Record<string, unknown>]
+      : [],
+  )
+}
+
+function objectValue(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object'
+    ? (value as Record<string, unknown>)
+    : {}
 }
 
 async function requireGithubToken(): Promise<string> {
@@ -644,3 +860,135 @@ function isErrno(error: unknown, code: string): boolean {
 function errorMessageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
+
+const GITHUB_PROFILE_QUERY = `
+query DesktopGithubProfileOverview {
+  viewer {
+    databaseId
+    login
+    name
+    avatarUrl
+    url
+    bio
+    company
+    location
+    websiteUrl
+    email
+    followers {
+      totalCount
+    }
+    following {
+      totalCount
+    }
+    repositories(privacy: PUBLIC, ownerAffiliations: OWNER) {
+      totalCount
+    }
+    starredRepositories {
+      totalCount
+    }
+    status {
+      emoji
+      message
+      indicatesLimitedAvailability
+      expiresAt
+    }
+    pinnedItems(first: 6, types: REPOSITORY) {
+      nodes {
+        __typename
+        ... on Repository {
+          id
+          name
+          url
+          description
+          isPrivate
+          isFork
+          stargazerCount
+          forkCount
+          updatedAt
+          owner {
+            login
+          }
+          primaryLanguage {
+            name
+            color
+          }
+        }
+      }
+    }
+    topRepositories(first: 6, orderBy: { field: STARGAZERS, direction: DESC }) {
+      nodes {
+        __typename
+        id
+        name
+        url
+        description
+        isPrivate
+        isFork
+        stargazerCount
+        forkCount
+        updatedAt
+        owner {
+          login
+        }
+        primaryLanguage {
+          name
+          color
+        }
+      }
+    }
+    contributionsCollection {
+      totalCommitContributions
+      totalIssueContributions
+      totalPullRequestContributions
+      totalPullRequestReviewContributions
+      restrictedContributionsCount
+      contributionCalendar {
+        totalContributions
+        weeks {
+          contributionDays {
+            date
+            contributionCount
+            color
+          }
+        }
+      }
+    }
+  }
+}
+`
+
+const GITHUB_SET_STATUS_MUTATION = `
+mutation DesktopGithubSetUserStatus(
+  $emoji: String!
+  $message: String!
+  $limitedAvailability: Boolean!
+  $expiresAt: DateTime
+) {
+  changeUserStatus(input: {
+    emoji: $emoji
+    message: $message
+    limitedAvailability: $limitedAvailability
+    expiresAt: $expiresAt
+  }) {
+    status {
+      emoji
+      message
+      indicatesLimitedAvailability
+      expiresAt
+    }
+  }
+}
+`
+
+const GITHUB_CLEAR_STATUS_MUTATION = `
+mutation DesktopGithubClearUserStatus {
+  clearUserStatus(input: {}) {
+    status {
+      emoji
+      message
+      indicatesLimitedAvailability
+      expiresAt
+    }
+  }
+}
+`

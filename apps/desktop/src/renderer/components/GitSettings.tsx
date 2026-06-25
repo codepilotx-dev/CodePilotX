@@ -86,6 +86,18 @@ export function GitSettings(): React.ReactNode {
       : '未登录'
   const githubClientConfigured = Boolean(githubOAuthClientId.trim()) ||
     githubAuth?.configured === true
+  const activeDeviceLogin =
+    githubLogin?.state === 'awaiting_auth' && githubLogin.userCode
+
+  const copyGithubCode = async (): Promise<void> => {
+    if (!githubLogin?.userCode) return
+    await navigator.clipboard.writeText(githubLogin.userCode)
+  }
+
+  const openGithubDevicePage = async (): Promise<void> => {
+    if (!githubLogin?.verificationUri) return
+    await desktopClient.openExternalURL(githubLogin.verificationUri)
+  }
 
   return (
     <div className="settings-content-area">
@@ -99,6 +111,35 @@ export function GitSettings(): React.ReactNode {
           title="GitHub 账号"
           description="登录后可在项目选择器中列出并克隆你有权限访问的 GitHub 仓库。"
         >
+          {activeDeviceLogin ? (
+            <div className="github-device-code-card">
+              <div>
+                <div className="github-device-code-label">GitHub 设备验证码</div>
+                <div className="github-device-code-value">
+                  {githubLogin.userCode}
+                </div>
+                <p>
+                  在 GitHub 打开的设备登录页面输入这个验证码，不是 OAuth Client ID。
+                </p>
+              </div>
+              <div className="github-device-code-actions">
+                <button
+                  className="settings-button"
+                  onClick={() => void copyGithubCode()}
+                  type="button"
+                >
+                  复制验证码
+                </button>
+                <button
+                  className="settings-button primary"
+                  onClick={() => void openGithubDevicePage()}
+                  type="button"
+                >
+                  打开验证页面
+                </button>
+              </div>
+            </div>
+          ) : null}
           <SettingsRow
             title="OAuth Client ID"
             description="GitHub OAuth App 的公开 client_id；需要在 OAuth App 设置里启用 device flow。"

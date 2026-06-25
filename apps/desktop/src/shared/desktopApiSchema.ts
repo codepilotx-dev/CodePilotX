@@ -74,6 +74,55 @@ const createPullRequestInput = z.object({
   draft: z.boolean().optional(),
 })
 
+const reviewScope = z.enum(['unstaged', 'staged'])
+
+const reviewSide = z.enum(['left', 'right'])
+
+const getWorkspaceReviewDiffInput = z.object({
+  workspacePath: z.string(),
+  scope: reviewScope.optional(),
+})
+
+const reviewOperationInput = z.object({
+  workspacePath: z.string(),
+  scope: reviewScope,
+  action: z.enum(['stage', 'unstage', 'revert']),
+  target: z.union([
+    z.object({
+      type: z.literal('file'),
+      path: z.string(),
+    }),
+    z.object({
+      type: z.literal('hunk'),
+      path: z.string(),
+      hunkId: z.string(),
+    }),
+  ]),
+})
+
+const reviewComment = z.object({
+  id: z.string().optional(),
+  sessionId: z.string().optional(),
+  filePath: z.string(),
+  side: reviewSide,
+  lineNumber: z.number().int().min(1),
+  lineContent: z.string(),
+  body: z.string(),
+  status: z.enum(['open', 'resolved']).optional(),
+  createdAt: z.string().optional(),
+  updatedAt: z.string().optional(),
+})
+
+const saveSessionReviewCommentInput = z.object({
+  sessionId: z.string(),
+  comment: reviewComment,
+})
+
+const sessionReviewCommentInput = z.object({
+  sessionId: z.string(),
+  commentId: z.string(),
+})
+
 const githubRepository = z.object({
   id: z.number(),
   name: z.string(),
@@ -98,6 +147,13 @@ const cloneGithubRepositoryInput = z.object({
 
 const startGithubLoginInput = z.object({
   clientId: z.string().optional(),
+})
+
+const githubUserStatusInput = z.object({
+  emoji: z.string(),
+  message: z.string(),
+  limitedAvailability: z.boolean(),
+  expiresAt: z.string().nullable().optional(),
 })
 
 const permissionDecision = z.object({
@@ -172,6 +228,9 @@ export const DESKTOP_API_ARG_SCHEMAS = {
   pollGithubLogin: emptyArgs,
   logoutGithub: emptyArgs,
   listGithubRepositories: emptyArgs,
+  getGithubProfileOverview: emptyArgs,
+  setGithubUserStatus: z.tuple([githubUserStatusInput]),
+  clearGithubUserStatus: emptyArgs,
   cloneGithubRepository: z.tuple([cloneGithubRepositoryInput]),
   chooseWorkspace: emptyArgs,
   openWorkspace: z.tuple([z.string()]),
@@ -183,6 +242,8 @@ export const DESKTOP_API_ARG_SCHEMAS = {
   pushWorkspaceBranch: z.tuple([pushBranchInput]),
   discardWorkspaceChanges: z.tuple([discardWorkspaceChangesInput]),
   createPullRequest: z.tuple([createPullRequestInput]),
+  getWorkspaceReviewDiff: z.tuple([getWorkspaceReviewDiffInput]),
+  applyWorkspaceReviewOperation: z.tuple([reviewOperationInput]),
   listWorkspaceFiles: z.tuple([z.string()]),
   readWorkspaceFile: z.tuple([z.string(), z.string()]),
   readOptionalWorkspaceFile: z.tuple([z.string(), z.string()]),
@@ -197,6 +258,9 @@ export const DESKTOP_API_ARG_SCHEMAS = {
   getActiveSessionId: emptyArgs,
   setActiveSession: z.tuple([z.string().nullable()]),
   updateSessionMetadata: z.tuple([z.string(), metadataPatch]),
+  saveSessionReviewComment: z.tuple([saveSessionReviewCommentInput]),
+  resolveSessionReviewComment: z.tuple([sessionReviewCommentInput]),
+  deleteSessionReviewComment: z.tuple([sessionReviewCommentInput]),
   setSessionPermissionMode: z.tuple([z.string(), permissionModeSchema]),
   readWorkflowEventLog: emptyArgs,
   openConfigFile: emptyArgs,

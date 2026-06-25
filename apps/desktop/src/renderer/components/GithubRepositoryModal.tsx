@@ -115,6 +115,16 @@ export function GithubRepositoryModal({
     }
   }
 
+  async function copyGithubCode(): Promise<void> {
+    if (!login?.userCode) return
+    await navigator.clipboard.writeText(login.userCode)
+  }
+
+  async function openGithubDevicePage(): Promise<void> {
+    if (!login?.verificationUri) return
+    await desktopClient.openExternalURL(login.verificationUri)
+  }
+
   async function cloneRepository(repository: DesktopGithubRepository): Promise<void> {
     setCloningRepo(repository.fullName)
     try {
@@ -171,6 +181,37 @@ export function GithubRepositoryModal({
                         ? `请在打开的 GitHub 页面输入验证码 ${login.userCode}`
                         : '使用 GitHub device flow 登录后，可列出并克隆私有仓库。'}
                   </p>
+                  {login?.state === 'awaiting_auth' && login.userCode ? (
+                    <div className="github-device-code-card compact">
+                      <div>
+                        <div className="github-device-code-label">
+                          GitHub 设备验证码
+                        </div>
+                        <div className="github-device-code-value">
+                          {login.userCode}
+                        </div>
+                        <p>
+                          在 GitHub 设备登录页面输入这个验证码，不是 OAuth Client ID。
+                        </p>
+                      </div>
+                      <div className="github-device-code-actions">
+                        <button
+                          className="settings-button"
+                          onClick={() => void copyGithubCode()}
+                          type="button"
+                        >
+                          复制验证码
+                        </button>
+                        <button
+                          className="settings-button"
+                          onClick={() => void openGithubDevicePage()}
+                          type="button"
+                        >
+                          打开验证页面
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
                 <button
                   className="settings-button primary"
