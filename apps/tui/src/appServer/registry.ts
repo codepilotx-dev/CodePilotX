@@ -3,6 +3,7 @@ import type {
   ThreadId,
   TurnItemEvent,
 } from '@codepilotx/core/agent/workflow.js'
+import { deriveWorkflowSessionView } from '@codepilotx/core/agent/workflowView.js'
 import { ThreadRuntime } from '../workflow/ThreadRuntime.js'
 import type {
   ThreadRuntimeLifecycleResult,
@@ -11,6 +12,8 @@ import type {
 } from '../workflow/ThreadRuntime.js'
 import type {
   JsonRpcItemInjectParams,
+  JsonRpcSessionGetSnapshotParams,
+  JsonRpcSessionSnapshot,
   JsonRpcThreadForkParams,
   JsonRpcThreadResumeParams,
   JsonRpcThreadStartParams,
@@ -52,45 +55,87 @@ export type ThreadRuntimeLike = {
 export class AppServerThreadRegistry {
   constructor(private readonly runtime: ThreadRuntimeLike = new ThreadRuntime()) {}
 
+  private readonly eventsByThreadId = new Map<ThreadId, ThreadEvent[]>()
+
   startThread(params: JsonRpcThreadStartParams): ThreadRuntimeStartResult {
-    return this.runtime.startThread({
+    const result = this.runtime.startThread({
       ...params.settings,
       ...(params.threadId ? { threadId: params.threadId } : {}),
     })
+    this.recordEvent(result.event)
+    return result
   }
 
   resumeThread(params: JsonRpcThreadResumeParams): ThreadRuntimeLifecycleResult {
-    return this.runtime.resumeThread(params.threadId, params.settings, params.state)
+    const result = this.runtime.resumeThread(
+      params.threadId,
+      params.settings,
+      params.state,
+    )
+    this.recordEvent(result.event)
+    return result
   }
 
   forkThread(params: JsonRpcThreadForkParams): ThreadRuntimeLifecycleResult {
-    return this.runtime.forkThread(params.sourceThreadId, params.options)
+    const result = this.runtime.forkThread(params.sourceThreadId, params.options)
+    this.recordEvent(result.event)
+    return result
   }
 
   async *startTurn(
     params: JsonRpcTurnStartParams,
   ): AsyncGenerator<ThreadEvent, void, unknown> {
-    yield* this.runtime.sendTurn(params.threadId, params.input, {
+    for await (const event of this.runtime.sendTurn(params.threadId, params.input, {
       ...(params.uuid === undefined ? {} : { uuid: params.uuid }),
       ...(params.isMeta === undefined ? {} : { isMeta: params.isMeta }),
       ...(params.turnId === undefined ? {} : { turnId: params.turnId }),
-    })
+    })) {
+      this.recordEvent(event)
+      yield event
+    }
   }
 
   interruptTurn(params: JsonRpcTurnInterruptParams): ThreadEvent {
-    return this.runtime.interruptTurn(params.threadId, params.turnId)
+    const event = this.runtime.interruptTurn(params.threadId, params.turnId)
+    this.recordEvent(event)
+    return event
   }
 
   rollbackTurn(params: JsonRpcTurnRollbackParams): ThreadEvent {
-    return this.runtime.rollbackTurn(params.threadId, params.turnId)
+    const event = this.runtime.rollbackTurn(params.threadId, params.turnId)
+    this.recordEvent(event)
+    return event
   }
 
   injectItem(params: JsonRpcItemInjectParams): TurnItemEvent {
-    return this.runtime.injectItem(
+    const event = this.runtime.injectItem(
       params.threadId,
       params.turnId,
       params.item,
       params.eventType,
     )
+    this.recordEvent(event)
+    return event
+  }
+
+  getSessionSnapshot(
+    params: JsonRpcSessionGetSnapshotParams,
+  ): JsonRpcSessionSnapshot {
+    const events = this.eventsByThreadId.get(params.threadId)
+    if (!events) {
+      throw new Error(`Unknown thread ${params.threadId}`)
+    }
+    return {
+      threadId: params.threadId,
+      eventCount: events.length,
+      updatedAt: events.at(-1)?.createdAt ?? null,
+      view: deriveWorkflowSessionView(events, params.threadId),
+    }
+  }
+
+  private recordEvent(event: ThreadEvent): void {
+    const events = this.eventsByThreadId.get(event.threadId) ?? []
+    events.push(event)
+    this.eventsByThreadId.set(event.threadId, events)
   }
 }

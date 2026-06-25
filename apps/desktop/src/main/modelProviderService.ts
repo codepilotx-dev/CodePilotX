@@ -1,5 +1,10 @@
 import { getSettings_DEPRECATED } from '@codepilotx/tui/utils/settings/settings.js'
 import {
+  createModelProviderState,
+  createModelProviderSummary,
+  isModelProviderID,
+} from '@codepilotx/core/models/provider.js'
+import {
   deleteProviderApiKey as deleteTuiProviderApiKey,
   fetchProviderBalance as fetchTuiProviderBalance,
   fetchProviderModels as fetchTuiProviderModels,
@@ -9,7 +14,6 @@ import {
   getProviderConfig,
   getSelectedProviderConfig,
   getSelectedProviderID,
-  isModelProviderID,
   listProviderConfigs,
   saveProviderApiKey as saveTuiProviderApiKey,
   saveSelectedProvider,
@@ -33,24 +37,9 @@ export async function listModelProviders(): Promise<
 > {
   desktopDebug('model_provider_list_start')
   const providers = await listProviderConfigs()
-  const result = providers.map(provider => ({
-    providerID: provider.providerID as ModelProviderID,
-    kind: provider.kind,
-    displayName: provider.displayName,
-    baseURL: provider.baseURL,
-    defaultModels: provider.defaultModels,
-    modelMetadata: provider.modelMetadata,
-    apiKeyConfigured: Boolean(
-      getProviderApiKeySource(provider.providerID as ModelProviderID),
-    ),
-    envVars: provider.envVars,
-    docURL: provider.docURL,
-    logoURL: provider.logoURL,
-    npmPackage: provider.npmPackage,
-    modelsDevSource: provider.modelsDevSource,
-    gatewaySource: provider.gatewaySource,
-    requiresBaseURL: provider.requiresBaseURL,
-  }))
+  const result = providers.map(provider =>
+    createModelProviderSummary(provider, getProviderApiKeySource(provider.providerID)),
+  )
   desktopDebug('model_provider_list_done', {
     count: result.length,
     firstProviderIds: result.slice(0, 10).map(provider => provider.providerID),
@@ -77,44 +66,18 @@ export async function getModelProviderState(
     selectedProviderID === savedSelectedProviderID
       ? getSelectedProviderConfig()
       : provider
+  const effectiveSelectedProviderID = provider.providerID as ModelProviderID
   const model = typeof settings.model === 'string' ? settings.model : ''
   const apiKeySource = getProviderApiKeySource(selectedProviderID) ?? null
   const baseURL = selectedProvider.baseURL ?? provider.baseURL
-  const configurationMessage = getProviderConfigurationMessage({
+  const result = createModelProviderState({
+    selectedProviderID: effectiveSelectedProviderID,
+    provider,
     model,
     apiKeySource,
-    requiresBaseURL: provider.requiresBaseURL,
     baseURL,
+    models: getCachedProviderModels(selectedProviderID) ?? provider.defaultModels,
   })
-  const modelConfigured = configurationMessage === null
-  const result: DesktopModelProviderState = {
-    selectedProviderID,
-    provider: {
-      providerID: provider.providerID as ModelProviderID,
-      kind: provider.kind,
-      displayName: provider.displayName,
-      baseURL,
-      defaultModels: provider.defaultModels,
-      modelMetadata: provider.modelMetadata,
-      apiKeyConfigured: Boolean(apiKeySource),
-      envVars: provider.envVars,
-      docURL: provider.docURL,
-      logoURL: provider.logoURL,
-      npmPackage: provider.npmPackage,
-      modelsDevSource: provider.modelsDevSource,
-      gatewaySource: provider.gatewaySource,
-      requiresBaseURL: provider.requiresBaseURL,
-    },
-    model: modelConfigured ? model : '',
-    baseURL,
-    apiKeyConfigured: Boolean(apiKeySource),
-    apiKeySource,
-    modelConfigured,
-    ...(configurationMessage ? { configurationMessage } : {}),
-    models:
-      getCachedProviderModels(selectedProviderID) ?? provider.defaultModels,
-    modelMetadata: provider.modelMetadata,
-  }
   desktopDebug('model_provider_state_done', {
     selectedProviderID: result.selectedProviderID,
     providerID: result.provider.providerID,
@@ -197,15 +160,8 @@ export async function saveModelProvider(
   })
   const provider = await getProviderConfig(providerID)
   const selectedBaseURL = provider.requiresBaseURL ? baseURL : provider.baseURL
-  const apiKeySource = getProviderApiKeySource(providerID)
-  const configurationMessage = getProviderConfigurationMessage({
-    model: modelID,
-    apiKeySource: apiKeySource ?? null,
-    requiresBaseURL: provider.requiresBaseURL,
-    baseURL: selectedBaseURL,
-  })
-  if (configurationMessage) {
-    throw new Error(configurationMessage)
+  if (provider.requiresBaseURL && !selectedBaseURL?.trim()) {
+    throw new Error('未配置模型，请先在设置中配置 Base URL。')
   }
   const saveResult = saveSelectedProvider({
     providerID,
@@ -295,25 +251,3 @@ function requireNonEmptyString(value: unknown, label: string): string {
   return trimmed
 }
 
-function getProviderConfigurationMessage({
-  model,
-  apiKeySource,
-  requiresBaseURL,
-  baseURL,
-}: {
-  model: string | undefined
-  apiKeySource: string | null
-  requiresBaseURL?: boolean
-  baseURL?: string
-}): string | null {
-  if (!apiKeySource) {
-    return '未配置模型，请先在设置中配置模型。'
-  }
-  if (requiresBaseURL && !baseURL?.trim()) {
-    return '未配置模型，请先在设置中配置 Base URL。'
-  }
-  if (!model?.trim()) {
-    return '未配置模型，请先在设置中选择模型。'
-  }
-  return null
-}

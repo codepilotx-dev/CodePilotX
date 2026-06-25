@@ -8,6 +8,8 @@ import {
   type JsonRpcErrorData,
   type JsonRpcInitializeResult,
   type JsonRpcItemInjectParams,
+  type JsonRpcSessionGetSnapshotParams,
+  type JsonRpcSessionSnapshot,
   type JsonRpcThreadForkParams,
   type JsonRpcThreadResumeParams,
   type JsonRpcThreadStartParams,
@@ -23,6 +25,9 @@ const APP_SERVER_ERROR_CODE = -32000
 
 export type JsonRpcAppServerOptions = {
   onThreadEvent?: (event: ThreadEvent) => void | Promise<void>
+  onSessionSnapshotUpdated?: (
+    snapshot: JsonRpcSessionSnapshot,
+  ) => void | Promise<void>
 }
 
 export class JsonRpcAppServer {
@@ -36,6 +41,7 @@ export class JsonRpcAppServer {
       | 'interruptTurn'
       | 'rollbackTurn'
       | 'injectItem'
+      | 'getSessionSnapshot'
     > = new AppServerThreadRegistry(),
     private readonly options: JsonRpcAppServerOptions = {},
   ) {}
@@ -47,9 +53,10 @@ export class JsonRpcAppServer {
   async startThread(
     params: JsonRpcThreadStartParams,
   ): Promise<JsonRpcThreadStartResult> {
-    return this.withJsonRpcErrors(() => {
+    return this.withJsonRpcErrors(async () => {
       const result = this.registry.startThread(params)
-      void this.emitThreadEvent(result.event)
+      await this.emitThreadEvent(result.event)
+      await this.emitSessionSnapshot(result.threadId)
       return threadLifecycleResult(result)
     }, { threadId: params.threadId })
   }
@@ -57,9 +64,10 @@ export class JsonRpcAppServer {
   async resumeThread(
     params: JsonRpcThreadResumeParams,
   ): Promise<JsonRpcThreadStartResult> {
-    return this.withJsonRpcErrors(() => {
+    return this.withJsonRpcErrors(async () => {
       const result = this.registry.resumeThread(params)
-      void this.emitThreadEvent(result.event)
+      await this.emitThreadEvent(result.event)
+      await this.emitSessionSnapshot(result.state.threadId)
       return lifecycleResult(result)
     }, { threadId: params.threadId })
   }
@@ -67,9 +75,10 @@ export class JsonRpcAppServer {
   async forkThread(
     params: JsonRpcThreadForkParams,
   ): Promise<JsonRpcThreadStartResult> {
-    return this.withJsonRpcErrors(() => {
+    return this.withJsonRpcErrors(async () => {
       const result = this.registry.forkThread(params)
-      void this.emitThreadEvent(result.event)
+      await this.emitThreadEvent(result.event)
+      await this.emitSessionSnapshot(result.state.threadId)
       return lifecycleResult(result)
     }, { threadId: params.sourceThreadId })
   }
@@ -87,6 +96,7 @@ export class JsonRpcAppServer {
         }
         await this.emitThreadEvent(event)
       }
+      await this.emitSessionSnapshot(params.threadId)
       return {
         threadId: params.threadId,
         turnId: resolvedTurnId ?? params.turnId ?? '',
@@ -99,6 +109,7 @@ export class JsonRpcAppServer {
     return this.withJsonRpcErrors(async () => {
       const event = this.registry.interruptTurn(params)
       await this.emitThreadEvent(event)
+      await this.emitSessionSnapshot(event.threadId)
       return event
     }, { threadId: params.threadId, turnId: params.turnId })
   }
@@ -107,6 +118,7 @@ export class JsonRpcAppServer {
     return this.withJsonRpcErrors(async () => {
       const event = this.registry.rollbackTurn(params)
       await this.emitThreadEvent(event)
+      await this.emitSessionSnapshot(event.threadId)
       return event
     }, { threadId: params.threadId, turnId: params.turnId })
   }
@@ -115,12 +127,27 @@ export class JsonRpcAppServer {
     return this.withJsonRpcErrors(async () => {
       const event = this.registry.injectItem(params)
       await this.emitThreadEvent(event)
+      await this.emitSessionSnapshot(event.threadId)
       return event
     }, { threadId: params.threadId, turnId: params.turnId })
   }
 
+  async getSessionSnapshot(
+    params: JsonRpcSessionGetSnapshotParams,
+  ): Promise<JsonRpcSessionSnapshot> {
+    return this.withJsonRpcErrors(
+      () => this.registry.getSessionSnapshot(params),
+      { threadId: params.threadId },
+    )
+  }
+
   private async emitThreadEvent(event: ThreadEvent): Promise<void> {
     await this.options.onThreadEvent?.(event)
+  }
+
+  private async emitSessionSnapshot(threadId: string): Promise<void> {
+    const snapshot = this.registry.getSessionSnapshot({ threadId })
+    await this.options.onSessionSnapshotUpdated?.(snapshot)
   }
 
   private async withJsonRpcErrors<T>(

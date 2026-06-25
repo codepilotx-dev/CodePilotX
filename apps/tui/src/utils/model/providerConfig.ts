@@ -322,7 +322,20 @@ export const ZHIPU_MODEL_METADATA: Record<string, ProviderModelMetadata> = {
   },
 };
 
-export const PROVIDER_CONFIGS: Record<string, ProviderConfig> = {};
+export const PROVIDER_CONFIGS: Record<string, ProviderConfig> = {
+  zhipu: {
+    providerID: "zhipu",
+    kind: "openai-compatible",
+    displayName: "智谱 BigModel",
+    baseURL: "https://open.bigmodel.cn/api/paas/v4/",
+    apiKeyEnvVar: "ZAI_API_KEY",
+    envVars: ["ZAI_API_KEY"],
+    defaultModels: Object.keys(ZHIPU_MODEL_METADATA),
+    modelMetadata: ZHIPU_MODEL_METADATA,
+    docURL: "https://open.bigmodel.cn/dev/api/normal-model/glm-4",
+    logoURL: "https://open.bigmodel.cn/favicon.ico",
+  },
+};
 
 export function isModelProviderID(value: string): value is ModelProviderID {
   return typeof value === "string" && value.trim().length > 0;
@@ -368,7 +381,7 @@ function getCachedProviderConfig(providerID: ModelProviderID): ProviderConfig {
 async function fetchProviderConfigCatalog(): Promise<
   Record<string, ProviderConfig>
 > {
-  const catalog: Record<string, ProviderConfig> = {};
+  const catalog: Record<string, ProviderConfig> = { ...PROVIDER_CONFIGS };
   const [modelsDevResult, gatewayResult] = await Promise.allSettled([
     fetchModelsDevCatalog(),
     fetchGatewayModels(),
@@ -412,7 +425,10 @@ async function fetchModelsDevCatalog(): Promise<ModelsDevCatalog> {
   const response = await proxyFetch(MODELS_DEV_CATALOG_URL);
   if (!response.ok)
     throw new Error(`${response.status} ${response.statusText}`);
-  return (await response.json()) as ModelsDevCatalog;
+  const parsed = (await response.json()) as ModelsDevCatalog &
+    Record<string, ModelsDevProvider>;
+  if (parsed.providers) return parsed;
+  return { providers: parsed };
 }
 
 async function fetchGatewayModels(): Promise<GatewayModel[]> {
@@ -642,7 +658,10 @@ function isGitHubCopilotProviderID(providerID: string): boolean {
 }
 
 function hasModelsDevAPI(provider: ModelsDevProvider): boolean {
-  return typeof provider.api === "string" && provider.api.trim().length > 0;
+  if (typeof provider.api === "string" && provider.api.trim().length > 0) {
+    return true;
+  }
+  return normalizeStringArray(provider.env).length > 0;
 }
 
 function normalizeLegacyProviderID(
