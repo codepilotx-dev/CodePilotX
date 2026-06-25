@@ -46,7 +46,7 @@ export function ExitPlanModeApproval({
   const [menuOpen, setMenuOpen] = useState(false)
   const [note, setNote] = useState('')
 
-  const summary = formatPlanSummary(request)
+  const summary = extractPlanSummary(request)
 
   function handleAccept(): void {
     onAccept(postMode, note.trim() || undefined)
@@ -85,11 +85,42 @@ export function ExitPlanModeApproval({
         ))}
       </div>
 
-      {summary ? (
-        <pre className="exit-plan-mode-summary">{summary}</pre>
-      ) : null}
-
       <div className="exit-plan-mode-fixed-option">
+        <div className="exit-plan-mode-note-row">
+          <div className="exit-plan-mode-note-wrap">
+            <textarea
+              className="exit-plan-mode-note-input"
+              placeholder="请告知 Codex 如何调整"
+              rows={1}
+              value={note}
+              onChange={event => setNote(event.target.value)}
+            />
+          </div>
+
+          <div className="exit-plan-mode-actions">
+            <button
+              className="exit-plan-mode-skip"
+              type="button"
+              onClick={handleRevise}
+            >
+              <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              <span>继续修改</span>
+            </button>
+            <button
+              className="exit-plan-mode-submit"
+              type="button"
+              onClick={handleAccept}
+            >
+              <ListChecks
+                size={APP_ICON_SIZE}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
+              <span>接受并继续</span>
+              <CornerDownLeft size={14} />
+            </button>
+          </div>
+        </div>
+
         <label className="exit-plan-mode-mode-picker">
           <span className="exit-plan-mode-mode-label">后续权限</span>
           <button
@@ -138,42 +169,14 @@ export function ExitPlanModeApproval({
             </ul>
           ) : null}
         </label>
-
-        <div className="exit-plan-mode-note-row">
-          <div className="exit-plan-mode-note-wrap">
-            <textarea
-              className="exit-plan-mode-note-input"
-              placeholder="请告知 Codex 如何调整"
-              rows={1}
-              value={note}
-              onChange={event => setNote(event.target.value)}
-            />
-          </div>
-
-          <div className="exit-plan-mode-actions">
-            <button
-              className="exit-plan-mode-skip"
-              type="button"
-              onClick={handleRevise}
-            >
-              <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-              <span>继续修改</span>
-            </button>
-            <button
-              className="exit-plan-mode-submit"
-              type="button"
-              onClick={handleAccept}
-            >
-              <ListChecks
-                size={APP_ICON_SIZE}
-                strokeWidth={APP_ICON_STROKE_WIDTH}
-              />
-              <span>接受并继续</span>
-              <CornerDownLeft size={14} />
-            </button>
-          </div>
-        </div>
       </div>
+
+      {summary ? (
+        <details className="exit-plan-mode-summary-panel">
+          <summary>查看计划摘要</summary>
+          <pre className="exit-plan-mode-summary">{summary}</pre>
+        </details>
+      ) : null}
     </div>
   )
 }
@@ -184,7 +187,7 @@ function describeMode(mode: Choice): string {
     mode
 }
 
-function formatPlanSummary(request: DesktopPermissionRequest): string {
+export function extractPlanSummary(request: DesktopPermissionRequest): string {
   const input = request.input ?? {}
   const candidateKeys = ['plan', 'planMarkdown', 'summary', 'content', 'text']
   for (const key of candidateKeys) {

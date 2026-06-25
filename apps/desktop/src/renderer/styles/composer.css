@@ -53,6 +53,15 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  transition:
+    border-color 0.2s ease-out,
+    box-shadow 0.2s ease-out,
+    min-height 0.24s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.composer:focus-within .composer-top {
+  border-color: var(--c-border);
+  box-shadow: 0 8px 28px var(--black-a2);
 }
 
 .composer-attachments {
@@ -166,6 +175,7 @@
   background: transparent;
   color: var(--c-text);
   font-size: var(--fs-14);
+  transition: height 0.18s ease-out;
 }
 
 .composer-input textarea::placeholder {

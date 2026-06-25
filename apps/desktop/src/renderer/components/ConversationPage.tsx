@@ -3,8 +3,10 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
   AppWindow,
   Archive,
+  Check,
   ChevronDown,
   ChevronRight,
+  Circle,
   Columns2,
   Code2,
   Copy,
@@ -33,6 +35,7 @@ import {
   ThumbsUp,
   Upload,
   Workflow,
+  X,
 } from "lucide-react";
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from './ui/iconTokens.js'
 import { legacyMessagesToSessionEvents } from "../../shared/sessionEventModel.js";
@@ -40,6 +43,7 @@ import { deriveWorkflowSessionState } from "../../shared/workflowReducer.js";
 import type {
   DesktopGitStatus,
   DesktopOpenTarget,
+  DesktopPermissionRequest,
   DesktopReviewView,
   DesktopSessionEvent,
   DesktopSessionStatus,
@@ -52,6 +56,7 @@ import {
   type WorkflowMarkdownLogDiagnostics,
 } from "../features/session/workflowMarkdown.js";
 import { buildWorkspaceCodexContextDiagnostics } from "../features/session/codexContextDiagnostics.js";
+import { useHeightTransition } from "../hooks/useHeightTransition.js";
 import {
   deriveWorkflowConsistencyDiagnostics,
   workflowConsistencyIssueCount,
@@ -61,8 +66,10 @@ import { desktopClient } from "../services/desktopClient.js";
 import { submitReviewAction } from "../features/session/reviewAction.js";
 import { deriveReviewTurns } from "../features/session/reviewTurns.js";
 import type { Message } from "../uiTypes.js";
+import { extractPlanSummary } from "./ExitPlanModeApproval.js";
 import { InlineApprovalCard } from "./InlineApprovalCard.js";
 import { MarkdownMessage } from "./MarkdownMessage.js";
+import { useTypewriterText } from "./TypewriterText.js";
 import { PopoverItem } from "./ui/PopoverItem.js";
 import { PopoverMenu } from "./ui/PopoverMenu.js";
 import { Tooltip } from "./ui/Tooltip.js";
@@ -155,14 +162,11 @@ export function ConversationPage(): React.ReactNode {
     () => groupTimelineToolEvents(timelineEvents),
     [timelineEvents],
   );
-  const showThinking =
-    (sessionStatus === "running" || sessionStatus === "waiting") &&
-    !timelineEvents.some(
-      (event) =>
-        (event.type === "message" || event.type === "assistant_delta") &&
-        event.role === "assistant" &&
-        Boolean(event.content?.trim()),
-    );
+  const showThinking = deriveWorkflowThinkingVisible({
+    pendingPermissions,
+    sessionStatus,
+    timelineEvents,
+  });
   const [sessionMenuOpen, setSessionMenuOpen] = React.useState(false);
   const [openTargetMenuOpen, setOpenTargetMenuOpen] = React.useState(false);
   const [openTargets, setOpenTargets] =
@@ -243,6 +247,26 @@ export function ConversationPage(): React.ReactNode {
     openTargets.find((target) => target.id === defaultOpenTargetId) ??
     FALLBACK_OPEN_TARGETS[0];
   const activePermissionRequest = pendingPermissions[0] ?? null;
+  const composerMode = workflowComposerMode(activePermissionRequest);
+  const activePlanSummary =
+    activePermissionRequest?.toolName === "ExitPlanMode"
+      ? extractPlanSummary(activePermissionRequest)
+      : "";
+  const workflowNodes = React.useMemo(
+    () =>
+      buildWorkflowNodes({
+        activePermissionRequest,
+        items: timelineItems,
+        sessionStatus,
+      }),
+    [activePermissionRequest, sessionStatus, timelineItems],
+  );
+  const composerTransition = useHeightTransition([
+    composerMode,
+    activePermissionRequest?.requestId ?? "",
+    showComposerChangeSummary,
+    composer ? "mounted" : "unmounted",
+  ]);
 
   React.useEffect(() => {
     let mounted = true;
@@ -334,7 +358,13 @@ export function ConversationPage(): React.ReactNode {
   }
 
   return (
-    <section className="conversation-page">
+    <section
+      className={
+        activePermissionRequest
+          ? "conversation-page workflow-page approval-active"
+          : "conversation-page workflow-page"
+      }
+    >
       <header className="chat-session-header">
         <div className="chat-session-title">
           <span>
@@ -558,82 +588,78 @@ export function ConversationPage(): React.ReactNode {
         </div>
       </header>
 
-      <div
-        className={`quick-chat-workspace ${
-          showEnvironmentPanel ? "with-environment-panel" : ""
-        }`}
-      >
-        <div className="quick-chat-content">
-          <div className="conversation-stream">
-            {isConversationLoading ? (
-              <div className="assistant-thinking">加载对话中</div>
-            ) : (
-              <>
-                {workflowTimelineVisible ? (
-                  <WorkflowDebugTimeline
-                    activeSessionId={activeSessionId}
-                    consistencyDiagnostics={workflowConsistencyDiagnostics}
-                    diagnostics={workflowDerivedState.diagnostics}
-                    events={workflowEvents}
-                    workspacePath={workspacePath}
-                  />
-                ) : null}
-                {timelineItems.map((item) => (
-                  <TimelineItem
-                    item={item}
-                    key={item.id}
-                    onDiscardChanges={(paths) => void handleDiscardChanges(paths)}
-                    onReviewCode={handleRunCodeReview}
-                    onReviewFiles={openReviewSidebar}
-                  />
-                ))}
-              </>
-            )}
-            {!isConversationLoading && showThinking ? <ThinkingPill /> : null}
-          </div>
-        </div>
-        {!isConversationLoading && showEnvironmentPanel ? (
-          <EnvironmentPanel
-            branchName={branchName}
-            diff={diff}
-            gitStatus={gitStatus}
-            workspacePath={workspacePath}
-            onCommitOrPush={onCommitOrPush}
-            onCreateBranch={onCreateBranch}
-            onCreatePullRequest={onCreatePullRequest}
-            onOpenWorkspacePath={onOpenWorkspacePath}
-            onRefreshDiff={onRefreshDiff}
-          />
-        ) : null}
-      </div>
+      <div className="workflow-page__body">
+        <WorkflowNodeSidebar nodes={workflowNodes} />
 
-      {composer ? (
-        <div
-          className={`chat-composer ${
-            showEnvironmentPanel ? "with-environment-panel" : ""
-          }`}
-        >
-          {showComposerChangeSummary ? (
-            <div className="composer-change-summary">
-              <span>
-                {gitStatus?.files.length ?? 0} 个文件已更改
-                <strong> +{formatPanelNumber(composerDiffSummary.additions)}</strong>
-                <em> -{formatPanelNumber(composerDiffSummary.deletions)}</em>
-              </span>
-              <button type="button" onClick={handleRunCodeReview}>审查</button>
+        <main className="workflow-page__main">
+          <div className="workflow-page__scroll">
+            <div className="quick-chat-content workflow-page__inner">
+              <div className="conversation-stream">
+                {isConversationLoading ? (
+                  <div className="assistant-thinking">加载对话中</div>
+                ) : (
+                  <>
+                    {workflowTimelineVisible ? (
+                      <WorkflowDebugTimeline
+                        activeSessionId={activeSessionId}
+                        consistencyDiagnostics={workflowConsistencyDiagnostics}
+                        diagnostics={workflowDerivedState.diagnostics}
+                        events={workflowEvents}
+                        workspacePath={workspacePath}
+                      />
+                    ) : null}
+                    {timelineItems.map((item) => (
+                      <TimelineItem
+                        item={item}
+                        key={item.id}
+                        onDiscardChanges={(paths) => void handleDiscardChanges(paths)}
+                        onReviewCode={handleRunCodeReview}
+                        onReviewFiles={openReviewSidebar}
+                      />
+                    ))}
+                  </>
+                )}
+                {activePermissionRequest?.toolName === "ExitPlanMode" &&
+                activePlanSummary ? (
+                  <WorkflowPlanCard summary={activePlanSummary} />
+                ) : null}
+                {!isConversationLoading && showThinking ? <ThinkingPill /> : null}
+              </div>
             </div>
+          </div>
+
+          {composer ? (
+            <footer className="chat-composer workflow-page__composer">
+              <div
+                ref={composerTransition.ref}
+                className={`workflow-page__composer-inner workflow-page__composer-inner--${composerMode}`}
+                style={composerTransition.style}
+              >
+                {showComposerChangeSummary ? (
+                  <div className="composer-change-summary">
+                    <span>
+                      {gitStatus?.files.length ?? 0} 个文件已更改
+                      <strong> +{formatPanelNumber(composerDiffSummary.additions)}</strong>
+                      <em> -{formatPanelNumber(composerDiffSummary.deletions)}</em>
+                    </span>
+                    <button type="button" onClick={handleRunCodeReview}>审查</button>
+                  </div>
+                ) : null}
+                {activePermissionRequest ? (
+                  <InlineApprovalCard
+                    request={activePermissionRequest}
+                    currentPermissionMode={permissionMode}
+                    onDecide={onDecidePermission}
+                    onAcceptExitPlanMode={onAcceptExitPlanMode}
+                  />
+                ) : (
+                  composer
+                )}
+              </div>
+            </footer>
           ) : null}
-          {activePermissionRequest ? (
-            <InlineApprovalCard
-              request={activePermissionRequest}
-              currentPermissionMode={permissionMode}
-              onDecide={onDecidePermission}
-              onAcceptExitPlanMode={onAcceptExitPlanMode}
-            />
-          ) : null}
-          {composer}
-        </div>
-      ) : null}
+        </main>
+      </div>
     </section>
   );
 }
@@ -984,8 +1010,191 @@ function renderOpenTargetIcon(target: DesktopOpenTarget): React.ReactNode {
   return <File size={APP_ICON_SIZE} />;
 }
 
+type WorkflowComposerMode = "chat" | "brainstorm" | "plan" | "permission";
+
+type WorkflowNodeKind =
+  | "assistant"
+  | "file"
+  | "permission"
+  | "plan"
+  | "question"
+  | "status"
+  | "tool";
+
+type WorkflowNodeState = "pending" | "active" | "done" | "failed";
+
+type WorkflowNodeViewModel = {
+  id: string;
+  index: number;
+  kind: WorkflowNodeKind;
+  state: WorkflowNodeState;
+  title: string;
+  detail?: string;
+};
+
+function deriveWorkflowThinkingVisible({
+  pendingPermissions,
+  sessionStatus,
+  timelineEvents,
+}: {
+  pendingPermissions: DesktopPermissionRequest[];
+  sessionStatus: DesktopSessionStatus;
+  timelineEvents: DesktopSessionEvent[];
+}): boolean {
+  if (sessionStatus !== "running" && sessionStatus !== "waiting") return false;
+  if (pendingPermissions.length > 0) return false;
+
+  const lastUserMessageIndex = findLastIndex(
+    timelineEvents,
+    (event) =>
+      event.type === "message" &&
+      event.role === "user" &&
+      Boolean(event.content?.trim()),
+  );
+  if (lastUserMessageIndex === -1) return false;
+
+  const currentTurnEvents = timelineEvents.slice(lastUserMessageIndex + 1);
+  for (const event of currentTurnEvents) {
+    const type = event.type as string;
+    if (type === "checkpoint" || type === "error" || type === "turn.interrupted") {
+      return false;
+    }
+    if (
+      (event.type === "message" || event.type === "assistant_delta") &&
+      event.role === "assistant" &&
+      Boolean(event.content?.trim())
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function findLastIndex<T>(
+  values: readonly T[],
+  predicate: (value: T) => boolean,
+): number {
+  for (let index = values.length - 1; index >= 0; index -= 1) {
+    if (predicate(values[index]!)) return index;
+  }
+  return -1;
+}
+
+function WorkflowNodeSidebar({
+  nodes,
+}: {
+  nodes: WorkflowNodeViewModel[];
+}): React.ReactNode {
+  return (
+    <aside className="workflow-page__sidebar" aria-label="工作流时间节点">
+      <header className="workflow-page__sidebar-title">
+        <span>工作流时间节点</span>
+        <span className="workflow-page__sidebar-count">{nodes.length}</span>
+      </header>
+      <ol className="workflow-page__timeline">
+        {nodes.length > 0 ? (
+          nodes.map((node) => (
+            <li
+              className={`workflow-node workflow-node--${node.state} workflow-node--${node.kind}`}
+              key={node.id}
+            >
+              <span className="workflow-node__dot" aria-hidden="true">
+                {node.state === "done" ? (
+                  <Check size={10} />
+                ) : node.state === "failed" ? (
+                  <X size={10} />
+                ) : null}
+              </span>
+              <span className="workflow-node__index">{node.index}</span>
+              <span className="workflow-node__copy">
+                <span className="workflow-node__title" title={node.title}>
+                  {node.title}
+                </span>
+                {node.detail ? (
+                  <span className="workflow-node__detail" title={node.detail}>
+                    {node.detail}
+                  </span>
+                ) : null}
+              </span>
+            </li>
+          ))
+        ) : (
+          <li className="workflow-node workflow-node--pending workflow-node--status">
+            <span className="workflow-node__dot" aria-hidden="true">
+              <Circle size={10} />
+            </span>
+            <span className="workflow-node__index">1</span>
+            <span className="workflow-node__copy">
+              <span className="workflow-node__title">等待开始</span>
+            </span>
+          </li>
+        )}
+      </ol>
+    </aside>
+  );
+}
+
+function WorkflowPlanCard({
+  summary,
+}: {
+  summary: string;
+}): React.ReactNode {
+  const [expanded, setExpanded] = React.useState(false);
+  const title = planTitleFromSummary(summary);
+
+  return (
+    <article
+      className={
+        expanded
+          ? "workflow-plan-card workflow-plan-card--expanded"
+          : "workflow-plan-card"
+      }
+    >
+      <header className="workflow-plan-card__header">
+        <span className="workflow-plan-card__label">编写计划</span>
+        <button
+          aria-label={expanded ? "折叠计划" : "展开计划"}
+          className="workflow-plan-card__fold"
+          type="button"
+          onClick={() => setExpanded((value) => !value)}
+        >
+          <ChevronDown size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+        </button>
+      </header>
+
+      <h2 className="workflow-plan-card__title">{title}</h2>
+
+      <div className="workflow-plan-card__body">
+        <MarkdownMessage text={summary} />
+        {!expanded ? <div className="workflow-plan-card__mask" aria-hidden="true" /> : null}
+      </div>
+
+      {!expanded ? (
+        <footer className="workflow-plan-card__footer">
+          <button
+            className="workflow-plan-card__expand"
+            type="button"
+            onClick={() => setExpanded(true)}
+          >
+            展开计划
+          </button>
+        </footer>
+      ) : null}
+    </article>
+  );
+}
+
+function planTitleFromSummary(summary: string): string {
+  const heading = summary.match(/^\s*#\s+(.+)$/m)?.[1]?.trim();
+  if (heading) return heading;
+  const proposedTitle = summary.match(/^\s*title:\s*(.+)$/im)?.[1]?.trim();
+  return proposedTitle || "计划书";
+}
+
 type TimelineToolRun = {
   id: string;
+  toolUseId?: string;
   toolName: string;
   callContent: string;
   resultContent: string;
@@ -1000,6 +1209,157 @@ type TimelineToolGroup = {
 };
 
 type TimelineItem = DesktopSessionEvent | TimelineToolGroup;
+
+function workflowComposerMode(
+  request: DesktopPermissionRequest | null,
+): WorkflowComposerMode {
+  if (!request) return "chat";
+  if (request.toolName === "AskUserQuestion") return "brainstorm";
+  if (request.toolName === "ExitPlanMode") return "plan";
+  return "permission";
+}
+
+function buildWorkflowNodes({
+  activePermissionRequest,
+  items,
+  sessionStatus,
+}: {
+  activePermissionRequest: DesktopPermissionRequest | null;
+  items: TimelineItem[];
+  sessionStatus: DesktopSessionStatus;
+}): WorkflowNodeViewModel[] {
+  const nodes: Array<Omit<WorkflowNodeViewModel, "index">> = [];
+
+  for (const item of items) {
+    const node = workflowNodeFromTimelineItem(item);
+    if (node) nodes.push(node);
+  }
+
+  if (activePermissionRequest) {
+    nodes.push({
+      id: `permission-node-${activePermissionRequest.requestId}`,
+      kind: workflowNodeKindForPermission(activePermissionRequest),
+      state: "active",
+      title: workflowTitleForPermission(activePermissionRequest),
+      detail: activePermissionRequest.description,
+    });
+  } else if (sessionStatus === "running" || sessionStatus === "waiting") {
+    if (nodes.length === 0) {
+      nodes.push({
+        id: "workflow-node-thinking",
+        kind: "status",
+        state: "active",
+        title: "正在思考",
+      });
+    } else {
+      const last = nodes[nodes.length - 1];
+      if (last && last.state === "done") {
+        nodes[nodes.length - 1] = { ...last, state: "active" };
+      }
+    }
+  }
+
+  return nodes.map((node, index) => ({
+    ...node,
+    index: index + 1,
+  }));
+}
+
+function workflowNodeFromTimelineItem(
+  item: TimelineItem,
+): Omit<WorkflowNodeViewModel, "index"> | null {
+  if (item.type === "tool_group") {
+    const failed = item.runs.some((run) => run.isError);
+    const running = item.runs.some((run) => run.isRunning);
+    const firstToolName = item.runs[0]?.toolName ?? "命令";
+    return {
+      id: `node-${item.id}`,
+      kind: "tool",
+      state: failed ? "failed" : running ? "active" : "done",
+      title:
+        item.runs.length === 1
+          ? displayToolName(firstToolName)
+          : `已运行 ${item.runs.length} 条命令`,
+      detail: item.runs.map((run) => displayToolName(run.toolName)).join("、"),
+    };
+  }
+
+  if (item.type === "message" || item.type === "assistant_delta") {
+    if (item.role === "user") return null;
+    const content = item.content?.trim() ?? "";
+    if (!content) return null;
+    return {
+      id: `node-${item.id}`,
+      kind: "assistant",
+      state: item.type === "assistant_delta" ? "active" : "done",
+      title: trimNodeTitle(content),
+    };
+  }
+
+  if (item.type === "file_patch") {
+    return {
+      id: `node-${item.id}`,
+      kind: "file",
+      state: "done",
+      title: "编辑文件",
+      detail: filePatchNodeDetail(item),
+    };
+  }
+
+  if (item.type === "permission_request") {
+    return {
+      id: `node-${item.id}`,
+      kind: "permission",
+      state: "done",
+      title: item.content?.trim() || "权限确认",
+    };
+  }
+
+  if (item.type === "error") {
+    return {
+      id: `node-${item.id}`,
+      kind: "status",
+      state: "failed",
+      title: trimNodeTitle(item.content ?? "发生错误"),
+    };
+  }
+
+  return null;
+}
+
+function workflowNodeKindForPermission(
+  request: DesktopPermissionRequest,
+): WorkflowNodeKind {
+  if (request.toolName === "AskUserQuestion") return "question";
+  if (request.toolName === "ExitPlanMode") return "plan";
+  return "permission";
+}
+
+function workflowTitleForPermission(request: DesktopPermissionRequest): string {
+  if (request.toolName === "AskUserQuestion") return "等待用户回答问题";
+  if (request.toolName === "ExitPlanMode") return "确认计划";
+  return "等待权限确认";
+}
+
+function filePatchNodeDetail(event: DesktopSessionEvent): string | undefined {
+  const files = Array.isArray(event.metadata?.files)
+    ? (event.metadata.files as Array<Record<string, unknown>>)
+    : [];
+  if (files.length > 0) {
+    return `${files.length} 个文件`;
+  }
+  const filePath =
+    typeof event.metadata?.filePath === "string"
+      ? event.metadata.filePath
+      : undefined;
+  return filePath;
+}
+
+function trimNodeTitle(value: string): string {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (normalized.length <= 30) return normalized;
+  return `${normalized.slice(0, 30)}...`;
+}
 
 function TimelineItem({
   item,
@@ -1140,12 +1500,25 @@ function TimelineToolGroupView({
 }: {
   group: TimelineToolGroup;
 }): React.ReactNode {
+  const [expanded, setExpanded] = React.useState(false);
+  const [openRunId, setOpenRunId] = React.useState<string | null>(null);
   const commandCount = group.runs.length;
 
   return (
-    <details className="timeline-command-group" open>
-      <summary className="timeline-command-group-summary">
-        <SquareTerminal size={APP_ICON_SIZE} />
+    <article
+      className={
+        expanded
+          ? "timeline-command-group timeline-command-group--expanded"
+          : "timeline-command-group"
+      }
+    >
+      <button
+        aria-expanded={expanded}
+        className="timeline-command-group-summary"
+        type="button"
+        onClick={() => setExpanded((value) => !value)}
+      >
+        <Code2 size={APP_ICON_SIZE} />
         <span>
           {commandCount === 1 ? "已运行命令" : `已运行 ${commandCount} 条命令`}
         </span>
@@ -1154,33 +1527,139 @@ function TimelineToolGroupView({
           size={APP_ICON_SIZE}
           strokeWidth={APP_ICON_STROKE_WIDTH}
         />
-      </summary>
-      <div className="timeline-command-list">
-        {group.runs.map((run) => (
-          <article
-            className={`timeline-command-card ${run.isError ? "error" : ""}`}
-            key={run.id}
-          >
-            <div className="timeline-command-card-header">
-              <span>{displayToolName(run.toolName)}</span>
-              <small>
-                {run.isRunning ? "运行中" : run.isError ? "失败" : "成功"}
-              </small>
-            </div>
-            {run.callContent ? (
-              <pre className="timeline-command-input">{formatToolInput(run)}</pre>
-            ) : null}
-            {run.resultContent ? (
-              <pre className="timeline-command-output">{run.resultContent}</pre>
-            ) : null}
-          </article>
-        ))}
+      </button>
+      <div
+        aria-hidden={!expanded}
+        className="timeline-command-details"
+      >
+        <div className="timeline-command-details-inner">
+          <ul className="timeline-command-list">
+            {group.runs.map((run) => {
+              const view = commandRunView(run);
+              const isOpen = openRunId === run.id;
+              return (
+                <li
+                  className={
+                    isOpen
+                      ? "timeline-command-item timeline-command-item--open"
+                      : "timeline-command-item"
+                  }
+                  key={run.id}
+                >
+                  <button
+                    aria-expanded={isOpen}
+                    className="timeline-command-row"
+                    tabIndex={expanded ? 0 : -1}
+                    type="button"
+                    onClick={() =>
+                      setOpenRunId((value) => (value === run.id ? null : run.id))
+                    }
+                  >
+                    <span
+                      className={
+                        isOpen
+                          ? "timeline-command-row-label"
+                          : "timeline-command-row-command"
+                      }
+                      title={view.displayCommand}
+                    >
+                      {isOpen ? "已运行命令" : `已运行 ${view.commandLabel}`}
+                    </span>
+                    <ChevronRight
+                      className="timeline-command-row-chevron"
+                      size={APP_ICON_SIZE}
+                      strokeWidth={APP_ICON_STROKE_WIDTH}
+                    />
+                  </button>
+
+                  <div
+                    aria-hidden={!isOpen}
+                    className="timeline-command-shell-wrap"
+                  >
+                    <article
+                      className={`timeline-command-shell timeline-command-shell--${view.statusKind}`}
+                    >
+                      <div className="timeline-command-shell-header">
+                        {view.shellTitle}
+                      </div>
+                      <pre className="timeline-command-shell-body"><span className="timeline-command-shell-prompt">$</span> {view.displayCommand}{view.displayOutput ? `\n${view.displayOutput}` : ""}</pre>
+                      <footer className="timeline-command-shell-footer">
+                        <span className="timeline-command-shell-status">
+                          {view.statusKind === "success" ? (
+                            <Check
+                              size={APP_ICON_SIZE}
+                              strokeWidth={APP_ICON_STROKE_WIDTH}
+                            />
+                          ) : view.statusKind === "error" ? (
+                            <X
+                              size={APP_ICON_SIZE}
+                              strokeWidth={APP_ICON_STROKE_WIDTH}
+                            />
+                          ) : (
+                            <Circle
+                              size={APP_ICON_SIZE}
+                              strokeWidth={APP_ICON_STROKE_WIDTH}
+                            />
+                          )}
+                          {view.statusLabel}
+                        </span>
+                      </footer>
+                    </article>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       </div>
-    </details>
+    </article>
   );
 }
 
+type CommandRunStatusKind = "success" | "error" | "running";
+
+type CommandRunView = {
+  commandLabel: string;
+  displayCommand: string;
+  displayOutput: string;
+  shellTitle: string;
+  statusKind: CommandRunStatusKind;
+  statusLabel: string;
+};
+
+function commandRunView(run: TimelineToolRun): CommandRunView {
+  const toolLabel = displayToolName(run.toolName);
+  const displayCommand = run.callContent || run.resultContent || toolLabel;
+  const statusKind: CommandRunStatusKind = run.isRunning
+    ? "running"
+    : run.isError
+      ? "error"
+      : "success";
+  return {
+    commandLabel: displayCommand,
+    displayCommand,
+    displayOutput: run.resultContent,
+    shellTitle: toolLabel,
+    statusKind,
+    statusLabel:
+      statusKind === "running"
+        ? "运行中"
+        : statusKind === "error"
+          ? "失败"
+          : "成功",
+  };
+}
+
 function ChatMessage({ message }: { message: Message }): React.ReactNode {
+  const shouldTypewrite =
+    message.role === "assistant" &&
+    !message.streaming &&
+    isRecentMessage(message.createdAt);
+  const renderedText = useTypewriterText({
+    enabled: shouldTypewrite,
+    text: message.text,
+  });
+
   if (message.role === "user") {
     return (
       <article className="chat-message-row user">
@@ -1196,7 +1675,7 @@ function ChatMessage({ message }: { message: Message }): React.ReactNode {
     <article className={`chat-message-row ${message.role}`}>
       <div className="assistant-message-body">
         <MarkdownMessage
-          text={message.text}
+          text={renderedText}
           streaming={Boolean(message.streaming)}
         />
       </div>
@@ -1228,6 +1707,14 @@ function ChatMessage({ message }: { message: Message }): React.ReactNode {
       ) : null}
     </article>
   );
+}
+
+function isRecentMessage(createdAt: string | number | undefined): boolean {
+  if (createdAt === undefined) return false;
+  const timestamp =
+    typeof createdAt === "number" ? createdAt : Date.parse(createdAt);
+  if (!Number.isFinite(timestamp)) return false;
+  return Date.now() - timestamp < 6000;
 }
 
 function MessageActionButton({
@@ -2352,11 +2839,13 @@ function buildToolGroup(events: DesktopSessionEvent[]): TimelineToolGroup | null
 
   for (const event of events) {
     const toolName = stringMetadata(event, "toolName") ?? "Tool";
+    const toolUseId = toolUseIdForEvent(event);
     const content = normalizedToolContent(event, toolName);
 
     if (event.type === "tool_call") {
       runs.push({
         id: event.id,
+        toolUseId,
         toolName,
         callContent: content,
         resultContent: "",
@@ -2367,7 +2856,9 @@ function buildToolGroup(events: DesktopSessionEvent[]): TimelineToolGroup | null
     }
 
     const pendingRun =
-      findPendingToolRun(runs, toolName) ?? findPendingToolRun(runs);
+      (toolUseId ? findPendingToolRun(runs, undefined, toolUseId) : null) ??
+      findPendingToolRun(runs, toolName) ??
+      findPendingToolRun(runs);
     if (pendingRun) {
       pendingRun.resultContent = content;
       pendingRun.isError = event.metadata?.isError === true;
@@ -2380,6 +2871,7 @@ function buildToolGroup(events: DesktopSessionEvent[]): TimelineToolGroup | null
     }
     runs.push({
       id: event.id,
+      toolUseId,
       toolName,
       callContent: "",
       resultContent: content,
@@ -2408,10 +2900,12 @@ function buildToolGroup(events: DesktopSessionEvent[]): TimelineToolGroup | null
 function findPendingToolRun(
   runs: TimelineToolRun[],
   toolName?: string,
+  toolUseId?: string,
 ): TimelineToolRun | null {
   for (let index = runs.length - 1; index >= 0; index -= 1) {
     const run = runs[index];
     if (!run || !run.isRunning) continue;
+    if (toolUseId && run.toolUseId !== toolUseId) continue;
     if (toolName && run.toolName !== toolName) continue;
     return run;
   }
@@ -2434,6 +2928,14 @@ function numberMetadata(
   return typeof value === "number" ? value : null;
 }
 
+function toolUseIdForEvent(event: DesktopSessionEvent): string | undefined {
+  const metadataToolUseId =
+    stringMetadata(event, "toolUseId") ?? stringMetadata(event, "tool_use_id");
+  if (metadataToolUseId) return metadataToolUseId;
+  const directToolUseId = (event as { toolUseId?: unknown }).toolUseId;
+  return typeof directToolUseId === "string" ? directToolUseId : undefined;
+}
+
 function displayToolName(toolName: string): string {
   return toolName === "Bash" ? "Shell" : toolName;
 }
@@ -2447,13 +2949,6 @@ function normalizedToolContent(
   if (event.type === "tool_result" && content === toolName) return "";
   const prefix = `${toolName}:`;
   return content.startsWith(prefix) ? content.slice(prefix.length).trim() : content;
-}
-
-function formatToolInput(run: TimelineToolRun): string {
-  if (displayToolName(run.toolName) === "Shell") {
-    return `$ ${run.callContent}`;
-  }
-  return run.callContent;
 }
 
 function summarizeDiff(diff: string): { additions: number; deletions: number } {
@@ -2479,31 +2974,10 @@ function formatPanelNumber(value: number): string {
 }
 
 function ThinkingPill(): React.ReactNode {
-  const [seconds, setSeconds] = React.useState(0);
-
-  React.useEffect(() => {
-    setSeconds(0);
-    const startedAt = Date.now();
-    const id = window.setInterval(() => {
-      setSeconds(Math.floor((Date.now() - startedAt) / 1000));
-    }, 1000);
-    return () => {
-      window.clearInterval(id);
-    };
-  }, []);
-
   return (
-    <button className="chat-thinking-pill" type="button">
+    <div aria-live="polite" className="chat-thinking-pill" role="status">
       <Sparkles size={APP_ICON_SIZE} />
-      <span>已处理 {formatDuration(seconds)}</span>
-      <ChevronRight size={APP_ICON_SIZE} />
-    </button>
+      <span>正在思考</span>
+    </div>
   );
-}
-
-function formatDuration(totalSeconds: number): string {
-  if (totalSeconds < 60) return `${totalSeconds}s`;
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}m ${seconds}s`;
 }

@@ -44,7 +44,10 @@ export function InlineApprovalCard({
 
   if (request.toolName === 'AskUserQuestion') {
     return (
-      <section className="inline-approval-card" aria-label="回答问题">
+      <section
+        className="inline-approval-card workflow-composer-card workflow-composer-card-question"
+        aria-label="回答问题"
+      >
         <AskUserQuestionApproval
           request={request}
           onReject={() => onDecide(request, 'deny')}
@@ -58,7 +61,10 @@ export function InlineApprovalCard({
 
   if (request.toolName === 'ExitPlanMode') {
     return (
-      <section className="inline-approval-card" aria-label="接受计划">
+      <section
+        className="inline-approval-card workflow-composer-card workflow-composer-card-plan"
+        aria-label="接受计划"
+      >
         <ExitPlanModeApproval
           request={request}
           currentMode={currentPermissionMode ?? 'plan'}
@@ -88,7 +94,10 @@ export function InlineApprovalCard({
   }
 
   return (
-    <section className="inline-approval-card" aria-label="等待审批">
+    <section
+      className="inline-approval-card workflow-composer-card workflow-composer-card-permission"
+      aria-label="等待审批"
+    >
       <header className="inline-approval-header">
         <h2>{request.description}</h2>
       </header>

@@ -1,5 +1,13 @@
 import React from 'react'
-import { ArrowDown, ArrowUp, CornerDownLeft, Info, Pencil } from 'lucide-react'
+import {
+  ArrowDown,
+  ArrowUp,
+  ChevronLeft,
+  ChevronRight,
+  CornerDownLeft,
+  Info,
+  Pencil,
+} from 'lucide-react'
 import type { DesktopPermissionRequest } from '../../shared/types.js'
 
 type AskUserQuestionOption = {
@@ -14,7 +22,7 @@ type AskUserQuestion = {
   multiSelect: boolean
 }
 
-type QuestionState = {
+export type QuestionState = {
   selected: string[]
   custom: string
 }
@@ -34,7 +42,33 @@ export function AskUserQuestionApproval({
   const [questionStates, setQuestionStates] = React.useState<
     Record<string, QuestionState>
   >({})
+  const [currentQuestionIndex, setCurrentQuestionIndex] = React.useState(0)
   const [error, setError] = React.useState<string | null>(null)
+  const questionCount = questions?.length ?? 0
+
+  React.useEffect(() => {
+    setCurrentQuestionIndex(current =>
+      questionCount > 0 ? Math.min(current, questionCount - 1) : 0,
+    )
+  }, [questionCount])
+
+  React.useEffect(() => {
+    if (questionCount <= 1 || typeof window === 'undefined') return
+    function handleKeyDown(event: KeyboardEvent): void {
+      if (isTextEntryTarget(event.target)) return
+      if (event.key === 'ArrowLeft') {
+        setCurrentQuestionIndex(current =>
+          nextQuestionIndex(current, -1, questionCount),
+        )
+      } else if (event.key === 'ArrowRight') {
+        setCurrentQuestionIndex(current =>
+          nextQuestionIndex(current, 1, questionCount),
+        )
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [questionCount])
 
   if (!questions) {
     return (
@@ -74,6 +108,16 @@ export function AskUserQuestionApproval({
   function submitAnswers(): void {
     if (!questions) return
     const answers: Record<string, string> = {}
+    const unansweredIndex = firstUnansweredQuestionIndex(
+      questions,
+      questionStates,
+    )
+
+    if (unansweredIndex !== -1) {
+      setCurrentQuestionIndex(unansweredIndex)
+      setError('请回答每个问题后再提交。')
+      return
+    }
 
     for (const question of questions) {
       const state = questionStates[question.question] ?? {
@@ -84,10 +128,6 @@ export function AskUserQuestionApproval({
         ...state.selected,
         ...(state.custom.trim() ? [state.custom.trim()] : []),
       ]
-      if (answerParts.length === 0) {
-        setError('请回答每个问题后再提交。')
-        return
-      }
       answers[question.question] = answerParts.join(', ')
     }
 
@@ -97,128 +137,162 @@ export function AskUserQuestionApproval({
     })
   }
 
+  function goToQuestion(delta: -1 | 1): void {
+    setCurrentQuestionIndex(current =>
+      nextQuestionIndex(current, delta, questionCount),
+    )
+    setError(null)
+  }
+
+  const currentQuestion = questions[currentQuestionIndex] ?? questions[0]
+  const state = questionStates[currentQuestion.question] ?? {
+    selected: [],
+    custom: '',
+  }
+  const answeredCount = questions.filter(question =>
+    hasQuestionAnswer(questionStates[question.question]),
+  ).length
+
   return (
     <div className="ask-user-question-approval">
-      {questions.map(question => {
-        const state = questionStates[question.question] ?? {
-          selected: [],
-          custom: '',
-        }
-        return (
-          <section className="ask-user-question-block" key={question.question}>
-            <h3 className="ask-user-question-heading">{question.question}</h3>
-            <div
-              className="inline-approval-options"
-              role={question.multiSelect ? 'group' : 'radiogroup'}
-            >
-              {question.options.map((option, index) => {
-                const selected = state.selected.includes(option.label)
-                return (
-                  <button
-                    aria-checked={selected}
-                    className={
-                      selected
-                        ? 'inline-approval-option selected'
-                        : 'inline-approval-option'
-                    }
-                    key={option.label}
-                    role={question.multiSelect ? 'checkbox' : 'radio'}
-                    title={option.description || undefined}
-                    type="button"
-                    onClick={() => {
-                      updateQuestion(question.question, current => {
-                        if (!question.multiSelect) {
-                          return {
-                            ...current,
-                            custom: '',
-                            selected: [option.label],
-                          }
-                        }
-                        const selectedLabels = current.selected.includes(
-                          option.label,
-                        )
-                          ? current.selected.filter(
-                              label => label !== option.label,
-                            )
-                          : [...current.selected, option.label]
-                        return { ...current, selected: selectedLabels }
-                      })
-                    }}
-                  >
-                    <span className="inline-approval-option-index">
-                      {index + 1}
-                    </span>
-                    <span className="inline-approval-option-label">
-                      {option.label}
-                      {option.description ? (
-                        <span className="inline-approval-option-hint">
-                          {' '}
-                          ({option.description})
-                        </span>
-                      ) : null}
-                    </span>
-                    {(option.description || selected) ? (
-                      <span className="inline-approval-option-trailing">
-                        {option.description ? (
-                          <span
-                            className="inline-approval-option-info"
-                            aria-hidden="true"
-                          >
-                            <Info size={14} />
-                          </span>
-                        ) : null}
-                        {selected ? (
-                          <span
-                            className="inline-approval-option-arrows"
-                            aria-hidden="true"
-                          >
-                            <ArrowUp size={14} />
-                            <ArrowDown size={14} />
-                          </span>
-                        ) : null}
-                      </span>
-                    ) : null}
-                  </button>
-                )
-              })}
-              <label
+      <div className="ask-user-question-progress">
+        <span>
+          问题 {currentQuestionIndex + 1}/{questionCount}
+        </span>
+        <span>{answeredCount}/{questionCount} 已回答</span>
+      </div>
+      <section className="ask-user-question-block" key={currentQuestion.question}>
+        <h3 className="ask-user-question-heading">{currentQuestion.question}</h3>
+        <div
+          className="inline-approval-options"
+          role={currentQuestion.multiSelect ? 'group' : 'radiogroup'}
+        >
+          {currentQuestion.options.map((option, index) => {
+            const selected = state.selected.includes(option.label)
+            return (
+              <button
+                aria-checked={selected}
                 className={
-                  state.custom.trim()
-                    ? 'inline-approval-option custom filled'
-                    : 'inline-approval-option custom'
+                  selected
+                    ? 'inline-approval-option selected'
+                    : 'inline-approval-option'
                 }
+                key={option.label}
+                role={currentQuestion.multiSelect ? 'checkbox' : 'radio'}
+                title={option.description || undefined}
+                type="button"
+                onClick={() => {
+                  updateQuestion(currentQuestion.question, current => {
+                    if (!currentQuestion.multiSelect) {
+                      return {
+                        ...current,
+                        custom: '',
+                        selected: [option.label],
+                      }
+                    }
+                    const selectedLabels = current.selected.includes(
+                      option.label,
+                    )
+                      ? current.selected.filter(label => label !== option.label)
+                      : [...current.selected, option.label]
+                    return { ...current, selected: selectedLabels }
+                  })
+                }}
               >
                 <span className="inline-approval-option-index">
-                  <Pencil size={14} />
+                  {index + 1}
                 </span>
-                <input
-                  className="ask-user-question-custom-input"
-                  placeholder="否，请告知 Codex 如何调整"
-                  type="text"
-                  value={state.custom}
-                  onChange={event => {
-                    const custom = event.target.value
-                    updateQuestion(question.question, current => ({
-                      ...current,
-                      custom,
-                      selected:
-                        !question.multiSelect && custom.trim()
-                          ? []
-                          : current.selected,
-                    }))
-                  }}
-                />
-              </label>
-            </div>
-          </section>
-        )
-      })}
+                <span className="inline-approval-option-label">
+                  {option.label}
+                  {option.description ? (
+                    <span className="inline-approval-option-hint">
+                      {' '}
+                      ({option.description})
+                    </span>
+                  ) : null}
+                </span>
+                {(option.description || selected) ? (
+                  <span className="inline-approval-option-trailing">
+                    {option.description ? (
+                      <span
+                        className="inline-approval-option-info"
+                        aria-hidden="true"
+                      >
+                        <Info size={14} />
+                      </span>
+                    ) : null}
+                    {selected ? (
+                      <span
+                        className="inline-approval-option-arrows"
+                        aria-hidden="true"
+                      >
+                        <ArrowUp size={14} />
+                        <ArrowDown size={14} />
+                      </span>
+                    ) : null}
+                  </span>
+                ) : null}
+              </button>
+            )
+          })}
+          <label
+            className={
+              state.custom.trim()
+                ? 'inline-approval-option custom filled'
+                : 'inline-approval-option custom'
+            }
+          >
+            <span className="inline-approval-option-index">
+              <Pencil size={14} />
+            </span>
+            <input
+              className="ask-user-question-custom-input"
+              placeholder="否，请告知 Codex 如何调整"
+              type="text"
+              value={state.custom}
+              onChange={event => {
+                const custom = event.target.value
+                updateQuestion(currentQuestion.question, current => ({
+                  ...current,
+                  custom,
+                  selected:
+                    !currentQuestion.multiSelect && custom.trim()
+                      ? []
+                      : current.selected,
+                }))
+              }}
+            />
+          </label>
+        </div>
+      </section>
       {error ? <p className="ask-user-question-error">{error}</p> : null}
       <div className="inline-approval-footer inline-approval-footer-split">
         <div className="inline-approval-footer-hint">
           <span>忽略</span>
           <kbd className="inline-approval-footer-key">ESC</kbd>
         </div>
+        {questionCount > 1 ? (
+          <div className="ask-user-question-navigation">
+            <button
+              className="ask-user-question-nav-button"
+              disabled={currentQuestionIndex === 0}
+              type="button"
+              onClick={() => goToQuestion(-1)}
+            >
+              <ChevronLeft size={14} />
+              上一题
+            </button>
+            <button
+              className="ask-user-question-nav-button"
+              disabled={currentQuestionIndex >= questionCount - 1}
+              type="button"
+              onClick={() => goToQuestion(1)}
+            >
+              下一题
+              <ChevronRight size={14} />
+            </button>
+          </div>
+        ) : null}
         <button
           className="inline-approval-submit"
           type="button"
@@ -229,6 +303,39 @@ export function AskUserQuestionApproval({
         </button>
       </div>
     </div>
+  )
+}
+
+export function nextQuestionIndex(
+  currentIndex: number,
+  delta: number,
+  questionCount: number,
+): number {
+  if (questionCount <= 0) return 0
+  return Math.max(0, Math.min(questionCount - 1, currentIndex + delta))
+}
+
+export function firstUnansweredQuestionIndex(
+  questions: Array<{ question: string }>,
+  questionStates: Record<string, QuestionState>,
+): number {
+  return questions.findIndex(
+    question => !hasQuestionAnswer(questionStates[question.question]),
+  )
+}
+
+function hasQuestionAnswer(state: QuestionState | undefined): boolean {
+  if (!state) return false
+  return state.selected.length > 0 || Boolean(state.custom.trim())
+}
+
+function isTextEntryTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false
+  return (
+    target.tagName === 'INPUT' ||
+    target.tagName === 'TEXTAREA' ||
+    target.tagName === 'SELECT' ||
+    target.isContentEditable
   )
 }
 
