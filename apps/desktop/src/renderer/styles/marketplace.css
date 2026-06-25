@@ -390,11 +390,22 @@
   gap: 2px;
 }
 
+.plugins-card-title-row {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .plugins-card-meta h3 {
   margin: 0;
   font-size: var(--fs-14);
   font-weight: 600;
   color: var(--c-text-strong);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .plugins-card-meta p {
@@ -429,6 +440,38 @@
   background: transparent;
   border-color: transparent;
   cursor: default;
+}
+
+.plugins-audit-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: var(--r-pill);
+  border: 1px solid transparent;
+  font-size: var(--fs-11);
+  font-weight: 600;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.plugins-audit-badge.is-pass {
+  color: var(--green-11);
+  background: var(--green-3);
+  border-color: var(--green-6);
+}
+
+.plugins-audit-badge.is-warn {
+  color: var(--amber-11);
+  background: var(--amber-3);
+  border-color: var(--amber-6);
+}
+
+.plugins-audit-badge.is-fail {
+  color: var(--red-11);
+  background: var(--red-3);
+  border-color: var(--red-6);
 }
 
 .plugins-empty {

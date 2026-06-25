@@ -1,4 +1,4 @@
-import { mkdir, readdir, stat, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises'
 import { dirname, isAbsolute, join, normalize } from 'node:path'
 import { clearAllCaches } from '@codepilotx/tui/utils/plugins/cacheUtils.js'
 import { getOpenAgentConfigHomeDir } from './desktopSettings.js'
@@ -6,6 +6,7 @@ import type {
   DesktopSkillCatalogItem,
   DesktopSkillCatalogOptions,
   DesktopSkillCatalogResult,
+  DesktopSkillInstallOptions,
   DesktopSkillInstallResult,
   DesktopSkillOwnerFilter,
 } from '../shared/types.js'
@@ -14,6 +15,7 @@ const SKILLS_SH_BASE_URL = 'https://skills.sh'
 const DEFAULT_PRODUCT_API_BASE_URL = 'https://api.anthropic.com'
 const DEFAULT_SKILLS_PER_PAGE = 24
 const MAX_SKILLS_PER_PAGE = 100
+const SKILLS_SH_METADATA_FILENAME = '.codepilotx-skills-sh.json'
 
 type SkillCatalogSource = 'proxy' | 'skills.sh'
 
@@ -49,6 +51,17 @@ type RawSkillDetail = {
   files?: unknown
 }
 
+type RawSkillAuditEntry = {
+  provider?: unknown
+  status?: unknown
+  summary?: unknown
+  auditedAt?: unknown
+}
+
+type RawSkillAuditResponse = {
+  audits?: unknown
+}
+
 type RawSkillListResponse = {
   data?: unknown
   pagination?: unknown
@@ -57,6 +70,22 @@ type RawSkillListResponse = {
 
 type RawCuratedOwner = {
   skills?: unknown
+}
+
+type InstalledSkillIndex = {
+  ids: Set<string>
+  installUrls: Set<string>
+  legacySlugs: Set<string>
+}
+
+type SkillInstallMetadata = {
+  version: 1
+  id: string
+  slug: string
+  source: string
+  installUrl: string | null
+  hash: string | null
+  installedAt: string
 }
 
 export async function listDesktopSkillCatalog(
@@ -73,7 +102,7 @@ export async function listDesktopSkillCatalog(
   const owner = normalizeOwnerFilter(options.owner)
   const query = options.query?.trim() ?? ''
   const view = options.view ?? 'trending'
-  const installedIds = await listInstalledSkillIds()
+  const installedIndex = await listInstalledSkillIndex()
 
   const response = await fetchSkillsCatalog(config, {
     query,
@@ -96,9 +125,14 @@ export async function listDesktopSkillCatalog(
     skills = skills.filter(skill => skill.sourceType !== 'well-known')
   }
 
+  skills = await attachSkillAudits(config, skills)
+
   skills = skills.map(skill => ({
     ...skill,
-    installed: installedIds.has(skill.id) || installedIds.has(skill.slug),
+    installed:
+      installedIndex.ids.has(skill.id) ||
+      (skill.installUrl !== null && installedIndex.installUrls.has(skill.installUrl)) ||
+      installedIndex.legacySlugs.has(skill.slug),
   }))
 
   return {
@@ -111,12 +145,18 @@ export async function listDesktopSkillCatalog(
 }
 
 export async function installDesktopSkill(
-  skillId: string,
+  input: string | DesktopSkillInstallOptions,
 ): Promise<DesktopSkillInstallResult> {
-  const normalizedSkillId = requireNonEmptyString(skillId, 'Skill id')
+  const normalizedSkillId =
+    typeof input === 'string'
+      ? requireNonEmptyString(input, 'Skill id')
+      : requireNonEmptyString(input.id, 'Skill id')
+  const installUrl =
+    typeof input === 'string' ? null : readString(input.installUrl) ?? null
   const config = getSkillsApiConfig()
   const detail = await fetchSkillDetail(config, normalizedSkillId)
   const slug = requireNonEmptyString(detail.slug, 'Skill slug')
+  const source = requireNonEmptyString(detail.source, 'Skill source')
   const files = parseSkillFiles(detail.files)
   if (!files.some(file => normalizeSkillFilePath(file.path) === 'SKILL.md')) {
     throw new Error(`Skill "${normalizedSkillId}" did not include SKILL.md.`)
@@ -131,6 +171,16 @@ export async function installDesktopSkill(
     await mkdir(dirname(destination), { recursive: true })
     await writeFile(destination, file.contents, 'utf8')
   }
+
+  await writeSkillInstallMetadata(skillDir, {
+    version: 1,
+    id: normalizedSkillId,
+    slug,
+    source,
+    installUrl,
+    hash: typeof detail.hash === 'string' ? detail.hash : null,
+    installedAt: new Date().toISOString(),
+  })
 
   clearAllCaches()
 
@@ -201,6 +251,22 @@ async function fetchSkillDetail(
   return fetchJson<RawSkillDetail>(url, config.headers)
 }
 
+async function fetchSkillAudit(
+  config: SkillsApiConfig,
+  skillId: string,
+): Promise<RawSkillAuditResponse | null> {
+  const encodedId = skillId
+    .split('/')
+    .map(part => encodeURIComponent(part))
+    .join('/')
+  const url = new URL(
+    config.source === 'proxy'
+      ? `${config.baseUrl}/api/codepilotx/skills/audit/${encodedId}`
+      : `${config.baseUrl}/api/v1/skills/audit/${encodedId}`,
+  )
+  return fetchJsonOrNullFor404<RawSkillAuditResponse>(url, config.headers)
+}
+
 async function fetchJson<T>(
   url: URL,
   headers: Record<string, string>,
@@ -227,6 +293,39 @@ async function fetchJson<T>(
       typeof body.message === 'string'
         ? body.message
         : `Skills catalog request failed with HTTP ${response.status}.`
+    throw new Error(message)
+  }
+
+  return body as T
+}
+
+async function fetchJsonOrNullFor404<T>(
+  url: URL,
+  headers: Record<string, string>,
+): Promise<T | null> {
+  const response = await fetch(url, {
+    headers: {
+      Accept: 'application/json',
+      ...headers,
+    },
+  })
+  if (response.status === 404) return null
+  const text = await response.text()
+  let body: unknown
+  try {
+    body = text ? JSON.parse(text) : null
+  } catch {
+    body = null
+  }
+
+  if (!response.ok) {
+    const message =
+      body &&
+      typeof body === 'object' &&
+      'message' in body &&
+      typeof body.message === 'string'
+        ? body.message
+        : `Skills audit request failed with HTTP ${response.status}.`
     throw new Error(message)
   }
 
@@ -299,6 +398,7 @@ function parseSkill(raw: unknown): DesktopSkillCatalogItem | null {
     url,
     isDuplicate: skill.isDuplicate === true,
     installed: false,
+    audit: null,
   }
 }
 
@@ -317,6 +417,68 @@ function flattenSkillData(data: unknown): unknown[] {
     }
   }
   return flattened
+}
+
+async function attachSkillAudits(
+  config: SkillsApiConfig,
+  skills: DesktopSkillCatalogItem[],
+): Promise<DesktopSkillCatalogItem[]> {
+  const auditResults = await Promise.allSettled(
+    skills.map(async skill => ({
+      id: skill.id,
+      audit: aggregateSkillAudit(await fetchSkillAudit(config, skill.id)),
+    })),
+  )
+  const auditsById = new Map(
+    auditResults
+      .filter(
+        (result): result is PromiseFulfilledResult<{
+          id: string
+          audit: DesktopSkillCatalogItem['audit']
+        }> => result.status === 'fulfilled',
+      )
+      .map(result => [result.value.id, result.value.audit]),
+  )
+  return skills.map(skill => ({
+    ...skill,
+    audit: auditsById.get(skill.id) ?? null,
+  }))
+}
+
+function aggregateSkillAudit(
+  response: RawSkillAuditResponse | null,
+): DesktopSkillCatalogItem['audit'] {
+  if (!response || !Array.isArray(response.audits)) return null
+  const entries = response.audits.filter(
+    (entry): entry is RawSkillAuditEntry =>
+      Boolean(entry) && typeof entry === 'object',
+  )
+  if (entries.length === 0) return null
+
+  const statuses = entries.map(entry => readString(entry.status)).filter(Boolean)
+  const status = statuses.includes('fail')
+    ? 'fail'
+    : statuses.includes('warn')
+    ? 'warn'
+    : statuses.every(value => value === 'pass')
+    ? 'pass'
+    : null
+  if (status === null) return null
+
+  const matchingSummary = entries
+    .map(entry => ({
+      status: readString(entry.status),
+      summary: readString(entry.summary),
+      auditedAt: readString(entry.auditedAt),
+    }))
+    .find(entry => entry.status === status && entry.summary)
+
+  return {
+    status,
+    summary: matchingSummary?.summary ?? `${entries.length} security audits`,
+    providerCount: entries.length,
+    auditedAt: matchingSummary?.auditedAt ?? null,
+  }
 }
 
 function parseSkillFiles(files: unknown): Array<{ path: string; contents: string }> {
@@ -339,8 +501,12 @@ function parseSkillFiles(files: unknown): Array<{ path: string; contents: string
   })
 }
 
-async function listInstalledSkillIds(): Promise<Set<string>> {
-  const installed = new Set<string>()
+async function listInstalledSkillIndex(): Promise<InstalledSkillIndex> {
+  const installed: InstalledSkillIndex = {
+    ids: new Set(),
+    installUrls: new Set(),
+    legacySlugs: new Set(),
+  }
   const skillsDir = join(getOpenAgentConfigHomeDir(), 'skills')
   let entries
   try {
@@ -355,13 +521,57 @@ async function listInstalledSkillIds(): Promise<Set<string>> {
       const skillPath = join(skillsDir, entry.name, 'SKILL.md')
       try {
         await stat(skillPath)
-        installed.add(entry.name)
+        const metadata = await readSkillInstallMetadata(join(skillsDir, entry.name))
+        if (metadata) {
+          installed.ids.add(metadata.id)
+          if (metadata.installUrl) installed.installUrls.add(metadata.installUrl)
+        } else {
+          installed.legacySlugs.add(entry.name)
+        }
       } catch {
         // Ignore directories that are not skills.
       }
     }),
   )
   return installed
+}
+
+async function readSkillInstallMetadata(
+  skillDir: string,
+): Promise<SkillInstallMetadata | null> {
+  try {
+    const text = await readFile(
+      join(skillDir, SKILLS_SH_METADATA_FILENAME),
+      'utf8',
+    )
+    const parsed = JSON.parse(text) as Partial<SkillInstallMetadata>
+    const id = readString(parsed.id)
+    const slug = readString(parsed.slug)
+    const source = readString(parsed.source)
+    if (!id || !slug || !source) return null
+    return {
+      version: 1,
+      id,
+      slug,
+      source,
+      installUrl: readString(parsed.installUrl),
+      hash: readString(parsed.hash),
+      installedAt: readString(parsed.installedAt) ?? '',
+    }
+  } catch {
+    return null
+  }
+}
+
+async function writeSkillInstallMetadata(
+  skillDir: string,
+  metadata: SkillInstallMetadata,
+): Promise<void> {
+  await writeFile(
+    join(skillDir, SKILLS_SH_METADATA_FILENAME),
+    `${JSON.stringify(metadata, null, 2)}\n`,
+    'utf8',
+  )
 }
 
 function getSkillInstallDirectory(slug: string): string {

@@ -82,6 +82,7 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     allowForcePush: false,
     commitMessagePrompt: '',
     pullRequestPrompt: '',
+    githubOAuthClientId: '',
     sandboxMode: 'workspace-write',
     allowNetworkAccess: true,
     installCodexDependencies: true,
@@ -89,6 +90,8 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     customInstructions: '',
     enableMemory: false,
     skipToolAidedChats: false,
+    githubMemorySyncEnabled: false,
+    githubMemoryRepository: '',
     reviewView: 'inline',
   }
 }
@@ -184,6 +187,10 @@ export function normalizeDesktopStoredSettings(
       parsed.pullRequestPrompt,
       defaults.pullRequestPrompt,
     ),
+    githubOAuthClientId: stringOrDefault(
+      parsed.githubOAuthClientId,
+      defaults.githubOAuthClientId,
+    ),
     sandboxMode: isDesktopSandboxMode(parsed.sandboxMode)
       ? parsed.sandboxMode
       : defaults.sandboxMode,
@@ -210,6 +217,14 @@ export function normalizeDesktopStoredSettings(
       typeof parsed.skipToolAidedChats === 'boolean'
         ? parsed.skipToolAidedChats
         : defaults.skipToolAidedChats,
+    githubMemorySyncEnabled:
+      typeof parsed.githubMemorySyncEnabled === 'boolean'
+        ? parsed.githubMemorySyncEnabled
+        : defaults.githubMemorySyncEnabled,
+    githubMemoryRepository: stringOrDefault(
+      parsed.githubMemoryRepository,
+      defaults.githubMemoryRepository,
+    ),
     reviewView: isDesktopReviewView(parsed.reviewView)
       ? parsed.reviewView
       : defaults.reviewView,

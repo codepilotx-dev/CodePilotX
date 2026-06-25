@@ -16,6 +16,13 @@ const skillCatalogOptions = z.object({
   page: z.number().int().min(0).optional(),
   perPage: z.number().int().min(1).max(100).optional(),
 })
+const skillInstallInput = z.union([
+  z.string(),
+  z.object({
+    id: z.string(),
+    installUrl: z.string().nullable().optional(),
+  }),
+])
 
 const providerOptions = z.object({
   providerID: z.string(),
@@ -67,6 +74,32 @@ const createPullRequestInput = z.object({
   draft: z.boolean().optional(),
 })
 
+const githubRepository = z.object({
+  id: z.number(),
+  name: z.string(),
+  fullName: z.string(),
+  owner: z.string(),
+  private: z.boolean(),
+  fork: z.boolean(),
+  archived: z.boolean(),
+  disabled: z.boolean(),
+  cloneUrl: z.string(),
+  sshUrl: z.string(),
+  htmlUrl: z.string(),
+  description: z.string().nullable(),
+  defaultBranch: z.string(),
+  pushedAt: z.string().nullable(),
+  updatedAt: z.string().nullable(),
+})
+
+const cloneGithubRepositoryInput = z.object({
+  repository: githubRepository,
+})
+
+const startGithubLoginInput = z.object({
+  clientId: z.string().optional(),
+})
+
 const permissionDecision = z.object({
   behavior: z.enum(['allow', 'deny']),
   message: optionalText,
@@ -102,7 +135,7 @@ export const DESKTOP_API_ARG_SCHEMAS = {
   listBuiltinPlugins: emptyArgs,
   setBuiltinPluginEnabled: z.tuple([z.string(), z.boolean()]),
   listSkillsCatalog: z.tuple([skillCatalogOptions.optional()]),
-  installSkill: z.tuple([z.string()]),
+  installSkill: z.tuple([skillInstallInput]),
   listSlashCommands: z.tuple([z.string().optional()]),
   listMcpServers: emptyArgs,
   saveMcpServer: z.tuple([
@@ -134,6 +167,12 @@ export const DESKTOP_API_ARG_SCHEMAS = {
   startCopilotLogin: emptyArgs,
   pollCopilotLogin: emptyArgs,
   cancelCopilotLogin: emptyArgs,
+  getGithubAuthStatus: emptyArgs,
+  startGithubLogin: z.tuple([startGithubLoginInput.optional()]),
+  pollGithubLogin: emptyArgs,
+  logoutGithub: emptyArgs,
+  listGithubRepositories: emptyArgs,
+  cloneGithubRepository: z.tuple([cloneGithubRepositoryInput]),
   chooseWorkspace: emptyArgs,
   openWorkspace: z.tuple([z.string()]),
   getWorkspaceContext: z.tuple([z.string()]),

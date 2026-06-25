@@ -174,6 +174,7 @@ type Props = {
   onOpenFiles: () => void
   onRemoveAttachment?: (attachmentId: string) => void
   onOpenWorkspace: (workspace: DesktopWorkspace) => void
+  onCloneGithub?: () => void
   onClearWorkspace: () => void
   onBranchSelect: (branch: string) => void
   onCreateBranch: () => void
@@ -216,6 +217,7 @@ export function ComposerCard({
   onOpenFiles,
   onRemoveAttachment,
   onOpenWorkspace,
+  onCloneGithub,
   onClearWorkspace,
   onBranchSelect,
 onCreateBranch,
@@ -950,6 +952,10 @@ onCreateBranch,
           onOpenWorkspace={onOpenWorkspace}
           onChooseWorkspace={() => {
             onChooseWorkspace()
+            closeDropdown()
+          }}
+          onCloneGithub={() => {
+            onCloneGithub?.()
             closeDropdown()
           }}
           onClearWorkspace={() => {

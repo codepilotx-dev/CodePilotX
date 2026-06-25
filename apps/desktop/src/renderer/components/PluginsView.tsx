@@ -18,12 +18,16 @@ import {
   Search,
   Settings2,
   Share2,
+  ShieldAlert,
+  ShieldCheck,
+  ShieldX,
   Sparkles,
 } from 'lucide-react'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from './ui/iconTokens.js'
 import { desktopClient } from '../services/desktopClient.js'
 import { IconButton } from './ui/IconButton.js'
 import type {
+  DesktopSkillAuditStatus,
   DesktopSkillCatalogItem,
   DesktopSkillOwnerFilter,
 } from '../../shared/types.js'
@@ -251,10 +255,13 @@ export function PluginsView(): React.ReactNode {
     setInstallingSkillIds(current => new Set(current).add(skill.id))
     setSkillsError(null)
     try {
-      const result = await desktopClient.installSkill(skill.id)
+      const result = await desktopClient.installSkill({
+        id: skill.id,
+        installUrl: skill.installUrl,
+      })
       setSkills(current =>
         current.map(item =>
-          item.id === result.id || item.slug === result.slug
+          item.id === result.id
             ? { ...item, installed: result.installed }
             : item,
         ),
@@ -474,7 +481,18 @@ export function PluginsView(): React.ReactNode {
                     <Sparkles size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                   </span>
                   <div className="plugins-card-meta">
-                    <h3>{skill.name}</h3>
+                    <div className="plugins-card-title-row">
+                      <h3>{skill.name}</h3>
+                      {skill.audit ? (
+                        <span
+                          className={`plugins-audit-badge is-${skill.audit.status}`}
+                          title={skill.audit.summary}
+                        >
+                          {renderAuditIcon(skill.audit.status)}
+                          {skill.audit.status}
+                        </span>
+                      ) : null}
+                    </div>
                     <p>{skill.source} · {skill.installs.toLocaleString()} installs</p>
                   </div>
                   <button
@@ -535,4 +553,13 @@ export function PluginsView(): React.ReactNode {
   )
 }
 
+function renderAuditIcon(status: DesktopSkillAuditStatus): React.ReactNode {
+  if (status === 'pass') {
+    return <ShieldCheck size={12} strokeWidth={APP_ICON_STROKE_WIDTH} />
+  }
+  if (status === 'warn') {
+    return <ShieldAlert size={12} strokeWidth={APP_ICON_STROKE_WIDTH} />
+  }
+  return <ShieldX size={12} strokeWidth={APP_ICON_STROKE_WIDTH} />
+}
 

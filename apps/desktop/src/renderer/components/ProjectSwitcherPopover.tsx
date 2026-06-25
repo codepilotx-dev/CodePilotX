@@ -1,6 +1,6 @@
 import type React from 'react'
 import { useMemo, useState } from 'react'
-import { Folder, FolderPlus, FolderX } from 'lucide-react'
+import { Folder, FolderPlus, FolderX, GitFork } from 'lucide-react'
 import { APP_ICON_SIZE } from './ui/iconTokens.js'
 import { PopoverItem } from './ui/PopoverItem.js'
 import { PopoverMenu } from './ui/PopoverMenu.js'
@@ -14,6 +14,7 @@ type Props = {
   onOpenChange: (open: boolean) => void
   onOpenWorkspace: (workspace: DesktopWorkspace) => void
   onChooseWorkspace: () => void
+  onCloneGithub?: () => void
   onClearWorkspace: () => void
   trigger: React.ReactNode
   className?: string
@@ -29,6 +30,7 @@ export function ProjectSwitcherPopover({
   onOpenChange,
   onOpenWorkspace,
   onChooseWorkspace,
+  onCloneGithub,
   onClearWorkspace,
   trigger,
   className = 'popover-project',
@@ -95,6 +97,18 @@ export function ProjectSwitcherPopover({
       >
         添加新项目
       </PopoverItem>
+      {onCloneGithub ? (
+        <PopoverItem
+          icon={<GitFork size={APP_ICON_SIZE} />}
+          withArrow
+          onClick={() => {
+            onCloneGithub()
+            onOpenChange(false)
+          }}
+        >
+          从 GitHub 克隆
+        </PopoverItem>
+      ) : null}
       <PopoverItem
         icon={<FolderX size={APP_ICON_SIZE} />}
         selected={isUnset}

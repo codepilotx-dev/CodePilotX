@@ -46,6 +46,7 @@ import {
   registerAllowedWorkspace,
   workspaceFromPath,
 } from './workspaceService.js'
+import { configureGithubService } from './githubService.js'
 import { getOpenAgentConfigHomeDir } from './desktopSettings.js'
 import { desktopDebug } from './desktopDebug.js'
 import { getModelProviderState } from './modelProviderService.js'
@@ -169,6 +170,7 @@ const jsonRpcAppServerBridge = createDesktopJsonRpcAppServerBridge({
   },
 })
 configureWorkspaceService({ getWindow: windowService.getWindow })
+configureGithubService({ getWindow: windowService.getWindow })
 
 function assertTrustedIpcSender(senderUrl: string | undefined): void {
   if (!isTrustedRendererUrl(senderUrl)) {

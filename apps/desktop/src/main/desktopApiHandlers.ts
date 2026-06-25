@@ -24,6 +24,14 @@ import {
   cancelCopilotLogin,
 } from './copilotAuthService.js'
 import {
+  cloneGithubRepository,
+  getGithubAuthStatus,
+  listGithubRepositories,
+  logoutGithub,
+  pollGithubLogin,
+  startGithubLogin,
+} from './githubService.js'
+import {
   listDesktopMcpServers,
   removeDesktopMcpServer,
   saveDesktopMcpServer,
@@ -160,6 +168,12 @@ export function buildDesktopApiHandlers(
     startCopilotLogin,
     pollCopilotLogin,
     cancelCopilotLogin,
+    getGithubAuthStatus,
+    startGithubLogin,
+    pollGithubLogin,
+    logoutGithub,
+    listGithubRepositories,
+    cloneGithubRepository,
     chooseWorkspace,
     openWorkspace,
     getWorkspaceContext,

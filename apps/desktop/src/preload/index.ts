@@ -69,6 +69,18 @@ const api: DesktopApi = {
     ipcRenderer.invoke(desktopApiChannel('pollCopilotLogin')),
   cancelCopilotLogin: () =>
     ipcRenderer.invoke(desktopApiChannel('cancelCopilotLogin')),
+  getGithubAuthStatus: () =>
+    ipcRenderer.invoke(desktopApiChannel('getGithubAuthStatus')),
+  startGithubLogin: input =>
+    ipcRenderer.invoke(desktopApiChannel('startGithubLogin'), input),
+  pollGithubLogin: () =>
+    ipcRenderer.invoke(desktopApiChannel('pollGithubLogin')),
+  logoutGithub: () =>
+    ipcRenderer.invoke(desktopApiChannel('logoutGithub')),
+  listGithubRepositories: () =>
+    ipcRenderer.invoke(desktopApiChannel('listGithubRepositories')),
+  cloneGithubRepository: input =>
+    ipcRenderer.invoke(desktopApiChannel('cloneGithubRepository'), input),
   chooseWorkspace: () =>
     ipcRenderer.invoke(desktopApiChannel('chooseWorkspace')),
   openWorkspace: workspacePath =>

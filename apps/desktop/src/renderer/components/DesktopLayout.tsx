@@ -12,6 +12,7 @@ import {
   GitWorkflowModal,
   type GitWorkflowMode,
 } from './GitWorkflowModal.js'
+import { GithubRepositoryModal } from './GithubRepositoryModal.js'
 import { SettingsSidebarContent } from './SettingsSidebarContent.js'
 import { SidebarFrame } from './SidebarFrame.js'
 import { MenuBar } from './MenuBar.js'
@@ -102,6 +103,8 @@ export function DesktopLayout(): React.ReactNode {
   >([])
   const [gitWorkflowMode, setGitWorkflowMode] =
     useState<GitWorkflowMode | null>(null)
+  const [githubRepositoryModalOpen, setGithubRepositoryModalOpen] =
+    useState(false)
 
   const layout = useDesktopLayout()
   const {
@@ -296,6 +299,15 @@ export function DesktopLayout(): React.ReactNode {
     setSelectedFile,
     setWorkspaceState,
   ])
+
+  const handleGithubWorkspaceCloned = useCallback(
+    (selected: DesktopWorkspace): void => {
+      navigate(QUICK_CHAT_PATH)
+      setWorkspaceState(selected)
+      void refreshWorkspace(selected)
+    },
+    [navigate, refreshWorkspace, setWorkspaceState],
+  )
 
   useEffect(() => {
     if (
@@ -991,6 +1003,7 @@ export function DesktopLayout(): React.ReactNode {
       onInterrupt={interrupt}
       onProviderModelChange={handleProviderModelChange}
       onOpenWorkspace={handleOpenRecentWorkspace}
+      onCloneGithub={() => setGithubRepositoryModalOpen(true)}
       onClearWorkspace={handleClearWorkspace}
       onBranchSelect={handleBranchSelect}
       onCreateBranch={() => setGitWorkflowMode('branch')}
@@ -1030,6 +1043,12 @@ export function DesktopLayout(): React.ReactNode {
           }
         }}
         onWorkspaceChanged={handleWorkspaceChanged}
+      />
+      <GithubRepositoryModal
+        open={githubRepositoryModalOpen}
+        onClose={() => setGithubRepositoryModalOpen(false)}
+        onError={message => setErrorMessage(message)}
+        onWorkspaceCloned={handleGithubWorkspaceCloned}
       />
       {archiveNoticeVisible ? (
         <ArchiveConversationNotice

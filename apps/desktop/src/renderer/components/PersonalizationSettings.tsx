@@ -132,6 +132,32 @@ export function PersonalizationSettings(): React.ReactNode {
             }
           />
           <SettingsRow
+            title="GitHub 记忆同步"
+            description="预留能力：后续可把用户记忆同步到指定 GitHub 仓库。当前版本不会上传任何记忆。"
+            control={
+              <ToggleSwitch
+                ariaLabel="GitHub 记忆同步"
+                checked={settings.githubMemorySyncEnabled}
+                onChange={settings.setGithubMemorySyncEnabled}
+              />
+            }
+          />
+          <SettingsRow
+            title="记忆仓库"
+            description="预留格式：owner/repo。当前版本仅保存设置。"
+            control={
+              <input
+                className="settings-input settings-input-narrow"
+                disabled={!settings.githubMemorySyncEnabled}
+                value={settings.githubMemoryRepository}
+                placeholder="owner/repo"
+                onChange={event =>
+                  settings.setGithubMemoryRepository(event.target.value)
+                }
+              />
+            }
+          />
+          <SettingsRow
             title="重置记忆"
             description="删除所有 Codex 记忆"
             control={

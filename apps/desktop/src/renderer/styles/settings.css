@@ -312,6 +312,61 @@
   color: var(--c-text-soft);
 }
 
+.profile-github-card {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: 14px var(--sp-4);
+  border-bottom: 1px solid var(--c-border-soft);
+}
+
+.profile-github-avatar {
+  width: 48px;
+  height: 48px;
+  border: 1px solid var(--c-border-soft);
+  border-radius: 50%;
+  background-color: var(--c-bg-subtle);
+  color: var(--c-text-soft);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.profile-github-avatar img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.profile-github-avatar svg {
+  width: 24px;
+  height: 24px;
+  stroke-width: var(--app-icon-stroke-width);
+}
+
+.profile-github-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.profile-github-name {
+  font-size: var(--fs-15);
+  font-weight: 600;
+  color: var(--c-text-strong);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-github-meta {
+  margin-top: 2px;
+  font-size: var(--fs-13);
+  color: var(--c-text-soft);
+}
+
 /* --- Radio Card --- */
 .settings-radio-group {
   display: grid;

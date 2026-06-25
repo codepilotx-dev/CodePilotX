@@ -47,6 +47,7 @@ export type UseDesktopSettingsResult = {
   allowForcePush: boolean
   commitMessagePrompt: string
   pullRequestPrompt: string
+  githubOAuthClientId: string
   sandboxMode: DesktopSandboxMode
   allowNetworkAccess: boolean
   installCodexDependencies: boolean
@@ -54,6 +55,8 @@ export type UseDesktopSettingsResult = {
   customInstructions: string
   enableMemory: boolean
   skipToolAidedChats: boolean
+  githubMemorySyncEnabled: boolean
+  githubMemoryRepository: string
   reviewView: DesktopReviewView
   settingsLoaded: boolean
   setPermissionMode: (value: DesktopPermissionMode) => void
@@ -81,6 +84,7 @@ export type UseDesktopSettingsResult = {
   setAllowForcePush: (value: boolean) => void
   setCommitMessagePrompt: (value: string) => void
   setPullRequestPrompt: (value: string) => void
+  setGithubOAuthClientId: (value: string) => void
   setSandboxMode: (value: DesktopSandboxMode) => void
   setAllowNetworkAccess: (value: boolean) => void
   setInstallCodexDependencies: (value: boolean) => void
@@ -88,6 +92,8 @@ export type UseDesktopSettingsResult = {
   setCustomInstructions: (value: string) => void
   setEnableMemory: (value: boolean) => void
   setSkipToolAidedChats: (value: boolean) => void
+  setGithubMemorySyncEnabled: (value: boolean) => void
+  setGithubMemoryRepository: (value: string) => void
   setReviewView: (value: DesktopReviewView) => void
 }
 
@@ -167,6 +173,9 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
   const [pullRequestPrompt, setPullRequestPrompt] = useState(
     initial.pullRequestPrompt,
   )
+  const [githubOAuthClientId, setGithubOAuthClientId] = useState(
+    initial.githubOAuthClientId,
+  )
   const [sandboxMode, setSandboxMode] = useState<DesktopSandboxMode>(
     initial.sandboxMode,
   )
@@ -185,6 +194,12 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
   const [enableMemory, setEnableMemory] = useState(initial.enableMemory)
   const [skipToolAidedChats, setSkipToolAidedChats] = useState(
     initial.skipToolAidedChats,
+  )
+  const [githubMemorySyncEnabled, setGithubMemorySyncEnabled] = useState(
+    initial.githubMemorySyncEnabled,
+  )
+  const [githubMemoryRepository, setGithubMemoryRepository] = useState(
+    initial.githubMemoryRepository,
   )
   const [reviewView, setReviewView] = useState<DesktopReviewView>(
     initial.reviewView,
@@ -220,6 +235,7 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
         setAllowForcePush(settings.allowForcePush)
         setCommitMessagePrompt(settings.commitMessagePrompt)
         setPullRequestPrompt(settings.pullRequestPrompt)
+        setGithubOAuthClientId(settings.githubOAuthClientId)
         setSandboxMode(settings.sandboxMode)
         setAllowNetworkAccess(settings.allowNetworkAccess)
         setInstallCodexDependencies(settings.installCodexDependencies)
@@ -227,6 +243,8 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
         setCustomInstructions(settings.customInstructions)
         setEnableMemory(settings.enableMemory)
         setSkipToolAidedChats(settings.skipToolAidedChats)
+        setGithubMemorySyncEnabled(settings.githubMemorySyncEnabled)
+        setGithubMemoryRepository(settings.githubMemoryRepository)
         setReviewView(settings.reviewView)
         setSettingsLoaded(true)
       })
@@ -266,6 +284,7 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
       allowForcePush,
       commitMessagePrompt,
       pullRequestPrompt,
+      githubOAuthClientId,
       sandboxMode,
       allowNetworkAccess,
       installCodexDependencies,
@@ -273,6 +292,8 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
       customInstructions,
       enableMemory,
       skipToolAidedChats,
+      githubMemorySyncEnabled,
+      githubMemoryRepository,
       reviewView,
     }
     storeDesktopSettings(next)
@@ -300,6 +321,7 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     allowForcePush,
     commitMessagePrompt,
     pullRequestPrompt,
+    githubOAuthClientId,
     sandboxMode,
     allowNetworkAccess,
     installCodexDependencies,
@@ -307,6 +329,8 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     customInstructions,
     enableMemory,
     skipToolAidedChats,
+    githubMemorySyncEnabled,
+    githubMemoryRepository,
     reviewView,
   ])
 
@@ -334,6 +358,7 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     allowForcePush,
     commitMessagePrompt,
     pullRequestPrompt,
+    githubOAuthClientId,
     sandboxMode,
     allowNetworkAccess,
     installCodexDependencies,
@@ -341,6 +366,8 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     customInstructions,
     enableMemory,
     skipToolAidedChats,
+    githubMemorySyncEnabled,
+    githubMemoryRepository,
     reviewView,
     settingsLoaded,
     setPermissionMode,
@@ -366,6 +393,7 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     setAllowForcePush,
     setCommitMessagePrompt,
     setPullRequestPrompt,
+    setGithubOAuthClientId,
     setSandboxMode,
     setAllowNetworkAccess,
     setInstallCodexDependencies,
@@ -373,6 +401,8 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     setCustomInstructions,
     setEnableMemory,
     setSkipToolAidedChats,
+    setGithubMemorySyncEnabled,
+    setGithubMemoryRepository,
     setReviewView,
   }
 }

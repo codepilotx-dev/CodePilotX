@@ -248,6 +248,72 @@ export type DesktopCopilotLoginStatus = {
   elapsedMs: number
 }
 
+export type DesktopGithubUser = {
+  login: string
+  id: number
+  name: string | null
+  avatarUrl: string | null
+  htmlUrl: string
+}
+
+export type DesktopGithubAuthStatus = {
+  configured: boolean
+  authenticated: boolean
+  user: DesktopGithubUser | null
+  error?: string
+}
+
+export type DesktopGithubLoginState =
+  | 'idle'
+  | 'starting'
+  | 'awaiting_auth'
+  | 'completed'
+  | 'failed'
+
+export type DesktopGithubLoginStatus = {
+  state: DesktopGithubLoginState
+  userCode: string | null
+  verificationUri: string | null
+  expiresAt: string | null
+  error: string | null
+  auth: DesktopGithubAuthStatus | null
+  elapsedMs: number
+}
+
+export type StartGithubLoginInput = {
+  clientId?: string
+}
+
+export type DesktopGithubRepository = {
+  id: number
+  name: string
+  fullName: string
+  owner: string
+  private: boolean
+  fork: boolean
+  archived: boolean
+  disabled: boolean
+  cloneUrl: string
+  sshUrl: string
+  htmlUrl: string
+  description: string | null
+  defaultBranch: string
+  pushedAt: string | null
+  updatedAt: string | null
+}
+
+export type DesktopGithubRepositoryListResult =
+  | { ok: true; repositories: DesktopGithubRepository[] }
+  | { ok: false; error: string }
+
+export type CloneGithubRepositoryInput = {
+  repository: DesktopGithubRepository
+}
+
+export type DesktopGithubCloneResult =
+  | { ok: true; workspace: DesktopWorkspace }
+  | { ok: false; error: string }
+
 export type SaveDesktopModelProviderOptions = {
   providerID: ModelProviderID
   modelID?: string
@@ -292,6 +358,7 @@ export type DesktopStoredSettings = {
   allowForcePush: boolean
   commitMessagePrompt: string
   pullRequestPrompt: string
+  githubOAuthClientId: string
   sandboxMode: DesktopSandboxMode
   allowNetworkAccess: boolean
   installCodexDependencies: boolean
@@ -299,6 +366,8 @@ export type DesktopStoredSettings = {
   customInstructions: string
   enableMemory: boolean
   skipToolAidedChats: boolean
+  githubMemorySyncEnabled: boolean
+  githubMemoryRepository: string
   reviewView: DesktopReviewView
 }
 
@@ -514,6 +583,7 @@ export type DesktopSkillCatalogItem = {
   url: string
   isDuplicate: boolean
   installed: boolean
+  audit: DesktopSkillAudit | null
 }
 
 export type DesktopSkillCatalogResult = {
@@ -522,6 +592,20 @@ export type DesktopSkillCatalogResult = {
   perPage: number
   total?: number
   hasMore: boolean
+}
+
+export type DesktopSkillAuditStatus = 'pass' | 'warn' | 'fail'
+
+export type DesktopSkillAudit = {
+  status: DesktopSkillAuditStatus
+  summary: string
+  providerCount: number
+  auditedAt: string | null
+}
+
+export type DesktopSkillInstallOptions = {
+  id: string
+  installUrl?: string | null
 }
 
 export type DesktopSkillInstallResult = {
@@ -567,7 +651,9 @@ export type DesktopApi = {
   listSkillsCatalog(
     options?: DesktopSkillCatalogOptions,
   ): Promise<DesktopSkillCatalogResult>
-  installSkill(skillId: string): Promise<DesktopSkillInstallResult>
+  installSkill(
+    skill: string | DesktopSkillInstallOptions,
+  ): Promise<DesktopSkillInstallResult>
   listSlashCommands(workspacePath?: string): Promise<DesktopSlashCommandSuggestion[]>
   listMcpServers(): Promise<DesktopMcpServerListItem[]>
   saveMcpServer(options: SaveDesktopMcpServerOptions): Promise<DesktopMcpServerListItem[]>
@@ -601,6 +687,16 @@ export type DesktopApi = {
   startCopilotLogin(): Promise<DesktopCopilotLoginStatus>
   pollCopilotLogin(): Promise<DesktopCopilotLoginStatus>
   cancelCopilotLogin(): Promise<{ cancelled: boolean }>
+  getGithubAuthStatus(): Promise<DesktopGithubAuthStatus>
+  startGithubLogin(
+    input?: StartGithubLoginInput,
+  ): Promise<DesktopGithubLoginStatus>
+  pollGithubLogin(): Promise<DesktopGithubLoginStatus>
+  logoutGithub(): Promise<DesktopGithubAuthStatus>
+  listGithubRepositories(): Promise<DesktopGithubRepositoryListResult>
+  cloneGithubRepository(
+    input: CloneGithubRepositoryInput,
+  ): Promise<DesktopGithubCloneResult>
   chooseWorkspace(): Promise<DesktopWorkspace | null>
   openWorkspace(workspacePath: string): Promise<DesktopWorkspace>
   getWorkspaceContext(workspacePath: string): Promise<DesktopWorkspace>

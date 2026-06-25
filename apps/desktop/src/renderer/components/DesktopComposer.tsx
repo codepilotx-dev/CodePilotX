@@ -58,6 +58,7 @@ type Props = {
   onOpenWorkspace: (
     workspace: DesktopWorkspace,
   ) => Promise<DesktopWorkspace | null>
+  onCloneGithub: () => void
   onClearWorkspace: () => void
   onBranchSelect: (branch: string) => Promise<void>
   onCreateBranch: () => void
@@ -101,6 +102,7 @@ export function DesktopComposer({
   onInterrupt,
   onProviderModelChange,
   onOpenWorkspace,
+  onCloneGithub,
   onClearWorkspace,
   onBranchSelect,
   onCreateBranch,
@@ -254,6 +256,7 @@ export function DesktopComposer({
       onOpenFiles={() => void handleOpenFiles()}
       onRemoveAttachment={handleRemoveAttachment}
       onOpenWorkspace={workspaceItem => void onOpenWorkspace(workspaceItem)}
+      onCloneGithub={onCloneGithub}
       onClearWorkspace={onClearWorkspace}
       onBranchSelect={branch => void onBranchSelect(branch)}
       onCreateBranch={onCreateBranch}
