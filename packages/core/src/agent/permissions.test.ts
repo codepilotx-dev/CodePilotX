@@ -1,136 +1,251 @@
 import { expect, test } from 'bun:test'
 import {
-  normalizeAgentPermissionPolicy,
-  normalizeDesktopAgentPermissionMode,
-  permissionPolicyForDesktopMode,
-  resolvePermissionEffect,
-  shouldPromptForPermission,
+  BUILTIN_CODEX_PERMISSION_PROFILES,
+  evaluateFilesystemAccess,
+  evaluateNetworkDomainAccess,
+  resolveCodexPermissions,
 } from './permissions.js'
+import { parseCodexRequirements } from './codexRequirements.js'
 
-test('legacy desktop permission modes migrate to the current modes', () => {
-  expect(normalizeDesktopAgentPermissionMode('acceptEdits')).toBe('auto')
-  expect(normalizeDesktopAgentPermissionMode('dontAsk')).toBe('customConfig')
-  expect(normalizeDesktopAgentPermissionMode('default')).toBe('default')
-  expect(normalizeDesktopAgentPermissionMode('bypassPermissions')).toBe(
-    'bypassPermissions',
+test('official built-in permission profiles are available', () => {
+  expect(BUILTIN_CODEX_PERMISSION_PROFILES).toEqual([
+    ':read-only',
+    ':workspace',
+    ':danger-full-access',
+  ])
+
+  const resolved = resolveCodexPermissions({
+    config: { defaultPermissions: ':workspace' },
+    workspaceRoots: ['/repo'],
+  })
+
+  expect(resolved.activeProfile.name).toBe(':workspace')
+  expect(resolved.activeProfile.filesystem).toEqual([
+    { path: ':workspace_roots', access: 'write', source: 'config' },
+  ])
+})
+
+test('custom profile extends workspace and can deny narrower filesystem paths', () => {
+  const resolved = resolveCodexPermissions({
+    config: {
+      defaultPermissions: 'project-edit',
+      permissions: {
+        'project-edit': {
+          extends: ':workspace',
+          filesystem: {
+            '**/*.env': 'deny',
+          },
+        },
+      },
+    },
+    workspaceRoots: ['/repo'],
+  })
+
+  expect(evaluateFilesystemAccess(resolved.activeProfile, '/repo/src/index.ts')).toBe(
+    'write',
   )
-  expect(normalizeDesktopAgentPermissionMode('plan')).toBe('plan')
-  expect(normalizeDesktopAgentPermissionMode(undefined)).toBe('default')
+  expect(evaluateFilesystemAccess(resolved.activeProfile, '/repo/.env')).toBe(
+    'deny',
+  )
 })
 
-test('desktop permission modes map to shared policies', () => {
-  expect(permissionPolicyForDesktopMode('default')).toEqual({
-    profile: 'workspace-write',
-    approvalMode: 'prompt',
-    sandboxPolicy: 'workspace-write',
-  })
-  expect(permissionPolicyForDesktopMode('auto')).toEqual({
-    profile: 'workspace-write',
-    approvalMode: 'auto-review',
-    sandboxPolicy: 'workspace-write',
-  })
-  expect(permissionPolicyForDesktopMode('bypassPermissions')).toEqual({
-    profile: 'danger-full-access',
-    approvalMode: 'bypass',
-    sandboxPolicy: 'danger-full-access',
-  })
-  expect(permissionPolicyForDesktopMode('customConfig')).toEqual({
-    profile: 'workspace-write',
-    approvalMode: 'config',
-    sandboxPolicy: 'workspace-write',
-  })
-  expect(permissionPolicyForDesktopMode('plan')).toEqual({
-    profile: 'read-only',
-    approvalMode: 'plan',
-    sandboxPolicy: 'read-only',
-  })
-})
-
-test('default policy prompts for mutating local agent actions', () => {
-  const policy = permissionPolicyForDesktopMode('default')
-
-  expect(shouldPromptForPermission(policy, 'read')).toBe(false)
-  expect(shouldPromptForPermission(policy, 'write')).toBe(true)
-  expect(shouldPromptForPermission(policy, 'shell')).toBe(true)
-  expect(shouldPromptForPermission(policy, 'network')).toBe(true)
-  expect(shouldPromptForPermission(policy, 'mcp')).toBe(true)
-})
-
-test('plan mode is read-only and prompts for every mutating action', () => {
-  const policy = permissionPolicyForDesktopMode('plan')
-
-  expect(shouldPromptForPermission(policy, 'read')).toBe(false)
-  expect(shouldPromptForPermission(policy, 'write')).toBe(true)
-  expect(shouldPromptForPermission(policy, 'shell')).toBe(true)
-  expect(shouldPromptForPermission(policy, 'network')).toBe(true)
-  expect(shouldPromptForPermission(policy, 'mcp')).toBe(true)
-  expect(resolvePermissionEffect(policy, 'write')).toBe('ask')
-  expect(resolvePermissionEffect(policy, 'read')).toBe('allow')
-})
-
-test('read-only profile blocks non-read actions through the permission gate', () => {
-  const policy = {
-    profile: 'read-only',
-    approvalMode: 'prompt',
-  } as const
-
-  expect(shouldPromptForPermission(policy, 'read')).toBe(false)
-  expect(shouldPromptForPermission(policy, 'write')).toBe(true)
-  expect(shouldPromptForPermission(policy, 'shell')).toBe(true)
-})
-
-test('permission policy normalization fills Codex-style session fields', () => {
-  expect(normalizeAgentPermissionPolicy(undefined)).toEqual({
-    profile: 'workspace-write',
-    approvalMode: 'prompt',
-    sandboxPolicy: 'workspace-write',
-  })
-
-  expect(
-    normalizeAgentPermissionPolicy({
-      profile: 'danger-full-access',
-      approvalMode: 'bypass',
+test('custom profile cannot extend danger-full-access', () => {
+  expect(() =>
+    resolveCodexPermissions({
+      config: {
+        defaultPermissions: 'unsafe',
+        permissions: {
+          unsafe: { extends: ':danger-full-access' },
+        },
+      },
+      workspaceRoots: ['/repo'],
     }),
-  ).toEqual({
-    profile: 'danger-full-access',
-    approvalMode: 'bypass',
-    sandboxPolicy: 'danger-full-access',
-  })
+  ).toThrow('Custom permission profile cannot extend :danger-full-access')
 })
 
-test('permission effect resolution supports action scopes and per-tool overrides', () => {
-  const policy = normalizeAgentPermissionPolicy({
-    profile: 'workspace-write',
-    approvalMode: 'prompt',
-    actionScopes: {
-      network: 'deny',
-      shell: 'ask',
-    },
-    toolOverrides: {
-      WebFetch: { network: 'allow' },
-      Bash: { shell: 'deny' },
-    },
-  })
+test('permission resolver rejects unknown parents and inheritance cycles', () => {
+  expect(() =>
+    resolveCodexPermissions({
+      config: {
+        defaultPermissions: 'child',
+        permissions: {
+          child: { extends: 'missing' },
+        },
+      },
+      workspaceRoots: ['/repo'],
+    }),
+  ).toThrow('Unknown permission profile: missing')
 
-  expect(resolvePermissionEffect(policy, 'read')).toBe('allow')
-  expect(resolvePermissionEffect(policy, 'write')).toBe('ask')
-  expect(resolvePermissionEffect(policy, 'network')).toBe('deny')
-  expect(resolvePermissionEffect(policy, 'network', 'WebFetch')).toBe('allow')
-  expect(resolvePermissionEffect(policy, 'shell', 'Bash')).toBe('deny')
-  expect(shouldPromptForPermission(policy, 'network')).toBe(true)
-  expect(shouldPromptForPermission(policy, 'network', 'WebFetch')).toBe(false)
-  expect(shouldPromptForPermission(policy, 'shell')).toBe(true)
-  expect(shouldPromptForPermission(policy, 'shell', 'Bash')).toBe(true)
+  expect(() =>
+    resolveCodexPermissions({
+      config: {
+        defaultPermissions: 'a',
+        permissions: {
+          a: { extends: 'b' },
+          b: { extends: 'a' },
+        },
+      },
+      workspaceRoots: ['/repo'],
+    }),
+  ).toThrow('Permission profile inheritance cycle')
 })
 
-test('bypass approval mode still allows every action before local tool rules', () => {
-  const policy = normalizeAgentPermissionPolicy({
-    profile: 'danger-full-access',
-    approvalMode: 'bypass',
-    actionScopes: { shell: 'deny' },
-    toolOverrides: { Bash: { shell: 'deny' } },
+test('filesystem precedence uses narrower matches and deny wins ties', () => {
+  const resolved = resolveCodexPermissions({
+    config: {
+      defaultPermissions: 'files',
+      permissions: {
+        files: {
+          filesystem: {
+            '/repo': 'read',
+            '/repo/src': 'write',
+            '/repo/src/secrets': 'deny',
+            '/repo/src/secrets/public.txt': 'read',
+            '/repo/tie.txt': ['read', 'deny'],
+          },
+        },
+      },
+    },
+    workspaceRoots: ['/repo'],
   })
 
-  expect(resolvePermissionEffect(policy, 'shell', 'Bash')).toBe('allow')
-  expect(shouldPromptForPermission(policy, 'shell', 'Bash')).toBe(false)
+  expect(evaluateFilesystemAccess(resolved.activeProfile, '/repo/README.md')).toBe(
+    'read',
+  )
+  expect(evaluateFilesystemAccess(resolved.activeProfile, '/repo/src/app.ts')).toBe(
+    'write',
+  )
+  expect(
+    evaluateFilesystemAccess(resolved.activeProfile, '/repo/src/secrets/key.txt'),
+  ).toBe('deny')
+  expect(
+    evaluateFilesystemAccess(
+      resolved.activeProfile,
+      '/repo/src/secrets/public.txt',
+    ),
+  ).toBe('read')
+  expect(evaluateFilesystemAccess(resolved.activeProfile, '/repo/tie.txt')).toBe(
+    'deny',
+  )
+})
+
+test('network domain rules support exact, wildcard, global, and deny priority', () => {
+  const resolved = resolveCodexPermissions({
+    config: {
+      defaultPermissions: 'net',
+      permissions: {
+        net: {
+          network: {
+            enabled: true,
+            domains: {
+              '*': 'deny',
+              '*.example.com': 'allow',
+              '**.deep.example.com': 'allow',
+              'blocked.example.com': 'deny',
+            },
+          },
+        },
+      },
+    },
+    workspaceRoots: ['/repo'],
+  })
+
+  expect(evaluateNetworkDomainAccess(resolved.activeProfile, 'api.example.com')).toBe(
+    'allow',
+  )
+  expect(evaluateNetworkDomainAccess(resolved.activeProfile, 'blocked.example.com')).toBe(
+    'deny',
+  )
+  expect(
+    evaluateNetworkDomainAccess(resolved.activeProfile, 'a.b.deep.example.com'),
+  ).toBe('allow')
+  expect(evaluateNetworkDomainAccess(resolved.activeProfile, 'other.test')).toBe(
+    'deny',
+  )
+})
+
+test('requirements can provide managed defaults and restrict selectable profiles', () => {
+  const resolved = resolveCodexPermissions({
+    config: {
+      defaultPermissions: 'local-profile',
+      permissions: {
+        'local-profile': { extends: ':workspace' },
+      },
+    },
+    requirements: {
+      defaultPermissions: 'managed-profile',
+      allowedPermissionProfiles: ['managed-profile'],
+      permissions: {
+        'managed-profile': { extends: ':read-only' },
+      },
+    },
+    workspaceRoots: ['/repo'],
+  })
+
+  expect(resolved.activeProfile.name).toBe('managed-profile')
+  expect(evaluateFilesystemAccess(resolved.activeProfile, '/repo/src/index.ts')).toBe(
+    'read',
+  )
+
+  expect(() =>
+    resolveCodexPermissions({
+      config: {
+        defaultPermissions: 'local-profile',
+        permissions: {
+          'local-profile': { extends: ':workspace' },
+        },
+      },
+      requirements: {
+        allowedPermissionProfiles: [':read-only'],
+      },
+      workspaceRoots: ['/repo'],
+    }),
+  ).toThrow('Permission profile local-profile is not allowed by requirements')
+})
+
+test('requirements.toml parser supports official permission policy fields', () => {
+  const requirements = parseCodexRequirements(`
+allowed_permission_profiles = [":workspace", "managed-edit"]
+default_permissions = "managed-edit"
+allowed_approval_policies = ["on-request", "never"]
+allowed_approvals_reviewers = ["user"]
+
+[permissions.managed-edit]
+extends = ":workspace"
+
+[permissions.managed-edit.filesystem]
+"**/*.env" = "deny"
+
+[permissions.filesystem]
+deny_read = ["**/secrets/**"]
+
+[experimental_network]
+enabled = true
+allowed_domains = ["api.openai.com"]
+denied_domains = ["*.evil.test"]
+managed_allowed_domains_only = true
+http_proxy_port = 8080
+allow_unix_sockets = ["/tmp/codex.sock"]
+allow_local_network = false
+`)
+
+  const resolved = resolveCodexPermissions({
+    workspaceRoots: ['/repo'],
+    requirements,
+  })
+
+  expect(resolved.activeProfile.name).toBe('managed-edit')
+  expect(evaluateFilesystemAccess(resolved.activeProfile, '/repo/.env')).toBe(
+    'deny',
+  )
+  expect(evaluateFilesystemAccess(resolved.activeProfile, '/repo/secrets/key')).toBe(
+    'deny',
+  )
+  expect(
+    evaluateNetworkDomainAccess(resolved.activeProfile, 'api.openai.com'),
+  ).toBe('allow')
+  expect(evaluateNetworkDomainAccess(resolved.activeProfile, 'x.evil.test')).toBe(
+    'deny',
+  )
+  expect(resolved.activeProfile.network.httpProxyPort).toBe(8080)
 })

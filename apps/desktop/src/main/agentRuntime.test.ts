@@ -1,22 +1,31 @@
 import { expect, test } from 'bun:test'
 import {
-  permissionModeArgs,
+  askUserQuestionMaxQuestionsEnv,
+  codexPermissionConfigArgs,
   permissionPromptToolArgs,
   permissionPromptToolName,
 } from './agentRuntime.js'
 
-test('permissionModeArgs maps desktop permission modes to CLI args', () => {
-  expect(permissionModeArgs('default')).toEqual(['--permission-mode', 'default'])
-  expect(permissionModeArgs('auto')).toEqual(['--permission-mode', 'auto'])
-  expect(permissionModeArgs('bypassPermissions')).toEqual([
-    '--dangerously-skip-permissions',
+test('codexPermissionConfigArgs maps desktop permissions to official config overrides', () => {
+  expect(
+    codexPermissionConfigArgs({
+      permissionProfile: ':workspace',
+      approvalPolicy: 'on-request',
+      approvalsReviewer: 'user',
+    }),
+  ).toEqual([
+    '--config',
+    'default_permissions=":workspace"',
+    '--config',
+    'approval_policy="on-request"',
+    '--config',
+    'approvals_reviewer="user"',
   ])
-  expect(permissionModeArgs('customConfig')).toEqual([])
-  expect(permissionModeArgs('plan')).toEqual(['--permission-mode', 'plan'])
-  expect(permissionModeArgs(undefined)).toEqual([
-    '--permission-mode',
-    'default',
+  expect(codexPermissionConfigArgs({ permissionProfile: 'project-edit' })).toEqual([
+    '--config',
+    'default_permissions="project-edit"',
   ])
+  expect(codexPermissionConfigArgs({})).toEqual([])
 })
 
 test('desktop runtimes use stdio permission prompt protocol', () => {
@@ -25,4 +34,13 @@ test('desktop runtimes use stdio permission prompt protocol', () => {
     '--permission-prompt-tool',
     'stdio',
   ])
+})
+
+test('desktop runtime exports AskUserQuestion max questions env when configured', () => {
+  expect(askUserQuestionMaxQuestionsEnv({})).toEqual({})
+  expect(
+    askUserQuestionMaxQuestionsEnv({ askUserQuestionMaxQuestions: 3 }),
+  ).toEqual({
+    CODEPILOTX_ASK_USER_QUESTION_MAX_QUESTIONS: '3',
+  })
 })
