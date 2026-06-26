@@ -1,5 +1,5 @@
 import { createHash } from 'crypto'
-import { getSettings_DEPRECATED } from '@codepilotx/tui/utils/settings/settings.js'
+import { getSettings_DEPRECATED } from '@codepilotx/core/config/settings.js'
 import {
   createModelProviderState,
   createModelProviderSummary,
@@ -18,7 +18,7 @@ import {
   listProviderConfigs,
   saveProviderApiKey as saveTuiProviderApiKey,
   saveSelectedProvider,
-} from '@codepilotx/tui/utils/model/providerConfig.js'
+} from '@codepilotx/core/models/providerConfig.js'
 import { desktopDebug } from './desktopDebug.js'
 import {
   readDesktopStoredSettings,

@@ -55,6 +55,7 @@ import { PopoverItem } from './ui/PopoverItem.js'
 import { PopoverMenu } from './ui/PopoverMenu.js'
 import { SearchInput } from './ui/SearchInput.js'
 import { ProjectSwitcherPopover } from './ProjectSwitcherPopover.js'
+import { ChatInputDropdown } from './ChatInputDropdown.js'
 
 type Option<T extends string> = {
   value: T
@@ -90,6 +91,18 @@ type ContextPlugin = {
   tone: ContextPluginTone
   icon: React.ReactNode
 }
+
+type ContextAgentOption = {
+  name: string
+  role: string
+  icon: string
+  tone: 'red' | 'amber'
+}
+
+export const CONTEXT_AGENT_OPTIONS: ContextAgentOption[] = [
+  { name: 'Schrodinger', role: 'explorer', icon: 'DNA', tone: 'red' },
+  { name: 'Russell', role: 'explorer', icon: 'ATOM', tone: 'amber' },
+]
 
 const INSTALLED_CONTEXT_PLUGINS: ContextPlugin[] = [
   {
@@ -183,6 +196,7 @@ type Props = {
   onPlanModeToggle?: (enabled: boolean, previousMode: DesktopPermissionMode) => void
   onSubmit: () => void
   onThinkingChange: (value: DesktopThinkingMode) => void
+  contextDropdownSide?: 'top' | 'bottom'
 }
 
 export function ComposerCard({
@@ -227,6 +241,7 @@ onCreateBranch,
   onPlanModeToggle,
   onSubmit,
   onThinkingChange,
+  contextDropdownSide = 'top',
 }: Props): React.ReactNode {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const [openDropdown, setOpenDropdown] = useState<ComposerDropdown | null>(
@@ -353,40 +368,6 @@ onCreateBranch,
 
   function getPermissionClassName(value: DesktopPermissionMode): string {
     return PERMISSION_CHIP_CLASS_NAMES[value]
-  }
-
-  function renderContextSwitchItem(
-    label: string,
-    enabled: boolean,
-    icon: React.ReactNode,
-    onToggle: (enabled: boolean) => void,
-    description?: string,
-  ): React.ReactNode {
-    return (
-      <DropdownMenu.Item
-        className="popover-item context-menu-switch-item"
-        tabIndex={-1}
-        onSelect={event => {
-          event.preventDefault()
-          onToggle(!enabled)
-        }}
-      >
-        <span className="popover-item-icon">{icon}</span>
-        <span className="popover-item-rich">
-          <span className="popover-item-label">{label}</span>
-          {description ? (
-            <span className="popover-item-description">{description}</span>
-          ) : null}
-        </span>
-        <span
-          aria-checked={enabled}
-          className="context-menu-switch"
-          role="switch"
-        >
-          <span className="context-menu-switch-thumb" />
-        </span>
-      </DropdownMenu.Item>
-    )
   }
 
   const isRunning = sessionStatus === 'running' || sessionStatus === 'waiting'
@@ -529,82 +510,20 @@ onCreateBranch,
 
         <div className="composer-toolbar">
           <div className="toolbar-left">
-            <PopoverMenu
-              className="popover-context"
-              open={openDropdown === 'context'}
-              side="top"
-              onOpenChange={open => setOpenDropdown(open ? 'context' : null)}
-              trigger={
-                <IconButton
-                  className={[
-                    'icon-button',
-                    openDropdown === 'context' ? 'active' : '',
-                  ].join(' ')}
-                  title="添加上下文"
-                >
-                  <Plus size={APP_ICON_SIZE} />
-                </IconButton>
+            <IconButton
+              className={[
+                'icon-button',
+                openDropdown === 'context' ? 'active' : '',
+              ].join(' ')}
+              title="添加上下文"
+              onClick={() =>
+                setOpenDropdown(
+                  openDropdown === 'context' ? null : 'context',
+                )
               }
             >
-              <div className="popover-section-title">Add</div>
-              <div className="popover-section">
-                <PopoverItem
-                  icon={<Paperclip size={APP_ICON_SIZE} />}
-                  onClick={() => {
-                    onOpenFiles()
-                    closeDropdown()
-                  }}
-                >
-                  Files and folders
-                </PopoverItem>
-                <PopoverItem
-                  icon={<Target size={APP_ICON_SIZE} />}
-                  meta="设置 Codex 将持续努力实现的目标"
-                  onClick={closeDropdown}
-                >
-                  目标
-                </PopoverItem>
-                {renderContextSwitchItem(
-                  '计划模式',
-                  planModeEnabled,
-                  <ListChecks size={APP_ICON_SIZE} />,
-                  (next: boolean) => {
-                    if (onPlanModeToggle) {
-                      onPlanModeToggle(next, permissionMode)
-                    } else {
-                      onPermissionChange(next ? 'plan' : 'default')
-                    }
-                  },
-                  '开启计划模式',
-                )}
-              </div>
-              <div className="popover-section-title">插件</div>
-              <div className="popover-section">
-                {INSTALLED_CONTEXT_PLUGINS.map(plugin => (
-                  <PopoverItem
-                    key={plugin.name}
-                    meta={plugin.description}
-                    keepOpen
-                    onClick={() => {
-                      if (plugin.tone === 'browser') {
-                        onOpenBrowser?.()
-                      }
-                      closeDropdown()
-                    }}
-                  >
-                    <span
-                      className={[
-                        'context-plugin-icon',
-                        `context-plugin-icon-${plugin.tone}`,
-                      ].join(' ')}
-                    >
-                      {plugin.icon}
-                    </span>
-                    <span className="popover-item-label">{plugin.name}</span>
-                  </PopoverItem>
-                ))}
-              </div>
-            </PopoverMenu>
+              <Plus size={APP_ICON_SIZE} />
+            </IconButton>
             <Select.Root
               open={openDropdown === 'permission'}
               value={permissionMode}
@@ -948,6 +867,131 @@ onCreateBranch,
             </button>
           </div>
         </div>
+        <ChatInputDropdown
+          open={openDropdown === 'context'}
+          onClose={closeDropdown}
+          side={contextDropdownSide}
+        >
+          <div
+            className="chat-input__dropdown-item"
+            onClick={() => {
+              onOpenFiles()
+              closeDropdown()
+            }}
+          >
+            <span className="chat-input__dropdown-leading">
+              <Paperclip size={14} />
+            </span>
+            <span className="chat-input__dropdown-label">Files and folders</span>
+          </div>
+          <div className="chat-input__dropdown-item" onClick={closeDropdown}>
+            <span className="chat-input__dropdown-leading">
+              <Target size={14} />
+            </span>
+            <span className="chat-input__dropdown-label">目标</span>
+            <span className="chat-input__dropdown-hint">
+              设置 Codex 将持续努力实现的目标
+            </span>
+          </div>
+          <div
+            className="chat-input__dropdown-item"
+            onClick={() => {
+              if (onPlanModeToggle) {
+                onPlanModeToggle(!planModeEnabled, permissionMode)
+              } else {
+                onPermissionChange(planModeEnabled ? 'default' : 'plan')
+              }
+            }}
+          >
+            <span className="chat-input__dropdown-leading">
+              <ListChecks size={14} />
+            </span>
+            <span className="chat-input__dropdown-label">计划模式</span>
+            <span className="chat-input__dropdown-hint">
+              {planModeEnabled ? '已开启' : '开启计划模式'}
+            </span>
+            {planModeEnabled ? (
+              <svg
+                className="chat-input__dropdown-check"
+                width="14"
+                height="14"
+                viewBox="0 0 14 14"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M3 7l3 3 5-6" />
+              </svg>
+            ) : null}
+          </div>
+
+          <div className="chat-input__dropdown-separator" />
+
+          <div className="chat-input__dropdown-section-title">智能体</div>
+
+          {CONTEXT_AGENT_OPTIONS.map(agent => (
+            <div
+              className="chat-input__dropdown-item"
+              key={agent.name}
+              onClick={closeDropdown}
+            >
+              <span
+                className="chat-input__dropdown-agent-icon"
+                style={{
+                  color:
+                    agent.tone === 'red'
+                      ? '#ef4444'
+                      : '#f59e0b',
+                }}
+              >
+                {agent.icon === 'DNA' ? '🧬' : '⚛️'}
+              </span>
+              <span className="chat-input__dropdown-label">{agent.name}</span>
+              <span className="chat-input__dropdown-hint">{agent.role}</span>
+            </div>
+          ))}
+
+          <div className="chat-input__dropdown-separator" />
+
+          <div className="chat-input__dropdown-section-title">插件</div>
+
+          {INSTALLED_CONTEXT_PLUGINS.map(plugin => (
+            <div
+              className="chat-input__dropdown-item"
+              key={plugin.name}
+              onClick={() => {
+                if (plugin.tone === 'browser') {
+                  onOpenBrowser?.()
+                }
+                closeDropdown()
+              }}
+            >
+              <span
+                className={[
+                  'chat-input__dropdown-bullet',
+                ].join(' ')}
+                style={{
+                  background:
+                    plugin.tone === 'docs'
+                      ? '#3b82f6'
+                      : plugin.tone === 'pdf'
+                        ? '#ef4444'
+                        : plugin.tone === 'sheets'
+                          ? '#22c55e'
+                          : plugin.tone === 'slides'
+                            ? '#f59e0b'
+                            : plugin.tone === 'template'
+                              ? '#ec4899'
+                              : '#06b6d4',
+                }}
+              />
+              <span className="chat-input__dropdown-label">{plugin.name}</span>
+              <span className="chat-input__dropdown-hint">
+                {plugin.description}
+              </span>
+            </div>
+          ))}
+        </ChatInputDropdown>
       </div>
 
       <div className="composer-bottom">

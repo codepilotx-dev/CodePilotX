@@ -267,6 +267,7 @@ export function DesktopComposer({
       onPlanModeToggle={onPlanModeToggle}
       onSubmit={handleSubmit}
       onThinkingChange={onThinkingChange}
+      contextDropdownSide={isQuickChatPage ? 'bottom' : 'top'}
     />
   )
 }

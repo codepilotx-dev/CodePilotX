@@ -1,7 +1,9 @@
 import { expect, test } from 'bun:test'
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { ComposerCard } from './ComposerCard.js'
+import { ComposerCard, CONTEXT_AGENT_OPTIONS } from './ComposerCard.js'
+import { ChatInputDropdown, computeDropdownMaxHeight } from './ChatInputDropdown.js'
+import { IconButton } from './ui/IconButton.js'
 import type { DesktopComposerAttachment } from '../../shared/types.js'
 
 const baseProps = {
@@ -76,4 +78,80 @@ test('ComposerCard renders image and file attachment cards above the textarea', 
   expect(html).toContain('screen.png')
   expect(html).toContain('demo.mp4')
   expect(html).toContain('MP4')
+})
+
+test('ComposerCard exposes the migrated chat input dropdown agents', () => {
+  expect(CONTEXT_AGENT_OPTIONS).toEqual([
+    { name: 'Schrodinger', role: 'explorer', icon: 'DNA', tone: 'red' },
+    { name: 'Russell', role: 'explorer', icon: 'ATOM', tone: 'amber' },
+  ])
+})
+
+test('ChatInputDropdown adds --bottom modifier class when side is "bottom"', () => {
+  const html = renderToStaticMarkup(
+    <ChatInputDropdown open onClose={() => {}} side="bottom">
+      <span>item</span>
+    </ChatInputDropdown>,
+  )
+  expect(html).toContain('chat-input__dropdown--bottom')
+})
+
+test('computeDropdownMaxHeight clamps dropdown height to remaining page space', () => {
+  const safetyMargin = 16
+
+  // side="bottom": 800px viewport, anchor top at 200 → 584px available, capped at 420
+  expect(computeDropdownMaxHeight({
+    side: 'bottom',
+    anchorTop: 200,
+    windowHeight: 800,
+    maxCap: 420,
+    safetyMargin,
+  })).toBe(420)
+
+  // side="bottom": 300px viewport, anchor top at 200 → 84px available after margin
+  expect(computeDropdownMaxHeight({
+    side: 'bottom',
+    anchorTop: 200,
+    windowHeight: 300,
+    maxCap: 420,
+    safetyMargin,
+  })).toBe(84)
+
+  // side="bottom": 800px viewport, anchor top at 50 → huge available but capped at 420
+  expect(computeDropdownMaxHeight({
+    side: 'bottom',
+    anchorTop: 50,
+    windowHeight: 800,
+    maxCap: 420,
+    safetyMargin,
+  })).toBe(420)
+
+  // side="top": anchor top at 200 → 184px above, no cap hit
+  expect(computeDropdownMaxHeight({
+    side: 'top',
+    anchorTop: 200,
+    windowHeight: 800,
+    maxCap: 420,
+    safetyMargin,
+  })).toBe(184)
+
+  // side="top": anchor top at 50 → only 34px, very small
+  expect(computeDropdownMaxHeight({
+    side: 'top',
+    anchorTop: 50,
+    windowHeight: 800,
+    maxCap: 420,
+    safetyMargin,
+  })).toBe(34)
+})
+
+test('IconButton forwards Radix trigger attributes for dropdown controls', () => {
+  const html = renderToStaticMarkup(
+    <IconButton aria-expanded="true" data-state="open" title="添加上下文">
+      +
+    </IconButton>,
+  )
+
+  expect(html).toContain('aria-expanded="true"')
+  expect(html).toContain('data-state="open"')
 })

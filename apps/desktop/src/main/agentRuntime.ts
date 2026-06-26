@@ -7,8 +7,8 @@ import {
   runDesktopHeadlessTurn,
   type DesktopHeadlessOutputControls,
   type DesktopHeadlessRuntime,
-} from '@codepilotx/tui/headless/desktopRuntime.js'
-import type { StdoutMessage } from '@codepilotx/tui/entrypoints/sdk/controlTypes.js'
+} from '@codepilotx/core/agent/desktopRuntime.js'
+import type { StdoutMessage } from '@codepilotx/core/agent/controlTypes.js'
 import type {
   DesktopAgentEvent,
   DesktopPermissionMode,
@@ -17,11 +17,11 @@ import type {
   DesktopThinkingMode,
   DesktopUserMessageContent,
 } from '../shared/types.js'
-import type { PermissionMode } from '@codepilotx/tui/types/permissions.js'
+import type { PermissionMode } from '@codepilotx/core/agent/permissionMode.js'
 import {
   CODEPILOTX_CONFIG_DIR_ENV,
   LEGACY_CLAUDE_CONFIG_DIR_ENV,
-} from '@codepilotx/tui/utils/envUtils.js'
+} from '@codepilotx/core/config/env.js'
 import {
   buildDesktopContextUsage,
   getUsageFromAssistantRecord,

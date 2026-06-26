@@ -1,5 +1,4 @@
-import { getSdkBetas } from '@codepilotx/tui/bootstrap/state.js'
-import { getContextWindowForModel } from '@codepilotx/tui/utils/context.js'
+import { getContextWindowForModel } from '@codepilotx/core/models/context.js'
 import type { DesktopContextUsage } from '../shared/types.js'
 
 type UsageLike = {
@@ -45,7 +44,7 @@ export function buildDesktopContextUsage(params: {
     return null
   }
 
-  const contextWindow = getContextWindowForModel(params.model, getSdkBetas())
+  const contextWindow = getContextWindowForModel(params.model)
   const hasOpenAICompatibleUsageDetails =
     params.usage.reasoning_tokens !== undefined ||
     params.usage.prompt_cache_hit_tokens !== undefined ||
