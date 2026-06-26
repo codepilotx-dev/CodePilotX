@@ -408,6 +408,143 @@ function normalizePath(path: string): string {
   return normalized || '/'
 }
 
+export type CodexRuntimePermissionState = {
+  resolved: ResolvedCodexPermissions
+  derivedPolicy: AgentPermissionPolicy
+  sandboxOverlay: CodexPermissionSandboxOverlay
+}
+
+export type CodexPermissionSandboxOverlay = {
+  filesystem: {
+    allowWrite: string[]
+    denyWrite: string[]
+    denyRead: string[]
+    allowRead: string[]
+  }
+  network: {
+    allowedDomains: string[]
+    deniedDomains: string[]
+  }
+}
+
+export function createCodexRuntimePermissionState({
+  projectConfig,
+  overrides = {},
+  requirements,
+  workspaceRoots,
+}: {
+  projectConfig?: CodexPermissionsConfig
+  overrides?: {
+    defaultPermissions?: string
+    approvalPolicy?: CodexApprovalPolicy
+    approvalsReviewer?: CodexApprovalsReviewer
+  }
+  requirements?: CodexRequirementsPolicy
+  workspaceRoots: string[]
+}): CodexRuntimePermissionState {
+  const config: CodexPermissionsConfig = {
+    ...projectConfig,
+    defaultPermissions:
+      overrides.defaultPermissions ??
+      projectConfig?.defaultPermissions,
+    approvalPolicy:
+      overrides.approvalPolicy ?? projectConfig?.approvalPolicy,
+    approvalsReviewer:
+      overrides.approvalsReviewer ?? projectConfig?.approvalsReviewer,
+  }
+
+  const resolved = resolveCodexPermissions({ config, requirements, workspaceRoots })
+  const derivedPolicy = convertResolvedPermissionsToPolicy(resolved)
+  const sandboxOverlay = buildSandboxOverlayFromResolved(resolved)
+
+  return { resolved, derivedPolicy, sandboxOverlay }
+}
+
+function convertResolvedPermissionsToPolicy(
+  resolved: ResolvedCodexPermissions,
+): AgentPermissionPolicy {
+  const profile = resolved.defaultPermissions
+  const approvalMode = resolved.approvalPolicy
+  const sandboxPolicy = resolved.activeProfile.dangerFullAccess
+    ? ':danger-full-access'
+    : resolved.defaultPermissions
+
+  const actionScopes: AgentPermissionActionScopes = {}
+  if (resolved.activeProfile.dangerFullAccess) {
+    actionScopes.read = 'allow'
+    actionScopes.write = 'allow'
+    actionScopes.shell = 'allow'
+    actionScopes.network = 'allow'
+    actionScopes.mcp = 'allow'
+  } else if (resolved.defaultPermissions === ':read-only') {
+    actionScopes.read = 'allow'
+    actionScopes.write = 'ask'
+    actionScopes.shell = 'ask'
+    actionScopes.network = 'ask'
+    actionScopes.mcp = 'ask'
+  }
+
+  return {
+    profile,
+    approvalMode,
+    sandboxPolicy,
+    ...(Object.keys(actionScopes).length > 0 ? { actionScopes } : {}),
+  }
+}
+
+function buildSandboxOverlayFromResolved(
+  resolved: ResolvedCodexPermissions,
+): CodexPermissionSandboxOverlay {
+  const profile = resolved.activeProfile
+  const allowWrite: string[] = []
+  const denyWrite: string[] = []
+  const denyRead: string[] = []
+  const allowRead: string[] = []
+
+  if (!profile.dangerFullAccess) {
+    for (const rule of profile.filesystem) {
+      if (rule.path === ':workspace_roots') continue
+      switch (rule.access) {
+        case 'write':
+          allowWrite.push(rule.path)
+          break
+        case 'read':
+          allowRead.push(rule.path)
+          break
+        case 'deny':
+          denyWrite.push(rule.path)
+          denyRead.push(rule.path)
+          break
+      }
+    }
+
+    // If the active profile has write access to workspace roots, add them
+    // to allowWrite. Otherwise add to allowRead.
+    for (const root of profile.workspaceRoots) {
+      const access = evaluateFilesystemAccess(profile, root)
+      if (access === 'write') {
+        allowWrite.push(root)
+      } else if (access === 'read') {
+        allowRead.push(root)
+      }
+    }
+  }
+
+  const allowedDomains: string[] = []
+  const deniedDomains: string[] = []
+  if (profile.network.enabled && profile.network.domains) {
+    for (const [domain, access] of Object.entries(profile.network.domains)) {
+      if (access === 'allow') allowedDomains.push(domain)
+      else if (access === 'deny') deniedDomains.push(domain)
+    }
+  }
+
+  return {
+    filesystem: { allowWrite, denyWrite, denyRead, allowRead },
+    network: { allowedDomains, deniedDomains },
+  }
+}
+
 // Transitional aliases kept while Desktop/TUI call sites move to the official model.
 export type AgentPermissionProfile = BuiltinCodexPermissionProfile | string
 export type AgentApprovalMode =

@@ -57,6 +57,12 @@ import { getFsImplementation } from '../../utils/fsOperations.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { expandPath } from '../../utils/path.js'
 import type { PermissionResult } from '../../utils/permissions/PermissionResult.js'
+import {
+  buildOnFailureApprovalMessage,
+  checkOnFailurePolicyState,
+  isOnFailureRetriableExit,
+  logOnFailureFlow,
+} from '../../utils/permissions/onFailureRetry.js'
 import { maybeRecordPluginHint } from '../../utils/plugins/hintRecommendation.js'
 import { exec } from '../../utils/Shell.js'
 import type { ExecResult } from '../../utils/ShellCommand.js'
@@ -968,7 +974,86 @@ export const BashTool = buildTool({
       if (result.preSpawnError) {
         throw new Error(result.preSpawnError)
       }
-      if (interpretationResult.isError && !isInterrupt) {
+
+      // On-failure approval policy: retry sandboxed failures outside the sandbox
+      const isSandboxed =
+        shouldUseSandbox(input) && !input.dangerouslyDisableSandbox
+      let onFailureRetried = false
+
+      if (
+        isSandboxed &&
+        !shouldUseSandbox({ ...input, dangerouslyDisableSandbox: true }) &&
+        interpretationResult.isError &&
+        !isInterrupt &&
+        isOnFailureRetriableExit(result)
+      ) {
+        const appState = getAppState()
+        const onFailureState = checkOnFailurePolicyState(
+          BASH_TOOL_NAME,
+          input as Record<string, unknown>,
+          appState.toolPermissionContext,
+        )
+        if (onFailureState && appState.toolPermissionContext.approvalPolicy === 'on-failure') {
+          logOnFailureFlow('failure-detected', `command=${input.command} exit=${result.code}`)
+
+          try {
+            const retryInput = { ...input, dangerouslyDisableSandbox: true }
+            const commandGenerator = runShellCommand({
+              input: retryInput,
+              abortController,
+              setAppState: toolUseContext.setAppStateForTasks ?? setAppState,
+              setToolJSX,
+              preventCwdChanges,
+              isMainThread,
+              toolUseId: toolUseContext.toolUseId,
+              agentId: toolUseContext.agentId,
+            })
+
+            let retryGeneratorResult
+            do {
+              retryGeneratorResult = await commandGenerator.next()
+              if (!retryGeneratorResult.done && onProgress) {
+                const progress = retryGeneratorResult.value
+                onProgress({
+                  toolUseID: `bash-progress-retry-${progressCounter++}`,
+                  data: {
+                    type: 'bash_progress',
+                    output: progress.output,
+                    fullOutput: progress.fullOutput,
+                    elapsedTimeSeconds: progress.elapsedTimeSeconds,
+                    totalLines: progress.totalLines,
+                    totalBytes: progress.totalBytes,
+                    taskId: progress.taskId,
+                    timeoutMs: progress.timeoutMs,
+                  },
+                })
+              }
+            } while (!retryGeneratorResult.done)
+
+            const retryResult = retryGeneratorResult.value
+            logOnFailureFlow('approved-retry', `command=${input.command} retryExit=${retryResult.code}`)
+
+            result = retryResult
+            onFailureRetried = true
+            interpretationResult = interpretCommandResult(
+              input.command,
+              result.code,
+              result.stdout || '',
+              '',
+            )
+            if (interpretationResult.isError && !isInterrupt) {
+              if (result.code !== 0) {
+                stdoutAccumulator.append(`Exit code ${result.code}`)
+              }
+            }
+            wasInterrupted = result.interrupted
+          } catch (retryError) {
+            logOnFailureFlow('denied', `command=${input.command} error=${String(retryError)}`)
+          }
+        }
+      }
+
+      if (!onFailureRetried && interpretationResult.isError && !isInterrupt) {
         // stderr is merged into stdout (merged fd); outputWithSbFailures
         // already has the full output. Pass '' for stdout to avoid
         // duplication in getErrorParts() and processBashCommand.
@@ -979,7 +1064,7 @@ export const BashTool = buildTool({
           result.interrupted,
         )
       }
-      wasInterrupted = result.interrupted
+      wasInterrupted = result.interrupted || wasInterrupted
     } finally {
       if (setToolJSX) setToolJSX(null)
     }

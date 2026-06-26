@@ -869,6 +869,31 @@ export function parseToolListFromCLI(tools: string[]): string[] {
   return result
 }
 
+/**
+ * Parse --config CLI overrides (e.g. --config default_permissions=":workspace")
+ * into a structured map.
+ */
+function parseCliConfigOverrides(
+  overrides: string[],
+): Record<string, string> {
+  const result: Record<string, string> = {}
+  for (const override of overrides) {
+    const eqIndex = override.indexOf('=')
+    if (eqIndex < 0) continue
+    const key = override.slice(0, eqIndex).trim()
+    let value = override.slice(eqIndex + 1).trim()
+    // Strip surrounding quotes if present (commander passes quoted values literally)
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1)
+    }
+    result[key] = value
+  }
+  return result
+}
+
 export async function initializeToolPermissionContext({
   allowedToolsCli,
   disallowedToolsCli,
@@ -876,6 +901,7 @@ export async function initializeToolPermissionContext({
   permissionMode,
   allowDangerouslySkipPermissions,
   addDirs,
+  cliConfigOverrides = [],
 }: {
   allowedToolsCli: string[]
   disallowedToolsCli: string[]
@@ -883,6 +909,7 @@ export async function initializeToolPermissionContext({
   permissionMode: PermissionMode
   allowDangerouslySkipPermissions: boolean
   addDirs: string[]
+  cliConfigOverrides?: string[]
 }): Promise<{
   toolPermissionContext: ToolPermissionContext
   warnings: string[]
@@ -1024,11 +1051,147 @@ export async function initializeToolPermissionContext({
     }
   }
 
+  // Merge .codex/config.toml permissions into the initial context.
+  // This reads the project-level codex config and overlays the resolved
+  // permissions, approval policy, and sandbox rules onto the context.
+  toolPermissionContext = await resolveCodexProjectPermissionContext(
+    toolPermissionContext,
+    getOriginalCwd(),
+  )
+
+  // Apply --config CLI overrides on top of .codex/config.toml.
+  // These have highest precedence in the user-specified layer (below requirements).
+  if (cliConfigOverrides.length > 0) {
+    const parsed = parseCliConfigOverrides(cliConfigOverrides)
+    if (parsed.default_permissions || parsed.approval_policy || parsed.approvals_reviewer) {
+      toolPermissionContext = {
+        ...toolPermissionContext,
+        ...(parsed.default_permissions
+          ? { permissionProfile: parsed.default_permissions }
+          : {}),
+        ...(parsed.approval_policy
+          ? {
+              approvalPolicy: parsed.approval_policy as
+                | 'untrusted'
+                | 'on-request'
+                | 'on-failure'
+                | 'never',
+            }
+          : {}),
+        ...(parsed.approvals_reviewer
+          ? {
+              approvalsReviewer: parsed.approvals_reviewer as
+                | 'user'
+                | 'auto',
+            }
+          : {}),
+      }
+    }
+  }
+
   return {
     toolPermissionContext,
     warnings,
     dangerousPermissions,
     overlyBroadBashPermissions,
+  }
+}
+
+/**
+ * Read .codex/config.toml from the project workspace, resolve codex
+ * permissions, and merge them into the initial toolPermissionContext.
+ *
+ * Merging rules (plan: fixed precedence):
+ * 1. CLI/desktop session explicit overrides (already in the context)
+ * 2. .codex/config.toml (overrides defaults)
+ * 3. Built-in defaults
+ * 4. Requirements (highest constraint, applied by the resolver)
+ *
+ * If the config file doesn't exist or can't be parsed, the context is
+ * returned unchanged.
+ */
+export async function resolveCodexProjectPermissionContext(
+  context: ToolPermissionContext,
+  workspaceRoot: string,
+): Promise<ToolPermissionContext> {
+  // Lazy import so TUI startup doesn't eagerly load the core package
+  const { readFile } = await import('node:fs/promises')
+  const { join } = await import('node:path')
+  const { parseCodexProjectConfig } = await import(
+    '@codepilotx/core/agent/codexProjectConfig.js'
+  )
+  const { createCodexRuntimePermissionState } = await import(
+    '@codepilotx/core/agent/permissions.js'
+  )
+
+  const configPath = join(workspaceRoot, '.codex', 'config.toml')
+  try {
+    const content = await readFile(configPath, 'utf8')
+    const { config } = parseCodexProjectConfig(content)
+
+    if (!config.defaultPermissions && !config.approvalPolicy) {
+      return context
+    }
+
+    const state = createCodexRuntimePermissionState({
+      projectConfig: {
+        defaultPermissions: config.defaultPermissions,
+        approvalPolicy: config.approvalPolicy as
+          | 'untrusted'
+          | 'on-request'
+          | 'on-failure'
+          | 'never'
+          | undefined,
+        approvalsReviewer: config.approvalsReviewer as
+          | 'user'
+          | 'auto'
+          | undefined,
+        permissions: config.permissions,
+      },
+      workspaceRoots: [workspaceRoot],
+    })
+
+    const mergedContext = {
+      ...context,
+      permissionProfile:
+        context.permissionProfile ?? state.derivedPolicy.profile,
+      approvalPolicy:
+        (context.approvalPolicy ??
+          state.derivedPolicy.approvalMode) as
+          | 'untrusted'
+          | 'on-request'
+          | 'on-failure'
+          | 'never'
+          | undefined,
+      approvalsReviewer:
+        context.approvalsReviewer ??
+        (undefined as 'user' | 'auto' | undefined),
+    }
+
+    // Set sandbox overlay for the resolved permissions
+    try {
+      const { SandboxManager } = await import(
+        '../sandbox/sandbox-adapter.js'
+      )
+      SandboxManager.setRuntimePermissionOverlay({
+        filesystem: {
+          allowWrite: state.sandboxOverlay.filesystem.allowWrite,
+          denyWrite: state.sandboxOverlay.filesystem.denyWrite,
+          denyRead: state.sandboxOverlay.filesystem.denyRead,
+          allowRead: state.sandboxOverlay.filesystem.allowRead,
+        },
+        network: {
+          allowedDomains: state.sandboxOverlay.network.allowedDomains,
+          deniedDomains: state.sandboxOverlay.network.deniedDomains,
+        },
+      })
+    } catch {
+      // Sandbox not available at startup
+    }
+
+    return mergedContext
+  } catch {
+    return context
   }
 }
 

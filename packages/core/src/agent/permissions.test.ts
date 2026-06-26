@@ -1,9 +1,15 @@
 import { expect, test } from 'bun:test'
 import {
   BUILTIN_CODEX_PERMISSION_PROFILES,
+  createCodexRuntimePermissionState,
   evaluateFilesystemAccess,
   evaluateNetworkDomainAccess,
   resolveCodexPermissions,
+  type CodexRuntimePermissionState,
+} from './permissions.js'
+import type {
+  CodexPermissionsConfig,
+  CodexRequirementsPolicy,
 } from './permissions.js'
 import { parseCodexRequirements } from './codexRequirements.js'
 
@@ -248,4 +254,177 @@ allow_local_network = false
     'deny',
   )
   expect(resolved.activeProfile.network.httpProxyPort).toBe(8080)
+})
+
+// CodexRuntimePermissionState tests
+test('createCodexRuntimePermissionState: CLI overrides take precedence over .codex/config.toml', () => {
+  const projectConfig: CodexPermissionsConfig = {
+    defaultPermissions: ':workspace',
+    approvalPolicy: 'on-request',
+  }
+  const overrides = {
+    defaultPermissions: ':danger-full-access',
+    approvalPolicy: 'never' as const,
+  }
+  const state = createCodexRuntimePermissionState({
+    projectConfig,
+    overrides,
+    workspaceRoots: ['/repo'],
+  })
+
+  expect(state.resolved.defaultPermissions).toBe(':danger-full-access')
+  expect(state.resolved.approvalPolicy).toBe('never')
+  expect(state.derivedPolicy.profile).toBe(':danger-full-access')
+  expect(state.derivedPolicy.approvalMode).toBe('never')
+  expect(state.derivedPolicy.actionScopes?.read).toBe('allow')
+  expect(state.derivedPolicy.actionScopes?.write).toBe('allow')
+})
+
+test('createCodexRuntimePermissionState: project config overrides built-in defaults', () => {
+  const projectConfig: CodexPermissionsConfig = {
+    defaultPermissions: ':read-only',
+    approvalPolicy: 'on-failure',
+    approvalsReviewer: 'auto',
+  }
+  const state = createCodexRuntimePermissionState({
+    projectConfig,
+    workspaceRoots: ['/repo'],
+  })
+
+  expect(state.resolved.defaultPermissions).toBe(':read-only')
+  expect(state.resolved.approvalPolicy).toBe('on-failure')
+  expect(state.resolved.approvalsReviewer).toBe('auto')
+  expect(state.derivedPolicy.actionScopes?.read).toBe('allow')
+  expect(state.derivedPolicy.actionScopes?.write).toBe('ask')
+})
+
+test('createCodexRuntimePermissionState: requirements have highest constraint', () => {
+  const projectConfig: CodexPermissionsConfig = {
+    defaultPermissions: ':danger-full-access',
+    approvalPolicy: 'never',
+  }
+  const requirements: CodexRequirementsPolicy = {
+    defaultPermissions: ':workspace',
+    allowedPermissionProfiles: [':workspace'],
+    allowedApprovalPolicies: ['on-request', 'never'],
+  }
+  const state = createCodexRuntimePermissionState({
+    projectConfig,
+    requirements,
+    workspaceRoots: ['/repo'],
+  })
+
+  // requirements.defaultPermissions overrides projectConfig.defaultPermissions
+  expect(state.resolved.defaultPermissions).toBe(':workspace')
+  // projectConfig.approvalPolicy is used (not overridden by requirements)
+  // but validated against requirements.allowedApprovalPolicies
+  expect(state.resolved.approvalPolicy).toBe('never')
+})
+
+test('createCodexRuntimePermissionState: requirements reject invalid profiles', () => {
+  const projectConfig: CodexPermissionsConfig = {
+    defaultPermissions: ':danger-full-access',
+  }
+  const requirements: CodexRequirementsPolicy = {
+    allowedPermissionProfiles: [':read-only'],
+  }
+  expect(() =>
+    createCodexRuntimePermissionState({
+      projectConfig,
+      requirements,
+      workspaceRoots: ['/repo'],
+    }),
+  ).toThrow('not allowed by requirements')
+})
+
+test('createCodexRuntimePermissionState: sandbox overlay for :workspace profile', () => {
+  const projectConfig: CodexPermissionsConfig = {
+    defaultPermissions: ':workspace',
+  }
+  const state = createCodexRuntimePermissionState({
+    projectConfig,
+    workspaceRoots: ['/repo'],
+  })
+
+  expect(state.sandboxOverlay.filesystem.allowWrite).toContain('/repo')
+  expect(state.sandboxOverlay.filesystem.denyRead).toEqual([])
+  expect(state.sandboxOverlay.network.allowedDomains).toEqual([])
+})
+
+test('createCodexRuntimePermissionState: sandbox overlay for :danger-full-access profile', () => {
+  const projectConfig: CodexPermissionsConfig = {
+    defaultPermissions: ':danger-full-access',
+  }
+  const state = createCodexRuntimePermissionState({
+    projectConfig,
+    workspaceRoots: ['/repo'],
+  })
+
+  // danger-full-access has no filesystem overlay restrictions
+  expect(state.sandboxOverlay.filesystem.allowWrite).toEqual([])
+  expect(state.sandboxOverlay.filesystem.denyWrite).toEqual([])
+  // network domains still come through from the builtin profile config
+  expect(state.sandboxOverlay.network.allowedDomains).toContain('*')
+})
+
+test('createCodexRuntimePermissionState: sandbox overlay for :read-only profile', () => {
+  const projectConfig: CodexPermissionsConfig = {
+    defaultPermissions: ':read-only',
+  }
+  const state = createCodexRuntimePermissionState({
+    projectConfig,
+    workspaceRoots: ['/repo'],
+  })
+
+  expect(state.sandboxOverlay.filesystem.allowRead).toContain('/repo')
+  expect(state.sandboxOverlay.filesystem.allowWrite).toEqual([])
+})
+
+test('createCodexRuntimePermissionState: custom profile with filesystem deny rules', () => {
+  const projectConfig: CodexPermissionsConfig = {
+    defaultPermissions: 'restricted',
+    permissions: {
+      restricted: {
+        extends: ':workspace',
+        filesystem: {
+          '**/*.secret': 'deny',
+          '/tmp/custom-log': 'write',
+        },
+      },
+    },
+  }
+  const state = createCodexRuntimePermissionState({
+    projectConfig,
+    workspaceRoots: ['/repo'],
+  })
+
+  // extends :workspace so workspace roots are writable
+  expect(state.sandboxOverlay.filesystem.allowWrite).toContain('/repo')
+  expect(state.sandboxOverlay.filesystem.allowWrite).toContain('/tmp/custom-log')
+  expect(state.sandboxOverlay.filesystem.denyWrite).toContain('**/*.secret')
+  expect(state.sandboxOverlay.filesystem.denyRead).toContain('**/*.secret')
+})
+
+test('createCodexRuntimePermissionState: custom profile with network domain rules', () => {
+  const projectConfig: CodexPermissionsConfig = {
+    defaultPermissions: 'netted',
+    permissions: {
+      netted: {
+        network: {
+          enabled: true,
+          domains: {
+            'api.example.com': 'allow',
+            'evil.test': 'deny',
+          },
+        },
+      },
+    },
+  }
+  const state = createCodexRuntimePermissionState({
+    projectConfig,
+    workspaceRoots: ['/repo'],
+  })
+
+  expect(state.sandboxOverlay.network.allowedDomains).toContain('api.example.com')
+  expect(state.sandboxOverlay.network.deniedDomains).toContain('evil.test')
 })

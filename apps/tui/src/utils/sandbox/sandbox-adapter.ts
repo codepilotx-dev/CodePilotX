@@ -356,7 +356,7 @@ export function convertToSandboxRuntimeConfig(
     argv0,
   }
 
-  return {
+  const runtimeConfig: SandboxRuntimeConfig = {
     network: {
       allowedDomains,
       deniedDomains,
@@ -378,6 +378,36 @@ export function convertToSandboxRuntimeConfig(
       settings.sandbox?.enableWeakerNetworkIsolation,
     ripgrep: ripgrepConfig,
   }
+
+  if (runtimePermissionOverlay) {
+    const o = runtimePermissionOverlay
+    runtimeConfig.filesystem.allowWrite = [
+      ...runtimeConfig.filesystem.allowWrite,
+      ...o.filesystem.allowWrite,
+    ]
+    runtimeConfig.filesystem.denyWrite = [
+      ...runtimeConfig.filesystem.denyWrite,
+      ...o.filesystem.denyWrite,
+    ]
+    runtimeConfig.filesystem.denyRead = [
+      ...runtimeConfig.filesystem.denyRead,
+      ...o.filesystem.denyRead,
+    ]
+    runtimeConfig.filesystem.allowRead = [
+      ...runtimeConfig.filesystem.allowRead,
+      ...o.filesystem.allowRead,
+    ]
+    runtimeConfig.network.allowedDomains = [
+      ...runtimeConfig.network.allowedDomains,
+      ...o.network.allowedDomains,
+    ]
+    runtimeConfig.network.deniedDomains = [
+      ...runtimeConfig.network.deniedDomains,
+      ...o.network.deniedDomains,
+    ]
+  }
+
+  return runtimeConfig
 }
 
 // ============================================================================
@@ -386,6 +416,30 @@ export function convertToSandboxRuntimeConfig(
 
 let initializationPromise: Promise<void> | undefined
 let settingsSubscriptionCleanup: (() => void) | undefined
+
+export type SandboxRuntimePermissionOverlay = {
+  filesystem: {
+    allowWrite: string[]
+    denyWrite: string[]
+    denyRead: string[]
+    allowRead: string[]
+  }
+  network: {
+    allowedDomains: string[]
+    deniedDomains: string[]
+  }
+}
+
+let runtimePermissionOverlay: SandboxRuntimePermissionOverlay | undefined
+
+function setRuntimePermissionOverlay(
+  overlay: SandboxRuntimePermissionOverlay | undefined,
+): void {
+  runtimePermissionOverlay = overlay
+  if (isSandboxingEnabled() && initializationPromise) {
+    refreshConfig()
+  }
+}
 
 // Cached main repo path for git worktrees, resolved once during initialize().
 // In a worktree, .git is a file containing "gitdir: /path/to/main/repo/.git/worktrees/name".
@@ -919,6 +973,9 @@ export interface ISandboxManager {
   getLinuxGlobPatternWarnings(): string[]
   refreshConfig(): void
   reset(): Promise<void>
+  setRuntimePermissionOverlay(
+    overlay: SandboxRuntimePermissionOverlay | undefined,
+  ): void
 }
 
 /**
@@ -941,6 +998,7 @@ export const SandboxManager: ISandboxManager = {
   refreshConfig,
   reset,
   checkDependencies,
+  setRuntimePermissionOverlay,
 
   // Forward to base sandbox manager
   getFsReadConfig: BaseSandboxManager.getFsReadConfig,
@@ -980,6 +1038,7 @@ export type {
   SandboxViolationEvent,
   SandboxRuntimeConfig,
   IgnoreViolationsConfig,
+  SandboxRuntimePermissionOverlay,
 }
 
 export { SandboxViolationStore, SandboxRuntimeConfigSchema }

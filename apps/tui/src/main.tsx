@@ -2661,6 +2661,7 @@ async function run(): Promise<CommanderCommand> {
         permissionMode,
         allowDangerouslySkipPermissions,
         addDirs: addDir,
+        cliConfigOverrides: configOverrides,
       })
       let toolPermissionContext = initResult.toolPermissionContext
       const { warnings, dangerousPermissions, overlyBroadBashPermissions } =
