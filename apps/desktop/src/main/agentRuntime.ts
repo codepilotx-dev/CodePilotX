@@ -7,8 +7,8 @@ import {
   runDesktopHeadlessTurn,
   type DesktopHeadlessOutputControls,
   type DesktopHeadlessRuntime,
-} from '@codepilotx/core/agent/desktopRuntime.js'
-import type { StdoutMessage } from '@codepilotx/core/agent/controlTypes.js'
+} from '@codepilotx/tui/headless/desktopRuntime.js'
+import type { StdoutMessage } from '@codepilotx/tui/entrypoints/sdk/controlTypes.js'
 import type {
   DesktopAgentEvent,
   DesktopPermissionMode,
@@ -112,17 +112,11 @@ export function createDesktopAgentRuntime(
     })
     return new InProcessDesktopAgentRuntime(context)
   } catch (error) {
-    if (
-      preference === 'auto' &&
-      context.agentExecutablePath &&
-      existsSync(context.agentExecutablePath)
-    ) {
-      desktopDebug('runtime_create_embedded_failed_fallback_subprocess', {
-        sessionId: context.sessionId,
-        message: error instanceof Error ? error.message : String(error),
-      })
-      return new CliDesktopAgentRuntime(context)
-    }
+    desktopDebug('runtime_create_embedded_failed', {
+      sessionId: context.sessionId,
+      preference,
+      message: error instanceof Error ? error.message : String(error),
+    })
     throw error
   }
 }
@@ -169,7 +163,8 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
         '--include-partial-messages',
         '--replay-user-messages',
         ...this.sessionResumeArgs(),
-        ...codexPermissionConfigArgs(this.context),
+        // TODO: re-enable after TUI binary supports --config (codex permissions alignment)
+        // ...codexPermissionConfigArgs(this.context),
         ...permissionPromptToolArgs(),
         ...modelArgs(this.context.model),
         ...sessionNameArgs(this.context.sessionName),
