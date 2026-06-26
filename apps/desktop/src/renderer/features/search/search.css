@@ -1,0 +1,165 @@
+.quick-chat-view,
+.utility-view {
+  min-height: 100%;
+  color: var(--c-text-strong);
+}
+
+
+
+.utility-view-header h1 {
+  width: min(100%, 760px);
+  color: var(--c-text-strong);
+  font-size: var(--fs-26);
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.3;
+}
+
+
+
+.quick-chat-hero p,
+.utility-view-header p,
+.empty-canvas-card p,
+.message-card p,
+.placeholder-card p,
+.muted-copy {
+  font-size: var(--fs-14);
+  line-height: 1.6;
+}
+
+
+
+.quick-chat-hero p,
+.utility-view-header p,
+.muted-copy {
+  color: var(--c-text-soft);
+}
+
+
+
+.empty-canvas-card,
+.utility-card,
+.message-card {
+  border: 1px solid var(--c-border-soft);
+  background: var(--c-surface);
+  box-shadow: var(--sh-card);
+}
+
+
+
+.empty-canvas-card,
+.utility-card,
+.placeholder-card {
+  border-radius: var(--r-lg);
+}
+
+
+
+.utility-view {
+  display: grid;
+  align-content: start;
+  gap: var(--sp-6);
+  padding: 7vh min(7vw, 92px) var(--sp-6);
+}
+
+
+
+.utility-view-header {
+  display: grid;
+  gap: var(--sp-2);
+  justify-items: center;
+  text-align: center;
+}
+
+
+
+.utility-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-4);
+}
+
+
+
+.utility-card {
+  display: grid;
+  align-content: start;
+  gap: var(--sp-3);
+  padding: var(--sp-5);
+}
+
+
+
+.utility-card h2 {
+  color: var(--c-text-strong);
+  font-size: var(--fs-13);
+  font-weight: 600;
+}
+
+
+
+.search-input-row,
+.search-input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--c-border-soft);
+  background: var(--c-bg);
+  color: var(--c-icon);
+}
+
+
+
+.search-input-row {
+  width: min(100%, 620px);
+  min-height: 48px;
+  margin: 0 auto;
+  padding: 0 14px;
+  border-radius: var(--r-lg);
+}
+
+
+
+.search-input-row input,
+.search-input input {
+  flex: 1;
+  min-height: 30px;
+  padding: 0;
+  border: 0;
+}
+
+
+
+.search-result-row {
+  display: grid;
+  gap: 2px;
+  justify-items: start;
+  padding: 8px 10px;
+  border-radius: var(--r-md);
+  text-align: left;
+}
+
+
+
+.search-result-row:hover {
+  background: var(--c-bg-row-hover);
+}
+
+
+
+.search-result-row span {
+  color: var(--c-text);
+  font-size: var(--fs-14);
+  font-weight: 500;
+}
+
+
+
+.search-result-row small {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--c-text-meta);
+  font-size: var(--fs-12);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
