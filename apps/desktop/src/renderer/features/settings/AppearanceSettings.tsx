@@ -216,7 +216,7 @@ export function AppearanceSettings() {
     }))
   }
 
-  const updateThemeFonts = (
+const updateThemeFonts = (
     patch: Partial<DesktopThemeConfigV1['theme']['fonts']>,
   ): void => {
     updateActiveTheme(theme => ({
@@ -229,6 +229,22 @@ export function AppearanceSettings() {
         },
       },
     }))
+  }
+
+  const updateUiFontPreset = (preset: string): void => {
+    updateThemeFonts({ ui: { ...activeTheme.theme.fonts.ui, preset } })
+  }
+
+  const updateUiFontFallback = (fallback: string): void => {
+    updateThemeFonts({ ui: { ...activeTheme.theme.fonts.ui, fallback } })
+  }
+
+  const updateCodeFontPreset = (preset: string): void => {
+    updateThemeFonts({ code: { ...activeTheme.theme.fonts.code, preset } })
+  }
+
+  const updateCodeFontFallback = (fallback: string): void => {
+    updateThemeFonts({ code: { ...activeTheme.theme.fonts.code, fallback } })
   }
 
   const updateFontSizes = (
@@ -464,22 +480,46 @@ export function AppearanceSettings() {
             }
           />
           <SettingsRow
-            title="UI 字体"
+            title="UI 字体 - 首选"
+            description="界面文字优先使用的字体；留空则使用主题默认"
             control={
               <TextInput
-                value={activeTheme.theme.fonts.ui}
-                onChange={ui => updateThemeFonts({ ui })}
-                placeholder="MiSans, system-ui"
+                value={activeTheme.theme.fonts.ui.preset}
+                onChange={updateUiFontPreset}
+                placeholder="MiSans, Inter, system-ui"
               />
             }
           />
           <SettingsRow
-            title="代码字体"
+            title="UI 字体 - 后备"
+            description="首选字体不可用时的回退栈；请至少保留一个泛型关键字 (sans-serif)"
             control={
               <TextInput
-                value={activeTheme.theme.fonts.code}
-                onChange={code => updateThemeFonts({ code })}
-                placeholder="Consolas, monospace"
+                value={activeTheme.theme.fonts.ui.fallback}
+                onChange={updateUiFontFallback}
+                placeholder='-apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif'
+              />
+            }
+          />
+          <SettingsRow
+            title="代码字体 - 首选"
+            description="代码块、终端、diff、设备码统一使用"
+            control={
+              <TextInput
+                value={activeTheme.theme.fonts.code.preset}
+                onChange={updateCodeFontPreset}
+                placeholder="JetBrains Mono, Fira Code, Consolas"
+              />
+            }
+          />
+          <SettingsRow
+            title="代码字体 - 后备"
+            description="首选代码字体不可用时的回退栈；请至少保留一个泛型关键字 (monospace)"
+            control={
+              <TextInput
+                value={activeTheme.theme.fonts.code.fallback}
+                onChange={updateCodeFontFallback}
+                placeholder='ui-monospace, "SF Mono", Menlo, monospace'
               />
             }
           />

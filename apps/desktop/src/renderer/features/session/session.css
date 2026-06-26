@@ -402,7 +402,7 @@
   min-width: 0;
   padding: 0;
   color: var(--c-text-soft);
-  font-family: var(--ff-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-family: var(--ff-mono);
   font-size: var(--fs-13);
   font-weight: 500;
   line-height: 1.45;

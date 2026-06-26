@@ -627,14 +627,19 @@ export type DesktopThemeMode = 'light' | 'dark' | 'system'
 
 export type DesktopThemeVariant = 'light' | 'dark'
 
+export type DesktopThemeFontEntry = {
+  preset: string
+  fallback: string
+}
+
 export type DesktopThemeConfigV1 = {
   codeThemeId: string
   theme: {
     accent: string
     contrast: number
     fonts: {
-      code: string
-      ui: string
+      code: DesktopThemeFontEntry
+      ui: DesktopThemeFontEntry
     }
     ink: string
     opaqueWindows: boolean

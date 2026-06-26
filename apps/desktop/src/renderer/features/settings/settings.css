@@ -779,7 +779,7 @@
 }
 
 .github-device-code-value {
-  font-family: var(--font-mono);
+  font-family: var(--ff-mono);
   font-size: 26px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -2123,7 +2123,7 @@
 
 .settings-copilot-device-code-row .settings-input {
   flex: 1;
-  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-family: var(--ff-mono);
   font-size: 18px;
   letter-spacing: 0.08em;
   text-align: center;
