@@ -22,6 +22,18 @@ test('connections tab renders the model connection settings page', () => {
   )
 })
 
+test('shortcuts tab renders the keyboard shortcuts settings page', () => {
+  const element = SettingsPage({
+    activeTab: 'shortcuts',
+    onError: () => {},
+  })
+
+  expect(React.isValidElement(element)).toBe(true)
+  expect(React.isValidElement(element) ? getElementTypeName(element) : null).toBe(
+    'KeyboardShortcutsSettings',
+  )
+})
+
 function getElementTypeName(element: React.ReactElement): string | null {
   if (typeof element.type === 'function') {
     return element.type.name || null

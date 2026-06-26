@@ -5,6 +5,7 @@ import { BrowserSettings } from './BrowserSettings.js'
 import { ConfigSettings } from './ConfigSettings.js'
 import { GeneralSettings } from './GeneralSettings.js'
 import { GitSettings } from './GitSettings.js'
+import { KeyboardShortcutsSettings } from './KeyboardShortcutsSettings.js'
 import { McpSettings } from './McpSettings.js'
 import { ModelConnectionSettings } from './ModelConnectionSettings.js'
 import { PersonalizationSettings } from './PersonalizationSettings.js'
@@ -31,6 +32,7 @@ export function SettingsPage({
   if (activeTab === 'git') return <GitSettings />
   if (activeTab === 'profile') return <ProfileSettings />
   if (activeTab === 'personalization') return <PersonalizationSettings />
+  if (activeTab === 'shortcuts') return <KeyboardShortcutsSettings />
   if (activeTab === 'archived') return <ArchivedConversationsSettings />
   if (activeTab === 'billing') return <UsageBillingSettings />
   if (activeTab === 'browser') return <BrowserSettings />
