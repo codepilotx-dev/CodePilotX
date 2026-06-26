@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import * as Select from '@radix-ui/react-select'
+import { Theme, DropdownMenu as RTDropdownMenu } from '@radix-ui/themes'
 import {
   ArrowUp,
   Blocks,
@@ -56,6 +57,7 @@ import { PopoverMenu } from '../../components/ui/PopoverMenu.js'
 import { SearchInput } from '../../components/ui/SearchInput.js'
 import { ProjectSwitcherPopover } from './ProjectSwitcherPopover.js'
 import { ChatInputDropdown } from './ChatInputDropdown.js'
+import { useDesktopTheme } from '../theme/themeContext.js'
 
 type Option<T extends string> = {
   value: T
@@ -248,6 +250,7 @@ onCreateBranch,
     null,
   )
   const [branchSearch, setBranchSearch] = useState('')
+  const { resolvedVariant } = useDesktopTheme()
   const planModeEnabled = permissionMode === 'plan'
   const [goalModeEnabled, setGoalModeEnabled] = useState(false)
   const [slashSelectedIndex, setSlashSelectedIndex] = useState(0)
@@ -656,191 +659,174 @@ onCreateBranch,
                 </span>
               </span>
             ) : null}
-            <PopoverMenu
-              className="popover-model"
-              open={openDropdown === 'model'}
-              side="top"
-              onOpenChange={open => setOpenDropdown(open ? 'model' : null)}
-              trigger={
-                <ChipButton
-                  active={openDropdown === 'model'}
-                  className="subtle"
-                  title={
-                    `${selectedProvider?.displayName ?? '模型'} · ${selectedModelTitle}`
-                  }
+            <Theme appearance={resolvedVariant}>
+              <RTDropdownMenu.Root
+                open={openDropdown === 'model'}
+                onOpenChange={open => setOpenDropdown(open ? 'model' : null)}
+              >
+                <RTDropdownMenu.Trigger>
+                  <ChipButton
+                    active={openDropdown === 'model'}
+                    className="subtle"
+                    title={
+                      `${selectedProvider?.displayName ?? '模型'} · ${selectedModelTitle}`
+                    }
+                  >
+                    <span>
+                      {selectedProvider?.displayName
+                        ? `${selectedProvider.displayName} · `
+                        : ''}
+                      {selectedModelLabel}
+                      {showThinkingOptions
+                        ? ` · ${selectedThinkingLabel}`
+                        : ''}
+                    </span>
+                  </ChipButton>
+                </RTDropdownMenu.Trigger>
+                <RTDropdownMenu.Content
+                  className="rm-model-menu"
+                  align="end"
+                  side="top"
+                  sideOffset={6}
                 >
-                  <span>
-                    {selectedProvider?.displayName
-                      ? `${selectedProvider.displayName} · `
-                      : ''}
-                    {selectedModelLabel}
-                    {showThinkingOptions
-                      ? ` · ${selectedThinkingLabel}`
-                      : ''}
-                  </span>
-                </ChipButton>
-              }
-            >
-              {showThinkingOptions ? (
-                deepSeekThinkingControls ? (
-                  <>
-                    <div className="popover-header">思考模式</div>
-                    <div className="popover-section">
-                      <PopoverItem
-                        selected={thinkingMode !== 'disabled'}
-                        withCheck
-                        onClick={() => {
-                          onThinkingChange('default')
-                        }}
-                      >
-                        启用
-                      </PopoverItem>
-                      <PopoverItem
-                        selected={thinkingMode === 'disabled'}
-                        withCheck
-                        onClick={() => {
-                          onThinkingChange('disabled')
-                          closeDropdown()
-                        }}
-                      >
-                        禁用
-                      </PopoverItem>
-                    </div>
-                    {thinkingMode !== 'disabled' ? (
+                  {showThinkingOptions ? (
+                    deepSeekThinkingControls ? (
                       <>
-                        <div className="popover-divider" />
-                        <div className="popover-header">推理强度</div>
-                        <div className="popover-section">
-                          <PopoverItem
-                            selected={thinkingMode !== 'enabled'}
-                            withCheck
-                            onClick={() => {
-                              onThinkingChange('default')
-                              closeDropdown()
-                            }}
-                          >
-                            高
-                          </PopoverItem>
-                          <PopoverItem
-                            selected={thinkingMode === 'enabled'}
-                            withCheck
-                            onClick={() => {
-                              onThinkingChange('enabled')
-                              closeDropdown()
-                            }}
-                          >
-                            超高
-                          </PopoverItem>
-                        </div>
-                      </>
-                    ) : null}
-                    <div className="popover-divider" />
-                  </>
-                ) : (
-                  <>
-                    <div className="popover-header">推理</div>
-                    <div className="popover-section">
-                      {thinkingOptions.map(option => (
-                        <PopoverItem
-                          key={option.value}
-                          selected={option.value === thinkingMode}
-                          withCheck
-                          onClick={() => {
-                            onThinkingChange(option.value)
+                        <div className="rm-section-header">思考模式</div>
+                        <RTDropdownMenu.Item
+                          onSelect={() => {
+                            onThinkingChange('default')
+                          }}
+                        >
+                          <span className="rm-item-label">启用</span>
+                          {thinkingMode !== 'disabled' ? (
+                            <Check className="rm-item-check" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                          ) : null}
+                        </RTDropdownMenu.Item>
+                        <RTDropdownMenu.Item
+                          onSelect={() => {
+                            onThinkingChange('disabled')
                             closeDropdown()
                           }}
                         >
-                          {option.label}
-                        </PopoverItem>
-                      ))}
-                    </div>
-                    <div className="popover-divider" />
-                  </>
-                )
-              ) : null}
-              <div className="popover-header">提供商</div>
-              <div className="popover-section popover-provider-list">
-                {providerOptions.length === 0 ? (
-                  <div className="popover-empty">未配置模型</div>
-                ) : null}
-                {providerOptions.map(provider => (
-                  <DropdownMenu.Sub key={provider.providerID}>
-                    <DropdownMenu.SubTrigger
-                      className={[
-                        'popover-item',
-                        'popover-sub-trigger',
-                        provider.providerID === selectedProviderID
-                          ? 'selected'
-                          : '',
-                      ].join(' ')}
-                      tabIndex={-1}
-                    >
-                      <span className="popover-item-label">
-                        {provider.displayName}
-                      </span>
-                      {provider.providerID === selectedProviderID ? (
-                        <Check
-                          className="popover-item-check"
-                          size={APP_ICON_SIZE}
-                          strokeWidth={APP_ICON_STROKE_WIDTH}
-                        />
-                      ) : null}
-                      <ChevronRight
-                        className="popover-item-arrow"
-                        size={APP_ICON_SIZE}
-                      />
-                    </DropdownMenu.SubTrigger>
-                    <DropdownMenu.Portal>
-                      <DropdownMenu.SubContent
-                        alignOffset={-6}
-                        className="popover popover-sub-content popover-model-submenu"
-                        sideOffset={8}
-                      >
-                        <div className="popover-header">模型</div>
-                        <div className="popover-section popover-model-list">
-                          {provider.modelPresets.map(preset => (
-                            <PopoverItem
-                              key={preset.id}
-                              selected={
-                                provider.providerID === selectedProviderID &&
-                                preset.id === selectedModelPreset
-                              }
-                              withCheck
-                              onClick={() => {
-                                onProviderModelChange(
-                                  provider.providerID,
-                                  preset.id,
-                                )
+                          <span className="rm-item-label">禁用</span>
+                          {thinkingMode === 'disabled' ? (
+                            <Check className="rm-item-check" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                          ) : null}
+                        </RTDropdownMenu.Item>
+                        {thinkingMode !== 'disabled' ? (
+                          <>
+                            <div className="rm-divider" />
+                            <div className="rm-section-header">推理强度</div>
+                            <RTDropdownMenu.Item
+                              onSelect={() => {
+                                onThinkingChange('default')
                                 closeDropdown()
                               }}
                             >
-                              {preset.label}
-                            </PopoverItem>
-                          ))}
-                          <PopoverItem
-                            icon={<Wrench size={APP_ICON_SIZE} />}
-                            selected={
-                              provider.providerID === selectedProviderID &&
-                              selectedModelPreset === CUSTOM_MODEL_PRESET_ID
-                            }
-                            withCheck
-                            onClick={() => {
+                              <span className="rm-item-label">高</span>
+                              {thinkingMode !== 'enabled' ? (
+                                <Check className="rm-item-check" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                              ) : null}
+                            </RTDropdownMenu.Item>
+                            <RTDropdownMenu.Item
+                              onSelect={() => {
+                                onThinkingChange('enabled')
+                                closeDropdown()
+                              }}
+                            >
+                              <span className="rm-item-label">超高</span>
+                              {thinkingMode === 'enabled' ? (
+                                <Check className="rm-item-check" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                              ) : null}
+                            </RTDropdownMenu.Item>
+                          </>
+                        ) : null}
+                        <div className="rm-divider" />
+                      </>
+                    ) : (
+                      <>
+                        <div className="rm-section-header">推理</div>
+                        {thinkingOptions.map(option => (
+                          <RTDropdownMenu.Item
+                            key={option.value}
+                            onSelect={() => {
+                              onThinkingChange(option.value)
+                              closeDropdown()
+                            }}
+                          >
+                            <span className="rm-item-label">{option.label}</span>
+                            {option.value === thinkingMode ? (
+                              <Check className="rm-item-check" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                            ) : null}
+                          </RTDropdownMenu.Item>
+                        ))}
+                        <div className="rm-divider" />
+                      </>
+                    )
+                  ) : null}
+                  <div className="rm-section-header">提供商</div>
+                  {providerOptions.length === 0 ? (
+                    <div className="rm-empty">未配置模型</div>
+                  ) : null}
+                  {providerOptions.map(provider => (
+                    <RTDropdownMenu.Sub key={provider.providerID}>
+                      <RTDropdownMenu.SubTrigger
+                        className={provider.providerID === selectedProviderID ? 'selected' : ''}
+                      >
+                        <span className="rm-sub-trigger-content">
+                          <span className="rm-item-label">{provider.displayName}</span>
+                          {provider.providerID === selectedProviderID ? (
+                            <Check className="rm-item-check rm-provider-check" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                          ) : null}
+                        </span>
+                        <ChevronRight className="rm-item-arrow" size={APP_ICON_SIZE} />
+                      </RTDropdownMenu.SubTrigger>
+                      <RTDropdownMenu.SubContent
+                        className="rm-model-menu"
+                        alignOffset={-6}
+                        sideOffset={8}
+                      >
+                        <div className="rm-section-header">模型</div>
+                        {provider.modelPresets.map(preset => (
+                          <RTDropdownMenu.Item
+                            key={preset.id}
+                            onSelect={() => {
                               onProviderModelChange(
                                 provider.providerID,
-                                CUSTOM_MODEL_PRESET_ID,
+                                preset.id,
                               )
                               closeDropdown()
                             }}
                           >
-                            自定义模型
-                          </PopoverItem>
-                        </div>
-                      </DropdownMenu.SubContent>
-                    </DropdownMenu.Portal>
-                  </DropdownMenu.Sub>
-                ))}
-              </div>
-            </PopoverMenu>
+                            <span className="rm-item-label">{preset.label}</span>
+                            {provider.providerID === selectedProviderID &&
+                            preset.id === selectedModelPreset ? (
+                              <Check className="rm-item-check" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                            ) : null}
+                          </RTDropdownMenu.Item>
+                        ))}
+                        <RTDropdownMenu.Item
+                          onSelect={() => {
+                            onProviderModelChange(
+                              provider.providerID,
+                              CUSTOM_MODEL_PRESET_ID,
+                            )
+                            closeDropdown()
+                          }}
+                        >
+                          <span className="rm-item-label">自定义模型</span>
+                          {provider.providerID === selectedProviderID &&
+                          selectedModelPreset === CUSTOM_MODEL_PRESET_ID ? (
+                            <Check className="rm-item-check" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                          ) : null}
+                        </RTDropdownMenu.Item>
+                      </RTDropdownMenu.SubContent>
+                    </RTDropdownMenu.Sub>
+                  ))}
+                </RTDropdownMenu.Content>
+              </RTDropdownMenu.Root>
+            </Theme>
 
             <IconButton className="icon-button composer-mic-button" title="语音输入">
               <Mic size={APP_ICON_SIZE} />

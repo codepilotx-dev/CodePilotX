@@ -1,11 +1,15 @@
 import type React from "react";
 import { useEffect, useState } from "react";
-import { Archive, Loader2, Pin, PinOff } from "lucide-react";
+import { Archive, Copy, Loader2, Pencil, Pin, PinOff } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { APP_ICON_SIZE } from "../../../components/ui/iconTokens.js";
 import { sessionDisplayTitle, type SessionListItem } from "../../../uiTypes.js";
 import { IconButton } from "../../../components/ui/IconButton.js";
 import { SidebarRow } from "./SidebarRow.js";
+import {
+  SidebarContextMenu,
+  type ContextMenuAction,
+} from "./SidebarContextMenu.js";
 
 const GROUP_LIMIT = 5;
 const EXTRA_SESSIONS_TRANSITION = {
@@ -54,8 +58,52 @@ export function SidebarSessionGroup({
     setVisibleLimit(GROUP_LIMIT);
   }, [groupKey]);
 
+  function getSessionContextMenuActions(
+    session: SessionListItem,
+  ): ContextMenuAction[] {
+    return [
+      {
+        kind: 'item',
+        label: '重命名',
+        icon: <Pencil size={APP_ICON_SIZE} />,
+        onSelect: () => {
+          // eslint-disable-next-line no-console
+          console.log('[TODO] rename session', session.id);
+        },
+      },
+      {
+        kind: 'item',
+        label: '复制会话 ID',
+        icon: <Copy size={APP_ICON_SIZE} />,
+        onSelect: () => {
+          void navigator.clipboard.writeText(session.id);
+        },
+      },
+      { kind: 'separator' },
+      session.pinnedAt
+        ? {
+            kind: 'item' as const,
+            label: '取消置顶',
+            icon: <PinOff size={APP_ICON_SIZE} />,
+            onSelect: () => onUnpinSession(session),
+          }
+        : {
+            kind: 'item' as const,
+            label: '置顶',
+            icon: <Pin size={APP_ICON_SIZE} />,
+            onSelect: () => onPinSession(session),
+          },
+      {
+        kind: 'item',
+        label: '归档',
+        icon: <Archive size={APP_ICON_SIZE} />,
+        onSelect: () => onArchiveSession(session),
+      },
+    ];
+  }
+
   function renderSessionRow(session: SessionListItem): React.ReactNode {
-    return (
+    const row = (
       <SidebarRow
         active={session.id === activeSessionId}
         as="li"
@@ -144,6 +192,13 @@ onClick={() => {
           </span>
         </button>
       </SidebarRow>
+    );
+    return (
+      <SidebarContextMenu
+        key={session.id}
+        actions={getSessionContextMenuActions(session)}
+        trigger={row}
+      />
     );
   }
 

@@ -68,7 +68,7 @@
 
 
 .conversation-page .composer {
-  background: var(--c-bg);
+
   padding-bottom: 15px;
   pointer-events: auto;
   max-width: min(1040px, calc(100% - 40px));
@@ -3301,8 +3301,7 @@
   width: 100%;
   max-width: none;
   padding-bottom: 0;
-  background: transparent;
-  box-shadow: none;
+
 }
 
 
@@ -3311,8 +3310,8 @@
   min-height: 0;
   padding: 0;
   border: 0;
-  box-shadow: none;
-  background: transparent;
+  
+
 }
 
 
