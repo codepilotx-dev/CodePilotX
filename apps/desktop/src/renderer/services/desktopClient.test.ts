@@ -80,6 +80,42 @@ describe('desktopClient environment selection', () => {
     ])
   })
 
+  test('encodes null optional arguments without dropping the tuple position', async () => {
+    const calls: Array<{ body: unknown }> = []
+    const client = createDesktopClient({
+      window: {},
+      localStorage: memoryStorage({
+        [DESKTOP_BROWSER_DEBUG_MODE_STORAGE_KEY]: '1',
+      }),
+      fetch: async (_input, init) => {
+        calls.push({ body: JSON.parse(String(init?.body)) })
+        return jsonResponse([])
+      },
+    })
+
+    await expect(client.listSlashCommands(null as unknown as undefined)).resolves.toEqual([])
+    expect(calls).toEqual([
+      { body: { args: [{ __desktopBrowserDebugUndefined: true }] } },
+    ])
+  })
+
+  test('preserves nullable null arguments for bridge validation', async () => {
+    const calls: Array<{ body: unknown }> = []
+    const client = createDesktopClient({
+      window: {},
+      localStorage: memoryStorage({
+        [DESKTOP_BROWSER_DEBUG_MODE_STORAGE_KEY]: '1',
+      }),
+      fetch: async (_input, init) => {
+        calls.push({ body: JSON.parse(String(init?.body)) })
+        return emptyResponse()
+      },
+    })
+
+    await expect(client.setActiveSession(null)).resolves.toBeUndefined()
+    expect(calls).toEqual([{ body: { args: [null] } }])
+  })
+
   test('reports a clear error when the browser debug bridge is unavailable', async () => {
     const client = createDesktopClient({
       window: {},
@@ -145,7 +181,7 @@ function jsonResponse(value: unknown): Response {
     status: 200,
     text: async () => JSON.stringify(value),
     json: async () => value,
-  } as Response
+  } as unknown as Response
 }
 
 function emptyResponse(): Response {
@@ -156,5 +192,5 @@ function emptyResponse(): Response {
     json: async () => {
       throw new SyntaxError('Unexpected end of JSON input')
     },
-  } as Response
+  } as unknown as Response
 }

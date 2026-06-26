@@ -80,6 +80,40 @@ describe('desktop browser debug bridge', () => {
     }
   })
 
+  test('decodes encoded undefined arguments before validation', async () => {
+    const received: unknown[][] = []
+    const bridge = createDesktopBrowserDebugBridge({
+      handlers: {
+        listSlashCommands: async (...args: unknown[]) => {
+          received.push(args)
+          return []
+        },
+      } as DesktopApiHandlers,
+      events: new EventEmitter(),
+      enabled: true,
+      port: 0,
+    })
+
+    const server = await bridge.start()
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:${server.port}/desktop-api/listSlashCommands`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            args: [{ __desktopBrowserDebugUndefined: true }],
+          }),
+        },
+      )
+
+      expect(response.status).toBe(200)
+      expect(received).toEqual([[undefined]])
+    } finally {
+      await server.close()
+    }
+  })
+
   test('does not start when disabled', async () => {
     const bridge = createDesktopBrowserDebugBridge({
       handlers: {} as DesktopApiHandlers,

@@ -3,6 +3,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import type { AddressInfo } from 'node:net'
 import { DESKTOP_API_METHODS, type DesktopApiMethod } from '../shared/ipcChannels.js'
 import { validateDesktopApiArgs } from '../shared/desktopApiSchema.js'
+import { decodeDesktopBridgeArgs } from '../shared/desktopBridgeArgs.js'
 import type { DesktopApiHandlers } from './ipc.js'
 
 export const DEFAULT_DESKTOP_BROWSER_DEBUG_PORT = 53271
@@ -104,7 +105,7 @@ async function handleRequest(
     const body = await readJsonBody(request)
     args = validateDesktopApiArgs(
       method as DesktopApiMethod,
-      Array.isArray(body.args) ? body.args : [],
+      Array.isArray(body.args) ? decodeDesktopBridgeArgs(body.args) : [],
     )
   } catch (error) {
     writeText(

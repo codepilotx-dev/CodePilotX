@@ -6,6 +6,7 @@ import {
   DESKTOP_WORKFLOW_EVENT_CHANNEL,
   type DesktopApiMethod,
 } from '../../shared/ipcChannels.js'
+import { encodeDesktopBridgeArgs } from '../../shared/desktopBridgeArgs.js'
 import { defaultDesktopStoredSettings } from '../../shared/settingsSchema.js'
 import type {
   CreateDesktopSessionOptions,
@@ -148,7 +149,7 @@ function createBrowserDebugDesktopClient(
       response = await requestFetch(`${baseURL}/desktop-api/${method}`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ args }),
+        body: JSON.stringify({ args: encodeDesktopBridgeArgs(method, args) }),
       })
     } catch (error) {
       throw new Error(
