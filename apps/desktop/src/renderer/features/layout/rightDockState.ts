@@ -1,4 +1,4 @@
-export type RightDockTool = 'review' | 'browser' | 'files' | 'sideChat'
+export type RightDockTool = 'review' | 'browser' | 'files' | 'sideChat' | 'toolProbe'
 export type RightDockMenuTool = RightDockTool | 'terminal'
 
 export type RightDockState = {

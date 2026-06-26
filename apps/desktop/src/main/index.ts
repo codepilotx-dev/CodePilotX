@@ -38,6 +38,7 @@ import { registerDesktopIpcHandlers } from './ipc.js'
 import { createDesktopWindowService } from './windowService.js'
 import { createDesktopBrowserService } from './browserService.js'
 import { createDesktopAutoUpdater } from './autoUpdater.js'
+import { DebugToolProbeService } from './debugToolProbeService.js'
 import { DESKTOP_UPDATE_STATUS_CHANNEL } from '../shared/ipcChannels.js'
 import {
   assertAllowedWorkspace,
@@ -166,6 +167,7 @@ const windowService = createDesktopWindowService({
 const browserService = createDesktopBrowserService({
   getWindow: windowService.getWindow,
 })
+const debugToolProbeService = new DebugToolProbeService()
 const jsonRpcAppServerThreadIds = new Set<string>()
 const jsonRpcAppServerBridge = createDesktopJsonRpcAppServerBridge({
   onWorkflowEvent: event => {
@@ -1129,6 +1131,7 @@ function registerIpc(): void {
   const handlers = buildDesktopApiHandlers({
     windowService,
     browserService,
+    debugToolProbeService,
     getRuntimeOptions: () => {
       const runtimeSelection = getDesktopRuntimeSelection()
       return {
@@ -1189,5 +1192,6 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', () => {
+  debugToolProbeService.cleanup()
   disposeAllSessions()
 })

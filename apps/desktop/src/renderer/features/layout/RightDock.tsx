@@ -28,11 +28,13 @@ import { PopoverItem } from '../../components/ui/PopoverItem.js'
 import { PopoverMenu } from '../../components/ui/PopoverMenu.js'
 import { DesktopBrowserPanel } from '../browser/DesktopBrowserPanel.js'
 import { WorkspaceReviewSidebar } from '../review/WorkspaceReviewSidebar.js'
+import { ToolProbePanel } from '../debug/ToolProbePanel.js'
 import type { RightDockState, RightDockTool } from './rightDockState.js'
 
 type Props = {
   state: RightDockState
   browserState: DesktopBrowserState | null
+  debugMode?: boolean
   files: DesktopFileEntry[]
   isRefreshingReview: boolean
   maxWidth: number
@@ -54,20 +56,28 @@ type Props = {
   onSetWidth: (width: number) => void
 }
 
-const TAB_ITEMS: Array<{
+type TabItem = {
   icon: React.ReactNode
   label: string
   tool: RightDockTool
-}> = [
+  compact?: boolean
+}
+
+const BASE_TAB_ITEMS: TabItem[] = [
   { tool: 'review', label: '审查', icon: <GitPullRequest /> },
   { tool: 'browser', label: '浏览器', icon: <Globe2 /> },
   { tool: 'files', label: '打开文件', icon: <FileText /> },
   { tool: 'sideChat', label: '侧边聊天', icon: <MessageSquarePlus /> },
 ]
 
+const DEBUG_TAB_ITEMS: TabItem[] = [
+  { tool: 'toolProbe', label: '工具探针', icon: <Search />, compact: true },
+]
+
 export function RightDock({
   state,
   browserState,
+  debugMode = false,
   files,
   isRefreshingReview,
   maxWidth,
@@ -88,6 +98,13 @@ export function RightDock({
   onResetWidth,
   onSetWidth,
 }: Props): React.ReactNode {
+  const tabItems = useMemo(() => {
+    if (debugMode) {
+      return [...BASE_TAB_ITEMS, ...DEBUG_TAB_ITEMS]
+    }
+    return BASE_TAB_ITEMS
+  }, [debugMode])
+
   const [menuOpen, setMenuOpen] = useState(false)
   const resizeStartRef = useRef<{
     startWidth: number
@@ -180,22 +197,27 @@ export function RightDock({
       />
       <header className="right-dock-tabs">
         <div className="right-dock-tab-list" role="tablist">
-          {TAB_ITEMS.map((item, index) => (
+          {tabItems.map((item, index) => (
             <Fragment key={item.tool}>
               {index > 0 ? <span className="right-dock-tab-divider" /> : null}
               <button
                 aria-selected={state.activeTool === item.tool}
                 className={
                   state.activeTool === item.tool
-                    ? 'right-dock-tab active'
-                    : 'right-dock-tab'
+                    ? item.compact
+                      ? 'right-dock-tab compact active'
+                      : 'right-dock-tab active'
+                    : item.compact
+                      ? 'right-dock-tab compact'
+                      : 'right-dock-tab'
                 }
                 role="tab"
+                title={item.label}
                 type="button"
                 onClick={() => onOpenTool(item.tool)}
               >
                 <span className="right-dock-tab-icon">{item.icon}</span>
-                <span>{item.label}</span>
+                {item.compact ? null : <span>{item.label}</span>}
               </button>
             </Fragment>
           ))}
@@ -289,6 +311,7 @@ export function RightDock({
           />
         ) : null}
         {state.activeTool === 'sideChat' ? <RightDockSideChatPanel /> : null}
+        {state.activeTool === 'toolProbe' ? <ToolProbePanel /> : null}
       </div>
     </aside>
   )

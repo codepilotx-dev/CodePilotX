@@ -80,6 +80,7 @@ import {
   readWorkspaceFile,
   registerAllowedWorkspaces,
 } from './workspaceService.js'
+import type { DebugToolProbeService } from './debugToolProbeService.js'
 import type {
   CreateDesktopSessionOptions,
   CreateDesktopSessionResult,
@@ -98,6 +99,7 @@ import type {
 export type DesktopApiHandlerDependencies = {
   windowService: DesktopWindowService
   browserService: DesktopBrowserService
+  debugToolProbeService: DebugToolProbeService
   getRuntimeOptions(): {
     agentExecutablePath: string
     configDirectoryPath: string
@@ -268,6 +270,23 @@ export function buildDesktopApiHandlers(
     },
     quitAndInstall: async () => {
       desktopAutoUpdater?.quitAndInstall()
+    },
+    listDebugBuiltinTools: async () => {
+      return dependencies.debugToolProbeService.listBuiltinTools()
+    },
+    runDebugToolProbe: async (mode) => {
+      const { controller, runId } = dependencies.debugToolProbeService.startProbe(mode)
+      try {
+        const report = await dependencies.debugToolProbeService.runProbe(mode, controller.signal)
+        dependencies.debugToolProbeService.finishProbeRun(runId)
+        return report
+      } catch (err) {
+        dependencies.debugToolProbeService.finishProbeRun(runId)
+        throw err
+      }
+    },
+    cancelDebugToolProbe: async (runId) => {
+      dependencies.debugToolProbeService.cancelRun(runId)
     },
   })
 }

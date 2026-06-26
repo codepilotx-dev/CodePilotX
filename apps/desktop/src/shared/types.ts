@@ -869,6 +869,42 @@ export type DesktopUpdateStatus =
   | { phase: 'error'; message: string }
   | { phase: 'no-update' }
 
+export type DebugToolProbeMode = 'safe' | 'realManual' | 'realAuto'
+
+export type DebugToolProbeItemStatus =
+  | 'passed'
+  | 'failed'
+  | 'permissionDenied'
+  | 'unsupportedProbe'
+  | 'skippedByEnvironment'
+
+export type DebugToolProbeItem = {
+  toolName: string
+  status: DebugToolProbeItemStatus
+  reason?: string
+  durationMs?: number
+  permissionRequestId?: string
+  permissionDecision?: string
+  inputSummary?: string
+  error?: string
+}
+
+export type DebugToolProbeReport = {
+  runId: string
+  mode: DebugToolProbeMode
+  startedAt: string
+  finishedAt?: string
+  cancelled?: boolean
+  totalTools: number
+  passed: number
+  failed: number
+  permissionDenied: number
+  unsupportedProbe: number
+  skippedByEnvironment: number
+  items: DebugToolProbeItem[]
+  logPath?: string
+}
+
 export type DesktopApi = {
   getAuthStatus(): Promise<DesktopAuthStatus>
   getRuntimeStatus(): Promise<DesktopRuntimeStatus>
@@ -1036,4 +1072,11 @@ export type DesktopApi = {
   downloadUpdate(): Promise<void>
   quitAndInstall(): Promise<void>
   onUpdateStatusChange(callback: (status: DesktopUpdateStatus) => void): () => void
+  listDebugBuiltinTools(): Promise<{
+    toolNames: string[]
+    enabled: boolean[]
+    hasProbeInput: boolean[]
+  }>
+  runDebugToolProbe(mode: DebugToolProbeMode): Promise<DebugToolProbeReport>
+  cancelDebugToolProbe(runId: string): Promise<void>
 }

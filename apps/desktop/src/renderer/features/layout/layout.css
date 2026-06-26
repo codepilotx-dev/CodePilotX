@@ -163,6 +163,26 @@
 
 
 
+.right-dock-tab.compact {
+  min-height: 36px;
+  max-width: 36px;
+  width: 36px;
+  padding: 0;
+  justify-content: center;
+  border-radius: 12px;
+  color: var(--c-text-meta);
+  outline: 1px dashed color-mix(in srgb, var(--c-text-meta) 35%, transparent);
+  outline-offset: -1px;
+}
+
+.right-dock-tab.compact .right-dock-tab-icon,
+.right-dock-tab.compact .right-dock-tab-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+
+
 .right-dock-tab.active {
   background: color-mix(in srgb, var(--c-text-strong) 7%, transparent);
   color: var(--c-text-strong);

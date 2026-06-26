@@ -298,6 +298,9 @@ export const DESKTOP_API_ARG_SCHEMAS = {
   checkForUpdates: emptyArgs,
   downloadUpdate: emptyArgs,
   quitAndInstall: emptyArgs,
+  listDebugBuiltinTools: emptyArgs,
+  runDebugToolProbe: z.tuple([z.enum(['safe', 'realManual', 'realAuto'])]),
+  cancelDebugToolProbe: z.tuple([z.string()]),
 } as const satisfies Record<DesktopApiMethod, z.ZodTuple>
 
 export function validateDesktopApiArgs(

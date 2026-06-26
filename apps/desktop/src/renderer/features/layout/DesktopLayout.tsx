@@ -439,6 +439,12 @@ export function DesktopLayout(): React.ReactNode {
     void refreshWorkspace(currentWorkspace, { clearSelectedFile: false })
   }, [currentWorkspace, refreshWorkspace])
 
+  useEffect(() => {
+    if (menubarDebugMode) {
+      void desktopClient.openDevTools()
+    }
+  }, [menubarDebugMode])
+
   const refreshBrowserState = useCallback((): void => {
     void desktopClient
       .getBrowserState()
@@ -1312,6 +1318,7 @@ export function DesktopLayout(): React.ReactNode {
                 <RightDock
                   state={rightDockState}
                   browserState={browserState}
+                  debugMode={menubarDebugMode}
                   files={workspaceFiles}
                   isRefreshingReview={false}
                   maxWidth={RIGHT_DOCK_MAX_WIDTH}
