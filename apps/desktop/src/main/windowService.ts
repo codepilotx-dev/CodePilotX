@@ -67,6 +67,7 @@ export function createDesktopWindowService(options: {
   iconPath: () => string | undefined
   rendererUrl: () => string
   preloadPath: () => string
+  emitDesktopEvent?: (channel: string, payload: unknown) => void
 }): DesktopWindowService {
   let mainWindow: BrowserWindow | null = null
   let windowStateSaveTimer: ReturnType<typeof setTimeout> | null = null
@@ -116,6 +117,7 @@ export function createDesktopWindowService(options: {
 
   function sendUiCommand(command: DesktopUiCommand): void {
     mainWindow?.webContents.send(DESKTOP_UI_COMMAND_CHANNEL, command)
+    options.emitDesktopEvent?.(DESKTOP_UI_COMMAND_CHANNEL, command)
   }
 
   function createApplicationMenu(): void {
@@ -241,11 +243,13 @@ export function createDesktopWindowService(options: {
 
   function emitAgentEvent(event: DesktopAgentEvent): DesktopWorkflowEvent[] {
     mainWindow?.webContents.send(DESKTOP_AGENT_EVENT_CHANNEL, event)
+    options.emitDesktopEvent?.(DESKTOP_AGENT_EVENT_CHANNEL, event)
     return workflowProjector.project(event).map(emitWorkflowEvent)
   }
 
   function emitWorkflowEvent(event: DesktopWorkflowEvent): DesktopWorkflowEvent {
     mainWindow?.webContents.send(DESKTOP_WORKFLOW_EVENT_CHANNEL, event)
+    options.emitDesktopEvent?.(DESKTOP_WORKFLOW_EVENT_CHANNEL, event)
     appendWorkflowEventLog(event)
     return event
   }

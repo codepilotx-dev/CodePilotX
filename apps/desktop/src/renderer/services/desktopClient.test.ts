@@ -1,0 +1,160 @@
+import { describe, expect, test } from 'bun:test'
+import type { DesktopApi, DesktopRuntimeStatus } from '../../shared/types.js'
+import {
+  DESKTOP_BROWSER_DEBUG_MODE_STORAGE_KEY,
+  createDesktopClient,
+  readDesktopBrowserDebugMode,
+  writeDesktopBrowserDebugMode,
+} from './desktopClient.js'
+
+const runtimeStatus: DesktopRuntimeStatus = {
+  runtimeKind: 'embedded-headless',
+  runtimePreference: 'auto',
+  runtimeSelectionSource: 'default',
+  agentExecutablePath: '',
+  agentExecutableExists: false,
+  subprocessFallbackAvailable: false,
+  configDirectoryPath: '',
+}
+
+describe('desktopClient environment selection', () => {
+  test('uses the Electron preload API when it exists', async () => {
+    const electronApi = {
+      getRuntimeStatus: async () => runtimeStatus,
+    } as DesktopApi
+
+    const client = createDesktopClient({
+      window: { desktopApi: electronApi },
+      fetch: async () => {
+        throw new Error('fetch should not be used for Electron preload')
+      },
+    })
+
+    expect(client).toBe(electronApi)
+    expect(await client.getRuntimeStatus()).toEqual(runtimeStatus)
+  })
+
+  test('uses a browser mock by default when preload is missing', async () => {
+    const client = createDesktopClient({
+      window: {},
+      localStorage: memoryStorage(),
+      fetch: async () => {
+        throw new Error('fetch should not be used while debug mode is off')
+      },
+    })
+
+    expect(await client.getRuntimeStatus()).toEqual(runtimeStatus)
+    expect(await client.listSessions()).toEqual([])
+    expect(await client.getBrowserState()).toMatchObject({
+      open: false,
+      url: '',
+      loading: false,
+    })
+    expect(client.onAgentEvent(() => {})).toBeFunction()
+  })
+
+  test('uses the browser debug bridge when debug mode is persisted', async () => {
+    const calls: Array<{ url: string; body: unknown }> = []
+    const storage = memoryStorage({
+      [DESKTOP_BROWSER_DEBUG_MODE_STORAGE_KEY]: '1',
+    })
+    const client = createDesktopClient({
+      window: {},
+      localStorage: storage,
+      debugBridgePort: 53271,
+      fetch: async (input, init) => {
+        calls.push({
+          url: String(input),
+          body: JSON.parse(String(init?.body)),
+        })
+        return jsonResponse(runtimeStatus)
+      },
+    })
+
+    await expect(client.getRuntimeStatus()).resolves.toEqual(runtimeStatus)
+    expect(calls).toEqual([
+      {
+        url: 'http://127.0.0.1:53271/desktop-api/getRuntimeStatus',
+        body: { args: [] },
+      },
+    ])
+  })
+
+  test('reports a clear error when the browser debug bridge is unavailable', async () => {
+    const client = createDesktopClient({
+      window: {},
+      localStorage: memoryStorage({
+        [DESKTOP_BROWSER_DEBUG_MODE_STORAGE_KEY]: '1',
+      }),
+      fetch: async () => {
+        throw new Error('ECONNREFUSED')
+      },
+    })
+
+    await expect(client.getRuntimeStatus()).rejects.toThrow(
+      '桌面端浏览器调试桥不可用',
+    )
+  })
+
+  test('resolves void bridge responses without parsing empty JSON', async () => {
+    const client = createDesktopClient({
+      window: {},
+      localStorage: memoryStorage({
+        [DESKTOP_BROWSER_DEBUG_MODE_STORAGE_KEY]: '1',
+      }),
+      fetch: async () => emptyResponse(),
+    })
+
+    await expect(client.openDevTools()).resolves.toBeUndefined()
+  })
+
+  test('persists browser debug mode in localStorage', () => {
+    const storage = memoryStorage()
+
+    expect(readDesktopBrowserDebugMode(storage)).toBe(false)
+    writeDesktopBrowserDebugMode(storage, true)
+    expect(storage.getItem(DESKTOP_BROWSER_DEBUG_MODE_STORAGE_KEY)).toBe('1')
+    expect(readDesktopBrowserDebugMode(storage)).toBe(true)
+    writeDesktopBrowserDebugMode(storage, false)
+    expect(storage.getItem(DESKTOP_BROWSER_DEBUG_MODE_STORAGE_KEY)).toBe('0')
+    expect(readDesktopBrowserDebugMode(storage)).toBe(false)
+  })
+})
+
+function memoryStorage(initial: Record<string, string> = {}): Storage {
+  const values = new Map(Object.entries(initial))
+  return {
+    get length() {
+      return values.size
+    },
+    clear: () => values.clear(),
+    getItem: key => values.get(key) ?? null,
+    key: index => [...values.keys()][index] ?? null,
+    removeItem: key => {
+      values.delete(key)
+    },
+    setItem: (key, value) => {
+      values.set(key, value)
+    },
+  }
+}
+
+function jsonResponse(value: unknown): Response {
+  return {
+    ok: true,
+    status: 200,
+    text: async () => JSON.stringify(value),
+    json: async () => value,
+  } as Response
+}
+
+function emptyResponse(): Response {
+  return {
+    ok: true,
+    status: 200,
+    text: async () => '',
+    json: async () => {
+      throw new SyntaxError('Unexpected end of JSON input')
+    },
+  } as Response
+}

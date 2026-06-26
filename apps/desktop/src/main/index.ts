@@ -1,4 +1,5 @@
 import { app } from 'electron'
+import { EventEmitter } from 'node:events'
 import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { stat } from 'node:fs/promises'
@@ -34,6 +35,11 @@ import type { DesktopAgentRuntimePreference } from './agentRuntime.js'
 import { buildDesktopApiHandlers } from './desktopApiHandlers.js'
 import { applyDesktopAgentRuntimeEnvDefaults } from './desktopRuntimeEnv.js'
 import { createDesktopJsonRpcAppServerBridge } from './desktopJsonRpcAppServerBridge.js'
+import {
+  createDesktopBrowserDebugBridge,
+  resolveDesktopBrowserDebugPort,
+  type DesktopBrowserDebugBridgeServer,
+} from './desktopBrowserDebugBridge.js'
 import { registerDesktopIpcHandlers } from './ipc.js'
 import { createDesktopWindowService } from './windowService.js'
 import { createDesktopBrowserService } from './browserService.js'
@@ -159,10 +165,14 @@ function desktopIconPath(): string | undefined {
   return existsSync(iconPath) ? iconPath : undefined
 }
 
+const desktopBrowserDebugEvents = new EventEmitter()
 const windowService = createDesktopWindowService({
   iconPath: desktopIconPath,
   rendererUrl,
   preloadPath: () => join(__dirname, '../preload/index.js'),
+  emitDesktopEvent: (channel, payload) => {
+    desktopBrowserDebugEvents.emit(channel, payload)
+  },
 })
 const browserService = createDesktopBrowserService({
   getWindow: windowService.getWindow,
@@ -1127,40 +1137,48 @@ async function setBuiltinPluginEnabled(
   return { id: pluginId, enabled }
 }
 
-function registerIpc(): void {
-  const handlers = buildDesktopApiHandlers({
-    windowService,
-    browserService,
-    debugToolProbeService,
-    getRuntimeOptions: () => {
-      const runtimeSelection = getDesktopRuntimeSelection()
-      return {
-        agentExecutablePath: getAgentExecutablePath(),
-        configDirectoryPath: getOpenAgentConfigHomeDir(),
-        runtimePreference: runtimeSelection.preference,
-        runtimeSelectionSource: runtimeSelection.source,
-      }
-    },
-    listBuiltinPlugins,
-    setBuiltinPluginEnabled,
-    listSlashCommands,
-    createSession,
-    listSessions,
-    getSession,
-    getActiveSessionId,
-    setActiveSession,
-    updateSessionMetadata,
-    saveSessionReviewComment,
-    resolveSessionReviewComment,
-    deleteSessionReviewComment,
-    setSessionPermissionMode: setSessionPermissionProfile,
-    sendUserMessage,
-    respondToPermission,
-    interruptSession,
-    disposeSession,
-  })
+const desktopApiHandlers = buildDesktopApiHandlers({
+  windowService,
+  browserService,
+  debugToolProbeService,
+  getRuntimeOptions: () => {
+    const runtimeSelection = getDesktopRuntimeSelection()
+    return {
+      agentExecutablePath: getAgentExecutablePath(),
+      configDirectoryPath: getOpenAgentConfigHomeDir(),
+      runtimePreference: runtimeSelection.preference,
+      runtimeSelectionSource: runtimeSelection.source,
+    }
+  },
+  listBuiltinPlugins,
+  setBuiltinPluginEnabled,
+  listSlashCommands,
+  createSession,
+  listSessions,
+  getSession,
+  getActiveSessionId,
+  setActiveSession,
+  updateSessionMetadata,
+  saveSessionReviewComment,
+  resolveSessionReviewComment,
+  deleteSessionReviewComment,
+  setSessionPermissionMode: setSessionPermissionProfile,
+  sendUserMessage,
+  respondToPermission,
+  interruptSession,
+  disposeSession,
+})
 
-  registerDesktopIpcHandlers(handlers, assertTrustedIpcSender)
+let desktopBrowserDebugBridgeServer: DesktopBrowserDebugBridgeServer | null = null
+const desktopBrowserDebugBridge = createDesktopBrowserDebugBridge({
+  handlers: desktopApiHandlers,
+  events: desktopBrowserDebugEvents,
+  enabled: !app.isPackaged && process.env.NODE_ENV === 'development',
+  port: resolveDesktopBrowserDebugPort(),
+})
+
+function registerIpc(): void {
+  registerDesktopIpcHandlers(desktopApiHandlers, assertTrustedIpcSender)
 }
 
 applyDesktopAgentRuntimeEnvDefaults()
@@ -1168,10 +1186,22 @@ enableConfigs()
 app.setAppUserModelId(DESKTOP_APP_ID)
 registerIpc()
 
+void desktopBrowserDebugBridge.start().then(server => {
+  desktopBrowserDebugBridgeServer = server
+  if (server) {
+    desktopDebug('browser_debug_bridge_started', { port: server.port })
+  }
+}).catch(error => {
+  desktopDebug('browser_debug_bridge_failed', {
+    error: error instanceof Error ? error.message : String(error),
+  })
+})
+
 createDesktopAutoUpdater({
   onStatusChange: (status) => {
     const window = windowService.getWindow()
     window?.webContents.send(DESKTOP_UPDATE_STATUS_CHANNEL, status)
+    desktopBrowserDebugEvents.emit(DESKTOP_UPDATE_STATUS_CHANNEL, status)
   },
 })
 
@@ -1192,6 +1222,7 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', () => {
+  void desktopBrowserDebugBridgeServer?.close()
   debugToolProbeService.cleanup()
   disposeAllSessions()
 })

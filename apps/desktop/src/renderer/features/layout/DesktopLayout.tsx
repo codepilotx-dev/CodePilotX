@@ -1,4 +1,8 @@
-import { desktopClient } from '../../services/desktopClient.js'
+import {
+  desktopClient,
+  readDesktopBrowserDebugMode,
+  writeDesktopBrowserDebugMode,
+} from '../../services/desktopClient.js'
 import type React from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
@@ -127,7 +131,9 @@ export function DesktopLayout(): React.ReactNode {
     activeTool: null,
     openTools: [],
   })
-  const [menubarDebugMode, setMenubarDebugMode] = useState(false)
+  const [menubarDebugMode, setMenubarDebugMode] = useState(() =>
+    readDesktopBrowserDebugMode(),
+  )
   const [rightDockWidth, setRightDockWidth] = useState(() =>
     getInitialRightDockWidth(),
   )
@@ -441,6 +447,7 @@ export function DesktopLayout(): React.ReactNode {
   }, [currentWorkspace, refreshWorkspace])
 
   useEffect(() => {
+    writeDesktopBrowserDebugMode(undefined, menubarDebugMode)
     if (menubarDebugMode) {
       void desktopClient.openDevTools()
     }
