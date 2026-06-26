@@ -4,7 +4,6 @@ import {
   createModelProviderSummary,
   isModelProviderID,
 } from '@codepilotx/core/models/provider.js'
-import { getSettings_DEPRECATED } from '@codepilotx/tui/utils/settings/settings.js'
 import {
   deleteProviderApiKey as deleteTuiProviderApiKey,
   fetchProviderBalance as fetchTuiProviderBalance,
@@ -13,12 +12,10 @@ import {
   getProviderApiKey,
   getProviderApiKeySource,
   getProviderConfig,
-  getSelectedProviderConfig,
-  getSelectedProviderID,
   listProviderConfigs,
   saveProviderApiKey as saveTuiProviderApiKey,
   saveSelectedProvider,
-} from '@codepilotx/tui/utils/model/providerConfig.js'
+} from '@codepilotx/core/models/providerConfig.js'
 import { desktopDebug } from './desktopDebug.js'
 import {
   readDesktopStoredSettings,
@@ -46,20 +43,17 @@ export async function listModelProviders(): Promise<
 export async function getModelProviderState(
   providerIDOverride?: ModelProviderID,
 ): Promise<DesktopModelProviderState> {
-  const settings = getSettings_DEPRECATED() || {}
-  const selectedProviderID =
-    providerIDOverride ?? (getSelectedProviderID() as ModelProviderID)
+  const settings = await readDesktopStoredSettings()
+  const selectedProviderID = providerIDOverride ?? settings.providerID
   const provider = await getProviderConfig(selectedProviderID)
-  const savedSelectedProviderID = getSelectedProviderID() as ModelProviderID
-  const selectedProvider =
-    selectedProviderID === savedSelectedProviderID
-      ? getSelectedProviderConfig()
-      : provider
   const effectiveSelectedProviderID = provider.providerID as ModelProviderID
-  const model = typeof settings.model === 'string' ? settings.model : ''
+  const model = settings.model
   const apiKeySource = getProviderApiKeySource(selectedProviderID) ?? null
   const apiKey = getProviderApiKey(selectedProviderID)
-  const baseURL = selectedProvider.baseURL ?? provider.baseURL
+  const baseURL =
+    provider.requiresBaseURL && settings.providerBaseURL
+      ? settings.providerBaseURL
+      : provider.baseURL
   const result = createModelProviderState({
     selectedProviderID: effectiveSelectedProviderID,
     provider,
