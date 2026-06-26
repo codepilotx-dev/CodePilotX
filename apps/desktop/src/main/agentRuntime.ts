@@ -31,6 +31,7 @@ import {
   extractPartialText,
   getMessageContent,
   getResultErrorMessage,
+  getToolUseId,
   getUpdatedPermissions,
   summarizeToolInput,
 } from './agentRuntimeSupport.js'
@@ -383,6 +384,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
           sessionId: this.context.sessionId,
           toolName,
           summary: summarizeToolInput(toolName, item.input),
+          toolUseId: getToolUseId(item),
         })
       } else if (item.type === 'tool_result') {
         const toolName = this.toolNameForResult(item)
@@ -391,6 +393,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
           sessionId: this.context.sessionId,
           toolName,
           summary: summarizeToolInput(toolName, item.content),
+          toolUseId: getToolUseId(item),
           isError: item.is_error === true,
           metadata: buildToolResultMetadata(item.content),
         })
@@ -430,6 +433,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
         sessionId: this.context.sessionId,
         toolName,
         summary: summarizeToolInput(toolName, item.content),
+        toolUseId: getToolUseId(item),
         isError: item.is_error === true,
         metadata: buildToolResultMetadata(item.content),
       })
@@ -753,6 +757,7 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
           sessionId: this.context.sessionId,
           toolName,
           summary: summarizeToolInput(toolName, item.input),
+          toolUseId: getToolUseId(item),
         })
       } else if (item.type === 'tool_result') {
         const toolName = this.toolNameForResult(item)
@@ -761,6 +766,7 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
           sessionId: this.context.sessionId,
           toolName,
           summary: summarizeToolInput(toolName, item.content),
+          toolUseId: getToolUseId(item),
           isError: item.is_error === true,
           metadata: buildToolResultMetadata(item.content),
         })
@@ -800,6 +806,7 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
         sessionId: this.context.sessionId,
         toolName,
         summary: summarizeToolInput(toolName, item.content),
+        toolUseId: getToolUseId(item),
         isError: item.is_error === true,
         metadata: buildToolResultMetadata(item.content),
       })

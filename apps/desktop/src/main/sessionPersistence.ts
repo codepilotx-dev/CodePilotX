@@ -986,9 +986,8 @@ function collectToolUses(
     const item = block as Record<string, unknown>
     if (item.type !== 'tool_use') continue
     const toolName = typeof item.name === 'string' ? item.name : 'Tool'
-    if (typeof item.id === 'string') {
-      toolNamesById.set(item.id, toolName)
-    }
+    const toolUseId = typeof item.id === 'string' ? item.id : undefined
+    if (toolUseId) toolNamesById.set(toolUseId, toolName)
     const summary = summarizeToolInput(toolName, item.input)
     const createdAt = timestamp ?? new Date().toISOString()
     toolLog.push(
@@ -1005,7 +1004,7 @@ function collectToolUses(
       type: 'tool_call',
       content: summary,
       createdAt,
-      metadata: { toolName },
+      metadata: { toolName, ...(toolUseId ? { toolUseId } : {}) },
     })
   }
 }
@@ -1027,6 +1026,8 @@ function collectToolResults(
       typeof item.tool_use_id === 'string'
         ? toolNamesById.get(item.tool_use_id) ?? 'Tool'
         : 'Tool'
+    const toolUseId =
+      typeof item.tool_use_id === 'string' ? item.tool_use_id : undefined
     const summary = summarizeToolInput(toolName, item.content)
     const isError = item.is_error === true
     const createdAt = timestamp ?? new Date().toISOString()
@@ -1045,7 +1046,7 @@ function collectToolResults(
       type: 'tool_result',
       content: summary,
       createdAt,
-      metadata: { toolName, isError },
+      metadata: { toolName, ...(toolUseId ? { toolUseId } : {}), isError },
     })
   }
 }

@@ -105,6 +105,7 @@ declare module '@codepilotx/core/agent/runtime.js' {
         sessionId: string
         toolName: string
         summary: string
+        toolUseId?: string
         sourceThreadId?: string
         sourceLabel?: string
       }
@@ -113,6 +114,7 @@ declare module '@codepilotx/core/agent/runtime.js' {
         sessionId: string
         toolName: string
         summary: string
+        toolUseId?: string
         isError?: boolean
         metadata?: Record<string, unknown>
         sourceThreadId?: string
@@ -944,6 +946,7 @@ declare module '@codepilotx/tui/utils/model/providerConfig.js' {
   }
   export function isModelProviderID(value: unknown): value is string
   export function getCachedProviderModels(providerID: string): string[] | null
+  export function getProviderApiKey(providerID: string): string | undefined
   export function getProviderApiKeySource(providerID: string): string | null
   export function fetchProviderModels(options: {
     providerID: string

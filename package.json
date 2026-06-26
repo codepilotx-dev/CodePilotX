@@ -29,6 +29,7 @@
     "test:codex-workflow": "bun test packages/core/src/agent/workflow.test.ts packages/core/src/agent/permissions.test.ts packages/core/src/agent/codexContextDiagnostics.test.ts apps/tui/src/utils/ripgrep.test.ts apps/tui/src/workflow/sdkEventMapping.test.ts apps/tui/src/workflow/ThreadRuntime.test.ts apps/desktop/src/shared/desktopApiSchema.test.ts apps/desktop/src/shared/workflowReducer.test.ts apps/desktop/src/main/agentSession.test.ts apps/desktop/src/main/desktopJsonRpcAppServerBridge.test.ts apps/desktop/src/main/desktopRuntimeEnv.test.ts apps/desktop/src/main/optionalWorkspaceFile.test.ts apps/desktop/src/main/workflowProjection.test.ts apps/desktop/src/main/sessionPersistence.test.ts apps/desktop/src/main/windowService.test.ts apps/desktop/src/renderer/features/session/codexContextDiagnostics.test.ts apps/desktop/src/renderer/features/session/workflowEventDedup.test.ts apps/desktop/src/renderer/features/session/workflowViewPatch.test.ts apps/desktop/src/renderer/features/session/workflowMarkdown.test.ts apps/desktop/src/renderer/features/session/workflowConsistency.test.ts"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.6",
     "@alcalzone/ansi-tokenize": "latest",
     "@anthropic-ai/bedrock-sdk": "latest",
     "@anthropic-ai/claude-agent-sdk": "latest",

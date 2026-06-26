@@ -5,6 +5,7 @@ import {
   permissionPromptToolArgs,
   permissionPromptToolName,
 } from './agentRuntime.js'
+import { getToolUseId } from './agentRuntimeSupport.js'
 
 test('codexPermissionConfigArgs maps desktop permissions to official config overrides', () => {
   expect(
@@ -43,4 +44,17 @@ test('desktop runtime exports AskUserQuestion max questions env when configured'
   ).toEqual({
     CODEPILOTX_ASK_USER_QUESTION_MAX_QUESTIONS: '3',
   })
+})
+
+test('desktop runtime extracts tool use id from tool blocks', () => {
+  expect(getToolUseId({ type: 'tool_use', id: 'call-question-1' })).toBe(
+    'call-question-1',
+  )
+  expect(
+    getToolUseId({
+      type: 'tool_result',
+      tool_use_id: 'call-question-1',
+    }),
+  ).toBe('call-question-1')
+  expect(getToolUseId({ type: 'tool_result' })).toBeUndefined()
 })
