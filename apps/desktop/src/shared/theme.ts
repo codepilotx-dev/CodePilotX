@@ -86,12 +86,12 @@ const RADIX_DARK: Record<RadixScale, Record<string, string>> = {
 
 const INTER_FONTS = {
   code: 'JetBrains Mono SemiBold',
-  ui: 'Inter',
+  ui: 'MiSans',
 }
 
 const QUOTED_JETBRAINS_FONTS = {
   code: '"Jetbrains Mono"',
-  ui: 'Inter',
+  ui: 'MiSans',
 }
 
 const DRACULA_PINK = {

@@ -57,8 +57,8 @@
   --sh-popover:
     0 4px 6px -2px var(--black-a3), 0 12px 24px -6px var(--black-a6);
   --ff-sans:
-    -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC",
-    "Helvetica Neue", Arial, "Microsoft YaHei", sans-serif;
+    "MiSans", -apple-system, BlinkMacSystemFont, "SF Pro Text",
+    "PingFang SC", "Helvetica Neue", Arial, "Microsoft YaHei", sans-serif;
   --ff-mono: "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
   --fs-ui: 14px;
   --fs-code: 12px;

@@ -469,7 +469,7 @@ export function AppearanceSettings() {
               <TextInput
                 value={activeTheme.theme.fonts.ui}
                 onChange={ui => updateThemeFonts({ ui })}
-                placeholder="Inter, system-ui"
+                placeholder="MiSans, system-ui"
               />
             }
           />

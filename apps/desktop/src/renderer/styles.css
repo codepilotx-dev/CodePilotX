@@ -18,6 +18,10 @@
 @import '@radix-ui/colors/orange-dark.css';
 @import '@radix-ui/colors/black-alpha.css';
 @import '@radix-ui/colors/white-alpha.css';
+@import 'misans/lib/Normal/MiSans-Regular.min.css';
+@import 'misans/lib/Normal/MiSans-Medium.min.css';
+@import 'misans/lib/Normal/MiSans-Semibold.min.css';
+@import 'misans/lib/Normal/MiSans-Bold.min.css';
 @import './styles/base.css';
 @import './styles/shell.css';
 @import './styles/controls.css';

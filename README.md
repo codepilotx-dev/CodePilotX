@@ -217,3 +217,7 @@ CodePilotX 使用三档任务模型接口，不再暴露 Claude 家族名作为�
 - 桌面端不要直接依赖未暴露的 TUI 内部实现；需要共享能力时通过 `packages/core/` 或既有 workspace alias 暴露。
 - 私有 `@ant/*` 和 native 包在公开环境不可用时由本地 stubs 表示。
 - Claude 模型 ID、Anthropic SDK 包名、`claude.ai` 远端 URL 和 provider/auth 逻辑属于生态兼容层，不应作为普通产品文案重命名。
+
+## 第三方字体
+
+桌面端 UI 默认字体使用 MiSans（小米字体），通过本地 npm 依赖 `misans@4.1.0` 打包分发，不依赖 CDN。MiSans 由小米提供并可免费商用（Apache-2.0），来源：[dsrkafuu/misans](https://github.com/dsrkafuu/misans)。
