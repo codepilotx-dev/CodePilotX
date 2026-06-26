@@ -115,7 +115,7 @@
   box-shadow: 0 8px 28px var(--black-a3);
   color: var(--c-text-strong);
   font-size: var(--fs-13);
-  line-height: 1.4;
+  
   transform: translateX(-50%);
 }
 
