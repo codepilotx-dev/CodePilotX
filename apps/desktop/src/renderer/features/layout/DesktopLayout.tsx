@@ -10,7 +10,7 @@ import { RightDock } from './RightDock.js'
 import {
   applyRightDockAction,
   type RightDockState,
-  type RightDockTool,
+  type RightDockToolId,
 } from './rightDockState.js'
 import { DesktopSidebar } from './DesktopSidebar.js'
 import { GlobalErrorModal } from '../../components/GlobalErrorModal.js'
@@ -124,7 +124,8 @@ export function DesktopLayout(): React.ReactNode {
   )
   const [rightDockState, setRightDockState] = useState<RightDockState>({
     open: false,
-    activeTool: 'review',
+    activeTool: null,
+    openTools: [],
   })
   const [menubarDebugMode, setMenubarDebugMode] = useState(false)
   const [rightDockWidth, setRightDockWidth] = useState(() =>
@@ -454,11 +455,36 @@ export function DesktopLayout(): React.ReactNode {
       )
   }, [])
 
-  const openRightDockTool = useCallback((tool: RightDockTool): void => {
-    setRightDockState(current =>
-      applyRightDockAction(current, { type: 'openTool', tool }),
-    )
-  }, [])
+  const openRightDockTool = useCallback(
+    (tool: RightDockToolId): void => {
+      setRightDockState(current =>
+        applyRightDockAction(
+          current,
+          { type: 'openTool', tool },
+          { debugMode: menubarDebugMode },
+        ),
+      )
+    },
+    [menubarDebugMode],
+  )
+
+  const selectRightDockTool = useCallback(
+    (tool: RightDockToolId): void => {
+      setRightDockState(current =>
+        applyRightDockAction(current, { type: 'selectTool', tool }),
+      )
+    },
+    [],
+  )
+
+  const closeRightDockTool = useCallback(
+    (tool: RightDockToolId): void => {
+      setRightDockState(current =>
+        applyRightDockAction(current, { type: 'closeTool', tool }),
+      )
+    },
+    [],
+  )
 
   const closeRightDock = useCallback((): void => {
     setRightDockState(current => applyRightDockAction(current, { type: 'close' }))
@@ -487,7 +513,7 @@ export function DesktopLayout(): React.ReactNode {
   }, [openRightDockTool])
 
   const handleRightDockToolSelect = useCallback(
-    (tool: RightDockTool): void => {
+    (tool: RightDockToolId): void => {
       if (tool === 'browser') {
         handleOpenBrowser()
         return
@@ -631,14 +657,15 @@ export function DesktopLayout(): React.ReactNode {
         return
       }
       if (action === 'toggleSidePanel') {
-        setRightDockState(current =>
-          current.open
-            ? applyRightDockAction(current, { type: 'close' })
-            : applyRightDockAction(current, {
-                type: 'openTool',
-                tool: current.activeTool,
-              }),
-        )
+        setRightDockState(current => {
+          if (current.open) {
+            return applyRightDockAction(current, { type: 'close' })
+          }
+          if (current.openTools.length > 0) {
+            return { ...current, open: true }
+          }
+          return current
+        })
         return
       }
       if (action === 'reloadBrowserPage') {
@@ -1332,11 +1359,13 @@ export function DesktopLayout(): React.ReactNode {
                   onAppendBrowserAnnotation={handleBrowserAnnotation}
                   onBrowserStateChange={setBrowserState}
                   onClose={closeRightDock}
+                  onCloseTool={closeRightDockTool}
                   onOpenTool={handleRightDockToolSelect}
                   onOpenWorkspacePath={handleOpenWorkspacePath}
                   onPreviewFile={file => void previewFile(file)}
                   onRefreshReview={handleRefreshDiff}
                   onResetWidth={handleResetRightDockWidth}
+                  onSelectTool={selectRightDockTool}
                   onSetWidth={handleSetRightDockWidth}
                 />
               ) : null}

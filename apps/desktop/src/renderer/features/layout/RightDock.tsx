@@ -1,18 +1,6 @@
 import type React from 'react'
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
-import {
-  FileText,
-  Folder,
-  FolderOpen,
-  GitPullRequest,
-  Globe2,
-  MessageSquarePlus,
-  Minus,
-  PanelRight,
-  Plus,
-  Search,
-  SquareTerminal,
-} from 'lucide-react'
+import { Minus, PanelRight, Plus, X } from 'lucide-react'
 import type {
   DesktopBrowserState,
   DesktopFileEntry,
@@ -26,10 +14,14 @@ import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTo
 import { IconButton } from '../../components/ui/IconButton.js'
 import { PopoverItem } from '../../components/ui/PopoverItem.js'
 import { PopoverMenu } from '../../components/ui/PopoverMenu.js'
-import { DesktopBrowserPanel } from '../browser/DesktopBrowserPanel.js'
-import { WorkspaceReviewSidebar } from '../review/WorkspaceReviewSidebar.js'
-import { ToolProbePanel } from '../debug/ToolProbePanel.js'
-import type { RightDockState, RightDockTool } from './rightDockState.js'
+import type { RightDockPanelContext, RightDockToolId } from './rightDockTools.js'
+import {
+  getRightDockTool,
+  isRightDockToolEnabled,
+  rightDockTools,
+} from './rightDockTools.js'
+import { rightDockPanelRenderers } from './rightDockPanelRenderers.js'
+import type { RightDockState } from './rightDockState.js'
 
 type Props = {
   state: RightDockState
@@ -48,31 +40,15 @@ type Props = {
   onAppendBrowserAnnotation: (text: string) => void
   onBrowserStateChange: (state: DesktopBrowserState) => void
   onClose: () => void
-  onOpenTool: (tool: RightDockTool) => void
+  onCloseTool: (tool: RightDockToolId) => void
+  onOpenTool: (tool: RightDockToolId) => void
   onOpenWorkspacePath: () => void
   onPreviewFile: (file: DesktopFileEntry) => void
   onRefreshReview: () => void
   onResetWidth: () => void
+  onSelectTool: (tool: RightDockToolId) => void
   onSetWidth: (width: number) => void
 }
-
-type TabItem = {
-  icon: React.ReactNode
-  label: string
-  tool: RightDockTool
-  compact?: boolean
-}
-
-const BASE_TAB_ITEMS: TabItem[] = [
-  { tool: 'review', label: '审查', icon: <GitPullRequest /> },
-  { tool: 'browser', label: '浏览器', icon: <Globe2 /> },
-  { tool: 'files', label: '打开文件', icon: <FileText /> },
-  { tool: 'sideChat', label: '侧边聊天', icon: <MessageSquarePlus /> },
-]
-
-const DEBUG_TAB_ITEMS: TabItem[] = [
-  { tool: 'toolProbe', label: '工具探针', icon: <Search />, compact: true },
-]
 
 export function RightDock({
   state,
@@ -91,19 +67,30 @@ export function RightDock({
   onAppendBrowserAnnotation,
   onBrowserStateChange,
   onClose,
+  onCloseTool,
   onOpenTool,
   onOpenWorkspacePath,
   onPreviewFile,
   onRefreshReview,
   onResetWidth,
+  onSelectTool,
   onSetWidth,
 }: Props): React.ReactNode {
-  const tabItems = useMemo(() => {
-    if (debugMode) {
-      return [...BASE_TAB_ITEMS, ...DEBUG_TAB_ITEMS]
-    }
-    return BASE_TAB_ITEMS
-  }, [debugMode])
+  const flags = useMemo<RightDockPanelContext['flags']>(() => ({ debugMode }), [debugMode])
+  const openedTools = useMemo(
+    () =>
+      state.openTools
+        .map(id => getRightDockTool(id))
+        .filter(
+          (tool): tool is NonNullable<ReturnType<typeof getRightDockTool>> =>
+            Boolean(tool) && isRightDockToolEnabled(tool.id, flags),
+        ),
+    [flags, state.openTools],
+  )
+  const addableTools = useMemo(
+    () => rightDockTools.filter(tool => isRightDockToolEnabled(tool.id, flags)),
+    [flags],
+  )
 
   const [menuOpen, setMenuOpen] = useState(false)
   const resizeStartRef = useRef<{
@@ -111,6 +98,50 @@ export function RightDock({
     startX: number
   } | null>(null)
   const [resizing, setResizing] = useState(false)
+
+  const panelContext = useMemo<RightDockPanelContext>(
+    () => ({
+      review: {
+        activeSessionId: sessionId,
+        isRefreshing: isRefreshingReview,
+        reviewView,
+        sessionStatus,
+        workspacePath: workspace?.path ?? null,
+        onClose,
+        onOpenWorkspacePath,
+        onRefreshDiff: onRefreshReview,
+      },
+      browser: {
+        state: browserState,
+        onAppendAnnotation: onAppendBrowserAnnotation,
+        onStateChange: onBrowserStateChange,
+      },
+      files: {
+        files,
+        selectedFile,
+        workspace,
+        onPreviewFile,
+      },
+      flags,
+    }),
+    [
+      browserState,
+      files,
+      flags,
+      isRefreshingReview,
+      onAppendBrowserAnnotation,
+      onBrowserStateChange,
+      onClose,
+      onOpenWorkspacePath,
+      onPreviewFile,
+      onRefreshReview,
+      reviewView,
+      selectedFile,
+      sessionId,
+      sessionStatus,
+      workspace,
+    ],
+  )
 
   useEffect(() => {
     if (!state.open || state.activeTool !== 'browser') {
@@ -146,6 +177,10 @@ export function RightDock({
       document.body.classList.remove('right-dock-is-resizing')
     }
   }, [onSetWidth, resizing])
+
+  const activePanelRenderer = state.activeTool
+    ? rightDockPanelRenderers[state.activeTool]
+    : null
 
   return (
     <aside
@@ -197,83 +232,88 @@ export function RightDock({
       />
       <header className="right-dock-tabs">
         <div className="right-dock-tab-list" role="tablist">
-          {tabItems.map((item, index) => (
-            <Fragment key={item.tool}>
-              {index > 0 ? <span className="right-dock-tab-divider" /> : null}
-              <button
-                aria-selected={state.activeTool === item.tool}
-                className={
-                  state.activeTool === item.tool
-                    ? item.compact
-                      ? 'right-dock-tab compact active'
-                      : 'right-dock-tab active'
-                    : item.compact
-                      ? 'right-dock-tab compact'
-                      : 'right-dock-tab'
-                }
-                role="tab"
-                title={item.label}
-                type="button"
-                onClick={() => onOpenTool(item.tool)}
-              >
-                <span className="right-dock-tab-icon">{item.icon}</span>
-                {item.compact ? null : <span>{item.label}</span>}
-              </button>
-            </Fragment>
-          ))}
+          {openedTools.length > 0 ? (
+            openedTools.map((tool, index) => {
+              const isActive = state.activeTool === tool.id
+              return (
+                <Fragment key={tool.id}>
+                  {index > 0 ? <span className="right-dock-tab-divider" /> : null}
+                  <div
+                    className={
+                      isActive ? 'right-dock-tab-wrap active' : 'right-dock-tab-wrap'
+                    }
+                    role="tab"
+                    aria-selected={isActive}
+                  >
+                    <button
+                      className={isActive ? 'right-dock-tab active' : 'right-dock-tab'}
+                      title={tool.label}
+                      type="button"
+                      onClick={() => onSelectTool(tool.id)}
+                    >
+                      <span className="right-dock-tab-icon">{tool.icon}</span>
+                      <span>{tool.label}</span>
+                    </button>
+                    <IconButton
+                      className="right-dock-tab-close"
+                      title={`关闭 ${tool.label}`}
+                      onClick={event => {
+                        event.stopPropagation()
+                        onCloseTool(tool.id)
+                      }}
+                    >
+                      <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                    </IconButton>
+                  </div>
+                </Fragment>
+              )
+            })
+          ) : (
+            <span className="right-dock-tab-empty">使用 + 添加工具</span>
+          )}
           <PopoverMenu
             align="start"
             className="popover-right-dock-add"
             open={menuOpen}
             sideOffset={6}
             trigger={
-              <button className="right-dock-add-button" type="button">
+              <button
+                className="right-dock-add-button"
+                type="button"
+                title="添加工具"
+              >
                 <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
               </button>
             }
             onOpenChange={setMenuOpen}
           >
-            <PopoverItem
-              icon={<SquareTerminal size={APP_ICON_SIZE} />}
-              disabled
-              shortcut="Ctrl+`"
-            >
-              终端
-            </PopoverItem>
-            <PopoverItem
-              icon={<Globe2 size={APP_ICON_SIZE} />}
-              shortcut="Ctrl+Shift+B"
-              onClick={() => {
-                onOpenTool('browser')
-                setMenuOpen(false)
-              }}
-            >
-              浏览器
-            </PopoverItem>
-            <PopoverItem
-              icon={<FileText size={APP_ICON_SIZE} />}
-              shortcut="Ctrl+P"
-              onClick={() => {
-                onOpenTool('files')
-                setMenuOpen(false)
-              }}
-            >
-              文件
-            </PopoverItem>
-            <PopoverItem
-              icon={<MessageSquarePlus size={APP_ICON_SIZE} />}
-              shortcut="Ctrl+Alt+S"
-              onClick={() => {
-                onOpenTool('sideChat')
-                setMenuOpen(false)
-              }}
-            >
-              侧边聊天
-            </PopoverItem>
+            {addableTools.map(tool => {
+              const opened = state.openTools.includes(tool.id)
+              const isActive = state.activeTool === tool.id
+              return (
+                <PopoverItem
+                  key={tool.id}
+                  active={isActive}
+                  icon={tool.icon}
+                  selected={opened}
+                  shortcut={tool.shortcut}
+                  onClick={() => {
+                    if (opened) {
+                      onSelectTool(tool.id)
+                    } else {
+                      onOpenTool(tool.id)
+                    }
+                    setMenuOpen(false)
+                  }}
+                >
+                  {tool.label}
+                </PopoverItem>
+              )
+            })}
           </PopoverMenu>
         </div>
         <div className="right-dock-controls">
-          <IconButton className="right-dock-control" title="最小化面板" onClick={onClose}>
+          <IconButton className="right-dock-control" title="隐藏右侧面板" onClick={onClose}>
             <Minus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
           <IconButton className="right-dock-control active" title="关闭右侧面板" onClick={onClose}>
@@ -283,195 +323,13 @@ export function RightDock({
       </header>
 
       <div className="right-dock-content">
-        {state.activeTool === 'review' ? (
-          <WorkspaceReviewSidebar
-            activeSessionId={sessionId}
-            isRefreshing={isRefreshingReview}
-            reviewView={reviewView}
-            sessionStatus={sessionStatus}
-            workspacePath={workspace?.path ?? null}
-            onClose={onClose}
-            onOpenWorkspacePath={onOpenWorkspacePath}
-            onRefreshDiff={onRefreshReview}
-          />
-        ) : null}
-        {state.activeTool === 'browser' && browserState ? (
-          <DesktopBrowserPanel
-            state={browserState}
-            onAppendAnnotation={onAppendBrowserAnnotation}
-            onStateChange={onBrowserStateChange}
-          />
-        ) : null}
-        {state.activeTool === 'files' ? (
-          <RightDockFilesPanel
-            files={files}
-            selectedFile={selectedFile}
-            workspace={workspace}
-            onPreviewFile={onPreviewFile}
-          />
-        ) : null}
-        {state.activeTool === 'sideChat' ? <RightDockSideChatPanel /> : null}
-        {state.activeTool === 'toolProbe' ? <ToolProbePanel /> : null}
-      </div>
-    </aside>
-  )
-}
-
-function RightDockFilesPanel({
-  files,
-  selectedFile,
-  workspace,
-  onPreviewFile,
-}: {
-  files: DesktopFileEntry[]
-  selectedFile: DesktopFilePreview | null
-  workspace: DesktopWorkspace | null
-  onPreviewFile: (file: DesktopFileEntry) => void
-}): React.ReactNode {
-  const [query, setQuery] = useState('')
-  const [collapsedDirs, setCollapsedDirs] = useState<Set<string>>(() => new Set())
-  const visibleFiles = useMemo(
-    () => filterVisibleFiles(files, query, collapsedDirs),
-    [collapsedDirs, files, query],
-  )
-
-  function toggleDirectory(path: string): void {
-    setCollapsedDirs(current => {
-      const next = new Set(current)
-      if (next.has(path)) {
-        next.delete(path)
-      } else {
-        next.add(path)
-      }
-      return next
-    })
-  }
-
-  return (
-    <section className="right-dock-files" aria-label="打开文件">
-      <div className="right-dock-file-preview">
-        {selectedFile ? (
-          <article className="right-dock-file-document">
-            <header>
-              <FileText size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-              <span title={selectedFile.path}>{selectedFile.path}</span>
-            </header>
-            <pre>{selectedFile.content}</pre>
-            {selectedFile.truncated ? (
-              <p>文件较大，已截断预览。</p>
-            ) : null}
-          </article>
-        ) : (
+        {state.open && activePanelRenderer ? activePanelRenderer(panelContext) : (
           <div className="right-dock-empty-state">
-            <Folder size={58} strokeWidth={1.8} />
-            <strong>打开文件</strong>
-            <span>
-              {workspace
-                ? '从工作区目录树中选择文件'
-                : '先打开一个工作区以浏览文件'}
-            </span>
+            <strong>右侧工具栏</strong>
+            <span>使用 + 选择要打开的工具</span>
           </div>
         )}
       </div>
-      <div className="right-dock-file-tree">
-        <label className="right-dock-search">
-          <Search size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-          <input
-            aria-label="筛选文件"
-            placeholder="筛选文件..."
-            value={query}
-            onChange={event => setQuery(event.target.value)}
-          />
-        </label>
-        <div className="right-dock-tree-list" role="tree">
-          {visibleFiles.length > 0 ? (
-            visibleFiles.map(file => (
-              <button
-                className={
-                  selectedFile?.path === file.path
-                    ? 'right-dock-tree-row active'
-                    : 'right-dock-tree-row'
-                }
-                key={file.path}
-                style={{ paddingLeft: `${12 + file.depth * 18}px` }}
-                title={file.path}
-                type="button"
-                onClick={() => {
-                  if (file.type === 'directory') {
-                    toggleDirectory(file.path)
-                    return
-                  }
-                  onPreviewFile(file)
-                }}
-              >
-                {file.type === 'directory' ? (
-                  collapsedDirs.has(file.path) ? (
-                    <Folder size={APP_ICON_SIZE} />
-                  ) : (
-                    <FolderOpen size={APP_ICON_SIZE} />
-                  )
-                ) : (
-                  <FileText size={APP_ICON_SIZE} />
-                )}
-                <span>{file.name}</span>
-              </button>
-            ))
-          ) : (
-            <div className="right-dock-tree-empty">
-              {workspace ? '没有匹配的文件。' : '未打开工作区。'}
-            </div>
-          )}
-        </div>
-      </div>
-    </section>
+    </aside>
   )
-}
-
-function RightDockSideChatPanel(): React.ReactNode {
-  return (
-    <section className="right-dock-side-chat" aria-label="侧边聊天">
-      <div className="right-dock-side-chat-empty" />
-      <div className="right-dock-side-chat-composer">
-        <textarea
-          aria-label="侧边聊天输入"
-          disabled
-          placeholder="侧边聊天将在后续版本接入"
-          rows={3}
-        />
-        <div className="right-dock-side-chat-actions">
-          <button disabled type="button">+</button>
-          <button disabled type="button">发送</button>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-function filterVisibleFiles(
-  files: DesktopFileEntry[],
-  query: string,
-  collapsedDirs: Set<string>,
-): DesktopFileEntry[] {
-  const trimmedQuery = query.trim().toLowerCase()
-  const hiddenPrefixes: string[] = []
-  return files.filter(file => {
-    while (
-      hiddenPrefixes.length > 0 &&
-      !isDescendantOf(file.path, hiddenPrefixes[hiddenPrefixes.length - 1] ?? '')
-    ) {
-      hiddenPrefixes.pop()
-    }
-    if (hiddenPrefixes.some(prefix => isDescendantOf(file.path, prefix))) {
-      return false
-    }
-    if (file.type === 'directory' && collapsedDirs.has(file.path)) {
-      hiddenPrefixes.push(file.path)
-    }
-    if (!trimmedQuery) return true
-    return file.path.toLowerCase().includes(trimmedQuery)
-  })
-}
-
-function isDescendantOf(path: string, directoryPath: string): boolean {
-  return path.startsWith(`${directoryPath}/`) || path.startsWith(`${directoryPath}\\`)
 }
