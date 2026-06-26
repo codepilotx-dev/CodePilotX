@@ -819,10 +819,10 @@ export function saveSelectedProvider(params: {
   modelID?: string;
   baseURL?: string;
 }): { error: Error | null } {
-  const provider = getCachedProviderConfig(params.providerID);
   return updateSettingsForSource("userSettings", {
     provider: normalizeLegacyProviderID(params.providerID),
-    providerBaseURL: undefined,
+    providerBaseURL:
+      params.baseURL !== undefined ? params.baseURL : undefined,
     ...(params.modelID !== undefined ? { model: params.modelID } : {}),
   });
 }

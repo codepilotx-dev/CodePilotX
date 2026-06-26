@@ -1,10 +1,10 @@
 import { createHash } from 'crypto'
-import { getSettings_DEPRECATED } from '@codepilotx/core/config/settings.js'
 import {
   createModelProviderState,
   createModelProviderSummary,
   isModelProviderID,
 } from '@codepilotx/core/models/provider.js'
+import { getSettings_DEPRECATED } from '@codepilotx/tui/utils/settings/settings.js'
 import {
   deleteProviderApiKey as deleteTuiProviderApiKey,
   fetchProviderBalance as fetchTuiProviderBalance,
@@ -18,7 +18,7 @@ import {
   listProviderConfigs,
   saveProviderApiKey as saveTuiProviderApiKey,
   saveSelectedProvider,
-} from '@codepilotx/core/models/providerConfig.js'
+} from '@codepilotx/tui/utils/model/providerConfig.js'
 import { desktopDebug } from './desktopDebug.js'
 import {
   readDesktopStoredSettings,
