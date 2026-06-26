@@ -186,7 +186,9 @@
 .window-control-button {
   width: 46px;
   height: 35px;
-  line-height: 35px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: var(--c-icon-soft);
   -webkit-app-region: no-drag;
 }
