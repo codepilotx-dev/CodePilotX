@@ -7,7 +7,9 @@ import {
   LEGACY_CLAUDE_CONFIG_DIR_ENV,
 } from '../config/env.js'
 import {
+  formatProviderModel,
   getProviderApiKeyEnvVar,
+  isModelProviderID,
   normalizeLegacyProviderID,
   splitProviderModel,
   type ModelMetadata,
@@ -17,6 +19,24 @@ import {
   type ProviderBalanceInfo,
   type ProviderTokenPlanUsageInfo,
 } from './provider.js'
+
+export type {
+  ModelMetadata as ProviderModelMetadata,
+  ModelProviderConfig as ProviderConfig,
+  ModelProviderID,
+  ModelProviderKind,
+  ProviderBalanceInfo,
+  ProviderTokenPlanUsageInfo,
+} from './provider.js'
+
+export { formatProviderModel, isModelProviderID, splitProviderModel }
+
+export type AiSdkProviderRoute =
+  | 'anthropic-compatible'
+  | 'openai-compatible'
+  | 'openai'
+  | 'github-copilot'
+  | 'unsupported'
 
 export type ProviderApiKeySaveResult = {
   success: boolean
@@ -55,6 +75,40 @@ type ProviderSettings = {
 type SecureStorageData = {
   providerApiKeys?: Record<string, string>
   [key: string]: unknown
+}
+
+export type ProviderSettingsStore = {
+  read(): ProviderSettings
+  update(patch: ProviderSettings): { error: Error | null }
+}
+
+export type ProviderCredentialStore = {
+  readProviderApiKeys(): Record<string, string> | undefined
+  writeProviderApiKeys(keys: Record<string, string>): ProviderApiKeySaveResult
+}
+
+export type ProviderConfigRuntime = {
+  fetch?: typeof fetch
+  settingsStore?: ProviderSettingsStore
+  credentialStore?: ProviderCredentialStore
+  env?: Record<string, string | undefined>
+}
+
+export type ProviderCatalogDiagnostics = {
+  modelsDev: {
+    status: 'idle' | 'fulfilled' | 'rejected'
+    providerCount?: number
+    usableProviderCount?: number
+    filteredMissingApiCount?: number
+    error?: string
+  }
+  gateway: {
+    status: 'idle' | 'fulfilled' | 'rejected'
+    modelCount?: number
+    error?: string
+  }
+  providerCount: number
+  providerIds: string[]
 }
 
 type ModelsDevProvider = {
@@ -97,8 +151,10 @@ type GatewayModel = {
   id?: unknown
   type?: unknown
   name?: unknown
+  owned_by?: unknown
   description?: unknown
   icon?: unknown
+  tags?: unknown
   input_modalities?: unknown
   output_modalities?: unknown
 }
@@ -107,11 +163,76 @@ const MODELS_DEV_CATALOG_URL = 'https://models.dev/catalog.json'
 const MODELS_DEV_LOGO_BASE_URL = 'https://models.dev/logos'
 const AI_GATEWAY_MODELS_URL = 'https://ai-gateway.vercel.sh/v1/models'
 const AI_GATEWAY_PROVIDER_ID = 'ai-gateway'
+export const GITHUB_COPILOT_PROVIDER_ID = 'github-copilot'
 
 const providerModelCache = new Map<string, string[]>()
 let providerCatalogCache: Record<string, ModelProviderConfig> | null = null
 let providerCatalogPromise: Promise<Record<string, ModelProviderConfig>> | null =
   null
+let runtime: ProviderConfigRuntime = {}
+let providerCatalogDiagnostics: ProviderCatalogDiagnostics = {
+  modelsDev: { status: 'idle' },
+  gateway: { status: 'idle' },
+  providerCount: 0,
+  providerIds: [],
+}
+
+export function configureProviderConfigRuntime(
+  nextRuntime: ProviderConfigRuntime,
+): void {
+  runtime = { ...nextRuntime }
+  clearProviderConfigCatalogCacheForTests()
+}
+
+export function withProviderConfigRuntime<T>(
+  nextRuntime: ProviderConfigRuntime,
+  run: () => T,
+): T {
+  const previousRuntime = runtime
+  runtime = { ...nextRuntime }
+  try {
+    const result = run()
+    if (isPromiseLike(result)) {
+      return result.finally(() => {
+        runtime = previousRuntime
+      }) as T
+    }
+    runtime = previousRuntime
+    return result
+  } catch (error) {
+    runtime = previousRuntime
+    throw error
+  }
+}
+
+function isPromiseLike<T>(value: T): value is T & PromiseLike<unknown> & {
+  finally(onFinally: () => void): unknown
+} {
+  return (
+    Boolean(value) &&
+    typeof value === 'object' &&
+    typeof (value as { finally?: unknown }).finally === 'function'
+  )
+}
+
+export const DEEPSEEK_MODEL_METADATA: Record<string, ModelMetadata> = {
+  'deepseek-v4-pro': {
+    id: 'deepseek-v4-pro',
+    label: 'V4 Pro',
+    description: 'Complex agent and high-quality coding tasks',
+    badge: 'Quality',
+    catalogSources: ['models.dev'],
+    modelsDevProviderId: 'deepseek',
+  },
+  'deepseek-v4-flash': {
+    id: 'deepseek-v4-flash',
+    label: 'V4 Flash',
+    description: 'Fast responses, light tasks, and economical usage',
+    badge: 'Fast',
+    catalogSources: ['models.dev'],
+    modelsDevProviderId: 'deepseek',
+  },
+}
 
 export const ZHIPU_MODEL_METADATA: Record<string, ModelMetadata> = {
   'glm-5.2': {
@@ -120,6 +241,54 @@ export const ZHIPU_MODEL_METADATA: Record<string, ModelMetadata> = {
     description: 'Flagship coding and long-context agent model',
     badge: 'Flagship',
     contextWindow: 1_000_000,
+    outputTokens: 131_072,
+    reasoning: true,
+    toolCall: true,
+    structuredOutput: true,
+    vision: false,
+    modalities: { input: ['text'], output: ['text'] },
+  },
+  'glm-5.1': {
+    id: 'glm-5.1',
+    label: 'GLM-5.1',
+    description: 'High-intelligence base model for long-running agent work',
+    contextWindow: 200_000,
+    outputTokens: 131_072,
+    reasoning: true,
+    toolCall: true,
+    structuredOutput: true,
+    vision: false,
+    modalities: { input: ['text'], output: ['text'] },
+  },
+  'glm-5': {
+    id: 'glm-5',
+    label: 'GLM-5',
+    description: 'Agentic planning and coding model',
+    contextWindow: 200_000,
+    outputTokens: 131_072,
+    reasoning: true,
+    toolCall: true,
+    structuredOutput: true,
+    vision: false,
+    modalities: { input: ['text'], output: ['text'] },
+  },
+  'glm-5-turbo': {
+    id: 'glm-5-turbo',
+    label: 'GLM-5-Turbo',
+    description: 'Fast model for complex long tasks',
+    contextWindow: 200_000,
+    outputTokens: 131_072,
+    reasoning: true,
+    toolCall: true,
+    structuredOutput: true,
+    vision: false,
+    modalities: { input: ['text'], output: ['text'] },
+  },
+  'glm-4.7': {
+    id: 'glm-4.7',
+    label: 'GLM-4.7',
+    description: 'General conversation, reasoning, coding, and agent model',
+    contextWindow: 200_000,
     outputTokens: 131_072,
     reasoning: true,
     toolCall: true,
@@ -139,6 +308,94 @@ export const ZHIPU_MODEL_METADATA: Record<string, ModelMetadata> = {
     structuredOutput: true,
     vision: false,
     modalities: { input: ['text'], output: ['text'] },
+  },
+  'glm-4.6': {
+    id: 'glm-4.6',
+    label: 'GLM-4.6',
+    description: 'Advanced coding, complex reasoning, and tool-use model',
+    contextWindow: 200_000,
+    outputTokens: 131_072,
+    reasoning: true,
+    toolCall: true,
+    structuredOutput: true,
+    vision: false,
+    modalities: { input: ['text'], output: ['text'] },
+  },
+  'glm-4.5-air': {
+    id: 'glm-4.5-air',
+    label: 'GLM-4.5-Air',
+    description: 'Cost-effective lightweight reasoning and coding model',
+    contextWindow: 128_000,
+    outputTokens: 98_304,
+    reasoning: true,
+    toolCall: true,
+    structuredOutput: true,
+    vision: false,
+    modalities: { input: ['text'], output: ['text'] },
+  },
+  'glm-4-flash-250414': {
+    id: 'glm-4-flash-250414',
+    label: 'GLM-4-Flash-250414',
+    description: 'Free long-context model for multilingual and tool-use tasks',
+    badge: 'Free',
+    contextWindow: 128_000,
+    outputTokens: 32_768,
+    reasoning: false,
+    toolCall: true,
+    structuredOutput: true,
+    vision: false,
+    modalities: { input: ['text'], output: ['text'] },
+  },
+  'glm-5v-turbo': {
+    id: 'glm-5v-turbo',
+    label: 'GLM-5V-Turbo',
+    description: 'Multimodal coding model with vision support',
+    contextWindow: 200_000,
+    outputTokens: 131_072,
+    reasoning: true,
+    toolCall: true,
+    structuredOutput: true,
+    vision: true,
+    modalities: { input: ['text', 'image'], output: ['text'] },
+  },
+  'glm-4.6v-flash': {
+    id: 'glm-4.6v-flash',
+    label: 'GLM-4.6V-Flash',
+    description: 'Free visual reasoning model with tool use and long context',
+    badge: 'Free',
+    contextWindow: 128_000,
+    outputTokens: 32_768,
+    reasoning: true,
+    toolCall: true,
+    structuredOutput: true,
+    vision: true,
+    modalities: { input: ['text', 'image', 'video', 'file'], output: ['text'] },
+  },
+  'glm-4.1v-thinking-flash': {
+    id: 'glm-4.1v-thinking-flash',
+    label: 'GLM-4.1V-Thinking-Flash',
+    description: 'Free visual reasoning model for multimodal understanding',
+    badge: 'Free',
+    contextWindow: 64_000,
+    outputTokens: 32_768,
+    reasoning: true,
+    toolCall: false,
+    structuredOutput: false,
+    vision: true,
+    modalities: { input: ['text', 'image', 'video', 'file'], output: ['text'] },
+  },
+  'glm-4v-flash': {
+    id: 'glm-4v-flash',
+    label: 'GLM-4V-Flash',
+    description: 'Free lightweight image understanding model',
+    badge: 'Free',
+    contextWindow: 16_000,
+    outputTokens: 1_024,
+    reasoning: false,
+    toolCall: false,
+    structuredOutput: false,
+    vision: true,
+    modalities: { input: ['text', 'image'], output: ['text'] },
   },
 }
 
@@ -244,7 +501,7 @@ export async function fetchProviderModels(options: {
   }
 
   try {
-    const response = await fetch(joinURL(baseURL, '/models'), {
+    const response = await providerFetch(joinURL(baseURL, '/models'), {
       method: 'GET',
       headers: { Authorization: `Bearer ${apiKey}` },
     })
@@ -314,7 +571,7 @@ export async function fetchProviderBalance(options: {
   }
 
   try {
-    const response = await fetch(joinURL(baseURL, '/user/balance'), {
+    const response = await providerFetch(joinURL(baseURL, '/user/balance'), {
       method: 'GET',
       headers: { Authorization: `Bearer ${apiKey}` },
     })
@@ -375,7 +632,7 @@ export function getProviderApiKey(providerID: ModelProviderID): string | null {
   return (
     resolveProviderApiKeyEntryFromSources(provider, {
       storedKeys: readSecureStorage()?.providerApiKeys,
-      env: process.env,
+      env: providerEnv(),
     })?.value ?? null
   )
 }
@@ -387,7 +644,7 @@ export function getProviderApiKeySource(
   return (
     resolveProviderApiKeyEntryFromSources(provider, {
       storedKeys: readSecureStorage()?.providerApiKeys,
-      env: process.env,
+      env: providerEnv(),
     })?.source ?? null
   )
 }
@@ -398,13 +655,14 @@ export function saveProviderApiKey(
 ): ProviderApiKeySaveResult {
   try {
     const current = readSecureStorage() ?? {}
-    writeSecureStorage({
+    const result = writeSecureStorage({
       ...current,
       providerApiKeys: {
         ...(current.providerApiKeys ?? {}),
         [providerID]: apiKey,
       },
     })
+    if (result) return result
     return {
       success: true,
       warning: 'Warning: Storing credentials in plaintext.',
@@ -426,8 +684,7 @@ export function deleteProviderApiKey(
     for (const envKey of getProviderEnvVars(provider)) {
       delete providerApiKeys[envKey]
     }
-    writeSecureStorage({ ...current, providerApiKeys })
-    return { success: true }
+    return writeSecureStorage({ ...current, providerApiKeys }) ?? { success: true }
   } catch {
     return { success: false }
   }
@@ -437,9 +694,113 @@ export function clearProviderConfigCatalogCacheForTests(): void {
   providerCatalogCache = null
   providerCatalogPromise = null
   providerModelCache.clear()
+  providerCatalogDiagnostics = {
+    modelsDev: { status: 'idle' },
+    gateway: { status: 'idle' },
+    providerCount: 0,
+    providerIds: [],
+  }
 }
 
-async function getProviderConfigCatalog(): Promise<
+export function resetProviderCatalogForTest(): void {
+  clearProviderConfigCatalogCacheForTests()
+}
+
+export function getProviderCatalogDiagnostics(): ProviderCatalogDiagnostics {
+  return {
+    modelsDev: { ...providerCatalogDiagnostics.modelsDev },
+    gateway: { ...providerCatalogDiagnostics.gateway },
+    providerCount: providerCatalogDiagnostics.providerCount,
+    providerIds: [...providerCatalogDiagnostics.providerIds],
+  }
+}
+
+export function getProviderDisplayName(
+  providerID = getSelectedProviderID(),
+): string {
+  return getCachedProviderConfig(providerID).displayName ?? providerID
+}
+
+export function getProviderModelMetadata(
+  providerID: ModelProviderID,
+  modelID: string,
+): ModelMetadata | undefined {
+  return getCachedProviderConfig(providerID).modelMetadata?.[modelID]
+}
+
+export function getSelectedProviderModelMetadata(
+  modelID: string,
+): ModelMetadata | undefined {
+  return getProviderModelMetadata(getSelectedProviderID(), modelID)
+}
+
+export function shouldUseOpenAICompatibleProvider(): boolean {
+  const route = resolveAiSdkProviderRoute(getSelectedProviderConfig())
+  return (
+    route === 'openai-compatible' ||
+    route === 'openai' ||
+    route === 'unsupported'
+  )
+}
+
+export function shouldUseAnthropicCompatibleProvider(): boolean {
+  return (
+    resolveAiSdkProviderRoute(getSelectedProviderConfig()) ===
+    'anthropic-compatible'
+  )
+}
+
+export function shouldUseMiniMaxProvider(): boolean {
+  return shouldUseAnthropicCompatibleProvider()
+}
+
+export function shouldUseGitHubCopilotProvider(): boolean {
+  return resolveAiSdkProviderRoute(getSelectedProviderConfig()) === 'github-copilot'
+}
+
+export function resolveAiSdkProviderRoute(
+  provider: Pick<ModelProviderConfig, 'kind' | 'npmPackage' | 'providerID'>,
+): AiSdkProviderRoute {
+  switch (provider.npmPackage) {
+    case '@ai-sdk/anthropic':
+      return 'anthropic-compatible'
+    case '@ai-sdk/openai-compatible':
+      return 'openai-compatible'
+    case '@ai-sdk/openai':
+      return 'openai'
+    default:
+      break
+  }
+  if (provider.kind === 'anthropic' || provider.kind === 'anthropic-compatible') {
+    return 'anthropic-compatible'
+  }
+  if (provider.kind === 'openai-compatible') return 'openai-compatible'
+  if (provider.kind === 'github-copilot') return 'github-copilot'
+  if (provider.kind === 'minimax') return 'anthropic-compatible'
+  return 'unsupported'
+}
+
+export function resolveProviderApiKeyFromSources(
+  provider: Pick<ModelProviderConfig, 'providerID' | 'apiKeyEnvVar' | 'envVars'>,
+  sources: {
+    storedKeys?: Record<string, string>
+    env?: Record<string, string | undefined>
+  },
+): string | undefined {
+  return resolveProviderApiKeyEntryFromSources(provider, sources)?.value
+}
+
+export function resolveProviderApiKeySourceFromSources(
+  provider: Pick<ModelProviderConfig, 'providerID' | 'apiKeyEnvVar' | 'envVars'>,
+  sources: {
+    storedKeys?: Record<string, string>
+    env?: Record<string, string | undefined>
+  },
+): string | undefined {
+  return resolveProviderApiKeyEntryFromSources(provider, sources)?.source
+}
+
+export async function getProviderConfigCatalog(): Promise<
   Record<string, ModelProviderConfig>
 > {
   if (providerCatalogCache) return providerCatalogCache
@@ -474,16 +835,38 @@ async function fetchProviderConfigCatalog(): Promise<
   ])
 
   if (modelsDevResult.status === 'fulfilled') {
-    mergeModelsDevCatalog(catalog, modelsDevResult.value)
+    const stats = mergeModelsDevCatalog(catalog, modelsDevResult.value)
+    providerCatalogDiagnostics.modelsDev = {
+      status: 'fulfilled',
+      providerCount: stats.providerCount,
+      usableProviderCount: stats.usableProviderCount,
+      filteredMissingApiCount: stats.filteredMissingApiCount,
+    }
+  } else {
+    providerCatalogDiagnostics.modelsDev = {
+      status: 'rejected',
+      error: errorMessageOf(modelsDevResult.reason),
+    }
   }
   if (gatewayResult.status === 'fulfilled') {
     mergeGatewayCatalog(catalog, gatewayResult.value)
+    providerCatalogDiagnostics.gateway = {
+      status: 'fulfilled',
+      modelCount: gatewayResult.value.length,
+    }
+  } else {
+    providerCatalogDiagnostics.gateway = {
+      status: 'rejected',
+      error: errorMessageOf(gatewayResult.reason),
+    }
   }
+  providerCatalogDiagnostics.providerCount = Object.keys(catalog).length
+  providerCatalogDiagnostics.providerIds = Object.keys(catalog).slice(0, 20)
   return catalog
 }
 
 async function fetchModelsDevCatalog(): Promise<ModelsDevCatalog> {
-  const response = await fetch(MODELS_DEV_CATALOG_URL)
+  const response = await providerFetch(MODELS_DEV_CATALOG_URL)
   if (!response.ok) throw new Error(`${response.status} ${response.statusText}`)
   const parsed = (await response.json()) as ModelsDevCatalog &
     Record<string, ModelsDevProvider>
@@ -492,7 +875,7 @@ async function fetchModelsDevCatalog(): Promise<ModelsDevCatalog> {
 }
 
 async function fetchGatewayModels(): Promise<GatewayModel[]> {
-  const response = await fetch(AI_GATEWAY_MODELS_URL)
+  const response = await providerFetch(AI_GATEWAY_MODELS_URL)
   if (!response.ok) throw new Error(`${response.status} ${response.statusText}`)
   const parsed = (await response.json()) as { data?: GatewayModel[] }
   return Array.isArray(parsed.data) ? parsed.data : []
@@ -501,13 +884,23 @@ async function fetchGatewayModels(): Promise<GatewayModel[]> {
 function mergeModelsDevCatalog(
   catalog: Record<string, ModelProviderConfig>,
   modelsDevCatalog: ModelsDevCatalog,
-): void {
+): {
+  providerCount: number
+  usableProviderCount: number
+  filteredMissingApiCount: number
+} {
   const modelsDevProviders = modelsDevCatalog.providers ?? {}
   const modelsDevModels = modelsDevCatalog.models ?? {}
+  let usableProviderCount = 0
+  let filteredMissingApiCount = 0
   for (const [providerID, provider] of Object.entries(modelsDevProviders)) {
     if (providerID === 'anthropic') continue
     if (!provider || typeof provider !== 'object') continue
-    if (!hasModelsDevAPI(provider)) continue
+    if (!hasModelsDevAPI(provider)) {
+      filteredMissingApiCount += 1
+      continue
+    }
+    usableProviderCount += 1
     const fromModelsDev = providerFromModelsDev(
       providerID,
       provider,
@@ -536,6 +929,11 @@ function mergeModelsDevCatalog(
           modelsDevSource: true,
         }
       : fromModelsDev
+  }
+  return {
+    providerCount: Object.keys(modelsDevProviders).length,
+    usableProviderCount,
+    filteredMissingApiCount,
   }
 }
 
@@ -626,6 +1024,10 @@ function mergeGatewayCatalog(
     if (!split) continue
     const provider = catalog[split.providerID]
     if (!provider) continue
+    const owner =
+      typeof model.owned_by === 'string' && model.owned_by.trim()
+        ? model.owned_by.trim().toLowerCase()
+        : split.providerID
     catalog[split.providerID] = {
       ...provider,
       modelMetadata: mergeModelMetadata(provider.modelMetadata, {
@@ -634,13 +1036,18 @@ function mergeGatewayCatalog(
           name: typeof model.name === 'string' ? model.name : undefined,
           description:
             typeof model.description === 'string' ? model.description : undefined,
-          iconURL: typeof model.icon === 'string' ? model.icon : undefined,
+          iconURL:
+            typeof model.icon === 'string'
+              ? model.icon
+              : `${MODELS_DEV_LOGO_BASE_URL}/${owner}.svg`,
           modalities: {
             input: normalizeStringArray(model.input_modalities),
             output: normalizeStringArray(model.output_modalities),
           },
+          tags: normalizeStringArray(model.tags),
           catalogSources: ['gateway'],
           gatewayModelId: model.id,
+          modelsDevProviderId: owner,
         },
       }),
     }
@@ -665,6 +1072,7 @@ function mergeModelMetadata(
               ...(metadata.catalogSources ?? []),
             ]),
           ),
+          tags: Array.from(new Set([...(current.tags ?? []), ...(metadata.tags ?? [])])),
         }
       : metadata
   }
@@ -672,18 +1080,35 @@ function mergeModelMetadata(
 }
 
 function hasModelsDevAPI(provider: ModelsDevProvider): boolean {
-  return typeof provider.api === 'string' && provider.api.trim().length > 0
+  if (typeof provider.api === 'string' && provider.api.trim().length > 0) {
+    return true
+  }
+  return normalizeStringArray(provider.env).length > 0
 }
 
 function inferProviderKind(
   providerID: string,
   provider: ModelsDevProvider,
 ): ModelProviderKind {
-  if (providerID === 'github-copilot') return 'github-copilot'
-  if (providerID === 'minimax') return 'minimax'
   if (provider.npm === '@ai-sdk/anthropic') return 'anthropic-compatible'
+  if (provider.npm === '@ai-sdk/openai-compatible') return 'openai-compatible'
   if (provider.npm === '@ai-sdk/openai') return 'openai-compatible'
+  if (providerID === 'github-copilot') return 'github-copilot'
+  if (isMiniMaxProviderID(providerID)) return 'anthropic-compatible'
+  if (isGitHubCopilotProviderID(providerID)) return 'github-copilot'
   return 'openai-compatible'
+}
+
+function isMiniMaxProviderID(providerID: string): boolean {
+  return providerID === 'minimax' || providerID.startsWith('minimax-')
+}
+
+function isGitHubCopilotProviderID(providerID: string): boolean {
+  return (
+    providerID === GITHUB_COPILOT_PROVIDER_ID ||
+    providerID === 'copilot' ||
+    providerID.startsWith('github-')
+  )
 }
 
 function buildFallbackProviderConfig(providerID: string): ModelProviderConfig {
@@ -705,7 +1130,9 @@ function buildFallbackProviderConfig(providerID: string): ModelProviderConfig {
   }
 }
 
-function getProviderEnvVars(provider: ModelProviderConfig): string[] {
+function getProviderEnvVars(
+  provider: Pick<ModelProviderConfig, 'providerID' | 'apiKeyEnvVar' | 'envVars'>,
+): string[] {
   const values = provider.envVars?.length
     ? provider.envVars
     : [provider.apiKeyEnvVar ?? getProviderApiKeyEnvVar(provider.providerID)]
@@ -715,7 +1142,7 @@ function getProviderEnvVars(provider: ModelProviderConfig): string[] {
 }
 
 function resolveProviderApiKeyEntryFromSources(
-  provider: ModelProviderConfig,
+  provider: Pick<ModelProviderConfig, 'providerID' | 'apiKeyEnvVar' | 'envVars'>,
   sources: {
     storedKeys?: Record<string, string>
     env?: Record<string, string | undefined>
@@ -738,10 +1165,18 @@ function resolveProviderApiKeyEntryFromSources(
 }
 
 function readProviderSettings(): ProviderSettings {
+  if (runtime.settingsStore) {
+    return runtime.settingsStore.read()
+  }
   return readJsonFile<ProviderSettings>(getSettingsPath()) ?? {}
 }
 
 function writeProviderSettings(settings: ProviderSettings): void {
+  if (runtime.settingsStore) {
+    const result = runtime.settingsStore.update(settings)
+    if (result.error) throw result.error
+    return
+  }
   const cleanSettings: ProviderSettings = {}
   for (const [key, value] of Object.entries(settings)) {
     if (value !== undefined) cleanSettings[key] = value
@@ -750,11 +1185,32 @@ function writeProviderSettings(settings: ProviderSettings): void {
 }
 
 function readSecureStorage(): SecureStorageData | null {
+  if (runtime.credentialStore) {
+    return { providerApiKeys: runtime.credentialStore.readProviderApiKeys() }
+  }
   return readJsonFile<SecureStorageData>(getCredentialsPath())
 }
 
-function writeSecureStorage(data: SecureStorageData): void {
+function writeSecureStorage(data: SecureStorageData): ProviderApiKeySaveResult | void {
+  if (runtime.credentialStore) {
+    const result = runtime.credentialStore.writeProviderApiKeys(
+      data.providerApiKeys ?? {},
+    )
+    if (!result.success) throw new Error(result.warning ?? 'Failed to write provider API keys.')
+    return result
+  }
   writeJsonFile(getCredentialsPath(), data, 0o600)
+}
+
+function providerFetch(
+  input: Parameters<typeof fetch>[0],
+  init?: Parameters<typeof fetch>[1],
+): ReturnType<typeof fetch> {
+  return (runtime.fetch ?? globalThis.fetch)(input, init)
+}
+
+function providerEnv(): Record<string, string | undefined> {
+  return runtime.env ?? process.env
 }
 
 function readJsonFile<T>(path: string): T | null {
@@ -799,27 +1255,155 @@ function joinURL(baseURL: string, path: string): string {
 }
 
 async function formatProviderHTTPError(
-  providerID: string,
+  providerID: ModelProviderID,
   response: Response,
 ): Promise<string> {
-  let body = ''
-  try {
-    body = await response.text()
-  } catch {
-    body = ''
-  }
-  const detail = body ? `: ${body.slice(0, 500)}` : ''
-  return `${providerID} request failed with ${response.status} ${response.statusText}${detail}`
+  const rawText = await response.text()
+  const apiError = extractProviderError(rawText)
+  const prefix =
+    providerID === 'deepseek'
+      ? formatDeepSeekHTTPStatus(response.status)
+      : isZhipuProviderID(providerID)
+        ? formatZhipuHTTPStatus(response.status, apiError.code)
+        : `${response.status} ${response.statusText}`
+  const message = apiError.message
+  if (!message) return prefix
+  return `${prefix}: ${apiError.code ? `${apiError.code} ` : ''}${message}`
 }
 
 function errorMessageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
+  const message = baseErrorMessageOf(error)
+  const cause = errorCauseOf(error)
+  if (!cause) return message
+  return `${message}; cause: ${errorMessageOf(cause)}`
+}
+
+function extractProviderError(rawText: string): {
+  code?: string
+  message: string | null
+} {
+  if (!rawText.trim()) return { message: null }
+  try {
+    const parsed = JSON.parse(rawText) as {
+      error?: { code?: unknown; message?: unknown }
+      code?: unknown
+      message?: unknown
+    }
+    const message = parsed.error?.message ?? parsed.message
+    const code = parsed.error?.code ?? parsed.code
+    return {
+      ...(typeof code === 'string' && code.trim() ? { code: code.trim() } : {}),
+      message:
+        typeof message === 'string' && message.trim() ? message.trim() : null,
+    }
+  } catch {
+    return { message: rawText.trim() }
+  }
+}
+
+function baseErrorMessageOf(error: unknown): string {
+  const metadata = errorMetadataOf(error)
+  if (error instanceof Error) {
+    const message = error.message || error.name
+    return metadata.length ? `${message} (${metadata.join(' ')})` : message
+  }
+  if (typeof error === 'string') return error
+  try {
+    const message = JSON.stringify(error)
+    return metadata.length ? `${message} (${metadata.join(' ')})` : message
+  } catch {
+    const message = String(error)
+    return metadata.length ? `${message} (${metadata.join(' ')})` : message
+  }
+}
+
+function errorCauseOf(error: unknown): unknown {
+  if (!error || typeof error !== 'object' || !('cause' in error)) {
+    return undefined
+  }
+  return (error as { cause?: unknown }).cause
+}
+
+function errorMetadataOf(error: unknown): string[] {
+  if (!error || typeof error !== 'object') return []
+  const candidate = error as Record<string, unknown>
+  const metadata: string[] = []
+  for (const key of ['code', 'syscall', 'address', 'port', 'errno']) {
+    const value = candidate[key]
+    if (typeof value === 'string' || typeof value === 'number') {
+      metadata.push(`${key}=${value}`)
+    }
+  }
+  return metadata
+}
+
+function formatDeepSeekHTTPStatus(status: number): string {
+  switch (status) {
+    case 400:
+      return '400 request format error'
+    case 401:
+      return '401 invalid or unauthorized API key'
+    case 402:
+      return '402 insufficient DeepSeek balance'
+    case 422:
+      return '422 request parameter error'
+    case 429:
+      return '429 rate limit exceeded'
+    case 500:
+      return '500 DeepSeek service error'
+    case 503:
+      return '503 DeepSeek service busy'
+    default:
+      return `${status} DeepSeek request failed`
+  }
+}
+
+function formatZhipuHTTPStatus(status: number, businessCode?: string): string {
+  switch (businessCode) {
+    case '1000':
+    case '1002':
+      return `${status} authentication failed`
+    case '1211':
+      return `${status} model not found`
+    case '1261':
+      return `${status} prompt too long`
+    case '1302':
+    case '1303':
+      return `${status} rate limit exceeded`
+    case '1311':
+      return `${status} model access unavailable`
+    case '1312':
+      return `${status} model overloaded`
+    case '1313':
+      return `${status} fair-use rate limited`
+  }
+  switch (status) {
+    case 400:
+      return '400 request parameter error'
+    case 401:
+      return '401 authentication failed'
+    case 429:
+      return '429 rate limit or account quota exceeded'
+    case 500:
+      return '500 Zhipu service error'
+    default:
+      return `${status} Zhipu request failed`
+  }
+}
+
+function isZhipuProviderID(providerID: string): boolean {
+  return providerID === 'zhipu' || providerID === 'zhipuai'
 }
 
 function normalizeStringArray(value: unknown): string[] {
-  return Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === 'string')
-    : []
+  if (Array.isArray(value)) {
+    return value.filter(
+      (item): item is string =>
+        typeof item === 'string' && item.trim().length > 0,
+    )
+  }
+  if (typeof value === 'string' && value.trim()) return [value.trim()]
+  return []
 }
 
 function numberOrUndefined(value: unknown): number | undefined {
