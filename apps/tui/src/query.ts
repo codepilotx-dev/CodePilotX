@@ -146,6 +146,58 @@ function* yieldMissingToolResultBlocks(
   }
 }
 
+export function ensureToolUseResultsForNextTurn<
+  T extends UserMessage | AttachmentMessage,
+>(
+  toolUseBlocks: ToolUseBlock[],
+  toolResults: T[],
+  assistantMessages: AssistantMessage[] = [],
+): T[] {
+  if (toolUseBlocks.length === 0) return toolResults
+
+  const existingResultIds = new Set<string>()
+  for (const result of toolResults) {
+    if (result.type !== 'user' || !Array.isArray(result.message.content)) {
+      continue
+    }
+    for (const block of result.message.content) {
+      if (block.type === 'tool_result') {
+        existingResultIds.add(block.tool_use_id)
+      }
+    }
+  }
+  const sourceAssistantByToolUseId = new Map(
+    assistantMessages.flatMap(message =>
+      message.message.content.flatMap(block =>
+        block.type === 'tool_use' ? [[block.id, message.uuid] as const] : [],
+      ),
+    ),
+  )
+
+  const missingResults = toolUseBlocks
+    .filter(block => !existingResultIds.has(block.id))
+    .map(block =>
+      createUserMessage({
+        content: [
+          {
+            type: 'tool_result',
+            tool_use_id: block.id,
+            content:
+              `Tool ${block.name} did not return a result before the next turn. ` +
+              'A synthetic error result was inserted to keep tool_use/tool_result pairing valid.',
+            is_error: true,
+          } satisfies ToolResultBlockParam,
+        ],
+        toolUseResult: `Error: missing tool result for ${block.name}`,
+        sourceToolAssistantUUID: sourceAssistantByToolUseId.get(block.id),
+      }),
+    ) as T[]
+
+  return missingResults.length === 0
+    ? toolResults
+    : [...toolResults, ...missingResults]
+}
+
 /**
  * The rules of thinking are lengthy and fortuitous. They require plenty of thinking
  * of most long duration and deep meditation for a wizard to wrap one's noggin around.
@@ -1338,6 +1390,20 @@ async function* queryLoop(
       }
     }
     queryCheckpoint('query_tool_execution_end')
+
+    const toolResultCountBeforePairing = toolResults.length
+    const pairedToolResults = ensureToolUseResultsForNextTurn(
+      toolUseBlocks,
+      toolResults,
+      assistantMessages,
+    )
+    for (const syntheticResult of pairedToolResults.slice(
+      toolResultCountBeforePairing,
+    )) {
+      yield syntheticResult
+    }
+    toolResults.length = 0
+    toolResults.push(...pairedToolResults)
 
     // Generate tool use summary after tool batch completes — passed to next recursive call
     let nextPendingToolUseSummary:

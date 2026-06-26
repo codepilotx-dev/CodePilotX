@@ -599,9 +599,11 @@ export function agentRuntimeEventToThreadEvents(
       return decorateThreadEvents([itemEvent('item.updated', ids, item, createdAt)], ids)
     }
     case 'tool_start': {
-      const toolUseId = createWorkflowId('tool_use', `${event.toolName}-start`)
+      const toolUseId =
+        event.toolUseId ?? createWorkflowId('tool_use', `${event.toolName}-start`)
+      const itemMetadata = { ...(metadata ?? {}), toolUseId }
       const item: ToolCallTurnItem = {
-        id: itemId('tool_call', `${event.toolName}-start`),
+        id: itemId('tool_call', event.toolUseId ?? `${event.toolName}-start`),
         type: 'tool_call',
         threadId: ids.threadId,
         turnId: ids.turnId,
@@ -610,14 +612,16 @@ export function agentRuntimeEventToThreadEvents(
         toolName: event.toolName,
         summary: event.summary,
         toolUseId,
-        ...(metadata ? { metadata } : {}),
+        metadata: itemMetadata,
       }
       return decorateThreadEvents([itemEvent('item.started', ids, item, createdAt)], ids)
     }
     case 'tool_result': {
-      const toolUseId = createWorkflowId('tool_use', `${event.toolName}-result`)
+      const toolUseId =
+        event.toolUseId ?? createWorkflowId('tool_use', `${event.toolName}-result`)
+      const itemMetadata = { ...(metadata ?? {}), toolUseId }
       const item: ToolResultTurnItem = {
-        id: itemId('tool_result', `${event.toolName}-result`),
+        id: itemId('tool_result', event.toolUseId ?? `${event.toolName}-result`),
         type: 'tool_result',
         threadId: ids.threadId,
         turnId: ids.turnId,
@@ -627,7 +631,7 @@ export function agentRuntimeEventToThreadEvents(
         summary: event.summary,
         toolUseId,
         ...(event.isError ? { isError: true } : {}),
-        ...(metadata ? { metadata } : {}),
+        metadata: itemMetadata,
       }
       return decorateThreadEvents([itemEvent('item.completed', ids, item, createdAt)], ids)
     }
