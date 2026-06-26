@@ -2,7 +2,10 @@ import { mkdir, writeFile } from 'fs/promises'
 import { homedir } from 'os'
 import { basename, dirname, extname, join } from 'path'
 import { randomUUID } from 'crypto'
-import { getProviderApiKey } from '../../utils/model/providerConfig.js'
+import {
+  getProviderApiKey,
+  getSelectedProviderID,
+} from '../../utils/model/providerConfig.js'
 import { expandPath } from '../../utils/path.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
 import { formatMiniMaxError } from '../../services/api/minimax.js'
@@ -168,13 +171,20 @@ export function extractMiniMaxBaseRespError(data: unknown): string | null {
 }
 
 export function requireMiniMaxApiKey(): string {
-  const apiKey = getProviderApiKey('minimax')
+  const selectedProviderID = getSelectedProviderID()
+  const apiKey = isMiniMaxProviderID(selectedProviderID)
+    ? getProviderApiKey(selectedProviderID) ?? getProviderApiKey('minimax')
+    : getProviderApiKey('minimax')
   if (!apiKey) {
     throw new Error(
       'MiniMax API key is not configured. Run /connect to save it, or set MINIMAX_API_KEY.',
     )
   }
   return apiKey
+}
+
+function isMiniMaxProviderID(providerID: string): boolean {
+  return providerID === 'minimax' || providerID.startsWith('minimax-')
 }
 
 export function artifactSummary(result: MiniMaxJSON, localFiles: string[] = []): string {

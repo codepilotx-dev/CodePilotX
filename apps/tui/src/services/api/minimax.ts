@@ -1,12 +1,12 @@
-import { randomUUID } from 'crypto'
+import { createHash, randomUUID } from 'crypto'
 import type {
   BetaContentBlock,
   BetaMessage,
   BetaToolUnion,
 } from '@anthropic-ai/sdk/resources/beta/messages/messages.mjs'
 import type { APIUserAbortError } from '@anthropic-ai/sdk/error'
+import { createAnthropic } from '@ai-sdk/anthropic'
 import { jsonSchema, streamText, tool, type ModelMessage } from 'ai'
-import { createMinimax } from 'vercel-minimax-ai-provider'
 import type { Options } from './claude.js'
 import { EMPTY_USAGE, type NonNullableUsage } from './logging.js'
 import type { Tools } from '../../Tool.js'
@@ -21,6 +21,8 @@ import {
 } from '../../utils/messages.js'
 import {
   getProviderApiKey,
+  getProviderApiKeySource,
+  type ProviderConfig,
   getSelectedProviderConfig,
   getSelectedProviderID,
 } from '../../utils/model/providerConfig.js'
@@ -88,12 +90,17 @@ export async function* queryMiniMaxWithAiSdkStreaming({
       normalizeMessagesForAPI(messages, tools),
     )
     const aiTools = await buildMiniMaxAiSdkTools(tools, options)
-    const minimax = createMinimax({
+    logMiniMaxRequestKeyDiagnostics({
+      provider,
       apiKey,
-      baseURL: provider.baseURL ?? 'https://api.minimaxi.com/anthropic/v1',
+      apiKeySource: getProviderApiKeySource(providerID) ?? null,
+    })
+    const anthropicCompatible = createAnthropicCompatibleAiSdkProvider({
+      provider,
+      apiKey,
     })
     const result = streamText({
-      model: minimax(resolveMiniMaxModel(options.model)),
+      model: anthropicCompatible(resolveMiniMaxModel(options.model)),
       system: asSystemPrompt(systemPrompt).join('\n\n'),
       messages: toAiSdkMessages(normalizedMessages, tools),
       tools: aiTools,
@@ -201,7 +208,7 @@ function isMiniMaxToolCompatible(schema: BetaToolUnion): boolean {
   )
 }
 
-function toAiSdkMessages(
+export function toAiSdkMessages(
   messages: (Message & { message?: unknown })[],
   _tools: Tools,
 ): ModelMessage[] {
@@ -215,7 +222,7 @@ function toAiSdkMessages(
       result.push(assistantMessageToAiSdk(message))
     }
   }
-  return result
+  return coalesceAdjacentAssistantToolCalls(result)
 }
 
 function userMessageToAiSdk(
@@ -249,12 +256,162 @@ function userMessageToAiSdk(
   }
 
   if (textParts.length > 0) {
-    result.unshift({
+    result.push({
       role: 'user',
       content: textParts.length === 1 ? textParts[0]!.text : textParts,
     })
   }
   return result
+}
+
+function coalesceAdjacentAssistantToolCalls(
+  messages: ModelMessage[],
+): ModelMessage[] {
+  const result: ModelMessage[] = []
+  for (let i = 0; i < messages.length; ) {
+    const message = messages[i]!
+    if (message.role !== 'assistant') {
+      result.push(message)
+      i++
+      continue
+    }
+
+    const run = [message]
+    let hasToolCall = assistantMessageHasToolCall(message)
+    let j = i + 1
+    while (messages[j]?.role === 'assistant') {
+      const next = messages[j]!
+      run.push(next)
+      hasToolCall ||= assistantMessageHasToolCall(next)
+      j++
+    }
+
+    if (run.length > 1 && hasToolCall) {
+      result.push(mergeAssistantMessages(run))
+    } else {
+      result.push(...run)
+    }
+    i = j
+  }
+  return result
+}
+
+function assistantMessageHasToolCall(message: ModelMessage): boolean {
+  if (message.role !== 'assistant' || !Array.isArray(message.content)) {
+    return false
+  }
+  return message.content.some(part => part.type === 'tool-call')
+}
+
+function mergeAssistantMessages(messages: ModelMessage[]): ModelMessage {
+  const parts = messages.flatMap(message =>
+    typeof message.content === 'string'
+      ? message.content
+        ? [{ type: 'text' as const, text: message.content }]
+        : []
+      : message.content,
+  )
+  return {
+    role: 'assistant',
+    content:
+      parts.length === 1 && parts[0]?.type === 'text' ? parts[0].text : parts,
+  }
+}
+
+export function createAnthropicCompatibleAiSdkProvider({
+  provider,
+  apiKey,
+  fetch,
+}: {
+  provider: Pick<ProviderConfig, 'providerID' | 'displayName' | 'baseURL'>
+  apiKey: string
+  fetch?: typeof globalThis.fetch
+}) {
+  const fetchImpl = fetch ?? globalThis.fetch
+  const isMiniMax = isMiniMaxProviderID(provider.providerID)
+  return createAnthropic({
+    apiKey,
+    baseURL: provider.baseURL ?? 'https://api.anthropic.com/v1',
+    name: `${provider.providerID}.messages`,
+    headers: isMiniMax
+      ? { 'X-Api-Key': apiKey, 'x-api-key': apiKey }
+      : undefined,
+    fetch: async (input, init) => {
+      if (isMiniMax) {
+        logMiniMaxWireHeaderDiagnostics(provider, init?.headers)
+      }
+      return fetchImpl(input, init)
+    },
+  })
+}
+
+function isMiniMaxProviderID(providerID: string): boolean {
+  return providerID === 'minimax' || providerID.startsWith('minimax-')
+}
+
+function logMiniMaxRequestKeyDiagnostics({
+  provider,
+  apiKey,
+  apiKeySource,
+}: {
+  provider: Pick<
+    ProviderConfig,
+    'providerID' | 'kind' | 'npmPackage' | 'baseURL' | 'envVars'
+  >
+  apiKey: string
+  apiKeySource: string | null
+}): void {
+  const headerNames = isMiniMaxProviderID(provider.providerID)
+    ? ['X-Api-Key', 'x-api-key', 'anthropic-version']
+    : ['x-api-key']
+  writeDesktopStyleDebug('minimax_request_key_diagnostics', {
+    providerID: provider.providerID,
+    kind: provider.kind,
+    npmPackage: provider.npmPackage,
+    baseURL: provider.baseURL,
+    envVars: provider.envVars,
+    apiKeySource,
+    apiKeyLength: apiKey.length,
+    apiKeyFingerprint: fingerprintApiKey(apiKey),
+    headerNames,
+  })
+}
+
+function logMiniMaxWireHeaderDiagnostics(
+  provider: Pick<ProviderConfig, 'providerID' | 'baseURL'>,
+  headers: HeadersInit | undefined,
+): void {
+  const headerNames = getHeaderNames(headers)
+  writeDesktopStyleDebug('minimax_wire_header_diagnostics', {
+    providerID: provider.providerID,
+    baseURL: provider.baseURL,
+    headerNames,
+    hasXApiKey: headerNames.some(name => name.toLowerCase() === 'x-api-key'),
+    hasExactXApiKey: headerNames.includes('X-Api-Key'),
+  })
+}
+
+function getHeaderNames(headers: HeadersInit | undefined): string[] {
+  if (!headers) return []
+  if (headers instanceof Headers) return Array.from(headers.keys())
+  if (Array.isArray(headers)) return headers.map(([name]) => name)
+  return Object.keys(headers)
+}
+
+function writeDesktopStyleDebug(
+  event: string,
+  fields: Record<string, unknown>,
+): void {
+  const line = `[desktop-debug] ${new Date().toISOString()} ${event} ${JSON.stringify(fields)}\n`
+  try {
+    process.stderr.write(line)
+  } catch {
+    // Best-effort diagnostics only.
+  }
+}
+
+function fingerprintApiKey(apiKey: string): string {
+  return createHash('sha256').update(apiKey).digest('hex').slice(0, 12)
 }
 
 function assistantMessageToAiSdk(message: Message): ModelMessage {

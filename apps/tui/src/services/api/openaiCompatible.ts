@@ -351,7 +351,7 @@ function betaToolToOpenAITool(schema: BetaToolUnion): OpenAITool {
   }
 }
 
-function toOpenAIMessages(
+export function toOpenAIMessages(
   messages: (Message & { message?: unknown })[],
   providerID: string,
 ): ChatMessage[] {
@@ -363,7 +363,7 @@ function toOpenAIMessages(
       result.push(assistantMessageToOpenAI(message, providerID))
     }
   }
-  return result
+  return coalesceAdjacentAssistantToolCalls(result)
 }
 
 function userMessageToOpenAI(message: Message): ChatMessage[] {
@@ -397,7 +397,7 @@ function userMessageToOpenAI(message: Message): ChatMessage[] {
   }
 
   if (userParts.length > 0) {
-    messages.unshift({
+    messages.push({
       role: 'user',
       content:
         userParts.length === 1 && userParts[0]?.type === 'text'
@@ -407,6 +407,58 @@ function userMessageToOpenAI(message: Message): ChatMessage[] {
   }
 
   return messages
+}
+
+function coalesceAdjacentAssistantToolCalls(messages: ChatMessage[]): ChatMessage[] {
+  const result: ChatMessage[] = []
+  for (let i = 0; i < messages.length; ) {
+    const message = messages[i]!
+    if (message.role !== 'assistant') {
+      result.push(message)
+      i++
+      continue
+    }
+
+    const run = [message]
+    let hasToolCalls = Boolean(message.tool_calls?.length)
+    let j = i + 1
+    while (messages[j]?.role === 'assistant') {
+      const next = messages[j] as Extract<ChatMessage, { role: 'assistant' }>
+      run.push(next)
+      hasToolCalls ||= Boolean(next.tool_calls?.length)
+      j++
+    }
+
+    if (run.length > 1 && hasToolCalls) {
+      result.push(mergeAssistantMessages(run))
+    } else {
+      result.push(...run)
+    }
+    i = j
+  }
+  return result
+}
+
+function mergeAssistantMessages(
+  messages: Array<Extract<ChatMessage, { role: 'assistant' }>>,
+): Extract<ChatMessage, { role: 'assistant' }> {
+  const content = messages
+    .flatMap(message =>
+      typeof message.content === 'string' && message.content.trim()
+        ? [message.content]
+        : [],
+    )
+    .join('\n\n')
+  const reasoningContent = messages
+    .flatMap(message => (message.reasoning_content ? [message.reasoning_content] : []))
+    .join('\n')
+  const toolCalls = messages.flatMap(message => message.tool_calls ?? [])
+  return {
+    role: 'assistant',
+    content: content || (toolCalls.length > 0 ? '' : null),
+    ...(toolCalls.length > 0 && { tool_calls: toolCalls }),
+    ...(reasoningContent && { reasoning_content: reasoningContent }),
+  }
 }
 
 function assistantMessageToOpenAI(message: Message, providerID: string): ChatMessage {

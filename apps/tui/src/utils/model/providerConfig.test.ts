@@ -1,8 +1,11 @@
 import { expect, test } from 'bun:test'
 import {
+  clearProviderConfigCatalogCacheForTests,
   fetchProviderModels,
   listProviderConfigs,
   PROVIDER_CONFIGS,
+  resolveAiSdkProviderRoute,
+  resolveProviderApiKeyFromSources,
 } from './providerConfig.js'
 
 const ZHIPU_DEFAULT_MODELS = [
@@ -137,6 +140,115 @@ test('zhipu is available as a built-in OpenAI-compatible provider', async () => 
   } finally {
     globalThis.fetch = originalFetch
   }
+})
+
+test('models.dev providers keep catalog package and env vars', async () => {
+  const originalFetch = globalThis.fetch
+  clearProviderConfigCatalogCacheForTests()
+  globalThis.fetch = (async input => {
+    const url = String(input)
+    if (url.includes('models.dev')) {
+      return new Response(
+        JSON.stringify({
+          providers: {
+            'minimax-cn-coding-plan': {
+              name: 'MiniMax Token Plan (minimaxi.com)',
+              api: 'https://api.minimaxi.com/anthropic/v1',
+              env: ['MINIMAX_API_KEY'],
+              npm: '@ai-sdk/anthropic',
+              models: {
+                'MiniMax-M3': {
+                  name: 'MiniMax-M3',
+                  modalities: { input: ['text'], output: ['text'] },
+                },
+              },
+            },
+          },
+        }),
+      )
+    }
+    if (url.includes('ai-gateway.vercel.sh')) {
+      return new Response(JSON.stringify({ data: [] }))
+    }
+    throw new Error(`Unexpected fetch: ${url}`)
+  }) as typeof fetch
+  try {
+    const providers = await listProviderConfigs()
+    const minimax = providers.find(
+      provider => provider.providerID === 'minimax-cn-coding-plan',
+    )
+
+    expect(minimax).toMatchObject({
+      providerID: 'minimax-cn-coding-plan',
+      kind: 'anthropic-compatible',
+      baseURL: 'https://api.minimaxi.com/anthropic/v1',
+      apiKeyEnvVar: 'MINIMAX_API_KEY',
+      envVars: ['MINIMAX_API_KEY'],
+      npmPackage: '@ai-sdk/anthropic',
+    })
+  } finally {
+    globalThis.fetch = originalFetch
+    clearProviderConfigCatalogCacheForTests()
+  }
+})
+
+test('provider api keys prefer provider id and fall back to catalog env aliases', () => {
+  const provider = {
+    providerID: 'minimax-cn-coding-plan',
+    kind: 'anthropic-compatible' as const,
+    displayName: 'MiniMax',
+    envVars: ['MINIMAX_API_KEY'],
+    defaultModels: [],
+  }
+
+  expect(
+    resolveProviderApiKeyFromSources(provider, {
+      env: {},
+      storedKeys: {
+        'minimax-cn-coding-plan': 'provider-key',
+        MINIMAX_API_KEY: 'env-alias-key',
+      },
+    }),
+  ).toBe('provider-key')
+
+  expect(
+    resolveProviderApiKeyFromSources(provider, {
+      env: {},
+      storedKeys: { MINIMAX_API_KEY: 'env-alias-key' },
+    }),
+  ).toBe('env-alias-key')
+})
+
+test('ai sdk provider route is selected from npm package', () => {
+  expect(
+    resolveAiSdkProviderRoute({
+      providerID: 'minimax-cn-coding-plan',
+      kind: 'anthropic-compatible',
+      displayName: 'MiniMax',
+      npmPackage: '@ai-sdk/anthropic',
+      defaultModels: [],
+    }),
+  ).toBe('anthropic-compatible')
+
+  expect(
+    resolveAiSdkProviderRoute({
+      providerID: 'deepseek',
+      kind: 'openai-compatible',
+      displayName: 'DeepSeek',
+      npmPackage: '@ai-sdk/openai-compatible',
+      defaultModels: [],
+    }),
+  ).toBe('openai-compatible')
+
+  expect(
+    resolveAiSdkProviderRoute({
+      providerID: 'openai',
+      kind: 'openai-compatible',
+      displayName: 'OpenAI',
+      npmPackage: '@ai-sdk/openai',
+      defaultModels: [],
+    }),
+  ).toBe('openai')
 })
 
 test('zhipu model listing merges live catalog with curated defaults', async () => {

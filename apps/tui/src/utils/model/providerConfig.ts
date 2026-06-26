@@ -9,9 +9,17 @@ export type ModelProviderID = string;
 
 export type ModelProviderKind =
   | "anthropic"
+  | "anthropic-compatible"
   | "openai-compatible"
   | "minimax"
   | "github-copilot";
+
+export type AiSdkProviderRoute =
+  | "anthropic-compatible"
+  | "openai-compatible"
+  | "openai"
+  | "github-copilot"
+  | "unsupported";
 
 export type ProviderModelMetadata = {
   id: string;
@@ -546,7 +554,8 @@ function providerFromModelsDev(
   provider: ModelsDevProvider,
   globalModels: Record<string, ModelsDevModel>,
 ): ProviderConfig {
-  const apiKeyEnvVar = getProviderApiKeyEnvVar(providerID);
+  const envVars = normalizeStringArray(provider.env);
+  const apiKeyEnvVar = envVars[0] ?? getProviderApiKeyEnvVar(providerID);
   const modelMetadata = normalizeProviderModels(
     providerID,
     provider.models,
@@ -564,7 +573,7 @@ function providerFromModelsDev(
         ? provider.api.trim()
         : undefined,
     apiKeyEnvVar,
-    envVars: [apiKeyEnvVar],
+    envVars: envVars.length ? envVars : [apiKeyEnvVar],
     defaultModels: Object.keys(modelMetadata),
     modelMetadata,
     docURL: typeof provider.doc === "string" ? provider.doc : undefined,
@@ -640,8 +649,17 @@ function inferProviderKind(
   providerID: string,
   provider?: ModelsDevProvider,
 ): ModelProviderKind {
-  if (isMiniMaxProviderID(providerID) || provider?.npm === "@ai-sdk/anthropic") {
-    return "minimax";
+  if (provider?.npm === "@ai-sdk/anthropic") {
+    return "anthropic-compatible";
+  }
+  if (provider?.npm === "@ai-sdk/openai-compatible") {
+    return "openai-compatible";
+  }
+  if (provider?.npm === "@ai-sdk/openai") {
+    return "openai-compatible";
+  }
+  if (isMiniMaxProviderID(providerID)) {
+    return "anthropic-compatible";
   }
   if (isGitHubCopilotProviderID(providerID)) {
     return "github-copilot";
@@ -699,6 +717,12 @@ export function getProviderCatalogDiagnostics(): ProviderCatalogDiagnostics {
     providerCount: providerCatalogDiagnostics.providerCount,
     providerIds: [...providerCatalogDiagnostics.providerIds],
   };
+}
+
+export function clearProviderConfigCatalogCacheForTests(): void {
+  providerCatalogCache = null;
+  providerCatalogPromise = null;
+  providerModelCache.clear();
 }
 
 function buildFallbackProviderConfig(providerID: string): ProviderConfig {
@@ -811,7 +835,7 @@ export function saveProviderApiKey(
   const data = storage.read() || {};
   const providerApiKeys = {
     ...(data.providerApiKeys ?? {}),
-    [getProviderCredentialKey(providerID)]: apiKey,
+    [providerID]: apiKey,
   };
   return storage.update({ ...data, providerApiKeys });
 }
@@ -823,12 +847,19 @@ export function deleteProviderApiKey(
   const data = storage.read() || {};
   const existing = data.providerApiKeys ?? {};
   const credentialKey = getProviderCredentialKey(providerID);
-  if (!(credentialKey in existing) && !(providerID in existing)) {
+  const provider = getCachedProviderConfig(providerID);
+  const envVars = getProviderEnvVars(provider);
+  if (
+    !(credentialKey in existing) &&
+    !(providerID in existing) &&
+    !envVars.some((envKey) => envKey in existing)
+  ) {
     return { success: true };
   }
   const providerApiKeys = { ...existing };
   delete providerApiKeys[credentialKey];
   delete providerApiKeys[providerID];
+  for (const envKey of envVars) delete providerApiKeys[envKey];
   return storage.update({ ...data, providerApiKeys });
 }
 
@@ -836,32 +867,31 @@ export function getProviderApiKey(
   providerID = getSelectedProviderID(),
 ): string | undefined {
   const provider = getCachedProviderConfig(providerID);
-  for (const envKey of getProviderEnvVars(provider)) {
-    if (process.env[envKey]) return process.env[envKey];
-  }
   const storedKeys = getSecureStorage().read()?.providerApiKeys;
-  return (
-    storedKeys?.[getProviderCredentialKey(providerID)] ??
-    storedKeys?.[providerID]
-  );
+  return resolveProviderApiKeyFromSources(provider, {
+    storedKeys,
+    env: process.env,
+  });
 }
 
 export function getProviderApiKeySource(
   providerID = getSelectedProviderID(),
 ): string | undefined {
   const provider = getCachedProviderConfig(providerID);
-  for (const envKey of getProviderEnvVars(provider)) {
-    if (process.env[envKey]) return envKey;
-  }
   const storedKeys = getSecureStorage().read()?.providerApiKeys;
-  return storedKeys?.[getProviderCredentialKey(providerID)] ??
-    storedKeys?.[providerID]
-    ? "secureStorage"
-    : undefined;
+  return resolveProviderApiKeySourceFromSources(provider, {
+    storedKeys,
+    env: process.env,
+  });
 }
 
 function getProviderEnvVars(provider: ProviderConfig): string[] {
-  return [getProviderApiKeyEnvVar(provider.providerID)];
+  const values = provider.envVars?.length
+    ? provider.envVars
+    : [provider.apiKeyEnvVar ?? getProviderApiKeyEnvVar(provider.providerID)];
+  return Array.from(
+    new Set(values.filter((value): value is string => Boolean(value?.trim()))),
+  );
 }
 
 function getProviderCredentialKey(providerID: ModelProviderID): string {
@@ -876,15 +906,93 @@ function getProviderApiKeyEnvVar(providerID: ModelProviderID): string {
 }
 
 export function shouldUseOpenAICompatibleProvider(): boolean {
-  return getSelectedProviderConfig().kind === "openai-compatible";
+  const route = resolveAiSdkProviderRoute(getSelectedProviderConfig());
+  return (
+    route === "openai-compatible" ||
+    route === "openai" ||
+    route === "unsupported"
+  );
+}
+
+export function shouldUseAnthropicCompatibleProvider(): boolean {
+  return (
+    resolveAiSdkProviderRoute(getSelectedProviderConfig()) ===
+    "anthropic-compatible"
+  );
 }
 
 export function shouldUseMiniMaxProvider(): boolean {
-  return getSelectedProviderConfig().kind === "minimax";
+  return shouldUseAnthropicCompatibleProvider();
 }
 
 export function shouldUseGitHubCopilotProvider(): boolean {
-  return getSelectedProviderConfig().kind === "github-copilot";
+  return resolveAiSdkProviderRoute(getSelectedProviderConfig()) === "github-copilot";
+}
+
+export function resolveAiSdkProviderRoute(
+  provider: Pick<ProviderConfig, "kind" | "npmPackage" | "providerID">,
+): AiSdkProviderRoute {
+  switch (provider.npmPackage) {
+    case "@ai-sdk/anthropic":
+      return "anthropic-compatible";
+    case "@ai-sdk/openai-compatible":
+      return "openai-compatible";
+    case "@ai-sdk/openai":
+      return "openai";
+    default:
+      break;
+  }
+  if (provider.kind === "anthropic" || provider.kind === "anthropic-compatible") {
+    return "anthropic-compatible";
+  }
+  if (provider.kind === "openai-compatible") return "openai-compatible";
+  if (provider.kind === "github-copilot") return "github-copilot";
+  if (provider.kind === "minimax") return "anthropic-compatible";
+  return "unsupported";
+}
+
+export function resolveProviderApiKeyFromSources(
+  provider: Pick<ProviderConfig, "providerID" | "apiKeyEnvVar" | "envVars">,
+  sources: {
+    storedKeys?: Record<string, string>;
+    env?: Record<string, string | undefined>;
+  },
+): string | undefined {
+  return resolveProviderApiKeyEntryFromSources(provider, sources)?.value;
+}
+
+export function resolveProviderApiKeySourceFromSources(
+  provider: Pick<ProviderConfig, "providerID" | "apiKeyEnvVar" | "envVars">,
+  sources: {
+    storedKeys?: Record<string, string>;
+    env?: Record<string, string | undefined>;
+  },
+): string | undefined {
+  const entry = resolveProviderApiKeyEntryFromSources(provider, sources);
+  return entry?.source;
+}
+
+function resolveProviderApiKeyEntryFromSources(
+  provider: Pick<ProviderConfig, "providerID" | "apiKeyEnvVar" | "envVars">,
+  sources: {
+    storedKeys?: Record<string, string>;
+    env?: Record<string, string | undefined>;
+  },
+): { value: string; source: string } | undefined {
+  const credentialKeys = [
+    provider.providerID,
+    getProviderCredentialKey(provider.providerID),
+    ...getProviderEnvVars(provider as ProviderConfig),
+  ];
+  for (const key of Array.from(new Set(credentialKeys))) {
+    const stored = sources.storedKeys?.[key]?.trim();
+    if (stored) return { value: stored, source: "secureStorage" };
+  }
+  for (const envKey of getProviderEnvVars(provider as ProviderConfig)) {
+    const envValue = sources.env?.[envKey]?.trim();
+    if (envValue) return { value: envValue, source: envKey };
+  }
+  return undefined;
 }
 
 export function getCachedProviderModels(

@@ -9,7 +9,10 @@ import type { Attachment } from '../utils/attachments.js'
 import { getModelBetas } from '../utils/betas.js'
 import { getVertexRegionForModel, isEnvTruthy } from '../utils/envUtils.js'
 import { logError } from '../utils/log.js'
-import { normalizeAttachmentForAPI } from '../utils/messages.js'
+import {
+  ensureAnthropicToolResultPairing,
+  normalizeAttachmentForAPI,
+} from '../utils/messages.js'
 import {
   createBedrockRuntimeClient,
   getInferenceProfileBackingModel,
@@ -283,7 +286,9 @@ export async function countTokensViaHaikuFallback(
 
   // Strip tool search-specific fields (caller, tool_reference) before sending
   // These fields are only valid with the tool search beta header
-  const normalizedMessages = stripToolSearchFieldsFromMessages(messages)
+  const normalizedMessages = ensureAnthropicToolResultPairing(
+    stripToolSearchFieldsFromMessages(messages),
+  )
 
   const messagesToSend: MessageParam[] =
     normalizedMessages.length > 0
