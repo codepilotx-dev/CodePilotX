@@ -23,9 +23,9 @@ import {
   getSettings_DEPRECATED,
   updateSettingsForSource,
 } from '@codepilotx/tui/utils/settings/settings.js'
-import { clearAllCaches } from '@codepilotx/tui/utils/plugins/cacheUtils.js'
-import { generateSessionTitle } from '@codepilotx/tui/utils/sessionTitle.js'
-import { saveAiGeneratedTitle } from '@codepilotx/tui/utils/sessionStorage.js'
+import { clearAllCaches } from '@codepilotx/core/utils/plugins/cache.js'
+import { generateSessionTitle } from '@codepilotx/core/session/title.js'
+import { saveAiGeneratedTitle } from '@codepilotx/core/session/storage.js'
 import {
   createDesktopAgentSession,
   type DesktopAgentSession,
@@ -907,6 +907,7 @@ function scheduleAiTitleGeneration(
       saveAiGeneratedTitle(
         sessionId as `${string}-${string}-${string}-${string}-${string}`,
         title,
+        latestRecord.snapshot.item.transcriptPath ?? undefined,
       )
     } catch {
       // Best-effort: the desktop overlay still keeps the generated title.

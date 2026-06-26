@@ -668,6 +668,74 @@ declare module '@codepilotx/core/utils/config.js' {
   export function enableConfigs(): void
 }
 
+declare module '@codepilotx/core/session/logs.js' {
+  export type SerializedMessage = {
+    type?: string
+    message?: unknown
+    cwd?: string
+    uuid?: string
+    timestamp?: string
+    sessionId?: string
+    parentUuid?: string | null
+    isSidechain?: boolean
+    userType?: string
+    version?: string
+    gitBranch?: string
+    [key: string]: unknown
+  }
+
+  export type LogOption = {
+    date: string
+    messages: SerializedMessage[]
+    fullPath?: string
+    value: number
+    created: Date
+    modified: Date
+    firstPrompt: string
+    messageCount: number
+    isSidechain: boolean
+    isLite?: boolean
+    sessionId?: string
+    projectPath?: string
+    gitBranch?: string
+    prNumber?: number
+    prUrl?: string
+    prRepository?: string
+    customTitle?: string
+    tag?: string
+    summary?: string
+    fileSize?: number
+  }
+}
+
+declare module '@codepilotx/core/session/storage.js' {
+  export function getProjectDir(workspacePath: string): string
+  export function loadAllProjectsMessageLogs(
+    limit?: number,
+    options?: { skipIndex?: boolean; initialEnrichCount?: number },
+  ): Promise<import('@codepilotx/core/session/logs.js').LogOption[]>
+  export function loadFullLog(
+    log: import('@codepilotx/core/session/logs.js').LogOption,
+  ): Promise<import('@codepilotx/core/session/logs.js').LogOption>
+  export function saveAiGeneratedTitle(
+    sessionId: `${string}-${string}-${string}-${string}-${string}`,
+    title: string,
+    transcriptPath?: string,
+  ): void
+}
+
+declare module '@codepilotx/core/session/title.js' {
+  export function generateSessionTitle(
+    description: string,
+    signal: AbortSignal,
+    model: string,
+  ): Promise<string | null>
+}
+
+declare module '@codepilotx/core/utils/plugins/cache.js' {
+  export function clearAllCaches(): void
+}
+
 declare module '@codepilotx/tui/headless/desktopRuntime.js' {
   export type DesktopHeadlessOutputControls = {
     injectControlResponse(message: Record<string, unknown>): void
@@ -845,76 +913,9 @@ declare module '@codepilotx/tui/plugins/bundled/index.js' {
   export function initBuiltinPlugins(): void
 }
 
-declare module '@codepilotx/tui/utils/plugins/cacheUtils.js' {
-  export function clearAllCaches(): void
-}
-
 declare module '@codepilotx/tui/utils/model/model.js' {
   export function getMainLoopModel(): string
   export function parseUserSpecifiedModel(model: string): string
-}
-
-declare module '@codepilotx/tui/utils/sessionTitle.js' {
-  export function generateSessionTitle(
-    description: string,
-    signal: AbortSignal,
-    model: string,
-  ): Promise<string | null>
-}
-
-declare module '@codepilotx/tui/utils/sessionStorage.js' {
-  export function getProjectDir(workspacePath: string): string
-  export function loadAllProjectsMessageLogs(
-    projectPath?: string,
-    options?: Record<string, unknown>,
-  ): Promise<import('@codepilotx/tui/types/logs.js').LogOption[]>
-  export function loadFullLog(
-    log: import('@codepilotx/tui/types/logs.js').LogOption,
-  ): Promise<import('@codepilotx/tui/types/logs.js').LogOption>
-  export function saveAiGeneratedTitle(
-    sessionId: `${string}-${string}-${string}-${string}-${string}`,
-    title: string,
-  ): void
-}
-
-declare module '@codepilotx/tui/types/logs.js' {
-  export type SerializedMessage = {
-    type?: string
-    message?: unknown
-    cwd?: string
-    uuid?: string
-    timestamp?: string
-    sessionId?: string
-    parentUuid?: string | null
-    isSidechain?: boolean
-    userType?: string
-    version?: string
-    gitBranch?: string
-    [key: string]: unknown
-  }
-
-  export type LogOption = {
-    date: string
-    messages: SerializedMessage[]
-    fullPath?: string
-    value: number
-    created: Date
-    modified: Date
-    firstPrompt: string
-    messageCount: number
-    isSidechain: boolean
-    isLite?: boolean
-    sessionId?: string
-    projectPath?: string
-    gitBranch?: string
-    prNumber?: number
-    prUrl?: string
-    prRepository?: string
-    customTitle?: string
-    tag?: string
-    summary?: string
-    fileSize?: number
-  }
 }
 
 declare module '@codepilotx/tui/utils/model/providerConfig.js' {

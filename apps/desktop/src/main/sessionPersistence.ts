@@ -9,11 +9,11 @@ import {
   getProjectDir,
   loadAllProjectsMessageLogs,
   loadFullLog,
-} from '@codepilotx/tui/utils/sessionStorage.js'
+} from '@codepilotx/core/session/storage.js'
 import type {
   LogOption,
   SerializedMessage,
-} from '@codepilotx/tui/types/logs.js'
+} from '@codepilotx/core/session/logs.js'
 import type {
   DesktopAgentEvent,
   DesktopContextUsage,

@@ -8,7 +8,7 @@ import {
   CODEPILOTX_CONFIG_DIR_ENV,
   LEGACY_CLAUDE_CONFIG_DIR_ENV,
 } from '@codepilotx/core/config/env.js'
-import { getProjectDir } from '@codepilotx/tui/utils/sessionStorage.js'
+import { getProjectDir } from '@codepilotx/core/session/storage.js'
 import {
   applyDesktopWorkflowEventsToSnapshot,
   createDesktopSessionSnapshot,

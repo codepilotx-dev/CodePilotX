@@ -7,6 +7,7 @@ const coreSrc = join(repoRoot, 'packages', 'core', 'src')
 const desktopSrc = join(repoRoot, 'apps', 'desktop', 'src')
 
 const coreToTuiAllowlist = new Set([
+  'packages/core/src/session/title.ts',
   'packages/core/src/services/api/firstTokenDate.ts',
   'packages/core/src/services/oauth/client.ts',
   'packages/core/src/services/oauth/getOauthProfile.ts',
@@ -14,10 +15,11 @@ const coreToTuiAllowlist = new Set([
   'packages/core/src/services/oauth/types.ts',
   'packages/core/src/utils/auth.ts',
   'packages/core/src/utils/config.ts',
+  'packages/core/src/utils/plugins/cache.ts',
   'packages/core/src/utils/settings/settings.ts',
 ])
 
-const desktopTuiImportBaseline = 36
+const desktopTuiImportBaseline = 22
 
 test('core does not add new dependencies on tui internals', async () => {
   const offenders: string[] = []
