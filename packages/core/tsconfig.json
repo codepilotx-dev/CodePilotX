@@ -1,11 +1,13 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "rootDir": "src"
+    "rootDir": "../..",
+    "lib": ["ES2023", "DOM"]
   },
   "include": [
     "src/**/*.ts",
     "src/**/*.tsx",
-    "src/**/*.js"
+    "src/**/*.js",
+    "../../apps/tui/src/types/local/**/*.d.ts"
   ]
 }
