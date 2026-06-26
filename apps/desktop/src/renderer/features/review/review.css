@@ -26,7 +26,7 @@
   overflow: auto;
   padding: 10px;
   border: 1px solid var(--c-border-soft);
-  border-radius: var(--r-md);
+  border-radius: var(--radius-4);
   background: var(--c-bg-soft);
   color: var(--c-text);
   font-family: var(--ff-mono);
@@ -107,7 +107,7 @@
   gap: 2px;
   padding: 2px;
   border: 1px solid var(--c-border-soft);
-  border-radius: 7px;
+  border-radius: var(--radius-3);
   background: var(--c-bg-soft);
 }
 
@@ -116,7 +116,7 @@
 .review-scope-switch button {
   min-width: 54px;
   padding: 3px 7px;
-  border-radius: 5px;
+  border-radius: var(--radius-2);
   color: var(--c-text-soft);
   font-size: var(--fs-12);
   font-weight: 500;
@@ -241,7 +241,7 @@
   justify-content: center;
   flex: 0 0 auto;
   overflow: hidden;
-  border-radius: 5px;
+  border-radius: var(--radius-2);
   background: color-mix(in srgb, var(--c-accent) 16%, transparent);
   color: var(--c-accent);
   font-size: calc(var(--fs-11) - 2px);
@@ -459,7 +459,7 @@
   gap: 4px;
   padding: 2px 7px;
   border: 1px solid var(--c-border-soft);
-  border-radius: 5px;
+  border-radius: var(--radius-2);
   background: var(--c-bg);
   color: var(--c-text-soft);
   font-family: var(--ff-sans);
@@ -613,7 +613,7 @@
   gap: 5px;
   padding: 8px;
   border: 1px solid var(--c-border-soft);
-  border-radius: 7px;
+  border-radius: var(--radius-3);
   background: var(--c-bg);
   color: var(--c-text);
   font-family: var(--ff-sans);
@@ -659,7 +659,7 @@
   resize: vertical;
   padding: 7px 8px;
   border: 1px solid var(--c-border-soft);
-  border-radius: 6px;
+  border-radius: var(--radius-3);
   background: var(--c-bg-soft);
   color: var(--c-text);
   font-family: var(--ff-sans);
@@ -710,7 +710,7 @@
   justify-content: center;
   gap: 6px;
   padding: 8px 10px;
-  border-radius: var(--r-md);
+  border-radius: var(--radius-4);
   color: var(--c-text-strong);
   font-size: var(--fs-14);
   font-weight: 600;

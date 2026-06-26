@@ -50,7 +50,7 @@
 .empty-canvas-card,
 .utility-card,
 .placeholder-card {
-  border-radius: var(--r-lg);
+  border-radius: var(--radius-5);
 }
 
 
@@ -115,7 +115,7 @@
   min-height: 48px;
   margin: 0 auto;
   padding: 0 14px;
-  border-radius: var(--r-lg);
+  border-radius: var(--radius-5);
 }
 
 
@@ -135,7 +135,7 @@
   gap: 2px;
   justify-items: start;
   padding: 8px 10px;
-  border-radius: var(--r-md);
+  border-radius: var(--radius-4);
   text-align: left;
 }
 

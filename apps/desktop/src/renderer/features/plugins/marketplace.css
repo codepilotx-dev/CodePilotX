@@ -1,8 +1,8 @@
 /* ===== Plugins View ===== */
 
 .plugins-view {
-  --plugins-radius-card: 14px;
-  --plugins-radius-pill: 999px;
+
+
   display: grid;
   grid-template-rows: auto auto auto auto 1fr;
   gap: var(--sp-5);
@@ -59,7 +59,7 @@
   bottom: 0;
   height: 2px;
   background: var(--c-text-strong);
-  border-radius: 2px;
+  border-radius: var(--radius-1);
 }
 
 
@@ -78,7 +78,7 @@
   gap: 6px;
   height: 30px;
   padding: 0 12px;
-  border-radius: var(--r-md);
+  border-radius: var(--radius-4);
   font-size: var(--fs-13);
   background: var(--c-bg);
   border: 1px solid var(--c-border);
@@ -168,7 +168,7 @@
   gap: 10px;
   height: 38px;
   padding: 0 14px;
-  border-radius: var(--r-md);
+  border-radius: var(--radius-4);
   border: 1px solid var(--c-border-soft);
   background: var(--c-bg);
   color: var(--c-icon);
@@ -199,7 +199,7 @@
   gap: 6px;
   height: 38px;
   padding: 0 12px;
-  border-radius: var(--r-md);
+  border-radius: var(--radius-4);
   border: 1px solid var(--c-border-soft);
   background: var(--c-bg);
   color: var(--c-text-strong);
@@ -231,7 +231,7 @@
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  border-radius: 22px;
+  border-radius: var(--radius-6);
   border: 1px solid var(--c-border-soft);
   display: grid;
   place-items: center;
@@ -287,7 +287,7 @@
   gap: 8px;
   padding: 10px 18px;
   margin: 0;
-  border-radius: var(--plugins-radius-pill);
+  border-radius: var(--radius-full);
   background: var(--white-a10);
   backdrop-filter: blur(6px);
   color: var(--c-text-strong);
@@ -316,7 +316,7 @@
   gap: 6px;
   height: 38px;
   padding: 0 18px;
-  border-radius: var(--r-pill);
+  border-radius: var(--radius-6);
   background: var(--gray-12);
   color: var(--gray-1);
   font-size: var(--fs-13);
@@ -421,7 +421,7 @@
   align-items: center;
   gap: var(--sp-4);
   padding: 16px 18px;
-  border-radius: var(--plugins-radius-card);
+  border-radius: var(--radius-5);
   border: 1px solid var(--c-border-soft);
   background: var(--c-bg);
   transition: border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
@@ -442,7 +442,7 @@
   justify-content: center;
   width: 36px;
   height: 36px;
-  border-radius: 10px;
+  border-radius: var(--radius-5);
   flex-shrink: 0;
   color: var(--c-text-on-accent);
 }
@@ -568,7 +568,7 @@
   gap: 3px;
   height: 20px;
   padding: 0 7px;
-  border-radius: var(--r-pill);
+  border-radius: var(--radius-6);
   border: 1px solid transparent;
   font-size: var(--fs-11);
   font-weight: 600;
@@ -609,7 +609,7 @@
   padding: var(--sp-7);
   color: var(--c-text-meta);
   border: 1px dashed var(--c-border-soft);
-  border-radius: var(--plugins-radius-card);
+  border-radius: var(--radius-5);
 }
 
 

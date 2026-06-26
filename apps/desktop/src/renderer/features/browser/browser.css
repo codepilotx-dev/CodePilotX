@@ -68,7 +68,7 @@
   width: 34px;
   height: 34px;
   border: 1px solid transparent;
-  border-radius: 12px;
+  border-radius: var(--radius-5);
   background: transparent;
   color: var(--c-text-soft);
 }
@@ -97,7 +97,7 @@
   width: min(100%, 420px);
   align-items: center;
   border: 0;
-  border-radius: 16px;
+  border-radius: var(--radius-6);
   background: transparent;
   padding: 0;
 }
@@ -109,7 +109,7 @@
   min-width: 0;
   height: 42px;
   border: 0;
-  border-radius: 16px;
+  border-radius: var(--radius-6);
   outline: 0;
   background: transparent;
   color: var(--c-text-strong);
@@ -144,7 +144,7 @@
   height: 18px;
   display: inline-grid;
   place-items: center;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: color-mix(in srgb, var(--c-danger) 12%, transparent);
   color: var(--c-danger);
   font-weight: 700;
@@ -160,7 +160,7 @@
   gap: var(--sp-1);
   min-height: 30px;
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--radius-5);
   background: transparent;
   color: var(--c-text-soft);
   padding: 0 var(--sp-2);
@@ -268,7 +268,7 @@
 .browser-annotation-form textarea {
   width: 100%;
   border: 1px solid var(--c-border-soft);
-  border-radius: 6px;
+  border-radius: var(--radius-3);
   background: var(--c-bg);
   color: var(--c-text-strong);
   padding: var(--sp-2);

@@ -19,7 +19,7 @@
 .desktop-sidebar-hover-overlay {
   --sidebar-pad-x: 8px;
   --sidebar-item-gap: 8px;
-  --sidebar-item-radius: 6px;
+
 }
 
 .desktop-sidebar.is-resizing {
@@ -47,7 +47,7 @@
   color: var(--c-text);
   user-select: none;
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.08);
-  border-radius: var(--r-md);
+  border-radius: var(--radius-4);
   border: 1px solid var(--c-border);
   will-change: opacity, transform;
 }
@@ -90,7 +90,7 @@
 
 .sidebar-body::-webkit-scrollbar-thumb {
   border: 2px solid transparent;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: var(--c-scrollbar);
   background-clip: padding-box;
 }
@@ -139,7 +139,7 @@
   align-items: center;
   gap: var(--sidebar-item-gap);
   padding: 6px var(--sidebar-pad-x);
-  border-radius: 12px;
+  border-radius: var(--radius-5);
   color: var(--c-text);
   font-size: var(--fs-14);
   font-weight: 500;
@@ -365,7 +365,7 @@
 .sidebar-session-confirm-archive-button {
   width: 100%;
   padding: 0 4px;
-  border-radius: 15px;
+  border-radius: var(--radius-6);
   color: var(--c-danger);
   background: var(--red-3);
   white-space: nowrap;
@@ -459,7 +459,7 @@
   align-items: center;
   gap: 8px;
   padding: 6px 8px;
-  border-radius: var(--r-md);
+  border-radius: var(--radius-4);
   color: var(--c-text-soft);
   font-size: var(--fs-13);
   line-height: 1.4;
@@ -474,7 +474,7 @@
   position: relative;
   width: 100%;
   height: 4px;
-  border-radius: var(--r-round);
+  border-radius: var(--radius-full);
   background: var(--c-border-row);
   overflow: hidden;
 }
@@ -482,7 +482,7 @@
 .popover-usage-fill {
   display: block;
   height: 100%;
-  border-radius: var(--r-round);
+  border-radius: var(--radius-full);
   background: var(--c-accent);
   transition: width 0.18s ease-out;
 }
@@ -543,7 +543,7 @@
   width: 100%;
   padding: 7px 8px;
   border: 0;
-  border-radius: var(--r-md);
+  border-radius: var(--radius-4);
   background: transparent;
   color: var(--c-text);
   font-size: var(--fs-13);

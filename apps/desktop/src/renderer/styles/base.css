@@ -45,12 +45,6 @@
   --sp-6: 24px;
   --sp-7: 30px;
   --sp-8: 36px;
-  --r-sm: 6px;
-  --r-md: 8px;
-  --r-lg: 12px;
-  --r-pill: 18px;
-  --r-card: 24px;
-  --r-round: 999px;
   --sh-soft: 0 1px 2px var(--black-a2);
   --sh-card: 0 1px 2px var(--black-a2);
   --sh-card-lg: 0 8px 18px var(--black-a3);
@@ -221,7 +215,7 @@ body {
 
 *::-webkit-scrollbar-thumb {
   border: 2px solid transparent;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background-clip: padding-box;
   background: var(--c-scrollbar);
 }
@@ -253,7 +247,7 @@ input,
 textarea {
   min-width: 0;
   border: 1px solid var(--c-border);
-  border-radius: var(--r-md);
+  border-radius: var(--radius-3);
   background: var(--c-bg);
   color: var(--c-text);
   outline: none;
@@ -268,4 +262,14 @@ h2,
 h3,
 p {
   margin: 0;
+}
+
+.r-none   { --radius-factor: 0; }
+.r-small  { --radius-factor: 0.5; }
+.r-medium { --radius-factor: 1; }
+.r-large  { --radius-factor: 1.5; }
+.r-full   { --radius-factor: 9999; }
+
+[data-radius] {
+  --radius-full: 9999px;
 }

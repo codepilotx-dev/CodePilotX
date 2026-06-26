@@ -12,7 +12,7 @@
   overscroll-behavior: contain;
   padding: 6px;
   border: 1px solid var(--black-a2);
-  border-radius: var(--r-lg);
+  border-radius: var(--radius-5);
   background: var(--c-bg);
   box-shadow: var(--sh-popover);
   color: var(--c-text);
@@ -104,7 +104,7 @@
   height: 28px;
   margin-left: auto;
   flex: 0 0 auto;
-  border-radius: var(--r-round);
+  border-radius: var(--radius-full);
   background: var(--gray-5);
   transition: background 0.15s ease-out;
 }
@@ -115,7 +115,7 @@
   left: 4px;
   width: 20px;
   height: 20px;
-  border-radius: var(--r-round);
+  border-radius: var(--radius-full);
   background: var(--c-bg);
   box-shadow: 0 1px 2px var(--black-a3);
   transition: transform 0.15s ease-out;
@@ -138,7 +138,7 @@
   max-width: 320px;
   max-height: min(360px, calc(100vh - 96px));
   padding: 10px;
-  border-radius: 18px;
+  border-radius: var(--radius-6);
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -155,7 +155,7 @@
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  border-radius: var(--r-md);
+  border-radius: var(--radius-4);
   color: var(--c-text-on-accent);
 }
 
@@ -189,7 +189,7 @@
 }
 
 .context-plugin-icon-openai {
-  border-radius: var(--r-round);
+  border-radius: var(--radius-full);
   background: var(--purple-9);
 }
 
@@ -254,7 +254,7 @@
   align-items: center;
   gap: 10px;
   padding: 7px 10px;
-  border-radius: var(--r-md);
+  border-radius: var(--radius-4);
   color: var(--c-text);
   font-size: var(--fs-13);
 
@@ -363,7 +363,7 @@
   width: max-content;
   max-width: min(320px, calc(100vw - 32px));
   padding: 6px 8px;
-  border-radius: var(--r-md);
+  border-radius: var(--radius-4);
   border: 1px solid var(--black-a2);
   background: var(--c-bg);
   box-shadow: var(--sh-popover);
@@ -378,7 +378,7 @@
 .tooltip-content {
   z-index: 100;
   padding: 4px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-3);
   background: var(--c-ink);
   color: var(--c-text-on-accent);
   font-size: var(--fs-12);
