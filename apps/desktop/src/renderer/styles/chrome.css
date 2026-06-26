@@ -159,7 +159,7 @@
   background: var(--c-border-row);
 }
 
-.menubar-debug-mode {
+.app-menubar .menubar-debug-mode {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -171,7 +171,7 @@
   -webkit-app-region: no-drag;
 }
 
-.menubar-debug-mode-label {
+.app-menubar .menubar-debug-mode-label {
   color: var(--c-text-soft);
   font-size: var(--fs-12);
 }

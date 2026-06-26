@@ -168,8 +168,8 @@
 
 .composer-input textarea {
   width: 100%;
-  max-height: 130px;
-  min-height: 24px;
+  max-height: 40vh;
+  min-height: 40px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -290,6 +290,7 @@
 
 .composer-toolbar {
   justify-content: space-between;
+  padding-top: 8px;
 }
 
 .toolbar-left,
@@ -357,8 +358,8 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 5px;
-  border-radius: 12px;
+  padding: 8px 10px;
+  border-radius: 25px;
   color: var(--c-accent);
   font-size: var(--fs-12);
   line-height: 16px;

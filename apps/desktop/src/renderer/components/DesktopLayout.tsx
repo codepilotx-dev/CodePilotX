@@ -126,6 +126,7 @@ export function DesktopLayout(): React.ReactNode {
     open: false,
     activeTool: 'review',
   })
+  const [menubarDebugMode, setMenubarDebugMode] = useState(false)
   const [rightDockWidth, setRightDockWidth] = useState(() =>
     getInitialRightDockWidth(),
   )
@@ -1068,6 +1069,8 @@ export function DesktopLayout(): React.ReactNode {
       sidebarCollapsed={sidebarCollapsed}
       isMaximized={isWindowMaximized}
       onToggleSidebar={toggleSidebarCollapsed}
+      isDebugMode={menubarDebugMode}
+      onDebugModeChange={setMenubarDebugMode}
       onClose={() => {
         void desktopClient.closeWindow()
       }}
@@ -1224,6 +1227,7 @@ export function DesktopLayout(): React.ReactNode {
       <DesktopAppShell
         menuBar={menuBar}
         sidebar={sidebar}
+        menubarDebugMode={menubarDebugMode}
       >
         <QuickChatContext.Provider
           value={{

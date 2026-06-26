@@ -4,15 +4,19 @@ type Props = {
   menuBar: React.ReactNode
   sidebar: React.ReactNode
   children: React.ReactNode
+  menubarDebugMode?: boolean
 }
 
 export function DesktopAppShell({
   menuBar,
   sidebar,
   children,
+  menubarDebugMode = false,
 }: Props): React.ReactNode {
   return (
-    <div className="app-shell">
+    <div
+      className={menubarDebugMode ? 'app-shell menubar-debug-mode' : 'app-shell'}
+    >
       <div className="desktop-menubar">{menuBar}</div>
       <div className="app-body">
         {sidebar}

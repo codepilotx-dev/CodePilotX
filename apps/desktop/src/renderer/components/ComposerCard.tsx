@@ -310,8 +310,9 @@ onCreateBranch,
   useEffect(() => {
     const textarea = textareaRef.current
     if (!textarea) return
+    const maxHeight = Math.floor((window.innerHeight || 0) * 0.4)
     textarea.style.height = 'auto'
-    textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`
+    textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`
   }, [input])
 
   function closeDropdown(): void {

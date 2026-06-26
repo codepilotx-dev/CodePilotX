@@ -71,6 +71,8 @@ type Props = {
   sidebarCollapsed: boolean
   isMaximized: boolean
   onToggleSidebar: () => void
+  isDebugMode: boolean
+  onDebugModeChange: (checked: boolean) => void
   onMinimize: () => void
   onToggleMaximize: () => void
   onClose: () => void
@@ -114,11 +116,17 @@ function MenuItem({
   )
 }
 
-function DebugModeToggle(): React.ReactNode {
+function DebugModeToggle({
+  checked,
+  onChange,
+}: {
+  checked: boolean
+  onChange: (checked: boolean) => void
+}): React.ReactNode {
   return (
     <label className="menubar-debug-mode">
       <span className="menubar-debug-mode-label">调试模式</span>
-      <ToggleSwitch checked={false} onChange={() => {}} ariaLabel="调试模式" />
+      <ToggleSwitch checked={checked} onChange={onChange} ariaLabel="调试模式" />
     </label>
   )
 }
@@ -160,6 +168,8 @@ export function MenuBar({
   sidebarCollapsed,
   isMaximized,
   onToggleSidebar,
+  isDebugMode,
+  onDebugModeChange,
   onMinimize,
   onToggleMaximize,
   onClose,
@@ -416,7 +426,10 @@ export function MenuBar({
               </MenuItem>
             </AppMenu>
           </Menubar.Root>
-          <DebugModeToggle />
+          <DebugModeToggle
+            checked={isDebugMode}
+            onChange={onDebugModeChange}
+          />
         </div>
 
         <div className="window-controls">

@@ -108,6 +108,7 @@
 }
 
 .composer-change-summary {
+  display: none !important;
   width: 100%;
   max-width: calc(var(--composer-w) - 60px);
   display: flex;
@@ -407,10 +408,10 @@
   display: grid;
   grid-template-columns: 32px minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: 8px;
-  padding: 4px 10px 4px 12px;
+  gap: 6px;
+  padding: 4px 10px;
   border: 0;
-  border-radius: 18px;
+  border-radius: 18px !important;
   background: transparent;
   color: var(--c-text-strong);
   font-size: var(--fs-15);
@@ -509,7 +510,7 @@
 
 .inline-approval-footer {
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-end !important;
   align-items: center;
   gap: 14px;
   padding-right: 0;
@@ -627,7 +628,9 @@
   color: var(--c-text-strong);
   font-size: var(--fs-13);
   cursor: pointer;
-  transition: background 120ms ease, border-color 120ms ease;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease;
 }
 
 .exit-plan-mode-mode-trigger:hover {
@@ -702,7 +705,9 @@
   border: 1px solid var(--c-border-soft);
   background: var(--c-bg);
   color: var(--c-text-strong);
-  transition: background 120ms ease, border-color 120ms ease;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease;
 }
 
 .exit-plan-mode-button:hover {
@@ -1124,12 +1129,7 @@
 }
 
 .conversation-page .composer-bottom {
-  display: flex;
-  width: 100%;
-  max-width: min(1040px, calc(100% - 40px));
-  margin-top: 6px;
-  padding: 0 24px;
-  color: var(--c-text-meta);
+  display: none;
 }
 
 .chat-message-row {
@@ -1389,7 +1389,7 @@
   left: 3px;
   width: 2px;
   background: transparent;
-  content: '';
+  content: "";
 }
 
 .right-dock-resize-handle:hover::after,
@@ -1514,7 +1514,10 @@
 
 .browser-commandbar {
   display: grid;
-  grid-template-columns: minmax(120px, 1fr) minmax(180px, 1.2fr) minmax(120px, 1fr);
+  grid-template-columns: minmax(120px, 1fr) minmax(180px, 1.2fr) minmax(
+      120px,
+      1fr
+    );
   align-items: center;
   gap: 16px;
   min-height: 66px;
@@ -3218,8 +3221,7 @@
   border: 0;
   background: transparent;
   color: var(--c-text-soft);
-  transition:
-    color 0.15s ease-out;
+  transition: color 0.15s ease-out;
 }
 
 .timeline-command-group-summary:hover {
@@ -3571,6 +3573,10 @@
 }
 
 .workflow-page__sidebar {
+  display: none;
+}
+
+.app-shell.menubar-debug-mode .workflow-page__sidebar {
   flex: 0 0 264px;
   width: 264px;
   min-height: 0;
@@ -3731,7 +3737,7 @@
 }
 
 .workflow-page .quick-chat-content.workflow-page__inner {
-  max-width: 780px;
+  max-width: 760px;
   margin: 0 auto;
   padding: 0;
 }
@@ -3999,11 +4005,13 @@
 @keyframes workflow-node-dot-pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--c-text-strong) 34%, transparent);
+    box-shadow: 0 0 0 0
+      color-mix(in srgb, var(--c-text-strong) 34%, transparent);
   }
 
   50% {
-    box-shadow: 0 0 0 4px color-mix(in srgb, var(--c-text-strong) 0%, transparent);
+    box-shadow: 0 0 0 4px
+      color-mix(in srgb, var(--c-text-strong) 0%, transparent);
   }
 }
 

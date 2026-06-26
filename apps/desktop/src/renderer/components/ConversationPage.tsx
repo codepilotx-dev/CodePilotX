@@ -92,6 +92,21 @@ const FALLBACK_OPEN_TARGETS: DesktopOpenTarget[] = [
   },
 ];
 
+function useElapsedSeconds(startTimeMs: number | undefined, isRunning: boolean): number {
+  const [seconds, setSeconds] = React.useState(0);
+  React.useEffect(() => {
+    if (!isRunning || !startTimeMs) {
+      setSeconds(0);
+      return;
+    }
+    const tick = () => setSeconds(Math.floor((Date.now() - startTimeMs) / 1000));
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [isRunning, startTimeMs]);
+  return seconds;
+}
+
 export function ConversationPage(): React.ReactNode {
   const {
     isConversationLoading,
@@ -161,6 +176,14 @@ export function ConversationPage(): React.ReactNode {
   const timelineItems = React.useMemo(
     () => groupTimelineToolEvents(timelineEvents),
     [timelineEvents],
+  );
+  const assistantActionMessageIds = React.useMemo(
+    () =>
+      deriveAssistantActionMessageIds({
+        sessionStatus,
+        timelineEvents,
+      }),
+    [sessionStatus, timelineEvents],
   );
   const showThinking = deriveWorkflowThinkingVisible({
     pendingPermissions,
@@ -612,6 +635,11 @@ export function ConversationPage(): React.ReactNode {
                       <TimelineItem
                         item={item}
                         key={item.id}
+                        showActions={
+                          item.type === "message" &&
+                          item.role === "assistant" &&
+                          assistantActionMessageIds.has(item.id)
+                        }
                         onDiscardChanges={(paths) => void handleDiscardChanges(paths)}
                         onReviewCode={handleRunCodeReview}
                         onReviewFiles={openReviewSidebar}
@@ -1071,6 +1099,65 @@ function deriveWorkflowThinkingVisible({
   return true;
 }
 
+export function deriveAssistantActionMessageIds({
+  sessionStatus,
+  timelineEvents,
+}: {
+  sessionStatus: DesktopSessionStatus;
+  timelineEvents: DesktopSessionEvent[];
+}): Set<string> {
+  const visibleIds = new Set<string>();
+  let turnOpen = false;
+  let lastAssistantMessageId: string | null = null;
+
+  function closeTurn(): void {
+    if (lastAssistantMessageId) {
+      visibleIds.add(lastAssistantMessageId);
+    }
+    turnOpen = false;
+    lastAssistantMessageId = null;
+  }
+
+  for (const event of timelineEvents) {
+    if (
+      event.type === "message" &&
+      event.role === "user" &&
+      Boolean(event.content?.trim())
+    ) {
+      if (!turnOpen) {
+        turnOpen = true;
+        lastAssistantMessageId = null;
+      }
+      continue;
+    }
+
+    if (!turnOpen) continue;
+
+    if (
+      event.type === "message" &&
+      event.role === "assistant" &&
+      Boolean(event.content?.trim())
+    ) {
+      lastAssistantMessageId = event.id;
+      continue;
+    }
+
+    if (event.type === "checkpoint" || event.type === "error") {
+      closeTurn();
+    }
+  }
+
+  if (turnOpen && lastAssistantMessageId && !isActiveSessionStatus(sessionStatus)) {
+    visibleIds.add(lastAssistantMessageId);
+  }
+
+  return visibleIds;
+}
+
+function isActiveSessionStatus(sessionStatus: DesktopSessionStatus): boolean {
+  return sessionStatus === "running" || sessionStatus === "waiting";
+}
+
 function findLastIndex<T>(
   values: readonly T[],
   predicate: (value: T) => boolean,
@@ -1200,6 +1287,8 @@ type TimelineToolRun = {
   resultContent: string;
   isError: boolean;
   isRunning: boolean;
+  isWaitingForPermission: boolean;
+  startedAtMs?: number;
 };
 
 type TimelineToolGroup = {
@@ -1363,11 +1452,13 @@ function trimNodeTitle(value: string): string {
 
 function TimelineItem({
   item,
+  showActions,
   onReviewFiles,
   onReviewCode,
   onDiscardChanges,
 }: {
   item: TimelineItem;
+  showActions: boolean;
   onReviewFiles: () => void;
   onReviewCode: () => void;
   onDiscardChanges: (paths: string[]) => void;
@@ -1387,6 +1478,7 @@ function TimelineItem({
           createdAt: event.createdAt,
           streaming: event.type === "assistant_delta",
         }}
+        showActions={showActions}
       />
     );
   }
@@ -1504,6 +1596,17 @@ function TimelineToolGroupView({
   const [openRunId, setOpenRunId] = React.useState<string | null>(null);
   const commandCount = group.runs.length;
 
+  const firstRunningRun = group.runs.find((r) => r.isRunning);
+  const groupElapsed = useElapsedSeconds(
+    firstRunningRun?.startedAtMs,
+    Boolean(firstRunningRun),
+  );
+  const groupSummaryLabel = firstRunningRun
+    ? `正在运行命令，已持续 ${groupElapsed} s`
+    : commandCount === 1
+      ? "已运行命令"
+      : `已运行 ${commandCount} 条命令`;
+
   return (
     <article
       className={
@@ -1520,7 +1623,7 @@ function TimelineToolGroupView({
       >
         <Code2 size={APP_ICON_SIZE} />
         <span>
-          {commandCount === 1 ? "已运行命令" : `已运行 ${commandCount} 条命令`}
+          {groupSummaryLabel}
         </span>
         <ChevronDown
           className="timeline-command-group-chevron"
@@ -1535,78 +1638,15 @@ function TimelineToolGroupView({
         <div className="timeline-command-details-inner">
           <ul className="timeline-command-list">
             {group.runs.map((run) => {
-              const view = commandRunView(run);
-              const isOpen = openRunId === run.id;
               return (
-                <li
-                  className={
-                    isOpen
-                      ? "timeline-command-item timeline-command-item--open"
-                      : "timeline-command-item"
-                  }
+                <TimelineCommandRunItem
                   key={run.id}
-                >
-                  <button
-                    aria-expanded={isOpen}
-                    className="timeline-command-row"
-                    tabIndex={expanded ? 0 : -1}
-                    type="button"
-                    onClick={() =>
-                      setOpenRunId((value) => (value === run.id ? null : run.id))
-                    }
-                  >
-                    <span
-                      className={
-                        isOpen
-                          ? "timeline-command-row-label"
-                          : "timeline-command-row-command"
-                      }
-                      title={view.displayCommand}
-                    >
-                      {isOpen ? "已运行命令" : `已运行 ${view.commandLabel}`}
-                    </span>
-                    <ChevronRight
-                      className="timeline-command-row-chevron"
-                      size={APP_ICON_SIZE}
-                      strokeWidth={APP_ICON_STROKE_WIDTH}
-                    />
-                  </button>
-
-                  <div
-                    aria-hidden={!isOpen}
-                    className="timeline-command-shell-wrap"
-                  >
-                    <article
-                      className={`timeline-command-shell timeline-command-shell--${view.statusKind}`}
-                    >
-                      <div className="timeline-command-shell-header">
-                        {view.shellTitle}
-                      </div>
-                      <pre className="timeline-command-shell-body"><span className="timeline-command-shell-prompt">$</span> {view.displayCommand}{view.displayOutput ? `\n${view.displayOutput}` : ""}</pre>
-                      <footer className="timeline-command-shell-footer">
-                        <span className="timeline-command-shell-status">
-                          {view.statusKind === "success" ? (
-                            <Check
-                              size={APP_ICON_SIZE}
-                              strokeWidth={APP_ICON_STROKE_WIDTH}
-                            />
-                          ) : view.statusKind === "error" ? (
-                            <X
-                              size={APP_ICON_SIZE}
-                              strokeWidth={APP_ICON_STROKE_WIDTH}
-                            />
-                          ) : (
-                            <Circle
-                              size={APP_ICON_SIZE}
-                              strokeWidth={APP_ICON_STROKE_WIDTH}
-                            />
-                          )}
-                          {view.statusLabel}
-                        </span>
-                      </footer>
-                    </article>
-                  </div>
-                </li>
+                  run={run}
+                  isOpen={openRunId === run.id}
+                  onToggle={() =>
+                    setOpenRunId((value) => (value === run.id ? null : run.id))
+                  }
+                />
               );
             })}
           </ul>
@@ -1625,32 +1665,128 @@ type CommandRunView = {
   shellTitle: string;
   statusKind: CommandRunStatusKind;
   statusLabel: string;
+  startedAtMs?: number;
 };
 
-function commandRunView(run: TimelineToolRun): CommandRunView {
+export function commandRunView(run: TimelineToolRun): CommandRunView {
   const toolLabel = displayToolName(run.toolName);
   const displayCommand = run.callContent || run.resultContent || toolLabel;
-  const statusKind: CommandRunStatusKind = run.isRunning
+  const statusKind: CommandRunStatusKind = run.isWaitingForPermission || run.isRunning
     ? "running"
     : run.isError
       ? "error"
       : "success";
+  const statusLabel = run.isWaitingForPermission
+    ? "等待权限"
+    : statusKind === "running"
+      ? "运行中"
+      : statusKind === "error"
+        ? "失败"
+        : "成功";
   return {
     commandLabel: displayCommand,
     displayCommand,
     displayOutput: run.resultContent,
     shellTitle: toolLabel,
     statusKind,
-    statusLabel:
-      statusKind === "running"
-        ? "运行中"
-        : statusKind === "error"
-          ? "失败"
-          : "成功",
+    statusLabel,
+    startedAtMs: run.startedAtMs,
   };
 }
 
-function ChatMessage({ message }: { message: Message }): React.ReactNode {
+function TimelineCommandRunItem({
+  run,
+  isOpen,
+  onToggle,
+}: {
+  run: TimelineToolRun;
+  isOpen: boolean;
+  onToggle: () => void;
+}): React.ReactNode {
+  const view = commandRunView(run);
+  const runElapsed = useElapsedSeconds(run.startedAtMs, run.isRunning);
+  const rowLabel = run.isRunning
+    ? `正在运行命令，已持续 ${runElapsed} s`
+    : isOpen
+      ? "已运行命令"
+      : `已运行 ${view.commandLabel}`;
+
+  return (
+    <li
+      className={
+        isOpen
+          ? "timeline-command-item timeline-command-item--open"
+          : "timeline-command-item"
+      }
+    >
+      <button
+        aria-expanded={isOpen}
+        className="timeline-command-row"
+        type="button"
+        onClick={onToggle}
+      >
+        <span
+          className={
+            isOpen
+              ? "timeline-command-row-label"
+              : "timeline-command-row-command"
+          }
+          title={view.displayCommand}
+        >
+          {rowLabel}
+        </span>
+        <ChevronRight
+          className="timeline-command-row-chevron"
+          size={APP_ICON_SIZE}
+          strokeWidth={APP_ICON_STROKE_WIDTH}
+        />
+      </button>
+
+      <div
+        aria-hidden={!isOpen}
+        className="timeline-command-shell-wrap"
+      >
+        <article
+          className={`timeline-command-shell timeline-command-shell--${view.statusKind}`}
+        >
+          <div className="timeline-command-shell-header">
+            {view.shellTitle}
+          </div>
+          <pre className="timeline-command-shell-body"><span className="timeline-command-shell-prompt">$</span> {view.displayCommand}{view.displayOutput ? `\n${view.displayOutput}` : ""}</pre>
+          <footer className="timeline-command-shell-footer">
+            <span className="timeline-command-shell-status">
+              {view.statusKind === "success" ? (
+                <Check
+                  size={APP_ICON_SIZE}
+                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                />
+              ) : view.statusKind === "error" ? (
+                <X
+                  size={APP_ICON_SIZE}
+                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                />
+              ) : (
+                <Circle
+                  size={APP_ICON_SIZE}
+                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                />
+              )}
+              {view.statusLabel}
+            </span>
+          </footer>
+        </article>
+      </div>
+    </li>
+  );
+}
+
+function ChatMessage({
+  message,
+  showActions,
+}: {
+  message: Message;
+  showActions: boolean;
+}): React.ReactNode {
   const shouldTypewrite =
     message.role === "assistant" &&
     !message.streaming &&
@@ -1679,7 +1815,7 @@ function ChatMessage({ message }: { message: Message }): React.ReactNode {
           streaming={Boolean(message.streaming)}
         />
       </div>
-      {message.role === "assistant" && message.text.trim() ? (
+      {showActions && message.role === "assistant" && message.text.trim() ? (
         <div className="assistant-message-actions">
           <MessageActionButton label="复制" tip="复制" text={message.text}>
             <Copy size={APP_ICON_SIZE} />
@@ -2806,7 +2942,7 @@ function foldTimelineEvents(
   return folded;
 }
 
-function groupTimelineToolEvents(
+export function groupTimelineToolEvents(
   sourceEvents: DesktopSessionEvent[],
 ): TimelineItem[] {
   const items: TimelineItem[] = [];
@@ -2822,7 +2958,14 @@ function groupTimelineToolEvents(
   }
 
   for (const event of sourceEvents) {
-    if (event.type === "tool_call" || event.type === "tool_result") {
+    if (event.type === "status") {
+      continue;
+    }
+    if (
+      event.type === "tool_call" ||
+      event.type === "tool_result" ||
+      event.type === "permission_request"
+    ) {
       pendingToolEvents.push(event);
       continue;
     }
@@ -2851,6 +2994,8 @@ function buildToolGroup(events: DesktopSessionEvent[]): TimelineToolGroup | null
         resultContent: "",
         isError: false,
         isRunning: true,
+        isWaitingForPermission: false,
+        startedAtMs: Date.parse(event.createdAt) || undefined,
       });
       continue;
     }
@@ -2859,10 +3004,17 @@ function buildToolGroup(events: DesktopSessionEvent[]): TimelineToolGroup | null
       (toolUseId ? findPendingToolRun(runs, undefined, toolUseId) : null) ??
       findPendingToolRun(runs, toolName) ??
       findPendingToolRun(runs);
+    if (event.type === "permission_request") {
+      if (pendingRun) {
+        pendingRun.isWaitingForPermission = true;
+      }
+      continue;
+    }
     if (pendingRun) {
       pendingRun.resultContent = content;
       pendingRun.isError = event.metadata?.isError === true;
       pendingRun.isRunning = false;
+      pendingRun.isWaitingForPermission = false;
       continue;
     }
 
@@ -2877,6 +3029,7 @@ function buildToolGroup(events: DesktopSessionEvent[]): TimelineToolGroup | null
       resultContent: content,
       isError: event.metadata?.isError === true,
       isRunning: false,
+      isWaitingForPermission: false,
     });
   }
 
