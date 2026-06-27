@@ -66,6 +66,7 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     permissionMode: 'default',
     model: '',
     fallbackModel: '',
+    reviewModel: '',
     smallFastModel: '',
     fastModel: '',
     defaultModel: '',
@@ -130,6 +131,7 @@ export function normalizeDesktopStoredSettings(
     permissionMode: normalizeDesktopPermissionMode(parsed.permissionMode),
     model: migrateModelAlias(stringOrDefault(parsed.model, defaults.model)),
     fallbackModel: stringOrDefault(parsed.fallbackModel, defaults.fallbackModel),
+    reviewModel: stringOrDefault(parsed.reviewModel, defaults.reviewModel),
     smallFastModel: stringOrDefault(
       parsed.smallFastModel,
       defaults.smallFastModel,

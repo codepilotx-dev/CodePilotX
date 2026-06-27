@@ -71,6 +71,7 @@ export type DesktopAgentRuntimeContext = {
   providerBaseURL?: string
   debugConversationDump?: boolean
   model?: string
+  reviewModel?: string
   fallbackModel?: string
   smallFastModel?: string
   fastModel?: string
@@ -640,6 +641,7 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
       providerBaseURL: context.providerBaseURL,
       debugConversationDump: context.debugConversationDump,
       model: context.model,
+      reviewModel: context.reviewModel,
       smallFastModel: context.smallFastModel,
       fastModel: context.fastModel,
       defaultModel: context.defaultModel,

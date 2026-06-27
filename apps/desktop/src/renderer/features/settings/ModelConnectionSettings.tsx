@@ -997,6 +997,18 @@ const nextState = await desktopClient.deleteProviderApiKey(providerID)
               />
             }
           />
+          <SettingsRow
+            title="自动审查模型（实验）"
+            description="仅用于 auto-review reviewer session；自定义模型可能因能力、格式或配置不兼容导致 auto-review 失效并回退人工审批。"
+            control={
+              <SettingsDropdown
+                ariaLabel="自动审查模型"
+                value={taskModelValue(settings.reviewModel, taskModelOptions)}
+                options={taskModelOptions}
+                onChange={settings.setReviewModel}
+              />
+            }
+          />
         </SettingsSection>
 
         {isDeepSeek ? (

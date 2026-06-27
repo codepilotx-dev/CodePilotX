@@ -59,6 +59,7 @@ export type DesktopHeadlessRuntimeOptions = {
   providerBaseURL?: string
   debugConversationDump?: boolean
   model?: string
+  reviewModel?: string
   smallFastModel?: string
   fastModel?: string
   defaultModel?: string

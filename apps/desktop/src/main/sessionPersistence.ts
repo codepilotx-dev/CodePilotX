@@ -219,6 +219,7 @@ export function createDesktopSessionSnapshot(params: {
       permissionMode: params.settings.permissionMode,
       model: params.settings.model ?? null,
       fallbackModel: params.settings.fallbackModel ?? null,
+      reviewModel: params.settings.reviewModel ?? null,
       thinkingMode: params.settings.thinkingMode,
       hasSystemPrompt: Boolean(params.settings.systemPrompt),
       hasAppendSystemPrompt: Boolean(params.settings.appendSystemPrompt),
@@ -668,6 +669,7 @@ function snapshotFromTranscriptLog(
     permissionMode: settings.permissionMode,
     model: effectiveModel ?? null,
     fallbackModel: settings.fallbackModel ?? null,
+    reviewModel: settings.reviewModel ?? null,
     thinkingMode: settings.thinkingMode,
     hasSystemPrompt: Boolean(settings.systemPrompt),
     hasAppendSystemPrompt: Boolean(settings.appendSystemPrompt),
@@ -747,6 +749,7 @@ function snapshotFromOverlay(overlay: DesktopSessionOverlay): DesktopSessionSnap
       permissionMode: settings.permissionMode,
       model: settings.model ?? null,
       fallbackModel: settings.fallbackModel ?? null,
+      reviewModel: settings.reviewModel ?? null,
       thinkingMode: settings.thinkingMode,
       hasSystemPrompt: Boolean(settings.systemPrompt),
       hasAppendSystemPrompt: Boolean(settings.appendSystemPrompt),
@@ -1087,6 +1090,8 @@ function normalizeSessionItem(
     model: typeof item.model === 'string' ? item.model : null,
     fallbackModel:
       typeof item.fallbackModel === 'string' ? item.fallbackModel : null,
+    reviewModel:
+      typeof item.reviewModel === 'string' ? item.reviewModel : null,
     thinkingMode:
       item.thinkingMode === 'enabled' ||
       item.thinkingMode === 'adaptive' ||
@@ -1146,6 +1151,7 @@ function normalizeSettingsSnapshot(
     permissionMode: normalizeDesktopPermissionMode(settings.permissionMode),
     model: stringOrUndefined(settings.model),
     fallbackModel: stringOrUndefined(settings.fallbackModel),
+    reviewModel: stringOrUndefined(settings.reviewModel),
     smallFastModel: stringOrUndefined(settings.smallFastModel),
     fastModel: stringOrUndefined(settings.fastModel),
     defaultModel: stringOrUndefined(settings.defaultModel),

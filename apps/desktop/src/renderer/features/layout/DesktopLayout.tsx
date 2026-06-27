@@ -80,6 +80,7 @@ export function DesktopLayout(): React.ReactNode {
   const {
     permissionMode,
     model,
+    reviewModel,
     smallFastModel,
     fastModel,
     defaultModel,
@@ -189,6 +190,7 @@ export function DesktopLayout(): React.ReactNode {
     providerBaseURL,
     debugConversationDump: menubarDebugMode,
     model,
+    reviewModel,
     smallFastModel,
     fastModel,
     defaultModel,

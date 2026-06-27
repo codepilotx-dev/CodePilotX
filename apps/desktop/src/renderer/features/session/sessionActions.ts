@@ -31,6 +31,7 @@ export type SessionSettingsSnapshot = {
   providerBaseURL: string
   debugConversationDump: boolean
   model: string
+  reviewModel: string
   smallFastModel: string
   fastModel: string
   defaultModel: string
@@ -84,6 +85,7 @@ export async function createSessionForWorkspaceAction(
       providerBaseURL: normalizeOptionalText(settings.providerBaseURL),
       debugConversationDump: settings.debugConversationDump,
       model: normalizeOptionalText(settings.model),
+      reviewModel: normalizeOptionalText(settings.reviewModel),
       smallFastModel: normalizeOptionalText(settings.smallFastModel),
       fastModel: normalizeOptionalText(settings.fastModel),
       defaultModel: normalizeOptionalText(settings.defaultModel),
@@ -123,6 +125,7 @@ export async function createSessionForWorkspaceAction(
         standalone: session.standalone,
         permissionMode: settings.permissionMode,
         model: normalizeOptionalText(settings.model) ?? null,
+        reviewModel: normalizeOptionalText(settings.reviewModel) ?? null,
         fallbackModel: null,
         thinkingMode: settings.thinkingMode,
         hasSystemPrompt: Boolean(normalizeOptionalText(settings.systemPrompt)),

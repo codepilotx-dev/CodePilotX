@@ -24,6 +24,7 @@ export type DesktopHeadlessRuntimeOptions = {
   approvalsReviewer?: 'user' | 'auto_review'
   permissionMode?: PermissionMode
   model?: string
+  reviewModel?: string
   smallFastModel?: string
   fastModel?: string
   defaultModel?: string

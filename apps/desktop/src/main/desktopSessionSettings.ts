@@ -14,6 +14,7 @@ export function createSessionSettingsSnapshot(params: {
   providerID?: DesktopSessionSettingsSnapshot['providerID']
   providerBaseURL?: string
   model?: string
+  reviewModel?: string
   smallFastModel?: string
   fastModel?: string
   defaultModel?: string
@@ -39,6 +40,7 @@ export function createSessionSettingsSnapshot(params: {
   if (params.providerID) settings.providerID = params.providerID
   if (params.providerBaseURL) settings.providerBaseURL = params.providerBaseURL
   if (params.model) settings.model = params.model
+  if (params.reviewModel) settings.reviewModel = params.reviewModel
   if (params.smallFastModel) settings.smallFastModel = params.smallFastModel
   if (params.fastModel) settings.fastModel = params.fastModel
   if (params.defaultModel) settings.defaultModel = params.defaultModel

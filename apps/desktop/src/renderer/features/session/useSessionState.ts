@@ -59,6 +59,7 @@ export type UseSessionStateOptions = {
   providerBaseURL: string
   debugConversationDump: boolean
   model: string
+  reviewModel: string
   smallFastModel: string
   fastModel: string
   defaultModel: string
@@ -127,6 +128,7 @@ export function useSessionState(
     providerBaseURL,
     debugConversationDump,
     model,
+    reviewModel,
     smallFastModel,
     fastModel,
     defaultModel,
@@ -453,6 +455,7 @@ export function useSessionState(
       providerBaseURL,
       debugConversationDump,
       model,
+      reviewModel,
       smallFastModel,
       fastModel,
       defaultModel,
@@ -473,6 +476,7 @@ export function useSessionState(
       debugConversationDump,
       fastModel,
       model,
+      reviewModel,
       deepModel,
       permissionMode,
       providerBaseURL,

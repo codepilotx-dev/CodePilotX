@@ -684,6 +684,7 @@ async function createSession(
   )
   const permissionMode = normalizeDesktopPermissionMode(options.permissionMode)
   const model = normalizeOptionalText(options.model)
+  const reviewModel = normalizeOptionalText(options.reviewModel)
   desktopConsoleLog('create_session', {
     workspacePath,
     permissionProfile,
@@ -720,6 +721,7 @@ async function createSession(
     providerID: providerState.selectedProviderID,
     providerBaseURL: providerState.baseURL,
     model,
+    reviewModel,
     smallFastModel,
     fastModel,
     defaultModel,
@@ -742,6 +744,7 @@ async function createSession(
       providerID: providerState.selectedProviderID,
       providerBaseURL: providerState.baseURL,
       model,
+      reviewModel,
       smallFastModel,
       fastModel,
       defaultModel,

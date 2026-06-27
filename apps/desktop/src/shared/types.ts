@@ -550,6 +550,7 @@ export type DesktopStoredSettings = {
   permissionMode: DesktopPermissionMode
   model: string
   fallbackModel: string
+  reviewModel: string
   smallFastModel: string
   fastModel: string
   defaultModel: string
@@ -707,6 +708,7 @@ export type DesktopSessionListItem = {
   permissionMode: DesktopPermissionMode
   model: string | null
   fallbackModel: string | null
+  reviewModel?: string | null
   thinkingMode: DesktopThinkingMode
   hasSystemPrompt: boolean
   hasAppendSystemPrompt: boolean
@@ -726,6 +728,7 @@ export type DesktopSessionSettingsSnapshot = {
   debugConversationDump?: boolean
   model?: string
   fallbackModel?: string
+  reviewModel?: string
   smallFastModel?: string
   fastModel?: string
   defaultModel?: string
@@ -783,6 +786,7 @@ export type CreateDesktopSessionOptions = {
   debugConversationDump?: boolean
   model?: string
   fallbackModel?: string
+  reviewModel?: string
   smallFastModel?: string
   fastModel?: string
   defaultModel?: string

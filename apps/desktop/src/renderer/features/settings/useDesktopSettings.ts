@@ -29,6 +29,7 @@ export type UseDesktopSettingsResult = {
   permissionMode: DesktopPermissionMode
   model: string
   fallbackModel: string
+  reviewModel: string
   smallFastModel: string
   fastModel: string
   defaultModel: string
@@ -72,6 +73,7 @@ export type UseDesktopSettingsResult = {
   setPermissionMode: (value: DesktopPermissionMode) => void
   setModel: (value: string) => void
   setFallbackModel: (value: string) => void
+  setReviewModel: (value: string) => void
   setSmallFastModel: (value: string) => void
   setFastModel: (value: string) => void
   setDefaultModel: (value: string) => void
@@ -150,6 +152,7 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
   )
   const [model, setModel] = useState(initial.model)
   const [fallbackModel, setFallbackModel] = useState(initial.fallbackModel)
+  const [reviewModel, setReviewModel] = useState(initial.reviewModel)
   const [smallFastModel, setSmallFastModel] = useState(initial.smallFastModel)
   const [fastModel, setFastModel] = useState(initial.fastModel)
   const [defaultModel, setDefaultModel] = useState(initial.defaultModel)
@@ -263,6 +266,7 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
         setPermissionMode(settings.permissionMode)
         setModel(settings.model)
         setFallbackModel(settings.fallbackModel)
+        setReviewModel(settings.reviewModel)
         setSmallFastModel(settings.smallFastModel)
         setFastModel(settings.fastModel)
         setDefaultModel(settings.defaultModel)
@@ -320,6 +324,7 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
       permissionMode,
       model,
       fallbackModel: '',
+      reviewModel,
       smallFastModel,
       fastModel,
       defaultModel,
@@ -365,6 +370,7 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     settingsLoaded,
     permissionMode,
     model,
+    reviewModel,
     smallFastModel,
     fastModel,
     defaultModel,
@@ -411,6 +417,7 @@ gitBranchPrefix,
       permissionMode,
       model,
       fallbackModel: '',
+      reviewModel,
       smallFastModel,
       fastModel,
       defaultModel,
@@ -459,6 +466,7 @@ gitBranchPrefix,
   }, [
     permissionMode,
     model,
+    reviewModel,
     smallFastModel,
     fastModel,
     defaultModel,
@@ -504,6 +512,7 @@ gitBranchPrefix,
     permissionMode,
     model,
     fallbackModel,
+    reviewModel,
     smallFastModel,
     fastModel,
     defaultModel,
@@ -547,6 +556,7 @@ defaultOpenTargetId,
     setPermissionMode,
     setModel,
     setFallbackModel,
+    setReviewModel,
     setSmallFastModel,
     setFastModel,
     setDefaultModel,
