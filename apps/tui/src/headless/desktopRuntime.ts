@@ -53,8 +53,9 @@ export type DesktopHeadlessRuntimeOptions = {
   configDirectoryPath?: string
   resumeExistingSession?: boolean
   permissionProfile?: string
+  sandboxMode?: 'read-only' | 'workspace-write' | 'danger-full-access'
   approvalPolicy?: 'untrusted' | 'on-request' | 'on-failure' | 'never'
-  approvalsReviewer?: 'user' | 'auto'
+  approvalsReviewer?: 'user' | 'auto_review'
   permissionMode?: PermissionMode
   providerID?: string
   providerBaseURL?: string
@@ -77,6 +78,13 @@ export type DesktopHeadlessRuntimeOptions = {
   ): Promise<void> | void
 }
 
+export type DesktopHeadlessCodexPermissionConfig = {
+  permissionProfile?: string
+  sandboxMode?: 'read-only' | 'workspace-write' | 'danger-full-access'
+  approvalPolicy?: 'untrusted' | 'on-request' | 'on-failure' | 'never'
+  approvalsReviewer?: 'user' | 'auto_review'
+}
+
 export type DesktopHeadlessRuntime = {
   setModel(model: string | undefined): void
   setProvider(
@@ -85,6 +93,7 @@ export type DesktopHeadlessRuntime = {
   ): void
   setDebugConversationDump(enabled: boolean): void
   setPermissionMode(permissionMode: PermissionMode | undefined): void
+  setCodexPermissionConfig(config: DesktopHeadlessCodexPermissionConfig): void
   runUserTurn(
     content: string | ContentBlockParam[],
     signal: AbortSignal,
@@ -196,6 +205,28 @@ class EmbeddedDesktopHeadlessRuntime implements DesktopHeadlessRuntime {
         mode: permissionMode ?? 'default',
         isBypassPermissionsModeAvailable:
           permissionMode === 'bypassPermissions',
+      },
+    }))
+  }
+
+  setCodexPermissionConfig(config: DesktopHeadlessCodexPermissionConfig): void {
+    this.options.permissionProfile = config.permissionProfile
+    this.options.sandboxMode = config.sandboxMode
+    this.options.approvalPolicy = config.approvalPolicy
+    this.options.approvalsReviewer = config.approvalsReviewer
+    const sandboxMode = config.sandboxMode ?? 'workspace-write'
+    this.store.setState(prev => ({
+      ...prev,
+      toolPermissionContext: {
+        ...prev.toolPermissionContext,
+        permissionProfile:
+          config.permissionProfile ?? permissionProfileForSandboxMode(sandboxMode),
+        sandboxMode,
+        approvalPolicy: config.approvalPolicy ?? 'on-request',
+        approvalsReviewer: config.approvalsReviewer ?? 'user',
+        isBypassPermissionsModeAvailable:
+          prev.toolPermissionContext.mode === 'bypassPermissions' ||
+          sandboxMode === 'danger-full-access',
       },
     }))
   }
@@ -508,6 +539,7 @@ function firstResultError(message: Record<string, unknown>): string | undefined 
 
 function getInitialDesktopAppState(options: DesktopHeadlessRuntimeOptions) {
   const appState = getDefaultAppState()
+  const sandboxMode = options.sandboxMode ?? 'workspace-write'
   const additionalWorkingDirectories = new Map(
     appState.toolPermissionContext.additionalWorkingDirectories,
   )
@@ -524,13 +556,29 @@ function getInitialDesktopAppState(options: DesktopHeadlessRuntimeOptions) {
     toolPermissionContext: {
       ...appState.toolPermissionContext,
       mode: options.permissionMode ?? 'default',
-      permissionProfile: options.permissionProfile ?? ':workspace',
+      permissionProfile:
+        options.permissionProfile ?? permissionProfileForSandboxMode(sandboxMode),
       approvalPolicy: options.approvalPolicy ?? 'on-request',
       approvalsReviewer: options.approvalsReviewer ?? 'user',
+      sandboxMode,
       additionalWorkingDirectories,
       isBypassPermissionsModeAvailable:
-        options.permissionMode === 'bypassPermissions',
+        options.permissionMode === 'bypassPermissions' ||
+        options.sandboxMode === 'danger-full-access',
     },
+  }
+}
+
+function permissionProfileForSandboxMode(
+  sandboxMode: NonNullable<DesktopHeadlessRuntimeOptions['sandboxMode']>,
+): string {
+  switch (sandboxMode) {
+    case 'read-only':
+      return ':read-only'
+    case 'danger-full-access':
+      return ':danger-full-access'
+    case 'workspace-write':
+      return ':workspace'
   }
 }
 

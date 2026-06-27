@@ -51,10 +51,9 @@ const browserBounds = z.object({
 
 const permissionModeSchema = z.enum([
   'default',
-  'auto',
-  'bypassPermissions',
-  'customConfig',
-  'plan',
+  'auto-review',
+  'full-access',
+  'custom',
 ])
 
 const createBranchInput = z.object({

@@ -16,7 +16,12 @@ export type CodexApprovalPolicy =
   | 'on-request'
   | 'on-failure'
   | 'never'
-export type CodexApprovalsReviewer = 'user' | 'auto'
+export type CodexApprovalsReviewer = 'user' | 'auto_review'
+export type LegacyCodexApprovalsReviewer = 'auto' | 'guardian_subagent'
+export type CodexSandboxMode =
+  | 'read-only'
+  | 'workspace-write'
+  | 'danger-full-access'
 
 export type CodexFilesystemRules = Record<
   string,
@@ -42,10 +47,17 @@ export type CodexPermissionProfileConfig = {
   network?: CodexNetworkConfig
 }
 
+export type CodexSandboxWorkspaceWriteConfig = {
+  writableRoots?: string[]
+  networkAccess?: boolean
+}
+
 export type CodexPermissionsConfig = {
+  sandboxMode?: CodexSandboxMode
+  sandboxWorkspaceWrite?: CodexSandboxWorkspaceWriteConfig
   defaultPermissions?: string
   approvalPolicy?: CodexApprovalPolicy
-  approvalsReviewer?: CodexApprovalsReviewer
+  approvalsReviewer?: CodexApprovalsReviewer | LegacyCodexApprovalsReviewer
   permissions?: Record<string, CodexPermissionProfileConfig>
 }
 
@@ -121,7 +133,7 @@ export function resolveCodexPermissions({
     },
     ':workspace': {
       filesystem: { ':workspace_roots': 'write' },
-      network: { enabled: true },
+      network: { enabled: false },
     },
     ':danger-full-access': {
       filesystem: { '/': 'write' },
@@ -134,11 +146,14 @@ export function resolveCodexPermissions({
   const defaultPermissions =
     requirements?.defaultPermissions ??
     config.defaultPermissions ??
+    permissionProfileForSandboxMode(config.sandboxMode) ??
     ':workspace'
   assertRequirementsAllowProfile(defaultPermissions, requirements)
 
   const approvalPolicy = config.approvalPolicy ?? 'on-request'
-  const approvalsReviewer = config.approvalsReviewer ?? 'user'
+  const approvalsReviewer = normalizeCodexApprovalsReviewer(
+    config.approvalsReviewer,
+  )
   assertRequirementsAllowApproval(approvalPolicy, approvalsReviewer, requirements)
 
   const profiles: Record<string, ResolvedCodexPermissionProfile> = {}
@@ -167,6 +182,8 @@ export function resolveCodexPermissions({
     }
   }
 
+  applySandboxWorkspaceWriteConfig(activeProfile, config)
+
   if (requirements?.experimentalNetwork) {
     applyRequirementsNetwork(activeProfile, requirements.experimentalNetwork)
   }
@@ -178,6 +195,29 @@ export function resolveCodexPermissions({
     activeProfile,
     profiles,
     diagnostics,
+  }
+}
+
+export function normalizeCodexApprovalsReviewer(
+  value: CodexApprovalsReviewer | LegacyCodexApprovalsReviewer | undefined,
+): CodexApprovalsReviewer {
+  return value === 'auto' || value === 'guardian_subagent'
+    ? 'auto_review'
+    : value ?? 'user'
+}
+
+export function permissionProfileForSandboxMode(
+  sandboxMode: CodexSandboxMode | undefined,
+): BuiltinCodexPermissionProfile | undefined {
+  switch (sandboxMode) {
+    case 'read-only':
+      return ':read-only'
+    case 'workspace-write':
+      return ':workspace'
+    case 'danger-full-access':
+      return ':danger-full-access'
+    default:
+      return undefined
   }
 }
 
@@ -364,6 +404,25 @@ function applyRequirementsNetwork(
   }
 }
 
+function applySandboxWorkspaceWriteConfig(
+  profile: ResolvedCodexPermissionProfile,
+  config: CodexPermissionsConfig,
+): void {
+  if (config.sandboxMode !== 'workspace-write') return
+  const workspaceWrite = config.sandboxWorkspaceWrite
+  if (!workspaceWrite) return
+  for (const path of workspaceWrite.writableRoots ?? []) {
+    profile.filesystem.push({
+      path,
+      access: 'write',
+      source: 'config',
+    })
+  }
+  if (workspaceWrite.networkAccess !== undefined) {
+    profile.network.enabled = workspaceWrite.networkAccess
+  }
+}
+
 function assertRequirementsAllowProfile(
   profile: string,
   requirements: CodexRequirementsPolicy | undefined,
@@ -435,15 +494,17 @@ export function createCodexRuntimePermissionState({
 }: {
   projectConfig?: CodexPermissionsConfig
   overrides?: {
+    sandboxMode?: CodexSandboxMode
     defaultPermissions?: string
     approvalPolicy?: CodexApprovalPolicy
-    approvalsReviewer?: CodexApprovalsReviewer
+    approvalsReviewer?: CodexApprovalsReviewer | LegacyCodexApprovalsReviewer
   }
   requirements?: CodexRequirementsPolicy
   workspaceRoots: string[]
 }): CodexRuntimePermissionState {
   const config: CodexPermissionsConfig = {
     ...projectConfig,
+    sandboxMode: overrides.sandboxMode ?? projectConfig?.sandboxMode,
     defaultPermissions:
       overrides.defaultPermissions ??
       projectConfig?.defaultPermissions,
@@ -468,6 +529,7 @@ function convertResolvedPermissionsToPolicy(
   const sandboxPolicy = resolved.activeProfile.dangerFullAccess
     ? ':danger-full-access'
     : resolved.defaultPermissions
+  const sandboxMode = sandboxModeForResolvedProfile(resolved.activeProfile)
 
   const actionScopes: AgentPermissionActionScopes = {}
   if (resolved.activeProfile.dangerFullAccess) {
@@ -487,9 +549,23 @@ function convertResolvedPermissionsToPolicy(
   return {
     profile,
     approvalMode,
+    approvalsReviewer: resolved.approvalsReviewer,
+    sandboxMode,
     sandboxPolicy,
     ...(Object.keys(actionScopes).length > 0 ? { actionScopes } : {}),
   }
+}
+
+function sandboxModeForResolvedProfile(
+  profile: ResolvedCodexPermissionProfile,
+): CodexSandboxMode {
+  if (profile.dangerFullAccess) return 'danger-full-access'
+  const workspaceAccesses = profile.workspaceRoots.map(root =>
+    evaluateFilesystemAccess(profile, root),
+  )
+  return workspaceAccesses.some(access => access === 'write')
+    ? 'workspace-write'
+    : 'read-only'
 }
 
 function buildSandboxOverlayFromResolved(
@@ -580,6 +656,8 @@ export type AgentToolPermissionOverrides = Record<
 export type AgentPermissionPolicy = {
   profile: AgentPermissionProfile
   approvalMode: AgentApprovalMode
+  approvalsReviewer?: CodexApprovalsReviewer
+  sandboxMode?: CodexSandboxMode
   sandboxPolicy?: AgentSandboxPolicy
   actionScopes?: AgentPermissionActionScopes
   toolOverrides?: AgentToolPermissionOverrides
@@ -597,13 +675,20 @@ export type AgentPermissionRequest = {
   description: string
   profile?: AgentPermissionProfile
   approvalMode?: AgentApprovalMode
+  approvalsReviewer?: CodexApprovalsReviewer
+  requestKind?:
+    | 'shell-command'
+    | 'file-write'
+    | 'network'
+    | 'sandbox-escalation'
+    | 'full-access'
+    | 'tool'
 }
 export type DesktopAgentPermissionMode =
-  | 'auto'
-  | 'bypassPermissions'
-  | 'customConfig'
   | 'default'
-  | 'plan'
+  | 'auto-review'
+  | 'full-access'
+  | 'custom'
 export type LegacyAgentPermissionMode =
   | 'acceptEdits'
   | 'bypassPermissions'
@@ -624,11 +709,10 @@ export function isAgentApprovalMode(value: unknown): value is AgentApprovalMode 
 }
 
 export const DESKTOP_AGENT_PERMISSION_MODES = [
-  'auto',
-  'bypassPermissions',
-  'customConfig',
   'default',
-  'plan',
+  'auto-review',
+  'full-access',
+  'custom',
 ] as const satisfies readonly DesktopAgentPermissionMode[]
 
 export function normalizeDesktopAgentPermissionMode(
@@ -636,15 +720,20 @@ export function normalizeDesktopAgentPermissionMode(
 ): DesktopAgentPermissionMode {
   switch (mode) {
     case 'acceptEdits':
-      return 'auto'
-    case 'dontAsk':
-      return 'customConfig'
     case 'auto':
-    case 'bypassPermissions':
+      return 'auto-review'
+    case 'dontAsk':
     case 'customConfig':
+      return 'custom'
+    case 'bypassPermissions':
+      return 'full-access'
     case 'default':
-    case 'plan':
+    case 'auto-review':
+    case 'full-access':
+    case 'custom':
       return mode
+    case 'plan':
+      return 'default'
     default:
       return 'default'
   }
@@ -663,20 +752,38 @@ export function permissionPolicyForDesktopMode(
   mode: DesktopAgentPermissionMode | LegacyAgentPermissionMode | undefined,
 ): AgentPermissionPolicy {
   switch (normalizeDesktopAgentPermissionMode(mode)) {
-    case 'auto':
-      return { profile: ':workspace', approvalMode: 'auto-review', sandboxPolicy: ':workspace' }
-    case 'bypassPermissions':
+    case 'auto-review':
+      return {
+        profile: ':workspace',
+        approvalMode: 'on-request',
+        approvalsReviewer: 'auto_review',
+        sandboxMode: 'workspace-write',
+        sandboxPolicy: ':workspace',
+      }
+    case 'full-access':
       return {
         profile: ':danger-full-access',
-        approvalMode: 'bypass',
+        approvalMode: 'never',
+        approvalsReviewer: 'user',
+        sandboxMode: 'danger-full-access',
         sandboxPolicy: ':danger-full-access',
       }
-    case 'plan':
-      return { profile: ':read-only', approvalMode: 'plan', sandboxPolicy: ':read-only' }
-    case 'customConfig':
-      return { profile: ':workspace', approvalMode: 'config', sandboxPolicy: ':workspace' }
+    case 'custom':
+      return {
+        profile: ':workspace',
+        approvalMode: 'on-request',
+        approvalsReviewer: 'user',
+        sandboxMode: 'workspace-write',
+        sandboxPolicy: ':workspace',
+      }
     case 'default':
-      return { profile: ':workspace', approvalMode: 'prompt', sandboxPolicy: ':workspace' }
+      return {
+        profile: ':workspace',
+        approvalMode: 'on-request',
+        approvalsReviewer: 'user',
+        sandboxMode: 'workspace-write',
+        sandboxPolicy: ':workspace',
+      }
   }
 }
 
@@ -685,7 +792,11 @@ export function normalizeAgentPermissionPolicy(
 ): AgentPermissionPolicy {
   return {
     profile: policy?.profile ?? ':workspace',
-    approvalMode: policy?.approvalMode ?? 'prompt',
+    approvalMode: policy?.approvalMode ?? 'on-request',
+    ...(policy?.approvalsReviewer
+      ? { approvalsReviewer: policy.approvalsReviewer }
+      : {}),
+    ...(policy?.sandboxMode ? { sandboxMode: policy.sandboxMode } : {}),
     sandboxPolicy: policy?.sandboxPolicy ?? policy?.profile ?? ':workspace',
     ...(policy?.actionScopes ? { actionScopes: policy.actionScopes } : {}),
     ...(policy?.toolOverrides ? { toolOverrides: policy.toolOverrides } : {}),

@@ -304,7 +304,7 @@ export type DesktopApprovalPolicy =
   | 'on-failure'
   | 'never'
 
-export type DesktopApprovalsReviewer = 'user' | 'auto'
+export type DesktopApprovalsReviewer = 'user' | 'auto_review'
 
 export type DesktopThinkingMode = AgentThinkingMode
 

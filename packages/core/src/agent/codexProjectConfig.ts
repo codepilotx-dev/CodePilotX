@@ -1,9 +1,14 @@
 import { parse as parseToml } from 'smol-toml'
 import type {
+  CodexApprovalPolicy,
+  CodexApprovalsReviewer,
   CodexFilesystemRules,
   CodexNetworkConfig,
   CodexPermissionProfileConfig,
+  CodexSandboxMode,
+  CodexSandboxWorkspaceWriteConfig,
 } from './permissions.js'
+import { normalizeCodexApprovalsReviewer } from './permissions.js'
 
 export type CodexMcpServerDiagnostic = {
   name: string
@@ -23,8 +28,10 @@ export type CodexHookDiagnostic = {
 export type CodexProjectConfig = {
   approval?: string
   sandbox?: string
-  approvalPolicy?: string
-  approvalsReviewer?: string
+  sandboxMode?: CodexSandboxMode
+  sandboxWorkspaceWrite?: CodexSandboxWorkspaceWriteConfig
+  approvalPolicy?: CodexApprovalPolicy
+  approvalsReviewer?: CodexApprovalsReviewer
   defaultPermissions?: string
   projectRootMarkers?: string[]
   permissions?: Record<string, CodexPermissionProfileConfig>
@@ -53,13 +60,6 @@ const PROJECT_IGNORED_KEYS = new Set([
   'otel',
 ])
 
-const LEGACY_DISABLED_DIAGNOSTICS = {
-  sandboxMode:
-    '旧 sandbox_mode 已禁用，请改用 default_permissions 和 [permissions.<name>]',
-  sandboxWorkspaceWrite:
-    '旧 [sandbox_workspace_write] 已禁用，请改用 [permissions.<name>]',
-}
-
 export function parseCodexProjectConfig(
   content: string,
 ): CodexProjectConfigDiagnosticsData {
@@ -76,24 +76,28 @@ export function parseCodexProjectConfig(
 
   if (typeof parsed.approval === 'string') config.approval = parsed.approval
   if (typeof parsed.sandbox === 'string') config.sandbox = parsed.sandbox
-  if (typeof parsed.approval_policy === 'string') {
+  if (isSandboxMode(parsed.sandbox_mode)) {
+    config.sandboxMode = parsed.sandbox_mode
+  }
+  const sandboxWorkspaceWrite = parseSandboxWorkspaceWrite(
+    parsed.sandbox_workspace_write,
+  )
+  if (sandboxWorkspaceWrite) {
+    config.sandboxWorkspaceWrite = sandboxWorkspaceWrite
+  }
+  if (isApprovalPolicy(parsed.approval_policy)) {
     config.approvalPolicy = parsed.approval_policy
   }
-  if (typeof parsed.approvals_reviewer === 'string') {
-    config.approvalsReviewer = parsed.approvals_reviewer
+  if (isApprovalsReviewer(parsed.approvals_reviewer)) {
+    config.approvalsReviewer = normalizeCodexApprovalsReviewer(
+      parsed.approvals_reviewer,
+    )
   }
   if (typeof parsed.default_permissions === 'string') {
     config.defaultPermissions = parsed.default_permissions
   }
   if (isStringArray(parsed.project_root_markers)) {
     config.projectRootMarkers = parsed.project_root_markers
-  }
-
-  if (typeof parsed.sandbox_mode === 'string') {
-    diagnostics.push(LEGACY_DISABLED_DIAGNOSTICS.sandboxMode)
-  }
-  if (isRecord(parsed.sandbox_workspace_write)) {
-    diagnostics.push(LEGACY_DISABLED_DIAGNOSTICS.sandboxWorkspaceWrite)
   }
 
   const permissions = parsePermissions(parsed.permissions)
@@ -110,6 +114,20 @@ export function parseCodexProjectConfig(
     ignoredProjectKeys,
     diagnostics,
   }
+}
+
+function parseSandboxWorkspaceWrite(
+  value: unknown,
+): CodexSandboxWorkspaceWriteConfig | undefined {
+  if (!isRecord(value)) return undefined
+  const config: CodexSandboxWorkspaceWriteConfig = {}
+  if (isStringArray(value.writable_roots)) {
+    config.writableRoots = value.writable_roots
+  }
+  if (typeof value.network_access === 'boolean') {
+    config.networkAccess = value.network_access
+  }
+  return Object.keys(config).length > 0 ? config : undefined
 }
 
 function parsePermissions(
@@ -237,4 +255,32 @@ function isStringArray(value: unknown): value is string[] {
 
 function isFilesystemAccess(value: unknown): value is 'read' | 'write' | 'deny' {
   return value === 'read' || value === 'write' || value === 'deny'
+}
+
+function isApprovalPolicy(value: unknown): value is CodexApprovalPolicy {
+  return (
+    value === 'untrusted' ||
+    value === 'on-request' ||
+    value === 'on-failure' ||
+    value === 'never'
+  )
+}
+
+function isApprovalsReviewer(
+  value: unknown,
+): value is CodexApprovalsReviewer | 'auto' | 'guardian_subagent' {
+  return (
+    value === 'user' ||
+    value === 'auto_review' ||
+    value === 'auto' ||
+    value === 'guardian_subagent'
+  )
+}
+
+function isSandboxMode(value: unknown): value is CodexSandboxMode {
+  return (
+    value === 'read-only' ||
+    value === 'workspace-write' ||
+    value === 'danger-full-access'
+  )
 }

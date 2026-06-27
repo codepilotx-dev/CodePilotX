@@ -156,11 +156,10 @@ const INSTALLED_CONTEXT_PLUGINS: ContextPlugin[] = [
 ];
 
 const PERMISSION_CHIP_CLASS_NAMES: Record<DesktopPermissionMode, string> = {
-  auto: "permission-chip permission-chip-auto",
-  bypassPermissions: "permission-chip permission-chip-bypassPermissions",
-  customConfig: "permission-chip permission-chip-customConfig",
   default: "permission-chip permission-chip-default",
-  plan: "permission-chip permission-chip-plan",
+  "auto-review": "permission-chip permission-chip-auto",
+  "full-access": "permission-chip permission-chip-bypassPermissions",
+  custom: "permission-chip permission-chip-customConfig",
 };
 
 type Props = {
@@ -205,11 +204,6 @@ type Props = {
   onBranchSelect: (branch: string) => void;
   onCreateBranch: () => void;
   onPermissionChange: (value: DesktopPermissionMode) => void;
-  onPlanModeToggle?: (
-    enabled: boolean,
-    previousMode: DesktopPermissionMode,
-  ) => void;
-  previousNonPlanMode?: DesktopPermissionMode;
   onSubmit: () => void;
   onThinkingChange: (value: DesktopThinkingMode) => void;
   contextDropdownSide?: "top" | "bottom";
@@ -254,8 +248,6 @@ export function ComposerCard({
   onBranchSelect,
   onCreateBranch,
   onPermissionChange,
-  onPlanModeToggle,
-  previousNonPlanMode,
   onSubmit,
   onThinkingChange,
   contextDropdownSide = "top",
@@ -266,10 +258,6 @@ export function ComposerCard({
   );
   const [branchSearch, setBranchSearch] = useState("");
   const { resolvedVariant } = useDesktopTheme();
-  const planModeEnabled = permissionMode === "plan";
-  const displayPermissionMode: DesktopPermissionMode = planModeEnabled
-    ? (previousNonPlanMode ?? "default")
-    : permissionMode;
   const [goalModeEnabled, setGoalModeEnabled] = useState(false);
   const [slashSelectedIndex, setSlashSelectedIndex] = useState(0);
   const [dismissedSlashInput, setDismissedSlashInput] = useState<string | null>(
@@ -277,7 +265,7 @@ export function ComposerCard({
   );
 
   const selectedPermission = permissionOptions.find(
-    (option) => option.value === displayPermissionMode,
+    (option) => option.value === permissionMode,
   );
   const selectedModel = modelPresets.find(
     (preset) => preset.id === selectedModelPreset,
@@ -385,10 +373,9 @@ export function ComposerCard({
 
   function getPermissionIcon(value: DesktopPermissionMode): React.ReactNode {
     if (value === "default") return <Hand size={APP_ICON_SIZE} />;
-    if (value === "bypassPermissions")
+    if (value === "full-access")
       return <ShieldAlert size={APP_ICON_SIZE} />;
-    if (value === "customConfig") return <Wrench size={APP_ICON_SIZE} />;
-    if (value === "plan") return <ListChecks size={APP_ICON_SIZE} />;
+    if (value === "custom") return <Wrench size={APP_ICON_SIZE} />;
     return <ShieldCheck size={APP_ICON_SIZE} />;
   }
 
@@ -397,7 +384,7 @@ export function ComposerCard({
   }
 
   const isRunning = sessionStatus === "running" || sessionStatus === "waiting";
-  const showFullAccessWarning = permissionMode === "bypassPermissions";
+  const showFullAccessWarning = permissionMode === "full-access";
   const contextUsedText = contextUsage
     ? `${formatCompactNumber(contextUsage.usedTokens)} / ${formatCompactNumber(
         contextUsage.contextWindow,
@@ -543,7 +530,7 @@ export function ComposerCard({
             </IconButton>
             <Select.Root
               open={openDropdown === "permission"}
-              value={displayPermissionMode}
+              value={permissionMode}
               onOpenChange={(open) =>
                 setOpenDropdown(open ? "permission" : null)
               }
@@ -556,13 +543,13 @@ export function ComposerCard({
                 aria-label="选择权限模式"
                 className={[
                   "chip-button",
-                  getPermissionClassName(displayPermissionMode),
+                  getPermissionClassName(permissionMode),
                   openDropdown === "permission" ? "active" : "",
                   "permission-select-trigger",
                 ].join(" ")}
                 title="选择权限模式"
               >
-                {getPermissionIcon(displayPermissionMode)}
+                {getPermissionIcon(permissionMode)}
                 <span className="permission-select-trigger-label">
                   {selectedPermission?.label ?? "默认权限"}
                 </span>
@@ -596,7 +583,7 @@ export function ComposerCard({
                           <Select.ItemText>{option.label}</Select.ItemText>
                           {option.detail ? (
                             <span className="permission-select-item-detail">
-                              {option.value === "auto" ? (
+                              {option.value === "auto-review" ? (
                                 <>
                                   <span>
                                     {option.detail.replace(/了解更多.*$/, "")}
@@ -623,30 +610,6 @@ export function ComposerCard({
                 </Select.Content>
               </Select.Portal>
             </Select.Root>
-            {planModeEnabled ? (
-              <>
-                <span className="toolbar-divider" aria-hidden="true" />
-                <span className="plan-mode-chip" aria-label="计划模式已开启">
-                  <ListChecks
-                    size={APP_ICON_SIZE}
-                    className="plan-mode-chip__icon-default"
-                    aria-hidden="true"
-                  />
-                  <button
-                    type="button"
-                    className="plan-mode-chip__exit"
-                    aria-label="退出计划模式"
-                    title="退出计划模式"
-                    onClick={() =>
-                      onPermissionChange(previousNonPlanMode ?? "default")
-                    }
-                  >
-                    <X size={12} strokeWidth={APP_ICON_STROKE_WIDTH} />
-                  </button>
-                  <span className="plan-mode-chip__label">计划</span>
-                </span>
-              </>
-            ) : null}
           </div>
 
           <div className="toolbar-right">
@@ -965,38 +928,6 @@ export function ComposerCard({
               设置 CodePilotX 将持续努力实现的目标
             </span>
           </div>
-          <div
-            className="chat-input__dropdown-item"
-            onClick={() => {
-              if (onPlanModeToggle) {
-                onPlanModeToggle(!planModeEnabled, permissionMode);
-              } else {
-                onPermissionChange(planModeEnabled ? "default" : "plan");
-              }
-            }}
-          >
-            <span className="chat-input__dropdown-leading">
-              <ListChecks size={14} />
-            </span>
-            <span className="chat-input__dropdown-label">计划模式</span>
-            <span className="chat-input__dropdown-hint">
-              {planModeEnabled ? "已开启" : "开启计划模式"}
-            </span>
-            {planModeEnabled ? (
-              <svg
-                className="chat-input__dropdown-check"
-                width="14"
-                height="14"
-                viewBox="0 0 14 14"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M3 7l3 3 5-6" />
-              </svg>
-            ) : null}
-          </div>
-
           <div className="chat-input__dropdown-separator" />
 
           <div className="chat-input__dropdown-section-title">智能体</div>

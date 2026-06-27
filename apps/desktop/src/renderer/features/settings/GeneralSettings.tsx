@@ -190,20 +190,20 @@ export function GeneralSettings({
   };
 
   const defaultPermOn = permissionMode === 'default';
-  const autoApproveOn = permissionMode === 'auto';
-  const fullAccessOn = permissionMode === 'bypassPermissions';
-  const customConfigOn = permissionMode === 'customConfig';
+  const autoApproveOn = permissionMode === 'auto-review';
+  const fullAccessOn = permissionMode === 'full-access';
+  const customConfigOn = permissionMode === 'custom';
 
   const handleAutoApprove = (checked: boolean) => {
-    if (checked) setPermissionMode('auto');
+    if (checked) setPermissionMode('auto-review');
     else setPermissionMode('default');
   };
   const handleFullAccess = (checked: boolean) => {
-    if (checked) setPermissionMode('bypassPermissions');
-    else setPermissionMode('auto');
+    if (checked) setPermissionMode('full-access');
+    else setPermissionMode('auto-review');
   };
   const handleCustomConfig = (checked: boolean) => {
-    if (checked) setPermissionMode('customConfig');
+    if (checked) setPermissionMode('custom');
     else setPermissionMode('default');
   };
 

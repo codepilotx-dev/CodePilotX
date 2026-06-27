@@ -10,6 +10,7 @@ const headlessRuntime = {
     ) => undefined,
   ),
   setPermissionMode: mock((_permissionMode: string | undefined) => undefined),
+  setCodexPermissionConfig: mock((_config: Record<string, unknown>) => undefined),
   runUserTurn: mock(async (_content: unknown, _signal: AbortSignal) => undefined),
 }
 
@@ -30,21 +31,34 @@ const { createDesktopAgentRuntime } = await import('./agentRuntime.js')
 test('embedded desktop runtime receives and updates permission mode', () => {
   createdHeadlessOptions.length = 0
   headlessRuntime.setPermissionMode.mockClear()
+  headlessRuntime.setCodexPermissionConfig.mockClear()
 
   const runtime = createDesktopAgentRuntime({
     sessionId: 'session-1',
     workspacePath: '/workspace',
     runtimePreference: 'embedded-headless',
-    permissionMode: 'plan',
+    permissionMode: 'auto-review',
     emit: () => undefined,
     requestPermission: async () => ({ behavior: 'deny' }),
   })
 
-  expect(createdHeadlessOptions[0]?.permissionMode).toBe('plan')
+  expect(createdHeadlessOptions[0]).toMatchObject({
+    permissionMode: 'default',
+    sandboxMode: 'workspace-write',
+    approvalPolicy: 'on-request',
+    approvalsReviewer: 'auto_review',
+  })
 
-  runtime.setPermissionMode('default')
+  runtime.setPermissionMode('full-access')
 
-  expect(headlessRuntime.setPermissionMode).toHaveBeenCalledWith('default')
+  expect(headlessRuntime.setPermissionMode).toHaveBeenCalledWith(
+    'bypassPermissions',
+  )
+  expect(headlessRuntime.setCodexPermissionConfig).toHaveBeenCalledWith({
+    sandboxMode: 'danger-full-access',
+    approvalPolicy: 'never',
+    approvalsReviewer: 'user',
+  })
 })
 
 test('embedded desktop runtime receives and updates selected provider', () => {

@@ -58,7 +58,7 @@ export function PermissionRequestModal({
               ) : request.toolName === 'ExitPlanMode' ? (
                 <ExitPlanModeApproval
                   request={request}
-                  currentMode={currentPermissionMode ?? 'plan'}
+                  currentMode={currentPermissionMode ?? 'default'}
                   onAccept={nextMode => {
                     if (onAcceptExitPlanMode) {
                       onAcceptExitPlanMode(request, nextMode)

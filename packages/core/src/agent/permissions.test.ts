@@ -5,6 +5,7 @@ import {
   evaluateFilesystemAccess,
   evaluateNetworkDomainAccess,
   resolveCodexPermissions,
+  permissionPolicyForDesktopMode,
   type CodexRuntimePermissionState,
 } from './permissions.js'
 import type {
@@ -284,7 +285,7 @@ test('createCodexRuntimePermissionState: project config overrides built-in defau
   const projectConfig: CodexPermissionsConfig = {
     defaultPermissions: ':read-only',
     approvalPolicy: 'on-failure',
-    approvalsReviewer: 'auto',
+    approvalsReviewer: 'auto_review',
   }
   const state = createCodexRuntimePermissionState({
     projectConfig,
@@ -293,9 +294,53 @@ test('createCodexRuntimePermissionState: project config overrides built-in defau
 
   expect(state.resolved.defaultPermissions).toBe(':read-only')
   expect(state.resolved.approvalPolicy).toBe('on-failure')
-  expect(state.resolved.approvalsReviewer).toBe('auto')
+  expect(state.resolved.approvalsReviewer).toBe('auto_review')
   expect(state.derivedPolicy.actionScopes?.read).toBe('allow')
   expect(state.derivedPolicy.actionScopes?.write).toBe('ask')
+})
+
+test('createCodexRuntimePermissionState: official sandbox_mode maps to builtin profiles', () => {
+  const workspace = createCodexRuntimePermissionState({
+    projectConfig: { sandboxMode: 'workspace-write' },
+    workspaceRoots: ['/repo'],
+  })
+  expect(workspace.resolved.defaultPermissions).toBe(':workspace')
+  expect(workspace.derivedPolicy.sandboxMode).toBe('workspace-write')
+  expect(workspace.sandboxOverlay.filesystem.allowWrite).toContain('/repo')
+
+  const readOnly = createCodexRuntimePermissionState({
+    projectConfig: { sandboxMode: 'read-only' },
+    workspaceRoots: ['/repo'],
+  })
+  expect(readOnly.resolved.defaultPermissions).toBe(':read-only')
+  expect(readOnly.derivedPolicy.sandboxMode).toBe('read-only')
+
+  const fullAccess = createCodexRuntimePermissionState({
+    projectConfig: { sandboxMode: 'danger-full-access' },
+    workspaceRoots: ['/repo'],
+  })
+  expect(fullAccess.resolved.defaultPermissions).toBe(':danger-full-access')
+  expect(fullAccess.derivedPolicy.sandboxMode).toBe('danger-full-access')
+})
+
+test('createCodexRuntimePermissionState: workspace-write writable roots and reviewer aliases', () => {
+  const state = createCodexRuntimePermissionState({
+    projectConfig: {
+      sandboxMode: 'workspace-write',
+      approvalsReviewer: 'guardian_subagent',
+      sandboxWorkspaceWrite: {
+        writableRoots: ['/tmp/build-cache'],
+        networkAccess: true,
+      },
+    },
+    workspaceRoots: ['/repo'],
+  })
+
+  expect(state.resolved.approvalsReviewer).toBe('auto_review')
+  expect(state.sandboxOverlay.filesystem.allowWrite).toContain(
+    '/tmp/build-cache',
+  )
+  expect(state.resolved.activeProfile.network.enabled).toBe(true)
 })
 
 test('createCodexRuntimePermissionState: requirements have highest constraint', () => {
@@ -427,4 +472,32 @@ test('createCodexRuntimePermissionState: custom profile with network domain rule
 
   expect(state.sandboxOverlay.network.allowedDomains).toContain('api.example.com')
   expect(state.sandboxOverlay.network.deniedDomains).toContain('evil.test')
+})
+
+test('permissionPolicyForDesktopMode exposes official Codex sandbox modes', () => {
+  expect(permissionPolicyForDesktopMode('default')).toMatchObject({
+    profile: ':workspace',
+    approvalMode: 'on-request',
+    approvalsReviewer: 'user',
+    sandboxMode: 'workspace-write',
+  })
+  expect(permissionPolicyForDesktopMode('auto-review')).toMatchObject({
+    profile: ':workspace',
+    approvalMode: 'on-request',
+    approvalsReviewer: 'auto_review',
+    sandboxMode: 'workspace-write',
+  })
+  expect(permissionPolicyForDesktopMode('full-access')).toMatchObject({
+    profile: ':danger-full-access',
+    approvalMode: 'never',
+    sandboxMode: 'danger-full-access',
+  })
+  expect(permissionPolicyForDesktopMode('custom')).toMatchObject({
+    profile: ':workspace',
+    approvalMode: 'on-request',
+    sandboxMode: 'workspace-write',
+  })
+  expect(permissionPolicyForDesktopMode('auto')).toMatchObject({
+    approvalsReviewer: 'auto_review',
+  })
 })

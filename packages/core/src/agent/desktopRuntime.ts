@@ -19,8 +19,9 @@ export type DesktopHeadlessRuntimeOptions = {
   configDirectoryPath?: string
   resumeExistingSession?: boolean
   permissionProfile?: string
+  sandboxMode?: 'read-only' | 'workspace-write' | 'danger-full-access'
   approvalPolicy?: 'untrusted' | 'on-request' | 'on-failure' | 'never'
-  approvalsReviewer?: 'user' | 'auto'
+  approvalsReviewer?: 'user' | 'auto_review'
   permissionMode?: PermissionMode
   model?: string
   smallFastModel?: string
@@ -40,8 +41,16 @@ export type DesktopHeadlessRuntimeOptions = {
   ): Promise<void> | void
 }
 
+export type DesktopHeadlessCodexPermissionConfig = {
+  permissionProfile?: string
+  sandboxMode?: 'read-only' | 'workspace-write' | 'danger-full-access'
+  approvalPolicy?: 'untrusted' | 'on-request' | 'on-failure' | 'never'
+  approvalsReviewer?: 'user' | 'auto_review'
+}
+
 export type DesktopHeadlessRuntime = {
   setModel(model: string | undefined): void
+  setCodexPermissionConfig(config: DesktopHeadlessCodexPermissionConfig): void
   runUserTurn(
     content: string | ContentBlockParam[],
     signal: AbortSignal,

@@ -25,8 +25,12 @@ test('resolveDesktopPermissionPolicyDecision short-circuits allow and deny effec
   expect(
     resolveDesktopPermissionPolicyDecision(
       {
-        profile: 'danger-full-access',
-        approvalMode: 'bypass',
+        profile: ':danger-full-access',
+        approvalMode: 'never',
+        sandboxMode: 'danger-full-access',
+        actionScopes: {
+          shell: 'allow',
+        },
       },
       request,
     ),
@@ -38,8 +42,9 @@ test('resolveDesktopPermissionPolicyDecision short-circuits allow and deny effec
   expect(
     resolveDesktopPermissionPolicyDecision(
       {
-        profile: 'workspace-write',
-        approvalMode: 'config',
+        profile: ':workspace',
+        approvalMode: 'on-request',
+        sandboxMode: 'workspace-write',
         toolOverrides: {
           Bash: {
             shell: 'deny',
@@ -50,21 +55,22 @@ test('resolveDesktopPermissionPolicyDecision short-circuits allow and deny effec
     ),
   ).toEqual({
     behavior: 'deny',
-    message: 'Permission denied by workspace-write permission profile',
+    message: 'Permission denied by :workspace permission profile',
   })
 
   expect(
     resolveDesktopPermissionPolicyDecision(
       {
-        profile: 'workspace-write',
-        approvalMode: 'prompt',
+        profile: ':workspace',
+        approvalMode: 'on-request',
+        sandboxMode: 'workspace-write',
       },
       request,
     ),
   ).toBe(null)
 })
 
-test('default workspace-write policy prompts for ordinary workspace edits', () => {
+test('workspace-write policy allows ordinary workspace edits', () => {
   const workspacePath = resolve('tmp', 'desktop-workspace')
   const request = {
     requestId: 'permission-edit',
@@ -78,16 +84,20 @@ test('default workspace-write policy prompts for ordinary workspace edits', () =
   expect(
     resolveDesktopPermissionPolicyDecision(
       {
-        profile: 'workspace-write',
-        approvalMode: 'prompt',
+        profile: ':workspace',
+        approvalMode: 'on-request',
+        sandboxMode: 'workspace-write',
       },
       request,
       workspacePath,
     ),
-  ).toBe(null)
+  ).toEqual({
+    behavior: 'allow',
+    alwaysAllow: true,
+  })
 })
 
-test('auto workspace-write policy allows ordinary workspace writes', () => {
+test('auto-review workspace-write policy allows ordinary workspace writes', () => {
   const workspacePath = resolve('tmp', 'desktop-workspace')
   const request = {
     requestId: 'permission-write',
@@ -101,8 +111,10 @@ test('auto workspace-write policy allows ordinary workspace writes', () => {
   expect(
     resolveDesktopPermissionPolicyDecision(
       {
-        profile: 'workspace-write',
-        approvalMode: 'auto-review',
+        profile: ':workspace',
+        approvalMode: 'on-request',
+        approvalsReviewer: 'auto_review',
+        sandboxMode: 'workspace-write',
       },
       request,
       workspacePath,
@@ -127,8 +139,9 @@ test('workspace-write policy still prompts for edits outside the workspace', () 
   expect(
     resolveDesktopPermissionPolicyDecision(
       {
-        profile: 'workspace-write',
-        approvalMode: 'prompt',
+        profile: ':workspace',
+        approvalMode: 'on-request',
+        sandboxMode: 'workspace-write',
       },
       request,
       workspacePath,
@@ -150,8 +163,9 @@ test('workspace-write policy still prompts for sensitive workspace paths', () =>
     expect(
       resolveDesktopPermissionPolicyDecision(
         {
-          profile: 'workspace-write',
-          approvalMode: 'prompt',
+          profile: ':workspace',
+          approvalMode: 'on-request',
+          sandboxMode: 'workspace-write',
         },
         {
           requestId: `permission-sensitive-${filePath}`,
@@ -181,8 +195,9 @@ test('workspace-write policy still prompts for network paths', () => {
   expect(
     resolveDesktopPermissionPolicyDecision(
       {
-        profile: 'workspace-write',
-        approvalMode: 'prompt',
+        profile: ':workspace',
+        approvalMode: 'on-request',
+        sandboxMode: 'workspace-write',
       },
       request,
       workspacePath,
@@ -190,7 +205,7 @@ test('workspace-write policy still prompts for network paths', () => {
   ).toBe(null)
 })
 
-test('custom config policy still prompts for workspace writes', () => {
+test('custom read-only policy still prompts for workspace writes', () => {
   const workspacePath = resolve('tmp', 'desktop-workspace')
   const request = {
     requestId: 'permission-custom',
@@ -204,8 +219,9 @@ test('custom config policy still prompts for workspace writes', () => {
   expect(
     resolveDesktopPermissionPolicyDecision(
       {
-        profile: 'workspace-write',
-        approvalMode: 'config',
+        profile: ':read-only',
+        approvalMode: 'on-request',
+        sandboxMode: 'read-only',
       },
       request,
       workspacePath,
@@ -213,7 +229,7 @@ test('custom config policy still prompts for workspace writes', () => {
   ).toBe(null)
 })
 
-test('bypass policy still allows every desktop tool action', () => {
+test('full access policy still allows every desktop tool action', () => {
   const workspacePath = resolve('tmp', 'desktop-workspace')
   const request = {
     requestId: 'permission-bypass',
@@ -227,8 +243,12 @@ test('bypass policy still allows every desktop tool action', () => {
   expect(
     resolveDesktopPermissionPolicyDecision(
       {
-        profile: 'danger-full-access',
-        approvalMode: 'bypass',
+        profile: ':danger-full-access',
+        approvalMode: 'never',
+        sandboxMode: 'danger-full-access',
+        actionScopes: {
+          shell: 'allow',
+        },
       },
       request,
       workspacePath,

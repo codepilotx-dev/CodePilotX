@@ -48,7 +48,12 @@ export type DesktopCodexApprovalPolicy =
   | 'on-failure'
   | 'never'
 
-export type DesktopCodexApprovalsReviewer = 'user' | 'auto'
+export type DesktopCodexApprovalsReviewer = 'user' | 'auto_review'
+type LegacyDesktopCodexApprovalsReviewer = 'auto'
+export type DesktopCodexSandboxMode =
+  | 'read-only'
+  | 'workspace-write'
+  | 'danger-full-access'
 
 export type DesktopAgentRuntimeContext = {
   sessionId: string
@@ -58,8 +63,9 @@ export type DesktopAgentRuntimeContext = {
   runtimePreference?: DesktopAgentRuntimePreference
   resumeExistingSession?: boolean
   permissionProfile?: string
+  sandboxMode?: DesktopCodexSandboxMode
   approvalPolicy?: DesktopCodexApprovalPolicy
-  approvalsReviewer?: DesktopCodexApprovalsReviewer
+  approvalsReviewer?: DesktopCodexApprovalsReviewer | LegacyDesktopCodexApprovalsReviewer
   permissionMode?: DesktopPermissionMode
   providerID?: string
   providerBaseURL?: string
@@ -190,6 +196,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
     this.emittedAssistantText = false
     this.partialText = ''
     this.toolNamesByUseId.clear()
+    const permissionConfig = codexPermissionConfigForMode(this.context)
 
     const child = spawn(
       executablePath,
@@ -203,8 +210,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
         '--include-partial-messages',
         '--replay-user-messages',
         ...this.sessionResumeArgs(),
-        // TODO: re-enable after TUI binary supports --config (codex permissions alignment)
-        // ...codexPermissionConfigArgs(this.context),
+        ...codexPermissionConfigArgs(permissionConfig),
         ...permissionModeArgs(this.context.permissionMode),
         ...permissionPromptToolArgs(),
         ...modelArgs(this.context.model),
@@ -618,15 +624,17 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
 
   constructor(context: DesktopAgentRuntimeContext) {
     this.context = context
+    const permissionConfig = codexPermissionConfigForMode(context)
     applyRustSearchAndDiffKernelEnv(process.env, context)
     this.runtime = createDesktopHeadlessRuntime({
       sessionId: context.sessionId,
       workspacePath: context.workspacePath,
       configDirectoryPath: context.configDirectoryPath,
       resumeExistingSession: context.resumeExistingSession,
-      permissionProfile: context.permissionProfile,
-      approvalPolicy: context.approvalPolicy,
-      approvalsReviewer: context.approvalsReviewer,
+      permissionProfile: permissionConfig.permissionProfile,
+      sandboxMode: permissionConfig.sandboxMode,
+      approvalPolicy: permissionConfig.approvalPolicy,
+      approvalsReviewer: permissionConfig.approvalsReviewer,
       permissionMode: tuiPermissionMode(context.permissionMode),
       providerID: context.providerID,
       providerBaseURL: context.providerBaseURL,
@@ -666,6 +674,7 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
 
   setPermissionMode(permissionMode: DesktopPermissionMode): void {
     this.context.permissionMode = permissionMode
+    const permissionConfig = codexPermissionConfigForMode(this.context)
     console.info(
       `[desktop-runtime] ${new Date().toISOString()} embedded_set_permission_mode ${JSON.stringify({
         sessionId: this.context.sessionId,
@@ -673,6 +682,7 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
       })}`,
     )
     this.runtime.setPermissionMode(tuiPermissionMode(permissionMode))
+    this.runtime.setCodexPermissionConfig(permissionConfig)
   }
 
   setDebugConversationDump(enabled: boolean): void {
@@ -1023,29 +1033,73 @@ function firstResultError(message: Record<string, unknown>): string | undefined 
 export function permissionModeArgs(
   permissionMode: DesktopPermissionMode | undefined,
 ): string[] {
-  if (permissionMode === 'customConfig') {
+  if (permissionMode === 'custom') {
     return []
   }
-  if (permissionMode === 'bypassPermissions') {
+  if (permissionMode === 'full-access') {
     return ['--dangerously-skip-permissions']
   }
-  return ['--permission-mode', permissionMode ?? 'default']
+  return ['--permission-mode', 'default']
 }
 
 export type DesktopCodexPermissionConfigArgs = {
+  sandboxMode?: DesktopCodexSandboxMode
   permissionProfile?: string
   approvalPolicy?: DesktopCodexApprovalPolicy
-  approvalsReviewer?: DesktopCodexApprovalsReviewer
+  approvalsReviewer?: DesktopCodexApprovalsReviewer | LegacyDesktopCodexApprovalsReviewer
 }
 
 export function codexPermissionConfigArgs(
   config: DesktopCodexPermissionConfigArgs,
 ): string[] {
   return [
+    ...codexConfigOverrideArg('sandbox_mode', config.sandboxMode),
     ...codexConfigOverrideArg('default_permissions', config.permissionProfile),
     ...codexConfigOverrideArg('approval_policy', config.approvalPolicy),
-    ...codexConfigOverrideArg('approvals_reviewer', config.approvalsReviewer),
+    ...codexConfigOverrideArg(
+      'approvals_reviewer',
+      normalizeApprovalsReviewer(config.approvalsReviewer),
+    ),
   ]
+}
+
+export function codexPermissionConfigForMode(
+  config: DesktopCodexPermissionConfigArgs & {
+    permissionMode?: DesktopPermissionMode
+  },
+): Omit<DesktopCodexPermissionConfigArgs, 'approvalsReviewer'> & {
+  approvalsReviewer?: DesktopCodexApprovalsReviewer
+} {
+  switch (config.permissionMode) {
+    case 'auto-review':
+      return {
+        sandboxMode: 'workspace-write',
+        approvalPolicy: 'on-request',
+        approvalsReviewer: 'auto_review',
+      }
+    case 'full-access':
+      return {
+        sandboxMode: 'danger-full-access',
+        approvalPolicy: 'never',
+        approvalsReviewer: 'user',
+      }
+    case 'custom':
+      return {
+        sandboxMode: config.sandboxMode,
+        permissionProfile: config.permissionProfile,
+        approvalPolicy: config.approvalPolicy,
+        approvalsReviewer: normalizeApprovalsReviewer(config.approvalsReviewer) as
+          | DesktopCodexApprovalsReviewer
+          | undefined,
+      }
+    case 'default':
+    default:
+      return {
+        sandboxMode: 'workspace-write',
+        approvalPolicy: 'on-request',
+        approvalsReviewer: 'user',
+      }
+  }
 }
 
 function codexConfigOverrideArg(key: string, value: string | undefined): string[] {
@@ -1073,7 +1127,19 @@ export function permissionPromptToolArgs(): string[] {
 function tuiPermissionMode(
   permissionMode: DesktopPermissionMode | undefined,
 ): PermissionMode | undefined {
-  return permissionMode === 'customConfig' ? undefined : permissionMode
+  if (permissionMode === 'custom') return undefined
+  if (permissionMode === 'full-access') return 'bypassPermissions'
+  return 'default'
+}
+
+function normalizeApprovalsReviewer(
+  value:
+    | DesktopCodexApprovalsReviewer
+    | LegacyDesktopCodexApprovalsReviewer
+    | undefined,
+): string | undefined {
+  if (value === 'auto') return 'auto_review'
+  return value
 }
 
 function modelArgs(model: string | undefined): string[] {

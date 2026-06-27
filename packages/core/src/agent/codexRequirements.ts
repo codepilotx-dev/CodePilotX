@@ -3,6 +3,7 @@ import type {
   CodexPermissionProfileConfig,
   CodexRequirementsPolicy,
 } from './permissions.js'
+import { normalizeCodexApprovalsReviewer } from './permissions.js'
 import type { CodexFilesystemRules, CodexNetworkConfig } from './permissions.js'
 
 type TomlRecord = Record<string, unknown>
@@ -24,7 +25,9 @@ export function parseCodexRequirements(content: string): CodexRequirementsPolicy
   }
   if (isStringArray(parsed.allowed_approvals_reviewers)) {
     policy.allowedApprovalsReviewers =
-      parsed.allowed_approvals_reviewers.filter(isApprovalsReviewer)
+      parsed.allowed_approvals_reviewers
+        .filter(isApprovalsReviewer)
+        .map(normalizeCodexApprovalsReviewer)
   }
 
   const permissions = parseManagedPermissions(parsed.permissions)
@@ -160,6 +163,13 @@ function isApprovalPolicy(
   )
 }
 
-function isApprovalsReviewer(value: string): value is 'user' | 'auto' {
-  return value === 'user' || value === 'auto'
+function isApprovalsReviewer(
+  value: string,
+): value is 'user' | 'auto' | 'auto_review' | 'guardian_subagent' {
+  return (
+    value === 'user' ||
+    value === 'auto' ||
+    value === 'auto_review' ||
+    value === 'guardian_subagent'
+  )
 }

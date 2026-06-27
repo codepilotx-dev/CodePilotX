@@ -67,7 +67,7 @@ export function InlineApprovalCard({
       >
         <ExitPlanModeApproval
           request={request}
-          currentMode={currentPermissionMode ?? 'plan'}
+          currentMode={currentPermissionMode ?? 'default'}
           onAccept={nextMode => {
             if (onAcceptExitPlanMode) {
               onAcceptExitPlanMode(request, nextMode)

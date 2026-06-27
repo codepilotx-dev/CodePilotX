@@ -251,7 +251,7 @@ const SHORTCUT_ROWS: ShortcutRow[] = [
   },
   {
     title: '切换深度模式',
-    description: 'Turn plan mode on or off in the current composer',
+    description: 'Turn deep mode on or off in the current composer',
     keys: [],
   },
   {

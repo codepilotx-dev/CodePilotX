@@ -88,6 +88,7 @@ class LocalDesktopAgentSession
   private readonly runtime: DesktopAgentRuntime
   private permissionProfile: string
   private approvalPolicy: DesktopApprovalPolicy
+  private approvalsReviewer: NonNullable<CreateDesktopSessionOptions['approvalsReviewer']>
   private permissionMode: NonNullable<CreateDesktopSessionOptions['permissionMode']>
 
   constructor(
@@ -99,6 +100,7 @@ class LocalDesktopAgentSession
     this.workspacePath = options.workspacePath
     this.permissionProfile = options.permissionProfile ?? ':workspace'
     this.approvalPolicy = options.approvalPolicy ?? 'on-request'
+    this.approvalsReviewer = options.approvalsReviewer ?? 'user'
     this.permissionMode = options.permissionMode ?? 'default'
     this.runtime = createDesktopAgentRuntime({
       sessionId: this.sessionId,
@@ -109,7 +111,7 @@ class LocalDesktopAgentSession
       resumeExistingSession: options.resumeExistingSession,
       permissionProfile: this.permissionProfile,
       approvalPolicy: this.approvalPolicy,
-      approvalsReviewer: options.approvalsReviewer,
+      approvalsReviewer: this.approvalsReviewer,
       permissionMode: this.permissionMode,
       providerID: options.providerID,
       providerBaseURL: options.providerBaseURL,
@@ -279,13 +281,18 @@ class LocalDesktopAgentSession
     const normalizedRequest: DesktopPermissionRequest = {
       ...request,
       profile: (request.profile ??
-        (this.permissionMode === 'customConfig'
+        (this.permissionMode === 'custom'
           ? this.permissionProfile
           : modePolicy.profile)) as DesktopPermissionRequest['profile'],
       approvalMode: (request.approvalMode ??
-        (this.permissionMode === 'customConfig'
+        (this.permissionMode === 'custom'
           ? this.approvalPolicy
           : modePolicy.approvalMode)) as DesktopPermissionRequest['approvalMode'],
+      approvalsReviewer:
+        request.approvalsReviewer ??
+        (this.permissionMode === 'custom'
+          ? this.approvalsReviewer
+          : modePolicy.approvalsReviewer),
     }
     console.info(
       `[desktop-permission] ${new Date().toISOString()} request ${JSON.stringify({
@@ -294,6 +301,7 @@ class LocalDesktopAgentSession
         toolName: normalizedRequest.toolName,
         profile: normalizedRequest.profile,
         approvalMode: normalizedRequest.approvalMode,
+        approvalsReviewer: normalizedRequest.approvalsReviewer,
       })}`,
     )
     const decision = await new Promise<DesktopPermissionDecision>(resolve => {
@@ -403,11 +411,6 @@ export function resolveDesktopPermissionPolicyDecision(
   return null
 }
 
-const WORKSPACE_WRITE_APPROVAL_MODES = new Set([
-  'auto-review',
-  'auto-approve-edits',
-])
-
 const DESKTOP_USER_INTERACTION_TOOLS = new Set([
   'askuserquestion',
   'exitplanmode',
@@ -441,8 +444,7 @@ function shouldAllowWorkspaceWrite(
 ): boolean {
   if (action !== 'write') return false
   if (!workspacePath) return false
-  if (policy.profile !== 'workspace-write') return false
-  if (!WORKSPACE_WRITE_APPROVAL_MODES.has(policy.approvalMode)) return false
+  if (policy.sandboxMode !== 'workspace-write') return false
 
   const filePath = desktopRequestFilePath(request)
   if (!filePath) return false

@@ -581,15 +581,17 @@ async function logStartupTelemetry(): Promise<void> {
 function parseOfficialPermissionConfigOverrides(
   overrides: unknown,
 ): {
+  sandboxMode?: 'read-only' | 'workspace-write' | 'danger-full-access'
   permissionProfile?: string
   approvalPolicy?: 'untrusted' | 'on-request' | 'on-failure' | 'never'
-  approvalsReviewer?: 'user' | 'auto'
+  approvalsReviewer?: 'user' | 'auto_review'
 } {
   if (!Array.isArray(overrides)) return {}
   const parsed: {
+    sandboxMode?: 'read-only' | 'workspace-write' | 'danger-full-access'
     permissionProfile?: string
     approvalPolicy?: 'untrusted' | 'on-request' | 'on-failure' | 'never'
-    approvalsReviewer?: 'user' | 'auto'
+    approvalsReviewer?: 'user' | 'auto_review'
   } = {}
   for (const item of overrides) {
     if (typeof item !== 'string') continue
@@ -598,7 +600,9 @@ function parseOfficialPermissionConfigOverrides(
     const key = item.slice(0, separator).trim()
     const value = unquoteConfigOverrideValue(item.slice(separator + 1).trim())
     if (!value) continue
-    if (key === 'default_permissions') {
+    if (key === 'sandbox_mode' && isOfficialSandboxMode(value)) {
+      parsed.sandboxMode = value
+    } else if (key === 'default_permissions') {
       parsed.permissionProfile = value
     } else if (key === 'approval_policy' && isOfficialApprovalPolicy(value)) {
       parsed.approvalPolicy = value
@@ -606,7 +610,10 @@ function parseOfficialPermissionConfigOverrides(
       key === 'approvals_reviewer' &&
       isOfficialApprovalsReviewer(value)
     ) {
-      parsed.approvalsReviewer = value
+      parsed.approvalsReviewer =
+        value === 'auto' || value === 'guardian_subagent'
+          ? 'auto_review'
+          : value
     }
   }
   return parsed
@@ -634,8 +641,25 @@ function isOfficialApprovalPolicy(
   )
 }
 
-function isOfficialApprovalsReviewer(value: string): value is 'user' | 'auto' {
-  return value === 'user' || value === 'auto'
+function isOfficialApprovalsReviewer(
+  value: string,
+): value is 'user' | 'auto' | 'auto_review' | 'guardian_subagent' {
+  return (
+    value === 'user' ||
+    value === 'auto' ||
+    value === 'auto_review' ||
+    value === 'guardian_subagent'
+  )
+}
+
+function isOfficialSandboxMode(
+  value: string,
+): value is 'read-only' | 'workspace-write' | 'danger-full-access' {
+  return (
+    value === 'read-only' ||
+    value === 'workspace-write' ||
+    value === 'danger-full-access'
+  )
 }
 
 // @[MODEL LAUNCH]: Consider any migrations you may need for model strings. See migrateSonnet1mToSonnet45.ts for an example.

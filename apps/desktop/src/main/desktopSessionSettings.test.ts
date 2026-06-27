@@ -10,13 +10,13 @@ test('createSessionSettingsSnapshot preserves requested permission mode', () => 
     permissionProfile: ':workspace',
     approvalPolicy: 'on-request',
     approvalsReviewer: 'user',
-    permissionMode: 'plan',
+    permissionMode: 'auto-review',
     thinkingMode: 'default',
     additionalDirectories: [],
     askUserQuestionMaxQuestions: 3,
   })
 
-  expect(settings.permissionMode).toBe('plan')
+  expect(settings.permissionMode).toBe('auto-review')
 })
 
 test('applySessionPermissionModeToSnapshot updates mode without treating it as profile', () => {
@@ -39,10 +39,10 @@ test('applySessionPermissionModeToSnapshot updates mode without treating it as p
     updatedAt: '2026-06-26T00:00:00.000Z',
   } as DesktopSessionSnapshot
 
-  const updated = applySessionPermissionModeToSnapshot(snapshot, 'plan')
+  const updated = applySessionPermissionModeToSnapshot(snapshot, 'auto-review')
 
-  expect(updated.item.permissionMode).toBe('plan')
-  expect(updated.settings.permissionMode).toBe('plan')
+  expect(updated.item.permissionMode).toBe('auto-review')
+  expect(updated.settings.permissionMode).toBe('auto-review')
   expect(updated.item.permissionProfile).toBe(':workspace')
   expect(updated.settings.permissionProfile).toBe(':workspace')
   expect(updated.updatedAt).not.toBe(snapshot.updatedAt)

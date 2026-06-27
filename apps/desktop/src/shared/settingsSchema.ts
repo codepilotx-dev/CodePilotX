@@ -300,7 +300,8 @@ export function normalizeDesktopApprovalsReviewer(
   value: unknown,
   fallback: DesktopStoredSettings['approvalsReviewer'] = 'user',
 ): DesktopStoredSettings['approvalsReviewer'] {
-  return value === 'user' || value === 'auto' ? value : fallback
+  if (value === 'auto') return 'auto_review'
+  return value === 'user' || value === 'auto_review' ? value : fallback
 }
 
 export function normalizeDesktopWorkspaces(value: unknown): DesktopWorkspace[] {

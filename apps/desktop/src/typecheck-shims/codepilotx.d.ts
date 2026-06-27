@@ -141,11 +141,17 @@ declare module '@codepilotx/core/agent/runtime.js' {
 }
 
 declare module '@codepilotx/core/agent/permissions.js' {
-  export type AgentPermissionProfile =
+  export type CodexApprovalsReviewer = 'user' | 'auto_review'
+  export type CodexSandboxMode =
     | 'read-only'
     | 'workspace-write'
     | 'danger-full-access'
+  export type AgentPermissionProfile = string
   export type AgentApprovalMode =
+    | 'untrusted'
+    | 'on-request'
+    | 'on-failure'
+    | 'never'
     | 'prompt'
     | 'auto-review'
     | 'auto-approve-edits'
@@ -170,6 +176,8 @@ declare module '@codepilotx/core/agent/permissions.js' {
   export type AgentPermissionPolicy = {
     profile: AgentPermissionProfile
     approvalMode: AgentApprovalMode
+    approvalsReviewer?: CodexApprovalsReviewer
+    sandboxMode?: CodexSandboxMode
     sandboxPolicy?: AgentSandboxPolicy
     actionScopes?: AgentPermissionActionScopes
     toolOverrides?: AgentToolPermissionOverrides
@@ -187,13 +195,20 @@ declare module '@codepilotx/core/agent/permissions.js' {
     description: string
     profile?: AgentPermissionProfile
     approvalMode?: AgentApprovalMode
+    approvalsReviewer?: CodexApprovalsReviewer
+    requestKind?:
+      | 'shell-command'
+      | 'file-write'
+      | 'network'
+      | 'sandbox-escalation'
+      | 'full-access'
+      | 'tool'
   }
   export type DesktopAgentPermissionMode =
-    | 'auto'
-    | 'bypassPermissions'
-    | 'customConfig'
     | 'default'
-    | 'plan'
+    | 'auto-review'
+    | 'full-access'
+    | 'custom'
   export const DESKTOP_AGENT_PERMISSION_MODES: readonly DesktopAgentPermissionMode[]
   export function isAgentApprovalMode(
     value: unknown,
@@ -748,6 +763,12 @@ declare module '@codepilotx/tui/headless/desktopRuntime.js' {
     ): void
     setDebugConversationDump(enabled: boolean): void
     setPermissionMode(permissionMode: string | undefined): void
+    setCodexPermissionConfig(config: {
+      permissionProfile?: string
+      sandboxMode?: 'read-only' | 'workspace-write' | 'danger-full-access'
+      approvalPolicy?: 'untrusted' | 'on-request' | 'on-failure' | 'never'
+      approvalsReviewer?: 'user' | 'auto_review'
+    }): void
   }
   export function createDesktopHeadlessRuntime(
     options: Record<string, unknown> & {
@@ -1044,8 +1065,9 @@ declare module '@codepilotx/core/agent/desktopRuntime.js' {
     configDirectoryPath?: string
     resumeExistingSession?: boolean
     permissionProfile?: string
+    sandboxMode?: 'read-only' | 'workspace-write' | 'danger-full-access'
     approvalPolicy?: 'untrusted' | 'on-request' | 'on-failure' | 'never'
-    approvalsReviewer?: 'user' | 'auto'
+    approvalsReviewer?: 'user' | 'auto_review'
     permissionMode?: PermissionMode
     providerID?: string
     providerBaseURL?: string
@@ -1075,6 +1097,12 @@ declare module '@codepilotx/core/agent/desktopRuntime.js' {
     ): void
     setDebugConversationDump(enabled: boolean): void
     setPermissionMode(permissionMode: PermissionMode | undefined): void
+    setCodexPermissionConfig(config: {
+      permissionProfile?: string
+      sandboxMode?: 'read-only' | 'workspace-write' | 'danger-full-access'
+      approvalPolicy?: 'untrusted' | 'on-request' | 'on-failure' | 'never'
+      approvalsReviewer?: 'user' | 'auto_review'
+    }): void
     runUserTurn(
       content: string | ContentBlockParam[],
       signal: AbortSignal,

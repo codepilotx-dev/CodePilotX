@@ -59,7 +59,6 @@ const baseProps = {
   onPermissionChange: () => {},
   onSubmit: () => {},
   onThinkingChange: () => {},
-  previousNonPlanMode: 'default' as const,
 }
 
 test('ComposerCard renders image and file attachment cards above the textarea', () => {
@@ -86,7 +85,7 @@ test('ComposerCard renders image and file attachment cards above the textarea', 
     },
   ]
 
-  const html = renderToStaticMarkup(
+  const html = renderWithProviders(
     <ComposerCard
       {...baseProps}
       attachments={attachments}
@@ -176,51 +175,11 @@ test('IconButton forwards Radix trigger attributes for dropdown controls', () =>
   expect(html).toContain('data-state="open"')
 })
 
-test('plan-mode chip is hidden when permission mode is not plan', () => {
+test('ComposerCard does not expose plan as a permission-mode control', () => {
   const html = renderWithProviders(<ComposerCard {...baseProps} />)
 
   expect(html).not.toContain('plan-mode-chip')
   expect(html).not.toContain('plan-mode-chip__exit')
   expect(html).not.toContain('permission-plan-banner')
-})
-
-test('plan-mode chip is shown when permission mode is plan and label is "计划"', () => {
-  const html = renderWithProviders(
-    <ComposerCard
-      {...baseProps}
-      permissionMode="plan"
-      previousNonPlanMode="default"
-    />,
-  )
-
-  expect(html).toContain('plan-mode-chip')
-  expect(html).toContain('plan-mode-chip__exit')
-  expect(html).toContain('aria-label="退出计划模式"')
-  expect(html).toContain('>计划<')
-})
-
-test('plan-mode chip does not render the old plan-mode banner', () => {
-  const html = renderWithProviders(
-    <ComposerCard
-      {...baseProps}
-      permissionMode="plan"
-      previousNonPlanMode="default"
-    />,
-  )
-
-  expect(html).not.toContain('permission-plan-banner')
-  expect(html).not.toContain('当前会话只允许读取')
-})
-
-test('plan-mode chip displays the previous non-plan mode in the permission trigger', () => {
-  const html = renderWithProviders(
-    <ComposerCard
-      {...baseProps}
-      permissionMode="plan"
-      previousNonPlanMode="default"
-    />,
-  )
-
-  expect(html).toContain('Default')
   expect(html).not.toContain('>计划模式<')
 })

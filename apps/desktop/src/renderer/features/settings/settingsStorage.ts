@@ -21,23 +21,18 @@ export const PERMISSION_MODE_OPTIONS: Array<{
     detail: "CodePilotX 可自动读取；写入、命令、联网和 MCP 请求需要你授权。",
   },
   {
-    value: "plan",
-    label: "计划模式",
-    detail: "CodePilotX 只能读取；写入、命令、联网和 MCP 请求会被拦截，需你逐项确认。",
-  },
-  {
-    value: "auto",
+    value: "auto-review",
     label: "自动审查",
     detail:
       "CodePilotX 将在沙盒中运行命令，并对需升级处理的请求进行自动审查。了解更多",
   },
   {
-    value: "bypassPermissions",
+    value: "full-access",
     label: "完全访问权限",
     detail: "CodePilotX 会自动放行所有权限工具（风险升高）",
   },
   {
-    value: "customConfig",
+    value: "custom",
     label: "自定义（config.toml）",
     detail: "CodePilotX 使用 config.toml 中定义的权限",
   },

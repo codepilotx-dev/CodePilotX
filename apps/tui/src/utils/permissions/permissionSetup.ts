@@ -1063,9 +1063,25 @@ export async function initializeToolPermissionContext({
   // These have highest precedence in the user-specified layer (below requirements).
   if (cliConfigOverrides.length > 0) {
     const parsed = parseCliConfigOverrides(cliConfigOverrides)
-    if (parsed.default_permissions || parsed.approval_policy || parsed.approvals_reviewer) {
+    if (
+      parsed.sandbox_mode ||
+      parsed.default_permissions ||
+      parsed.approval_policy ||
+      parsed.approvals_reviewer
+    ) {
       toolPermissionContext = {
         ...toolPermissionContext,
+        ...(parsed.sandbox_mode
+          ? {
+              sandboxMode: parsed.sandbox_mode as
+                | 'read-only'
+                | 'workspace-write'
+                | 'danger-full-access',
+              permissionProfile:
+                parsed.default_permissions ??
+                permissionProfileForSandboxMode(parsed.sandbox_mode),
+            }
+          : {}),
         ...(parsed.default_permissions
           ? { permissionProfile: parsed.default_permissions }
           : {}),
@@ -1080,9 +1096,11 @@ export async function initializeToolPermissionContext({
           : {}),
         ...(parsed.approvals_reviewer
           ? {
-              approvalsReviewer: parsed.approvals_reviewer as
-                | 'user'
-                | 'auto',
+              approvalsReviewer:
+                parsed.approvals_reviewer === 'auto' ||
+                parsed.approvals_reviewer === 'guardian_subagent'
+                  ? 'auto_review'
+                  : (parsed.approvals_reviewer as 'user' | 'auto_review'),
             }
           : {}),
       }
@@ -1094,6 +1112,17 @@ export async function initializeToolPermissionContext({
     warnings,
     dangerousPermissions,
     overlyBroadBashPermissions,
+  }
+}
+
+function permissionProfileForSandboxMode(sandboxMode: string): string {
+  switch (sandboxMode) {
+    case 'read-only':
+      return ':read-only'
+    case 'danger-full-access':
+      return ':danger-full-access'
+    default:
+      return ':workspace'
   }
 }
 
@@ -1129,12 +1158,19 @@ export async function resolveCodexProjectPermissionContext(
     const content = await readFile(configPath, 'utf8')
     const { config } = parseCodexProjectConfig(content)
 
-    if (!config.defaultPermissions && !config.approvalPolicy) {
+    if (
+      !config.sandboxMode &&
+      !config.defaultPermissions &&
+      !config.approvalPolicy &&
+      !config.approvalsReviewer
+    ) {
       return context
     }
 
     const state = createCodexRuntimePermissionState({
       projectConfig: {
+        sandboxMode: config.sandboxMode,
+        sandboxWorkspaceWrite: config.sandboxWorkspaceWrite,
         defaultPermissions: config.defaultPermissions,
         approvalPolicy: config.approvalPolicy as
           | 'untrusted'
@@ -1144,6 +1180,7 @@ export async function resolveCodexProjectPermissionContext(
           | undefined,
         approvalsReviewer: config.approvalsReviewer as
           | 'user'
+          | 'auto_review'
           | 'auto'
           | undefined,
         permissions: config.permissions,
@@ -1163,9 +1200,9 @@ export async function resolveCodexProjectPermissionContext(
           | 'on-failure'
           | 'never'
           | undefined,
+      sandboxMode: context.sandboxMode ?? state.derivedPolicy.sandboxMode,
       approvalsReviewer:
-        context.approvalsReviewer ??
-        (undefined as 'user' | 'auto' | undefined),
+        context.approvalsReviewer ?? state.resolved.approvalsReviewer,
     }
 
     // Set sandbox overlay for the resolved permissions
