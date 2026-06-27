@@ -101,6 +101,11 @@ export function InlineApprovalCard({
       <header className="inline-approval-header">
         <h2>{request.description}</h2>
       </header>
+      {request.autoReviewFallbackReason ? (
+        <p className="inline-approval-target">
+          自动审查无法完成，已转为人工审批：{request.autoReviewFallbackReason}
+        </p>
+      ) : null}
 
       <div className="inline-approval-summary">
         <code className="inline-approval-command">{command.full}</code>

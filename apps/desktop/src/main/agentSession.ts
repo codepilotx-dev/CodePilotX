@@ -5,7 +5,12 @@ import {
   createDesktopAgentRuntime,
   type DesktopAgentRuntime,
   type DesktopAgentRuntimePreference,
+  type DesktopAgentRuntimeContext,
 } from './agentRuntime.js'
+import {
+  createDesktopAutoReviewService,
+  type DesktopAutoReviewService,
+} from './autoReviewService.js'
 import { desktopDebug } from './desktopDebug.js'
 import type {
   CreateDesktopSessionOptions,
@@ -45,6 +50,8 @@ export type DesktopAgentSessionRuntimeOptions = {
   agentExecutablePath?: string
   configDirectoryPath?: string
   runtimePreference?: DesktopAgentRuntimePreference
+  createRuntime?: (context: DesktopAgentRuntimeContext) => DesktopAgentRuntime
+  autoReviewService?: DesktopAutoReviewService
 }
 
 export type DesktopAgentSession = {
@@ -86,10 +93,13 @@ class LocalDesktopAgentSession
   private currentAbortController: AbortController | null = null
   private readonly pendingPermissions = new Map<string, PendingPermission>()
   private readonly runtime: DesktopAgentRuntime
+  private readonly autoReviewService: DesktopAutoReviewService
   private permissionProfile: string
   private approvalPolicy: DesktopApprovalPolicy
   private approvalsReviewer: NonNullable<CreateDesktopSessionOptions['approvalsReviewer']>
   private permissionMode: NonNullable<CreateDesktopSessionOptions['permissionMode']>
+  private model: string | undefined
+  private reviewModel: string | undefined
 
   constructor(
     options: ResolvedDesktopSessionOptions,
@@ -102,7 +112,12 @@ class LocalDesktopAgentSession
     this.approvalPolicy = options.approvalPolicy ?? 'on-request'
     this.approvalsReviewer = options.approvalsReviewer ?? 'user'
     this.permissionMode = options.permissionMode ?? 'default'
-    this.runtime = createDesktopAgentRuntime({
+    this.model = options.model
+    this.reviewModel = options.reviewModel
+    this.autoReviewService =
+      runtimeOptions.autoReviewService ?? createDesktopAutoReviewService()
+    const createRuntime = runtimeOptions.createRuntime ?? createDesktopAgentRuntime
+    this.runtime = createRuntime({
       sessionId: this.sessionId,
       workspacePath: this.workspacePath,
       agentExecutablePath: runtimeOptions.agentExecutablePath,
@@ -117,6 +132,7 @@ class LocalDesktopAgentSession
       providerBaseURL: options.providerBaseURL,
       debugConversationDump: options.debugConversationDump,
       model: options.model,
+      reviewModel: options.reviewModel,
       smallFastModel: options.smallFastModel,
       fastModel: options.fastModel,
       defaultModel: options.defaultModel,
@@ -144,6 +160,7 @@ class LocalDesktopAgentSession
   }
 
   setModel(model: string | undefined): void {
+    this.model = model
     this.runtime.setModel(model)
   }
 
@@ -304,6 +321,69 @@ class LocalDesktopAgentSession
         approvalsReviewer: normalizedRequest.approvalsReviewer,
       })}`,
     )
+    const normalizedPolicy: AgentPermissionPolicy = {
+      ...modePolicy,
+      profile: normalizedRequest.profile,
+      approvalMode: normalizedRequest.approvalMode,
+      approvalsReviewer: normalizedRequest.approvalsReviewer,
+    }
+    const policyDecision = resolveDesktopPermissionPolicyDecision(
+      normalizedPolicy,
+      normalizedRequest,
+      this.workspacePath,
+    )
+    if (policyDecision) {
+      console.info(
+        `[desktop-permission] ${new Date().toISOString()} policy_decision ${JSON.stringify({
+          sessionId: this.sessionId,
+          permissionMode: this.permissionMode,
+          toolName: normalizedRequest.toolName,
+          behavior: policyDecision.behavior,
+          alwaysAllow: policyDecision.alwaysAllow === true,
+        })}`,
+      )
+      return policyDecision
+    }
+    if (shouldRouteToAutoReview(normalizedPolicy, normalizedRequest)) {
+      const autoReviewToolUseId = `auto-review:${normalizedRequest.requestId}`
+      this.emitEvent({
+        type: 'tool_start',
+        sessionId: this.sessionId,
+        toolName: 'AutoReview',
+        summary: '自动审查中',
+        toolUseId: autoReviewToolUseId,
+      })
+      const autoReview = await this.autoReviewService.review({
+        sessionId: this.sessionId,
+        workspacePath: this.workspacePath,
+        model: this.model,
+        reviewModel: this.reviewModel,
+        request: normalizedRequest,
+        policy: normalizedPolicy,
+      })
+      if (autoReview.type === 'decision') {
+        this.emitEvent({
+          type: 'tool_result',
+          sessionId: this.sessionId,
+          toolName: 'AutoReview',
+          summary:
+            autoReview.decision.behavior === 'allow'
+              ? '自动审查允许'
+              : '自动审查拒绝',
+          toolUseId: autoReviewToolUseId,
+          isError: autoReview.decision.behavior === 'deny',
+        })
+        return autoReview.decision
+      }
+      this.emitEvent({
+        type: 'tool_result',
+        sessionId: this.sessionId,
+        toolName: 'AutoReview',
+        summary: `自动审查无法完成，已转为人工审批：${autoReview.reason}`,
+        toolUseId: autoReviewToolUseId,
+      })
+      normalizedRequest.autoReviewFallbackReason = autoReview.reason
+    }
     const decision = await new Promise<DesktopPermissionDecision>(resolve => {
       this.pendingPermissions.set(normalizedRequest.requestId, {
         request: normalizedRequest,
@@ -409,6 +489,16 @@ export function resolveDesktopPermissionPolicyDecision(
     }
   }
   return null
+}
+
+function shouldRouteToAutoReview(
+  policy: AgentPermissionPolicy,
+  request: DesktopPermissionRequest,
+): boolean {
+  if (requiresDesktopUserInteraction(request.toolName)) return false
+  if (policy.approvalsReviewer !== 'auto_review') return false
+  if (policy.approvalMode === 'never') return false
+  return true
 }
 
 const DESKTOP_USER_INTERACTION_TOOLS = new Set([

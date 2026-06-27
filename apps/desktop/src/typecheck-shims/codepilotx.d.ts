@@ -203,6 +203,7 @@ declare module '@codepilotx/core/agent/permissions.js' {
       | 'sandbox-escalation'
       | 'full-access'
       | 'tool'
+    autoReviewFallbackReason?: string
   }
   export type DesktopAgentPermissionMode =
     | 'default'

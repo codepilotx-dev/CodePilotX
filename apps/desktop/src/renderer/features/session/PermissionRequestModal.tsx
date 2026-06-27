@@ -47,6 +47,12 @@ export function PermissionRequestModal({
               <Dialog.Description asChild>
                 <p>{request.description}</p>
               </Dialog.Description>
+              {request.autoReviewFallbackReason ? (
+                <p>
+                  自动审查无法完成，已转为人工审批：
+                  {request.autoReviewFallbackReason}
+                </p>
+              ) : null}
               {request.toolName === 'AskUserQuestion' ? (
                 <AskUserQuestionApproval
                   request={request}

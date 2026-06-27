@@ -683,6 +683,7 @@ export type AgentPermissionRequest = {
     | 'sandbox-escalation'
     | 'full-access'
     | 'tool'
+  autoReviewFallbackReason?: string
 }
 export type DesktopAgentPermissionMode =
   | 'default'

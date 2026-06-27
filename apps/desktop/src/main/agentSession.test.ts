@@ -1,9 +1,16 @@
 import { expect, test } from 'bun:test'
 import { join, resolve } from 'node:path'
 import {
+  createDesktopAgentSession,
   permissionActionForDesktopTool,
   resolveDesktopPermissionPolicyDecision,
 } from './agentSession.js'
+import type {
+  DesktopAgentRuntime,
+  DesktopAgentRuntimeContext,
+} from './agentRuntime.js'
+import type { DesktopAgentEvent } from '../shared/types.js'
+import type { DesktopAutoReviewService } from './autoReviewService.js'
 
 test('permissionActionForDesktopTool maps common desktop tools to policy actions', () => {
   expect(permissionActionForDesktopTool('Read')).toBe('read')
@@ -258,3 +265,106 @@ test('full access policy still allows every desktop tool action', () => {
     alwaysAllow: true,
   })
 })
+
+test('auto-review session routes shell approval through reviewer without emitting user permission request', async () => {
+  const events: DesktopAgentEvent[] = []
+  const decisions: unknown[] = []
+  const autoReviewService: DesktopAutoReviewService = {
+    review: async () => ({
+      type: 'decision',
+      decision: {
+        behavior: 'allow',
+        alwaysAllow: false,
+      },
+      reason: 'reviewed as low risk',
+    }),
+  }
+  const session = createDesktopAgentSession(
+    {
+      workspacePath: resolve('tmp', 'desktop-workspace'),
+      sessionId: 'session-auto-review',
+      suppressStartupMessage: true,
+      permissionMode: 'auto-review',
+      approvalsReviewer: 'auto_review',
+    },
+    {
+      autoReviewService,
+      createRuntime: context => createPermissionRuntime(context, decisions),
+    },
+  )
+  session.on('event', event => events.push(event))
+
+  await session.sendUserMessage('run command', 'run command')
+
+  expect(decisions).toEqual([
+    {
+      behavior: 'allow',
+      alwaysAllow: false,
+    },
+  ])
+  expect(events.some(event => event.type === 'permission_request')).toBe(false)
+})
+
+test('auto-review fallback emits user permission request with fallback reason', async () => {
+  const permissionRequests: DesktopAgentEvent[] = []
+  const autoReviewService: DesktopAutoReviewService = {
+    review: async () => ({
+      type: 'fallback',
+      reason: 'Reviewer returned invalid JSON',
+    }),
+  }
+  const session = createDesktopAgentSession(
+    {
+      workspacePath: resolve('tmp', 'desktop-workspace'),
+      sessionId: 'session-auto-review-fallback',
+      suppressStartupMessage: true,
+      permissionMode: 'auto-review',
+      approvalsReviewer: 'auto_review',
+    },
+    {
+      autoReviewService,
+      createRuntime: context => createPermissionRuntime(context, []),
+    },
+  )
+  session.on('event', event => {
+    if (event.type === 'permission_request') {
+      permissionRequests.push(event)
+      void session.respondToPermission(event.request.requestId, {
+        behavior: 'deny',
+        message: 'user denied',
+      })
+    }
+  })
+
+  await session.sendUserMessage('run command', 'run command')
+
+  expect(permissionRequests).toHaveLength(1)
+  const [event] = permissionRequests
+  expect(event.type).toBe('permission_request')
+  if (event.type === 'permission_request') {
+    expect(event.request.autoReviewFallbackReason).toBe(
+      'Reviewer returned invalid JSON',
+    )
+  }
+})
+
+function createPermissionRuntime(
+  context: DesktopAgentRuntimeContext,
+  decisions: unknown[],
+): DesktopAgentRuntime {
+  return {
+    setModel: () => {},
+    setModelProvider: () => {},
+    setDebugConversationDump: () => {},
+    setPermissionMode: () => {},
+    async runUserTurn() {
+      const decision = await context.requestPermission({
+        requestId: 'permission-1',
+        toolName: 'PowerShell',
+        input: { command: 'echo ok' },
+        description: 'Run shell',
+      })
+      decisions.push(decision)
+    },
+  }
+}
