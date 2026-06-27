@@ -69,6 +69,7 @@ export type UseSessionStateOptions = {
   appendSystemPrompt: string
   additionalDirectories: string
   askUserQuestionMaxQuestions: DesktopAskUserQuestionMaxQuestions
+  rustSearchAndDiffKernels: boolean
   onError: (message: string) => void
   onDiffForActive: (patch: string) => void
   onRefreshActiveWorkspace: (sessionId: string) => void
@@ -136,6 +137,7 @@ export function useSessionState(
     appendSystemPrompt,
     additionalDirectories,
     askUserQuestionMaxQuestions,
+    rustSearchAndDiffKernels,
     onError,
     onDiffForActive,
     onRefreshActiveWorkspace,
@@ -461,11 +463,13 @@ export function useSessionState(
       appendSystemPrompt,
       additionalDirectories,
       askUserQuestionMaxQuestions,
+      rustSearchAndDiffKernels,
     }),
     [
       additionalDirectories,
       appendSystemPrompt,
       askUserQuestionMaxQuestions,
+      rustSearchAndDiffKernels,
       debugConversationDump,
       fastModel,
       model,

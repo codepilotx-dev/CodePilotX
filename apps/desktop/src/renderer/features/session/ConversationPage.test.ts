@@ -6,6 +6,7 @@ const runningStatus: DesktopSessionStatus = 'running'
 let deriveAssistantActionMessageIds: typeof import('./ConversationPage.js').deriveAssistantActionMessageIds
 let groupTimelineToolEvents: typeof import('./ConversationPage.js').groupTimelineToolEvents
 let commandRunView: typeof import('./ConversationPage.js').commandRunView
+let toggleOpenCommandRunIds: typeof import('./ConversationPage.js').toggleOpenCommandRunIds
 
 beforeAll(async () => {
   Object.defineProperty(globalThis, 'window', {
@@ -17,6 +18,7 @@ beforeAll(async () => {
     conversationPage.deriveAssistantActionMessageIds
   groupTimelineToolEvents = conversationPage.groupTimelineToolEvents
   commandRunView = conversationPage.commandRunView
+  toggleOpenCommandRunIds = conversationPage.toggleOpenCommandRunIds
 })
 
 test('marks only the final assistant message after a completed turn', () => {
@@ -142,6 +144,16 @@ test('keeps standalone errors as system timeline events', () => {
 
   expect(items).toHaveLength(1)
   expect(items[0]?.type).toBe('error')
+})
+
+test('keeps previously opened command shells open when another run opens', () => {
+  const firstOpen = toggleOpenCommandRunIds(new Set(), 'run-1')
+  const secondOpen = toggleOpenCommandRunIds(firstOpen, 'run-2')
+  const firstClosed = toggleOpenCommandRunIds(secondOpen, 'run-1')
+
+  expect([...firstOpen]).toEqual(['run-1'])
+  expect([...secondOpen]).toEqual(['run-1', 'run-2'])
+  expect([...firstClosed]).toEqual(['run-2'])
 })
 
 function userEvent(id: string, content: string): DesktopSessionEvent {

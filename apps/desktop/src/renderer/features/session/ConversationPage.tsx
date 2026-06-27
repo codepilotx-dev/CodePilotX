@@ -1593,7 +1593,9 @@ function TimelineToolGroupView({
   group: TimelineToolGroup;
 }): React.ReactNode {
   const [expanded, setExpanded] = React.useState(false);
-  const [openRunId, setOpenRunId] = React.useState<string | null>(null);
+  const [openRunIds, setOpenRunIds] = React.useState<Set<string>>(
+    () => new Set(),
+  );
   const commandCount = group.runs.length;
 
   const firstRunningRun = group.runs.find((r) => r.isRunning);
@@ -1642,9 +1644,11 @@ function TimelineToolGroupView({
                 <TimelineCommandRunItem
                   key={run.id}
                   run={run}
-                  isOpen={openRunId === run.id}
+                  isOpen={openRunIds.has(run.id)}
                   onToggle={() =>
-                    setOpenRunId((value) => (value === run.id ? null : run.id))
+                    setOpenRunIds((value) =>
+                      toggleOpenCommandRunIds(value, run.id),
+                    )
                   }
                 />
               );
@@ -1654,6 +1658,19 @@ function TimelineToolGroupView({
       </div>
     </article>
   );
+}
+
+export function toggleOpenCommandRunIds(
+  openRunIds: ReadonlySet<string>,
+  runId: string,
+): Set<string> {
+  const nextOpenRunIds = new Set(openRunIds);
+  if (nextOpenRunIds.has(runId)) {
+    nextOpenRunIds.delete(runId);
+  } else {
+    nextOpenRunIds.add(runId);
+  }
+  return nextOpenRunIds;
 }
 
 type CommandRunStatusKind = "success" | "error" | "running";

@@ -41,6 +41,7 @@ export type SessionSettingsSnapshot = {
   appendSystemPrompt: string
   additionalDirectories: string
   askUserQuestionMaxQuestions: DesktopAskUserQuestionMaxQuestions
+  rustSearchAndDiffKernels: boolean
 }
 
 export type SessionActionContext = {
@@ -95,6 +96,7 @@ export async function createSessionForWorkspaceAction(
         settings.additionalDirectories,
       ),
       askUserQuestionMaxQuestions: settings.askUserQuestionMaxQuestions,
+      rustSearchAndDiffKernels: settings.rustSearchAndDiffKernels,
     })
     const workspace = session.workspace
     const nextView = {
