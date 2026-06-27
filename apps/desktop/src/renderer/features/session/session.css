@@ -1382,7 +1382,6 @@
   gap: var(--sp-2);
   color: var(--c-text);
   font-size: var(--fs-14);
-  line-height: 1.6;
 }
 
 
@@ -2462,9 +2461,6 @@
 
 
 
-.chat-message-row {
-  line-height: 1.7;
-}
 
 
 
@@ -3402,7 +3398,6 @@
   background: color-mix(in srgb, var(--c-bg-soft) 84%, var(--c-bg));
   color: var(--c-text-strong);
   font-size: var(--fs-14);
-  line-height: 1.65;
   animation: workflow-item-in 0.28s ease-out;
 }
 
@@ -3485,7 +3480,6 @@
 .workflow-plan-card__body .md-body {
   color: var(--c-text-strong);
   font-size: var(--fs-14);
-  line-height: 1.65;
 }
 
 
