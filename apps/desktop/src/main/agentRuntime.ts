@@ -61,6 +61,9 @@ export type DesktopAgentRuntimeContext = {
   approvalPolicy?: DesktopCodexApprovalPolicy
   approvalsReviewer?: DesktopCodexApprovalsReviewer
   permissionMode?: DesktopPermissionMode
+  providerID?: string
+  providerBaseURL?: string
+  debugConversationDump?: boolean
   model?: string
   fallbackModel?: string
   smallFastModel?: string
@@ -79,6 +82,13 @@ export type DesktopAgentRuntimeContext = {
 
 export type DesktopAgentRuntime = {
   setModel(model: string | undefined): void
+  setModelProvider(
+    providerID: string | undefined,
+    model: string | undefined,
+    providerBaseURL: string | undefined,
+  ): void
+  setPermissionMode(permissionMode: DesktopPermissionMode): void
+  setDebugConversationDump(enabled: boolean): void
   runUserTurn(content: DesktopUserMessageContent, signal: AbortSignal): Promise<void>
 }
 
@@ -134,6 +144,35 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
     this.context.model = model
   }
 
+  setModelProvider(
+    providerID: string | undefined,
+    model: string | undefined,
+    providerBaseURL: string | undefined,
+  ): void {
+    this.context.providerID = providerID
+    this.context.providerBaseURL = providerBaseURL
+    this.setModel(model)
+  }
+
+  setPermissionMode(permissionMode: DesktopPermissionMode): void {
+    this.context.permissionMode = permissionMode
+    console.info(
+      `[desktop-runtime] ${new Date().toISOString()} subprocess_set_permission_mode ${JSON.stringify({
+        sessionId: this.context.sessionId,
+        permissionMode,
+      })}`,
+    )
+  }
+
+  setDebugConversationDump(enabled: boolean): void {
+    this.context.debugConversationDump = enabled
+    if (enabled) {
+      desktopDebug('runtime_subprocess_debug_dump_unsupported', {
+        sessionId: this.context.sessionId,
+      })
+    }
+  }
+
   async runUserTurn(
     content: DesktopUserMessageContent,
     signal: AbortSignal,
@@ -165,6 +204,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
         ...this.sessionResumeArgs(),
         // TODO: re-enable after TUI binary supports --config (codex permissions alignment)
         // ...codexPermissionConfigArgs(this.context),
+        ...permissionModeArgs(this.context.permissionMode),
         ...permissionPromptToolArgs(),
         ...modelArgs(this.context.model),
         ...sessionNameArgs(this.context.sessionName),
@@ -585,6 +625,9 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
       approvalPolicy: context.approvalPolicy,
       approvalsReviewer: context.approvalsReviewer,
       permissionMode: tuiPermissionMode(context.permissionMode),
+      providerID: context.providerID,
+      providerBaseURL: context.providerBaseURL,
+      debugConversationDump: context.debugConversationDump,
       model: context.model,
       smallFastModel: context.smallFastModel,
       fastModel: context.fastModel,
@@ -605,6 +648,33 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
   setModel(model: string | undefined): void {
     this.context.model = model
     this.runtime.setModel(model)
+  }
+
+  setModelProvider(
+    providerID: string | undefined,
+    model: string | undefined,
+    providerBaseURL: string | undefined,
+  ): void {
+    this.context.providerID = providerID
+    this.context.providerBaseURL = providerBaseURL
+    this.runtime.setProvider(providerID, providerBaseURL)
+    this.setModel(model)
+  }
+
+  setPermissionMode(permissionMode: DesktopPermissionMode): void {
+    this.context.permissionMode = permissionMode
+    console.info(
+      `[desktop-runtime] ${new Date().toISOString()} embedded_set_permission_mode ${JSON.stringify({
+        sessionId: this.context.sessionId,
+        permissionMode,
+      })}`,
+    )
+    this.runtime.setPermissionMode(tuiPermissionMode(permissionMode))
+  }
+
+  setDebugConversationDump(enabled: boolean): void {
+    this.context.debugConversationDump = enabled
+    this.runtime.setDebugConversationDump(enabled)
   }
 
   async runUserTurn(
@@ -888,6 +958,15 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
           ? request.description
           : summarizeToolInput(toolName, input),
     })
+    console.info(
+      `[desktop-runtime] ${new Date().toISOString()} embedded_control_decision ${JSON.stringify({
+        sessionId: this.context.sessionId,
+        permissionMode: this.context.permissionMode,
+        toolName,
+        behavior: decision.behavior,
+        requestId,
+      })}`,
+    )
 
     if (decision.behavior === 'allow') {
       const response: Record<string, unknown> = {

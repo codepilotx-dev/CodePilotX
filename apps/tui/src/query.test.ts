@@ -1,6 +1,9 @@
 import { expect, test } from 'bun:test'
 import type { ToolUseBlock } from '@anthropic-ai/sdk/resources/index.mjs'
-import { ensureToolUseResultsForNextTurn } from './query.js'
+import {
+  collectToolResultsForNextTurn,
+  ensureToolUseResultsForNextTurn,
+} from './query.js'
 import { createUserMessage } from './utils/messages.js'
 
 test('adds synthetic error results for missing tool uses before the next turn', () => {
@@ -45,4 +48,56 @@ test('adds synthetic error results for missing tool uses before the next turn', 
       ],
     },
   })
+})
+
+test('preserves standalone tool result messages while collecting next turn context', () => {
+  const toolUses: ToolUseBlock[] = [
+    {
+      type: 'tool_use',
+      id: 'call-glob-1',
+      name: 'Glob',
+      input: { pattern: '**/package.json' },
+    },
+  ]
+  const toolResult = createUserMessage({
+    content: [
+      {
+        type: 'tool_result',
+        tool_use_id: 'call-glob-1',
+        content: 'apps/tui/package.json',
+      },
+    ],
+  })
+
+  const results = collectToolResultsForNextTurn(toolResult, [])
+
+  expect(results).toEqual([toolResult])
+  expect(ensureToolUseResultsForNextTurn(toolUses, results)).toEqual([toolResult])
+})
+
+test('returns a distinct result array so callers can replace tool results safely', () => {
+  const toolUses: ToolUseBlock[] = [
+    {
+      type: 'tool_use',
+      id: 'call-glob-1',
+      name: 'Glob',
+      input: { pattern: '**/package.json' },
+    },
+  ]
+  const toolResult = createUserMessage({
+    content: [
+      {
+        type: 'tool_result',
+        tool_use_id: 'call-glob-1',
+        content: 'apps/tui/package.json',
+      },
+    ],
+  })
+  const results = [toolResult]
+
+  const pairedResults = ensureToolUseResultsForNextTurn(toolUses, results)
+  results.length = 0
+  results.push(...pairedResults)
+
+  expect(results).toEqual([toolResult])
 })

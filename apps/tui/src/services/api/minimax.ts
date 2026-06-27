@@ -26,6 +26,11 @@ import {
   getSelectedProviderConfig,
   getSelectedProviderID,
 } from '../../utils/model/providerConfig.js'
+import {
+  recordConversationDebugApi,
+  recordConversationDebugStreamEvent,
+  setConversationDebugProvider,
+} from '../../utils/conversationDebugDump.js'
 import { asSystemPrompt, type SystemPrompt } from '../../utils/systemPromptType.js'
 import type { ThinkingConfig } from '../../utils/thinking.js'
 
@@ -67,6 +72,7 @@ export async function* queryMiniMaxWithAiSdkStreaming({
   const providerID = getSelectedProviderID()
   const provider = getSelectedProviderConfig()
   const apiKey = getProviderApiKey(providerID)
+  const apiKeySource = getProviderApiKeySource(providerID) ?? null
   if (!apiKey) {
     yield createAssistantAPIErrorMessage({
       content:
@@ -90,10 +96,23 @@ export async function* queryMiniMaxWithAiSdkStreaming({
       normalizeMessagesForAPI(messages, tools),
     )
     const aiTools = await buildMiniMaxAiSdkTools(tools, options)
+    const aiSdkMessages = toAiSdkMessages(normalizedMessages, tools)
+    setConversationDebugProvider({
+      providerID,
+      baseURL: provider.baseURL,
+      model: resolveMiniMaxModel(options.model),
+      apiKeySource,
+      apiKeyFingerprint: fingerprintApiKey(apiKey),
+    })
+    recordConversationDebugApi('minimax_ai_sdk_messages', {
+      normalizedMessages,
+      aiSdkMessages,
+      toolNames: Object.keys(aiTools),
+    })
     logMiniMaxRequestKeyDiagnostics({
       provider,
       apiKey,
-      apiKeySource: getProviderApiKeySource(providerID) ?? null,
+      apiKeySource,
     })
     const anthropicCompatible = createAnthropicCompatibleAiSdkProvider({
       provider,
@@ -102,7 +121,7 @@ export async function* queryMiniMaxWithAiSdkStreaming({
     const result = streamText({
       model: anthropicCompatible(resolveMiniMaxModel(options.model)),
       system: asSystemPrompt(systemPrompt).join('\n\n'),
-      messages: toAiSdkMessages(normalizedMessages, tools),
+      messages: aiSdkMessages,
       tools: aiTools,
       toolChoice: Object.keys(aiTools).length > 0 ? 'auto' : undefined,
       maxOutputTokens:
@@ -119,6 +138,7 @@ export async function* queryMiniMaxWithAiSdkStreaming({
     const toolCalls: AiSdkToolCall[] = []
 
     for await (const part of result.fullStream) {
+      recordConversationDebugStreamEvent('minimax_full_stream_part', part)
       switch (part.type) {
         case 'text-delta':
           text += part.text
@@ -214,54 +234,126 @@ export function toAiSdkMessages(
 ): ModelMessage[] {
   const result: ModelMessage[] = []
   const toolNamesByID = new Map<string, string>()
+  const pendingUserParts: Array<{ type: 'text'; text: string }> = []
+  const flushPendingUserParts = () => {
+    if (pendingUserParts.length === 0) return
+    result.push({
+      role: 'user',
+      content:
+        pendingUserParts.length === 1
+          ? pendingUserParts[0]!.text
+          : [...pendingUserParts],
+    })
+    pendingUserParts.length = 0
+  }
+
   for (const message of messages) {
     if (message.type === 'user') {
-      result.push(...userMessageToAiSdk(message, toolNamesByID))
+      const converted = userMessageToAiSdk(message, toolNamesByID)
+      if (converted.immediateMessages.length > 0) {
+        flushPendingUserParts()
+        result.push(...converted.immediateMessages)
+      }
+      result.push(...converted.toolMessages)
+      pendingUserParts.push(...converted.deferredUserParts)
+      if (converted.shouldFlushDeferredUserParts) {
+        flushPendingUserParts()
+      }
     } else if (message.type === 'assistant') {
+      flushPendingUserParts()
       recordAssistantToolNames(message, toolNamesByID)
       result.push(assistantMessageToAiSdk(message))
     }
   }
+  flushPendingUserParts()
   return coalesceAdjacentAssistantToolCalls(result)
 }
 
 function userMessageToAiSdk(
   message: Message,
   toolNamesByID: Map<string, string>,
-): ModelMessage[] {
+): {
+  immediateMessages: ModelMessage[]
+  toolMessages: ModelMessage[]
+  deferredUserParts: Array<{ type: 'text'; text: string }>
+  shouldFlushDeferredUserParts: boolean
+} {
   const content = message.message.content
   if (typeof content === 'string') {
-    return [{ role: 'user', content }]
+    return {
+      immediateMessages: [{ role: 'user', content }],
+      toolMessages: [],
+      deferredUserParts: [],
+      shouldFlushDeferredUserParts: false,
+    }
   }
 
-  const result: ModelMessage[] = []
+  const toolMessages: ModelMessage[] = []
   const textParts: Array<{ type: 'text'; text: string }> = []
+  const toolResultMirrorParts: Array<{ type: 'text'; text: string }> = []
 
   for (const block of content) {
     if (block.type === 'tool_result') {
-      result.push({
+      const toolName = toolNamesByID.get(block.tool_use_id) ?? 'tool'
+      const rawToolResultText = stringifyToolResult(block.content)
+      const readableToolResultText = formatToolResultMirrorText({
+        toolName,
+        toolCallId: block.tool_use_id,
+        content: rawToolResultText,
+        isError: block.is_error === true,
+      })
+      toolMessages.push({
         role: 'tool',
         content: [
           {
             type: 'tool-result',
             toolCallId: block.tool_use_id,
-            toolName: toolNamesByID.get(block.tool_use_id) ?? 'tool',
-            output: { type: 'text', value: stringifyToolResult(block.content) },
+            toolName,
+            output: { type: 'text', value: readableToolResultText },
           },
         ],
+      })
+      toolResultMirrorParts.push({
+        type: 'text',
+        text: readableToolResultText,
       })
     } else if (block.type === 'text') {
       textParts.push({ type: 'text', text: block.text })
     }
   }
 
-  if (textParts.length > 0) {
-    result.push({
-      role: 'user',
-      content: textParts.length === 1 ? textParts[0]!.text : textParts,
-    })
+  return {
+    immediateMessages: [],
+    toolMessages,
+    deferredUserParts: [...toolResultMirrorParts, ...textParts],
+    shouldFlushDeferredUserParts: textParts.length > 0,
   }
-  return result
+}
+
+function formatToolResultMirrorText({
+  toolName,
+  toolCallId,
+  content,
+  isError,
+}: {
+  toolName: string
+  toolCallId: string
+  content: string
+  isError: boolean
+}): string {
+  writeDesktopStyleDebug('minimax_tool_result_bridge', {
+    toolName,
+    toolCallId,
+    isError,
+    contentLength: content.length,
+    contentPreview: content.slice(0, 500),
+  })
+  return [
+    `Tool ${toolName} ${isError ? 'failed' : 'completed successfully'}.`,
+    `Tool call id: ${toolCallId}`,
+    'Tool result:',
+    content,
+  ].join('\n')
 }
 
 function coalesceAdjacentAssistantToolCalls(
@@ -329,24 +421,95 @@ export function createAnthropicCompatibleAiSdkProvider({
 }) {
   const fetchImpl = fetch ?? globalThis.fetch
   const isMiniMax = isMiniMaxProviderID(provider.providerID)
+  const baseURL = isMiniMax
+    ? normalizeMiniMaxAiSdkBaseURL(provider.baseURL)
+    : provider.baseURL
   return createAnthropic({
     apiKey,
-    baseURL: provider.baseURL ?? 'https://api.anthropic.com/v1',
+    baseURL: baseURL ?? 'https://api.anthropic.com/v1',
     name: `${provider.providerID}.messages`,
     headers: isMiniMax
       ? { 'X-Api-Key': apiKey, 'x-api-key': apiKey }
       : undefined,
     fetch: async (input, init) => {
       if (isMiniMax) {
-        logMiniMaxWireHeaderDiagnostics(provider, init?.headers)
+        logMiniMaxWireHeaderDiagnostics({ ...provider, baseURL }, init?.headers)
+        recordConversationDebugApi('minimax_request', {
+          url: stringifyFetchInputURL(input),
+          headers: init?.headers,
+          body: init?.body,
+          baseURL,
+        })
       }
-      return fetchImpl(input, init)
+      try {
+        return await fetchImpl(input, init)
+      } catch (error) {
+        const fallbackInput = isMiniMax
+          ? getMiniMaxGlobalFallbackInput(input)
+          : null
+        if (!fallbackInput) throw error
+        logMiniMaxGlobalFallback(input, fallbackInput, error)
+        return fetchImpl(fallbackInput, init)
+      }
     },
   })
 }
 
 function isMiniMaxProviderID(providerID: string): boolean {
   return providerID === 'minimax' || providerID.startsWith('minimax-')
+}
+
+function normalizeMiniMaxAiSdkBaseURL(baseURL: string | undefined) {
+  if (!baseURL) return baseURL
+  const trimmed = baseURL.trim().replace(/\/+$/, '')
+  if (
+    trimmed === 'https://api.minimaxi.com/anthropic' ||
+    trimmed === 'https://api.minimax.io/anthropic'
+  ) {
+    return `${trimmed}/v1`
+  }
+  return trimmed || undefined
+}
+
+function getMiniMaxGlobalFallbackInput(
+  input: Parameters<typeof globalThis.fetch>[0],
+): Parameters<typeof globalThis.fetch>[0] | null {
+  const inputURL =
+    typeof input === 'string'
+      ? input
+      : input instanceof URL
+        ? input.href
+        : input instanceof Request
+          ? input.url
+          : String(input)
+  if (!inputURL.startsWith('https://api.minimaxi.com/')) return null
+  const fallbackURL = inputURL.replace(
+    'https://api.minimaxi.com/',
+    'https://api.minimax.io/',
+  )
+  if (typeof input === 'string') return fallbackURL
+  if (input instanceof URL) return new URL(fallbackURL)
+  if (input instanceof Request) return new Request(fallbackURL, input)
+  return fallbackURL
+}
+
+function logMiniMaxGlobalFallback(
+  input: Parameters<typeof globalThis.fetch>[0],
+  fallbackInput: Parameters<typeof globalThis.fetch>[0],
+  error: unknown,
+): void {
+  writeDesktopStyleDebug('minimax_global_endpoint_fallback', {
+    fromURL: stringifyFetchInputURL(input),
+    toURL: stringifyFetchInputURL(fallbackInput),
+    error: errorMessage(error),
+  })
+}
+
+function stringifyFetchInputURL(input: Parameters<typeof globalThis.fetch>[0]) {
+  if (typeof input === 'string') return input
+  if (input instanceof URL) return input.href
+  if (input instanceof Request) return input.url
+  return String(input)
 }
 
 function logMiniMaxRequestKeyDiagnostics({

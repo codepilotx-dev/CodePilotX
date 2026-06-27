@@ -720,6 +720,9 @@ export type DesktopSessionSettingsSnapshot = {
   approvalPolicy?: DesktopApprovalPolicy
   approvalsReviewer?: DesktopApprovalsReviewer
   permissionMode: DesktopPermissionMode
+  providerID?: ModelProviderID
+  providerBaseURL?: string
+  debugConversationDump?: boolean
   model?: string
   fallbackModel?: string
   smallFastModel?: string
@@ -773,6 +776,9 @@ export type CreateDesktopSessionOptions = {
   approvalPolicy?: DesktopApprovalPolicy
   approvalsReviewer?: DesktopApprovalsReviewer
   permissionMode?: DesktopPermissionMode
+  providerID?: ModelProviderID
+  providerBaseURL?: string
+  debugConversationDump?: boolean
   model?: string
   fallbackModel?: string
   smallFastModel?: string
@@ -791,6 +797,13 @@ export type CreateDesktopSessionResult = {
   sessionId: string
   workspace: DesktopWorkspace
   standalone: boolean
+}
+
+export type DesktopModelSelection = {
+  providerID?: ModelProviderID
+  providerBaseURL?: string
+  model?: string
+  debugConversationDump?: boolean
 }
 
 export type DesktopBuiltinPlugin = {
@@ -1051,7 +1064,7 @@ export type DesktopApi = {
   sendUserMessage(
     sessionId: string,
     content: DesktopUserMessageInput,
-    model?: string,
+    model?: string | DesktopModelSelection,
   ): Promise<void>
   respondToPermission(
     sessionId: string,

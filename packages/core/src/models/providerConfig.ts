@@ -944,6 +944,7 @@ function providerFromModelsDev(
 ): ModelProviderConfig {
   const envVars = normalizeStringArray(provider.env)
   const apiKeyEnvVar = envVars[0] ?? getProviderApiKeyEnvVar(providerID)
+  const baseURL = normalizeModelsDevProviderBaseURL(providerID, provider.api)
   const modelMetadata = normalizeProviderModels(
     providerID,
     provider.models,
@@ -956,10 +957,7 @@ function providerFromModelsDev(
       typeof provider.name === 'string' && provider.name.trim()
         ? provider.name
         : providerID,
-    baseURL:
-      typeof provider.api === 'string' && provider.api.trim()
-        ? provider.api.trim()
-        : undefined,
+    baseURL,
     apiKeyEnvVar,
     envVars: envVars.length ? envVars : [apiKeyEnvVar],
     defaultModels: Object.keys(modelMetadata),
@@ -969,9 +967,25 @@ function providerFromModelsDev(
     npmPackage: typeof provider.npm === 'string' ? provider.npm : undefined,
     modelsDevSource: true,
     requiresBaseURL:
-      !(typeof provider.api === 'string' && provider.api.trim()) &&
-      inferProviderKind(providerID, provider) === 'openai-compatible',
+      !baseURL && inferProviderKind(providerID, provider) === 'openai-compatible',
   }
+}
+
+function normalizeModelsDevProviderBaseURL(
+  providerID: string,
+  api: unknown,
+): string | undefined {
+  if (typeof api !== 'string') return undefined
+  const baseURL = api.trim()
+  if (!baseURL) return undefined
+  if (
+    isMiniMaxProviderID(providerID) &&
+    (baseURL === 'https://api.minimaxi.com/anthropic' ||
+      baseURL === 'https://api.minimax.io/anthropic')
+  ) {
+    return `${baseURL}/v1`
+  }
+  return baseURL
 }
 
 function normalizeProviderModels(

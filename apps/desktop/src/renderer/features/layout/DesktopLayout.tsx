@@ -93,6 +93,7 @@ export function DesktopLayout(): React.ReactNode {
     recentWorkspaces,
     selectedModelPreset,
     providerID,
+    providerBaseURL,
     showContextUsage,
     reviewView,
     gitBranchPrefix,
@@ -175,6 +176,9 @@ export function DesktopLayout(): React.ReactNode {
 
   const session = useSessionState({
     permissionMode,
+    providerID,
+    providerBaseURL,
+    debugConversationDump: menubarDebugMode,
     model,
     smallFastModel,
     fastModel,
@@ -230,6 +234,8 @@ export function DesktopLayout(): React.ReactNode {
   const settingsReturnPathRef = useRef(QUICK_CHAT_PATH)
   const lastWorkspaceRestoreAttemptedRef = useRef(false)
   const previousNonPlanModeRef = useRef<DesktopPermissionMode>('default')
+  const [previousNonPlanMode, setPreviousNonPlanMode] =
+    useState<DesktopPermissionMode>('default')
   const settingsActiveTab =
     new URLSearchParams(location.search).get('tab') ?? 'general'
 
@@ -936,6 +942,7 @@ export function DesktopLayout(): React.ReactNode {
       if (!sessionId) return
       if (value !== 'plan' && previousNonPlanModeRef.current !== value) {
         previousNonPlanModeRef.current = value
+        setPreviousNonPlanMode(value)
       }
       void setSessionPermissionMode(sessionId, value)
     },
@@ -947,6 +954,7 @@ export function DesktopLayout(): React.ReactNode {
       if (enabled) {
         if (currentMode !== 'plan') {
           previousNonPlanModeRef.current = currentMode
+          setPreviousNonPlanMode(currentMode)
         }
         handlePermissionChange('plan')
         return
@@ -1213,6 +1221,7 @@ export function DesktopLayout(): React.ReactNode {
       onCreateBranch={() => setGitWorkflowMode('branch')}
       onPermissionChange={handlePermissionChange}
       onPlanModeToggle={handlePlanModeToggle}
+      previousNonPlanMode={previousNonPlanMode}
       onThinkingChange={setThinkingMode}
       createSessionForWorkspace={createSessionForWorkspace}
       submitToSession={submitToSession}

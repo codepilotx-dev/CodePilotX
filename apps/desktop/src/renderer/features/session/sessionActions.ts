@@ -2,6 +2,7 @@ import { desktopClient } from '../../services/desktopClient.js'
 ﻿import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 import type {
   DesktopAskUserQuestionMaxQuestions,
+  ModelProviderID,
   DesktopPermissionMode,
   DesktopPermissionRequest,
   DesktopSessionMetadataPatch,
@@ -26,6 +27,9 @@ import {
 
 export type SessionSettingsSnapshot = {
   permissionMode: DesktopPermissionMode
+  providerID: ModelProviderID
+  providerBaseURL: string
+  debugConversationDump: boolean
   model: string
   smallFastModel: string
   fastModel: string
@@ -75,6 +79,9 @@ export async function createSessionForWorkspaceAction(
     const session = await desktopClient.createSession({
       workspacePath: target?.path,
       permissionMode: settings.permissionMode,
+      providerID: settings.providerID,
+      providerBaseURL: normalizeOptionalText(settings.providerBaseURL),
+      debugConversationDump: settings.debugConversationDump,
       model: normalizeOptionalText(settings.model),
       smallFastModel: normalizeOptionalText(settings.smallFastModel),
       fastModel: normalizeOptionalText(settings.fastModel),
@@ -141,7 +148,7 @@ export async function submitSessionMessageAction(
   sessionId: string | null,
   input: DesktopUserMessageInput,
   canSubmit: boolean,
-  model: string,
+  settings: SessionSettingsSnapshot,
   setInput: (value: string) => void,
 ): Promise<void> {
   const trimmed = input.text.trim()
@@ -155,7 +162,12 @@ export async function submitSessionMessageAction(
         text: trimmed,
         attachments,
       },
-      normalizeOptionalText(model),
+      {
+        providerID: settings.providerID,
+        providerBaseURL: normalizeOptionalText(settings.providerBaseURL),
+        model: normalizeOptionalText(settings.model),
+        debugConversationDump: settings.debugConversationDump,
+      },
     )
   } catch (error) {
     onErrorRef.current(errorMessageOf(error))

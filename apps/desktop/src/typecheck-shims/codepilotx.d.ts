@@ -742,6 +742,12 @@ declare module '@codepilotx/tui/headless/desktopRuntime.js' {
   }
   export type DesktopHeadlessRuntime = {
     setModel(model: string | undefined): void
+    setProvider(
+      providerID: string | undefined,
+      providerBaseURL: string | undefined,
+    ): void
+    setDebugConversationDump(enabled: boolean): void
+    setPermissionMode(permissionMode: string | undefined): void
   }
   export function createDesktopHeadlessRuntime(
     options: Record<string, unknown> & {
@@ -1041,6 +1047,9 @@ declare module '@codepilotx/core/agent/desktopRuntime.js' {
     approvalPolicy?: 'untrusted' | 'on-request' | 'on-failure' | 'never'
     approvalsReviewer?: 'user' | 'auto'
     permissionMode?: PermissionMode
+    providerID?: string
+    providerBaseURL?: string
+    debugConversationDump?: boolean
     model?: string
     smallFastModel?: string
     fastModel?: string
@@ -1060,6 +1069,12 @@ declare module '@codepilotx/core/agent/desktopRuntime.js' {
   }
   export type DesktopHeadlessRuntime = {
     setModel(model: string | undefined): void
+    setProvider(
+      providerID: string | undefined,
+      providerBaseURL: string | undefined,
+    ): void
+    setDebugConversationDump(enabled: boolean): void
+    setPermissionMode(permissionMode: PermissionMode | undefined): void
     runUserTurn(
       content: string | ContentBlockParam[],
       signal: AbortSignal,

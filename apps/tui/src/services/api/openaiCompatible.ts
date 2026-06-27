@@ -1,4 +1,4 @@
-import { randomUUID } from 'crypto'
+import { createHash, randomUUID } from 'crypto'
 import type {
   BetaContentBlock,
   BetaMessage,
@@ -21,12 +21,18 @@ import {
 import {
   getProviderModelMetadata,
   getProviderApiKey,
+  getProviderApiKeySource,
   getSelectedProviderConfig,
   getSelectedProviderID,
 } from '../../utils/model/providerConfig.js'
 import { getProxyFetchOptions, proxyFetch } from '../../utils/proxy.js'
 import { asSystemPrompt, type SystemPrompt } from '../../utils/systemPromptType.js'
 import type { ThinkingConfig } from '../../utils/thinking.js'
+import {
+  recordConversationDebugApi,
+  recordConversationDebugStreamEvent,
+  setConversationDebugProvider,
+} from '../../utils/conversationDebugDump.js'
 
 const DEFAULT_OPENAI_MAX_TOKENS = 8192
 // DeepSeek v4 输出上限 384K，模型端默认截断粒度比 OpenAI 大。
@@ -180,6 +186,7 @@ export async function* queryOpenAICompatibleModelWithStreaming({
   const providerID = getSelectedProviderID()
   const provider = getSelectedProviderConfig()
   const apiKey = getProviderApiKey(providerID)
+  const apiKeySource = getProviderApiKeySource(providerID) ?? null
   const baseURL = provider.baseURL
 
   if (!baseURL) {
@@ -241,15 +248,39 @@ export async function* queryOpenAICompatibleModelWithStreaming({
         user_id: resolveDeepSeekUserId(options),
       }),
     }
+    const requestURL = joinURL(baseURL, '/chat/completions')
+    const fetchInit = buildOpenAICompatibleFetchInit({
+      apiKey,
+      isDeepSeek,
+      signal,
+      userID: isDeepSeek ? resolveDeepSeekUserId(options) : undefined,
+    })
+    setConversationDebugProvider({
+      providerID,
+      baseURL,
+      model: options.model,
+      apiKeySource,
+      apiKeyFingerprint: createHash('sha256')
+        .update(apiKey)
+        .digest('hex')
+        .slice(0, 12),
+    })
+    recordConversationDebugApi('openai_compatible_request', {
+      providerID,
+      url: requestURL,
+      headers: fetchInit.headers,
+      body: requestBody,
+    })
 
-    const response = await proxyFetch(joinURL(baseURL, '/chat/completions'), {
-      ...buildOpenAICompatibleFetchInit({
-        apiKey,
-        isDeepSeek,
-        signal,
-        userID: isDeepSeek ? resolveDeepSeekUserId(options) : undefined,
-      }),
+    const response = await proxyFetch(requestURL, {
+      ...fetchInit,
       body: JSON.stringify(requestBody),
+    })
+    recordConversationDebugApi('openai_compatible_response', {
+      url: response.url || requestURL,
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
     })
 
     if (!response.ok) {
@@ -261,6 +292,14 @@ export async function* queryOpenAICompatibleModelWithStreaming({
 
     const { content, reasoningContent, toolCalls, usage, finishReason, requestID } =
       await readOpenAIStream(response)
+    recordConversationDebugStreamEvent('openai_compatible_stream_result', {
+      content,
+      reasoningContent,
+      toolCalls,
+      usage,
+      finishReason,
+      requestID,
+    })
 
     const assistant = createAssistantMessage({
       model: options.model,
@@ -563,6 +602,7 @@ export async function readOpenAIStream(
       if (!data) continue
       if (data === '[DONE]') return true
       const chunk = JSON.parse(data) as ChatCompletionChunk
+      recordConversationDebugStreamEvent('openai_compatible_chunk', chunk)
       const choice = chunk.choices?.[0]
       if (choice?.delta?.content) {
         content += choice.delta.content

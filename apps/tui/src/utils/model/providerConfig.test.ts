@@ -153,7 +153,7 @@ test('models.dev providers keep catalog package and env vars', async () => {
           providers: {
             'minimax-cn-coding-plan': {
               name: 'MiniMax Token Plan (minimaxi.com)',
-              api: 'https://api.minimaxi.com/anthropic/v1',
+              api: 'https://api.minimaxi.com/anthropic',
               env: ['MINIMAX_API_KEY'],
               npm: '@ai-sdk/anthropic',
               models: {

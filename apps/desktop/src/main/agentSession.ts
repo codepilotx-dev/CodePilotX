@@ -20,7 +20,10 @@ import type {
   AgentPermissionAction,
   AgentPermissionPolicy,
 } from '@codepilotx/core/agent/permissions.js'
-import { resolvePermissionEffect } from '@codepilotx/core/agent/permissions.js'
+import {
+  permissionPolicyForDesktopMode,
+  resolvePermissionEffect,
+} from '@codepilotx/core/agent/permissions.js'
 
 type DesktopAgentSessionEvents = {
   event: [DesktopAgentEvent]
@@ -48,7 +51,14 @@ export type DesktopAgentSession = {
   sessionId: string
   workspacePath: string
   setModel(model: string | undefined): void
+  setModelProvider(
+    providerID: string | undefined,
+    model: string | undefined,
+    providerBaseURL: string | undefined,
+  ): void
+  setDebugConversationDump(enabled: boolean): void
   setPermissionProfile(profile: string, approvalPolicy?: DesktopApprovalPolicy): void
+  setPermissionMode(permissionMode: NonNullable<CreateDesktopSessionOptions['permissionMode']>): void
   sendUserMessage(content: DesktopUserMessageContent, previewText: string): Promise<void>
   respondToPermission(
     requestId: string,
@@ -78,6 +88,7 @@ class LocalDesktopAgentSession
   private readonly runtime: DesktopAgentRuntime
   private permissionProfile: string
   private approvalPolicy: DesktopApprovalPolicy
+  private permissionMode: NonNullable<CreateDesktopSessionOptions['permissionMode']>
 
   constructor(
     options: ResolvedDesktopSessionOptions,
@@ -88,6 +99,7 @@ class LocalDesktopAgentSession
     this.workspacePath = options.workspacePath
     this.permissionProfile = options.permissionProfile ?? ':workspace'
     this.approvalPolicy = options.approvalPolicy ?? 'on-request'
+    this.permissionMode = options.permissionMode ?? 'default'
     this.runtime = createDesktopAgentRuntime({
       sessionId: this.sessionId,
       workspacePath: this.workspacePath,
@@ -98,7 +110,10 @@ class LocalDesktopAgentSession
       permissionProfile: this.permissionProfile,
       approvalPolicy: this.approvalPolicy,
       approvalsReviewer: options.approvalsReviewer,
-      permissionMode: options.permissionMode,
+      permissionMode: this.permissionMode,
+      providerID: options.providerID,
+      providerBaseURL: options.providerBaseURL,
+      debugConversationDump: options.debugConversationDump,
       model: options.model,
       smallFastModel: options.smallFastModel,
       fastModel: options.fastModel,
@@ -129,6 +144,18 @@ class LocalDesktopAgentSession
     this.runtime.setModel(model)
   }
 
+  setModelProvider(
+    providerID: string | undefined,
+    model: string | undefined,
+    providerBaseURL: string | undefined,
+  ): void {
+    this.runtime.setModelProvider(providerID, model, providerBaseURL)
+  }
+
+  setDebugConversationDump(enabled: boolean): void {
+    this.runtime.setDebugConversationDump(enabled)
+  }
+
   setPermissionProfile(profile: string, approvalPolicy?: DesktopApprovalPolicy): void {
     this.permissionProfile = profile
     if (approvalPolicy) {
@@ -138,6 +165,17 @@ class LocalDesktopAgentSession
       sessionId: this.sessionId,
       permissionProfile: profile,
       approvalPolicy: this.approvalPolicy,
+    })
+  }
+
+  setPermissionMode(
+    permissionMode: NonNullable<CreateDesktopSessionOptions['permissionMode']>,
+  ): void {
+    this.permissionMode = permissionMode
+    this.runtime.setPermissionMode(permissionMode)
+    desktopDebug('session_permission_mode_changed', {
+      sessionId: this.sessionId,
+      permissionMode,
     })
   }
 
@@ -236,12 +274,27 @@ class LocalDesktopAgentSession
   private async requestPermission(
     request: DesktopPermissionRequest,
   ): Promise<DesktopPermissionDecision> {
+    const modePolicy = permissionPolicyForDesktopMode(this.permissionMode)
     const normalizedRequest: DesktopPermissionRequest = {
       ...request,
-      profile: (request.profile ?? this.permissionProfile) as DesktopPermissionRequest['profile'],
+      profile: (request.profile ??
+        (this.permissionMode === 'customConfig'
+          ? this.permissionProfile
+          : modePolicy.profile)) as DesktopPermissionRequest['profile'],
       approvalMode: (request.approvalMode ??
-        this.approvalPolicy) as DesktopPermissionRequest['approvalMode'],
+        (this.permissionMode === 'customConfig'
+          ? this.approvalPolicy
+          : modePolicy.approvalMode)) as DesktopPermissionRequest['approvalMode'],
     }
+    console.info(
+      `[desktop-permission] ${new Date().toISOString()} request ${JSON.stringify({
+        sessionId: this.sessionId,
+        permissionMode: this.permissionMode,
+        toolName: normalizedRequest.toolName,
+        profile: normalizedRequest.profile,
+        approvalMode: normalizedRequest.approvalMode,
+      })}`,
+    )
     const decision = await new Promise<DesktopPermissionDecision>(resolve => {
       this.pendingPermissions.set(normalizedRequest.requestId, {
         request: normalizedRequest,
@@ -270,6 +323,15 @@ class LocalDesktopAgentSession
     if (!this.disposed && !this.currentAbortController?.signal.aborted) {
       this.emitStatus('running')
     }
+    console.info(
+      `[desktop-permission] ${new Date().toISOString()} decision ${JSON.stringify({
+        sessionId: this.sessionId,
+        permissionMode: this.permissionMode,
+        toolName: normalizedRequest.toolName,
+        behavior: decision.behavior,
+        alwaysAllow: decision.alwaysAllow === true,
+      })}`,
+    )
     return decision
   }
 

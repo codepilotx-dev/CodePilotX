@@ -13,6 +13,7 @@ import type {
   DesktopUserMessageInput,
   DesktopWorkflowEvent,
   DesktopWorkspace,
+  ModelProviderID,
 } from '../../../shared/types.js'
 import type {
   Message,
@@ -54,6 +55,9 @@ import {
 
 export type UseSessionStateOptions = {
   permissionMode: DesktopPermissionMode
+  providerID: ModelProviderID
+  providerBaseURL: string
+  debugConversationDump: boolean
   model: string
   smallFastModel: string
   fastModel: string
@@ -118,6 +122,9 @@ export function useSessionState(
 ): UseSessionStateResult {
   const {
     permissionMode,
+    providerID,
+    providerBaseURL,
+    debugConversationDump,
     model,
     smallFastModel,
     fastModel,
@@ -440,6 +447,9 @@ export function useSessionState(
   const settingsSnapshot = useMemo<SessionSettingsSnapshot>(
     () => ({
       permissionMode,
+      providerID,
+      providerBaseURL,
+      debugConversationDump,
       model,
       smallFastModel,
       fastModel,
@@ -456,10 +466,13 @@ export function useSessionState(
       additionalDirectories,
       appendSystemPrompt,
       askUserQuestionMaxQuestions,
+      debugConversationDump,
       fastModel,
       model,
       deepModel,
       permissionMode,
+      providerBaseURL,
+      providerID,
       sessionName,
       smallFastModel,
       defaultModel,
@@ -545,7 +558,7 @@ export function useSessionState(
           targetStatus !== 'running' &&
           targetStatus !== 'waiting',
       ),
-      model,
+      settingsSnapshot,
       nextValue => {
         inputBySessionRef.current = {
           ...inputBySessionRef.current,
@@ -556,7 +569,7 @@ export function useSessionState(
         }
       },
     )
-  }, [model])
+  }, [settingsSnapshot])
 
   const submit = useCallback(async (target?: DesktopWorkspace | null): Promise<void> => {
     const targetSessionId =

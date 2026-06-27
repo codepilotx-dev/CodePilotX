@@ -45,6 +45,11 @@ import { createDesktopWindowService } from './windowService.js'
 import { createDesktopBrowserService } from './browserService.js'
 import { createDesktopAutoUpdater } from './autoUpdater.js'
 import { DebugToolProbeService } from './debugToolProbeService.js'
+import {
+  applySessionPermissionModeToSnapshot,
+  createSessionSettingsSnapshot,
+} from './desktopSessionSettings.js'
+import { shouldEmitWorkspaceDiffEvent } from './desktopSessionDiffPolicy.js'
 import { DESKTOP_UPDATE_STATUS_CHANNEL } from '../shared/ipcChannels.js'
 import {
   assertAllowedWorkspace,
@@ -75,16 +80,17 @@ import type {
   DesktopAgentEvent,
   DesktopBuiltinPlugin,
   DesktopApprovalPolicy,
+  DesktopModelSelection,
   DesktopPermissionDecision,
   DesktopReviewComment,
   DesktopSlashCommandSuggestion,
   DesktopSessionMetadataPatch,
-  DesktopSessionSettingsSnapshot,
   DesktopSessionSnapshot,
   DesktopThinkingMode,
   DesktopUserMessageContent,
   DesktopUserMessageInput,
   DesktopWorkspace,
+  ModelProviderID,
   SaveSessionReviewCommentInput,
   SessionReviewCommentInput,
 } from '../shared/types.js'
@@ -97,6 +103,7 @@ import {
   normalizeDesktopApprovalPolicy,
   normalizeDesktopApprovalsReviewer,
   normalizeAskUserQuestionMaxQuestions,
+  normalizeDesktopPermissionMode,
   normalizeDesktopPermissionProfile,
 } from '../shared/settingsSchema.js'
 
@@ -113,6 +120,7 @@ type DesktopSessionRecord = {
   session: DesktopAgentSession | null
   snapshot: DesktopSessionSnapshot
   resumeExistingSession: boolean
+  turnBaselineDiffPatch?: string | null
 }
 
 const desktopConfigHomeDir = getOpenAgentConfigHomeDir()
@@ -319,6 +327,15 @@ function persistSessionStore(): void {
   })
 }
 
+function desktopConsoleLog(
+  event: string,
+  fields: Record<string, unknown> = {},
+): void {
+  const suffix =
+    Object.keys(fields).length > 0 ? ` ${JSON.stringify(fields)}` : ''
+  console.info(`[desktop-session] ${new Date().toISOString()} ${event}${suffix}`)
+}
+
 function attachSessionListeners(record: DesktopSessionRecord): void {
   const session = record.session
   if (!session) return
@@ -360,6 +377,22 @@ function attachSessionListeners(record: DesktopSessionRecord): void {
       void getWorkspaceDiff(session.workspacePath).then(diff => {
         const latestRecord = sessions.get(session.sessionId)
         if (!latestRecord || latestRecord.session !== session) {
+          return
+        }
+        const beforePatch = latestRecord.turnBaselineDiffPatch
+        latestRecord.turnBaselineDiffPatch = null
+        const shouldEmitDiff = shouldEmitWorkspaceDiffEvent({
+          beforePatch,
+          afterPatch: diff.patch,
+          standalone: latestRecord.snapshot.item.standalone === true,
+        })
+        desktopConsoleLog('turn_diff_checked', {
+          sessionId: session.sessionId,
+          permissionMode: latestRecord.snapshot.settings.permissionMode,
+          baselineCaptured: beforePatch !== undefined && beforePatch !== null,
+          changed: shouldEmitDiff,
+        })
+        if (!shouldEmitDiff) {
           return
         }
         const diffEvent: DesktopAgentEvent = {
@@ -610,6 +643,26 @@ async function setSessionPermissionProfile(
   return record.snapshot
 }
 
+async function setSessionPermissionMode(
+  sessionId: string,
+  mode: NonNullable<CreateDesktopSessionOptions['permissionMode']>,
+): Promise<DesktopSessionSnapshot> {
+  const record = await getSessionRecord(sessionId)
+  const nextMode = normalizeDesktopPermissionMode(mode)
+  desktopConsoleLog('set_permission_mode', {
+    sessionId,
+    requestedMode: mode,
+    nextMode,
+  })
+  createRuntimeForRecord(record).setPermissionMode(nextMode)
+  record.snapshot = applySessionPermissionModeToSnapshot(
+    record.snapshot,
+    nextMode,
+  )
+  persistSessionStore()
+  return record.snapshot
+}
+
 async function createSession(
   options: CreateDesktopSessionOptions,
 ): Promise<CreateDesktopSessionResult> {
@@ -629,8 +682,19 @@ async function createSession(
   const approvalsReviewer = normalizeDesktopApprovalsReviewer(
     options.approvalsReviewer,
   )
+  const permissionMode = normalizeDesktopPermissionMode(options.permissionMode)
   const model = normalizeOptionalText(options.model)
-  await assertCurrentProviderUsable(model)
+  desktopConsoleLog('create_session', {
+    workspacePath,
+    permissionProfile,
+    approvalPolicy,
+    permissionMode,
+    model,
+  })
+  const providerState = await assertCurrentProviderUsable(model, {
+    providerID: options.providerID,
+    providerBaseURL: normalizeOptionalText(options.providerBaseURL),
+  })
   const smallFastModel = normalizeOptionalText(options.smallFastModel)
   const fastModel = normalizeOptionalText(options.fastModel)
   const defaultModel = normalizeOptionalText(options.defaultModel)
@@ -651,6 +715,9 @@ async function createSession(
     permissionProfile,
     approvalPolicy,
     approvalsReviewer,
+    permissionMode,
+    providerID: providerState.selectedProviderID,
+    providerBaseURL: providerState.baseURL,
     model,
     smallFastModel,
     fastModel,
@@ -669,6 +736,9 @@ async function createSession(
       permissionProfile,
       approvalPolicy,
       approvalsReviewer,
+      permissionMode,
+      providerID: providerState.selectedProviderID,
+      providerBaseURL: providerState.baseURL,
       model,
       smallFastModel,
       fastModel,
@@ -699,44 +769,6 @@ async function createSession(
   startJsonRpcAppServerThread(session.sessionId)
   persistSessionStore()
   return { sessionId: session.sessionId, workspace, standalone }
-}
-
-function createSessionSettingsSnapshot(params: {
-  permissionProfile: string
-  approvalPolicy: DesktopApprovalPolicy
-  approvalsReviewer: DesktopSessionSettingsSnapshot['approvalsReviewer']
-  model?: string
-  smallFastModel?: string
-  fastModel?: string
-  defaultModel?: string
-  deepModel?: string
-  sessionName?: string
-  thinkingMode: DesktopThinkingMode
-  systemPrompt?: string
-  appendSystemPrompt?: string
-  additionalDirectories: string[]
-  askUserQuestionMaxQuestions: DesktopSessionSettingsSnapshot['askUserQuestionMaxQuestions']
-}): DesktopSessionSettingsSnapshot {
-  const settings: DesktopSessionSettingsSnapshot = {
-    permissionProfile: params.permissionProfile,
-    approvalPolicy: params.approvalPolicy,
-    approvalsReviewer: params.approvalsReviewer,
-    permissionMode: 'default',
-    thinkingMode: params.thinkingMode,
-    additionalDirectories: params.additionalDirectories,
-    askUserQuestionMaxQuestions: params.askUserQuestionMaxQuestions,
-  }
-  if (params.model) settings.model = params.model
-  if (params.smallFastModel) settings.smallFastModel = params.smallFastModel
-  if (params.fastModel) settings.fastModel = params.fastModel
-  if (params.defaultModel) settings.defaultModel = params.defaultModel
-  if (params.deepModel) settings.deepModel = params.deepModel
-  if (params.sessionName) settings.sessionName = params.sessionName
-  if (params.systemPrompt) settings.systemPrompt = params.systemPrompt
-  if (params.appendSystemPrompt) {
-    settings.appendSystemPrompt = params.appendSystemPrompt
-  }
-  return settings
 }
 
 function normalizeThinkingMode(
@@ -796,7 +828,7 @@ async function normalizeAdditionalDirectories(
 async function sendUserMessage(
   sessionId: string,
   input: DesktopUserMessageInput,
-  model?: string,
+  model?: string | DesktopModelSelection,
 ): Promise<void> {
   const startedAt = Date.now()
   const trimmedContent = requireNonEmptyString(
@@ -813,11 +845,15 @@ async function sendUserMessage(
     modelProvided: model !== undefined,
   })
   const record = await getSessionRecord(sessionId)
-  const nextModel = normalizeOptionalText(model)
+  const modelSelection = normalizeDesktopModelSelection(model)
+  const nextModel = modelSelection.model
   const effectiveModel =
-    model !== undefined ? nextModel : record.snapshot.settings.model
-  await assertCurrentProviderUsable(effectiveModel)
-  if (model !== undefined) {
+    modelSelection.provided ? nextModel : record.snapshot.settings.model
+  const providerState = await assertCurrentProviderUsable(
+    effectiveModel,
+    modelSelection,
+  )
+  if (modelSelection.provided) {
     record.snapshot = {
       ...record.snapshot,
       item: {
@@ -831,9 +867,32 @@ async function sendUserMessage(
       updatedAt: new Date().toISOString(),
     }
   }
+  record.snapshot = {
+    ...record.snapshot,
+    settings: {
+      ...record.snapshot.settings,
+      providerID: providerState.selectedProviderID,
+      providerBaseURL: providerState.baseURL,
+    },
+    updatedAt: new Date().toISOString(),
+  }
   const shouldGenerateTitle = shouldGenerateAiTitle(record)
   const session = createRuntimeForRecord(record)
-  session.setModel(record.snapshot.settings.model)
+  session.setModelProvider(
+    record.snapshot.settings.providerID,
+    record.snapshot.settings.model,
+    record.snapshot.settings.providerBaseURL,
+  )
+  session.setDebugConversationDump(modelSelection.debugConversationDump === true)
+  record.turnBaselineDiffPatch = record.snapshot.item.standalone
+    ? null
+    : (await getWorkspaceDiff(record.snapshot.workspace.path)).patch
+  desktopConsoleLog('turn_baseline_captured', {
+    sessionId,
+    permissionMode: record.snapshot.settings.permissionMode,
+    standalone: record.snapshot.item.standalone === true,
+    baselineCaptured: record.turnBaselineDiffPatch !== null,
+  })
   activeSessionId = record.snapshot.item.id
   persistSessionStore()
   if (shouldGenerateTitle) {
@@ -857,24 +916,62 @@ async function sendUserMessage(
   }
 }
 
+type NormalizedDesktopModelSelection = {
+  provided?: boolean
+  providerID?: ModelProviderID
+  providerBaseURL?: string
+  model?: string
+  debugConversationDump?: boolean
+}
+
+function normalizeDesktopModelSelection(
+  selection: string | DesktopModelSelection | undefined,
+): NormalizedDesktopModelSelection {
+  if (typeof selection === 'string') {
+    return {
+      provided: true,
+      model: normalizeOptionalText(selection),
+    }
+  }
+  if (!selection || typeof selection !== 'object') {
+    return {}
+  }
+  return {
+    provided: true,
+    providerID: normalizeOptionalText(selection.providerID) as
+      | ModelProviderID
+      | undefined,
+    providerBaseURL: normalizeOptionalText(selection.providerBaseURL),
+    model: normalizeOptionalText(selection.model),
+    debugConversationDump: selection.debugConversationDump === true,
+  }
+}
+
 async function assertCurrentProviderUsable(
   model: string | undefined,
-): Promise<void> {
+  selection: NormalizedDesktopModelSelection = {},
+): Promise<Awaited<ReturnType<typeof getModelProviderState>>> {
   if (!model?.trim()) {
     throw new Error('未配置模型，请先在设置中配置模型。')
   }
-  const providerState = await getModelProviderState()
+  const providerState = await getModelProviderState(selection.providerID)
+  const baseURL = selection.providerBaseURL ?? providerState.baseURL
   if (!providerState.apiKeyConfigured) {
     throw new Error(
       providerState.configurationMessage ??
         '未配置模型，请先在设置中配置模型。',
     )
   }
-  if (providerState.provider.requiresBaseURL && !providerState.baseURL?.trim()) {
+  if (providerState.provider.requiresBaseURL && !baseURL?.trim()) {
     throw new Error(
       providerState.configurationMessage ??
         '未配置模型，请先在设置中配置 Base URL。',
     )
+  }
+  return {
+    ...providerState,
+    selectedProviderID: selection.providerID ?? providerState.selectedProviderID,
+    baseURL,
   }
 }
 
@@ -1162,7 +1259,7 @@ const desktopApiHandlers = buildDesktopApiHandlers({
   saveSessionReviewComment,
   resolveSessionReviewComment,
   deleteSessionReviewComment,
-  setSessionPermissionMode: setSessionPermissionProfile,
+  setSessionPermissionMode,
   sendUserMessage,
   respondToPermission,
   interruptSession,
