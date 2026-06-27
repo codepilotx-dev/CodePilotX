@@ -45,6 +45,12 @@ export function buildToolResultMetadata(
   return Object.keys(metadata).length > 0 ? metadata : undefined
 }
 
+export function getToolUseId(item: Record<string, unknown>): string | undefined {
+  if (typeof item.id === 'string') return item.id
+  if (typeof item.tool_use_id === 'string') return item.tool_use_id
+  return undefined
+}
+
 function metadataValueToText(value: unknown): string | undefined {
   if (typeof value === 'string') return value
   if (typeof value === 'number' || typeof value === 'boolean') return String(value)

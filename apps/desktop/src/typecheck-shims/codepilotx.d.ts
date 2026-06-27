@@ -105,6 +105,7 @@ declare module '@codepilotx/core/agent/runtime.js' {
         sessionId: string
         toolName: string
         summary: string
+        toolUseId?: string
         sourceThreadId?: string
         sourceLabel?: string
       }
@@ -113,6 +114,7 @@ declare module '@codepilotx/core/agent/runtime.js' {
         sessionId: string
         toolName: string
         summary: string
+        toolUseId?: string
         isError?: boolean
         metadata?: Record<string, unknown>
         sourceThreadId?: string
@@ -666,12 +668,86 @@ declare module '@codepilotx/core/utils/config.js' {
   export function enableConfigs(): void
 }
 
+declare module '@codepilotx/core/session/logs.js' {
+  export type SerializedMessage = {
+    type?: string
+    message?: unknown
+    cwd?: string
+    uuid?: string
+    timestamp?: string
+    sessionId?: string
+    parentUuid?: string | null
+    isSidechain?: boolean
+    userType?: string
+    version?: string
+    gitBranch?: string
+    [key: string]: unknown
+  }
+
+  export type LogOption = {
+    date: string
+    messages: SerializedMessage[]
+    fullPath?: string
+    value: number
+    created: Date
+    modified: Date
+    firstPrompt: string
+    messageCount: number
+    isSidechain: boolean
+    isLite?: boolean
+    sessionId?: string
+    projectPath?: string
+    gitBranch?: string
+    prNumber?: number
+    prUrl?: string
+    prRepository?: string
+    customTitle?: string
+    tag?: string
+    summary?: string
+    fileSize?: number
+  }
+}
+
+declare module '@codepilotx/core/session/storage.js' {
+  export function getProjectDir(workspacePath: string): string
+  export function loadAllProjectsMessageLogs(
+    limit?: number,
+    options?: { skipIndex?: boolean; initialEnrichCount?: number },
+  ): Promise<import('@codepilotx/core/session/logs.js').LogOption[]>
+  export function loadFullLog(
+    log: import('@codepilotx/core/session/logs.js').LogOption,
+  ): Promise<import('@codepilotx/core/session/logs.js').LogOption>
+  export function saveAiGeneratedTitle(
+    sessionId: `${string}-${string}-${string}-${string}-${string}`,
+    title: string,
+    transcriptPath?: string,
+  ): void
+}
+
+declare module '@codepilotx/core/session/title.js' {
+  export function generateSessionTitle(
+    description: string,
+    signal: AbortSignal,
+    model: string,
+  ): Promise<string | null>
+}
+
+declare module '@codepilotx/core/utils/plugins/cache.js' {
+  export function clearAllCaches(): void
+}
+
 declare module '@codepilotx/tui/headless/desktopRuntime.js' {
   export type DesktopHeadlessOutputControls = {
     injectControlResponse(message: Record<string, unknown>): void
   }
   export type DesktopHeadlessRuntime = {
     setModel(model: string | undefined): void
+    setProvider(
+      providerID: string | undefined,
+      providerBaseURL: string | undefined,
+    ): void
+    setDebugConversationDump(enabled: boolean): void
+    setPermissionMode(permissionMode: string | undefined): void
   }
   export function createDesktopHeadlessRuntime(
     options: Record<string, unknown> & {
@@ -843,76 +919,9 @@ declare module '@codepilotx/tui/plugins/bundled/index.js' {
   export function initBuiltinPlugins(): void
 }
 
-declare module '@codepilotx/tui/utils/plugins/cacheUtils.js' {
-  export function clearAllCaches(): void
-}
-
 declare module '@codepilotx/tui/utils/model/model.js' {
   export function getMainLoopModel(): string
   export function parseUserSpecifiedModel(model: string): string
-}
-
-declare module '@codepilotx/tui/utils/sessionTitle.js' {
-  export function generateSessionTitle(
-    description: string,
-    signal: AbortSignal,
-    model: string,
-  ): Promise<string | null>
-}
-
-declare module '@codepilotx/tui/utils/sessionStorage.js' {
-  export function getProjectDir(workspacePath: string): string
-  export function loadAllProjectsMessageLogs(
-    projectPath?: string,
-    options?: Record<string, unknown>,
-  ): Promise<import('@codepilotx/tui/types/logs.js').LogOption[]>
-  export function loadFullLog(
-    log: import('@codepilotx/tui/types/logs.js').LogOption,
-  ): Promise<import('@codepilotx/tui/types/logs.js').LogOption>
-  export function saveAiGeneratedTitle(
-    sessionId: `${string}-${string}-${string}-${string}-${string}`,
-    title: string,
-  ): void
-}
-
-declare module '@codepilotx/tui/types/logs.js' {
-  export type SerializedMessage = {
-    type?: string
-    message?: unknown
-    cwd?: string
-    uuid?: string
-    timestamp?: string
-    sessionId?: string
-    parentUuid?: string | null
-    isSidechain?: boolean
-    userType?: string
-    version?: string
-    gitBranch?: string
-    [key: string]: unknown
-  }
-
-  export type LogOption = {
-    date: string
-    messages: SerializedMessage[]
-    fullPath?: string
-    value: number
-    created: Date
-    modified: Date
-    firstPrompt: string
-    messageCount: number
-    isSidechain: boolean
-    isLite?: boolean
-    sessionId?: string
-    projectPath?: string
-    gitBranch?: string
-    prNumber?: number
-    prUrl?: string
-    prRepository?: string
-    customTitle?: string
-    tag?: string
-    summary?: string
-    fileSize?: number
-  }
 }
 
 declare module '@codepilotx/tui/utils/model/providerConfig.js' {
@@ -944,6 +953,7 @@ declare module '@codepilotx/tui/utils/model/providerConfig.js' {
   }
   export function isModelProviderID(value: unknown): value is string
   export function getCachedProviderModels(providerID: string): string[] | null
+  export function getProviderApiKey(providerID: string): string | undefined
   export function getProviderApiKeySource(providerID: string): string | null
   export function fetchProviderModels(options: {
     providerID: string
@@ -974,5 +984,386 @@ declare module '@codepilotx/tui/utils/model/providerConfig.js' {
   ): { success: boolean; warning?: string }
   export function deleteProviderApiKey(
     providerID: string,
+  ): { success: boolean; warning?: string }
+}
+
+declare module '@codepilotx/core/config/env.js' {
+  export const CODEPILOTX_CONFIG_DIR_ENV: string
+  export const LEGACY_CLAUDE_CONFIG_DIR_ENV: string
+  export const CODEPILOTX_CONFIG_DIR_NAME: string
+  export const LEGACY_CLAUDE_CONFIG_DIR_NAME: string
+}
+
+declare module '@codepilotx/core/config/settings.js' {
+  export function getSettings_DEPRECATED(): Record<string, unknown> | null
+}
+
+declare module '@codepilotx/core/agent/controlTypes.js' {
+  export type SDKControlRequest = any
+  export type SDKControlResponse = any
+  export type SDKControlInitializeRequest = any
+  export type SDKControlInitializeResponse = any
+  export type SDKControlMcpSetServersResponse = any
+  export type SDKControlPermissionRequest = any
+  export type SDKControlReloadPluginsResponse = any
+  export type SDKPartialAssistantMessage = any
+  export type SDKPermissionDenial = any
+  export type SDKRateLimitInfo = any
+  export type StdinMessage = any
+  export type StdoutMessage = any
+}
+
+declare module '@codepilotx/core/agent/permissionMode.js' {
+  export type ExternalPermissionMode =
+    | 'acceptEdits'
+    | 'bypassPermissions'
+    | 'default'
+    | 'dontAsk'
+    | 'auto'
+    | 'plan'
+  export type InternalPermissionMode = ExternalPermissionMode | 'auto' | 'bubble'
+  export type PermissionMode = InternalPermissionMode
+}
+
+declare module '@codepilotx/core/agent/desktopRuntime.js' {
+  import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages.mjs'
+  import type { StdoutMessage } from '@codepilotx/core/agent/controlTypes.js'
+  import type { PermissionMode } from '@codepilotx/core/agent/permissionMode.js'
+
+  export type DesktopHeadlessThinkingMode =
+    | 'default'
+    | 'enabled'
+    | 'adaptive'
+    | 'disabled'
+  export type DesktopHeadlessOutputControls = {
+    injectControlResponse(response: Record<string, unknown>): void
+  }
+  export type DesktopHeadlessRuntimeOptions = {
+    sessionId: string
+    workspacePath: string
+    configDirectoryPath?: string
+    resumeExistingSession?: boolean
+    permissionProfile?: string
+    approvalPolicy?: 'untrusted' | 'on-request' | 'on-failure' | 'never'
+    approvalsReviewer?: 'user' | 'auto'
+    permissionMode?: PermissionMode
+    providerID?: string
+    providerBaseURL?: string
+    debugConversationDump?: boolean
+    model?: string
+    smallFastModel?: string
+    fastModel?: string
+    defaultModel?: string
+    deepModel?: string
+    sessionName?: string
+    thinkingMode?: DesktopHeadlessThinkingMode
+    systemPrompt?: string
+    appendSystemPrompt?: string
+    additionalDirectories?: string[]
+    askUserQuestionMaxQuestions?: number
+    permissionPromptToolName?: string
+    onOutput(
+      message: StdoutMessage,
+      controls: DesktopHeadlessOutputControls,
+    ): Promise<void> | void
+  }
+  export type DesktopHeadlessRuntime = {
+    setModel(model: string | undefined): void
+    setProvider(
+      providerID: string | undefined,
+      providerBaseURL: string | undefined,
+    ): void
+    setDebugConversationDump(enabled: boolean): void
+    setPermissionMode(permissionMode: PermissionMode | undefined): void
+    runUserTurn(
+      content: string | ContentBlockParam[],
+      signal: AbortSignal,
+    ): Promise<void>
+  }
+  export function createDesktopHeadlessRuntime(
+    options: DesktopHeadlessRuntimeOptions,
+  ): DesktopHeadlessRuntime
+  export function runDesktopHeadlessTurn(
+    runtime: DesktopHeadlessRuntime,
+    content: string | ContentBlockParam[],
+    signal: AbortSignal,
+  ): Promise<void>
+}
+
+declare module '@codepilotx/core/appServer/protocol.js' {
+  import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages.mjs'
+  import type {
+    ThreadEvent,
+    ThreadId,
+    TurnId,
+    TurnItem,
+  } from '@codepilotx/core/agent/workflow.js'
+  import type { WorkflowSessionView } from '@codepilotx/core/agent/workflowView.js'
+
+  export const APP_SERVER_PROTOCOL_VERSION: 1
+  export const THREAD_EVENT_NOTIFICATION: 'thread/event'
+  export const SESSION_SNAPSHOT_UPDATED_NOTIFICATION: 'session/snapshot.updated'
+  export const APP_SERVER_METHODS: readonly string[]
+  export type JsonRpcThreadRuntimeSettings = Record<string, unknown>
+  export type JsonRpcThreadRuntimeState = {
+    threadId: ThreadId
+    status: string
+    createdAt: string
+    currentTurnId?: TurnId
+  }
+  export type JsonRpcThreadRuntimeResumeState =
+    Partial<JsonRpcThreadRuntimeState> & {
+      nextSequence?: number
+      startedEventEmitted?: boolean
+      metadata?: Record<string, unknown>
+    }
+  export type JsonRpcThreadRuntimeForkOptions = {
+    threadId?: ThreadId
+    settings?: JsonRpcThreadRuntimeSettings
+    metadata?: Record<string, unknown>
+  }
+  export type JsonRpcInitializeResult = {
+    protocolVersion: 1
+    capabilities: {
+      transports: ['stdio']
+      methods: readonly string[]
+      notifications: ['thread/event', 'session/snapshot.updated']
+    }
+  }
+  export type JsonRpcThreadStartParams = {
+    threadId?: ThreadId
+    settings: JsonRpcThreadRuntimeSettings
+  }
+  export type JsonRpcThreadStartResult = {
+    threadId: ThreadId
+    status: string
+    createdAt: string
+  }
+  export type JsonRpcThreadResumeParams = {
+    threadId: ThreadId
+    settings: JsonRpcThreadRuntimeSettings
+    state?: JsonRpcThreadRuntimeResumeState
+  }
+  export type JsonRpcThreadForkParams = {
+    sourceThreadId: ThreadId
+    options?: JsonRpcThreadRuntimeForkOptions
+  }
+  export type JsonRpcTurnStartParams = {
+    threadId: ThreadId
+    turnId?: TurnId
+    input: string | ContentBlockParam[]
+    uuid?: string
+    isMeta?: boolean
+  }
+  export type JsonRpcTurnStartResult = {
+    threadId: ThreadId
+    turnId: TurnId
+    eventCount: number
+  }
+  export type JsonRpcTurnInterruptParams = {
+    threadId: ThreadId
+    turnId?: TurnId
+  }
+  export type JsonRpcTurnRollbackParams = {
+    threadId: ThreadId
+    turnId: TurnId
+  }
+  export type JsonRpcItemInjectParams = {
+    threadId: ThreadId
+    turnId: TurnId
+    item: TurnItem
+    eventType?: 'item.started' | 'item.updated' | 'item.completed'
+  }
+  export type JsonRpcSessionGetSnapshotParams = { threadId: ThreadId }
+  export type JsonRpcSessionSnapshot = {
+    threadId: ThreadId
+    eventCount: number
+    updatedAt: string | null
+    view: WorkflowSessionView
+  }
+  export type JsonRpcErrorData = {
+    threadId?: ThreadId
+    turnId?: TurnId
+    cause?: string
+  }
+  export function createInitializeResult(): JsonRpcInitializeResult
+  export function createJsonRpcProtocolFixtures(): Record<string, unknown>
+}
+
+declare module '@codepilotx/core/appServer/server.js' {
+  import type {
+    ThreadEvent,
+    ThreadId,
+    TurnItemEvent,
+  } from '@codepilotx/core/agent/workflow.js'
+  import type {
+    JsonRpcInitializeResult,
+    JsonRpcItemInjectParams,
+    JsonRpcSessionGetSnapshotParams,
+    JsonRpcSessionSnapshot,
+    JsonRpcThreadForkParams,
+    JsonRpcThreadResumeParams,
+    JsonRpcThreadRuntimeState,
+    JsonRpcThreadStartParams,
+    JsonRpcThreadStartResult,
+    JsonRpcTurnInterruptParams,
+    JsonRpcTurnRollbackParams,
+    JsonRpcTurnStartParams,
+    JsonRpcTurnStartResult,
+  } from '@codepilotx/core/appServer/protocol.js'
+
+  export type JsonRpcAppServerRegistry = {
+    startThread(params: JsonRpcThreadStartParams): JsonRpcThreadStartResult & {
+      event: ThreadEvent
+    }
+    resumeThread(params: JsonRpcThreadResumeParams): {
+      threadId: ThreadId
+      state: JsonRpcThreadRuntimeState
+      event: ThreadEvent
+    }
+    forkThread(params: JsonRpcThreadForkParams): {
+      threadId: ThreadId
+      state: JsonRpcThreadRuntimeState
+      event: ThreadEvent
+    }
+    startTurn(
+      params: JsonRpcTurnStartParams,
+    ): AsyncGenerator<ThreadEvent, void, unknown>
+    interruptTurn(params: JsonRpcTurnInterruptParams): ThreadEvent
+    rollbackTurn(params: JsonRpcTurnRollbackParams): ThreadEvent
+    injectItem(params: JsonRpcItemInjectParams): TurnItemEvent
+    getSessionSnapshot(
+      params: JsonRpcSessionGetSnapshotParams,
+    ): JsonRpcSessionSnapshot
+  }
+  export type JsonRpcAppServerOptions = {
+    onThreadEvent?: (event: ThreadEvent) => void | Promise<void>
+    onSessionSnapshotUpdated?: (
+      snapshot: JsonRpcSessionSnapshot,
+    ) => void | Promise<void>
+  }
+  export class JsonRpcAppServer {
+    constructor(
+      registry?: JsonRpcAppServerRegistry,
+      options?: JsonRpcAppServerOptions,
+    )
+    initialize(): Promise<JsonRpcInitializeResult>
+    startThread(params: JsonRpcThreadStartParams): Promise<JsonRpcThreadStartResult>
+    resumeThread(params: JsonRpcThreadResumeParams): Promise<JsonRpcThreadStartResult>
+    forkThread(params: JsonRpcThreadForkParams): Promise<JsonRpcThreadStartResult>
+    startTurn(params: JsonRpcTurnStartParams): Promise<JsonRpcTurnStartResult>
+    interruptTurn(params: JsonRpcTurnInterruptParams): Promise<ThreadEvent>
+    rollbackTurn(params: JsonRpcTurnRollbackParams): Promise<ThreadEvent>
+    injectItem(params: JsonRpcItemInjectParams): Promise<ThreadEvent>
+    getSessionSnapshot(
+      params: JsonRpcSessionGetSnapshotParams,
+    ): Promise<JsonRpcSessionSnapshot>
+  }
+}
+
+declare module '@codepilotx/core/services/mcp/types.js' {
+  export type ConfigScope =
+    | 'local'
+    | 'user'
+    | 'project'
+    | 'dynamic'
+    | 'enterprise'
+    | 'claudeai'
+    | 'managed'
+  export type McpServerConfig = Record<string, unknown>
+  export type ScopedMcpServerConfig = McpServerConfig & {
+    scope: ConfigScope
+    pluginSource?: string
+  }
+  export function McpServerConfigSchema(): {
+    safeParse(value: unknown):
+      | { success: true; data: McpServerConfig }
+      | {
+          success: false
+          error: {
+            issues: Array<{
+              path: Array<string | number>
+              message: string
+            }>
+          }
+        }
+  }
+}
+
+declare module '@codepilotx/core/services/mcp/config.js' {
+  import type {
+    ConfigScope,
+    McpServerConfig,
+    ScopedMcpServerConfig,
+  } from '@codepilotx/core/services/mcp/types.js'
+
+  export function getAllMcpConfigs(): Promise<{
+    servers: Record<string, ScopedMcpServerConfig>
+  }>
+  export function addMcpConfig(
+    name: string,
+    config: McpServerConfig | Record<string, unknown>,
+    scope: ConfigScope,
+  ): Promise<void>
+  export function removeMcpConfig(
+    name: string,
+    scope: ConfigScope,
+  ): Promise<void>
+  export function setMcpServerEnabled(name: string, enabled: boolean): void
+  export function isMcpServerDisabled(name: string): boolean
+}
+
+declare module '@codepilotx/core/models/context.js' {
+  export const MODEL_CONTEXT_WINDOW_DEFAULT: number
+  export function getContextWindowForModel(model: string): number
+}
+
+declare module '@codepilotx/core/models/providerConfig.js' {
+  import type {
+    ModelProviderConfig,
+    ModelProviderID,
+    ProviderBalanceInfo,
+    ProviderTokenPlanUsageInfo,
+  } from '@codepilotx/core/models/provider.js'
+
+  export function listProviderConfigs(): Promise<ModelProviderConfig[]>
+  export function getProviderConfig(
+    providerID: ModelProviderID,
+  ): Promise<ModelProviderConfig>
+  export function getSelectedProviderConfig(): ModelProviderConfig
+  export function getSelectedProviderID(): ModelProviderID
+  export function saveSelectedProvider(options: {
+    providerID: ModelProviderID
+    modelID?: string
+    baseURL?: string
+  }): { error?: Error }
+  export function fetchProviderModels(options: {
+    providerID: ModelProviderID
+    apiKey?: string
+    baseURL?: string
+  }): Promise<{ models: string[]; error?: string }>
+  export function fetchProviderBalance(options: {
+    providerID: ModelProviderID
+    apiKey?: string
+    baseURL?: string
+  }): Promise<{
+    isAvailable: boolean
+    balances: ProviderBalanceInfo[]
+    tokenPlanUsages?: ProviderTokenPlanUsageInfo[]
+    error?: string
+  }>
+  export function getCachedProviderModels(
+    providerID: ModelProviderID,
+  ): string[] | null
+  export function getProviderApiKey(providerID: ModelProviderID): string | null
+  export function getProviderApiKeySource(
+    providerID: ModelProviderID,
+  ): string | null
+  export function saveProviderApiKey(
+    providerID: ModelProviderID,
+    apiKey: string,
+  ): { success: boolean; warning?: string }
+  export function deleteProviderApiKey(
+    providerID: ModelProviderID,
   ): { success: boolean; warning?: string }
 }
