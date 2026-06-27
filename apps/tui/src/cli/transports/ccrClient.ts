@@ -222,7 +222,7 @@ export function clearStreamAccumulatorForMessage(
   }
 }
 
-type RequestResult = { ok: true } | { ok: false; retryAfterMs: number }
+type RequestResult = { ok: true } | { ok: false; retryAfterMs?: number }
 
 type WorkerEvent = {
   payload: EventPayload
@@ -561,7 +561,7 @@ export class CCRClient {
     { timeout = 10_000 }: { timeout?: number } = {},
   ): Promise<RequestResult> {
     const authHeaders = this.getAuthHeaders()
-    if (Object.keys(authHeaders).length === 0) return { ok: false, retryAfterMs: 0 }
+    if (Object.keys(authHeaders).length === 0) return { ok: false }
 
     try {
       const response = await this.http[method](
@@ -627,7 +627,7 @@ export class CCRClient {
           return { ok: false, retryAfterMs: seconds * 1000 }
         }
       }
-      return { ok: false, retryAfterMs: 0 }
+      return { ok: false }
     } catch (error) {
       logForDebugging(`CCRClient: ${label} failed: ${errorMessage(error)}`, {
         level: 'warn',
@@ -637,7 +637,7 @@ export class CCRClient {
         path,
         error_code: getErrnoCode(error),
       })
-      return { ok: false, retryAfterMs: 0 }
+      return { ok: false }
     }
   }
 

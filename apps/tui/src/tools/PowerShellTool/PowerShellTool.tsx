@@ -40,7 +40,6 @@ import {
 } from '../../utils/errors.js'
 import { truncate } from '../../utils/format.js'
 import { lazySchema } from '../../utils/lazySchema.js'
-import { logForDebugging } from '../../utils/debug.js'
 import { logError } from '../../utils/log.js'
 import type { PermissionResult } from '../../utils/permissions/PermissionResult.js'
 import { getPlatform } from '../../utils/platform.js'
@@ -649,7 +648,7 @@ export const PowerShellTool = buildTool({
         }
       } while (!generatorResult.done)
 
-      let result = generatorResult.value
+      const result = generatorResult.value
 
       // Feed git/PR usage metrics (same counters as BashTool). PS invokes
       // git/gh/glab/curl as external binaries with identical syntax, so the
@@ -762,76 +761,7 @@ export const PowerShellTool = buildTool({
       if (result.preSpawnError) {
         throw new Error(result.preSpawnError)
       }
-
-      // On-failure approval policy: retry sandboxed failures outside the sandbox
-      const isSandboxed =
-        getPlatform() !== 'windows' &&
-        shouldUseSandbox({ command: input.command }) &&
-        !dangerouslyDisableSandbox
-      let onFailureRetried = false
-
-      if (
-        isSandboxed &&
-        interpretation.isError &&
-        !isInterrupt &&
-        !result.backgroundTaskId &&
-        !result.backgroundedByUser &&
-        !result.interrupted &&
-        !result.timedOut
-      ) {
-        const appState = toolUseContext.getAppState()
-        if (appState.toolPermissionContext.approvalPolicy === 'on-failure') {
-          const exitCode = result.code
-          if (exitCode !== null && exitCode !== 0 && exitCode !== 126 && exitCode !== 127) {
-            logForDebugging(`[on-failure] failure-detected: PS command=${input.command} exit=${exitCode}`)
-
-            try {
-              const retryInput = { ...input, dangerouslyDisableSandbox: true }
-              const retryGenerator = runPowerShellCommand({
-                input: retryInput,
-                abortController,
-                setAppState: toolUseContext.setAppStateForTasks ?? setAppState,
-                setToolJSX,
-                preventCwdChanges: !isMainThread,
-                isMainThread,
-                toolUseId: toolUseContext.toolUseId,
-                agentId: toolUseContext.agentId,
-              })
-
-              let retryGeneratorResult
-              do {
-                retryGeneratorResult = await retryGenerator.next()
-                if (!retryGeneratorResult.done && onProgress) {
-                  const progress = retryGeneratorResult.value
-                  onProgress({
-                    toolUseID: `ps-progress-retry-${progressCounter++}`,
-                    data: {
-                      type: 'powershell_progress',
-                      output: progress.output,
-                      fullOutput: progress.fullOutput,
-                      elapsedTimeSeconds: progress.elapsedTimeSeconds,
-                      totalLines: progress.totalLines,
-                      totalBytes: progress.totalBytes,
-                      timeoutMs: progress.timeoutMs,
-                      taskId: progress.taskId,
-                    },
-                  })
-                }
-              } while (!retryGeneratorResult.done)
-
-              const retryResult = retryGeneratorResult.value
-              logForDebugging(`[on-failure] approved-retry: PS command=${input.command} retryExit=${retryResult.code}`)
-
-              result = retryResult
-              onFailureRetried = true
-            } catch (retryError) {
-              logForDebugging(`[on-failure] denied: PS command=${input.command} error=${String(retryError)}`)
-            }
-          }
-        }
-      }
-
-      if (!onFailureRetried && interpretation.isError && !isInterrupt) {
+      if (interpretation.isError && !isInterrupt) {
         throw new ShellError(
           stdout,
           result.stderr || '',

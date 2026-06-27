@@ -1,5 +1,4 @@
 // biome-ignore-all assist/source/organizeImports: ANT-ONLY import markers must not be reordered
-import { createHash } from 'node:crypto'
 import type {
   ToolResultBlockParam,
   ToolUseBlock,
@@ -104,27 +103,11 @@ import type { Terminal, Continue } from './query/transitions.js'
 import { feature } from 'bun:bundle'
 import {
   getCurrentTurnTokenBudget,
-  getSessionId,
   getTurnOutputTokens,
   incrementBudgetContinuationCount,
 } from './bootstrap/state.js'
 import { createBudgetTracker, checkTokenBudget } from './query/tokenBudget.js'
 import { count } from './utils/array.js'
-import {
-  isConversationDebugDumpActive,
-  recordConversationDebugError,
-  recordConversationDebugStreamEvent,
-  recordConversationDebugToolFlow,
-  setConversationDebugFinalState,
-  setConversationDebugProvider,
-  setConversationDebugTurnInput,
-} from './utils/conversationDebugDump.js'
-import {
-  getProviderApiKey,
-  getProviderApiKeySource,
-  getSelectedProviderConfig,
-  getSelectedProviderID,
-} from './utils/model/providerConfig.js'
 
 /* eslint-disable @typescript-eslint/no-require-imports */
 const snipModule = feature('HISTORY_SNIP')
@@ -161,99 +144,6 @@ function* yieldMissingToolResultBlocks(
       })
     }
   }
-}
-
-function setConversationDebugProviderSnapshot(model: string): void {
-  if (!isConversationDebugDumpActive()) return
-  try {
-    const providerID = getSelectedProviderID()
-    const provider = getSelectedProviderConfig()
-    const apiKey = getProviderApiKey(providerID)
-    setConversationDebugProvider({
-      providerID,
-      providerKind: provider.kind,
-      displayName: provider.displayName,
-      baseURL: provider.baseURL,
-      model,
-      apiKeySource: getProviderApiKeySource(providerID) ?? null,
-      apiKeyFingerprint: apiKey
-        ? createHash('sha256').update(apiKey).digest('hex').slice(0, 12)
-        : null,
-    })
-  } catch (error) {
-    recordConversationDebugError(error)
-  }
-}
-
-export function ensureToolUseResultsForNextTurn<
-  T extends UserMessage | AttachmentMessage,
->(
-  toolUseBlocks: ToolUseBlock[],
-  toolResults: T[],
-  assistantMessages: AssistantMessage[] = [],
-): T[] {
-  if (toolUseBlocks.length === 0) return toolResults
-
-  const existingResultIds = new Set<string>()
-  for (const result of toolResults) {
-    if (result.type !== 'user' || !Array.isArray(result.message.content)) {
-      continue
-    }
-    for (const block of result.message.content) {
-      if (block.type === 'tool_result') {
-        existingResultIds.add(block.tool_use_id)
-      }
-    }
-  }
-  const sourceAssistantByToolUseId = new Map(
-    assistantMessages.flatMap(message =>
-      message.message.content.flatMap(block =>
-        block.type === 'tool_use' ? [[block.id, message.uuid] as const] : [],
-      ),
-    ),
-  )
-
-  const missingResults = toolUseBlocks
-    .filter(block => !existingResultIds.has(block.id))
-    .map(block =>
-      createUserMessage({
-        content: [
-          {
-            type: 'tool_result',
-            tool_use_id: block.id,
-            content:
-              `Tool ${block.name} did not return a result before the next turn. ` +
-              'A synthetic error result was inserted to keep tool_use/tool_result pairing valid.',
-            is_error: true,
-          } satisfies ToolResultBlockParam,
-        ],
-        toolUseResult: `Error: missing tool result for ${block.name}`,
-        sourceToolAssistantUUID: sourceAssistantByToolUseId.get(block.id),
-      }),
-    ) as T[]
-
-  return missingResults.length === 0
-    ? [...toolResults]
-    : [...toolResults, ...missingResults]
-}
-
-export function collectToolResultsForNextTurn(
-  message: Message,
-  tools: ToolUseContext['options']['tools'],
-): UserMessage[] {
-  if (message.type !== 'user') {
-    return []
-  }
-  const content = message.message.content
-  if (
-    Array.isArray(content) &&
-    content.some(block => block.type === 'tool_result')
-  ) {
-    return [message]
-  }
-  return normalizeMessagesForAPI([message], tools).filter(
-    (normalized): normalized is UserMessage => normalized.type === 'user',
-  )
 }
 
 /**
@@ -401,15 +291,6 @@ async function* queryLoop(
   // Snapshot immutable env/statsig/session state once at entry. See QueryConfig
   // for what's included and why feature() gates are intentionally excluded.
   const config = buildQueryConfig()
-  setConversationDebugTurnInput({
-    sessionId: getSessionId(),
-    querySource,
-    initialMessages: state.messages,
-    systemPrompt,
-    userContext,
-    systemContext,
-    toolNames: state.toolUseContext.options.tools.map(tool => tool.name),
-  })
 
   // Fired once per user turn — the prompt is invariant across loop iterations,
   // so per-iteration firing would ask sideQuery the same question N times.
@@ -693,7 +574,6 @@ async function* queryLoop(
         permissionMode === 'plan' &&
         doesMostRecentAssistantMessageExceed200k(messagesForQuery),
     })
-    setConversationDebugProviderSnapshot(currentModel)
 
     queryCheckpoint('query_setup_end')
 
@@ -766,25 +646,11 @@ async function* queryLoop(
     }
 
     queryCheckpoint('query_api_loop_start')
-    recordConversationDebugStreamEvent('query_iteration_start', {
-      turnCount,
-      transition: state.transition,
-      messageCount: messagesForQuery.length,
-      currentModel,
-      querySource,
-    })
     try {
       let streamingFallbackOccured = false
       queryCheckpoint('query_api_streaming_start')
-      const modelCallMessages = prependUserContext(messagesForQuery, userContext)
-      recordConversationDebugStreamEvent('model_call_start', {
-        turnCount,
-        currentModel,
-        messages: modelCallMessages,
-        systemPrompt: fullSystemPrompt,
-      })
       for await (const message of deps.callModel({
-            messages: modelCallMessages,
+            messages: prependUserContext(messagesForQuery, userContext),
             systemPrompt: fullSystemPrompt,
             thinkingConfig: toolUseContext.options.thinkingConfig,
             tools: toolUseContext.options.tools,
@@ -950,11 +816,6 @@ async function* queryLoop(
             if (!withheld) {
               yield yieldMessage
             }
-            recordConversationDebugStreamEvent('model_stream_message', {
-              withheld,
-              message,
-              yieldedMessage: yieldMessage,
-            })
             if (message.type === 'assistant') {
               assistantMessages.push(message)
 
@@ -964,10 +825,6 @@ async function* queryLoop(
               if (msgToolUseBlocks.length > 0) {
                 toolUseBlocks.push(...msgToolUseBlocks)
                 needsFollowUp = true
-                recordConversationDebugToolFlow('assistant_tool_use', {
-                  assistantMessage: message,
-                  toolUseBlocks: msgToolUseBlocks,
-                })
               }
 
               if (
@@ -987,26 +844,17 @@ async function* queryLoop(
               for (const result of streamingToolExecutor.getCompletedResults()) {
                 if (result.message) {
                   yield result.message
-                  recordConversationDebugToolFlow('streaming_tool_result', {
-                    message: result.message,
-                  })
                   toolResults.push(
-                    ...collectToolResultsForNextTurn(
-                      result.message,
+                    ...normalizeMessagesForAPI(
+                      [result.message],
                       toolUseContext.options.tools,
-                    ),
+                    ).filter(_ => _.type === 'user'),
                   )
                 }
               }
             }
           }
           queryCheckpoint('query_api_streaming_end')
-          recordConversationDebugStreamEvent('model_call_end', {
-            turnCount,
-            assistantMessages,
-            toolUseBlocks,
-            needsFollowUp,
-          })
 
           // Yield deferred microcompact boundary message using actual API-reported
           // token deletion count instead of client-side estimates.
@@ -1037,7 +885,6 @@ async function* queryLoop(
           }
     } catch (error) {
       logError(error)
-      recordConversationDebugError(error)
       const errorMessage =
         error instanceof Error ? error.message : String(error)
       logEvent('tengu_query_error', {
@@ -1345,14 +1192,6 @@ async function* queryLoop(
       // error → hook blocking → retry → error → …
       if (lastMessage?.isApiErrorMessage) {
         void executeStopFailureHooks(lastMessage, toolUseContext)
-        setConversationDebugFinalState({
-          terminalReason: 'completed',
-          assistantMessages,
-          toolResults,
-          needsFollowUp,
-          turnCount,
-          lastMessage,
-        })
         return { reason: 'completed' }
       }
 
@@ -1368,14 +1207,6 @@ async function* queryLoop(
       )
 
       if (stopHookResult.preventContinuation) {
-        setConversationDebugFinalState({
-          terminalReason: 'stop_hook_prevented',
-          assistantMessages,
-          toolResults,
-          needsFollowUp,
-          turnCount,
-          stopHookResult,
-        })
         return { reason: 'stop_hook_prevented' }
       }
 
@@ -1454,13 +1285,6 @@ async function* queryLoop(
         }
       }
 
-      setConversationDebugFinalState({
-        terminalReason: 'completed',
-        assistantMessages,
-        toolResults,
-        needsFollowUp,
-        turnCount,
-      })
       return { reason: 'completed' }
     }
 
@@ -1491,9 +1315,6 @@ async function* queryLoop(
     for await (const update of toolUpdates) {
       if (update.message) {
         yield update.message
-        recordConversationDebugToolFlow('tool_update_message', {
-          message: update.message,
-        })
 
         if (
           update.message.type === 'attachment' &&
@@ -1503,16 +1324,13 @@ async function* queryLoop(
         }
 
         toolResults.push(
-          ...collectToolResultsForNextTurn(
-            update.message,
+          ...normalizeMessagesForAPI(
+            [update.message],
             toolUseContext.options.tools,
-          ),
+          ).filter(_ => _.type === 'user'),
         )
       }
       if (update.newContext) {
-        recordConversationDebugToolFlow('tool_update_context', {
-          newContext: update.newContext,
-        })
         updatedToolUseContext = {
           ...update.newContext,
           queryTracking,
@@ -1520,23 +1338,6 @@ async function* queryLoop(
       }
     }
     queryCheckpoint('query_tool_execution_end')
-
-    const toolResultCountBeforePairing = toolResults.length
-    const pairedToolResults = ensureToolUseResultsForNextTurn(
-      toolUseBlocks,
-      toolResults,
-      assistantMessages,
-    )
-    for (const syntheticResult of pairedToolResults.slice(
-      toolResultCountBeforePairing,
-    )) {
-      yield syntheticResult
-      recordConversationDebugToolFlow('synthetic_missing_tool_result', {
-        message: syntheticResult,
-      })
-    }
-    toolResults.length = 0
-    toolResults.push(...pairedToolResults)
 
     // Generate tool use summary after tool batch completes — passed to next recursive call
     let nextPendingToolUseSummary:
@@ -1642,25 +1443,11 @@ async function* queryLoop(
           turnCount: nextTurnCountOnAbort,
         })
       }
-      setConversationDebugFinalState({
-        terminalReason: 'aborted_tools',
-        assistantMessages,
-        toolResults,
-        needsFollowUp,
-        turnCount,
-      })
       return { reason: 'aborted_tools' }
     }
 
     // If a hook indicated to prevent continuation, stop here
     if (shouldPreventContinuation) {
-      setConversationDebugFinalState({
-        terminalReason: 'hook_stopped',
-        assistantMessages,
-        toolResults,
-        needsFollowUp,
-        turnCount,
-      })
       return { reason: 'hook_stopped' }
     }
 
@@ -1851,14 +1638,6 @@ async function* queryLoop(
         type: 'max_turns_reached',
         maxTurns,
         turnCount: nextTurnCount,
-      })
-      setConversationDebugFinalState({
-        terminalReason: 'max_turns',
-        assistantMessages,
-        toolResults,
-        needsFollowUp,
-        turnCount: nextTurnCount,
-        maxTurns,
       })
       return { reason: 'max_turns', turnCount: nextTurnCount }
     }

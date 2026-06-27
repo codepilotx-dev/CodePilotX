@@ -4,14 +4,9 @@ import { useEffect, useRef } from 'react'
 type Props = {
   message: string | null
   onDismiss: () => void
-  tone?: 'error' | 'status'
 }
 
-export function GlobalErrorModal({
-  message,
-  onDismiss,
-  tone = 'error',
-}: Props): React.ReactNode {
+export function GlobalErrorModal({ message, onDismiss }: Props): React.ReactNode {
   const onDismissRef = useRef(onDismiss)
 
   useEffect(() => {
@@ -28,20 +23,10 @@ export function GlobalErrorModal({
 
   if (!message) return null
 
-  const isError = tone === 'error'
-
   return (
-    <div
-      aria-live={isError ? 'assertive' : 'polite'}
-      className={`global-error-toast ${isError ? '' : 'status'}`}
-      role={isError ? 'alert' : 'status'}
-    >
+    <div aria-live="assertive" className="global-error-toast" role="alert">
       <span>{message}</span>
-      <button
-        aria-label={isError ? '关闭错误提示' : '关闭通知'}
-        onClick={onDismiss}
-        type="button"
-      >
+      <button aria-label="关闭错误提示" onClick={onDismiss} type="button">
         ×
       </button>
     </div>

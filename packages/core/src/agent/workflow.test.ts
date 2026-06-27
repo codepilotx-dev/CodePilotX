@@ -131,48 +131,6 @@ test('tool start and result map to tool item lifecycle events', () => {
   })
 })
 
-test('runtime tool events preserve upstream tool use ids', () => {
-  const started = agentRuntimeEventToThreadEvents(
-    {
-      type: 'tool_start',
-      sessionId: 'session-1',
-      toolName: 'AskUserQuestion',
-      summary: 'AskUserQuestion',
-      toolUseId: 'call-question-1',
-    },
-    ids,
-  )
-  const completed = agentRuntimeEventToThreadEvents(
-    {
-      type: 'tool_result',
-      sessionId: 'session-1',
-      toolName: 'AskUserQuestion',
-      summary: 'InputValidationError',
-      toolUseId: 'call-question-1',
-      isError: true,
-    },
-    ids,
-  )
-
-  expect(started[0]).toMatchObject({
-    type: 'item.started',
-    item: {
-      id: 'tool_call-call-question-1',
-      toolUseId: 'call-question-1',
-      metadata: { toolUseId: 'call-question-1' },
-    },
-  })
-  expect(completed[0]).toMatchObject({
-    type: 'item.completed',
-    item: {
-      id: 'tool_result-call-question-1',
-      toolUseId: 'call-question-1',
-      isError: true,
-      metadata: { toolUseId: 'call-question-1' },
-    },
-  })
-})
-
 test('failed runtime tool result preserves readable metadata', () => {
   const events = agentRuntimeEventToThreadEvents(
     {

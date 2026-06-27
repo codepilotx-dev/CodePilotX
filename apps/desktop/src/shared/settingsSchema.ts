@@ -7,7 +7,6 @@ import {
 import type { AgentPermissionPolicy } from '@codepilotx/core/agent/permissions.js'
 import type {
   DesktopDrawerTab,
-  DesktopAskUserQuestionMaxQuestions,
   DesktopPermissionMode,
   DesktopPersonality,
   DesktopReviewView,
@@ -60,9 +59,6 @@ export const MAX_RECENT_WORKSPACES = 5
 
 export function defaultDesktopStoredSettings(): DesktopStoredSettings {
   return {
-    permissionProfile: ':workspace',
-    approvalPolicy: 'on-request',
-    approvalsReviewer: 'user',
     permissionMode: 'default',
     model: '',
     fallbackModel: '',
@@ -92,6 +88,8 @@ gitBranchPrefix: 'codex/',
     commitMessagePrompt: '',
     pullRequestPrompt: '',
     githubOAuthClientId: '',
+    sandboxMode: 'workspace-write',
+    allowNetworkAccess: true,
     installCodexDependencies: true,
     personality: 'pragmatic',
     customInstructions: '',
@@ -100,7 +98,6 @@ gitBranchPrefix: 'codex/',
     githubMemorySyncEnabled: false,
     githubMemoryRepository: '',
     reviewView: 'inline',
-    askUserQuestionMaxQuestions: 1,
     browserAllowedSites: [],
   }
 }
@@ -114,18 +111,6 @@ export function normalizeDesktopStoredSettings(
       : {}
   const defaults = defaultDesktopStoredSettings()
   return {
-    permissionProfile: normalizeDesktopPermissionProfile(
-      parsed.permissionProfile,
-      defaults.permissionProfile,
-    ),
-    approvalPolicy: normalizeDesktopApprovalPolicy(
-      parsed.approvalPolicy,
-      defaults.approvalPolicy,
-    ),
-    approvalsReviewer: normalizeDesktopApprovalsReviewer(
-      parsed.approvalsReviewer,
-      defaults.approvalsReviewer,
-    ),
     permissionMode: normalizeDesktopPermissionMode(parsed.permissionMode),
     model: migrateModelAlias(stringOrDefault(parsed.model, defaults.model)),
     fallbackModel: stringOrDefault(parsed.fallbackModel, defaults.fallbackModel),
@@ -231,6 +216,13 @@ export function normalizeDesktopStoredSettings(
       parsed.githubOAuthClientId,
       defaults.githubOAuthClientId,
     ),
+    sandboxMode: isDesktopSandboxMode(parsed.sandboxMode)
+      ? parsed.sandboxMode
+      : defaults.sandboxMode,
+    allowNetworkAccess:
+      typeof parsed.allowNetworkAccess === 'boolean'
+        ? parsed.allowNetworkAccess
+        : defaults.allowNetworkAccess,
     installCodexDependencies:
       typeof parsed.installCodexDependencies === 'boolean'
         ? parsed.installCodexDependencies
@@ -261,41 +253,11 @@ export function normalizeDesktopStoredSettings(
     reviewView: isDesktopReviewView(parsed.reviewView)
       ? parsed.reviewView
       : defaults.reviewView,
-    askUserQuestionMaxQuestions: normalizeAskUserQuestionMaxQuestions(
-      parsed.askUserQuestionMaxQuestions,
-      defaults.askUserQuestionMaxQuestions,
-    ),
     browserAllowedSites: normalizeStringList(
       parsed.browserAllowedSites,
       defaults.browserAllowedSites,
     ),
   }
-}
-
-export function normalizeDesktopPermissionProfile(
-  value: unknown,
-  fallback = ':workspace',
-): string {
-  return typeof value === 'string' && value.trim() ? value.trim() : fallback
-}
-
-export function normalizeDesktopApprovalPolicy(
-  value: unknown,
-  fallback: DesktopStoredSettings['approvalPolicy'] = 'on-request',
-): DesktopStoredSettings['approvalPolicy'] {
-  return value === 'untrusted' ||
-    value === 'on-request' ||
-    value === 'on-failure' ||
-    value === 'never'
-    ? value
-    : fallback
-}
-
-export function normalizeDesktopApprovalsReviewer(
-  value: unknown,
-  fallback: DesktopStoredSettings['approvalsReviewer'] = 'user',
-): DesktopStoredSettings['approvalsReviewer'] {
-  return value === 'user' || value === 'auto' ? value : fallback
 }
 
 export function normalizeDesktopWorkspaces(value: unknown): DesktopWorkspace[] {
@@ -421,15 +383,6 @@ export function normalizeGitWorktreeLimit(
 ): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) return fallback
   return Math.max(1, Math.floor(value))
-}
-
-export function normalizeAskUserQuestionMaxQuestions(
-  value: unknown,
-  fallback: DesktopAskUserQuestionMaxQuestions = 1,
-): DesktopAskUserQuestionMaxQuestions {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback
-  const normalized = Math.max(1, Math.min(4, Math.floor(value)))
-  return normalized as DesktopAskUserQuestionMaxQuestions
 }
 
 export function isModelProviderID(value: unknown): value is ModelProviderID {

@@ -248,12 +248,6 @@ const api: DesktopApi = {
     ipcRenderer.invoke(desktopApiChannel('downloadUpdate')),
   quitAndInstall: () =>
     ipcRenderer.invoke(desktopApiChannel('quitAndInstall')),
-  listDebugBuiltinTools: () =>
-    ipcRenderer.invoke(desktopApiChannel('listDebugBuiltinTools')),
-  runDebugToolProbe: mode =>
-    ipcRenderer.invoke(desktopApiChannel('runDebugToolProbe'), mode),
-  cancelDebugToolProbe: runId =>
-    ipcRenderer.invoke(desktopApiChannel('cancelDebugToolProbe'), runId),
   onUpdateStatusChange: callback => {
     const listener = (
       _event: Electron.IpcRendererEvent,

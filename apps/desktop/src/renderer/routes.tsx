@@ -1,11 +1,11 @@
 import { createHashRouter, Navigate } from 'react-router-dom'
-import { AutomationView } from './features/automation/AutomationView.js'
-import { ConversationPage } from './features/session/ConversationPage.js'
-import { DesktopLayout } from './features/layout/DesktopLayout.js'
-import { PluginsView } from './features/plugins/PluginsView.js'
-import { QuickChatView } from './features/session/QuickChatView.js'
-import { SearchView } from './features/search/SearchView.js'
-import { SettingsLayout } from './features/settings/SettingsLayout.js'
+import { AutomationView } from './components/AutomationView.js'
+import { ConversationPage } from './components/ConversationPage.js'
+import { DesktopLayout } from './components/DesktopLayout.js'
+import { PluginsView } from './components/PluginsView.js'
+import { QuickChatView } from './components/QuickChatView.js'
+import { SearchView } from './components/SearchView.js'
+import { SettingsLayout } from './components/SettingsLayout.js'
 
 const router = createHashRouter([
   {

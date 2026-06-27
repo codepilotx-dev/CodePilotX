@@ -1,5 +1,4 @@
 import { app } from 'electron'
-import { EventEmitter } from 'node:events'
 import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { stat } from 'node:fs/promises'
@@ -19,14 +18,14 @@ import {
 import {
   CODEPILOTX_CONFIG_DIR_ENV,
   LEGACY_CLAUDE_CONFIG_DIR_ENV,
-} from '@codepilotx/core/config/env.js'
+} from '@codepilotx/tui/utils/envUtils.js'
 import {
   getSettings_DEPRECATED,
   updateSettingsForSource,
 } from '@codepilotx/tui/utils/settings/settings.js'
-import { clearAllCaches } from '@codepilotx/core/utils/plugins/cache.js'
-import { generateSessionTitle } from '@codepilotx/core/session/title.js'
-import { saveAiGeneratedTitle } from '@codepilotx/core/session/storage.js'
+import { clearAllCaches } from '@codepilotx/tui/utils/plugins/cacheUtils.js'
+import { generateSessionTitle } from '@codepilotx/tui/utils/sessionTitle.js'
+import { saveAiGeneratedTitle } from '@codepilotx/tui/utils/sessionStorage.js'
 import {
   createDesktopAgentSession,
   type DesktopAgentSession,
@@ -35,21 +34,10 @@ import type { DesktopAgentRuntimePreference } from './agentRuntime.js'
 import { buildDesktopApiHandlers } from './desktopApiHandlers.js'
 import { applyDesktopAgentRuntimeEnvDefaults } from './desktopRuntimeEnv.js'
 import { createDesktopJsonRpcAppServerBridge } from './desktopJsonRpcAppServerBridge.js'
-import {
-  createDesktopBrowserDebugBridge,
-  resolveDesktopBrowserDebugPort,
-  type DesktopBrowserDebugBridgeServer,
-} from './desktopBrowserDebugBridge.js'
 import { registerDesktopIpcHandlers } from './ipc.js'
 import { createDesktopWindowService } from './windowService.js'
 import { createDesktopBrowserService } from './browserService.js'
 import { createDesktopAutoUpdater } from './autoUpdater.js'
-import { DebugToolProbeService } from './debugToolProbeService.js'
-import {
-  applySessionPermissionModeToSnapshot,
-  createSessionSettingsSnapshot,
-} from './desktopSessionSettings.js'
-import { shouldEmitWorkspaceDiffEvent } from './desktopSessionDiffPolicy.js'
 import { DESKTOP_UPDATE_STATUS_CHANNEL } from '../shared/ipcChannels.js'
 import {
   assertAllowedWorkspace,
@@ -79,18 +67,17 @@ import type {
   CreateDesktopSessionResult,
   DesktopAgentEvent,
   DesktopBuiltinPlugin,
-  DesktopApprovalPolicy,
-  DesktopModelSelection,
   DesktopPermissionDecision,
+  DesktopPermissionMode,
   DesktopReviewComment,
   DesktopSlashCommandSuggestion,
   DesktopSessionMetadataPatch,
+  DesktopSessionSettingsSnapshot,
   DesktopSessionSnapshot,
   DesktopThinkingMode,
   DesktopUserMessageContent,
   DesktopUserMessageInput,
   DesktopWorkspace,
-  ModelProviderID,
   SaveSessionReviewCommentInput,
   SessionReviewCommentInput,
 } from '../shared/types.js'
@@ -100,11 +87,8 @@ import {
   hasBlockingComposerAttachmentErrors,
 } from '../shared/desktopUserMessage.js'
 import {
-  normalizeDesktopApprovalPolicy,
-  normalizeDesktopApprovalsReviewer,
-  normalizeAskUserQuestionMaxQuestions,
+  DESKTOP_PERMISSION_MODES,
   normalizeDesktopPermissionMode,
-  normalizeDesktopPermissionProfile,
 } from '../shared/settingsSchema.js'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -120,7 +104,6 @@ type DesktopSessionRecord = {
   session: DesktopAgentSession | null
   snapshot: DesktopSessionSnapshot
   resumeExistingSession: boolean
-  turnBaselineDiffPatch?: string | null
 }
 
 const desktopConfigHomeDir = getOpenAgentConfigHomeDir()
@@ -173,19 +156,14 @@ function desktopIconPath(): string | undefined {
   return existsSync(iconPath) ? iconPath : undefined
 }
 
-const desktopBrowserDebugEvents = new EventEmitter()
 const windowService = createDesktopWindowService({
   iconPath: desktopIconPath,
   rendererUrl,
   preloadPath: () => join(__dirname, '../preload/index.js'),
-  emitDesktopEvent: (channel, payload) => {
-    desktopBrowserDebugEvents.emit(channel, payload)
-  },
 })
 const browserService = createDesktopBrowserService({
   getWindow: windowService.getWindow,
 })
-const debugToolProbeService = new DebugToolProbeService()
 const jsonRpcAppServerThreadIds = new Set<string>()
 const jsonRpcAppServerBridge = createDesktopJsonRpcAppServerBridge({
   onWorkflowEvent: event => {
@@ -327,15 +305,6 @@ function persistSessionStore(): void {
   })
 }
 
-function desktopConsoleLog(
-  event: string,
-  fields: Record<string, unknown> = {},
-): void {
-  const suffix =
-    Object.keys(fields).length > 0 ? ` ${JSON.stringify(fields)}` : ''
-  console.info(`[desktop-session] ${new Date().toISOString()} ${event}${suffix}`)
-}
-
 function attachSessionListeners(record: DesktopSessionRecord): void {
   const session = record.session
   if (!session) return
@@ -377,22 +346,6 @@ function attachSessionListeners(record: DesktopSessionRecord): void {
       void getWorkspaceDiff(session.workspacePath).then(diff => {
         const latestRecord = sessions.get(session.sessionId)
         if (!latestRecord || latestRecord.session !== session) {
-          return
-        }
-        const beforePatch = latestRecord.turnBaselineDiffPatch
-        latestRecord.turnBaselineDiffPatch = null
-        const shouldEmitDiff = shouldEmitWorkspaceDiffEvent({
-          beforePatch,
-          afterPatch: diff.patch,
-          standalone: latestRecord.snapshot.item.standalone === true,
-        })
-        desktopConsoleLog('turn_diff_checked', {
-          sessionId: session.sessionId,
-          permissionMode: latestRecord.snapshot.settings.permissionMode,
-          baselineCaptured: beforePatch !== undefined && beforePatch !== null,
-          changed: shouldEmitDiff,
-        })
-        if (!shouldEmitDiff) {
           return
         }
         const diffEvent: DesktopAgentEvent = {
@@ -608,30 +561,17 @@ function normalizeReviewCommentInput(
   }
 }
 
-async function setSessionPermissionProfile(
+async function setSessionPermissionMode(
   sessionId: string,
-  profile: string,
-  approvalPolicy?: DesktopApprovalPolicy,
+  mode: DesktopPermissionMode,
 ): Promise<DesktopSessionSnapshot> {
   const record = await getSessionRecord(sessionId)
-  const nextProfile = normalizeDesktopPermissionProfile(profile)
-  const nextApprovalPolicy = normalizeDesktopApprovalPolicy(
-    approvalPolicy,
-    record.snapshot.settings.approvalPolicy,
-  )
-  createRuntimeForRecord(record).setPermissionProfile(
-    nextProfile,
-    nextApprovalPolicy,
-  )
-  const nextItem = {
-    ...record.snapshot.item,
-    permissionProfile: nextProfile,
-    approvalPolicy: nextApprovalPolicy,
-  }
+  const nextMode = normalizePermissionMode(mode)
+  createRuntimeForRecord(record).setPermissionMode(nextMode)
+  const nextItem = { ...record.snapshot.item, permissionMode: nextMode }
   const nextSettings = {
     ...record.snapshot.settings,
-    permissionProfile: nextProfile,
-    approvalPolicy: nextApprovalPolicy,
+    permissionMode: nextMode,
   }
   record.snapshot = {
     ...record.snapshot,
@@ -639,26 +579,6 @@ async function setSessionPermissionProfile(
     settings: nextSettings,
     updatedAt: new Date().toISOString(),
   }
-  persistSessionStore()
-  return record.snapshot
-}
-
-async function setSessionPermissionMode(
-  sessionId: string,
-  mode: NonNullable<CreateDesktopSessionOptions['permissionMode']>,
-): Promise<DesktopSessionSnapshot> {
-  const record = await getSessionRecord(sessionId)
-  const nextMode = normalizeDesktopPermissionMode(mode)
-  desktopConsoleLog('set_permission_mode', {
-    sessionId,
-    requestedMode: mode,
-    nextMode,
-  })
-  createRuntimeForRecord(record).setPermissionMode(nextMode)
-  record.snapshot = applySessionPermissionModeToSnapshot(
-    record.snapshot,
-    nextMode,
-  )
   persistSessionStore()
   return record.snapshot
 }
@@ -675,26 +595,9 @@ async function createSession(
       ? await workspaceFromPath(assertAllowedWorkspace(options.workspacePath))
       : await getStandaloneWorkspace()
   const workspacePath = workspace.path
-  const permissionProfile = normalizeDesktopPermissionProfile(
-    options.permissionProfile,
-  )
-  const approvalPolicy = normalizeDesktopApprovalPolicy(options.approvalPolicy)
-  const approvalsReviewer = normalizeDesktopApprovalsReviewer(
-    options.approvalsReviewer,
-  )
-  const permissionMode = normalizeDesktopPermissionMode(options.permissionMode)
+  const permissionMode = normalizePermissionMode(options.permissionMode)
   const model = normalizeOptionalText(options.model)
-  desktopConsoleLog('create_session', {
-    workspacePath,
-    permissionProfile,
-    approvalPolicy,
-    permissionMode,
-    model,
-  })
-  const providerState = await assertCurrentProviderUsable(model, {
-    providerID: options.providerID,
-    providerBaseURL: normalizeOptionalText(options.providerBaseURL),
-  })
+  await assertCurrentProviderUsable(model)
   const smallFastModel = normalizeOptionalText(options.smallFastModel)
   const fastModel = normalizeOptionalText(options.fastModel)
   const defaultModel = normalizeOptionalText(options.defaultModel)
@@ -703,21 +606,13 @@ async function createSession(
   const thinkingMode = normalizeThinkingMode(options.thinkingMode)
   const systemPrompt = normalizeOptionalText(options.systemPrompt)
   const appendSystemPrompt = normalizeOptionalText(options.appendSystemPrompt)
-  const askUserQuestionMaxQuestions = normalizeAskUserQuestionMaxQuestions(
-    options.askUserQuestionMaxQuestions,
-  )
   const additionalDirectories = await normalizeAdditionalDirectories(
     options.additionalDirectories,
     workspacePath,
   )
   const standalone = workspace.isStandalone === true
   const settings = createSessionSettingsSnapshot({
-    permissionProfile,
-    approvalPolicy,
-    approvalsReviewer,
     permissionMode,
-    providerID: providerState.selectedProviderID,
-    providerBaseURL: providerState.baseURL,
     model,
     smallFastModel,
     fastModel,
@@ -728,17 +623,11 @@ async function createSession(
     systemPrompt,
     appendSystemPrompt,
     additionalDirectories,
-    askUserQuestionMaxQuestions,
   })
   const session = createDesktopAgentSession(
     {
       workspacePath,
-      permissionProfile,
-      approvalPolicy,
-      approvalsReviewer,
       permissionMode,
-      providerID: providerState.selectedProviderID,
-      providerBaseURL: providerState.baseURL,
       model,
       smallFastModel,
       fastModel,
@@ -749,7 +638,6 @@ async function createSession(
       systemPrompt,
       appendSystemPrompt,
       additionalDirectories,
-      askUserQuestionMaxQuestions,
     },
     getDesktopAgentRuntimeOptions(),
   )
@@ -769,6 +657,47 @@ async function createSession(
   startJsonRpcAppServerThread(session.sessionId)
   persistSessionStore()
   return { sessionId: session.sessionId, workspace, standalone }
+}
+
+function createSessionSettingsSnapshot(params: {
+  permissionMode: DesktopPermissionMode
+  model?: string
+  smallFastModel?: string
+  fastModel?: string
+  defaultModel?: string
+  deepModel?: string
+  sessionName?: string
+  thinkingMode: DesktopThinkingMode
+  systemPrompt?: string
+  appendSystemPrompt?: string
+  additionalDirectories: string[]
+}): DesktopSessionSettingsSnapshot {
+  const settings: DesktopSessionSettingsSnapshot = {
+    permissionMode: params.permissionMode,
+    thinkingMode: params.thinkingMode,
+    additionalDirectories: params.additionalDirectories,
+  }
+  if (params.model) settings.model = params.model
+  if (params.smallFastModel) settings.smallFastModel = params.smallFastModel
+  if (params.fastModel) settings.fastModel = params.fastModel
+  if (params.defaultModel) settings.defaultModel = params.defaultModel
+  if (params.deepModel) settings.deepModel = params.deepModel
+  if (params.sessionName) settings.sessionName = params.sessionName
+  if (params.systemPrompt) settings.systemPrompt = params.systemPrompt
+  if (params.appendSystemPrompt) {
+    settings.appendSystemPrompt = params.appendSystemPrompt
+  }
+  return settings
+}
+
+function normalizePermissionMode(
+  permissionMode: DesktopPermissionMode | undefined,
+): DesktopPermissionMode {
+  const normalized = normalizeDesktopPermissionMode(permissionMode)
+  if (!DESKTOP_PERMISSION_MODES.has(normalized)) {
+    throw new Error(`Unsupported desktop permission mode: ${permissionMode}`)
+  }
+  return normalized
 }
 
 function normalizeThinkingMode(
@@ -828,7 +757,7 @@ async function normalizeAdditionalDirectories(
 async function sendUserMessage(
   sessionId: string,
   input: DesktopUserMessageInput,
-  model?: string | DesktopModelSelection,
+  model?: string,
 ): Promise<void> {
   const startedAt = Date.now()
   const trimmedContent = requireNonEmptyString(
@@ -845,15 +774,11 @@ async function sendUserMessage(
     modelProvided: model !== undefined,
   })
   const record = await getSessionRecord(sessionId)
-  const modelSelection = normalizeDesktopModelSelection(model)
-  const nextModel = modelSelection.model
+  const nextModel = normalizeOptionalText(model)
   const effectiveModel =
-    modelSelection.provided ? nextModel : record.snapshot.settings.model
-  const providerState = await assertCurrentProviderUsable(
-    effectiveModel,
-    modelSelection,
-  )
-  if (modelSelection.provided) {
+    model !== undefined ? nextModel : record.snapshot.settings.model
+  await assertCurrentProviderUsable(effectiveModel)
+  if (model !== undefined) {
     record.snapshot = {
       ...record.snapshot,
       item: {
@@ -867,32 +792,9 @@ async function sendUserMessage(
       updatedAt: new Date().toISOString(),
     }
   }
-  record.snapshot = {
-    ...record.snapshot,
-    settings: {
-      ...record.snapshot.settings,
-      providerID: providerState.selectedProviderID,
-      providerBaseURL: providerState.baseURL,
-    },
-    updatedAt: new Date().toISOString(),
-  }
   const shouldGenerateTitle = shouldGenerateAiTitle(record)
   const session = createRuntimeForRecord(record)
-  session.setModelProvider(
-    record.snapshot.settings.providerID,
-    record.snapshot.settings.model,
-    record.snapshot.settings.providerBaseURL,
-  )
-  session.setDebugConversationDump(modelSelection.debugConversationDump === true)
-  record.turnBaselineDiffPatch = record.snapshot.item.standalone
-    ? null
-    : (await getWorkspaceDiff(record.snapshot.workspace.path)).patch
-  desktopConsoleLog('turn_baseline_captured', {
-    sessionId,
-    permissionMode: record.snapshot.settings.permissionMode,
-    standalone: record.snapshot.item.standalone === true,
-    baselineCaptured: record.turnBaselineDiffPatch !== null,
-  })
+  session.setModel(record.snapshot.settings.model)
   activeSessionId = record.snapshot.item.id
   persistSessionStore()
   if (shouldGenerateTitle) {
@@ -916,62 +818,24 @@ async function sendUserMessage(
   }
 }
 
-type NormalizedDesktopModelSelection = {
-  provided?: boolean
-  providerID?: ModelProviderID
-  providerBaseURL?: string
-  model?: string
-  debugConversationDump?: boolean
-}
-
-function normalizeDesktopModelSelection(
-  selection: string | DesktopModelSelection | undefined,
-): NormalizedDesktopModelSelection {
-  if (typeof selection === 'string') {
-    return {
-      provided: true,
-      model: normalizeOptionalText(selection),
-    }
-  }
-  if (!selection || typeof selection !== 'object') {
-    return {}
-  }
-  return {
-    provided: true,
-    providerID: normalizeOptionalText(selection.providerID) as
-      | ModelProviderID
-      | undefined,
-    providerBaseURL: normalizeOptionalText(selection.providerBaseURL),
-    model: normalizeOptionalText(selection.model),
-    debugConversationDump: selection.debugConversationDump === true,
-  }
-}
-
 async function assertCurrentProviderUsable(
   model: string | undefined,
-  selection: NormalizedDesktopModelSelection = {},
-): Promise<Awaited<ReturnType<typeof getModelProviderState>>> {
+): Promise<void> {
   if (!model?.trim()) {
     throw new Error('未配置模型，请先在设置中配置模型。')
   }
-  const providerState = await getModelProviderState(selection.providerID)
-  const baseURL = selection.providerBaseURL ?? providerState.baseURL
+  const providerState = await getModelProviderState()
   if (!providerState.apiKeyConfigured) {
     throw new Error(
       providerState.configurationMessage ??
         '未配置模型，请先在设置中配置模型。',
     )
   }
-  if (providerState.provider.requiresBaseURL && !baseURL?.trim()) {
+  if (providerState.provider.requiresBaseURL && !providerState.baseURL?.trim()) {
     throw new Error(
       providerState.configurationMessage ??
         '未配置模型，请先在设置中配置 Base URL。',
     )
-  }
-  return {
-    ...providerState,
-    selectedProviderID: selection.providerID ?? providerState.selectedProviderID,
-    baseURL,
   }
 }
 
@@ -1016,7 +880,6 @@ function scheduleAiTitleGeneration(
       saveAiGeneratedTitle(
         sessionId as `${string}-${string}-${string}-${string}-${string}`,
         title,
-        latestRecord.snapshot.item.transcriptPath ?? undefined,
       )
     } catch {
       // Best-effort: the desktop overlay still keeps the generated title.
@@ -1234,48 +1097,39 @@ async function setBuiltinPluginEnabled(
   return { id: pluginId, enabled }
 }
 
-const desktopApiHandlers = buildDesktopApiHandlers({
-  windowService,
-  browserService,
-  debugToolProbeService,
-  getRuntimeOptions: () => {
-    const runtimeSelection = getDesktopRuntimeSelection()
-    return {
-      agentExecutablePath: getAgentExecutablePath(),
-      configDirectoryPath: getOpenAgentConfigHomeDir(),
-      runtimePreference: runtimeSelection.preference,
-      runtimeSelectionSource: runtimeSelection.source,
-    }
-  },
-  listBuiltinPlugins,
-  setBuiltinPluginEnabled,
-  listSlashCommands,
-  createSession,
-  listSessions,
-  getSession,
-  getActiveSessionId,
-  setActiveSession,
-  updateSessionMetadata,
-  saveSessionReviewComment,
-  resolveSessionReviewComment,
-  deleteSessionReviewComment,
-  setSessionPermissionMode,
-  sendUserMessage,
-  respondToPermission,
-  interruptSession,
-  disposeSession,
-})
-
-let desktopBrowserDebugBridgeServer: DesktopBrowserDebugBridgeServer | null = null
-const desktopBrowserDebugBridge = createDesktopBrowserDebugBridge({
-  handlers: desktopApiHandlers,
-  events: desktopBrowserDebugEvents,
-  enabled: !app.isPackaged && process.env.NODE_ENV === 'development',
-  port: resolveDesktopBrowserDebugPort(),
-})
-
 function registerIpc(): void {
-  registerDesktopIpcHandlers(desktopApiHandlers, assertTrustedIpcSender)
+  const handlers = buildDesktopApiHandlers({
+    windowService,
+    browserService,
+    getRuntimeOptions: () => {
+      const runtimeSelection = getDesktopRuntimeSelection()
+      return {
+        agentExecutablePath: getAgentExecutablePath(),
+        configDirectoryPath: getOpenAgentConfigHomeDir(),
+        runtimePreference: runtimeSelection.preference,
+        runtimeSelectionSource: runtimeSelection.source,
+      }
+    },
+    listBuiltinPlugins,
+    setBuiltinPluginEnabled,
+    listSlashCommands,
+    createSession,
+    listSessions,
+    getSession,
+    getActiveSessionId,
+    setActiveSession,
+    updateSessionMetadata,
+    saveSessionReviewComment,
+    resolveSessionReviewComment,
+    deleteSessionReviewComment,
+    setSessionPermissionMode,
+    sendUserMessage,
+    respondToPermission,
+    interruptSession,
+    disposeSession,
+  })
+
+  registerDesktopIpcHandlers(handlers, assertTrustedIpcSender)
 }
 
 applyDesktopAgentRuntimeEnvDefaults()
@@ -1283,22 +1137,10 @@ enableConfigs()
 app.setAppUserModelId(DESKTOP_APP_ID)
 registerIpc()
 
-void desktopBrowserDebugBridge.start().then(server => {
-  desktopBrowserDebugBridgeServer = server
-  if (server) {
-    desktopDebug('browser_debug_bridge_started', { port: server.port })
-  }
-}).catch(error => {
-  desktopDebug('browser_debug_bridge_failed', {
-    error: error instanceof Error ? error.message : String(error),
-  })
-})
-
 createDesktopAutoUpdater({
   onStatusChange: (status) => {
     const window = windowService.getWindow()
     window?.webContents.send(DESKTOP_UPDATE_STATUS_CHANNEL, status)
-    desktopBrowserDebugEvents.emit(DESKTOP_UPDATE_STATUS_CHANNEL, status)
   },
 })
 
@@ -1319,7 +1161,5 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', () => {
-  void desktopBrowserDebugBridgeServer?.close()
-  debugToolProbeService.cleanup()
   disposeAllSessions()
 })

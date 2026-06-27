@@ -15,7 +15,6 @@ import type { AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from 
 import { getAPIMetadata } from '../services/api/claude.js'
 import { getAnthropicClient } from '../services/api/client.js'
 import { getModelBetas, modelSupportsStructuredOutputs } from './betas.js'
-import { ensureAnthropicToolResultPairing } from './messages.js'
 import { computeFingerprint } from './fingerprint.js'
 import { normalizeModelStringForAPI } from './model/model.js'
 
@@ -178,7 +177,6 @@ export async function sideQuery(opts: SideQueryOptions): Promise<BetaMessage> {
   }
 
   const normalizedModel = normalizeModelStringForAPI(model)
-  const messagesForAPI = ensureAnthropicToolResultPairing(messages)
   const start = Date.now()
   // biome-ignore lint/plugin: this IS the wrapper that handles OAuth attribution
   const response = await client.beta.messages.create(
@@ -186,7 +184,7 @@ export async function sideQuery(opts: SideQueryOptions): Promise<BetaMessage> {
       model: normalizedModel,
       max_tokens,
       system: systemBlocks,
-      messages: messagesForAPI,
+      messages,
       ...(tools && { tools }),
       ...(tool_choice && { tool_choice }),
       ...(output_format && { output_config: { format: output_format } }),

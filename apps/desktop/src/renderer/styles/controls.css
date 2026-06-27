@@ -5,7 +5,7 @@
   justify-content: center;
   flex: 0 0 auto;
   padding: 0;
-  border-radius: var(--radius-4);
+  border-radius: var(--r-md);
   color: var(--c-icon);
   transition: background 0.15s ease-out;
   -webkit-app-region: no-drag;

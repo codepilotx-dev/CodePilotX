@@ -505,37 +505,6 @@ export const hasPermissionsToUseTool: CanUseToolFn = async (
   if (result.behavior === 'ask') {
     const appState = context.getAppState()
 
-    // Apply never approval policy: convert 'ask' to 'deny'
-    // deny and safety checks (steps 1d, 1g) already returned before here
-    if (appState.toolPermissionContext.approvalPolicy === 'never') {
-      return {
-        behavior: 'deny',
-        decisionReason: {
-          type: 'mode',
-          mode: appState.toolPermissionContext.mode,
-        },
-        message: `Tool ${tool.name} is denied by approval policy: never`,
-      }
-    }
-
-    // Apply on-failure approval policy: allow sandboxable shell tools
-    // to execute in the sandbox; escalation happens after failure
-    if (
-      appState.toolPermissionContext.approvalPolicy === 'on-failure' &&
-      (tool.name === BASH_TOOL_NAME || tool.name === POWERSHELL_TOOL_NAME) &&
-      SandboxManager.isSandboxingEnabled() &&
-      !(input as Record<string, unknown>).dangerouslyDisableSandbox
-    ) {
-      return {
-        behavior: 'allow',
-        updatedInput: input as Record<string, unknown>,
-        decisionReason: {
-          type: 'sandboxOverride',
-          reason: 'dangerouslyDisableSandbox',
-        },
-      }
-    }
-
     if (appState.toolPermissionContext.mode === 'dontAsk') {
       return {
         behavior: 'deny',

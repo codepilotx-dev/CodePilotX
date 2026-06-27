@@ -38,7 +38,7 @@ test('discoverCodexGuidanceSources follows root to cwd order and override priori
   }
 })
 
-test('readCodexProjectConfig parses official permissions config and reports ignored keys', async () => {
+test('readCodexProjectConfig parses supported project config and reports ignored keys', async () => {
   const root = await mkdtemp(join(tmpdir(), 'codex-config-'))
   try {
     await mkdir(join(root, '.codex'), { recursive: true })
@@ -47,23 +47,9 @@ test('readCodexProjectConfig parses official permissions config and reports igno
       [
         'approval = "prompt"',
         'sandbox = "workspace-write"',
-        'approval_policy = "on-request"',
-        'approvals_reviewer = "user"',
-        'default_permissions = "project-edit"',
         'project_root_markers = [".git", "package.json"]',
         'model_provider = "openai"',
         'profile = "work"',
-        '',
-        '[permissions.project-edit]',
-        'description = "Project edits"',
-        'extends = ":workspace"',
-        'workspace_roots = ["packages/core"]',
-        '[permissions.project-edit.filesystem]',
-        '"**/*.env" = "deny"',
-        '[permissions.project-edit.network]',
-        'enabled = true',
-        '[permissions.project-edit.network.domains]',
-        '"api.openai.com" = "allow"',
         '',
         '[mcp_servers.docs]',
         'command = "npx"',
@@ -83,26 +69,7 @@ test('readCodexProjectConfig parses official permissions config and reports igno
     expect(config.config).toMatchObject({
       approval: 'prompt',
       sandbox: 'workspace-write',
-      approvalPolicy: 'on-request',
-      approvalsReviewer: 'user',
-      defaultPermissions: 'project-edit',
       projectRootMarkers: ['.git', 'package.json'],
-      permissions: {
-        'project-edit': {
-          description: 'Project edits',
-          extends: ':workspace',
-          workspaceRoots: ['packages/core'],
-          filesystem: {
-            '**/*.env': 'deny',
-          },
-          network: {
-            enabled: true,
-            domains: {
-              'api.openai.com': 'allow',
-            },
-          },
-        },
-      },
     })
     expect(config.config.mcpServers).toEqual([
       {
@@ -123,32 +90,6 @@ test('readCodexProjectConfig parses official permissions config and reports igno
     ])
     expect(config.ignoredProjectKeys).toEqual(['model_provider', 'profile'])
     expect(config.diagnostics).toEqual([])
-  } finally {
-    await rm(root, { force: true, recursive: true })
-  }
-})
-
-test('readCodexProjectConfig reports legacy sandbox settings as diagnostics', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'codex-config-legacy-'))
-  try {
-    await mkdir(join(root, '.codex'), { recursive: true })
-    await writeFile(
-      join(root, '.codex', 'config.toml'),
-      [
-        'sandbox_mode = "workspace-write"',
-        '[sandbox_workspace_write]',
-        'network_access = true',
-      ].join('\n'),
-    )
-
-    const config = await readCodexProjectConfig(root)
-
-    expect(config.diagnostics).toContain(
-      '旧 sandbox_mode 已禁用，请改用 default_permissions 和 [permissions.<name>]',
-    )
-    expect(config.diagnostics).toContain(
-      '旧 [sandbox_workspace_write] 已禁用，请改用 [permissions.<name>]',
-    )
   } finally {
     await rm(root, { force: true, recursive: true })
   }

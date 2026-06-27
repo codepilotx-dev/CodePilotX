@@ -151,55 +151,6 @@ test('same-name tools in one turn get distinct ids and FIFO results', () => {
   expect(new Set(itemIds).size).toBe(4)
 })
 
-test('uses upstream tool use ids before generated FIFO ids', () => {
-  const p = new DesktopWorkflowProjector({
-    now: () => '2026-06-22T00:00:00.000Z',
-    createId: (prefix, seed) => `${prefix}-${seed ?? 'next'}`,
-  })
-  const events = [
-    { type: 'status', sessionId, status: 'running' } as const,
-    {
-      type: 'tool_start',
-      sessionId,
-      toolName: 'AskUserQuestion',
-      summary: 'AskUserQuestion',
-      toolUseId: 'call-question-1',
-    } as const,
-    {
-      type: 'tool_result',
-      sessionId,
-      toolName: 'AskUserQuestion',
-      summary: 'InputValidationError',
-      toolUseId: 'call-question-1',
-      isError: true,
-    } as const,
-  ].flatMap(event => p.project(event))
-
-  const toolEvents = events.filter(
-    event =>
-      'item' in event &&
-      (event.item.type === 'tool_call' || event.item.type === 'tool_result'),
-  )
-
-  expect(
-    toolEvents.map(event =>
-      'item' in event &&
-      (event.item.type === 'tool_call' || event.item.type === 'tool_result')
-        ? { id: event.item.id, toolUseId: event.item.toolUseId }
-        : null,
-    ),
-  ).toEqual([
-    {
-      id: 'tool_call-call-question-1',
-      toolUseId: 'call-question-1',
-    },
-    {
-      id: 'tool_result-call-question-1',
-      toolUseId: 'call-question-1',
-    },
-  ])
-})
-
 test('failed tool results keep readable metadata through projection', () => {
   const p = projector()
   const events = [

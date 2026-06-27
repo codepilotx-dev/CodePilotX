@@ -1,32 +1,22 @@
 import { expect, test } from 'bun:test'
 import {
-  askUserQuestionMaxQuestionsEnv,
-  codexPermissionConfigArgs,
+  permissionModeArgs,
   permissionPromptToolArgs,
   permissionPromptToolName,
 } from './agentRuntime.js'
-import { getToolUseId } from './agentRuntimeSupport.js'
 
-test('codexPermissionConfigArgs maps desktop permissions to official config overrides', () => {
-  expect(
-    codexPermissionConfigArgs({
-      permissionProfile: ':workspace',
-      approvalPolicy: 'on-request',
-      approvalsReviewer: 'user',
-    }),
-  ).toEqual([
-    '--config',
-    'default_permissions=":workspace"',
-    '--config',
-    'approval_policy="on-request"',
-    '--config',
-    'approvals_reviewer="user"',
+test('permissionModeArgs maps desktop permission modes to CLI args', () => {
+  expect(permissionModeArgs('default')).toEqual(['--permission-mode', 'default'])
+  expect(permissionModeArgs('auto')).toEqual(['--permission-mode', 'auto'])
+  expect(permissionModeArgs('bypassPermissions')).toEqual([
+    '--dangerously-skip-permissions',
   ])
-  expect(codexPermissionConfigArgs({ permissionProfile: 'project-edit' })).toEqual([
-    '--config',
-    'default_permissions="project-edit"',
+  expect(permissionModeArgs('customConfig')).toEqual([])
+  expect(permissionModeArgs('plan')).toEqual(['--permission-mode', 'plan'])
+  expect(permissionModeArgs(undefined)).toEqual([
+    '--permission-mode',
+    'default',
   ])
-  expect(codexPermissionConfigArgs({})).toEqual([])
 })
 
 test('desktop runtimes use stdio permission prompt protocol', () => {
@@ -35,26 +25,4 @@ test('desktop runtimes use stdio permission prompt protocol', () => {
     '--permission-prompt-tool',
     'stdio',
   ])
-})
-
-test('desktop runtime exports AskUserQuestion max questions env when configured', () => {
-  expect(askUserQuestionMaxQuestionsEnv({})).toEqual({})
-  expect(
-    askUserQuestionMaxQuestionsEnv({ askUserQuestionMaxQuestions: 3 }),
-  ).toEqual({
-    CODEPILOTX_ASK_USER_QUESTION_MAX_QUESTIONS: '3',
-  })
-})
-
-test('desktop runtime extracts tool use id from tool blocks', () => {
-  expect(getToolUseId({ type: 'tool_use', id: 'call-question-1' })).toBe(
-    'call-question-1',
-  )
-  expect(
-    getToolUseId({
-      type: 'tool_result',
-      tool_use_id: 'call-question-1',
-    }),
-  ).toBe('call-question-1')
-  expect(getToolUseId({ type: 'tool_result' })).toBeUndefined()
 })

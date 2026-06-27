@@ -10,7 +10,6 @@ import {
 } from 'react'
 import type { DrawerTab } from '../../uiTypes.js'
 import type {
-  DesktopAskUserQuestionMaxQuestions,
   DesktopPermissionMode,
   DesktopPersonality,
   DesktopReviewView,
@@ -65,7 +64,6 @@ export type UseDesktopSettingsResult = {
   githubMemorySyncEnabled: boolean
   githubMemoryRepository: string
   reviewView: DesktopReviewView
-  askUserQuestionMaxQuestions: DesktopAskUserQuestionMaxQuestions
   browserAllowedSites: string[]
   settingsLoaded: boolean
   setPermissionMode: (value: DesktopPermissionMode) => void
@@ -107,11 +105,8 @@ export type UseDesktopSettingsResult = {
   setEnableMemory: (value: boolean) => void
   setSkipToolAidedChats: (value: boolean) => void
   setGithubMemorySyncEnabled: (value: boolean) => void
-  setGithubMemoryRepository: (value: string) => void
+setGithubMemoryRepository: (value: string) => void
   setReviewView: (value: DesktopReviewView) => void
-  setAskUserQuestionMaxQuestions: (
-    value: DesktopAskUserQuestionMaxQuestions,
-  ) => void
   setBrowserAllowedSites: (value: string[]) => void
   flushDesktopSettings: () => Promise<void>
 }
@@ -238,12 +233,6 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
   const [reviewView, setReviewView] = useState<DesktopReviewView>(
     initial.reviewView,
   )
-  const [
-    askUserQuestionMaxQuestions,
-    setAskUserQuestionMaxQuestions,
-  ] = useState<DesktopAskUserQuestionMaxQuestions>(
-    initial.askUserQuestionMaxQuestions,
-  )
   const [browserAllowedSites, setBrowserAllowedSites] = useState<string[]>(
     initial.browserAllowedSites,
   )
@@ -294,7 +283,6 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
         setGithubMemorySyncEnabled(settings.githubMemorySyncEnabled)
         setGithubMemoryRepository(settings.githubMemoryRepository)
         setReviewView(settings.reviewView)
-        setAskUserQuestionMaxQuestions(settings.askUserQuestionMaxQuestions)
         setBrowserAllowedSites(settings.browserAllowedSites)
         setSettingsLoaded(true)
       })
@@ -350,7 +338,6 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
       githubMemorySyncEnabled,
       githubMemoryRepository,
       reviewView,
-      askUserQuestionMaxQuestions,
       browserAllowedSites,
     }
     storeDesktopSettings(next)
@@ -394,7 +381,6 @@ gitBranchPrefix,
     githubMemorySyncEnabled,
     githubMemoryRepository,
     reviewView,
-    askUserQuestionMaxQuestions,
     browserAllowedSites,
   ])
 
@@ -439,7 +425,6 @@ gitBranchPrefix,
       githubMemorySyncEnabled,
       githubMemoryRepository,
       reviewView,
-      askUserQuestionMaxQuestions,
       browserAllowedSites,
     }
     try {
@@ -486,7 +471,6 @@ gitBranchPrefix,
     githubMemorySyncEnabled,
     githubMemoryRepository,
     reviewView,
-    askUserQuestionMaxQuestions,
     browserAllowedSites,
   ])
 
@@ -530,7 +514,6 @@ defaultOpenTargetId,
     githubMemorySyncEnabled,
     githubMemoryRepository,
     reviewView,
-    askUserQuestionMaxQuestions,
     browserAllowedSites,
     settingsLoaded,
     setPermissionMode,
@@ -572,7 +555,6 @@ defaultOpenTargetId,
     setGithubMemorySyncEnabled,
 setGithubMemoryRepository,
     setReviewView,
-    setAskUserQuestionMaxQuestions,
     setBrowserAllowedSites,
     flushDesktopSettings,
   }

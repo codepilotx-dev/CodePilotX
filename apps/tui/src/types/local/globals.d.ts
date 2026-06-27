@@ -84,20 +84,3 @@ declare module '@ant/computer-use-mcp/sentinelApps' {
   export const SENTINEL_APPS: any[]
   export function getSentinelCategory(...args: any[]): any
 }
-
-// ANT/internal globals - feature-gated
-declare function resolveAntModel(...args: any[]): any
-declare const apiMetricsRef: any
-declare function getAntModelOverrideConfig(...args: any[]): any
-declare function getAntModels(): any[]
-declare function fireCompanionObserver(...args: any[]): any
-declare function computeTtftText(...args: any[]): string
-declare function ExperimentEnrollmentNotice(...args: any[]): any
-declare function GateOverridesWarning(...args: any[]): any
-declare function UltraplanLaunchDialog(...args: any[]): any
-declare function UltraplanChoiceDialog(...args: any[]): any
-declare function launchUltraplan(...args: any[]): any
-declare function TungstenPill(...args: any[]): any
-declare function Gates(...args: any[]): any
-declare const HOOK_TIMING_DISPLAY_THRESHOLD_MS: number
-

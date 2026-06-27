@@ -44,7 +44,7 @@ export function desktopAgentEventToSessionEvent(
         type: 'tool_call',
         content: event.summary,
         createdAt,
-        metadata: toolMetadata(event.toolName, event.toolUseId),
+        metadata: { toolName: event.toolName },
         ...eventSource(event),
       }
     case 'tool_result':
@@ -54,10 +54,7 @@ export function desktopAgentEventToSessionEvent(
         type: 'tool_result',
         content: event.summary,
         createdAt,
-        metadata: {
-          ...toolMetadata(event.toolName, event.toolUseId),
-          isError: event.isError === true,
-        },
+        metadata: { toolName: event.toolName, isError: event.isError === true },
         ...eventSource(event),
       }
     case 'permission_request':
@@ -128,16 +125,6 @@ export function legacyMessagesToSessionEvents(
     content: message.text,
     createdAt: message.createdAt,
   }))
-}
-
-function toolMetadata(
-  toolName: string,
-  toolUseId: string | undefined,
-): Record<string, unknown> {
-  return {
-    toolName,
-    ...(toolUseId ? { toolUseId } : {}),
-  }
 }
 
 function eventCreatedAt(event: DesktopAgentEvent): string {

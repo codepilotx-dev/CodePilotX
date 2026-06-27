@@ -7,13 +7,12 @@ import { WorkflowEventSchemaVersion } from '@codepilotx/core/agent/workflow.js'
 import {
   CODEPILOTX_CONFIG_DIR_ENV,
   LEGACY_CLAUDE_CONFIG_DIR_ENV,
-} from '@codepilotx/core/config/env.js'
-import { getProjectDir } from '@codepilotx/core/session/storage.js'
+} from '@codepilotx/tui/utils/envUtils.js'
+import { getProjectDir } from '@codepilotx/tui/utils/sessionStorage.js'
 import {
   applyDesktopWorkflowEventsToSnapshot,
   createDesktopSessionSnapshot,
   getDesktopSessionIndexPath,
-  hydrateDesktopSessionSnapshot,
   loadDesktopSessionStore,
   saveDesktopSessionStore,
 } from './sessionPersistence.js'
@@ -100,74 +99,6 @@ test('real project transcript remains project-scoped', async () => {
     expect(snapshot?.workspace.isStandalone).not.toBe(true)
     expect(snapshot?.workspace.name).toBe('real-project')
     expect(snapshot?.item.workspacePath).toBe(projectPath)
-  })
-})
-
-test('transcript restore preserves tool use ids in session events', async () => {
-  await withDesktopConfig(async configDir => {
-    const sessionId = randomUUID()
-    const projectPath = join(configDir, 'tool-use-project')
-    const timestamp = new Date('2026-01-01T00:00:00.000Z').toISOString()
-    const promptUuid = randomUUID()
-    const assistantUuid = randomUUID()
-    const resultUuid = randomUUID()
-    await writeTranscriptEntries(projectPath, sessionId, [
-      transcriptMessage({
-        uuid: promptUuid,
-        sessionId,
-        workspacePath: projectPath,
-        timestamp,
-        role: 'user',
-        content: 'Ask a question',
-      }),
-      transcriptMessage({
-        uuid: assistantUuid,
-        parentUuid: promptUuid,
-        sessionId,
-        workspacePath: projectPath,
-        timestamp,
-        role: 'assistant',
-        content: [
-          {
-            type: 'tool_use',
-            id: 'call-question-1',
-            name: 'AskUserQuestion',
-            input: {},
-          },
-        ],
-      }),
-      transcriptMessage({
-        uuid: resultUuid,
-        parentUuid: assistantUuid,
-        sessionId,
-        workspacePath: projectPath,
-        timestamp,
-        role: 'user',
-        content: [
-          {
-            type: 'tool_result',
-            tool_use_id: 'call-question-1',
-            content: 'InputValidationError',
-            is_error: true,
-          },
-        ],
-      }),
-    ])
-
-    const store = await loadDesktopSessionStore()
-    const snapshot = store.sessions.find(item => item.item.id === sessionId)
-    const hydrated = snapshot
-      ? await hydrateDesktopSessionSnapshot(snapshot)
-      : undefined
-    const toolEvents = hydrated?.events.filter(
-      event => event.type === 'tool_call' || event.type === 'tool_result',
-    )
-
-    expect(toolEvents).toHaveLength(2)
-    expect(toolEvents?.map(event => event.metadata?.toolUseId)).toEqual([
-      'call-question-1',
-      'call-question-1',
-    ])
   })
 })
 
@@ -417,53 +348,6 @@ async function writeTranscript(
     })}\n`,
     'utf8',
   )
-}
-
-async function writeTranscriptEntries(
-  workspacePath: string,
-  sessionId: string,
-  entries: unknown[],
-): Promise<void> {
-  const transcriptPath = join(getProjectDir(workspacePath), `${sessionId}.jsonl`)
-  await mkdir(dirname(transcriptPath), { recursive: true })
-  await writeFile(
-    transcriptPath,
-    `${entries.map(entry => JSON.stringify(entry)).join('\n')}\n`,
-    'utf8',
-  )
-}
-
-function transcriptMessage({
-  sessionId,
-  workspacePath,
-  timestamp,
-  role,
-  content,
-  uuid = randomUUID(),
-  parentUuid = null,
-}: {
-  sessionId: string
-  workspacePath: string
-  timestamp: string
-  role: 'user' | 'assistant'
-  content: unknown
-  uuid?: string
-  parentUuid?: string | null
-}) {
-  return {
-    type: role,
-    uuid,
-    parentUuid,
-    sessionId,
-    cwd: workspacePath,
-    timestamp,
-    version: 'test',
-    userType: 'external',
-    message: {
-      role,
-      content,
-    },
-  }
 }
 
 function restoreEnv(key: string, value: string | undefined): void {

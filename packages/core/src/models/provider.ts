@@ -2,7 +2,6 @@ export type ModelProviderID = string
 
 export type ModelProviderKind =
   | 'anthropic'
-  | 'anthropic-compatible'
   | 'openai-compatible'
   | 'minimax'
   | 'github-copilot'

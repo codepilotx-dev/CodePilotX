@@ -101,7 +101,6 @@ export type AgentRuntimeEvent =
       sessionId: string
       toolName: string
       summary: string
-      toolUseId?: string
       sourceThreadId?: string
       sourceLabel?: string
     }
@@ -110,7 +109,6 @@ export type AgentRuntimeEvent =
       sessionId: string
       toolName: string
       summary: string
-      toolUseId?: string
       isError?: boolean
       metadata?: Record<string, unknown>
       sourceThreadId?: string

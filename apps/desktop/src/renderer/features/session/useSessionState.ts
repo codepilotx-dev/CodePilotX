@@ -2,7 +2,6 @@ import { desktopClient } from '../../services/desktopClient.js'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
   DesktopAgentEvent,
-  DesktopAskUserQuestionMaxQuestions,
   DesktopContextUsage,
   DesktopPermissionMode,
   DesktopPermissionRequest,
@@ -13,7 +12,6 @@ import type {
   DesktopUserMessageInput,
   DesktopWorkflowEvent,
   DesktopWorkspace,
-  ModelProviderID,
 } from '../../../shared/types.js'
 import type {
   Message,
@@ -55,9 +53,6 @@ import {
 
 export type UseSessionStateOptions = {
   permissionMode: DesktopPermissionMode
-  providerID: ModelProviderID
-  providerBaseURL: string
-  debugConversationDump: boolean
   model: string
   smallFastModel: string
   fastModel: string
@@ -68,7 +63,6 @@ export type UseSessionStateOptions = {
   systemPrompt: string
   appendSystemPrompt: string
   additionalDirectories: string
-  askUserQuestionMaxQuestions: DesktopAskUserQuestionMaxQuestions
   onError: (message: string) => void
   onDiffForActive: (patch: string) => void
   onRefreshActiveWorkspace: (sessionId: string) => void
@@ -122,9 +116,6 @@ export function useSessionState(
 ): UseSessionStateResult {
   const {
     permissionMode,
-    providerID,
-    providerBaseURL,
-    debugConversationDump,
     model,
     smallFastModel,
     fastModel,
@@ -135,7 +126,6 @@ export function useSessionState(
     systemPrompt,
     appendSystemPrompt,
     additionalDirectories,
-    askUserQuestionMaxQuestions,
     onError,
     onDiffForActive,
     onRefreshActiveWorkspace,
@@ -447,9 +437,6 @@ export function useSessionState(
   const settingsSnapshot = useMemo<SessionSettingsSnapshot>(
     () => ({
       permissionMode,
-      providerID,
-      providerBaseURL,
-      debugConversationDump,
       model,
       smallFastModel,
       fastModel,
@@ -460,19 +447,14 @@ export function useSessionState(
       systemPrompt,
       appendSystemPrompt,
       additionalDirectories,
-      askUserQuestionMaxQuestions,
     }),
     [
       additionalDirectories,
       appendSystemPrompt,
-      askUserQuestionMaxQuestions,
-      debugConversationDump,
       fastModel,
       model,
       deepModel,
       permissionMode,
-      providerBaseURL,
-      providerID,
       sessionName,
       smallFastModel,
       defaultModel,
@@ -558,7 +540,7 @@ export function useSessionState(
           targetStatus !== 'running' &&
           targetStatus !== 'waiting',
       ),
-      settingsSnapshot,
+      model,
       nextValue => {
         inputBySessionRef.current = {
           ...inputBySessionRef.current,
@@ -569,7 +551,7 @@ export function useSessionState(
         }
       },
     )
-  }, [settingsSnapshot])
+  }, [model])
 
   const submit = useCallback(async (target?: DesktopWorkspace | null): Promise<void> => {
     const targetSessionId =

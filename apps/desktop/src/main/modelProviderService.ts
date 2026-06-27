@@ -1,4 +1,4 @@
-import { createHash } from 'crypto'
+import { getSettings_DEPRECATED } from '@codepilotx/tui/utils/settings/settings.js'
 import {
   createModelProviderState,
   createModelProviderSummary,
@@ -9,13 +9,15 @@ import {
   fetchProviderBalance as fetchTuiProviderBalance,
   fetchProviderModels as fetchTuiProviderModels,
   getCachedProviderModels,
-  getProviderApiKey,
+  getProviderCatalogDiagnostics,
   getProviderApiKeySource,
   getProviderConfig,
+  getSelectedProviderConfig,
+  getSelectedProviderID,
   listProviderConfigs,
   saveProviderApiKey as saveTuiProviderApiKey,
   saveSelectedProvider,
-} from '@codepilotx/core/models/providerConfig.js'
+} from '@codepilotx/tui/utils/model/providerConfig.js'
 import { desktopDebug } from './desktopDebug.js'
 import {
   readDesktopStoredSettings,
@@ -33,27 +35,41 @@ import type {
 export async function listModelProviders(): Promise<
   DesktopModelProviderSummary[]
 > {
+  desktopDebug('model_provider_list_start')
   const providers = await listProviderConfigs()
   const result = providers.map(provider =>
     createModelProviderSummary(provider, getProviderApiKeySource(provider.providerID)),
   )
+  desktopDebug('model_provider_list_done', {
+    count: result.length,
+    firstProviderIds: result.slice(0, 10).map(provider => provider.providerID),
+    diagnostics: getProviderCatalogDiagnostics(),
+  })
   return result
 }
 
 export async function getModelProviderState(
   providerIDOverride?: ModelProviderID,
 ): Promise<DesktopModelProviderState> {
-  const settings = await readDesktopStoredSettings()
-  const selectedProviderID = providerIDOverride ?? settings.providerID
+  const settings = getSettings_DEPRECATED() || {}
+  const selectedProviderID =
+    providerIDOverride ?? (getSelectedProviderID() as ModelProviderID)
+  desktopDebug('model_provider_state_start', {
+    providerIDOverride,
+    settingsProvider: settings.provider,
+    selectedProviderID,
+    settingsModel: settings.model,
+  })
   const provider = await getProviderConfig(selectedProviderID)
+  const savedSelectedProviderID = getSelectedProviderID() as ModelProviderID
+  const selectedProvider =
+    selectedProviderID === savedSelectedProviderID
+      ? getSelectedProviderConfig()
+      : provider
   const effectiveSelectedProviderID = provider.providerID as ModelProviderID
-  const model = settings.model
+  const model = typeof settings.model === 'string' ? settings.model : ''
   const apiKeySource = getProviderApiKeySource(selectedProviderID) ?? null
-  const apiKey = getProviderApiKey(selectedProviderID)
-  const baseURL =
-    provider.requiresBaseURL && settings.providerBaseURL
-      ? settings.providerBaseURL
-      : provider.baseURL
+  const baseURL = selectedProvider.baseURL ?? provider.baseURL
   const result = createModelProviderState({
     selectedProviderID: effectiveSelectedProviderID,
     provider,
@@ -62,16 +78,17 @@ export async function getModelProviderState(
     baseURL,
     models: getCachedProviderModels(selectedProviderID) ?? provider.defaultModels,
   })
-  desktopDebug('model_provider_key_state', {
-    selectedProviderID,
+  desktopDebug('model_provider_state_done', {
+    selectedProviderID: result.selectedProviderID,
     providerID: result.provider.providerID,
     kind: result.provider.kind,
-    npmPackage: result.provider.npmPackage,
-    envVars: result.provider.envVars,
-    apiKeySource,
-    apiKeyLength: apiKey?.length ?? 0,
-    apiKeyFingerprint: apiKey ? fingerprintApiKey(apiKey) : null,
-    apiKeyConfigured: Boolean(apiKey),
+    displayName: result.provider.displayName,
+    baseURL: result.baseURL,
+    model: result.model,
+    modelCount: result.models.length,
+    apiKeyConfigured: result.apiKeyConfigured,
+    source: result.provider.modelsDevSource ? 'models.dev' : 'fallback',
+    diagnostics: getProviderCatalogDiagnostics(),
   })
   return result
 }
@@ -179,20 +196,15 @@ export async function saveProviderApiKey(
   desktopDebug('model_provider_save_api_key_start', {
     providerID: normalizedProviderID,
     apiKeyLength: normalizedApiKey.length,
-    apiKeyFingerprint: fingerprintApiKey(normalizedApiKey),
   })
   const result = saveTuiProviderApiKey(normalizedProviderID, normalizedApiKey)
   if (!result.success) {
     throw new Error(result.warning ?? 'Failed to save provider API key.')
   }
   const state = await getModelProviderState(normalizedProviderID)
-  const savedApiKey = getProviderApiKey(normalizedProviderID)
   desktopDebug('model_provider_save_api_key_done', {
     providerID: normalizedProviderID,
     apiKeySource: state.apiKeySource,
-    apiKeyLength: savedApiKey?.length ?? 0,
-    apiKeyFingerprint: savedApiKey ? fingerprintApiKey(savedApiKey) : null,
-    apiKeyConfigured: Boolean(savedApiKey),
   })
   return state
 }
@@ -239,6 +251,3 @@ function requireNonEmptyString(value: unknown, label: string): string {
   return trimmed
 }
 
-function fingerprintApiKey(apiKey: string): string {
-  return createHash('sha256').update(apiKey).digest('hex').slice(0, 12)
-}

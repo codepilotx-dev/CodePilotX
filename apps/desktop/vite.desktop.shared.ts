@@ -35,12 +35,6 @@ export const desktopMacroDefines = {
   'process.env.CODEPILOTX_DISABLE_MIN_VERSION_CHECK': JSON.stringify('1'),
   'process.env.CLAUDE_CODE_DISABLE_MDM_READ': JSON.stringify('1'),
   'process.env.CLAUDE_CODE_DISABLE_MIN_VERSION_CHECK': JSON.stringify('1'),
-  'import.meta.env.CODEPILOTX_DESKTOP_BROWSER_DEBUG_PORT': JSON.stringify(
-    process.env.CODEPILOTX_DESKTOP_BROWSER_DEBUG_PORT ?? '',
-  ),
-  'import.meta.env.CLAUDE_CODE_DESKTOP_BROWSER_DEBUG_PORT': JSON.stringify(
-    process.env.CLAUDE_CODE_DESKTOP_BROWSER_DEBUG_PORT ?? '',
-  ),
 }
 
 function disableBundledFeaturesPlugin() {

@@ -3,8 +3,6 @@
   "compilerOptions": {
     "rootDir": "src",
     "paths": {
-      "@codepilotx/tui/*": ["../tui/src/*"],
-      "@codepilotx/core/*": ["../../packages/core/src/*"],
       "@codepilotx/desktop/*": ["./src/*"]
     }
   },

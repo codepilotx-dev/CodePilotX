@@ -1,8 +1,6 @@
 import { desktopClient } from '../../services/desktopClient.js'
 ﻿import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 import type {
-  DesktopAskUserQuestionMaxQuestions,
-  ModelProviderID,
   DesktopPermissionMode,
   DesktopPermissionRequest,
   DesktopSessionMetadataPatch,
@@ -27,9 +25,6 @@ import {
 
 export type SessionSettingsSnapshot = {
   permissionMode: DesktopPermissionMode
-  providerID: ModelProviderID
-  providerBaseURL: string
-  debugConversationDump: boolean
   model: string
   smallFastModel: string
   fastModel: string
@@ -40,7 +35,6 @@ export type SessionSettingsSnapshot = {
   systemPrompt: string
   appendSystemPrompt: string
   additionalDirectories: string
-  askUserQuestionMaxQuestions: DesktopAskUserQuestionMaxQuestions
 }
 
 export type SessionActionContext = {
@@ -79,9 +73,6 @@ export async function createSessionForWorkspaceAction(
     const session = await desktopClient.createSession({
       workspacePath: target?.path,
       permissionMode: settings.permissionMode,
-      providerID: settings.providerID,
-      providerBaseURL: normalizeOptionalText(settings.providerBaseURL),
-      debugConversationDump: settings.debugConversationDump,
       model: normalizeOptionalText(settings.model),
       smallFastModel: normalizeOptionalText(settings.smallFastModel),
       fastModel: normalizeOptionalText(settings.fastModel),
@@ -94,7 +85,6 @@ export async function createSessionForWorkspaceAction(
       additionalDirectories: parseAdditionalDirectories(
         settings.additionalDirectories,
       ),
-      askUserQuestionMaxQuestions: settings.askUserQuestionMaxQuestions,
     })
     const workspace = session.workspace
     const nextView = {
@@ -148,7 +138,7 @@ export async function submitSessionMessageAction(
   sessionId: string | null,
   input: DesktopUserMessageInput,
   canSubmit: boolean,
-  settings: SessionSettingsSnapshot,
+  model: string,
   setInput: (value: string) => void,
 ): Promise<void> {
   const trimmed = input.text.trim()
@@ -162,12 +152,7 @@ export async function submitSessionMessageAction(
         text: trimmed,
         attachments,
       },
-      {
-        providerID: settings.providerID,
-        providerBaseURL: normalizeOptionalText(settings.providerBaseURL),
-        model: normalizeOptionalText(settings.model),
-        debugConversationDump: settings.debugConversationDump,
-      },
+      normalizeOptionalText(model),
     )
   } catch (error) {
     onErrorRef.current(errorMessageOf(error))
