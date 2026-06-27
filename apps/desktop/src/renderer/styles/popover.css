@@ -1,3 +1,7 @@
+:root {
+  --popover-width-extra: 30px;
+}
+
 .popover {
   position: absolute;
   bottom: 100%;
@@ -5,7 +9,7 @@
   z-index: 1000;
   display: inline-block;
   width: max-content;
-  max-width: min(360px, calc(100vw - 32px));
+  max-width: min(calc(360px + var(--popover-width-extra)), calc(100vw - 32px));
   max-height: min(420px, calc(100vh - 96px));
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -63,7 +67,7 @@
 
 .sidebar-context-menu-content.rt-BaseMenuContent {
   width: max-content;
-  max-width: min(360px, calc(100vw - 32px));
+  max-width: min(calc(360px + var(--popover-width-extra)), calc(100vw - 32px));
   padding: 0;
   border: 1px solid var(--c-popover-border);
   border-radius: 12px;
@@ -180,7 +184,7 @@
 
 .popover-model-submenu {
   width: max-content;
-  max-width: 320px;
+  max-width: calc(320px + var(--popover-width-extra));
   max-height: min(
     360px,
     var(--radix-dropdown-menu-content-available-height, calc(100vh - 96px))
@@ -200,7 +204,7 @@
 
 .popover-mode {
   width: max-content;
-  max-width: 240px;
+  max-width: calc(240px + var(--popover-width-extra));
   max-height: min(320px, calc(100vh - 96px));
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -243,7 +247,7 @@
 
 .context-plugin-submenu {
   width: max-content;
-  max-width: 320px;
+  max-width: calc(320px + var(--popover-width-extra));
   max-height: min(360px, calc(100vh - 96px));
   padding: 10px;
   border-radius: var(--radius-6);
@@ -470,7 +474,7 @@
 .popover-item-tooltip {
   z-index: 1100;
   width: max-content;
-  max-width: min(320px, calc(100vw - 32px));
+  max-width: min(calc(320px + var(--popover-width-extra)), calc(100vw - 32px));
   padding: 6px 8px;
   border-radius: 12px;
   border: 1px solid var(--c-popover-border);

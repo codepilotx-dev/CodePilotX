@@ -690,7 +690,7 @@
 
 .popover-review-turns {
   width: max-content;
-  max-width: min(420px, calc(100vw - 32px));
+  max-width: min(calc(420px + var(--popover-width-extra)), calc(100vw - 32px));
 }
 
 
@@ -901,8 +901,8 @@
   position: fixed;
   z-index: 60;
   width: max-content;
-  min-width: min(320px, calc(100vw - 32px));
-  max-width: min(420px, calc(100vw - 32px));
+  min-width: min(calc(320px + var(--popover-width-extra)), calc(100vw - 32px));
+  max-width: min(calc(420px + var(--popover-width-extra)), calc(100vw - 32px));
   display: flex;
   flex-direction: column;
   gap: 10px;

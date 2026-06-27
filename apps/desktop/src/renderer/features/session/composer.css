@@ -478,14 +478,14 @@
   z-index: 1000;
   width: max-content;
   min-width: var(--radix-select-trigger-width);
-  max-width: min(360px, calc(100vw - 24px));
+  max-width: min(calc(360px + var(--popover-width-extra)), calc(100vw - 24px));
   max-height: min(320px, var(--radix-select-content-available-height));
   padding: 6px;
   border: 1px solid var(--c-popover-border);
   border-radius: 12px;
   background: var(--c-popover-bg);
   box-shadow:
-    0 8px 24px rgba(0, 0, 0, 0.10),
+    0 8px 24px rgba(0, 0, 0, 0.1),
     0 2px 6px rgba(0, 0, 0, 0.04);
   color: var(--c-text);
   font-size: var(--fs-14);
@@ -532,6 +532,7 @@
   flex-shrink: 0;
   margin-top: 0;
   color: var(--c-icon);
+  padding-right: 5px;
 }
 
 .permission-select-item-icon svg {
@@ -545,13 +546,13 @@
   flex: 1;
   min-width: 0;
   display: grid;
-  gap: 2px;
+  gap: 5px;
+  padding-right: 30px;
 }
 
 .permission-select-item-detail {
   color: var(--c-text-soft);
   font-size: var(--fs-11);
-  line-height: 1.35;
 }
 
 .permission-select-item-detail-more {
@@ -602,7 +603,7 @@
   border-radius: 12px;
   background: var(--c-popover-bg);
   box-shadow:
-    0 8px 24px rgba(0, 0, 0, 0.10),
+    0 8px 24px rgba(0, 0, 0, 0.1),
     0 2px 6px rgba(0, 0, 0, 0.04);
   color: var(--c-text-soft);
   font-size: var(--fs-12);
@@ -719,22 +720,21 @@
   margin: 0 auto;
 }
 
-/* ---- chat-input__dropdown (migrated from Deomo) ---- */
-
 .chat-input__dropdown {
   position: absolute;
   bottom: calc(100% + 10px);
   left: 0;
-  width: max-content;
+  max-width: var(--composer-w, 760px);
+  width: 100%;
   min-width: min(320px, 100%);
-  max-width: min(520px, calc(100vw - 32px));
+
   z-index: 50;
   padding: 6px;
   border: 1px solid var(--c-popover-border);
   border-radius: 12px;
   background: var(--c-popover-bg);
   box-shadow:
-    0 8px 24px rgba(0, 0, 0, 0.10),
+    0 8px 24px rgba(0, 0, 0, 0.1),
     0 2px 6px rgba(0, 0, 0, 0.04);
   color: var(--c-text);
   font-size: var(--fs-14);

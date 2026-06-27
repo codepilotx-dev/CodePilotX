@@ -1,7 +1,7 @@
 .rt-DropdownMenuContent.rm-model-menu,
 .rm-model-menu .rt-DropdownMenuContent {
   width: max-content;
-  max-width: min(360px, calc(100vw - 32px));
+  max-width: min(calc(360px + var(--popover-width-extra)), calc(100vw - 32px));
   max-height: min(420px, calc(100vh - 96px));
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -9,7 +9,7 @@
   background: var(--c-popover-bg);
   border: 1px solid var(--c-popover-border);
   box-shadow:
-    0 8px 24px rgba(0, 0, 0, 0.10),
+    0 8px 24px rgba(0, 0, 0, 0.1),
     0 2px 6px rgba(0, 0, 0, 0.04);
   color: var(--c-text);
   font-size: var(--fs-14);
@@ -44,7 +44,7 @@
 .rt-DropdownMenuSubContent.rm-model-menu,
 .rm-model-menu .rt-DropdownMenuSubContent {
   width: max-content;
-  max-width: min(320px, calc(100vw - 32px));
+  max-width: min(calc(320px + var(--popover-width-extra)), calc(100vw - 32px));
   max-height: min(
     360px,
     var(--radix-dropdown-menu-content-available-height, calc(100vh - 96px))
@@ -55,7 +55,7 @@
   background: var(--c-popover-bg);
   border: 1px solid var(--c-popover-border);
   box-shadow:
-    0 8px 24px rgba(0, 0, 0, 0.10),
+    0 8px 24px rgba(0, 0, 0, 0.1),
     0 2px 6px rgba(0, 0, 0, 0.04);
   color: var(--c-text);
   font-size: var(--fs-14);
@@ -71,7 +71,7 @@
   border-radius: 8px;
   color: var(--c-text);
   font-size: var(--fs-14);
-  line-height: 1.4;
+
   cursor: default;
   outline: none;
   user-select: none;
