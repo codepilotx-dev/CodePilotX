@@ -30,6 +30,13 @@ const providerOptions = z.object({
   baseURL: optionalText,
 })
 
+const modelSelection = z.object({
+  providerID: optionalText,
+  providerBaseURL: optionalText,
+  model: optionalText,
+  debugConversationDump: z.boolean().optional(),
+})
+
 const metadataPatch = z.object({
   pinnedAt: nullableText.optional(),
   archivedAt: nullableText.optional(),
@@ -281,7 +288,11 @@ export const DESKTOP_API_ARG_SCHEMAS = {
   readWorkflowEventLog: emptyArgs,
   openConfigFile: emptyArgs,
   openExternalURL: z.tuple([z.string()]),
-  sendUserMessage: z.tuple([z.string(), userMessageInput, optionalText]),
+  sendUserMessage: z.tuple([
+    z.string(),
+    userMessageInput,
+    z.union([optionalText, modelSelection]).optional(),
+  ]),
   respondToPermission: z.tuple([z.string(), z.string(), permissionDecision]),
   interruptSession: z.tuple([z.string()]),
   disposeSession: z.tuple([z.string()]),
@@ -298,6 +309,9 @@ export const DESKTOP_API_ARG_SCHEMAS = {
   checkForUpdates: emptyArgs,
   downloadUpdate: emptyArgs,
   quitAndInstall: emptyArgs,
+  listDebugBuiltinTools: emptyArgs,
+  runDebugToolProbe: z.tuple([z.enum(['safe', 'realManual', 'realAuto'])]),
+  cancelDebugToolProbe: z.tuple([z.string()]),
 } as const satisfies Record<DesktopApiMethod, z.ZodTuple>
 
 export function validateDesktopApiArgs(

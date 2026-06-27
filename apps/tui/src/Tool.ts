@@ -122,6 +122,9 @@ export type { ToolPermissionRulesBySource }
 // Apply DeepImmutable to the imported type
 export type ToolPermissionContext = DeepImmutable<{
   mode: PermissionMode
+  permissionProfile?: string
+  approvalPolicy?: 'untrusted' | 'on-request' | 'on-failure' | 'never'
+  approvalsReviewer?: 'user' | 'auto'
   additionalWorkingDirectories: Map<string, AdditionalWorkingDirectory>
   alwaysAllowRules: ToolPermissionRulesBySource
   alwaysDenyRules: ToolPermissionRulesBySource
@@ -140,6 +143,9 @@ export type ToolPermissionContext = DeepImmutable<{
 export const getEmptyToolPermissionContext: () => ToolPermissionContext =
   () => ({
     mode: 'default',
+    permissionProfile: ':workspace',
+    approvalPolicy: 'on-request',
+    approvalsReviewer: 'user',
     additionalWorkingDirectories: new Map(),
     alwaysAllowRules: {},
     alwaysDenyRules: {},

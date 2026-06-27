@@ -578,6 +578,66 @@ async function logStartupTelemetry(): Promise<void> {
   })
 }
 
+function parseOfficialPermissionConfigOverrides(
+  overrides: unknown,
+): {
+  permissionProfile?: string
+  approvalPolicy?: 'untrusted' | 'on-request' | 'on-failure' | 'never'
+  approvalsReviewer?: 'user' | 'auto'
+} {
+  if (!Array.isArray(overrides)) return {}
+  const parsed: {
+    permissionProfile?: string
+    approvalPolicy?: 'untrusted' | 'on-request' | 'on-failure' | 'never'
+    approvalsReviewer?: 'user' | 'auto'
+  } = {}
+  for (const item of overrides) {
+    if (typeof item !== 'string') continue
+    const separator = item.indexOf('=')
+    if (separator <= 0) continue
+    const key = item.slice(0, separator).trim()
+    const value = unquoteConfigOverrideValue(item.slice(separator + 1).trim())
+    if (!value) continue
+    if (key === 'default_permissions') {
+      parsed.permissionProfile = value
+    } else if (key === 'approval_policy' && isOfficialApprovalPolicy(value)) {
+      parsed.approvalPolicy = value
+    } else if (
+      key === 'approvals_reviewer' &&
+      isOfficialApprovalsReviewer(value)
+    ) {
+      parsed.approvalsReviewer = value
+    }
+  }
+  return parsed
+}
+
+function unquoteConfigOverrideValue(value: string): string {
+  if (value.length >= 2) {
+    const first = value[0]
+    const last = value[value.length - 1]
+    if ((first === '"' && last === '"') || (first === "'" && last === "'")) {
+      return value.slice(1, -1)
+    }
+  }
+  return value
+}
+
+function isOfficialApprovalPolicy(
+  value: string,
+): value is 'untrusted' | 'on-request' | 'on-failure' | 'never' {
+  return (
+    value === 'untrusted' ||
+    value === 'on-request' ||
+    value === 'on-failure' ||
+    value === 'never'
+  )
+}
+
+function isOfficialApprovalsReviewer(value: string): value is 'user' | 'auto' {
+  return value === 'user' || value === 'auto'
+}
+
 // @[MODEL LAUNCH]: Consider any migrations you may need for model strings. See migrateSonnet1mToSonnet45.ts for an example.
 // Bump this when adding a new sync migration so existing users re-run the set.
 const CURRENT_MIGRATION_VERSION = 12
@@ -1504,6 +1564,10 @@ async function run(): Promise<CommanderCommand> {
       '--mcp-config <configs...>',
       'Load MCP servers from JSON files or strings (space-separated)',
     )
+    .option(
+      '--config <overrides...>',
+      'Override config.toml values, for example default_permissions=":workspace"',
+    )
     .addOption(
       new Option(
         '--permission-prompt-tool <tool>',
@@ -1818,6 +1882,7 @@ async function run(): Promise<CommanderCommand> {
         allowedTools = [],
         disallowedTools = [],
         mcpConfig = [],
+        config: configOverrides = [],
         permissionMode: permissionModeCli,
         addDir = [],
         fallbackModel,
@@ -2596,6 +2661,7 @@ async function run(): Promise<CommanderCommand> {
         permissionMode,
         allowDangerouslySkipPermissions,
         addDirs: addDir,
+        cliConfigOverrides: configOverrides,
       })
       let toolPermissionContext = initResult.toolPermissionContext
       const { warnings, dangerousPermissions, overlyBroadBashPermissions } =
@@ -4033,8 +4099,11 @@ async function run(): Promise<CommanderCommand> {
         })
       }
 
+      const officialPermissionOverrides =
+        parseOfficialPermissionConfigOverrides(configOverrides)
       const effectiveToolPermissionContext = {
         ...toolPermissionContext,
+        ...officialPermissionOverrides,
         mode:
           isAgentSwarmsEnabled() && getTeammateUtils().isPlanModeRequired()
             ? ('plan' as const)

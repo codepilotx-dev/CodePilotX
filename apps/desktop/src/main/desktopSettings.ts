@@ -5,7 +5,7 @@ import {
   CODEPILOTX_CONFIG_DIR_ENV,
   CODEPILOTX_CONFIG_DIR_NAME,
   LEGACY_CLAUDE_CONFIG_DIR_ENV,
-} from '@codepilotx/tui/utils/envUtils.js'
+} from '@codepilotx/core/config/env.js'
 import type { DesktopStoredSettings } from '../shared/types.js'
 import {
   defaultDesktopStoredSettings,

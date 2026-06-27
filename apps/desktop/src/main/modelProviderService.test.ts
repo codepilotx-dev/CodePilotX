@@ -5,7 +5,7 @@ import { expect, test } from 'bun:test'
 import {
   CODEPILOTX_CONFIG_DIR_ENV,
   LEGACY_CLAUDE_CONFIG_DIR_ENV,
-} from '@codepilotx/tui/utils/envUtils.js'
+} from '@codepilotx/core/config/env.js'
 import {
   getModelProviderState,
   listModelProviders,

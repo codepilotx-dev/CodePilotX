@@ -34,6 +34,8 @@ import {
   LEGACY_CLAUDE_CONFIG_DIR_ENV,
 } from '../utils/envUtils.js'
 import { resetRipgrepConfigCache } from '../utils/ripgrep.js'
+import { saveSelectedProvider } from '../utils/model/providerConfig.js'
+import { runWithConversationDebugDump } from '../utils/conversationDebugDump.js'
 
 export type DesktopHeadlessThinkingMode =
   | 'default'
@@ -50,7 +52,13 @@ export type DesktopHeadlessRuntimeOptions = {
   workspacePath: string
   configDirectoryPath?: string
   resumeExistingSession?: boolean
+  permissionProfile?: string
+  approvalPolicy?: 'untrusted' | 'on-request' | 'on-failure' | 'never'
+  approvalsReviewer?: 'user' | 'auto'
   permissionMode?: PermissionMode
+  providerID?: string
+  providerBaseURL?: string
+  debugConversationDump?: boolean
   model?: string
   smallFastModel?: string
   fastModel?: string
@@ -61,6 +69,7 @@ export type DesktopHeadlessRuntimeOptions = {
   systemPrompt?: string
   appendSystemPrompt?: string
   additionalDirectories?: string[]
+  askUserQuestionMaxQuestions?: number
   permissionPromptToolName?: string
   onOutput(
     message: StdoutMessage,
@@ -70,6 +79,12 @@ export type DesktopHeadlessRuntimeOptions = {
 
 export type DesktopHeadlessRuntime = {
   setModel(model: string | undefined): void
+  setProvider(
+    providerID: string | undefined,
+    providerBaseURL: string | undefined,
+  ): void
+  setDebugConversationDump(enabled: boolean): void
+  setPermissionMode(permissionMode: PermissionMode | undefined): void
   runUserTurn(
     content: string | ContentBlockParam[],
     signal: AbortSignal,
@@ -130,6 +145,12 @@ class EmbeddedDesktopHeadlessRuntime implements DesktopHeadlessRuntime {
 
   constructor(private readonly options: DesktopHeadlessRuntimeOptions) {
     this.store = createStore(getInitialDesktopAppState(options))
+    logDesktopHeadless('runtime_created', {
+      sessionId: options.sessionId,
+      permissionMode: options.permissionMode ?? 'default',
+      permissionProfile: options.permissionProfile ?? ':workspace',
+      approvalPolicy: options.approvalPolicy ?? 'on-request',
+    })
     if (options.configDirectoryPath) {
       process.env[CODEPILOTX_CONFIG_DIR_ENV] = options.configDirectoryPath
       process.env[LEGACY_CLAUDE_CONFIG_DIR_ENV] = options.configDirectoryPath
@@ -140,6 +161,7 @@ class EmbeddedDesktopHeadlessRuntime implements DesktopHeadlessRuntime {
     process.env.CLAUDE_CODE_DISABLE_MIN_VERSION_CHECK = '1'
     process.env.CLAUDE_CODE_ENTRYPOINT = 'desktop'
     process.env.USE_BUILTIN_RIPGREP = '0'
+    applyAskUserQuestionMaxQuestionsEnv(options)
     applyTaskModelEnv(options)
     resetRipgrepConfigCache()
   }
@@ -147,6 +169,35 @@ class EmbeddedDesktopHeadlessRuntime implements DesktopHeadlessRuntime {
   setModel(model: string | undefined): void {
     this.options.model = model
     applyTaskModelEnv(this.options)
+  }
+
+  setProvider(
+    providerID: string | undefined,
+    providerBaseURL: string | undefined,
+  ): void {
+    this.options.providerID = providerID
+    this.options.providerBaseURL = providerBaseURL
+  }
+
+  setDebugConversationDump(enabled: boolean): void {
+    this.options.debugConversationDump = enabled
+  }
+
+  setPermissionMode(permissionMode: PermissionMode | undefined): void {
+    this.options.permissionMode = permissionMode
+    logDesktopHeadless('set_permission_mode', {
+      sessionId: this.options.sessionId,
+      permissionMode: permissionMode ?? 'default',
+    })
+    this.store.setState(prev => ({
+      ...prev,
+      toolPermissionContext: {
+        ...prev.toolPermissionContext,
+        mode: permissionMode ?? 'default',
+        isBypassPermissionsModeAvailable:
+          permissionMode === 'bypassPermissions',
+      },
+    }))
   }
 
   async runUserTurn(
@@ -183,51 +234,66 @@ class EmbeddedDesktopHeadlessRuntime implements DesktopHeadlessRuntime {
             this.hasStartedHeadlessSession ||
             this.options.resumeExistingSession,
         })
-        await runWithDesktopExitGuards(() =>
-          runHeadless(
-            input,
-            () => this.store.getState(),
-            this.store.setState,
-            commands,
-            this.tools,
-            {},
-            [],
-            {
-              continue: undefined,
-              resume: this.hasStartedHeadlessSession ||
-                this.options.resumeExistingSession
-                ? this.options.sessionId
-                : undefined,
-              resumeSessionAt: undefined,
-              verbose: true,
-              outputFormat: 'stream-json',
-              jsonSchema: undefined,
-              permissionPromptToolName: this.options.permissionPromptToolName,
-              allowedTools: undefined,
-              thinkingConfig: thinkingConfigFromDesktopMode(
-                this.options.thinkingMode,
-              ),
-              maxTurns: undefined,
-              maxBudgetUsd: undefined,
-              taskBudget: undefined,
-              systemPrompt: this.options.systemPrompt,
-              appendSystemPrompt: this.options.appendSystemPrompt,
-              userSpecifiedModel: this.options.model,
-              fallbackModel: undefined,
-              teleport: undefined,
-              sdkUrl: undefined,
-              replayUserMessages: true,
-              includePartialMessages: true,
-              forkSession: false,
-              rewindFiles: undefined,
-              enableAuthStatus: false,
-              agent: undefined,
-              workload: undefined,
-              exitOnComplete: false,
-              createStructuredIO: inputPrompt =>
-                this.createStructuredIO(inputPrompt, signal),
+        await runWithConversationDebugDump(
+          {
+            enabled: this.options.debugConversationDump === true,
+            sessionId: this.options.sessionId,
+            workspacePath: this.options.workspacePath,
+            turnInput: {
+              content,
+              model: this.options.model,
+              providerID: this.options.providerID,
+              providerBaseURL: this.options.providerBaseURL,
+              permissionMode: this.options.permissionMode,
             },
-          ),
+          },
+          () =>
+            runWithDesktopExitGuards(() =>
+              runHeadless(
+                input,
+                () => this.store.getState(),
+                this.store.setState,
+                commands,
+                this.tools,
+                {},
+                [],
+                {
+                  continue: undefined,
+                  resume: this.hasStartedHeadlessSession ||
+                    this.options.resumeExistingSession
+                    ? this.options.sessionId
+                    : undefined,
+                  resumeSessionAt: undefined,
+                  verbose: true,
+                  outputFormat: 'stream-json',
+                  jsonSchema: undefined,
+                  permissionPromptToolName: this.options.permissionPromptToolName,
+                  allowedTools: undefined,
+                  thinkingConfig: thinkingConfigFromDesktopMode(
+                    this.options.thinkingMode,
+                  ),
+                  maxTurns: undefined,
+                  maxBudgetUsd: undefined,
+                  taskBudget: undefined,
+                  systemPrompt: this.options.systemPrompt,
+                  appendSystemPrompt: this.options.appendSystemPrompt,
+                  userSpecifiedModel: this.options.model,
+                  fallbackModel: undefined,
+                  teleport: undefined,
+                  sdkUrl: undefined,
+                  replayUserMessages: true,
+                  includePartialMessages: true,
+                  forkSession: false,
+                  rewindFiles: undefined,
+                  enableAuthStatus: false,
+                  agent: undefined,
+                  workload: undefined,
+                  exitOnComplete: false,
+                  createStructuredIO: inputPrompt =>
+                    this.createStructuredIO(inputPrompt, signal),
+                },
+              ),
+            ),
         )
         logDesktopHeadless('run_headless_done', {
           sessionId: this.options.sessionId,
@@ -261,6 +327,21 @@ class EmbeddedDesktopHeadlessRuntime implements DesktopHeadlessRuntime {
     switchSession(asSessionId(this.options.sessionId), null)
     if (this.options.sessionName) {
       cacheSessionTitle(this.options.sessionName)
+    }
+    this.applySelectedProvider()
+  }
+
+  private applySelectedProvider(): void {
+    const providerID = this.options.providerID?.trim()
+    const modelID = this.options.model?.trim()
+    if (!providerID || !modelID) return
+    const result = saveSelectedProvider({
+      providerID,
+      modelID,
+      baseURL: this.options.providerBaseURL,
+    })
+    if (result.error) {
+      throw result.error
     }
   }
 
@@ -443,6 +524,9 @@ function getInitialDesktopAppState(options: DesktopHeadlessRuntimeOptions) {
     toolPermissionContext: {
       ...appState.toolPermissionContext,
       mode: options.permissionMode ?? 'default',
+      permissionProfile: options.permissionProfile ?? ':workspace',
+      approvalPolicy: options.approvalPolicy ?? 'on-request',
+      approvalsReviewer: options.approvalsReviewer ?? 'user',
       additionalWorkingDirectories,
       isBypassPermissionsModeAvailable:
         options.permissionMode === 'bypassPermissions',
@@ -524,6 +608,18 @@ function applyTaskModelEnv(options: DesktopHeadlessRuntimeOptions): void {
     options.defaultModel?.trim() || mainModel
   process.env.CODEPILOTX_DEEP_MODEL =
     options.deepModel?.trim() || mainModel
+}
+
+function applyAskUserQuestionMaxQuestionsEnv(
+  options: DesktopHeadlessRuntimeOptions,
+): void {
+  if (options.askUserQuestionMaxQuestions) {
+    process.env.CODEPILOTX_ASK_USER_QUESTION_MAX_QUESTIONS = String(
+      options.askUserQuestionMaxQuestions,
+    )
+  } else {
+    delete process.env.CODEPILOTX_ASK_USER_QUESTION_MAX_QUESTIONS
+  }
 }
 
 function thinkingConfigFromDesktopMode(

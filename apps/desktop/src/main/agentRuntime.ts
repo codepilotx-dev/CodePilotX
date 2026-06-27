@@ -17,11 +17,11 @@ import type {
   DesktopThinkingMode,
   DesktopUserMessageContent,
 } from '../shared/types.js'
-import type { PermissionMode } from '@codepilotx/tui/types/permissions.js'
+import type { PermissionMode } from '@codepilotx/core/agent/permissionMode.js'
 import {
   CODEPILOTX_CONFIG_DIR_ENV,
   LEGACY_CLAUDE_CONFIG_DIR_ENV,
-} from '@codepilotx/tui/utils/envUtils.js'
+} from '@codepilotx/core/config/env.js'
 import {
   buildDesktopContextUsage,
   getUsageFromAssistantRecord,
@@ -31,6 +31,7 @@ import {
   extractPartialText,
   getMessageContent,
   getResultErrorMessage,
+  getToolUseId,
   getUpdatedPermissions,
   summarizeToolInput,
 } from './agentRuntimeSupport.js'
@@ -41,6 +42,14 @@ export type DesktopAgentRuntimePreference =
   | 'embedded-headless'
   | 'subprocess'
 
+export type DesktopCodexApprovalPolicy =
+  | 'untrusted'
+  | 'on-request'
+  | 'on-failure'
+  | 'never'
+
+export type DesktopCodexApprovalsReviewer = 'user' | 'auto'
+
 export type DesktopAgentRuntimeContext = {
   sessionId: string
   workspacePath: string
@@ -48,7 +57,13 @@ export type DesktopAgentRuntimeContext = {
   configDirectoryPath?: string
   runtimePreference?: DesktopAgentRuntimePreference
   resumeExistingSession?: boolean
+  permissionProfile?: string
+  approvalPolicy?: DesktopCodexApprovalPolicy
+  approvalsReviewer?: DesktopCodexApprovalsReviewer
   permissionMode?: DesktopPermissionMode
+  providerID?: string
+  providerBaseURL?: string
+  debugConversationDump?: boolean
   model?: string
   fallbackModel?: string
   smallFastModel?: string
@@ -60,12 +75,20 @@ export type DesktopAgentRuntimeContext = {
   systemPrompt?: string
   appendSystemPrompt?: string
   additionalDirectories?: string[]
+  askUserQuestionMaxQuestions?: number
   emit(event: DesktopAgentEvent): void
   requestPermission(request: DesktopPermissionRequest): Promise<DesktopPermissionDecision>
 }
 
 export type DesktopAgentRuntime = {
   setModel(model: string | undefined): void
+  setModelProvider(
+    providerID: string | undefined,
+    model: string | undefined,
+    providerBaseURL: string | undefined,
+  ): void
+  setPermissionMode(permissionMode: DesktopPermissionMode): void
+  setDebugConversationDump(enabled: boolean): void
   runUserTurn(content: DesktopUserMessageContent, signal: AbortSignal): Promise<void>
 }
 
@@ -99,17 +122,11 @@ export function createDesktopAgentRuntime(
     })
     return new InProcessDesktopAgentRuntime(context)
   } catch (error) {
-    if (
-      preference === 'auto' &&
-      context.agentExecutablePath &&
-      existsSync(context.agentExecutablePath)
-    ) {
-      desktopDebug('runtime_create_embedded_failed_fallback_subprocess', {
-        sessionId: context.sessionId,
-        message: error instanceof Error ? error.message : String(error),
-      })
-      return new CliDesktopAgentRuntime(context)
-    }
+    desktopDebug('runtime_create_embedded_failed', {
+      sessionId: context.sessionId,
+      preference,
+      message: error instanceof Error ? error.message : String(error),
+    })
     throw error
   }
 }
@@ -125,6 +142,35 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
 
   setModel(model: string | undefined): void {
     this.context.model = model
+  }
+
+  setModelProvider(
+    providerID: string | undefined,
+    model: string | undefined,
+    providerBaseURL: string | undefined,
+  ): void {
+    this.context.providerID = providerID
+    this.context.providerBaseURL = providerBaseURL
+    this.setModel(model)
+  }
+
+  setPermissionMode(permissionMode: DesktopPermissionMode): void {
+    this.context.permissionMode = permissionMode
+    console.info(
+      `[desktop-runtime] ${new Date().toISOString()} subprocess_set_permission_mode ${JSON.stringify({
+        sessionId: this.context.sessionId,
+        permissionMode,
+      })}`,
+    )
+  }
+
+  setDebugConversationDump(enabled: boolean): void {
+    this.context.debugConversationDump = enabled
+    if (enabled) {
+      desktopDebug('runtime_subprocess_debug_dump_unsupported', {
+        sessionId: this.context.sessionId,
+      })
+    }
   }
 
   async runUserTurn(
@@ -156,6 +202,8 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
         '--include-partial-messages',
         '--replay-user-messages',
         ...this.sessionResumeArgs(),
+        // TODO: re-enable after TUI binary supports --config (codex permissions alignment)
+        // ...codexPermissionConfigArgs(this.context),
         ...permissionModeArgs(this.context.permissionMode),
         ...permissionPromptToolArgs(),
         ...modelArgs(this.context.model),
@@ -178,6 +226,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
             process.env[LEGACY_CLAUDE_CONFIG_DIR_ENV],
           CODEPILOTX_DISABLE_MDM_READ: '1',
           CODEPILOTX_DISABLE_MIN_VERSION_CHECK: '1',
+          ...askUserQuestionMaxQuestionsEnv(this.context),
           CLAUDE_CODE_DISABLE_MDM_READ: '1',
           CLAUDE_CODE_DISABLE_MIN_VERSION_CHECK: '1',
           ...taskModelEnv(this.context),
@@ -370,6 +419,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
           sessionId: this.context.sessionId,
           toolName,
           summary: summarizeToolInput(toolName, item.input),
+          toolUseId: getToolUseId(item),
         })
       } else if (item.type === 'tool_result') {
         const toolName = this.toolNameForResult(item)
@@ -378,6 +428,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
           sessionId: this.context.sessionId,
           toolName,
           summary: summarizeToolInput(toolName, item.content),
+          toolUseId: getToolUseId(item),
           isError: item.is_error === true,
           metadata: buildToolResultMetadata(item.content),
         })
@@ -417,6 +468,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
         sessionId: this.context.sessionId,
         toolName,
         summary: summarizeToolInput(toolName, item.content),
+        toolUseId: getToolUseId(item),
         isError: item.is_error === true,
         metadata: buildToolResultMetadata(item.content),
       })
@@ -569,7 +621,13 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
       workspacePath: context.workspacePath,
       configDirectoryPath: context.configDirectoryPath,
       resumeExistingSession: context.resumeExistingSession,
+      permissionProfile: context.permissionProfile,
+      approvalPolicy: context.approvalPolicy,
+      approvalsReviewer: context.approvalsReviewer,
       permissionMode: tuiPermissionMode(context.permissionMode),
+      providerID: context.providerID,
+      providerBaseURL: context.providerBaseURL,
+      debugConversationDump: context.debugConversationDump,
       model: context.model,
       smallFastModel: context.smallFastModel,
       fastModel: context.fastModel,
@@ -580,6 +638,7 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
       systemPrompt: context.systemPrompt,
       appendSystemPrompt: context.appendSystemPrompt,
       additionalDirectories: context.additionalDirectories,
+      askUserQuestionMaxQuestions: context.askUserQuestionMaxQuestions,
       permissionPromptToolName: permissionPromptToolName(),
       onOutput: (message, controls) =>
         this.handleStructuredOutput(message, controls),
@@ -589,6 +648,33 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
   setModel(model: string | undefined): void {
     this.context.model = model
     this.runtime.setModel(model)
+  }
+
+  setModelProvider(
+    providerID: string | undefined,
+    model: string | undefined,
+    providerBaseURL: string | undefined,
+  ): void {
+    this.context.providerID = providerID
+    this.context.providerBaseURL = providerBaseURL
+    this.runtime.setProvider(providerID, providerBaseURL)
+    this.setModel(model)
+  }
+
+  setPermissionMode(permissionMode: DesktopPermissionMode): void {
+    this.context.permissionMode = permissionMode
+    console.info(
+      `[desktop-runtime] ${new Date().toISOString()} embedded_set_permission_mode ${JSON.stringify({
+        sessionId: this.context.sessionId,
+        permissionMode,
+      })}`,
+    )
+    this.runtime.setPermissionMode(tuiPermissionMode(permissionMode))
+  }
+
+  setDebugConversationDump(enabled: boolean): void {
+    this.context.debugConversationDump = enabled
+    this.runtime.setDebugConversationDump(enabled)
   }
 
   async runUserTurn(
@@ -736,6 +822,7 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
           sessionId: this.context.sessionId,
           toolName,
           summary: summarizeToolInput(toolName, item.input),
+          toolUseId: getToolUseId(item),
         })
       } else if (item.type === 'tool_result') {
         const toolName = this.toolNameForResult(item)
@@ -744,6 +831,7 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
           sessionId: this.context.sessionId,
           toolName,
           summary: summarizeToolInput(toolName, item.content),
+          toolUseId: getToolUseId(item),
           isError: item.is_error === true,
           metadata: buildToolResultMetadata(item.content),
         })
@@ -783,6 +871,7 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
         sessionId: this.context.sessionId,
         toolName,
         summary: summarizeToolInput(toolName, item.content),
+        toolUseId: getToolUseId(item),
         isError: item.is_error === true,
         metadata: buildToolResultMetadata(item.content),
       })
@@ -869,6 +958,15 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
           ? request.description
           : summarizeToolInput(toolName, input),
     })
+    console.info(
+      `[desktop-runtime] ${new Date().toISOString()} embedded_control_decision ${JSON.stringify({
+        sessionId: this.context.sessionId,
+        permissionMode: this.context.permissionMode,
+        toolName,
+        behavior: decision.behavior,
+        requestId,
+      })}`,
+    )
 
     if (decision.behavior === 'allow') {
       const response: Record<string, unknown> = {
@@ -929,6 +1027,26 @@ export function permissionModeArgs(
     return ['--dangerously-skip-permissions']
   }
   return ['--permission-mode', permissionMode ?? 'default']
+}
+
+export type DesktopCodexPermissionConfigArgs = {
+  permissionProfile?: string
+  approvalPolicy?: DesktopCodexApprovalPolicy
+  approvalsReviewer?: DesktopCodexApprovalsReviewer
+}
+
+export function codexPermissionConfigArgs(
+  config: DesktopCodexPermissionConfigArgs,
+): string[] {
+  return [
+    ...codexConfigOverrideArg('default_permissions', config.permissionProfile),
+    ...codexConfigOverrideArg('approval_policy', config.approvalPolicy),
+    ...codexConfigOverrideArg('approvals_reviewer', config.approvalsReviewer),
+  ]
+}
+
+function codexConfigOverrideArg(key: string, value: string | undefined): string[] {
+  return value ? ['--config', `${key}=${JSON.stringify(value)}`] : []
 }
 
 function getDesktopUserMessageContentTextLength(
@@ -1009,4 +1127,16 @@ function additionalDirectoryArgs(
   return additionalDirectories && additionalDirectories.length > 0
     ? ['--add-dir', ...additionalDirectories]
     : []
+}
+
+export function askUserQuestionMaxQuestionsEnv(context: {
+  askUserQuestionMaxQuestions?: number
+}): Record<string, string> {
+  return context.askUserQuestionMaxQuestions
+    ? {
+        CODEPILOTX_ASK_USER_QUESTION_MAX_QUESTIONS: String(
+          context.askUserQuestionMaxQuestions,
+        ),
+      }
+    : {}
 }

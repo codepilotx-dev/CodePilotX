@@ -1,4 +1,11 @@
 import type { AgentPermissionPolicy } from './permissions.js'
+import {
+  CODEX_PROJECT_CONFIG_SOURCE,
+  parseCodexProjectConfig,
+  type CodexHookDiagnostic,
+  type CodexMcpServerDiagnostic,
+  type CodexProjectConfig,
+} from './codexProjectConfig.js'
 
 export type CodexGuidanceSource = {
   path: string
@@ -9,33 +16,16 @@ export type CodexGuidanceSource = {
   summary: string
 }
 
-export type CodexMcpServerDiagnostic = {
-  name: string
-  source: string
-  command?: string
-  args?: string[]
-  url?: string
-}
-
-export type CodexHookDiagnostic = {
-  event: string
-  matcher?: string
-  commands: string[]
-  source: string
+export type {
+  CodexHookDiagnostic,
+  CodexMcpServerDiagnostic,
+  CodexProjectConfig,
 }
 
 export type CodexSkillDiagnostic = {
   name: string
   description?: string
   path: string
-}
-
-export type CodexProjectConfig = {
-  approval?: string
-  sandbox?: string
-  projectRootMarkers?: string[]
-  mcpServers?: CodexMcpServerDiagnostic[]
-  hooks?: CodexHookDiagnostic[]
 }
 
 export type CodexProjectConfigDiagnostics = {
@@ -81,20 +71,6 @@ export type BuildCodexContextDiagnosticsFromWorkspaceOptions =
   BuildCodexContextDiagnosticsOptions & {
     readFile: CodexWorkspaceFileReader
   }
-
-const PROJECT_CONFIG_SOURCE = '.codex/config.toml'
-const PROJECT_IGNORED_KEYS = new Set([
-  'openai_base_url',
-  'chatgpt_base_url',
-  'apps_mcp_product_sku',
-  'model_provider',
-  'model_providers',
-  'notify',
-  'profile',
-  'profiles',
-  'experimental_realtime_ws_base_url',
-  'otel',
-])
 
 export async function buildCodexContextDiagnosticsFromWorkspaceFiles({
   cwd,
@@ -164,7 +140,7 @@ export async function readCodexProjectConfigFromWorkspaceFiles(
   projectRoot: string,
   readFile: CodexWorkspaceFileReader,
 ): Promise<CodexProjectConfigDiagnostics> {
-  const config = await readFile(PROJECT_CONFIG_SOURCE)
+  const config = await readFile(CODEX_PROJECT_CONFIG_SOURCE)
   if (!config) {
     return {
       path: null,
@@ -174,7 +150,7 @@ export async function readCodexProjectConfigFromWorkspaceFiles(
     }
   }
   return readCodexProjectConfigFromContent(
-    config.path ?? joinWorkspacePath(projectRoot, PROJECT_CONFIG_SOURCE),
+    config.path ?? joinWorkspacePath(projectRoot, CODEX_PROJECT_CONFIG_SOURCE),
     config.content,
   )
 }
@@ -202,133 +178,6 @@ export function readCodexProjectConfigFromContent(
   }
 }
 
-function parseCodexProjectConfig(
-  content: string,
-): Omit<CodexProjectConfigDiagnostics, 'path'> {
-  const config: CodexProjectConfig = {}
-  const ignoredProjectKeys = new Set<string>()
-  const diagnostics: string[] = []
-  const mcpServers = new Map<string, CodexMcpServerDiagnostic>()
-  const hookGroups: CodexHookDiagnostic[] = []
-  let section:
-    | { type: 'root' }
-    | { type: 'mcp'; name: string }
-    | { type: 'hook'; event: string }
-    | { type: 'hookCommand'; event: string } = { type: 'root' }
-
-  for (const rawLine of content.split(/\r?\n/)) {
-    const line = stripTomlComment(rawLine).trim()
-    if (!line) continue
-
-    const arrayTable = line.match(/^\[\[([^\]]+)]]$/)
-    if (arrayTable) {
-      const parts = arrayTable[1].split('.')
-      if (parts.length === 2 && parts[0] === 'hooks') {
-        const event = parts[1]
-        hookGroups.push({
-          event,
-          commands: [],
-          source: PROJECT_CONFIG_SOURCE,
-        })
-        section = { type: 'hook', event }
-        continue
-      }
-      if (
-        parts.length === 3 &&
-        parts[0] === 'hooks' &&
-        parts[2] === 'hooks'
-      ) {
-        section = { type: 'hookCommand', event: parts[1] }
-        ensureHookGroup(hookGroups, parts[1])
-        continue
-      }
-      diagnostics.push(`忽略不支持的 hooks 表: ${arrayTable[1]}`)
-      continue
-    }
-
-    const table = line.match(/^\[([^\]]+)]$/)
-    if (table) {
-      const parts = table[1].split('.')
-      if (parts.length === 2 && parts[0] === 'mcp_servers') {
-        const name = parts[1]
-        mcpServers.set(name, {
-          name,
-          source: PROJECT_CONFIG_SOURCE,
-        })
-        section = { type: 'mcp', name }
-      } else {
-        section = { type: 'root' }
-        diagnostics.push(`忽略不支持的配置表: ${table[1]}`)
-      }
-      continue
-    }
-
-    const assignment = line.match(/^([A-Za-z0-9_-]+)\s*=\s*(.+)$/)
-    if (!assignment) {
-      throw new Error(`不支持的配置行: ${line}`)
-    }
-
-    const key = assignment[1]
-    const value = parseTomlValue(assignment[2])
-
-    if (section.type === 'root') {
-      if (PROJECT_IGNORED_KEYS.has(key)) {
-        ignoredProjectKeys.add(key)
-        continue
-      }
-      if (key === 'approval' && typeof value === 'string') {
-        config.approval = value
-      } else if (key === 'sandbox' && typeof value === 'string') {
-        config.sandbox = value
-      } else if (key === 'project_root_markers' && isStringArray(value)) {
-        config.projectRootMarkers = value
-      }
-      continue
-    }
-
-    if (section.type === 'mcp') {
-      const server = mcpServers.get(section.name)
-      if (!server) continue
-      if (key === 'command' && typeof value === 'string') {
-        server.command = value
-      } else if (key === 'url' && typeof value === 'string') {
-        server.url = value
-      } else if (key === 'args' && isStringArray(value)) {
-        server.args = value
-      }
-      continue
-    }
-
-    if (section.type === 'hook') {
-      const hook = ensureHookGroup(hookGroups, section.event)
-      if (key === 'matcher' && typeof value === 'string') {
-        hook.matcher = value
-      }
-      continue
-    }
-
-    if (section.type === 'hookCommand') {
-      const hook = ensureHookGroup(hookGroups, section.event)
-      if (key === 'command' && typeof value === 'string') {
-        hook.commands.push(value)
-      }
-    }
-  }
-
-  if (mcpServers.size > 0) {
-    config.mcpServers = [...mcpServers.values()]
-  }
-  if (hookGroups.length > 0) {
-    config.hooks = hookGroups
-  }
-
-  return {
-    config,
-    ignoredProjectKeys: [...ignoredProjectKeys].sort(),
-    diagnostics,
-  }
-}
-
 function directoriesFromRoot(root: string, cwd: string): string[] {
   if (cwd === root) return [root]
   if (!cwd.startsWith(`${root}/`)) return [root, cwd]
@@ -341,66 +190,6 @@ function directoriesFromRoot(root: string, cwd: string): string[] {
     directories.push(current)
   }
   return directories
-}
-
-function ensureHookGroup(
-  hookGroups: CodexHookDiagnostic[],
-  event: string,
-): CodexHookDiagnostic {
-  const existing = [...hookGroups].reverse().find(hook => hook.event === event)
-  if (existing) return existing
-  const created = {
-    event,
-    commands: [],
-    source: PROJECT_CONFIG_SOURCE,
-  }
-  hookGroups.push(created)
-  return created
-}
-
-function parseTomlValue(rawValue: string): string | string[] {
-  const value = rawValue.trim()
-  if (value.startsWith('"')) {
-    return parseTomlString(value)
-  }
-  if (value.startsWith('[')) {
-    return parseTomlStringArray(value)
-  }
-  throw new Error(`不支持的 TOML 值: ${value}`)
-}
-
-function parseTomlString(value: string): string {
-  if (!value.endsWith('"') || value.length < 2) {
-    throw new Error(`字符串未闭合: ${value}`)
-  }
-  return value.slice(1, -1).replace(/\\"/g, '"')
-}
-
-function parseTomlStringArray(value: string): string[] {
-  if (!value.endsWith(']')) {
-    throw new Error(`数组未闭合: ${value}`)
-  }
-  const body = value.slice(1, -1).trim()
-  if (!body) return []
-  return body.split(',').map(item => parseTomlString(item.trim()))
-}
-
-function stripTomlComment(line: string): string {
-  let inString = false
-  for (let index = 0; index < line.length; index += 1) {
-    const char = line[index]
-    if (char === '"' && line[index - 1] !== '\\') {
-      inString = !inString
-    }
-    if (char === '#' && !inString) {
-      return line.slice(0, index)
-    }
-  }
-  return line
-}
-
-function isStringArray(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every(item => typeof item === 'string')
 }
 
 function summarizeMarkdown(content: string): string {

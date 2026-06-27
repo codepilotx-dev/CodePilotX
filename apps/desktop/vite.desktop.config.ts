@@ -6,6 +6,14 @@ import {
   desktopOutDir,
 } from './vite.desktop.shared.js'
 
+const desktopRendererPort = Number.parseInt(
+  process.env.DESKTOP_RENDERER_PORT ??
+    process.env.CODEPILOTX_DESKTOP_RENDERER_PORT ??
+    process.env.CLAUDE_CODE_DESKTOP_RENDERER_PORT ??
+    '5000',
+  10,
+)
+
 export default defineConfig({
   root: 'apps/desktop/src/renderer',
   base: './',
@@ -13,7 +21,7 @@ export default defineConfig({
   define: desktopMacroDefines,
   server: {
     host: '127.0.0.1',
-    port: 5000,
+    port: desktopRendererPort,
     strictPort: true,
     hmr: {
       overlay: false,

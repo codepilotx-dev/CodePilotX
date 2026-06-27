@@ -296,6 +296,16 @@ export type DesktopSessionStatus = AgentSessionStatus
 
 export type DesktopPermissionMode = DesktopAgentPermissionMode
 
+export type DesktopPermissionProfile = string
+
+export type DesktopApprovalPolicy =
+  | 'untrusted'
+  | 'on-request'
+  | 'on-failure'
+  | 'never'
+
+export type DesktopApprovalsReviewer = 'user' | 'auto'
+
 export type DesktopThinkingMode = AgentThinkingMode
 
 export type DesktopDrawerTab =
@@ -531,7 +541,12 @@ export type DesktopPersonality =
 
 export type DesktopReviewView = 'inline' | 'split'
 
+export type DesktopAskUserQuestionMaxQuestions = 1 | 2 | 3 | 4
+
 export type DesktopStoredSettings = {
+  permissionProfile?: DesktopPermissionProfile
+  approvalPolicy?: DesktopApprovalPolicy
+  approvalsReviewer?: DesktopApprovalsReviewer
   permissionMode: DesktopPermissionMode
   model: string
   fallbackModel: string
@@ -561,8 +576,8 @@ gitBranchPrefix: string
   commitMessagePrompt: string
   pullRequestPrompt: string
   githubOAuthClientId: string
-  sandboxMode: DesktopSandboxMode
-  allowNetworkAccess: boolean
+  sandboxMode?: DesktopSandboxMode
+  allowNetworkAccess?: boolean
   installCodexDependencies: boolean
   personality: DesktopPersonality
   customInstructions: string
@@ -571,6 +586,7 @@ gitBranchPrefix: string
   githubMemorySyncEnabled: boolean
   githubMemoryRepository: string
   reviewView: DesktopReviewView
+  askUserQuestionMaxQuestions: DesktopAskUserQuestionMaxQuestions
   browserAllowedSites: string[]
 }
 
@@ -611,14 +627,19 @@ export type DesktopThemeMode = 'light' | 'dark' | 'system'
 
 export type DesktopThemeVariant = 'light' | 'dark'
 
+export type DesktopThemeFontEntry = {
+  preset: string
+  fallback: string
+}
+
 export type DesktopThemeConfigV1 = {
   codeThemeId: string
   theme: {
     accent: string
     contrast: number
     fonts: {
-      code: string
-      ui: string
+      code: DesktopThemeFontEntry
+      ui: DesktopThemeFontEntry
     }
     ink: string
     opaqueWindows: boolean
@@ -679,6 +700,9 @@ export type DesktopSessionListItem = {
   standalone?: boolean
   pinnedAt?: string | null
   archivedAt?: string | null
+  permissionProfile?: DesktopPermissionProfile
+  approvalPolicy?: DesktopApprovalPolicy
+  approvalsReviewer?: DesktopApprovalsReviewer
   permissionMode: DesktopPermissionMode
   model: string | null
   fallbackModel: string | null
@@ -692,7 +716,13 @@ export type DesktopSessionListItem = {
 }
 
 export type DesktopSessionSettingsSnapshot = {
+  permissionProfile?: DesktopPermissionProfile
+  approvalPolicy?: DesktopApprovalPolicy
+  approvalsReviewer?: DesktopApprovalsReviewer
   permissionMode: DesktopPermissionMode
+  providerID?: ModelProviderID
+  providerBaseURL?: string
+  debugConversationDump?: boolean
   model?: string
   fallbackModel?: string
   smallFastModel?: string
@@ -704,6 +734,7 @@ export type DesktopSessionSettingsSnapshot = {
   systemPrompt?: string
   appendSystemPrompt?: string
   additionalDirectories: string[]
+  askUserQuestionMaxQuestions?: DesktopAskUserQuestionMaxQuestions
 }
 
 export type DesktopSessionViewSnapshot = {
@@ -741,7 +772,13 @@ export type DesktopWorkflowEvent = ThreadEvent
 
 export type CreateDesktopSessionOptions = {
   workspacePath?: string
+  permissionProfile?: DesktopPermissionProfile
+  approvalPolicy?: DesktopApprovalPolicy
+  approvalsReviewer?: DesktopApprovalsReviewer
   permissionMode?: DesktopPermissionMode
+  providerID?: ModelProviderID
+  providerBaseURL?: string
+  debugConversationDump?: boolean
   model?: string
   fallbackModel?: string
   smallFastModel?: string
@@ -753,12 +790,20 @@ export type CreateDesktopSessionOptions = {
   systemPrompt?: string
   appendSystemPrompt?: string
   additionalDirectories?: string[]
+  askUserQuestionMaxQuestions?: DesktopAskUserQuestionMaxQuestions
 }
 
 export type CreateDesktopSessionResult = {
   sessionId: string
   workspace: DesktopWorkspace
   standalone: boolean
+}
+
+export type DesktopModelSelection = {
+  providerID?: ModelProviderID
+  providerBaseURL?: string
+  model?: string
+  debugConversationDump?: boolean
 }
 
 export type DesktopBuiltinPlugin = {
@@ -841,6 +886,42 @@ export type DesktopUpdateStatus =
   | { phase: 'downloaded' }
   | { phase: 'error'; message: string }
   | { phase: 'no-update' }
+
+export type DebugToolProbeMode = 'safe' | 'realManual' | 'realAuto'
+
+export type DebugToolProbeItemStatus =
+  | 'passed'
+  | 'failed'
+  | 'permissionDenied'
+  | 'unsupportedProbe'
+  | 'skippedByEnvironment'
+
+export type DebugToolProbeItem = {
+  toolName: string
+  status: DebugToolProbeItemStatus
+  reason?: string
+  durationMs?: number
+  permissionRequestId?: string
+  permissionDecision?: string
+  inputSummary?: string
+  error?: string
+}
+
+export type DebugToolProbeReport = {
+  runId: string
+  mode: DebugToolProbeMode
+  startedAt: string
+  finishedAt?: string
+  cancelled?: boolean
+  totalTools: number
+  passed: number
+  failed: number
+  permissionDenied: number
+  unsupportedProbe: number
+  skippedByEnvironment: number
+  items: DebugToolProbeItem[]
+  logPath?: string
+}
 
 export type DesktopApi = {
   getAuthStatus(): Promise<DesktopAuthStatus>
@@ -983,7 +1064,7 @@ export type DesktopApi = {
   sendUserMessage(
     sessionId: string,
     content: DesktopUserMessageInput,
-    model?: string,
+    model?: string | DesktopModelSelection,
   ): Promise<void>
   respondToPermission(
     sessionId: string,
@@ -1009,4 +1090,11 @@ export type DesktopApi = {
   downloadUpdate(): Promise<void>
   quitAndInstall(): Promise<void>
   onUpdateStatusChange(callback: (status: DesktopUpdateStatus) => void): () => void
+  listDebugBuiltinTools(): Promise<{
+    toolNames: string[]
+    enabled: boolean[]
+    hasProbeInput: boolean[]
+  }>
+  runDebugToolProbe(mode: DebugToolProbeMode): Promise<DebugToolProbeReport>
+  cancelDebugToolProbe(runId: string): Promise<void>
 }
