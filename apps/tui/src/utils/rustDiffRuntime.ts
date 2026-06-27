@@ -5,6 +5,7 @@ import { logForDebugging } from './debug.js'
 import { findRustShellRuntimeExecutable } from './rustShellRuntime.js'
 
 type RustDiffEvent =
+  | { type: 'started' }
   | { type: 'completed'; hunks: StructuredPatchHunk[] }
   | { type: 'failed'; message: string }
 
@@ -31,9 +32,11 @@ export function tryGetRustPatchFromContents({
   }
   const runtimePath = findRustShellRuntimeExecutable()
   if (!runtimePath) {
+    logForDebugging('Rust diff runtime fallback: runtime executable not found')
     return null
   }
 
+  logForDebugging('Rust diff runtime enabled')
   const result = spawnSync(runtimePath, ['diff'], {
     input: JSON.stringify({
       oldContent,
@@ -66,6 +69,9 @@ function parseDiffEvents(stdout: string): StructuredPatchHunk[] {
     const event = JSON.parse(line) as RustDiffEvent
     if (event.type === 'completed') {
       return event.hunks
+    }
+    if (event.type === 'started') {
+      continue
     }
     if (event.type === 'failed') {
       throw new Error(event.message)

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from 'bun:test'
 import {
   rustSearchCommandForArgs,
   shouldUseRustSearchRuntime,
+  tryRunRustSearchRuntime,
 } from './rustSearchRuntime.js'
 
 const ORIGINAL_ENV = { ...process.env }
@@ -64,7 +65,7 @@ describe('shouldUseRustSearchRuntime', () => {
         '2',
         'foo',
       ]),
-    ).toBe(false)
+    ).toBe(true)
     expect(
       shouldUseRustSearchRuntime([
         '--hidden',
@@ -74,6 +75,51 @@ describe('shouldUseRustSearchRuntime', () => {
         'ts',
         'foo',
       ]),
+    ).toBe(true)
+    expect(
+      shouldUseRustSearchRuntime([
+        '--hidden',
+        '--max-columns',
+        '500',
+        '-U',
+        '--multiline-dotall',
+        'foo\\nbar',
+      ]),
+    ).toBe(true)
+    expect(
+      shouldUseRustSearchRuntime([
+        '--hidden',
+        '--max-columns',
+        '500',
+        '--type',
+        'unknown-type',
+        'foo',
+      ]),
     ).toBe(false)
+    expect(
+      shouldUseRustSearchRuntime([
+        '--hidden',
+        '--max-columns',
+        '500',
+        '--glob',
+        'C:\\absolute\\*.ts',
+        'foo',
+      ]),
+    ).toBe(false)
+  })
+})
+
+describe('tryRunRustSearchRuntime', () => {
+  test('falls back when the configured runtime cannot execute', async () => {
+    process.env.CODEPILOTX_RUST_GREP = '1'
+    process.env.CODEPILOTX_RUST_RUNTIME_PATH = 'package.json'
+
+    await expect(
+      tryRunRustSearchRuntime(
+        ['--hidden', '--max-columns', '500', 'needle'],
+        process.cwd(),
+        new AbortController().signal,
+      ),
+    ).resolves.toBeNull()
   })
 })

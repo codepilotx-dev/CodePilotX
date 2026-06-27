@@ -7,17 +7,44 @@ import { findRustShellRuntimeExecutable } from './rustShellRuntime.js'
 type RustSearchCommand = 'glob' | 'grep'
 
 type RustSearchEvent =
+  | { type: 'started' }
   | { type: 'completed'; lines: string[] }
   | { type: 'failed'; message: string }
 
-const UNSUPPORTED_GREP_ARGS = new Set([
-  '-A',
-  '-B',
-  '-C',
-  '-U',
-  '--multiline-dotall',
-  '--type',
-  '--context',
+const SUPPORTED_GREP_TYPES = new Set([
+  'c',
+  'cpp',
+  'c++',
+  'csharp',
+  'cs',
+  'css',
+  'docker',
+  'go',
+  'html',
+  'java',
+  'js',
+  'json',
+  'kotlin',
+  'kt',
+  'markdown',
+  'md',
+  'php',
+  'py',
+  'python',
+  'rb',
+  'ruby',
+  'rs',
+  'rust',
+  'scala',
+  'sh',
+  'shell',
+  'swift',
+  'toml',
+  'ts',
+  'txt',
+  'xml',
+  'yaml',
+  'yml',
 ])
 
 export function rustSearchCommandForArgs(
@@ -45,17 +72,31 @@ export async function tryRunRustSearchRuntime(
   target: string,
   abortSignal: AbortSignal,
 ): Promise<string[] | null> {
-  if (!shouldUseRustSearchRuntime(args)) {
+  const command = rustSearchCommandForArgs(args)
+  if (!command) {
     return null
   }
 
-  const command = rustSearchCommandForArgs(args)
+  if (!shouldUseRustSearchRuntime(args)) {
+    if (
+      (command === 'glob' && isEnvTruthy(process.env.CODEPILOTX_RUST_GLOB)) ||
+      (command === 'grep' && isEnvTruthy(process.env.CODEPILOTX_RUST_GREP))
+    ) {
+      logForDebugging(
+        `Rust ${command} runtime fallback: unsupported arguments ${JSON.stringify(args)}`,
+      )
+    }
+    return null
+  }
+
   const runtimePath = findRustShellRuntimeExecutable()
-  if (!command || !runtimePath) {
+  if (!runtimePath) {
+    logForDebugging(`Rust ${command} runtime fallback: runtime executable not found`)
     return null
   }
 
   try {
+    logForDebugging(`Rust ${command} runtime enabled for ${target}`)
     return await runRustSearchRuntime(runtimePath, command, args, target, abortSignal)
   } catch (error) {
     if (abortSignal.aborted) {
@@ -122,6 +163,9 @@ function parseSearchEvents(stdout: string): string[] {
     if (event.type === 'completed') {
       return event.lines
     }
+    if (event.type === 'started') {
+      continue
+    }
     if (event.type === 'failed') {
       throw new Error(event.message)
     }
@@ -154,8 +198,10 @@ function canUseRustGrepArgs(args: string[]): boolean {
   let patternCount = 0
   for (let i = 0; i < args.length; i++) {
     const arg = args[i]
-    if (UNSUPPORTED_GREP_ARGS.has(arg)) return false
     if (arg === '--hidden' || arg === '-i' || arg === '-l' || arg === '-c' || arg === '-n') {
+      continue
+    }
+    if (arg === '-U' || arg === '--multiline-dotall') {
       continue
     }
     if (arg === '--glob') {
@@ -166,6 +212,16 @@ function canUseRustGrepArgs(args: string[]): boolean {
     if (arg === '--max-columns') {
       const value = args[++i]
       if (!value || !/^\d+$/.test(value)) return false
+      continue
+    }
+    if (arg === '-A' || arg === '-B' || arg === '-C' || arg === '--context') {
+      const value = args[++i]
+      if (!value || !/^\d+$/.test(value)) return false
+      continue
+    }
+    if (arg === '--type') {
+      const value = args[++i]
+      if (!value || !SUPPORTED_GREP_TYPES.has(value)) return false
       continue
     }
     if (arg === '-e') {
