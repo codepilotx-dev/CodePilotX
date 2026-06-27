@@ -1,15 +1,18 @@
+.rt-DropdownMenuContent.rm-model-menu,
 .rm-model-menu .rt-DropdownMenuContent {
-  min-width: 270px;
-  max-width: 360px;
+  width: max-content;
+  max-width: min(360px, calc(100vw - 32px));
   max-height: min(420px, calc(100vh - 96px));
   overflow-y: auto;
   overscroll-behavior: contain;
-  border-radius: var(--r-lg);
-  background: var(--c-bg);
-  border: 1px solid var(--black-a2);
-  box-shadow: var(--sh-popover);
+  border-radius: 12px;
+  background: var(--c-popover-bg);
+  border: 1px solid var(--c-popover-border);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.10),
+    0 2px 6px rgba(0, 0, 0, 0.04);
   color: var(--c-text);
-  font-size: var(--fs-13);
+  font-size: var(--fs-14);
   padding: 6px;
 }
 
@@ -17,10 +20,11 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 7px 10px;
-  border-radius: var(--r-md);
+  min-height: 32px;
+  padding: 6px 10px;
+  border-radius: 8px;
   color: var(--c-text);
-  font-size: var(--fs-13);
+  font-size: var(--fs-14);
   line-height: 1.4;
   cursor: default;
   outline: none;
@@ -30,28 +34,31 @@
 
 .rm-model-menu .rt-DropdownMenuSubTrigger:hover,
 .rm-model-menu .rt-DropdownMenuSubTrigger[data-highlighted] {
-  background: var(--c-bg-row-hover);
+  background: var(--c-bg-hover);
 }
 
 .rm-model-menu .rt-DropdownMenuSubTrigger[data-state="open"] {
-  background: var(--c-bg-row-hover);
+  background: var(--c-bg-hover);
 }
 
+.rt-DropdownMenuSubContent.rm-model-menu,
 .rm-model-menu .rt-DropdownMenuSubContent {
-  min-width: 220px;
-  max-width: 320px;
+  width: max-content;
+  max-width: min(320px, calc(100vw - 32px));
   max-height: min(
     360px,
     var(--radix-dropdown-menu-content-available-height, calc(100vh - 96px))
   );
   overflow-y: auto;
   overscroll-behavior: contain;
-  border-radius: var(--r-lg);
-  background: var(--c-bg);
-  border: 1px solid var(--black-a2);
-  box-shadow: var(--sh-popover);
+  border-radius: 12px;
+  background: var(--c-popover-bg);
+  border: 1px solid var(--c-popover-border);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.10),
+    0 2px 6px rgba(0, 0, 0, 0.04);
   color: var(--c-text);
-  font-size: var(--fs-13);
+  font-size: var(--fs-14);
   padding: 6px;
 }
 
@@ -59,10 +66,11 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 7px 10px;
-  border-radius: var(--r-md);
+  min-height: 32px;
+  padding: 6px 10px;
+  border-radius: 8px;
   color: var(--c-text);
-  font-size: var(--fs-13);
+  font-size: var(--fs-14);
   line-height: 1.4;
   cursor: default;
   outline: none;
@@ -72,7 +80,7 @@
 
 .rm-model-menu .rt-DropdownMenuItem:hover,
 .rm-model-menu .rt-DropdownMenuItem[data-highlighted] {
-  background: var(--c-bg-row-hover);
+  background: var(--c-bg-hover);
 }
 
 .rm-model-menu .rt-DropdownMenuItem[data-disabled] {
@@ -89,8 +97,8 @@
 
 .rm-model-menu .rm-divider {
   height: 1px;
-  margin: var(--sp-1) 0;
-  background: var(--c-border-row);
+  margin: 4px 0;
+  background: var(--c-popover-divider);
 }
 
 .rm-model-menu .rm-empty {

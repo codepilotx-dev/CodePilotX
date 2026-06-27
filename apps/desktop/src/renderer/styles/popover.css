@@ -28,15 +28,37 @@
 [data-radix-popper-content-wrapper]:has(.popover),
 [data-radix-popper-content-wrapper]:has(.sidebar-context-menu-content),
 [data-radix-popper-content-wrapper]:has(.settings-dropdown-content),
-[data-radix-popper-content-wrapper]:has(.permission-select-content) {
+[data-radix-popper-content-wrapper]:has(.theme-dropdown-content),
+[data-radix-popper-content-wrapper]:has(.permission-select-content),
+[data-radix-popper-content-wrapper]:has(.appearance-color-popover),
+[data-radix-popper-content-wrapper]:has(.rm-model-menu) {
   z-index: 1000 !important;
   border-radius: 12px;
+  background: var(--c-popover-bg);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.10),
+    0 2px 6px rgba(0, 0, 0, 0.04);
   color: var(--c-text);
   font-size: var(--fs-14);
   outline: none !important;
   user-select: none;
   -webkit-user-select: none;
   -webkit-app-region: no-drag;
+}
+
+[data-radix-popper-content-wrapper]:has(.popover) > .popover,
+[data-radix-popper-content-wrapper]:has(.sidebar-context-menu-content)
+  > .sidebar-context-menu-content,
+[data-radix-popper-content-wrapper]:has(.settings-dropdown-content)
+  > .settings-dropdown-content,
+[data-radix-popper-content-wrapper]:has(.theme-dropdown-content)
+  > .theme-dropdown-content,
+[data-radix-popper-content-wrapper]:has(.permission-select-content)
+  > .permission-select-content,
+[data-radix-popper-content-wrapper]:has(.appearance-color-popover)
+  > .appearance-color-popover,
+[data-radix-popper-content-wrapper]:has(.rm-model-menu) > .rm-model-menu {
+  box-shadow: none !important;
 }
 
 .sidebar-context-menu-content.rt-BaseMenuContent {
@@ -450,10 +472,12 @@
   width: max-content;
   max-width: min(320px, calc(100vw - 32px));
   padding: 6px 8px;
-  border-radius: var(--radius-4);
-  border: 1px solid var(--black-a2);
-  background: var(--c-bg);
-  box-shadow: var(--sh-popover);
+  border-radius: 12px;
+  border: 1px solid var(--c-popover-border);
+  background: var(--c-popover-bg);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.10),
+    0 2px 6px rgba(0, 0, 0, 0.04);
   color: var(--c-text-meta);
   font-size: var(--fs-11);
   line-height: 1.4;

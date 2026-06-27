@@ -689,8 +689,8 @@
 
 
 .popover-review-turns {
-  min-width: 320px;
-  max-width: 420px;
+  width: max-content;
+  max-width: min(420px, calc(100vw - 32px));
 }
 
 
@@ -900,18 +900,22 @@
 .review-popover {
   position: fixed;
   z-index: 60;
-  min-width: 320px;
-  max-width: 420px;
+  width: max-content;
+  min-width: min(320px, calc(100vw - 32px));
+  max-width: min(420px, calc(100vw - 32px));
   display: flex;
   flex-direction: column;
   gap: 10px;
   padding: 12px;
-  border: 1px solid var(--c-border-soft);
-  border-radius: var(--radius-4);
-  background: var(--c-bg);
+  border: 1px solid var(--c-popover-border);
+  border-radius: 12px;
+  background: var(--c-popover-bg);
   color: var(--c-text);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.10),
+    0 2px 6px rgba(0, 0, 0, 0.04);
   font-family: var(--ff-sans);
+  font-size: var(--fs-14);
 }
 
 .review-popover-header {
@@ -980,7 +984,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-size: var(--fs-12);
+  font-size: var(--fs-14);
   color: var(--c-text-soft);
 }
 
@@ -1022,7 +1026,7 @@
   flex-direction: column;
   gap: 2px;
   padding-top: 4px;
-  border-top: 1px solid var(--c-border-faint);
+  border-top: 1px solid var(--c-popover-divider);
 }
 
 .review-popover-action {
@@ -1031,13 +1035,14 @@
   justify-content: space-between;
   gap: 8px;
   width: 100%;
-  padding: 6px 8px;
+  min-height: 32px;
+  padding: 6px 10px;
   border: 0;
-  border-radius: var(--radius-3);
+  border-radius: 8px;
   background: transparent;
   color: var(--c-text);
   font-family: inherit;
-  font-size: var(--fs-13);
+  font-size: var(--fs-14);
   text-align: left;
   cursor: pointer;
 }

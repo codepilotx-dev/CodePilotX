@@ -66,7 +66,7 @@ function renderAction(action: ContextMenuAction, key: number): ReactNode {
             {action.icon}
             {action.label}
           </ContextMenu.SubTrigger>
-          <ContextMenu.SubContent>
+          <ContextMenu.SubContent className="sidebar-context-menu-content">
             {action.children.map((child, childKey) =>
               renderAction(child, childKey),
             )}
