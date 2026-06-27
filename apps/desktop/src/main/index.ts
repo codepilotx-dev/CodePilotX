@@ -131,7 +131,7 @@ const sessions = new Map<string, DesktopSessionRecord>()
 const titleGenerationStartedSessionIds = new Set<string>()
 let activeSessionId: string | null = null
 let sessionStoreLoadPromise: Promise<void> | null = null
-const DESKTOP_BUILTIN_PLUGIN_IDS = ['minimax@builtin'] as const
+const DESKTOP_BUILTIN_PLUGIN_IDS = [] as const
 const DESKTOP_PRIMARY_SLASH_COMMANDS = [
   'effort',
   'model',

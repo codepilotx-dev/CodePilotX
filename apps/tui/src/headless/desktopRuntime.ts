@@ -17,7 +17,6 @@ import {
 import { createStore, type Store } from '../state/store.js'
 import { getDefaultAppState } from '../state/AppStateStore.js'
 import type { Tool, ToolPermissionContext, Tools } from '../Tool.js'
-import { MiniMaxTools } from '../tools/MiniMaxTool/MiniMaxTool.js'
 import { getAllBaseTools } from '../tools.js'
 import { getCommands } from '../commands.js'
 import { initBuiltinPlugins } from '../plugins/bundled/index.js'
@@ -25,7 +24,6 @@ import { runWithCwdOverride } from '../utils/cwd.js'
 import { getDenyRuleForTool } from '../utils/permissions/permissions.js'
 import type { PermissionMode } from '../types/permissions.js'
 import { cacheSessionTitle } from '../utils/sessionStorage.js'
-import { getSettings_DEPRECATED } from '../utils/settings/settings.js'
 import type { ThinkingConfig } from '../utils/thinking.js'
 import { asSessionId } from '../types/ids.js'
 import { runWithEmbeddedShutdownHandler } from '../utils/gracefulShutdown.js'
@@ -101,7 +99,6 @@ export type DesktopHeadlessRuntime = {
 }
 
 const DESKTOP_ENABLED_THINKING_BUDGET = 1_000_000_000
-const MINIMAX_BUILTIN_PLUGIN_ID = 'minimax@builtin'
 const DESKTOP_WORKFLOW_TOOL_NAMES = new Set([
   'Agent',
   'Skill',
@@ -589,10 +586,6 @@ function getDesktopHeadlessTools(
     ...getAllBaseTools().filter(tool =>
       DESKTOP_WORKFLOW_TOOL_NAMES.has(tool.name),
     ),
-    ...(getSettings_DEPRECATED().enabledPlugins?.[MINIMAX_BUILTIN_PLUGIN_ID] ===
-    true
-      ? MiniMaxTools
-      : []),
   ]
   const seen = new Set<string>()
   return tools.filter(tool => {

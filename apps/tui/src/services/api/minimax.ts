@@ -209,7 +209,7 @@ async function buildMiniMaxAiSdkTools(
   )
   const result: Record<string, ReturnType<typeof tool>> = {}
   for (const schema of schemas) {
-    if (!isMiniMaxToolCompatible(schema)) continue
+    if (!isAiSdkToolCompatible(schema)) continue
     const record = schema as Record<string, unknown>
     result[String(record.name)] = tool({
       description:
@@ -220,7 +220,7 @@ async function buildMiniMaxAiSdkTools(
   return result
 }
 
-function isMiniMaxToolCompatible(schema: BetaToolUnion): boolean {
+function isAiSdkToolCompatible(schema: BetaToolUnion): boolean {
   return (
     'name' in schema &&
     typeof schema.name === 'string' &&
@@ -696,10 +696,10 @@ function findUnsupportedMiniMaxInput(messages: Message[]): string | null {
     if (!Array.isArray(content)) continue
     for (const block of content) {
       if (block?.type === 'image') {
-        return 'MiniMax main chat uses the Anthropic-compatible text API and does not support image input. Use the MiniMaxVision or MiniMaxImage tool for image workflows.'
+        return 'MiniMax main chat uses the Anthropic-compatible text API and does not support image input. Use the official MiniMax CLI for image workflows, then pass text into chat.'
       }
       if (block?.type === 'document') {
-        return 'MiniMax main chat uses the Anthropic-compatible text API and does not support document input. Upload or inspect files with MiniMaxFile, then pass text into chat.'
+        return 'MiniMax main chat uses the Anthropic-compatible text API and does not support document input. Use the official MiniMax CLI or extract the document text, then pass text into chat.'
       }
     }
   }

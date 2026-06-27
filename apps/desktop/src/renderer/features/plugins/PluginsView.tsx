@@ -7,6 +7,7 @@ import {
   ChevronDown,
   Clock,
   Eye,
+  ExternalLink,
   FileSpreadsheet,
   GitBranch,
   MessageCircle,
@@ -37,12 +38,15 @@ type PluginTone = 'github' | 'chrome' | 'sheet' | 'slides' | 'slack' | 'data' | 
 type Plugin = {
   id: string
   builtinPluginId?: string
+  externalURL?: string
   name: string
   description: string
   icon: React.ReactNode
   tone: PluginTone
   installed: boolean
 }
+
+const MINIMAX_CLI_DOCS_URL = 'https://platform.minimax.io/docs/token-plan/minimax-cli'
 
 const PLUGINS: Plugin[] = [
   {
@@ -87,9 +91,9 @@ const PLUGINS: Plugin[] = [
   },
   {
     id: 'minimax',
-    builtinPluginId: 'minimax@builtin',
+    externalURL: MINIMAX_CLI_DOCS_URL,
     name: 'MiniMax',
-    description: 'Generate media, inspect images, manage files, and query quota',
+    description: 'Install the official MiniMax CLI for media, vision, speech, music, and quota workflows',
     icon: <Sparkles size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
     tone: 'creative',
     installed: false,
@@ -238,7 +242,11 @@ export function PluginsView(): React.ReactNode {
     })
   }, [filter, skills])
 
-  async function togglePlugin(plugin: Plugin): Promise<void> {
+  async function activatePlugin(plugin: Plugin): Promise<void> {
+    if (plugin.externalURL) {
+      await desktopClient.openExternalURL(plugin.externalURL)
+      return
+    }
     if (!plugin.builtinPluginId) return
     const result = await desktopClient.setBuiltinPluginEnabled(
       plugin.builtinPluginId,
@@ -532,17 +540,19 @@ export function PluginsView(): React.ReactNode {
                       : 'plugins-card-action'
                   }
                   disabled={plugin.installed && !plugin.builtinPluginId}
-                  onClick={() => { void togglePlugin(plugin) }}
+                  onClick={() => { void activatePlugin(plugin) }}
                   type="button"
                   title={
-                    plugin.installed
+                    plugin.externalURL
+                      ? '打开 MiniMax CLI 官方文档'
+                      : plugin.installed
                       ? plugin.builtinPluginId
                         ? '从 CodePilotX 移除'
                         : '已添加'
                       : '添加到 CodePilotX'
                   }
                 >
-                  {plugin.installed ? <Check size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} /> : <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
+                  {plugin.externalURL ? <ExternalLink size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} /> : plugin.installed ? <Check size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} /> : <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
                 </button>
               </li>
             ))}

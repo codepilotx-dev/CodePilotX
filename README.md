@@ -35,39 +35,35 @@ DeepSeek 使用 OpenAI-compatible API，但 CodePilotX 没有只做基础转发�
 
 ## MiniMax 优化
 
-MiniMax 在 CodePilotX 中是独立 provider，不只是 OpenAI-compatible 的一个 URL。主聊天和媒体能力分别做了适配。
+MiniMax 在 CodePilotX 中是独立 provider，不只是 OpenAI-compatible 的一个 URL。主聊天由内置 AI SDK 适配层处理，媒体能力建议交给 MiniMax 官方 CLI。
 
 ### 主聊天适配
 
-- 使用 `vercel-minimax-ai-provider` 和 AI SDK `streamText` 接入 MiniMax Anthropic-compatible endpoint。
+- 使用 AI SDK `streamText` 和 `@ai-sdk/anthropic` 接入 MiniMax Anthropic-compatible endpoint。
 - 默认使用 `https://api.minimaxi.com/anthropic/v1`，模型列表内置 `MiniMax-M2.7`、`MiniMax-M2.7-highspeed`、`MiniMax-M2.5`、`MiniMax-M2.1` 等。
 - 将本地 Anthropic 风格消息转换为 AI SDK `ModelMessage`，保留 user、assistant、tool result、tool call 和 reasoning 内容。
 - 将本地工具 schema 转成 AI SDK tool schema，让 MiniMax 主聊天也能参与 agent 工具调用。
 - 统一映射 MiniMax 响应到本项目的 `AssistantMessage`，包括文本、thinking、tool_use、finish reason、request id 和 usage。
-- 对 MiniMax 主聊天不支持的图片、文档输入给出明确错误，引导使用专门的 MiniMax 工具。
+- 对 MiniMax 主聊天不支持的图片、文档输入给出明确错误，引导使用官方 MiniMax CLI 或提取文本后再进入主聊天。
 - 对 MiniMax 常见错误码做中文化提示，包括限流、鉴权失败、余额不足、TPM/token 限制和参数错误。
 
-### MiniMax 工具集
+### MiniMax 官方 CLI
 
-仓库内置了一组可由 agent 调用的 MiniMax 工具：
+媒体、视觉、语音、音乐、文件和额度等 MiniMax 工作流不再由 CodePilotX 内置插件维护。插件页中的 MiniMax 卡片会打开官方安装入口：
 
-| 工具 | 能力 |
-| --- | --- |
-| `MiniMaxImage` | 文生图、图生图，支持比例、尺寸、seed、返回 URL 或 base64，并可保存本地文件。 |
-| `MiniMaxSpeech` | T2A 语音合成，支持同步和异步任务，保存返回音频。 |
-| `MiniMaxVideo` | 创建、查询、下载视频生成任务。 |
-| `MiniMaxMusic` | 音乐生成、歌词生成和翻唱相关流程。 |
-| `MiniMaxVision` | 图片理解和描述。 |
-| `MiniMaxFile` | 上传、列出、查询、下载、删除 MiniMax 平台文件，并对删除操作要求确认。 |
-| `MiniMaxQuota` | 查询 MiniMax Token Plan / quota 状态。 |
+- MiniMax CLI 文档：<https://platform.minimax.io/docs/token-plan/minimax-cli>
+- 官方仓库：<https://github.com/MiniMax-AI/cli>
 
-这些工具会复用 `MINIMAX_API_KEY` 或 `/connect` 保存的 MiniMax key，并通过本地权限系统检查读写路径。生成物默认写入本地 artifacts 目录，也支持显式指定输出路径。
+官方推荐安装命令：
+
+```bash
+npm install -g mmx-cli
+npx skills add MiniMax-AI/cli -y -g
+```
 
 相关实现主要在：
 
 - `apps/tui/src/services/api/minimax.ts`
-- `apps/tui/src/tools/MiniMaxTool/MiniMaxTool.ts`
-- `apps/tui/src/tools/MiniMaxTool/client.ts`
 - `apps/tui/src/utils/model/providerConfig.ts`
 
 ## 快速开始

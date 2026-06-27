@@ -131,7 +131,6 @@
     "type-fest": "latest",
     "undici": "latest",
     "usehooks-ts": "latest",
-    "vercel-minimax-ai-provider": "^0.0.2",
     "vscode-jsonrpc": "latest",
     "vscode-languageserver-protocol": "latest",
     "vscode-languageserver-types": "latest",
