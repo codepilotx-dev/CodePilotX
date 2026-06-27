@@ -476,15 +476,19 @@
 
 .permission-select-content {
   z-index: 1000;
-  width: max(240px, var(--radix-select-trigger-width));
+  width: max-content;
+  min-width: var(--radix-select-trigger-width);
   max-width: min(360px, calc(100vw - 24px));
   max-height: min(320px, var(--radix-select-content-available-height));
   padding: 6px;
-  border: 1px solid var(--black-a2);
-  border-radius: var(--radius-4);
-  background: var(--c-bg);
-  box-shadow: var(--sh-popover);
+  border: 1px solid var(--c-popover-border);
+  border-radius: 12px;
+  background: var(--c-popover-bg);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.10),
+    0 2px 6px rgba(0, 0, 0, 0.04);
   color: var(--c-text);
+  font-size: var(--fs-14);
   overflow: hidden;
 }
 
@@ -501,11 +505,12 @@
 .permission-select-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
-  border-radius: var(--radius-3);
+  min-height: 32px;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 8px;
   color: var(--c-text);
-  font-size: var(--fs-13);
+  font-size: var(--fs-14);
   cursor: pointer;
   outline: none !important;
   user-select: none;
@@ -513,7 +518,7 @@
 }
 
 .permission-select-item[data-highlighted] {
-  background: var(--c-bg-row-hover);
+  background: var(--c-bg-hover);
 }
 
 .permission-select-item[data-state="checked"] {

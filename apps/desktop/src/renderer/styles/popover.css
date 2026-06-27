@@ -5,7 +5,6 @@
   z-index: 1000;
   display: inline-block;
   width: max-content;
-  min-width: 270px;
   max-width: min(360px, calc(100vw - 32px));
   max-height: min(420px, calc(100vh - 96px));
   overflow-y: auto;
@@ -26,18 +25,10 @@
   -webkit-app-region: no-drag;
 }
 
-[data-radix-popper-content-wrapper]:has(.popover) {
-  z-index: 1000 !important;
-  border-radius: 12px;
-  color: var(--c-text);
-  font-size: var(--fs-14);
-  outline: none !important;
-  user-select: none;
-  -webkit-user-select: none;
-  -webkit-app-region: no-drag;
-}
-
-[data-radix-popper-content-wrapper]:has(.sidebar-context-menu-content) {
+[data-radix-popper-content-wrapper]:has(.popover),
+[data-radix-popper-content-wrapper]:has(.sidebar-context-menu-content),
+[data-radix-popper-content-wrapper]:has(.settings-dropdown-content),
+[data-radix-popper-content-wrapper]:has(.permission-select-content) {
   z-index: 1000 !important;
   border-radius: 12px;
   color: var(--c-text);
@@ -49,7 +40,7 @@
 }
 
 .sidebar-context-menu-content.rt-BaseMenuContent {
-  min-width: 200px;
+  width: max-content;
   max-width: min(360px, calc(100vw - 32px));
   padding: 0;
   border: 1px solid var(--c-popover-border);
@@ -166,7 +157,7 @@
 }
 
 .popover-model-submenu {
-  min-width: 220px;
+  width: max-content;
   max-width: 320px;
   max-height: min(
     360px,
@@ -186,7 +177,7 @@
 }
 
 .popover-mode {
-  min-width: 200px;
+  width: max-content;
   max-width: 240px;
   max-height: min(320px, calc(100vh - 96px));
   overflow-y: auto;
@@ -229,7 +220,7 @@
 }
 
 .context-plugin-submenu {
-  min-width: 240px;
+  width: max-content;
   max-width: 320px;
   max-height: min(360px, calc(100vh - 96px));
   padding: 10px;
