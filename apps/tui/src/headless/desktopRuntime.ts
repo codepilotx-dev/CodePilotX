@@ -52,6 +52,9 @@ export type DesktopHeadlessRuntimeOptions = {
   workspacePath: string
   configDirectoryPath?: string
   resumeExistingSession?: boolean
+  permissionProfile?: string
+  approvalPolicy?: 'untrusted' | 'on-request' | 'on-failure' | 'never'
+  approvalsReviewer?: 'user' | 'auto'
   permissionMode?: PermissionMode
   providerID?: string
   providerBaseURL?: string
@@ -66,6 +69,7 @@ export type DesktopHeadlessRuntimeOptions = {
   systemPrompt?: string
   appendSystemPrompt?: string
   additionalDirectories?: string[]
+  askUserQuestionMaxQuestions?: number
   permissionPromptToolName?: string
   onOutput(
     message: StdoutMessage,
@@ -157,6 +161,7 @@ class EmbeddedDesktopHeadlessRuntime implements DesktopHeadlessRuntime {
     process.env.CLAUDE_CODE_DISABLE_MIN_VERSION_CHECK = '1'
     process.env.CLAUDE_CODE_ENTRYPOINT = 'desktop'
     process.env.USE_BUILTIN_RIPGREP = '0'
+    applyAskUserQuestionMaxQuestionsEnv(options)
     applyTaskModelEnv(options)
     resetRipgrepConfigCache()
   }
@@ -519,6 +524,9 @@ function getInitialDesktopAppState(options: DesktopHeadlessRuntimeOptions) {
     toolPermissionContext: {
       ...appState.toolPermissionContext,
       mode: options.permissionMode ?? 'default',
+      permissionProfile: options.permissionProfile ?? ':workspace',
+      approvalPolicy: options.approvalPolicy ?? 'on-request',
+      approvalsReviewer: options.approvalsReviewer ?? 'user',
       additionalWorkingDirectories,
       isBypassPermissionsModeAvailable:
         options.permissionMode === 'bypassPermissions',
@@ -600,6 +608,18 @@ function applyTaskModelEnv(options: DesktopHeadlessRuntimeOptions): void {
     options.defaultModel?.trim() || mainModel
   process.env.CODEPILOTX_DEEP_MODEL =
     options.deepModel?.trim() || mainModel
+}
+
+function applyAskUserQuestionMaxQuestionsEnv(
+  options: DesktopHeadlessRuntimeOptions,
+): void {
+  if (options.askUserQuestionMaxQuestions) {
+    process.env.CODEPILOTX_ASK_USER_QUESTION_MAX_QUESTIONS = String(
+      options.askUserQuestionMaxQuestions,
+    )
+  } else {
+    delete process.env.CODEPILOTX_ASK_USER_QUESTION_MAX_QUESTIONS
+  }
 }
 
 function thinkingConfigFromDesktopMode(

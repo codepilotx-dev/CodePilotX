@@ -135,6 +135,9 @@ export const HOOK_TIMING_DISPLAY_THRESHOLD_MS = 500
 /** Log a debug warning when hooks/permission-decision block for this long. Matches
  * BashTool's PROGRESS_THRESHOLD_MS — the collapsed view feels stuck past this. */
 const SLOW_PHASE_LOG_THRESHOLD_MS = 2000
+const ASK_USER_QUESTION_TOOL_NAME = 'AskUserQuestion'
+const ASK_USER_QUESTION_MAX_QUESTIONS_ENV =
+  'CODEPILOTX_ASK_USER_QUESTION_MAX_QUESTIONS'
 
 /**
  * Classify a tool execution error into a telemetry-safe string.
@@ -596,6 +599,34 @@ export function buildSchemaNotSentHint(
   )
 }
 
+function buildAskUserQuestionValidationHint(
+  toolName: string,
+  error: { issues?: Array<{ path?: unknown[]; code?: string }> },
+): string {
+  if (toolName !== ASK_USER_QUESTION_TOOL_NAME) return ''
+  const questionsLimitIssue = error.issues?.some(
+    issue =>
+      issue.code === 'too_big' &&
+      Array.isArray(issue.path) &&
+      issue.path[0] === 'questions',
+  )
+  if (!questionsLimitIssue) return ''
+  const maxQuestions = normalizedAskUserQuestionMaxQuestions()
+  return (
+    `\n\nDesktop AskUserQuestion limit: ask at most ${maxQuestions} ` +
+    `question${maxQuestions === 1 ? '' : 's'} per tool call. ` +
+    'Ask the highest-priority question now, then ask follow-up questions in later turns.'
+  )
+}
+
+function normalizedAskUserQuestionMaxQuestions(): number {
+  const raw = process.env[ASK_USER_QUESTION_MAX_QUESTIONS_ENV]
+  if (!raw) return 4
+  const parsed = Number(raw)
+  if (!Number.isFinite(parsed)) return 4
+  return Math.max(1, Math.min(4, Math.floor(parsed)))
+}
+
 async function checkPermissionsAndCallTool(
   tool: Tool,
   toolUseID: string,
@@ -615,6 +646,13 @@ async function checkPermissionsAndCallTool(
   const parsedInput = tool.inputSchema.safeParse(input)
   if (!parsedInput.success) {
     let errorContent = formatZodValidationError(tool.name, parsedInput.error)
+    const askUserQuestionHint = buildAskUserQuestionValidationHint(
+      tool.name,
+      parsedInput.error,
+    )
+    if (askUserQuestionHint) {
+      errorContent += askUserQuestionHint
+    }
 
     const schemaHint = buildSchemaNotSentHint(
       tool,

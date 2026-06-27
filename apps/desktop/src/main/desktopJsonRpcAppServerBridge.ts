@@ -5,8 +5,8 @@ import {
   normalizeThreadEvent,
 } from '@codepilotx/core/agent/workflow.js'
 import type { ThreadEvent, ThreadId, TurnId } from '@codepilotx/core/agent/workflow.js'
-import { JsonRpcAppServer } from '@codepilotx/tui/appServer/server.js'
-import type { JsonRpcTurnStartResult } from '@codepilotx/tui/appServer/protocol.js'
+import { JsonRpcAppServer } from '@codepilotx/core/appServer/server.js'
+import type { JsonRpcTurnStartResult } from '@codepilotx/core/appServer/protocol.js'
 import type { DesktopWorkflowEvent } from '../shared/types.js'
 import type { DesktopUserMessageContent } from '../shared/types.js'
 

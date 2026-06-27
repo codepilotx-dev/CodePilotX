@@ -100,6 +100,9 @@ export const DESKTOP_API_METHODS = [
   'checkForUpdates',
   'downloadUpdate',
   'quitAndInstall',
+  'listDebugBuiltinTools',
+  'runDebugToolProbe',
+  'cancelDebugToolProbe',
 ] as const satisfies readonly DesktopApiMethod[]
 
 export function desktopApiChannel(method: DesktopApiMethod): string {

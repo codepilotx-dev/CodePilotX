@@ -258,13 +258,13 @@ function applyDesktopTheme(
   root.style.setProperty('--c-diff-added', theme.semanticColors.diffAdded)
   root.style.setProperty('--c-diff-removed', theme.semanticColors.diffRemoved)
   root.style.setProperty('--c-skill', theme.semanticColors.skill)
-  root.style.setProperty(
+root.style.setProperty(
     '--ff-sans',
-    `${formatFontFamilyStack(theme.fonts.ui)}, -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Helvetica Neue", Arial, "Microsoft YaHei", sans-serif`,
+    buildFontFamilyStack(theme.fonts.ui),
   )
   root.style.setProperty(
     '--ff-mono',
-    `${formatFontFamilyStack(theme.fonts.code)}, ui-monospace, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace`,
+    buildFontFamilyStack(theme.fonts.code),
   )
   const uiFontSize = clamp(settings.fontSizes.ui, 11, 20)
   const codeFontSize = clamp(settings.fontSizes.code, 10, 20)
@@ -317,6 +317,17 @@ function formatFontFamilyStack(value: string): string {
     .map(formatFontFamilyName)
     .filter(Boolean)
     .join(', ')
+}
+
+function buildFontFamilyStack(entry: {
+  preset: string
+  fallback: string
+}): string {
+  const presetStack = formatFontFamilyStack(entry.preset)
+  const fallbackStack = formatFontFamilyStack(entry.fallback)
+  if (!presetStack) return fallbackStack
+  if (!fallbackStack) return presetStack
+  return `${presetStack}, ${fallbackStack}`
 }
 
 function formatFontFamilyName(value: string): string {

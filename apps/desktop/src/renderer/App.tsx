@@ -1,5 +1,7 @@
 import type React from 'react'
 import { RouterProvider } from 'react-router-dom'
+import { Theme } from '@radix-ui/themes'
+import '@radix-ui/themes/styles.css'
 import { router } from './routes.js'
 import { DesktopSettingsProvider } from './features/settings/useDesktopSettings.js'
 import { DesktopThemeProvider } from './features/theme/themeContext.js'
@@ -46,11 +48,18 @@ export function App(): React.ReactNode {
     <DesktopThemeProvider>
       <DesktopSettingsProvider>
         <TooltipProvider>
-          <GlobalErrorModal
-            message={errorMessage}
-            onDismiss={() => setErrorMessage(null)}
-          />
-          <RouterProvider router={router} />
+          <Theme
+            radius="medium"
+            hasBackground={false}
+            panelBackground="translucent"
+            scaling="100%"
+          >
+            <GlobalErrorModal
+              message={errorMessage}
+              onDismiss={() => setErrorMessage(null)}
+            />
+            <RouterProvider router={router} />
+          </Theme>
         </TooltipProvider>
       </DesktopSettingsProvider>
     </DesktopThemeProvider>

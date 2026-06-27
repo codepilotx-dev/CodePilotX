@@ -9,11 +9,11 @@ import {
   getProjectDir,
   loadAllProjectsMessageLogs,
   loadFullLog,
-} from '@codepilotx/tui/utils/sessionStorage.js'
+} from '@codepilotx/core/session/storage.js'
 import type {
   LogOption,
   SerializedMessage,
-} from '@codepilotx/tui/types/logs.js'
+} from '@codepilotx/core/session/logs.js'
 import type {
   DesktopAgentEvent,
   DesktopContextUsage,
@@ -31,7 +31,13 @@ import type {
   DesktopWorkspace,
 } from '../shared/types.js'
 import { desktopAgentEventToSessionEvent } from '../shared/sessionEventModel.js'
-import { normalizeDesktopPermissionMode } from '../shared/settingsSchema.js'
+import {
+  normalizeDesktopApprovalPolicy,
+  normalizeDesktopApprovalsReviewer,
+  normalizeAskUserQuestionMaxQuestions,
+  normalizeDesktopPermissionProfile,
+  normalizeDesktopPermissionMode,
+} from '../shared/settingsSchema.js'
 import { getDesktopConfigDirectoryPath } from './desktopSettings.js'
 import {
   buildDesktopContextUsage,
@@ -207,6 +213,9 @@ export function createDesktopSessionSnapshot(params: {
       standalone,
       pinnedAt: null,
       archivedAt: null,
+      permissionProfile: params.settings.permissionProfile,
+      approvalPolicy: params.settings.approvalPolicy,
+      approvalsReviewer: params.settings.approvalsReviewer,
       permissionMode: params.settings.permissionMode,
       model: params.settings.model ?? null,
       fallbackModel: params.settings.fallbackModel ?? null,
@@ -653,6 +662,9 @@ function snapshotFromTranscriptLog(
     standalone,
     pinnedAt: overlay?.pinnedAt ?? null,
     archivedAt: overlay?.archivedAt ?? null,
+    permissionProfile: settings.permissionProfile,
+    approvalPolicy: settings.approvalPolicy,
+    approvalsReviewer: settings.approvalsReviewer,
     permissionMode: settings.permissionMode,
     model: effectiveModel ?? null,
     fallbackModel: settings.fallbackModel ?? null,
@@ -729,6 +741,9 @@ function snapshotFromOverlay(overlay: DesktopSessionOverlay): DesktopSessionSnap
       standalone,
       pinnedAt: overlay.pinnedAt ?? null,
       archivedAt: overlay.archivedAt ?? null,
+      permissionProfile: settings.permissionProfile,
+      approvalPolicy: settings.approvalPolicy,
+      approvalsReviewer: settings.approvalsReviewer,
       permissionMode: settings.permissionMode,
       model: settings.model ?? null,
       fallbackModel: settings.fallbackModel ?? null,
@@ -971,9 +986,8 @@ function collectToolUses(
     const item = block as Record<string, unknown>
     if (item.type !== 'tool_use') continue
     const toolName = typeof item.name === 'string' ? item.name : 'Tool'
-    if (typeof item.id === 'string') {
-      toolNamesById.set(item.id, toolName)
-    }
+    const toolUseId = typeof item.id === 'string' ? item.id : undefined
+    if (toolUseId) toolNamesById.set(toolUseId, toolName)
     const summary = summarizeToolInput(toolName, item.input)
     const createdAt = timestamp ?? new Date().toISOString()
     toolLog.push(
@@ -990,7 +1004,7 @@ function collectToolUses(
       type: 'tool_call',
       content: summary,
       createdAt,
-      metadata: { toolName },
+      metadata: { toolName, ...(toolUseId ? { toolUseId } : {}) },
     })
   }
 }
@@ -1012,6 +1026,8 @@ function collectToolResults(
       typeof item.tool_use_id === 'string'
         ? toolNamesById.get(item.tool_use_id) ?? 'Tool'
         : 'Tool'
+    const toolUseId =
+      typeof item.tool_use_id === 'string' ? item.tool_use_id : undefined
     const summary = summarizeToolInput(toolName, item.content)
     const isError = item.is_error === true
     const createdAt = timestamp ?? new Date().toISOString()
@@ -1030,7 +1046,7 @@ function collectToolResults(
       type: 'tool_result',
       content: summary,
       createdAt,
-      metadata: { toolName, isError },
+      metadata: { toolName, ...(toolUseId ? { toolUseId } : {}), isError },
     })
   }
 }
@@ -1060,6 +1076,13 @@ function normalizeSessionItem(
     standalone: item.standalone === true,
     pinnedAt: nullableString(item.pinnedAt),
     archivedAt: nullableString(item.archivedAt),
+    permissionProfile: normalizeDesktopPermissionProfile(
+      item.permissionProfile,
+    ),
+    approvalPolicy: normalizeDesktopApprovalPolicy(item.approvalPolicy),
+    approvalsReviewer: normalizeDesktopApprovalsReviewer(
+      item.approvalsReviewer,
+    ),
     permissionMode: normalizeDesktopPermissionMode(item.permissionMode),
     model: typeof item.model === 'string' ? item.model : null,
     fallbackModel:
@@ -1113,6 +1136,13 @@ function normalizeSettingsSnapshot(
       ? (value as Partial<DesktopSessionSettingsSnapshot>)
       : {}
   return {
+    permissionProfile: normalizeDesktopPermissionProfile(
+      settings.permissionProfile,
+    ),
+    approvalPolicy: normalizeDesktopApprovalPolicy(settings.approvalPolicy),
+    approvalsReviewer: normalizeDesktopApprovalsReviewer(
+      settings.approvalsReviewer,
+    ),
     permissionMode: normalizeDesktopPermissionMode(settings.permissionMode),
     model: stringOrUndefined(settings.model),
     fallbackModel: stringOrUndefined(settings.fallbackModel),
@@ -1134,14 +1164,21 @@ function normalizeSettingsSnapshot(
           (directory): directory is string => typeof directory === 'string',
         )
       : [],
+    askUserQuestionMaxQuestions: normalizeAskUserQuestionMaxQuestions(
+      settings.askUserQuestionMaxQuestions,
+    ),
   }
 }
 
 function defaultSettingsSnapshot(): DesktopSessionSettingsSnapshot {
   return {
+    permissionProfile: ':workspace',
+    approvalPolicy: 'on-request',
+    approvalsReviewer: 'user',
     permissionMode: 'default',
     thinkingMode: 'default',
     additionalDirectories: [],
+    askUserQuestionMaxQuestions: 1,
   }
 }
 

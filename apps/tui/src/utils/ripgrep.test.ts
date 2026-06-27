@@ -37,3 +37,29 @@ test('resetRipgrepConfigCache lets desktop runtime switch away from cached built
     resetRipgrepConfigCache()
   }
 })
+
+test('env override takes priority over missing builtin path', () => {
+  const originalBuiltin = process.env.USE_BUILTIN_RIPGREP
+  const originalPath = process.env.CODEPILOTX_RIPGREP_PATH
+  try {
+    process.env.USE_BUILTIN_RIPGREP = '0'
+    process.env.CODEPILOTX_RIPGREP_PATH = process.execPath
+    resetRipgrepConfigCache()
+    const status = getRipgrepStatus()
+
+    expect(status.mode).toBe('system')
+    expect(status.path).toBe(process.execPath)
+  } finally {
+    if (originalBuiltin === undefined) {
+      delete process.env.USE_BUILTIN_RIPGREP
+    } else {
+      process.env.USE_BUILTIN_RIPGREP = originalBuiltin
+    }
+    if (originalPath === undefined) {
+      delete process.env.CODEPILOTX_RIPGREP_PATH
+    } else {
+      process.env.CODEPILOTX_RIPGREP_PATH = originalPath
+    }
+    resetRipgrepConfigCache()
+  }
+})

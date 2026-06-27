@@ -4,13 +4,13 @@ import {
   isMcpServerDisabled,
   removeMcpConfig,
   setMcpServerEnabled as setTuiMcpServerEnabled,
-} from '@codepilotx/tui/services/mcp/config.js'
+} from '@codepilotx/core/services/mcp/config.js'
 import type {
   ConfigScope,
   McpServerConfig,
   ScopedMcpServerConfig,
-} from '@codepilotx/tui/services/mcp/types.js'
-import { McpServerConfigSchema } from '@codepilotx/tui/services/mcp/types.js'
+} from '@codepilotx/core/services/mcp/types.js'
+import { McpServerConfigSchema } from '@codepilotx/core/services/mcp/types.js'
 import type {
   DesktopEditableMcpScope,
   DesktopMcpServerListItem,

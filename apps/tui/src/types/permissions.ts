@@ -425,6 +425,9 @@ export type ToolPermissionRulesBySource = {
  */
 export type ToolPermissionContext = {
   readonly mode: PermissionMode
+  readonly permissionProfile?: string
+  readonly approvalPolicy?: 'untrusted' | 'on-request' | 'on-failure' | 'never'
+  readonly approvalsReviewer?: 'user' | 'auto'
   readonly additionalWorkingDirectories: ReadonlyMap<
     string,
     AdditionalWorkingDirectory

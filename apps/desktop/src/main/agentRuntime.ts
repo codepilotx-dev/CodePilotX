@@ -17,11 +17,11 @@ import type {
   DesktopThinkingMode,
   DesktopUserMessageContent,
 } from '../shared/types.js'
-import type { PermissionMode } from '@codepilotx/tui/types/permissions.js'
+import type { PermissionMode } from '@codepilotx/core/agent/permissionMode.js'
 import {
   CODEPILOTX_CONFIG_DIR_ENV,
   LEGACY_CLAUDE_CONFIG_DIR_ENV,
-} from '@codepilotx/tui/utils/envUtils.js'
+} from '@codepilotx/core/config/env.js'
 import {
   buildDesktopContextUsage,
   getUsageFromAssistantRecord,
@@ -122,17 +122,6 @@ export function createDesktopAgentRuntime(
     })
     return new InProcessDesktopAgentRuntime(context)
   } catch (error) {
-    if (
-      preference === 'auto' &&
-      context.agentExecutablePath &&
-      existsSync(context.agentExecutablePath)
-    ) {
-      desktopDebug('runtime_create_embedded_failed_fallback_subprocess', {
-        sessionId: context.sessionId,
-        message: error instanceof Error ? error.message : String(error),
-      })
-      return new CliDesktopAgentRuntime(context)
-    }
     desktopDebug('runtime_create_embedded_failed', {
       sessionId: context.sessionId,
       preference,

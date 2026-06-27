@@ -1,6 +1,6 @@
 import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises'
 import { dirname, isAbsolute, join, normalize } from 'node:path'
-import { clearAllCaches } from '@codepilotx/tui/utils/plugins/cacheUtils.js'
+import { clearAllCaches } from '@codepilotx/core/utils/plugins/cache.js'
 import { getOpenAgentConfigHomeDir } from './desktopSettings.js'
 import type {
   DesktopSkillCatalogItem,

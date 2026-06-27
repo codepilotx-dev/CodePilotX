@@ -19,6 +19,7 @@ import {
 import type {
   DesktopThemeCustomTheme,
   DesktopThemeConfigV1,
+  DesktopThemeFontEntry,
   DesktopThemeMode,
   DesktopThemeSettings,
   DesktopThemeVariant,
@@ -27,6 +28,23 @@ import type {
 export const CODEX_THEME_PREFIX = 'codex-theme-v1:'
 export const DEFAULT_LIGHT_THEME_ID = 'light-codex'
 export const DEFAULT_DARK_THEME_ID = 'dark-dracula'
+
+export const DEFAULT_UI_FONT: DesktopThemeFontEntry = {
+  preset: 'MiSans',
+  fallback:
+    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Helvetica Neue", Arial, "Microsoft YaHei", system-ui, sans-serif',
+}
+
+export const DEFAULT_CODE_FONT: DesktopThemeFontEntry = {
+  preset: 'JetBrains Mono',
+  fallback:
+    'ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace',
+}
+
+export const DEFAULT_FONTS: DesktopThemeConfigV1['theme']['fonts'] = {
+  ui: DEFAULT_UI_FONT,
+  code: DEFAULT_CODE_FONT,
+}
 
 export type DesktopThemePreset = {
   id: string
@@ -84,16 +102,6 @@ const RADIX_DARK: Record<RadixScale, Record<string, string>> = {
   red: redDark,
 }
 
-const INTER_FONTS = {
-  code: 'JetBrains Mono SemiBold',
-  ui: 'Inter',
-}
-
-const QUOTED_JETBRAINS_FONTS = {
-  code: '"Jetbrains Mono"',
-  ui: 'Inter',
-}
-
 const DRACULA_PINK = {
   9: '#ff79c6',
   10: '#f36ebb',
@@ -114,7 +122,7 @@ export const DEFAULT_DARK_THEME: DesktopThemeConfigV1 = {
   theme: {
     accent: DRACULA_PINK[9],
     contrast: 60,
-    fonts: INTER_FONTS,
+    fonts: DEFAULT_FONTS,
     ink: radixColor('dark', 'gray', 12),
     opaqueWindows: true,
     semanticColors: {
@@ -177,7 +185,7 @@ export const DESKTOP_THEME_PRESETS: DesktopThemePreset[] = [
     config: createRadixThemePreset({
       accentScale: 'red',
       codeThemeId: 'raycast',
-      fonts: QUOTED_JETBRAINS_FONTS,
+      fonts: DEFAULT_FONTS,
       skillScale: 'pink',
       variant: 'light',
     }),
@@ -188,7 +196,7 @@ export const DESKTOP_THEME_PRESETS: DesktopThemePreset[] = [
     config: createRadixThemePreset({
       accentScale: 'blue',
       codeThemeId: 'github',
-      fonts: QUOTED_JETBRAINS_FONTS,
+      fonts: DEFAULT_FONTS,
       skillScale: 'purple',
       variant: 'light',
     }),
@@ -251,7 +259,7 @@ function createRadixThemePreset(
     accentStep = 9,
     codeThemeId,
     contrast = options.variant === 'dark' ? 60 : 40,
-    fonts = INTER_FONTS,
+    fonts = DEFAULT_FONTS,
     inkScale = 'gray',
     inkStep = 12,
     opaqueWindows = true,
@@ -398,10 +406,14 @@ export function normalizeDesktopThemeConfig(
       accent: normalizeHexColor(theme.accent, fallback.theme.accent),
       contrast: normalizeContrast(theme.contrast, fallback.theme.contrast),
       fonts: {
-        code: isNonEmptyString(fonts.code)
-          ? fonts.code
-          : fallback.theme.fonts.code,
-        ui: isNonEmptyString(fonts.ui) ? fonts.ui : fallback.theme.fonts.ui,
+        code: normalizeDesktopThemeFontEntry(
+          fonts.code,
+          fallback.theme.fonts.code,
+        ),
+        ui: normalizeDesktopThemeFontEntry(
+          fonts.ui,
+          fallback.theme.fonts.ui,
+        ),
       },
       ink: normalizeHexColor(theme.ink, fallback.theme.ink),
       opaqueWindows:
@@ -598,6 +610,23 @@ function normalizeContrast(value: unknown, fallback: number): number {
     return fallback
   }
   return Math.max(0, Math.min(100, Math.round(value)))
+}
+
+function normalizeDesktopThemeFontEntry(
+  value: unknown,
+  fallback: DesktopThemeFontEntry,
+): DesktopThemeFontEntry {
+  if (!isRecord(value)) {
+    return fallback
+  }
+  return {
+    preset: isNonEmptyString(value.preset)
+      ? value.preset.trim()
+      : fallback.preset,
+    fallback: isNonEmptyString(value.fallback)
+      ? value.fallback.trim()
+      : fallback.fallback,
+  }
 }
 
 function normalizeDesktopThemeFontSizes(
