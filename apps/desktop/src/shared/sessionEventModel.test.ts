@@ -28,3 +28,20 @@ test('tool events preserve upstream tool use ids in metadata', () => {
     isError: true,
   })
 })
+
+test('proposed plan events preserve plan text as a session event', () => {
+  const event = desktopAgentEventToSessionEvent({
+    type: 'proposed_plan',
+    sessionId: 'session-1',
+    text: '# Plan\n\n- Step',
+    streaming: false,
+  })
+
+  expect(event).toMatchObject({
+    sessionId: 'session-1',
+    type: 'proposed_plan',
+    role: 'assistant',
+    content: '# Plan\n\n- Step',
+    metadata: { streaming: false },
+  })
+})

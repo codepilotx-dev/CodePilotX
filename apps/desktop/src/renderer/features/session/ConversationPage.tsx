@@ -1385,6 +1385,17 @@ function workflowNodeFromTimelineItem(
     };
   }
 
+  if (item.type === "proposed_plan") {
+    const content = item.content?.trim() ?? "";
+    if (!content) return null;
+    return {
+      id: `node-${item.id}`,
+      kind: "plan",
+      state: item.metadata?.streaming === true ? "active" : "done",
+      title: planTitleFromSummary(content),
+    };
+  }
+
   if (item.type === "file_patch") {
     return {
       id: `node-${item.id}`,
@@ -1481,6 +1492,11 @@ function TimelineItem({
         showActions={showActions}
       />
     );
+  }
+
+  if (event.type === "proposed_plan") {
+    const summary = event.content?.trim() ?? "";
+    return summary ? <WorkflowPlanCard summary={summary} /> : null;
   }
 
   if (event.type === "tool_call" || event.type === "tool_result") {

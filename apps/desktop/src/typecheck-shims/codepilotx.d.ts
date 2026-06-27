@@ -59,6 +59,7 @@ declare module '@codepilotx/core/agent/runtime.js' {
   export type AgentSessionEventType =
     | 'message'
     | 'assistant_delta'
+    | 'proposed_plan'
     | 'tool_call'
     | 'tool_result'
     | 'status'
@@ -94,6 +95,15 @@ declare module '@codepilotx/core/agent/runtime.js' {
         type: 'partial_message'
         sessionId: string
         text: string
+        createdAt?: string
+        sourceThreadId?: string
+        sourceLabel?: string
+      }
+    | {
+        type: 'proposed_plan'
+        sessionId: string
+        text: string
+        streaming?: boolean
         createdAt?: string
         sourceThreadId?: string
         sourceLabel?: string
@@ -207,6 +217,7 @@ declare module '@codepilotx/core/agent/permissions.js' {
   }
   export type DesktopAgentPermissionMode =
     | 'default'
+    | 'plan'
     | 'auto-review'
     | 'full-access'
     | 'custom'
@@ -241,6 +252,18 @@ declare module '@codepilotx/core/agent/permissions.js' {
   ): boolean
 }
 
+declare module '@codepilotx/core/agent/proposedPlan.js' {
+  export type ProposedPlanParseResult = {
+    visibleText: string
+    planText: string | null
+    hasOpenPlan: boolean
+    isComplete: boolean
+  }
+  export function extractLatestProposedPlanText(text: string): string | null
+  export function stripProposedPlanBlocks(text: string): string
+  export function parseProposedPlanText(text: string): ProposedPlanParseResult
+}
+
 declare module '@codepilotx/core/agent/workflow.js' {
   import type { AgentPermissionRequest } from '@codepilotx/core/agent/permissions.js'
   import type {
@@ -263,6 +286,7 @@ declare module '@codepilotx/core/agent/workflow.js' {
   export type TurnItemType =
     | 'user_message'
     | 'agent_message'
+    | 'proposed_plan'
     | 'reasoning'
     | 'tool_call'
     | 'tool_result'
@@ -900,6 +924,10 @@ declare module '@codepilotx/tui/utils/envUtils.js' {
   export const CODEPILOTX_CONFIG_DIR_ENV: string
   export const CODEPILOTX_CONFIG_DIR_NAME: string
   export const LEGACY_CLAUDE_CONFIG_DIR_ENV: string
+}
+
+declare module '@codepilotx/tui/utils/plans.js' {
+  export function getPlanFilePath(agentId?: string): string
 }
 
 declare module '@codepilotx/tui/bootstrap/state.js' {

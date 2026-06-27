@@ -175,11 +175,20 @@ test('IconButton forwards Radix trigger attributes for dropdown controls', () =>
   expect(html).toContain('data-state="open"')
 })
 
-test('ComposerCard does not expose plan as a permission-mode control', () => {
-  const html = renderWithProviders(<ComposerCard {...baseProps} />)
+test('ComposerCard renders active plan mode as a separate toolbar chip', () => {
+  const html = renderWithProviders(
+    <ComposerCard
+      {...baseProps}
+      permissionMode="plan"
+      permissionOptions={[
+        { value: 'default' as const, label: '默认权限' },
+      ]}
+    />,
+  )
 
-  expect(html).not.toContain('plan-mode-chip')
-  expect(html).not.toContain('plan-mode-chip__exit')
-  expect(html).not.toContain('permission-plan-banner')
-  expect(html).not.toContain('>计划模式<')
+  expect(html).toContain('composer-plan-mode-chip active')
+  expect(html).toContain('Describe your task to generate a plan...')
+  expect(html).toContain('>计划<')
+  expect(html).toContain('>默认权限<')
+  expect(html).not.toContain('permission-chip-plan')
 })

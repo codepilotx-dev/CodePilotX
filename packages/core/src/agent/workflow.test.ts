@@ -91,6 +91,29 @@ test('partial runtime message maps to an updated streaming agent_message item', 
   })
 })
 
+test('proposed plan runtime event maps to a proposed_plan item', () => {
+  const events = agentRuntimeEventToThreadEvents(
+    {
+      type: 'proposed_plan',
+      sessionId: 'session-1',
+      text: '# Plan\n\n- Step',
+      streaming: false,
+    },
+    ids,
+  )
+
+  expect(events).toHaveLength(1)
+  expect(events[0]).toMatchObject({
+    type: 'item.completed',
+    item: {
+      id: 'proposed_plan-final',
+      type: 'proposed_plan',
+      status: 'completed',
+      text: '# Plan\n\n- Step',
+    },
+  })
+})
+
 test('tool start and result map to tool item lifecycle events', () => {
   const started = agentRuntimeEventToThreadEvents(
     {

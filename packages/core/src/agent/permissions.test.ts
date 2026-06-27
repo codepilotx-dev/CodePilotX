@@ -497,6 +497,12 @@ test('permissionPolicyForDesktopMode exposes official Codex sandbox modes', () =
     approvalMode: 'on-request',
     sandboxMode: 'workspace-write',
   })
+  expect(permissionPolicyForDesktopMode('plan')).toMatchObject({
+    profile: ':workspace',
+    approvalMode: 'on-request',
+    approvalsReviewer: 'user',
+    sandboxMode: 'workspace-write',
+  })
   expect(permissionPolicyForDesktopMode('auto')).toMatchObject({
     approvalsReviewer: 'auto_review',
   })

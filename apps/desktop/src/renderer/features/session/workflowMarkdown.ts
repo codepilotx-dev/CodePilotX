@@ -283,6 +283,9 @@ function formatWorkflowDetail(event: DesktopWorkflowEvent): string {
     if (item.type === 'file_change') {
       return compactParts([`file=${item.filePath}`])
     }
+    if (item.type === 'proposed_plan') {
+      return truncate(item.text)
+    }
     if (item.type === 'agent_message' || item.type === 'user_message') {
       return truncate(item.text)
     }

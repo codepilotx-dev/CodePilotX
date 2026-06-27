@@ -55,6 +55,7 @@ export type AgentToolLogEntry = {
 export type AgentSessionEventType =
   | 'message'
   | 'assistant_delta'
+  | 'proposed_plan'
   | 'tool_call'
   | 'tool_result'
   | 'status'
@@ -90,6 +91,15 @@ export type AgentRuntimeEvent =
       type: 'partial_message'
       sessionId: string
       text: string
+      createdAt?: string
+      sourceThreadId?: string
+      sourceLabel?: string
+    }
+  | {
+      type: 'proposed_plan'
+      sessionId: string
+      text: string
+      streaming?: boolean
       createdAt?: string
       sourceThreadId?: string
       sourceLabel?: string

@@ -3243,10 +3243,54 @@ function getPlanModeInstructions(attachment: {
   if (attachment.isSubAgent) {
     return getPlanModeV2SubAgentInstructions(attachment)
   }
+  if (isDesktopProposedPlanModeEnabled()) {
+    return getDesktopProposedPlanModeInstructions(attachment)
+  }
   if (attachment.reminderType === 'sparse') {
     return getPlanModeV2SparseInstructions(attachment)
   }
   return getPlanModeV2Instructions(attachment)
+}
+
+function isDesktopProposedPlanModeEnabled(): boolean {
+  return process.env.CODEPILOTX_DESKTOP_PROPOSED_PLAN === '1'
+}
+
+function getDesktopProposedPlanModeInstructions(attachment: {
+  reminderType: 'full' | 'sparse'
+  planFilePath: string
+  planExists: boolean
+}): UserMessage[] {
+  const content =
+    attachment.reminderType === 'sparse'
+      ? `Plan mode is still active. Continue using read-only exploration and ${ASK_USER_QUESTION_TOOL_NAME} for material clarifications. When the plan is complete, output exactly one complete <proposed_plan>...</proposed_plan> block. Do not call ${ExitPlanModeV2Tool.name}; the Desktop app will save the proposed plan to ${attachment.planFilePath} and ask the user for approval.`
+      : `Plan mode is active. The user does not want implementation yet. You MUST NOT edit files, run non-read-only tools, change configuration, commit, or otherwise mutate the workspace.
+
+Use read-only exploration to understand the request and the codebase. Use ${ASK_USER_QUESTION_TOOL_NAME} only for material clarifications or tradeoff decisions that cannot be answered from the repository.
+
+When the plan is decision-complete, output the final plan inside exactly one complete XML block:
+
+<proposed_plan>
+# Title
+
+## Summary
+...
+
+## Key Changes
+...
+
+## Test Plan
+...
+
+## Assumptions
+...
+</proposed_plan>
+
+Do not call ${ExitPlanModeV2Tool.name}. Do not write the plan file yourself. The Desktop app will extract the <proposed_plan> block, save it to ${attachment.planFilePath}, and show the user the approval UI.`
+
+  return wrapMessagesInSystemReminder([
+    createUserMessage({ content, isMeta: true }),
+  ])
 }
 
 // --

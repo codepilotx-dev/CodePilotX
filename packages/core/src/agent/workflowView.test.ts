@@ -162,4 +162,53 @@ describe('deriveWorkflowSessionView', () => {
       outOfOrderSequences: [],
     })
   })
+
+  test('replays proposed plan items into session events without adding chat messages', () => {
+    const events: ThreadEvent[] = [
+      {
+        eventId: 'event-1',
+        sequence: 1,
+        type: 'thread.started',
+        threadId: 'thread-1',
+        createdAt: '2026-06-22T00:00:00.000Z',
+      },
+      {
+        eventId: 'event-2',
+        sequence: 2,
+        type: 'turn.started',
+        threadId: 'thread-1',
+        turnId: 'turn-1',
+        createdAt: '2026-06-22T00:00:01.000Z',
+      },
+      {
+        eventId: 'event-3',
+        sequence: 3,
+        type: 'item.completed',
+        threadId: 'thread-1',
+        turnId: 'turn-1',
+        createdAt: '2026-06-22T00:00:02.000Z',
+        item: {
+          id: 'item-plan',
+          type: 'proposed_plan',
+          threadId: 'thread-1',
+          turnId: 'turn-1',
+          status: 'completed',
+          createdAt: '2026-06-22T00:00:02.000Z',
+          text: '# Plan',
+        },
+      },
+    ]
+
+    const view = deriveWorkflowSessionView(events, 'thread-1')
+
+    expect(view.messages).toEqual([])
+    expect(view.events).toEqual([
+      expect.objectContaining({
+        id: 'event-3',
+        sessionId: 'thread-1',
+        type: 'proposed_plan',
+        content: '# Plan',
+      }),
+    ])
+  })
 })

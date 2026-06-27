@@ -1414,6 +1414,7 @@ function isSessionEventType(
   return (
     value === 'message' ||
     value === 'assistant_delta' ||
+    value === 'proposed_plan' ||
     value === 'tool_call' ||
     value === 'tool_result' ||
     value === 'status' ||

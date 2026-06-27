@@ -10,7 +10,9 @@ import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTo
 
 type Choice = DesktopPermissionMode
 
-const POST_PLAN_MODE_OPTIONS = PERMISSION_MODE_OPTIONS
+const POST_PLAN_MODE_OPTIONS = PERMISSION_MODE_OPTIONS.filter(
+  option => option.value !== 'plan',
+)
 
 type PlanConfirmOption = {
   id: 'implement' | 'revise'
@@ -35,7 +37,10 @@ export function ExitPlanModeApproval({
   onAccept,
   onRevise,
 }: ExitPlanModeApprovalProps): React.ReactNode {
-  const fallback: Choice = useMemo(() => currentMode, [currentMode])
+  const fallback: Choice = useMemo(
+    () => (currentMode === 'plan' ? 'default' : currentMode),
+    [currentMode],
+  )
   const [selected, setSelected] = useState<PlanConfirmOption['id']>('implement')
   const [postMode, setPostMode] = useState<Choice>(fallback)
   const [menuOpen, setMenuOpen] = useState(false)

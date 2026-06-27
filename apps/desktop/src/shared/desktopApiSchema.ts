@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { DESKTOP_AGENT_PERMISSION_MODES } from '@codepilotx/core/agent/permissions.js'
 import {
   DESKTOP_API_METHODS,
   type DesktopApiMethod,
@@ -49,12 +50,7 @@ const browserBounds = z.object({
   height: z.number().finite().min(0),
 })
 
-const permissionModeSchema = z.enum([
-  'default',
-  'auto-review',
-  'full-access',
-  'custom',
-])
+const permissionModeSchema = z.enum(DESKTOP_AGENT_PERMISSION_MODES)
 
 const createBranchInput = z.object({
   workspacePath: z.string(),

@@ -29,6 +29,17 @@ export function desktopAgentEventToSessionEvent(
         createdAt,
         ...eventSource(event),
       }
+    case 'proposed_plan':
+      return {
+        id: randomId(),
+        sessionId: event.sessionId,
+        type: 'proposed_plan',
+        role: 'assistant',
+        content: event.text,
+        createdAt,
+        metadata: { streaming: event.streaming === true },
+        ...eventSource(event),
+      }
     case 'context_usage':
       return {
         id: randomId(),
@@ -142,7 +153,9 @@ function toolMetadata(
 
 function eventCreatedAt(event: DesktopAgentEvent): string {
   if (
-    (event.type === 'message' || event.type === 'partial_message') &&
+    (event.type === 'message' ||
+      event.type === 'partial_message' ||
+      event.type === 'proposed_plan') &&
     event.createdAt
   ) {
     return event.createdAt

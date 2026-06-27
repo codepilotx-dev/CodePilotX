@@ -23,6 +23,7 @@ export type TurnStatus =
 export type TurnItemType =
   | 'user_message'
   | 'agent_message'
+  | 'proposed_plan'
   | 'reasoning'
   | 'tool_call'
   | 'tool_result'
@@ -49,6 +50,12 @@ export type UserMessageTurnItem = TurnItemCommon & {
 
 export type AgentMessageTurnItem = TurnItemCommon & {
   type: 'agent_message'
+  text: string
+  streaming?: boolean
+}
+
+export type ProposedPlanTurnItem = TurnItemCommon & {
+  type: 'proposed_plan'
   text: string
   streaming?: boolean
 }
@@ -93,6 +100,7 @@ export type ErrorTurnItem = TurnItemCommon & {
 export type TurnItem =
   | UserMessageTurnItem
   | AgentMessageTurnItem
+  | ProposedPlanTurnItem
   | ReasoningTurnItem
   | ToolCallTurnItem
   | ToolResultTurnItem
@@ -597,6 +605,24 @@ export function agentRuntimeEventToThreadEvents(
         ...(metadata ? { metadata } : {}),
       }
       return decorateThreadEvents([itemEvent('item.updated', ids, item, createdAt)], ids)
+    }
+    case 'proposed_plan': {
+      const item: ProposedPlanTurnItem = {
+        id: itemId('proposed_plan', event.streaming ? 'partial' : 'final'),
+        type: 'proposed_plan',
+        threadId: ids.threadId,
+        turnId: ids.turnId,
+        status: event.streaming ? 'in_progress' : 'completed',
+        createdAt,
+        updatedAt: createdAt,
+        text: event.text,
+        ...(event.streaming ? { streaming: true } : {}),
+        ...(metadata ? { metadata } : {}),
+      }
+      return decorateThreadEvents(
+        [itemEvent(event.streaming ? 'item.updated' : 'item.completed', ids, item, createdAt)],
+        ids,
+      )
     }
     case 'tool_start': {
       const toolUseId =

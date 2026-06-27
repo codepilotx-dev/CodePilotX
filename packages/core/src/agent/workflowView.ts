@@ -132,6 +132,21 @@ export function deriveWorkflowSessionView(
       })
       continue
     }
+    if (item.type === 'proposed_plan') {
+      events.push({
+        id: sessionEventId,
+        sessionId: event.threadId,
+        type: 'proposed_plan',
+        role: 'assistant',
+        content: item.text,
+        createdAt: event.createdAt,
+        metadata: {
+          ...item.metadata,
+          streaming: item.streaming === true,
+        },
+      })
+      continue
+    }
     if (item.type === 'tool_call') {
       const toolUseId = item.toolUseId ?? metadataString(item.metadata, 'toolUseId') ?? item.id
       upsertToolRun(toolRunsById, toolUseId, {
