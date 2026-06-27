@@ -54,8 +54,8 @@
   --sh-popover:
     0 4px 6px -2px var(--black-a3), 0 12px 24px -6px var(--black-a6);
   --ff-sans:
-    "MiSans", -apple-system, BlinkMacSystemFont, "SF Pro Text",
-    "PingFang SC", "Helvetica Neue", Arial, "Microsoft YaHei", sans-serif;
+    "MiSans", -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC",
+    "Helvetica Neue", Arial, "Microsoft YaHei", sans-serif;
   --ff-mono: "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
   --fs-ui: 14px;
   --fs-code: 12px;
@@ -72,9 +72,10 @@
   --titlebar-h: var(--chrome-h);
   --menubar-h: var(--chrome-h);
   --composer-w: 760px;
+  --popover-width-extra: 30px;
 }
 
-:root[data-theme='dark'] {
+:root[data-theme="dark"] {
   color-scheme: dark;
   --contrast: 60;
   --c-bg: var(--gray-1);
@@ -270,11 +271,21 @@ p {
   margin: 0;
 }
 
-.r-none   { --radius-factor: 0; }
-.r-small  { --radius-factor: 0.5; }
-.r-medium { --radius-factor: 1; }
-.r-large  { --radius-factor: 1.5; }
-.r-full   { --radius-factor: 9999; }
+.r-none {
+  --radius-factor: 0;
+}
+.r-small {
+  --radius-factor: 0.5;
+}
+.r-medium {
+  --radius-factor: 1;
+}
+.r-large {
+  --radius-factor: 1.5;
+}
+.r-full {
+  --radius-factor: 9999;
+}
 
 [data-radius] {
   --radius-full: 9999px;

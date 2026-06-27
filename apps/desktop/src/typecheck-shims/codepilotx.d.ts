@@ -201,6 +201,7 @@ declare module '@codepilotx/core/agent/permissions.js' {
   export type AgentPermissionRequest = {
     requestId: string
     toolName: string
+    toolUseId?: string
     input: Record<string, unknown>
     description: string
     profile?: AgentPermissionProfile
@@ -793,6 +794,10 @@ declare module '@codepilotx/tui/headless/desktopRuntime.js' {
       approvalPolicy?: 'untrusted' | 'on-request' | 'on-failure' | 'never'
       approvalsReviewer?: 'user' | 'auto_review'
     }): void
+    runControlResponse(
+      response: Record<string, unknown>,
+      signal: AbortSignal,
+    ): Promise<void>
   }
   export function createDesktopHeadlessRuntime(
     options: Record<string, unknown> & {
@@ -805,6 +810,11 @@ declare module '@codepilotx/tui/headless/desktopRuntime.js' {
   export function runDesktopHeadlessTurn(
     runtime: DesktopHeadlessRuntime,
     content: string | unknown[],
+    signal: AbortSignal,
+  ): Promise<void>
+  export function runDesktopHeadlessControlResponse(
+    runtime: DesktopHeadlessRuntime,
+    response: Record<string, unknown>,
     signal: AbortSignal,
   ): Promise<void>
 }

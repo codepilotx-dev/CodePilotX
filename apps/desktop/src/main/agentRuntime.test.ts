@@ -1,6 +1,8 @@
 import { expect, test } from 'bun:test'
 import {
   askUserQuestionMaxQuestionsEnv,
+  buildAskUserQuestionControlResponse,
+  buildDesktopPermissionRequestFromControlRequest,
   codexPermissionConfigForMode,
   codexPermissionConfigArgs,
   permissionModeArgs,
@@ -120,4 +122,46 @@ test('desktop runtime extracts tool use id from tool blocks', () => {
     }),
   ).toBe('call-question-1')
   expect(getToolUseId({ type: 'tool_result' })).toBeUndefined()
+})
+
+test('desktop runtime carries stdio tool use id into permission requests', () => {
+  expect(
+    buildDesktopPermissionRequestFromControlRequest('request-1', {
+      subtype: 'can_use_tool',
+      tool_name: 'AskUserQuestion',
+      tool_use_id: 'call-question-1',
+      input: { questions: [] },
+      description: 'Answer questions',
+    }),
+  ).toEqual({
+    requestId: 'request-1',
+    toolName: 'AskUserQuestion',
+    toolUseId: 'call-question-1',
+    input: { questions: [] },
+    description: 'Answer questions',
+  })
+})
+
+test('desktop runtime builds AskUserQuestion resume control response', () => {
+  expect(
+    buildAskUserQuestionControlResponse({
+      requestId: 'request-1',
+      toolUseId: 'call-question-1',
+      updatedInput: { answers: { 'First choice?': 'A' } },
+    }),
+  ).toEqual(
+    {
+      type: 'control_response',
+      response: {
+        request_id: 'request-1',
+        subtype: 'success',
+        response: {
+          behavior: 'allow',
+          updatedInput: { answers: { 'First choice?': 'A' } },
+          toolUseID: 'call-question-1',
+          decisionClassification: 'user_temporary',
+        },
+      },
+    },
+  )
 })

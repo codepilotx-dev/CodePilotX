@@ -671,6 +671,7 @@ export type AgentPermissionDecision = {
 export type AgentPermissionRequest = {
   requestId: string
   toolName: string
+  toolUseId?: string
   input: Record<string, unknown>
   description: string
   profile?: AgentPermissionProfile

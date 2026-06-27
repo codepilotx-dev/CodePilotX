@@ -97,6 +97,10 @@ export type DesktopHeadlessRuntime = {
     content: string | ContentBlockParam[],
     signal: AbortSignal,
   ): Promise<void>
+  runControlResponse(
+    response: Record<string, unknown>,
+    signal: AbortSignal,
+  ): Promise<void>
 }
 
 const DESKTOP_ENABLED_THINKING_BUDGET = 1_000_000_000
@@ -143,6 +147,14 @@ export async function runDesktopHeadlessTurn(
   signal: AbortSignal,
 ): Promise<void> {
   await runtime.runUserTurn(content, signal)
+}
+
+export async function runDesktopHeadlessControlResponse(
+  runtime: DesktopHeadlessRuntime,
+  response: Record<string, unknown>,
+  signal: AbortSignal,
+): Promise<void> {
+  await runtime.runControlResponse(response, signal)
 }
 
 class EmbeddedDesktopHeadlessRuntime implements DesktopHeadlessRuntime {
@@ -337,6 +349,80 @@ class EmbeddedDesktopHeadlessRuntime implements DesktopHeadlessRuntime {
 
     this.hasStartedHeadlessSession = true
     logDesktopHeadless('turn_done', {
+      sessionId: this.options.sessionId,
+      durationMs: Date.now() - startedAt,
+    })
+  }
+
+  async runControlResponse(
+    response: Record<string, unknown>,
+    signal: AbortSignal,
+  ): Promise<void> {
+    if (!this.options.model?.trim()) {
+      throw new Error('Desktop headless runtime requires a specific model.')
+    }
+    const startedAt = Date.now()
+    const input = async function* controlResponseInput(): AsyncIterable<string> {
+      yield `${JSON.stringify(response)}\n`
+    }
+    logDesktopHeadless('control_response_turn_start', {
+      sessionId: this.options.sessionId,
+    })
+    await runWithCwdOverride(this.options.workspacePath, async () => {
+      if (signal.aborted) {
+        logDesktopHeadless('turn_skipped_aborted_before_start', {
+          sessionId: this.options.sessionId,
+        })
+        return
+      }
+      this.prepareGlobalSessionState()
+      const commands = await getCommands(this.options.workspacePath)
+      await runHeadless(
+        input(),
+        () => this.store.getState(),
+        this.store.setState,
+        commands,
+        this.tools,
+        {},
+        [],
+        {
+          continue: undefined,
+          resume: this.hasStartedHeadlessSession ||
+            this.options.resumeExistingSession
+            ? this.options.sessionId
+            : undefined,
+          resumeSessionAt: undefined,
+          verbose: true,
+          outputFormat: 'stream-json',
+          jsonSchema: undefined,
+          permissionPromptToolName: this.options.permissionPromptToolName,
+          allowedTools: undefined,
+          thinkingConfig: thinkingConfigFromDesktopMode(
+            this.options.thinkingMode,
+          ),
+          maxTurns: undefined,
+          maxBudgetUsd: undefined,
+          taskBudget: undefined,
+          systemPrompt: this.options.systemPrompt,
+          appendSystemPrompt: this.options.appendSystemPrompt,
+          userSpecifiedModel: this.options.model,
+          teleport: undefined,
+          sdkUrl: undefined,
+          replayUserMessages: true,
+          includePartialMessages: true,
+          forkSession: false,
+          rewindFiles: undefined,
+          enableAuthStatus: false,
+          agent: undefined,
+          workload: undefined,
+          exitOnComplete: false,
+          createStructuredIO: inputPrompt =>
+            this.createStructuredIO(inputPrompt, signal),
+        },
+      )
+    })
+    this.hasStartedHeadlessSession = true
+    logDesktopHeadless('control_response_turn_done', {
       sessionId: this.options.sessionId,
       durationMs: Date.now() - startedAt,
     })

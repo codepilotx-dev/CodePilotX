@@ -153,8 +153,8 @@ function inputSchema() {
         .max(maxQuestions)
         .describe(
           maxQuestions === 1
-            ? 'Question to ask the user. Ask exactly one question per tool call.'
-            : `Questions to ask the user (1-${maxQuestions} questions)`,
+            ? 'Question to ask the user. Ask exactly one question in this tool call.'
+            : `Questions to ask the user simultaneously in this tool call (1-${maxQuestions} questions)`,
         ),
       ...commonFields(),
     })
@@ -224,8 +224,8 @@ const AskUserQuestionToolImpl: Tool<InputSchema, Output> = buildTool({
     const maxQuestions = getAskUserQuestionMaxQuestions()
     const maxQuestionsPrompt =
       maxQuestions === 1
-        ? '\nQuestion limit: Ask exactly one question per tool call. If you need more information, ask the highest-priority question now and ask follow-up questions in later turns.\n'
-        : `\nQuestion limit: Ask 1-${maxQuestions} questions per tool call.\n`
+        ? '\nQuestion limit: Ask exactly one question in this tool call. If you need more information, ask the highest-priority question now and ask follow-up questions in later turns.\n'
+        : `\nQuestion limit: Ask 1-${maxQuestions} questions simultaneously in this tool call.\n`
     const format = getQuestionPreviewFormat()
     if (format === undefined) {
       // SDK consumer that hasn't opted into a preview format — omit preview

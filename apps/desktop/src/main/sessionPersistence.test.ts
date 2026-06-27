@@ -234,6 +234,89 @@ test('legacy snapshot workflow events are normalized on restore', async () => {
   })
 })
 
+test('AskUserQuestion pending permission with tool use id survives desktop restart', async () => {
+  await withDesktopConfig(async configDir => {
+    const sessionId = randomUUID()
+    const now = new Date('2026-01-01T00:00:00.000Z').toISOString()
+    const projectPath = join(configDir, 'question-project')
+    let snapshot = createDesktopSessionSnapshot({
+      sessionId,
+      workspace: {
+        path: projectPath,
+        name: 'question-project',
+        branchName: null,
+        isGitRepo: false,
+      },
+      standalone: false,
+      settings: {
+        permissionMode: 'default',
+        thinkingMode: 'default',
+        additionalDirectories: [],
+      },
+    })
+    snapshot = {
+      ...snapshot,
+      item: {
+        ...snapshot.item,
+        status: 'waiting',
+        createdAt: now,
+        lastMessageAt: now,
+      },
+      view: {
+        ...snapshot.view,
+        pendingPermissions: [
+          {
+            requestId: 'permission-1',
+            toolName: 'AskUserQuestion',
+            toolUseId: 'call-question-1',
+            description: 'Answer question',
+            input: {
+              questions: [
+                {
+                  question: 'First choice?',
+                  header: 'Choice',
+                  options: [
+                    { label: 'A', description: 'Choose A' },
+                    { label: 'B', description: 'Choose B' },
+                  ],
+                },
+              ],
+            },
+          },
+        ],
+        messages: [
+          {
+            id: 'message-1',
+            role: 'assistant',
+            text: 'Waiting for answer',
+            createdAt: now,
+            streaming: true,
+          },
+        ],
+      },
+      updatedAt: now,
+    }
+
+    await saveDesktopSessionStore({
+      activeSessionId: sessionId,
+      sessions: [snapshot],
+    })
+
+    const store = await loadDesktopSessionStore()
+    const restored = store.sessions.find(item => item.item.id === sessionId)
+
+    expect(restored?.item.status).toBe('waiting')
+    expect(restored?.view.pendingPermissions).toEqual([
+      expect.objectContaining({
+        requestId: 'permission-1',
+        toolName: 'AskUserQuestion',
+        toolUseId: 'call-question-1',
+      }),
+    ])
+    expect(restored?.view.messages[0]?.streaming).toBe(false)
+  })
+})
+
 test('overlay workflow events are saved and restored without transcript state', async () => {
   await withDesktopConfig(async configDir => {
     const sessionId = randomUUID()

@@ -157,7 +157,12 @@ export async function saveDesktopSessionStore(
   const overlayStore: PersistedDesktopSessionOverlayStore = {
     activeSessionId: state.activeSessionId,
     sessions: state.sessions.map(snapshot => {
-      const overlay = overlayFromSnapshot(snapshot)
+      const overlay = overlayFromSnapshot(
+        snapshot,
+        shouldPersistRecoverablePendingQuestionSnapshot(snapshot)
+          ? snapshot
+          : undefined,
+      )
       return {
         id: overlay.id,
         workspace: overlay.workspace,
@@ -175,6 +180,7 @@ export async function saveDesktopSessionStore(
         workflowEvents: overlay.workflowEvents,
         workflowEventModelVersion: overlay.workflowEventModelVersion,
         reviewComments: overlay.reviewComments,
+        legacySnapshot: overlay.legacySnapshot,
       }
     }),
   }
@@ -485,6 +491,10 @@ function normalizeSessionOverlay(value: unknown): DesktopSessionOverlay[] {
   const reviewComments = Array.isArray(raw.reviewComments)
     ? raw.reviewComments.flatMap(normalizeReviewComment)
     : undefined
+  const legacySnapshot =
+    raw.legacySnapshot && typeof raw.legacySnapshot === 'object'
+      ? normalizeSessionSnapshot(raw.legacySnapshot)[0]
+      : undefined
   return [
     {
       id: raw.id,
@@ -506,6 +516,7 @@ function normalizeSessionOverlay(value: unknown): DesktopSessionOverlay[] {
       workflowEvents,
       workflowEventModelVersion: workflowEvents ? 1 : undefined,
       reviewComments,
+      legacySnapshot,
     },
   ]
 }
@@ -548,6 +559,14 @@ function normalizeSessionSnapshot(value: unknown): DesktopSessionSnapshot[] {
       : new Date().toISOString()
   const lastMessageAt =
     item.lastMessageAt ?? latestMessageTimestamp(view.messages) ?? updatedAt
+  const recoverablePendingPermissions =
+    recoverablePendingQuestionRequests(view.pendingPermissions)
+  const restoredStatus =
+    recoverablePendingPermissions.length > 0 && item.status === 'waiting'
+      ? 'waiting'
+      : item.status === 'running' || item.status === 'waiting'
+        ? 'done'
+        : item.status
   return [
     {
       item: {
@@ -559,16 +578,13 @@ function normalizeSessionSnapshot(value: unknown): DesktopSessionSnapshot[] {
           item.standalone === true,
         ),
         lastMessageAt,
-        status:
-          item.status === 'running' || item.status === 'waiting'
-            ? 'done'
-            : item.status,
+        status: restoredStatus,
       },
       workspace: normalizedWorkspace,
       settings,
       view: {
         ...view,
-        pendingPermissions: [],
+        pendingPermissions: recoverablePendingPermissions,
         messages: view.messages.map(message => ({
           ...message,
           streaming: false,
@@ -637,6 +653,12 @@ function snapshotFromTranscriptLog(
         events: [] as DesktopSessionEvent[],
         effectiveModel: undefined,
       }
+  const overlayRecoverablePendingPermissions =
+    overlay?.legacySnapshot?.view.pendingPermissions
+      ? recoverablePendingQuestionRequests(
+          normalizeViewSnapshot(overlay.legacySnapshot.view).pendingPermissions,
+        )
+      : []
   const effectiveModel =
     validModelName(parsed.effectiveModel) ??
     validModelName(parsed.contextUsage?.model) ??
@@ -675,9 +697,12 @@ function snapshotFromTranscriptLog(
     hasAppendSystemPrompt: Boolean(settings.appendSystemPrompt),
     additionalDirectoryCount: settings.additionalDirectories.length,
     status:
-      overlay?.status === 'running' || overlay?.status === 'waiting'
-        ? 'done'
-        : overlay?.status ?? 'done',
+      overlayRecoverablePendingPermissions.length > 0 &&
+      overlay?.status === 'waiting'
+        ? 'waiting'
+        : overlay?.status === 'running' || overlay?.status === 'waiting'
+          ? 'done'
+          : overlay?.status ?? 'done',
     lastMessageAt,
     createdAt,
   }
@@ -693,7 +718,7 @@ function snapshotFromTranscriptLog(
     view: {
       messages: parsed.messages,
       toolLog: parsed.toolLog,
-      pendingPermissions: [],
+      pendingPermissions: overlayRecoverablePendingPermissions,
       contextUsage: parsed.contextUsage,
     },
     events: parsed.events,
@@ -1437,6 +1462,8 @@ function normalizePermissionRequest(value: unknown): DesktopPermissionRequest[] 
     {
       requestId: request.requestId,
       toolName: request.toolName,
+      toolUseId:
+        typeof request.toolUseId === 'string' ? request.toolUseId : undefined,
       input: request.input as Record<string, unknown>,
       description: request.description,
       profile: isAgentPermissionProfile(request.profile)
@@ -1445,8 +1472,36 @@ function normalizePermissionRequest(value: unknown): DesktopPermissionRequest[] 
       approvalMode: isAgentApprovalMode(request.approvalMode)
         ? request.approvalMode
         : undefined,
+      approvalsReviewer:
+        request.approvalsReviewer === 'user' ||
+        request.approvalsReviewer === 'auto_review' ||
+        request.approvalsReviewer === 'auto'
+          ? request.approvalsReviewer
+          : undefined,
+      autoReviewFallbackReason:
+        typeof request.autoReviewFallbackReason === 'string'
+          ? request.autoReviewFallbackReason
+          : undefined,
     },
   ]
+}
+
+function shouldPersistRecoverablePendingQuestionSnapshot(
+  snapshot: DesktopSessionSnapshot,
+): boolean {
+  return recoverablePendingQuestionRequests(snapshot.view.pendingPermissions)
+    .length > 0
+}
+
+function recoverablePendingQuestionRequests(
+  requests: DesktopPermissionRequest[],
+): DesktopPermissionRequest[] {
+  return requests.filter(
+    request =>
+      request.toolName === 'AskUserQuestion' &&
+      typeof request.toolUseId === 'string' &&
+      request.toolUseId.trim().length > 0,
+  )
 }
 
 function extractTextContent(content: unknown): string {

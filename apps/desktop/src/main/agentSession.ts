@@ -3,6 +3,7 @@ import { EventEmitter } from 'node:events'
 import { basename, isAbsolute, relative, resolve } from 'node:path'
 import {
   createDesktopAgentRuntime,
+  buildAskUserQuestionControlResponse,
   type DesktopAgentRuntime,
   type DesktopAgentRuntimePreference,
   type DesktopAgentRuntimeContext,
@@ -70,6 +71,10 @@ export type DesktopAgentSession = {
   sendUserMessage(content: DesktopUserMessageContent, previewText: string): Promise<void>
   respondToPermission(
     requestId: string,
+    decision: DesktopPermissionDecision,
+  ): Promise<void>
+  respondToRecoveredAskUserQuestion(
+    request: DesktopPermissionRequest,
     decision: DesktopPermissionDecision,
   ): Promise<void>
   interrupt(): Promise<void>
@@ -275,6 +280,52 @@ class LocalDesktopAgentSession
     }
     this.pendingPermissions.delete(requestId)
     pending.resolve(decision)
+  }
+
+  async respondToRecoveredAskUserQuestion(
+    request: DesktopPermissionRequest,
+    decision: DesktopPermissionDecision,
+  ): Promise<void> {
+    this.assertActive()
+    if (this.currentAbortController) {
+      throw new Error('Desktop agent session is already running')
+    }
+    if (
+      request.toolName !== 'AskUserQuestion' ||
+      typeof request.toolUseId !== 'string' ||
+      !request.toolUseId.trim()
+    ) {
+      throw new Error('AskUserQuestion recovery requires a tool use id.')
+    }
+    if (decision.behavior !== 'allow' || !decision.updatedInput) {
+      throw new Error('AskUserQuestion recovery requires allowed updated input.')
+    }
+
+    const abortController = new AbortController()
+    this.currentAbortController = abortController
+    this.emitStatus('running')
+    try {
+      await this.runtime.runControlResponse(
+        buildAskUserQuestionControlResponse({
+          requestId: request.requestId,
+          toolUseId: request.toolUseId,
+          updatedInput: decision.updatedInput,
+        }),
+        abortController.signal,
+      )
+      if (!abortController.signal.aborted) {
+        this.emitStatus('done')
+        this.emitEvent({ type: 'done', sessionId: this.sessionId })
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      this.emitEvent({ type: 'error', sessionId: this.sessionId, message })
+      this.emitStatus('error')
+    } finally {
+      if (this.currentAbortController === abortController) {
+        this.currentAbortController = null
+      }
+    }
   }
 
   async interrupt(): Promise<void> {

@@ -12,6 +12,9 @@ const headlessRuntime = {
   setPermissionMode: mock((_permissionMode: string | undefined) => undefined),
   setCodexPermissionConfig: mock((_config: Record<string, unknown>) => undefined),
   runUserTurn: mock(async (_content: unknown, _signal: AbortSignal) => undefined),
+  runControlResponse: mock(
+    async (_response: Record<string, unknown>, _signal: AbortSignal) => undefined,
+  ),
 }
 
 mock.module('@codepilotx/tui/headless/desktopRuntime.js', () => ({
@@ -24,6 +27,11 @@ mock.module('@codepilotx/tui/headless/desktopRuntime.js', () => ({
     content: unknown,
     signal: AbortSignal,
   ) => runtime.runUserTurn(content, signal),
+  runDesktopHeadlessControlResponse: (
+    runtime: typeof headlessRuntime,
+    response: Record<string, unknown>,
+    signal: AbortSignal,
+  ) => runtime.runControlResponse(response, signal),
 }))
 
 const { createDesktopAgentRuntime } = await import('./agentRuntime.js')

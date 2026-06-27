@@ -348,6 +348,67 @@ test('auto-review fallback emits user permission request with fallback reason', 
   }
 })
 
+test('recovered AskUserQuestion permission injects control response into runtime', async () => {
+  const controlResponses: Record<string, unknown>[] = []
+  const session = createDesktopAgentSession(
+    {
+      workspacePath: resolve('tmp', 'desktop-workspace'),
+      sessionId: 'session-recovered-question',
+      suppressStartupMessage: true,
+      permissionMode: 'default',
+    },
+    {
+      createRuntime: () => createRecoveredQuestionRuntime(controlResponses),
+    },
+  )
+
+  await session.respondToRecoveredAskUserQuestion(
+    {
+      requestId: 'permission-1',
+      toolName: 'AskUserQuestion',
+      toolUseId: 'call-question-1',
+      input: { questions: [] },
+      description: 'Answer question',
+    },
+    {
+      behavior: 'allow',
+      updatedInput: { answers: { 'First choice?': 'A' } },
+    },
+  )
+
+  expect(controlResponses).toEqual([
+    {
+      type: 'control_response',
+      response: {
+        request_id: 'permission-1',
+        subtype: 'success',
+        response: {
+          behavior: 'allow',
+          updatedInput: { answers: { 'First choice?': 'A' } },
+          toolUseID: 'call-question-1',
+          decisionClassification: 'user_temporary',
+        },
+      },
+    },
+  ])
+})
+
+function createRecoveredQuestionRuntime(
+  controlResponses: Record<string, unknown>[],
+): DesktopAgentRuntime {
+  return {
+    setModel: () => {},
+    setModelProvider: () => {},
+    setDebugConversationDump: () => {},
+    setPermissionMode: () => {},
+    setPlanModeActive: () => {},
+    runUserTurn: async () => {},
+    runControlResponse: async response => {
+      controlResponses.push(response)
+    },
+  }
+}
+
 function createPermissionRuntime(
   context: DesktopAgentRuntimeContext,
   decisions: unknown[],
@@ -358,6 +419,7 @@ function createPermissionRuntime(
     setDebugConversationDump: () => {},
     setPermissionMode: () => {},
     setPlanModeActive: () => {},
+    runControlResponse: async () => {},
     async runUserTurn() {
       const decision = await context.requestPermission({
         requestId: 'permission-1',

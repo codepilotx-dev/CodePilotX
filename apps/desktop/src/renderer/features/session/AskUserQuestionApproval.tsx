@@ -53,22 +53,35 @@ export function AskUserQuestionApproval({
   }, [questionCount])
 
   React.useEffect(() => {
-    if (questionCount <= 1 || typeof window === 'undefined') return
+    if (!questions || typeof window === 'undefined') return
     function handleKeyDown(event: KeyboardEvent): void {
       if (isTextEntryTarget(event.target)) return
+      const currentQuestion = questions[currentQuestionIndex] ?? questions[0]
+      if (!currentQuestion) return
       if (event.key === 'ArrowLeft') {
+        event.preventDefault()
         setCurrentQuestionIndex(current =>
           nextQuestionIndex(current, -1, questionCount),
         )
       } else if (event.key === 'ArrowRight') {
+        event.preventDefault()
         setCurrentQuestionIndex(current =>
           nextQuestionIndex(current, 1, questionCount),
         )
+      } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+        event.preventDefault()
+        updateQuestionSelection(
+          currentQuestion,
+          event.key === 'ArrowUp' ? -1 : 1,
+        )
+      } else if (event.key === 'Enter') {
+        event.preventDefault()
+        submitCurrentSelection(currentQuestion)
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [questionCount])
+  }, [currentQuestionIndex, questionCount, questionStates, questions])
 
   if (!questions) {
     return (
@@ -96,7 +109,10 @@ export function AskUserQuestionApproval({
     updater: (current: QuestionState) => QuestionState,
   ): void {
     setQuestionStates(current => {
-      const previous = current[questionText] ?? { selected: [], custom: '' }
+      const question = questions?.find(item => item.question === questionText)
+      const previous = question
+        ? (current[questionText] ?? initialQuestionState(question))
+        : { selected: [], custom: '' }
       return {
         ...current,
         [questionText]: updater(previous),
@@ -107,33 +123,45 @@ export function AskUserQuestionApproval({
 
   function submitAnswers(): void {
     if (!questions) return
-    const answers: Record<string, string> = {}
-    const unansweredIndex = firstUnansweredQuestionIndex(
-      questions,
-      questionStates,
-    )
-
-    if (unansweredIndex !== -1) {
-      setCurrentQuestionIndex(unansweredIndex)
-      setError('请回答每个问题后再提交。')
-      return
-    }
-
-    for (const question of questions) {
-      const state = questionStates[question.question] ?? {
-        selected: [],
-        custom: '',
-      }
-      const answerParts = [
-        ...state.selected,
-        ...(state.custom.trim() ? [state.custom.trim()] : []),
-      ]
-      answers[question.question] = answerParts.join(', ')
-    }
-
     onSubmit({
       ...request.input,
-      answers,
+      answers: buildAnswers(questions, questionStates),
+    })
+  }
+
+  function submitCurrentSelection(
+    question: AskUserQuestion,
+    selectedLabel?: string,
+  ): void {
+    if (!questions) return
+    onSubmit({
+      ...request.input,
+      answers: buildAnswers(
+        questions,
+        questionStates,
+        selectedLabel
+          ? {
+              question,
+              state: {
+                selected: [selectedLabel],
+                custom: '',
+              },
+            }
+          : undefined,
+      ),
+    })
+  }
+
+  function updateQuestionSelection(
+    question: AskUserQuestion,
+    delta: -1 | 1,
+  ): void {
+    updateQuestion(question.question, current => {
+      const currentLabel = current.selected[0] ?? question.options[0]?.label
+      const nextLabel = nextOptionLabel(question, currentLabel, delta)
+      return nextLabel
+        ? { selected: [nextLabel], custom: '' }
+        : initialQuestionState(question)
     })
   }
 
@@ -145,12 +173,10 @@ export function AskUserQuestionApproval({
   }
 
   const currentQuestion = questions[currentQuestionIndex] ?? questions[0]
-  const state = questionStates[currentQuestion.question] ?? {
-    selected: [],
-    custom: '',
-  }
+  const state =
+    questionStates[currentQuestion.question] ?? initialQuestionState(currentQuestion)
   const answeredCount = questions.filter(question =>
-    hasQuestionAnswer(questionStates[question.question]),
+    hasQuestionAnswer(questionStates[question.question] ?? initialQuestionState(question)),
   ).length
 
   return (
@@ -197,6 +223,7 @@ export function AskUserQuestionApproval({
                       : [...current.selected, option.label]
                     return { ...current, selected: selectedLabels }
                   })
+                  submitCurrentSelection(currentQuestion, option.label)
                 }}
               >
                 <span className="inline-approval-option-index">
@@ -205,31 +232,29 @@ export function AskUserQuestionApproval({
                 <span className="inline-approval-option-label">
                   {option.label}
                   {option.description ? (
+                    <span
+                      className="inline-approval-option-info"
+                      aria-hidden="true"
+                    >
+                      <Info size={14} />
+                    </span>
+                  ) : null}
+                  {index === 0 ? (
                     <span className="inline-approval-option-hint">
                       {' '}
-                      ({option.description})
+                      （推荐）
                     </span>
                   ) : null}
                 </span>
-                {(option.description || selected) ? (
+                {selected ? (
                   <span className="inline-approval-option-trailing">
-                    {option.description ? (
-                      <span
-                        className="inline-approval-option-info"
-                        aria-hidden="true"
-                      >
-                        <Info size={14} />
-                      </span>
-                    ) : null}
-                    {selected ? (
-                      <span
-                        className="inline-approval-option-arrows"
-                        aria-hidden="true"
-                      >
-                        <ArrowUp size={14} />
-                        <ArrowDown size={14} />
-                      </span>
-                    ) : null}
+                    <span
+                      className="inline-approval-option-arrows"
+                      aria-hidden="true"
+                    >
+                      <ArrowUp size={14} />
+                      <ArrowDown size={14} />
+                    </span>
                   </span>
                 ) : null}
               </button>
@@ -324,6 +349,60 @@ export function firstUnansweredQuestionIndex(
   )
 }
 
+export function initialQuestionState(question: {
+  options: Array<{ label: string }>
+}): QuestionState {
+  const firstOption = question.options[0]?.label
+  return {
+    selected: firstOption ? [firstOption] : [],
+    custom: '',
+  }
+}
+
+export function answerForSelectedOption(
+  question: { question: string },
+  selectedLabel: string,
+): Record<string, string> {
+  return { [question.question]: selectedLabel }
+}
+
+export function nextOptionLabel(
+  question: { options: Array<{ label: string }> },
+  currentLabel: string | undefined,
+  delta: -1 | 1,
+): string | undefined {
+  const currentIndex = Math.max(
+    0,
+    question.options.findIndex(option => option.label === currentLabel),
+  )
+  const nextIndex = nextQuestionIndex(
+    currentIndex,
+    delta,
+    question.options.length,
+  )
+  return question.options[nextIndex]?.label
+}
+
+function buildAnswers(
+  questions: AskUserQuestion[],
+  questionStates: Record<string, QuestionState>,
+  override?: { question: AskUserQuestion; state: QuestionState },
+): Record<string, string> {
+  const answers: Record<string, string> = {}
+  for (const question of questions) {
+    const state =
+      override?.question.question === question.question
+        ? override.state
+        : (questionStates[question.question] ?? initialQuestionState(question))
+    const answerParts = [
+      ...state.selected,
+      ...(state.custom.trim() ? [state.custom.trim()] : []),
+    ]
+    answers[question.question] = answerParts.join(', ')
+  }
+  return answers
+}
+
 function hasQuestionAnswer(state: QuestionState | undefined): boolean {
   if (!state) return false
   return state.selected.length > 0 || Boolean(state.custom.trim())
@@ -359,7 +438,7 @@ export function parseAskUserQuestions(
     const options: AskUserQuestionOption[] = []
     for (const rawOption of rawOptions) {
       if (!isRecord(rawOption)) return null
-      const label = stringValue(rawOption.label)
+      const label = normalizeRecommendedOptionLabel(stringValue(rawOption.label))
       const description = stringValue(rawOption.description)
       if (!label || !description) return null
       options.push({ label, description })
@@ -382,4 +461,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function stringValue(value: unknown): string | null {
   return typeof value === 'string' ? value : null
+}
+
+function normalizeRecommendedOptionLabel(value: string | null): string | null {
+  if (!value) return value
+  return value
+    .replace(/\s*(?:\((?:recommended|推荐)\)|（(?:recommended|推荐)）)\s*$/iu, '')
+    .trim()
 }

@@ -83,6 +83,7 @@ import type {
   DesktopApprovalPolicy,
   DesktopModelSelection,
   DesktopPermissionDecision,
+  DesktopPermissionRequest,
   DesktopReviewComment,
   DesktopSlashCommandSuggestion,
   DesktopSessionMetadataPatch,
@@ -1127,9 +1128,32 @@ async function respondToPermission(
     )
   }
   persistSessionStore()
+  if (
+    !record.session &&
+    isRecoverableAskUserQuestionPermission(pendingRequest, decision)
+  ) {
+    await createRuntimeForRecord(record).respondToRecoveredAskUserQuestion(
+      pendingRequest,
+      decision,
+    )
+    return
+  }
   if (record.session) {
     await record.session.respondToPermission(normalizedRequestId, decision)
   }
+}
+
+function isRecoverableAskUserQuestionPermission(
+  request: DesktopPermissionRequest | undefined,
+  decision: DesktopPermissionDecision,
+): request is DesktopPermissionRequest {
+  return (
+    request?.toolName === 'AskUserQuestion' &&
+    typeof request.toolUseId === 'string' &&
+    request.toolUseId.trim().length > 0 &&
+    decision.behavior === 'allow' &&
+    Boolean(decision.updatedInput)
+  )
 }
 
 async function interruptSession(sessionId: string): Promise<void> {

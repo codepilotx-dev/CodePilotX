@@ -614,7 +614,7 @@ function buildAskUserQuestionValidationHint(
   const maxQuestions = normalizedAskUserQuestionMaxQuestions()
   return (
     `\n\nDesktop AskUserQuestion limit: ask at most ${maxQuestions} ` +
-    `question${maxQuestions === 1 ? '' : 's'} per tool call. ` +
+    `question${maxQuestions === 1 ? '' : 's'} simultaneously in this tool call. ` +
     'Ask the highest-priority question now, then ask follow-up questions in later turns.'
   )
 }

@@ -443,7 +443,7 @@ export function GeneralSettings({
           />
           <SettingsRow
             title='最大同时问题数'
-            description='模型一次可向你提出的问题数量；多题会在对话框中分页显示。此设置仅影响新对话。'
+            description='一次 AskUserQuestion 可同时提出的问题数量；多题会在对话框中切换显示。此设置仅影响新对话。'
             control={
               <SegmentedControl
                 value={String(askUserQuestionMaxQuestions) as '1' | '2' | '3' | '4'}
