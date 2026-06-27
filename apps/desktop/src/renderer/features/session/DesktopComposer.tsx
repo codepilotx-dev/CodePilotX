@@ -68,6 +68,7 @@ type Props = {
     enabled: boolean,
     previousMode: DesktopPermissionMode,
   ) => void
+  previousNonPlanMode?: DesktopPermissionMode
   onThinkingChange: (value: DesktopThinkingMode) => void
   createSessionForWorkspace: (
     target?: DesktopWorkspace | null,
@@ -110,6 +111,7 @@ export function DesktopComposer({
   onCreateBranch,
   onPermissionChange,
   onPlanModeToggle,
+  previousNonPlanMode,
   onThinkingChange,
   createSessionForWorkspace,
   submitToSession,
@@ -265,6 +267,7 @@ export function DesktopComposer({
       onCreateBranch={onCreateBranch}
       onPermissionChange={onPermissionChange}
       onPlanModeToggle={onPlanModeToggle}
+      previousNonPlanMode={previousNonPlanMode}
       onSubmit={handleSubmit}
       onThinkingChange={onThinkingChange}
       contextDropdownSide={isQuickChatPage ? 'bottom' : 'top'}

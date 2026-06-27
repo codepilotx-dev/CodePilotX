@@ -196,6 +196,7 @@ type Props = {
   onCreateBranch: () => void
   onPermissionChange: (value: DesktopPermissionMode) => void
   onPlanModeToggle?: (enabled: boolean, previousMode: DesktopPermissionMode) => void
+  previousNonPlanMode?: DesktopPermissionMode
   onSubmit: () => void
   onThinkingChange: (value: DesktopThinkingMode) => void
   contextDropdownSide?: 'top' | 'bottom'
@@ -241,6 +242,7 @@ export function ComposerCard({
 onCreateBranch,
   onPermissionChange,
   onPlanModeToggle,
+  previousNonPlanMode,
   onSubmit,
   onThinkingChange,
   contextDropdownSide = 'top',
@@ -252,6 +254,9 @@ onCreateBranch,
   const [branchSearch, setBranchSearch] = useState('')
   const { resolvedVariant } = useDesktopTheme()
   const planModeEnabled = permissionMode === 'plan'
+  const displayPermissionMode: DesktopPermissionMode = planModeEnabled
+    ? previousNonPlanMode ?? 'default'
+    : permissionMode
   const [goalModeEnabled, setGoalModeEnabled] = useState(false)
   const [slashSelectedIndex, setSlashSelectedIndex] = useState(0)
   const [dismissedSlashInput, setDismissedSlashInput] = useState<string | null>(
@@ -259,7 +264,7 @@ onCreateBranch,
   )
 
   const selectedPermission = permissionOptions.find(
-    option => option.value === permissionMode,
+    option => option.value === displayPermissionMode,
   )
   const selectedModel = modelPresets.find(
     preset => preset.id === selectedModelPreset,
@@ -408,12 +413,6 @@ onCreateBranch,
           <span>完全访问权限 · 此对话允许直接读写文件和运行命令</span>
         </div>
       ) : null}
-      {planModeEnabled ? (
-        <div className="permission-plan-banner">
-          <ListChecks size={APP_ICON_SIZE} />
-          <span>计划模式 · 当前会话只允许读取；写入、命令与联网请求会被逐项询问</span>
-        </div>
-      ) : null}
       <div className="composer-top">
         {attachments.length > 0 ? (
           <div className="composer-attachments" aria-label="已添加附件">
@@ -529,7 +528,7 @@ onCreateBranch,
             </IconButton>
             <Select.Root
               open={openDropdown === 'permission'}
-              value={permissionMode}
+              value={displayPermissionMode}
               onOpenChange={open =>
                 setOpenDropdown(open ? 'permission' : null)
               }
@@ -542,13 +541,13 @@ onCreateBranch,
                 aria-label="选择权限模式"
                 className={[
                   'chip-button',
-                  getPermissionClassName(permissionMode),
+                  getPermissionClassName(displayPermissionMode),
                   openDropdown === 'permission' ? 'active' : '',
                   'permission-select-trigger',
                 ].join(' ')}
                 title="选择权限模式"
               >
-                {getPermissionIcon(permissionMode)}
+                {getPermissionIcon(displayPermissionMode)}
                 <span className="permission-select-trigger-label">
                   {selectedPermission?.label ?? '默认权限'}
                 </span>
@@ -603,6 +602,33 @@ onCreateBranch,
                 </Select.Content>
               </Select.Portal>
             </Select.Root>
+            {planModeEnabled ? (
+              <>
+                <span className="toolbar-divider" aria-hidden="true" />
+                <span
+                  className="plan-mode-chip"
+                  aria-label="计划模式已开启"
+                >
+                  <ListChecks
+                    size={APP_ICON_SIZE}
+                    className="plan-mode-chip__icon-default"
+                    aria-hidden="true"
+                  />
+                  <button
+                    type="button"
+                    className="plan-mode-chip__exit"
+                    aria-label="退出计划模式"
+                    title="退出计划模式"
+                    onClick={() =>
+                      onPermissionChange(previousNonPlanMode ?? 'default')
+                    }
+                  >
+                    <X size={12} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                  </button>
+                  <span className="plan-mode-chip__label">计划</span>
+                </span>
+              </>
+            ) : null}
           </div>
 
           <div className="toolbar-right">
