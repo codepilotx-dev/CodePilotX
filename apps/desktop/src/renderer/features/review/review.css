@@ -730,3 +730,331 @@
   border: 1px solid var(--c-border-soft);
   background: var(--c-bg-soft);
 }
+
+
+
+.review-sidebar .review-scope-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border: 1px solid var(--c-border-soft);
+  border-radius: var(--radius-3);
+  background: var(--c-bg-soft);
+  color: var(--c-text-strong);
+  font-size: var(--fs-13);
+  font-weight: 500;
+}
+
+.review-sidebar .review-scope-trigger:hover {
+  background: var(--c-bg-hover);
+}
+
+.review-sidebar .review-scope-trigger-label {
+  min-width: 54px;
+  text-align: left;
+}
+
+.review-sidebar .review-scope-trigger .review-sidebar-counts {
+  margin-left: 6px;
+  padding-left: 6px;
+  border-left: 1px solid var(--c-border-faint);
+}
+
+
+
+.review-sidebar .review-file-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--c-border-faint);
+  background: var(--c-bg);
+  color: var(--c-text-mute);
+}
+
+.review-sidebar .review-file-search input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--c-text-strong);
+  font-family: var(--ff-sans);
+  font-size: var(--fs-13);
+}
+
+.review-sidebar .review-file-search input::placeholder {
+  color: var(--c-text-placeholder);
+}
+
+
+
+.review-sidebar .review-file-tree {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.review-sidebar .review-file-tree-files {
+  display: flex;
+  flex-direction: column;
+}
+
+.review-sidebar .review-file-tree-dir {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  border: 0;
+  background: transparent;
+  color: var(--c-text-soft);
+  font-size: var(--fs-13);
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.review-sidebar .review-file-tree-dir:hover {
+  background: var(--c-bg-hover);
+  color: var(--c-text-strong);
+}
+
+.review-sidebar .review-file-tree-dir svg {
+  flex: 0 0 auto;
+}
+
+.review-sidebar .review-file-tree-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  padding-right: 14px;
+  border: 0;
+  background: transparent;
+  color: var(--c-text-soft);
+  font-size: var(--fs-13);
+  text-align: left;
+  cursor: pointer;
+}
+
+.review-sidebar .review-file-tree-row:hover,
+.review-sidebar .review-file-tree-row.active {
+  background: var(--c-bg-hover);
+  color: var(--c-text-strong);
+}
+
+.review-sidebar .review-file-tree-row .review-file-counts {
+  margin-left: auto;
+}
+
+
+
+.review-sidebar .review-footer {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 8px 14px;
+  border-top: 1px solid var(--c-border-faint);
+  background: var(--c-bg-soft);
+}
+
+.review-sidebar .review-footer button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  border: 1px solid var(--c-border-soft);
+  border-radius: var(--radius-3);
+  background: var(--c-bg);
+  color: var(--c-text-soft);
+  font-size: var(--fs-13);
+  font-family: var(--ff-sans);
+}
+
+.review-sidebar .review-footer button:hover {
+  color: var(--c-text-strong);
+  border-color: var(--c-border);
+}
+
+
+
+.review-sidebar.hide-files .review-file-search,
+.review-sidebar.hide-files .review-file-tree,
+.review-sidebar.hide-files .review-footer {
+  display: none;
+}
+
+.review-sidebar.hide-files .review-diff-preview {
+  flex: 1 1 auto;
+  max-height: none;
+}
+
+
+
+.review-popover {
+  position: fixed;
+  z-index: 60;
+  min-width: 320px;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--c-border-soft);
+  border-radius: var(--radius-4);
+  background: var(--c-bg);
+  color: var(--c-text);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  font-family: var(--ff-sans);
+}
+
+.review-popover-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-13);
+  color: var(--c-text-strong);
+  font-weight: 600;
+}
+
+.review-popover-header .review-popover-branch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-13);
+  color: var(--c-text-strong);
+}
+
+.review-popover-header .review-popover-branch-name {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.review-popover-header .review-popover-counts {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.review-popover-header strong {
+  color: var(--c-diff-added);
+  font-weight: 500;
+}
+
+.review-popover-header em {
+  color: var(--c-diff-removed);
+  font-style: normal;
+  font-weight: 500;
+}
+
+.review-popover-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: var(--radius-2);
+  background: transparent;
+  color: var(--c-text-mute);
+  cursor: pointer;
+}
+
+.review-popover-close:hover {
+  background: var(--c-bg-hover);
+  color: var(--c-text-strong);
+}
+
+.review-popover-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--fs-12);
+  color: var(--c-text-soft);
+}
+
+.review-popover-field span {
+  font-weight: 500;
+}
+
+.review-popover-field textarea,
+.review-popover-field input[type='text'] {
+  width: 100%;
+  padding: 7px 8px;
+  border: 1px solid var(--c-border-soft);
+  border-radius: var(--radius-3);
+  background: var(--c-bg-soft);
+  color: var(--c-text);
+  font-family: var(--ff-sans);
+  font-size: var(--fs-13);
+  resize: vertical;
+}
+
+.review-popover-field textarea {
+  min-height: 70px;
+}
+
+.review-popover-field input[type='text'] {
+  resize: none;
+}
+
+.review-popover-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-13);
+  color: var(--c-text-soft);
+}
+
+.review-popover-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 4px;
+  border-top: 1px solid var(--c-border-faint);
+}
+
+.review-popover-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--radius-3);
+  background: transparent;
+  color: var(--c-text);
+  font-family: inherit;
+  font-size: var(--fs-13);
+  text-align: left;
+  cursor: pointer;
+}
+
+.review-popover-action:hover {
+  background: var(--c-bg-hover);
+  color: var(--c-text-strong);
+}
+
+.review-popover-action-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.review-popover-action .shortcut {
+  color: var(--c-text-mute);
+  font-size: var(--fs-12);
+  font-variant-numeric: tabular-nums;
+}

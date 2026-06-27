@@ -90,6 +90,7 @@ export function DesktopLayout(): React.ReactNode {
     appendSystemPrompt,
     additionalDirectories,
     askUserQuestionMaxQuestions,
+    rustSearchAndDiffKernels,
     recentWorkspaces,
     selectedModelPreset,
     providerID,
@@ -109,6 +110,7 @@ export function DesktopLayout(): React.ReactNode {
     setRecentWorkspaces,
     setDrawerTab,
     setSelectedModelPreset,
+    setReviewView,
   } = settings
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [runtimeWarningDismissed, setRuntimeWarningDismissed] = useState(false)
@@ -174,6 +176,13 @@ export function DesktopLayout(): React.ReactNode {
     gitStatus,
   } = workspace
 
+  const derivedDefaultBranch = useMemo(() => {
+    if (!gitStatus?.upstream) return null
+    const upstream = gitStatus.upstream
+    const lastSlash = upstream.lastIndexOf('/')
+    return lastSlash >= 0 ? upstream.slice(lastSlash + 1) : upstream
+  }, [gitStatus?.upstream])
+
   const session = useSessionState({
     permissionMode,
     providerID,
@@ -190,6 +199,7 @@ export function DesktopLayout(): React.ReactNode {
     appendSystemPrompt,
     additionalDirectories,
     askUserQuestionMaxQuestions,
+    rustSearchAndDiffKernels,
     onError: (message: string) => setErrorMessage(message),
     onDiffForActive: (patch: string) => setDiffState(patch),
     onRefreshActiveWorkspace: (sessionId: string) => {
@@ -1362,7 +1372,9 @@ export function DesktopLayout(): React.ReactNode {
                   state={rightDockState}
                   browserState={browserState}
                   debugMode={menubarDebugMode}
+                  defaultBranch={derivedDefaultBranch}
                   files={workspaceFiles}
+                  gitStatus={gitStatus}
                   isRefreshingReview={false}
                   maxWidth={RIGHT_DOCK_MAX_WIDTH}
                   minWidth={RIGHT_DOCK_MIN_WIDTH}
@@ -1376,6 +1388,7 @@ export function DesktopLayout(): React.ReactNode {
                   onBrowserStateChange={setBrowserState}
                   onClose={closeRightDock}
                   onCloseTool={closeRightDockTool}
+                  onCreateBranch={() => setGitWorkflowMode('branch')}
                   onOpenTool={handleRightDockToolSelect}
                   onOpenWorkspacePath={handleOpenWorkspacePath}
                   onPreviewFile={file => void previewFile(file)}
@@ -1383,6 +1396,9 @@ export function DesktopLayout(): React.ReactNode {
                   onResetWidth={handleResetRightDockWidth}
                   onSelectTool={selectRightDockTool}
                   onSetWidth={handleSetRightDockWidth}
+                  onToggleReviewView={() =>
+                    setReviewView(reviewView === 'inline' ? 'split' : 'inline')
+                  }
                 />
               ) : null}
             </div>

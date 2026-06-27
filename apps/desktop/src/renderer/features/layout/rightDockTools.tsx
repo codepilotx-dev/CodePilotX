@@ -11,6 +11,7 @@ import type {
   DesktopBrowserState,
   DesktopFileEntry,
   DesktopFilePreview,
+  DesktopGitStatus,
   DesktopReviewView,
   DesktopSessionStatus,
   DesktopWorkspace,
@@ -31,13 +32,17 @@ export type RightDockFlags = {
 export type RightDockPanelContext = {
   review: {
     activeSessionId: string | null
+    defaultBranch: string | null
+    gitStatus: DesktopGitStatus | null
     isRefreshing: boolean
     reviewView: DesktopReviewView
     sessionStatus: DesktopSessionStatus
     workspacePath: string | null
     onClose: () => void
+    onCreateBranch: () => void
     onOpenWorkspacePath: () => void
     onRefreshDiff: () => void
+    onToggleReviewView: () => void
   }
   browser: {
     state: DesktopBrowserState | null

@@ -5,6 +5,7 @@ import type {
   DesktopBrowserState,
   DesktopFileEntry,
   DesktopFilePreview,
+  DesktopGitStatus,
   DesktopReviewView,
   DesktopSessionStatus,
   DesktopWorkspace,
@@ -27,7 +28,9 @@ type Props = {
   state: RightDockState
   browserState: DesktopBrowserState | null
   debugMode?: boolean
+  defaultBranch: string | null
   files: DesktopFileEntry[]
+  gitStatus: DesktopGitStatus | null
   isRefreshingReview: boolean
   maxWidth: number
   minWidth: number
@@ -41,6 +44,7 @@ type Props = {
   onBrowserStateChange: (state: DesktopBrowserState) => void
   onClose: () => void
   onCloseTool: (tool: RightDockToolId) => void
+  onCreateBranch: () => void
   onOpenTool: (tool: RightDockToolId) => void
   onOpenWorkspacePath: () => void
   onPreviewFile: (file: DesktopFileEntry) => void
@@ -48,13 +52,16 @@ type Props = {
   onResetWidth: () => void
   onSelectTool: (tool: RightDockToolId) => void
   onSetWidth: (width: number) => void
+  onToggleReviewView: () => void
 }
 
 export function RightDock({
   state,
   browserState,
   debugMode = false,
+  defaultBranch,
   files,
+  gitStatus,
   isRefreshingReview,
   maxWidth,
   minWidth,
@@ -68,6 +75,7 @@ export function RightDock({
   onBrowserStateChange,
   onClose,
   onCloseTool,
+  onCreateBranch,
   onOpenTool,
   onOpenWorkspacePath,
   onPreviewFile,
@@ -75,6 +83,7 @@ export function RightDock({
   onResetWidth,
   onSelectTool,
   onSetWidth,
+  onToggleReviewView,
 }: Props): React.ReactNode {
   const flags = useMemo<RightDockPanelContext['flags']>(() => ({ debugMode }), [debugMode])
   const openedTools = useMemo(
@@ -99,17 +108,21 @@ export function RightDock({
   } | null>(null)
   const [resizing, setResizing] = useState(false)
 
-  const panelContext = useMemo<RightDockPanelContext>(
+const panelContext = useMemo<RightDockPanelContext>(
     () => ({
       review: {
         activeSessionId: sessionId,
+        defaultBranch,
+        gitStatus,
         isRefreshing: isRefreshingReview,
         reviewView,
         sessionStatus,
         workspacePath: workspace?.path ?? null,
         onClose,
+        onCreateBranch,
         onOpenWorkspacePath,
         onRefreshDiff: onRefreshReview,
+        onToggleReviewView,
       },
       browser: {
         state: browserState,
@@ -126,15 +139,18 @@ export function RightDock({
     }),
     [
       browserState,
+      defaultBranch,
       files,
       flags,
+      gitStatus,
       isRefreshingReview,
       onAppendBrowserAnnotation,
       onBrowserStateChange,
       onClose,
+      onCreateBranch,
       onOpenWorkspacePath,
-      onPreviewFile,
       onRefreshReview,
+      onToggleReviewView,
       reviewView,
       selectedFile,
       sessionId,
@@ -272,9 +288,10 @@ export function RightDock({
             <span className="right-dock-tab-empty">使用 + 添加工具</span>
           )}
           <PopoverMenu
-            align="start"
+            align="end"
             className="popover-right-dock-add"
             open={menuOpen}
+            side="bottom"
             sideOffset={6}
             trigger={
               <button
