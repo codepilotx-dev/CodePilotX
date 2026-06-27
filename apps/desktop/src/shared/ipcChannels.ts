@@ -80,6 +80,7 @@ export const DESKTOP_API_METHODS = [
   'resolveSessionReviewComment',
   'deleteSessionReviewComment',
   'setSessionPermissionMode',
+  'setSessionPlanModeActive',
   'readWorkflowEventLog',
   'openConfigFile',
   'openExternalURL',

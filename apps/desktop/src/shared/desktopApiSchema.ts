@@ -280,6 +280,7 @@ export const DESKTOP_API_ARG_SCHEMAS = {
   resolveSessionReviewComment: z.tuple([sessionReviewCommentInput]),
   deleteSessionReviewComment: z.tuple([sessionReviewCommentInput]),
   setSessionPermissionMode: z.tuple([z.string(), permissionModeSchema]),
+  setSessionPlanModeActive: z.tuple([z.string(), z.boolean()]),
   readWorkflowEventLog: emptyArgs,
   openConfigFile: emptyArgs,
   openExternalURL: z.tuple([z.string()]),

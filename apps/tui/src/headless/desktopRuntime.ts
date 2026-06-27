@@ -307,7 +307,6 @@ class EmbeddedDesktopHeadlessRuntime implements DesktopHeadlessRuntime {
                   systemPrompt: this.options.systemPrompt,
                   appendSystemPrompt: this.options.appendSystemPrompt,
                   userSpecifiedModel: this.options.model,
-                  fallbackModel: undefined,
                   teleport: undefined,
                   sdkUrl: undefined,
                   replayUserMessages: true,

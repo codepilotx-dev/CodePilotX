@@ -179,7 +179,8 @@ test('ComposerCard renders active plan mode as a separate toolbar chip', () => {
   const html = renderWithProviders(
     <ComposerCard
       {...baseProps}
-      permissionMode="plan"
+      permissionMode="default"
+      planModeActive={true}
       permissionOptions={[
         { value: 'default' as const, label: '默认权限' },
       ]}

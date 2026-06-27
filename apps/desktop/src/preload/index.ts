@@ -175,6 +175,12 @@ const api: DesktopApi = {
       sessionId,
       mode,
     ),
+  setSessionPlanModeActive: (sessionId, active) =>
+    ipcRenderer.invoke(
+      desktopApiChannel('setSessionPlanModeActive'),
+      sessionId,
+      active,
+    ),
   readWorkflowEventLog: () =>
     ipcRenderer.invoke(desktopApiChannel('readWorkflowEventLog')),
   openConfigFile: () =>

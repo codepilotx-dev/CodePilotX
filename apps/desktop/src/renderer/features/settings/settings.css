@@ -959,6 +959,7 @@
 .settings-dropdown-value {
   display: flex;
   align-items: center;
+  padding: 0 10px;
   gap: var(--sp-2);
   min-width: 0;
   font-size: var(--fs-13);
@@ -2215,9 +2216,6 @@
   max-width: min(360px, 48vw);
 }
 
-.settings-dropdown-value {
-  min-width: 0;
-}
 
 .settings-dropdown-item-inner {
   display: flex;

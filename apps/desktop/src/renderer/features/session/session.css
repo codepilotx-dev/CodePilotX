@@ -683,23 +683,6 @@
 
 
 
-.exit-plan-mode-summary {
-  margin: 0;
-  padding: 12px;
-  background: var(--c-bg);
-  border: 1px solid var(--c-border-soft);
-  border-radius: var(--radius-5);
-  font-family: inherit;
-  font-size: var(--fs-13);
-  line-height: 1.55;
-  color: var(--c-text-soft);
-  white-space: pre-wrap;
-  max-height: 220px;
-  overflow-y: auto;
-}
-
-
-
 .exit-plan-mode-empty {
   margin: 0;
   font-size: var(--fs-13);
@@ -711,109 +694,6 @@
 .exit-plan-mode-actions {
   display: grid;
   gap: 12px;
-}
-
-
-
-.exit-plan-mode-mode-picker {
-  display: grid;
-  gap: 4px;
-  position: relative;
-}
-
-
-
-.exit-plan-mode-mode-label {
-  font-size: var(--fs-12);
-  color: var(--c-text-meta);
-  font-weight: 500;
-}
-
-
-
-.exit-plan-mode-mode-trigger {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  height: 36px;
-  padding: 0 12px;
-  border: 1px solid var(--c-border-soft);
-  border-radius: var(--radius-4);
-  background: var(--c-bg);
-  color: var(--c-text-strong);
-  font-size: var(--fs-13);
-  cursor: pointer;
-  transition:
-    background 120ms ease,
-    border-color 120ms ease;
-}
-
-
-
-.exit-plan-mode-mode-trigger:hover {
-  background: var(--c-bg-hover);
-  border-color: var(--c-border);
-}
-
-
-
-.exit-plan-mode-mode-menu {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
-  list-style: none;
-  margin: 0;
-  padding: 4px;
-  background: var(--c-bg);
-  border: 1px solid var(--c-border);
-  border-radius: var(--radius-5);
-  box-shadow: var(--sh-card, 0 8px 32px rgba(0, 0, 0, 0.12));
-  display: grid;
-  gap: 2px;
-  z-index: 10;
-}
-
-
-
-.exit-plan-mode-mode-option {
-  display: grid;
-  gap: 2px;
-  width: 100%;
-  padding: 8px 10px;
-  border: 0;
-  background: transparent;
-  border-radius: var(--radius-3);
-  text-align: left;
-  color: var(--c-text-strong);
-  cursor: pointer;
-  transition: background 120ms ease;
-}
-
-
-
-.exit-plan-mode-mode-option:hover {
-  background: var(--c-bg-hover);
-}
-
-
-
-.exit-plan-mode-mode-option.is-selected {
-  background: var(--accent-a3);
-}
-
-
-
-.exit-plan-mode-mode-option-label {
-  font-size: var(--fs-13);
-  font-weight: 600;
-}
-
-
-
-.exit-plan-mode-mode-option-detail {
-  font-size: var(--fs-12);
-  color: var(--c-text-soft);
 }
 
 
@@ -969,13 +849,6 @@
 
 
 
-.exit-plan-mode-fixed-option {
-  display: grid;
-  gap: 12px;
-}
-
-
-
 .exit-plan-mode-note-row {
   display: flex;
   align-items: center;
@@ -988,20 +861,36 @@
 .exit-plan-mode-note-wrap {
   flex: 1;
   min-width: 0;
-  padding: 8px 12px;
-  background: var(--c-bg);
-  border: 1px solid var(--c-border-soft);
-  border-radius: var(--radius-5);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  padding: 0 12px;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-6);
   transition:
-    border-color 0.15s,
-    box-shadow 0.15s;
+    background 0.15s,
+    color 0.15s;
+}
+
+
+
+.exit-plan-mode-note-wrap:hover {
+  background: var(--c-bg-soft);
 }
 
 
 
 .exit-plan-mode-note-wrap:focus-within {
-  border-color: var(--c-accent);
-  box-shadow: 0 0 0 3px var(--accent-a3);
+  background: var(--c-bg-soft);
+}
+
+
+
+.exit-plan-mode-note-icon {
+  color: var(--c-text-meta);
+  flex: 0 0 auto;
 }
 
 
@@ -1015,7 +904,7 @@
   background: transparent;
   color: var(--c-text-strong);
   font: inherit;
-  font-size: var(--fs-13);
+  font-size: var(--fs-15);
   padding: 0;
   line-height: 1.5;
 }
@@ -1044,6 +933,21 @@
   transition:
     background 0.15s,
     color 0.15s;
+}
+
+
+
+.exit-plan-mode-skip kbd {
+  min-width: 34px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-4);
+  background: var(--c-bg-soft);
+  color: var(--c-text-soft);
+  font: inherit;
+  font-size: var(--fs-12);
 }
 
 
@@ -2461,9 +2365,6 @@
 
 
 
-
-
-
 .chat-message-row.user {
   gap: 4px;
 }
@@ -2857,17 +2758,9 @@
 
 
 
-.workflow-composer-card-plan .exit-plan-mode-fixed-option {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-
-
 .workflow-composer-card-plan .exit-plan-mode-note-row {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: 12px;
 }
 
@@ -2876,71 +2769,12 @@
 .workflow-composer-card-plan .exit-plan-mode-note-wrap {
   flex: 1;
   min-width: 0;
-  border-color: transparent;
-}
-
-
-
-.workflow-composer-card-plan .exit-plan-mode-note-wrap:hover {
-  background: var(--c-bg-soft);
 }
 
 
 
 .workflow-composer-card-plan .exit-plan-mode-actions {
   flex: 0 0 auto;
-}
-
-
-
-.workflow-composer-card-plan .exit-plan-mode-mode-picker {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: fit-content;
-}
-
-
-
-.workflow-composer-card-plan .exit-plan-mode-mode-label {
-  color: var(--c-text-meta);
-  font-size: var(--fs-12);
-}
-
-
-
-.workflow-composer-card-plan .exit-plan-mode-mode-trigger {
-  height: 28px;
-  border-radius: var(--radius-6);
-  font-size: var(--fs-12);
-}
-
-
-
-.exit-plan-mode-summary-panel {
-  color: var(--c-text-meta);
-  font-size: var(--fs-12);
-}
-
-
-
-.exit-plan-mode-summary-panel summary {
-  width: fit-content;
-  cursor: pointer;
-  padding: 2px 0;
-}
-
-
-
-.exit-plan-mode-summary-panel[open] summary {
-  margin-bottom: 8px;
-}
-
-
-
-.exit-plan-mode-summary {
-  max-height: 220px;
-  margin: 0;
 }
 
 

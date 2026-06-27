@@ -136,6 +136,10 @@ export type DesktopApiHandlerDependencies = {
     sessionId: string,
     mode: DesktopPermissionMode,
   ): Promise<DesktopSessionSnapshot>
+  setSessionPlanModeActive(
+    sessionId: string,
+    active: boolean,
+  ): Promise<DesktopSessionSnapshot>
   sendUserMessage(
     sessionId: string,
     content: DesktopUserMessageInput,
@@ -245,6 +249,7 @@ export function buildDesktopApiHandlers(
     resolveSessionReviewComment: dependencies.resolveSessionReviewComment,
     deleteSessionReviewComment: dependencies.deleteSessionReviewComment,
     setSessionPermissionMode: dependencies.setSessionPermissionMode,
+    setSessionPlanModeActive: dependencies.setSessionPlanModeActive,
     readWorkflowEventLog: async () => windowService.readWorkflowEventLog(),
     openConfigFile: async () => openConfigFile(dependencies.getRuntimeOptions()),
     openExternalURL,

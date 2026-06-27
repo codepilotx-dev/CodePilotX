@@ -357,6 +357,7 @@ function createPermissionRuntime(
     setModelProvider: () => {},
     setDebugConversationDump: () => {},
     setPermissionMode: () => {},
+    setPlanModeActive: () => {},
     async runUserTurn() {
       const decision = await context.requestPermission({
         requestId: 'permission-1',

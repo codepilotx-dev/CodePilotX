@@ -70,12 +70,12 @@ export type DesktopAgentRuntimeContext = {
   approvalPolicy?: DesktopCodexApprovalPolicy
   approvalsReviewer?: DesktopCodexApprovalsReviewer | LegacyDesktopCodexApprovalsReviewer
   permissionMode?: DesktopPermissionMode
+  planModeActive?: boolean
   providerID?: string
   providerBaseURL?: string
   debugConversationDump?: boolean
   model?: string
   reviewModel?: string
-  fallbackModel?: string
   smallFastModel?: string
   fastModel?: string
   defaultModel?: string
@@ -99,6 +99,7 @@ export type DesktopAgentRuntime = {
     providerBaseURL: string | undefined,
   ): void
   setPermissionMode(permissionMode: DesktopPermissionMode): void
+  setPlanModeActive(active: boolean): void
   setDebugConversationDump(enabled: boolean): void
   runUserTurn(content: DesktopUserMessageContent, signal: AbortSignal): Promise<void>
 }
@@ -442,8 +443,18 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
     }
   }
 
+  setPlanModeActive(active: boolean): void {
+    this.context.planModeActive = active
+    console.info(
+      `[desktop-runtime] ${new Date().toISOString()} subprocess_set_plan_mode ${JSON.stringify({
+        sessionId: this.context.sessionId,
+        planModeActive: active,
+      })}`,
+    )
+  }
+
   private async emitAssistantText(text: string, streaming: boolean): Promise<void> {
-    if (this.context.permissionMode !== 'plan') {
+    if (this.context.planModeActive !== true) {
       this.context.emit(
         streaming
           ? {
@@ -684,7 +695,10 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
       sandboxMode: permissionConfig.sandboxMode,
       approvalPolicy: permissionConfig.approvalPolicy,
       approvalsReviewer: permissionConfig.approvalsReviewer,
-      permissionMode: tuiPermissionMode(context.permissionMode),
+      permissionMode: tuiPermissionMode(
+        context.permissionMode,
+        context.planModeActive,
+      ),
       providerID: context.providerID,
       providerBaseURL: context.providerBaseURL,
       debugConversationDump: context.debugConversationDump,
@@ -731,8 +745,23 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
         permissionMode,
       })}`,
     )
-    this.runtime.setPermissionMode(tuiPermissionMode(permissionMode))
+    this.runtime.setPermissionMode(
+      tuiPermissionMode(permissionMode, this.context.planModeActive),
+    )
     this.runtime.setCodexPermissionConfig(permissionConfig)
+  }
+
+  setPlanModeActive(active: boolean): void {
+    this.context.planModeActive = active
+    console.info(
+      `[desktop-runtime] ${new Date().toISOString()} embedded_set_plan_mode ${JSON.stringify({
+        sessionId: this.context.sessionId,
+        planModeActive: active,
+      })}`,
+    )
+    this.runtime.setPermissionMode(
+      tuiPermissionMode(this.context.permissionMode, active),
+    )
   }
 
   setDebugConversationDump(enabled: boolean): void {
@@ -897,7 +926,7 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
   }
 
   private async emitAssistantText(text: string, streaming: boolean): Promise<void> {
-    if (this.context.permissionMode !== 'plan') {
+    if (this.context.planModeActive !== true) {
       this.context.emit(
         streaming
           ? {
@@ -1133,9 +1162,6 @@ export function permissionModeArgs(
   if (permissionMode === 'full-access') {
     return ['--dangerously-skip-permissions']
   }
-  if (permissionMode === 'plan') {
-    return ['--permission-mode', 'plan']
-  }
   return ['--permission-mode', 'default']
 }
 
@@ -1200,19 +1226,19 @@ export function codexPermissionConfigForMode(
 }
 
 function desktopProposedPlanEnv(
-  context: Pick<DesktopAgentRuntimeContext, 'permissionMode'>,
+  context: Pick<DesktopAgentRuntimeContext, 'planModeActive'>,
 ): Record<string, string> {
-  return context.permissionMode === 'plan'
+  return context.planModeActive === true
     ? { CODEPILOTX_DESKTOP_PROPOSED_PLAN: '1' }
     : {}
 }
 
 async function runWithDesktopProposedPlanEnv<T>(
-  context: Pick<DesktopAgentRuntimeContext, 'permissionMode'>,
+  context: Pick<DesktopAgentRuntimeContext, 'planModeActive'>,
   operation: () => Promise<T>,
 ): Promise<T> {
   const previous = process.env.CODEPILOTX_DESKTOP_PROPOSED_PLAN
-  if (context.permissionMode === 'plan') {
+  if (context.planModeActive === true) {
     process.env.CODEPILOTX_DESKTOP_PROPOSED_PLAN = '1'
   } else {
     delete process.env.CODEPILOTX_DESKTOP_PROPOSED_PLAN
@@ -1281,10 +1307,11 @@ export function permissionPromptToolArgs(): string[] {
 
 function tuiPermissionMode(
   permissionMode: DesktopPermissionMode | undefined,
+  planModeActive = false,
 ): PermissionMode | undefined {
+  if (planModeActive) return 'plan'
   if (permissionMode === 'custom') return undefined
   if (permissionMode === 'full-access') return 'bypassPermissions'
-  if (permissionMode === 'plan') return 'plan'
   return 'default'
 }
 

@@ -46,6 +46,7 @@ import { createDesktopBrowserService } from './browserService.js'
 import { createDesktopAutoUpdater } from './autoUpdater.js'
 import { DebugToolProbeService } from './debugToolProbeService.js'
 import {
+  applySessionPlanModeActiveToSnapshot,
   applySessionPermissionModeToSnapshot,
   createSessionSettingsSnapshot,
 } from './desktopSessionSettings.js'
@@ -663,6 +664,20 @@ async function setSessionPermissionMode(
   return record.snapshot
 }
 
+async function setSessionPlanModeActive(
+  sessionId: string,
+  active: boolean,
+): Promise<DesktopSessionSnapshot> {
+  const record = await getSessionRecord(sessionId)
+  createRuntimeForRecord(record).setPlanModeActive(active)
+  record.snapshot = applySessionPlanModeActiveToSnapshot(
+    record.snapshot,
+    active,
+  )
+  persistSessionStore()
+  return record.snapshot
+}
+
 async function createSession(
   options: CreateDesktopSessionOptions,
 ): Promise<CreateDesktopSessionResult> {
@@ -683,6 +698,7 @@ async function createSession(
     options.approvalsReviewer,
   )
   const permissionMode = normalizeDesktopPermissionMode(options.permissionMode)
+  const planModeActive = options.planModeActive === true
   const model = normalizeOptionalText(options.model)
   const reviewModel = normalizeOptionalText(options.reviewModel)
   desktopConsoleLog('create_session', {
@@ -718,6 +734,7 @@ async function createSession(
     approvalPolicy,
     approvalsReviewer,
     permissionMode,
+    planModeActive,
     providerID: providerState.selectedProviderID,
     providerBaseURL: providerState.baseURL,
     model,
@@ -741,6 +758,7 @@ async function createSession(
       approvalPolicy,
       approvalsReviewer,
       permissionMode,
+      planModeActive,
       providerID: providerState.selectedProviderID,
       providerBaseURL: providerState.baseURL,
       model,
@@ -1266,6 +1284,7 @@ const desktopApiHandlers = buildDesktopApiHandlers({
   resolveSessionReviewComment,
   deleteSessionReviewComment,
   setSessionPermissionMode,
+  setSessionPlanModeActive,
   sendUserMessage,
   respondToPermission,
   interruptSession,

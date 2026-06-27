@@ -183,9 +183,11 @@ export function DesktopLayout(): React.ReactNode {
     const lastSlash = upstream.lastIndexOf('/')
     return lastSlash >= 0 ? upstream.slice(lastSlash + 1) : upstream
   }, [gitStatus?.upstream])
+  const [homePlanModeActive, setHomePlanModeActive] = useState(false)
 
   const session = useSessionState({
     permissionMode,
+    planModeActive: homePlanModeActive,
     providerID,
     providerBaseURL,
     debugConversationDump: menubarDebugMode,
@@ -233,7 +235,9 @@ export function DesktopLayout(): React.ReactNode {
     decidePermission,
     updateSessionMetadata,
     setSessionPermissionMode,
+    setSessionPlanModeActive,
     activeSessionItem,
+    planModeActive,
   } = session
 
   const location = useLocation()
@@ -954,6 +958,17 @@ export function DesktopLayout(): React.ReactNode {
     [sessionId, setPermissionMode, setSessionPermissionMode],
   )
 
+  const handlePlanModeChange = useCallback(
+    (active: boolean): void => {
+      if (!sessionId) {
+        setHomePlanModeActive(active)
+        return
+      }
+      void setSessionPlanModeActive(sessionId, active)
+    },
+    [sessionId, setSessionPlanModeActive],
+  )
+
   const handleSelectSession = useCallback(
     (sessionItem: SessionListItem): void => {
       const nextWorkspace = activateSessionById(sessionItem.id)
@@ -1186,6 +1201,7 @@ export function DesktopLayout(): React.ReactNode {
       routedSessionId={routedSessionId}
       sessionStatus={sessionStatus}
       permissionMode={permissionMode}
+      planModeActive={planModeActive}
       thinkingMode={thinkingMode}
       selectedProviderID={selectedProviderID}
       selectedModelPreset={resolvedSelectedModelPreset}
@@ -1210,6 +1226,7 @@ export function DesktopLayout(): React.ReactNode {
       onBranchSelect={handleBranchSelect}
       onCreateBranch={() => setGitWorkflowMode('branch')}
       onPermissionChange={handlePermissionChange}
+      onPlanModeChange={handlePlanModeChange}
       onThinkingChange={setThinkingMode}
       createSessionForWorkspace={createSessionForWorkspace}
       submitToSession={submitToSession}
@@ -1308,11 +1325,12 @@ export function DesktopLayout(): React.ReactNode {
             onDecidePermission: (request, behavior, alwaysAllow, updatedInput) => {
               void decidePermission(request, behavior, alwaysAllow, updatedInput)
             },
-            onAcceptExitPlanMode: (request, nextMode) => {
-              void handlePermissionChange(nextMode)
+            onAcceptExitPlanMode: (request) => {
+              handlePlanModeChange(false)
               void decidePermission(request, 'allow')
             },
             permissionMode,
+            planModeActive,
             events: isQuickChatPage || isConversationLoading ? [] : events,
             workflowEvents:
               isQuickChatPage || isConversationLoading ? [] : workflowEvents,

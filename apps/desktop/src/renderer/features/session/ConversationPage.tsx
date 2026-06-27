@@ -66,7 +66,6 @@ import { desktopClient } from "../../services/desktopClient.js";
 import { submitReviewAction } from "./reviewAction.js";
 import { deriveReviewTurns } from "./reviewTurns.js";
 import type { Message } from "../../uiTypes.js";
-import { extractPlanSummary } from "./ExitPlanModeApproval.js";
 import { InlineApprovalCard } from "./InlineApprovalCard.js";
 import { MarkdownMessage } from "./MarkdownMessage.js";
 import { useTypewriterText } from "./TypewriterText.js";
@@ -271,10 +270,6 @@ export function ConversationPage(): React.ReactNode {
     FALLBACK_OPEN_TARGETS[0];
   const activePermissionRequest = pendingPermissions[0] ?? null;
   const composerMode = workflowComposerMode(activePermissionRequest);
-  const activePlanSummary =
-    activePermissionRequest?.toolName === "ExitPlanMode"
-      ? extractPlanSummary(activePermissionRequest)
-      : "";
   const workflowNodes = React.useMemo(
     () =>
       buildWorkflowNodes({
@@ -647,10 +642,6 @@ export function ConversationPage(): React.ReactNode {
                     ))}
                   </>
                 )}
-                {activePermissionRequest?.toolName === "ExitPlanMode" &&
-                activePlanSummary ? (
-                  <WorkflowPlanCard summary={activePlanSummary} />
-                ) : null}
                 {!isConversationLoading && showThinking ? <ThinkingPill /> : null}
               </div>
             </div>
@@ -660,7 +651,7 @@ export function ConversationPage(): React.ReactNode {
             <footer className="chat-composer workflow-page__composer">
               <div
                 ref={composerTransition.ref}
-                className={`workflow-page__composer-inner workflow-page__composer-inner--${composerMode}`}
+                className="workflow-page__composer-inner"
                 style={composerTransition.style}
               >
                 {showComposerChangeSummary ? (

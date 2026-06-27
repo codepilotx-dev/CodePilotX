@@ -25,7 +25,6 @@ export type InlineApprovalCardProps = {
   ) => void
   onAcceptExitPlanMode?: (
     request: DesktopPermissionRequest,
-    nextMode: DesktopPermissionMode,
   ) => void
 }
 
@@ -67,10 +66,9 @@ export function InlineApprovalCard({
       >
         <ExitPlanModeApproval
           request={request}
-          currentMode={currentPermissionMode ?? 'default'}
-          onAccept={nextMode => {
+          onAccept={() => {
             if (onAcceptExitPlanMode) {
-              onAcceptExitPlanMode(request, nextMode)
+              onAcceptExitPlanMode(request)
               return
             }
             onDecide(request, 'allow')

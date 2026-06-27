@@ -496,7 +496,6 @@ function sessionItem(sessionId: string, projectPath: string, now: string) {
     archivedAt: null,
     permissionMode: 'default',
     model: null,
-    fallbackModel: null,
     thinkingMode: 'default',
     hasSystemPrompt: false,
     hasAppendSystemPrompt: false,

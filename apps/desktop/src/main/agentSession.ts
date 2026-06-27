@@ -66,6 +66,7 @@ export type DesktopAgentSession = {
   setDebugConversationDump(enabled: boolean): void
   setPermissionProfile(profile: string, approvalPolicy?: DesktopApprovalPolicy): void
   setPermissionMode(permissionMode: NonNullable<CreateDesktopSessionOptions['permissionMode']>): void
+  setPlanModeActive(planModeActive: boolean): void
   sendUserMessage(content: DesktopUserMessageContent, previewText: string): Promise<void>
   respondToPermission(
     requestId: string,
@@ -98,6 +99,7 @@ class LocalDesktopAgentSession
   private approvalPolicy: DesktopApprovalPolicy
   private approvalsReviewer: NonNullable<CreateDesktopSessionOptions['approvalsReviewer']>
   private permissionMode: NonNullable<CreateDesktopSessionOptions['permissionMode']>
+  private planModeActive: boolean
   private model: string | undefined
   private reviewModel: string | undefined
 
@@ -112,6 +114,7 @@ class LocalDesktopAgentSession
     this.approvalPolicy = options.approvalPolicy ?? 'on-request'
     this.approvalsReviewer = options.approvalsReviewer ?? 'user'
     this.permissionMode = options.permissionMode ?? 'default'
+    this.planModeActive = options.planModeActive === true
     this.model = options.model
     this.reviewModel = options.reviewModel
     this.autoReviewService =
@@ -128,6 +131,7 @@ class LocalDesktopAgentSession
       approvalPolicy: this.approvalPolicy,
       approvalsReviewer: this.approvalsReviewer,
       permissionMode: this.permissionMode,
+      planModeActive: this.planModeActive,
       providerID: options.providerID,
       providerBaseURL: options.providerBaseURL,
       debugConversationDump: options.debugConversationDump,
@@ -196,6 +200,15 @@ class LocalDesktopAgentSession
     desktopDebug('session_permission_mode_changed', {
       sessionId: this.sessionId,
       permissionMode,
+    })
+  }
+
+  setPlanModeActive(planModeActive: boolean): void {
+    this.planModeActive = planModeActive
+    this.runtime.setPlanModeActive(planModeActive)
+    desktopDebug('session_plan_mode_changed', {
+      sessionId: this.sessionId,
+      planModeActive,
     })
   }
 
@@ -488,6 +501,7 @@ export function resolveDesktopPermissionPolicyDecision(
       alwaysAllow: true,
     }
   }
+
   return null
 }
 

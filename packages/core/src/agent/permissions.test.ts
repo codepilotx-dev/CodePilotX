@@ -2,8 +2,11 @@ import { expect, test } from 'bun:test'
 import {
   BUILTIN_CODEX_PERMISSION_PROFILES,
   createCodexRuntimePermissionState,
+  DESKTOP_AGENT_PERMISSION_MODES,
   evaluateFilesystemAccess,
   evaluateNetworkDomainAccess,
+  isDesktopAgentPermissionMode,
+  normalizeDesktopAgentPermissionMode,
   resolveCodexPermissions,
   permissionPolicyForDesktopMode,
   type CodexRuntimePermissionState,
@@ -297,6 +300,17 @@ test('createCodexRuntimePermissionState: project config overrides built-in defau
   expect(state.resolved.approvalsReviewer).toBe('auto_review')
   expect(state.derivedPolicy.actionScopes?.read).toBe('allow')
   expect(state.derivedPolicy.actionScopes?.write).toBe('ask')
+})
+
+test('desktop permission modes exclude plan mode', () => {
+  expect(DESKTOP_AGENT_PERMISSION_MODES).toEqual([
+    'default',
+    'auto-review',
+    'full-access',
+    'custom',
+  ])
+  expect(isDesktopAgentPermissionMode('plan')).toBe(false)
+  expect(normalizeDesktopAgentPermissionMode('plan')).toBe('default')
 })
 
 test('createCodexRuntimePermissionState: official sandbox_mode maps to builtin profiles', () => {

@@ -5,6 +5,7 @@ import {
   normalizeThreadEvent,
 } from '@codepilotx/core/agent/workflow.js'
 import type { ThreadEvent, ThreadId, TurnId } from '@codepilotx/core/agent/workflow.js'
+import { deriveWorkflowSessionView } from '@codepilotx/core/agent/workflowView.js'
 import { JsonRpcAppServer } from '@codepilotx/core/appServer/server.js'
 import type { JsonRpcTurnStartResult } from '@codepilotx/core/appServer/protocol.js'
 import type { DesktopWorkflowEvent } from '../shared/types.js'
@@ -66,6 +67,7 @@ export function createDesktopJsonRpcAppServerBridge({
 
 class DesktopJsonRpcAppServerMirrorRegistry {
   private readonly threads = new Set<ThreadId>()
+  private readonly events = new Map<ThreadId, ThreadEvent[]>()
   private readonly sequences = new Map<ThreadId, number>()
   private readonly now: () => string
   private readonly createId: (prefix: string, seed?: string) => string
@@ -147,6 +149,17 @@ class DesktopJsonRpcAppServerMirrorRegistry {
     throw new Error('Desktop JSON-RPC app-server bridge does not inject items')
   }
 
+  getSessionSnapshot(params: { threadId: ThreadId }) {
+    this.requireThread(params.threadId)
+    const events = this.events.get(params.threadId) ?? []
+    return {
+      threadId: params.threadId,
+      eventCount: events.length,
+      updatedAt: events.at(-1)?.createdAt ?? null,
+      view: deriveWorkflowSessionView(events, params.threadId),
+    }
+  }
+
   private requireThread(threadId: ThreadId): void {
     if (!this.threads.has(threadId)) {
       throw new Error(`Unknown thread ${threadId}`)
@@ -156,9 +169,11 @@ class DesktopJsonRpcAppServerMirrorRegistry {
   private decorate(threadId: ThreadId, event: ThreadEvent): ThreadEvent {
     const sequence = (this.sequences.get(threadId) ?? 0) + 1
     this.sequences.set(threadId, sequence)
-    return normalizeThreadEvent(event, {
+    const normalized = normalizeThreadEvent(event, {
       sequence,
       eventId: this.createId('workflow-event', `${threadId}-${sequence}`),
     })
+    this.events.set(threadId, [...(this.events.get(threadId) ?? []), normalized])
+    return normalized
   }
 }

@@ -217,7 +217,6 @@ declare module '@codepilotx/core/agent/permissions.js' {
   }
   export type DesktopAgentPermissionMode =
     | 'default'
-    | 'plan'
     | 'auto-review'
     | 'full-access'
     | 'custom'
@@ -1073,78 +1072,6 @@ declare module '@codepilotx/core/agent/permissionMode.js' {
     | 'plan'
   export type InternalPermissionMode = ExternalPermissionMode | 'auto' | 'bubble'
   export type PermissionMode = InternalPermissionMode
-}
-
-declare module '@codepilotx/core/agent/desktopRuntime.js' {
-  import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages.mjs'
-  import type { StdoutMessage } from '@codepilotx/core/agent/controlTypes.js'
-  import type { PermissionMode } from '@codepilotx/core/agent/permissionMode.js'
-
-  export type DesktopHeadlessThinkingMode =
-    | 'default'
-    | 'enabled'
-    | 'adaptive'
-    | 'disabled'
-  export type DesktopHeadlessOutputControls = {
-    injectControlResponse(response: Record<string, unknown>): void
-  }
-  export type DesktopHeadlessRuntimeOptions = {
-    sessionId: string
-    workspacePath: string
-    configDirectoryPath?: string
-    resumeExistingSession?: boolean
-    permissionProfile?: string
-    sandboxMode?: 'read-only' | 'workspace-write' | 'danger-full-access'
-    approvalPolicy?: 'untrusted' | 'on-request' | 'on-failure' | 'never'
-    approvalsReviewer?: 'user' | 'auto_review'
-    permissionMode?: PermissionMode
-    providerID?: string
-    providerBaseURL?: string
-    debugConversationDump?: boolean
-    model?: string
-    smallFastModel?: string
-    fastModel?: string
-    defaultModel?: string
-    deepModel?: string
-    sessionName?: string
-    thinkingMode?: DesktopHeadlessThinkingMode
-    systemPrompt?: string
-    appendSystemPrompt?: string
-    additionalDirectories?: string[]
-    askUserQuestionMaxQuestions?: number
-    permissionPromptToolName?: string
-    onOutput(
-      message: StdoutMessage,
-      controls: DesktopHeadlessOutputControls,
-    ): Promise<void> | void
-  }
-  export type DesktopHeadlessRuntime = {
-    setModel(model: string | undefined): void
-    setProvider(
-      providerID: string | undefined,
-      providerBaseURL: string | undefined,
-    ): void
-    setDebugConversationDump(enabled: boolean): void
-    setPermissionMode(permissionMode: PermissionMode | undefined): void
-    setCodexPermissionConfig(config: {
-      permissionProfile?: string
-      sandboxMode?: 'read-only' | 'workspace-write' | 'danger-full-access'
-      approvalPolicy?: 'untrusted' | 'on-request' | 'on-failure' | 'never'
-      approvalsReviewer?: 'user' | 'auto_review'
-    }): void
-    runUserTurn(
-      content: string | ContentBlockParam[],
-      signal: AbortSignal,
-    ): Promise<void>
-  }
-  export function createDesktopHeadlessRuntime(
-    options: DesktopHeadlessRuntimeOptions,
-  ): DesktopHeadlessRuntime
-  export function runDesktopHeadlessTurn(
-    runtime: DesktopHeadlessRuntime,
-    content: string | ContentBlockParam[],
-    signal: AbortSignal,
-  ): Promise<void>
 }
 
 declare module '@codepilotx/core/appServer/protocol.js' {

@@ -11,6 +11,7 @@ export function createSessionSettingsSnapshot(params: {
   approvalPolicy: DesktopApprovalPolicy
   approvalsReviewer: DesktopSessionSettingsSnapshot['approvalsReviewer']
   permissionMode: DesktopPermissionMode
+  planModeActive?: boolean
   providerID?: DesktopSessionSettingsSnapshot['providerID']
   providerBaseURL?: string
   model?: string
@@ -32,6 +33,7 @@ export function createSessionSettingsSnapshot(params: {
     approvalPolicy: params.approvalPolicy,
     approvalsReviewer: params.approvalsReviewer,
     permissionMode: params.permissionMode,
+    planModeActive: params.planModeActive === true,
     thinkingMode: params.thinkingMode,
     additionalDirectories: params.additionalDirectories,
     askUserQuestionMaxQuestions: params.askUserQuestionMaxQuestions,
@@ -51,6 +53,24 @@ export function createSessionSettingsSnapshot(params: {
     settings.appendSystemPrompt = params.appendSystemPrompt
   }
   return settings
+}
+
+export function applySessionPlanModeActiveToSnapshot(
+  snapshot: DesktopSessionSnapshot,
+  planModeActive: boolean,
+): DesktopSessionSnapshot {
+  return {
+    ...snapshot,
+    item: {
+      ...snapshot.item,
+      planModeActive,
+    },
+    settings: {
+      ...snapshot.settings,
+      planModeActive,
+    },
+    updatedAt: new Date().toISOString(),
+  }
 }
 
 export function applySessionPermissionModeToSnapshot(

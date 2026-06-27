@@ -46,8 +46,8 @@ test('desktop settings normalize AskUserQuestion max questions to one through fo
   ).toBe(1)
 })
 
-test('desktop settings preserve plan permission mode', () => {
+test('desktop settings normalize plan permission mode to default', () => {
   expect(
     normalizeDesktopStoredSettings({ permissionMode: 'plan' }).permissionMode,
-  ).toBe('plan')
+  ).toBe('default')
 })

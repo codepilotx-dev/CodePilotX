@@ -29,6 +29,7 @@ import {
   interruptSessionAction,
   selectSessionAction,
   setSessionPermissionModeAction,
+  setSessionPlanModeActiveAction,
   submitSessionMessageAction,
   updateSessionMetadataAction,
   type CloseSessionResult,
@@ -55,6 +56,7 @@ import {
 
 export type UseSessionStateOptions = {
   permissionMode: DesktopPermissionMode
+  planModeActive: boolean
   providerID: ModelProviderID
   providerBaseURL: string
   debugConversationDump: boolean
@@ -89,6 +91,7 @@ export type UseSessionStateResult = {
   pendingPermissions: DesktopPermissionRequest[]
   contextUsage: DesktopContextUsage | null
   activeSessionItem: SessionListItem | null
+  planModeActive: boolean
   canSubmit: boolean
   input: string
   setInput: (value: string) => void
@@ -115,6 +118,10 @@ export type UseSessionStateResult = {
     targetSessionId: string,
     mode: DesktopPermissionMode,
   ) => Promise<SessionListItem | null>
+  setSessionPlanModeActive: (
+    targetSessionId: string,
+    active: boolean,
+  ) => Promise<SessionListItem | null>
   selectSession: (session: SessionListItem) => DesktopWorkspace | null
   toggleToolLogEntry: (entryId: string) => void
 }
@@ -124,6 +131,7 @@ export function useSessionState(
 ): UseSessionStateResult {
   const {
     permissionMode,
+    planModeActive,
     providerID,
     providerBaseURL,
     debugConversationDump,
@@ -161,6 +169,12 @@ export function useSessionState(
   const [contextUsage, setContextUsage] =
     useState<DesktopContextUsage | null>(null)
   const [input, setInput] = useState('')
+  const activeSessionItem = useMemo(
+    () => sessions.find(session => session.id === sessionId) ?? null,
+    [sessions, sessionId],
+  )
+  const effectivePlanModeActive =
+    activeSessionItem?.planModeActive ?? planModeActive
 
   const activeSessionIdRef = useRef<string | null>(null)
   const sessionsRef = useRef<SessionListItem[]>([])
@@ -451,6 +465,7 @@ export function useSessionState(
   const settingsSnapshot = useMemo<SessionSettingsSnapshot>(
     () => ({
       permissionMode,
+      planModeActive: effectivePlanModeActive,
       providerID,
       providerBaseURL,
       debugConversationDump,
@@ -478,6 +493,7 @@ export function useSessionState(
       model,
       reviewModel,
       deepModel,
+      effectivePlanModeActive,
       permissionMode,
       providerBaseURL,
       providerID,
@@ -649,6 +665,20 @@ export function useSessionState(
     [actionContext, sessions],
   )
 
+  const setSessionPlanModeActive = useCallback(
+    async (
+      targetSessionId: string,
+      active: boolean,
+    ): Promise<SessionListItem | null> =>
+      setSessionPlanModeActiveAction(
+        actionContext,
+        sessions,
+        targetSessionId,
+        active,
+      ),
+    [actionContext, sessions],
+  )
+
   const selectSession = useCallback(
     (session: SessionListItem): DesktopWorkspace | null => {
       const workspace = selectSessionAction(actionContext, session)
@@ -656,11 +686,6 @@ export function useSessionState(
       return workspace
     },
     [actionContext, hydrateSessionDetails],
-  )
-
-  const activeSessionItem = useMemo(
-    () => sessions.find(session => session.id === sessionId) ?? null,
-    [sessions, sessionId],
   )
 
   return {
@@ -675,6 +700,7 @@ export function useSessionState(
     pendingPermissions,
     contextUsage,
     activeSessionItem,
+    planModeActive: effectivePlanModeActive,
     canSubmit,
     input,
     setInput: setScopedInput,
@@ -687,6 +713,7 @@ export function useSessionState(
     closeSession,
     updateSessionMetadata,
     setSessionPermissionMode,
+    setSessionPlanModeActive,
     selectSession,
     toggleToolLogEntry,
   }

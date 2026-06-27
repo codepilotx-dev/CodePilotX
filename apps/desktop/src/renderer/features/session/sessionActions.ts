@@ -27,6 +27,7 @@ import {
 
 export type SessionSettingsSnapshot = {
   permissionMode: DesktopPermissionMode
+  planModeActive: boolean
   providerID: ModelProviderID
   providerBaseURL: string
   debugConversationDump: boolean
@@ -81,6 +82,7 @@ export async function createSessionForWorkspaceAction(
     const session = await desktopClient.createSession({
       workspacePath: target?.path,
       permissionMode: settings.permissionMode,
+      planModeActive: settings.planModeActive,
       providerID: settings.providerID,
       providerBaseURL: normalizeOptionalText(settings.providerBaseURL),
       debugConversationDump: settings.debugConversationDump,
@@ -124,9 +126,9 @@ export async function createSessionForWorkspaceAction(
         workspacePath: workspace.path,
         standalone: session.standalone,
         permissionMode: settings.permissionMode,
+        planModeActive: settings.planModeActive,
         model: normalizeOptionalText(settings.model) ?? null,
         reviewModel: normalizeOptionalText(settings.reviewModel) ?? null,
-        fallbackModel: null,
         thinkingMode: settings.thinkingMode,
         hasSystemPrompt: Boolean(normalizeOptionalText(settings.systemPrompt)),
         hasAppendSystemPrompt: Boolean(
@@ -334,6 +336,33 @@ export async function setSessionPermissionModeAction(
     const snapshot = await desktopClient.setSessionPermissionMode(
       targetSessionId,
       mode,
+    )
+    const updatedItem = snapshot.item
+    context.setSessions(
+      sessions.map(session =>
+        session.id === targetSessionId ? updatedItem : session,
+      ),
+    )
+    if (targetSessionId === context.activeSessionIdRef.current) {
+      context.setSessionStatus(updatedItem.status)
+    }
+    return updatedItem
+  } catch (error) {
+    context.onErrorRef.current(errorMessageOf(error))
+    return null
+  }
+}
+
+export async function setSessionPlanModeActiveAction(
+  context: SessionActionContext,
+  sessions: SessionListItem[],
+  targetSessionId: string,
+  active: boolean,
+): Promise<SessionListItem | null> {
+  try {
+    const snapshot = await desktopClient.setSessionPlanModeActive(
+      targetSessionId,
+      active,
     )
     const updatedItem = snapshot.item
     context.setSessions(

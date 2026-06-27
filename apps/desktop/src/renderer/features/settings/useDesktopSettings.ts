@@ -30,7 +30,6 @@ import {
 export type UseDesktopSettingsResult = {
   permissionMode: DesktopPermissionMode
   model: string
-  fallbackModel: string
   reviewModel: string
   smallFastModel: string
   fastModel: string
@@ -74,7 +73,6 @@ export type UseDesktopSettingsResult = {
   settingsLoaded: boolean
   setPermissionMode: (value: DesktopPermissionMode) => void
   setModel: (value: string) => void
-  setFallbackModel: (value: string) => void
   setReviewModel: (value: string) => void
   setSmallFastModel: (value: string) => void
   setFastModel: (value: string) => void
@@ -237,7 +235,6 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     initial.permissionMode,
   )
   const [model, setModel] = useState(initial.model)
-  const [fallbackModel, setFallbackModel] = useState(initial.fallbackModel)
   const [reviewModel, setReviewModel] = useState(initial.reviewModel)
   const [smallFastModel, setSmallFastModel] = useState(initial.smallFastModel)
   const [fastModel, setFastModel] = useState(initial.fastModel)
@@ -357,7 +354,6 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
         if (!mounted) return
         setPermissionMode(settings.permissionMode)
         setModel(settings.model)
-        setFallbackModel(settings.fallbackModel)
         setReviewModel(settings.reviewModel)
         setSmallFastModel(settings.smallFastModel)
         setFastModel(settings.fastModel)
@@ -416,7 +412,6 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     () => ({
       permissionMode,
       model,
-      fallbackModel: '',
       reviewModel,
       smallFastModel,
       fastModel,
@@ -544,7 +539,6 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     (snapshot: StoredDesktopSettings): void => {
       setPermissionMode(snapshot.permissionMode)
       setModel(snapshot.model)
-      setFallbackModel(snapshot.fallbackModel)
       setReviewModel(snapshot.reviewModel)
       setSmallFastModel(snapshot.smallFastModel)
       setFastModel(snapshot.fastModel)
@@ -636,7 +630,6 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
   return {
     permissionMode,
     model,
-    fallbackModel,
     reviewModel,
     smallFastModel,
     fastModel,
@@ -680,7 +673,6 @@ defaultOpenTargetId,
     settingsLoaded,
     setPermissionMode,
     setModel,
-    setFallbackModel,
     setReviewModel,
     setSmallFastModel,
     setFastModel,

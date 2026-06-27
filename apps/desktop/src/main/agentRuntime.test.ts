@@ -84,7 +84,7 @@ test('codexPermissionConfigForMode maps desktop modes to official Codex config',
   })
 })
 
-test('permissionModeArgs passes desktop plan mode to the TUI runtime', () => {
+test('permissionModeArgs only passes permission modes to the TUI runtime', () => {
   expect(permissionModeArgs('custom')).toEqual([])
   expect(permissionModeArgs('full-access')).toEqual([
     '--dangerously-skip-permissions',
@@ -93,7 +93,6 @@ test('permissionModeArgs passes desktop plan mode to the TUI runtime', () => {
     '--permission-mode',
     'default',
   ])
-  expect(permissionModeArgs('plan')).toEqual(['--permission-mode', 'plan'])
 })
 
 test('desktop runtime exports Rust Glob Grep and Diff env when enabled', () => {

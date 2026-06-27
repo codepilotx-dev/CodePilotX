@@ -427,6 +427,16 @@ function createBrowserMockDesktopClient(): DesktopApi {
       sessions.set(sessionId, next)
       return next
     },
+    setSessionPlanModeActive: async (sessionId, active) => {
+      const snapshot = requireMockSession(sessions, sessionId)
+      const next = {
+        ...snapshot,
+        item: { ...snapshot.item, planModeActive: active },
+        settings: { ...snapshot.settings, planModeActive: active },
+      }
+      sessions.set(sessionId, next)
+      return next
+    },
     readWorkflowEventLog: async () => [],
     openConfigFile: async () => ({ path: '' }),
     openExternalURL: async url => {
@@ -606,7 +616,6 @@ function mockSessionSnapshot(
       standalone: !options.workspacePath,
       permissionMode: options.permissionMode ?? 'default',
       model: options.model ?? null,
-      fallbackModel: options.fallbackModel ?? null,
       reviewModel: options.reviewModel ?? null,
       thinkingMode: options.thinkingMode ?? 'default',
       hasSystemPrompt: Boolean(options.systemPrompt),
@@ -620,7 +629,6 @@ function mockSessionSnapshot(
     settings: {
       permissionMode: options.permissionMode ?? 'default',
       model: options.model,
-      fallbackModel: options.fallbackModel,
       reviewModel: options.reviewModel,
       smallFastModel: options.smallFastModel,
       fastModel: options.fastModel,

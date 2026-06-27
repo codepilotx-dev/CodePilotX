@@ -26,6 +26,7 @@ export type QuickChatContextValue = {
   gitStatus: DesktopGitStatus | null
   recentWorkspaces: DesktopWorkspace[]
   permissionMode: DesktopPermissionMode
+  planModeActive: boolean
   onArchiveSession: () => void
   onCreateBranch: () => void
   onOpenAutomation: () => void
@@ -45,10 +46,7 @@ export type QuickChatContextValue = {
     alwaysAllow?: boolean,
     updatedInput?: Record<string, unknown>,
   ) => void
-  onAcceptExitPlanMode: (
-    request: DesktopPermissionRequest,
-    nextMode: DesktopPermissionMode,
-  ) => void
+  onAcceptExitPlanMode: (request: DesktopPermissionRequest) => void
   events: DesktopSessionEvent[]
   workflowEvents: DesktopWorkflowEvent[]
   messages: Message[]

@@ -293,7 +293,6 @@ export type QueryParams = {
   systemContext: { [k: string]: string }
   canUseTool: CanUseToolFn
   toolUseContext: ToolUseContext
-  fallbackModel?: string
   querySource: QuerySource
   maxOutputTokensOverride?: number
   maxTurns?: number
@@ -363,7 +362,6 @@ async function* queryLoop(
     userContext,
     systemContext,
     canUseTool,
-    fallbackModel,
     querySource,
     maxTurns,
     skipCacheWrite,
@@ -801,7 +799,6 @@ async function* queryLoop(
               toolChoice: undefined,
               isNonInteractiveSession:
                 toolUseContext.options.isNonInteractiveSession,
-              fallbackModel: undefined,
               onStreamingFallback: () => {
                 streamingFallbackOccured = true
               },

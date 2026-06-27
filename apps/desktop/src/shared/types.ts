@@ -549,7 +549,6 @@ export type DesktopStoredSettings = {
   approvalsReviewer?: DesktopApprovalsReviewer
   permissionMode: DesktopPermissionMode
   model: string
-  fallbackModel: string
   reviewModel: string
   smallFastModel: string
   fastModel: string
@@ -706,8 +705,8 @@ export type DesktopSessionListItem = {
   approvalPolicy?: DesktopApprovalPolicy
   approvalsReviewer?: DesktopApprovalsReviewer
   permissionMode: DesktopPermissionMode
+  planModeActive?: boolean
   model: string | null
-  fallbackModel: string | null
   reviewModel?: string | null
   thinkingMode: DesktopThinkingMode
   hasSystemPrompt: boolean
@@ -723,11 +722,11 @@ export type DesktopSessionSettingsSnapshot = {
   approvalPolicy?: DesktopApprovalPolicy
   approvalsReviewer?: DesktopApprovalsReviewer
   permissionMode: DesktopPermissionMode
+  planModeActive?: boolean
   providerID?: ModelProviderID
   providerBaseURL?: string
   debugConversationDump?: boolean
   model?: string
-  fallbackModel?: string
   reviewModel?: string
   smallFastModel?: string
   fastModel?: string
@@ -781,11 +780,11 @@ export type CreateDesktopSessionOptions = {
   approvalPolicy?: DesktopApprovalPolicy
   approvalsReviewer?: DesktopApprovalsReviewer
   permissionMode?: DesktopPermissionMode
+  planModeActive?: boolean
   providerID?: ModelProviderID
   providerBaseURL?: string
   debugConversationDump?: boolean
   model?: string
-  fallbackModel?: string
   reviewModel?: string
   smallFastModel?: string
   fastModel?: string
@@ -1064,6 +1063,10 @@ export type DesktopApi = {
   setSessionPermissionMode(
     sessionId: string,
     mode: DesktopPermissionMode,
+  ): Promise<DesktopSessionSnapshot>
+  setSessionPlanModeActive(
+    sessionId: string,
+    active: boolean,
   ): Promise<DesktopSessionSnapshot>
   readWorkflowEventLog(): Promise<DesktopWorkflowEvent[]>
   openConfigFile(): Promise<{ path: string }>

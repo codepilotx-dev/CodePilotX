@@ -61,6 +61,35 @@ test('embedded desktop runtime receives and updates permission mode', () => {
   })
 })
 
+test('embedded desktop runtime applies plan mode independently from permission mode', () => {
+  createdHeadlessOptions.length = 0
+  headlessRuntime.setPermissionMode.mockClear()
+
+  const runtime = createDesktopAgentRuntime({
+    sessionId: 'session-plan-mode',
+    workspacePath: '/workspace',
+    runtimePreference: 'embedded-headless',
+    permissionMode: 'auto-review',
+    planModeActive: true,
+    emit: () => undefined,
+    requestPermission: async () => ({ behavior: 'deny' }),
+  })
+
+  expect(createdHeadlessOptions[0]).toMatchObject({
+    permissionMode: 'plan',
+    sandboxMode: 'workspace-write',
+    approvalPolicy: 'on-request',
+    approvalsReviewer: 'auto_review',
+  })
+
+  runtime.setPlanModeActive(false)
+  expect(headlessRuntime.setPermissionMode).toHaveBeenCalledWith('default')
+
+  runtime.setPlanModeActive(true)
+  expect(headlessRuntime.setPermissionMode).toHaveBeenCalledWith('plan')
+})
+
+
 test('embedded desktop runtime receives and updates selected provider', () => {
   createdHeadlessOptions.length = 0
   headlessRuntime.setModel.mockClear()

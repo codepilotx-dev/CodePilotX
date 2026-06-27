@@ -68,14 +68,6 @@ type Option<T extends string> = {
   detail?: string;
 };
 
-type SelectablePermissionMode = Exclude<DesktopPermissionMode, "plan">;
-
-function isSelectablePermissionMode(
-  value: DesktopPermissionMode,
-): value is SelectablePermissionMode {
-  return value !== "plan";
-}
-
 type ProviderModelOption = {
   providerID: ModelProviderID;
   displayName: string;
@@ -163,7 +155,7 @@ const INSTALLED_CONTEXT_PLUGINS: ContextPlugin[] = [
   },
 ];
 
-const PERMISSION_CHIP_CLASS_NAMES: Record<SelectablePermissionMode, string> = {
+const PERMISSION_CHIP_CLASS_NAMES: Record<DesktopPermissionMode, string> = {
   default: "permission-chip permission-chip-default",
   "auto-review": "permission-chip permission-chip-auto",
   "full-access": "permission-chip permission-chip-bypassPermissions",
@@ -175,6 +167,7 @@ type Props = {
   canSubmit: boolean;
   sessionStatus: DesktopSessionStatus;
   permissionMode: DesktopPermissionMode;
+  planModeActive?: boolean;
   thinkingMode: DesktopThinkingMode;
   selectedProviderID: ModelProviderID;
   selectedModelPreset: string;
@@ -212,6 +205,7 @@ type Props = {
   onBranchSelect: (branch: string) => void;
   onCreateBranch: () => void;
   onPermissionChange: (value: DesktopPermissionMode) => void;
+  onPlanModeChange?: (active: boolean) => void;
   onSubmit: () => void;
   onThinkingChange: (value: DesktopThinkingMode) => void;
   contextDropdownSide?: "top" | "bottom";
@@ -222,6 +216,7 @@ export function ComposerCard({
   canSubmit,
   sessionStatus,
   permissionMode,
+  planModeActive = false,
   thinkingMode,
   selectedProviderID,
   selectedModelPreset,
@@ -256,6 +251,7 @@ export function ComposerCard({
   onBranchSelect,
   onCreateBranch,
   onPermissionChange,
+  onPlanModeChange,
   onSubmit,
   onThinkingChange,
   contextDropdownSide = "top",
@@ -271,26 +267,8 @@ export function ComposerCard({
   const [dismissedSlashInput, setDismissedSlashInput] = useState<string | null>(
     null,
   );
-  const lastSelectablePermissionModeRef =
-    useRef<SelectablePermissionMode>("default");
-  const planModeActive = permissionMode === "plan";
-  if (isSelectablePermissionMode(permissionMode)) {
-    lastSelectablePermissionModeRef.current = permissionMode;
-  }
-  const permissionSelectValue: SelectablePermissionMode = planModeActive
-    ? lastSelectablePermissionModeRef.current
-    : permissionMode;
-  const selectablePermissionOptions = useMemo(
-    () =>
-      permissionOptions.filter(
-        (option): option is Option<SelectablePermissionMode> =>
-          isSelectablePermissionMode(option.value),
-      ),
-    [permissionOptions],
-  );
-
-  const selectedPermission = selectablePermissionOptions.find(
-    (option) => option.value === permissionSelectValue,
+  const selectedPermission = permissionOptions.find(
+    (option) => option.value === permissionMode,
   );
   const composerPlaceholder = planModeActive
     ? "Describe your task to generate a plan..."
@@ -399,7 +377,7 @@ export function ComposerCard({
     onAddFiles(filePaths);
   }
 
-  function getPermissionIcon(value: SelectablePermissionMode): React.ReactNode {
+  function getPermissionIcon(value: DesktopPermissionMode): React.ReactNode {
     if (value === "default") return <Hand size={APP_ICON_SIZE} />;
     if (value === "full-access")
       return <ShieldAlert size={APP_ICON_SIZE} />;
@@ -407,7 +385,7 @@ export function ComposerCard({
     return <ShieldCheck size={APP_ICON_SIZE} />;
   }
 
-  function getPermissionClassName(value: SelectablePermissionMode): string {
+  function getPermissionClassName(value: DesktopPermissionMode): string {
     return PERMISSION_CHIP_CLASS_NAMES[value];
   }
 
@@ -558,7 +536,7 @@ export function ComposerCard({
             </IconButton>
             <Select.Root
               open={openDropdown === "permission"}
-              value={permissionSelectValue}
+              value={permissionMode}
               onOpenChange={(open) =>
                 setOpenDropdown(open ? "permission" : null)
               }
@@ -571,13 +549,13 @@ export function ComposerCard({
                 aria-label="选择权限模式"
                 className={[
                   "chip-button",
-                  getPermissionClassName(permissionSelectValue),
+                  getPermissionClassName(permissionMode),
                   openDropdown === "permission" ? "active" : "",
                   "permission-select-trigger",
                 ].join(" ")}
                 title="选择权限模式"
               >
-                {getPermissionIcon(permissionSelectValue)}
+                {getPermissionIcon(permissionMode)}
                 <span className="permission-select-trigger-label">
                   {selectedPermission?.label ?? "默认权限"}
                 </span>
@@ -598,7 +576,7 @@ export function ComposerCard({
                   sideOffset={6}
                 >
                   <Select.Viewport className="permission-select-viewport">
-                    {selectablePermissionOptions.map((option) => (
+                    {permissionOptions.map((option) => (
                       <Select.Item
                         className="permission-select-item"
                         key={option.value}
@@ -645,7 +623,7 @@ export function ComposerCard({
                   aria-pressed="true"
                   className="chip-button composer-plan-mode-chip active"
                   onClick={() => {
-                    onPermissionChange(permissionSelectValue);
+                    onPlanModeChange?.(false);
                   }}
                   title="计划模式"
                   type="button"
@@ -994,7 +972,7 @@ export function ComposerCard({
               planModeActive ? "is-active" : "",
             ].join(" ")}
             onClick={() => {
-              onPermissionChange("plan");
+              onPlanModeChange?.(true);
               closeDropdown();
             }}
           >

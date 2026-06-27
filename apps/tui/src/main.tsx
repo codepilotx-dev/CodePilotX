@@ -1731,10 +1731,6 @@ async function run(): Promise<CommanderCommand> {
       '--betas <betas...>',
       'Beta headers to include in API requests (API key users only)',
     )
-    .option(
-      '--fallback-model <model>',
-      'Ignored compatibility option. Automatic model fallback has been removed.',
-    )
     .addOption(
       new Option(
         '--workload <tag>',
@@ -1909,7 +1905,6 @@ async function run(): Promise<CommanderCommand> {
         config: configOverrides = [],
         permissionMode: permissionModeCli,
         addDir = [],
-        fallbackModel,
         betas = [],
         ide = false,
         sessionId,
@@ -3033,7 +3028,6 @@ async function run(): Promise<CommanderCommand> {
 
       // NOTE: Model resolution happens after setup() to ensure trust is established before AWS auth
       const userSpecifiedModel = options.model
-      const userSpecifiedFallbackModel = undefined
 
       // Reuse preSetupCwd unless setup() chdir'd (worktreeEnabled). Saves a
       // getCwd() syscall in the common path.
@@ -4048,7 +4042,6 @@ async function run(): Promise<CommanderCommand> {
             systemPrompt,
             appendSystemPrompt,
             userSpecifiedModel: effectiveModel,
-            fallbackModel: userSpecifiedFallbackModel,
             teleport,
             sdkUrl,
             replayUserMessages: effectiveReplayUserMessages,

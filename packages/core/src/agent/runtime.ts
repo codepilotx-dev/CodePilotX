@@ -149,7 +149,6 @@ export type AgentSessionSettings = {
   workspacePath?: string
   permissionPolicy?: AgentPermissionPolicy
   model?: string
-  fallbackModel?: string
   sessionName?: string
   thinkingMode?: AgentThinkingMode
   systemPrompt?: string

@@ -18,7 +18,6 @@ export type PermissionRequestModalProps = {
   ) => void
   onAcceptExitPlanMode?: (
     request: DesktopPermissionRequest,
-    nextMode: DesktopPermissionMode,
   ) => void
 }
 
@@ -64,10 +63,9 @@ export function PermissionRequestModal({
               ) : request.toolName === 'ExitPlanMode' ? (
                 <ExitPlanModeApproval
                   request={request}
-                  currentMode={currentPermissionMode ?? 'default'}
-                  onAccept={nextMode => {
+                  onAccept={() => {
                     if (onAcceptExitPlanMode) {
-                      onAcceptExitPlanMode(request, nextMode)
+                      onAcceptExitPlanMode(request)
                     } else {
                       onDecide(request, 'allow')
                     }

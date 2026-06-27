@@ -687,7 +687,6 @@ export type AgentPermissionRequest = {
 }
 export type DesktopAgentPermissionMode =
   | 'default'
-  | 'plan'
   | 'auto-review'
   | 'full-access'
   | 'custom'
@@ -712,7 +711,6 @@ export function isAgentApprovalMode(value: unknown): value is AgentApprovalMode 
 
 export const DESKTOP_AGENT_PERMISSION_MODES = [
   'default',
-  'plan',
   'auto-review',
   'full-access',
   'custom',
@@ -731,7 +729,6 @@ export function normalizeDesktopAgentPermissionMode(
     case 'bypassPermissions':
       return 'full-access'
     case 'default':
-    case 'plan':
     case 'auto-review':
     case 'full-access':
     case 'custom':

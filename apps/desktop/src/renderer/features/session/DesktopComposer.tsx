@@ -35,6 +35,7 @@ type Props = {
   routedSessionId: string | null
   sessionStatus: DesktopSessionStatus
   permissionMode: DesktopPermissionMode
+  planModeActive: boolean
   thinkingMode: DesktopThinkingMode
   selectedProviderID?: ModelProviderID
   selectedModelPreset: string
@@ -64,6 +65,7 @@ type Props = {
   onBranchSelect: (branch: string) => Promise<void>
   onCreateBranch: () => void
   onPermissionChange: (value: DesktopPermissionMode) => void
+  onPlanModeChange: (active: boolean) => void
   onThinkingChange: (value: DesktopThinkingMode) => void
   createSessionForWorkspace: (
     target?: DesktopWorkspace | null,
@@ -81,6 +83,7 @@ export function DesktopComposer({
   routedSessionId,
   sessionStatus,
   permissionMode,
+  planModeActive,
   thinkingMode,
   selectedProviderID,
   selectedModelPreset,
@@ -105,6 +108,7 @@ export function DesktopComposer({
   onBranchSelect,
   onCreateBranch,
   onPermissionChange,
+  onPlanModeChange,
   onThinkingChange,
   createSessionForWorkspace,
   submitToSession,
@@ -219,6 +223,7 @@ export function DesktopComposer({
       canSubmit={canSubmit}
       sessionStatus={sessionStatus}
       permissionMode={permissionMode}
+      planModeActive={planModeActive}
       thinkingMode={thinkingMode}
       selectedProviderID={selectedProviderID ?? 'anthropic'}
       selectedModelPreset={selectedModelPreset}
@@ -259,6 +264,7 @@ export function DesktopComposer({
       onBranchSelect={branch => void onBranchSelect(branch)}
       onCreateBranch={onCreateBranch}
       onPermissionChange={onPermissionChange}
+      onPlanModeChange={onPlanModeChange}
       onSubmit={handleSubmit}
       onThinkingChange={onThinkingChange}
       contextDropdownSide={isQuickChatPage ? 'bottom' : 'top'}
