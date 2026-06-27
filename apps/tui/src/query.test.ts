@@ -4,7 +4,11 @@ import {
   collectToolResultsForNextTurn,
   ensureToolUseResultsForNextTurn,
 } from './query.js'
-import { createUserMessage } from './utils/messages.js'
+import {
+  SYNTHETIC_TOOL_RESULT_PLACEHOLDER,
+  createAssistantMessage,
+  createUserMessage,
+} from './utils/messages.js'
 
 test('adds synthetic error results for missing tool uses before the next turn', () => {
   const toolUses: ToolUseBlock[] = [
@@ -100,4 +104,62 @@ test('returns a distinct result array so callers can replace tool results safely
   results.push(...pairedResults)
 
   expect(results).toEqual([toolResult])
+})
+
+test('keeps real tool results in assembled next-turn messages', () => {
+  const toolUses: ToolUseBlock[] = [
+    {
+      type: 'tool_use',
+      id: 'call-glob-1',
+      name: 'Glob',
+      input: { pattern: '**/package.json' },
+    },
+  ]
+  const messagesForQuery = [
+    createUserMessage({ content: 'Find package manifests.' }),
+  ]
+  const assistantMessage = createAssistantMessage({
+    content: [
+      {
+        type: 'tool_use',
+        id: 'call-glob-1',
+        name: 'Glob',
+        input: { pattern: '**/package.json' },
+      },
+    ],
+  })
+  const toolResult = createUserMessage({
+    content: [
+      {
+        type: 'tool_result',
+        tool_use_id: 'call-glob-1',
+        content: 'apps/tui/package.json',
+      },
+    ],
+  })
+  const toolResults = [toolResult]
+
+  const pairedResults = ensureToolUseResultsForNextTurn(
+    toolUses,
+    toolResults,
+    [assistantMessage],
+  )
+  toolResults.length = 0
+  toolResults.push(...pairedResults)
+
+  const nextTurnMessages = [
+    ...messagesForQuery,
+    assistantMessage,
+    ...toolResults,
+  ]
+  const serialized = JSON.stringify(nextTurnMessages)
+
+  expect(nextTurnMessages).toEqual([
+    messagesForQuery[0],
+    assistantMessage,
+    toolResult,
+  ])
+  expect(serialized).toContain('apps/tui/package.json')
+  expect(serialized).not.toContain(SYNTHETIC_TOOL_RESULT_PLACEHOLDER)
+  expect(serialized).not.toContain('missing tool result')
 })

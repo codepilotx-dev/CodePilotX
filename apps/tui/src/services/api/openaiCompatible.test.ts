@@ -5,6 +5,7 @@ import {
   readOpenAIStream,
   toOpenAIMessages,
 } from './openaiCompatible.js'
+import { SYNTHETIC_TOOL_RESULT_PLACEHOLDER } from '../../utils/messages.js'
 
 function openAIChunk(data: object): string {
   return `data: ${JSON.stringify(data)}`
@@ -257,6 +258,37 @@ test('toOpenAIMessages keeps tool results before sibling user text', () => {
     'tool',
     'user',
   ])
+})
+
+test('toOpenAIMessages preserves real tool result content', () => {
+  const converted = toOpenAIMessages(
+    [
+      assistantToolUse('call_glob', 'Glob'),
+      userToolResult('call_glob', 'apps/tui/package.json'),
+    ] as any,
+    'deepseek',
+  )
+  const serialized = JSON.stringify(converted)
+
+  expect(converted).toEqual([
+    expect.objectContaining({
+      role: 'assistant',
+      tool_calls: [
+        expect.objectContaining({
+          id: 'call_glob',
+          function: expect.objectContaining({ name: 'Glob' }),
+        }),
+      ],
+    }),
+    {
+      role: 'tool',
+      tool_call_id: 'call_glob',
+      content: 'apps/tui/package.json',
+    },
+  ])
+  expect(serialized).toContain('apps/tui/package.json')
+  expect(serialized).not.toContain(SYNTHETIC_TOOL_RESULT_PLACEHOLDER)
+  expect(serialized).not.toContain('missing tool result')
 })
 
 function restoreEnv(key: string, value: string | undefined): void {
