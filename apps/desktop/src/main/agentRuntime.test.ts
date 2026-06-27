@@ -4,6 +4,7 @@ import {
   codexPermissionConfigArgs,
   permissionPromptToolArgs,
   permissionPromptToolName,
+  rustSearchAndDiffKernelEnv,
 } from './agentRuntime.js'
 import { getToolUseId } from './agentRuntimeSupport.js'
 
@@ -43,6 +44,20 @@ test('desktop runtime exports AskUserQuestion max questions env when configured'
     askUserQuestionMaxQuestionsEnv({ askUserQuestionMaxQuestions: 3 }),
   ).toEqual({
     CODEPILOTX_ASK_USER_QUESTION_MAX_QUESTIONS: '3',
+  })
+})
+
+test('desktop runtime exports Rust Glob Grep and Diff env when enabled', () => {
+  expect(rustSearchAndDiffKernelEnv({})).toEqual({})
+  expect(
+    rustSearchAndDiffKernelEnv({ rustSearchAndDiffKernels: false }),
+  ).toEqual({})
+  expect(
+    rustSearchAndDiffKernelEnv({ rustSearchAndDiffKernels: true }),
+  ).toEqual({
+    CODEPILOTX_RUST_GLOB: '1',
+    CODEPILOTX_RUST_GREP: '1',
+    CODEPILOTX_RUST_DIFF: '1',
   })
 })
 

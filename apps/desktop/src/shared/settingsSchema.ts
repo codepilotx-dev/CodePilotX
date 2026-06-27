@@ -101,6 +101,7 @@ gitBranchPrefix: 'codex/',
     githubMemoryRepository: '',
     reviewView: 'inline',
     askUserQuestionMaxQuestions: 1,
+    rustSearchAndDiffKernels: false,
     browserAllowedSites: [],
   }
 }
@@ -265,6 +266,10 @@ export function normalizeDesktopStoredSettings(
       parsed.askUserQuestionMaxQuestions,
       defaults.askUserQuestionMaxQuestions,
     ),
+    rustSearchAndDiffKernels:
+      typeof parsed.rustSearchAndDiffKernels === 'boolean'
+        ? parsed.rustSearchAndDiffKernels
+        : defaults.rustSearchAndDiffKernels,
     browserAllowedSites: normalizeStringList(
       parsed.browserAllowedSites,
       defaults.browserAllowedSites,

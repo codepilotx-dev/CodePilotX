@@ -587,6 +587,7 @@ gitBranchPrefix: string
   githubMemoryRepository: string
   reviewView: DesktopReviewView
   askUserQuestionMaxQuestions: DesktopAskUserQuestionMaxQuestions
+  rustSearchAndDiffKernels: boolean
   browserAllowedSites: string[]
 }
 
@@ -735,6 +736,7 @@ export type DesktopSessionSettingsSnapshot = {
   appendSystemPrompt?: string
   additionalDirectories: string[]
   askUserQuestionMaxQuestions?: DesktopAskUserQuestionMaxQuestions
+  rustSearchAndDiffKernels?: boolean
 }
 
 export type DesktopSessionViewSnapshot = {
@@ -791,6 +793,7 @@ export type CreateDesktopSessionOptions = {
   appendSystemPrompt?: string
   additionalDirectories?: string[]
   askUserQuestionMaxQuestions?: DesktopAskUserQuestionMaxQuestions
+  rustSearchAndDiffKernels?: boolean
 }
 
 export type CreateDesktopSessionResult = {

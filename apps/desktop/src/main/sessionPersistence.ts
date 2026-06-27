@@ -1167,6 +1167,7 @@ function normalizeSettingsSnapshot(
     askUserQuestionMaxQuestions: normalizeAskUserQuestionMaxQuestions(
       settings.askUserQuestionMaxQuestions,
     ),
+    rustSearchAndDiffKernels: settings.rustSearchAndDiffKernels === true,
   }
 }
 
@@ -1179,6 +1180,7 @@ function defaultSettingsSnapshot(): DesktopSessionSettingsSnapshot {
     thinkingMode: 'default',
     additionalDirectories: [],
     askUserQuestionMaxQuestions: 1,
+    rustSearchAndDiffKernels: false,
   }
 }
 

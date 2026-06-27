@@ -76,6 +76,7 @@ export type DesktopAgentRuntimeContext = {
   appendSystemPrompt?: string
   additionalDirectories?: string[]
   askUserQuestionMaxQuestions?: number
+  rustSearchAndDiffKernels?: boolean
   emit(event: DesktopAgentEvent): void
   requestPermission(request: DesktopPermissionRequest): Promise<DesktopPermissionDecision>
 }
@@ -227,6 +228,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
           CODEPILOTX_DISABLE_MDM_READ: '1',
           CODEPILOTX_DISABLE_MIN_VERSION_CHECK: '1',
           ...askUserQuestionMaxQuestionsEnv(this.context),
+          ...rustSearchAndDiffKernelEnv(this.context),
           CLAUDE_CODE_DISABLE_MDM_READ: '1',
           CLAUDE_CODE_DISABLE_MIN_VERSION_CHECK: '1',
           ...taskModelEnv(this.context),
@@ -616,6 +618,7 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
 
   constructor(context: DesktopAgentRuntimeContext) {
     this.context = context
+    applyRustSearchAndDiffKernelEnv(process.env, context)
     this.runtime = createDesktopHeadlessRuntime({
       sessionId: context.sessionId,
       workspacePath: context.workspacePath,
@@ -1139,4 +1142,31 @@ export function askUserQuestionMaxQuestionsEnv(context: {
         ),
       }
     : {}
+}
+
+export function rustSearchAndDiffKernelEnv(context: {
+  rustSearchAndDiffKernels?: boolean
+}): Record<string, string> {
+  return context.rustSearchAndDiffKernels
+    ? {
+        CODEPILOTX_RUST_GLOB: '1',
+        CODEPILOTX_RUST_GREP: '1',
+        CODEPILOTX_RUST_DIFF: '1',
+      }
+    : {}
+}
+
+function applyRustSearchAndDiffKernelEnv(
+  env: NodeJS.ProcessEnv,
+  context: { rustSearchAndDiffKernels?: boolean },
+): void {
+  if (context.rustSearchAndDiffKernels) {
+    env.CODEPILOTX_RUST_GLOB = '1'
+    env.CODEPILOTX_RUST_GREP = '1'
+    env.CODEPILOTX_RUST_DIFF = '1'
+  } else {
+    delete env.CODEPILOTX_RUST_GLOB
+    delete env.CODEPILOTX_RUST_GREP
+    delete env.CODEPILOTX_RUST_DIFF
+  }
 }

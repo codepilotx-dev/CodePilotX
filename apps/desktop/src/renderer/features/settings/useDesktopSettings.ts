@@ -66,6 +66,7 @@ export type UseDesktopSettingsResult = {
   githubMemoryRepository: string
   reviewView: DesktopReviewView
   askUserQuestionMaxQuestions: DesktopAskUserQuestionMaxQuestions
+  rustSearchAndDiffKernels: boolean
   browserAllowedSites: string[]
   settingsLoaded: boolean
   setPermissionMode: (value: DesktopPermissionMode) => void
@@ -112,6 +113,7 @@ export type UseDesktopSettingsResult = {
   setAskUserQuestionMaxQuestions: (
     value: DesktopAskUserQuestionMaxQuestions,
   ) => void
+  setRustSearchAndDiffKernels: (value: boolean) => void
   setBrowserAllowedSites: (value: string[]) => void
   flushDesktopSettings: () => Promise<void>
 }
@@ -244,6 +246,9 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
   ] = useState<DesktopAskUserQuestionMaxQuestions>(
     initial.askUserQuestionMaxQuestions,
   )
+  const [rustSearchAndDiffKernels, setRustSearchAndDiffKernels] = useState(
+    initial.rustSearchAndDiffKernels,
+  )
   const [browserAllowedSites, setBrowserAllowedSites] = useState<string[]>(
     initial.browserAllowedSites,
   )
@@ -295,6 +300,7 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
         setGithubMemoryRepository(settings.githubMemoryRepository)
         setReviewView(settings.reviewView)
         setAskUserQuestionMaxQuestions(settings.askUserQuestionMaxQuestions)
+        setRustSearchAndDiffKernels(settings.rustSearchAndDiffKernels)
         setBrowserAllowedSites(settings.browserAllowedSites)
         setSettingsLoaded(true)
       })
@@ -351,6 +357,7 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
       githubMemoryRepository,
       reviewView,
       askUserQuestionMaxQuestions,
+      rustSearchAndDiffKernels,
       browserAllowedSites,
     }
     storeDesktopSettings(next)
@@ -395,6 +402,7 @@ gitBranchPrefix,
     githubMemoryRepository,
     reviewView,
     askUserQuestionMaxQuestions,
+    rustSearchAndDiffKernels,
     browserAllowedSites,
   ])
 
@@ -440,6 +448,7 @@ gitBranchPrefix,
       githubMemoryRepository,
       reviewView,
       askUserQuestionMaxQuestions,
+      rustSearchAndDiffKernels,
       browserAllowedSites,
     }
     try {
@@ -487,6 +496,7 @@ gitBranchPrefix,
     githubMemoryRepository,
     reviewView,
     askUserQuestionMaxQuestions,
+    rustSearchAndDiffKernels,
     browserAllowedSites,
   ])
 
@@ -531,6 +541,7 @@ defaultOpenTargetId,
     githubMemoryRepository,
     reviewView,
     askUserQuestionMaxQuestions,
+    rustSearchAndDiffKernels,
     browserAllowedSites,
     settingsLoaded,
     setPermissionMode,
@@ -573,6 +584,7 @@ defaultOpenTargetId,
 setGithubMemoryRepository,
     setReviewView,
     setAskUserQuestionMaxQuestions,
+    setRustSearchAndDiffKernels,
     setBrowserAllowedSites,
     flushDesktopSettings,
   }

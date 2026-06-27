@@ -154,6 +154,8 @@ export function GeneralSettings({
     setReviewView,
     askUserQuestionMaxQuestions,
     setAskUserQuestionMaxQuestions,
+    rustSearchAndDiffKernels,
+    setRustSearchAndDiffKernels,
     flushDesktopSettings,
   } = useDesktopSettings();
 
@@ -177,6 +179,10 @@ export function GeneralSettings({
     pendingAskQuestionLimitNotice,
     setPendingAskQuestionLimitNotice,
   ] = useState<AskUserQuestionOptionValue | null>(null);
+  const [
+    pendingRustKernelNotice,
+    setPendingRustKernelNotice,
+  ] = useState<boolean | null>(null);
 
   const workMode: WorkMode = thinkingMode === 'adaptive' ? 'daily' : 'coding';
   const handleWorkMode = (next: WorkMode) => {
@@ -223,6 +229,28 @@ export function GeneralSettings({
     flushDesktopSettings,
     onNotice,
     pendingAskQuestionLimitNotice,
+  ]);
+
+  useEffect(() => {
+    if (pendingRustKernelNotice !== rustSearchAndDiffKernels) {
+      return
+    }
+    let cancelled = false
+    void flushDesktopSettings().then(() => {
+      if (cancelled) return
+      onNotice?.('Rust Glob/Grep/Diff 内核设置将在新对话中生效')
+      setPendingRustKernelNotice(current =>
+        current === pendingRustKernelNotice ? null : current,
+      )
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [
+    flushDesktopSettings,
+    onNotice,
+    pendingRustKernelNotice,
+    rustSearchAndDiffKernels,
   ]);
 
   useEffect(() => {
@@ -494,6 +522,26 @@ export function GeneralSettings({
               <button type='button' className='settings-button'>
                 查看
               </button>
+            }
+          />
+        </SettingsSection>
+
+        <SettingsSection
+          title='实现性'
+          description='这些底层能力仍按灰度开关启用，TS 工具外壳和 fallback 会保留。'
+        >
+          <SettingsRow
+            title='Rust Glob / Grep / Diff 内核'
+            description='启用后，新对话会优先使用 Rust sidecar 执行文件遍历、内容搜索和 diff 计算；不支持或失败时自动回到当前 TS / ripgrep 路径。'
+            control={
+              <ToggleSwitch
+                checked={rustSearchAndDiffKernels}
+                onChange={checked => {
+                  setRustSearchAndDiffKernels(checked)
+                  setPendingRustKernelNotice(checked)
+                }}
+                ariaLabel='Rust Glob Grep Diff 内核'
+              />
             }
           />
         </SettingsSection>

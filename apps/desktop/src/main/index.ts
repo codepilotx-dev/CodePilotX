@@ -706,6 +706,7 @@ async function createSession(
   const askUserQuestionMaxQuestions = normalizeAskUserQuestionMaxQuestions(
     options.askUserQuestionMaxQuestions,
   )
+  const rustSearchAndDiffKernels = options.rustSearchAndDiffKernels === true
   const additionalDirectories = await normalizeAdditionalDirectories(
     options.additionalDirectories,
     workspacePath,
@@ -729,6 +730,7 @@ async function createSession(
     appendSystemPrompt,
     additionalDirectories,
     askUserQuestionMaxQuestions,
+    rustSearchAndDiffKernels,
   })
   const session = createDesktopAgentSession(
     {
@@ -750,6 +752,7 @@ async function createSession(
       appendSystemPrompt,
       additionalDirectories,
       askUserQuestionMaxQuestions,
+      rustSearchAndDiffKernels,
     },
     getDesktopAgentRuntimeOptions(),
   )

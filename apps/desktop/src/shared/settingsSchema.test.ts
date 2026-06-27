@@ -8,6 +8,21 @@ test('desktop settings default AskUserQuestion max questions to one', () => {
   expect(defaultDesktopStoredSettings().askUserQuestionMaxQuestions).toBe(1)
 })
 
+test('desktop settings default Rust search and diff kernels to disabled', () => {
+  expect(defaultDesktopStoredSettings().rustSearchAndDiffKernels).toBe(false)
+})
+
+test('desktop settings normalize Rust search and diff kernels as a boolean', () => {
+  expect(
+    normalizeDesktopStoredSettings({ rustSearchAndDiffKernels: true })
+      .rustSearchAndDiffKernels,
+  ).toBe(true)
+  expect(
+    normalizeDesktopStoredSettings({ rustSearchAndDiffKernels: 'true' })
+      .rustSearchAndDiffKernels,
+  ).toBe(false)
+})
+
 test('desktop settings normalize AskUserQuestion max questions to one through four', () => {
   expect(
     normalizeDesktopStoredSettings({ askUserQuestionMaxQuestions: 4 })

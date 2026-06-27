@@ -125,6 +125,7 @@ class LocalDesktopAgentSession
       appendSystemPrompt: options.appendSystemPrompt,
       additionalDirectories: options.additionalDirectories,
       askUserQuestionMaxQuestions: options.askUserQuestionMaxQuestions,
+      rustSearchAndDiffKernels: options.rustSearchAndDiffKernels,
       emit: event => this.emitEvent(event),
       requestPermission: request => this.requestPermission(request),
     })
