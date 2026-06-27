@@ -2,8 +2,9 @@ use std::io::Read;
 
 use clap::{Parser, Subcommand};
 use codepilotx_runtime::{
-    run_diff_request, run_glob_request, run_grep_request, run_shell_request_with_event_sink,
-    DiffRequest, SearchRequest, ShellRunEvent, ShellRunRequest,
+    build_index_request, query_index_request, run_diff_request, run_glob_request, run_grep_request,
+    run_shell_request_with_event_sink, DiffRequest, IndexBuildRequest, IndexQueryRequest,
+    SearchRequest, ShellRunEvent, ShellRunRequest,
 };
 use serde::Serialize;
 
@@ -20,6 +21,8 @@ enum Command {
     Glob,
     Grep,
     Diff,
+    IndexBuild,
+    IndexQuery,
 }
 
 fn main() {
@@ -66,6 +69,23 @@ fn run() -> anyhow::Result<()> {
                 hunks: response.hunks,
             });
         }
+        Command::IndexBuild => {
+            let request: IndexBuildRequest = read_json_stdin()?;
+            write_event(&IndexEvent::Started);
+            let response = build_index_request(request)?;
+            write_event(&IndexEvent::BuildCompleted {
+                files_indexed: response.files_indexed,
+                bytes_written: response.bytes_written,
+            });
+        }
+        Command::IndexQuery => {
+            let request: IndexQueryRequest = read_json_stdin()?;
+            write_event(&IndexEvent::Started);
+            let response = query_index_request(request)?;
+            write_event(&IndexEvent::QueryCompleted {
+                matches: response.matches,
+            });
+        }
     }
     Ok(())
 }
@@ -89,6 +109,19 @@ enum DiffEvent {
     Started,
     Completed {
         hunks: Vec<codepilotx_runtime::StructuredPatchHunk>,
+    },
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase", tag = "type")]
+enum IndexEvent {
+    Started,
+    BuildCompleted {
+        files_indexed: usize,
+        bytes_written: u64,
+    },
+    QueryCompleted {
+        matches: Vec<codepilotx_runtime::IndexedFileEntry>,
     },
 }
 

@@ -3,12 +3,13 @@ use std::fs;
 use std::fs::OpenOptions;
 use std::path::Path;
 use std::path::PathBuf;
-use std::process::{Command, Stdio};
+use std::process::{Command, ExitStatus, Stdio};
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, UNIX_EPOCH};
 
 use anyhow::{Context, Result};
-use globset::{Glob, GlobSet, GlobSetBuilder};
+use ignore::overrides::{Override, OverrideBuilder};
+use ignore::Match;
 use ignore::WalkBuilder;
 use regex::RegexBuilder;
 use serde::{Deserialize, Serialize};
@@ -53,6 +54,53 @@ pub struct DiffResponse {
     pub hunks: Vec<StructuredPatchHunk>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IndexBuildRequest {
+    pub workspace: PathBuf,
+    pub cache_path: PathBuf,
+    pub hidden: bool,
+    pub no_ignore: bool,
+    pub max_files: Option<usize>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IndexBuildResponse {
+    pub files_indexed: usize,
+    pub bytes_written: u64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IndexQueryRequest {
+    pub cache_path: PathBuf,
+    pub query: String,
+    pub limit: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IndexedFileEntry {
+    pub path: String,
+    pub size: u64,
+    pub modified_unix_seconds: Option<u64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IndexQueryResponse {
+    pub matches: Vec<IndexedFileEntry>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct IndexCacheFile {
+    version: u32,
+    workspace: String,
+    files: Vec<IndexedFileEntry>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StructuredPatchHunk {
@@ -81,7 +129,7 @@ pub enum ShellRunEvent {
 
 pub fn run_glob_request(request: SearchRequest) -> Result<SearchResponse> {
     let options = parse_glob_args(&request.args)?;
-    let matcher = PathMatcher::new(&options.globs)?;
+    let matcher = PathMatcher::new(&request.target, &options.globs)?;
     let mut entries = Vec::new();
 
     for entry in walk_files(&request.target, options.hidden, options.no_ignore)? {
@@ -116,7 +164,7 @@ pub fn run_glob_request(request: SearchRequest) -> Result<SearchResponse> {
 
 pub fn run_grep_request(request: SearchRequest) -> Result<SearchResponse> {
     let options = parse_grep_args(&request.args)?;
-    let matcher = PathMatcher::new(&options.globs)?;
+    let matcher = PathMatcher::new(&request.target, &options.globs)?;
     let regex = RegexBuilder::new(&options.pattern)
         .case_insensitive(options.case_insensitive)
         .dot_matches_new_line(options.multiline)
@@ -214,15 +262,70 @@ pub fn run_diff_request(request: DiffRequest) -> Result<DiffResponse> {
         }
 
         hunks.push(StructuredPatchHunk {
-            old_start: old_start.unwrap_or(0),
+            old_start: old_start.unwrap_or(1),
             old_lines,
-            new_start: new_start.unwrap_or(0),
+            new_start: new_start.unwrap_or(1),
             new_lines,
             lines,
         });
     }
 
     Ok(DiffResponse { hunks })
+}
+
+pub fn build_index_request(request: IndexBuildRequest) -> Result<IndexBuildResponse> {
+    let workspace = absolutize(&request.workspace)?;
+    let mut files = Vec::new();
+
+    for entry in walk_files(&workspace, request.hidden, request.no_ignore)? {
+        if request
+            .max_files
+            .is_some_and(|max_files| files.len() >= max_files)
+        {
+            break;
+        }
+        let metadata = fs::metadata(&entry)
+            .with_context(|| format!("read metadata for {}", entry.display()))?;
+        let modified_unix_seconds = metadata
+            .modified()
+            .ok()
+            .and_then(|modified| modified.duration_since(UNIX_EPOCH).ok())
+            .map(|duration| duration.as_secs());
+        files.push(IndexedFileEntry {
+            path: path_for_output(&workspace, &entry),
+            size: metadata.len(),
+            modified_unix_seconds,
+        });
+    }
+    files.sort_by(|left, right| left.path.cmp(&right.path));
+
+    let cache = IndexCacheFile {
+        version: 1,
+        workspace: display_path(&workspace),
+        files,
+    };
+    let json = serde_json::to_vec(&cache).context("serialize index cache")?;
+    write_cache_file(&request.cache_path, &json)?;
+
+    Ok(IndexBuildResponse {
+        files_indexed: cache.files.len(),
+        bytes_written: json.len() as u64,
+    })
+}
+
+pub fn query_index_request(request: IndexQueryRequest) -> Result<IndexQueryResponse> {
+    let content = fs::read(&request.cache_path)
+        .with_context(|| format!("read index cache {}", request.cache_path.display()))?;
+    let cache: IndexCacheFile = serde_json::from_slice(&content).context("parse index cache")?;
+    let query = request.query.to_ascii_lowercase();
+    let limit = request.limit;
+    let matches = cache
+        .files
+        .into_iter()
+        .filter(|entry| entry.path.to_ascii_lowercase().contains(&query))
+        .take(limit)
+        .collect();
+    Ok(IndexQueryResponse { matches })
 }
 
 pub fn run_shell_request(request: ShellRunRequest) -> Result<ShellRunOutcome> {
@@ -233,16 +336,7 @@ pub fn run_shell_request_with_event_sink(
     request: ShellRunRequest,
     mut emit: impl FnMut(ShellRunEvent),
 ) -> Result<ShellRunOutcome> {
-    let output_file = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&request.output_file_path)
-        .with_context(|| {
-            format!(
-                "failed to open shell output file {}",
-                request.output_file_path.display()
-            )
-        })?;
+    let output_file = open_shell_output_file(&request.output_file_path)?;
     let stderr_file = output_file
         .try_clone()
         .context("failed to clone shell output file handle")?;
@@ -262,13 +356,20 @@ pub fn run_shell_request_with_event_sink(
     let mut child = command
         .spawn()
         .with_context(|| format!("failed to spawn {}", request.spawn_binary))?;
-    let process_handle = ProcessHandle::attach(&child)?;
+    let process_handle = match ProcessHandle::attach(&child) {
+        Ok(handle) => handle,
+        Err(error) => {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(error);
+        }
+    };
     emit(ShellRunEvent::Started { pid: child.id() });
 
     let deadline = Instant::now() + Duration::from_millis(request.timeout_ms);
     loop {
         if let Some(status) = child.try_wait().context("failed to poll child process")? {
-            let code = status.code().unwrap_or(1);
+            let code = exit_status_code(status);
             emit(ShellRunEvent::Exited { code });
             return Ok(ShellRunOutcome::Exited { code });
         }
@@ -510,49 +611,34 @@ impl FileTypeFilter {
 }
 
 struct PathMatcher {
-    includes: GlobSet,
-    excludes: GlobSet,
-    has_includes: bool,
+    overrides: Override,
 }
 
 impl PathMatcher {
-    fn new(patterns: &[String]) -> Result<Self> {
-        let mut includes = GlobSetBuilder::new();
-        let mut excludes = GlobSetBuilder::new();
-        let mut has_includes = false;
+    fn new(root: &Path, patterns: &[String]) -> Result<Self> {
+        let mut builder = OverrideBuilder::new(root);
 
         for raw in patterns {
-            let (exclude, pattern) = raw
+            let (prefix, pattern) = raw
                 .strip_prefix('!')
-                .map_or((false, raw.as_str()), |pattern| (true, pattern));
-            let target = if exclude {
-                &mut excludes
-            } else {
-                &mut includes
-            };
-            if !exclude {
-                has_includes = true;
-            }
+                .map_or(("", raw.as_str()), |pattern| ("!", pattern));
             for expanded in expand_glob_pattern(pattern) {
-                target.add(
-                    Glob::new(&expanded)
-                        .with_context(|| format!("invalid glob pattern {}", raw))?,
-                );
+                builder
+                    .add(&format!("{prefix}{expanded}"))
+                    .with_context(|| format!("invalid glob pattern {}", raw))?;
             }
         }
 
         Ok(Self {
-            includes: includes.build()?,
-            excludes: excludes.build()?,
-            has_includes,
+            overrides: builder.build()?,
         })
     }
 
     fn matches(&self, relative_path: &str) -> bool {
-        if self.excludes.is_match(relative_path) {
-            return false;
-        }
-        !self.has_includes || self.includes.is_match(relative_path)
+        !matches!(
+            self.overrides.matched(Path::new(relative_path), false),
+            Match::Ignore(_)
+        )
     }
 }
 
@@ -581,7 +667,8 @@ fn walk_files(target: &Path, hidden: bool, no_ignore: bool) -> Result<Vec<PathBu
         .git_ignore(!no_ignore)
         .git_exclude(!no_ignore)
         .git_global(!no_ignore)
-        .parents(!no_ignore);
+        .parents(!no_ignore)
+        .require_git(true);
 
     let mut files = Vec::new();
     for entry in builder.build() {
@@ -698,7 +785,7 @@ fn append_content_matches(
         }
         for line_index in start..=end {
             let is_match = matched_lines.contains(&line_index);
-            output.push(format_grep_content_line(
+            if let Some(line) = format_grep_content_line(
                 path,
                 line_index + 1,
                 lines[line_index].text,
@@ -706,7 +793,9 @@ fn append_content_matches(
                 options.line_numbers,
                 options.before_context > 0 || options.after_context > 0,
                 options.max_columns,
-            ));
+            ) {
+                output.push(line);
+            }
         }
     }
 }
@@ -743,30 +832,115 @@ fn format_grep_content_line(
     line_numbers: bool,
     has_context: bool,
     max_columns: usize,
-) -> String {
+) -> Option<String> {
+    if line.chars().count() > max_columns {
+        return None;
+    }
     let path = display_path(path);
-    let clipped = clip_columns(line, max_columns);
     let separator = if has_context && !is_match { '-' } else { ':' };
 
     if line_numbers {
-        format!("{path}{separator}{line_number}{separator}{clipped}")
+        Some(format!("{path}{separator}{line_number}{separator}{line}"))
     } else {
-        format!("{path}{separator}{clipped}")
-    }
-}
-
-fn clip_columns(line: &str, max_columns: usize) -> &str {
-    if line.chars().count() <= max_columns {
-        return line;
-    }
-    match line.char_indices().nth(max_columns) {
-        Some((index, _)) => &line[..index],
-        None => line,
+        Some(format!("{path}{separator}{line}"))
     }
 }
 
 fn trim_line_end(value: &str) -> &str {
     value.trim_end_matches('\n').trim_end_matches('\r')
+}
+
+fn write_cache_file(path: &Path, content: &[u8]) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .with_context(|| format!("create cache directory {}", parent.display()))?;
+    }
+    let temp_path = path.with_extension("tmp");
+    fs::write(&temp_path, content)
+        .with_context(|| format!("write temporary cache {}", temp_path.display()))?;
+    replace_cache_file(&temp_path, path)?;
+    Ok(())
+}
+
+#[cfg(windows)]
+fn replace_cache_file(temp_path: &Path, path: &Path) -> Result<()> {
+    let backup_path = path.with_extension("bak");
+    if backup_path.exists() {
+        fs::remove_file(&backup_path)
+            .with_context(|| format!("remove stale cache backup {}", backup_path.display()))?;
+    }
+
+    let had_existing = path.exists();
+    if had_existing {
+        fs::rename(path, &backup_path)
+            .with_context(|| format!("backup cache {}", path.display()))?;
+    }
+
+    match fs::rename(temp_path, path) {
+        Ok(()) => {
+            if had_existing {
+                let _ = fs::remove_file(&backup_path);
+            }
+            Ok(())
+        }
+        Err(error) => {
+            if had_existing {
+                let _ = fs::rename(&backup_path, path);
+            }
+            Err(error).with_context(|| {
+                format!(
+                    "move temporary cache {} to {}",
+                    temp_path.display(),
+                    path.display()
+                )
+            })
+        }
+    }
+}
+
+#[cfg(not(windows))]
+fn replace_cache_file(temp_path: &Path, path: &Path) -> Result<()> {
+    fs::rename(temp_path, path).with_context(|| {
+        format!(
+            "move temporary cache {} to {}",
+            temp_path.display(),
+            path.display()
+        )
+    })
+}
+
+#[cfg(windows)]
+fn open_shell_output_file(path: &Path) -> Result<fs::File> {
+    OpenOptions::new()
+        .create(true)
+        .write(true)
+        .truncate(true)
+        .open(path)
+        .with_context(|| format!("failed to open shell output file {}", path.display()))
+}
+
+#[cfg(not(windows))]
+fn open_shell_output_file(path: &Path) -> Result<fs::File> {
+    OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+        .with_context(|| format!("failed to open shell output file {}", path.display()))
+}
+
+#[cfg(unix)]
+fn exit_status_code(status: ExitStatus) -> i32 {
+    use std::os::unix::process::ExitStatusExt;
+
+    status
+        .code()
+        .or_else(|| status.signal().map(|signal| 128 + signal))
+        .unwrap_or(1)
+}
+
+#[cfg(not(unix))]
+fn exit_status_code(status: ExitStatus) -> i32 {
+    status.code().unwrap_or(1)
 }
 
 #[cfg(windows)]
@@ -925,6 +1099,30 @@ mod tests {
     }
 
     #[test]
+    fn glob_later_include_overrides_earlier_exclude() {
+        let dir = tempdir().unwrap();
+        fs::write(dir.path().join("keep.ts"), "").unwrap();
+        fs::write(dir.path().join("skip.ts"), "").unwrap();
+
+        let response = run_glob_request(SearchRequest {
+            args: vec![
+                "--files".into(),
+                "--glob".into(),
+                "!*.ts".into(),
+                "--glob".into(),
+                "keep.ts".into(),
+                "--sort=modified".into(),
+                "--no-ignore".into(),
+                "--hidden".into(),
+            ],
+            target: dir.path().to_path_buf(),
+        })
+        .unwrap();
+
+        assert_eq!(response.lines, vec!["keep.ts"]);
+    }
+
+    #[test]
     fn glob_respects_hidden_and_gitignore_flags() {
         let dir = tempdir().unwrap();
         fs::create_dir(dir.path().join(".git")).unwrap();
@@ -958,9 +1156,33 @@ mod tests {
         })
         .unwrap();
         assert_eq!(
-            all_files.lines,
+            sorted(all_files.lines),
             vec![".hidden.ts", "ignored.ts", "visible.ts"]
         );
+    }
+
+    #[test]
+    fn glob_does_not_apply_parent_gitignore_outside_git_repo() {
+        let parent = tempdir().unwrap();
+        fs::write(parent.path().join(".gitignore"), "ignored.ts\n").unwrap();
+        let child = parent.path().join("child");
+        fs::create_dir(&child).unwrap();
+        fs::write(child.join("ignored.ts"), "").unwrap();
+        fs::write(child.join("visible.ts"), "").unwrap();
+
+        let response = run_glob_request(SearchRequest {
+            args: vec![
+                "--files".into(),
+                "--glob".into(),
+                "*.ts".into(),
+                "--sort=modified".into(),
+                "--hidden".into(),
+            ],
+            target: child,
+        })
+        .unwrap();
+
+        assert_eq!(response.lines, vec!["ignored.ts", "visible.ts"]);
     }
 
     #[test]
@@ -1011,6 +1233,31 @@ mod tests {
         })
         .unwrap();
         assert_eq!(count.lines, vec![format!("{a_path}:2")]);
+    }
+
+    #[test]
+    fn grep_content_omits_matching_lines_beyond_max_columns() {
+        let dir = tempdir().unwrap();
+        fs::write(
+            dir.path().join("a.txt"),
+            format!("{}needle\nshort needle\n", "x".repeat(12)),
+        )
+        .unwrap();
+        let a_path = display_path(&dir.path().join("a.txt"));
+
+        let content = run_grep_request(SearchRequest {
+            args: vec![
+                "--hidden".into(),
+                "--max-columns".into(),
+                "15".into(),
+                "-n".into(),
+                "needle".into(),
+            ],
+            target: dir.path().to_path_buf(),
+        })
+        .unwrap();
+
+        assert_eq!(content.lines, vec![format!("{a_path}:2:short needle")]);
     }
 
     #[test]
@@ -1092,5 +1339,31 @@ mod tests {
             response.hunks[0].lines,
             vec!["-cost & value", "+cost $ value"]
         );
+    }
+
+    #[test]
+    fn diff_empty_side_hunks_start_at_one() {
+        let added = run_diff_request(DiffRequest {
+            old_content: String::new(),
+            new_content: "one\n".into(),
+            context_lines: 3,
+        })
+        .unwrap();
+        assert_eq!(added.hunks[0].old_start, 1);
+        assert_eq!(added.hunks[0].new_start, 1);
+
+        let removed = run_diff_request(DiffRequest {
+            old_content: "one\n".into(),
+            new_content: String::new(),
+            context_lines: 3,
+        })
+        .unwrap();
+        assert_eq!(removed.hunks[0].old_start, 1);
+        assert_eq!(removed.hunks[0].new_start, 1);
+    }
+
+    fn sorted(mut lines: Vec<String>) -> Vec<String> {
+        lines.sort();
+        lines
     }
 }
