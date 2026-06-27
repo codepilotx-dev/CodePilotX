@@ -165,7 +165,9 @@ function TextInput({
 }
 
 export function AppearanceSettings() {
-  const { settings, resolvedVariant, setMode, saveSettings } = useDesktopTheme()
+  const theme = useDesktopTheme()
+  const { settings, resolvedVariant, setMode } = theme.draft
+  const saveSettings = theme.draft.setSettings
   const activeThemeId = getDesktopThemeIdForVariant(settings, resolvedVariant)
   const activeThemeEntry = getDesktopThemeEntry(settings, activeThemeId)
   const activeTheme = getDesktopThemeForSelection(settings, resolvedVariant)

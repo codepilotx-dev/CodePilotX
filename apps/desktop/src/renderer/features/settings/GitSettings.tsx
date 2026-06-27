@@ -16,37 +16,24 @@ const PR_MERGE_OPTIONS: Array<{ value: 'merge' | 'squash'; label: string }> = [
 ]
 
 export function GitSettings(): React.ReactNode {
+  const { draft } = useDesktopSettings()
   const {
     gitBranchPrefix,
-    setGitBranchPrefix,
     gitPrMergeMethod,
-    setGitPrMergeMethod,
     gitShowPrIconsInSidebar,
-    setGitShowPrIconsInSidebar,
     gitDraftPullRequest,
-    setGitDraftPullRequest,
     gitAutoDeleteWorktree,
-    setGitAutoDeleteWorktree,
     gitAutoDeleteWorktreeLimit,
-    setGitAutoDeleteWorktreeLimit,
     allowForcePush,
-    setAllowForcePush,
     commitMessagePrompt,
-    setCommitMessagePrompt,
     pullRequestPrompt,
-    setPullRequestPrompt,
     githubOAuthClientId,
-    setGithubOAuthClientId,
-    flushDesktopSettings,
-  } = useDesktopSettings()
+  } = draft.values
   const [githubAuth, setGithubAuth] =
     useState<DesktopGithubAuthStatus | null>(null)
   const [githubLogin, setGithubLogin] =
     useState<DesktopGithubLoginStatus | null>(null)
   const [githubBusy, setGithubBusy] = useState(false)
-  const [commitSaveState, setCommitSaveState] = useState<'idle' | 'saved'>('idle')
-  const [prSaveState, setPrSaveState] = useState<'idle' | 'saved'>('idle')
-
   useEffect(() => {
     let mounted = true
     void desktopClient.getGithubAuthStatus().then(status => {
@@ -72,22 +59,6 @@ export function GitSettings(): React.ReactNode {
     return () => window.clearInterval(timer)
   }, [githubLogin])
 
-  useEffect(() => {
-    if (commitSaveState === 'saved') {
-      const timer = window.setTimeout(() => setCommitSaveState('idle'), 2000)
-      return () => window.clearTimeout(timer)
-    }
-    return undefined
-  }, [commitSaveState])
-
-  useEffect(() => {
-    if (prSaveState === 'saved') {
-      const timer = window.setTimeout(() => setPrSaveState('idle'), 2000)
-      return () => window.clearTimeout(timer)
-    }
-    return undefined
-  }, [prSaveState])
-
   const startGithubLogin = async (): Promise<void> => {
     setGithubBusy(true)
     try {
@@ -112,16 +83,6 @@ export function GitSettings(): React.ReactNode {
     } finally {
       setGithubBusy(false)
     }
-  }
-
-  const handleCommitSave = async (): Promise<void> => {
-    await flushDesktopSettings()
-    setCommitSaveState('saved')
-  }
-
-  const handlePrSave = async (): Promise<void> => {
-    await flushDesktopSettings()
-    setPrSaveState('saved')
   }
 
   const githubStatusText = githubAuth?.authenticated
@@ -158,7 +119,9 @@ export function GitSettings(): React.ReactNode {
                 className="settings-input settings-input-narrow"
                 value={gitBranchPrefix}
                 placeholder="codex/"
-                onChange={event => setGitBranchPrefix(event.target.value)}
+                onChange={event =>
+                  draft.setValue('gitBranchPrefix', event.target.value)
+                }
               />
             }
           />
@@ -169,7 +132,7 @@ export function GitSettings(): React.ReactNode {
               <SegmentedControl
                 value={gitPrMergeMethod}
                 options={PR_MERGE_OPTIONS}
-                onChange={setGitPrMergeMethod}
+                onChange={value => draft.setValue('gitPrMergeMethod', value)}
               />
             }
           />
@@ -179,7 +142,9 @@ export function GitSettings(): React.ReactNode {
             control={
               <ToggleSwitch
                 checked={gitShowPrIconsInSidebar}
-                onChange={setGitShowPrIconsInSidebar}
+                onChange={value =>
+                  draft.setValue('gitShowPrIconsInSidebar', value)
+                }
                 ariaLabel="在侧边栏显示 PR 图标"
               />
             }
@@ -190,7 +155,7 @@ export function GitSettings(): React.ReactNode {
             control={
               <ToggleSwitch
                 checked={allowForcePush}
-                onChange={setAllowForcePush}
+                onChange={value => draft.setValue('allowForcePush', value)}
                 ariaLabel="始终强制推送"
               />
             }
@@ -201,7 +166,9 @@ export function GitSettings(): React.ReactNode {
             control={
               <ToggleSwitch
                 checked={gitDraftPullRequest}
-                onChange={setGitDraftPullRequest}
+                onChange={value =>
+                  draft.setValue('gitDraftPullRequest', value)
+                }
                 ariaLabel="创建草稿拉取请求"
               />
             }
@@ -212,7 +179,9 @@ export function GitSettings(): React.ReactNode {
             control={
               <ToggleSwitch
                 checked={gitAutoDeleteWorktree}
-                onChange={setGitAutoDeleteWorktree}
+                onChange={value =>
+                  draft.setValue('gitAutoDeleteWorktree', value)
+                }
                 ariaLabel="自动删除旧工作树"
               />
             }
@@ -230,7 +199,8 @@ export function GitSettings(): React.ReactNode {
                 onChange={event => {
                   const next = Number(event.target.value)
                   if (Number.isFinite(next)) {
-                    setGitAutoDeleteWorktreeLimit(
+                    draft.setValue(
+                      'gitAutoDeleteWorktreeLimit',
                       Math.max(1, Math.floor(next)),
                     )
                   }
@@ -248,15 +218,10 @@ export function GitSettings(): React.ReactNode {
                   rows={4}
                   value={commitMessagePrompt}
                   placeholder="添加提交消息指引..."
-                  onChange={event => setCommitMessagePrompt(event.target.value)}
+                  onChange={event =>
+                    draft.setValue('commitMessagePrompt', event.target.value)
+                  }
                 />
-                <button
-                  type="button"
-                  className="settings-button"
-                  onClick={() => void handleCommitSave()}
-                >
-                  {commitSaveState === 'saved' ? '已保存' : '保存'}
-                </button>
               </div>
             }
           />
@@ -270,15 +235,10 @@ export function GitSettings(): React.ReactNode {
                   rows={4}
                   value={pullRequestPrompt}
                   placeholder="添加拉取请求消息指引..."
-                  onChange={event => setPullRequestPrompt(event.target.value)}
+                  onChange={event =>
+                    draft.setValue('pullRequestPrompt', event.target.value)
+                  }
                 />
-                <button
-                  type="button"
-                  className="settings-button"
-                  onClick={() => void handlePrSave()}
-                >
-                  {prSaveState === 'saved' ? '已保存' : '保存'}
-                </button>
               </div>
             }
           />
@@ -327,7 +287,7 @@ export function GitSettings(): React.ReactNode {
                 placeholder="Iv1.xxxxxxxxxxxxxxxx"
                 onChange={event => {
                   const value = event.target.value
-                  setGithubOAuthClientId(value)
+                  draft.setValue('githubOAuthClientId', value)
                   if (value.trim() && githubAuth?.configured === false) {
                     setGithubAuth({
                       configured: true,

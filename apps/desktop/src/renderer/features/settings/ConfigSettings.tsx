@@ -45,6 +45,7 @@ function extractVersionLabel(status: DesktopRuntimeStatus | null): string {
 
 export function ConfigSettings(): React.ReactNode {
   const settings = useDesktopSettings()
+  const { draft } = settings
   const [runtimeStatus, setRuntimeStatus] = useState<DesktopRuntimeStatus | null>(
     null,
   )
@@ -129,15 +130,16 @@ export function ConfigSettings(): React.ReactNode {
             control={
               <SettingsDropdown
                 ariaLabel="批准策略"
-                value={settings.permissionMode}
+                value={draft.values.permissionMode}
                 options={PERMISSION_MODE_OPTIONS.map(option => ({
                   value: option.value,
                   label: option.label,
                   detail: option.detail,
                 }))}
                 onChange={value =>
-                  settings.setPermissionMode(
-                    value as typeof settings.permissionMode,
+                  draft.setValue(
+                    'permissionMode',
+                    value as typeof draft.values.permissionMode,
                   )
                 }
               />
@@ -149,10 +151,10 @@ export function ConfigSettings(): React.ReactNode {
             control={
               <SettingsDropdown
                 ariaLabel="沙盒设置"
-                value={settings.sandboxMode}
+                value={draft.values.sandboxMode}
                 options={SANDBOX_MODE_OPTIONS}
                 onChange={value =>
-                  settings.setSandboxMode(value as DesktopSandboxMode)
+                  draft.setValue('sandboxMode', value as DesktopSandboxMode)
                 }
               />
             }
@@ -163,8 +165,8 @@ export function ConfigSettings(): React.ReactNode {
             control={
               <ToggleSwitch
                 ariaLabel="允许网络访问"
-                checked={settings.allowNetworkAccess}
-                onChange={settings.setAllowNetworkAccess}
+                checked={draft.values.allowNetworkAccess}
+                onChange={value => draft.setValue('allowNetworkAccess', value)}
               />
             }
           />
@@ -185,8 +187,10 @@ export function ConfigSettings(): React.ReactNode {
             control={
               <ToggleSwitch
                 ariaLabel="Codex 依赖项"
-                checked={settings.installCodexDependencies}
-                onChange={settings.setInstallCodexDependencies}
+                checked={draft.values.installCodexDependencies}
+                onChange={value =>
+                  draft.setValue('installCodexDependencies', value)
+                }
               />
             }
           />

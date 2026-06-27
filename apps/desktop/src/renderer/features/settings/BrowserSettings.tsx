@@ -7,7 +7,8 @@ import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
 import { SettingsSection } from './SettingsSection.js'
 
 export function BrowserSettings(): React.ReactNode {
-  const { browserAllowedSites, setBrowserAllowedSites } = useDesktopSettings()
+  const settings = useDesktopSettings()
+  const { browserAllowedSites, setBrowserAllowedSites, draft } = settings
 
   useEffect(() => {
     void desktopClient
@@ -19,6 +20,7 @@ export function BrowserSettings(): React.ReactNode {
   async function clearAllowedSites(): Promise<void> {
     const nextState = await desktopClient.clearBrowserAllowedSites()
     setBrowserAllowedSites(nextState.allowedSites)
+    draft.setValue('browserAllowedSites', nextState.allowedSites)
   }
 
   return (

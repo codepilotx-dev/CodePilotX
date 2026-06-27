@@ -1,5 +1,5 @@
 import { desktopClient } from '../../services/desktopClient.js'
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import * as RadioGroup from '@radix-ui/react-radio-group';
 import {
   Code,
@@ -20,6 +20,7 @@ import type {
   DesktopOpenTarget,
   DesktopPermissionMode,
   DesktopReviewView,
+  DesktopThinkingMode,
 } from '../../../shared/types.js';
 
 const FALLBACK_OPEN_TARGETS: DesktopOpenTarget[] = [
@@ -139,25 +140,20 @@ type GeneralSettingsProps = {
 }
 
 export function GeneralSettings({
-  onNotice,
+  onNotice: _onNotice,
 }: GeneralSettingsProps = {}) {
   const {
-    thinkingMode,
-    setThinkingMode,
-    permissionMode,
-    setPermissionMode,
-    showContextUsage,
-    setShowContextUsage,
-    defaultOpenTargetId,
-    setDefaultOpenTargetId,
-    reviewView,
-    setReviewView,
-    askUserQuestionMaxQuestions,
-    setAskUserQuestionMaxQuestions,
-    rustSearchAndDiffKernels,
-    setRustSearchAndDiffKernels,
-    flushDesktopSettings,
+    draft,
   } = useDesktopSettings();
+  const {
+    thinkingMode,
+    permissionMode,
+    showContextUsage,
+    defaultOpenTargetId,
+    reviewView,
+    askUserQuestionMaxQuestions,
+    rustSearchAndDiffKernels,
+  } = draft.values;
 
   const [openTargets, setOpenTargets] =
     useState<DesktopOpenTarget[]>(FALLBACK_OPEN_TARGETS);
@@ -175,14 +171,35 @@ export function GeneralSettings({
   const [notifyOnComplete, setNotifyOnComplete] = useState('unfocused');
   const [notifyPermission, setNotifyPermission] = useState(true);
   const [notifyQuestions, setNotifyQuestions] = useState(true);
-  const [
-    pendingAskQuestionLimitNotice,
-    setPendingAskQuestionLimitNotice,
-  ] = useState<AskUserQuestionOptionValue | null>(null);
-  const [
-    pendingRustKernelNotice,
-    setPendingRustKernelNotice,
-  ] = useState<boolean | null>(null);
+  const setThinkingMode = useCallback(
+    (value: DesktopThinkingMode) => draft.setValue('thinkingMode', value),
+    [draft],
+  )
+  const setPermissionMode = useCallback(
+    (value: DesktopPermissionMode) => draft.setValue('permissionMode', value),
+    [draft],
+  )
+  const setShowContextUsage = useCallback(
+    (value: boolean) => draft.setValue('showContextUsage', value),
+    [draft],
+  )
+  const setDefaultOpenTargetId = useCallback(
+    (value: string) => draft.setValue('defaultOpenTargetId', value),
+    [draft],
+  )
+  const setReviewView = useCallback(
+    (value: DesktopReviewView) => draft.setValue('reviewView', value),
+    [draft],
+  )
+  const setAskUserQuestionMaxQuestions = useCallback(
+    (value: typeof askUserQuestionMaxQuestions) =>
+      draft.setValue('askUserQuestionMaxQuestions', value),
+    [draft],
+  )
+  const setRustSearchAndDiffKernels = useCallback(
+    (value: boolean) => draft.setValue('rustSearchAndDiffKernels', value),
+    [draft],
+  )
 
   const workMode: WorkMode = thinkingMode === 'adaptive' ? 'daily' : 'coding';
   const handleWorkMode = (next: WorkMode) => {
@@ -206,52 +223,6 @@ export function GeneralSettings({
     if (checked) setPermissionMode('custom');
     else setPermissionMode('default');
   };
-
-  useEffect(() => {
-    if (
-      pendingAskQuestionLimitNotice !== String(askUserQuestionMaxQuestions)
-    ) {
-      return
-    }
-    let cancelled = false
-    void flushDesktopSettings().then(() => {
-      if (cancelled) return
-      onNotice?.('设置将在新对话中生效')
-      setPendingAskQuestionLimitNotice(current =>
-        current === pendingAskQuestionLimitNotice ? null : current,
-      )
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [
-    askUserQuestionMaxQuestions,
-    flushDesktopSettings,
-    onNotice,
-    pendingAskQuestionLimitNotice,
-  ]);
-
-  useEffect(() => {
-    if (pendingRustKernelNotice !== rustSearchAndDiffKernels) {
-      return
-    }
-    let cancelled = false
-    void flushDesktopSettings().then(() => {
-      if (cancelled) return
-      onNotice?.('Rust Glob/Grep/Diff 内核设置将在新对话中生效')
-      setPendingRustKernelNotice(current =>
-        current === pendingRustKernelNotice ? null : current,
-      )
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [
-    flushDesktopSettings,
-    onNotice,
-    pendingRustKernelNotice,
-    rustSearchAndDiffKernels,
-  ]);
 
   useEffect(() => {
     let mounted = true;
@@ -490,7 +461,6 @@ export function GeneralSettings({
                   setAskUserQuestionMaxQuestions(
                     Number(nextValue) as 1 | 2 | 3 | 4,
                   )
-                  setPendingAskQuestionLimitNotice(nextValue)
                 }}
               />
             }
@@ -538,7 +508,6 @@ export function GeneralSettings({
                 checked={rustSearchAndDiffKernels}
                 onChange={checked => {
                   setRustSearchAndDiffKernels(checked)
-                  setPendingRustKernelNotice(checked)
                 }}
                 ariaLabel='Rust Glob Grep Diff 内核'
               />

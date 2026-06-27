@@ -347,7 +347,10 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
       ? getModelDescription(model)
       : null
 
-function applyProviderState(nextState: DesktopModelProviderState): void {
+function applyProviderState(
+  nextState: DesktopModelProviderState,
+  options: { persistEffectiveSettings?: boolean } = {},
+): void {
     const nextModel =
       nextState.model ||
       nextState.models[0] ||
@@ -357,9 +360,14 @@ function applyProviderState(nextState: DesktopModelProviderState): void {
     setProviderID(nextState.selectedProviderID)
     setBaseURL(nextState.baseURL ?? '')
     setModel(nextModel)
-    settings.setProviderID(nextState.selectedProviderID)
-    settings.setProviderBaseURL(nextState.baseURL ?? '')
-    settings.setModel(nextModel)
+    if (options.persistEffectiveSettings) {
+      settings.setProviderID(nextState.selectedProviderID)
+      settings.setProviderBaseURL(nextState.baseURL ?? '')
+      settings.setModel(nextModel)
+    }
+    settings.draft.setValue('providerID', nextState.selectedProviderID)
+    settings.draft.setValue('providerBaseURL', nextState.baseURL ?? '')
+    settings.draft.setValue('model', nextModel)
   }
 
   function applyFetchedModels(models: string[], error?: string): void {
@@ -467,7 +475,7 @@ const nextState = await desktopClient.saveModelProvider({
         modelID: model.trim(),
         baseURL: baseURL.trim() || undefined,
       })
-      applyProviderState(nextState)
+      applyProviderState(nextState, { persistEffectiveSettings: true })
       setStatus('模型连接已保存。')
       window.dispatchEvent(new Event('desktop:model-provider-changed'))
     } catch (error) {
@@ -955,9 +963,14 @@ const nextState = await desktopClient.deleteProviderApiKey(providerID)
             control={
               <SettingsDropdown
                 ariaLabel="快速任务模型"
-                value={taskModelValue(settings.smallFastModel, taskModelOptions)}
+                value={taskModelValue(
+                  settings.draft.values.smallFastModel,
+                  taskModelOptions,
+                )}
                 options={taskModelOptions}
-                onChange={settings.setSmallFastModel}
+                onChange={value =>
+                  settings.draft.setValue('smallFastModel', value)
+                }
               />
             }
           />
@@ -967,9 +980,12 @@ const nextState = await desktopClient.deleteProviderApiKey(providerID)
             control={
               <SettingsDropdown
                 ariaLabel="快速任务模型"
-                value={taskModelValue(settings.fastModel, taskModelOptions)}
+                value={taskModelValue(
+                  settings.draft.values.fastModel,
+                  taskModelOptions,
+                )}
                 options={taskModelOptions}
-                onChange={settings.setFastModel}
+                onChange={value => settings.draft.setValue('fastModel', value)}
               />
             }
           />
@@ -979,9 +995,14 @@ const nextState = await desktopClient.deleteProviderApiKey(providerID)
             control={
               <SettingsDropdown
                 ariaLabel="默认任务模型"
-                value={taskModelValue(settings.defaultModel, taskModelOptions)}
+                value={taskModelValue(
+                  settings.draft.values.defaultModel,
+                  taskModelOptions,
+                )}
                 options={taskModelOptions}
-                onChange={settings.setDefaultModel}
+                onChange={value =>
+                  settings.draft.setValue('defaultModel', value)
+                }
               />
             }
           />
@@ -991,9 +1012,12 @@ const nextState = await desktopClient.deleteProviderApiKey(providerID)
             control={
               <SettingsDropdown
                 ariaLabel="深度任务模型"
-                value={taskModelValue(settings.deepModel, taskModelOptions)}
+                value={taskModelValue(
+                  settings.draft.values.deepModel,
+                  taskModelOptions,
+                )}
                 options={taskModelOptions}
-                onChange={settings.setDeepModel}
+                onChange={value => settings.draft.setValue('deepModel', value)}
               />
             }
           />
@@ -1003,9 +1027,12 @@ const nextState = await desktopClient.deleteProviderApiKey(providerID)
             control={
               <SettingsDropdown
                 ariaLabel="自动审查模型"
-                value={taskModelValue(settings.reviewModel, taskModelOptions)}
+                value={taskModelValue(
+                  settings.draft.values.reviewModel,
+                  taskModelOptions,
+                )}
                 options={taskModelOptions}
-                onChange={settings.setReviewModel}
+                onChange={value => settings.draft.setValue('reviewModel', value)}
               />
             }
           />

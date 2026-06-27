@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React from 'react'
 import { useDesktopSettings } from './useDesktopSettings.js'
 import type { DesktopPersonality } from '../../../shared/types.js'
 import { SettingsRow } from './SettingsRow.js'
@@ -29,20 +29,7 @@ function LearnMoreLink() {
 }
 
 export function PersonalizationSettings(): React.ReactNode {
-  const settings = useDesktopSettings()
-  const [draftInstructions, setDraftInstructions] = useState(
-    settings.customInstructions,
-  )
-
-  useEffect(() => {
-    setDraftInstructions(settings.customInstructions)
-  }, [settings.customInstructions])
-
-  const dirty = draftInstructions !== settings.customInstructions
-
-  const handleSave = (): void => {
-    settings.setCustomInstructions(draftInstructions)
-  }
+  const { draft } = useDesktopSettings()
 
   const handleResetMemory = (): void => {
     const confirmed = window.confirm('将删除所有 Codex 记忆。确认继续吗？')
@@ -62,10 +49,10 @@ export function PersonalizationSettings(): React.ReactNode {
             control={
               <SettingsDropdown
                 ariaLabel="个性"
-                value={settings.personality}
+                value={draft.values.personality}
                 options={PERSONALITY_OPTIONS}
                 onChange={value =>
-                  settings.setPersonality(value as DesktopPersonality)
+                  draft.setValue('personality', value as DesktopPersonality)
                 }
               />
             }
@@ -80,23 +67,15 @@ export function PersonalizationSettings(): React.ReactNode {
               <LearnMoreLink />
             </>
           }
-          actions={
-            <button
-              className="settings-button"
-              disabled={!dirty}
-              onClick={handleSave}
-              type="button"
-            >
-              保存
-            </button>
-          }
         >
           <textarea
             className="settings-textarea settings-textarea-tall"
             rows={10}
-            onChange={event => setDraftInstructions(event.target.value)}
+            onChange={event =>
+              draft.setValue('customInstructions', event.target.value)
+            }
             placeholder="1、用 utf-8 读取文件！&#10;2、不写测试"
-            value={draftInstructions}
+            value={draft.values.customInstructions}
           />
         </SettingsSection>
 
@@ -115,8 +94,8 @@ export function PersonalizationSettings(): React.ReactNode {
             control={
               <ToggleSwitch
                 ariaLabel="启用记忆"
-                checked={settings.enableMemory}
-                onChange={settings.setEnableMemory}
+                checked={draft.values.enableMemory}
+                onChange={value => draft.setValue('enableMemory', value)}
               />
             }
           />
@@ -126,8 +105,8 @@ export function PersonalizationSettings(): React.ReactNode {
             control={
               <ToggleSwitch
                 ariaLabel="跳过工具辅助对话"
-                checked={settings.skipToolAidedChats}
-                onChange={settings.setSkipToolAidedChats}
+                checked={draft.values.skipToolAidedChats}
+                onChange={value => draft.setValue('skipToolAidedChats', value)}
               />
             }
           />
@@ -137,8 +116,10 @@ export function PersonalizationSettings(): React.ReactNode {
             control={
               <ToggleSwitch
                 ariaLabel="GitHub 记忆同步"
-                checked={settings.githubMemorySyncEnabled}
-                onChange={settings.setGithubMemorySyncEnabled}
+                checked={draft.values.githubMemorySyncEnabled}
+                onChange={value =>
+                  draft.setValue('githubMemorySyncEnabled', value)
+                }
               />
             }
           />
@@ -148,11 +129,11 @@ export function PersonalizationSettings(): React.ReactNode {
             control={
               <input
                 className="settings-input settings-input-narrow"
-                disabled={!settings.githubMemorySyncEnabled}
-                value={settings.githubMemoryRepository}
+                disabled={!draft.values.githubMemorySyncEnabled}
+                value={draft.values.githubMemoryRepository}
                 placeholder="owner/repo"
                 onChange={event =>
-                  settings.setGithubMemoryRepository(event.target.value)
+                  draft.setValue('githubMemoryRepository', event.target.value)
                 }
               />
             }

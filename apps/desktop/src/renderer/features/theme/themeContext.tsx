@@ -24,11 +24,23 @@ import {
 type DesktopThemeContextValue = {
   settings: DesktopThemeSettings
   resolvedVariant: DesktopThemeVariant
+  draft: DesktopThemeDraft
   setMode: (mode: DesktopThemeMode) => Promise<void>
   saveSettings: (settings: DesktopThemeSettings) => Promise<void>
 }
 
 const DesktopThemeContext = createContext<DesktopThemeContextValue | null>(null)
+
+type DesktopThemeDraft = {
+  settings: DesktopThemeSettings
+  resolvedVariant: DesktopThemeVariant
+  dirty: boolean
+  saving: boolean
+  setSettings: (settings: DesktopThemeSettings) => void
+  setMode: (mode: DesktopThemeMode) => void
+  save: () => Promise<DesktopThemeSettings>
+  reset: () => void
+}
 
 const THEME_VARIABLES = [
   '--contrast',
@@ -39,6 +51,9 @@ const THEME_VARIABLES = [
   '--c-bg-row-hover',
   '--c-bg-chip-hover',
   '--c-bg-card',
+  '--c-popover-bg',
+  '--c-popover-border',
+  '--c-popover-divider',
   '--c-surface',
   '--c-ink',
   '--c-border',
@@ -90,6 +105,10 @@ export function DesktopThemeProvider({
   const [settings, setSettings] = useState<DesktopThemeSettings>(
     DEFAULT_DESKTOP_THEME_SETTINGS,
   )
+  const [draftSettings, setDraftSettings] = useState<DesktopThemeSettings>(
+    DEFAULT_DESKTOP_THEME_SETTINGS,
+  )
+  const [draftSaving, setDraftSaving] = useState(false)
   const [systemVariant, setSystemVariant] =
     useState<DesktopThemeVariant>(getSystemThemeVariant)
 
@@ -99,12 +118,15 @@ export function DesktopThemeProvider({
       .getThemeSettings()
       .then(next => {
         if (mounted) {
-          setSettings(normalizeDesktopThemeSettings(next))
+          const normalized = normalizeDesktopThemeSettings(next)
+          setSettings(normalized)
+          setDraftSettings(normalized)
         }
       })
       .catch(() => {
         if (mounted) {
           setSettings(DEFAULT_DESKTOP_THEME_SETTINGS)
+          setDraftSettings(DEFAULT_DESKTOP_THEME_SETTINGS)
         }
       })
     return () => {
@@ -124,6 +146,9 @@ export function DesktopThemeProvider({
 
   const resolvedVariant =
     settings.mode === 'system' ? systemVariant : settings.mode
+  const draftResolvedVariant =
+    draftSettings.mode === 'system' ? systemVariant : draftSettings.mode
+  const draftDirty = !desktopThemeSettingsEqual(draftSettings, settings)
 
   useEffect(() => {
     applyDesktopTheme(settings, resolvedVariant)
@@ -133,6 +158,7 @@ export function DesktopThemeProvider({
     async (nextSettings: DesktopThemeSettings): Promise<void> => {
       const normalized = normalizeDesktopThemeSettings(nextSettings)
       setSettings(normalized)
+      setDraftSettings(normalized)
       await desktopClient.saveThemeSettings(normalized)
     },
     [],
@@ -145,14 +171,68 @@ export function DesktopThemeProvider({
     [saveSettings, settings],
   )
 
+  const setDraftMode = useCallback((mode: DesktopThemeMode): void => {
+    setDraftSettings(current =>
+      normalizeDesktopThemeSettings({ ...current, mode }),
+    )
+  }, [])
+
+  const setDraftSettingsValue = useCallback(
+    (nextSettings: DesktopThemeSettings): void => {
+      setDraftSettings(normalizeDesktopThemeSettings(nextSettings))
+    },
+    [],
+  )
+
+  const saveDraft = useCallback(async (): Promise<DesktopThemeSettings> => {
+    const normalized = normalizeDesktopThemeSettings(draftSettings)
+    setDraftSaving(true)
+    try {
+      await desktopClient.saveThemeSettings(normalized)
+      setSettings(normalized)
+      setDraftSettings(normalized)
+      return normalized
+    } finally {
+      setDraftSaving(false)
+    }
+  }, [draftSettings])
+
+  const resetDraft = useCallback((): void => {
+    setDraftSettings(settings)
+  }, [settings])
+
+  const draft = useMemo<DesktopThemeDraft>(
+    () => ({
+      settings: draftSettings,
+      resolvedVariant: draftResolvedVariant,
+      dirty: draftDirty,
+      saving: draftSaving,
+      setSettings: setDraftSettingsValue,
+      setMode: setDraftMode,
+      save: saveDraft,
+      reset: resetDraft,
+    }),
+    [
+      draftDirty,
+      draftResolvedVariant,
+      draftSaving,
+      draftSettings,
+      resetDraft,
+      saveDraft,
+      setDraftMode,
+      setDraftSettingsValue,
+    ],
+  )
+
   const value = useMemo<DesktopThemeContextValue>(
     () => ({
       settings,
       resolvedVariant,
+      draft,
       setMode,
       saveSettings,
     }),
-    [resolvedVariant, saveSettings, setMode, settings],
+    [draft, resolvedVariant, saveSettings, setMode, settings],
   )
 
   return (
@@ -411,4 +491,11 @@ function getAccentScaleFromHex(accent: string): AccentScale {
 
 function radixVar(scale: AccentScale | 'gray' | 'purple', step: number): string {
   return `var(--${scale}-${step})`
+}
+
+function desktopThemeSettingsEqual(
+  left: DesktopThemeSettings,
+  right: DesktopThemeSettings,
+): boolean {
+  return JSON.stringify(left) === JSON.stringify(right)
 }

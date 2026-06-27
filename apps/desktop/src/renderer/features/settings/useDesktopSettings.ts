@@ -5,6 +5,8 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
@@ -117,7 +119,91 @@ export type UseDesktopSettingsResult = {
   ) => void
   setRustSearchAndDiffKernels: (value: boolean) => void
   setBrowserAllowedSites: (value: string[]) => void
+  draft: DesktopSettingsDraft
   flushDesktopSettings: () => Promise<void>
+}
+
+type DesktopSettingsDraftSetter = <
+  Key extends keyof StoredDesktopSettings,
+>(
+  key: Key,
+  value:
+    | StoredDesktopSettings[Key]
+    | ((current: StoredDesktopSettings[Key]) => StoredDesktopSettings[Key]),
+) => void
+
+export type DesktopSettingsDraft = {
+  values: StoredDesktopSettings
+  dirty: boolean
+  saving: boolean
+  setValue: DesktopSettingsDraftSetter
+  save: (baseValues?: StoredDesktopSettings) => Promise<StoredDesktopSettings>
+  reset: () => void
+}
+
+export function isSettingsSaveShortcut(event: {
+  ctrlKey: boolean
+  metaKey: boolean
+  key: string
+}): boolean {
+  return (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's'
+}
+
+export function createSettingsSaveShortcutHandler(
+  save: () => Promise<unknown>,
+): (event: {
+  ctrlKey: boolean
+  metaKey: boolean
+  key: string
+  preventDefault: () => void
+}) => Promise<boolean> {
+  return async event => {
+    if (!isSettingsSaveShortcut(event)) return false
+    event.preventDefault()
+    await save()
+    return true
+  }
+}
+
+export function createDesktopSettingsDraft(
+  initialValues: StoredDesktopSettings,
+  saveValues: (
+    values: StoredDesktopSettings,
+  ) => Promise<StoredDesktopSettings | void>,
+): DesktopSettingsDraft {
+  let values = cloneDesktopSettings(initialValues)
+  const dirtyKeys = new Set<keyof StoredDesktopSettings>()
+  let dirty = false
+
+  return {
+    get values() {
+      return values
+    },
+    get dirty() {
+      return dirty
+    },
+    saving: false,
+    setValue(key, value) {
+      values = updateDesktopSettingsValue(values, key, value)
+      dirtyKeys.add(key)
+      dirty = !desktopSettingsEqual(values, initialValues)
+    },
+    async save(baseValues = initialValues) {
+      const snapshot = mergeDesktopSettingsDraft(baseValues, values, dirtyKeys)
+      const saved = await saveValues(snapshot)
+      values = saved
+        ? cloneDesktopSettings(saved)
+        : cloneDesktopSettings(snapshot)
+      dirtyKeys.clear()
+      dirty = false
+      return values
+    },
+    reset() {
+      values = cloneDesktopSettings(initialValues)
+      dirtyKeys.clear()
+      dirty = false
+    },
+  }
 }
 
 const DesktopSettingsContext = createContext<UseDesktopSettingsResult | null>(
@@ -256,6 +342,12 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     initial.browserAllowedSites,
   )
   const [settingsLoaded, setSettingsLoaded] = useState(false)
+  const skipNextAutoSaveRef = useRef(false)
+  const [draftValues, setDraftValues] = useState<StoredDesktopSettings>(
+    cloneDesktopSettings(initial),
+  )
+  const draftDirtyKeysRef = useRef<Set<keyof StoredDesktopSettings>>(new Set())
+  const [draftSaving, setDraftSaving] = useState(false)
 
   useEffect(() => {
     let mounted = true
@@ -306,6 +398,8 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
         setAskUserQuestionMaxQuestions(settings.askUserQuestionMaxQuestions)
         setRustSearchAndDiffKernels(settings.rustSearchAndDiffKernels)
         setBrowserAllowedSites(settings.browserAllowedSites)
+        setDraftValues(cloneDesktopSettings(settings))
+        draftDirtyKeysRef.current.clear()
         setSettingsLoaded(true)
       })
       .catch(() => {
@@ -318,195 +412,226 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     }
   }, [])
 
+  const effectiveSettings = useMemo<StoredDesktopSettings>(
+    () => ({
+      permissionMode,
+      model,
+      fallbackModel: '',
+      reviewModel,
+      smallFastModel,
+      fastModel,
+      defaultModel,
+      deepModel,
+      sessionName,
+      thinkingMode,
+      systemPrompt,
+      appendSystemPrompt,
+      additionalDirectories,
+      recentWorkspaces,
+      drawerTab,
+      selectedModelPreset,
+      providerID,
+      providerBaseURL,
+      showContextUsage,
+      defaultOpenTargetId,
+      gitBranchPrefix,
+      gitPrMergeMethod,
+      gitShowPrIconsInSidebar,
+      gitDraftPullRequest,
+      gitAutoDeleteWorktree,
+      gitAutoDeleteWorktreeLimit,
+      allowForcePush,
+      commitMessagePrompt,
+      pullRequestPrompt,
+      githubOAuthClientId,
+      sandboxMode,
+      allowNetworkAccess,
+      installCodexDependencies,
+      personality,
+      customInstructions,
+      enableMemory,
+      skipToolAidedChats,
+      githubMemorySyncEnabled,
+      githubMemoryRepository,
+      reviewView,
+      askUserQuestionMaxQuestions,
+      rustSearchAndDiffKernels,
+      browserAllowedSites,
+    }),
+    [
+      permissionMode,
+      model,
+      reviewModel,
+      smallFastModel,
+      fastModel,
+      defaultModel,
+      deepModel,
+      sessionName,
+      thinkingMode,
+      systemPrompt,
+      appendSystemPrompt,
+      additionalDirectories,
+      recentWorkspaces,
+      drawerTab,
+      selectedModelPreset,
+      providerID,
+      providerBaseURL,
+      showContextUsage,
+      defaultOpenTargetId,
+      gitBranchPrefix,
+      gitPrMergeMethod,
+      gitShowPrIconsInSidebar,
+      gitDraftPullRequest,
+      gitAutoDeleteWorktree,
+      gitAutoDeleteWorktreeLimit,
+      allowForcePush,
+      commitMessagePrompt,
+      pullRequestPrompt,
+      githubOAuthClientId,
+      sandboxMode,
+      allowNetworkAccess,
+      installCodexDependencies,
+      personality,
+      customInstructions,
+      enableMemory,
+      skipToolAidedChats,
+      githubMemorySyncEnabled,
+      githubMemoryRepository,
+      reviewView,
+      askUserQuestionMaxQuestions,
+      rustSearchAndDiffKernels,
+      browserAllowedSites,
+    ],
+  )
+
+  const draftDirty = useMemo(
+    () => !desktopSettingsEqual(draftValues, effectiveSettings),
+    [draftValues, effectiveSettings],
+  )
+
   useEffect(() => {
     if (!settingsLoaded) return
-    const next: StoredDesktopSettings = {
-      permissionMode,
-      model,
-      fallbackModel: '',
-      reviewModel,
-      smallFastModel,
-      fastModel,
-      defaultModel,
-      deepModel,
-      sessionName,
-      thinkingMode,
-      systemPrompt,
-      appendSystemPrompt,
-      additionalDirectories,
-      recentWorkspaces,
-      drawerTab,
-      selectedModelPreset,
-      providerID,
-      providerBaseURL,
-      showContextUsage,
-      defaultOpenTargetId,
-      gitBranchPrefix,
-      gitPrMergeMethod,
-      gitShowPrIconsInSidebar,
-      gitDraftPullRequest,
-      gitAutoDeleteWorktree,
-      gitAutoDeleteWorktreeLimit,
-      allowForcePush,
-      commitMessagePrompt,
-      pullRequestPrompt,
-      githubOAuthClientId,
-      sandboxMode,
-      allowNetworkAccess,
-      installCodexDependencies,
-      personality,
-      customInstructions,
-      enableMemory,
-      skipToolAidedChats,
-      githubMemorySyncEnabled,
-      githubMemoryRepository,
-      reviewView,
-      askUserQuestionMaxQuestions,
-      rustSearchAndDiffKernels,
-      browserAllowedSites,
+    if (skipNextAutoSaveRef.current) {
+      skipNextAutoSaveRef.current = false
+      return
     }
-    storeDesktopSettings(next)
-  }, [
-    settingsLoaded,
-    permissionMode,
-    model,
-    reviewModel,
-    smallFastModel,
-    fastModel,
-    defaultModel,
-    deepModel,
-    sessionName,
-    thinkingMode,
-    systemPrompt,
-    appendSystemPrompt,
-    additionalDirectories,
-    recentWorkspaces,
-    drawerTab,
-    selectedModelPreset,
-    providerID,
-    providerBaseURL,
-    showContextUsage,
-    defaultOpenTargetId,
-gitBranchPrefix,
-    gitPrMergeMethod,
-    gitShowPrIconsInSidebar,
-    gitDraftPullRequest,
-    gitAutoDeleteWorktree,
-    gitAutoDeleteWorktreeLimit,
-    allowForcePush,
-    commitMessagePrompt,
-    pullRequestPrompt,
-    githubOAuthClientId,
-    sandboxMode,
-    allowNetworkAccess,
-    installCodexDependencies,
-    personality,
-    customInstructions,
-    enableMemory,
-    skipToolAidedChats,
-    githubMemorySyncEnabled,
-    githubMemoryRepository,
-    reviewView,
-    askUserQuestionMaxQuestions,
-    rustSearchAndDiffKernels,
-    browserAllowedSites,
-  ])
+    storeDesktopSettings(effectiveSettings)
+  }, [effectiveSettings, settingsLoaded])
+
+  useEffect(() => {
+    if (!settingsLoaded || draftDirty) return
+    setDraftValues(cloneDesktopSettings(effectiveSettings))
+    draftDirtyKeysRef.current.clear()
+  }, [draftDirty, effectiveSettings, settingsLoaded])
 
   const flushDesktopSettings = useCallback(async (): Promise<void> => {
-    const snapshot: StoredDesktopSettings = {
-      permissionMode,
-      model,
-      fallbackModel: '',
-      reviewModel,
-      smallFastModel,
-      fastModel,
-      defaultModel,
-      deepModel,
-      sessionName,
-      thinkingMode,
-      systemPrompt,
-      appendSystemPrompt,
-      additionalDirectories,
-      recentWorkspaces,
-      drawerTab,
-      selectedModelPreset,
-      providerID,
-      providerBaseURL,
-      showContextUsage,
-      defaultOpenTargetId,
-      gitBranchPrefix,
-      gitPrMergeMethod,
-      gitShowPrIconsInSidebar,
-      gitDraftPullRequest,
-      gitAutoDeleteWorktree,
-      gitAutoDeleteWorktreeLimit,
-      allowForcePush,
-      commitMessagePrompt,
-      pullRequestPrompt,
-      githubOAuthClientId,
-      sandboxMode,
-      allowNetworkAccess,
-      installCodexDependencies,
-      personality,
-      customInstructions,
-      enableMemory,
-      skipToolAidedChats,
-      githubMemorySyncEnabled,
-      githubMemoryRepository,
-      reviewView,
-      askUserQuestionMaxQuestions,
-      rustSearchAndDiffKernels,
-      browserAllowedSites,
-    }
     try {
-      await desktopClient.saveDesktopSettings(snapshot)
+      await desktopClient.saveDesktopSettings(effectiveSettings)
     } catch {
       // Persistence is best-effort; the next state change will retry.
     }
-  }, [
-    permissionMode,
-    model,
-    reviewModel,
-    smallFastModel,
-    fastModel,
-    defaultModel,
-    deepModel,
-    sessionName,
-    thinkingMode,
-    systemPrompt,
-    appendSystemPrompt,
-    additionalDirectories,
-    recentWorkspaces,
-    drawerTab,
-    selectedModelPreset,
-    providerID,
-    providerBaseURL,
-    showContextUsage,
-    defaultOpenTargetId,
-    gitBranchPrefix,
-    gitPrMergeMethod,
-    gitShowPrIconsInSidebar,
-    gitDraftPullRequest,
-    gitAutoDeleteWorktree,
-    gitAutoDeleteWorktreeLimit,
-    allowForcePush,
-    commitMessagePrompt,
-    pullRequestPrompt,
-    githubOAuthClientId,
-    sandboxMode,
-    allowNetworkAccess,
-    installCodexDependencies,
-    personality,
-    customInstructions,
-    enableMemory,
-    skipToolAidedChats,
-    githubMemorySyncEnabled,
-    githubMemoryRepository,
-    reviewView,
-    askUserQuestionMaxQuestions,
-    rustSearchAndDiffKernels,
-    browserAllowedSites,
-  ])
+  }, [effectiveSettings])
+
+  const setDraftValue = useCallback<DesktopSettingsDraftSetter>(
+    (key, value) => {
+      draftDirtyKeysRef.current.add(key)
+      setDraftValues(current => updateDesktopSettingsValue(current, key, value))
+    },
+    [],
+  )
+
+  const applySettingsSnapshot = useCallback(
+    (snapshot: StoredDesktopSettings): void => {
+      setPermissionMode(snapshot.permissionMode)
+      setModel(snapshot.model)
+      setFallbackModel(snapshot.fallbackModel)
+      setReviewModel(snapshot.reviewModel)
+      setSmallFastModel(snapshot.smallFastModel)
+      setFastModel(snapshot.fastModel)
+      setDefaultModel(snapshot.defaultModel)
+      setDeepModel(snapshot.deepModel)
+      setSessionName(snapshot.sessionName)
+      setThinkingMode(snapshot.thinkingMode)
+      setSystemPrompt(snapshot.systemPrompt)
+      setAppendSystemPrompt(snapshot.appendSystemPrompt)
+      setAdditionalDirectories(snapshot.additionalDirectories)
+      setRecentWorkspaces(snapshot.recentWorkspaces)
+      setDrawerTab(snapshot.drawerTab)
+      setSelectedModelPreset(snapshot.selectedModelPreset)
+      setProviderID(snapshot.providerID)
+      setProviderBaseURL(snapshot.providerBaseURL)
+      setShowContextUsage(snapshot.showContextUsage)
+      setDefaultOpenTargetId(snapshot.defaultOpenTargetId)
+      setGitBranchPrefix(snapshot.gitBranchPrefix)
+      setGitPrMergeMethod(snapshot.gitPrMergeMethod)
+      setGitShowPrIconsInSidebar(snapshot.gitShowPrIconsInSidebar)
+      setGitDraftPullRequest(snapshot.gitDraftPullRequest)
+      setGitAutoDeleteWorktree(snapshot.gitAutoDeleteWorktree)
+      setGitAutoDeleteWorktreeLimit(snapshot.gitAutoDeleteWorktreeLimit)
+      setAllowForcePush(snapshot.allowForcePush)
+      setCommitMessagePrompt(snapshot.commitMessagePrompt)
+      setPullRequestPrompt(snapshot.pullRequestPrompt)
+      setGithubOAuthClientId(snapshot.githubOAuthClientId)
+      setSandboxMode(snapshot.sandboxMode)
+      setAllowNetworkAccess(snapshot.allowNetworkAccess)
+      setInstallCodexDependencies(snapshot.installCodexDependencies)
+      setPersonality(snapshot.personality)
+      setCustomInstructions(snapshot.customInstructions)
+      setEnableMemory(snapshot.enableMemory)
+      setSkipToolAidedChats(snapshot.skipToolAidedChats)
+      setGithubMemorySyncEnabled(snapshot.githubMemorySyncEnabled)
+      setGithubMemoryRepository(snapshot.githubMemoryRepository)
+      setReviewView(snapshot.reviewView)
+      setAskUserQuestionMaxQuestions(snapshot.askUserQuestionMaxQuestions)
+      setRustSearchAndDiffKernels(snapshot.rustSearchAndDiffKernels)
+      setBrowserAllowedSites(snapshot.browserAllowedSites)
+    },
+    [],
+  )
+
+  const saveDraft = useCallback(async (): Promise<StoredDesktopSettings> => {
+    const snapshot = mergeDesktopSettingsDraft(
+      effectiveSettings,
+      draftValues,
+      draftDirtyKeysRef.current,
+    )
+    setDraftSaving(true)
+    try {
+      const saved = await desktopClient.saveDesktopSettings(snapshot)
+      const next = cloneDesktopSettings(saved)
+      skipNextAutoSaveRef.current = true
+      applySettingsSnapshot(next)
+      setDraftValues(next)
+      draftDirtyKeysRef.current.clear()
+      return next
+    } finally {
+      setDraftSaving(false)
+    }
+  }, [applySettingsSnapshot, draftValues, effectiveSettings])
+
+  const resetDraft = useCallback((): void => {
+    setDraftValues(cloneDesktopSettings(effectiveSettings))
+    draftDirtyKeysRef.current.clear()
+  }, [effectiveSettings])
+
+  const draft = useMemo<DesktopSettingsDraft>(
+    () => ({
+      values: draftValues,
+      dirty: draftDirty,
+      saving: draftSaving,
+      setValue: setDraftValue,
+      save: saveDraft,
+      reset: resetDraft,
+    }),
+    [
+      draftDirty,
+      draftSaving,
+      draftValues,
+      resetDraft,
+      saveDraft,
+      setDraftValue,
+    ],
+  )
 
   return {
     permissionMode,
@@ -596,6 +721,68 @@ setGithubMemoryRepository,
     setAskUserQuestionMaxQuestions,
     setRustSearchAndDiffKernels,
     setBrowserAllowedSites,
+    draft,
     flushDesktopSettings,
   }
+}
+
+function cloneDesktopSettings(
+  settings: StoredDesktopSettings,
+): StoredDesktopSettings {
+  return {
+    ...settings,
+    recentWorkspaces: settings.recentWorkspaces.map(workspace => ({
+      ...workspace,
+    })),
+    browserAllowedSites: [...settings.browserAllowedSites],
+  }
+}
+
+function updateDesktopSettingsValue<Key extends keyof StoredDesktopSettings>(
+  current: StoredDesktopSettings,
+  key: Key,
+  value:
+    | StoredDesktopSettings[Key]
+    | ((currentValue: StoredDesktopSettings[Key]) => StoredDesktopSettings[Key]),
+): StoredDesktopSettings {
+  const currentValue = current[key]
+  const nextValue =
+    typeof value === 'function'
+      ? (value as (
+          currentValue: StoredDesktopSettings[Key],
+        ) => StoredDesktopSettings[Key])(currentValue)
+      : value
+  return cloneDesktopSettings({
+    ...current,
+    [key]: nextValue,
+  })
+}
+
+function mergeDesktopSettingsDraft(
+  baseValues: StoredDesktopSettings,
+  draftValues: StoredDesktopSettings,
+  dirtyKeys: ReadonlySet<keyof StoredDesktopSettings>,
+): StoredDesktopSettings {
+  const next = cloneDesktopSettings(baseValues)
+  for (const key of dirtyKeys) {
+    ;(next as Record<keyof StoredDesktopSettings, unknown>)[key] =
+      cloneDesktopSettingsValue(draftValues[key])
+  }
+  return next
+}
+
+function cloneDesktopSettingsValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(item =>
+      item && typeof item === 'object' ? { ...item } : item,
+    )
+  }
+  return value
+}
+
+function desktopSettingsEqual(
+  left: StoredDesktopSettings,
+  right: StoredDesktopSettings,
+): boolean {
+  return JSON.stringify(left) === JSON.stringify(right)
 }
