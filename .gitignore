@@ -6,3 +6,4 @@ bun.lock
 .DS_Store
 Thumbs.db
 *.log
+rust/**/target/

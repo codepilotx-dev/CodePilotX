@@ -34,6 +34,11 @@ import { getClaudeTempDirName } from './permissions/filesystem.js'
 import { getPlatform } from './platform.js'
 import { SandboxManager } from './sandbox/sandbox-adapter.js'
 import { invalidateSessionEnvCache } from './sessionEnvironment.js'
+import {
+  findRustShellRuntimeExecutable,
+  shouldUseRustShellRuntime,
+  spawnRustShellCommand,
+} from './rustShellRuntime.js'
 import { createBashShellProvider } from './shell/bashProvider.js'
 import { getCachedPowerShellPath } from './shell/powershellDetection.js'
 import { createPowerShellProvider } from './shell/powershellProvider.js'
@@ -314,6 +319,13 @@ export async function exec(
   const taskId = generateTaskId('local_bash')
   const taskOutput = new TaskOutput(taskId, onProgress ?? null, !usePipeMode)
   await mkdir(getTaskOutputDir(), { recursive: true })
+  const rustRuntimePath = shouldUseRustShellRuntime({
+    shouldUseSandbox: shouldUseSandbox ?? false,
+    shouldAutoBackground: shouldAutoBackground ?? false,
+    hasStdoutCallback: usePipeMode,
+  })
+    ? findRustShellRuntimeExecutable()
+    : null
 
   // In file mode, both stdout and stderr go to the same file fd.
   // On POSIX, O_APPEND makes each write atomic (seek-to-end + write), so
@@ -328,7 +340,7 @@ export async function exec(
   // SECURITY: O_NOFOLLOW prevents symlink-following attacks from the sandbox.
   // On Windows, use string flags — numeric flags can produce EINVAL through libuv.
   let outputHandle: FileHandle | undefined
-  if (!usePipeMode) {
+  if (!usePipeMode && !rustRuntimePath) {
     const O_NOFOLLOW = fsConstants.O_NOFOLLOW ?? 0
     outputHandle = await open(
       taskOutput.path,
@@ -342,36 +354,52 @@ export async function exec(
   }
 
   try {
-    const childProcess = spawn(spawnBinary, shellArgs, {
-      env: {
-        ...subprocessEnv(),
-        SHELL: shellType === 'bash' ? binShell : undefined,
-        GIT_EDITOR: 'true',
-        CLAUDECODE: '1',
-        ...envOverrides,
-        ...(process.env.USER_TYPE === 'ant'
-          ? {
-              CLAUDE_CODE_SESSION_ID: getSessionId(),
-            }
-          : {}),
-      },
-      cwd,
-      stdio: usePipeMode
-        ? ['pipe', 'pipe', 'pipe']
-        : ['pipe', outputHandle?.fd, outputHandle?.fd],
-      // Don't pass the signal - we'll handle termination ourselves with tree-kill
-      detached: provider.detached,
-      // Prevent visible console window on Windows (no-op on other platforms)
-      windowsHide: true,
-    })
+    const childEnv = {
+      ...subprocessEnv(),
+      SHELL: shellType === 'bash' ? binShell : undefined,
+      GIT_EDITOR: 'true',
+      CLAUDECODE: '1',
+      ...envOverrides,
+      ...(process.env.USER_TYPE === 'ant'
+        ? {
+            CLAUDE_CODE_SESSION_ID: getSessionId(),
+          }
+        : {}),
+    }
 
-    const shellCommand = wrapSpawn(
-      childProcess,
-      abortSignal,
-      commandTimeout,
-      taskOutput,
-      shouldAutoBackground,
-    )
+    let childProcess: ReturnType<typeof spawn> | undefined
+    const shellCommand = rustRuntimePath
+      ? spawnRustShellCommand({
+          runtimePath: rustRuntimePath,
+          spawnBinary,
+          shellArgs,
+          cwd,
+          env: childEnv,
+          timeoutMs: commandTimeout,
+          taskOutput,
+          abortSignal,
+          windowsHide: true,
+        })
+      : (() => {
+          childProcess = spawn(spawnBinary, shellArgs, {
+            env: childEnv,
+            cwd,
+            stdio: usePipeMode
+              ? ['pipe', 'pipe', 'pipe']
+              : ['pipe', outputHandle?.fd, outputHandle?.fd],
+            // Don't pass the signal - we'll handle termination ourselves with tree-kill
+            detached: provider.detached,
+            // Prevent visible console window on Windows (no-op on other platforms)
+            windowsHide: true,
+          })
+          return wrapSpawn(
+            childProcess,
+            abortSignal,
+            commandTimeout,
+            taskOutput,
+            shouldAutoBackground,
+          )
+        })()
 
     // Close our copy of the fd — the child has its own dup.
     // Must happen after wrapSpawn attaches 'error' listener, since the await
@@ -390,7 +418,7 @@ export async function exec(
     // Both listeners receive the same data chunks (Node.js ReadableStream supports
     // multiple 'data' listeners). StreamWrapper feeds TaskOutput for persistence;
     // these callbacks give the caller real-time access.
-    if (childProcess.stdout && onStdout) {
+    if (childProcess?.stdout && onStdout) {
       childProcess.stdout.on('data', (chunk: string | Buffer) => {
         onStdout(typeof chunk === 'string' ? chunk : chunk.toString())
       })
