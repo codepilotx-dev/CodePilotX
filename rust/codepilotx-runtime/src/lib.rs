@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::fs;
 use std::fs::OpenOptions;
 use std::path::Path;
@@ -119,6 +119,8 @@ pub fn run_grep_request(request: SearchRequest) -> Result<SearchResponse> {
     let matcher = PathMatcher::new(&options.globs)?;
     let regex = RegexBuilder::new(&options.pattern)
         .case_insensitive(options.case_insensitive)
+        .dot_matches_new_line(options.multiline)
+        .multi_line(options.multiline)
         .build()
         .with_context(|| format!("invalid regex pattern {}", options.pattern))?;
     let mut lines = Vec::new();
@@ -128,36 +130,25 @@ pub fn run_grep_request(request: SearchRequest) -> Result<SearchResponse> {
         if !matcher.matches(&relative_path) {
             continue;
         }
+        if let Some(type_filter) = &options.type_filter {
+            if !type_filter.matches(&entry) {
+                continue;
+            }
+        }
 
         let Ok(content) = fs::read_to_string(&entry) else {
             continue;
         };
 
-        let mut file_match_count = 0usize;
         let absolute_path = absolutize(&entry)?;
-        for (line_index, line) in content.lines().enumerate() {
-            if !regex.is_match(line) {
-                continue;
-            }
-            file_match_count += 1;
-            match options.mode {
-                GrepMode::FilesWithMatches => break,
-                GrepMode::Count => {}
-                GrepMode::Content => {
-                    let clipped = clip_columns(line, options.max_columns);
-                    if options.line_numbers {
-                        lines.push(format!(
-                            "{}:{}:{}",
-                            display_path(&absolute_path),
-                            line_index + 1,
-                            clipped
-                        ));
-                    } else {
-                        lines.push(format!("{}:{}", display_path(&absolute_path), clipped));
-                    }
-                }
-            }
-        }
+        let line_infos = split_lines_with_offsets(&content);
+        let matched_lines =
+            find_matched_line_indexes(&regex, &content, &line_infos, options.multiline);
+        let file_match_count = if options.multiline {
+            regex.find_iter(&content).count()
+        } else {
+            matched_lines.len()
+        };
 
         match options.mode {
             GrepMode::FilesWithMatches if file_match_count > 0 => {
@@ -169,6 +160,15 @@ pub fn run_grep_request(request: SearchRequest) -> Result<SearchResponse> {
                     display_path(&absolute_path),
                     file_match_count
                 ));
+            }
+            GrepMode::Content if file_match_count > 0 => {
+                append_content_matches(
+                    &mut lines,
+                    &absolute_path,
+                    &line_infos,
+                    &matched_lines,
+                    &options,
+                );
             }
             _ => {}
         }
@@ -306,6 +306,10 @@ struct GrepOptions {
     mode: GrepMode,
     line_numbers: bool,
     case_insensitive: bool,
+    before_context: usize,
+    after_context: usize,
+    multiline: bool,
+    type_filter: Option<FileTypeFilter>,
     pattern: String,
 }
 
@@ -352,6 +356,10 @@ fn parse_grep_args(args: &[String]) -> Result<GrepOptions> {
     let mut mode = GrepMode::Content;
     let mut line_numbers = false;
     let mut case_insensitive = false;
+    let mut before_context = 0usize;
+    let mut after_context = 0usize;
+    let mut multiline = false;
+    let mut type_filter = None;
     let mut pattern: Option<String> = None;
     let mut index = 0;
 
@@ -372,6 +380,26 @@ fn parse_grep_args(args: &[String]) -> Result<GrepOptions> {
             "-l" => mode = GrepMode::FilesWithMatches,
             "-c" => mode = GrepMode::Count,
             "-n" => line_numbers = true,
+            "-A" => {
+                index += 1;
+                after_context = parse_usize_arg(args.get(index), "-A")?;
+            }
+            "-B" => {
+                index += 1;
+                before_context = parse_usize_arg(args.get(index), "-B")?;
+            }
+            "-C" | "--context" => {
+                index += 1;
+                let context = parse_usize_arg(args.get(index), args[index - 1].as_str())?;
+                before_context = context;
+                after_context = context;
+            }
+            "-U" | "--multiline-dotall" => multiline = true,
+            "--type" => {
+                index += 1;
+                let value = args.get(index).context("--type requires a value")?;
+                type_filter = Some(FileTypeFilter::parse(value)?);
+            }
             "-e" => {
                 index += 1;
                 let value = args.get(index).context("-e requires a pattern")?;
@@ -395,8 +423,90 @@ fn parse_grep_args(args: &[String]) -> Result<GrepOptions> {
         mode,
         line_numbers,
         case_insensitive,
+        before_context,
+        after_context,
+        multiline,
+        type_filter,
         pattern: pattern.context("grep pattern is required")?,
     })
+}
+
+fn parse_usize_arg(value: Option<&String>, flag: &str) -> Result<usize> {
+    value
+        .with_context(|| format!("{flag} requires a value"))?
+        .parse()
+        .with_context(|| format!("invalid {flag} value"))
+}
+
+#[derive(Debug, Clone)]
+struct FileTypeFilter {
+    extensions: &'static [&'static str],
+    filenames: &'static [&'static str],
+}
+
+impl FileTypeFilter {
+    fn parse(value: &str) -> Result<Self> {
+        match value {
+            "c" => Ok(Self::extensions(&["c", "h"])),
+            "cpp" | "c++" => Ok(Self::extensions(&[
+                "cc", "cpp", "cxx", "c++", "hh", "hpp", "hxx", "h++",
+            ])),
+            "csharp" | "cs" => Ok(Self::extensions(&["cs"])),
+            "css" => Ok(Self::extensions(&["css"])),
+            "go" => Ok(Self::extensions(&["go"])),
+            "html" => Ok(Self::extensions(&["html", "htm"])),
+            "java" => Ok(Self::extensions(&["java"])),
+            "js" => Ok(Self::extensions(&["js", "jsx", "mjs", "cjs"])),
+            "json" => Ok(Self::extensions(&["json", "jsonc"])),
+            "kotlin" | "kt" => Ok(Self::extensions(&["kt", "kts"])),
+            "markdown" | "md" => Ok(Self::extensions(&["md", "markdown"])),
+            "php" => Ok(Self::extensions(&["php"])),
+            "py" | "python" => Ok(Self::extensions(&["py", "pyi"])),
+            "rb" | "ruby" => Ok(Self::extensions(&["rb"])),
+            "rust" | "rs" => Ok(Self::extensions(&["rs"])),
+            "scala" => Ok(Self::extensions(&["scala", "sc"])),
+            "sh" | "shell" => Ok(Self::extensions(&["sh", "bash", "zsh", "fish"])),
+            "swift" => Ok(Self::extensions(&["swift"])),
+            "toml" => Ok(Self::extensions(&["toml"])),
+            "ts" => Ok(Self::extensions(&["ts", "tsx", "mts", "cts"])),
+            "txt" => Ok(Self::extensions(&["txt"])),
+            "xml" => Ok(Self::extensions(&["xml"])),
+            "yaml" | "yml" => Ok(Self::extensions(&["yaml", "yml"])),
+            "docker" => Ok(Self {
+                extensions: &["dockerfile"],
+                filenames: &["dockerfile"],
+            }),
+            other => anyhow::bail!("unsupported grep --type {other}"),
+        }
+    }
+
+    fn extensions(extensions: &'static [&'static str]) -> Self {
+        Self {
+            extensions,
+            filenames: &[],
+        }
+    }
+
+    fn matches(&self, path: &Path) -> bool {
+        let extension = path
+            .extension()
+            .and_then(|value| value.to_str())
+            .map(str::to_ascii_lowercase);
+        if extension
+            .as_deref()
+            .is_some_and(|extension| self.extensions.contains(&extension))
+        {
+            return true;
+        }
+
+        let filename = path
+            .file_name()
+            .and_then(|value| value.to_str())
+            .map(str::to_ascii_lowercase);
+        filename
+            .as_deref()
+            .is_some_and(|filename| self.filenames.contains(&filename))
+    }
 }
 
 struct PathMatcher {
@@ -503,6 +613,146 @@ fn absolutize(path: &Path) -> Result<PathBuf> {
 
 fn display_path(path: &Path) -> String {
     path.to_string_lossy().into_owned()
+}
+
+#[derive(Debug, Clone)]
+struct LineInfo<'a> {
+    text: &'a str,
+    start: usize,
+    end: usize,
+}
+
+fn split_lines_with_offsets(content: &str) -> Vec<LineInfo<'_>> {
+    let mut lines = Vec::new();
+    let mut start = 0usize;
+
+    for raw in content.split_inclusive('\n') {
+        let end = start + raw.len();
+        let text = trim_line_end(raw);
+        lines.push(LineInfo { text, start, end });
+        start = end;
+    }
+
+    if start < content.len() {
+        lines.push(LineInfo {
+            text: &content[start..],
+            start,
+            end: content.len(),
+        });
+    }
+
+    lines
+}
+
+fn find_matched_line_indexes(
+    regex: &regex::Regex,
+    content: &str,
+    lines: &[LineInfo<'_>],
+    multiline: bool,
+) -> BTreeSet<usize> {
+    let mut indexes = BTreeSet::new();
+
+    if multiline {
+        for matched in regex.find_iter(content) {
+            for (index, line) in lines.iter().enumerate() {
+                let overlaps = matched.start() < line.end && matched.end() > line.start;
+                let zero_length_at_line =
+                    matched.start() == matched.end() && matched.start() == line.start;
+                if overlaps || zero_length_at_line {
+                    indexes.insert(index);
+                }
+            }
+        }
+        return indexes;
+    }
+
+    for (index, line) in lines.iter().enumerate() {
+        if regex.is_match(line.text) {
+            indexes.insert(index);
+        }
+    }
+
+    indexes
+}
+
+fn append_content_matches(
+    output: &mut Vec<String>,
+    path: &Path,
+    lines: &[LineInfo<'_>],
+    matched_lines: &BTreeSet<usize>,
+    options: &GrepOptions,
+) {
+    if matched_lines.is_empty() {
+        return;
+    }
+
+    let ranges = context_ranges(
+        matched_lines,
+        lines.len(),
+        options.before_context,
+        options.after_context,
+    );
+    for (range_index, (start, end)) in ranges.into_iter().enumerate() {
+        if range_index > 0 && (options.before_context > 0 || options.after_context > 0) {
+            output.push("--".to_string());
+        }
+        for line_index in start..=end {
+            let is_match = matched_lines.contains(&line_index);
+            output.push(format_grep_content_line(
+                path,
+                line_index + 1,
+                lines[line_index].text,
+                is_match,
+                options.line_numbers,
+                options.before_context > 0 || options.after_context > 0,
+                options.max_columns,
+            ));
+        }
+    }
+}
+
+fn context_ranges(
+    matched_lines: &BTreeSet<usize>,
+    line_count: usize,
+    before_context: usize,
+    after_context: usize,
+) -> Vec<(usize, usize)> {
+    let mut ranges: Vec<(usize, usize)> = Vec::new();
+    for &line_index in matched_lines {
+        let start = line_index.saturating_sub(before_context);
+        let end = line_index
+            .saturating_add(after_context)
+            .min(line_count.saturating_sub(1));
+
+        if let Some((_, previous_end)) = ranges.last_mut() {
+            if start <= previous_end.saturating_add(1) {
+                *previous_end = (*previous_end).max(end);
+                continue;
+            }
+        }
+        ranges.push((start, end));
+    }
+    ranges
+}
+
+fn format_grep_content_line(
+    path: &Path,
+    line_number: usize,
+    line: &str,
+    is_match: bool,
+    line_numbers: bool,
+    has_context: bool,
+    max_columns: usize,
+) -> String {
+    let path = display_path(path);
+    let clipped = clip_columns(line, max_columns);
+    let separator = if has_context && !is_match { '-' } else { ':' };
+
+    if line_numbers {
+        format!("{path}{separator}{line_number}{separator}{clipped}")
+    } else {
+        format!("{path}{separator}{clipped}")
+    }
 }
 
 fn clip_columns(line: &str, max_columns: usize) -> &str {
@@ -675,6 +925,45 @@ mod tests {
     }
 
     #[test]
+    fn glob_respects_hidden_and_gitignore_flags() {
+        let dir = tempdir().unwrap();
+        fs::create_dir(dir.path().join(".git")).unwrap();
+        fs::write(dir.path().join(".hidden.ts"), "").unwrap();
+        fs::write(dir.path().join("visible.ts"), "").unwrap();
+        fs::write(dir.path().join("ignored.ts"), "").unwrap();
+        fs::write(dir.path().join(".gitignore"), "ignored.ts\n").unwrap();
+
+        let visible_only = run_glob_request(SearchRequest {
+            args: vec![
+                "--files".into(),
+                "--glob".into(),
+                "*.ts".into(),
+                "--sort=modified".into(),
+            ],
+            target: dir.path().to_path_buf(),
+        })
+        .unwrap();
+        assert_eq!(visible_only.lines, vec!["visible.ts"]);
+
+        let all_files = run_glob_request(SearchRequest {
+            args: vec![
+                "--files".into(),
+                "--glob".into(),
+                "*.ts".into(),
+                "--sort=modified".into(),
+                "--hidden".into(),
+                "--no-ignore".into(),
+            ],
+            target: dir.path().to_path_buf(),
+        })
+        .unwrap();
+        assert_eq!(
+            all_files.lines,
+            vec![".hidden.ts", "ignored.ts", "visible.ts"]
+        );
+    }
+
+    #[test]
     fn grep_supports_content_files_and_count_modes() {
         let dir = tempdir().unwrap();
         fs::write(dir.path().join("a.txt"), "alpha\nbeta\nalpha\n").unwrap();
@@ -725,6 +1014,54 @@ mod tests {
     }
 
     #[test]
+    fn grep_supports_context_type_and_multiline() {
+        let dir = tempdir().unwrap();
+        fs::write(dir.path().join("a.ts"), "alpha\nbeta\ngamma\n").unwrap();
+        fs::write(dir.path().join("b.js"), "alpha\nbeta\ngamma\n").unwrap();
+        let a_path = display_path(&dir.path().join("a.ts"));
+
+        let context = run_grep_request(SearchRequest {
+            args: vec![
+                "--hidden".into(),
+                "--max-columns".into(),
+                "500".into(),
+                "-n".into(),
+                "-C".into(),
+                "1".into(),
+                "--type".into(),
+                "ts".into(),
+                "beta".into(),
+            ],
+            target: dir.path().to_path_buf(),
+        })
+        .unwrap();
+        assert_eq!(
+            context.lines,
+            vec![
+                format!("{a_path}-1-alpha"),
+                format!("{a_path}:2:beta"),
+                format!("{a_path}-3-gamma"),
+            ]
+        );
+
+        let multiline = run_grep_request(SearchRequest {
+            args: vec![
+                "--hidden".into(),
+                "--max-columns".into(),
+                "500".into(),
+                "-n".into(),
+                "-U".into(),
+                "--multiline-dotall".into(),
+                "alpha\nbeta".into(),
+            ],
+            target: dir.path().to_path_buf(),
+        })
+        .unwrap();
+        assert!(multiline.lines.contains(&format!("{a_path}:1:alpha")));
+        assert!(multiline.lines.contains(&format!("{a_path}:2:beta")));
+    }
+
+    #[test]
     fn diff_returns_structured_hunks() {
         let response = run_diff_request(DiffRequest {
             old_content: "one\ntwo\nthree\n".into(),
@@ -739,6 +1076,21 @@ mod tests {
         assert_eq!(
             response.hunks[0].lines,
             vec![" one", "-two", "+TWO", " three"]
+        );
+    }
+
+    #[test]
+    fn diff_preserves_special_characters() {
+        let response = run_diff_request(DiffRequest {
+            old_content: "cost & value\n".into(),
+            new_content: "cost $ value\n".into(),
+            context_lines: 3,
+        })
+        .unwrap();
+
+        assert_eq!(
+            response.hunks[0].lines,
+            vec!["-cost & value", "+cost $ value"]
         );
     }
 }

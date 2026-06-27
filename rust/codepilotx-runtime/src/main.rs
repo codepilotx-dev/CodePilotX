@@ -44,22 +44,25 @@ fn run() -> anyhow::Result<()> {
         }
         Command::Glob => {
             let request: SearchRequest = read_json_stdin()?;
+            write_event(&SearchEvent::Started);
             let response = run_glob_request(request)?;
-            write_event(&CompletedEvent::Completed {
+            write_event(&SearchEvent::Completed {
                 lines: response.lines,
             });
         }
         Command::Grep => {
             let request: SearchRequest = read_json_stdin()?;
+            write_event(&SearchEvent::Started);
             let response = run_grep_request(request)?;
-            write_event(&CompletedEvent::Completed {
+            write_event(&SearchEvent::Completed {
                 lines: response.lines,
             });
         }
         Command::Diff => {
             let request: DiffRequest = read_json_stdin()?;
+            write_event(&DiffEvent::Started);
             let response = run_diff_request(request)?;
-            write_event(&CompletedDiffEvent::Completed {
+            write_event(&DiffEvent::Completed {
                 hunks: response.hunks,
             });
         }
@@ -75,13 +78,15 @@ fn read_json_stdin<T: serde::de::DeserializeOwned>() -> anyhow::Result<T> {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase", tag = "type")]
-enum CompletedEvent {
+enum SearchEvent {
+    Started,
     Completed { lines: Vec<String> },
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase", tag = "type")]
-enum CompletedDiffEvent {
+enum DiffEvent {
+    Started,
     Completed {
         hunks: Vec<codepilotx_runtime::StructuredPatchHunk>,
     },
