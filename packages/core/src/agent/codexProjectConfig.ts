@@ -32,6 +32,7 @@ export type CodexProjectConfig = {
   sandboxWorkspaceWrite?: CodexSandboxWorkspaceWriteConfig
   approvalPolicy?: CodexApprovalPolicy
   approvalsReviewer?: CodexApprovalsReviewer
+  reviewModel?: string
   defaultPermissions?: string
   projectRootMarkers?: string[]
   permissions?: Record<string, CodexPermissionProfileConfig>
@@ -45,7 +46,7 @@ export type CodexProjectConfigDiagnosticsData = {
   diagnostics: string[]
 }
 
-export const CODEX_PROJECT_CONFIG_SOURCE = '.codex/config.toml'
+export const CODEX_PROJECT_CONFIG_SOURCE = '.codepilotx/config.toml'
 
 const PROJECT_IGNORED_KEYS = new Set([
   'openai_base_url',
@@ -92,6 +93,9 @@ export function parseCodexProjectConfig(
     config.approvalsReviewer = normalizeCodexApprovalsReviewer(
       parsed.approvals_reviewer,
     )
+  }
+  if (typeof parsed.review_model === 'string') {
+    config.reviewModel = parsed.review_model
   }
   if (typeof parsed.default_permissions === 'string') {
     config.defaultPermissions = parsed.default_permissions

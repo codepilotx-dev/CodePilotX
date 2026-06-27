@@ -258,7 +258,7 @@ allow_local_network = false
 })
 
 // CodexRuntimePermissionState tests
-test('createCodexRuntimePermissionState: CLI overrides take precedence over .codex/config.toml', () => {
+test('createCodexRuntimePermissionState: CLI overrides take precedence over .codepilotx/config.toml', () => {
   const projectConfig: CodexPermissionsConfig = {
     defaultPermissions: ':workspace',
     approvalPolicy: 'on-request',

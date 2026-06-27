@@ -1051,7 +1051,7 @@ export async function initializeToolPermissionContext({
     }
   }
 
-  // Merge .codex/config.toml permissions into the initial context.
+  // Merge .codepilotx/config.toml permissions into the initial context.
   // This reads the project-level codex config and overlays the resolved
   // permissions, approval policy, and sandbox rules onto the context.
   toolPermissionContext = await resolveCodexProjectPermissionContext(
@@ -1059,7 +1059,7 @@ export async function initializeToolPermissionContext({
     getOriginalCwd(),
   )
 
-  // Apply --config CLI overrides on top of .codex/config.toml.
+  // Apply --config CLI overrides on top of .codepilotx/config.toml.
   // These have highest precedence in the user-specified layer (below requirements).
   if (cliConfigOverrides.length > 0) {
     const parsed = parseCliConfigOverrides(cliConfigOverrides)
@@ -1127,12 +1127,12 @@ function permissionProfileForSandboxMode(sandboxMode: string): string {
 }
 
 /**
- * Read .codex/config.toml from the project workspace, resolve codex
+ * Read .codepilotx/config.toml from the project workspace, resolve codex
  * permissions, and merge them into the initial toolPermissionContext.
  *
  * Merging rules (plan: fixed precedence):
  * 1. CLI/desktop session explicit overrides (already in the context)
- * 2. .codex/config.toml (overrides defaults)
+ * 2. .codepilotx/config.toml (overrides defaults)
  * 3. Built-in defaults
  * 4. Requirements (highest constraint, applied by the resolver)
  *
@@ -1153,7 +1153,7 @@ export async function resolveCodexProjectPermissionContext(
     '@codepilotx/core/agent/permissions.js'
   )
 
-  const configPath = join(workspaceRoot, '.codex', 'config.toml')
+  const configPath = join(workspaceRoot, '.codepilotx', 'config.toml')
   try {
     const content = await readFile(configPath, 'utf8')
     const { config } = parseCodexProjectConfig(content)

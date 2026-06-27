@@ -191,7 +191,7 @@ export async function discoverCodexGuidanceSourcesFromWorkspaceFiles({
 export async function readCodexProjectConfig(
   projectRoot: string,
 ): Promise<CodexProjectConfigDiagnostics> {
-  const configPath = join(resolve(projectRoot), '.codex', 'config.toml')
+  const configPath = join(resolve(projectRoot), '.codepilotx', 'config.toml')
   if (!(await pathExists(configPath))) {
     return emptyProjectConfig()
   }
@@ -227,7 +227,7 @@ export function readCodexProjectConfigFromContent(
       config: {},
       ignoredProjectKeys: [],
       diagnostics: [
-        `无法解析 .codex/config.toml: ${
+        `无法解析 .codepilotx/config.toml: ${
           error instanceof Error ? error.message : String(error)
         }`,
       ],

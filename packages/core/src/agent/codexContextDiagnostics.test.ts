@@ -41,14 +41,15 @@ test('discoverCodexGuidanceSources follows root to cwd order and override priori
 test('readCodexProjectConfig parses official permissions config and reports ignored keys', async () => {
   const root = await mkdtemp(join(tmpdir(), 'codex-config-'))
   try {
-    await mkdir(join(root, '.codex'), { recursive: true })
+    await mkdir(join(root, '.codepilotx'), { recursive: true })
     await writeFile(
-      join(root, '.codex', 'config.toml'),
+      join(root, '.codepilotx', 'config.toml'),
       [
         'approval = "prompt"',
         'sandbox = "workspace-write"',
         'approval_policy = "on-request"',
         'approvals_reviewer = "user"',
+        'review_model = "gpt-5-mini"',
         'default_permissions = "project-edit"',
         'project_root_markers = [".git", "package.json"]',
         'model_provider = "openai"',
@@ -79,12 +80,13 @@ test('readCodexProjectConfig parses official permissions config and reports igno
 
     const config = await readCodexProjectConfig(root)
 
-    expect(config.path).toBe(join(root, '.codex', 'config.toml'))
+    expect(config.path).toBe(join(root, '.codepilotx', 'config.toml'))
     expect(config.config).toMatchObject({
       approval: 'prompt',
       sandbox: 'workspace-write',
       approvalPolicy: 'on-request',
       approvalsReviewer: 'user',
+      reviewModel: 'gpt-5-mini',
       defaultPermissions: 'project-edit',
       projectRootMarkers: ['.git', 'package.json'],
       permissions: {
@@ -107,7 +109,7 @@ test('readCodexProjectConfig parses official permissions config and reports igno
     expect(config.config.mcpServers).toEqual([
       {
         name: 'docs',
-        source: '.codex/config.toml',
+        source: '.codepilotx/config.toml',
         command: 'npx',
         args: ['-y', 'docs-mcp'],
         url: undefined,
@@ -118,7 +120,7 @@ test('readCodexProjectConfig parses official permissions config and reports igno
         event: 'PreToolUse',
         matcher: '^Bash$',
         commands: ['echo check'],
-        source: '.codex/config.toml',
+        source: '.codepilotx/config.toml',
       },
     ])
     expect(config.ignoredProjectKeys).toEqual(['model_provider', 'profile'])
@@ -128,12 +130,12 @@ test('readCodexProjectConfig parses official permissions config and reports igno
   }
 })
 
-test('readCodexProjectConfig reports legacy sandbox settings as diagnostics', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'codex-config-legacy-'))
+test('readCodexProjectConfig parses official sandbox workspace settings', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'codex-config-sandbox-'))
   try {
-    await mkdir(join(root, '.codex'), { recursive: true })
+    await mkdir(join(root, '.codepilotx'), { recursive: true })
     await writeFile(
-      join(root, '.codex', 'config.toml'),
+      join(root, '.codepilotx', 'config.toml'),
       [
         'sandbox_mode = "workspace-write"',
         '[sandbox_workspace_write]',
@@ -143,12 +145,11 @@ test('readCodexProjectConfig reports legacy sandbox settings as diagnostics', as
 
     const config = await readCodexProjectConfig(root)
 
-    expect(config.diagnostics).toContain(
-      '旧 sandbox_mode 已禁用，请改用 default_permissions 和 [permissions.<name>]',
-    )
-    expect(config.diagnostics).toContain(
-      '旧 [sandbox_workspace_write] 已禁用，请改用 [permissions.<name>]',
-    )
+    expect(config.config.sandboxMode).toBe('workspace-write')
+    expect(config.config.sandboxWorkspaceWrite).toEqual({
+      networkAccess: true,
+    })
+    expect(config.diagnostics).toEqual([])
   } finally {
     await rm(root, { force: true, recursive: true })
   }
@@ -157,13 +158,16 @@ test('readCodexProjectConfig reports legacy sandbox settings as diagnostics', as
 test('readCodexProjectConfig reports invalid TOML without throwing', async () => {
   const root = await mkdtemp(join(tmpdir(), 'codex-config-invalid-'))
   try {
-    await mkdir(join(root, '.codex'), { recursive: true })
-    await writeFile(join(root, '.codex', 'config.toml'), 'approval = "prompt')
+    await mkdir(join(root, '.codepilotx'), { recursive: true })
+    await writeFile(
+      join(root, '.codepilotx', 'config.toml'),
+      'approval = "prompt',
+    )
 
     const config = await readCodexProjectConfig(root)
 
     expect(config.config).toEqual({})
-    expect(config.diagnostics[0]).toContain('无法解析 .codex/config.toml')
+    expect(config.diagnostics[0]).toContain('无法解析 .codepilotx/config.toml')
   } finally {
     await rm(root, { force: true, recursive: true })
   }
@@ -172,10 +176,10 @@ test('readCodexProjectConfig reports invalid TOML without throwing', async () =>
 test('buildCodexContextDiagnostics aggregates guidance config hooks MCP skills and permission profile', async () => {
   const root = await mkdtemp(join(tmpdir(), 'codex-context-'))
   try {
-    await mkdir(join(root, '.codex'), { recursive: true })
+    await mkdir(join(root, '.codepilotx'), { recursive: true })
     await writeFile(join(root, 'AGENTS.md'), '# Root guidance')
     await writeFile(
-      join(root, '.codex', 'config.toml'),
+      join(root, '.codepilotx', 'config.toml'),
       [
         'approval = "prompt"',
         '[mcp_servers.docs]',

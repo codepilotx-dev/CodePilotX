@@ -170,7 +170,7 @@ export function readCodexProjectConfigFromContent(
       config: {},
       ignoredProjectKeys: [],
       diagnostics: [
-        `无法解析 .codex/config.toml: ${
+        `无法解析 .codepilotx/config.toml: ${
           error instanceof Error ? error.message : String(error)
         }`,
       ],

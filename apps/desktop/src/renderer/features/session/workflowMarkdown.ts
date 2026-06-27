@@ -400,7 +400,7 @@ function markdownInline(value: string): string {
 
 function displayCodexPath(value: string): string {
   const normalized = value.replace(/\\/g, '/')
-  const codexIndex = normalized.lastIndexOf('/.codex/')
+  const codexIndex = normalized.lastIndexOf('/.codepilotx/')
   return codexIndex >= 0 ? normalized.slice(codexIndex + 1) : normalized
 }
 
