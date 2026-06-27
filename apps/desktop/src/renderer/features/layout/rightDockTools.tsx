@@ -3,6 +3,7 @@ import {
   FileText,
   GitPullRequest,
   Globe2,
+  ListChecks,
   MessageSquarePlus,
   Search,
   SquareTerminal,
@@ -20,6 +21,7 @@ import type {
 export type RightDockToolId =
   | 'review'
   | 'browser'
+  | 'plan'
   | 'files'
   | 'sideChat'
   | 'terminal'
@@ -55,7 +57,13 @@ export type RightDockPanelContext = {
     workspace: DesktopWorkspace | null
     onPreviewFile: (file: DesktopFileEntry) => void
   }
+  plan: RightDockPlan | null
   flags: RightDockFlags
+}
+
+export type RightDockPlan = {
+  title: string
+  content: string
 }
 
 export type RightDockToolMeta = {
@@ -81,6 +89,12 @@ export const rightDockTools: readonly RightDockToolMeta[] = [
     label: '浏览器',
     icon: <Globe2 size={iconSize} />,
     shortcut: 'Ctrl+Shift+B',
+    enabled: true,
+  },
+  {
+    id: 'plan',
+    label: '计划',
+    icon: <ListChecks size={iconSize} />,
     enabled: true,
   },
   {

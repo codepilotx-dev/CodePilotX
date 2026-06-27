@@ -16,6 +16,7 @@ import {
   type RightDockState,
   type RightDockToolId,
 } from './rightDockState.js'
+import type { RightDockPlan } from './rightDockTools.js'
 import { DesktopSidebar } from './DesktopSidebar.js'
 import { GlobalErrorModal } from '../../components/GlobalErrorModal.js'
 import {
@@ -90,7 +91,6 @@ export function DesktopLayout(): React.ReactNode {
     systemPrompt,
     appendSystemPrompt,
     additionalDirectories,
-    askUserQuestionMaxQuestions,
     rustSearchAndDiffKernels,
     recentWorkspaces,
     selectedModelPreset,
@@ -135,6 +135,7 @@ export function DesktopLayout(): React.ReactNode {
     activeTool: null,
     openTools: [],
   })
+  const [rightDockPlan, setRightDockPlan] = useState<RightDockPlan | null>(null)
   const [menubarDebugMode, setMenubarDebugMode] = useState(() =>
     readDesktopBrowserDebugMode(),
   )
@@ -202,7 +203,6 @@ export function DesktopLayout(): React.ReactNode {
     systemPrompt,
     appendSystemPrompt,
     additionalDirectories,
-    askUserQuestionMaxQuestions,
     rustSearchAndDiffKernels,
     onError: (message: string) => setErrorMessage(message),
     onDiffForActive: (patch: string) => setDiffState(patch),
@@ -537,6 +537,14 @@ export function DesktopLayout(): React.ReactNode {
   const handleOpenFilesDock = useCallback((): void => {
     openRightDockTool('files')
   }, [openRightDockTool])
+
+  const handleOpenPlanDock = useCallback(
+    (plan: RightDockPlan): void => {
+      setRightDockPlan(plan)
+      openRightDockTool('plan')
+    },
+    [openRightDockTool],
+  )
 
   const handleRightDockToolSelect = useCallback(
     (tool: RightDockToolId): void => {
@@ -1307,6 +1315,7 @@ export function DesktopLayout(): React.ReactNode {
             onOpenAutomation: () => navigate('/automation'),
             onOpenWorkspacePath: handleOpenWorkspacePath,
             onOpenRightDock: openRightDockTool,
+            onOpenPlanInRightDock: handleOpenPlanDock,
             onRefreshDiff: handleRefreshDiff,
             onToggleSidebar: toggleSidebarCollapsed,
             onToggleSessionPinned: () => {
@@ -1341,6 +1350,7 @@ export function DesktopLayout(): React.ReactNode {
             composer: isConversationLoading ? null : composer,
             rightDockOpen: rightDockState.open,
             rightDockTool: rightDockState.activeTool,
+            rightDockPlanContent: rightDockPlan?.content ?? null,
           }}
         >
           <SearchContext.Provider
@@ -1375,6 +1385,7 @@ export function DesktopLayout(): React.ReactNode {
                   maxWidth={RIGHT_DOCK_MAX_WIDTH}
                   minWidth={RIGHT_DOCK_MIN_WIDTH}
                   reviewView={reviewView}
+                  plan={rightDockPlan}
                   selectedFile={selectedFile}
                   sessionId={sessionId}
                   sessionStatus={sessionStatus}

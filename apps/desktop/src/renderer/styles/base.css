@@ -73,6 +73,7 @@
   --menubar-h: var(--chrome-h);
   --composer-w: 760px;
   --popover-width-extra: 30px;
+  --plan-md-base-size: .9em;
 }
 
 :root[data-theme="dark"] {
@@ -209,6 +210,7 @@ body {
   font-size: var(--fs-ui);
   scrollbar-color: var(--c-scrollbar) transparent;
   scrollbar-width: thin;
+  scrollbar-gutter: auto;
 }
 
 *::-webkit-scrollbar {

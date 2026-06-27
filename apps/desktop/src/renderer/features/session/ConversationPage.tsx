@@ -19,6 +19,7 @@ import {
   GitBranch,
   GitPullRequest,
   Laptop,
+  Maximize2,
   MessageSquarePlus,
   MoreHorizontal,
   PanelBottom,
@@ -67,6 +68,7 @@ import { submitReviewAction } from "./reviewAction.js";
 import { deriveReviewTurns } from "./reviewTurns.js";
 import type { Message } from "../../uiTypes.js";
 import { InlineApprovalCard } from "./InlineApprovalCard.js";
+import { parseAskUserQuestions } from "./AskUserQuestionApproval.js";
 import { MarkdownMessage } from "./MarkdownMessage.js";
 import { useTypewriterText } from "./TypewriterText.js";
 import { PopoverItem } from "../../components/ui/PopoverItem.js";
@@ -131,11 +133,13 @@ export function ConversationPage(): React.ReactNode {
     onDecidePermission,
     onAcceptExitPlanMode,
     onOpenRightDock,
+    onOpenPlanInRightDock,
     permissionMode,
     pendingPermissions,
     composer,
     rightDockOpen,
     rightDockTool,
+    rightDockPlanContent,
   } = useQuickChatContext();
   const {
     defaultOpenTargetId,
@@ -630,11 +634,14 @@ export function ConversationPage(): React.ReactNode {
                       <TimelineItem
                         item={item}
                         key={item.id}
+                        rightDockPlanContent={rightDockPlanContent}
+                        rightDockPlanOpen={rightDockOpen && rightDockTool === "plan"}
                         showActions={
                           item.type === "message" &&
                           item.role === "assistant" &&
                           assistantActionMessageIds.has(item.id)
                         }
+                        onOpenPlanInRightDock={onOpenPlanInRightDock}
                         onDiscardChanges={(paths) => void handleDiscardChanges(paths)}
                         onReviewCode={handleRunCodeReview}
                         onReviewFiles={openReviewSidebar}
@@ -1215,59 +1222,87 @@ function WorkflowNodeSidebar({
 
 function WorkflowPlanCard({
   summary,
+  streaming,
+  isDocked,
+  onOpenInRightDock,
 }: {
   summary: string;
+  streaming: boolean;
+  isDocked: boolean;
+  onOpenInRightDock: () => void;
 }): React.ReactNode {
-  const [expanded, setExpanded] = React.useState(false);
   const title = planTitleFromSummary(summary);
+  const presentation = planCardPresentation({ streaming, isDocked });
+
+  if (presentation.compact) {
+    return (
+      <article className="workflow-plan-card workflow-plan-card--compact">
+        <button
+          className="workflow-plan-card__compact-button"
+          type="button"
+          onClick={onOpenInRightDock}
+        >
+          <span className="workflow-plan-card__label">{presentation.label}</span>
+          <span className="workflow-plan-card__compact-title">{title}</span>
+          <PanelRight size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+        </button>
+      </article>
+    );
+  }
 
   return (
-    <article
-      className={
-        expanded
-          ? "workflow-plan-card workflow-plan-card--expanded"
-          : "workflow-plan-card"
-      }
-    >
+    <article className="workflow-plan-card">
       <header className="workflow-plan-card__header">
-        <span className="workflow-plan-card__label">编写计划</span>
-        <button
-          aria-label={expanded ? "折叠计划" : "展开计划"}
-          className="workflow-plan-card__fold"
-          type="button"
-          onClick={() => setExpanded((value) => !value)}
-        >
-          <ChevronDown size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-        </button>
+        <span className="workflow-plan-card__label">{presentation.label}</span>
+        <div className="workflow-plan-card__actions">
+          {presentation.showOpenInRightDock ? (
+            <button
+              aria-label="在右侧打开计划"
+              className="workflow-plan-card__dock"
+              title="在右侧打开计划"
+              type="button"
+              onClick={onOpenInRightDock}
+            >
+              <Maximize2 size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            </button>
+          ) : null}
+        </div>
       </header>
 
       <h2 className="workflow-plan-card__title">{title}</h2>
 
       <div className="workflow-plan-card__body">
         <MarkdownMessage text={summary} />
-        {!expanded ? <div className="workflow-plan-card__mask" aria-hidden="true" /> : null}
       </div>
-
-      {!expanded ? (
-        <footer className="workflow-plan-card__footer">
-          <button
-            className="workflow-plan-card__expand"
-            type="button"
-            onClick={() => setExpanded(true)}
-          >
-            展开计划
-          </button>
-        </footer>
-      ) : null}
     </article>
   );
 }
 
-function planTitleFromSummary(summary: string): string {
+export function planTitleFromSummary(summary: string): string {
   const heading = summary.match(/^\s*#\s+(.+)$/m)?.[1]?.trim();
   if (heading) return heading;
   const proposedTitle = summary.match(/^\s*title:\s*(.+)$/im)?.[1]?.trim();
   return proposedTitle || "计划书";
+}
+
+export function planCardPresentation({
+  streaming,
+  isDocked,
+}: {
+  streaming: boolean;
+  isDocked: boolean;
+}): {
+  compact: boolean;
+  label: string;
+  showOpenInRightDock: boolean;
+  showFoldControls: boolean;
+} {
+  return {
+    compact: isDocked,
+    label: streaming ? "编写计划" : "套餐",
+    showOpenInRightDock: !streaming,
+    showFoldControls: false,
+  };
 }
 
 type TimelineToolRun = {
@@ -1276,6 +1311,8 @@ type TimelineToolRun = {
   toolName: string;
   callContent: string;
   resultContent: string;
+  permissionRequest?: DesktopPermissionRequest;
+  resultMetadata?: Record<string, unknown>;
   isError: boolean;
   isRunning: boolean;
   isWaitingForPermission: boolean;
@@ -1454,13 +1491,19 @@ function trimNodeTitle(value: string): string {
 
 function TimelineItem({
   item,
+  rightDockPlanContent,
+  rightDockPlanOpen,
   showActions,
+  onOpenPlanInRightDock,
   onReviewFiles,
   onReviewCode,
   onDiscardChanges,
 }: {
   item: TimelineItem;
+  rightDockPlanContent: string | null;
+  rightDockPlanOpen: boolean;
   showActions: boolean;
+  onOpenPlanInRightDock: (plan: { title: string; content: string }) => void;
   onReviewFiles: () => void;
   onReviewCode: () => void;
   onDiscardChanges: (paths: string[]) => void;
@@ -1487,7 +1530,18 @@ function TimelineItem({
 
   if (event.type === "proposed_plan") {
     const summary = event.content?.trim() ?? "";
-    return summary ? <WorkflowPlanCard summary={summary} /> : null;
+    if (!summary) return null;
+    const title = planTitleFromSummary(summary);
+    return (
+      <WorkflowPlanCard
+        summary={summary}
+        streaming={event.metadata?.streaming === true}
+        isDocked={rightDockPlanOpen && rightDockPlanContent === summary}
+        onOpenInRightDock={() =>
+          onOpenPlanInRightDock({ title, content: summary })
+        }
+      />
+    );
   }
 
   if (event.type === "tool_call" || event.type === "tool_result") {
@@ -1606,12 +1660,20 @@ function TimelineToolGroupView({
   const commandCount = group.runs.length;
 
   const firstRunningRun = group.runs.find((r) => r.isRunning);
+  const questionResultCount = group.runs
+    .map((run) => parseAskUserQuestionTimelineResult(run)?.count ?? 0)
+    .reduce((total, count) => total + count, 0);
+  const onlyQuestionResults =
+    questionResultCount > 0 &&
+    group.runs.every((run) => run.toolName === "AskUserQuestion");
   const groupElapsed = useElapsedSeconds(
     firstRunningRun?.startedAtMs,
     Boolean(firstRunningRun),
   );
   const groupSummaryLabel = firstRunningRun
     ? `正在运行命令，已持续 ${groupElapsed} s`
+    : onlyQuestionResults
+      ? `已询问 ${questionResultCount} 个问题`
     : commandCount === 1
       ? "已运行命令"
       : `已运行 ${commandCount} 条命令`;
@@ -1692,6 +1754,76 @@ type CommandRunView = {
   startedAtMs?: number;
 };
 
+type AskUserQuestionTimelineResult = {
+  count: number;
+  items: Array<{
+    question: string;
+    answer: string;
+  }>;
+};
+
+export function parseAskUserQuestionTimelineResult(
+  run: TimelineToolRun,
+): AskUserQuestionTimelineResult | null {
+  if (run.toolName !== "AskUserQuestion") return null;
+  const input = run.permissionRequest?.input;
+  if (!input) return null;
+  const questions = parseAskUserQuestions(input);
+  if (!questions) return null;
+  const answers = answersFromAskUserQuestionResult(run.resultMetadata);
+  if (!answers) return null;
+  const items = questions
+    .map((question) => {
+      const answer = answers[question.question];
+      return typeof answer === "string" && answer.trim()
+        ? { question: question.question, answer: answer.trim() }
+        : null;
+    })
+    .filter((item): item is { question: string; answer: string } =>
+      Boolean(item),
+    );
+  return items.length > 0 ? { count: items.length, items } : null;
+}
+
+function answersFromAskUserQuestionResult(
+  metadata: Record<string, unknown> | undefined,
+): Record<string, string> | null {
+  if (!metadata) return null;
+  return (
+    answersFromUnknown(metadata.result) ??
+    answersFromUnknown(
+      isRecordValue(metadata.result)
+        ? (metadata.result.data as unknown)
+        : undefined,
+    ) ??
+    answersFromUnknown(metadata.content)
+  );
+}
+
+function answersFromUnknown(value: unknown): Record<string, string> | null {
+  if (isRecordValue(value) && isStringRecord(value.answers)) {
+    return value.answers;
+  }
+  if (isStringRecord(value)) return value;
+  if (typeof value !== "string") return null;
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return answersFromUnknown(parsed);
+  } catch {
+    return null;
+  }
+}
+
+function isStringRecord(value: unknown): value is Record<string, string> {
+  if (!isRecordValue(value)) return false;
+  const entries = Object.entries(value);
+  return entries.length > 0 && entries.every(([, item]) => typeof item === "string");
+}
+
+function isRecordValue(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 export function commandRunView(run: TimelineToolRun): CommandRunView {
   const toolLabel = displayToolName(run.toolName);
   const displayCommand = run.callContent || run.resultContent || toolLabel;
@@ -1727,6 +1859,20 @@ function TimelineCommandRunItem({
   isOpen: boolean;
   onToggle: () => void;
 }): React.ReactNode {
+  const questionResult = parseAskUserQuestionTimelineResult(run);
+  if (questionResult) {
+    return (
+      <li className="timeline-question-result">
+        {questionResult.items.map((item) => (
+          <div className="timeline-question-result-item" key={item.question}>
+            <strong>{item.question}</strong>
+            <span>{item.answer}</span>
+          </div>
+        ))}
+      </li>
+    );
+  }
+
   const view = commandRunView(run);
   const runElapsed = useElapsedSeconds(run.startedAtMs, run.isRunning);
   const rowLabel = run.isRunning
@@ -3031,11 +3177,13 @@ function buildToolGroup(events: DesktopSessionEvent[]): TimelineToolGroup | null
     if (event.type === "permission_request") {
       if (pendingRun) {
         pendingRun.isWaitingForPermission = true;
+        pendingRun.permissionRequest = permissionRequestFromEvent(event);
       }
       continue;
     }
     if (pendingRun) {
       pendingRun.resultContent = content;
+      pendingRun.resultMetadata = event.metadata;
       pendingRun.isError = event.metadata?.isError === true;
       pendingRun.isRunning = false;
       pendingRun.isWaitingForPermission = false;
@@ -3051,6 +3199,7 @@ function buildToolGroup(events: DesktopSessionEvent[]): TimelineToolGroup | null
       toolName,
       callContent: "",
       resultContent: content,
+      resultMetadata: event.metadata,
       isError: event.metadata?.isError === true,
       isRunning: false,
       isWaitingForPermission: false,
@@ -3072,6 +3221,14 @@ function buildToolGroup(events: DesktopSessionEvent[]): TimelineToolGroup | null
     type: "tool_group",
     runs: visibleRuns,
   };
+}
+
+function permissionRequestFromEvent(
+  event: DesktopSessionEvent,
+): DesktopPermissionRequest | undefined {
+  const request = event.metadata?.request;
+  if (!isRecordValue(request)) return undefined;
+  return request as DesktopPermissionRequest;
 }
 
 function findPendingToolRun(

@@ -422,6 +422,28 @@
   color: var(--c-text-placeholder);
 }
 
+.inline-approval-option.focused {
+  outline: 1px solid var(--c-border);
+  outline-offset: -1px;
+}
+
+.inline-approval-option-checkbox {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-2);
+  color: var(--c-bg);
+  background: transparent;
+}
+
+.inline-approval-option-checkbox.selected {
+  border-color: var(--c-text-strong);
+  background: var(--c-text-strong);
+}
+
 .inline-approval-fixed-option {
   display: flex;
   align-items: center;
@@ -547,7 +569,8 @@
 }
 
 .exit-plan-mode-actions {
-  display: grid;
+  display: flex;
+  align-items: center;
   gap: 12px;
 }
 
@@ -689,7 +712,7 @@
   padding: 0 12px;
   background: transparent;
   border: 0;
-  border-radius: var(--radius-6);
+  border-radius: var(--radius-4);
   transition:
     background 0.15s,
     color 0.15s;
@@ -1392,6 +1415,29 @@
 .timeline-command-item {
   overflow: hidden;
   border-radius: var(--radius-2);
+}
+
+.timeline-question-result {
+  display: grid;
+  gap: 14px;
+  padding: 8px 0 4px;
+}
+
+.timeline-question-result-item {
+  display: grid;
+  gap: 6px;
+}
+
+.timeline-question-result-item strong {
+  color: var(--c-text);
+  font-size: var(--fs-14);
+  line-height: 1.45;
+}
+
+.timeline-question-result-item span {
+  color: var(--c-text-meta);
+  font-size: var(--fs-13);
+  line-height: 1.5;
 }
 
 .timeline-command-row {
@@ -2169,10 +2215,7 @@
   gap: 12px;
 }
 
-.workflow-composer-card-plan .exit-plan-mode-note-wrap {
-  flex: 1;
-  min-width: 0;
-}
+
 
 .workflow-composer-card-plan .exit-plan-mode-actions {
   flex: 0 0 auto;
@@ -2550,13 +2593,20 @@
   gap: 12px;
 }
 
+.workflow-plan-card__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+
 .workflow-plan-card__label {
   color: var(--c-text-meta);
   font-size: var(--fs-13);
   font-weight: 500;
 }
 
-.workflow-plan-card__fold {
+.workflow-plan-card__dock {
   width: 26px;
   height: 26px;
   display: inline-flex;
@@ -2573,13 +2623,9 @@
     transform 0.18s ease-out;
 }
 
-.workflow-plan-card__fold:hover {
+.workflow-plan-card__dock:hover {
   background: var(--c-bg-hover);
   color: var(--c-text-strong);
-}
-
-.workflow-plan-card--expanded .workflow-plan-card__fold {
-  transform: rotate(180deg);
 }
 
 .workflow-plan-card__title {
@@ -2592,13 +2638,6 @@
 
 .workflow-plan-card__body {
   position: relative;
-  max-height: 270px;
-  overflow: hidden;
-  transition: max-height 0.28s ease-out;
-}
-
-.workflow-plan-card--expanded .workflow-plan-card__body {
-  max-height: none;
 }
 
 .workflow-plan-card__body .md-body {
@@ -2631,46 +2670,38 @@
   background: color-mix(in srgb, var(--c-bg) 72%, var(--c-border-soft));
 }
 
-.workflow-plan-card__mask {
-  position: absolute;
-  inset: auto 0 0;
-  height: 120px;
-  pointer-events: none;
-  background: linear-gradient(
-    to bottom,
-    color-mix(in srgb, var(--c-bg-soft) 0%, transparent) 0%,
-    color-mix(in srgb, var(--c-bg-soft) 82%, transparent) 42%,
-    color-mix(in srgb, var(--c-bg-soft) 100%, var(--c-bg)) 100%
-  );
+.workflow-plan-card--compact {
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
 }
 
-.workflow-plan-card__footer {
-  display: flex;
-  justify-content: center;
-  margin-top: 4px;
-}
-
-.workflow-plan-card__expand {
-  min-height: 34px;
-  padding: 0 18px;
+.workflow-plan-card__compact-button {
+  width: 100%;
+  min-height: 48px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
   border: 0;
-  border-radius: var(--radius-6);
-  background: var(--c-text-strong);
-  color: var(--c-bg);
+  background: transparent;
+  color: var(--c-text-strong);
   cursor: pointer;
-  font-size: var(--fs-13);
+  text-align: left;
+}
+
+.workflow-plan-card__compact-button:hover {
+  background: var(--c-bg-hover);
+}
+
+.workflow-plan-card__compact-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-14);
   font-weight: 600;
-  transition:
-    background 0.15s ease-out,
-    transform 0.1s ease-out;
-}
-
-.workflow-plan-card__expand:hover {
-  background: var(--c-text-strong-hover, var(--c-text));
-}
-
-.workflow-plan-card__expand:active {
-  transform: scale(0.98);
 }
 
 @keyframes workflow-node-dot-pulse {

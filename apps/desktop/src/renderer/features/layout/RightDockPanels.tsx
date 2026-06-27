@@ -1,18 +1,48 @@
 import type React from 'react'
 import { useMemo, useState } from 'react'
-import { FileText, Folder, FolderOpen, Search, SquareTerminal } from 'lucide-react'
+import { FileText, Folder, FolderOpen, ListChecks, Search, SquareTerminal } from 'lucide-react'
 import type {
   DesktopFileEntry,
   DesktopFilePreview,
   DesktopWorkspace,
 } from '../../../shared/types.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
+import { MarkdownMessage } from '../session/MarkdownMessage.js'
+import type { RightDockPlan } from './rightDockTools.js'
 
 type FilesPanelProps = {
   files: DesktopFileEntry[]
   selectedFile: DesktopFilePreview | null
   workspace: DesktopWorkspace | null
   onPreviewFile: (file: DesktopFileEntry) => void
+}
+
+type PlanPanelProps = {
+  plan: RightDockPlan | null
+}
+
+export function RightDockPlanPanel({
+  plan,
+}: PlanPanelProps): React.ReactNode {
+  if (!plan) {
+    return (
+      <section className="right-dock-plan" aria-label="计划">
+        <div className="right-dock-empty-state">
+          <ListChecks size={58} strokeWidth={1.8} />
+          <strong>暂无计划</strong>
+          <span>从主对话里的计划卡片打开计划书</span>
+        </div>
+      </section>
+    )
+  }
+
+  return (
+    <section className="right-dock-plan" aria-label="计划">
+      <article className="right-dock-plan-document">
+        <MarkdownMessage text={plan.content} />
+      </article>
+    </section>
+  )
 }
 
 export function RightDockFilesPanel({

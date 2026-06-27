@@ -114,12 +114,12 @@ const UNIQUENESS_REFINE = {
 const ASK_USER_QUESTION_MAX_QUESTIONS_ENV =
   'CODEPILOTX_ASK_USER_QUESTION_MAX_QUESTIONS'
 
-export function getAskUserQuestionMaxQuestions(): number {
+export function getAskUserQuestionMaxQuestions(): number | null {
   const raw = process.env[ASK_USER_QUESTION_MAX_QUESTIONS_ENV]
-  if (!raw) return 4
+  if (!raw) return null
   const parsed = Number(raw)
-  if (!Number.isFinite(parsed)) return 4
-  return Math.max(1, Math.min(4, Math.floor(parsed)))
+  if (!Number.isFinite(parsed)) return null
+  return Math.max(1, Math.floor(parsed))
 }
 
 const commonFields = lazySchema(() => ({
@@ -145,9 +145,8 @@ const commonFields = lazySchema(() => ({
 
 function inputSchema() {
   const maxQuestions = getAskUserQuestionMaxQuestions()
-  return z
-    .strictObject({
-      questions: z
+  const questionsSchema = maxQuestions
+    ? z
         .array(questionSchema())
         .min(1)
         .max(maxQuestions)
@@ -155,7 +154,16 @@ function inputSchema() {
           maxQuestions === 1
             ? 'Question to ask the user. Ask exactly one question in this tool call.'
             : `Questions to ask the user simultaneously in this tool call (1-${maxQuestions} questions)`,
-        ),
+        )
+    : z
+        .array(questionSchema())
+        .min(1)
+        .describe(
+          'Questions to ask the user simultaneously in this tool call. Put independent questions in this questions array; ask dependent follow-up questions in later turns after the user answers.',
+        )
+  return z
+    .strictObject({
+      questions: questionsSchema,
       ...commonFields(),
     })
     .refine(UNIQUENESS_REFINE.check, {
@@ -223,7 +231,9 @@ const AskUserQuestionToolImpl: Tool<InputSchema, Output> = buildTool({
   async prompt() {
     const maxQuestions = getAskUserQuestionMaxQuestions()
     const maxQuestionsPrompt =
-      maxQuestions === 1
+      maxQuestions === null
+        ? '\nQuestion limit: There is no hard default limit. Put independent questions in the same `questions` array so the UI can show them in one card. If a question depends on a prior answer, ask only the first question now, wait for the answer, then ask the follow-up later.\n'
+        : maxQuestions === 1
         ? '\nQuestion limit: Ask exactly one question in this tool call. If you need more information, ask the highest-priority question now and ask follow-up questions in later turns.\n'
         : `\nQuestion limit: Ask 1-${maxQuestions} questions simultaneously in this tool call.\n`
     const format = getQuestionPreviewFormat()

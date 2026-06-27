@@ -639,7 +639,6 @@ function mockSessionSnapshot(
       systemPrompt: options.systemPrompt,
       appendSystemPrompt: options.appendSystemPrompt,
       additionalDirectories: options.additionalDirectories ?? [],
-      askUserQuestionMaxQuestions: options.askUserQuestionMaxQuestions,
     },
     view: {
       messages: [],

@@ -86,7 +86,6 @@ export type DesktopAgentRuntimeContext = {
   systemPrompt?: string
   appendSystemPrompt?: string
   additionalDirectories?: string[]
-  askUserQuestionMaxQuestions?: number
   rustSearchAndDiffKernels?: boolean
   emit(event: DesktopAgentEvent): void
   requestPermission(request: DesktopPermissionRequest): Promise<DesktopPermissionDecision>
@@ -111,6 +110,7 @@ export type DesktopAgentRuntime = {
 
 let headlessQueue: Promise<void> = Promise.resolve()
 const DESKTOP_ENABLED_THINKING_BUDGET = 1_000_000_000
+const SUBPROCESS_STDERR_BUFFER_LIMIT = 16 * 1024
 
 function runSerialized<T>(operation: () => Promise<T>): Promise<T> {
   const run = headlessQueue.then(operation, operation)
@@ -119,6 +119,20 @@ function runSerialized<T>(operation: () => Promise<T>): Promise<T> {
     () => undefined,
   )
   return run
+}
+
+export function appendCappedText(
+  current: string,
+  next: string,
+  maxLength: number,
+): string {
+  if (maxLength <= 0) {
+    return ''
+  }
+  const combined = current + next
+  return combined.length <= maxLength
+    ? combined
+    : combined.slice(combined.length - maxLength)
 }
 
 export function createDesktopAgentRuntime(
@@ -245,7 +259,6 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
             process.env[LEGACY_CLAUDE_CONFIG_DIR_ENV],
           CODEPILOTX_DISABLE_MDM_READ: '1',
           CODEPILOTX_DISABLE_MIN_VERSION_CHECK: '1',
-          ...askUserQuestionMaxQuestionsEnv(this.context),
           ...rustSearchAndDiffKernelEnv(this.context),
           ...desktopProposedPlanEnv(this.context),
           CLAUDE_CODE_DISABLE_MDM_READ: '1',
@@ -257,7 +270,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
     this.child = child
 
     const cleanupAbort = this.attachAbortHandler(child, signal)
-    const stderr: string[] = []
+    let stderr = ''
 
     child.stderr.on('data', chunk => {
       const text = String(chunk)
@@ -265,15 +278,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
         sessionId: this.context.sessionId,
         textLength: text.length,
       })
-      stderr.push(text)
-      this.context.emit({
-        type: 'tool_result',
-        sessionId: this.context.sessionId,
-        toolName: 'Agent stderr',
-        summary: text.trim(),
-        isError: true,
-        metadata: { stderr: text.trim(), content: text.trim(), result: text },
-      })
+      stderr = appendCappedText(stderr, text, SUBPROCESS_STDERR_BUFFER_LIMIT)
     })
 
     const outputDone = this.consumeStdout(child)
@@ -303,7 +308,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
       }
       if (exitCode !== 0) {
         throw new Error(
-          stderr.join('').trim() ||
+          stderr.trim() ||
             `Desktop agent process exited with code ${exitCode}`,
         )
       }
@@ -376,7 +381,6 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
             process.env[LEGACY_CLAUDE_CONFIG_DIR_ENV],
           CODEPILOTX_DISABLE_MDM_READ: '1',
           CODEPILOTX_DISABLE_MIN_VERSION_CHECK: '1',
-          ...askUserQuestionMaxQuestionsEnv(this.context),
           ...rustSearchAndDiffKernelEnv(this.context),
           ...desktopProposedPlanEnv(this.context),
           CLAUDE_CODE_DISABLE_MDM_READ: '1',
@@ -388,18 +392,10 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
     this.child = child
 
     const cleanupAbort = this.attachAbortHandler(child, signal)
-    const stderr: string[] = []
+    let stderr = ''
     child.stderr.on('data', chunk => {
       const text = String(chunk)
-      stderr.push(text)
-      this.context.emit({
-        type: 'tool_result',
-        sessionId: this.context.sessionId,
-        toolName: 'Agent stderr',
-        summary: text.trim(),
-        isError: true,
-        metadata: { stderr: text.trim(), content: text.trim(), result: text },
-      })
+      stderr = appendCappedText(stderr, text, SUBPROCESS_STDERR_BUFFER_LIMIT)
     })
 
     const outputDone = this.consumeStdout(child)
@@ -415,7 +411,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
       if (signal.aborted) return
       if (exitCode !== 0) {
         throw new Error(
-          stderr.join('').trim() ||
+          stderr.trim() ||
             `Desktop agent process exited with code ${exitCode}`,
         )
       }
@@ -685,18 +681,17 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
   }
 
   private async emitResultMessage(message: Record<string, unknown>): Promise<void> {
+    const result = typeof message.result === 'string' ? message.result : ''
     if (
       !this.emittedAssistantText &&
-      typeof message.result === 'string' &&
-      message.result.trim() &&
-      message.result !== this.partialText
+      result.trim()
     ) {
-      await this.emitAssistantText(message.result, false)
+      if (result !== this.partialText) {
+        await this.emitAssistantText(result, false)
+      }
+      this.emittedAssistantText = true
     }
     this.partialText = ''
-    if (this.child && !this.child.stdin.destroyed) {
-      this.child.stdin.end()
-    }
   }
 
   private async handleControlRequest(
@@ -820,7 +815,6 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
       systemPrompt: context.systemPrompt,
       appendSystemPrompt: context.appendSystemPrompt,
       additionalDirectories: context.additionalDirectories,
-      askUserQuestionMaxQuestions: context.askUserQuestionMaxQuestions,
       permissionPromptToolName: permissionPromptToolName(),
       onOutput: (message, controls) =>
         this.handleStructuredOutput(message, controls),
@@ -1190,13 +1184,15 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
   }
 
   private async emitResultMessage(message: Record<string, unknown>): Promise<void> {
+    const result = typeof message.result === 'string' ? message.result : ''
     if (
       !this.emittedAssistantText &&
-      typeof message.result === 'string' &&
-      message.result.trim() &&
-      message.result !== this.partialText
+      result.trim()
     ) {
-      await this.emitAssistantText(message.result, false)
+      if (result !== this.partialText) {
+        await this.emitAssistantText(result, false)
+      }
+      this.emittedAssistantText = true
     }
     if (message.is_error === true) {
       this.resultError = getResultErrorMessage(message)
@@ -1519,18 +1515,6 @@ function additionalDirectoryArgs(
   return additionalDirectories && additionalDirectories.length > 0
     ? ['--add-dir', ...additionalDirectories]
     : []
-}
-
-export function askUserQuestionMaxQuestionsEnv(context: {
-  askUserQuestionMaxQuestions?: number
-}): Record<string, string> {
-  return context.askUserQuestionMaxQuestions
-    ? {
-        CODEPILOTX_ASK_USER_QUESTION_MAX_QUESTIONS: String(
-          context.askUserQuestionMaxQuestions,
-        ),
-        }
-    : {}
 }
 
 export function buildDesktopPermissionRequestFromControlRequest(

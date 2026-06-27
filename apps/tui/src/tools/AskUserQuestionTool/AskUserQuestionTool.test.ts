@@ -15,19 +15,16 @@ afterEach(() => {
   }
 })
 
-test('AskUserQuestion defaults to four questions outside desktop override', () => {
+test('AskUserQuestion has no default question count limit', () => {
   delete process.env[ENV_NAME]
 
-  expect(getAskUserQuestionMaxQuestions()).toBe(4)
-  expect(AskUserQuestionTool.inputSchema.safeParse(inputWithQuestions(4)).success).toBe(
-    true,
-  )
+  expect(getAskUserQuestionMaxQuestions()).toBe(null)
   expect(AskUserQuestionTool.inputSchema.safeParse(inputWithQuestions(5)).success).toBe(
-    false,
+    true,
   )
 })
 
-test('AskUserQuestion honors desktop max questions override', () => {
+test('AskUserQuestion honors explicit max questions override', () => {
   process.env[ENV_NAME] = '1'
 
   expect(getAskUserQuestionMaxQuestions()).toBe(1)

@@ -15,7 +15,11 @@ import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTo
 import { IconButton } from '../../components/ui/IconButton.js'
 import { PopoverItem } from '../../components/ui/PopoverItem.js'
 import { PopoverMenu } from '../../components/ui/PopoverMenu.js'
-import type { RightDockPanelContext, RightDockToolId } from './rightDockTools.js'
+import type {
+  RightDockPanelContext,
+  RightDockPlan,
+  RightDockToolId,
+} from './rightDockTools.js'
 import {
   getRightDockTool,
   isRightDockToolEnabled,
@@ -38,6 +42,7 @@ type Props = {
   selectedFile: DesktopFilePreview | null
   sessionId: string | null
   sessionStatus: DesktopSessionStatus
+  plan: RightDockPlan | null
   width: number
   workspace: DesktopWorkspace | null
   onAppendBrowserAnnotation: (text: string) => void
@@ -69,6 +74,7 @@ export function RightDock({
   selectedFile,
   sessionId,
   sessionStatus,
+  plan,
   width,
   workspace,
   onAppendBrowserAnnotation,
@@ -108,7 +114,7 @@ export function RightDock({
   } | null>(null)
   const [resizing, setResizing] = useState(false)
 
-const panelContext = useMemo<RightDockPanelContext>(
+  const panelContext = useMemo<RightDockPanelContext>(
     () => ({
       review: {
         activeSessionId: sessionId,
@@ -135,6 +141,7 @@ const panelContext = useMemo<RightDockPanelContext>(
         workspace,
         onPreviewFile,
       },
+      plan,
       flags,
     }),
     [
@@ -151,6 +158,7 @@ const panelContext = useMemo<RightDockPanelContext>(
       onOpenWorkspacePath,
       onRefreshReview,
       onToggleReviewView,
+      plan,
       reviewView,
       selectedFile,
       sessionId,
@@ -251,6 +259,7 @@ const panelContext = useMemo<RightDockPanelContext>(
           {openedTools.length > 0 ? (
             openedTools.map((tool, index) => {
               const isActive = state.activeTool === tool.id
+              const label = rightDockDisplayLabel(tool.id, tool.label, panelContext)
               return (
                 <Fragment key={tool.id}>
                   {index > 0 ? <span className="right-dock-tab-divider" /> : null}
@@ -263,16 +272,16 @@ const panelContext = useMemo<RightDockPanelContext>(
                   >
                     <button
                       className={isActive ? 'right-dock-tab active' : 'right-dock-tab'}
-                      title={tool.label}
+                      title={label}
                       type="button"
                       onClick={() => onSelectTool(tool.id)}
                     >
                       <span className="right-dock-tab-icon">{tool.icon}</span>
-                      <span>{tool.label}</span>
+                      <span>{label}</span>
                     </button>
                     <IconButton
                       className="right-dock-tab-close"
-                      title={`关闭 ${tool.label}`}
+                      title={`关闭 ${label}`}
                       onClick={event => {
                         event.stopPropagation()
                         onCloseTool(tool.id)
@@ -349,4 +358,15 @@ const panelContext = useMemo<RightDockPanelContext>(
       </div>
     </aside>
   )
+}
+
+function rightDockDisplayLabel(
+  toolId: RightDockToolId,
+  fallback: string,
+  context: RightDockPanelContext,
+): string {
+  if (toolId === 'plan') {
+    return context.plan?.title || fallback
+  }
+  return fallback
 }

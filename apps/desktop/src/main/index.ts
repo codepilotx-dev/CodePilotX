@@ -64,6 +64,7 @@ import {
 import { configureGithubService } from './githubService.js'
 import { getOpenAgentConfigHomeDir } from './desktopSettings.js'
 import { desktopDebug } from './desktopDebug.js'
+import { isTrustedRendererUrl } from './rendererTrust.js'
 import { getModelProviderState } from './modelProviderService.js'
 import {
   applyDesktopAgentEventToSnapshot,
@@ -104,7 +105,6 @@ import {
 import {
   normalizeDesktopApprovalPolicy,
   normalizeDesktopApprovalsReviewer,
-  normalizeAskUserQuestionMaxQuestions,
   normalizeDesktopPermissionMode,
   normalizeDesktopPermissionProfile,
 } from '../shared/settingsSchema.js'
@@ -205,39 +205,8 @@ configureWorkspaceService({ getWindow: windowService.getWindow })
 configureGithubService({ getWindow: windowService.getWindow })
 
 function assertTrustedIpcSender(senderUrl: string | undefined): void {
-  if (!isTrustedRendererUrl(senderUrl)) {
+  if (!isTrustedRendererUrl(senderUrl, rendererUrl())) {
     throw new Error('Rejected desktop IPC call from an untrusted renderer.')
-  }
-}
-
-function isTrustedRendererUrl(senderUrl: string | undefined): boolean {
-  if (!senderUrl) return false
-
-  const trustedRendererUrl = rendererUrl()
-  if (senderUrl === trustedRendererUrl) return true
-
-  try {
-    const parsedSender = new URL(senderUrl)
-    const parsedTrusted = new URL(trustedRendererUrl)
-    if (parsedSender.protocol !== parsedTrusted.protocol) return false
-
-    if (parsedSender.protocol === 'file:') {
-      const trustedPath = decodeURIComponent(parsedTrusted.pathname)
-      const senderPath = decodeURIComponent(parsedSender.pathname)
-      const trustedDirectory =
-        trustedPath.endsWith('/')
-          ? trustedPath
-          : trustedPath.replace(/[^/]+$/, '')
-      return (
-        senderPath === trustedPath ||
-        senderPath.startsWith(trustedDirectory)
-      )
-    }
-
-    if (parsedSender.origin !== parsedTrusted.origin) return false
-    return parsedSender.pathname.startsWith(parsedTrusted.pathname)
-  } catch {
-    return false
   }
 }
 
@@ -299,23 +268,28 @@ function withDesktopMessageTimestamp(event: DesktopAgentEvent): DesktopAgentEven
 
 async function ensureSessionStoreLoaded(): Promise<void> {
   if (!sessionStoreLoadPromise) {
-    sessionStoreLoadPromise = loadDesktopSessionStore().then(store => {
-      sessions.clear()
-      return Promise.all(
-        store.sessions.map(async snapshot => {
-          const resumeExistingSession =
-            await desktopSessionTranscriptExists(snapshot)
-          sessions.set(snapshot.item.id, {
-            session: null,
-            snapshot,
-            resumeExistingSession,
-          })
-          registerAllowedWorkspace(snapshot.workspace.path)
-        }),
-      ).then(() => {
-        activeSessionId = store.activeSessionId
+    sessionStoreLoadPromise = loadDesktopSessionStore()
+      .then(store => {
+        sessions.clear()
+        return Promise.all(
+          store.sessions.map(async snapshot => {
+            const resumeExistingSession =
+              await desktopSessionTranscriptExists(snapshot)
+            sessions.set(snapshot.item.id, {
+              session: null,
+              snapshot,
+              resumeExistingSession,
+            })
+            registerAllowedWorkspace(snapshot.workspace.path)
+          }),
+        ).then(() => {
+          activeSessionId = store.activeSessionId
+        })
       })
-    })
+      .catch(error => {
+        sessionStoreLoadPromise = null
+        throw error
+      })
   }
   await sessionStoreLoadPromise
 }
@@ -721,9 +695,6 @@ async function createSession(
   const thinkingMode = normalizeThinkingMode(options.thinkingMode)
   const systemPrompt = normalizeOptionalText(options.systemPrompt)
   const appendSystemPrompt = normalizeOptionalText(options.appendSystemPrompt)
-  const askUserQuestionMaxQuestions = normalizeAskUserQuestionMaxQuestions(
-    options.askUserQuestionMaxQuestions,
-  )
   const rustSearchAndDiffKernels = options.rustSearchAndDiffKernels === true
   const additionalDirectories = await normalizeAdditionalDirectories(
     options.additionalDirectories,
@@ -749,7 +720,6 @@ async function createSession(
     systemPrompt,
     appendSystemPrompt,
     additionalDirectories,
-    askUserQuestionMaxQuestions,
     rustSearchAndDiffKernels,
   })
   const session = createDesktopAgentSession(
@@ -773,7 +743,6 @@ async function createSession(
       systemPrompt,
       appendSystemPrompt,
       additionalDirectories,
-      askUserQuestionMaxQuestions,
       rustSearchAndDiffKernels,
     },
     getDesktopAgentRuntimeOptions(),
@@ -1138,6 +1107,28 @@ async function respondToPermission(
     )
     return
   }
+  if (
+    !record.session &&
+    isRecoverableExitPlanModePermission(pendingRequest, decision)
+  ) {
+    record.snapshot = {
+      ...record.snapshot,
+      settings: {
+        ...record.snapshot.settings,
+        planModeActive: false,
+      },
+      item: {
+        ...record.snapshot.item,
+        planModeActive: false,
+      },
+    }
+    await createRuntimeForRecord(record).respondToRecoveredExitPlanMode(
+      pendingRequest,
+      decision,
+    )
+    persistSessionStore()
+    return
+  }
   if (record.session) {
     await record.session.respondToPermission(normalizedRequestId, decision)
   }
@@ -1153,6 +1144,18 @@ function isRecoverableAskUserQuestionPermission(
     request.toolUseId.trim().length > 0 &&
     decision.behavior === 'allow' &&
     Boolean(decision.updatedInput)
+  )
+}
+
+function isRecoverableExitPlanModePermission(
+  request: DesktopPermissionRequest | undefined,
+  decision: DesktopPermissionDecision,
+): request is DesktopPermissionRequest {
+  return (
+    request?.toolName === 'ExitPlanMode' &&
+    decision.behavior === 'allow' &&
+    typeof request.input.plan === 'string' &&
+    request.input.plan.trim().length > 0
   )
 }
 

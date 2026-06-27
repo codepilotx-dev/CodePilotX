@@ -2,6 +2,7 @@ import React from 'react'
 import {
   ArrowDown,
   ArrowUp,
+  Check,
   ChevronLeft,
   ChevronRight,
   CornerDownLeft,
@@ -25,6 +26,7 @@ type AskUserQuestion = {
 export type QuestionState = {
   selected: string[]
   custom: string
+  focused?: string
 }
 
 export type AskUserQuestionApprovalProps = {
@@ -74,6 +76,11 @@ export function AskUserQuestionApproval({
           currentQuestion,
           event.key === 'ArrowUp' ? -1 : 1,
         )
+      } else if (event.key === ' ') {
+        if (currentQuestion.multiSelect) {
+          event.preventDefault()
+          toggleFocusedMultiSelectOption(currentQuestion)
+        }
       } else if (event.key === 'Enter') {
         event.preventDefault()
         submitCurrentSelection(currentQuestion)
@@ -157,11 +164,22 @@ export function AskUserQuestionApproval({
     delta: -1 | 1,
   ): void {
     updateQuestion(question.question, current => {
-      const currentLabel = current.selected[0] ?? question.options[0]?.label
+      const currentLabel =
+        current.focused ?? current.selected[0] ?? question.options[0]?.label
       const nextLabel = nextOptionLabel(question, currentLabel, delta)
+      if (question.multiSelect) {
+        return nextLabel ? { ...current, focused: nextLabel } : current
+      }
       return nextLabel
         ? { selected: [nextLabel], custom: '' }
         : initialQuestionState(question)
+    })
+  }
+
+  function toggleFocusedMultiSelectOption(question: AskUserQuestion): void {
+    updateQuestion(question.question, current => {
+      const label = current.focused ?? current.selected[0] ?? question.options[0]?.label
+      return label ? toggleMultiSelectOption(current, label) : current
     })
   }
 
@@ -195,13 +213,21 @@ export function AskUserQuestionApproval({
         >
           {currentQuestion.options.map((option, index) => {
             const selected = state.selected.includes(option.label)
+            const focused =
+              currentQuestion.multiSelect &&
+              (state.focused ?? state.selected[0] ?? currentQuestion.options[0]?.label) ===
+                option.label
             return (
               <button
                 aria-checked={selected}
                 className={
-                  selected
-                    ? 'inline-approval-option selected'
-                    : 'inline-approval-option'
+                  [
+                    'inline-approval-option',
+                    selected ? 'selected' : '',
+                    focused ? 'focused' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')
                 }
                 key={option.label}
                 role={currentQuestion.multiSelect ? 'checkbox' : 'radio'}
@@ -216,14 +242,11 @@ export function AskUserQuestionApproval({
                         selected: [option.label],
                       }
                     }
-                    const selectedLabels = current.selected.includes(
-                      option.label,
-                    )
-                      ? current.selected.filter(label => label !== option.label)
-                      : [...current.selected, option.label]
-                    return { ...current, selected: selectedLabels }
+                    return toggleMultiSelectOption(current, option.label)
                   })
-                  submitCurrentSelection(currentQuestion, option.label)
+                  if (shouldSubmitOptionClick(currentQuestion)) {
+                    submitCurrentSelection(currentQuestion, option.label)
+                  }
                 }}
               >
                 <span className="inline-approval-option-index">
@@ -246,7 +269,20 @@ export function AskUserQuestionApproval({
                     </span>
                   ) : null}
                 </span>
-                {selected ? (
+                {currentQuestion.multiSelect ? (
+                  <span className="inline-approval-option-trailing">
+                    <span
+                      className={
+                        selected
+                          ? 'inline-approval-option-checkbox selected'
+                          : 'inline-approval-option-checkbox'
+                      }
+                      aria-hidden="true"
+                    >
+                      {selected ? <Check size={14} /> : null}
+                    </span>
+                  </span>
+                ) : selected ? (
                   <span className="inline-approval-option-trailing">
                     <span
                       className="inline-approval-option-arrows"
@@ -356,6 +392,26 @@ export function initialQuestionState(question: {
   return {
     selected: firstOption ? [firstOption] : [],
     custom: '',
+  }
+}
+
+export function shouldSubmitOptionClick(question: {
+  multiSelect: boolean
+}): boolean {
+  return !question.multiSelect
+}
+
+export function toggleMultiSelectOption(
+  current: QuestionState,
+  label: string,
+): QuestionState {
+  const selected = current.selected.includes(label)
+    ? current.selected.filter(item => item !== label)
+    : [...current.selected, label]
+  return {
+    ...current,
+    selected,
+    focused: label,
   }
 }
 

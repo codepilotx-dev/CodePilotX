@@ -77,6 +77,10 @@ export type DesktopAgentSession = {
     request: DesktopPermissionRequest,
     decision: DesktopPermissionDecision,
   ): Promise<void>
+  respondToRecoveredExitPlanMode(
+    request: DesktopPermissionRequest,
+    decision: DesktopPermissionDecision,
+  ): Promise<void>
   interrupt(): Promise<void>
   dispose(): Promise<void>
   on<EventName extends keyof DesktopAgentSessionEvents>(
@@ -151,7 +155,6 @@ class LocalDesktopAgentSession
       systemPrompt: options.systemPrompt,
       appendSystemPrompt: options.appendSystemPrompt,
       additionalDirectories: options.additionalDirectories,
-      askUserQuestionMaxQuestions: options.askUserQuestionMaxQuestions,
       rustSearchAndDiffKernels: options.rustSearchAndDiffKernels,
       emit: event => this.emitEvent(event),
       requestPermission: request => this.requestPermission(request),
@@ -328,6 +331,32 @@ class LocalDesktopAgentSession
     }
   }
 
+  async respondToRecoveredExitPlanMode(
+    request: DesktopPermissionRequest,
+    decision: DesktopPermissionDecision,
+  ): Promise<void> {
+    this.assertActive()
+    if (this.currentAbortController) {
+      throw new Error('Desktop agent session is already running')
+    }
+    if (request.toolName !== 'ExitPlanMode') {
+      throw new Error('ExitPlanMode recovery requires an ExitPlanMode request.')
+    }
+    if (decision.behavior !== 'allow') {
+      throw new Error('ExitPlanMode recovery requires approval.')
+    }
+    const plan = getExitPlanModePlan(request)
+    if (!plan) {
+      throw new Error('ExitPlanMode recovery requires a plan.')
+    }
+
+    this.setPlanModeActive(false)
+    await this.sendUserMessage(
+      buildRecoveredExitPlanModePrompt(plan),
+      '用户已批准计划，继续实施',
+    )
+  }
+
   async interrupt(): Promise<void> {
     if (!this.currentAbortController) {
       desktopDebug('session_interrupt_ignored_idle', {
@@ -343,7 +372,6 @@ class LocalDesktopAgentSession
 
   async dispose(): Promise<void> {
     this.disposed = true
-    this.currentAbortController?.abort()
     for (const [requestId, pending] of this.pendingPermissions) {
       this.pendingPermissions.delete(requestId)
       pending.resolve({
@@ -351,6 +379,7 @@ class LocalDesktopAgentSession
         message: 'Session disposed before approval',
       })
     }
+    this.currentAbortController?.abort()
     this.emitEvent({ type: 'done', sessionId: this.sessionId })
     this.removeAllListeners()
   }
@@ -448,6 +477,21 @@ class LocalDesktopAgentSession
       })
       normalizedRequest.autoReviewFallbackReason = autoReview.reason
     }
+    if (
+      isAskUserQuestionRequest(normalizedRequest) &&
+      hasPendingAskUserQuestion(this.pendingPermissions)
+    ) {
+      return {
+        behavior: 'deny',
+        message:
+          'AskUserQuestion is already waiting for a user answer. Wait for that answer before asking another dependent question, or combine independent questions into one questions array.',
+      }
+    }
+    const requestAbortSignal = this.currentAbortController?.signal
+    const inactiveDecision = this.inactivePermissionDecision(requestAbortSignal)
+    if (inactiveDecision) {
+      return inactiveDecision
+    }
     const decision = await new Promise<DesktopPermissionDecision>(resolve => {
       this.pendingPermissions.set(normalizedRequest.requestId, {
         request: normalizedRequest,
@@ -460,7 +504,7 @@ class LocalDesktopAgentSession
         request: normalizedRequest,
       })
 
-      this.currentAbortController?.signal.addEventListener(
+      requestAbortSignal?.addEventListener(
         'abort',
         () => {
           if (!this.pendingPermissions.has(normalizedRequest.requestId)) return
@@ -472,8 +516,17 @@ class LocalDesktopAgentSession
         },
         { once: true },
       )
+      const lateInactiveDecision =
+        this.inactivePermissionDecision(requestAbortSignal)
+      if (
+        lateInactiveDecision &&
+        this.pendingPermissions.has(normalizedRequest.requestId)
+      ) {
+        this.pendingPermissions.delete(normalizedRequest.requestId)
+        resolve(lateInactiveDecision)
+      }
     })
-    if (!this.disposed && !this.currentAbortController?.signal.aborted) {
+    if (!this.disposed && !requestAbortSignal?.aborted) {
       this.emitStatus('running')
     }
     console.info(
@@ -486,6 +539,24 @@ class LocalDesktopAgentSession
       })}`,
     )
     return decision
+  }
+
+  private inactivePermissionDecision(
+    signal: AbortSignal | undefined,
+  ): DesktopPermissionDecision | null {
+    if (this.disposed) {
+      return {
+        behavior: 'deny',
+        message: 'Session disposed before approval',
+      }
+    }
+    if (signal?.aborted) {
+      return {
+        behavior: 'deny',
+        message: 'Interrupted before approval',
+      }
+    }
+    return null
   }
 
   private emitMessage(role: 'user' | 'assistant' | 'system', text: string): void {
@@ -571,6 +642,19 @@ const DESKTOP_USER_INTERACTION_TOOLS = new Set([
   'exitplanmode',
 ])
 
+function isAskUserQuestionRequest(request: DesktopPermissionRequest): boolean {
+  return request.toolName.toLowerCase() === 'askuserquestion'
+}
+
+function hasPendingAskUserQuestion(
+  pendingPermissions: ReadonlyMap<string, PendingPermission>,
+): boolean {
+  for (const pending of pendingPermissions.values()) {
+    if (isAskUserQuestionRequest(pending.request)) return true
+  }
+  return false
+}
+
 const SENSITIVE_WORKSPACE_DIRECTORIES = new Set([
   '.git',
   '.claude',
@@ -618,6 +702,15 @@ function desktopRequestFilePath(
 ): string | null {
   const filePath = request.input.file_path ?? request.input.filePath
   return typeof filePath === 'string' && filePath.trim() ? filePath : null
+}
+
+function getExitPlanModePlan(request: DesktopPermissionRequest): string | null {
+  const plan = request.input.plan
+  return typeof plan === 'string' && plan.trim() ? plan.trim() : null
+}
+
+function buildRecoveredExitPlanModePrompt(plan: string): string {
+  return `用户已批准以下计划。请退出计划模式并继续实施该计划。\n\n${plan}`
 }
 
 function isPathInsideWorkspace(

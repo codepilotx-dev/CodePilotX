@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
-import { expect, test } from 'bun:test'
+import { expect, spyOn, test } from 'bun:test'
 import { WorkflowEventSchemaVersion } from '@codepilotx/core/agent/workflow.js'
 import {
   CODEPILOTX_CONFIG_DIR_ENV,
@@ -11,11 +11,13 @@ import {
 import { getProjectDir } from '@codepilotx/core/session/storage.js'
 import {
   applyDesktopWorkflowEventsToSnapshot,
+  buildDesktopSessionIndexTempPath,
   createDesktopSessionSnapshot,
   getDesktopSessionIndexPath,
   hydrateDesktopSessionSnapshot,
   loadDesktopSessionStore,
   saveDesktopSessionStore,
+  writeFileAtomically,
 } from './sessionPersistence.js'
 import { getStandaloneWorkspacePath } from './standaloneWorkspace.js'
 import type { DesktopWorkflowEvent } from '../shared/types.js'
@@ -234,6 +236,75 @@ test('legacy snapshot workflow events are normalized on restore', async () => {
   })
 })
 
+test('duplicate overlay session ids keep the first record and warn', async () => {
+  await withDesktopConfig(async configDir => {
+    const sessionId = randomUUID()
+    const now = new Date('2026-01-01T00:00:00.000Z').toISOString()
+    const projectPath = join(configDir, 'duplicate-project')
+    const indexPath = getDesktopSessionIndexPath()
+    await mkdir(dirname(indexPath), { recursive: true })
+    await writeFile(
+      indexPath,
+      JSON.stringify(
+        {
+          activeSessionId: sessionId,
+          sessions: [
+            persistedOverlay(sessionId, projectPath, 'first', now),
+            persistedOverlay(sessionId, projectPath, 'second', now),
+          ],
+        },
+        null,
+        2,
+      ),
+      'utf8',
+    )
+    const warn = spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const store = await loadDesktopSessionStore()
+      const snapshot = store.sessions.find(item => item.item.id === sessionId)
+
+      expect(snapshot?.item.sessionName).toBe('first')
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining(`Duplicate desktop session id ignored: ${sessionId}`),
+      )
+    } finally {
+      warn.mockRestore()
+    }
+  })
+})
+
+test('session index temp path stays beside the final sessions file', () => {
+  const filePath = join('C:\\Users\\tester\\config', 'sessions.json')
+
+  expect(buildDesktopSessionIndexTempPath(filePath, 'nonce')).toBe(
+    join('C:\\Users\\tester\\config', '.sessions.json.nonce.tmp'),
+  )
+})
+
+test('writeFileAtomically writes temp file before replacing final file', async () => {
+  const calls: string[] = []
+  const filePath = join('C:\\Users\\tester\\config', 'sessions.json')
+
+  await writeFileAtomically(filePath, '{"ok":true}', {
+    mkdir: async path => {
+      calls.push(`mkdir:${path}`)
+    },
+    writeFile: async (path, content) => {
+      calls.push(`write:${path}:${content}`)
+    },
+    rename: async (from, to) => {
+      calls.push(`rename:${from}:${to}`)
+    },
+  }, 'nonce')
+
+  const tempPath = join('C:\\Users\\tester\\config', '.sessions.json.nonce.tmp')
+  expect(calls).toEqual([
+    `mkdir:${join('C:\\Users\\tester\\config')}`,
+    `write:${tempPath}:{"ok":true}`,
+    `rename:${tempPath}:${filePath}`,
+  ])
+})
+
 test('AskUserQuestion pending permission with tool use id survives desktop restart', async () => {
   await withDesktopConfig(async configDir => {
     const sessionId = randomUUID()
@@ -314,6 +385,73 @@ test('AskUserQuestion pending permission with tool use id survives desktop resta
       }),
     ])
     expect(restored?.view.messages[0]?.streaming).toBe(false)
+  })
+})
+
+test('ExitPlanMode pending permission survives desktop restart', async () => {
+  await withDesktopConfig(async configDir => {
+    const sessionId = randomUUID()
+    const now = new Date('2026-01-01T00:00:00.000Z').toISOString()
+    const projectPath = join(configDir, 'plan-project')
+    let snapshot = createDesktopSessionSnapshot({
+      sessionId,
+      workspace: {
+        path: projectPath,
+        name: 'plan-project',
+        branchName: null,
+        isGitRepo: false,
+      },
+      standalone: false,
+      settings: {
+        permissionMode: 'default',
+        planModeActive: true,
+        thinkingMode: 'default',
+        additionalDirectories: [],
+      },
+    })
+    snapshot = {
+      ...snapshot,
+      item: {
+        ...snapshot.item,
+        status: 'waiting',
+        createdAt: now,
+        lastMessageAt: now,
+      },
+      view: {
+        ...snapshot.view,
+        pendingPermissions: [
+          {
+            requestId: 'plan-permission-1',
+            toolName: 'ExitPlanMode',
+            description: '确认计划',
+            input: {
+              plan: '# 计划\n\n- 实施功能',
+              source: 'proposed_plan',
+            },
+          },
+        ],
+      },
+      updatedAt: now,
+    }
+
+    await saveDesktopSessionStore({
+      activeSessionId: sessionId,
+      sessions: [snapshot],
+    })
+
+    const store = await loadDesktopSessionStore()
+    const restored = store.sessions.find(item => item.item.id === sessionId)
+
+    expect(restored?.item.status).toBe('waiting')
+    expect(restored?.view.pendingPermissions).toEqual([
+      expect.objectContaining({
+        requestId: 'plan-permission-1',
+        toolName: 'ExitPlanMode',
+        input: expect.objectContaining({
+          plan: '# 计划\n\n- 实施功能',
+        }),
+      }),
+    ])
   })
 })
 
@@ -586,6 +724,34 @@ function sessionItem(sessionId: string, projectPath: string, now: string) {
     status: 'done',
     lastMessageAt: now,
     createdAt: now,
+  }
+}
+
+function persistedOverlay(
+  sessionId: string,
+  projectPath: string,
+  sessionName: string,
+  timestamp: string,
+) {
+  return {
+    id: sessionId,
+    workspace: {
+      path: projectPath,
+      name: basename(projectPath),
+      branchName: null,
+      isGitRepo: false,
+    },
+    settings: {
+      permissionMode: 'default',
+      thinkingMode: 'default',
+      additionalDirectories: [],
+    },
+    standalone: false,
+    sessionName,
+    status: 'done',
+    createdAt: timestamp,
+    lastMessageAt: timestamp,
+    updatedAt: timestamp,
   }
 }
 

@@ -13,7 +13,6 @@ test('createSessionSettingsSnapshot preserves requested permission mode', () => 
     permissionMode: 'auto-review',
     thinkingMode: 'default',
     additionalDirectories: [],
-    askUserQuestionMaxQuestions: 3,
   })
 
   expect(settings.permissionMode).toBe('auto-review')

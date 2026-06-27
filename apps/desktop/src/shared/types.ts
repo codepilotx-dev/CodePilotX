@@ -541,8 +541,6 @@ export type DesktopPersonality =
 
 export type DesktopReviewView = 'inline' | 'split'
 
-export type DesktopAskUserQuestionMaxQuestions = 1 | 2 | 3 | 4
-
 export type DesktopStoredSettings = {
   permissionProfile?: DesktopPermissionProfile
   approvalPolicy?: DesktopApprovalPolicy
@@ -586,7 +584,6 @@ gitBranchPrefix: string
   githubMemorySyncEnabled: boolean
   githubMemoryRepository: string
   reviewView: DesktopReviewView
-  askUserQuestionMaxQuestions: DesktopAskUserQuestionMaxQuestions
   rustSearchAndDiffKernels: boolean
   browserAllowedSites: string[]
 }
@@ -737,7 +734,6 @@ export type DesktopSessionSettingsSnapshot = {
   systemPrompt?: string
   appendSystemPrompt?: string
   additionalDirectories: string[]
-  askUserQuestionMaxQuestions?: DesktopAskUserQuestionMaxQuestions
   rustSearchAndDiffKernels?: boolean
 }
 
@@ -795,7 +791,6 @@ export type CreateDesktopSessionOptions = {
   systemPrompt?: string
   appendSystemPrompt?: string
   additionalDirectories?: string[]
-  askUserQuestionMaxQuestions?: DesktopAskUserQuestionMaxQuestions
   rustSearchAndDiffKernels?: boolean
 }
 

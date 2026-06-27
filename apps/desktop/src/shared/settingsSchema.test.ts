@@ -4,8 +4,10 @@ import {
   normalizeDesktopStoredSettings,
 } from './settingsSchema.js'
 
-test('desktop settings default AskUserQuestion max questions to one', () => {
-  expect(defaultDesktopStoredSettings().askUserQuestionMaxQuestions).toBe(1)
+test('desktop settings no longer store AskUserQuestion max questions', () => {
+  expect('askUserQuestionMaxQuestions' in defaultDesktopStoredSettings()).toBe(
+    false,
+  )
 })
 
 test('desktop settings default Rust search and diff kernels to disabled', () => {
@@ -23,27 +25,11 @@ test('desktop settings normalize Rust search and diff kernels as a boolean', () 
   ).toBe(false)
 })
 
-test('desktop settings normalize AskUserQuestion max questions to one through four', () => {
+test('desktop settings drop legacy AskUserQuestion max questions values', () => {
   expect(
-    normalizeDesktopStoredSettings({ askUserQuestionMaxQuestions: 4 })
-      .askUserQuestionMaxQuestions,
-  ).toBe(4)
-  expect(
-    normalizeDesktopStoredSettings({ askUserQuestionMaxQuestions: 2.7 })
-      .askUserQuestionMaxQuestions,
-  ).toBe(2)
-  expect(
-    normalizeDesktopStoredSettings({ askUserQuestionMaxQuestions: 0 })
-      .askUserQuestionMaxQuestions,
-  ).toBe(1)
-  expect(
-    normalizeDesktopStoredSettings({ askUserQuestionMaxQuestions: 5 })
-      .askUserQuestionMaxQuestions,
-  ).toBe(4)
-  expect(
-    normalizeDesktopStoredSettings({ askUserQuestionMaxQuestions: '4' })
-      .askUserQuestionMaxQuestions,
-  ).toBe(1)
+    'askUserQuestionMaxQuestions' in
+      normalizeDesktopStoredSettings({ askUserQuestionMaxQuestions: 4 }),
+  ).toBe(false)
 })
 
 test('desktop settings normalize plan permission mode to default', () => {

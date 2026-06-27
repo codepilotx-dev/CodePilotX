@@ -2,7 +2,6 @@ import { desktopClient } from '../../services/desktopClient.js'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
   DesktopAgentEvent,
-  DesktopAskUserQuestionMaxQuestions,
   DesktopContextUsage,
   DesktopPermissionMode,
   DesktopPermissionRequest,
@@ -71,7 +70,6 @@ export type UseSessionStateOptions = {
   systemPrompt: string
   appendSystemPrompt: string
   additionalDirectories: string
-  askUserQuestionMaxQuestions: DesktopAskUserQuestionMaxQuestions
   rustSearchAndDiffKernels: boolean
   onError: (message: string) => void
   onDiffForActive: (patch: string) => void
@@ -146,7 +144,6 @@ export function useSessionState(
     systemPrompt,
     appendSystemPrompt,
     additionalDirectories,
-    askUserQuestionMaxQuestions,
     rustSearchAndDiffKernels,
     onError,
     onDiffForActive,
@@ -480,13 +477,11 @@ export function useSessionState(
       systemPrompt,
       appendSystemPrompt,
       additionalDirectories,
-      askUserQuestionMaxQuestions,
       rustSearchAndDiffKernels,
     }),
     [
       additionalDirectories,
       appendSystemPrompt,
-      askUserQuestionMaxQuestions,
       rustSearchAndDiffKernels,
       debugConversationDump,
       fastModel,

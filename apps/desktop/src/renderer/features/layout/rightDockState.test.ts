@@ -10,6 +10,12 @@ describe('applyRightDockAction', () => {
     ).toEqual({ open: true, activeTool: 'review', openTools: ['review'] })
   })
 
+  test('openTool supports the plan dock tool', () => {
+    expect(
+      applyRightDockAction(empty, { type: 'openTool', tool: 'plan' }),
+    ).toEqual({ open: true, activeTool: 'plan', openTools: ['plan'] })
+  })
+
   test('openTool reuses an already-open tool without duplicating', () => {
     const start: RightDockState = { open: true, activeTool: 'review', openTools: ['review'] }
     expect(

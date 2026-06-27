@@ -7,7 +7,6 @@ import {
 import type { AgentPermissionPolicy } from '@codepilotx/core/agent/permissions.js'
 import type {
   DesktopDrawerTab,
-  DesktopAskUserQuestionMaxQuestions,
   DesktopPermissionMode,
   DesktopPersonality,
   DesktopReviewView,
@@ -100,7 +99,6 @@ gitBranchPrefix: 'codex/',
     githubMemorySyncEnabled: false,
     githubMemoryRepository: '',
     reviewView: 'inline',
-    askUserQuestionMaxQuestions: 1,
     rustSearchAndDiffKernels: false,
     browserAllowedSites: [],
   }
@@ -262,10 +260,6 @@ export function normalizeDesktopStoredSettings(
     reviewView: isDesktopReviewView(parsed.reviewView)
       ? parsed.reviewView
       : defaults.reviewView,
-    askUserQuestionMaxQuestions: normalizeAskUserQuestionMaxQuestions(
-      parsed.askUserQuestionMaxQuestions,
-      defaults.askUserQuestionMaxQuestions,
-    ),
     rustSearchAndDiffKernels:
       typeof parsed.rustSearchAndDiffKernels === 'boolean'
         ? parsed.rustSearchAndDiffKernels
@@ -427,15 +421,6 @@ export function normalizeGitWorktreeLimit(
 ): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) return fallback
   return Math.max(1, Math.floor(value))
-}
-
-export function normalizeAskUserQuestionMaxQuestions(
-  value: unknown,
-  fallback: DesktopAskUserQuestionMaxQuestions = 1,
-): DesktopAskUserQuestionMaxQuestions {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback
-  const normalized = Math.max(1, Math.min(4, Math.floor(value)))
-  return normalized as DesktopAskUserQuestionMaxQuestions
 }
 
 export function isModelProviderID(value: unknown): value is ModelProviderID {

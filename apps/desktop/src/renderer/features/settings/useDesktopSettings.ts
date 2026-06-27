@@ -12,7 +12,6 @@ import {
 } from 'react'
 import type { DrawerTab } from '../../uiTypes.js'
 import type {
-  DesktopAskUserQuestionMaxQuestions,
   DesktopPermissionMode,
   DesktopPersonality,
   DesktopReviewView,
@@ -67,7 +66,6 @@ export type UseDesktopSettingsResult = {
   githubMemorySyncEnabled: boolean
   githubMemoryRepository: string
   reviewView: DesktopReviewView
-  askUserQuestionMaxQuestions: DesktopAskUserQuestionMaxQuestions
   rustSearchAndDiffKernels: boolean
   browserAllowedSites: string[]
   settingsLoaded: boolean
@@ -112,9 +110,6 @@ export type UseDesktopSettingsResult = {
   setGithubMemorySyncEnabled: (value: boolean) => void
   setGithubMemoryRepository: (value: string) => void
   setReviewView: (value: DesktopReviewView) => void
-  setAskUserQuestionMaxQuestions: (
-    value: DesktopAskUserQuestionMaxQuestions,
-  ) => void
   setRustSearchAndDiffKernels: (value: boolean) => void
   setBrowserAllowedSites: (value: string[]) => void
   draft: DesktopSettingsDraft
@@ -326,12 +321,6 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
   const [reviewView, setReviewView] = useState<DesktopReviewView>(
     initial.reviewView,
   )
-  const [
-    askUserQuestionMaxQuestions,
-    setAskUserQuestionMaxQuestions,
-  ] = useState<DesktopAskUserQuestionMaxQuestions>(
-    initial.askUserQuestionMaxQuestions,
-  )
   const [rustSearchAndDiffKernels, setRustSearchAndDiffKernels] = useState(
     initial.rustSearchAndDiffKernels,
   )
@@ -391,7 +380,6 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
         setGithubMemorySyncEnabled(settings.githubMemorySyncEnabled)
         setGithubMemoryRepository(settings.githubMemoryRepository)
         setReviewView(settings.reviewView)
-        setAskUserQuestionMaxQuestions(settings.askUserQuestionMaxQuestions)
         setRustSearchAndDiffKernels(settings.rustSearchAndDiffKernels)
         setBrowserAllowedSites(settings.browserAllowedSites)
         setDraftValues(cloneDesktopSettings(settings))
@@ -449,7 +437,6 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
       githubMemorySyncEnabled,
       githubMemoryRepository,
       reviewView,
-      askUserQuestionMaxQuestions,
       rustSearchAndDiffKernels,
       browserAllowedSites,
     }),
@@ -493,7 +480,6 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
       githubMemorySyncEnabled,
       githubMemoryRepository,
       reviewView,
-      askUserQuestionMaxQuestions,
       rustSearchAndDiffKernels,
       browserAllowedSites,
     ],
@@ -576,7 +562,6 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
       setGithubMemorySyncEnabled(snapshot.githubMemorySyncEnabled)
       setGithubMemoryRepository(snapshot.githubMemoryRepository)
       setReviewView(snapshot.reviewView)
-      setAskUserQuestionMaxQuestions(snapshot.askUserQuestionMaxQuestions)
       setRustSearchAndDiffKernels(snapshot.rustSearchAndDiffKernels)
       setBrowserAllowedSites(snapshot.browserAllowedSites)
     },
@@ -664,11 +649,10 @@ defaultOpenTargetId,
     customInstructions,
     enableMemory,
     skipToolAidedChats,
-    githubMemorySyncEnabled,
-    githubMemoryRepository,
-    reviewView,
-    askUserQuestionMaxQuestions,
-    rustSearchAndDiffKernels,
+      githubMemorySyncEnabled,
+      githubMemoryRepository,
+      reviewView,
+      rustSearchAndDiffKernels,
     browserAllowedSites,
     settingsLoaded,
     setPermissionMode,
@@ -710,7 +694,6 @@ defaultOpenTargetId,
     setGithubMemorySyncEnabled,
 setGithubMemoryRepository,
     setReviewView,
-    setAskUserQuestionMaxQuestions,
     setRustSearchAndDiffKernels,
     setBrowserAllowedSites,
     draft,

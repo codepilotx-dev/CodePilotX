@@ -7,6 +7,9 @@ let deriveAssistantActionMessageIds: typeof import('./ConversationPage.js').deri
 let groupTimelineToolEvents: typeof import('./ConversationPage.js').groupTimelineToolEvents
 let commandRunView: typeof import('./ConversationPage.js').commandRunView
 let toggleOpenCommandRunIds: typeof import('./ConversationPage.js').toggleOpenCommandRunIds
+let parseAskUserQuestionTimelineResult: typeof import('./ConversationPage.js').parseAskUserQuestionTimelineResult
+let planTitleFromSummary: typeof import('./ConversationPage.js').planTitleFromSummary
+let planCardPresentation: typeof import('./ConversationPage.js').planCardPresentation
 
 beforeAll(async () => {
   Object.defineProperty(globalThis, 'window', {
@@ -19,6 +22,10 @@ beforeAll(async () => {
   groupTimelineToolEvents = conversationPage.groupTimelineToolEvents
   commandRunView = conversationPage.commandRunView
   toggleOpenCommandRunIds = conversationPage.toggleOpenCommandRunIds
+  parseAskUserQuestionTimelineResult =
+    conversationPage.parseAskUserQuestionTimelineResult
+  planTitleFromSummary = conversationPage.planTitleFromSummary
+  planCardPresentation = conversationPage.planCardPresentation
 })
 
 test('marks only the final assistant message after a completed turn', () => {
@@ -156,6 +163,83 @@ test('keeps previously opened command shells open when another run opens', () =>
   expect([...firstClosed]).toEqual(['run-2'])
 })
 
+test('parses AskUserQuestion timeline runs into question answers', () => {
+  const items = groupTimelineToolEvents([
+    toolCallEvent('tool-question', 'AskUserQuestion', 'AskUserQuestion'),
+    askUserQuestionPermissionEvent('permission-question'),
+    toolResultEvent('result-question', 'AskUserQuestion', 'AskUserQuestion', false, {
+      result: {
+        answers: {
+          'Which files should be reviewed?': 'All modified files',
+          'Which checks matter?': 'Logic, tests',
+        },
+      },
+    }),
+  ])
+
+  const group = items[0]
+  expect(group?.type).toBe('tool_group')
+  if (group?.type !== 'tool_group') throw new Error('Expected tool group')
+  expect(parseAskUserQuestionTimelineResult(group.runs[0]!)).toEqual({
+    count: 2,
+    items: [
+      {
+        question: 'Which files should be reviewed?',
+        answer: 'All modified files',
+      },
+      {
+        question: 'Which checks matter?',
+        answer: 'Logic, tests',
+      },
+    ],
+  })
+})
+
+test('AskUserQuestion timeline parser ignores ordinary command runs', () => {
+  const items = groupTimelineToolEvents([
+    toolCallEvent('tool-1', 'Bash', 'npm test'),
+    toolResultEvent('result-1', 'Bash', 'ok', false),
+  ])
+
+  const group = items[0]
+  expect(group?.type).toBe('tool_group')
+  if (group?.type !== 'tool_group') throw new Error('Expected tool group')
+  expect(parseAskUserQuestionTimelineResult(group.runs[0]!)).toBe(null)
+})
+
+test('extracts the first markdown heading as the plan title', () => {
+  expect(planTitleFromSummary('# 计划书右侧边栏展示逻辑\n\n## Summary')).toBe(
+    '计划书右侧边栏展示逻辑',
+  )
+})
+
+test('plan card hides right dock action while streaming', () => {
+  expect(planCardPresentation({ streaming: true, isDocked: false })).toEqual({
+    compact: false,
+    label: '编写计划',
+    showOpenInRightDock: false,
+    showFoldControls: false,
+  })
+})
+
+test('plan card exposes right dock action after completion', () => {
+  expect(planCardPresentation({ streaming: false, isDocked: false })).toEqual({
+    compact: false,
+    label: '套餐',
+    showOpenInRightDock: true,
+    showFoldControls: false,
+  })
+})
+
+test('plan card becomes a compact summary when docked', () => {
+  expect(planCardPresentation({ streaming: false, isDocked: true })).toEqual({
+    compact: true,
+    label: '套餐',
+    showOpenInRightDock: true,
+    showFoldControls: false,
+  })
+})
+
 function userEvent(id: string, content: string): DesktopSessionEvent {
   return messageEvent(id, 'user', content)
 }
@@ -228,11 +312,52 @@ function permissionRequestEvent(
   }
 }
 
+function askUserQuestionPermissionEvent(id: string): DesktopSessionEvent {
+  return {
+    id,
+    sessionId: 'session-1',
+    type: 'permission_request',
+    content: 'Answer questions?',
+    createdAt: '2026-06-26T00:00:00.500Z',
+    metadata: {
+      request: {
+        requestId: id,
+        toolName: 'AskUserQuestion',
+        description: 'Answer questions?',
+        input: {
+          questions: [
+            {
+              question: 'Which files should be reviewed?',
+              header: 'Files',
+              options: [
+                { label: 'All', description: 'All modified files' },
+                { label: 'Core', description: 'Core files only' },
+              ],
+            },
+            {
+              question: 'Which checks matter?',
+              header: 'Checks',
+              options: [
+                { label: 'Logic', description: 'Logic and tests' },
+                { label: 'Style', description: 'Style only' },
+              ],
+              multiSelect: true,
+            },
+          ],
+        },
+      },
+      toolName: 'AskUserQuestion',
+      toolUseId: 'tool-use-1',
+    },
+  }
+}
+
 function toolResultEvent(
   id: string,
   toolName: string,
   content: string,
   isError: boolean,
+  metadata: Record<string, unknown> = {},
 ): DesktopSessionEvent {
   return {
     id,
@@ -240,7 +365,7 @@ function toolResultEvent(
     type: 'tool_result',
     content,
     createdAt: '2026-06-26T00:00:01.000Z',
-    metadata: { toolName, toolUseId: 'tool-use-1', isError },
+    metadata: { ...metadata, toolName, toolUseId: 'tool-use-1', isError },
   }
 }
 

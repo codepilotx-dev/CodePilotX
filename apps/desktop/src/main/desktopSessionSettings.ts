@@ -25,7 +25,6 @@ export function createSessionSettingsSnapshot(params: {
   systemPrompt?: string
   appendSystemPrompt?: string
   additionalDirectories: string[]
-  askUserQuestionMaxQuestions: DesktopSessionSettingsSnapshot['askUserQuestionMaxQuestions']
   rustSearchAndDiffKernels?: boolean
 }): DesktopSessionSettingsSnapshot {
   const settings: DesktopSessionSettingsSnapshot = {
@@ -36,7 +35,6 @@ export function createSessionSettingsSnapshot(params: {
     planModeActive: params.planModeActive === true,
     thinkingMode: params.thinkingMode,
     additionalDirectories: params.additionalDirectories,
-    askUserQuestionMaxQuestions: params.askUserQuestionMaxQuestions,
     rustSearchAndDiffKernels: params.rustSearchAndDiffKernels === true,
   }
   if (params.providerID) settings.providerID = params.providerID

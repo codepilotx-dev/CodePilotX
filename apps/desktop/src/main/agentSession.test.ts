@@ -393,6 +393,154 @@ test('recovered AskUserQuestion permission injects control response into runtime
   ])
 })
 
+test('recovered ExitPlanMode approval starts implementation turn', async () => {
+  const userTurns: unknown[] = []
+  const session = createDesktopAgentSession(
+    {
+      workspacePath: resolve('tmp', 'desktop-workspace'),
+      sessionId: 'session-recovered-plan',
+      suppressStartupMessage: true,
+      permissionMode: 'default',
+      planModeActive: true,
+    },
+    {
+      createRuntime: () => createRecoveredPlanRuntime(userTurns),
+    },
+  )
+
+  await session.respondToRecoveredExitPlanMode(
+    {
+      requestId: 'plan-permission-1',
+      toolName: 'ExitPlanMode',
+      input: { plan: '# 计划\n\n- 实施功能' },
+      description: '确认计划',
+    },
+    { behavior: 'allow' },
+  )
+
+  expect(userTurns).toHaveLength(1)
+  expect(String(userTurns[0])).toContain('用户已批准以下计划')
+  expect(String(userTurns[0])).toContain('# 计划\n\n- 实施功能')
+})
+
+test('session rejects a second AskUserQuestion while one is pending', async () => {
+  const permissionRequests: DesktopAgentEvent[] = []
+  const decisions: unknown[] = []
+  const session = createDesktopAgentSession(
+    {
+      workspacePath: resolve('tmp', 'desktop-workspace'),
+      sessionId: 'session-question-pending',
+      suppressStartupMessage: true,
+      permissionMode: 'default',
+    },
+    {
+      createRuntime: context => createDoubleQuestionRuntime(context, decisions),
+    },
+  )
+  session.on('event', event => {
+    if (event.type !== 'permission_request') return
+    permissionRequests.push(event)
+    if (event.request.requestId === 'question-1') {
+      setTimeout(() => {
+        void session.respondToPermission('question-1', {
+          behavior: 'allow',
+          updatedInput: { answers: { 'First?': 'Yes' } },
+        })
+      }, 0)
+    }
+    if (event.request.requestId === 'question-2') {
+      void session.respondToPermission(event.request.requestId, {
+        behavior: 'deny',
+        message: 'user denied',
+      })
+    }
+  })
+
+  await session.sendUserMessage('ask questions', 'ask questions')
+
+  expect(
+    permissionRequests.filter(
+      event =>
+        event.type === 'permission_request' &&
+        event.request.toolName === 'AskUserQuestion',
+    ),
+  ).toHaveLength(1)
+  expect(decisions).toEqual([
+    {
+      behavior: 'deny',
+      message:
+        'AskUserQuestion is already waiting for a user answer. Wait for that answer before asking another dependent question, or combine independent questions into one questions array.',
+    },
+    {
+      behavior: 'allow',
+      updatedInput: { answers: { 'First?': 'Yes' } },
+    },
+  ])
+})
+
+test('disposing a session rejects pending permission with dispose reason', async () => {
+  const decisions: unknown[] = []
+  let sawPermissionRequest: (() => void) | undefined
+  const permissionRequested = new Promise<void>(resolve => {
+    sawPermissionRequest = resolve
+  })
+  const session = createDesktopAgentSession(
+    {
+      workspacePath: resolve('tmp', 'desktop-workspace'),
+      sessionId: 'session-dispose-pending-permission',
+      suppressStartupMessage: true,
+      permissionMode: 'default',
+    },
+    {
+      createRuntime: context => createPermissionRuntime(context, decisions),
+    },
+  )
+  session.on('event', event => {
+    if (event.type === 'permission_request') {
+      sawPermissionRequest?.()
+    }
+  })
+
+  const turn = session.sendUserMessage('run command', 'run command')
+  await permissionRequested
+  await session.dispose()
+  await turn
+
+  expect(decisions).toEqual([
+    {
+      behavior: 'deny',
+      message: 'Session disposed before approval',
+    },
+  ])
+})
+
+test('permission requested after dispose abort resolves instead of hanging', async () => {
+  const decisions: unknown[] = []
+  const session = createDesktopAgentSession(
+    {
+      workspacePath: resolve('tmp', 'desktop-workspace'),
+      sessionId: 'session-late-permission-after-dispose',
+      suppressStartupMessage: true,
+      permissionMode: 'default',
+    },
+    {
+      createRuntime: context => createLatePermissionAfterAbortRuntime(context, decisions),
+    },
+  )
+
+  const turn = session.sendUserMessage('run command', 'run command')
+  await Promise.resolve()
+  await session.dispose()
+  await expect(settlesWithin(turn, 100)).resolves.toBe('settled')
+
+  expect(decisions).toEqual([
+    {
+      behavior: 'deny',
+      message: 'Session disposed before approval',
+    },
+  ])
+})
+
 function createRecoveredQuestionRuntime(
   controlResponses: Record<string, unknown>[],
 ): DesktopAgentRuntime {
@@ -405,6 +553,52 @@ function createRecoveredQuestionRuntime(
     runUserTurn: async () => {},
     runControlResponse: async response => {
       controlResponses.push(response)
+    },
+  }
+}
+
+function createRecoveredPlanRuntime(userTurns: unknown[]): DesktopAgentRuntime {
+  return {
+    setModel: () => {},
+    setModelProvider: () => {},
+    setDebugConversationDump: () => {},
+    setPermissionMode: () => {},
+    setPlanModeActive: () => {},
+    runControlResponse: async () => {},
+    runUserTurn: async content => {
+      userTurns.push(content)
+    },
+  }
+}
+
+function createDoubleQuestionRuntime(
+  context: DesktopAgentRuntimeContext,
+  decisions: unknown[],
+): DesktopAgentRuntime {
+  return {
+    setModel: () => {},
+    setModelProvider: () => {},
+    setDebugConversationDump: () => {},
+    setPermissionMode: () => {},
+    setPlanModeActive: () => {},
+    runControlResponse: async () => {},
+    async runUserTurn() {
+      const firstDecision = context.requestPermission({
+        requestId: 'question-1',
+        toolName: 'AskUserQuestion',
+        input: questionInput('First?'),
+        description: 'Answer first question',
+      })
+      await Promise.resolve()
+      decisions.push(
+        await context.requestPermission({
+          requestId: 'question-2',
+          toolName: 'AskUserQuestion',
+          input: questionInput('Second?'),
+          description: 'Answer second question',
+        }),
+      )
+      decisions.push(await firstDecision)
     },
   }
 }
@@ -429,5 +623,59 @@ function createPermissionRuntime(
       })
       decisions.push(decision)
     },
+  }
+}
+
+function createLatePermissionAfterAbortRuntime(
+  context: DesktopAgentRuntimeContext,
+  decisions: unknown[],
+): DesktopAgentRuntime {
+  return {
+    setModel: () => {},
+    setModelProvider: () => {},
+    setDebugConversationDump: () => {},
+    setPermissionMode: () => {},
+    setPlanModeActive: () => {},
+    runControlResponse: async () => {},
+    async runUserTurn(_content, signal) {
+      await new Promise<void>(resolve => {
+        signal.addEventListener('abort', () => resolve(), { once: true })
+      })
+      decisions.push(
+        await context.requestPermission({
+          requestId: 'permission-after-abort',
+          toolName: 'PowerShell',
+          input: { command: 'echo late' },
+          description: 'Run shell after abort',
+        }),
+      )
+    },
+  }
+}
+
+async function settlesWithin(
+  promise: Promise<unknown>,
+  timeoutMs: number,
+): Promise<'settled' | 'timeout'> {
+  return Promise.race([
+    promise.then(() => 'settled' as const),
+    new Promise<'timeout'>(resolve =>
+      setTimeout(() => resolve('timeout'), timeoutMs),
+    ),
+  ])
+}
+
+function questionInput(question: string): Record<string, unknown> {
+  return {
+    questions: [
+      {
+        question,
+        header: 'Q',
+        options: [
+          { label: 'Yes', description: 'Choose yes' },
+          { label: 'No', description: 'Choose no' },
+        ],
+      },
+    ],
   }
 }

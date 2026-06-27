@@ -1,4 +1,5 @@
-import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
+import { mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import {
   isAgentApprovalMode,
@@ -34,7 +35,6 @@ import { desktopAgentEventToSessionEvent } from '../shared/sessionEventModel.js'
 import {
   normalizeDesktopApprovalPolicy,
   normalizeDesktopApprovalsReviewer,
-  normalizeAskUserQuestionMaxQuestions,
   normalizeDesktopPermissionProfile,
   normalizeDesktopPermissionMode,
 } from '../shared/settingsSchema.js'
@@ -85,6 +85,12 @@ type ParsedTranscriptView = DesktopSessionViewSnapshot & {
   events: DesktopSessionEvent[]
 }
 
+type AtomicWriteOperations = {
+  mkdir(path: string, options: { recursive: true }): Promise<unknown>
+  writeFile(path: string, content: string, encoding: 'utf8'): Promise<unknown>
+  rename(from: string, to: string): Promise<unknown>
+}
+
 const SESSION_INDEX_FILE_NAME = 'sessions.json'
 const TRANSCRIPT_ENRICH_LIMIT = Number.MAX_SAFE_INTEGER
 
@@ -92,14 +98,46 @@ export function getDesktopSessionIndexPath(): string {
   return join(getDesktopConfigDirectoryPath(), SESSION_INDEX_FILE_NAME)
 }
 
+export function buildDesktopSessionIndexTempPath(
+  filePath: string,
+  nonce: string = randomUUID(),
+): string {
+  return join(dirname(filePath), `.${basename(filePath)}.${nonce}.tmp`)
+}
+
+export async function writeFileAtomically(
+  filePath: string,
+  content: string,
+  operations: AtomicWriteOperations = {
+    mkdir,
+    writeFile,
+    rename,
+  },
+  nonce?: string,
+): Promise<void> {
+  await operations.mkdir(dirname(filePath), { recursive: true })
+  const tempPath = buildDesktopSessionIndexTempPath(filePath, nonce)
+  await operations.writeFile(tempPath, content, 'utf8')
+  await operations.rename(tempPath, filePath)
+}
+
 export async function loadDesktopSessionStore(): Promise<PersistedDesktopSessions> {
   const persisted = await readDesktopSessionOverlayStore()
-  const overlaysById = new Map(
-    persisted.sessions.map(overlay => [overlay.id, overlay]),
-  )
+  const overlaysById = new Map<string, DesktopSessionOverlay>()
+  for (const overlay of persisted.sessions) {
+    if (overlaysById.has(overlay.id)) {
+      console.warn(`Duplicate desktop session id ignored: ${overlay.id}`)
+      continue
+    }
+    overlaysById.set(overlay.id, overlay)
+  }
   const snapshotsById = new Map<string, DesktopSessionSnapshot>()
 
   for (const snapshot of await loadTranscriptSessionSnapshots(overlaysById)) {
+    if (snapshotsById.has(snapshot.item.id)) {
+      console.warn(`Duplicate desktop session id ignored: ${snapshot.item.id}`)
+      continue
+    }
     snapshotsById.set(snapshot.item.id, snapshot)
   }
 
@@ -159,7 +197,7 @@ export async function saveDesktopSessionStore(
     sessions: state.sessions.map(snapshot => {
       const overlay = overlayFromSnapshot(
         snapshot,
-        shouldPersistRecoverablePendingQuestionSnapshot(snapshot)
+        shouldPersistRecoverablePendingInteractionSnapshot(snapshot)
           ? snapshot
           : undefined,
       )
@@ -184,8 +222,7 @@ export async function saveDesktopSessionStore(
       }
     }),
   }
-  await mkdir(dirname(filePath), { recursive: true })
-  await writeFile(filePath, JSON.stringify(overlayStore, null, 2), 'utf8')
+  await writeFileAtomically(filePath, JSON.stringify(overlayStore, null, 2))
 }
 
 export function createDesktopSessionSnapshot(params: {
@@ -560,7 +597,7 @@ function normalizeSessionSnapshot(value: unknown): DesktopSessionSnapshot[] {
   const lastMessageAt =
     item.lastMessageAt ?? latestMessageTimestamp(view.messages) ?? updatedAt
   const recoverablePendingPermissions =
-    recoverablePendingQuestionRequests(view.pendingPermissions)
+    recoverablePendingInteractionRequests(view.pendingPermissions)
   const restoredStatus =
     recoverablePendingPermissions.length > 0 && item.status === 'waiting'
       ? 'waiting'
@@ -655,7 +692,7 @@ function snapshotFromTranscriptLog(
       }
   const overlayRecoverablePendingPermissions =
     overlay?.legacySnapshot?.view.pendingPermissions
-      ? recoverablePendingQuestionRequests(
+      ? recoverablePendingInteractionRequests(
           normalizeViewSnapshot(overlay.legacySnapshot.view).pendingPermissions,
         )
       : []
@@ -1194,9 +1231,6 @@ function normalizeSettingsSnapshot(
           (directory): directory is string => typeof directory === 'string',
         )
       : [],
-    askUserQuestionMaxQuestions: normalizeAskUserQuestionMaxQuestions(
-      settings.askUserQuestionMaxQuestions,
-    ),
     rustSearchAndDiffKernels: settings.rustSearchAndDiffKernels === true,
   }
 }
@@ -1210,7 +1244,6 @@ function defaultSettingsSnapshot(): DesktopSessionSettingsSnapshot {
     planModeActive: false,
     thinkingMode: 'default',
     additionalDirectories: [],
-    askUserQuestionMaxQuestions: 1,
     rustSearchAndDiffKernels: false,
   }
 }
@@ -1486,21 +1519,40 @@ function normalizePermissionRequest(value: unknown): DesktopPermissionRequest[] 
   ]
 }
 
-function shouldPersistRecoverablePendingQuestionSnapshot(
+function shouldPersistRecoverablePendingInteractionSnapshot(
   snapshot: DesktopSessionSnapshot,
 ): boolean {
-  return recoverablePendingQuestionRequests(snapshot.view.pendingPermissions)
+  return recoverablePendingInteractionRequests(snapshot.view.pendingPermissions)
     .length > 0
 }
 
-function recoverablePendingQuestionRequests(
+function recoverablePendingInteractionRequests(
   requests: DesktopPermissionRequest[],
 ): DesktopPermissionRequest[] {
   return requests.filter(
     request =>
-      request.toolName === 'AskUserQuestion' &&
-      typeof request.toolUseId === 'string' &&
-      request.toolUseId.trim().length > 0,
+      isRecoverablePendingQuestionRequest(request) ||
+      isRecoverablePendingExitPlanModeRequest(request),
+  )
+}
+
+function isRecoverablePendingQuestionRequest(
+  request: DesktopPermissionRequest,
+): boolean {
+  return (
+    request.toolName === 'AskUserQuestion' &&
+    typeof request.toolUseId === 'string' &&
+    request.toolUseId.trim().length > 0
+  )
+}
+
+function isRecoverablePendingExitPlanModeRequest(
+  request: DesktopPermissionRequest,
+): boolean {
+  return (
+    request.toolName === 'ExitPlanMode' &&
+    typeof request.input.plan === 'string' &&
+    request.input.plan.trim().length > 0
   )
 }
 

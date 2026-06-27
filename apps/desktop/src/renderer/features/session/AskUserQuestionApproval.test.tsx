@@ -8,6 +8,8 @@ import {
   initialQuestionState,
   nextOptionLabel,
   nextQuestionIndex,
+  shouldSubmitOptionClick,
+  toggleMultiSelectOption,
 } from './AskUserQuestionApproval.js'
 import type { DesktopPermissionRequest } from '../../../shared/types.js'
 
@@ -87,6 +89,28 @@ test('nextOptionLabel clamps keyboard option navigation', () => {
   expect(nextOptionLabel(question, 'A', 1)).toBe('B')
   expect(nextOptionLabel(question, 'B', 1)).toBe('B')
   expect(nextOptionLabel(question, 'B', -1)).toBe('A')
+})
+
+test('single-select option clicks submit but multi-select clicks only toggle', () => {
+  expect(shouldSubmitOptionClick({ multiSelect: false })).toBe(true)
+  expect(shouldSubmitOptionClick({ multiSelect: true })).toBe(false)
+})
+
+test('toggleMultiSelectOption toggles labels without clearing other selected labels', () => {
+  expect(
+    toggleMultiSelectOption({ selected: ['A'], custom: '' }, 'B'),
+  ).toEqual({
+    selected: ['A', 'B'],
+    custom: '',
+    focused: 'B',
+  })
+  expect(
+    toggleMultiSelectOption({ selected: ['A', 'B'], custom: '' }, 'A'),
+  ).toEqual({
+    selected: ['B'],
+    custom: '',
+    focused: 'A',
+  })
 })
 
 test('question pagination clamps to available questions', () => {

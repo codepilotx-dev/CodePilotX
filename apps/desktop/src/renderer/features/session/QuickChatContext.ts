@@ -11,6 +11,7 @@ import type {
   DesktopWorkspace,
 } from '../../../shared/types.js'
 import type { RightDockToolId } from '../layout/rightDockState.js'
+import type { RightDockPlan } from '../layout/rightDockTools.js'
 
 export type QuickChatContextValue = {
   isConversationRoute: boolean
@@ -32,6 +33,7 @@ export type QuickChatContextValue = {
   onOpenAutomation: () => void
   onOpenWorkspacePath: () => void
   onOpenRightDock: (tool: RightDockToolId) => void
+  onOpenPlanInRightDock: (plan: RightDockPlan) => void
   onRefreshDiff: () => void
   onToggleSidebar: () => void
   onToggleSessionPinned: () => void
@@ -55,6 +57,7 @@ export type QuickChatContextValue = {
   composer: React.ReactNode
   rightDockOpen: boolean
   rightDockTool: RightDockToolId | null
+  rightDockPlanContent: string | null
 }
 
 export const QuickChatContext = createContext<QuickChatContextValue | null>(null)

@@ -71,14 +71,6 @@ const REVIEW_OPTIONS: Array<{ value: DesktopReviewView; label: string }> = [
   { value: 'split', label: '分离视图' },
 ];
 
-const ASK_USER_QUESTION_OPTIONS: Array<{ value: '1' | '2' | '3' | '4'; label: string }> = [
-  { value: '1', label: '1' },
-  { value: '2', label: '2' },
-  { value: '3', label: '3' },
-  { value: '4', label: '4' },
-];
-type AskUserQuestionOptionValue = (typeof ASK_USER_QUESTION_OPTIONS)[number]['value'];
-
 type WorkMode = 'coding' | 'daily';
 
 const WORK_MODES: Array<{
@@ -151,7 +143,6 @@ export function GeneralSettings({
     showContextUsage,
     defaultOpenTargetId,
     reviewView,
-    askUserQuestionMaxQuestions,
     rustSearchAndDiffKernels,
   } = draft.values;
 
@@ -189,11 +180,6 @@ export function GeneralSettings({
   )
   const setReviewView = useCallback(
     (value: DesktopReviewView) => draft.setValue('reviewView', value),
-    [draft],
-  )
-  const setAskUserQuestionMaxQuestions = useCallback(
-    (value: typeof askUserQuestionMaxQuestions) =>
-      draft.setValue('askUserQuestionMaxQuestions', value),
     [draft],
   )
   const setRustSearchAndDiffKernels = useCallback(
@@ -438,30 +424,6 @@ export function GeneralSettings({
                 value={reviewView}
                 options={REVIEW_OPTIONS}
                 onChange={setReviewView}
-              />
-            }
-          />
-          <SettingsRow
-            title='最大同时问题数'
-            description='一次 AskUserQuestion 可同时提出的问题数量；多题会在对话框中切换显示。此设置仅影响新对话。'
-            control={
-              <SegmentedControl
-                value={String(askUserQuestionMaxQuestions) as '1' | '2' | '3' | '4'}
-                options={ASK_USER_QUESTION_OPTIONS}
-                onChange={value => {
-                  const nextValue =
-                    typeof value === 'function'
-                      ? value(
-                          String(
-                            askUserQuestionMaxQuestions,
-                          ) as AskUserQuestionOptionValue,
-                        )
-                      : value
-                  if (nextValue === String(askUserQuestionMaxQuestions)) return
-                  setAskUserQuestionMaxQuestions(
-                    Number(nextValue) as 1 | 2 | 3 | 4,
-                  )
-                }}
               />
             }
           />

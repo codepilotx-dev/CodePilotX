@@ -1,15 +1,79 @@
-import { expect, test } from 'bun:test'
-import {
-  askUserQuestionMaxQuestionsEnv,
+import { expect, mock, test } from 'bun:test'
+import * as childProcess from 'node:child_process'
+import { EventEmitter } from 'node:events'
+import * as fs from 'node:fs'
+import { PassThrough, Writable } from 'node:stream'
+
+const spawnedChildren: FakeChildProcess[] = []
+
+class RecordingStdin extends Writable {
+  writeCount = 0
+  endCount = 0
+  writes: string[] = []
+
+  override _write(
+    chunk: Buffer | string,
+    _encoding: BufferEncoding,
+    callback: (error?: Error | null) => void,
+  ): void {
+    this.writeCount += 1
+    this.writes.push(String(chunk))
+    callback()
+  }
+
+  override end(cb?: () => void): this
+  override end(chunk: unknown, cb?: () => void): this
+  override end(chunk: unknown, encoding: BufferEncoding, cb?: () => void): this
+  override end(
+    chunkOrCallback?: unknown,
+    encodingOrCallback?: BufferEncoding | (() => void),
+    callback?: () => void,
+  ): this {
+    this.endCount += 1
+    return super.end(chunkOrCallback as never, encodingOrCallback as never, callback)
+  }
+}
+
+class FakeChildProcess extends EventEmitter {
+  readonly stdout = new PassThrough()
+  readonly stderr = new PassThrough()
+  readonly stdin = new RecordingStdin()
+  killed = false
+
+  kill(): boolean {
+    this.killed = true
+    this.emit('exit', null)
+    return true
+  }
+}
+
+mock.module('node:fs', () => ({
+  ...fs,
+  existsSync: () => true,
+}))
+
+mock.module('node:child_process', () => ({
+  ...childProcess,
+  spawn: mock(() => {
+    const child = new FakeChildProcess()
+    spawnedChildren.push(child)
+    return child
+  }),
+}))
+
+const agentRuntime = await import('./agentRuntime.js')
+const {
+  appendCappedText,
   buildAskUserQuestionControlResponse,
   buildDesktopPermissionRequestFromControlRequest,
   codexPermissionConfigForMode,
   codexPermissionConfigArgs,
+  createDesktopAgentRuntime,
   permissionModeArgs,
   permissionPromptToolArgs,
   permissionPromptToolName,
   rustSearchAndDiffKernelEnv,
-} from './agentRuntime.js'
+} = agentRuntime
 import { getToolUseId } from './agentRuntimeSupport.js'
 
 test('codexPermissionConfigArgs maps desktop permissions to official config overrides', () => {
@@ -43,15 +107,6 @@ test('desktop runtimes use stdio permission prompt protocol', () => {
     '--permission-prompt-tool',
     'stdio',
   ])
-})
-
-test('desktop runtime exports AskUserQuestion max questions env when configured', () => {
-  expect(askUserQuestionMaxQuestionsEnv({})).toEqual({})
-  expect(
-    askUserQuestionMaxQuestionsEnv({ askUserQuestionMaxQuestions: 3 }),
-  ).toEqual({
-    CODEPILOTX_ASK_USER_QUESTION_MAX_QUESTIONS: '3',
-  })
 })
 
 test('codexPermissionConfigForMode maps desktop modes to official Codex config', () => {
@@ -164,4 +219,140 @@ test('desktop runtime builds AskUserQuestion resume control response', () => {
       },
     },
   )
+})
+
+test('appendCappedText preserves the newest stderr tail inside the cap', () => {
+  expect(appendCappedText('abcdef', 'ghijkl', 8)).toBe('efghijkl')
+  expect(appendCappedText('', 'tool stderr', 32)).toBe('tool stderr')
+})
+
+test('subprocess runtime does not emit stderr chunks as tool results', async () => {
+  spawnedChildren.length = 0
+  const events: Array<Record<string, unknown>> = []
+  const runtime = createDesktopAgentRuntime({
+    sessionId: 'stderr-session',
+    workspacePath: '/workspace',
+    agentExecutablePath: '/fake/codex',
+    runtimePreference: 'subprocess',
+    emit: event => events.push(event as Record<string, unknown>),
+    requestPermission: async () => ({ behavior: 'deny' }),
+  })
+
+  const turn = runtime.runUserTurn('hello', new AbortController().signal)
+  const child = spawnedChildren.at(-1)
+  if (!child) throw new Error('expected subprocess child')
+
+  child.stderr.write('stderr line 1\n')
+  child.stdout.end()
+  child.emit('exit', 1)
+
+  await expect(turn).rejects.toThrow('stderr line 1')
+  expect(events.filter(event => event.type === 'tool_result')).toHaveLength(0)
+})
+
+test('subprocess result after partial streaming emits the final assistant message only once', async () => {
+  spawnedChildren.length = 0
+  const events: Array<Record<string, unknown>> = []
+  const runtime = createDesktopAgentRuntime({
+    sessionId: 'partial-session',
+    workspacePath: '/workspace',
+    agentExecutablePath: '/fake/codex',
+    runtimePreference: 'subprocess',
+    emit: event => events.push(event as Record<string, unknown>),
+    requestPermission: async () => ({ behavior: 'deny' }),
+  })
+
+  const turn = runtime.runUserTurn('hello', new AbortController().signal)
+  const child = spawnedChildren.at(-1)
+  if (!child) throw new Error('expected subprocess child')
+
+  child.stdout.write(
+    `${JSON.stringify({
+      type: 'assistant',
+      message: {
+        role: 'assistant',
+        content: [
+          { type: 'content_block_delta', delta: { type: 'text_delta', text: 'Hello' } },
+        ],
+      },
+    })}\n`,
+  )
+  child.stdout.write(
+    `${JSON.stringify({ type: 'result', result: 'Hello world' })}\n`,
+  )
+  child.stdout.write(
+    `${JSON.stringify({ type: 'result', result: 'Hello world' })}\n`,
+  )
+  child.stdout.end()
+  child.emit('exit', 0)
+
+  await turn
+  expect(
+    events.filter(
+      event => event.type === 'message' && event.role === 'assistant',
+    ),
+  ).toHaveLength(1)
+})
+
+test('subprocess duplicate result does not emit after partial already reached final text', async () => {
+  spawnedChildren.length = 0
+  const events: Array<Record<string, unknown>> = []
+  const runtime = createDesktopAgentRuntime({
+    sessionId: 'partial-equals-result-session',
+    workspacePath: '/workspace',
+    agentExecutablePath: '/fake/codex',
+    runtimePreference: 'subprocess',
+    emit: event => events.push(event as Record<string, unknown>),
+    requestPermission: async () => ({ behavior: 'deny' }),
+  })
+
+  const turn = runtime.runUserTurn('hello', new AbortController().signal)
+  const child = spawnedChildren.at(-1)
+  if (!child) throw new Error('expected subprocess child')
+
+  child.stdout.write(
+    `${JSON.stringify({
+      type: 'assistant',
+      message: {
+        role: 'assistant',
+        content: [
+          { type: 'content_block_delta', delta: { type: 'text_delta', text: 'Hello' } },
+        ],
+      },
+    })}\n`,
+  )
+  child.stdout.write(`${JSON.stringify({ type: 'result', result: 'Hello' })}\n`)
+  child.stdout.write(`${JSON.stringify({ type: 'result', result: 'Hello' })}\n`)
+  child.stdout.end()
+  child.emit('exit', 0)
+
+  await turn
+  expect(
+    events.filter(
+      event => event.type === 'message' && event.role === 'assistant',
+    ),
+  ).toHaveLength(0)
+})
+
+test('subprocess result does not close stdin inside emitResultMessage', async () => {
+  const runtime = createDesktopAgentRuntime({
+    sessionId: 'stdin-session',
+    workspacePath: '/workspace',
+    agentExecutablePath: '/fake/codex',
+    runtimePreference: 'subprocess',
+    emit: () => undefined,
+    requestPermission: async () => ({ behavior: 'deny' }),
+  }) as Record<string, unknown>
+  const child = new FakeChildProcess()
+
+  runtime.child = child
+  runtime.emittedAssistantText = false
+  runtime.partialText = ''
+
+  await (runtime.emitResultMessage as (message: Record<string, unknown>) => Promise<void>)({
+    type: 'result',
+    result: 'done',
+  })
+
+  expect(child.stdin.endCount).toBe(0)
 })
