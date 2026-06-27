@@ -43,7 +43,11 @@ export function SidebarContextMenu({
     <Theme appearance={resolvedVariant} hasBackground={false}>
       <ContextMenu.Root>
         <ContextMenu.Trigger>{trigger}</ContextMenu.Trigger>
-        <ContextMenu.Content size={size} variant={variant}>
+        <ContextMenu.Content
+          className="sidebar-context-menu-content"
+          size={size}
+          variant={variant}
+        >
           {actions.map((action, index) => renderAction(action, index))}
         </ContextMenu.Content>
       </ContextMenu.Root>

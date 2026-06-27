@@ -7,6 +7,9 @@
   --c-bg-row-hover: var(--gray-3);
   --c-bg-chip-hover: var(--blue-3);
   --c-bg-card: var(--gray-1);
+  --c-popover-bg: #ffffff;
+  --c-popover-border: rgba(0, 0, 0, 0.06);
+  --c-popover-divider: rgba(0, 0, 0, 0.06);
   --c-surface: var(--gray-1);
   --c-ink: var(--gray-12);
   --c-border: var(--gray-5);
@@ -81,6 +84,9 @@
   --c-bg-row-hover: var(--gray-3);
   --c-bg-chip-hover: var(--blue-3);
   --c-bg-card: var(--gray-2);
+  --c-popover-bg: #2a2b32;
+  --c-popover-border: rgba(255, 255, 255, 0.08);
+  --c-popover-divider: rgba(255, 255, 255, 0.08);
   --c-surface: var(--gray-1);
   --c-ink: var(--gray-12);
   --c-border: var(--gray-6);
