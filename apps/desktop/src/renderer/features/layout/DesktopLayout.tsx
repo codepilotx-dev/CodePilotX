@@ -2,82 +2,88 @@ import {
   desktopClient,
   readDesktopBrowserDebugMode,
   writeDesktopBrowserDebugMode,
-} from '../../services/desktopClient.js'
-import type React from 'react'
-import { Outlet, useLocation, useNavigate } from 'react-router-dom'
+} from "../../services/desktopClient.js";
+import type React from "react";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   DesktopComposer,
   getDesktopComposerBranchName,
-} from '../session/DesktopComposer.js'
-import { DesktopAppShell } from './DesktopAppShell.js'
-import { RightDock } from './RightDock.js'
+} from "../session/DesktopComposer.js";
+import { DesktopAppShell } from "./DesktopAppShell.js";
+import { RightDock } from "./RightDock.js";
 import {
   applyRightDockAction,
   type RightDockState,
   type RightDockToolId,
-} from './rightDockState.js'
-import type { RightDockPlan } from './rightDockTools.js'
-import { DesktopSidebar } from './DesktopSidebar.js'
-import { GlobalErrorModal } from '../../components/GlobalErrorModal.js'
-import {
-  GitWorkflowModal,
-  type GitWorkflowMode,
-} from './GitWorkflowModal.js'
-import { GithubRepositoryModal } from './GithubRepositoryModal.js'
-import { SettingsSidebarContent } from '../settings/SettingsSidebarContent.js'
-import { SidebarFrame } from './SidebarFrame.js'
-import { MenuBar } from './MenuBar.js'
+} from "./rightDockState.js";
+import type { RightDockPlan } from "./rightDockTools.js";
+import { DesktopSidebar } from "./DesktopSidebar.js";
+import { GlobalErrorModal } from "../../components/GlobalErrorModal.js";
+import { GitWorkflowModal, type GitWorkflowMode } from "./GitWorkflowModal.js";
+import { GithubRepositoryModal } from "./GithubRepositoryModal.js";
+import { SettingsSidebarContent } from "../settings/SettingsSidebarContent.js";
+import { SidebarFrame } from "./SidebarFrame.js";
+import { MenuBar } from "./MenuBar.js";
 import type {
   EditMenuAction,
   FileMenuAction,
   HelpMenuAction,
   ViewMenuAction,
   WindowMenuAction,
-} from './MenuBar.js'
-import { QuickChatContext } from '../session/QuickChatContext.js'
-import { SearchContext } from '../search/SearchContext.js'
-import type { SessionListItem } from '../../uiTypes.js'
-import { useDesktopSettings } from '../settings/useDesktopSettings.js'
+} from "./MenuBar.js";
+import { QuickChatContext } from "../session/QuickChatContext.js";
+import { SearchContext } from "../search/SearchContext.js";
+import type { SessionListItem } from "../../uiTypes.js";
+import { useDesktopSettings } from "../settings/useDesktopSettings.js";
 import {
   SIDEBAR_MAX_WIDTH,
   SIDEBAR_MIN_WIDTH,
   useDesktopLayout,
-} from './useDesktopLayout.js'
+} from "./useDesktopLayout.js";
 import {
   NO_WORKSPACE_DIFF,
   useWorkspaceState,
-} from '../workspace/useWorkspaceState.js'
-import { shouldRestoreLastWorkspace } from '../workspace/lastWorkspaceRestore.js'
-import { useSessionState } from '../session/useSessionState.js'
-import { useDesktopCommands } from '../session/useDesktopCommands.js'
-import { useDesktopSearch } from '../search/useDesktopSearch.js'
+} from "../workspace/useWorkspaceState.js";
+import { shouldRestoreLastWorkspace } from "../workspace/lastWorkspaceRestore.js";
+import { useSessionState } from "../session/useSessionState.js";
+import { useDesktopCommands } from "../session/useDesktopCommands.js";
+import { useDesktopSearch } from "../search/useDesktopSearch.js";
 import {
   CUSTOM_MODEL_PRESET_ID,
   buildModelPresets,
   resolveModelPresetId,
-} from '../../modelPresets.js'
+} from "../../modelPresets.js";
 import type {
   DesktopModelMetadata,
   DesktopModelProviderSummary,
   DesktopModelProviderState,
+  DesktopAgentPickerEntry,
   DesktopBrowserState,
   DesktopPermissionMode,
+  DesktopSessionStatus,
   DesktopWorkspace,
   ModelProviderID,
-} from '../../../shared/types.js'
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+} from "../../../shared/types.js";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 const RUNTIME_WARNING_MESSAGE =
-  '桌面端 agent 运行时缺失，发送消息前请先执行 `bun run desktop:agent:build`。'
-const QUICK_CHAT_PATH = '/quick-chat'
-const RIGHT_DOCK_WIDTH_STORAGE_KEY = 'codex.desktop.rightDockWidth'
-const RIGHT_DOCK_MIN_WIDTH = 480
-const RIGHT_DOCK_MAX_WIDTH = 960
-const RIGHT_DOCK_DEFAULT_WIDTH = 760
-const RIGHT_DOCK_MAIN_MIN_WIDTH = 360
+  "桌面端 agent 运行时缺失，发送消息前请先执行 `bun run desktop:agent:build`。";
+const QUICK_CHAT_PATH = "/quick-chat";
+const RIGHT_DOCK_WIDTH_STORAGE_KEY = "codex.desktop.rightDockWidth";
+const RIGHT_DOCK_MIN_WIDTH = 480;
+const RIGHT_DOCK_MAX_WIDTH = 960;
+const RIGHT_DOCK_DEFAULT_WIDTH = 760;
+const RIGHT_DOCK_MAIN_MIN_WIDTH = 360;
 
 export function DesktopLayout(): React.ReactNode {
-  const settings = useDesktopSettings()
+  const settings = useDesktopSettings();
   const {
     permissionMode,
     model,
@@ -112,56 +118,58 @@ export function DesktopLayout(): React.ReactNode {
     setDrawerTab,
     setSelectedModelPreset,
     setReviewView,
-  } = settings
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [runtimeWarningDismissed, setRuntimeWarningDismissed] = useState(false)
-  const [archiveNoticeVisible, setArchiveNoticeVisible] = useState(false)
-  const [isWindowMaximized, setIsWindowMaximized] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
+  } = settings;
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [runtimeWarningDismissed, setRuntimeWarningDismissed] = useState(false);
+  const [archiveNoticeVisible, setArchiveNoticeVisible] = useState(false);
+  const [isWindowMaximized, setIsWindowMaximized] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [providerState, setProviderState] =
-    useState<DesktopModelProviderState | null>(null)
+    useState<DesktopModelProviderState | null>(null);
   const [modelProviders, setModelProviders] = useState<
     DesktopModelProviderSummary[]
-  >([])
+  >([]);
   const [gitWorkflowMode, setGitWorkflowMode] =
-    useState<GitWorkflowMode | null>(null)
+    useState<GitWorkflowMode | null>(null);
   const [githubRepositoryModalOpen, setGithubRepositoryModalOpen] =
-    useState(false)
+    useState(false);
   const [browserState, setBrowserState] = useState<DesktopBrowserState | null>(
     null,
-  )
+  );
   const [rightDockState, setRightDockState] = useState<RightDockState>({
     open: false,
     activeTool: null,
     openTools: [],
-  })
-  const [rightDockPlan, setRightDockPlan] = useState<RightDockPlan | null>(null)
+  });
+  const [rightDockPlan, setRightDockPlan] = useState<RightDockPlan | null>(
+    null,
+  );
   const [menubarDebugMode, setMenubarDebugMode] = useState(() =>
     readDesktopBrowserDebugMode(),
-  )
+  );
   const [rightDockWidth, setRightDockWidth] = useState(() =>
     getInitialRightDockWidth(),
-  )
+  );
 
-  const layout = useDesktopLayout()
+  const layout = useDesktopLayout();
   const {
     sidebarCollapsed,
     sidebarWidth,
     setSidebarCollapsed,
     setSidebarWidth,
     toggleSidebarCollapsed,
-  } = layout
+  } = layout;
 
   const collapseSidebar = useCallback((): void => {
-    setSidebarCollapsed(true)
-  }, [setSidebarCollapsed])
+    setSidebarCollapsed(true);
+  }, [setSidebarCollapsed]);
 
   const workspace = useWorkspaceState({
     onError: (message: string) => setErrorMessage(message || null),
-    onRecentWorkspacesChange: next => {
-      setRecentWorkspaces(next)
+    onRecentWorkspacesChange: (next) => {
+      setRecentWorkspaces(next);
     },
-  })
+  });
   const {
     workspace: currentWorkspace,
     files: workspaceFiles,
@@ -176,15 +184,15 @@ export function DesktopLayout(): React.ReactNode {
     setWorkspace: setWorkspaceState,
     setDiff: setDiffState,
     gitStatus,
-  } = workspace
+  } = workspace;
 
   const derivedDefaultBranch = useMemo(() => {
-    if (!gitStatus?.upstream) return null
-    const upstream = gitStatus.upstream
-    const lastSlash = upstream.lastIndexOf('/')
-    return lastSlash >= 0 ? upstream.slice(lastSlash + 1) : upstream
-  }, [gitStatus?.upstream])
-  const [homePlanModeActive, setHomePlanModeActive] = useState(false)
+    if (!gitStatus?.upstream) return null;
+    const upstream = gitStatus.upstream;
+    const lastSlash = upstream.lastIndexOf("/");
+    return lastSlash >= 0 ? upstream.slice(lastSlash + 1) : upstream;
+  }, [gitStatus?.upstream]);
+  const [homePlanModeActive, setHomePlanModeActive] = useState(false);
 
   const session = useSessionState({
     permissionMode,
@@ -207,15 +215,15 @@ export function DesktopLayout(): React.ReactNode {
     onError: (message: string) => setErrorMessage(message),
     onDiffForActive: (patch: string) => setDiffState(patch),
     onRefreshActiveWorkspace: (sessionId: string) => {
-      const target = session.sessionId === sessionId ? currentWorkspace : null
-      if (!target) return
+      const target = session.sessionId === sessionId ? currentWorkspace : null;
+      if (!target) return;
       void refreshWorkspace(target, {
         clearSelectedFile: false,
         expectedSessionId: sessionId,
-      })
+      });
     },
-    onOpenDrawerPermissions: () => setDrawerTab('permissions'),
-  })
+    onOpenDrawerPermissions: () => setDrawerTab("permissions"),
+  });
   const {
     sessionId,
     sessionsHydrated,
@@ -225,6 +233,10 @@ export function DesktopLayout(): React.ReactNode {
     workflowEvents,
     messages,
     contextUsage,
+    goal,
+    backgroundTerminals,
+    agentEntries,
+    activeAgentThreadId,
     pendingPermissions,
     input,
     setInput,
@@ -236,72 +248,80 @@ export function DesktopLayout(): React.ReactNode {
     updateSessionMetadata,
     setSessionPermissionMode,
     setSessionPlanModeActive,
+    refreshThreadGoal,
+    saveThreadGoal,
+    clearThreadGoal,
+    refreshBackgroundTerminals,
+    terminateBackgroundTerminal,
+    cleanBackgroundTerminals,
+    refreshAgentEntries,
+    selectAgentThread,
     activeSessionItem,
     planModeActive,
-  } = session
+  } = session;
 
-  const location = useLocation()
-  const navigate = useNavigate()
-  const routedSessionId = getRoutedSessionId(location.pathname)
-  const isQuickChatPage = location.pathname === QUICK_CHAT_PATH
-  const isConversationRoute = routedSessionId !== null
-  const isSettingsRoute = location.pathname === '/settings'
-  const fullLocationPath = `${location.pathname}${location.search}${location.hash}`
-  const settingsReturnPathRef = useRef(QUICK_CHAT_PATH)
-  const lastWorkspaceRestoreAttemptedRef = useRef(false)
+  const location = useLocation();
+  const navigate = useNavigate();
+  const routedSessionId = getRoutedSessionId(location.pathname);
+  const isQuickChatPage = location.pathname === QUICK_CHAT_PATH;
+  const isConversationRoute = routedSessionId !== null;
+  const isSettingsRoute = location.pathname === "/settings";
+  const fullLocationPath = `${location.pathname}${location.search}${location.hash}`;
+  const settingsReturnPathRef = useRef(QUICK_CHAT_PATH);
+  const lastWorkspaceRestoreAttemptedRef = useRef(false);
   const settingsActiveTab =
-    new URLSearchParams(location.search).get('tab') ?? 'general'
+    new URLSearchParams(location.search).get("tab") ?? "general";
 
   useEffect(() => {
     if (!isSettingsRoute) {
-      settingsReturnPathRef.current = fullLocationPath
+      settingsReturnPathRef.current = fullLocationPath;
     }
-  }, [fullLocationPath, isSettingsRoute])
+  }, [fullLocationPath, isSettingsRoute]);
 
   useEffect(() => {
-    setActiveSessionId(sessionId)
-  }, [sessionId, setActiveSessionId])
+    setActiveSessionId(sessionId);
+  }, [sessionId, setActiveSessionId]);
 
   useLayoutEffect(() => {
-    if (!sessionsHydrated) return
+    if (!sessionsHydrated) return;
     if (!routedSessionId) {
-      activateSessionById(null)
-      return
+      activateSessionById(null);
+      return;
     }
 
-    const routedSession = sessions.find(item => item.id === routedSessionId)
+    const routedSession = sessions.find((item) => item.id === routedSessionId);
     if (!routedSession) {
-      activateSessionById(null)
-      setWorkspaceState(null)
-      setDiffState('未选择项目。')
-      setSelectedFile(null)
-      setErrorMessage(`找不到对话：${routedSessionId}`)
-      navigate(QUICK_CHAT_PATH, { replace: true })
-      return
+      activateSessionById(null);
+      setWorkspaceState(null);
+      setDiffState("未选择项目。");
+      setSelectedFile(null);
+      setErrorMessage(`找不到对话：${routedSessionId}`);
+      navigate(QUICK_CHAT_PATH, { replace: true });
+      return;
     }
 
     if (routedSession.archivedAt) {
-      activateSessionById(null)
-      setWorkspaceState(null)
-      setDiffState(NO_WORKSPACE_DIFF)
-      setSelectedFile(null)
-      navigate(QUICK_CHAT_PATH, { replace: true })
-      return
+      activateSessionById(null);
+      setWorkspaceState(null);
+      setDiffState(NO_WORKSPACE_DIFF);
+      setSelectedFile(null);
+      navigate(QUICK_CHAT_PATH, { replace: true });
+      return;
     }
 
-    if (sessionId === routedSessionId) return
+    if (sessionId === routedSessionId) return;
 
-    const nextWorkspace = activateSessionById(routedSessionId)
+    const nextWorkspace = activateSessionById(routedSessionId);
     if (!nextWorkspace) {
-      setWorkspaceState(null)
-      setDiffState('未选择项目。')
-      setSelectedFile(null)
-      return
+      setWorkspaceState(null);
+      setDiffState("未选择项目。");
+      setSelectedFile(null);
+      return;
     }
-    setWorkspaceState(nextWorkspace)
+    setWorkspaceState(nextWorkspace);
     void refreshWorkspace(nextWorkspace, {
       expectedSessionId: routedSessionId,
-    })
+    });
   }, [
     activateSessionById,
     navigate,
@@ -313,39 +333,37 @@ export function DesktopLayout(): React.ReactNode {
     setDiffState,
     setSelectedFile,
     setWorkspaceState,
-  ])
+  ]);
 
-  const handleChooseWorkspace = useCallback(
-    async (): Promise<DesktopWorkspace | null> => {
-      const selected = await chooseWorkspace()
-      if (!selected) return null
-      navigate(QUICK_CHAT_PATH)
-      setWorkspaceState(selected)
-      await refreshWorkspace(selected)
-      return selected
-    },
-    [chooseWorkspace, navigate, refreshWorkspace, setWorkspaceState],
-  )
+  const handleChooseWorkspace =
+    useCallback(async (): Promise<DesktopWorkspace | null> => {
+      const selected = await chooseWorkspace();
+      if (!selected) return null;
+      navigate(QUICK_CHAT_PATH);
+      setWorkspaceState(selected);
+      await refreshWorkspace(selected);
+      return selected;
+    }, [chooseWorkspace, navigate, refreshWorkspace, setWorkspaceState]);
 
   const handleOpenRecentWorkspace = useCallback(
     async (target: DesktopWorkspace): Promise<DesktopWorkspace | null> => {
-      const selected = await openRecentWorkspace(target)
-      if (!selected) return null
-      navigate(QUICK_CHAT_PATH)
-      setWorkspaceState(selected)
-      await refreshWorkspace(selected)
-      return selected
+      const selected = await openRecentWorkspace(target);
+      if (!selected) return null;
+      navigate(QUICK_CHAT_PATH);
+      setWorkspaceState(selected);
+      await refreshWorkspace(selected);
+      return selected;
     },
     [navigate, openRecentWorkspace, refreshWorkspace, setWorkspaceState],
-  )
+  );
 
   const handleClearWorkspace = useCallback((): void => {
-    navigate(QUICK_CHAT_PATH)
-    activateSessionById(null)
-    setWorkspaceState(null)
-    setDiffState(NO_WORKSPACE_DIFF)
-    setSelectedFile(null)
-    setInput('')
+    navigate(QUICK_CHAT_PATH);
+    activateSessionById(null);
+    setWorkspaceState(null);
+    setDiffState(NO_WORKSPACE_DIFF);
+    setSelectedFile(null);
+    setInput("");
   }, [
     activateSessionById,
     navigate,
@@ -353,16 +371,16 @@ export function DesktopLayout(): React.ReactNode {
     setInput,
     setSelectedFile,
     setWorkspaceState,
-  ])
+  ]);
 
   const handleGithubWorkspaceCloned = useCallback(
     (selected: DesktopWorkspace): void => {
-      navigate(QUICK_CHAT_PATH)
-      setWorkspaceState(selected)
-      void refreshWorkspace(selected)
+      navigate(QUICK_CHAT_PATH);
+      setWorkspaceState(selected);
+      void refreshWorkspace(selected);
     },
     [navigate, refreshWorkspace, setWorkspaceState],
-  )
+  );
 
   useEffect(() => {
     if (
@@ -374,337 +392,334 @@ export function DesktopLayout(): React.ReactNode {
         recentWorkspaceCount: recentWorkspaces.length,
       })
     ) {
-      return
+      return;
     }
-    const lastWorkspace = recentWorkspaces[0]
-    if (!lastWorkspace) return
-    lastWorkspaceRestoreAttemptedRef.current = true
-    void handleOpenRecentWorkspace(lastWorkspace)
+    const lastWorkspace = recentWorkspaces[0];
+    if (!lastWorkspace) return;
+    lastWorkspaceRestoreAttemptedRef.current = true;
+    void handleOpenRecentWorkspace(lastWorkspace);
   }, [
     currentWorkspace,
     handleOpenRecentWorkspace,
     isQuickChatPage,
     recentWorkspaces,
     settingsLoaded,
-  ])
+  ]);
 
-  const handleCreateSession = useCallback(async (
-    target?: DesktopWorkspace | null,
-  ): Promise<void> => {
-    if (target === null) {
-      navigate(QUICK_CHAT_PATH)
-      activateSessionById(null)
-      setWorkspaceState(null)
-      setDiffState('未选择项目。')
-      setSelectedFile(null)
-      setInput('')
-      return
-    }
-    const targetWorkspace = target === undefined ? currentWorkspace : target
-    if (targetWorkspace && targetWorkspace.path !== currentWorkspace?.path) {
-      const selected = await handleOpenRecentWorkspace(targetWorkspace)
-      if (!selected) return
-    } else {
-      navigate(QUICK_CHAT_PATH)
-    }
-    activateSessionById(null)
-    setInput('')
-  }, [
-    activateSessionById,
-    currentWorkspace,
-    handleOpenRecentWorkspace,
-    navigate,
-    setDiffState,
-    setInput,
-    setSelectedFile,
-    setWorkspaceState,
-  ])
+  const handleCreateSession = useCallback(
+    async (target?: DesktopWorkspace | null): Promise<void> => {
+      if (target === null) {
+        navigate(QUICK_CHAT_PATH);
+        activateSessionById(null);
+        setWorkspaceState(null);
+        setDiffState("未选择项目。");
+        setSelectedFile(null);
+        setInput("");
+        return;
+      }
+      const targetWorkspace = target === undefined ? currentWorkspace : target;
+      if (targetWorkspace && targetWorkspace.path !== currentWorkspace?.path) {
+        const selected = await handleOpenRecentWorkspace(targetWorkspace);
+        if (!selected) return;
+      } else {
+        navigate(QUICK_CHAT_PATH);
+      }
+      activateSessionById(null);
+      setInput("");
+    },
+    [
+      activateSessionById,
+      currentWorkspace,
+      handleOpenRecentWorkspace,
+      navigate,
+      setDiffState,
+      setInput,
+      setSelectedFile,
+      setWorkspaceState,
+    ],
+  );
 
   const handleBranchSelect = useCallback(
     async (branch: string): Promise<void> => {
       if (!currentWorkspace || currentWorkspace.branchName === branch) {
-        return
+        return;
       }
       try {
         const nextWorkspace = await desktopClient.checkoutWorkspaceBranch(
           currentWorkspace.path,
           branch,
-        )
-        setWorkspaceState(nextWorkspace)
-        await refreshWorkspace(nextWorkspace, { clearSelectedFile: true })
+        );
+        setWorkspaceState(nextWorkspace);
+        await refreshWorkspace(nextWorkspace, { clearSelectedFile: true });
       } catch (error) {
         setErrorMessage(
           error instanceof Error
             ? error.message
-            : String(error ?? '无法切换分支'),
-        )
+            : String(error ?? "无法切换分支"),
+        );
       }
     },
     [currentWorkspace, refreshWorkspace, setWorkspaceState],
-  )
+  );
 
   const handleWorkspaceChanged = useCallback(
     async (nextWorkspace: DesktopWorkspace): Promise<void> => {
-      setWorkspaceState(nextWorkspace)
-      await refreshWorkspace(nextWorkspace, { clearSelectedFile: true })
+      setWorkspaceState(nextWorkspace);
+      await refreshWorkspace(nextWorkspace, { clearSelectedFile: true });
     },
     [refreshWorkspace, setWorkspaceState],
-  )
+  );
 
   const handleOpenWorkspacePath = useCallback((): void => {
-    if (!currentWorkspace) return
+    if (!currentWorkspace) return;
     void desktopClient
       .openPathWithDefaultTarget(currentWorkspace.path)
-      .catch(error =>
+      .catch((error) =>
         setErrorMessage(error instanceof Error ? error.message : String(error)),
-      )
-  }, [currentWorkspace])
+      );
+  }, [currentWorkspace]);
 
   const handleRefreshDiff = useCallback((): void => {
-    if (!currentWorkspace) return
-    void refreshWorkspace(currentWorkspace, { clearSelectedFile: false })
-  }, [currentWorkspace, refreshWorkspace])
+    if (!currentWorkspace) return;
+    void refreshWorkspace(currentWorkspace, { clearSelectedFile: false });
+  }, [currentWorkspace, refreshWorkspace]);
 
   useEffect(() => {
-    writeDesktopBrowserDebugMode(undefined, menubarDebugMode)
+    writeDesktopBrowserDebugMode(undefined, menubarDebugMode);
     if (menubarDebugMode) {
-      void desktopClient.openDevTools()
+      void desktopClient.openDevTools();
     }
-  }, [menubarDebugMode])
+  }, [menubarDebugMode]);
 
   const refreshBrowserState = useCallback((): void => {
     void desktopClient
       .getBrowserState()
       .then(setBrowserState)
-      .catch(error =>
+      .catch((error) =>
         setErrorMessage(error instanceof Error ? error.message : String(error)),
-      )
-  }, [])
+      );
+  }, []);
 
   const openRightDockTool = useCallback(
     (tool: RightDockToolId): void => {
-      setRightDockState(current =>
+      setRightDockState((current) =>
         applyRightDockAction(
           current,
-          { type: 'openTool', tool },
+          { type: "openTool", tool },
           { debugMode: menubarDebugMode },
         ),
-      )
+      );
     },
     [menubarDebugMode],
-  )
+  );
 
-  const selectRightDockTool = useCallback(
-    (tool: RightDockToolId): void => {
-      setRightDockState(current =>
-        applyRightDockAction(current, { type: 'selectTool', tool }),
-      )
-    },
-    [],
-  )
+  const selectRightDockTool = useCallback((tool: RightDockToolId): void => {
+    setRightDockState((current) =>
+      applyRightDockAction(current, { type: "selectTool", tool }),
+    );
+  }, []);
 
-  const closeRightDockTool = useCallback(
-    (tool: RightDockToolId): void => {
-      setRightDockState(current =>
-        applyRightDockAction(current, { type: 'closeTool', tool }),
-      )
-    },
-    [],
-  )
+  const closeRightDockTool = useCallback((tool: RightDockToolId): void => {
+    setRightDockState((current) =>
+      applyRightDockAction(current, { type: "closeTool", tool }),
+    );
+  }, []);
 
   const closeRightDock = useCallback((): void => {
-    setRightDockState(current => applyRightDockAction(current, { type: 'close' }))
-  }, [])
+    setRightDockState((current) =>
+      applyRightDockAction(current, { type: "close" }),
+    );
+  }, []);
 
   const handleSetRightDockWidth = useCallback((nextWidth: number): void => {
-    setRightDockWidth(clampRightDockWidth(nextWidth))
-  }, [])
+    setRightDockWidth(clampRightDockWidth(nextWidth));
+  }, []);
 
   const handleResetRightDockWidth = useCallback((): void => {
-    setRightDockWidth(clampRightDockWidth(RIGHT_DOCK_DEFAULT_WIDTH))
-  }, [])
+    setRightDockWidth(clampRightDockWidth(RIGHT_DOCK_DEFAULT_WIDTH));
+  }, []);
 
   const handleOpenBrowser = useCallback((): void => {
-    openRightDockTool('browser')
+    openRightDockTool("browser");
     void desktopClient
       .openBrowser()
       .then(setBrowserState)
-      .catch(error =>
+      .catch((error) =>
         setErrorMessage(error instanceof Error ? error.message : String(error)),
-      )
-  }, [openRightDockTool])
+      );
+  }, [openRightDockTool]);
 
   const handleOpenFilesDock = useCallback((): void => {
-    openRightDockTool('files')
-  }, [openRightDockTool])
+    openRightDockTool("files");
+  }, [openRightDockTool]);
 
   const handleOpenPlanDock = useCallback(
     (plan: RightDockPlan): void => {
-      setRightDockPlan(plan)
-      openRightDockTool('plan')
+      setRightDockPlan(plan);
+      openRightDockTool("plan");
     },
     [openRightDockTool],
-  )
+  );
 
   const handleRightDockToolSelect = useCallback(
     (tool: RightDockToolId): void => {
-      if (tool === 'browser') {
-        handleOpenBrowser()
-        return
+      if (tool === "browser") {
+        handleOpenBrowser();
+        return;
       }
-      openRightDockTool(tool)
+      openRightDockTool(tool);
     },
     [handleOpenBrowser, openRightDockTool],
-  )
+  );
 
   const handleReloadBrowser = useCallback((): void => {
     void desktopClient
       .reloadBrowser()
       .then(setBrowserState)
-      .catch(error =>
+      .catch((error) =>
         setErrorMessage(error instanceof Error ? error.message : String(error)),
-      )
-  }, [])
+      );
+  }, []);
 
   const handleBrowserAnnotation = useCallback(
     (annotation: string): void => {
-      const separator = input.trim() ? '\n\n' : ''
-      setInput(`${input}${separator}${annotation}`)
+      const separator = input.trim() ? "\n\n" : "";
+      setInput(`${input}${separator}${annotation}`);
     },
     [input, setInput],
-  )
+  );
 
   const handleNewConversation = useCallback(async (): Promise<void> => {
-    activateSessionById(null)
-    setInput('')
-    navigate(QUICK_CHAT_PATH)
-  }, [
-    activateSessionById,
-    navigate,
-    setInput,
-  ])
+    activateSessionById(null);
+    setInput("");
+    navigate(QUICK_CHAT_PATH);
+  }, [activateSessionById, navigate, setInput]);
 
   useDesktopCommands({
     onNewConversation: () => {
-      void handleNewConversation()
+      void handleNewConversation();
     },
     onChooseWorkspace: () => {
-      void handleChooseWorkspace()
+      void handleChooseWorkspace();
     },
     onRefreshWorkspace: () => {
-      void refreshWorkspace()
+      void refreshWorkspace();
     },
     onOpenSettings: () => {
-      navigate('/settings')
+      navigate("/settings");
     },
     onLogOut: () => {
-      setErrorMessage('已退出登录。本地桌面端暂无持久账号切换，请重启应用。')
+      setErrorMessage("已退出登录。本地桌面端暂无持久账号切换，请重启应用。");
     },
-  })
+  });
 
   useEffect(() => {
-    refreshBrowserState()
-  }, [refreshBrowserState])
+    refreshBrowserState();
+  }, [refreshBrowserState]);
 
   useEffect(() => {
-    if (!browserState?.open) return
-    const id = window.setInterval(refreshBrowserState, 1000)
-    return () => window.clearInterval(id)
-  }, [browserState?.open, refreshBrowserState])
+    if (!browserState?.open) return;
+    const id = window.setInterval(refreshBrowserState, 1000);
+    return () => window.clearInterval(id);
+  }, [browserState?.open, refreshBrowserState]);
 
   useEffect(() => {
     window.localStorage.setItem(
       RIGHT_DOCK_WIDTH_STORAGE_KEY,
       String(rightDockWidth),
-    )
-  }, [rightDockWidth])
+    );
+  }, [rightDockWidth]);
 
   useEffect(() => {
     const onResize = (): void => {
-      setRightDockWidth(current => clampRightDockWidth(current))
-    }
-    window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
-  }, [])
+      setRightDockWidth((current) => clampRightDockWidth(current));
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
-      if (!event.ctrlKey || !event.shiftKey || event.key.toLowerCase() !== 'b') {
-        return
+      if (
+        !event.ctrlKey ||
+        !event.shiftKey ||
+        event.key.toLowerCase() !== "b"
+      ) {
+        return;
       }
-      event.preventDefault()
-      handleOpenBrowser()
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [handleOpenBrowser])
+      event.preventDefault();
+      handleOpenBrowser();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [handleOpenBrowser]);
 
   const handleFileMenuAction = useCallback(
     (action: FileMenuAction): void => {
       switch (action) {
-        case 'close':
-          void desktopClient.closeWindow()
-          break
-        case 'newWindow':
-          void desktopClient.newWindow()
-          break
-        case 'newChat':
-          void handleNewConversation()
-          break
-        case 'quickChat':
-          navigate(QUICK_CHAT_PATH)
-          break
-        case 'openFolder':
-          void handleChooseWorkspace()
-          break
-        case 'openSettings':
-          void desktopClient.openSettings()
-          break
-        case 'logOut':
-          void desktopClient.logOut()
-          break
-        case 'exit':
-          void desktopClient.exitApp()
-          break
+        case "close":
+          void desktopClient.closeWindow();
+          break;
+        case "newWindow":
+          void desktopClient.newWindow();
+          break;
+        case "newChat":
+          void handleNewConversation();
+          break;
+        case "quickChat":
+          navigate(QUICK_CHAT_PATH);
+          break;
+        case "openFolder":
+          void handleChooseWorkspace();
+          break;
+        case "openSettings":
+          void desktopClient.openSettings();
+          break;
+        case "logOut":
+          void desktopClient.logOut();
+          break;
+        case "exit":
+          void desktopClient.exitApp();
+          break;
       }
     },
     [handleChooseWorkspace, handleNewConversation, navigate],
-  )
+  );
 
   const handleEditMenuAction = useCallback(
     (_action: EditMenuAction): void => {},
     [],
-  )
+  );
 
   const handleViewMenuAction = useCallback(
     (action: ViewMenuAction): void => {
-      if (action === 'toggleSidebar') {
-        toggleSidebarCollapsed()
-        return
+      if (action === "toggleSidebar") {
+        toggleSidebarCollapsed();
+        return;
       }
-      if (action === 'openBrowserTab') {
-        handleOpenBrowser()
-        return
+      if (action === "openBrowserTab") {
+        handleOpenBrowser();
+        return;
       }
-      if (action === 'toggleFileTree') {
-        handleOpenFilesDock()
-        return
+      if (action === "toggleFileTree") {
+        handleOpenFilesDock();
+        return;
       }
-      if (action === 'toggleSidePanel') {
-        setRightDockState(current => {
+      if (action === "toggleSidePanel") {
+        setRightDockState((current) => {
           if (current.open) {
-            return applyRightDockAction(current, { type: 'close' })
+            return applyRightDockAction(current, { type: "close" });
           }
           if (current.openTools.length > 0) {
-            return { ...current, open: true }
+            return { ...current, open: true };
           }
-          return current
-        })
-        return
+          return current;
+        });
+        return;
       }
-      if (action === 'reloadBrowserPage') {
-        handleReloadBrowser()
-        return
+      if (action === "reloadBrowserPage") {
+        handleReloadBrowser();
+        return;
       }
     },
     [
@@ -713,31 +728,31 @@ export function DesktopLayout(): React.ReactNode {
       handleReloadBrowser,
       toggleSidebarCollapsed,
     ],
-  )
+  );
 
   const handleWindowMenuAction = useCallback(
     (action: WindowMenuAction): void => {
       switch (action) {
-        case 'minimize':
-          void desktopClient.minimizeWindow()
-          break
-        case 'zoom':
+        case "minimize":
+          void desktopClient.minimizeWindow();
+          break;
+        case "zoom":
           void desktopClient
             .toggleWindowMaximized()
-            .then(next => setIsWindowMaximized(next))
-          break
-        case 'close':
-          void desktopClient.closeWindow()
-          break
+            .then((next) => setIsWindowMaximized(next));
+          break;
+        case "close":
+          void desktopClient.closeWindow();
+          break;
       }
     },
     [setIsWindowMaximized],
-  )
+  );
 
   const handleHelpMenuAction = useCallback(
     (_action: HelpMenuAction): void => {},
     [],
-  )
+  );
 
   const modelPresets = useMemo(
     () =>
@@ -745,73 +760,74 @@ export function DesktopLayout(): React.ReactNode {
         providerState?.models ?? providerState?.provider.defaultModels ?? [],
       ),
     [providerState],
-  )
-  const providerModelOptions = useMemo(
-    () => {
-      const providers =
-        modelProviders.length > 0
-          ? modelProviders
-          : providerState
-            ? [providerState.provider]
-            : []
-      return providers.filter(provider => provider.apiKeyConfigured).map(provider => {
+  );
+  const providerModelOptions = useMemo(() => {
+    const providers =
+      modelProviders.length > 0
+        ? modelProviders
+        : providerState
+          ? [providerState.provider]
+          : [];
+    return providers
+      .filter((provider) => provider.apiKeyConfigured)
+      .map((provider) => {
         const isSelected =
-          provider.providerID === providerState?.selectedProviderID
+          provider.providerID === providerState?.selectedProviderID;
         const models = isSelected
-          ? providerState?.models ?? provider.defaultModels
-          : provider.defaultModels
+          ? (providerState?.models ?? provider.defaultModels)
+          : provider.defaultModels;
         return {
           providerID: provider.providerID,
           displayName: provider.displayName,
           modelPresets: buildModelPresets(models),
-        }
-      })
-    },
-    [modelProviders, providerState],
-  )
+        };
+      });
+  }, [modelProviders, providerState]);
   const resolvedSelectedModelPreset = resolveModelPresetId(
     model,
     selectedModelPreset,
     modelPresets,
-  )
-  const selectedProviderID = providerState?.selectedProviderID ?? providerID
+  );
+  const selectedProviderID = providerState?.selectedProviderID ?? providerID;
   const selectedProviderSummary =
-    modelProviders.find(provider => provider.providerID === selectedProviderID) ??
+    modelProviders.find(
+      (provider) => provider.providerID === selectedProviderID,
+    ) ??
     (providerState?.provider.providerID === selectedProviderID
       ? providerState.provider
-      : undefined)
+      : undefined);
   const selectedModelMetadata =
     model && selectedProviderSummary?.modelMetadata
       ? selectedProviderSummary.modelMetadata[model]
       : model && providerState?.modelMetadata
         ? providerState.modelMetadata[model]
-        : undefined
+        : undefined;
   const deepSeekThinkingControls = isDeepSeekThinkingModel({
     providerID: selectedProviderID,
     model,
     metadata: selectedModelMetadata,
-  })
+  });
   const showThinkingOptions =
     deepSeekThinkingControls ||
-    selectedProviderSummary?.kind === 'anthropic' ||
-    selectedModelMetadata?.reasoning === true
-  const modelConfigured = providerState?.modelConfigured === true
+    selectedProviderSummary?.kind === "anthropic" ||
+    selectedModelMetadata?.reasoning === true;
+  const modelConfigured = providerState?.modelConfigured === true;
   const modelConfigurationMessage =
-    providerState?.configurationMessage ?? '未配置模型，请先在设置中配置模型。'
+    providerState?.configurationMessage ?? "未配置模型，请先在设置中配置模型。";
 
   useEffect(() => {
-    const activeModel = activeSessionItem?.model?.trim()
-    if (!activeModel) return
+    const activeModel = activeSessionItem?.model?.trim();
+    if (!activeModel) return;
     if (model !== activeModel) {
-      setModel(activeModel)
+      setModel(activeModel);
     }
     const nextPreset = resolveModelPresetId(
       activeModel,
       undefined,
       modelPresets,
-    )
+    );
     if (selectedModelPreset !== nextPreset) {
-      setSelectedModelPreset(nextPreset)
+      setSelectedModelPreset(nextPreset);
     }
   }, [
     activeSessionItem?.id,
@@ -821,24 +837,24 @@ export function DesktopLayout(): React.ReactNode {
     selectedModelPreset,
     setModel,
     setSelectedModelPreset,
-  ])
+  ]);
 
   const refreshProviderState = useCallback(async (): Promise<void> => {
     try {
       const [next, providers] = await Promise.all([
         desktopClient.getModelProviderState(),
         desktopClient.listModelProviders(),
-      ])
-      setProviderState(next)
-      setModelProviders(providers)
-      const activeModel = activeSessionItem?.model?.trim()
+      ]);
+      setProviderState(next);
+      setModelProviders(providers);
+      const activeModel = activeSessionItem?.model?.trim();
       if (!activeModel && next.model !== model) {
-        setModel(next.model)
+        setModel(next.model);
       }
-      setProviderID(next.selectedProviderID)
-      setProviderBaseURL(next.baseURL ?? '')
+      setProviderID(next.selectedProviderID);
+      setProviderBaseURL(next.baseURL ?? "");
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : String(error))
+      setErrorMessage(error instanceof Error ? error.message : String(error));
     }
   }, [
     activeSessionItem?.model,
@@ -846,104 +862,104 @@ export function DesktopLayout(): React.ReactNode {
     setModel,
     setProviderBaseURL,
     setProviderID,
-  ])
+  ]);
 
   useEffect(() => {
-    void refreshProviderState()
+    void refreshProviderState();
     const listener = () => {
-      void refreshProviderState()
-    }
-    window.addEventListener('desktop:model-provider-changed', listener)
+      void refreshProviderState();
+    };
+    window.addEventListener("desktop:model-provider-changed", listener);
     return () => {
-      window.removeEventListener('desktop:model-provider-changed', listener)
-    }
-  }, [refreshProviderState])
+      window.removeEventListener("desktop:model-provider-changed", listener);
+    };
+  }, [refreshProviderState]);
 
   useEffect(() => {
-    if (deepSeekThinkingControls && thinkingMode === 'adaptive') {
-      setThinkingMode('default')
-      return
+    if (deepSeekThinkingControls && thinkingMode === "adaptive") {
+      setThinkingMode("default");
+      return;
     }
-    if (showThinkingOptions || thinkingMode === 'default') return
-    setThinkingMode('default')
+    if (showThinkingOptions || thinkingMode === "default") return;
+    setThinkingMode("default");
   }, [
     deepSeekThinkingControls,
     showThinkingOptions,
     thinkingMode,
     setThinkingMode,
-  ])
+  ]);
 
   const handleProviderModelChange = useCallback(
     (providerID: ModelProviderID, nextPresetId: string): void => {
       const providerOption = providerModelOptions.find(
-        provider => provider.providerID === providerID,
-      )
-      if (!providerOption) return
+        (provider) => provider.providerID === providerID,
+      );
+      if (!providerOption) return;
 
       const providerSummary =
-        modelProviders.find(provider => provider.providerID === providerID) ??
+        modelProviders.find((provider) => provider.providerID === providerID) ??
         (providerState?.provider.providerID === providerID
           ? providerState.provider
-          : undefined)
+          : undefined);
       const baseURL =
         providerState?.selectedProviderID === providerID
           ? providerState.baseURL
-          : providerSummary?.baseURL
+          : providerSummary?.baseURL;
 
       if (nextPresetId === CUSTOM_MODEL_PRESET_ID) {
-        const customValue = window.prompt('输入自定义模型名称', model)
-        if (!customValue) return
-        const trimmed = customValue.trim()
-        if (!trimmed) return
-        setProviderID(providerID)
-        setProviderBaseURL(baseURL ?? '')
-        setModel(trimmed)
-        setSelectedModelPreset(CUSTOM_MODEL_PRESET_ID)
+        const customValue = window.prompt("输入自定义模型名称", model);
+        if (!customValue) return;
+        const trimmed = customValue.trim();
+        if (!trimmed) return;
+        setProviderID(providerID);
+        setProviderBaseURL(baseURL ?? "");
+        setModel(trimmed);
+        setSelectedModelPreset(CUSTOM_MODEL_PRESET_ID);
         void desktopClient
           .saveModelProvider({
             providerID,
             modelID: trimmed,
             baseURL,
           })
-          .then(next => {
-            setProviderState(next)
-            setProviderID(next.selectedProviderID)
-            setProviderBaseURL(next.baseURL ?? '')
-            setModel(next.model)
+          .then((next) => {
+            setProviderState(next);
+            setProviderID(next.selectedProviderID);
+            setProviderBaseURL(next.baseURL ?? "");
+            setModel(next.model);
           })
-          .catch(error =>
+          .catch((error) =>
             setErrorMessage(
               error instanceof Error ? error.message : String(error),
             ),
-          )
-        return
+          );
+        return;
       }
 
       const preset = providerOption.modelPresets.find(
-        item => item.id === nextPresetId,
-      )
-      if (!preset) return
-      setProviderID(providerID)
-      setProviderBaseURL(baseURL ?? '')
-      setSelectedModelPreset(nextPresetId)
-      setModel(preset.value)
+        (item) => item.id === nextPresetId,
+      );
+      if (!preset) return;
+      setProviderID(providerID);
+      setProviderBaseURL(baseURL ?? "");
+      setSelectedModelPreset(nextPresetId);
+      setModel(preset.value);
       void desktopClient
         .saveModelProvider({
           providerID,
           modelID: preset.value,
           baseURL,
         })
-        .then(next => {
-          setProviderState(next)
-          setProviderID(next.selectedProviderID)
-          setProviderBaseURL(next.baseURL ?? '')
-          setModel(next.model)
+        .then((next) => {
+          setProviderState(next);
+          setProviderID(next.selectedProviderID);
+          setProviderBaseURL(next.baseURL ?? "");
+          setModel(next.model);
         })
-        .catch(error =>
+        .catch((error) =>
           setErrorMessage(
             error instanceof Error ? error.message : String(error),
           ),
-        )
+        );
     },
     [
       model,
@@ -955,40 +971,65 @@ export function DesktopLayout(): React.ReactNode {
       setProviderID,
       setSelectedModelPreset,
     ],
-  )
+  );
 
   const handlePermissionChange = useCallback(
     (value: DesktopPermissionMode): void => {
-      setPermissionMode(value)
-      if (!sessionId) return
-      void setSessionPermissionMode(sessionId, value)
+      setPermissionMode(value);
+      if (!sessionId) return;
+      void setSessionPermissionMode(sessionId, value);
     },
     [sessionId, setPermissionMode, setSessionPermissionMode],
-  )
+  );
 
   const handlePlanModeChange = useCallback(
     (active: boolean): void => {
       if (!sessionId) {
-        setHomePlanModeActive(active)
-        return
+        setHomePlanModeActive(active);
+        return;
       }
-      void setSessionPlanModeActive(sessionId, active)
+      void setSessionPlanModeActive(sessionId, active);
     },
     [sessionId, setSessionPlanModeActive],
-  )
+  );
+
+  const handleLocalSlashCommand = useCallback(
+    (command: { name: string }): boolean => {
+      if (command.name === "goal") {
+        if (!sessionId) {
+          return false;
+        }
+        handleRightDockToolSelect("goal");
+        return true;
+      }
+      if (command.name === "plan") {
+        handlePlanModeChange(!planModeActive);
+        return true;
+      }
+      return false;
+    },
+    [
+      handlePlanModeChange,
+      handleRightDockToolSelect,
+      planModeActive,
+      sessionId,
+    ],
+  );
 
   const handleSelectSession = useCallback(
     (sessionItem: SessionListItem): void => {
-      const nextWorkspace = activateSessionById(sessionItem.id)
-      navigate(sessionPath(sessionItem.id))
+      const nextWorkspace = activateSessionById(sessionItem.id);
+      navigate(sessionPath(sessionItem.id));
       if (!nextWorkspace) {
-        setWorkspaceState(null)
-        setDiffState('未选择项目。')
-        setSelectedFile(null)
-        return
+        setWorkspaceState(null);
+        setDiffState("未选择项目。");
+        setSelectedFile(null);
+        return;
       }
-      setWorkspaceState(nextWorkspace)
-      void refreshWorkspace(nextWorkspace, { expectedSessionId: sessionItem.id })
+      setWorkspaceState(nextWorkspace);
+      void refreshWorkspace(nextWorkspace, {
+        expectedSessionId: sessionItem.id,
+      });
     },
     [
       activateSessionById,
@@ -1000,37 +1041,37 @@ export function DesktopLayout(): React.ReactNode {
       setSelectedFile,
       setWorkspaceState,
     ],
-  )
+  );
 
   const handleUpdateSessionMetadata = useCallback(
     async (
       targetSessionId: string,
       patch: { pinnedAt?: string | null; archivedAt?: string | null },
     ): Promise<void> => {
-      const archivingSession = Boolean(patch.archivedAt)
+      const archivingSession = Boolean(patch.archivedAt);
       const archivingActiveSession =
-        targetSessionId === routedSessionId && archivingSession
-      const result = await updateSessionMetadata(targetSessionId, patch)
-      if (!result) return
+        targetSessionId === routedSessionId && archivingSession;
+      const result = await updateSessionMetadata(targetSessionId, patch);
+      if (!result) return;
       if (archivingSession) {
-        setArchiveNoticeVisible(true)
+        setArchiveNoticeVisible(true);
       }
-      if (!archivingActiveSession) return
+      if (!archivingActiveSession) return;
       navigate(
         result.nextActiveSession
           ? sessionPath(result.nextActiveSession.id)
           : QUICK_CHAT_PATH,
         { replace: true },
-      )
+      );
       if (result.nextActiveSession && result.nextWorkspace) {
-        setWorkspaceState(result.nextWorkspace)
+        setWorkspaceState(result.nextWorkspace);
         void refreshWorkspace(result.nextWorkspace, {
           expectedSessionId: result.nextActiveSession.id,
-        })
+        });
       } else {
-        setWorkspaceState(null)
-        setDiffState('未选择项目。')
-        setSelectedFile(null)
+        setWorkspaceState(null);
+        setDiffState("未选择项目。");
+        setSelectedFile(null);
       }
     },
     [
@@ -1043,50 +1084,82 @@ export function DesktopLayout(): React.ReactNode {
       updateSessionMetadata,
       setArchiveNoticeVisible,
     ],
-  )
+  );
+
+  const handleResumeRightDockSession = useCallback(
+    (targetSessionId: string): void => {
+      const target = sessions.find((item) => item.id === targetSessionId);
+      if (!target) return;
+      handleSelectSession(target);
+    },
+    [handleSelectSession, sessions],
+  );
+
+  const handleForkRightDockSession = useCallback(
+    (targetSessionId: string): void => {
+      const target = sessions.find((item) => item.id === targetSessionId);
+      if (!target) return;
+      setErrorMessage("Fork 会话的主线程接线尚未启用。");
+    },
+    [sessions],
+  );
 
   const isConversationLoading =
-    isConversationRoute && (!sessionsHydrated || sessionId !== routedSessionId)
+    isConversationRoute && (!sessionsHydrated || sessionId !== routedSessionId);
   const runtimeMissing =
-    runtimeStatus?.runtimeKind === 'subprocess' &&
-    runtimeStatus.agentExecutableExists === false
+    runtimeStatus?.runtimeKind === "subprocess" &&
+    runtimeStatus.agentExecutableExists === false;
   const runtimeWarningMessage =
     !currentWorkspace && runtimeMissing && !runtimeWarningDismissed
       ? RUNTIME_WARNING_MESSAGE
-      : null
-  const visibleErrorMessage = errorMessage ?? runtimeWarningMessage
-  const branchName = getDesktopComposerBranchName(currentWorkspace)
+      : null;
+  const visibleErrorMessage = errorMessage ?? runtimeWarningMessage;
+  const branchName = getDesktopComposerBranchName(currentWorkspace);
 
   const search = useDesktopSearch({
     query: searchQuery,
     recentWorkspaces,
     sessions,
-  })
+  });
   const quickChatSessionTitle =
     activeSessionItem?.sessionName ??
     activeSessionItem?.customTitle ??
     activeSessionItem?.aiTitle ??
-    null
-  const quickChatSessionTitleSource =
-    activeSessionItem?.sessionName
-      ? 'sessionName'
-      : activeSessionItem?.customTitle
-        ? 'customTitle'
-        : activeSessionItem?.aiTitle
-          ? 'aiTitle'
-          : null
+    null;
+  const quickChatSessionTitleSource = activeSessionItem?.sessionName
+    ? "sessionName"
+    : activeSessionItem?.customTitle
+      ? "customTitle"
+      : activeSessionItem?.aiTitle
+        ? "aiTitle"
+        : null;
+
+  const rightDockAgentEntries = useMemo<DesktopAgentPickerEntry[]>(() => {
+    if (agentEntries.length > 0) return agentEntries;
+    if (!activeSessionItem) return [];
+    return [
+      {
+        id: activeSessionItem.id,
+        nickname: quickChatSessionTitle ?? "Primary",
+        role: "primary",
+        status: mapSessionStatusToAgentStatus(sessionStatus),
+        isPrimary: true,
+        sourceThreadId: activeSessionItem.id,
+      },
+    ];
+  }, [activeSessionItem, agentEntries, quickChatSessionTitle, sessionStatus]);
 
   const handleRemoveWorkspace = useCallback(
     (target: DesktopWorkspace): void => {
-      setRecentWorkspaces(current =>
-        current.filter(workspaceItem => workspaceItem.path !== target.path),
-      )
-      if (currentWorkspace?.path !== target.path) return
-      setWorkspaceState(null)
-      setDiffState(NO_WORKSPACE_DIFF)
-      setSelectedFile(null)
+      setRecentWorkspaces((current) =>
+        current.filter((workspaceItem) => workspaceItem.path !== target.path),
+      );
+      if (currentWorkspace?.path !== target.path) return;
+      setWorkspaceState(null);
+      setDiffState(NO_WORKSPACE_DIFF);
+      setSelectedFile(null);
       if (!isConversationRoute) {
-        navigate(QUICK_CHAT_PATH)
+        navigate(QUICK_CHAT_PATH);
       }
     },
     [
@@ -1098,32 +1171,32 @@ export function DesktopLayout(): React.ReactNode {
       setSelectedFile,
       setWorkspaceState,
     ],
-  )
+  );
 
   useEffect(() => {
     if (!runtimeMissing) {
-      setRuntimeWarningDismissed(false)
+      setRuntimeWarningDismissed(false);
     }
-  }, [runtimeMissing])
+  }, [runtimeMissing]);
 
   useEffect(() => {
-    let mounted = true
+    let mounted = true;
     void desktopClient
       .isWindowMaximized()
-      .then(next => {
+      .then((next) => {
         if (mounted) {
-          setIsWindowMaximized(next)
+          setIsWindowMaximized(next);
         }
       })
       .catch(() => {
         if (mounted) {
-          setIsWindowMaximized(false)
+          setIsWindowMaximized(false);
         }
-      })
+      });
     return () => {
-      mounted = false
-    }
-  }, [])
+      mounted = false;
+    };
+  }, []);
 
   const menuBar = (
     <MenuBar
@@ -1133,15 +1206,15 @@ export function DesktopLayout(): React.ReactNode {
       isDebugMode={menubarDebugMode}
       onDebugModeChange={setMenubarDebugMode}
       onClose={() => {
-        void desktopClient.closeWindow()
+        void desktopClient.closeWindow();
       }}
       onMinimize={() => {
-        void desktopClient.minimizeWindow()
+        void desktopClient.minimizeWindow();
       }}
       onToggleMaximize={() => {
         void desktopClient
           .toggleWindowMaximized()
-          .then(next => setIsWindowMaximized(next))
+          .then((next) => setIsWindowMaximized(next));
       }}
       onFileMenuAction={handleFileMenuAction}
       onEditMenuAction={handleEditMenuAction}
@@ -1149,18 +1222,18 @@ export function DesktopLayout(): React.ReactNode {
       onWindowMenuAction={handleWindowMenuAction}
       onHelpMenuAction={handleHelpMenuAction}
     />
-  )
+  );
 
   function handleSettingsTabChange(tab: string): void {
     navigate(
-      tab === 'general'
-        ? '/settings'
+      tab === "general"
+        ? "/settings"
         : `/settings?tab=${encodeURIComponent(tab)}`,
-    )
+    );
   }
 
   function handleSettingsBack(): void {
-    navigate(settingsReturnPathRef.current || QUICK_CHAT_PATH)
+    navigate(settingsReturnPathRef.current || QUICK_CHAT_PATH);
   }
 
   const appSidebarContent = (
@@ -1170,15 +1243,19 @@ export function DesktopLayout(): React.ReactNode {
       sessions={sessions}
       workspace={currentWorkspace}
       onChooseWorkspace={() => void handleChooseWorkspace()}
-      onCreateSession={workspaceItem => void handleCreateSession(workspaceItem)}
-      onOpenWorkspace={workspaceItem => void handleOpenRecentWorkspace(workspaceItem)}
+      onCreateSession={(workspaceItem) =>
+        void handleCreateSession(workspaceItem)
+      }
+      onOpenWorkspace={(workspaceItem) =>
+        void handleOpenRecentWorkspace(workspaceItem)
+      }
       onRemoveWorkspace={handleRemoveWorkspace}
       onSelectSession={handleSelectSession}
       onUpdateSessionMetadata={(targetSessionId, patch) =>
         void handleUpdateSessionMetadata(targetSessionId, patch)
       }
     />
-  )
+  );
 
   const settingsSidebarContent = (
     <SettingsSidebarContent
@@ -1186,7 +1263,7 @@ export function DesktopLayout(): React.ReactNode {
       onBack={handleSettingsBack}
       onTabChange={handleSettingsTabChange}
     />
-  )
+  );
 
   const sidebar = (
     <SidebarFrame
@@ -1199,47 +1276,49 @@ export function DesktopLayout(): React.ReactNode {
     >
       {isSettingsRoute ? settingsSidebarContent : appSidebarContent}
     </SidebarFrame>
-  )
+  );
 
-  const composer = isQuickChatPage || isConversationRoute ? (
-    <DesktopComposer
-      input={input}
-      messages={messages}
-      isQuickChatPage={isQuickChatPage}
-      routedSessionId={routedSessionId}
-      sessionStatus={sessionStatus}
-      permissionMode={permissionMode}
-      planModeActive={planModeActive}
-      thinkingMode={thinkingMode}
-      selectedProviderID={selectedProviderID}
-      selectedModelPreset={resolvedSelectedModelPreset}
-      modelConfigured={modelConfigured}
-      modelConfigurationMessage={modelConfigurationMessage}
-      showThinkingOptions={showThinkingOptions}
-      deepSeekThinkingControls={deepSeekThinkingControls}
-      showContextUsage={showContextUsage}
-      contextUsage={contextUsage}
-      modelPresets={modelPresets}
-      providerOptions={providerModelOptions}
-      recentWorkspaces={recentWorkspaces}
-      workspace={currentWorkspace}
-      onChooseWorkspace={handleChooseWorkspace}
-      onInputChange={setInput}
-      onInterrupt={interrupt}
-      onProviderModelChange={handleProviderModelChange}
-      onOpenWorkspace={handleOpenRecentWorkspace}
-      onCloneGithub={() => setGithubRepositoryModalOpen(true)}
-      onClearWorkspace={handleClearWorkspace}
-      onOpenBrowser={handleOpenBrowser}
-      onBranchSelect={handleBranchSelect}
-      onCreateBranch={() => setGitWorkflowMode('branch')}
-      onPermissionChange={handlePermissionChange}
-      onPlanModeChange={handlePlanModeChange}
-      onThinkingChange={setThinkingMode}
-      createSessionForWorkspace={createSessionForWorkspace}
-      submitToSession={submitToSession}
-    />
-  ) : null
+  const composer =
+    isQuickChatPage || isConversationRoute ? (
+      <DesktopComposer
+        input={input}
+        messages={messages}
+        isQuickChatPage={isQuickChatPage}
+        routedSessionId={routedSessionId}
+        sessionStatus={sessionStatus}
+        permissionMode={permissionMode}
+        planModeActive={planModeActive}
+        thinkingMode={thinkingMode}
+        selectedProviderID={selectedProviderID}
+        selectedModelPreset={resolvedSelectedModelPreset}
+        modelConfigured={modelConfigured}
+        modelConfigurationMessage={modelConfigurationMessage}
+        showThinkingOptions={showThinkingOptions}
+        deepSeekThinkingControls={deepSeekThinkingControls}
+        showContextUsage={showContextUsage}
+        contextUsage={contextUsage}
+        modelPresets={modelPresets}
+        providerOptions={providerModelOptions}
+        recentWorkspaces={recentWorkspaces}
+        workspace={currentWorkspace}
+        onChooseWorkspace={handleChooseWorkspace}
+        onInputChange={setInput}
+        onInterrupt={interrupt}
+        onProviderModelChange={handleProviderModelChange}
+        onOpenWorkspace={handleOpenRecentWorkspace}
+        onCloneGithub={() => setGithubRepositoryModalOpen(true)}
+        onClearWorkspace={handleClearWorkspace}
+        onOpenBrowser={handleOpenBrowser}
+        onBranchSelect={handleBranchSelect}
+        onCreateBranch={() => setGitWorkflowMode("branch")}
+        onPermissionChange={handlePermissionChange}
+        onPlanModeChange={handlePlanModeChange}
+        onLocalSlashCommand={handleLocalSlashCommand}
+        onThinkingChange={setThinkingMode}
+        createSessionForWorkspace={createSessionForWorkspace}
+        submitToSession={submitToSession}
+      />
+    ) : null;
 
   return (
     <div className="desktop-frame">
@@ -1247,10 +1326,10 @@ export function DesktopLayout(): React.ReactNode {
         message={visibleErrorMessage}
         onDismiss={() => {
           if (errorMessage) {
-            setErrorMessage(null)
-            return
+            setErrorMessage(null);
+            return;
           }
-          setRuntimeWarningDismissed(true)
+          setRuntimeWarningDismissed(true);
         }}
       />
       <GitWorkflowModal
@@ -1262,10 +1341,12 @@ export function DesktopLayout(): React.ReactNode {
         pullRequestPrompt={pullRequestPrompt}
         workspace={currentWorkspace}
         onClose={() => setGitWorkflowMode(null)}
-        onError={message => setErrorMessage(message)}
+        onError={(message) => setErrorMessage(message)}
         onRefreshWorkspace={async () => {
           if (currentWorkspace) {
-            await refreshWorkspace(currentWorkspace, { clearSelectedFile: false })
+            await refreshWorkspace(currentWorkspace, {
+              clearSelectedFile: false,
+            });
           }
         }}
         onWorkspaceChanged={handleWorkspaceChanged}
@@ -1273,15 +1354,15 @@ export function DesktopLayout(): React.ReactNode {
       <GithubRepositoryModal
         open={githubRepositoryModalOpen}
         onClose={() => setGithubRepositoryModalOpen(false)}
-        onError={message => setErrorMessage(message)}
+        onError={(message) => setErrorMessage(message)}
         onWorkspaceCloned={handleGithubWorkspaceCloned}
       />
       {archiveNoticeVisible ? (
         <ArchiveConversationNotice
           onClose={() => setArchiveNoticeVisible(false)}
           onOpenSettings={() => {
-            setArchiveNoticeVisible(false)
-            navigate('/settings?tab=archived')
+            setArchiveNoticeVisible(false);
+            navigate("/settings?tab=archived");
           }}
         />
       ) : null}
@@ -1306,37 +1387,47 @@ export function DesktopLayout(): React.ReactNode {
             gitStatus,
             recentWorkspaces,
             onArchiveSession: () => {
-              if (!activeSessionItem) return
+              if (!activeSessionItem) return;
               void handleUpdateSessionMetadata(activeSessionItem.id, {
                 archivedAt: new Date().toISOString(),
-              })
+              });
             },
-            onCreateBranch: () => setGitWorkflowMode('branch'),
-            onOpenAutomation: () => navigate('/automation'),
+            onCreateBranch: () => setGitWorkflowMode("branch"),
+            onOpenAutomation: () => navigate("/automation"),
             onOpenWorkspacePath: handleOpenWorkspacePath,
             onOpenRightDock: openRightDockTool,
             onOpenPlanInRightDock: handleOpenPlanDock,
             onRefreshDiff: handleRefreshDiff,
             onToggleSidebar: toggleSidebarCollapsed,
             onToggleSessionPinned: () => {
-              if (!activeSessionItem) return
+              if (!activeSessionItem) return;
               void handleUpdateSessionMetadata(activeSessionItem.id, {
                 pinnedAt: activeSessionItem.pinnedAt
                   ? null
                   : new Date().toISOString(),
-              })
+              });
             },
-            onCommitOrPush: () => setGitWorkflowMode('commitPush'),
-            onCreatePullRequest: () => setGitWorkflowMode('pullRequest'),
+            onCommitOrPush: () => setGitWorkflowMode("commitPush"),
+            onCreatePullRequest: () => setGitWorkflowMode("pullRequest"),
             onChooseWorkspace: handleChooseWorkspace,
             onOpenWorkspace: handleOpenRecentWorkspace,
             onClearWorkspace: handleClearWorkspace,
-            onDecidePermission: (request, behavior, alwaysAllow, updatedInput) => {
-              void decidePermission(request, behavior, alwaysAllow, updatedInput)
+            onDecidePermission: (
+              request,
+              behavior,
+              alwaysAllow,
+              updatedInput,
+            ) => {
+              void decidePermission(
+                request,
+                behavior,
+                alwaysAllow,
+                updatedInput,
+              );
             },
             onAcceptExitPlanMode: (request) => {
-              handlePlanModeChange(false)
-              void decidePermission(request, 'allow')
+              handlePlanModeChange(false);
+              void decidePermission(request, "allow");
             },
             permissionMode,
             planModeActive,
@@ -1345,7 +1436,9 @@ export function DesktopLayout(): React.ReactNode {
               isQuickChatPage || isConversationLoading ? [] : workflowEvents,
             messages: isQuickChatPage || isConversationLoading ? [] : messages,
             pendingPermissions:
-              isQuickChatPage || isConversationLoading ? [] : pendingPermissions,
+              isQuickChatPage || isConversationLoading
+                ? []
+                : pendingPermissions,
             sessionStatus,
             composer: isConversationLoading ? null : composer,
             rightDockOpen: rightDockState.open,
@@ -1366,8 +1459,8 @@ export function DesktopLayout(): React.ReactNode {
             <div
               className={
                 rightDockState.open
-                  ? 'desktop-main-browser-layout'
-                  : 'desktop-main-browser-layout browser-closed'
+                  ? "desktop-main-browser-layout"
+                  : "desktop-main-browser-layout browser-closed"
               }
             >
               <div className="desktop-main-route">
@@ -1376,7 +1469,11 @@ export function DesktopLayout(): React.ReactNode {
               {rightDockState.open ? (
                 <RightDock
                   state={rightDockState}
+                  activeAgentId={activeAgentThreadId ?? sessionId}
+                  agentEntries={rightDockAgentEntries}
+                  backgroundTerminals={backgroundTerminals}
                   browserState={browserState}
+                  contextUsage={contextUsage}
                   debugMode={menubarDebugMode}
                   defaultBranch={derivedDefaultBranch}
                   files={workspaceFiles}
@@ -1385,9 +1482,11 @@ export function DesktopLayout(): React.ReactNode {
                   maxWidth={RIGHT_DOCK_MAX_WIDTH}
                   minWidth={RIGHT_DOCK_MIN_WIDTH}
                   reviewView={reviewView}
+                  goal={goal}
                   plan={rightDockPlan}
                   selectedFile={selectedFile}
                   sessionId={sessionId}
+                  sessions={sessions}
                   sessionStatus={sessionStatus}
                   width={rightDockWidth}
                   workspace={currentWorkspace}
@@ -1395,16 +1494,26 @@ export function DesktopLayout(): React.ReactNode {
                   onBrowserStateChange={setBrowserState}
                   onClose={closeRightDock}
                   onCloseTool={closeRightDockTool}
-                  onCreateBranch={() => setGitWorkflowMode('branch')}
+                  onCreateBranch={() => setGitWorkflowMode("branch")}
                   onOpenTool={handleRightDockToolSelect}
                   onOpenWorkspacePath={handleOpenWorkspacePath}
-                  onPreviewFile={file => void previewFile(file)}
+                  onPreviewFile={(file) => void previewFile(file)}
+                  onRefreshGoal={refreshThreadGoal}
+                  onSaveGoal={saveThreadGoal}
+                  onClearGoal={clearThreadGoal}
+                  onRefreshTerminals={refreshBackgroundTerminals}
+                  onTerminateTerminal={terminateBackgroundTerminal}
+                  onCleanTerminals={cleanBackgroundTerminals}
+                  onRefreshAgents={refreshAgentEntries}
+                  onSelectAgentThread={selectAgentThread}
                   onRefreshReview={handleRefreshDiff}
                   onResetWidth={handleResetRightDockWidth}
+                  onResumeSession={handleResumeRightDockSession}
+                  onForkSession={handleForkRightDockSession}
                   onSelectTool={selectRightDockTool}
                   onSetWidth={handleSetRightDockWidth}
                   onToggleReviewView={() =>
-                    setReviewView(reviewView === 'inline' ? 'split' : 'inline')
+                    setReviewView(reviewView === "inline" ? "split" : "inline")
                   }
                 />
               ) : null}
@@ -1413,15 +1522,15 @@ export function DesktopLayout(): React.ReactNode {
         </QuickChatContext.Provider>
       </DesktopAppShell>
     </div>
-  )
+  );
 }
 
 function ArchiveConversationNotice({
   onClose,
   onOpenSettings,
 }: {
-  onClose: () => void
-  onOpenSettings: () => void
+  onClose: () => void;
+  onOpenSettings: () => void;
 }): React.ReactNode {
   return (
     <div aria-live="polite" className="archive-session-toast" role="status">
@@ -1442,31 +1551,48 @@ function ArchiveConversationNotice({
         x
       </button>
     </div>
-  )
+  );
 }
 
 function getRoutedSessionId(pathname: string): string | null {
-  const match = /^\/sessions\/([^/]+)$/.exec(pathname)
-  return match ? decodeURIComponent(match[1]!) : null
+  const match = /^\/sessions\/([^/]+)$/.exec(pathname);
+  return match ? decodeURIComponent(match[1]!) : null;
 }
 
 function sessionPath(sessionId: string): string {
-  return `/sessions/${encodeURIComponent(sessionId)}`
+  return `/sessions/${encodeURIComponent(sessionId)}`;
 }
 
 function getInitialRightDockWidth(): number {
-  const stored = Number(window.localStorage.getItem(RIGHT_DOCK_WIDTH_STORAGE_KEY))
-  return clampRightDockWidth(stored || RIGHT_DOCK_DEFAULT_WIDTH)
+  const stored = Number(
+    window.localStorage.getItem(RIGHT_DOCK_WIDTH_STORAGE_KEY),
+  );
+  return clampRightDockWidth(stored || RIGHT_DOCK_DEFAULT_WIDTH);
 }
 
 function clampRightDockWidth(width: number): number {
   const viewportMax = Math.max(
     RIGHT_DOCK_MIN_WIDTH,
     window.innerWidth - RIGHT_DOCK_MAIN_MIN_WIDTH,
-  )
-  const maxWidth = Math.min(RIGHT_DOCK_MAX_WIDTH, viewportMax)
-  const safeWidth = Number.isFinite(width) ? width : RIGHT_DOCK_DEFAULT_WIDTH
-  return Math.min(maxWidth, Math.max(RIGHT_DOCK_MIN_WIDTH, Math.round(safeWidth)))
+  );
+  const maxWidth = Math.min(RIGHT_DOCK_MAX_WIDTH, viewportMax);
+  const safeWidth = Number.isFinite(width) ? width : RIGHT_DOCK_DEFAULT_WIDTH;
+  return Math.min(
+    maxWidth,
+    Math.max(RIGHT_DOCK_MIN_WIDTH, Math.round(safeWidth)),
+  );
+}
+
+function mapSessionStatusToAgentStatus(
+  status: DesktopSessionStatus,
+): DesktopAgentPickerEntry["status"] {
+  if (status === "running" || status === "waiting" || status === "idle") {
+    return status;
+  }
+  if (status === "done") {
+    return "idle";
+  }
+  return "closed";
 }
 
 function isDeepSeekThinkingModel({
@@ -1474,15 +1600,17 @@ function isDeepSeekThinkingModel({
   model,
   metadata,
 }: {
-  providerID?: ModelProviderID
-  model: string
-  metadata?: DesktopModelMetadata
+  providerID?: ModelProviderID;
+  model: string;
+  metadata?: DesktopModelMetadata;
 }): boolean {
-  if (providerID === 'deepseek') {
-    return true
+  if (providerID === "deepseek") {
+    return true;
   }
-  if (providerID !== 'openrouter') {
-    return false
+  if (providerID !== "openrouter") {
+    return false;
   }
-  return model.toLowerCase().includes('deepseek') && metadata?.reasoning === true
+  return (
+    model.toLowerCase().includes("deepseek") && metadata?.reasoning === true
+  );
 }

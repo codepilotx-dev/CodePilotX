@@ -2,12 +2,16 @@ import { desktopClient } from '../../services/desktopClient.js'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
   DesktopAgentEvent,
+  DesktopAgentPickerEntry,
+  DesktopBackgroundTerminal,
   DesktopContextUsage,
   DesktopPermissionMode,
   DesktopPermissionRequest,
   DesktopSessionEvent,
   DesktopSessionMetadataPatch,
   DesktopSessionStatus,
+  DesktopThreadGoal,
+  DesktopThreadGoalStatus,
   DesktopThinkingMode,
   DesktopUserMessageInput,
   DesktopWorkflowEvent,
@@ -88,6 +92,10 @@ export type UseSessionStateResult = {
   toolLog: ToolLogEntry[]
   pendingPermissions: DesktopPermissionRequest[]
   contextUsage: DesktopContextUsage | null
+  goal: DesktopThreadGoal | null
+  backgroundTerminals: DesktopBackgroundTerminal[]
+  agentEntries: DesktopAgentPickerEntry[]
+  activeAgentThreadId: string | null
   activeSessionItem: SessionListItem | null
   planModeActive: boolean
   canSubmit: boolean
@@ -120,6 +128,18 @@ export type UseSessionStateResult = {
     targetSessionId: string,
     active: boolean,
   ) => Promise<SessionListItem | null>
+  refreshThreadGoal: () => Promise<void>
+  saveThreadGoal: (input: {
+    objective?: string | null
+    status?: DesktopThreadGoalStatus | null
+    tokenBudget?: number | null
+  }) => Promise<void>
+  clearThreadGoal: () => Promise<void>
+  refreshBackgroundTerminals: () => Promise<void>
+  terminateBackgroundTerminal: (processId: string) => Promise<void>
+  cleanBackgroundTerminals: () => Promise<void>
+  refreshAgentEntries: () => Promise<void>
+  selectAgentThread: (threadId: string | null) => void
   selectSession: (session: SessionListItem) => DesktopWorkspace | null
   toggleToolLogEntry: (entryId: string) => void
 }
@@ -165,6 +185,14 @@ export function useSessionState(
   >([])
   const [contextUsage, setContextUsage] =
     useState<DesktopContextUsage | null>(null)
+  const [goal, setGoal] = useState<DesktopThreadGoal | null>(null)
+  const [backgroundTerminals, setBackgroundTerminals] = useState<
+    DesktopBackgroundTerminal[]
+  >([])
+  const [agentEntries, setAgentEntries] = useState<DesktopAgentPickerEntry[]>([])
+  const [activeAgentThreadId, setActiveAgentThreadId] = useState<string | null>(
+    null,
+  )
   const [input, setInput] = useState('')
   const activeSessionItem = useMemo(
     () => sessions.find(session => session.id === sessionId) ?? null,
@@ -197,6 +225,10 @@ export function useSessionState(
       setToolLog,
       setPendingPermissions,
       setContextUsage,
+      setGoal,
+      setBackgroundTerminals,
+      setAgentEntries,
+      setActiveAgentThreadId,
     }),
     [],
   )
@@ -279,6 +311,16 @@ export function useSessionState(
             [],
         ),
         contextUsage: snapshot.view.contextUsage ?? null,
+        goal:
+          sessionViewsRef.current[snapshot.item.id]?.goal ??
+          createEmptySessionView().goal,
+        backgroundTerminals:
+          sessionViewsRef.current[snapshot.item.id]?.backgroundTerminals ?? [],
+        agentEntries:
+          sessionViewsRef.current[snapshot.item.id]?.agentEntries ?? [],
+        activeAgentThreadId:
+          sessionViewsRef.current[snapshot.item.id]?.activeAgentThreadId ??
+          null,
         selectedFile:
           sessionViewsRef.current[snapshot.item.id]?.selectedFile ?? null,
       }
@@ -424,6 +466,10 @@ export function useSessionState(
             events: snapshot.events ?? [],
             workflowEvents: dedupeWorkflowEvents(snapshot.workflowEvents ?? []),
             contextUsage: snapshot.view.contextUsage ?? null,
+            goal: null,
+            backgroundTerminals: [],
+            agentEntries: [],
+            activeAgentThreadId: null,
             selectedFile: null,
           }
           nextViews[snapshot.item.id] = {
@@ -545,6 +591,84 @@ export function useSessionState(
     },
     [actionContext, hydrateSessionDetails, viewSetters],
   )
+
+  const refreshThreadGoalForSession = useCallback(
+    async (targetSessionId: string): Promise<void> => {
+      try {
+        const nextGoal = await desktopClient.getThreadGoal(targetSessionId)
+        updateSessionView(targetSessionId, view => ({
+          ...view,
+          goal: nextGoal,
+        }))
+      } catch (error) {
+        onErrorRef.current(errorMessageOf(error))
+      }
+    },
+    [updateSessionView],
+  )
+
+  const refreshBackgroundTerminalsForSession = useCallback(
+    async (targetSessionId: string): Promise<void> => {
+      try {
+        const nextTerminals =
+          await desktopClient.listBackgroundTerminals(targetSessionId)
+        updateSessionView(targetSessionId, view => ({
+          ...view,
+          backgroundTerminals: nextTerminals,
+        }))
+      } catch (error) {
+        onErrorRef.current(errorMessageOf(error))
+      }
+    },
+    [updateSessionView],
+  )
+
+  const refreshAgentEntriesForSession = useCallback(
+    async (targetSessionId: string): Promise<void> => {
+      const listAgentPickerEntries = (
+        desktopClient as typeof desktopClient & {
+          listAgentPickerEntries?: (
+            sessionId: string,
+          ) => Promise<DesktopAgentPickerEntry[]>
+        }
+      ).listAgentPickerEntries
+      if (typeof listAgentPickerEntries !== 'function') return
+      try {
+        const nextAgents = await listAgentPickerEntries(targetSessionId)
+        updateSessionView(targetSessionId, view => ({
+          ...view,
+          agentEntries: nextAgents,
+          activeAgentThreadId:
+            view.activeAgentThreadId ??
+            nextAgents.find(agent => agent.isPrimary)?.sourceThreadId ??
+            null,
+        }))
+      } catch (error) {
+        onErrorRef.current(errorMessageOf(error))
+      }
+    },
+    [updateSessionView],
+  )
+
+  const refreshLiveSessionState = useCallback(
+    async (targetSessionId: string): Promise<void> => {
+      await Promise.all([
+        refreshThreadGoalForSession(targetSessionId),
+        refreshBackgroundTerminalsForSession(targetSessionId),
+        refreshAgentEntriesForSession(targetSessionId),
+      ])
+    },
+    [
+      refreshAgentEntriesForSession,
+      refreshBackgroundTerminalsForSession,
+      refreshThreadGoalForSession,
+    ],
+  )
+
+  useEffect(() => {
+    if (!sessionId) return
+    void refreshLiveSessionState(sessionId)
+  }, [refreshLiveSessionState, sessionId])
 
   const canSubmit = useMemo(
     () =>
@@ -674,6 +798,82 @@ export function useSessionState(
     [actionContext, sessions],
   )
 
+  const refreshThreadGoal = useCallback(async (): Promise<void> => {
+    if (!sessionId) return
+    await refreshThreadGoalForSession(sessionId)
+  }, [refreshThreadGoalForSession, sessionId])
+
+  const saveThreadGoal = useCallback(
+    async (input: {
+      objective?: string | null
+      status?: DesktopThreadGoalStatus | null
+      tokenBudget?: number | null
+    }): Promise<void> => {
+      if (!sessionId) return
+      try {
+        const nextGoal = await desktopClient.setThreadGoal(sessionId, input)
+        updateSessionView(sessionId, view => ({ ...view, goal: nextGoal }))
+      } catch (error) {
+        onErrorRef.current(errorMessageOf(error))
+      }
+    },
+    [sessionId, updateSessionView],
+  )
+
+  const clearThreadGoal = useCallback(async (): Promise<void> => {
+    if (!sessionId) return
+    try {
+      await desktopClient.clearThreadGoal(sessionId)
+      updateSessionView(sessionId, view => ({ ...view, goal: null }))
+    } catch (error) {
+      onErrorRef.current(errorMessageOf(error))
+    }
+  }, [sessionId, updateSessionView])
+
+  const refreshBackgroundTerminals = useCallback(async (): Promise<void> => {
+    if (!sessionId) return
+    await refreshBackgroundTerminalsForSession(sessionId)
+  }, [refreshBackgroundTerminalsForSession, sessionId])
+
+  const terminateBackgroundTerminal = useCallback(
+    async (processId: string): Promise<void> => {
+      if (!sessionId) return
+      try {
+        await desktopClient.terminateBackgroundTerminal(sessionId, processId)
+        await refreshBackgroundTerminalsForSession(sessionId)
+      } catch (error) {
+        onErrorRef.current(errorMessageOf(error))
+      }
+    },
+    [refreshBackgroundTerminalsForSession, sessionId],
+  )
+
+  const cleanBackgroundTerminals = useCallback(async (): Promise<void> => {
+    if (!sessionId) return
+    try {
+      await desktopClient.cleanBackgroundTerminals(sessionId)
+      await refreshBackgroundTerminalsForSession(sessionId)
+    } catch (error) {
+      onErrorRef.current(errorMessageOf(error))
+    }
+  }, [refreshBackgroundTerminalsForSession, sessionId])
+
+  const refreshAgentEntries = useCallback(async (): Promise<void> => {
+    if (!sessionId) return
+    await refreshAgentEntriesForSession(sessionId)
+  }, [refreshAgentEntriesForSession, sessionId])
+
+  const selectAgentThread = useCallback(
+    (threadId: string | null): void => {
+      if (!sessionId) return
+      updateSessionView(sessionId, view => ({
+        ...view,
+        activeAgentThreadId: threadId,
+      }))
+    },
+    [sessionId, updateSessionView],
+  )
+
   const selectSession = useCallback(
     (session: SessionListItem): DesktopWorkspace | null => {
       const workspace = selectSessionAction(actionContext, session)
@@ -694,6 +894,10 @@ export function useSessionState(
     toolLog,
     pendingPermissions,
     contextUsage,
+    goal,
+    backgroundTerminals,
+    agentEntries,
+    activeAgentThreadId,
     activeSessionItem,
     planModeActive: effectivePlanModeActive,
     canSubmit,
@@ -709,6 +913,14 @@ export function useSessionState(
     updateSessionMetadata,
     setSessionPermissionMode,
     setSessionPlanModeActive,
+    refreshThreadGoal,
+    saveThreadGoal,
+    clearThreadGoal,
+    refreshBackgroundTerminals,
+    terminateBackgroundTerminal,
+    cleanBackgroundTerminals,
+    refreshAgentEntries,
+    selectAgentThread,
     selectSession,
     toggleToolLogEntry,
   }

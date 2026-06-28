@@ -1,12 +1,27 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "rootDir": "src",
+    "rootDir": "../..",
+    "baseUrl": "../..",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": ["node", "vite/client", "bun"],
     "paths": {
-      "@codepilotx/tui/*": ["../tui/src/*"],
-      "@codepilotx/core/*": ["../../packages/core/src/*"],
-      "@codepilotx/desktop/*": ["./src/*"]
+      "@codepilotx/core/*": ["./packages/desktop-compat/src/core/*"],
+      "@codepilotx/tui/*": ["./packages/desktop-compat/src/tui/*"],
+      "@codepilotx/desktop/*": ["./apps/desktop/src/*"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts"]
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "src/**/*.d.ts",
+    "../../packages/desktop-compat/src/**/*.ts",
+    "../../packages/desktop-compat/src/**/*.tsx"
+  ],
+  "exclude": [
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx",
+    "../../packages/desktop-compat/src/**/*.test.ts",
+    "../../packages/desktop-compat/src/**/*.test.tsx"
+  ]
 }

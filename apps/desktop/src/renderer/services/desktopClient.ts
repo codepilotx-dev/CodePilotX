@@ -274,7 +274,103 @@ function createBrowserMockDesktopClient(): DesktopApi {
       installed: false,
       installPath: '',
     }),
-    listSlashCommands: async () => [],
+    listSlashCommands: async () => [
+      {
+        name: 'goal',
+        title: '目标',
+        description: '查看或设置当前 Goal',
+        category: 'command',
+        supportsInlineArgs: true,
+        availableDuringTask: true,
+        actionKind: 'local',
+      },
+      {
+        name: 'plan',
+        title: '计划模式',
+        description: '切换计划模式',
+        category: 'command',
+        supportsInlineArgs: false,
+        availableDuringTask: true,
+        actionKind: 'local',
+      },
+    ],
+    getThreadGoal: async () => null,
+    setThreadGoal: async (sessionId, input) => ({
+      threadId: sessionId,
+      objective: input.objective ?? 'Mock goal',
+      status: input.status ?? 'active',
+      tokenBudget: input.tokenBudget ?? null,
+      tokensUsed: 0,
+      timeUsedSeconds: 0,
+      createdAt: Math.floor(Date.now() / 1000),
+      updatedAt: Math.floor(Date.now() / 1000),
+    }),
+    clearThreadGoal: async () => {},
+    listBackgroundTerminals: async () => [],
+    terminateBackgroundTerminal: async () => ({ terminated: true }),
+    cleanBackgroundTerminals: async () => {},
+    listHooks: async () => [],
+    listCollaborationModes: async () => [],
+    listAgentPickerEntries: async sessionId => [
+      {
+        id: sessionId,
+        nickname: 'Primary',
+        role: '主线程',
+        status: 'idle',
+        isPrimary: true,
+      },
+    ],
+    readAgentThread: async (_sessionId, threadId) => ({ thread: { id: threadId } }),
+    sendAgentThreadMessage: async () => {},
+    interruptAgentThread: async () => {},
+    closeAgentThread: async () => {},
+    resumeAgentThread: async (_sessionId, threadId) => ({ thread: { id: threadId } }),
+    forkSession: async sessionId => {
+      const source = requireMockSession(sessions, sessionId)
+      const forkedSessionId = `browser-mock-${sessions.size + 1}`
+      const snapshot = {
+        ...source,
+        item: {
+          ...source.item,
+          id: forkedSessionId,
+          sessionName: source.item.sessionName
+            ? `${source.item.sessionName} fork`
+            : null,
+        },
+        codexAppServerThreadId: null,
+        updatedAt: new Date().toISOString(),
+      }
+      sessions.set(forkedSessionId, snapshot)
+      activeSessionId = forkedSessionId
+      return {
+        sessionId: forkedSessionId,
+        workspace: snapshot.workspace,
+        standalone: snapshot.item.standalone === true,
+      }
+    },
+    resumeSession: async sessionId => requireMockSession(sessions, sessionId),
+    trustHook: async () => {},
+    readDirectory: async () => ({ entries: [] }),
+    readFile: async () => ({ dataBase64: '' }),
+    fuzzyFileSearch: async () => ({ files: [] }),
+    setSessionCollaborationMode: async (sessionId, mode) => {
+      const snapshot = requireMockSession(sessions, sessionId)
+      const next = {
+        ...snapshot,
+        item: {
+          ...snapshot.item,
+          collaborationMode: mode,
+          planModeActive: mode.mode === 'plan',
+        },
+        settings: {
+          ...snapshot.settings,
+          collaborationMode: mode,
+          planModeActive: mode.mode === 'plan',
+        },
+      }
+      sessions.set(sessionId, next)
+      return next
+    },
     listMcpServers: async () => [],
     saveMcpServer: async () => [],
     removeMcpServer: async () => [],

@@ -2,11 +2,19 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "rootDir": "../..",
-    "lib": ["ES2023", "DOM"]
+    "baseUrl": "../..",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "paths": {
+      "@codepilotx/core/*": ["./packages/desktop-compat/src/core/*"],
+      "@codepilotx/tui/*": ["./packages/desktop-compat/src/tui/*"],
+      "@codepilotx/desktop/*": ["./apps/desktop/src/*"]
+    }
   },
   "include": [
     "src/**/*.ts",
     "src/**/*.tsx",
-    "../tui/src/types/local/**/*.d.ts"
+    "src/**/*.d.ts",
+    "../../packages/desktop-compat/src/**/*.ts",
+    "../../packages/desktop-compat/src/**/*.tsx"
   ]
 }

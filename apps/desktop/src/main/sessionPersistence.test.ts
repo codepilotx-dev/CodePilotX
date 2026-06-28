@@ -29,7 +29,7 @@ test('transcript-only standalone chat restores outside project groups', async ()
     await writeTranscript(standalonePath, sessionId, 'hello standalone')
 
     const store = await loadDesktopSessionStore()
-    const snapshot = store.sessions.find(item => item.item.id === sessionId)
+    const snapshot = store.sessions.find((item) => item.item.id === sessionId)
 
     expect(snapshot?.item.standalone).toBe(true)
     expect(snapshot?.workspace.isStandalone).toBe(true)
@@ -80,7 +80,7 @@ test('legacy standalone overlay is normalized on restore', async () => {
     )
 
     const store = await loadDesktopSessionStore()
-    const snapshot = store.sessions.find(item => item.item.id === sessionId)
+    const snapshot = store.sessions.find((item) => item.item.id === sessionId)
 
     expect(snapshot?.item.standalone).toBe(true)
     expect(snapshot?.workspace.isStandalone).toBe(true)
@@ -90,13 +90,13 @@ test('legacy standalone overlay is normalized on restore', async () => {
 })
 
 test('real project transcript remains project-scoped', async () => {
-  await withDesktopConfig(async configDir => {
+  await withDesktopConfig(async (configDir) => {
     const sessionId = randomUUID()
     const projectPath = join(configDir, 'real-project')
     await writeTranscript(projectPath, sessionId, 'hello project')
 
     const store = await loadDesktopSessionStore()
-    const snapshot = store.sessions.find(item => item.item.id === sessionId)
+    const snapshot = store.sessions.find((item) => item.item.id === sessionId)
 
     expect(snapshot?.item.standalone).toBe(false)
     expect(snapshot?.workspace.isStandalone).not.toBe(true)
@@ -106,7 +106,7 @@ test('real project transcript remains project-scoped', async () => {
 })
 
 test('transcript restore preserves tool use ids in session events', async () => {
-  await withDesktopConfig(async configDir => {
+  await withDesktopConfig(async (configDir) => {
     const sessionId = randomUUID()
     const projectPath = join(configDir, 'tool-use-project')
     const timestamp = new Date('2026-01-01T00:00:00.000Z').toISOString()
@@ -157,16 +157,16 @@ test('transcript restore preserves tool use ids in session events', async () => 
     ])
 
     const store = await loadDesktopSessionStore()
-    const snapshot = store.sessions.find(item => item.item.id === sessionId)
+    const snapshot = store.sessions.find((item) => item.item.id === sessionId)
     const hydrated = snapshot
       ? await hydrateDesktopSessionSnapshot(snapshot)
       : undefined
     const toolEvents = hydrated?.events.filter(
-      event => event.type === 'tool_call' || event.type === 'tool_result',
+      (event) => event.type === 'tool_call' || event.type === 'tool_result',
     )
 
     expect(toolEvents).toHaveLength(2)
-    expect(toolEvents?.map(event => event.metadata?.toolUseId)).toEqual([
+    expect(toolEvents?.map((event) => event.metadata?.toolUseId)).toEqual([
       'call-question-1',
       'call-question-1',
     ])
@@ -174,7 +174,7 @@ test('transcript restore preserves tool use ids in session events', async () => 
 })
 
 test('legacy snapshot workflow events are normalized on restore', async () => {
-  await withDesktopConfig(async configDir => {
+  await withDesktopConfig(async (configDir) => {
     const sessionId = randomUUID()
     const now = new Date('2026-01-01T00:00:00.000Z').toISOString()
     const projectPath = join(configDir, 'workflow-project')
@@ -226,7 +226,7 @@ test('legacy snapshot workflow events are normalized on restore', async () => {
     )
 
     const store = await loadDesktopSessionStore()
-    const snapshot = store.sessions.find(item => item.item.id === sessionId)
+    const snapshot = store.sessions.find((item) => item.item.id === sessionId)
 
     expect(snapshot?.workflowEvents?.[0]).toMatchObject({
       type: 'thread.started',
@@ -237,7 +237,7 @@ test('legacy snapshot workflow events are normalized on restore', async () => {
 })
 
 test('duplicate overlay session ids keep the first record and warn', async () => {
-  await withDesktopConfig(async configDir => {
+  await withDesktopConfig(async (configDir) => {
     const sessionId = randomUUID()
     const now = new Date('2026-01-01T00:00:00.000Z').toISOString()
     const projectPath = join(configDir, 'duplicate-project')
@@ -261,11 +261,13 @@ test('duplicate overlay session ids keep the first record and warn', async () =>
     const warn = spyOn(console, 'warn').mockImplementation(() => {})
     try {
       const store = await loadDesktopSessionStore()
-      const snapshot = store.sessions.find(item => item.item.id === sessionId)
+      const snapshot = store.sessions.find((item) => item.item.id === sessionId)
 
       expect(snapshot?.item.sessionName).toBe('first')
       expect(warn).toHaveBeenCalledWith(
-        expect.stringContaining(`Duplicate desktop session id ignored: ${sessionId}`),
+        expect.stringContaining(
+          `Duplicate desktop session id ignored: ${sessionId}`,
+        ),
       )
     } finally {
       warn.mockRestore()
@@ -285,17 +287,22 @@ test('writeFileAtomically writes temp file before replacing final file', async (
   const calls: string[] = []
   const filePath = join('C:\\Users\\tester\\config', 'sessions.json')
 
-  await writeFileAtomically(filePath, '{"ok":true}', {
-    mkdir: async path => {
-      calls.push(`mkdir:${path}`)
+  await writeFileAtomically(
+    filePath,
+    '{"ok":true}',
+    {
+      mkdir: async (path) => {
+        calls.push(`mkdir:${path}`)
+      },
+      writeFile: async (path, content) => {
+        calls.push(`write:${path}:${content}`)
+      },
+      rename: async (from, to) => {
+        calls.push(`rename:${from}:${to}`)
+      },
     },
-    writeFile: async (path, content) => {
-      calls.push(`write:${path}:${content}`)
-    },
-    rename: async (from, to) => {
-      calls.push(`rename:${from}:${to}`)
-    },
-  }, 'nonce')
+    'nonce',
+  )
 
   const tempPath = join('C:\\Users\\tester\\config', '.sessions.json.nonce.tmp')
   expect(calls).toEqual([
@@ -305,8 +312,51 @@ test('writeFileAtomically writes temp file before replacing final file', async (
   ])
 })
 
+test('writeFileAtomically retries transient rename permission errors', async () => {
+  const calls: string[] = []
+  const filePath = join('C:\\Users\\tester\\config', 'sessions.json')
+  const tempPath = join('C:\\Users\\tester\\config', '.sessions.json.nonce.tmp')
+  let renameAttempts = 0
+
+  await writeFileAtomically(
+    filePath,
+    '{"ok":true}',
+    {
+      mkdir: async (path) => {
+        calls.push(`mkdir:${path}`)
+      },
+      writeFile: async (path) => {
+        calls.push(`write:${path}`)
+      },
+      rename: async (from, to) => {
+        renameAttempts += 1
+        calls.push(`rename:${renameAttempts}:${from}:${to}`)
+        if (renameAttempts === 1) {
+          const error = new Error(
+            'operation not permitted',
+          ) as NodeJS.ErrnoException
+          error.code = 'EPERM'
+          throw error
+        }
+      },
+      wait: async (ms) => {
+        calls.push(`wait:${ms}`)
+      },
+    },
+    'nonce',
+  )
+
+  expect(calls).toEqual([
+    `mkdir:${join('C:\\Users\\tester\\config')}`,
+    `write:${tempPath}`,
+    `rename:1:${tempPath}:${filePath}`,
+    'wait:25',
+    `rename:2:${tempPath}:${filePath}`,
+  ])
+})
+
 test('AskUserQuestion pending permission with tool use id survives desktop restart', async () => {
-  await withDesktopConfig(async configDir => {
+  await withDesktopConfig(async (configDir) => {
     const sessionId = randomUUID()
     const now = new Date('2026-01-01T00:00:00.000Z').toISOString()
     const projectPath = join(configDir, 'question-project')
@@ -374,7 +424,7 @@ test('AskUserQuestion pending permission with tool use id survives desktop resta
     })
 
     const store = await loadDesktopSessionStore()
-    const restored = store.sessions.find(item => item.item.id === sessionId)
+    const restored = store.sessions.find((item) => item.item.id === sessionId)
 
     expect(restored?.item.status).toBe('waiting')
     expect(restored?.view.pendingPermissions).toEqual([
@@ -389,7 +439,7 @@ test('AskUserQuestion pending permission with tool use id survives desktop resta
 })
 
 test('ExitPlanMode pending permission survives desktop restart', async () => {
-  await withDesktopConfig(async configDir => {
+  await withDesktopConfig(async (configDir) => {
     const sessionId = randomUUID()
     const now = new Date('2026-01-01T00:00:00.000Z').toISOString()
     const projectPath = join(configDir, 'plan-project')
@@ -440,7 +490,7 @@ test('ExitPlanMode pending permission survives desktop restart', async () => {
     })
 
     const store = await loadDesktopSessionStore()
-    const restored = store.sessions.find(item => item.item.id === sessionId)
+    const restored = store.sessions.find((item) => item.item.id === sessionId)
 
     expect(restored?.item.status).toBe('waiting')
     expect(restored?.view.pendingPermissions).toEqual([
@@ -456,7 +506,7 @@ test('ExitPlanMode pending permission survives desktop restart', async () => {
 })
 
 test('overlay workflow events are saved and restored without transcript state', async () => {
-  await withDesktopConfig(async configDir => {
+  await withDesktopConfig(async (configDir) => {
     const sessionId = randomUUID()
     const now = new Date('2026-01-01T00:00:00.000Z').toISOString()
     const projectPath = join(configDir, 'workflow-overlay-project')
@@ -485,7 +535,7 @@ test('overlay workflow events are saved and restored without transcript state', 
     })
 
     const store = await loadDesktopSessionStore()
-    const restored = store.sessions.find(item => item.item.id === sessionId)
+    const restored = store.sessions.find((item) => item.item.id === sessionId)
 
     expect(restored?.workflowEvents).toHaveLength(1)
     expect(restored?.workflowEvents?.[0]).toMatchObject({
@@ -496,8 +546,41 @@ test('overlay workflow events are saved and restored without transcript state', 
   })
 })
 
+test('codex app-server thread id is saved and restored with session overlay', async () => {
+  await withDesktopConfig(async (configDir) => {
+    const sessionId = randomUUID()
+    const projectPath = join(configDir, 'codex-thread-project')
+    const snapshot = createDesktopSessionSnapshot({
+      sessionId,
+      workspace: {
+        path: projectPath,
+        name: 'codex-thread-project',
+        branchName: null,
+        isGitRepo: false,
+      },
+      standalone: false,
+      settings: {
+        permissionMode: 'default',
+        thinkingMode: 'default',
+        additionalDirectories: [],
+      },
+    })
+    snapshot.codexAppServerThreadId = 'thread-codex-1'
+
+    await saveDesktopSessionStore({
+      activeSessionId: sessionId,
+      sessions: [snapshot],
+    })
+
+    const store = await loadDesktopSessionStore()
+    const restored = store.sessions.find((item) => item.item.id === sessionId)
+
+    expect(restored?.codexAppServerThreadId).toBe('thread-codex-1')
+  })
+})
+
 test('review comments are saved, restored, and invalid records are ignored', async () => {
-  await withDesktopConfig(async configDir => {
+  await withDesktopConfig(async (configDir) => {
     const sessionId = randomUUID()
     const now = new Date('2026-01-01T00:00:00.000Z').toISOString()
     const projectPath = join(configDir, 'review-comment-project')
@@ -549,7 +632,7 @@ test('review comments are saved, restored, and invalid records are ignored', asy
     })
 
     const store = await loadDesktopSessionStore()
-    const restored = store.sessions.find(item => item.item.id === sessionId)
+    const restored = store.sessions.find((item) => item.item.id === sessionId)
 
     expect(restored?.reviewComments).toEqual([
       expect.objectContaining({
@@ -618,7 +701,10 @@ async function writeTranscript(
   sessionId: string,
   content: string,
 ): Promise<void> {
-  const transcriptPath = join(getProjectDir(workspacePath), `${sessionId}.jsonl`)
+  const transcriptPath = join(
+    getProjectDir(workspacePath),
+    `${sessionId}.jsonl`,
+  )
   await mkdir(dirname(transcriptPath), { recursive: true })
   await writeFile(
     transcriptPath,
@@ -645,11 +731,14 @@ async function writeTranscriptEntries(
   sessionId: string,
   entries: unknown[],
 ): Promise<void> {
-  const transcriptPath = join(getProjectDir(workspacePath), `${sessionId}.jsonl`)
+  const transcriptPath = join(
+    getProjectDir(workspacePath),
+    `${sessionId}.jsonl`,
+  )
   await mkdir(dirname(transcriptPath), { recursive: true })
   await writeFile(
     transcriptPath,
-    `${entries.map(entry => JSON.stringify(entry)).join('\n')}\n`,
+    `${entries.map((entry) => JSON.stringify(entry)).join('\n')}\n`,
     'utf8',
   )
 }

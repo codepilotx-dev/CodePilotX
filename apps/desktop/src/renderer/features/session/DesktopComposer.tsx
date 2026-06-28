@@ -66,6 +66,9 @@ type Props = {
   onCreateBranch: () => void
   onPermissionChange: (value: DesktopPermissionMode) => void
   onPlanModeChange: (active: boolean) => void
+  onLocalSlashCommand?: (
+    command: DesktopSlashCommandSuggestion,
+  ) => boolean | Promise<boolean>
   onThinkingChange: (value: DesktopThinkingMode) => void
   createSessionForWorkspace: (
     target?: DesktopWorkspace | null,
@@ -109,6 +112,7 @@ export function DesktopComposer({
   onCreateBranch,
   onPermissionChange,
   onPlanModeChange,
+  onLocalSlashCommand,
   onThinkingChange,
   createSessionForWorkspace,
   submitToSession,
@@ -265,6 +269,7 @@ export function DesktopComposer({
       onCreateBranch={onCreateBranch}
       onPermissionChange={onPermissionChange}
       onPlanModeChange={onPlanModeChange}
+      onLocalSlashCommand={onLocalSlashCommand}
       onSubmit={handleSubmit}
       onThinkingChange={onThinkingChange}
       contextDropdownSide={isQuickChatPage ? 'bottom' : 'top'}

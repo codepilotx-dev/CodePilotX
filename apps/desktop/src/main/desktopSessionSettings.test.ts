@@ -1,5 +1,6 @@
 import { expect, test } from 'bun:test'
 import {
+  applySessionCollaborationModeToSnapshot,
   applySessionPermissionModeToSnapshot,
   createSessionSettingsSnapshot,
 } from './desktopSessionSettings.js'
@@ -11,11 +12,14 @@ test('createSessionSettingsSnapshot preserves requested permission mode', () => 
     approvalPolicy: 'on-request',
     approvalsReviewer: 'user',
     permissionMode: 'auto-review',
+    collaborationMode: { mode: 'plan' },
     thinkingMode: 'default',
     additionalDirectories: [],
   })
 
   expect(settings.permissionMode).toBe('auto-review')
+  expect(settings.collaborationMode).toEqual({ mode: 'plan' })
+  expect(settings.planModeActive).toBe(true)
 })
 
 test('applySessionPermissionModeToSnapshot updates mode without treating it as profile', () => {
@@ -45,4 +49,36 @@ test('applySessionPermissionModeToSnapshot updates mode without treating it as p
   expect(updated.item.permissionProfile).toBe(':workspace')
   expect(updated.settings.permissionProfile).toBe(':workspace')
   expect(updated.updatedAt).not.toBe(snapshot.updatedAt)
+})
+
+test('applySessionCollaborationModeToSnapshot stores canonical mode and legacy derived flag', () => {
+  const snapshot = {
+    item: {
+      id: 'session-1',
+      permissionProfile: ':workspace',
+      approvalPolicy: 'on-request',
+      approvalsReviewer: 'user',
+      permissionMode: 'default',
+      planModeActive: false,
+    },
+    settings: {
+      permissionProfile: ':workspace',
+      approvalPolicy: 'on-request',
+      approvalsReviewer: 'user',
+      permissionMode: 'default',
+      planModeActive: false,
+      thinkingMode: 'default',
+      additionalDirectories: [],
+    },
+    updatedAt: '2026-06-26T00:00:00.000Z',
+  } as DesktopSessionSnapshot
+
+  const updated = applySessionCollaborationModeToSnapshot(snapshot, {
+    mode: 'plan',
+  })
+
+  expect(updated.item.collaborationMode).toEqual({ mode: 'plan' })
+  expect(updated.settings.collaborationMode).toEqual({ mode: 'plan' })
+  expect(updated.item.planModeActive).toBe(true)
+  expect(updated.settings.planModeActive).toBe(true)
 })

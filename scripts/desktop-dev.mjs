@@ -1,11 +1,17 @@
 import { spawn, spawnSync } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { resolve } from 'node:path'
-import { build, createServer } from 'vite'
+import { pathToFileURL } from 'node:url'
 
-const require = createRequire(import.meta.url)
 const root = resolve(import.meta.dirname, '..')
-const electronPath = require('electron')
+const desktopPackageRoot = resolve(root, 'apps/desktop')
+const requireFromDesktop = createRequire(
+  resolve(desktopPackageRoot, 'package.json'),
+)
+const { build, createServer } = await import(
+  pathToFileURL(requireFromDesktop.resolve('vite')).href
+)
+const electronPath = requireFromDesktop('electron')
 const rendererPort = Number.parseInt(
   process.env.DESKTOP_RENDERER_PORT ??
     process.env.CODEPILOTX_DESKTOP_RENDERER_PORT ??
@@ -14,7 +20,7 @@ const rendererPort = Number.parseInt(
   10,
 )
 const rendererUrl = `http://127.0.0.1:${rendererPort}/`
-const mainEntry = resolve(root, 'dist/desktop/main/index.js')
+const mainEntry = resolve(desktopPackageRoot, 'dist/main/index.js')
 const desktopRuntimeEnv =
   process.env.CODEPILOTX_DESKTOP_RUNTIME ??
   process.env.CLAUDE_CODE_DESKTOP_RUNTIME

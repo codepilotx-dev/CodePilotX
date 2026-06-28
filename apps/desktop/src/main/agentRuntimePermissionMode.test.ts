@@ -36,7 +36,12 @@ mock.module('@codepilotx/tui/headless/desktopRuntime.js', () => ({
 
 const { createDesktopAgentRuntime } = await import('./agentRuntime.js')
 
-test('embedded desktop runtime receives and updates permission mode', () => {
+async function flushHeadlessRuntimeLoad(): Promise<void> {
+  await Promise.resolve()
+  await Promise.resolve()
+}
+
+test('embedded desktop runtime receives and updates permission mode', async () => {
   createdHeadlessOptions.length = 0
   headlessRuntime.setPermissionMode.mockClear()
   headlessRuntime.setCodexPermissionConfig.mockClear()
@@ -49,6 +54,7 @@ test('embedded desktop runtime receives and updates permission mode', () => {
     emit: () => undefined,
     requestPermission: async () => ({ behavior: 'deny' }),
   })
+  await flushHeadlessRuntimeLoad()
 
   expect(createdHeadlessOptions[0]).toMatchObject({
     permissionMode: 'default',
@@ -58,6 +64,7 @@ test('embedded desktop runtime receives and updates permission mode', () => {
   })
 
   runtime.setPermissionMode('full-access')
+  await flushHeadlessRuntimeLoad()
 
   expect(headlessRuntime.setPermissionMode).toHaveBeenCalledWith(
     'bypassPermissions',
@@ -69,7 +76,7 @@ test('embedded desktop runtime receives and updates permission mode', () => {
   })
 })
 
-test('embedded desktop runtime applies plan mode independently from permission mode', () => {
+test('embedded desktop runtime applies plan mode independently from permission mode', async () => {
   createdHeadlessOptions.length = 0
   headlessRuntime.setPermissionMode.mockClear()
 
@@ -82,6 +89,7 @@ test('embedded desktop runtime applies plan mode independently from permission m
     emit: () => undefined,
     requestPermission: async () => ({ behavior: 'deny' }),
   })
+  await flushHeadlessRuntimeLoad()
 
   expect(createdHeadlessOptions[0]).toMatchObject({
     permissionMode: 'plan',
@@ -91,14 +99,38 @@ test('embedded desktop runtime applies plan mode independently from permission m
   })
 
   runtime.setPlanModeActive(false)
+  await flushHeadlessRuntimeLoad()
   expect(headlessRuntime.setPermissionMode).toHaveBeenCalledWith('default')
 
   runtime.setPlanModeActive(true)
+  await flushHeadlessRuntimeLoad()
   expect(headlessRuntime.setPermissionMode).toHaveBeenCalledWith('plan')
 })
 
+test('embedded desktop runtime derives plan mode from collaboration mode', async () => {
+  createdHeadlessOptions.length = 0
 
-test('embedded desktop runtime receives and updates selected provider', () => {
+  createDesktopAgentRuntime({
+    sessionId: 'session-collaboration-plan',
+    workspacePath: '/workspace',
+    runtimePreference: 'embedded-headless',
+    permissionMode: 'auto-review',
+    collaborationMode: { mode: 'plan' },
+    emit: () => undefined,
+    requestPermission: async () => ({ behavior: 'deny' }),
+  })
+  await flushHeadlessRuntimeLoad()
+
+  expect(createdHeadlessOptions[0]).toMatchObject({
+    permissionMode: 'plan',
+    sandboxMode: 'workspace-write',
+    approvalPolicy: 'on-request',
+    approvalsReviewer: 'auto_review',
+  })
+})
+
+
+test('embedded desktop runtime receives and updates selected provider', async () => {
   createdHeadlessOptions.length = 0
   headlessRuntime.setModel.mockClear()
   headlessRuntime.setProvider.mockClear()
@@ -113,6 +145,7 @@ test('embedded desktop runtime receives and updates selected provider', () => {
     emit: () => undefined,
     requestPermission: async () => ({ behavior: 'deny' }),
   })
+  await flushHeadlessRuntimeLoad()
 
   expect(createdHeadlessOptions[0]).toMatchObject({
     providerID: 'deepseek',
@@ -125,6 +158,7 @@ test('embedded desktop runtime receives and updates selected provider', () => {
     'MiniMax-M3',
     'https://api.minimaxi.com/anthropic/v1',
   )
+  await flushHeadlessRuntimeLoad()
 
   expect(headlessRuntime.setProvider).toHaveBeenCalledWith(
     'minimax-cn-coding-plan',
@@ -133,7 +167,7 @@ test('embedded desktop runtime receives and updates selected provider', () => {
   expect(headlessRuntime.setModel).toHaveBeenCalledWith('MiniMax-M3')
 })
 
-test('embedded desktop runtime receives conversation dump debug mode', () => {
+test('embedded desktop runtime receives conversation dump debug mode', async () => {
   createdHeadlessOptions.length = 0
 
   createDesktopAgentRuntime({
@@ -144,6 +178,7 @@ test('embedded desktop runtime receives conversation dump debug mode', () => {
     emit: () => undefined,
     requestPermission: async () => ({ behavior: 'deny' }),
   })
+  await flushHeadlessRuntimeLoad()
 
   expect(createdHeadlessOptions[0]).toMatchObject({
     debugConversationDump: true,

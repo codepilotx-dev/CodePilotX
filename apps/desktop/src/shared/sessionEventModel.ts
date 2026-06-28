@@ -123,6 +123,9 @@ export function desktopAgentEventToSessionEvent(
         metadata: { status: 'done' },
       }
     case 'session_title':
+    case 'thread_goal_updated':
+    case 'thread_goal_cleared':
+    case 'thread_status_changed':
       return null
   }
 }

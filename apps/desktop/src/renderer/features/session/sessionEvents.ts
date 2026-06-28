@@ -129,6 +129,37 @@ export function handleSessionAgentEvent(
     return
   }
 
+  if (event.type === 'thread_goal_updated') {
+    updateSessionView(event.sessionId, view => ({
+      ...view,
+      goal: event.goal,
+    }))
+    return
+  }
+
+  if (event.type === 'thread_goal_cleared') {
+    updateSessionView(event.sessionId, view => ({
+      ...view,
+      goal:
+        view.goal?.threadId === event.threadId || !event.threadId
+          ? null
+          : view.goal,
+    }))
+    return
+  }
+
+  if (event.type === 'thread_status_changed') {
+    updateSessionView(event.sessionId, view => ({
+      ...view,
+      agentEntries: (view.agentEntries ?? []).map(agent =>
+        agent.sourceThreadId === event.threadId
+          ? { ...agent, status: event.status }
+          : agent,
+      ),
+    }))
+    return
+  }
+
   if (event.type === 'session_title') {
     setSessions(current =>
       current.map(session =>

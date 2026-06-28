@@ -3,21 +3,45 @@ import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { writeFile } from 'node:fs/promises'
 import { createInterface } from 'node:readline'
-import { getPlanFilePath } from '@codepilotx/tui/utils/plans.js'
+import { CodexAppServerClient } from '@codepilotx/codex-app-server-client'
 import { parseProposedPlanText } from '@codepilotx/core/agent/proposedPlan.js'
 import {
-  createDesktopHeadlessRuntime,
-  runDesktopHeadlessControlResponse,
-  runDesktopHeadlessTurn,
-  type DesktopHeadlessOutputControls,
-  type DesktopHeadlessRuntime,
+  planModeActiveFromCollaborationMode,
+  resolveCodexCollaborationMode,
+  type CodexCollaborationMode,
+} from '@codepilotx/core/agent/codexSessionContract.js'
+import type {
+  DesktopHeadlessOutputControls,
+  DesktopHeadlessRuntime,
 } from '@codepilotx/tui/headless/desktopRuntime.js'
 import type { StdoutMessage } from '@codepilotx/tui/entrypoints/sdk/controlTypes.js'
 import type {
+  AppServerNotification,
+  CollaborationModeListResponse,
+  FsReadDirectoryResponse,
+  FsReadFileResponse,
+  FuzzyFileSearchParams,
+  FuzzyFileSearchResponse,
+  HooksListResponse,
+  JsonRpcId,
+  JsonRpcRequest,
+  Thread,
+  ThreadReadResponse,
+  ThreadBackgroundTerminal,
+  Turn,
+  UserInput,
+} from '@codepilotx/codex-app-server-client'
+import type {
   DesktopAgentEvent,
+  DesktopAgentPickerEntry,
+  DesktopBackgroundTerminal,
+  DesktopCollaborationModePreset,
+  DesktopHookListEntry,
   DesktopPermissionMode,
   DesktopPermissionDecision,
   DesktopPermissionRequest,
+  DesktopThreadGoal,
+  DesktopThreadGoalStatus,
   DesktopThinkingMode,
   DesktopUserMessageContent,
 } from '../shared/types.js'
@@ -43,6 +67,7 @@ import { desktopDebug } from './desktopDebug.js'
 
 export type DesktopAgentRuntimePreference =
   | 'auto'
+  | 'app-server'
   | 'embedded-headless'
   | 'subprocess'
 
@@ -71,9 +96,12 @@ export type DesktopAgentRuntimeContext = {
   approvalPolicy?: DesktopCodexApprovalPolicy
   approvalsReviewer?: DesktopCodexApprovalsReviewer | LegacyDesktopCodexApprovalsReviewer
   permissionMode?: DesktopPermissionMode
+  collaborationMode?: CodexCollaborationMode
   planModeActive?: boolean
   providerID?: string
   providerBaseURL?: string
+  codexAppServerThreadId?: string | null
+  onCodexAppServerThreadId?(threadId: string): void
   debugConversationDump?: boolean
   model?: string
   reviewModel?: string
@@ -106,11 +134,48 @@ export type DesktopAgentRuntime = {
     response: Record<string, unknown>,
     signal: AbortSignal,
   ): Promise<void>
+  getThreadGoal(): Promise<DesktopThreadGoal | null>
+  setThreadGoal(input: {
+    objective?: string | null
+    status?: DesktopThreadGoalStatus | null
+    tokenBudget?: number | null
+  }): Promise<DesktopThreadGoal>
+  clearThreadGoal(): Promise<void>
+  listBackgroundTerminals(): Promise<DesktopBackgroundTerminal[]>
+  terminateBackgroundTerminal(processId: string): Promise<{ terminated: boolean }>
+  cleanBackgroundTerminals(): Promise<void>
+  listHooks(): Promise<DesktopHookListEntry[]>
+  listCollaborationModes(): Promise<DesktopCollaborationModePreset[]>
+  listAgentPickerEntries(): Promise<DesktopAgentPickerEntry[]>
+  readAgentThread(threadId: string): Promise<ThreadReadResponse>
+  sendAgentThreadMessage(threadId: string, content: DesktopUserMessageContent): Promise<void>
+  interruptAgentThread(threadId: string): Promise<void>
+  closeAgentThread(threadId: string): Promise<void>
+  resumeAgentThread(threadId: string): Promise<ThreadReadResponse>
+  forkThread(): Promise<Thread>
+  trustHook(key: string, currentHash: string): Promise<void>
+  readDirectory(path: string): Promise<FsReadDirectoryResponse>
+  readFile(path: string): Promise<FsReadFileResponse>
+  fuzzyFileSearch(params: FuzzyFileSearchParams): Promise<FuzzyFileSearchResponse>
 }
 
 let headlessQueue: Promise<void> = Promise.resolve()
 const DESKTOP_ENABLED_THINKING_BUDGET = 1_000_000_000
 const SUBPROCESS_STDERR_BUFFER_LIMIT = 16 * 1024
+const APP_SERVER_CLIENT_INFO = {
+  name: 'codepilotx_desktop',
+  title: 'CodePilotX Desktop',
+  version: '0.0.0-local',
+} as const
+
+type DesktopHeadlessModule = typeof import('@codepilotx/tui/headless/desktopRuntime.js')
+
+let desktopHeadlessModulePromise: Promise<DesktopHeadlessModule> | null = null
+
+function loadDesktopHeadlessModule(): Promise<DesktopHeadlessModule> {
+  desktopHeadlessModulePromise ??= import('@codepilotx/tui/headless/desktopRuntime.js')
+  return desktopHeadlessModulePromise
+}
 
 function runSerialized<T>(operation: () => Promise<T>): Promise<T> {
   const run = headlessQueue.then(operation, operation)
@@ -138,7 +203,20 @@ export function appendCappedText(
 export function createDesktopAgentRuntime(
   context: DesktopAgentRuntimeContext,
 ): DesktopAgentRuntime {
+  context = normalizeDesktopAgentRuntimeContext(context)
   const preference = context.runtimePreference ?? 'auto'
+  if (preference === 'auto' || preference === 'app-server') {
+    desktopDebug('runtime_create_app_server', {
+      sessionId: context.sessionId,
+      preference,
+    })
+    return new AppServerDesktopAgentRuntime(
+      context,
+      preference === 'auto'
+        ? () => new InProcessDesktopAgentRuntime(context)
+        : undefined,
+    )
+  }
   if (preference === 'subprocess') {
     desktopDebug('runtime_create_subprocess', {
       sessionId: context.sessionId,
@@ -159,6 +237,866 @@ export function createDesktopAgentRuntime(
       message: error instanceof Error ? error.message : String(error),
     })
     throw error
+  }
+}
+
+function normalizeDesktopAgentRuntimeContext(
+  context: DesktopAgentRuntimeContext,
+): DesktopAgentRuntimeContext {
+  const collaborationMode = resolveCodexCollaborationMode({
+    collaborationMode: context.collaborationMode,
+    planModeActive: context.planModeActive,
+  })
+  return {
+    ...context,
+    collaborationMode,
+    planModeActive: planModeActiveFromCollaborationMode(collaborationMode),
+  }
+}
+
+class AppServerDesktopAgentRuntime implements DesktopAgentRuntime {
+  private client: CodexAppServerClient | null = null
+  private fallback: DesktopAgentRuntime | null = null
+  private appServerReady = false
+  private threadId: string | null
+  private currentTurnId: string | null = null
+  private currentTurnResolve: (() => void) | null = null
+  private currentTurnReject: ((error: Error) => void) | null = null
+  private readonly completedTurns = new Map<string, Error | null>()
+
+  constructor(
+    private readonly context: DesktopAgentRuntimeContext,
+    private readonly createFallback?: () => DesktopAgentRuntime,
+  ) {
+    this.threadId = context.codexAppServerThreadId?.trim() || null
+  }
+
+  setModel(model: string | undefined): void {
+    this.context.model = model
+    this.fallback?.setModel(model)
+  }
+
+  setModelProvider(
+    providerID: string | undefined,
+    model: string | undefined,
+    providerBaseURL: string | undefined,
+  ): void {
+    this.context.providerID = providerID
+    this.context.providerBaseURL = providerBaseURL
+    this.setModel(model)
+    this.fallback?.setModelProvider(providerID, model, providerBaseURL)
+  }
+
+  setPermissionMode(permissionMode: DesktopPermissionMode): void {
+    this.context.permissionMode = permissionMode
+    this.fallback?.setPermissionMode(permissionMode)
+  }
+
+  setPlanModeActive(active: boolean): void {
+    this.context.collaborationMode = resolveCodexCollaborationMode({
+      planModeActive: active,
+    })
+    this.context.planModeActive = active
+    this.fallback?.setPlanModeActive(active)
+  }
+
+  setDebugConversationDump(enabled: boolean): void {
+    this.context.debugConversationDump = enabled
+    this.fallback?.setDebugConversationDump(enabled)
+  }
+
+  async runUserTurn(
+    content: DesktopUserMessageContent,
+    signal: AbortSignal,
+  ): Promise<void> {
+    try {
+      await this.runUserTurnWithAppServer(content, signal)
+    } catch (error) {
+      if (!this.createFallback || this.appServerReady) {
+        throw error
+      }
+      desktopDebug('runtime_app_server_fallback', {
+        sessionId: this.context.sessionId,
+        message: error instanceof Error ? error.message : String(error),
+      })
+      this.fallback ??= this.createFallback()
+      await this.fallback.runUserTurn(content, signal)
+    }
+  }
+
+  async runControlResponse(
+    response: Record<string, unknown>,
+    signal: AbortSignal,
+  ): Promise<void> {
+    if (this.fallback) {
+      await this.fallback.runControlResponse(response, signal)
+    }
+  }
+
+  async getThreadGoal(): Promise<DesktopThreadGoal | null> {
+    const client = await this.ensureClient()
+    const threadId = await this.ensureThread(client)
+    const result = await client.getThreadGoal({ threadId })
+    return result.goal ? mapThreadGoal(result.goal) : null
+  }
+
+  async setThreadGoal(input: {
+    objective?: string | null
+    status?: DesktopThreadGoalStatus | null
+    tokenBudget?: number | null
+  }): Promise<DesktopThreadGoal> {
+    const client = await this.ensureClient()
+    const threadId = await this.ensureThread(client)
+    const result = await client.setThreadGoal({
+      threadId,
+      objective: input.objective,
+      status: input.status,
+      tokenBudget: input.tokenBudget,
+    })
+    return mapThreadGoal(result.goal)
+  }
+
+  async clearThreadGoal(): Promise<void> {
+    const client = await this.ensureClient()
+    const threadId = await this.ensureThread(client)
+    await client.clearThreadGoal({ threadId })
+  }
+
+  async listBackgroundTerminals(): Promise<DesktopBackgroundTerminal[]> {
+    const client = await this.ensureClient()
+    const threadId = await this.ensureThread(client)
+    const terminals: DesktopBackgroundTerminal[] = []
+    let cursor: string | null | undefined = undefined
+    do {
+      const result = await client.listBackgroundTerminals({
+        threadId,
+        cursor,
+      })
+      terminals.push(...result.data.map(mapBackgroundTerminal))
+      cursor = result.nextCursor
+    } while (cursor)
+    return terminals
+  }
+
+  async terminateBackgroundTerminal(
+    processId: string,
+  ): Promise<{ terminated: boolean }> {
+    const client = await this.ensureClient()
+    const threadId = await this.ensureThread(client)
+    return client.terminateBackgroundTerminal({ threadId, processId })
+  }
+
+  async cleanBackgroundTerminals(): Promise<void> {
+    const client = await this.ensureClient()
+    const threadId = await this.ensureThread(client)
+    await client.cleanBackgroundTerminals({ threadId })
+  }
+
+  async listHooks(): Promise<DesktopHookListEntry[]> {
+    const client = await this.ensureClient()
+    const result = await client.listHooks()
+    return mapHookEntries(result)
+  }
+
+  async listCollaborationModes(): Promise<DesktopCollaborationModePreset[]> {
+    const client = await this.ensureClient()
+    const result = await client.listCollaborationModes()
+    return mapCollaborationModes(result)
+  }
+
+  async listAgentPickerEntries(): Promise<DesktopAgentPickerEntry[]> {
+    const client = await this.ensureClient()
+    const rootThreadId = await this.ensureThread(client)
+    const entries: DesktopAgentPickerEntry[] = []
+    let cursor: string | null | undefined = undefined
+    do {
+      const result = await client.listThreads({
+        cursor,
+        useStateDbOnly: true,
+      })
+      entries.push(
+        ...result.data
+          .filter(thread => thread.id === rootThreadId || thread.forkedFromId === rootThreadId)
+          .map(thread => mapAgentPickerEntry(thread, rootThreadId)),
+      )
+      cursor = result.nextCursor
+    } while (cursor)
+    return entries.sort((left, right) => {
+      if (left.isPrimary !== right.isPrimary) return left.isPrimary ? -1 : 1
+      return left.nickname.localeCompare(right.nickname)
+    })
+  }
+
+  async readAgentThread(threadId: string): Promise<ThreadReadResponse> {
+    const client = await this.ensureClient()
+    return client.readThread(threadId, { includeTurns: true })
+  }
+
+  async sendAgentThreadMessage(
+    threadId: string,
+    content: DesktopUserMessageContent,
+  ): Promise<void> {
+    const client = await this.ensureClient()
+    const permissionConfig = codexPermissionConfigForMode(this.context)
+    await client.startTurn({
+      threadId,
+      input: desktopContentToUserInput(content),
+      cwd: this.context.workspacePath,
+      model: this.context.model,
+      approvalPolicy: permissionConfig.approvalPolicy,
+      approvalsReviewer: permissionConfig.approvalsReviewer,
+    })
+  }
+
+  async interruptAgentThread(threadId: string): Promise<void> {
+    if (threadId !== this.threadId || !this.currentTurnId) return
+    const client = await this.ensureClient()
+    await client.interruptTurn({ threadId, turnId: this.currentTurnId })
+  }
+
+  async closeAgentThread(threadId: string): Promise<void> {
+    const client = await this.ensureClient()
+    await client.archiveThread(threadId)
+  }
+
+  async resumeAgentThread(threadId: string): Promise<ThreadReadResponse> {
+    const client = await this.ensureClient()
+    await client.unarchiveThread(threadId)
+    await client.resumeThread(threadId)
+    return client.readThread(threadId, { includeTurns: true })
+  }
+
+  async forkThread(): Promise<Thread> {
+    const client = await this.ensureClient()
+    const threadId = await this.ensureThread(client)
+    const permissionConfig = codexPermissionConfigForMode(this.context)
+    const result = await client.forkThreadWithParams({
+      threadId,
+      cwd: this.context.workspacePath,
+      model: this.context.model,
+      approvalPolicy: permissionConfig.approvalPolicy,
+      approvalsReviewer: permissionConfig.approvalsReviewer,
+      sandbox: permissionConfig.sandboxMode,
+      threadSource: 'codepilotx_desktop',
+    })
+    return result.thread
+  }
+
+  async trustHook(key: string, currentHash: string): Promise<void> {
+    const client = await this.ensureClient()
+    await client.configBatchWrite(
+      [
+        {
+          keyPath: 'hooks.state',
+          value: { [key]: { trusted_hash: currentHash } },
+          mergeStrategy: 'upsert',
+        },
+      ],
+      { reloadUserConfig: true },
+    )
+  }
+
+  async readDirectory(path: string): Promise<FsReadDirectoryResponse> {
+    const client = await this.ensureClient()
+    return client.readDirectory(path)
+  }
+
+  async readFile(path: string): Promise<FsReadFileResponse> {
+    const client = await this.ensureClient()
+    return client.readFile(path)
+  }
+
+  async fuzzyFileSearch(
+    params: FuzzyFileSearchParams,
+  ): Promise<FuzzyFileSearchResponse> {
+    const client = await this.ensureClient()
+    return client.fuzzyFileSearch(params)
+  }
+
+  private async runUserTurnWithAppServer(
+    content: DesktopUserMessageContent,
+    signal: AbortSignal,
+  ): Promise<void> {
+    const client = await this.ensureClient()
+    const threadId = await this.ensureThread(client)
+    const abortHandler = () => {
+      if (this.currentTurnId) {
+        void client.interruptTurn({ threadId, turnId: this.currentTurnId })
+      }
+    }
+    signal.addEventListener('abort', abortHandler, { once: true })
+    try {
+      if (signal.aborted) return
+      const permissionConfig = codexPermissionConfigForMode(this.context)
+      const result = await client.startTurn({
+        threadId,
+        input: desktopContentToUserInput(content),
+        cwd: this.context.workspacePath,
+        model: this.context.model,
+        approvalPolicy: permissionConfig.approvalPolicy,
+        approvalsReviewer: permissionConfig.approvalsReviewer,
+      })
+      this.currentTurnId = result.turn.id
+      if (signal.aborted) return
+      if (result.turn.status === 'failed') {
+        throw new Error(result.turn.error?.message ?? 'Codex app-server turn failed')
+      }
+      if (result.turn.status === 'completed' || result.turn.status === 'interrupted') {
+        this.context.emit({ type: 'status', sessionId: this.context.sessionId, status: 'done' })
+        return
+      }
+      await new Promise<void>((resolve, reject) => {
+        const completed = this.completedTurns.get(result.turn.id)
+        if (this.completedTurns.has(result.turn.id)) {
+          this.completedTurns.delete(result.turn.id)
+          if (completed) {
+            reject(completed)
+          } else {
+            resolve()
+          }
+          return
+        }
+        this.currentTurnResolve = resolve
+        this.currentTurnReject = reject
+        signal.addEventListener(
+          'abort',
+          () => {
+            this.currentTurnResolve = null
+            this.currentTurnReject = null
+            resolve()
+          },
+          { once: true },
+        )
+      })
+    } finally {
+      signal.removeEventListener('abort', abortHandler)
+      this.currentTurnId = null
+      this.currentTurnResolve = null
+      this.currentTurnReject = null
+    }
+  }
+
+  private async ensureClient(): Promise<CodexAppServerClient> {
+    if (this.client) return this.client
+    const client = new CodexAppServerClient({
+      transport: { type: 'stdio' },
+      codexHome: this.context.configDirectoryPath,
+      clientInfo: APP_SERVER_CLIENT_INFO,
+    })
+    client.onNotification(notification => {
+      this.handleNotification(notification)
+    })
+    client.onRequest(request => {
+      void this.handleServerRequest(request)
+    })
+    await client.start()
+    this.appServerReady = true
+    this.client = client
+    return client
+  }
+
+  private async ensureThread(client: CodexAppServerClient): Promise<string> {
+    if (this.threadId) {
+      const result = await client.resumeThread(this.threadId)
+      this.rememberThread(result.thread)
+      return result.thread.id
+    }
+    const permissionConfig = codexPermissionConfigForMode(this.context)
+    const result = await client.startThread({
+      cwd: this.context.workspacePath,
+      model: this.context.model,
+      approvalPolicy: permissionConfig.approvalPolicy,
+      approvalsReviewer: permissionConfig.approvalsReviewer,
+      sandbox: permissionConfig.sandboxMode,
+      threadSource: 'codepilotx_desktop',
+    })
+    this.rememberThread(result.thread)
+    return result.thread.id
+  }
+
+  private rememberThread(thread: Thread): void {
+    this.threadId = thread.id
+    this.context.onCodexAppServerThreadId?.(thread.id)
+  }
+
+  private handleNotification(notification: AppServerNotification): void {
+    switch (notification.method) {
+      case 'thread/started':
+        this.rememberThread(notification.params.thread)
+        return
+      case 'turn/started':
+        this.currentTurnId = notification.params.turn.id
+        this.context.emit({
+          type: 'status',
+          sessionId: this.context.sessionId,
+          status: 'running',
+        })
+        return
+      case 'turn/completed':
+        this.handleTurnCompleted(notification.params.turn)
+        return
+      case 'thread/status/changed':
+        this.context.emit({
+          type: 'thread_status_changed',
+          sessionId: this.context.sessionId,
+          threadId: notification.params.threadId,
+          status: mapThreadStatus(notification.params.status),
+        })
+        return
+      case 'thread/goal/updated':
+        this.context.emit({
+          type: 'thread_goal_updated',
+          sessionId: this.context.sessionId,
+          goal: mapThreadGoal(notification.params.goal),
+        })
+        return
+      case 'thread/goal/cleared':
+        this.context.emit({
+          type: 'thread_goal_cleared',
+          sessionId: this.context.sessionId,
+          threadId: notification.params.threadId,
+        })
+        return
+      case 'item/started':
+        this.emitItemStarted(
+          notification.params.item,
+          notification.params.threadId,
+        )
+        return
+      case 'item/completed':
+        this.emitItemCompleted(
+          notification.params.item,
+          notification.params.threadId,
+        )
+        return
+      case 'item/agentMessage/delta':
+        this.context.emit({
+          type: 'partial_message',
+          sessionId: this.context.sessionId,
+          text: notification.params.delta,
+          sourceThreadId: notification.params.threadId,
+        })
+        return
+      case 'item/commandExecution/outputDelta':
+        this.context.emit({
+          type: 'tool_result',
+          sessionId: this.context.sessionId,
+          toolName: 'Command',
+          summary: notification.params.delta,
+          toolUseId: notification.params.itemId,
+          sourceThreadId: notification.params.threadId,
+        })
+        return
+      case 'item/reasoning/summaryTextDelta':
+      case 'item/reasoning/textDelta':
+        this.context.emit({
+          type: 'tool_result',
+          sessionId: this.context.sessionId,
+          toolName: 'Thinking',
+          summary: notification.params.delta,
+          toolUseId: notification.params.itemId,
+          sourceThreadId: notification.params.threadId,
+        })
+        return
+      case 'thread/tokenUsage/updated':
+        this.emitTokenUsage(notification.params.tokenUsage)
+        return
+      case 'error': {
+        const message = notification.params.message
+        this.context.emit({
+          type: 'message',
+          sessionId: this.context.sessionId,
+          role: 'system',
+          text: message,
+        })
+        this.currentTurnReject?.(new Error(message))
+        return
+      }
+      default:
+        return
+    }
+  }
+
+  private handleTurnCompleted(turn: Turn): void {
+    if (turn.status === 'failed') {
+      const error = new Error(turn.error?.message ?? 'Codex app-server turn failed')
+      if (this.currentTurnReject) {
+        this.currentTurnReject(error)
+      } else {
+        this.completedTurns.set(turn.id, error)
+      }
+      return
+    }
+    this.context.emit({
+      type: 'status',
+      sessionId: this.context.sessionId,
+      status: 'done',
+    })
+    if (this.currentTurnResolve) {
+      this.currentTurnResolve()
+      this.currentTurnResolve = null
+      this.currentTurnReject = null
+    } else {
+      this.completedTurns.set(turn.id, null)
+    }
+  }
+
+  private emitItemStarted(item: Record<string, unknown>, threadId?: string): void {
+    const tool = appServerToolName(item)
+    if (!tool) return
+    this.context.emit({
+      type: 'tool_start',
+      sessionId: this.context.sessionId,
+      toolName: tool,
+      summary: summarizeToolInput(tool, item),
+      toolUseId: typeof item.id === 'string' ? item.id : undefined,
+      sourceThreadId: threadId,
+    })
+  }
+
+  private emitItemCompleted(item: Record<string, unknown>, threadId?: string): void {
+    if (item.type === 'agentMessage' && typeof item.text === 'string') {
+      this.context.emit({
+        type: 'message',
+        sessionId: this.context.sessionId,
+        role: 'assistant',
+        text: item.text,
+        sourceThreadId: threadId,
+      })
+      return
+    }
+    const tool = appServerToolName(item)
+    if (!tool) return
+    this.context.emit({
+      type: 'tool_result',
+      sessionId: this.context.sessionId,
+      toolName: tool,
+      summary: summarizeToolInput(tool, item),
+      toolUseId: typeof item.id === 'string' ? item.id : undefined,
+      isError: item.status === 'failed',
+      metadata: buildToolResultMetadata(item),
+      sourceThreadId: threadId,
+    })
+  }
+
+  private emitTokenUsage(tokenUsage: unknown): void {
+    if (!tokenUsage || typeof tokenUsage !== 'object') return
+    const total = (tokenUsage as Record<string, unknown>).total
+    if (!total || typeof total !== 'object') return
+    const usage = buildDesktopContextUsage({
+      model: this.context.model ?? 'unknown',
+      provider: this.context.providerID,
+      usage: {
+        input_tokens: (total as Record<string, unknown>).inputTokens,
+        output_tokens: (total as Record<string, unknown>).outputTokens,
+        cache_read_input_tokens: (total as Record<string, unknown>).cachedInputTokens,
+        reasoning_tokens: (total as Record<string, unknown>).reasoningOutputTokens,
+      },
+    })
+    if (!usage) return
+    this.context.emit({ type: 'context_usage', sessionId: this.context.sessionId, usage })
+  }
+
+  private async handleServerRequest(request: JsonRpcRequest): Promise<void> {
+    const client = this.client
+    if (!client) return
+    try {
+      const permissionRequest = appServerRequestToPermissionRequest(request)
+      if (!permissionRequest) {
+        client.respondToRequestError(
+          request.id,
+          -32601,
+          `Unsupported server request: ${request.method}`,
+        )
+        return
+      }
+      const decision = await this.context.requestPermission(permissionRequest)
+      const response = appServerPermissionDecisionToResponse(
+        request.method,
+        request.params,
+        decision,
+      )
+      if (response.ok) {
+        client.respondToRequest(request.id, response.result)
+      } else {
+        client.respondToRequestError(
+          request.id,
+          -32000,
+          'message' in response ? response.message : 'Permission request failed',
+        )
+      }
+    } catch (error) {
+      client.respondToRequestError(
+        request.id,
+        -32000,
+        error instanceof Error ? error.message : String(error),
+      )
+    }
+  }
+}
+
+function desktopContentToUserInput(content: DesktopUserMessageContent): UserInput[] {
+  if (typeof content === 'string') {
+    return [{ type: 'text', text: content }]
+  }
+  return content.flatMap<UserInput>(block => {
+    if (!block || typeof block !== 'object') {
+      return []
+    }
+    const record = block as unknown as Record<string, unknown>
+    if (record.type === 'text' && typeof record.text === 'string') {
+      return [{ type: 'text', text: record.text } satisfies UserInput]
+    }
+    const source = record.source
+    if (
+      record.type === 'image' &&
+      source &&
+      typeof source === 'object' &&
+      typeof (source as Record<string, unknown>).path === 'string'
+    ) {
+      return [
+        {
+          type: 'local_image',
+          path: (source as Record<string, unknown>).path as string,
+        } satisfies UserInput,
+      ]
+    }
+    return []
+  })
+}
+
+function appServerToolName(item: Record<string, unknown>): string | null {
+  switch (item.type) {
+    case 'commandExecution':
+      return 'Command'
+    case 'fileEdit':
+    case 'fileChange':
+    case 'patch':
+      return 'File'
+    case 'mcpToolCall':
+      return typeof item.tool === 'string' ? item.tool : 'MCP'
+    case 'webSearch':
+      return 'WebSearch'
+    case 'reasoning':
+      return 'Thinking'
+    case 'todoList':
+      return 'Todo'
+    default:
+      return null
+  }
+}
+
+function mapThreadGoal(goal: {
+  threadId: string
+  objective: string
+  status: DesktopThreadGoalStatus
+  tokenBudget: number | null
+  tokensUsed: number
+  timeUsedSeconds: number
+  createdAt: number
+  updatedAt: number
+}): DesktopThreadGoal {
+  return goal
+}
+
+function mapBackgroundTerminal(
+  terminal: ThreadBackgroundTerminal,
+): DesktopBackgroundTerminal {
+  return {
+    itemId: terminal.itemId,
+    processId: terminal.processId,
+    command: terminal.command,
+    cwd: terminal.cwd,
+    osPid: terminal.osPid,
+    cpuPercent: terminal.cpuPercent,
+    rssKb: terminal.rssKb,
+  }
+}
+
+function mapThreadStatus(status: unknown): 'running' | 'waiting' | 'idle' | 'closed' {
+  if (!status || typeof status !== 'object') return 'idle'
+  const type = (status as Record<string, unknown>).type
+  if (type === 'active') {
+    const flags = (status as Record<string, unknown>).activeFlags
+    return Array.isArray(flags) &&
+      flags.some(flag => flag === 'waitingOnApproval' || flag === 'waitingOnUserInput')
+      ? 'waiting'
+      : 'running'
+  }
+  if (type === 'systemError' || type === 'notLoaded') return 'closed'
+  return 'idle'
+}
+
+function mapAgentPickerEntry(
+  thread: Thread,
+  rootThreadId: string,
+): DesktopAgentPickerEntry {
+  const isPrimary = thread.id === rootThreadId
+  const preview = thread.preview?.trim()
+  return {
+    id: thread.id,
+    nickname: preview || (isPrimary ? 'Primary' : thread.id),
+    role: isPrimary ? 'primary' : 'agent',
+    status: mapThreadStatus(thread.status),
+    isPrimary,
+    ...(thread.forkedFromId ? { sourceThreadId: thread.forkedFromId } : {}),
+  }
+}
+
+function mapHookEntries(result: HooksListResponse): DesktopHookListEntry[] {
+  return result.data.map(entry => ({
+    cwd: entry.cwd,
+    hooks: entry.hooks.map(hook => ({
+      key: hook.key,
+      eventName: hook.eventName,
+      handlerType: hook.handlerType,
+      matcher: hook.matcher,
+      command: hook.command,
+      timeoutSec: hook.timeoutSec,
+      statusMessage: hook.statusMessage,
+      sourcePath: hook.sourcePath,
+      source: hook.source,
+      pluginId: hook.pluginId,
+      enabled: hook.enabled,
+      isManaged: hook.isManaged,
+      currentHash: hook.currentHash,
+      trustStatus: hook.trustStatus,
+    })),
+    warnings: entry.warnings,
+    errors: entry.errors.map(error => ({
+      path: error.path,
+      message: error.message,
+    })),
+  }))
+}
+
+function mapCollaborationModes(
+  result: CollaborationModeListResponse,
+): DesktopCollaborationModePreset[] {
+  return result.data.map(mode => ({
+    name: mode.name,
+    mode: mode.mode,
+    model: mode.model,
+    reasoningEffort: mode.reasoning_effort,
+  }))
+}
+
+function unsupportedRuntimeFeature<T>(feature: string): Promise<T> {
+  return Promise.reject(
+    new Error(`${feature} 仅在 app-server 运行时可用。`),
+  )
+}
+
+function appServerRequestToPermissionRequest(
+  request: JsonRpcRequest,
+): DesktopPermissionRequest | null {
+  const params = request.params && typeof request.params === 'object'
+    ? (request.params as Record<string, unknown>)
+    : {}
+  const requestId = String(request.id)
+  const itemId = typeof params.itemId === 'string' ? params.itemId : undefined
+  switch (request.method) {
+    case 'item/commandExecution/requestApproval': {
+      const command = typeof params.command === 'string' ? params.command : ''
+      const reason = typeof params.reason === 'string' ? params.reason : undefined
+      const cwd = typeof params.cwd === 'string' ? params.cwd : undefined
+      return {
+        requestId,
+        toolName: 'Command',
+        toolUseId: itemId,
+        input: { command, cwd, reason },
+        description: reason ?? summarizeToolInput('Command', { command }),
+        requestKind: 'shell-command',
+      }
+    }
+    case 'item/fileChange/requestApproval': {
+      const reason = typeof params.reason === 'string' ? params.reason : undefined
+      const grantRoot = typeof params.grantRoot === 'string' ? params.grantRoot : undefined
+      return {
+        requestId,
+        toolName: 'File',
+        toolUseId: itemId,
+        input: { reason, grantRoot },
+        description: reason ?? 'Approve file changes',
+        requestKind: 'file-write',
+      }
+    }
+    case 'item/permissions/requestApproval': {
+      const reason = typeof params.reason === 'string' ? params.reason : undefined
+      return {
+        requestId,
+        toolName: 'Permissions',
+        toolUseId: itemId,
+        input: {
+          permissions: params.permissions,
+          cwd: params.cwd,
+          reason,
+        },
+        description: reason ?? 'Approve additional permissions',
+        requestKind: 'sandbox-escalation',
+      }
+    }
+    case 'item/tool/requestUserInput':
+      return {
+        requestId,
+        toolName: 'AskUserQuestion',
+        toolUseId: itemId,
+        input: {
+          questions: params.questions,
+          autoResolutionMs: params.autoResolutionMs,
+        },
+        description: 'Answer questions',
+        requestKind: 'tool',
+      }
+    default:
+      return null
+  }
+}
+
+function appServerPermissionDecisionToResponse(
+  method: string,
+  params: unknown,
+  decision: DesktopPermissionDecision,
+):
+  | { ok: true; result: unknown }
+  | { ok: false; message: string } {
+  if (decision.behavior === 'deny') {
+    if (method === 'item/commandExecution/requestApproval') {
+      return { ok: true, result: { decision: 'decline' } }
+    }
+    if (method === 'item/fileChange/requestApproval') {
+      return { ok: true, result: { decision: 'decline' } }
+    }
+    return { ok: false, message: decision.message ?? 'Permission denied' }
+  }
+
+  switch (method) {
+    case 'item/commandExecution/requestApproval':
+    case 'item/fileChange/requestApproval':
+      return {
+        ok: true,
+        result: { decision: decision.alwaysAllow ? 'acceptForSession' : 'accept' },
+      }
+    case 'item/permissions/requestApproval': {
+      const record = params && typeof params === 'object'
+        ? (params as Record<string, unknown>)
+        : {}
+      const updated = decision.updatedInput ?? {}
+      return {
+        ok: true,
+        result: {
+          permissions: updated.permissions ?? record.permissions,
+          scope: decision.alwaysAllow ? 'session' : 'turn',
+        },
+      }
+    }
+    case 'item/tool/requestUserInput':
+      return {
+        ok: true,
+        result: decision.updatedInput ?? { answers: {} },
+      }
+    default:
+      return { ok: false, message: `Unsupported server request: ${method}` }
   }
 }
 
@@ -203,6 +1141,95 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
         sessionId: this.context.sessionId,
       })
     }
+  }
+
+  async getThreadGoal(): Promise<DesktopThreadGoal | null> {
+    return unsupportedRuntimeFeature('Goal')
+  }
+
+  async setThreadGoal(
+    _input: {
+      objective?: string | null
+      status?: DesktopThreadGoalStatus | null
+      tokenBudget?: number | null
+    },
+  ): Promise<DesktopThreadGoal> {
+    return unsupportedRuntimeFeature('Goal')
+  }
+
+  async clearThreadGoal(): Promise<void> {
+    return unsupportedRuntimeFeature('Goal')
+  }
+
+  async listBackgroundTerminals(): Promise<DesktopBackgroundTerminal[]> {
+    return unsupportedRuntimeFeature('后台终端')
+  }
+
+  async terminateBackgroundTerminal(
+    _processId: string,
+  ): Promise<{ terminated: boolean }> {
+    return unsupportedRuntimeFeature('后台终端')
+  }
+
+  async cleanBackgroundTerminals(): Promise<void> {
+    return unsupportedRuntimeFeature('后台终端')
+  }
+
+  async listHooks(): Promise<DesktopHookListEntry[]> {
+    return unsupportedRuntimeFeature('Hooks')
+  }
+
+  async listCollaborationModes(): Promise<DesktopCollaborationModePreset[]> {
+    return unsupportedRuntimeFeature('协作模式')
+  }
+
+  async listAgentPickerEntries(): Promise<DesktopAgentPickerEntry[]> {
+    return unsupportedRuntimeFeature('Agent picker')
+  }
+
+  async readAgentThread(_threadId: string): Promise<ThreadReadResponse> {
+    return unsupportedRuntimeFeature('Agent thread')
+  }
+
+  async sendAgentThreadMessage(
+    _threadId: string,
+    _content: DesktopUserMessageContent,
+  ): Promise<void> {
+    return unsupportedRuntimeFeature('Agent thread')
+  }
+
+  async interruptAgentThread(_threadId: string): Promise<void> {
+    return unsupportedRuntimeFeature('Agent thread')
+  }
+
+  async closeAgentThread(_threadId: string): Promise<void> {
+    return unsupportedRuntimeFeature('Agent thread')
+  }
+
+  async resumeAgentThread(_threadId: string): Promise<ThreadReadResponse> {
+    return unsupportedRuntimeFeature('Agent thread')
+  }
+
+  async forkThread(): Promise<Thread> {
+    return unsupportedRuntimeFeature('Agent thread')
+  }
+
+  async trustHook(_key: string, _currentHash: string): Promise<void> {
+    return unsupportedRuntimeFeature('Hooks')
+  }
+
+  async readDirectory(_path: string): Promise<FsReadDirectoryResponse> {
+    return unsupportedRuntimeFeature('文件读取')
+  }
+
+  async readFile(_path: string): Promise<FsReadFileResponse> {
+    return unsupportedRuntimeFeature('文件读取')
+  }
+
+  async fuzzyFileSearch(
+    _params: FuzzyFileSearchParams,
+  ): Promise<FuzzyFileSearchResponse> {
+    return unsupportedRuntimeFeature('文件搜索')
   }
 
   async runUserTurn(
@@ -557,6 +1584,9 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
   }
 
   setPlanModeActive(active: boolean): void {
+    this.context.collaborationMode = resolveCodexCollaborationMode({
+      planModeActive: active,
+    })
     this.context.planModeActive = active
     console.info(
       `[desktop-runtime] ${new Date().toISOString()} subprocess_set_plan_mode ${JSON.stringify({
@@ -782,48 +1812,53 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
   private currentSignal: AbortSignal | null = null
   private readonly toolNamesByUseId = new Map<string, string>()
   private readonly context: DesktopAgentRuntimeContext
-  private readonly runtime: DesktopHeadlessRuntime
+  private readonly runtimePromise: Promise<DesktopHeadlessRuntime>
 
   constructor(context: DesktopAgentRuntimeContext) {
     this.context = context
     const permissionConfig = codexPermissionConfigForMode(context)
     applyRustSearchAndDiffKernelEnv(process.env, context)
-    this.runtime = createDesktopHeadlessRuntime({
-      sessionId: context.sessionId,
-      workspacePath: context.workspacePath,
-      configDirectoryPath: context.configDirectoryPath,
-      resumeExistingSession: context.resumeExistingSession,
-      permissionProfile: permissionConfig.permissionProfile,
-      sandboxMode: permissionConfig.sandboxMode,
-      approvalPolicy: permissionConfig.approvalPolicy,
-      approvalsReviewer: permissionConfig.approvalsReviewer,
-      permissionMode: tuiPermissionMode(
-        context.permissionMode,
-        context.planModeActive,
-      ),
-      providerID: context.providerID,
-      providerBaseURL: context.providerBaseURL,
-      debugConversationDump: context.debugConversationDump,
-      model: context.model,
-      reviewModel: context.reviewModel,
-      smallFastModel: context.smallFastModel,
-      fastModel: context.fastModel,
-      defaultModel: context.defaultModel,
-      deepModel: context.deepModel,
-      sessionName: context.sessionName,
-      thinkingMode: context.thinkingMode,
-      systemPrompt: context.systemPrompt,
-      appendSystemPrompt: context.appendSystemPrompt,
-      additionalDirectories: context.additionalDirectories,
-      permissionPromptToolName: permissionPromptToolName(),
-      onOutput: (message, controls) =>
-        this.handleStructuredOutput(message, controls),
-    })
+    this.runtimePromise = loadDesktopHeadlessModule().then(
+      ({ createDesktopHeadlessRuntime }) =>
+        createDesktopHeadlessRuntime({
+          sessionId: context.sessionId,
+          workspacePath: context.workspacePath,
+          configDirectoryPath: context.configDirectoryPath,
+          resumeExistingSession: context.resumeExistingSession,
+          permissionProfile: permissionConfig.permissionProfile,
+          sandboxMode: permissionConfig.sandboxMode,
+          approvalPolicy: permissionConfig.approvalPolicy,
+          approvalsReviewer: permissionConfig.approvalsReviewer,
+          permissionMode: tuiPermissionMode(
+            context.permissionMode,
+            context.planModeActive,
+          ),
+          providerID: context.providerID,
+          providerBaseURL: context.providerBaseURL,
+          codexAppServerThreadId: context.codexAppServerThreadId,
+          onCodexAppServerThreadId: context.onCodexAppServerThreadId,
+          debugConversationDump: context.debugConversationDump,
+          model: context.model,
+          reviewModel: context.reviewModel,
+          smallFastModel: context.smallFastModel,
+          fastModel: context.fastModel,
+          defaultModel: context.defaultModel,
+          deepModel: context.deepModel,
+          sessionName: context.sessionName,
+          thinkingMode: context.thinkingMode,
+          systemPrompt: context.systemPrompt,
+          appendSystemPrompt: context.appendSystemPrompt,
+          additionalDirectories: context.additionalDirectories,
+          permissionPromptToolName: permissionPromptToolName(),
+          onOutput: (message, controls) =>
+            this.handleStructuredOutput(message, controls),
+        }),
+    )
   }
 
   setModel(model: string | undefined): void {
     this.context.model = model
-    this.runtime.setModel(model)
+    void this.runtimePromise.then(runtime => runtime.setModel(model))
   }
 
   setModelProvider(
@@ -833,7 +1868,9 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
   ): void {
     this.context.providerID = providerID
     this.context.providerBaseURL = providerBaseURL
-    this.runtime.setProvider(providerID, providerBaseURL)
+    void this.runtimePromise.then(runtime =>
+      runtime.setProvider(providerID, providerBaseURL),
+    )
     this.setModel(model)
   }
 
@@ -846,13 +1883,18 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
         permissionMode,
       })}`,
     )
-    this.runtime.setPermissionMode(
-      tuiPermissionMode(permissionMode, this.context.planModeActive),
-    )
-    this.runtime.setCodexPermissionConfig(permissionConfig)
+    void this.runtimePromise.then(runtime => {
+      runtime.setPermissionMode(
+        tuiPermissionMode(permissionMode, this.context.planModeActive),
+      )
+      runtime.setCodexPermissionConfig(permissionConfig)
+    })
   }
 
   setPlanModeActive(active: boolean): void {
+    this.context.collaborationMode = resolveCodexCollaborationMode({
+      planModeActive: active,
+    })
     this.context.planModeActive = active
     console.info(
       `[desktop-runtime] ${new Date().toISOString()} embedded_set_plan_mode ${JSON.stringify({
@@ -860,14 +1902,105 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
         planModeActive: active,
       })}`,
     )
-    this.runtime.setPermissionMode(
-      tuiPermissionMode(this.context.permissionMode, active),
+    void this.runtimePromise.then(runtime =>
+      runtime.setPermissionMode(tuiPermissionMode(this.context.permissionMode, active)),
     )
   }
 
   setDebugConversationDump(enabled: boolean): void {
     this.context.debugConversationDump = enabled
-    this.runtime.setDebugConversationDump(enabled)
+    void this.runtimePromise.then(runtime =>
+      runtime.setDebugConversationDump(enabled),
+    )
+  }
+
+  async getThreadGoal(): Promise<DesktopThreadGoal | null> {
+    return unsupportedRuntimeFeature('Goal')
+  }
+
+  async setThreadGoal(
+    _input: {
+      objective?: string | null
+      status?: DesktopThreadGoalStatus | null
+      tokenBudget?: number | null
+    },
+  ): Promise<DesktopThreadGoal> {
+    return unsupportedRuntimeFeature('Goal')
+  }
+
+  async clearThreadGoal(): Promise<void> {
+    return unsupportedRuntimeFeature('Goal')
+  }
+
+  async listBackgroundTerminals(): Promise<DesktopBackgroundTerminal[]> {
+    return unsupportedRuntimeFeature('后台终端')
+  }
+
+  async terminateBackgroundTerminal(
+    _processId: string,
+  ): Promise<{ terminated: boolean }> {
+    return unsupportedRuntimeFeature('后台终端')
+  }
+
+  async cleanBackgroundTerminals(): Promise<void> {
+    return unsupportedRuntimeFeature('后台终端')
+  }
+
+  async listHooks(): Promise<DesktopHookListEntry[]> {
+    return unsupportedRuntimeFeature('Hooks')
+  }
+
+  async listCollaborationModes(): Promise<DesktopCollaborationModePreset[]> {
+    return unsupportedRuntimeFeature('协作模式')
+  }
+
+  async listAgentPickerEntries(): Promise<DesktopAgentPickerEntry[]> {
+    return unsupportedRuntimeFeature('Agent picker')
+  }
+
+  async readAgentThread(_threadId: string): Promise<ThreadReadResponse> {
+    return unsupportedRuntimeFeature('Agent thread')
+  }
+
+  async sendAgentThreadMessage(
+    _threadId: string,
+    _content: DesktopUserMessageContent,
+  ): Promise<void> {
+    return unsupportedRuntimeFeature('Agent thread')
+  }
+
+  async interruptAgentThread(_threadId: string): Promise<void> {
+    return unsupportedRuntimeFeature('Agent thread')
+  }
+
+  async closeAgentThread(_threadId: string): Promise<void> {
+    return unsupportedRuntimeFeature('Agent thread')
+  }
+
+  async resumeAgentThread(_threadId: string): Promise<ThreadReadResponse> {
+    return unsupportedRuntimeFeature('Agent thread')
+  }
+
+  async forkThread(): Promise<Thread> {
+    return unsupportedRuntimeFeature('Agent thread')
+  }
+
+  async trustHook(_key: string, _currentHash: string): Promise<void> {
+    return unsupportedRuntimeFeature('Hooks')
+  }
+
+  async readDirectory(_path: string): Promise<FsReadDirectoryResponse> {
+    return unsupportedRuntimeFeature('文件读取')
+  }
+
+  async readFile(_path: string): Promise<FsReadFileResponse> {
+    return unsupportedRuntimeFeature('文件读取')
+  }
+
+  async fuzzyFileSearch(
+    _params: FuzzyFileSearchParams,
+  ): Promise<FuzzyFileSearchResponse> {
+    return unsupportedRuntimeFeature('文件搜索')
   }
 
   async runUserTurn(
@@ -889,7 +2022,7 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
     try {
       await runSerialized(() =>
         runWithDesktopProposedPlanEnv(this.context, () =>
-          runDesktopHeadlessTurn(this.runtime, content, signal),
+          this.runDesktopHeadlessTurn(content, signal),
         ),
       )
     } finally {
@@ -937,7 +2070,7 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
     try {
       await runSerialized(() =>
         runWithDesktopProposedPlanEnv(this.context, () =>
-          runDesktopHeadlessControlResponse(this.runtime, response, signal),
+          this.runDesktopHeadlessControlResponse(response, signal),
         ),
       )
     } finally {
@@ -960,6 +2093,28 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
       sessionId: this.context.sessionId,
       durationMs: Date.now() - startedAt,
     })
+  }
+
+  private async runDesktopHeadlessTurn(
+    content: DesktopUserMessageContent,
+    signal: AbortSignal,
+  ): Promise<void> {
+    const [{ runDesktopHeadlessTurn }, runtime] = await Promise.all([
+      loadDesktopHeadlessModule(),
+      this.runtimePromise,
+    ])
+    await runDesktopHeadlessTurn(runtime, content, signal)
+  }
+
+  private async runDesktopHeadlessControlResponse(
+    response: Record<string, unknown>,
+    signal: AbortSignal,
+  ): Promise<void> {
+    const [{ runDesktopHeadlessControlResponse }, runtime] = await Promise.all([
+      loadDesktopHeadlessModule(),
+      this.runtimePromise,
+    ])
+    await runDesktopHeadlessControlResponse(runtime, response, signal)
   }
 
   private async handleStructuredOutput(
@@ -1017,9 +2172,102 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
       case 'user':
         this.emitUserMessage(message)
         return
+      case 'tool_start':
+        this.emitEmbeddedToolStart(message)
+        return
+      case 'tool_result':
+        this.emitEmbeddedToolResult(message)
+        return
+      case 'thinking':
+        this.emitEmbeddedThinking(message)
+        return
+      case 'usage':
+        this.emitEmbeddedContextUsage(message)
+        return
       default:
         return
     }
+  }
+
+  private emitEmbeddedToolStart(message: Record<string, unknown>): void {
+    const toolName = typeof message.tool === 'string' ? message.tool : 'Tool'
+    const toolUseId = getToolUseId(message)
+    if (toolUseId) {
+      this.toolNamesByUseId.set(toolUseId, toolName)
+    }
+    this.context.emit({
+      type: 'tool_start',
+      sessionId: this.context.sessionId,
+      toolName,
+      summary: summarizeToolInput(toolName, message.summary),
+      toolUseId,
+    })
+  }
+
+  private emitEmbeddedToolResult(message: Record<string, unknown>): void {
+    const toolUseId = getToolUseId(message)
+    const toolName = toolUseId
+      ? (this.toolNamesByUseId.get(toolUseId) ?? 'Tool')
+      : 'Tool'
+    this.context.emit({
+      type: 'tool_result',
+      sessionId: this.context.sessionId,
+      toolName,
+      summary: summarizeToolInput(toolName, message.output),
+      toolUseId,
+      isError: message.is_error === true,
+      metadata: buildToolResultMetadata(message.output),
+    })
+  }
+
+  private emitEmbeddedThinking(message: Record<string, unknown>): void {
+    const thinking =
+      message.thinking && typeof message.thinking === 'object'
+        ? (message.thinking as Record<string, unknown>)
+        : {}
+    const summary =
+      typeof thinking.summary === 'string' && thinking.summary.trim()
+        ? thinking.summary
+        : typeof thinking.content === 'string'
+          ? thinking.content
+          : ''
+    if (!summary.trim()) return
+    const toolUseId = 'thinking'
+    this.toolNamesByUseId.set(toolUseId, 'Thinking')
+    this.context.emit({
+      type: 'tool_result',
+      sessionId: this.context.sessionId,
+      toolName: 'Thinking',
+      summary,
+      toolUseId,
+      isError: false,
+    })
+  }
+
+  private emitEmbeddedContextUsage(message: Record<string, unknown>): void {
+    const usage =
+      message.usage && typeof message.usage === 'object'
+        ? (message.usage as Record<string, unknown>)
+        : null
+    if (!usage) return
+    const model = this.context.model?.trim() || 'unknown'
+    const mappedUsage = {
+      input_tokens: usage.input_tokens,
+      output_tokens: usage.output_tokens,
+      cache_read_input_tokens: usage.cached_input_tokens,
+      reasoning_tokens: usage.reasoning_output_tokens,
+    }
+    const contextUsage = buildDesktopContextUsage({
+      model,
+      usage: mappedUsage,
+      provider: this.context.providerID,
+    })
+    if (!contextUsage) return
+    this.context.emit({
+      type: 'context_usage',
+      sessionId: this.context.sessionId,
+      usage: contextUsage,
+    })
   }
 
   private async emitAssistantMessage(message: Record<string, unknown>): Promise<void> {
@@ -1395,6 +2643,7 @@ async function persistProposedPlan(
   context: Pick<DesktopAgentRuntimeContext, 'sessionId'>,
 ): Promise<void> {
   try {
+    const { getPlanFilePath } = await import('@codepilotx/tui/utils/plans.js')
     await writeFile(getPlanFilePath(), planText, { encoding: 'utf-8' })
   } catch (error) {
     desktopDebug('runtime_proposed_plan_persist_failed', {

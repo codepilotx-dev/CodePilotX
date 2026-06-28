@@ -51,6 +51,15 @@ const browserBounds = z.object({
 })
 
 const permissionModeSchema = z.enum(DESKTOP_AGENT_PERMISSION_MODES)
+const collaborationModeSchema = z.object({
+  mode: z.enum(['plan', 'default']),
+  settings: z
+    .object({
+      reasoningEffort: z.string().nullable().optional(),
+      developerInstructions: z.string().nullable().optional(),
+    })
+    .optional(),
+})
 
 const createBranchInput = z.object({
   workspacePath: z.string(),
@@ -192,6 +201,12 @@ const userMessageInput = z.object({
   attachments: z.array(composerAttachment).optional(),
 })
 
+const fuzzyFileSearchInput = z.object({
+  query: z.string(),
+  roots: z.array(z.string()),
+  cancellationToken: z.string().nullable().optional(),
+})
+
 export const DESKTOP_API_ARG_SCHEMAS = {
   getAuthStatus: emptyArgs,
   getRuntimeStatus: emptyArgs,
@@ -211,6 +226,49 @@ export const DESKTOP_API_ARG_SCHEMAS = {
   listSkillsCatalog: z.tuple([skillCatalogOptions.optional()]),
   installSkill: z.tuple([skillInstallInput]),
   listSlashCommands: z.tuple([z.string().optional()]),
+  getThreadGoal: z.tuple([z.string()]),
+  setThreadGoal: z.tuple([
+    z.string(),
+    z.object({
+      objective: optionalText,
+      status: z
+        .enum([
+          'active',
+          'paused',
+          'blocked',
+          'usageLimited',
+          'budgetLimited',
+          'complete',
+        ])
+        .nullable()
+        .optional(),
+      tokenBudget: z.number().int().nullable().optional(),
+    }),
+  ]),
+  clearThreadGoal: z.tuple([z.string()]),
+  listBackgroundTerminals: z.tuple([z.string()]),
+  terminateBackgroundTerminal: z.tuple([z.string(), z.string()]),
+  cleanBackgroundTerminals: z.tuple([z.string()]),
+  listHooks: emptyArgs,
+  listCollaborationModes: emptyArgs,
+  listAgentPickerEntries: z.tuple([z.string()]),
+  readAgentThread: z.tuple([z.string(), z.string()]),
+  sendAgentThreadMessage: z.tuple([
+    z.string(),
+    z.string(),
+    userMessageInput,
+    z.union([optionalText, modelSelection]).optional(),
+  ]),
+  interruptAgentThread: z.tuple([z.string(), z.string()]),
+  closeAgentThread: z.tuple([z.string(), z.string()]),
+  resumeAgentThread: z.tuple([z.string(), z.string()]),
+  forkSession: z.tuple([z.string()]),
+  resumeSession: z.tuple([z.string()]),
+  trustHook: z.tuple([z.string(), z.string(), z.string()]),
+  readDirectory: z.tuple([z.string()]),
+  readFile: z.tuple([z.string()]),
+  fuzzyFileSearch: z.tuple([fuzzyFileSearchInput]),
+  setSessionCollaborationMode: z.tuple([z.string(), collaborationModeSchema]),
   listMcpServers: emptyArgs,
   saveMcpServer: z.tuple([
     z.object({

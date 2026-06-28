@@ -32,7 +32,9 @@ export async function getRuntimeStatus(options: {
   const runtimeKind =
     options.runtimePreference === 'subprocess'
       ? 'subprocess'
-      : 'embedded-headless'
+      : options.runtimePreference === 'app-server'
+        ? 'app-server'
+        : 'embedded-headless'
   try {
     const fileStat = await stat(options.agentExecutablePath)
     return {

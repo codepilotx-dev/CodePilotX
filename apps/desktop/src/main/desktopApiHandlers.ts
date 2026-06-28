@@ -83,11 +83,22 @@ import {
 import type { DebugToolProbeService } from './debugToolProbeService.js'
 import type {
   CreateDesktopSessionOptions,
+  DesktopAgentPickerEntry,
+  DesktopBackgroundTerminal,
   CreateDesktopSessionResult,
   DesktopBuiltinPlugin,
+  DesktopCollaborationModePreset,
+  DesktopFuzzyFileSearchInput,
+  DesktopFuzzyFileSearchResponse,
+  DesktopHookListEntry,
+  DesktopModelSelection,
   DesktopPermissionDecision,
   DesktopPermissionMode,
+  DesktopReadDirectoryResult,
+  DesktopReadFileResult,
   DesktopSlashCommandSuggestion,
+  DesktopThreadGoal,
+  DesktopThreadGoalStatus,
   DesktopSessionMetadataPatch,
   DesktopSessionSnapshot,
   DesktopStoredSettings,
@@ -112,6 +123,47 @@ export type DesktopApiHandlerDependencies = {
     enabled: boolean,
   ): Promise<DesktopBuiltinPlugin>
   listSlashCommands(workspacePath?: string): Promise<DesktopSlashCommandSuggestion[]>
+  getThreadGoal(sessionId: string): Promise<DesktopThreadGoal | null>
+  setThreadGoal(
+    sessionId: string,
+    input: {
+      objective?: string | null
+      status?: DesktopThreadGoalStatus | null
+      tokenBudget?: number | null
+    },
+  ): Promise<DesktopThreadGoal>
+  clearThreadGoal(sessionId: string): Promise<void>
+  listBackgroundTerminals(sessionId: string): Promise<DesktopBackgroundTerminal[]>
+  terminateBackgroundTerminal(
+    sessionId: string,
+    processId: string,
+  ): Promise<{ terminated: boolean }>
+  cleanBackgroundTerminals(sessionId: string): Promise<void>
+  listHooks(): Promise<DesktopHookListEntry[]>
+  listCollaborationModes(): Promise<DesktopCollaborationModePreset[]>
+  listAgentPickerEntries(sessionId: string): Promise<DesktopAgentPickerEntry[]>
+  readAgentThread(sessionId: string, threadId: string): Promise<unknown>
+  sendAgentThreadMessage(
+    sessionId: string,
+    threadId: string,
+    content: DesktopUserMessageInput,
+    model?: string | DesktopModelSelection,
+  ): Promise<void>
+  interruptAgentThread(sessionId: string, threadId: string): Promise<void>
+  closeAgentThread(sessionId: string, threadId: string): Promise<void>
+  resumeAgentThread(sessionId: string, threadId: string): Promise<unknown>
+  forkSession(sessionId: string): Promise<CreateDesktopSessionResult>
+  resumeSession(sessionId: string): Promise<DesktopSessionSnapshot>
+  trustHook(sessionId: string, key: string, currentHash: string): Promise<void>
+  readDirectory(path: string): Promise<DesktopReadDirectoryResult>
+  readFile(path: string): Promise<DesktopReadFileResult>
+  fuzzyFileSearch(
+    input: DesktopFuzzyFileSearchInput,
+  ): Promise<DesktopFuzzyFileSearchResponse>
+  setSessionCollaborationMode(
+    sessionId: string,
+    mode: NonNullable<CreateDesktopSessionOptions['collaborationMode']>,
+  ): Promise<DesktopSessionSnapshot>
   createSession(
     options: CreateDesktopSessionOptions,
   ): Promise<CreateDesktopSessionResult>
@@ -192,6 +244,27 @@ export function buildDesktopApiHandlers(
     listSkillsCatalog: listDesktopSkillCatalog,
     installSkill: installDesktopSkill,
     listSlashCommands: dependencies.listSlashCommands,
+    getThreadGoal: dependencies.getThreadGoal,
+    setThreadGoal: dependencies.setThreadGoal,
+    clearThreadGoal: dependencies.clearThreadGoal,
+    listBackgroundTerminals: dependencies.listBackgroundTerminals,
+    terminateBackgroundTerminal: dependencies.terminateBackgroundTerminal,
+    cleanBackgroundTerminals: dependencies.cleanBackgroundTerminals,
+    listHooks: dependencies.listHooks,
+    listCollaborationModes: dependencies.listCollaborationModes,
+    listAgentPickerEntries: dependencies.listAgentPickerEntries,
+    readAgentThread: dependencies.readAgentThread,
+    sendAgentThreadMessage: dependencies.sendAgentThreadMessage,
+    interruptAgentThread: dependencies.interruptAgentThread,
+    closeAgentThread: dependencies.closeAgentThread,
+    resumeAgentThread: dependencies.resumeAgentThread,
+    forkSession: dependencies.forkSession,
+    resumeSession: dependencies.resumeSession,
+    trustHook: dependencies.trustHook,
+    readDirectory: dependencies.readDirectory,
+    readFile: dependencies.readFile,
+    fuzzyFileSearch: dependencies.fuzzyFileSearch,
+    setSessionCollaborationMode: dependencies.setSessionCollaborationMode,
     listMcpServers: listDesktopMcpServers,
     saveMcpServer: saveDesktopMcpServer,
     removeMcpServer: removeDesktopMcpServer,

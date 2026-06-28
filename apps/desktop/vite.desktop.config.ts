@@ -15,7 +15,7 @@ const desktopRendererPort = Number.parseInt(
 )
 
 export default defineConfig({
-  root: 'apps/desktop/src/renderer',
+  root: resolve(__dirname, 'src/renderer'),
   base: './',
   resolve: { alias: desktopAlias },
   define: desktopMacroDefines,

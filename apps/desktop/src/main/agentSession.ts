@@ -14,14 +14,28 @@ import {
 } from './autoReviewService.js'
 import { desktopDebug } from './desktopDebug.js'
 import type {
+  DesktopBackgroundTerminal,
   CreateDesktopSessionOptions,
+  DesktopAgentPickerEntry,
   DesktopAgentEvent,
   DesktopApprovalPolicy,
+  DesktopCollaborationModePreset,
+  DesktopHookListEntry,
   DesktopPermissionDecision,
   DesktopPermissionRequest,
   DesktopSessionStatus,
+  DesktopThreadGoal,
+  DesktopThreadGoalStatus,
   DesktopUserMessageContent,
 } from '../shared/types.js'
+import type {
+  FsReadDirectoryResponse,
+  FsReadFileResponse,
+  FuzzyFileSearchParams,
+  FuzzyFileSearchResponse,
+  Thread,
+  ThreadReadResponse,
+} from '@codepilotx/codex-app-server-client'
 import type {
   AgentPermissionAction,
   AgentPermissionPolicy,
@@ -30,6 +44,11 @@ import {
   permissionPolicyForDesktopMode,
   resolvePermissionEffect,
 } from '@codepilotx/core/agent/permissions.js'
+import {
+  planModeActiveFromCollaborationMode,
+  resolveCodexCollaborationMode,
+  type CodexCollaborationMode,
+} from '@codepilotx/core/agent/codexSessionContract.js'
 
 type DesktopAgentSessionEvents = {
   event: [DesktopAgentEvent]
@@ -43,6 +62,7 @@ type PendingPermission = {
 type ResolvedDesktopSessionOptions = CreateDesktopSessionOptions & {
   workspacePath: string
   sessionId?: string
+  codexAppServerThreadId?: string | null
   resumeExistingSession?: boolean
   suppressStartupMessage?: boolean
 }
@@ -51,6 +71,7 @@ export type DesktopAgentSessionRuntimeOptions = {
   agentExecutablePath?: string
   configDirectoryPath?: string
   runtimePreference?: DesktopAgentRuntimePreference
+  onCodexAppServerThreadId?: (sessionId: string, threadId: string) => void
   createRuntime?: (context: DesktopAgentRuntimeContext) => DesktopAgentRuntime
   autoReviewService?: DesktopAutoReviewService
 }
@@ -68,6 +89,29 @@ export type DesktopAgentSession = {
   setPermissionProfile(profile: string, approvalPolicy?: DesktopApprovalPolicy): void
   setPermissionMode(permissionMode: NonNullable<CreateDesktopSessionOptions['permissionMode']>): void
   setPlanModeActive(planModeActive: boolean): void
+  getThreadGoal(): Promise<DesktopThreadGoal | null>
+  setThreadGoal(input: {
+    objective?: string | null
+    status?: DesktopThreadGoalStatus | null
+    tokenBudget?: number | null
+  }): Promise<DesktopThreadGoal>
+  clearThreadGoal(): Promise<void>
+  listBackgroundTerminals(): Promise<DesktopBackgroundTerminal[]>
+  terminateBackgroundTerminal(processId: string): Promise<{ terminated: boolean }>
+  cleanBackgroundTerminals(): Promise<void>
+  listHooks(): Promise<DesktopHookListEntry[]>
+  listCollaborationModes(): Promise<DesktopCollaborationModePreset[]>
+  listAgentPickerEntries(): Promise<DesktopAgentPickerEntry[]>
+  readAgentThread(threadId: string): Promise<ThreadReadResponse>
+  sendAgentThreadMessage(threadId: string, content: DesktopUserMessageContent): Promise<void>
+  interruptAgentThread(threadId: string): Promise<void>
+  closeAgentThread(threadId: string): Promise<void>
+  resumeAgentThread(threadId: string): Promise<ThreadReadResponse>
+  forkThread(): Promise<Thread>
+  trustHook(key: string, currentHash: string): Promise<void>
+  readDirectory(path: string): Promise<FsReadDirectoryResponse>
+  readFile(path: string): Promise<FsReadFileResponse>
+  fuzzyFileSearch(params: FuzzyFileSearchParams): Promise<FuzzyFileSearchResponse>
   sendUserMessage(content: DesktopUserMessageContent, previewText: string): Promise<void>
   respondToPermission(
     requestId: string,
@@ -108,6 +152,7 @@ class LocalDesktopAgentSession
   private approvalPolicy: DesktopApprovalPolicy
   private approvalsReviewer: NonNullable<CreateDesktopSessionOptions['approvalsReviewer']>
   private permissionMode: NonNullable<CreateDesktopSessionOptions['permissionMode']>
+  private collaborationMode: CodexCollaborationMode
   private planModeActive: boolean
   private model: string | undefined
   private reviewModel: string | undefined
@@ -123,7 +168,13 @@ class LocalDesktopAgentSession
     this.approvalPolicy = options.approvalPolicy ?? 'on-request'
     this.approvalsReviewer = options.approvalsReviewer ?? 'user'
     this.permissionMode = options.permissionMode ?? 'default'
-    this.planModeActive = options.planModeActive === true
+    this.collaborationMode = resolveCodexCollaborationMode({
+      collaborationMode: options.collaborationMode,
+      planModeActive: options.planModeActive,
+    })
+    this.planModeActive = planModeActiveFromCollaborationMode(
+      this.collaborationMode,
+    )
     this.model = options.model
     this.reviewModel = options.reviewModel
     this.autoReviewService =
@@ -140,9 +191,13 @@ class LocalDesktopAgentSession
       approvalPolicy: this.approvalPolicy,
       approvalsReviewer: this.approvalsReviewer,
       permissionMode: this.permissionMode,
+      collaborationMode: this.collaborationMode,
       planModeActive: this.planModeActive,
       providerID: options.providerID,
       providerBaseURL: options.providerBaseURL,
+      codexAppServerThreadId: options.codexAppServerThreadId,
+      onCodexAppServerThreadId: threadId =>
+        runtimeOptions.onCodexAppServerThreadId?.(this.sessionId, threadId),
       debugConversationDump: options.debugConversationDump,
       model: options.model,
       reviewModel: options.reviewModel,
@@ -212,12 +267,102 @@ class LocalDesktopAgentSession
   }
 
   setPlanModeActive(planModeActive: boolean): void {
-    this.planModeActive = planModeActive
+    this.collaborationMode = resolveCodexCollaborationMode({ planModeActive })
+    this.planModeActive = planModeActiveFromCollaborationMode(
+      this.collaborationMode,
+    )
     this.runtime.setPlanModeActive(planModeActive)
     desktopDebug('session_plan_mode_changed', {
       sessionId: this.sessionId,
       planModeActive,
     })
+  }
+
+  async getThreadGoal(): Promise<DesktopThreadGoal | null> {
+    return this.runtime.getThreadGoal()
+  }
+
+  async setThreadGoal(input: {
+    objective?: string | null
+    status?: DesktopThreadGoalStatus | null
+    tokenBudget?: number | null
+  }): Promise<DesktopThreadGoal> {
+    return this.runtime.setThreadGoal(input)
+  }
+
+  async clearThreadGoal(): Promise<void> {
+    await this.runtime.clearThreadGoal()
+  }
+
+  async listBackgroundTerminals(): Promise<DesktopBackgroundTerminal[]> {
+    return this.runtime.listBackgroundTerminals()
+  }
+
+  async terminateBackgroundTerminal(
+    processId: string,
+  ): Promise<{ terminated: boolean }> {
+    return this.runtime.terminateBackgroundTerminal(processId)
+  }
+
+  async cleanBackgroundTerminals(): Promise<void> {
+    await this.runtime.cleanBackgroundTerminals()
+  }
+
+  async listHooks(): Promise<DesktopHookListEntry[]> {
+    return this.runtime.listHooks()
+  }
+
+  async listCollaborationModes(): Promise<DesktopCollaborationModePreset[]> {
+    return this.runtime.listCollaborationModes()
+  }
+
+  async listAgentPickerEntries(): Promise<DesktopAgentPickerEntry[]> {
+    return this.runtime.listAgentPickerEntries()
+  }
+
+  async readAgentThread(threadId: string): Promise<ThreadReadResponse> {
+    return this.runtime.readAgentThread(threadId)
+  }
+
+  async sendAgentThreadMessage(
+    threadId: string,
+    content: DesktopUserMessageContent,
+  ): Promise<void> {
+    await this.runtime.sendAgentThreadMessage(threadId, content)
+  }
+
+  async interruptAgentThread(threadId: string): Promise<void> {
+    await this.runtime.interruptAgentThread(threadId)
+  }
+
+  async closeAgentThread(threadId: string): Promise<void> {
+    await this.runtime.closeAgentThread(threadId)
+  }
+
+  async resumeAgentThread(threadId: string): Promise<ThreadReadResponse> {
+    return this.runtime.resumeAgentThread(threadId)
+  }
+
+  async forkThread(): Promise<Thread> {
+    return this.runtime.forkThread()
+  }
+
+  async trustHook(key: string, currentHash: string): Promise<void> {
+    await this.runtime.trustHook(key, currentHash)
+  }
+
+  async readDirectory(path: string): Promise<FsReadDirectoryResponse> {
+    return this.runtime.readDirectory(path)
+  }
+
+  async readFile(path: string): Promise<FsReadFileResponse> {
+    return this.runtime.readFile(path)
+  }
+
+  async fuzzyFileSearch(
+    params: FuzzyFileSearchParams,
+  ): Promise<FuzzyFileSearchResponse> {
+    return this.runtime.fuzzyFileSearch(params)
   }
 
   async sendUserMessage(

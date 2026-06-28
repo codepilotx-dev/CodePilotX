@@ -4,20 +4,29 @@ import { resolve } from 'node:path'
 import type { UserConfig } from 'vite'
 
 const root = resolve(__dirname, '../..')
-const packageJson = JSON.parse(
-  readFileSync(resolve(root, 'package.json'), 'utf8'),
-) as {
+type PackageJsonDeps = {
   dependencies?: Record<string, string>
   optionalDependencies?: Record<string, string>
   devDependencies?: Record<string, string>
 }
 
-export const desktopOutDir = resolve(root, 'dist/desktop')
+const packageJson = JSON.parse(
+  readFileSync(resolve(root, 'apps/desktop/package.json'), 'utf8'),
+) as PackageJsonDeps
+const compatPackageJson = JSON.parse(
+  readFileSync(resolve(root, 'packages/desktop-compat/package.json'), 'utf8'),
+) as PackageJsonDeps
+
+export const desktopOutDir = resolve(root, 'apps/desktop/dist')
 
 export const desktopAlias = {
-  '@codepilotx/core': resolve(root, 'packages/core/src'),
-  '@codepilotx/tui': resolve(root, 'apps/tui/src'),
+  '@codepilotx/core': resolve(root, 'packages/desktop-compat/src/core'),
+  '@codepilotx/tui': resolve(root, 'packages/desktop-compat/src/tui'),
   '@codepilotx/desktop': resolve(root, 'apps/desktop/src'),
+  '@codepilotx/codex-app-server-client': resolve(
+    root,
+    'packages/codex-app-server-client/src',
+  ),
   'bun:bundle': resolve(root, 'apps/desktop/src/shims/bunBundle.ts'),
 }
 
@@ -48,7 +57,10 @@ function disableBundledFeaturesPlugin() {
     name: 'desktop-disable-bundled-features',
     enforce: 'pre' as const,
     transform(code: string, id: string) {
-      if (!id.includes('/apps/tui/src/') && !id.includes('\\apps\\tui\\src\\')) {
+      if (
+        !id.includes('/packages/desktop-compat/src/tui/') &&
+        !id.includes('\\packages\\desktop-compat\\src\\tui\\')
+      ) {
         return null
       }
       const transformed = code.replace(
@@ -67,13 +79,31 @@ const external = [
   ...Object.keys(packageJson.dependencies ?? {}),
   ...Object.keys(packageJson.optionalDependencies ?? {}),
   ...Object.keys(packageJson.devDependencies ?? {}),
+  ...Object.keys(compatPackageJson.dependencies ?? {}),
+  ...Object.keys(compatPackageJson.optionalDependencies ?? {}),
 ]
 
 const optionalDesktopFeatureModules = [
   'DiscoverSkillsTool/prompt.js',
 ]
 
+const bundledWorkspaceModules = [
+  '@codepilotx/codex-app-server-client',
+  '@codepilotx/desktop',
+  '@codepilotx/desktop-compat',
+  '@codepilotx/core',
+  '@codepilotx/tui',
+]
+
 function isExternalDependency(id: string): boolean {
+  if (
+    bundledWorkspaceModules.some(moduleId => {
+      if (id === moduleId) return true
+      return id.startsWith(`${moduleId}/`)
+    })
+  ) {
+    return false
+  }
   if (optionalDesktopFeatureModules.some(moduleId => id.includes(moduleId))) {
     return true
   }
@@ -111,7 +141,7 @@ export function nodeDesktopBuild(
       target: 'node22',
       sourcemap,
       lib: {
-        entry,
+        entry: resolve(root, entry),
         formats,
         fileName: () => `${name}.js`,
       },

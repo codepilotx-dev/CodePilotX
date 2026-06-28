@@ -1,11 +1,16 @@
 import { randomUUID } from 'node:crypto'
-import { mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
+import { setTimeout as delay } from 'node:timers/promises'
 import {
   isAgentApprovalMode,
   isAgentPermissionProfile,
 } from '@codepilotx/core/agent/permissions.js'
 import { normalizeThreadEvent } from '@codepilotx/core/agent/workflow.js'
+import {
+  planModeActiveFromCollaborationMode,
+  resolveCodexCollaborationMode,
+} from '@codepilotx/core/agent/codexSessionContract.js'
 import {
   getProjectDir,
   loadAllProjectsMessageLogs,
@@ -71,6 +76,7 @@ type DesktopSessionOverlay = {
   aiTitle?: string | null
   customTitle?: string | null
   status?: DesktopSessionStatus
+  codexAppServerThreadId?: string | null
   createdAt?: string
   lastMessageAt?: string | null
   updatedAt?: string
@@ -89,10 +95,15 @@ type AtomicWriteOperations = {
   mkdir(path: string, options: { recursive: true }): Promise<unknown>
   writeFile(path: string, content: string, encoding: 'utf8'): Promise<unknown>
   rename(from: string, to: string): Promise<unknown>
+  rm?(path: string, options: { force: true }): Promise<unknown>
+  wait?(ms: number): Promise<unknown>
 }
 
 const SESSION_INDEX_FILE_NAME = 'sessions.json'
 const TRANSCRIPT_ENRICH_LIMIT = Number.MAX_SAFE_INTEGER
+const ATOMIC_RENAME_RETRY_DELAYS_MS = [25, 75, 150]
+
+let sessionStoreSavePromise: Promise<void> = Promise.resolve()
 
 export function getDesktopSessionIndexPath(): string {
   return join(getDesktopConfigDirectoryPath(), SESSION_INDEX_FILE_NAME)
@@ -118,7 +129,37 @@ export async function writeFileAtomically(
   await operations.mkdir(dirname(filePath), { recursive: true })
   const tempPath = buildDesktopSessionIndexTempPath(filePath, nonce)
   await operations.writeFile(tempPath, content, 'utf8')
-  await operations.rename(tempPath, filePath)
+  try {
+    await renameWithRetries(tempPath, filePath, operations)
+  } catch (error) {
+    await (operations.rm ?? rm)(tempPath, { force: true }).catch(() => {})
+    throw error
+  }
+}
+
+async function renameWithRetries(
+  from: string,
+  to: string,
+  operations: AtomicWriteOperations,
+): Promise<void> {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      await operations.rename(from, to)
+      return
+    } catch (error) {
+      const retryDelayMs = ATOMIC_RENAME_RETRY_DELAYS_MS[attempt]
+      if (!shouldRetryAtomicRename(error) || retryDelayMs === undefined) {
+        throw error
+      }
+      await (operations.wait ?? delay)(retryDelayMs)
+    }
+  }
+}
+
+function shouldRetryAtomicRename(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false
+  const code = (error as NodeJS.ErrnoException).code
+  return code === 'EPERM' || code === 'EACCES' || code === 'EBUSY'
 }
 
 export async function loadDesktopSessionStore(): Promise<PersistedDesktopSessions> {
@@ -149,12 +190,12 @@ export async function loadDesktopSessionStore(): Promise<PersistedDesktopSession
 
   const sessions = [...snapshotsById.values()].sort(compareSnapshotsByRecency)
   const activeSessionId = sessions.some(
-    snapshot => snapshot.item.id === persisted.activeSessionId,
+    (snapshot) => snapshot.item.id === persisted.activeSessionId,
   )
     ? persisted.activeSessionId
-    : sessions.find(snapshot => !snapshot.item.archivedAt)?.item.id ??
+    : (sessions.find((snapshot) => !snapshot.item.archivedAt)?.item.id ??
       sessions[0]?.item.id ??
-      null
+      null)
 
   return { activeSessionId, sessions }
 }
@@ -181,7 +222,9 @@ export async function hydrateDesktopSessionSnapshot(
   }
 
   try {
-    const log = await loadFullLog(logOptionFromSnapshot(snapshot, transcriptPath))
+    const log = await loadFullLog(
+      logOptionFromSnapshot(snapshot, transcriptPath),
+    )
     return snapshotFromTranscriptLog(log, overlayFromSnapshot(snapshot), true)
   } catch {
     return snapshot
@@ -191,38 +234,44 @@ export async function hydrateDesktopSessionSnapshot(
 export async function saveDesktopSessionStore(
   state: PersistedDesktopSessions,
 ): Promise<void> {
-  const filePath = getDesktopSessionIndexPath()
-  const overlayStore: PersistedDesktopSessionOverlayStore = {
-    activeSessionId: state.activeSessionId,
-    sessions: state.sessions.map(snapshot => {
-      const overlay = overlayFromSnapshot(
-        snapshot,
-        shouldPersistRecoverablePendingInteractionSnapshot(snapshot)
-          ? snapshot
-          : undefined,
-      )
-      return {
-        id: overlay.id,
-        workspace: overlay.workspace,
-        settings: overlay.settings,
-        standalone: overlay.standalone,
-        pinnedAt: overlay.pinnedAt,
-        archivedAt: overlay.archivedAt,
-        sessionName: overlay.sessionName,
-        aiTitle: overlay.aiTitle,
-        customTitle: overlay.customTitle,
-        status: overlay.status,
-        createdAt: overlay.createdAt,
-        lastMessageAt: overlay.lastMessageAt,
-        updatedAt: overlay.updatedAt,
-        workflowEvents: overlay.workflowEvents,
-        workflowEventModelVersion: overlay.workflowEventModelVersion,
-        reviewComments: overlay.reviewComments,
-        legacySnapshot: overlay.legacySnapshot,
-      }
-    }),
+  const save = async () => {
+    const filePath = getDesktopSessionIndexPath()
+    const overlayStore: PersistedDesktopSessionOverlayStore = {
+      activeSessionId: state.activeSessionId,
+      sessions: state.sessions.map((snapshot) => {
+        const overlay = overlayFromSnapshot(
+          snapshot,
+          shouldPersistRecoverablePendingInteractionSnapshot(snapshot)
+            ? snapshot
+            : undefined,
+        )
+        return {
+          id: overlay.id,
+          workspace: overlay.workspace,
+          settings: overlay.settings,
+          standalone: overlay.standalone,
+          pinnedAt: overlay.pinnedAt,
+          archivedAt: overlay.archivedAt,
+          sessionName: overlay.sessionName,
+          aiTitle: overlay.aiTitle,
+          customTitle: overlay.customTitle,
+          status: overlay.status,
+          codexAppServerThreadId: overlay.codexAppServerThreadId,
+          createdAt: overlay.createdAt,
+          lastMessageAt: overlay.lastMessageAt,
+          updatedAt: overlay.updatedAt,
+          workflowEvents: overlay.workflowEvents,
+          workflowEventModelVersion: overlay.workflowEventModelVersion,
+          reviewComments: overlay.reviewComments,
+          legacySnapshot: overlay.legacySnapshot,
+        }
+      }),
+    }
+    await writeFileAtomically(filePath, JSON.stringify(overlayStore, null, 2))
   }
-  await writeFileAtomically(filePath, JSON.stringify(overlayStore, null, 2))
+  const nextSave = sessionStoreSavePromise.catch(() => undefined).then(save)
+  sessionStoreSavePromise = nextSave
+  await nextSave
 }
 
 export function createDesktopSessionSnapshot(params: {
@@ -260,6 +309,7 @@ export function createDesktopSessionSnapshot(params: {
       approvalPolicy: params.settings.approvalPolicy,
       approvalsReviewer: params.settings.approvalsReviewer,
       permissionMode: params.settings.permissionMode,
+      collaborationMode: params.settings.collaborationMode,
       planModeActive: params.settings.planModeActive === true,
       model: params.settings.model ?? null,
       reviewModel: params.settings.reviewModel ?? null,
@@ -271,6 +321,7 @@ export function createDesktopSessionSnapshot(params: {
       lastMessageAt,
       createdAt,
     },
+    codexAppServerThreadId: null,
     workspace,
     settings: params.settings,
     view: createEmptyViewSnapshot(),
@@ -322,7 +373,7 @@ export function applyDesktopAgentEventToSnapshot(
       normalizeTimestampString(event.createdAt) ?? new Date().toISOString()
     next.item.lastMessageAt = createdAt
     next.view.messages = [
-      ...next.view.messages.filter(message => !message.streaming),
+      ...next.view.messages.filter((message) => !message.streaming),
       {
         id: randomId(),
         role: event.role,
@@ -334,7 +385,7 @@ export function applyDesktopAgentEventToSnapshot(
   }
 
   if (event.type === 'partial_message') {
-    const index = next.view.messages.findIndex(message => message.streaming)
+    const index = next.view.messages.findIndex((message) => message.streaming)
     const createdAt =
       normalizeTimestampString(event.createdAt) ??
       (index >= 0 ? next.view.messages[index]?.createdAt : undefined) ??
@@ -410,7 +461,7 @@ export function applyDesktopAgentEventToSnapshot(
     next.item.lastMessageAt = createdAt
     next.view.pendingPermissions = []
     next.view.messages = [
-      ...next.view.messages.map(message =>
+      ...next.view.messages.map((message) =>
         message.streaming ? { ...message, streaming: false } : message,
       ),
       {
@@ -426,7 +477,7 @@ export function applyDesktopAgentEventToSnapshot(
   if (event.type === 'done') {
     next.item.status = 'done'
     next.view.pendingPermissions = []
-    next.view.messages = next.view.messages.map(message =>
+    next.view.messages = next.view.messages.map((message) =>
       message.streaming ? { ...message, streaming: false } : message,
     )
     return next
@@ -447,7 +498,7 @@ export function applyDesktopWorkflowEventsToSnapshot(
       ? snapshot.workflowEvents.flatMap(normalizeWorkflowEvent)
       : []
   const seen = new Set(existingEvents.map(workflowEventKey))
-  const appendedEvents = normalizedEvents.filter(event => {
+  const appendedEvents = normalizedEvents.filter((event) => {
     const key = workflowEventKey(event)
     if (seen.has(key)) return false
     seen.add(key)
@@ -472,7 +523,7 @@ export function removePendingPermissionFromSnapshot(
     view: {
       ...snapshot.view,
       pendingPermissions: snapshot.view.pendingPermissions.filter(
-        request => request.requestId !== requestId,
+        (request) => request.requestId !== requestId,
       ),
     },
     updatedAt: new Date().toISOString(),
@@ -547,6 +598,7 @@ function normalizeSessionOverlay(value: unknown): DesktopSessionOverlay[] {
       aiTitle: nullableString(raw.aiTitle),
       customTitle: nullableString(raw.customTitle),
       status: normalizeStatus(raw.status),
+      codexAppServerThreadId: nullableString(raw.codexAppServerThreadId),
       createdAt: stringOrUndefined(raw.createdAt),
       lastMessageAt: normalizeTimestampString(raw.lastMessageAt),
       updatedAt: stringOrUndefined(raw.updatedAt),
@@ -596,8 +648,9 @@ function normalizeSessionSnapshot(value: unknown): DesktopSessionSnapshot[] {
       : new Date().toISOString()
   const lastMessageAt =
     item.lastMessageAt ?? latestMessageTimestamp(view.messages) ?? updatedAt
-  const recoverablePendingPermissions =
-    recoverablePendingInteractionRequests(view.pendingPermissions)
+  const recoverablePendingPermissions = recoverablePendingInteractionRequests(
+    view.pendingPermissions,
+  )
   const restoredStatus =
     recoverablePendingPermissions.length > 0 && item.status === 'waiting'
       ? 'waiting'
@@ -617,12 +670,13 @@ function normalizeSessionSnapshot(value: unknown): DesktopSessionSnapshot[] {
         lastMessageAt,
         status: restoredStatus,
       },
+      codexAppServerThreadId: nullableString(snapshot.codexAppServerThreadId),
       workspace: normalizedWorkspace,
       settings,
       view: {
         ...view,
         pendingPermissions: recoverablePendingPermissions,
-        messages: view.messages.map(message => ({
+        messages: view.messages.map((message) => ({
           ...message,
           streaming: false,
         })),
@@ -672,12 +726,14 @@ function snapshotFromTranscriptLog(
   const workspacePath = log.projectPath ?? overlay?.workspace.path
   if (!sessionId || !workspacePath) return null
 
-  const workspace = normalizeStandaloneWorkspace(overlay?.workspace ?? {
-    path: workspacePath,
-    name: basename(workspacePath),
-    branchName: log.gitBranch ?? null,
-    isGitRepo: Boolean(log.gitBranch),
-  })
+  const workspace = normalizeStandaloneWorkspace(
+    overlay?.workspace ?? {
+      path: workspacePath,
+      name: basename(workspacePath),
+      branchName: log.gitBranch ?? null,
+      isGitRepo: Boolean(log.gitBranch),
+    },
+  )
   const standalone = isStandaloneSession(
     workspace,
     overlay?.standalone === true || isStandaloneWorkspacePath(workspacePath),
@@ -690,19 +746,20 @@ function snapshotFromTranscriptLog(
         events: [] as DesktopSessionEvent[],
         effectiveModel: undefined,
       }
-  const overlayRecoverablePendingPermissions =
-    overlay?.legacySnapshot?.view.pendingPermissions
-      ? recoverablePendingInteractionRequests(
-          normalizeViewSnapshot(overlay.legacySnapshot.view).pendingPermissions,
-        )
-      : []
+  const overlayRecoverablePendingPermissions = overlay?.legacySnapshot?.view
+    .pendingPermissions
+    ? recoverablePendingInteractionRequests(
+        normalizeViewSnapshot(overlay.legacySnapshot.view).pendingPermissions,
+      )
+    : []
   const effectiveModel =
     validModelName(parsed.effectiveModel) ??
     validModelName(parsed.contextUsage?.model) ??
     validModelName(settings.model)
   const createdAt = log.created.toISOString()
   const lastMessageAt = log.modified.toISOString()
-  const transcriptPath = log.fullPath ?? getTranscriptPath(workspace.path, sessionId)
+  const transcriptPath =
+    log.fullPath ?? getTranscriptPath(workspace.path, sessionId)
   const item: DesktopSessionListItem = {
     id: sessionId,
     sessionName: overlay?.sessionName ?? settings.sessionName ?? null,
@@ -726,6 +783,7 @@ function snapshotFromTranscriptLog(
     approvalPolicy: settings.approvalPolicy,
     approvalsReviewer: settings.approvalsReviewer,
     permissionMode: settings.permissionMode,
+    collaborationMode: settings.collaborationMode,
     planModeActive: settings.planModeActive === true,
     model: effectiveModel ?? null,
     reviewModel: settings.reviewModel ?? null,
@@ -739,7 +797,7 @@ function snapshotFromTranscriptLog(
         ? 'waiting'
         : overlay?.status === 'running' || overlay?.status === 'waiting'
           ? 'done'
-          : overlay?.status ?? 'done',
+          : (overlay?.status ?? 'done'),
     lastMessageAt,
     createdAt,
   }
@@ -750,6 +808,7 @@ function snapshotFromTranscriptLog(
 
   return {
     item,
+    codexAppServerThreadId: overlay?.codexAppServerThreadId ?? null,
     workspace,
     settings: nextSettings,
     view: {
@@ -769,7 +828,9 @@ function snapshotFromTranscriptLog(
   }
 }
 
-function snapshotFromOverlay(overlay: DesktopSessionOverlay): DesktopSessionSnapshot {
+function snapshotFromOverlay(
+  overlay: DesktopSessionOverlay,
+): DesktopSessionSnapshot {
   if (overlay.legacySnapshot) {
     const legacySnapshot = normalizeSnapshotStandalone(overlay.legacySnapshot)
     return {
@@ -779,6 +840,10 @@ function snapshotFromOverlay(overlay: DesktopSessionOverlay): DesktopSessionSnap
         pinnedAt: overlay.pinnedAt ?? legacySnapshot.item.pinnedAt,
         archivedAt: overlay.archivedAt ?? legacySnapshot.item.archivedAt,
       },
+      codexAppServerThreadId:
+        overlay.codexAppServerThreadId ??
+        legacySnapshot.codexAppServerThreadId ??
+        null,
     }
   }
   const settings = overlay.settings
@@ -819,10 +884,11 @@ function snapshotFromOverlay(overlay: DesktopSessionOverlay): DesktopSessionSnap
       status:
         overlay.status === 'running' || overlay.status === 'waiting'
           ? 'done'
-          : overlay.status ?? 'idle',
+          : (overlay.status ?? 'idle'),
       lastMessageAt: overlay.lastMessageAt ?? createdAt,
       createdAt,
     },
+    codexAppServerThreadId: overlay.codexAppServerThreadId ?? null,
     workspace,
     settings,
     view: createEmptyViewSnapshot(),
@@ -851,6 +917,7 @@ function overlayFromSnapshot(
     aiTitle: normalizedSnapshot.item.aiTitle ?? null,
     customTitle: normalizedSnapshot.item.customTitle ?? null,
     status: normalizedSnapshot.item.status,
+    codexAppServerThreadId: normalizedSnapshot.codexAppServerThreadId ?? null,
     createdAt: normalizedSnapshot.item.createdAt,
     lastMessageAt: normalizedSnapshot.item.lastMessageAt ?? null,
     updatedAt: normalizedSnapshot.updatedAt,
@@ -968,7 +1035,14 @@ function parseTranscriptLogView(
           createdAt: timestamp ?? new Date().toISOString(),
         })
       }
-      collectToolResults(sessionId, content, toolLog, events, toolNamesById, timestamp)
+      collectToolResults(
+        sessionId,
+        content,
+        toolLog,
+        events,
+        toolNamesById,
+        timestamp,
+      )
       continue
     }
 
@@ -993,7 +1067,14 @@ function parseTranscriptLogView(
           createdAt: timestamp ?? new Date().toISOString(),
         })
       }
-      collectToolUses(sessionId, content, toolLog, events, toolNamesById, timestamp)
+      collectToolUses(
+        sessionId,
+        content,
+        toolLog,
+        events,
+        toolNamesById,
+        timestamp,
+      )
       continue
     }
 
@@ -1089,7 +1170,7 @@ function collectToolResults(
     if (item.type !== 'tool_result') continue
     const toolName =
       typeof item.tool_use_id === 'string'
-        ? toolNamesById.get(item.tool_use_id) ?? 'Tool'
+        ? (toolNamesById.get(item.tool_use_id) ?? 'Tool')
         : 'Tool'
     const toolUseId =
       typeof item.tool_use_id === 'string' ? item.tool_use_id : undefined
@@ -1121,8 +1202,7 @@ function normalizeSessionItem(
 ): DesktopSessionListItem {
   return {
     id: typeof item.id === 'string' ? item.id : '',
-    sessionName:
-      typeof item.sessionName === 'string' ? item.sessionName : null,
+    sessionName: typeof item.sessionName === 'string' ? item.sessionName : null,
     aiTitle: typeof item.aiTitle === 'string' ? item.aiTitle : null,
     customTitle: nullableString(item.customTitle),
     tag: nullableString(item.tag),
@@ -1149,10 +1229,18 @@ function normalizeSessionItem(
       item.approvalsReviewer,
     ),
     permissionMode: normalizeDesktopPermissionMode(item.permissionMode),
-    planModeActive: item.planModeActive === true,
+    collaborationMode: resolveCodexCollaborationMode({
+      collaborationMode: item.collaborationMode,
+      planModeActive: item.planModeActive,
+    }),
+    planModeActive: planModeActiveFromCollaborationMode(
+      resolveCodexCollaborationMode({
+        collaborationMode: item.collaborationMode,
+        planModeActive: item.planModeActive,
+      }),
+    ),
     model: typeof item.model === 'string' ? item.model : null,
-    reviewModel:
-      typeof item.reviewModel === 'string' ? item.reviewModel : null,
+    reviewModel: typeof item.reviewModel === 'string' ? item.reviewModel : null,
     thinkingMode:
       item.thinkingMode === 'enabled' ||
       item.thinkingMode === 'adaptive' ||
@@ -1210,7 +1298,16 @@ function normalizeSettingsSnapshot(
       settings.approvalsReviewer,
     ),
     permissionMode: normalizeDesktopPermissionMode(settings.permissionMode),
-    planModeActive: settings.planModeActive === true,
+    collaborationMode: resolveCodexCollaborationMode({
+      collaborationMode: settings.collaborationMode,
+      planModeActive: settings.planModeActive,
+    }),
+    planModeActive: planModeActiveFromCollaborationMode(
+      resolveCodexCollaborationMode({
+        collaborationMode: settings.collaborationMode,
+        planModeActive: settings.planModeActive,
+      }),
+    ),
     model: stringOrUndefined(settings.model),
     reviewModel: stringOrUndefined(settings.reviewModel),
     smallFastModel: stringOrUndefined(settings.smallFastModel),
@@ -1310,8 +1407,7 @@ function normalizeMessage(value: unknown): DesktopSessionMessage[] {
       role: message.role,
       text: message.text,
       createdAt:
-        normalizeTimestampString(message.createdAt) ??
-        new Date().toISOString(),
+        normalizeTimestampString(message.createdAt) ?? new Date().toISOString(),
       streaming: message.streaming === true,
     },
   ]
@@ -1424,7 +1520,9 @@ function normalizeWorkflowEvent(value: unknown): DesktopWorkflowEvent[] {
   const createdAt = normalizeTimestampString(event.createdAt)
   if (!createdAt) return []
   if (event.type === 'thread.started') {
-    return [normalizeThreadEvent({ ...event, createdAt } as DesktopWorkflowEvent)]
+    return [
+      normalizeThreadEvent({ ...event, createdAt } as DesktopWorkflowEvent),
+    ]
   }
   if (typeof event.turnId !== 'string') return []
   if (
@@ -1433,7 +1531,9 @@ function normalizeWorkflowEvent(value: unknown): DesktopWorkflowEvent[] {
     event.type === 'item.completed'
   ) {
     if (!event.item || typeof event.item !== 'object') return []
-    return [normalizeThreadEvent({ ...event, createdAt } as DesktopWorkflowEvent)]
+    return [
+      normalizeThreadEvent({ ...event, createdAt } as DesktopWorkflowEvent),
+    ]
   }
   return [normalizeThreadEvent({ ...event, createdAt } as DesktopWorkflowEvent)]
 }
@@ -1442,13 +1542,7 @@ function workflowEventKey(event: DesktopWorkflowEvent): string {
   if (event.eventId) return `eventId:${event.eventId}`
   const turnId = 'turnId' in event ? event.turnId : ''
   const itemId = 'item' in event ? event.item.id : ''
-  return [
-    event.type,
-    event.threadId,
-    turnId,
-    itemId,
-    event.createdAt,
-  ].join(':')
+  return [event.type, event.threadId, turnId, itemId, event.createdAt].join(':')
 }
 
 function isWorkflowEventType(
@@ -1484,7 +1578,9 @@ function isSessionEventType(
   )
 }
 
-function normalizePermissionRequest(value: unknown): DesktopPermissionRequest[] {
+function normalizePermissionRequest(
+  value: unknown,
+): DesktopPermissionRequest[] {
   if (!value || typeof value !== 'object') return []
   const request = value as Partial<DesktopPermissionRequest>
   if (typeof request.requestId !== 'string') return []
@@ -1522,15 +1618,17 @@ function normalizePermissionRequest(value: unknown): DesktopPermissionRequest[] 
 function shouldPersistRecoverablePendingInteractionSnapshot(
   snapshot: DesktopSessionSnapshot,
 ): boolean {
-  return recoverablePendingInteractionRequests(snapshot.view.pendingPermissions)
-    .length > 0
+  return (
+    recoverablePendingInteractionRequests(snapshot.view.pendingPermissions)
+      .length > 0
+  )
 }
 
 function recoverablePendingInteractionRequests(
   requests: DesktopPermissionRequest[],
 ): DesktopPermissionRequest[] {
   return requests.filter(
-    request =>
+    (request) =>
       isRecoverablePendingQuestionRequest(request) ||
       isRecoverablePendingExitPlanModeRequest(request),
   )
@@ -1560,7 +1658,7 @@ function extractTextContent(content: unknown): string {
   if (typeof content === 'string') return content.trim()
   if (!Array.isArray(content)) return ''
   return content
-    .flatMap(block => {
+    .flatMap((block) => {
       if (!block || typeof block !== 'object') return []
       const item = block as Record<string, unknown>
       if (item.type !== 'text' || typeof item.text !== 'string') return []

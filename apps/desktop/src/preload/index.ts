@@ -49,6 +49,64 @@ const api: DesktopApi = {
     ipcRenderer.invoke(desktopApiChannel('installSkill'), skillId),
   listSlashCommands: workspacePath =>
     ipcRenderer.invoke(desktopApiChannel('listSlashCommands'), workspacePath),
+  getThreadGoal: sessionId =>
+    ipcRenderer.invoke(desktopApiChannel('getThreadGoal'), sessionId),
+  setThreadGoal: (sessionId, input) =>
+    ipcRenderer.invoke(desktopApiChannel('setThreadGoal'), sessionId, input),
+  clearThreadGoal: sessionId =>
+    ipcRenderer.invoke(desktopApiChannel('clearThreadGoal'), sessionId),
+  listBackgroundTerminals: sessionId =>
+    ipcRenderer.invoke(desktopApiChannel('listBackgroundTerminals'), sessionId),
+  terminateBackgroundTerminal: (sessionId, processId) =>
+    ipcRenderer.invoke(
+      desktopApiChannel('terminateBackgroundTerminal'),
+      sessionId,
+      processId,
+    ),
+  cleanBackgroundTerminals: sessionId =>
+    ipcRenderer.invoke(desktopApiChannel('cleanBackgroundTerminals'), sessionId),
+  listHooks: () => ipcRenderer.invoke(desktopApiChannel('listHooks')),
+  listCollaborationModes: () =>
+    ipcRenderer.invoke(desktopApiChannel('listCollaborationModes')),
+  listAgentPickerEntries: sessionId =>
+    ipcRenderer.invoke(desktopApiChannel('listAgentPickerEntries'), sessionId),
+  readAgentThread: (sessionId, threadId) =>
+    ipcRenderer.invoke(desktopApiChannel('readAgentThread'), sessionId, threadId),
+  sendAgentThreadMessage: (sessionId, threadId, content, model) =>
+    ipcRenderer.invoke(
+      desktopApiChannel('sendAgentThreadMessage'),
+      sessionId,
+      threadId,
+      content,
+      model,
+    ),
+  interruptAgentThread: (sessionId, threadId) =>
+    ipcRenderer.invoke(
+      desktopApiChannel('interruptAgentThread'),
+      sessionId,
+      threadId,
+    ),
+  closeAgentThread: (sessionId, threadId) =>
+    ipcRenderer.invoke(desktopApiChannel('closeAgentThread'), sessionId, threadId),
+  resumeAgentThread: (sessionId, threadId) =>
+    ipcRenderer.invoke(desktopApiChannel('resumeAgentThread'), sessionId, threadId),
+  forkSession: sessionId =>
+    ipcRenderer.invoke(desktopApiChannel('forkSession'), sessionId),
+  resumeSession: sessionId =>
+    ipcRenderer.invoke(desktopApiChannel('resumeSession'), sessionId),
+  trustHook: (sessionId, key, currentHash) =>
+    ipcRenderer.invoke(desktopApiChannel('trustHook'), sessionId, key, currentHash),
+  readDirectory: path =>
+    ipcRenderer.invoke(desktopApiChannel('readDirectory'), path),
+  readFile: path => ipcRenderer.invoke(desktopApiChannel('readFile'), path),
+  fuzzyFileSearch: input =>
+    ipcRenderer.invoke(desktopApiChannel('fuzzyFileSearch'), input),
+  setSessionCollaborationMode: (sessionId, mode) =>
+    ipcRenderer.invoke(
+      desktopApiChannel('setSessionCollaborationMode'),
+      sessionId,
+      mode,
+    ),
   listMcpServers: () => ipcRenderer.invoke(desktopApiChannel('listMcpServers')),
   saveMcpServer: options =>
     ipcRenderer.invoke(desktopApiChannel('saveMcpServer'), options),

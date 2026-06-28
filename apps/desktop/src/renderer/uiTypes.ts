@@ -1,10 +1,13 @@
 import type {
   DesktopContextUsage,
+  DesktopAgentPickerEntry,
+  DesktopBackgroundTerminal,
   DesktopFilePreview,
   DesktopPermissionRequest,
   DesktopSessionEvent,
   DesktopSessionListItem,
   DesktopSessionMessage,
+  DesktopThreadGoal,
   DesktopToolLogEntry,
   DesktopWorkflowEvent,
 } from '../shared/types.js'
@@ -42,5 +45,9 @@ export type SessionViewState = {
   toolLog: ToolLogEntry[]
   pendingPermissions: DesktopPermissionRequest[]
   contextUsage: DesktopContextUsage | null
+  goal?: DesktopThreadGoal | null
+  backgroundTerminals?: DesktopBackgroundTerminal[]
+  agentEntries?: DesktopAgentPickerEntry[]
+  activeAgentThreadId?: string | null
   selectedFile: DesktopFilePreview | null
 }

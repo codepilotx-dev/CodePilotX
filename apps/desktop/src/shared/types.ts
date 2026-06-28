@@ -9,6 +9,7 @@ import type {
   AgentToolLogEntry,
   AgentWorkspace,
 } from '@codepilotx/core/agent/runtime.js'
+import type { CodexCollaborationMode } from '@codepilotx/core/agent/codexSessionContract.js'
 import type {
   AgentPermissionDecision,
   AgentPermissionRequest,
@@ -250,8 +251,12 @@ export type DesktopPullRequestResult =
   | { ok: false; error: string }
 
 export type DesktopRuntimeStatus = {
-  runtimeKind: 'subprocess' | 'in-process-headless' | 'embedded-headless'
-  runtimePreference: 'auto' | 'embedded-headless' | 'subprocess'
+  runtimeKind:
+    | 'subprocess'
+    | 'in-process-headless'
+    | 'embedded-headless'
+    | 'app-server'
+  runtimePreference: 'auto' | 'app-server' | 'embedded-headless' | 'subprocess'
   runtimeSelectionSource: 'default' | 'env'
   agentExecutablePath: string
   agentExecutableExists: boolean
@@ -305,6 +310,8 @@ export type DesktopApprovalPolicy =
   | 'never'
 
 export type DesktopApprovalsReviewer = 'user' | 'auto_review'
+
+export type DesktopCollaborationMode = CodexCollaborationMode
 
 export type DesktopThinkingMode = AgentThinkingMode
 
@@ -702,6 +709,7 @@ export type DesktopSessionListItem = {
   approvalPolicy?: DesktopApprovalPolicy
   approvalsReviewer?: DesktopApprovalsReviewer
   permissionMode: DesktopPermissionMode
+  collaborationMode?: DesktopCollaborationMode
   planModeActive?: boolean
   model: string | null
   reviewModel?: string | null
@@ -719,9 +727,11 @@ export type DesktopSessionSettingsSnapshot = {
   approvalPolicy?: DesktopApprovalPolicy
   approvalsReviewer?: DesktopApprovalsReviewer
   permissionMode: DesktopPermissionMode
+  collaborationMode?: DesktopCollaborationMode
   planModeActive?: boolean
   providerID?: ModelProviderID
   providerBaseURL?: string
+  codexAppServerThreadId?: string | null
   debugConversationDump?: boolean
   model?: string
   reviewModel?: string
@@ -750,6 +760,7 @@ export type DesktopSessionEvent = AgentSessionEvent
 
 export type DesktopSessionSnapshot = {
   item: DesktopSessionListItem
+  codexAppServerThreadId?: string | null
   workspace: DesktopWorkspace
   settings: DesktopSessionSettingsSnapshot
   view: DesktopSessionViewSnapshot
@@ -766,7 +777,27 @@ export type DesktopSessionMetadataPatch = {
   archivedAt?: string | null
 }
 
-export type DesktopAgentEvent = AgentRuntimeEvent
+export type DesktopAgentThreadStatus = 'running' | 'waiting' | 'idle' | 'closed'
+
+export type DesktopAgentThreadEvent =
+  | {
+      type: 'thread_status_changed'
+      sessionId: string
+      threadId: string
+      status: DesktopAgentThreadStatus
+    }
+  | {
+      type: 'thread_goal_updated'
+      sessionId: string
+      goal: DesktopThreadGoal
+    }
+  | {
+      type: 'thread_goal_cleared'
+      sessionId: string
+      threadId: string
+    }
+
+export type DesktopAgentEvent = AgentRuntimeEvent | DesktopAgentThreadEvent
 
 export type DesktopWorkflowEvent = ThreadEvent
 
@@ -776,6 +807,7 @@ export type CreateDesktopSessionOptions = {
   approvalPolicy?: DesktopApprovalPolicy
   approvalsReviewer?: DesktopApprovalsReviewer
   permissionMode?: DesktopPermissionMode
+  collaborationMode?: DesktopCollaborationMode
   planModeActive?: boolean
   providerID?: ModelProviderID
   providerBaseURL?: string
@@ -865,12 +897,127 @@ export type DesktopSkillInstallResult = {
   installPath: string
 }
 
+export type DesktopThreadGoalStatus =
+  | 'active'
+  | 'paused'
+  | 'blocked'
+  | 'usageLimited'
+  | 'budgetLimited'
+  | 'complete'
+
+export type DesktopThreadGoal = {
+  threadId: string
+  objective: string
+  status: DesktopThreadGoalStatus
+  tokenBudget: number | null
+  tokensUsed: number
+  timeUsedSeconds: number
+  createdAt: number
+  updatedAt: number
+}
+
+export type DesktopBackgroundTerminal = {
+  itemId: string
+  processId: string
+  command: string
+  cwd: string
+  osPid: number | null
+  cpuPercent: number | null
+  rssKb: number | null
+}
+
+export type DesktopHookListEntry = {
+  cwd: string
+  hooks: Array<{
+    key: string
+    eventName: string
+    handlerType: string
+    matcher: string | null
+    command: string | null
+    timeoutSec: number | string
+    statusMessage: string | null
+    sourcePath: string
+    source: string
+    pluginId: string | null
+    enabled: boolean
+    isManaged: boolean
+    currentHash: string
+    trustStatus: string
+  }>
+  warnings: string[]
+  errors: Array<{
+    path: string
+    message: string
+  }>
+}
+
+export type DesktopAgentPickerEntry = {
+  id: string
+  nickname: string
+  role: string
+  status: 'running' | 'waiting' | 'idle' | 'closed'
+  isPrimary: boolean
+  sourceThreadId?: string
+}
+
+export type DesktopReadDirectoryEntry = {
+  fileName: string
+  isDirectory: boolean
+  isFile: boolean
+}
+
+export type DesktopReadDirectoryResult = {
+  entries: DesktopReadDirectoryEntry[]
+}
+
+export type DesktopReadFileResult = {
+  dataBase64: string
+}
+
+export type DesktopFuzzyFileSearchInput = {
+  query: string
+  roots: string[]
+  cancellationToken?: string | null
+}
+
+export type DesktopFuzzyFileSearchResult = {
+  root: string
+  path: string
+  match_type: 'file' | 'directory'
+  file_name: string
+  score: number
+  indices: number[] | null
+}
+
+export type DesktopFuzzyFileSearchResponse = {
+  files: DesktopFuzzyFileSearchResult[]
+}
+
+export type DesktopCollaborationModePreset = {
+  name: string
+  mode: 'plan' | 'default' | null
+  model: string | null
+  reasoningEffort: 'low' | 'medium' | 'high' | 'xhigh' | null
+}
+
+export type DesktopAutoReviewDenial = {
+  itemId: string
+  status: string
+  riskLevel: string | null
+  userAuthorization: string | null
+  rationale: string | null
+}
+
 export type DesktopSlashCommandSuggestion = {
   name: string
   title: string
   description: string
   category: 'command' | 'skill'
   scope?: string
+  supportsInlineArgs: boolean
+  availableDuringTask: boolean
+  actionKind: 'local' | 'submit' | 'disabled'
+  experimental?: boolean
 }
 
 export type DesktopUiCommand =
@@ -950,6 +1097,47 @@ export type DesktopApi = {
     skill: string | DesktopSkillInstallOptions,
   ): Promise<DesktopSkillInstallResult>
   listSlashCommands(workspacePath?: string): Promise<DesktopSlashCommandSuggestion[]>
+  getThreadGoal(sessionId: string): Promise<DesktopThreadGoal | null>
+  setThreadGoal(
+    sessionId: string,
+    input: {
+      objective?: string | null
+      status?: DesktopThreadGoalStatus | null
+      tokenBudget?: number | null
+    },
+  ): Promise<DesktopThreadGoal>
+  clearThreadGoal(sessionId: string): Promise<void>
+  listBackgroundTerminals(sessionId: string): Promise<DesktopBackgroundTerminal[]>
+  terminateBackgroundTerminal(
+    sessionId: string,
+    processId: string,
+  ): Promise<{ terminated: boolean }>
+  cleanBackgroundTerminals(sessionId: string): Promise<void>
+  listHooks(): Promise<DesktopHookListEntry[]>
+  listCollaborationModes(): Promise<DesktopCollaborationModePreset[]>
+  listAgentPickerEntries(sessionId: string): Promise<DesktopAgentPickerEntry[]>
+  readAgentThread(sessionId: string, threadId: string): Promise<unknown>
+  sendAgentThreadMessage(
+    sessionId: string,
+    threadId: string,
+    content: DesktopUserMessageInput,
+    model?: string | DesktopModelSelection,
+  ): Promise<void>
+  interruptAgentThread(sessionId: string, threadId: string): Promise<void>
+  closeAgentThread(sessionId: string, threadId: string): Promise<void>
+  resumeAgentThread(sessionId: string, threadId: string): Promise<unknown>
+  forkSession(sessionId: string): Promise<CreateDesktopSessionResult>
+  resumeSession(sessionId: string): Promise<DesktopSessionSnapshot>
+  trustHook(sessionId: string, key: string, currentHash: string): Promise<void>
+  readDirectory(path: string): Promise<DesktopReadDirectoryResult>
+  readFile(path: string): Promise<DesktopReadFileResult>
+  fuzzyFileSearch(
+    input: DesktopFuzzyFileSearchInput,
+  ): Promise<DesktopFuzzyFileSearchResponse>
+  setSessionCollaborationMode(
+    sessionId: string,
+    mode: DesktopCollaborationMode,
+  ): Promise<DesktopSessionSnapshot>
   listMcpServers(): Promise<DesktopMcpServerListItem[]>
   saveMcpServer(options: SaveDesktopMcpServerOptions): Promise<DesktopMcpServerListItem[]>
   removeMcpServer(name: string, scope: DesktopEditableMcpScope): Promise<DesktopMcpServerListItem[]>

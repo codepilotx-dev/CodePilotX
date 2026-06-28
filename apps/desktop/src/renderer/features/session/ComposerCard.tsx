@@ -206,6 +206,9 @@ type Props = {
   onCreateBranch: () => void;
   onPermissionChange: (value: DesktopPermissionMode) => void;
   onPlanModeChange?: (active: boolean) => void;
+  onLocalSlashCommand?: (
+    command: DesktopSlashCommandSuggestion,
+  ) => boolean | Promise<boolean>;
   onSubmit: () => void;
   onThinkingChange: (value: DesktopThinkingMode) => void;
   contextDropdownSide?: "top" | "bottom";
@@ -252,6 +255,7 @@ export function ComposerCard({
   onCreateBranch,
   onPermissionChange,
   onPlanModeChange,
+  onLocalSlashCommand,
   onSubmit,
   onThinkingChange,
   contextDropdownSide = "top",
@@ -354,11 +358,23 @@ export function ComposerCard({
   }
 
   function selectSlashCommand(command: DesktopSlashCommandSuggestion): void {
-    onInputChange(`/${command.name} `);
-    setDismissedSlashInput(null);
-    requestAnimationFrame(() => {
-      textareaRef.current?.focus();
-    });
+    void (async () => {
+      if (command.actionKind === "local" && onLocalSlashCommand) {
+        const handled = await onLocalSlashCommand(command);
+        if (handled) {
+          setDismissedSlashInput(null);
+          requestAnimationFrame(() => {
+            textareaRef.current?.focus();
+          });
+          return;
+        }
+      }
+      onInputChange(`/${command.name} `);
+      setDismissedSlashInput(null);
+      requestAnimationFrame(() => {
+        textareaRef.current?.focus();
+      });
+    })();
   }
 
   function handleFileDrop(event: React.DragEvent<HTMLDivElement>): void {
@@ -1298,6 +1314,11 @@ function SlashCommandSection({
               <span className="slash-command-item-title">{command.title}</span>
               <span className="slash-command-item-description">
                 {command.description}
+              </span>
+              <span className="slash-command-item-meta">
+                {command.supportsInlineArgs ? <span>可带参数</span> : null}
+                {command.actionKind === "submit" ? <span>由 Codex 处理</span> : null}
+                {command.experimental ? <span>实验</span> : null}
               </span>
             </span>
             {command.scope ? (

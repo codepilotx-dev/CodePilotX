@@ -1,6 +1,11 @@
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 import type { Message, SessionViewState, ToolLogEntry } from '../../uiTypes.js'
-import type { DesktopPermissionRequest } from '../../../shared/types.js'
+import type {
+  DesktopAgentPickerEntry,
+  DesktopBackgroundTerminal,
+  DesktopPermissionRequest,
+  DesktopThreadGoal,
+} from '../../../shared/types.js'
 import type {
   DesktopSessionEvent,
   DesktopWorkflowEvent,
@@ -15,6 +20,10 @@ export type SessionViewStateSetters = {
   setContextUsage: Dispatch<
     SetStateAction<SessionViewState['contextUsage']>
   >
+  setGoal: Dispatch<SetStateAction<DesktopThreadGoal | null>>
+  setBackgroundTerminals: Dispatch<SetStateAction<DesktopBackgroundTerminal[]>>
+  setAgentEntries: Dispatch<SetStateAction<DesktopAgentPickerEntry[]>>
+  setActiveAgentThreadId: Dispatch<SetStateAction<string | null>>
 }
 
 export type SessionViewRefs = {
@@ -40,6 +49,10 @@ export function createEmptySessionView(): SessionViewState {
     toolLog: [],
     pendingPermissions: [],
     contextUsage: null,
+    goal: null,
+    backgroundTerminals: [],
+    agentEntries: [],
+    activeAgentThreadId: null,
     selectedFile: null,
   }
 }
@@ -54,6 +67,10 @@ export function applySessionView(
   setters.setToolLog(view.toolLog)
   setters.setPendingPermissions(view.pendingPermissions)
   setters.setContextUsage(view.contextUsage)
+  setters.setGoal(view.goal ?? null)
+  setters.setBackgroundTerminals(view.backgroundTerminals ?? [])
+  setters.setAgentEntries(view.agentEntries ?? [])
+  setters.setActiveAgentThreadId(view.activeAgentThreadId ?? null)
 }
 
 export function setSessionView(

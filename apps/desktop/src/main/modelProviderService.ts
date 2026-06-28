@@ -3,7 +3,9 @@ import {
   createModelProviderState,
   createModelProviderSummary,
   isModelProviderID,
+  providerToCodexToml,
 } from '@codepilotx/core/models/provider.js'
+import { CodexAppServerClient } from '@codepilotx/codex-app-server-client'
 import {
   deleteProviderApiKey as deleteTuiProviderApiKey,
   fetchProviderBalance as fetchTuiProviderBalance,
@@ -18,6 +20,7 @@ import {
 } from '@codepilotx/core/models/providerConfig.js'
 import { desktopDebug } from './desktopDebug.js'
 import {
+  getOpenAgentConfigHomeDir,
   readDesktopStoredSettings,
   saveDesktopStoredSettings,
 } from './desktopSettings.js'
@@ -161,6 +164,19 @@ export async function saveModelProvider(
     providerBaseURL: provider.requiresBaseURL ? baseURL ?? '' : '',
     model: modelID ?? '',
   })
+  await writeCodexProviderConfig(
+    createModelProviderSummary(
+      { ...provider, baseURL: selectedBaseURL },
+      getProviderApiKeySource(providerID),
+    ),
+    modelID,
+  ).catch(error => {
+    desktopDebug('model_provider_codex_config_write_failed', {
+      providerID,
+      modelID,
+      message: error instanceof Error ? error.message : String(error),
+    })
+  })
   const state = await getModelProviderState()
   desktopDebug('model_provider_save_done', {
     providerID: state.selectedProviderID,
@@ -168,6 +184,38 @@ export async function saveModelProvider(
     baseURL: state.baseURL,
   })
   return state
+}
+
+async function writeCodexProviderConfig(
+  provider: ReturnType<typeof createModelProviderSummary>,
+  modelID: string,
+): Promise<void> {
+  if (isTestEnvironment()) return
+  const edits = providerToCodexToml(provider, modelID)
+  if (edits.length === 0) return
+  const client = new CodexAppServerClient({
+    transport: { type: 'stdio' },
+    codexHome: getOpenAgentConfigHomeDir(),
+    clientInfo: {
+      name: 'codepilotx_desktop',
+      title: 'CodePilotX Desktop',
+      version: '0.0.0-local',
+    },
+  })
+  await client.start()
+  try {
+    await client.configBatchWrite(edits, { reloadUserConfig: true })
+  } finally {
+    await client.shutdown()
+  }
+}
+
+function isTestEnvironment(): boolean {
+  return (
+    process.env.NODE_ENV === 'test' ||
+    process.env.BUN_ENV === 'test' ||
+    'Bun' in globalThis
+  )
 }
 
 export async function saveProviderApiKey(

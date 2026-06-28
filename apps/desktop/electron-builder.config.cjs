@@ -2,7 +2,13 @@ module.exports = {
   appId: 'local.codepilotx.desktop',
   productName: 'CodePilotX Local Desktop',
   files: ['dist/desktop/**/*', 'dist/desktop-agent/**/*', 'package.json'],
-  extraResources: [{ from: 'apps/desktop/build/icon.ico', to: 'icon.ico' }],
+  extraResources: [
+    { from: 'apps/desktop/build/icon.ico', to: 'icon.ico' },
+    {
+      from: 'node_modules/@openai/codex-win32-x64/vendor',
+      to: 'codex/vendor',
+    },
+  ],
   asarUnpack: ['dist/desktop-agent/**/*'],
   directories: {
     output: 'release/desktop',

@@ -2,9 +2,10 @@ import { app } from 'electron'
 import { EventEmitter } from 'node:events'
 import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
-import { stat } from 'node:fs/promises'
+import { readFile as readFileBuffer, readdir, stat } from 'node:fs/promises'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { resolveCodexBinary } from './codexBinary.js'
 import { enableConfigs } from '@codepilotx/core/utils/config.js'
 import {
   formatDescriptionWithSource,
@@ -27,6 +28,11 @@ import {
 import { clearAllCaches } from '@codepilotx/core/utils/plugins/cache.js'
 import { generateSessionTitle } from '@codepilotx/core/session/title.js'
 import { saveAiGeneratedTitle } from '@codepilotx/core/session/storage.js'
+import {
+  planModeActiveFromCollaborationMode,
+  resolveCodexCollaborationMode,
+  type CodexCollaborationMode,
+} from '@codepilotx/core/agent/codexSessionContract.js'
 import {
   createDesktopAgentSession,
   type DesktopAgentSession,
@@ -77,18 +83,28 @@ import {
   saveDesktopSessionStore,
 } from './sessionPersistence.js'
 import type {
+  DesktopBackgroundTerminal,
   CreateDesktopSessionOptions,
   CreateDesktopSessionResult,
   DesktopAgentEvent,
+  DesktopAgentPickerEntry,
   DesktopBuiltinPlugin,
   DesktopApprovalPolicy,
+  DesktopCollaborationModePreset,
+  DesktopFuzzyFileSearchInput,
+  DesktopFuzzyFileSearchResponse,
+  DesktopHookListEntry,
   DesktopModelSelection,
   DesktopPermissionDecision,
   DesktopPermissionRequest,
+  DesktopReadDirectoryResult,
+  DesktopReadFileResult,
   DesktopReviewComment,
   DesktopSlashCommandSuggestion,
   DesktopSessionMetadataPatch,
   DesktopSessionSnapshot,
+  DesktopThreadGoal,
+  DesktopThreadGoalStatus,
   DesktopThinkingMode,
   DesktopUserMessageContent,
   DesktopUserMessageInput,
@@ -134,18 +150,7 @@ const titleGenerationStartedSessionIds = new Set<string>()
 let activeSessionId: string | null = null
 let sessionStoreLoadPromise: Promise<void> | null = null
 const DESKTOP_BUILTIN_PLUGIN_IDS = [] as const
-const DESKTOP_PRIMARY_SLASH_COMMANDS = [
-  'effort',
-  'model',
-  'branch',
-  'status',
-  'goal',
-  'plan',
-  'remember',
-] as const
-const DESKTOP_PRIMARY_SLASH_COMMAND_SET = new Set<string>(
-  DESKTOP_PRIMARY_SLASH_COMMANDS,
-)
+const DESKTOP_LOCAL_SLASH_COMMANDS = new Set(['goal', 'plan'])
 const DESKTOP_SLASH_COMMAND_TITLE_OVERRIDES: Record<string, string> = {
   effort: '推理模式',
   model: '模型',
@@ -211,16 +216,7 @@ function assertTrustedIpcSender(senderUrl: string | undefined): void {
 }
 
 function getAgentExecutablePath(): string {
-  if (app.isPackaged) {
-    return join(
-      process.resourcesPath,
-      'app.asar.unpacked',
-      'dist',
-      'desktop-agent',
-      'codepilotx-local.exe',
-    )
-  }
-  return join(__dirname, '..', '..', 'desktop-agent', 'codepilotx-local.exe')
+  return resolveCodexBinary()
 }
 
 function getDesktopRuntimeSelection(): {
@@ -250,13 +246,32 @@ function getDesktopRuntimeSelection(): {
   return { preference: 'auto', source: 'default' }
 }
 
-function getDesktopAgentRuntimeOptions() {
+function getDesktopAgentRuntimeOptions(): Parameters<typeof createDesktopAgentSession>[1] {
   const selection = getDesktopRuntimeSelection()
   return {
     agentExecutablePath: getAgentExecutablePath(),
     configDirectoryPath: getOpenAgentConfigHomeDir(),
     runtimePreference: selection.preference,
+    onCodexAppServerThreadId: rememberCodexAppServerThreadId,
   }
+}
+
+function rememberCodexAppServerThreadId(
+  sessionId: string,
+  threadId: string,
+): void {
+  const trimmedThreadId = threadId.trim()
+  if (!trimmedThreadId) return
+  const record = sessions.get(sessionId)
+  if (!record || record.snapshot.codexAppServerThreadId === trimmedThreadId) {
+    return
+  }
+  record.snapshot = {
+    ...record.snapshot,
+    codexAppServerThreadId: trimmedThreadId,
+    updatedAt: new Date().toISOString(),
+  }
+  persistSessionStore()
 }
 
 function withDesktopMessageTimestamp(event: DesktopAgentEvent): DesktopAgentEvent {
@@ -401,6 +416,7 @@ function createRuntimeForRecord(record: DesktopSessionRecord): DesktopAgentSessi
       workspacePath: record.snapshot.workspace.path,
       sessionId: record.snapshot.item.id,
       resumeExistingSession: record.resumeExistingSession,
+      codexAppServerThreadId: record.snapshot.codexAppServerThreadId,
       suppressStartupMessage: true,
     },
     getDesktopAgentRuntimeOptions(),
@@ -651,6 +667,309 @@ async function setSessionPlanModeActive(
   )
   persistSessionStore()
   return record.snapshot
+}
+
+async function getThreadGoal(
+  sessionId: string,
+): Promise<DesktopThreadGoal | null> {
+  const record = await getSessionRecord(sessionId)
+  return createRuntimeForRecord(record).getThreadGoal()
+}
+
+async function setThreadGoal(
+  sessionId: string,
+  input: {
+    objective?: string | null
+    status?: DesktopThreadGoalStatus | null
+    tokenBudget?: number | null
+  },
+): Promise<DesktopThreadGoal> {
+  const record = await getSessionRecord(sessionId)
+  return createRuntimeForRecord(record).setThreadGoal(input)
+}
+
+async function clearThreadGoal(sessionId: string): Promise<void> {
+  const record = await getSessionRecord(sessionId)
+  await createRuntimeForRecord(record).clearThreadGoal()
+}
+
+async function listBackgroundTerminals(
+  sessionId: string,
+): Promise<DesktopBackgroundTerminal[]> {
+  const record = await getSessionRecord(sessionId)
+  return createRuntimeForRecord(record).listBackgroundTerminals()
+}
+
+async function terminateBackgroundTerminal(
+  sessionId: string,
+  processId: string,
+): Promise<{ terminated: boolean }> {
+  const record = await getSessionRecord(sessionId)
+  return createRuntimeForRecord(record).terminateBackgroundTerminal(processId)
+}
+
+async function cleanBackgroundTerminals(sessionId: string): Promise<void> {
+  const record = await getSessionRecord(sessionId)
+  await createRuntimeForRecord(record).cleanBackgroundTerminals()
+}
+
+async function listHooks(): Promise<DesktopHookListEntry[]> {
+  await ensureSessionStoreLoaded()
+  const record =
+    [...sessions.values()].find(item => item.snapshot.codexAppServerThreadId) ??
+    [...sessions.values()][0]
+  if (!record) {
+    return []
+  }
+  return createRuntimeForRecord(record).listHooks()
+}
+
+async function listCollaborationModes(): Promise<DesktopCollaborationModePreset[]> {
+  await ensureSessionStoreLoaded()
+  const record =
+    [...sessions.values()].find(item => item.snapshot.codexAppServerThreadId) ??
+    [...sessions.values()][0]
+  if (!record) {
+    return []
+  }
+  return createRuntimeForRecord(record).listCollaborationModes()
+}
+
+async function listAgentPickerEntries(
+  sessionId: string,
+): Promise<DesktopAgentPickerEntry[]> {
+  const record = await getSessionRecord(sessionId)
+  return createRuntimeForRecord(record).listAgentPickerEntries()
+}
+
+async function readAgentThread(
+  sessionId: string,
+  threadId: string,
+): Promise<unknown> {
+  const record = await getSessionRecord(sessionId)
+  return createRuntimeForRecord(record).readAgentThread(
+    requireNonEmptyString(threadId, 'Agent thread id'),
+  )
+}
+
+async function sendAgentThreadMessage(
+  sessionId: string,
+  threadId: string,
+  input: DesktopUserMessageInput,
+  model?: string | DesktopModelSelection,
+): Promise<void> {
+  const trimmedContent = requireNonEmptyString(
+    desktopUserMessageInputToPreviewText(input),
+    'Desktop agent message',
+  )
+  if (hasBlockingComposerAttachmentErrors(input.attachments)) {
+    throw new Error('Desktop agent message contains attachment errors.')
+  }
+  const record = await getSessionRecord(sessionId)
+  const modelSelection = normalizeDesktopModelSelection(model)
+  const nextModel = modelSelection.model
+  const effectiveModel =
+    modelSelection.provided ? nextModel : record.snapshot.settings.model
+  await assertCurrentProviderUsable(effectiveModel, modelSelection)
+  const session = createRuntimeForRecord(record)
+  if (modelSelection.provided) {
+    session.setModel(nextModel)
+  }
+  await session.sendAgentThreadMessage(
+    requireNonEmptyString(threadId, 'Agent thread id'),
+    buildDesktopUserMessageContent(input),
+  )
+  desktopDebug('agent_thread_message_started', {
+    sessionId,
+    threadId,
+    textLength: trimmedContent.length,
+  })
+}
+
+async function interruptAgentThread(
+  sessionId: string,
+  threadId: string,
+): Promise<void> {
+  const record = await getSessionRecord(sessionId)
+  await createRuntimeForRecord(record).interruptAgentThread(
+    requireNonEmptyString(threadId, 'Agent thread id'),
+  )
+}
+
+async function closeAgentThread(
+  sessionId: string,
+  threadId: string,
+): Promise<void> {
+  const record = await getSessionRecord(sessionId)
+  await createRuntimeForRecord(record).closeAgentThread(
+    requireNonEmptyString(threadId, 'Agent thread id'),
+  )
+}
+
+async function resumeAgentThread(
+  sessionId: string,
+  threadId: string,
+): Promise<unknown> {
+  const record = await getSessionRecord(sessionId)
+  return createRuntimeForRecord(record).resumeAgentThread(
+    requireNonEmptyString(threadId, 'Agent thread id'),
+  )
+}
+
+async function forkSession(sessionId: string): Promise<CreateDesktopSessionResult> {
+  const record = await getSessionRecord(sessionId)
+  const forkedThread = await createRuntimeForRecord(record).forkThread()
+  const forkedSessionId = randomUUID()
+  const now = new Date().toISOString()
+  const snapshot = createDesktopSessionSnapshot({
+    sessionId: forkedSessionId,
+    workspace: record.snapshot.workspace,
+    standalone: record.snapshot.item.standalone === true,
+    settings: record.snapshot.settings,
+  })
+  const forkedRecord: DesktopSessionRecord = {
+    session: null,
+    resumeExistingSession: false,
+    snapshot: {
+      ...snapshot,
+      codexAppServerThreadId: forkedThread.id,
+      item: {
+        ...snapshot.item,
+        aiTitle: forkedThread.preview || record.snapshot.item.aiTitle,
+      },
+      updatedAt: now,
+    },
+  }
+  sessions.set(forkedSessionId, forkedRecord)
+  activeSessionId = forkedSessionId
+  persistSessionStore()
+  return {
+    sessionId: forkedSessionId,
+    workspace: forkedRecord.snapshot.workspace,
+    standalone: forkedRecord.snapshot.item.standalone === true,
+  }
+}
+
+async function resumeSession(sessionId: string): Promise<DesktopSessionSnapshot> {
+  const record = await getSessionRecord(sessionId)
+  if (record.snapshot.codexAppServerThreadId) {
+    await createRuntimeForRecord(record).resumeAgentThread(
+      record.snapshot.codexAppServerThreadId,
+    )
+  }
+  record.snapshot = {
+    ...record.snapshot,
+    item: {
+      ...record.snapshot.item,
+      archivedAt: null,
+    },
+    updatedAt: new Date().toISOString(),
+  }
+  activeSessionId = record.snapshot.item.id
+  persistSessionStore()
+  return record.snapshot
+}
+
+async function trustHook(
+  sessionId: string,
+  key: string,
+  currentHash: string,
+): Promise<void> {
+  const record = await getSessionRecord(sessionId)
+  await createRuntimeForRecord(record).trustHook(
+    requireNonEmptyString(key, 'Hook key'),
+    requireNonEmptyString(currentHash, 'Hook current hash'),
+  )
+}
+
+async function readDirectory(path: string): Promise<DesktopReadDirectoryResult> {
+  const normalizedPath = requireNonEmptyString(path, 'Directory path')
+  const record = await getAppServerApiRecord()
+  if (record) {
+    try {
+      return await createRuntimeForRecord(record).readDirectory(normalizedPath)
+    } catch (error) {
+      desktopDebug('app_server_read_directory_failed', {
+        path: normalizedPath,
+        message: error instanceof Error ? error.message : String(error),
+      })
+    }
+  }
+  const entries = await readdir(normalizedPath, { withFileTypes: true })
+  return {
+    entries: entries.map(entry => ({
+      fileName: entry.name,
+      isDirectory: entry.isDirectory(),
+      isFile: entry.isFile(),
+    })),
+  }
+}
+
+async function readFile(path: string): Promise<DesktopReadFileResult> {
+  const normalizedPath = requireNonEmptyString(path, 'File path')
+  const record = await getAppServerApiRecord()
+  if (record) {
+    try {
+      return await createRuntimeForRecord(record).readFile(normalizedPath)
+    } catch (error) {
+      desktopDebug('app_server_read_file_failed', {
+        path: normalizedPath,
+        message: error instanceof Error ? error.message : String(error),
+      })
+    }
+  }
+  return { dataBase64: (await readFileBuffer(normalizedPath)).toString('base64') }
+}
+
+async function fuzzyFileSearch(
+  input: DesktopFuzzyFileSearchInput,
+): Promise<DesktopFuzzyFileSearchResponse> {
+  const record = await getAppServerApiRecord()
+  if (!record) {
+    return { files: [] }
+  }
+  return createRuntimeForRecord(record).fuzzyFileSearch({
+    query: input.query,
+    roots: input.roots,
+    cancellationToken: input.cancellationToken ?? null,
+  })
+}
+
+async function setSessionCollaborationMode(
+  sessionId: string,
+  mode: CodexCollaborationMode,
+): Promise<DesktopSessionSnapshot> {
+  const record = await getSessionRecord(sessionId)
+  const collaborationMode = resolveCodexCollaborationMode({
+    collaborationMode: mode,
+  })
+  const planModeActive = planModeActiveFromCollaborationMode(collaborationMode)
+  record.snapshot = {
+    ...record.snapshot,
+    item: {
+      ...record.snapshot.item,
+      collaborationMode,
+      planModeActive,
+    },
+    settings: {
+      ...record.snapshot.settings,
+      collaborationMode,
+      planModeActive,
+    },
+    updatedAt: new Date().toISOString(),
+  }
+  record.session?.setPlanModeActive(planModeActive)
+  persistSessionStore()
+  return record.snapshot
+}
+
+async function getAppServerApiRecord(): Promise<DesktopSessionRecord | null> {
+  await ensureSessionStoreLoaded()
+  return (
+    [...sessions.values()].find(item => item.snapshot.codexAppServerThreadId) ??
+    [...sessions.values()][0] ??
+    null
+  )
 }
 
 async function createSession(
@@ -1223,36 +1542,42 @@ async function listSlashCommands(
     .filter(command => command.userInvocable !== false)
     .filter(command => !command.isHidden)
     .filter(command => command.isEnabled?.() ?? true)
-    .filter(command => {
-      const name = getCommandName(command)
-      return (
-        DESKTOP_PRIMARY_SLASH_COMMAND_SET.has(name) ||
-        (command.type === 'prompt' && command.source !== 'builtin')
-      )
-    })
     .map(command => {
       const name = getCommandName(command)
       const isSkill = command.type === 'prompt'
+      const metadata = command as Record<string, unknown>
+      const argNames = Array.isArray(metadata.argNames)
+        ? metadata.argNames.filter((value): value is string => typeof value === 'string')
+        : []
+      const argumentHint =
+        typeof metadata.argumentHint === 'string' ? metadata.argumentHint : ''
+      const availableDuringTask = metadata.immediate !== false
+      const actionKind = command.isEnabled?.() === false
+        ? 'disabled'
+        : DESKTOP_LOCAL_SLASH_COMMANDS.has(name)
+          ? 'local'
+          : 'submit'
       return {
         name,
         title: DESKTOP_SLASH_COMMAND_TITLE_OVERRIDES[name] ?? name,
         description: formatDescriptionWithSource(command),
         category: isSkill ? 'skill' : 'command',
         ...(isSkill && { scope: '个人' }),
+        supportsInlineArgs: argNames.length > 0 || Boolean(argumentHint.trim()),
+        availableDuringTask,
+        actionKind,
+        experimental:
+          metadata.loadedFrom === 'managed' ||
+          metadata.loadedFrom === 'mcp' ||
+          metadata.source === 'mcp',
       } satisfies DesktopSlashCommandSuggestion
     })
 
   return suggestions.sort((a, b) => {
-    const aPrimary = DESKTOP_PRIMARY_SLASH_COMMANDS.indexOf(
-      a.name as (typeof DESKTOP_PRIMARY_SLASH_COMMANDS)[number],
-    )
-    const bPrimary = DESKTOP_PRIMARY_SLASH_COMMANDS.indexOf(
-      b.name as (typeof DESKTOP_PRIMARY_SLASH_COMMANDS)[number],
-    )
-    if (aPrimary !== -1 || bPrimary !== -1) {
-      if (aPrimary === -1) return 1
-      if (bPrimary === -1) return -1
-      return aPrimary - bPrimary
+    const aLocal = a.actionKind === 'local'
+    const bLocal = b.actionKind === 'local'
+    if (aLocal !== bLocal) {
+      return aLocal ? -1 : 1
     }
     if (a.category !== b.category) {
       return a.category === 'command' ? -1 : 1
@@ -1301,6 +1626,27 @@ const desktopApiHandlers = buildDesktopApiHandlers({
   listBuiltinPlugins,
   setBuiltinPluginEnabled,
   listSlashCommands,
+  getThreadGoal,
+  setThreadGoal,
+  clearThreadGoal,
+  listBackgroundTerminals,
+  terminateBackgroundTerminal,
+  cleanBackgroundTerminals,
+  listHooks,
+  listCollaborationModes,
+  listAgentPickerEntries,
+  readAgentThread,
+  sendAgentThreadMessage,
+  interruptAgentThread,
+  closeAgentThread,
+  resumeAgentThread,
+  forkSession,
+  resumeSession,
+  trustHook,
+  readDirectory,
+  readFile,
+  fuzzyFileSearch,
+  setSessionCollaborationMode,
   createSession,
   listSessions,
   getSession,

@@ -64,7 +64,13 @@ export class DesktopWorkflowProjector {
       return this.decorateEvents(threadId, events)
     }
 
-    if (event.type === 'context_usage' || event.type === 'session_title') {
+    if (
+      event.type === 'context_usage' ||
+      event.type === 'session_title' ||
+      event.type === 'thread_goal_updated' ||
+      event.type === 'thread_goal_cleared' ||
+      event.type === 'thread_status_changed'
+    ) {
       return this.decorateEvents(threadId, events)
     }
 

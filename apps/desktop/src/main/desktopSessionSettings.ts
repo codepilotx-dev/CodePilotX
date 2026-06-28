@@ -1,16 +1,22 @@
 import type {
   DesktopApprovalPolicy,
+  DesktopCollaborationMode,
   DesktopPermissionMode,
   DesktopSessionSettingsSnapshot,
   DesktopSessionSnapshot,
   DesktopThinkingMode,
 } from '../shared/types.js'
+import {
+  planModeActiveFromCollaborationMode,
+  resolveCodexCollaborationMode,
+} from '@codepilotx/core/agent/codexSessionContract.js'
 
 export function createSessionSettingsSnapshot(params: {
   permissionProfile: string
   approvalPolicy: DesktopApprovalPolicy
   approvalsReviewer: DesktopSessionSettingsSnapshot['approvalsReviewer']
   permissionMode: DesktopPermissionMode
+  collaborationMode?: DesktopCollaborationMode
   planModeActive?: boolean
   providerID?: DesktopSessionSettingsSnapshot['providerID']
   providerBaseURL?: string
@@ -27,12 +33,17 @@ export function createSessionSettingsSnapshot(params: {
   additionalDirectories: string[]
   rustSearchAndDiffKernels?: boolean
 }): DesktopSessionSettingsSnapshot {
+  const collaborationMode = resolveCodexCollaborationMode({
+    collaborationMode: params.collaborationMode,
+    planModeActive: params.planModeActive,
+  })
   const settings: DesktopSessionSettingsSnapshot = {
     permissionProfile: params.permissionProfile,
     approvalPolicy: params.approvalPolicy,
     approvalsReviewer: params.approvalsReviewer,
     permissionMode: params.permissionMode,
-    planModeActive: params.planModeActive === true,
+    collaborationMode,
+    planModeActive: planModeActiveFromCollaborationMode(collaborationMode),
     thinkingMode: params.thinkingMode,
     additionalDirectories: params.additionalDirectories,
     rustSearchAndDiffKernels: params.rustSearchAndDiffKernels === true,
@@ -57,14 +68,27 @@ export function applySessionPlanModeActiveToSnapshot(
   snapshot: DesktopSessionSnapshot,
   planModeActive: boolean,
 ): DesktopSessionSnapshot {
+  return applySessionCollaborationModeToSnapshot(
+    snapshot,
+    resolveCodexCollaborationMode({ planModeActive }),
+  )
+}
+
+export function applySessionCollaborationModeToSnapshot(
+  snapshot: DesktopSessionSnapshot,
+  collaborationMode: DesktopCollaborationMode,
+): DesktopSessionSnapshot {
+  const planModeActive = planModeActiveFromCollaborationMode(collaborationMode)
   return {
     ...snapshot,
     item: {
       ...snapshot.item,
+      collaborationMode,
       planModeActive,
     },
     settings: {
       ...snapshot.settings,
+      collaborationMode,
       planModeActive,
     },
     updatedAt: new Date().toISOString(),
