@@ -1,2 +1,0 @@
-// feature-gated shim
-export {};

@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "PowerShell(Get-ChildItem -Path \"D:\\\\VueProject\\\\ClaudeCode\" -File -Force | Where-Object { $_.Name -ne 'bun.lock' } | Select-Object Name; Write-Output \"---\"; Get-ChildItem -Path \"D:\\\\VueProject\\\\ClaudeCode\\\\apps\\\\desktop\\\\src\" -Directory -Force | Select-Object Name; Write-Output \"--- packages/core/src ---\"; Get-ChildItem -Path \"D:\\\\VueProject\\\\ClaudeCode\\\\packages\\\\core\\\\src\" -Directory -Force | Select-Object Name)",
-      "Read(//c/Users/XiaoHi/AppData/Local/Temp/**)"
-    ],
-    "defaultMode": "acceptEdits"
-  }
-}

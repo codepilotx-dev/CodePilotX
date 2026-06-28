@@ -1,1 +1,0 @@
-Local verification server example.
