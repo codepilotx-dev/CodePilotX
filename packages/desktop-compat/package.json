@@ -1,0 +1,34 @@
+{
+  "name": "@codepilotx/desktop-compat",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Compatibility shim package that exposes the legacy @codepilotx/core and @codepilotx/tui modules consumed by the desktop app. This is a transitional package that will be incrementally replaced by the OpenAI Codex CLI app-server integration.",
+  "exports": {
+    "./core/*": "./src/core/*",
+    "./tui/*": "./src/tui/*"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "latest",
+    "@codepilotx/codex-app-server-client": "workspace:*",
+    "@growthbook/growthbook": "latest",
+    "axios": "latest",
+    "env-paths": "latest",
+    "execa": "latest",
+    "emoji-regex": "latest",
+    "fflate": "latest",
+    "jsonc-parser": "latest",
+    "get-east-asian-width": "latest",
+    "lodash-es": "latest",
+    "lru-cache": "latest",
+    "picomatch": "latest",
+    "smol-toml": "^1.7.0",
+    "strip-ansi": "latest",
+    "@smithy/core": "latest",
+    "vscode-jsonrpc": "latest",
+    "zod": "latest"
+  },
+  "files": [
+    "src"
+  ]
+}

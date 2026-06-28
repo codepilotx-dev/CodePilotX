@@ -1,0 +1,12 @@
+export type SDKControlRequest = any
+export type SDKControlResponse = any
+export type SDKControlInitializeRequest = any
+export type SDKControlInitializeResponse = any
+export type SDKControlMcpSetServersResponse = any
+export type SDKControlPermissionRequest = any
+export type SDKControlReloadPluginsResponse = any
+export type SDKPartialAssistantMessage = any
+export type SDKPermissionDenial = any
+export type SDKRateLimitInfo = any
+export type StdinMessage = any
+export type StdoutMessage = any

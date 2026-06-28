@@ -1,0 +1,21 @@
+packages:
+  - codex-cli
+  - codex-rs/responses-api-proxy/npm
+  - sdk/typescript
+  - apps/desktop
+  - packages/desktop-compat
+  - packages/codex-app-server-client
+
+ignoredBuiltDependencies:
+  - esbuild
+
+minimumReleaseAge: 10080
+minimumReleaseAgeExclude:
+  - smol-toml
+
+blockExoticSubdeps: true
+strictDepBuilds: true
+trustPolicy: no-downgrade
+trustPolicyIgnoreAfter: 10080
+trustPolicyExclude: []
+allowBuilds: { electron-winstaller: set this to true or false, esbuild: set this to true or false, protobufjs: set this to true or false }

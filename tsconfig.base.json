@@ -1,27 +1,38 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022", "DOM"],
-    "module": "Preserve",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
     "moduleResolution": "Bundler",
     "jsx": "react-jsx",
     "jsxImportSource": "react",
     "allowJs": true,
     "checkJs": false,
     "strict": false,
+    "noImplicitAny": false,
+    "strictNullChecks": false,
+    "strictFunctionTypes": false,
+    "strictBindCallApply": false,
+    "strictPropertyInitialization": false,
+    "alwaysStrict": false,
+    "noImplicitThis": false,
+    "useUnknownInCatchVariables": false,
     "skipLibCheck": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
+    "isolatedModules": false,
     "noEmit": true,
-    "baseUrl": ".",
+    "forceConsistentCasingInFileNames": false,
     "ignoreDeprecations": "6.0",
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noImplicitReturns": false,
+    "noFallthroughCasesInSwitch": false,
     "paths": {
-      "@codepilotx/core/*": ["./packages/core/src/*"],
-      "@codepilotx/tui/*": ["./apps/tui/src/*"],
-      "@codepilotx/desktop/*": ["./apps/desktop/src/*"]
+      "@codepilotx/core/*": ["./packages/desktop-compat/src/core/*"],
+      "@codepilotx/tui/*": ["./packages/desktop-compat/src/tui/*"]
     },
-    "types": ["bun", "node"],
-    "typeRoots": ["./apps/tui/src/types/local", "./node_modules/@types"]
+    "types": ["node"]
   }
 }

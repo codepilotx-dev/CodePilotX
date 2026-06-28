@@ -1,0 +1,1 @@
+Local verification CLI example.

@@ -1,0 +1,20 @@
+{
+  "name": "@codepilotx/codex-app-server-client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "TypeScript client for the OpenAI Codex CLI app-server JSON-RPC interface. Used by the CodePilotX desktop app to talk to a `codex app-server` subprocess.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@openai/codex": "*"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "typescript": "^5.9.2"
+  }
+}
