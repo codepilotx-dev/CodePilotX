@@ -160,6 +160,7 @@ export async function saveModelProvider(
     providerID,
     providerBaseURL: provider.requiresBaseURL ? baseURL ?? '' : '',
     model: modelID ?? '',
+    selectedModelPreset: modelID ?? '',
   })
   const state = await getModelProviderState()
   desktopDebug('model_provider_save_done', {

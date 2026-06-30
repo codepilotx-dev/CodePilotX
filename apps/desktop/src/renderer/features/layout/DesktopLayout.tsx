@@ -807,6 +807,7 @@ export function DesktopLayout(): React.ReactNode {
       ),
     [providerState],
   )
+  const syncedSessionModelRef = useRef<string | null>(null)
   const providerModelOptions = useMemo(
     () => {
       const providers =
@@ -862,7 +863,14 @@ export function DesktopLayout(): React.ReactNode {
 
   useEffect(() => {
     const activeModel = activeSessionItem?.model?.trim()
-    if (!activeModel) return
+    const syncKey =
+      activeSessionItem?.id && activeModel
+        ? `${activeSessionItem.id}:${activeModel}`
+        : null
+    if (!activeModel || !syncKey || syncedSessionModelRef.current === syncKey) {
+      return
+    }
+    syncedSessionModelRef.current = syncKey
     if (model !== activeModel) {
       setModel(activeModel)
     }
