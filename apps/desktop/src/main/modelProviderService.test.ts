@@ -11,6 +11,7 @@ import {
   listModelProviders,
   saveModelProvider,
 } from './modelProviderService.js'
+import { readDesktopStoredSettings } from './desktopSettings.js'
 
 test('desktop model provider service discovers and saves zhipu provider state', async () => {
   const configDir = await mkdtemp(join(tmpdir(), 'desktop-zhipu-provider-'))
@@ -52,6 +53,8 @@ test('desktop model provider service discovers and saves zhipu provider state', 
       model: 'glm-4.7-flash',
       baseURL: 'https://open.bigmodel.cn/api/paas/v4/',
     })
+    const settings = await readDesktopStoredSettings()
+    expect(settings.selectedModelPreset).toBe('glm-4.7-flash')
   } finally {
     globalThis.fetch = originalFetch
     restoreEnv(CODEPILOTX_CONFIG_DIR_ENV, originalCodePilotXConfig)

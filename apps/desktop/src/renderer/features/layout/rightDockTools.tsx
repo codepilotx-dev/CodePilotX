@@ -34,6 +34,7 @@ export type RightDockToolId =
 
 export type RightDockFlags = {
   debugMode: boolean
+  quickChatOnly?: boolean
 }
 
 export type RightDockPanelContext = {
@@ -46,6 +47,7 @@ export type RightDockPanelContext = {
     reviewView: DesktopReviewView
     sessionStatus: DesktopSessionStatus
     workspacePath: string | null
+    onAppendComposerText?: (text: string) => void
     onClose: () => void
     onCreateBranch: () => void
     onOpenWorkspacePath: () => void
@@ -55,6 +57,7 @@ export type RightDockPanelContext = {
   browser: {
     state: DesktopBrowserState | null
     onAppendAnnotation: (text: string) => void
+    onAppendComposerText?: (text: string) => void
     onStateChange: (state: DesktopBrowserState) => void
   }
   files: {
@@ -62,6 +65,8 @@ export type RightDockPanelContext = {
     selectedFile: DesktopFilePreview | null
     workspace: DesktopWorkspace | null
     onPreviewFile: (file: DesktopFileEntry) => void
+    onAppendComposerText?: (text: string) => void
+    onAddComposerFiles?: (filePaths: string[]) => void
   }
   plan: RightDockPlan | null
   flags: RightDockFlags
@@ -87,14 +92,14 @@ export const rightDockTools: readonly RightDockToolMeta[] = [
     id: 'review',
     label: '审查',
     icon: <GitPullRequest size={iconSize} />,
-    shortcut: 'Ctrl+Shift+R',
+    shortcut: 'Ctrl+Shift+G',
     enabled: true,
   },
   {
     id: 'browser',
     label: '浏览器',
     icon: <Globe2 size={iconSize} />,
-    shortcut: 'Ctrl+Shift+B',
+    shortcut: 'Ctrl+T',
     enabled: true,
   },
   {
@@ -143,6 +148,27 @@ export const rightDockTools: readonly RightDockToolMeta[] = [
     enabled: flags => flags.debugMode,
   },
 ]
+
+const quickChatDockToolOrder: readonly RightDockToolId[] = [
+  'review',
+  'terminal',
+  'browser',
+  'files',
+]
+
+export function getVisibleRightDockTools(
+  flags: RightDockFlags,
+): readonly RightDockToolMeta[] {
+  if (!flags.quickChatOnly) {
+    return rightDockTools.filter(tool => isRightDockToolEnabled(tool.id, flags))
+  }
+  return quickChatDockToolOrder
+    .map(id => getRightDockTool(id))
+    .filter(
+      (tool): tool is RightDockToolMeta =>
+        Boolean(tool) && isRightDockToolEnabled(tool.id, flags),
+    )
+}
 
 export function getRightDockTool(id: string): RightDockToolMeta | undefined {
   return rightDockTools.find(tool => tool.id === id)

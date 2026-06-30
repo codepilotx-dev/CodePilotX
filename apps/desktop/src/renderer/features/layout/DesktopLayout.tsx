@@ -65,6 +65,7 @@ import type {
   DesktopModelProviderSummary,
   DesktopModelProviderState,
   DesktopBrowserState,
+  DesktopComposerAttachment,
   DesktopPermissionMode,
   DesktopWorkspace,
   LocalRouterMode,
@@ -141,6 +142,9 @@ export function DesktopLayout(): React.ReactNode {
   const [browserState, setBrowserState] = useState<DesktopBrowserState | null>(
     null,
   )
+  const [composerAttachments, setComposerAttachments] = useState<
+    DesktopComposerAttachment[]
+  >([])
   const [rightDockState, setRightDockState] = useState<RightDockState>({
     open: false,
     activeTool: null,
@@ -367,6 +371,7 @@ export function DesktopLayout(): React.ReactNode {
     setDiffState(NO_WORKSPACE_DIFF)
     setSelectedFile(null)
     setInput('')
+    setComposerAttachments([])
   }, [
     activateSessionById,
     navigate,
@@ -419,6 +424,7 @@ export function DesktopLayout(): React.ReactNode {
       setDiffState('未选择项目。')
       setSelectedFile(null)
       setInput('')
+      setComposerAttachments([])
       return
     }
     const targetWorkspace = target === undefined ? currentWorkspace : target
@@ -430,6 +436,7 @@ export function DesktopLayout(): React.ReactNode {
     }
     activateSessionById(null)
     setInput('')
+    setComposerAttachments([])
   }, [
     activateSessionById,
     currentWorkspace,
@@ -594,6 +601,39 @@ export function DesktopLayout(): React.ReactNode {
     },
     [input, setInput],
   )
+
+  const handleAppendComposerText = useCallback(
+    (text: string): void => {
+      const trimmed = text.trim()
+      if (!trimmed) return
+      const separator = input.trim() ? '\n\n' : ''
+      setInput(`${input}${separator}${trimmed}`)
+    },
+    [input, setInput],
+  )
+
+  const handleAddComposerFiles = useCallback((filePaths: string[]): void => {
+    if (filePaths.length === 0) return
+    void desktopClient
+      .readComposerFiles(filePaths)
+      .then(nextAttachments => {
+        if (nextAttachments.length === 0) return
+        setComposerAttachments(current => {
+          const attachmentIds = new Set(
+            current.map(attachment => attachment.id),
+          )
+          return [
+            ...current,
+            ...nextAttachments.filter(
+              attachment => !attachmentIds.has(attachment.id),
+            ),
+          ]
+        })
+      })
+      .catch(error =>
+        setErrorMessage(error instanceof Error ? error.message : String(error)),
+      )
+  }, [])
 
   const handleNewConversation = useCallback(async (): Promise<void> => {
     activateSessionById(null)
@@ -767,6 +807,7 @@ export function DesktopLayout(): React.ReactNode {
       ),
     [providerState],
   )
+  const syncedSessionModelRef = useRef<string | null>(null)
   const providerModelOptions = useMemo(
     () => {
       const providers =
@@ -822,7 +863,14 @@ export function DesktopLayout(): React.ReactNode {
 
   useEffect(() => {
     const activeModel = activeSessionItem?.model?.trim()
-    if (!activeModel) return
+    const syncKey =
+      activeSessionItem?.id && activeModel
+        ? `${activeSessionItem.id}:${activeModel}`
+        : null
+    if (!activeModel || !syncKey || syncedSessionModelRef.current === syncKey) {
+      return
+    }
+    syncedSessionModelRef.current = syncKey
     if (model !== activeModel) {
       setModel(activeModel)
     }
@@ -1285,6 +1333,8 @@ export function DesktopLayout(): React.ReactNode {
       providerOptions={providerModelOptions}
       recentWorkspaces={recentWorkspaces}
       workspace={currentWorkspace}
+      attachments={composerAttachments}
+      onAttachmentsChange={setComposerAttachments}
       onChooseWorkspace={handleChooseWorkspace}
       onInputChange={setInput}
       onInterrupt={interrupt}
@@ -1379,6 +1429,8 @@ export function DesktopLayout(): React.ReactNode {
             onOpenWorkspacePath: handleOpenWorkspacePath,
             onOpenRightDock: openRightDockTool,
             onOpenPlanInRightDock: handleOpenPlanDock,
+            onAppendComposerText: handleAppendComposerText,
+            onAddComposerFiles: handleAddComposerFiles,
             onRefreshDiff: handleRefreshDiff,
             onToggleSidebar: toggleSidebarCollapsed,
             onToggleSessionPinned: () => {
@@ -1485,7 +1537,10 @@ export function DesktopLayout(): React.ReactNode {
                   sessionStatus={sessionStatus}
                   width={rightDockWidth}
                   workspace={currentWorkspace}
+                  quickChatOnly={isQuickChatPage}
                   onAppendBrowserAnnotation={handleBrowserAnnotation}
+                  onAppendComposerText={handleAppendComposerText}
+                  onAddComposerFiles={handleAddComposerFiles}
                   onBrowserStateChange={setBrowserState}
                   onClose={closeRightDock}
                   onCloseTool={closeRightDockTool}

@@ -79,6 +79,7 @@ export function WorkspaceReviewSidebar({
   reviewView,
   sessionStatus,
   workspacePath,
+  onAppendComposerText,
   onClose,
   onCreateBranch,
   onOpenWorkspacePath,
@@ -94,6 +95,7 @@ export function WorkspaceReviewSidebar({
   reviewView: DesktopReviewView
   sessionStatus: DesktopSessionStatus
   workspacePath: string | null
+  onAppendComposerText?: (text: string) => void
   onClose: () => void
   onCreateBranch: () => void
   onOpenWorkspacePath: () => void
@@ -353,6 +355,16 @@ export function WorkspaceReviewSidebar({
       ),
     ].join('\n')
     await desktopClient.sendUserMessage(activeSessionId, { text: body })
+  }
+
+  function sendReviewPromptToComposer(): void {
+    if (!onAppendComposerText) return
+    onAppendComposerText(
+      buildReviewComposerPrompt(
+        reviewDiff?.status ?? gitStatus,
+        reviewDiff?.files ?? [],
+      ),
+    )
   }
 
   function handleCommit(_message: string, _includeUnstaged: boolean): void {
@@ -648,6 +660,17 @@ export function WorkspaceReviewSidebar({
               onClick={onClose}
             >
               <PanelRight size={APP_ICON_SIZE} />
+            </button>
+          </Tooltip>
+          <Tooltip content="发送审查到对话框">
+            <button
+              aria-label="发送审查到对话框"
+              className="message-action"
+              disabled={!onAppendComposerText}
+              type="button"
+              onClick={sendReviewPromptToComposer}
+            >
+              <MessageSquarePlus size={APP_ICON_SIZE} />
             </button>
           </Tooltip>
         </div>
@@ -1524,6 +1547,31 @@ function fileBadge(path: string): React.ReactNode {
 function formatPanelNumber(value: number): string {
   if (value > 999) return '999+'
   return String(value)
+}
+
+function buildReviewComposerPrompt(
+  gitStatus: DesktopGitStatus | null,
+  files: DesktopReviewDiffFile[],
+): string {
+  const changedFiles = files.length > 0 ? files : []
+  const fileList =
+    changedFiles.length > 0
+      ? changedFiles
+          .slice(0, 50)
+          .map(file => `- ${file.path} (+${file.additions}/-${file.deletions})`)
+          .join('\n')
+      : gitStatus?.files.length
+        ? gitStatus.files
+            .slice(0, 50)
+            .map(file => `- ${file.path} (${file.status.trim() || '已修改'})`)
+            .join('\n')
+        : '- 当前没有可用变更'
+  return [
+    '请对当前工作区变更发起一次代码审查。',
+    '',
+    '变更文件：',
+    fileList,
+  ].join('\n')
 }
 
 function errorMessageOf(error: unknown): string {

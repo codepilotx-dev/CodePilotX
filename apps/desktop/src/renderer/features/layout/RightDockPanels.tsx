@@ -1,5 +1,6 @@
 import type React from 'react'
 import { useMemo, useState } from 'react'
+import * as ContextMenu from '@radix-ui/react-context-menu'
 import { FileText, Folder, FolderOpen, ListChecks, Search, SquareTerminal } from 'lucide-react'
 import type {
   DesktopFileEntry,
@@ -16,6 +17,8 @@ type FilesPanelProps = {
   selectedFile: DesktopFilePreview | null
   workspace: DesktopWorkspace | null
   onPreviewFile: (file: DesktopFileEntry) => void
+  onAppendComposerText?: (text: string) => void
+  onAddComposerFiles?: (filePaths: string[]) => void
 }
 
 type PlanPanelProps = {
@@ -51,9 +54,12 @@ export function RightDockFilesPanel({
   selectedFile,
   workspace,
   onPreviewFile,
+  onAppendComposerText,
+  onAddComposerFiles,
 }: FilesPanelProps): React.ReactNode {
   const [query, setQuery] = useState('')
   const [collapsedDirs, setCollapsedDirs] = useState<Set<string>>(() => new Set())
+  const [selectedText, setSelectedText] = useState('')
   const visibleFiles = useMemo(
     () => filterVisibleFiles(files, query, collapsedDirs),
     [collapsedDirs, files, query],
@@ -71,6 +77,21 @@ export function RightDockFilesPanel({
     })
   }
 
+  function handlePreviewContextMenu(): void {
+    setSelectedText(window.getSelection()?.toString() ?? '')
+  }
+
+  function sendSelectedTextToComposer(): void {
+    if (!selectedFile || !shouldShowSelectionSendAction(selectedText)) return
+    onAppendComposerText?.(
+      buildFileSelectionPrompt({
+        path: selectedFile.path,
+        selectedText,
+      }),
+    )
+    setSelectedText('')
+  }
+
   return (
     <section className="right-dock-files" aria-label="打开文件">
       <div className="right-dock-file-preview">
@@ -80,7 +101,28 @@ export function RightDockFilesPanel({
               <FileText size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
               <span title={selectedFile.path}>{selectedFile.path}</span>
             </header>
-            <ScrollArea direction="y"><pre>{selectedFile.content}</pre></ScrollArea>
+            <ContextMenu.Root>
+              <ContextMenu.Trigger asChild>
+                <div
+                  className="right-dock-file-selection-target"
+                  onContextMenu={handlePreviewContextMenu}
+                >
+                  <ScrollArea direction="y"><pre>{selectedFile.content}</pre></ScrollArea>
+                </div>
+              </ContextMenu.Trigger>
+              {shouldShowSelectionSendAction(selectedText) ? (
+                <ContextMenu.Portal>
+                  <ContextMenu.Content className="sidebar-context-menu-content">
+                    <ContextMenu.Item
+                      className="sidebar-context-menu-item"
+                      onSelect={sendSelectedTextToComposer}
+                    >
+                      发送到对话框
+                    </ContextMenu.Item>
+                  </ContextMenu.Content>
+                </ContextMenu.Portal>
+              ) : null}
+            </ContextMenu.Root>
             {selectedFile.truncated ? (
               <p>文件较大，已截断预览。</p>
             ) : null}
@@ -109,37 +151,59 @@ export function RightDockFilesPanel({
         </label>
         <ScrollArea className="right-dock-tree-list" role="tree">
           {visibleFiles.length > 0 ? (
-            visibleFiles.map(file => (
-              <button
-                className={
-                  selectedFile?.path === file.path
-                    ? 'right-dock-tree-row active'
-                    : 'right-dock-tree-row'
-                }
-                key={file.path}
-                style={{ paddingLeft: `${12 + file.depth * 18}px` }}
-                title={file.path}
-                type="button"
-                onClick={() => {
-                  if (file.type === 'directory') {
-                    toggleDirectory(file.path)
-                    return
+            visibleFiles.map(file => {
+              const sendablePath = getSendableFilePath({
+                workspacePath: workspace?.path ?? null,
+                file,
+              })
+              const row = (
+                <button
+                  className={
+                    selectedFile?.path === file.path
+                      ? 'right-dock-tree-row active'
+                      : 'right-dock-tree-row'
                   }
-                  onPreviewFile(file)
-                }}
-              >
-                {file.type === 'directory' ? (
-                  collapsedDirs.has(file.path) ? (
-                    <Folder size={APP_ICON_SIZE} />
+                  key={file.path}
+                  style={{ paddingLeft: `${12 + file.depth * 18}px` }}
+                  title={file.path}
+                  type="button"
+                  onClick={() => {
+                    if (file.type === 'directory') {
+                      toggleDirectory(file.path)
+                      return
+                    }
+                    onPreviewFile(file)
+                  }}
+                >
+                  {file.type === 'directory' ? (
+                    collapsedDirs.has(file.path) ? (
+                      <Folder size={APP_ICON_SIZE} />
+                    ) : (
+                      <FolderOpen size={APP_ICON_SIZE} />
+                    )
                   ) : (
-                    <FolderOpen size={APP_ICON_SIZE} />
-                  )
-                ) : (
-                  <FileText size={APP_ICON_SIZE} />
-                )}
-                <span>{file.name}</span>
-              </button>
-            ))
+                    <FileText size={APP_ICON_SIZE} />
+                  )}
+                  <span>{file.name}</span>
+                </button>
+              )
+              if (!sendablePath) return row
+              return (
+                <ContextMenu.Root key={file.path}>
+                  <ContextMenu.Trigger asChild>{row}</ContextMenu.Trigger>
+                  <ContextMenu.Portal>
+                    <ContextMenu.Content className="sidebar-context-menu-content">
+                      <ContextMenu.Item
+                        className="sidebar-context-menu-item"
+                        onSelect={() => onAddComposerFiles?.([sendablePath])}
+                      >
+                        发送到对话框
+                      </ContextMenu.Item>
+                    </ContextMenu.Content>
+                  </ContextMenu.Portal>
+                </ContextMenu.Root>
+              )
+            })
           ) : (
             <div className="right-dock-tree-empty">
               {workspace ? '没有匹配的文件。' : '未打开工作区。'}
@@ -177,17 +241,51 @@ export function RightDockTerminalPanel(): React.ReactNode {
       <div className="right-dock-terminal-empty">
         <SquareTerminal size={48} strokeWidth={1.6} />
         <strong>终端</strong>
-        <span>终端集成将在后续版本接入</span>
+        <span>终端复制发送到对话框将在后续版本接入</span>
       </div>
       <div className="right-dock-terminal-composer">
         <input
           aria-label="终端输入"
           disabled
-          placeholder="$ 等待终端接入"
+          placeholder="$ 终端占位，暂不接入"
         />
       </div>
     </section>
   )
+}
+
+export function buildFileSelectionPrompt({
+  path,
+  selectedText,
+}: {
+  path: string
+  selectedText: string
+}): string {
+  const extension = path.split(/[\\/]/).pop()?.split('.').pop()
+  const fence = extension && extension !== path ? extension : ''
+  return [
+    '文件选区：',
+    `- 文件：${path}`,
+    '',
+    `\`\`\`${fence}`,
+    selectedText.trim(),
+    '```',
+  ].join('\n')
+}
+
+export function shouldShowSelectionSendAction(selectedText: string): boolean {
+  return selectedText.trim().length > 0
+}
+
+export function getSendableFilePath({
+  workspacePath,
+  file,
+}: {
+  workspacePath: string | null
+  file: DesktopFileEntry
+}): string | null {
+  if (!workspacePath || file.type !== 'file') return null
+  return `${workspacePath.replace(/[\\/]$/, '')}/${file.path.replace(/^[\\/]/, '')}`
 }
 
 function filterVisibleFiles(

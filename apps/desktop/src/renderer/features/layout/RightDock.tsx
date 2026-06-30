@@ -23,8 +23,8 @@ import type {
 } from './rightDockTools.js'
 import {
   getRightDockTool,
+  getVisibleRightDockTools,
   isRightDockToolEnabled,
-  rightDockTools,
 } from './rightDockTools.js'
 import { rightDockPanelRenderers } from './rightDockPanelRenderers.js'
 import type { RightDockState } from './rightDockState.js'
@@ -47,6 +47,7 @@ type Props = {
   plan: RightDockPlan | null
   width: number
   workspace: DesktopWorkspace | null
+  quickChatOnly?: boolean
   onAppendBrowserAnnotation: (text: string) => void
   onBrowserStateChange: (state: DesktopBrowserState) => void
   onClose: () => void
@@ -55,6 +56,8 @@ type Props = {
   onOpenTool: (tool: RightDockToolId) => void
   onOpenWorkspacePath: () => void
   onPreviewFile: (file: DesktopFileEntry) => void
+  onAppendComposerText: (text: string) => void
+  onAddComposerFiles: (filePaths: string[]) => void
   onRefreshReview: () => void
   onResetWidth: () => void
   onSelectTool: (tool: RightDockToolId) => void
@@ -80,6 +83,7 @@ export function RightDock({
   plan,
   width,
   workspace,
+  quickChatOnly = false,
   onAppendBrowserAnnotation,
   onBrowserStateChange,
   onClose,
@@ -88,27 +92,36 @@ export function RightDock({
   onOpenTool,
   onOpenWorkspacePath,
   onPreviewFile,
+  onAppendComposerText,
+  onAddComposerFiles,
   onRefreshReview,
   onResetWidth,
   onSelectTool,
   onSetWidth,
   onToggleReviewView,
 }: Props): React.ReactNode {
-  const flags = useMemo<RightDockPanelContext['flags']>(() => ({ debugMode }), [debugMode])
+  const flags = useMemo<RightDockPanelContext['flags']>(
+    () => ({ debugMode, quickChatOnly }),
+    [debugMode, quickChatOnly],
+  )
+  const visibleTools = useMemo(() => getVisibleRightDockTools(flags), [flags])
+  const visibleToolIds = useMemo(
+    () => new Set(visibleTools.map(tool => tool.id)),
+    [visibleTools],
+  )
   const openedTools = useMemo(
     () =>
       state.openTools
         .map(id => getRightDockTool(id))
         .filter(
           (tool): tool is NonNullable<ReturnType<typeof getRightDockTool>> =>
-            Boolean(tool) && isRightDockToolEnabled(tool.id, flags),
+            Boolean(tool) &&
+            visibleToolIds.has(tool.id) &&
+            isRightDockToolEnabled(tool.id, flags),
         ),
-    [flags, state.openTools],
+    [flags, state.openTools, visibleToolIds],
   )
-  const addableTools = useMemo(
-    () => rightDockTools.filter(tool => isRightDockToolEnabled(tool.id, flags)),
-    [flags],
-  )
+  const addableTools = visibleTools
 
   const [menuOpen, setMenuOpen] = useState(false)
   const resizeStartRef = useRef<{
@@ -128,6 +141,7 @@ export function RightDock({
         reviewView,
         sessionStatus,
         workspacePath: workspace?.path ?? null,
+        onAppendComposerText,
         onClose,
         onCreateBranch,
         onOpenWorkspacePath,
@@ -137,6 +151,7 @@ export function RightDock({
       browser: {
         state: browserState,
         onAppendAnnotation: onAppendBrowserAnnotation,
+        onAppendComposerText,
         onStateChange: onBrowserStateChange,
       },
       files: {
@@ -144,6 +159,8 @@ export function RightDock({
         selectedFile,
         workspace,
         onPreviewFile,
+        onAppendComposerText,
+        onAddComposerFiles,
       },
       plan,
       flags,
@@ -160,6 +177,8 @@ export function RightDock({
       onBrowserStateChange,
       onClose,
       onCreateBranch,
+      onAppendComposerText,
+      onAddComposerFiles,
       onOpenWorkspacePath,
       onRefreshReview,
       onToggleReviewView,

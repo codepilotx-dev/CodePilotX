@@ -18,12 +18,14 @@ import { IconButton } from '../../components/ui/IconButton.js'
 type Props = {
   state: DesktopBrowserState
   onAppendAnnotation: (text: string) => void
+  onAppendComposerText?: (text: string) => void
   onStateChange: (state: DesktopBrowserState) => void
 }
 
 export function DesktopBrowserPanel({
   state,
   onAppendAnnotation,
+  onAppendComposerText,
   onStateChange,
 }: Props): React.ReactNode {
   const viewportRef = useRef<HTMLDivElement | null>(null)
@@ -112,6 +114,18 @@ export function DesktopBrowserPanel({
     setAnnotationOpen(false)
   }
 
+  function handleSendPageToComposer(): void {
+    const url = state.url || address
+    if (!url.trim()) return
+    onAppendComposerText?.(
+      [
+        '浏览器页面：',
+        `- 标题：${state.title || '未命名页面'}`,
+        `- URL：${url}`,
+      ].join('\n'),
+    )
+  }
+
   const compactAddress =
     !addressFocused && address === state.url
       ? formatBrowserDisplayURL(address)
@@ -170,6 +184,17 @@ export function DesktopBrowserPanel({
           {state.error ? <span className="browser-address-error">!</span> : null}
         </form>
         <div className="browser-toolbar-actions">
+          <IconButton
+            className="browser-icon-button"
+            disabled={!state.url && !address.trim()}
+            title="发送当前页面到对话框"
+            onClick={handleSendPageToComposer}
+          >
+            <MessageSquarePlus
+              size={APP_ICON_SIZE}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+            />
+          </IconButton>
           <IconButton
             className="browser-icon-button"
             title={annotationOpen ? '收起批注' : '添加批注'}

@@ -55,6 +55,8 @@ type Props = {
   providerOptions: ProviderModelOption[]
   recentWorkspaces: DesktopWorkspace[]
   workspace: DesktopWorkspace | null
+  attachments: DesktopComposerAttachment[]
+  onAttachmentsChange: (attachments: DesktopComposerAttachment[]) => void
   onChooseWorkspace: () => Promise<DesktopWorkspace | null>
   onInputChange: (value: string) => void
   onInterrupt: () => Promise<void>
@@ -109,6 +111,8 @@ export function DesktopComposer({
   providerOptions,
   recentWorkspaces,
   workspace,
+  attachments,
+  onAttachmentsChange,
   onChooseWorkspace,
   onInputChange,
   onInterrupt,
@@ -127,7 +131,6 @@ export function DesktopComposer({
   submitToSession,
 }: Props): React.ReactNode {
   const navigate = useNavigate()
-  const [attachments, setAttachments] = useState<DesktopComposerAttachment[]>([])
   const [slashCommands, setSlashCommands] = useState<
     DesktopSlashCommandSuggestion[]
   >([])
@@ -189,7 +192,7 @@ export function DesktopComposer({
       }
       if (isQuickChatPage) {
         onInputChange('')
-        setAttachments([])
+        onAttachmentsChange([])
         const nextSessionId = workspace
           ? await createSessionForWorkspace(workspace)
           : await createSessionForWorkspace(null)
@@ -199,7 +202,7 @@ export function DesktopComposer({
         return
       }
       if (routedSessionId) {
-        setAttachments([])
+        onAttachmentsChange([])
         await submitToSession(routedSessionId, messageInput)
       }
     })()
@@ -218,15 +221,15 @@ export function DesktopComposer({
 
   function appendAttachments(nextAttachments: DesktopComposerAttachment[]): void {
     if (nextAttachments.length === 0) return
-    setAttachments(current => [
-      ...current,
+    onAttachmentsChange([
+      ...attachments,
       ...nextAttachments.filter(attachment => !attachmentIds.has(attachment.id)),
     ])
   }
 
   function handleRemoveAttachment(attachmentId: string): void {
-    setAttachments(current =>
-      current.filter(attachment => attachment.id !== attachmentId),
+    onAttachmentsChange(
+      attachments.filter(attachment => attachment.id !== attachmentId),
     )
   }
 

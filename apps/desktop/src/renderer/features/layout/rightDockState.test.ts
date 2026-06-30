@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { applyRightDockAction, type RightDockState } from './rightDockState.js'
+import { getVisibleRightDockTools } from './rightDockTools.js'
 
 const empty: RightDockState = { open: false, activeTool: null, openTools: [] }
 
@@ -133,5 +134,15 @@ describe('applyRightDockAction', () => {
       activeTool: 'review',
       openTools: ['review', 'files'],
     })
+  })
+})
+
+describe('getVisibleRightDockTools', () => {
+  test('home dock shows only the four launch tools in prototype order', () => {
+    expect(
+      getVisibleRightDockTools({ debugMode: true, quickChatOnly: true }).map(
+        tool => tool.id,
+      ),
+    ).toEqual(['review', 'terminal', 'browser', 'files'])
   })
 })
