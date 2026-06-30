@@ -87,7 +87,7 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     recentWorkspaces: [],
     drawerTab: 'files',
     selectedModelPreset: '',
-    providerID: 'minimax',
+    providerID: '',
     providerBaseURL: '',
     showContextUsage: true,
     defaultOpenTargetId: 'default-app',
@@ -198,11 +198,12 @@ export function normalizeDesktopStoredSettings(
       parsed.selectedModelPreset,
       defaults.selectedModelPreset,
     ),
-    providerID: parsed.providerID === 'anthropic'
-      ? defaults.providerID
-      : isModelProviderID(parsed.providerID)
-      ? parsed.providerID
-      : defaults.providerID,
+    providerID:
+      parsed.providerID === 'anthropic'
+        ? defaults.providerID
+        : typeof parsed.providerID === 'string'
+          ? parsed.providerID.trim()
+          : defaults.providerID,
     providerBaseURL: stringOrDefault(
       parsed.providerBaseURL,
       defaults.providerBaseURL,

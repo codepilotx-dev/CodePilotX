@@ -86,7 +86,6 @@ export function inferProviderFromModel(model: string): string | undefined {
   if (!normalized || normalized === 'unknown') return undefined
   const slash = normalized.indexOf('/')
   if (slash > 0) return normalized.slice(0, slash)
-  if (normalized.startsWith('minimax-')) return 'minimax'
   if (normalized.startsWith('deepseek-')) return 'deepseek'
   if (normalized.startsWith('claude-')) return 'anthropic'
   return undefined

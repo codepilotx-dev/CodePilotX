@@ -29,7 +29,7 @@ export function selectFusionPanel(
     return {
       panelModels: [],
       judgeModel: {
-        providerID: input.judgeProviderID ?? 'minimax',
+        providerID: input.judgeProviderID ?? '',
         model: input.judgeModel ?? '',
       },
       bypass: true,
@@ -45,8 +45,8 @@ export function selectFusionPanel(
   }))
 
   const judgeModel = input.judgeModel
-    ? { providerID: input.judgeProviderID ?? 'minimax', model: input.judgeModel }
-    : panelModels[0] ?? { providerID: 'minimax' as ModelProviderID, model: '' }
+    ? { providerID: input.judgeProviderID ?? '', model: input.judgeModel }
+    : panelModels[0] ?? { providerID: '' as ModelProviderID, model: '' }
 
   return {
     panelModels,

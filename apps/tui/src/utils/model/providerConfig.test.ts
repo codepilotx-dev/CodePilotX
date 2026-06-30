@@ -26,18 +26,21 @@ const ZHIPU_DEFAULT_MODELS = [
 
 test('gateway catalog enriches model icons without exposing an AI Gateway provider', async () => {
   const originalFetch = globalThis.fetch
+  clearProviderConfigCatalogCacheForTests()
   globalThis.fetch = (async input => {
     const url = String(input)
     if (url.includes('models.dev')) {
       return new Response(
         JSON.stringify({
-          openai: {
-            name: 'OpenAI',
-            env: ['OPENAI_API_KEY'],
-            models: {
-              'gpt-4.1': {
-                name: 'GPT-4.1',
-                modalities: { input: ['text'], output: ['text'] },
+          providers: {
+            openai: {
+              name: 'OpenAI',
+              env: ['OPENAI_API_KEY'],
+              models: {
+                'gpt-4.1': {
+                  name: 'GPT-4.1',
+                  modalities: { input: ['text'], output: ['text'] },
+                },
               },
             },
           },
@@ -73,6 +76,7 @@ test('gateway catalog enriches model icons without exposing an AI Gateway provid
     })
   } finally {
     globalThis.fetch = originalFetch
+    clearProviderConfigCatalogCacheForTests()
   }
 })
 
@@ -181,7 +185,7 @@ test('models.dev providers keep catalog package and env vars', async () => {
     expect(minimax).toMatchObject({
       providerID: 'minimax-cn-coding-plan',
       kind: 'anthropic-compatible',
-      baseURL: 'https://api.minimaxi.com/anthropic/v1',
+      baseURL: 'https://api.minimaxi.com/anthropic',
       apiKeyEnvVar: 'MINIMAX_API_KEY',
       envVars: ['MINIMAX_API_KEY'],
       npmPackage: '@ai-sdk/anthropic',
@@ -192,7 +196,7 @@ test('models.dev providers keep catalog package and env vars', async () => {
   }
 })
 
-test('provider api keys prefer provider id and fall back to catalog env aliases', () => {
+test('provider api keys use provider id in storage and catalog aliases from env', () => {
   const provider = {
     providerID: 'minimax-cn-coding-plan',
     kind: 'anthropic-compatible' as const,
@@ -216,7 +220,33 @@ test('provider api keys prefer provider id and fall back to catalog env aliases'
       env: {},
       storedKeys: { MINIMAX_API_KEY: 'env-alias-key' },
     }),
-  ).toBe('env-alias-key')
+  ).toBeUndefined()
+
+  expect(
+    resolveProviderApiKeyFromSources(provider, {
+      env: { MINIMAX_API_KEY: 'env-key' },
+      storedKeys: {},
+    }),
+  ).toBe('env-key')
+})
+
+test('provider api keys do not fall back to a different minimax provider id', () => {
+  const provider = {
+    providerID: 'minimax-cn-coding-plan',
+    kind: 'anthropic-compatible' as const,
+    displayName: 'MiniMax Token Plan',
+    envVars: ['MINIMAX_API_KEY'],
+    defaultModels: [],
+  }
+
+  expect(
+    resolveProviderApiKeyFromSources(provider, {
+      env: {},
+      storedKeys: {
+        minimax: 'wrong-provider-key',
+      },
+    }),
+  ).toBeUndefined()
 })
 
 test('ai sdk provider route is selected from npm package', () => {

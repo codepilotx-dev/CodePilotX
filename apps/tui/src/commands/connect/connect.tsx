@@ -24,7 +24,7 @@ function ConnectProvider({
   const setAppState = useSetAppState()
   const [step, setStep] = React.useState<Step>('provider')
   const [providers, setProviders] = React.useState<ProviderConfig[]>([])
-  const [providerID, setProviderID] = React.useState<ModelProviderID>('minimax')
+  const [providerID, setProviderID] = React.useState<ModelProviderID>('')
   const [baseURL, setBaseURL] = React.useState('')
   const [apiKey, setApiKey] = React.useState('')
   const [modelInput, setModelInput] = React.useState('')
@@ -41,7 +41,7 @@ function ConnectProvider({
         if (!mounted) return
         setProviders(nextProviders)
         if (!nextProviders.some(item => item.providerID === providerID)) {
-          setProviderID(nextProviders[0]?.providerID ?? 'minimax')
+          setProviderID(nextProviders[0]?.providerID ?? '')
         }
       })
       .catch(error => {

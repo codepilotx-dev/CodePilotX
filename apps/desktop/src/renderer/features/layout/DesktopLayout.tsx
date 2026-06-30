@@ -124,6 +124,7 @@ export function DesktopLayout(): React.ReactNode {
     setDrawerTab,
     setSelectedModelPreset,
     setReviewView,
+    syncExternalSettingsPatch,
   } = settings
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [runtimeWarningDismissed, setRuntimeWarningDismissed] = useState(false)
@@ -808,6 +809,16 @@ export function DesktopLayout(): React.ReactNode {
     [providerState],
   )
   const syncedSessionModelRef = useRef<string | null>(null)
+  const modelRef = useRef(model)
+  const activeSessionModelRef = useRef<string | null>(null)
+  const fetchedModelCatalogKeysRef = useRef<Set<string>>(new Set())
+  const pendingModelCatalogKeysRef = useRef<Set<string>>(new Set())
+  useEffect(() => {
+    modelRef.current = model
+  }, [model])
+  useEffect(() => {
+    activeSessionModelRef.current = activeSessionItem?.model?.trim() || null
+  }, [activeSessionItem?.model])
   const providerModelOptions = useMemo(
     () => {
       const providers =
@@ -900,16 +911,33 @@ export function DesktopLayout(): React.ReactNode {
       ])
       setProviderState(next)
       setModelProviders(providers)
-      const activeModel = activeSessionItem?.model?.trim()
-      if (!activeModel && next.model !== model) {
+      const activeModel = activeSessionModelRef.current
+      const shouldSyncModel = !activeModel && next.model !== modelRef.current
+      if (shouldSyncModel) {
         setModel(next.model)
       }
-      setProviderID(next.selectedProviderID)
-      setProviderBaseURL(next.baseURL ?? '')
+      syncExternalSettingsPatch({
+        providerID: next.selectedProviderID,
+        providerBaseURL: next.baseURL ?? '',
+        ...(shouldSyncModel ? { model: next.model } : {}),
+      })
       if (
+        next.selectedProviderID &&
         next.apiKeyConfigured &&
         (!next.provider.requiresBaseURL || next.baseURL?.trim())
       ) {
+        const catalogKey = [
+          next.selectedProviderID,
+          next.baseURL ?? '',
+          next.apiKeyConfigured ? 'key' : 'no-key',
+        ].join('\0')
+        if (
+          fetchedModelCatalogKeysRef.current.has(catalogKey) ||
+          pendingModelCatalogKeysRef.current.has(catalogKey)
+        ) {
+          return
+        }
+        pendingModelCatalogKeysRef.current.add(catalogKey)
         void withModelCatalogLoading(() =>
           desktopClient.fetchProviderModels({
             providerID: next.selectedProviderID,
@@ -927,23 +955,21 @@ export function DesktopLayout(): React.ReactNode {
                 error: result.error,
               }
             })
+            fetchedModelCatalogKeysRef.current.add(catalogKey)
           })
           .catch(error =>
             setErrorMessage(
               error instanceof Error ? error.message : String(error),
             ),
           )
+          .finally(() => {
+            pendingModelCatalogKeysRef.current.delete(catalogKey)
+          })
       }
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : String(error))
     }
-  }, [
-    activeSessionItem?.model,
-    model,
-    setModel,
-    setProviderBaseURL,
-    setProviderID,
-  ])
+  }, [setModel, syncExternalSettingsPatch])
 
   useEffect(() => {
     void refreshProviderState()

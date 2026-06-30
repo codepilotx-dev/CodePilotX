@@ -11,7 +11,11 @@ import {
   listModelProviders,
   saveModelProvider,
 } from './modelProviderService.js'
-import { readDesktopStoredSettings } from './desktopSettings.js'
+import {
+  readDesktopStoredSettings,
+  saveDesktopStoredSettings,
+} from './desktopSettings.js'
+import { defaultDesktopStoredSettings } from '../shared/settingsSchema.js'
 
 test('desktop model provider service discovers and saves zhipu provider state', async () => {
   const configDir = await mkdtemp(join(tmpdir(), 'desktop-zhipu-provider-'))
@@ -55,6 +59,45 @@ test('desktop model provider service discovers and saves zhipu provider state', 
     })
     const settings = await readDesktopStoredSettings()
     expect(settings.selectedModelPreset).toBe('glm-4.7-flash')
+  } finally {
+    globalThis.fetch = originalFetch
+    restoreEnv(CODEPILOTX_CONFIG_DIR_ENV, originalCodePilotXConfig)
+    restoreEnv(LEGACY_CLAUDE_CONFIG_DIR_ENV, originalClaudeConfig)
+    await resetTuiSettingsCache()
+    await rm(configDir, { force: true, recursive: true })
+  }
+})
+
+test('desktop model provider service reports empty provider as unconfigured', async () => {
+  const configDir = await mkdtemp(join(tmpdir(), 'desktop-empty-provider-'))
+  const originalCodePilotXConfig = process.env[CODEPILOTX_CONFIG_DIR_ENV]
+  const originalClaudeConfig = process.env[LEGACY_CLAUDE_CONFIG_DIR_ENV]
+  const originalFetch = globalThis.fetch
+
+  process.env[CODEPILOTX_CONFIG_DIR_ENV] = configDir
+  process.env[LEGACY_CLAUDE_CONFIG_DIR_ENV] = configDir
+  globalThis.fetch = (async () => {
+    throw new Error('network disabled in test')
+  }) as unknown as typeof fetch
+  await resetTuiSettingsCache()
+
+  try {
+    await saveDesktopStoredSettings({
+      ...defaultDesktopStoredSettings(),
+      providerID: '',
+      model: '',
+    })
+
+    const state = await getModelProviderState()
+
+    expect(state).toMatchObject({
+      selectedProviderID: '',
+      model: '',
+      apiKeyConfigured: false,
+      modelConfigured: false,
+      configurationMessage: '未配置模型，请先在设置中配置模型。',
+    })
+    expect(state.provider.providerID).toBe('')
   } finally {
     globalThis.fetch = originalFetch
     restoreEnv(CODEPILOTX_CONFIG_DIR_ENV, originalCodePilotXConfig)

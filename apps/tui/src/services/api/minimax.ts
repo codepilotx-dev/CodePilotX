@@ -456,7 +456,7 @@ export function createAnthropicCompatibleAiSdkProvider({
 }
 
 function isMiniMaxProviderID(providerID: string): boolean {
-  return providerID === 'minimax' || providerID.startsWith('minimax-')
+  return providerID === 'minimax'
 }
 
 function normalizeMiniMaxAiSdkBaseURL(baseURL: string | undefined) {

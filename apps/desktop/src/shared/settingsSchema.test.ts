@@ -50,6 +50,15 @@ test('desktop settings default plan execution model to unset', () => {
   expect(defaultDesktopStoredSettings().planExecutionModel).toBe('')
 })
 
+test('desktop settings default provider to unconfigured', () => {
+  expect(defaultDesktopStoredSettings().providerID).toBe('')
+})
+
+test('desktop settings preserve empty provider as unconfigured', () => {
+  expect(normalizeDesktopStoredSettings({ providerID: '' }).providerID).toBe('')
+  expect(normalizeDesktopStoredSettings({ providerID: 123 }).providerID).toBe('')
+})
+
 test('desktop settings default new git branches to CodePilotX prefix', () => {
   expect(defaultDesktopStoredSettings().gitBranchPrefix).toBe('codepilotx/')
 })

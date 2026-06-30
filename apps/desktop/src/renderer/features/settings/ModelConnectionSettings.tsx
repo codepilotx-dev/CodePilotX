@@ -364,9 +364,12 @@ function applyProviderState(
     setBaseURL(nextState.baseURL ?? '')
     setModel(nextModel)
     if (options.persistEffectiveSettings) {
-      settings.setProviderID(nextState.selectedProviderID)
-      settings.setProviderBaseURL(nextState.baseURL ?? '')
-      settings.setModel(nextModel)
+      settings.syncExternalSettingsPatch({
+        providerID: nextState.selectedProviderID,
+        providerBaseURL: nextState.baseURL ?? '',
+        model: nextModel,
+        selectedModelPreset: nextModel,
+      })
     }
     settings.draft.setValue('providerID', nextState.selectedProviderID)
     settings.draft.setValue('providerBaseURL', nextState.baseURL ?? '')

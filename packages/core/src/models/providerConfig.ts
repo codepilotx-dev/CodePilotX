@@ -162,7 +162,6 @@ type GatewayModel = {
 const MODELS_DEV_CATALOG_URL = 'https://models.dev/catalog.json'
 const MODELS_DEV_LOGO_BASE_URL = 'https://models.dev/logos'
 const AI_GATEWAY_MODELS_URL = 'https://ai-gateway.vercel.sh/v1/models'
-const AI_GATEWAY_PROVIDER_ID = 'ai-gateway'
 export const GITHUB_COPILOT_PROVIDER_ID = 'github-copilot'
 
 const providerModelCache = new Map<string, string[]>()
@@ -443,10 +442,8 @@ export function getSelectedProviderConfig(): ModelProviderConfig {
 export function getSelectedProviderID(): ModelProviderID {
   const settings = readProviderSettings()
   const provider = settings.provider
-  if (provider === AI_GATEWAY_PROVIDER_ID) return 'minimax'
   if (provider === 'zhipu') return 'zhipuai'
-  if (provider === 'custom') return 'minimax'
-  return typeof provider === 'string' && provider.trim() ? provider : 'minimax'
+  return typeof provider === 'string' ? provider.trim() : ''
 }
 
 export function saveSelectedProvider(
@@ -677,13 +674,8 @@ export function deleteProviderApiKey(
 ): ProviderApiKeySaveResult {
   try {
     const current = readSecureStorage() ?? {}
-    const provider = getCachedProviderConfig(providerID)
     const providerApiKeys = { ...(current.providerApiKeys ?? {}) }
     delete providerApiKeys[providerID]
-    delete providerApiKeys[getProviderApiKeyEnvVar(providerID)]
-    for (const envKey of getProviderEnvVars(provider)) {
-      delete providerApiKeys[envKey]
-    }
     return writeSecureStorage({ ...current, providerApiKeys }) ?? { success: true }
   } catch {
     return { success: false }
@@ -979,7 +971,7 @@ function normalizeModelsDevProviderBaseURL(
   const baseURL = api.trim()
   if (!baseURL) return undefined
   if (
-    isMiniMaxProviderID(providerID) &&
+    providerID === 'minimax' &&
     (baseURL === 'https://api.minimaxi.com/anthropic' ||
       baseURL === 'https://api.minimax.io/anthropic')
   ) {
@@ -1108,13 +1100,9 @@ function inferProviderKind(
   if (provider.npm === '@ai-sdk/openai-compatible') return 'openai-compatible'
   if (provider.npm === '@ai-sdk/openai') return 'openai-compatible'
   if (providerID === 'github-copilot') return 'github-copilot'
-  if (isMiniMaxProviderID(providerID)) return 'anthropic-compatible'
+  if (providerID === 'minimax') return 'anthropic-compatible'
   if (isGitHubCopilotProviderID(providerID)) return 'github-copilot'
   return 'openai-compatible'
-}
-
-function isMiniMaxProviderID(providerID: string): boolean {
-  return providerID === 'minimax' || providerID.startsWith('minimax-')
 }
 
 function isGitHubCopilotProviderID(providerID: string): boolean {
@@ -1131,6 +1119,17 @@ function buildFallbackProviderConfig(providerID: string): ModelProviderConfig {
     typeof settings.providerBaseURL === 'string'
       ? settings.providerBaseURL
       : undefined
+  if (!providerID.trim()) {
+    return {
+      providerID: '',
+      kind: 'openai-compatible',
+      displayName: '未配置',
+      baseURL,
+      envVars: [],
+      defaultModels: [],
+      requiresBaseURL: false,
+    }
+  }
   const apiKeyEnvVar = getProviderApiKeyEnvVar(providerID)
   return {
     providerID,
@@ -1164,8 +1163,6 @@ function resolveProviderApiKeyEntryFromSources(
 ): { value: string; source: string } | undefined {
   const credentialKeys = [
     provider.providerID,
-    getProviderApiKeyEnvVar(provider.providerID),
-    ...getProviderEnvVars(provider),
   ]
   for (const key of Array.from(new Set(credentialKeys))) {
     const stored = sources.storedKeys?.[key]?.trim()

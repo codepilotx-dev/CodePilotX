@@ -49,6 +49,15 @@ test('pareto code returns fallback when no candidates', () => {
   expect(result.reason).toContain('no candidates')
 })
 
+test('pareto code returns unconfigured provider when no candidates or fallback exist', () => {
+  const result = selectParetoCandidate({
+    message: 'hello',
+    candidates: [],
+  })
+  expect(result.providerID).toBe('')
+  expect(result.model).toBe('')
+})
+
 test('pareto code prefers lower cost for code tasks', () => {
   const cheap = makeCandidate({ model: 'cheap', costPerPromptMillion: 0.2, score: 50 })
   const expensive = makeCandidate({ model: 'expensive', costPerPromptMillion: 10, score: 50 })

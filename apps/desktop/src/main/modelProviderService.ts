@@ -44,7 +44,10 @@ export async function getModelProviderState(
   providerIDOverride?: ModelProviderID,
 ): Promise<DesktopModelProviderState> {
   const settings = await readDesktopStoredSettings()
-  const selectedProviderID = providerIDOverride ?? settings.providerID
+  const selectedProviderID = (providerIDOverride ?? settings.providerID).trim()
+  if (!selectedProviderID) {
+    return createUnconfiguredProviderState()
+  }
   const provider = await getProviderConfig(selectedProviderID)
   const effectiveSelectedProviderID = provider.providerID as ModelProviderID
   const model = settings.model
@@ -222,6 +225,27 @@ function normalizeProviderID(providerID: ModelProviderID): ModelProviderID {
     throw new Error(`Unsupported model provider: ${providerID}`)
   }
   return providerID
+}
+
+function createUnconfiguredProviderState(): DesktopModelProviderState {
+  return {
+    selectedProviderID: '',
+    provider: {
+      providerID: '',
+      kind: 'openai-compatible',
+      displayName: '未配置',
+      defaultModels: [],
+      apiKeyConfigured: false,
+      requiresBaseURL: false,
+    },
+    model: '',
+    apiKeyConfigured: false,
+    apiKeySource: null,
+    modelConfigured: false,
+    configurationMessage: '未配置模型，请先在设置中配置模型。',
+    models: [],
+    modelMetadata: {},
+  }
 }
 
 function normalizeOptionalText(value: string | undefined): string | undefined {

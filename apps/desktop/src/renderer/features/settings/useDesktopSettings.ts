@@ -121,6 +121,9 @@ export type UseDesktopSettingsResult = {
   setDiffMarkerStyle: (value: DesktopDiffMarkerStyle) => void
   setRustSearchAndDiffKernels: (value: boolean) => void
   setBrowserAllowedSites: (value: string[]) => void
+  syncExternalSettingsPatch: (
+    patch: Partial<StoredDesktopSettings>,
+  ) => void
   draft: DesktopSettingsDraft
   flushDesktopSettings: () => Promise<void>
 }
@@ -624,6 +627,27 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
     [],
   )
 
+  const syncExternalSettingsPatch = useCallback(
+    (patch: Partial<StoredDesktopSettings>): void => {
+      const next = cloneDesktopSettings({
+        ...effectiveSettings,
+        ...patch,
+      })
+      skipNextAutoSaveRef.current = true
+      applySettingsSnapshot(next)
+      setDraftValues(current =>
+        cloneDesktopSettings({
+          ...current,
+          ...patch,
+        }),
+      )
+      for (const key of Object.keys(patch) as Array<keyof StoredDesktopSettings>) {
+        draftDirtyKeysRef.current.delete(key)
+      }
+    },
+    [applySettingsSnapshot, effectiveSettings],
+  )
+
   const saveDraft = useCallback(async (): Promise<StoredDesktopSettings> => {
     const snapshot = mergeDesktopSettingsDraft(
       effectiveSettings,
@@ -768,6 +792,7 @@ setGithubMemoryRepository,
     setDiffMarkerStyle,
     setRustSearchAndDiffKernels,
     setBrowserAllowedSites,
+    syncExternalSettingsPatch,
     draft,
     flushDesktopSettings,
   }

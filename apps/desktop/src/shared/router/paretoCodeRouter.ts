@@ -67,7 +67,7 @@ export function selectParetoCandidate(
 
   if (scored.length === 0) {
     return {
-      providerID: input.preferredProviderID ?? 'minimax',
+      providerID: input.preferredProviderID ?? '',
       model: '',
       reason: 'no candidates available',
     }

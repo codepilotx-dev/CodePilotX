@@ -15,9 +15,7 @@ export const BILLING_PROVIDERS: readonly BillingProviderEntry[] = [
   {
     id: 'minimax',
     displayName: 'MiniMax',
-    matches: providerID =>
-      typeof providerID === 'string' &&
-      (providerID === 'minimax' || providerID.startsWith('minimax-')),
+    matches: providerID => providerID === 'minimax',
   },
 ]
 

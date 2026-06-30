@@ -271,7 +271,7 @@ test('core provider config resolves provider api keys from storage and env', asy
       join(configDir, '.credentials.json'),
       JSON.stringify({
         providerApiKeys: {
-          ZAI_API_KEY: 'stored-zhipu-key',
+          zhipu: 'stored-zhipu-key',
         },
       }),
       'utf8',
@@ -314,6 +314,13 @@ test('core provider api key source helpers can be used without storage', () => {
     resolveProviderApiKeyFromSources(provider, {
       env: {},
       storedKeys: { MINIMAX_API_KEY: 'env-alias-key' },
+    }),
+  ).toBeUndefined()
+
+  expect(
+    resolveProviderApiKeyFromSources(provider, {
+      env: { MINIMAX_API_KEY: 'env-alias-key' },
+      storedKeys: {},
     }),
   ).toBe('env-alias-key')
 })

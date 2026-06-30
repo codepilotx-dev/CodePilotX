@@ -66,6 +66,14 @@ test('fusion bypass returns panel when bypass is true', () => {
   expect(result.panelModels).toHaveLength(0)
 })
 
+test('fusion returns unconfigured judge when no model is available', () => {
+  const result = selectFusionPanel({
+    message: 'test',
+    panelCandidates: [],
+  })
+  expect(result.judgeModel).toEqual({ providerID: '', model: '' })
+})
+
 test('fusionBypass detects non-off router modes', () => {
   expect(fusionBypass('off')).toBe(false)
   expect(fusionBypass('pareto-code')).toBe(true)

@@ -109,8 +109,8 @@ test('anthropic-compatible request embeds readable tool result in tool_result co
   let requestBody = ''
   const provider = createAnthropicCompatibleAiSdkProvider({
     provider: {
-      providerID: 'minimax-cn-coding-plan',
-      displayName: 'MiniMax Token Plan (minimaxi.com)',
+      providerID: 'minimax',
+      displayName: 'MiniMax',
       baseURL: 'https://api.minimaxi.com/anthropic/v1',
     },
     apiKey: 'test-key',
@@ -288,8 +288,8 @@ test('anthropic-compatible minimax provider normalizes official MiniMax Anthropi
     let seenURL = ''
     const provider = createAnthropicCompatibleAiSdkProvider({
       provider: {
-        providerID: 'minimax-cn-coding-plan',
-        displayName: 'MiniMax Token Plan',
+        providerID: 'minimax',
+        displayName: 'MiniMax',
         baseURL,
       },
       apiKey: 'test-key',
@@ -354,8 +354,8 @@ test('anthropic-compatible minimax provider falls back from minimaxi.com timeout
   const seenUrls: string[] = []
   const provider = createAnthropicCompatibleAiSdkProvider({
     provider: {
-      providerID: 'minimax-cn-coding-plan',
-      displayName: 'MiniMax Token Plan (minimaxi.com)',
+      providerID: 'minimax',
+      displayName: 'MiniMax',
       baseURL: 'https://api.minimaxi.com/anthropic/v1/',
     },
     apiKey: 'test-key',

@@ -166,7 +166,6 @@ export function normalizeLegacyProviderID(
   providerID: ModelProviderID,
 ): ModelProviderID {
   if (providerID === 'zhipu') return 'zhipuai'
-  if (providerID === 'custom') return 'minimax'
   return providerID
 }
 

@@ -301,7 +301,7 @@ function buildUsageRows(usage: ProviderUsageState): PopoverUsageRow[] {
   const { balance } = usage;
   if (!balance) return [];
   const providerID = usage.providerID;
-  if (providerID === "minimax" || providerID?.startsWith("minimax-")) {
+  if (providerID === "minimax") {
     return buildMiniMaxRows(balance.tokenPlanUsages ?? []);
   }
   if (providerID === "deepseek") {

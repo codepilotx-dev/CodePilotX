@@ -43,7 +43,7 @@ test('normalizeProviderError preserves already normalized errors', () => {
 
 test('provider identifiers and model names use shared normalization helpers', () => {
   expect(normalizeLegacyProviderID('zhipu')).toBe('zhipuai')
-  expect(normalizeLegacyProviderID('custom')).toBe('minimax')
+  expect(normalizeLegacyProviderID('custom')).toBe('custom')
   expect(getProviderApiKeyEnvVar('openai-compatible')).toBe(
     'OPENAI_COMPATIBLE_API_KEY',
   )
