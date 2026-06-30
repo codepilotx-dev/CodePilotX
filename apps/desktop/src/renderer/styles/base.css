@@ -91,8 +91,8 @@
   --c-panel-shadow-raised: var(--shadow-raised);
   --c-panel-shadow-soft: var(--shadow-resting);
   --layout-sidebar-w: 280px;
-  --layout-content-w: 880px;
-  --layout-bento-w: 1040px;
+  --layout-content-w: 780px;
+  --layout-bento-w: 840px;
   --right-dock-offset: 0px;
   --floating-composer-h: 142px;
   --c-scrollbar: var(--gray-5);
