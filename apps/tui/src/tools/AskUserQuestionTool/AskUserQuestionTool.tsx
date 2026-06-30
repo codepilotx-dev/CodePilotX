@@ -111,6 +111,17 @@ const UNIQUENESS_REFINE = {
     'Question texts must be unique, option labels must be unique within each question',
 } as const
 
+const ASK_USER_QUESTION_MAX_QUESTIONS_ENV =
+  'CODEPILOTX_ASK_USER_QUESTION_MAX_QUESTIONS'
+
+export function getAskUserQuestionMaxQuestions(): number | null {
+  const raw = process.env[ASK_USER_QUESTION_MAX_QUESTIONS_ENV]
+  if (!raw) return null
+  const parsed = Number(raw)
+  if (!Number.isFinite(parsed)) return null
+  return Math.max(1, Math.floor(parsed))
+}
+
 const commonFields = lazySchema(() => ({
   answers: z
     .record(z.string(), z.string())
@@ -132,20 +143,33 @@ const commonFields = lazySchema(() => ({
     ),
 }))
 
-const inputSchema = lazySchema(() =>
-  z
-    .strictObject({
-      questions: z
+function inputSchema() {
+  const maxQuestions = getAskUserQuestionMaxQuestions()
+  const questionsSchema = maxQuestions
+    ? z
         .array(questionSchema())
         .min(1)
-        .max(4)
-        .describe('Questions to ask the user (1-4 questions)'),
+        .max(maxQuestions)
+        .describe(
+          maxQuestions === 1
+            ? 'Question to ask the user. Ask exactly one question in this tool call.'
+            : `Questions to ask the user simultaneously in this tool call (1-${maxQuestions} questions)`,
+        )
+    : z
+        .array(questionSchema())
+        .min(1)
+        .describe(
+          'Questions to ask the user simultaneously in this tool call. Put independent questions in this questions array; ask dependent follow-up questions in later turns after the user answers.',
+        )
+  return z
+    .strictObject({
+      questions: questionsSchema,
       ...commonFields(),
     })
     .refine(UNIQUENESS_REFINE.check, {
       message: UNIQUENESS_REFINE.message,
-    }),
-)
+    })
+}
 type InputSchema = ReturnType<typeof inputSchema>
 
 const outputSchema = lazySchema(() =>
@@ -196,7 +220,7 @@ function AskUserQuestionResultMessage({
   )
 }
 
-export const AskUserQuestionTool: Tool<InputSchema, Output> = buildTool({
+const AskUserQuestionToolImpl: Tool<InputSchema, Output> = buildTool({
   name: ASK_USER_QUESTION_TOOL_NAME,
   searchHint: 'prompt the user with a multiple-choice question',
   maxResultSizeChars: 100_000,
@@ -205,13 +229,24 @@ export const AskUserQuestionTool: Tool<InputSchema, Output> = buildTool({
     return DESCRIPTION
   },
   async prompt() {
+    const maxQuestions = getAskUserQuestionMaxQuestions()
+    const maxQuestionsPrompt =
+      maxQuestions === null
+        ? '\nQuestion limit: There is no hard default limit. Put independent questions in the same `questions` array so the UI can show them in one card. If a question depends on a prior answer, ask only the first question now, wait for the answer, then ask the follow-up later.\n'
+        : maxQuestions === 1
+        ? '\nQuestion limit: Ask exactly one question in this tool call. If you need more information, ask the highest-priority question now and ask follow-up questions in later turns.\n'
+        : `\nQuestion limit: Ask 1-${maxQuestions} questions simultaneously in this tool call.\n`
     const format = getQuestionPreviewFormat()
     if (format === undefined) {
       // SDK consumer that hasn't opted into a preview format — omit preview
       // guidance (they may not render the field at all).
-      return ASK_USER_QUESTION_TOOL_PROMPT
+      return ASK_USER_QUESTION_TOOL_PROMPT + maxQuestionsPrompt
     }
-    return ASK_USER_QUESTION_TOOL_PROMPT + PREVIEW_FEATURE_PROMPT[format]
+    return (
+      ASK_USER_QUESTION_TOOL_PROMPT +
+      maxQuestionsPrompt +
+      PREVIEW_FEATURE_PROMPT[format]
+    )
   },
   get inputSchema(): InputSchema {
     return inputSchema()
@@ -320,6 +355,13 @@ export const AskUserQuestionTool: Tool<InputSchema, Output> = buildTool({
     }
   },
 } satisfies ToolDef<InputSchema, Output>)
+
+Object.defineProperty(AskUserQuestionToolImpl, 'inputSchema', {
+  configurable: true,
+  get: inputSchema,
+})
+
+export const AskUserQuestionTool = AskUserQuestionToolImpl
 
 // Lightweight HTML fragment check. Not a parser — HTML5 parsers are
 // error-recovering by spec and accept anything. We're checking model intent

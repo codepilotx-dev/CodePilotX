@@ -20,6 +20,7 @@ import { isEnvTruthy } from './envUtils.js'
 import { toError } from './errors.js'
 import { isEssentialTrafficOnly } from './privacyLevel.js'
 import { jsonParse } from './slowOperations.js'
+import { recordConversationDebugApi } from './conversationDebugDump.js'
 
 /**
  * Gets the display title for a log/session with fallback logic.
@@ -332,6 +333,10 @@ export function captureAPIRequest(
   params: BetaMessageStreamParams,
   querySource?: QuerySource,
 ): void {
+  recordConversationDebugApi('anthropic_sdk_request', {
+    querySource,
+    params,
+  })
   // startsWith, not exact match — users with non-default output styles get
   // variants like 'repl_main_thread:outputStyle:Explanatory' (querySource.ts).
   if (!querySource || !querySource.startsWith('repl_main_thread')) {

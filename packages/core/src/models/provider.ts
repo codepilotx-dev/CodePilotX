@@ -2,6 +2,7 @@ export type ModelProviderID = string
 
 export type ModelProviderKind =
   | 'anthropic'
+  | 'anthropic-compatible'
   | 'openai-compatible'
   | 'minimax'
   | 'github-copilot'
@@ -48,6 +49,27 @@ export type ModelProviderSummary = {
   modelsDevSource?: boolean
   gatewaySource?: boolean
   requiresBaseURL?: boolean
+}
+
+export type ModelProviderConfig = Omit<
+  ModelProviderSummary,
+  'apiKeyConfigured'
+> & {
+  apiKeyEnvVar?: string
+}
+
+export type ModelProviderState = {
+  selectedProviderID: ModelProviderID
+  provider: ModelProviderSummary
+  model: string
+  baseURL?: string
+  apiKeyConfigured: boolean
+  apiKeySource: string | null
+  modelConfigured: boolean
+  configurationMessage?: string
+  models: string[]
+  modelMetadata?: Record<string, ModelMetadata>
+  error?: string
 }
 
 export type ProviderStreamMessage =
@@ -136,6 +158,100 @@ export type ModelProviderAdapter = {
   fetchBalance?(): Promise<ProviderBalanceInfo[]>
 }
 
+export function isModelProviderID(value: unknown): value is ModelProviderID {
+  return typeof value === 'string' && value.trim().length > 0
+}
+
+export function normalizeLegacyProviderID(
+  providerID: ModelProviderID,
+): ModelProviderID {
+  if (providerID === 'zhipu') return 'zhipuai'
+  if (providerID === 'custom') return 'minimax'
+  return providerID
+}
+
+export function getProviderApiKeyEnvVar(providerID: ModelProviderID): string {
+  return `${providerID
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')}_API_KEY`
+}
+
+export function splitProviderModel(input: string): {
+  providerID: ModelProviderID
+  modelID: string
+} | null {
+  const slash = input.indexOf('/')
+  if (slash <= 0 || slash === input.length - 1) return null
+  const provider = input.slice(0, slash).toLowerCase()
+  if (!isModelProviderID(provider)) return null
+  return { providerID: provider, modelID: input.slice(slash + 1) }
+}
+
+export function formatProviderModel(
+  providerID: ModelProviderID,
+  modelID: string | null | undefined,
+): string {
+  return `${providerID}/${modelID || 'default'}`
+}
+
+export function createModelProviderSummary(
+  provider: ModelProviderConfig,
+  apiKeySource?: string | null,
+): ModelProviderSummary {
+  return {
+    providerID: provider.providerID,
+    kind: provider.kind,
+    displayName: provider.displayName,
+    baseURL: provider.baseURL,
+    defaultModels: provider.defaultModels,
+    modelMetadata: provider.modelMetadata,
+    apiKeyConfigured: Boolean(apiKeySource),
+    envVars: provider.envVars,
+    docURL: provider.docURL,
+    logoURL: provider.logoURL,
+    npmPackage: provider.npmPackage,
+    modelsDevSource: provider.modelsDevSource,
+    gatewaySource: provider.gatewaySource,
+    requiresBaseURL: provider.requiresBaseURL,
+  }
+}
+
+export function createModelProviderState(params: {
+  selectedProviderID: ModelProviderID
+  provider: ModelProviderConfig
+  model?: string
+  baseURL?: string
+  apiKeySource?: string | null
+  models?: string[]
+}): ModelProviderState {
+  const model = params.model ?? ''
+  const apiKeySource = params.apiKeySource ?? null
+  const baseURL = params.baseURL ?? params.provider.baseURL
+  const configurationMessage = getProviderConfigurationMessage({
+    model,
+    apiKeySource,
+    requiresBaseURL: params.provider.requiresBaseURL,
+    baseURL,
+  })
+  const modelConfigured = configurationMessage === null
+  return {
+    selectedProviderID: params.selectedProviderID,
+    provider: createModelProviderSummary(
+      { ...params.provider, baseURL },
+      apiKeySource,
+    ),
+    model,
+    baseURL,
+    apiKeyConfigured: Boolean(apiKeySource),
+    apiKeySource,
+    modelConfigured,
+    ...(configurationMessage ? { configurationMessage } : {}),
+    models: params.models ?? params.provider.defaultModels,
+    modelMetadata: params.provider.modelMetadata,
+  }
+}
+
 export function normalizeProviderError(
   error: unknown,
   providerID?: ModelProviderID,
@@ -169,6 +285,29 @@ export function normalizeProviderError(
     status,
     retryable: code === 'stream_interrupted' || code === 'rate_limited',
   }
+}
+
+function getProviderConfigurationMessage({
+  model,
+  apiKeySource,
+  requiresBaseURL,
+  baseURL,
+}: {
+  model: string | undefined
+  apiKeySource: string | null
+  requiresBaseURL?: boolean
+  baseURL?: string
+}): string | null {
+  if (!apiKeySource) {
+    return '未配置模型，请先在设置中配置模型。'
+  }
+  if (requiresBaseURL && !baseURL?.trim()) {
+    return '未配置模型，请先在设置中配置 Base URL。'
+  }
+  if (!model?.trim()) {
+    return '未配置模型，请先在设置中选择模型。'
+  }
+  return null
 }
 
 function isProviderDisplayError(value: unknown): value is ProviderDisplayError {

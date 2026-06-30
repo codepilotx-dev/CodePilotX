@@ -11,6 +11,7 @@ import {
   shouldShowDebugMessage,
 } from './debugFilter.js'
 import { getClaudeConfigHomeDir, isEnvTruthy } from './envUtils.js'
+import { sanitizePathComponent } from './pathComponent.js'
 import { getFsImplementation } from './fsOperations.js'
 import { writeToStderr } from './process.js'
 import { jsonStringify } from './slowOperations.js'
@@ -229,7 +230,7 @@ export function getDebugLogPath(): string {
   return (
     getDebugFilePath() ??
     process.env.CLAUDE_CODE_DEBUG_LOGS_DIR ??
-    join(getClaudeConfigHomeDir(), 'debug', `${getSessionId()}.txt`)
+    join(getClaudeConfigHomeDir(), 'debug', `${sanitizePathComponent(getSessionId())}.txt`)
   )
 }
 

@@ -1,4 +1,4 @@
-import { randomUUID } from 'crypto'
+import { createHash, randomUUID } from 'crypto'
 import type {
   BetaContentBlock,
   BetaMessage,
@@ -21,12 +21,18 @@ import {
 import {
   getProviderModelMetadata,
   getProviderApiKey,
+  getProviderApiKeySource,
   getSelectedProviderConfig,
   getSelectedProviderID,
 } from '../../utils/model/providerConfig.js'
 import { getProxyFetchOptions, proxyFetch } from '../../utils/proxy.js'
 import { asSystemPrompt, type SystemPrompt } from '../../utils/systemPromptType.js'
 import type { ThinkingConfig } from '../../utils/thinking.js'
+import {
+  recordConversationDebugApi,
+  recordConversationDebugStreamEvent,
+  setConversationDebugProvider,
+} from '../../utils/conversationDebugDump.js'
 
 const DEFAULT_OPENAI_MAX_TOKENS = 8192
 // DeepSeek v4 输出上限 384K，模型端默认截断粒度比 OpenAI 大。
@@ -180,6 +186,7 @@ export async function* queryOpenAICompatibleModelWithStreaming({
   const providerID = getSelectedProviderID()
   const provider = getSelectedProviderConfig()
   const apiKey = getProviderApiKey(providerID)
+  const apiKeySource = getProviderApiKeySource(providerID) ?? null
   const baseURL = provider.baseURL
 
   if (!baseURL) {
@@ -241,15 +248,39 @@ export async function* queryOpenAICompatibleModelWithStreaming({
         user_id: resolveDeepSeekUserId(options),
       }),
     }
+    const requestURL = joinURL(baseURL, '/chat/completions')
+    const fetchInit = buildOpenAICompatibleFetchInit({
+      apiKey,
+      isDeepSeek,
+      signal,
+      userID: isDeepSeek ? resolveDeepSeekUserId(options) : undefined,
+    })
+    setConversationDebugProvider({
+      providerID,
+      baseURL,
+      model: options.model,
+      apiKeySource,
+      apiKeyFingerprint: createHash('sha256')
+        .update(apiKey)
+        .digest('hex')
+        .slice(0, 12),
+    })
+    recordConversationDebugApi('openai_compatible_request', {
+      providerID,
+      url: requestURL,
+      headers: fetchInit.headers,
+      body: requestBody,
+    })
 
-    const response = await proxyFetch(joinURL(baseURL, '/chat/completions'), {
-      ...buildOpenAICompatibleFetchInit({
-        apiKey,
-        isDeepSeek,
-        signal,
-        userID: isDeepSeek ? resolveDeepSeekUserId(options) : undefined,
-      }),
+    const response = await proxyFetch(requestURL, {
+      ...fetchInit,
       body: JSON.stringify(requestBody),
+    })
+    recordConversationDebugApi('openai_compatible_response', {
+      url: response.url || requestURL,
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
     })
 
     if (!response.ok) {
@@ -261,6 +292,14 @@ export async function* queryOpenAICompatibleModelWithStreaming({
 
     const { content, reasoningContent, toolCalls, usage, finishReason, requestID } =
       await readOpenAIStream(response)
+    recordConversationDebugStreamEvent('openai_compatible_stream_result', {
+      content,
+      reasoningContent,
+      toolCalls,
+      usage,
+      finishReason,
+      requestID,
+    })
 
     const assistant = createAssistantMessage({
       model: options.model,
@@ -351,7 +390,7 @@ function betaToolToOpenAITool(schema: BetaToolUnion): OpenAITool {
   }
 }
 
-function toOpenAIMessages(
+export function toOpenAIMessages(
   messages: (Message & { message?: unknown })[],
   providerID: string,
 ): ChatMessage[] {
@@ -363,7 +402,7 @@ function toOpenAIMessages(
       result.push(assistantMessageToOpenAI(message, providerID))
     }
   }
-  return result
+  return coalesceAdjacentAssistantToolCalls(result)
 }
 
 function userMessageToOpenAI(message: Message): ChatMessage[] {
@@ -397,7 +436,7 @@ function userMessageToOpenAI(message: Message): ChatMessage[] {
   }
 
   if (userParts.length > 0) {
-    messages.unshift({
+    messages.push({
       role: 'user',
       content:
         userParts.length === 1 && userParts[0]?.type === 'text'
@@ -407,6 +446,58 @@ function userMessageToOpenAI(message: Message): ChatMessage[] {
   }
 
   return messages
+}
+
+function coalesceAdjacentAssistantToolCalls(messages: ChatMessage[]): ChatMessage[] {
+  const result: ChatMessage[] = []
+  for (let i = 0; i < messages.length; ) {
+    const message = messages[i]!
+    if (message.role !== 'assistant') {
+      result.push(message)
+      i++
+      continue
+    }
+
+    const run = [message]
+    let hasToolCalls = Boolean(message.tool_calls?.length)
+    let j = i + 1
+    while (messages[j]?.role === 'assistant') {
+      const next = messages[j] as Extract<ChatMessage, { role: 'assistant' }>
+      run.push(next)
+      hasToolCalls ||= Boolean(next.tool_calls?.length)
+      j++
+    }
+
+    if (run.length > 1 && hasToolCalls) {
+      result.push(mergeAssistantMessages(run))
+    } else {
+      result.push(...run)
+    }
+    i = j
+  }
+  return result
+}
+
+function mergeAssistantMessages(
+  messages: Array<Extract<ChatMessage, { role: 'assistant' }>>,
+): Extract<ChatMessage, { role: 'assistant' }> {
+  const content = messages
+    .flatMap(message =>
+      typeof message.content === 'string' && message.content.trim()
+        ? [message.content]
+        : [],
+    )
+    .join('\n\n')
+  const reasoningContent = messages
+    .flatMap(message => (message.reasoning_content ? [message.reasoning_content] : []))
+    .join('\n')
+  const toolCalls = messages.flatMap(message => message.tool_calls ?? [])
+  return {
+    role: 'assistant',
+    content: content || (toolCalls.length > 0 ? '' : null),
+    ...(toolCalls.length > 0 && { tool_calls: toolCalls }),
+    ...(reasoningContent && { reasoning_content: reasoningContent }),
+  }
 }
 
 function assistantMessageToOpenAI(message: Message, providerID: string): ChatMessage {
@@ -511,6 +602,7 @@ export async function readOpenAIStream(
       if (!data) continue
       if (data === '[DONE]') return true
       const chunk = JSON.parse(data) as ChatCompletionChunk
+      recordConversationDebugStreamEvent('openai_compatible_chunk', chunk)
       const choice = chunk.choices?.[0]
       if (choice?.delta?.content) {
         content += choice.delta.content

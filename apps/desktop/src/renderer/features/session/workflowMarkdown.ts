@@ -115,7 +115,7 @@ function appendCodexContextDiagnostics(
   lines: string[],
   diagnostics: CodexContextDiagnostics,
 ): void {
-  lines.push('', '## Codex 上下文快照', '')
+  lines.push('', '## CodePilotX 上下文快照', '')
 
   if (diagnostics.guidanceSources.length > 0) {
     lines.push(
@@ -140,7 +140,7 @@ function appendCodexContextDiagnostics(
   const config = diagnostics.projectConfig
   lines.push(
     '',
-    `- Codex config: ${markdownInline(
+    `- CodePilotX config: ${markdownInline(
       config.path ? displayCodexPath(config.path) : '未发现',
     )}`,
   )
@@ -283,6 +283,9 @@ function formatWorkflowDetail(event: DesktopWorkflowEvent): string {
     if (item.type === 'file_change') {
       return compactParts([`file=${item.filePath}`])
     }
+    if (item.type === 'proposed_plan') {
+      return truncate(item.text)
+    }
     if (item.type === 'agent_message' || item.type === 'user_message') {
       return truncate(item.text)
     }
@@ -400,7 +403,7 @@ function markdownInline(value: string): string {
 
 function displayCodexPath(value: string): string {
   const normalized = value.replace(/\\/g, '/')
-  const codexIndex = normalized.lastIndexOf('/.codex/')
+  const codexIndex = normalized.lastIndexOf('/.codepilotx/')
   return codexIndex >= 0 ? normalized.slice(codexIndex + 1) : normalized
 }
 

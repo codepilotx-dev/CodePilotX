@@ -61,7 +61,7 @@ This PR adds a GitHub Actions workflow that enables CodePilotX integration in ou
 
 ### What is CodePilotX?
 
-[CodePilotX](https://claude.com/claude-code) is an AI coding agent that can help with:
+[CodePilotX](https://github.com/xiaohai-ouyang/CodePilotX) is an AI coding agent that can help with:
 - Bug fixes and improvements  
 - Documentation updates
 - Implementing new features

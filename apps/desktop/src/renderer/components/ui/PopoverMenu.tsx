@@ -1,5 +1,6 @@
 import type React from 'react'
 import { Dropdown } from './Dropdown.js'
+import type { PopoverSizingProps } from './popoverSizing.js'
 
 type Props = {
   children: React.ReactNode
@@ -8,11 +9,13 @@ type Props = {
   open: boolean
   side?: 'top' | 'right' | 'bottom' | 'left'
   sideOffset?: number
+  collisionPadding?: number
   trigger: React.ReactNode
   autoWidth?: boolean
+  disableOutsideDismiss?: boolean
   textMode?: 'nowrap' | 'wrap'
   onOpenChange: (open: boolean) => void
-}
+} & PopoverSizingProps
 
 export function PopoverMenu({
   children,
@@ -21,9 +24,13 @@ export function PopoverMenu({
   open,
   side,
   sideOffset,
+  collisionPadding,
   trigger,
   autoWidth = false,
+  disableOutsideDismiss,
   textMode = 'nowrap',
+  width,
+  maxWidth,
   onOpenChange,
 }: Props): React.ReactNode {
   const dropdownSide = side ?? 'bottom'
@@ -41,11 +48,15 @@ export function PopoverMenu({
       align={dropdownAlign}
       autoWidth={autoWidth}
       className={className}
+      disableOutsideDismiss={disableOutsideDismiss}
       open={open}
       side={dropdownSide}
       sideOffset={dropdownSideOffset}
+      collisionPadding={collisionPadding}
       textMode={textMode}
       trigger={trigger}
+      width={width}
+      maxWidth={maxWidth}
       onOpenChange={onOpenChange}
     >
       {children}

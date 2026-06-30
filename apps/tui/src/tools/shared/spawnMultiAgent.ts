@@ -310,14 +310,17 @@ async function handleSpawnSplitPane(
   const { name, prompt, agent_type, cwd, plan_mode_required } = input
 
   // Resolve model: 'inherit' → leader's model; undefined → default Opus
-  const model = resolveTeammateModel(input.model, getAppState().mainLoopModel)
+  const appState = getAppState()
+  const model = resolveTeammateModel(
+    input.model,
+    appState.mainLoopModelForSession ?? appState.mainLoopModel,
+  )
 
   if (!name || !prompt) {
     throw new Error('name and prompt are required for spawn operation')
   }
 
   // Get team name from input or inherit from leader's team context
-  const appState = getAppState()
   const teamName = input.team_name || appState.teamContext?.teamName
 
   if (!teamName) {
@@ -550,14 +553,17 @@ async function handleSpawnSeparateWindow(
   const { name, prompt, agent_type, cwd, plan_mode_required } = input
 
   // Resolve model: 'inherit' → leader's model; undefined → default Opus
-  const model = resolveTeammateModel(input.model, getAppState().mainLoopModel)
+  const appState = getAppState()
+  const model = resolveTeammateModel(
+    input.model,
+    appState.mainLoopModelForSession ?? appState.mainLoopModel,
+  )
 
   if (!name || !prompt) {
     throw new Error('name and prompt are required for spawn operation')
   }
 
   // Get team name from input or inherit from leader's team context
-  const appState = getAppState()
   const teamName = input.team_name || appState.teamContext?.teamName
 
   if (!teamName) {
@@ -845,14 +851,17 @@ async function handleSpawnInProcess(
   const { name, prompt, agent_type, plan_mode_required } = input
 
   // Resolve model: 'inherit' → leader's model; undefined → default Opus
-  const model = resolveTeammateModel(input.model, getAppState().mainLoopModel)
+  const appState = getAppState()
+  const model = resolveTeammateModel(
+    input.model,
+    appState.mainLoopModelForSession ?? appState.mainLoopModel,
+  )
 
   if (!name || !prompt) {
     throw new Error('name and prompt are required for spawn operation')
   }
 
   // Get team name from input or inherit from leader's team context
-  const appState = getAppState()
   const teamName = input.team_name || appState.teamContext?.teamName
 
   if (!teamName) {

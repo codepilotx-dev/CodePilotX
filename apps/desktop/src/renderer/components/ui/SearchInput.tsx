@@ -14,13 +14,14 @@ export function SearchInput({
   onChange,
 }: Props): React.ReactNode {
   return (
-    <label className="search-input">
+    <div className="search-input">
       <Search size={APP_ICON_SIZE} />
       <input
         onChange={event => onChange(event.target.value)}
         placeholder={placeholder}
+        type="search"
         value={value}
       />
-    </label>
+    </div>
   )
 }

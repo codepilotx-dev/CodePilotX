@@ -13,6 +13,7 @@ import { execFileNoThrow } from './execFileNoThrow.js'
 import { findExecutable } from './findExecutable.js'
 import { logError } from './log.js'
 import { getPlatform } from './platform.js'
+import { tryRunRustSearchRuntime } from './rustSearchRuntime.js'
 import { countCharInString } from './stringUtils.js'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -393,6 +394,11 @@ export async function ripGrep(
   abortSignal: AbortSignal,
 ): Promise<string[]> {
   await codesignRipgrepIfNecessary()
+
+  const rustResults = await tryRunRustSearchRuntime(args, target, abortSignal)
+  if (rustResults) {
+    return rustResults
+  }
 
   // Test ripgrep on first use and cache the result (fire and forget)
   void testRipgrepOnFirstUse().catch(error => {

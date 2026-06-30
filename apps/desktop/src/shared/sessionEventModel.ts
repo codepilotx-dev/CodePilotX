@@ -29,6 +29,17 @@ export function desktopAgentEventToSessionEvent(
         createdAt,
         ...eventSource(event),
       }
+    case 'proposed_plan':
+      return {
+        id: randomId(),
+        sessionId: event.sessionId,
+        type: 'proposed_plan',
+        role: 'assistant',
+        content: event.text,
+        createdAt,
+        metadata: { streaming: event.streaming === true },
+        ...eventSource(event),
+      }
     case 'context_usage':
       return {
         id: randomId(),
@@ -44,7 +55,7 @@ export function desktopAgentEventToSessionEvent(
         type: 'tool_call',
         content: event.summary,
         createdAt,
-        metadata: { toolName: event.toolName },
+        metadata: toolMetadata(event.toolName, event.toolUseId),
         ...eventSource(event),
       }
     case 'tool_result':
@@ -54,7 +65,10 @@ export function desktopAgentEventToSessionEvent(
         type: 'tool_result',
         content: event.summary,
         createdAt,
-        metadata: { toolName: event.toolName, isError: event.isError === true },
+        metadata: {
+          ...toolMetadata(event.toolName, event.toolUseId),
+          isError: event.isError === true,
+        },
         ...eventSource(event),
       }
     case 'permission_request':
@@ -65,6 +79,27 @@ export function desktopAgentEventToSessionEvent(
         content: event.request.description,
         createdAt,
         metadata: { request: event.request },
+        ...eventSource(event),
+      }
+    case 'guardian_review':
+      return {
+        id: randomId(),
+        sessionId: event.sessionId,
+        type: 'guardian_review',
+        content:
+          event.status === 'in_progress'
+            ? 'Guardian review started'
+            : event.rationale ?? `Guardian review ${event.status}`,
+        createdAt,
+        metadata: {
+          reviewId: event.reviewId,
+          targetRequestId: event.targetRequestId,
+          status: event.status,
+          riskLevel: event.riskLevel,
+          userAuthorization: event.userAuthorization,
+          rationale: event.rationale,
+          action: event.action,
+        },
         ...eventSource(event),
       }
     case 'status':
@@ -127,9 +162,21 @@ export function legacyMessagesToSessionEvents(
   }))
 }
 
+function toolMetadata(
+  toolName: string,
+  toolUseId: string | undefined,
+): Record<string, unknown> {
+  return {
+    toolName,
+    ...(toolUseId ? { toolUseId } : {}),
+  }
+}
+
 function eventCreatedAt(event: DesktopAgentEvent): string {
   if (
-    (event.type === 'message' || event.type === 'partial_message') &&
+    (event.type === 'message' ||
+      event.type === 'partial_message' ||
+      event.type === 'proposed_plan') &&
     event.createdAt
   ) {
     return event.createdAt

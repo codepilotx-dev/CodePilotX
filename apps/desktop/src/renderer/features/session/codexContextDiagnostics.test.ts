@@ -31,7 +31,7 @@ test('buildWorkspaceCodexContextDiagnostics reads root guidance and project conf
           truncated: false,
         }
       }
-      if (normalized.endsWith('/.codex/config.toml')) {
+      if (normalized.endsWith('/.codepilotx/config.toml')) {
         return {
           path: filePath,
           content: [
@@ -95,7 +95,7 @@ test('buildWorkspaceCodexContextDiagnostics follows core guidance layering from 
           truncated: false,
         }
       }
-      if (normalized.endsWith('/.codex/config.toml')) {
+      if (normalized.endsWith('/.codepilotx/config.toml')) {
         return {
           path: filePath,
           content: [

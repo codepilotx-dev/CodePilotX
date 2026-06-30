@@ -138,22 +138,11 @@ export class DesktopWorkflowProjector {
       return workflowEvent
     }
     const key = toolQueueKey(sourceEvent.sessionId, sourceEvent.toolName)
-    const toolUseId =
-      sourceEvent.type === 'tool_start'
-        ? this.pushToolUseId(key, sourceEvent, turnId)
-        : this.shiftToolUseId(key) ??
-          this.createId(
-            'tool-use',
-            toolUseSeed(
-              turnId,
-              sourceEvent.toolName,
-              this.nextToolOccurrence(
-                sourceEvent.sessionId,
-                turnId,
-                sourceEvent.toolName,
-              ),
-            ),
-          )
+    const toolUseId = this.resolveToolUseId(
+      key,
+      sourceEvent,
+      turnId,
+    )
     return {
       ...workflowEvent,
       item: {
@@ -168,19 +157,38 @@ export class DesktopWorkflowProjector {
     }
   }
 
-  private pushToolUseId(
+  private resolveToolUseId(
     key: string,
-    event: Extract<DesktopAgentEvent, { type: 'tool_start' }>,
+    event: Extract<DesktopAgentEvent, { type: 'tool_start' | 'tool_result' }>,
     turnId: string,
   ): string {
-    const toolUseId = this.createId(
-      'tool-use',
-      toolUseSeed(
-        turnId,
-        event.toolName,
-        this.nextToolOccurrence(event.sessionId, turnId, event.toolName),
-      ),
-    )
+    if (event.type === 'tool_result' && event.toolUseId) {
+      this.removeToolUseId(key, event.toolUseId)
+      return event.toolUseId
+    }
+    const toolUseId =
+      event.type === 'tool_start'
+        ? event.toolUseId ??
+          this.createId(
+            'tool-use',
+            toolUseSeed(
+              turnId,
+              event.toolName,
+              this.nextToolOccurrence(event.sessionId, turnId, event.toolName),
+            ),
+          )
+        : this.shiftToolUseId(key) ??
+          this.createId(
+            'tool-use',
+            toolUseSeed(
+              turnId,
+              event.toolName,
+              this.nextToolOccurrence(event.sessionId, turnId, event.toolName),
+            ),
+          )
+    if (event.type !== 'tool_start') {
+      return toolUseId
+    }
     const queue = this.workflowToolUseIds.get(key) ?? []
     this.workflowToolUseIds.set(key, [...queue, toolUseId])
     return toolUseId
@@ -195,6 +203,17 @@ export class DesktopWorkflowProjector {
       this.workflowToolUseIds.set(key, queue.slice(1))
     }
     return toolUseId
+  }
+
+  private removeToolUseId(key: string, toolUseId: string): void {
+    const queue = this.workflowToolUseIds.get(key)
+    if (!queue) return
+    const next = queue.filter(value => value !== toolUseId)
+    if (next.length === 0) {
+      this.workflowToolUseIds.delete(key)
+    } else {
+      this.workflowToolUseIds.set(key, next)
+    }
   }
 
   private nextToolOccurrence(

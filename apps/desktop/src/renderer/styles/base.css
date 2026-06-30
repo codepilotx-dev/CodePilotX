@@ -1,17 +1,25 @@
 :root {
   --contrast: 40;
-  --c-bg: var(--gray-1);
+  --c-bg: #ffffff;
+  --c-bg-pure: #ffffff;
   --c-bg-soft: var(--gray-2);
   --c-bg-mask: var(--gray-2);
   --c-bg-hover: var(--gray-3);
   --c-bg-row-hover: var(--gray-3);
   --c-bg-chip-hover: var(--blue-3);
-  --c-bg-card: var(--gray-1);
-  --c-surface: var(--gray-1);
+  --c-bg-card: #ffffff;
+  --c-popover-bg: #ffffff;
+  --c-popover-border: rgba(0, 0, 0, 0.06);
+  --c-popover-divider: rgba(0, 0, 0, 0.06);
+  --glass-surface-bg: rgba(255, 255, 255, 0.88);
+  --glass-surface-border: rgba(0, 0, 0, 0.1);
+  --glass-surface-highlight: rgba(255, 255, 255, 0.72);
+  --glass-surface-blur: 14px;
+  --c-surface: #ffffff;
   --c-ink: var(--gray-12);
-  --c-border: var(--gray-5);
-  --c-border-soft: var(--gray-4);
-  --c-border-faint: var(--gray-3);
+  --c-border: var(--gray-4);
+  --c-border-soft: var(--gray-3);
+  --c-border-faint: var(--gray-2);
   --c-border-row: var(--gray-3);
   --c-danger: var(--red-11);
   --c-warning: var(--amber-11);
@@ -32,6 +40,61 @@
   --c-send-bg-hover: var(--blue-10);
   --c-send-bg-disabled: var(--blue-6);
   --c-user-bubble-bg: var(--gray-3);
+  --surface-base: #f4f7fb;
+  --surface-canvas: #fbfcff;
+  --surface-panel: #ffffff;
+  --surface-raised: #f8fafc;
+  --surface-subtle: #eef3f8;
+  --border-subtle: #dfe7f0;
+  --border-muted: #edf2f7;
+  --shadow-resting: 0 1px 2px rgba(31, 41, 55, 0.05), 0 1px 0 rgba(255, 255, 255, 0.7) inset;
+  --shadow-raised: 0 10px 28px rgba(31, 41, 55, 0.08), 0 1px 2px rgba(31, 41, 55, 0.05);
+  --shadow-float: 0 22px 60px rgba(31, 41, 55, 0.12), 0 8px 24px rgba(31, 41, 55, 0.08);
+  --radius-panel: 22px;
+  --radius-card: 16px;
+  --layout-page-pad-x: 32px;
+  --layout-page-pad-y: 40px;
+  --layout-page-pad-bottom: 72px;
+  --layout-section-gap: 24px;
+  --layout-card-gap: 14px;
+  --layout-card-pad: 24px;
+  --layout-toolbar-gap: 12px;
+  --layout-composer-bottom: 26px;
+  --layout-composer-safe-pad: 78px;
+  --layout-sidebar-row-pad-y: 6px;
+  --layout-sidebar-row-pad-x: 8px;
+  --layout-sidebar-session-indent: 30px;
+  --layout-sidebar-section-gap: 18px;
+  --motion-fast: 120ms;
+  --motion-standard: 160ms;
+  --motion-emphasis: 220ms;
+  --motion-hover: var(--motion-fast);
+  --motion-enter: var(--motion-standard);
+  --motion-exit: var(--motion-fast);
+  --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out: ease-out;
+  --ease-in: ease-in;
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--c-accent) 24%, transparent);
+  --focus-ring-soft: 0 0 0 2px color-mix(in srgb, var(--c-accent) 18%, transparent);
+  --state-hover-bg: color-mix(in srgb, var(--c-text-strong) 5%, transparent);
+  --state-active-bg: color-mix(in srgb, var(--c-accent) 14%, transparent);
+  --grid-gap: var(--layout-card-gap);
+  --c-chrome-bg: #fbfcff;
+  --c-sidebar-bg: var(--surface-subtle);
+  --c-sidebar-active-bg: rgba(0, 0, 0, 0.1);
+  --c-sidebar-hover-bg: rgba(0, 0, 0, 0.1);
+  --c-workbench-bg: var(--surface-base);
+  --c-panel-bg: var(--surface-panel);
+  --c-panel-elevated-bg: var(--surface-raised);
+  --c-panel-border: var(--border-subtle);
+  --c-panel-shadow: var(--shadow-float);
+  --c-panel-shadow-raised: var(--shadow-raised);
+  --c-panel-shadow-soft: var(--shadow-resting);
+  --layout-sidebar-w: 280px;
+  --layout-content-w: 880px;
+  --layout-bento-w: 1040px;
+  --right-dock-offset: 0px;
+  --floating-composer-h: 142px;
   --c-scrollbar: var(--gray-5);
   --c-scrollbar-hover: var(--gray-9);
   --c-diff-added: var(--green-9);
@@ -45,19 +108,12 @@
   --sp-6: 24px;
   --sp-7: 30px;
   --sp-8: 36px;
-  --r-sm: 6px;
-  --r-md: 8px;
-  --r-lg: 12px;
-  --r-pill: 18px;
-  --r-card: 24px;
-  --r-round: 999px;
-  --sh-soft: 0 1px 2px var(--black-a2);
-  --sh-card: 0 1px 2px var(--black-a2);
-  --sh-card-lg: 0 8px 18px var(--black-a3);
-  --sh-popover:
-    0 4px 6px -2px var(--black-a3), 0 12px 24px -6px var(--black-a6);
+  --sh-soft: var(--shadow-resting);
+  --sh-card: var(--shadow-resting);
+  --sh-card-lg: var(--shadow-raised);
+  --sh-popover: var(--shadow-float);
   --ff-sans:
-    -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC",
+    "MiSans", -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC",
     "Helvetica Neue", Arial, "Microsoft YaHei", sans-serif;
   --ff-mono: "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
   --fs-ui: 14px;
@@ -68,26 +124,67 @@
   --fs-14: 14px;
   --fs-15: 15px;
   --fs-16: 16px;
+  --fs-18: 18px;
+  --fs-20: 20px;
   --fs-26: 26px;
+  --type-hero-title: 32px;
+  --type-page-title: 28px;
+  --type-section-title: 15px;
+  --type-card-title: 14px;
+  --type-body: 14px;
+  --type-message: 15px;
+  --type-meta: 13px;
+  --font-weight-body: 400;
+  --font-weight-label: 500;
+  --font-weight-heading: 560;
+  --font-weight-emphasis: 600;
+  --app-icon-size-sm: 14px;
   --app-icon-size: 16px;
-  --app-icon-stroke-width: 2;
+  --app-icon-size-md: 18px;
+  --app-icon-size-lg: 24px;
+  --app-icon-stroke-width: 1.75;
   --chrome-h: 35px;
   --titlebar-h: var(--chrome-h);
   --menubar-h: var(--chrome-h);
   --composer-w: 760px;
+  --popover-width-extra: 30px;
+  --plan-md-base-size: 0.9em;
+
+  --border-r: 10px;
+  --radius-1: calc(var(--border-r) - 6px);
+  --radius-2: calc(var(--border-r) - 4px);
+  --radius-3: calc(var(--border-r) - 2px);
+  --radius-4: var(--border-r);
+  --radius-5: calc(var(--border-r) + 4px);
+  --radius-6: var(--radius-card);
+  --radius-full: 9999px;
+  --z-right-dock: 90;
+  --z-composer: 95;
+  --z-modal: 1200;
+  --z-popover: 1300;
+  --z-tooltip: 1400;
+  --z-toast: 10000;
 }
 
-:root[data-theme='dark'] {
+:root[data-theme="dark"] {
   color-scheme: dark;
   --contrast: 60;
-  --c-bg: var(--gray-1);
+  --c-bg: #1a1a1e;
+  --c-bg-pure: #1a1a1e;
   --c-bg-soft: var(--gray-2);
   --c-bg-mask: var(--gray-2);
   --c-bg-hover: var(--gray-4);
   --c-bg-row-hover: var(--gray-3);
   --c-bg-chip-hover: var(--blue-3);
   --c-bg-card: var(--gray-2);
-  --c-surface: var(--gray-1);
+  --c-popover-bg: #2a2b32;
+  --c-popover-border: rgba(255, 255, 255, 0.08);
+  --c-popover-divider: rgba(255, 255, 255, 0.08);
+  --glass-surface-bg: rgba(42, 43, 50, 0.82);
+  --glass-surface-border: rgba(255, 255, 255, 0.14);
+  --glass-surface-highlight: rgba(255, 255, 255, 0.08);
+  --glass-surface-blur: 14px;
+  --c-surface: #1a1a1e;
   --c-ink: var(--gray-12);
   --c-border: var(--gray-6);
   --c-border-soft: var(--gray-5);
@@ -112,6 +209,27 @@
   --c-send-bg-hover: var(--blue-10);
   --c-send-bg-disabled: var(--blue-5);
   --c-user-bubble-bg: var(--gray-3);
+  --surface-base: #20242c;
+  --surface-canvas: #242932;
+  --surface-panel: #2a303a;
+  --surface-raised: #323946;
+  --surface-subtle: #242a34;
+  --border-subtle: rgba(255, 255, 255, 0.1);
+  --border-muted: rgba(255, 255, 255, 0.06);
+  --shadow-resting: 0 1px 2px rgba(0, 0, 0, 0.24), 0 1px 0 rgba(255, 255, 255, 0.03) inset;
+  --shadow-raised: 0 12px 34px rgba(0, 0, 0, 0.28), 0 1px 2px rgba(0, 0, 0, 0.22);
+  --shadow-float: 0 24px 64px rgba(0, 0, 0, 0.38), 0 8px 24px rgba(0, 0, 0, 0.28);
+  --c-chrome-bg: #171a20;
+  --c-sidebar-bg: var(--surface-subtle);
+  --c-sidebar-active-bg: rgba(255, 255, 255, 0.1);
+  --c-sidebar-hover-bg: rgba(255, 255, 255, 0.1);
+  --c-workbench-bg: var(--surface-base);
+  --c-panel-bg: var(--surface-panel);
+  --c-panel-elevated-bg: var(--surface-raised);
+  --c-panel-border: var(--border-subtle);
+  --c-panel-shadow: var(--shadow-float);
+  --c-panel-shadow-raised: var(--shadow-raised);
+  --c-panel-shadow-soft: var(--shadow-resting);
   --c-scrollbar: var(--gray-6);
   --c-scrollbar-hover: var(--gray-8);
   --c-diff-added: var(--green-11);
@@ -208,26 +326,15 @@ body {
   font-size: var(--fs-ui);
   scrollbar-color: var(--c-scrollbar) transparent;
   scrollbar-width: thin;
+  scrollbar-gutter: auto;
 }
 
-*::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+.scroll-area [data-radix-scroll-area-viewport] {
+  scrollbar-width: none;
 }
 
-*::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-*::-webkit-scrollbar-thumb {
-  border: 2px solid transparent;
-  border-radius: 999px;
-  background-clip: padding-box;
-  background: var(--c-scrollbar);
-}
-
-*::-webkit-scrollbar-thumb:hover {
-  background: var(--c-scrollbar-hover);
+.scroll-area [data-radix-scroll-area-viewport]::-webkit-scrollbar {
+  display: none;
 }
 
 button,
@@ -249,11 +356,32 @@ button:disabled {
   opacity: 0.55;
 }
 
+:root[data-pointer-cursor="off"] * {
+  cursor: default !important;
+}
+
+:root[data-pointer-cursor="off"] button:disabled,
+:root[data-pointer-cursor="off"] [aria-disabled="true"] {
+  cursor: not-allowed !important;
+}
+
+:root[data-pointer-cursor="off"] input,
+:root[data-pointer-cursor="off"] textarea,
+:root[data-pointer-cursor="off"] [contenteditable="true"] {
+  cursor: text !important;
+}
+
+:root[data-pointer-cursor="off"] [data-resize-handle],
+:root[data-pointer-cursor="off"] .sidebar-resizer,
+:root[data-pointer-cursor="off"] .right-dock-resize-handle {
+  cursor: col-resize !important;
+}
+
 input,
 textarea {
   min-width: 0;
   border: 1px solid var(--c-border);
-  border-radius: var(--r-md);
+  border-radius: var(--radius-3);
   background: var(--c-bg);
   color: var(--c-text);
   outline: none;
@@ -263,9 +391,69 @@ textarea {
   resize: none;
 }
 
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role="button"]:focus-visible,
+[tabindex]:not([tabindex="-1"]):focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
 h1,
 h2,
 h3,
 p {
   margin: 0;
+}
+
+.r-none {
+  --radius-factor: 0;
+}
+.r-small {
+  --radius-factor: 0.5;
+}
+.r-medium {
+  --radius-factor: 1;
+}
+.r-large {
+  --radius-factor: 1.5;
+}
+.r-full {
+  --radius-factor: 9999;
+}
+
+[data-radius] {
+  --radius-full: 9999px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 1ms !important;
+  }
+}
+
+:root[data-reduce-motion="on"] {
+  --motion-fast: 1ms;
+  --motion-standard: 1ms;
+  --motion-emphasis: 1ms;
+  --motion-hover: 1ms;
+  --motion-enter: 1ms;
+  --motion-exit: 1ms;
+}
+
+:root[data-reduce-motion="on"] *,
+:root[data-reduce-motion="on"] *::before,
+:root[data-reduce-motion="on"] *::after {
+  animation-duration: 1ms !important;
+  animation-iteration-count: 1 !important;
+  scroll-behavior: auto !important;
+  transition-duration: 1ms !important;
 }

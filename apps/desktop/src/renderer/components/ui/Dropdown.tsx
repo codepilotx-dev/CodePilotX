@@ -1,6 +1,9 @@
 import type React from 'react'
 import { cloneElement, isValidElement } from 'react'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
+import { preventOutsideDismissWhenDebug } from './debugDropdown.js'
+import { buildPopoverSizingStyle, type PopoverSizingProps } from './popoverSizing.js'
+import { readDesktopBrowserDebugMode } from '../../services/desktopClient.js'
 
 type Props = {
   children: React.ReactNode
@@ -8,12 +11,14 @@ type Props = {
   trigger: React.ReactNode
   align?: 'start' | 'center' | 'end'
   autoWidth?: boolean
+  disableOutsideDismiss?: boolean
   open?: boolean
   side?: 'top' | 'right' | 'bottom' | 'left'
   sideOffset?: number
+  collisionPadding?: number
   textMode?: 'nowrap' | 'wrap'
   onOpenChange?: (open: boolean) => void
-}
+} & PopoverSizingProps
 
 export function Dropdown({
   children,
@@ -21,10 +26,14 @@ export function Dropdown({
   trigger,
   align = 'start',
   autoWidth = false,
+  disableOutsideDismiss = readDesktopBrowserDebugMode(),
   open,
   side = 'bottom',
   sideOffset = 6,
+  collisionPadding,
   textMode = 'nowrap',
+  width,
+  maxWidth,
   onOpenChange,
 }: Props): React.ReactNode {
   const triggerElement = isValidElement<
@@ -35,18 +44,26 @@ export function Dropdown({
 
   return (
     <DropdownMenu.Root open={open} onOpenChange={onOpenChange}>
-      <DropdownMenu.Trigger asChild>{triggerElement}</DropdownMenu.Trigger>
+      <DropdownMenu.Trigger asChild>
+        {triggerElement}
+      </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content
           align={align}
           className={[
+            'popover-surface',
             'popover',
             className,
             autoWidth ? 'popover-auto-width' : '',
             textMode === 'wrap' ? 'popover-text-wrap' : '',
           ].join(' ')}
+          collisionPadding={collisionPadding}
           side={side}
           sideOffset={sideOffset}
+          style={buildPopoverSizingStyle({ width, maxWidth })}
+          onPointerDownOutside={event => {
+            preventOutsideDismissWhenDebug(disableOutsideDismiss, event)
+          }}
         >
           {children}
         </DropdownMenu.Content>

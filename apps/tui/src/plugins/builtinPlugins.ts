@@ -114,7 +114,7 @@ export function getBuiltinPluginSkillCommands(): Command[] {
     const definition = BUILTIN_PLUGINS.get(plugin.name)
     if (!definition?.skills) continue
     for (const skill of definition.skills) {
-      commands.push(skillDefinitionToCommand(skill))
+      commands.push(skillDefinitionToCommand(skill, definition))
     }
   }
 
@@ -177,7 +177,10 @@ export function clearBuiltinPlugins(): void {
 
 // --
 
-function skillDefinitionToCommand(definition: BundledSkillDefinition): Command {
+function skillDefinitionToCommand(
+  definition: BundledSkillDefinition,
+  pluginDefinition: BuiltinPluginDefinition,
+): Command {
   return {
     type: 'prompt',
     name: definition.name,
@@ -196,6 +199,14 @@ function skillDefinitionToCommand(definition: BundledSkillDefinition): Command {
     // exemption. The user-toggleable aspect is tracked on LoadedPlugin.isBuiltin.
     source: 'bundled',
     loadedFrom: 'bundled',
+    pluginInfo: {
+      pluginManifest: {
+        name: pluginDefinition.name,
+        description: pluginDefinition.description,
+        version: pluginDefinition.version,
+      },
+      repository: `${pluginDefinition.name}@${BUILTIN_MARKETPLACE_NAME}`,
+    },
     hooks: definition.hooks,
     context: definition.context,
     agent: definition.agent,

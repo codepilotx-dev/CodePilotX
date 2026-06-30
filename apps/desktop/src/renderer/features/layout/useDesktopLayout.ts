@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 
 export const SIDEBAR_WIDTH_STORAGE_KEY = "layout.sidebarWidth";
-export const SIDEBAR_MIN_WIDTH = 240;
-export const SIDEBAR_MAX_WIDTH = 500;
-export const DEFAULT_SIDEBAR_WIDTH = 260;
+export const SIDEBAR_MIN_WIDTH = 260;
+export const SIDEBAR_MAX_WIDTH = 550;
+export const DEFAULT_SIDEBAR_WIDTH = 280;
 
 export function clampSidebarWidth(value: number): number {
   return Math.min(

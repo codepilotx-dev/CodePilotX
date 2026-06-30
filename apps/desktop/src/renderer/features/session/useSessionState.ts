@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
   DesktopAgentEvent,
   DesktopContextUsage,
+  DesktopPermissionDecision,
   DesktopPermissionMode,
   DesktopPermissionRequest,
   DesktopSessionEvent,
@@ -12,6 +13,8 @@ import type {
   DesktopUserMessageInput,
   DesktopWorkflowEvent,
   DesktopWorkspace,
+  LocalRouterMode,
+  ModelProviderID,
 } from '../../../shared/types.js'
 import type {
   Message,
@@ -26,6 +29,9 @@ import {
   decidePermissionAction,
   interruptSessionAction,
   selectSessionAction,
+  setSessionLocalRouterModeAction,
+  setSessionPermissionModeAction,
+  setSessionPlanModeActiveAction,
   submitSessionMessageAction,
   updateSessionMetadataAction,
   type CloseSessionResult,
@@ -52,7 +58,14 @@ import {
 
 export type UseSessionStateOptions = {
   permissionMode: DesktopPermissionMode
+  planModeActive: boolean
+  localRouterMode: LocalRouterMode
+  providerID: ModelProviderID
+  providerBaseURL: string
+  debugConversationDump: boolean
   model: string
+  planExecutionModel: string
+  reviewModel: string
   smallFastModel: string
   fastModel: string
   defaultModel: string
@@ -62,6 +75,9 @@ export type UseSessionStateOptions = {
   systemPrompt: string
   appendSystemPrompt: string
   additionalDirectories: string
+  installCodexDependencies: boolean
+  enableMemory: boolean
+  rustSearchAndDiffKernels: boolean
   onError: (message: string) => void
   onDiffForActive: (patch: string) => void
   onRefreshActiveWorkspace: (sessionId: string) => void
@@ -80,6 +96,7 @@ export type UseSessionStateResult = {
   pendingPermissions: DesktopPermissionRequest[]
   contextUsage: DesktopContextUsage | null
   activeSessionItem: SessionListItem | null
+  planModeActive: boolean
   canSubmit: boolean
   input: string
   setInput: (value: string) => void
@@ -96,12 +113,29 @@ export type UseSessionStateResult = {
     behavior: 'allow' | 'deny',
     alwaysAllow?: boolean,
     updatedInput?: Record<string, unknown>,
+    decisionExtras?: {
+      planExecutionModel?: string
+      savePlanExecutionModel?: boolean
+      rememberOptionId?: DesktopPermissionDecision['rememberOptionId']
+    },
   ) => Promise<void>
   closeSession: (targetSessionId: string) => Promise<CloseSessionResult | null>
   updateSessionMetadata: (
     targetSessionId: string,
     patch: DesktopSessionMetadataPatch,
   ) => Promise<CloseSessionResult | null>
+  setSessionPermissionMode: (
+    targetSessionId: string,
+    mode: DesktopPermissionMode,
+  ) => Promise<SessionListItem | null>
+  setSessionPlanModeActive: (
+    targetSessionId: string,
+    active: boolean,
+  ) => Promise<SessionListItem | null>
+  setSessionLocalRouterMode: (
+    targetSessionId: string,
+    mode: LocalRouterMode,
+  ) => Promise<SessionListItem | null>
   selectSession: (session: SessionListItem) => DesktopWorkspace | null
   toggleToolLogEntry: (entryId: string) => void
 }
@@ -111,7 +145,14 @@ export function useSessionState(
 ): UseSessionStateResult {
   const {
     permissionMode,
+    planModeActive,
+    localRouterMode,
+    providerID,
+    providerBaseURL,
+    debugConversationDump,
     model,
+    planExecutionModel,
+    reviewModel,
     smallFastModel,
     fastModel,
     defaultModel,
@@ -121,6 +162,9 @@ export function useSessionState(
     systemPrompt,
     appendSystemPrompt,
     additionalDirectories,
+    installCodexDependencies,
+    enableMemory,
+    rustSearchAndDiffKernels,
     onError,
     onDiffForActive,
     onRefreshActiveWorkspace,
@@ -142,6 +186,12 @@ export function useSessionState(
   const [contextUsage, setContextUsage] =
     useState<DesktopContextUsage | null>(null)
   const [input, setInput] = useState('')
+  const activeSessionItem = useMemo(
+    () => sessions.find(session => session.id === sessionId) ?? null,
+    [sessions, sessionId],
+  )
+  const effectivePlanModeActive =
+    activeSessionItem?.planModeActive ?? planModeActive
 
   const activeSessionIdRef = useRef<string | null>(null)
   const sessionsRef = useRef<SessionListItem[]>([])
@@ -432,7 +482,15 @@ export function useSessionState(
   const settingsSnapshot = useMemo<SessionSettingsSnapshot>(
     () => ({
       permissionMode,
+      planModeActive: effectivePlanModeActive,
+      localRouterMode:
+        activeSessionItem?.localRouterMode ?? localRouterMode,
+      providerID,
+      providerBaseURL,
+      debugConversationDump,
       model,
+      planExecutionModel,
+      reviewModel,
       smallFastModel,
       fastModel,
       defaultModel,
@@ -442,14 +500,28 @@ export function useSessionState(
       systemPrompt,
       appendSystemPrompt,
       additionalDirectories,
+      installCodexDependencies,
+      enableMemory,
+      rustSearchAndDiffKernels,
     }),
     [
       additionalDirectories,
       appendSystemPrompt,
+      activeSessionItem?.localRouterMode,
+      installCodexDependencies,
+      enableMemory,
+      rustSearchAndDiffKernels,
+      debugConversationDump,
       fastModel,
+      planExecutionModel,
       model,
+      reviewModel,
       deepModel,
+      effectivePlanModeActive,
+      localRouterMode,
       permissionMode,
+      providerBaseURL,
+      providerID,
       sessionName,
       smallFastModel,
       defaultModel,
@@ -535,7 +607,7 @@ export function useSessionState(
           targetStatus !== 'running' &&
           targetStatus !== 'waiting',
       ),
-      model,
+      settingsSnapshot,
       nextValue => {
         inputBySessionRef.current = {
           ...inputBySessionRef.current,
@@ -546,7 +618,7 @@ export function useSessionState(
         }
       },
     )
-  }, [model])
+  }, [settingsSnapshot])
 
   const submit = useCallback(async (target?: DesktopWorkspace | null): Promise<void> => {
     const targetSessionId =
@@ -570,6 +642,11 @@ export function useSessionState(
       behavior: 'allow' | 'deny',
       alwaysAllow = false,
       updatedInput?: Record<string, unknown>,
+      decisionExtras?: {
+        planExecutionModel?: string
+        savePlanExecutionModel?: boolean
+        rememberOptionId?: DesktopPermissionDecision['rememberOptionId']
+      },
     ): Promise<void> => {
       await decidePermissionAction(
         onErrorRef,
@@ -579,6 +656,7 @@ export function useSessionState(
         behavior,
         alwaysAllow,
         updatedInput,
+        decisionExtras,
       )
     },
     [sessionId, updateSessionView],
@@ -604,6 +682,48 @@ export function useSessionState(
     [actionContext, sessions],
   )
 
+  const setSessionPermissionMode = useCallback(
+    async (
+      targetSessionId: string,
+      mode: DesktopPermissionMode,
+    ): Promise<SessionListItem | null> =>
+      setSessionPermissionModeAction(
+        actionContext,
+        sessions,
+        targetSessionId,
+        mode,
+      ),
+    [actionContext, sessions],
+  )
+
+  const setSessionPlanModeActive = useCallback(
+    async (
+      targetSessionId: string,
+      active: boolean,
+    ): Promise<SessionListItem | null> =>
+      setSessionPlanModeActiveAction(
+        actionContext,
+        sessions,
+        targetSessionId,
+        active,
+      ),
+    [actionContext, sessions],
+  )
+
+  const setSessionLocalRouterMode = useCallback(
+    async (
+      targetSessionId: string,
+      mode: LocalRouterMode,
+    ): Promise<SessionListItem | null> =>
+      setSessionLocalRouterModeAction(
+        actionContext,
+        sessions,
+        targetSessionId,
+        mode,
+      ),
+    [actionContext, sessions],
+  )
+
   const selectSession = useCallback(
     (session: SessionListItem): DesktopWorkspace | null => {
       const workspace = selectSessionAction(actionContext, session)
@@ -611,11 +731,6 @@ export function useSessionState(
       return workspace
     },
     [actionContext, hydrateSessionDetails],
-  )
-
-  const activeSessionItem = useMemo(
-    () => sessions.find(session => session.id === sessionId) ?? null,
-    [sessions, sessionId],
   )
 
   return {
@@ -630,6 +745,7 @@ export function useSessionState(
     pendingPermissions,
     contextUsage,
     activeSessionItem,
+    planModeActive: effectivePlanModeActive,
     canSubmit,
     input,
     setInput: setScopedInput,
@@ -641,6 +757,9 @@ export function useSessionState(
     decidePermission,
     closeSession,
     updateSessionMetadata,
+    setSessionPermissionMode,
+    setSessionPlanModeActive,
+    setSessionLocalRouterMode,
     selectSession,
     toggleToolLogEntry,
   }

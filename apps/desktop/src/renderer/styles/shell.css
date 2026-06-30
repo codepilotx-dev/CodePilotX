@@ -8,7 +8,7 @@
 .desktop-frame {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  background: var(--c-bg-mask);
+  background: var(--c-bg);
 }
 
 .app-shell {
@@ -23,5 +23,6 @@
   min-height: 0;
   display: flex;
   overflow: hidden;
+  background: var(--c-workbench-bg);
 }
 

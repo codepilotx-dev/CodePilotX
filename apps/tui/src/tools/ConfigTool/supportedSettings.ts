@@ -104,6 +104,21 @@ export const SUPPORTED_SETTINGS: Record<string, SettingConfig> = {
     validateOnWrite: v => validateModel(String(v)),
     formatOnRead: v => (v === null ? 'default' : v),
   },
+  planExecutionModel: {
+    source: 'settings',
+    type: 'string',
+    description: 'Model used after approving a plan for execution',
+    getOptions: () => {
+      try {
+        return getModelOptions()
+          .filter(o => o.value !== null)
+          .map(o => o.value as string)
+      } catch {
+        return ['fast', 'default', 'deep']
+      }
+    },
+    validateOnWrite: v => validateModel(String(v)),
+  },
   alwaysThinkingEnabled: {
     source: 'settings',
     type: 'boolean',

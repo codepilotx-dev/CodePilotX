@@ -1,32 +1,39 @@
-import {
-  blue,
-  blueDark,
-  cyan,
-  cyanDark,
-  gray,
-  grayDark,
-  green,
-  greenDark,
-  orange,
-  orangeDark,
-  pink,
-  pinkDark,
-  purple,
-  purpleDark,
-  red,
-  redDark,
-} from '@radix-ui/colors'
+import * as radixColors from '@radix-ui/colors'
 import type {
   DesktopThemeCustomTheme,
   DesktopThemeConfigV1,
+  DesktopThemeFontEntry,
   DesktopThemeMode,
+  DesktopThemeRadixAccentColor,
+  DesktopThemeRadixConfig,
+  DesktopThemeRadixGrayColor,
+  DesktopThemeRadixPanelBackground,
+  DesktopThemeRadixRadius,
+  DesktopThemeRadixScaling,
   DesktopThemeSettings,
   DesktopThemeVariant,
 } from './types.js'
 
 export const CODEX_THEME_PREFIX = 'codex-theme-v1:'
 export const DEFAULT_LIGHT_THEME_ID = 'light-codex'
-export const DEFAULT_DARK_THEME_ID = 'dark-dracula'
+export const DEFAULT_DARK_THEME_ID = 'dark-codex'
+
+export const DEFAULT_UI_FONT: DesktopThemeFontEntry = {
+  preset: 'MiSans VF',
+  fallback:
+    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Helvetica Neue", Arial, "Microsoft YaHei", system-ui, sans-serif',
+}
+
+export const DEFAULT_CODE_FONT: DesktopThemeFontEntry = {
+  preset: 'JetBrains Mono VF',
+  fallback:
+    'ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace',
+}
+
+export const DEFAULT_FONTS: DesktopThemeConfigV1['theme']['fonts'] = {
+  ui: DEFAULT_UI_FONT,
+  code: DEFAULT_CODE_FONT,
+}
 
 export type DesktopThemePreset = {
   id: string
@@ -39,60 +46,152 @@ type RadixScale =
   | 'cyan'
   | 'gray'
   | 'green'
+  | 'iris'
+  | 'mauve'
+  | 'olive'
   | 'orange'
   | 'pink'
   | 'purple'
   | 'red'
+  | 'sage'
+  | 'sand'
+  | 'slate'
+
+type RadixAccentScale = Extract<RadixScale, DesktopThemeRadixAccentColor>
 
 type RadixStep = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12
 
 type RadixThemePresetOptions = {
-  accentScale: RadixScale
+  accentScale: RadixAccentScale
   accentStep?: RadixStep
   codeThemeId: string
   contrast?: number
   fonts?: DesktopThemeConfigV1['theme']['fonts']
+  grayScale?: Exclude<DesktopThemeRadixGrayColor, 'auto'>
   inkScale?: RadixScale
   inkStep?: RadixStep
   opaqueWindows?: boolean
-  skillScale?: RadixScale
+  skillScale?: RadixAccentScale
   skillStep?: RadixStep
   surfaceScale?: RadixScale
   surfaceStep?: RadixStep
+  radix?: Partial<DesktopThemeRadixConfig>
   variant: DesktopThemeVariant
 }
 
+const RADIX_ACCENT_COLORS: readonly DesktopThemeRadixAccentColor[] = [
+  'gray',
+  'gold',
+  'bronze',
+  'brown',
+  'yellow',
+  'amber',
+  'orange',
+  'tomato',
+  'red',
+  'ruby',
+  'crimson',
+  'pink',
+  'plum',
+  'purple',
+  'violet',
+  'iris',
+  'indigo',
+  'blue',
+  'cyan',
+  'teal',
+  'jade',
+  'green',
+  'grass',
+  'lime',
+  'mint',
+  'sky',
+]
+
+const RADIX_GRAY_COLORS: readonly DesktopThemeRadixGrayColor[] = [
+  'auto',
+  'gray',
+  'mauve',
+  'slate',
+  'sage',
+  'olive',
+  'sand',
+]
+
+const RADIX_PANEL_BACKGROUNDS: readonly DesktopThemeRadixPanelBackground[] = [
+  'solid',
+  'translucent',
+]
+
+const RADIX_RADII: readonly DesktopThemeRadixRadius[] = [
+  'none',
+  'small',
+  'medium',
+  'large',
+  'full',
+]
+
+const RADIX_SCALINGS: readonly DesktopThemeRadixScaling[] = [
+  '90%',
+  '95%',
+  '100%',
+  '105%',
+  '110%',
+]
+
+const DEFAULT_RADIX_THEME: DesktopThemeRadixConfig = {
+  accentColor: 'blue',
+  grayColor: 'slate',
+  panelBackground: 'solid',
+  radius: 'medium',
+  scaling: '100%',
+}
+
 const RADIX_LIGHT: Record<RadixScale, Record<string, string>> = {
-  blue,
-  cyan,
-  gray,
-  green,
-  orange,
-  pink,
-  purple,
-  red,
+  blue: radixColors.blue,
+  cyan: radixColors.cyan,
+  gray: radixColors.gray,
+  green: radixColors.green,
+  iris: radixColors.iris,
+  mauve: radixColors.mauve,
+  olive: radixColors.olive,
+  orange: radixColors.orange,
+  pink: radixColors.pink,
+  purple: radixColors.purple,
+  red: radixColors.red,
+  sage: radixColors.sage,
+  sand: radixColors.sand,
+  slate: radixColors.slate,
 }
 
 const RADIX_DARK: Record<RadixScale, Record<string, string>> = {
-  blue: blueDark,
-  cyan: cyanDark,
-  gray: grayDark,
-  green: greenDark,
-  orange: orangeDark,
-  pink: pinkDark,
-  purple: purpleDark,
-  red: redDark,
+  blue: radixColors.blueDark,
+  cyan: radixColors.cyanDark,
+  gray: radixColors.grayDark,
+  green: radixColors.greenDark,
+  iris: radixColors.irisDark,
+  mauve: radixColors.mauveDark,
+  olive: radixColors.oliveDark,
+  orange: radixColors.orangeDark,
+  pink: radixColors.pinkDark,
+  purple: radixColors.purpleDark,
+  red: radixColors.redDark,
+  sage: radixColors.sageDark,
+  sand: radixColors.sandDark,
+  slate: radixColors.slateDark,
 }
 
-const INTER_FONTS = {
-  code: 'JetBrains Mono SemiBold',
-  ui: 'Inter',
-}
-
-const QUOTED_JETBRAINS_FONTS = {
-  code: '"Jetbrains Mono"',
-  ui: 'Inter',
-}
+const RADIX_ACCENT_SCALES: readonly RadixAccentScale[] = [
+  'blue',
+  'cyan',
+  'gray',
+  'green',
+  'iris',
+  'orange',
+  'pink',
+  'purple',
+  'red',
+]
 
 const DRACULA_PINK = {
   9: '#ff79c6',
@@ -101,28 +200,48 @@ const DRACULA_PINK = {
   12: '#fdd1e7',
 }
 
-export const DEFAULT_LIGHT_THEME: DesktopThemeConfigV1 =
-  createRadixThemePreset({
-    accentScale: 'blue',
-    codeThemeId: 'codex',
-    skillScale: 'purple',
-    variant: 'light',
-  })
-
-export const DEFAULT_DARK_THEME: DesktopThemeConfigV1 = {
-  codeThemeId: 'dracula',
+export const DEFAULT_LIGHT_THEME: DesktopThemeConfigV1 = {
+  codeThemeId: 'codex',
   theme: {
-    accent: DRACULA_PINK[9],
-    contrast: 60,
-    fonts: INTER_FONTS,
-    ink: radixColor('dark', 'gray', 12),
+    accent: '#0169cc',
+    contrast: 40,
+    fonts: DEFAULT_FONTS,
+    ink: '#0d0d0d',
     opaqueWindows: true,
     semanticColors: {
-      diffAdded: radixColor('dark', 'green', 11),
-      diffRemoved: radixColor('dark', 'red', 11),
-      skill: DRACULA_PINK[11],
+      diffAdded: '#00a240',
+      diffRemoved: '#e02e2a',
+      skill: '#751ed9',
     },
-    surface: radixColor('dark', 'pink', 2),
+    radix: {
+      ...DEFAULT_RADIX_THEME,
+      accentColor: 'blue',
+      grayColor: 'slate',
+    },
+    surface: '#ffffff',
+  },
+  variant: 'light',
+}
+
+export const DEFAULT_DARK_THEME: DesktopThemeConfigV1 = {
+  codeThemeId: 'codex',
+  theme: {
+    accent: '#0169cc',
+    contrast: 60,
+    fonts: DEFAULT_FONTS,
+    ink: '#fcfcfc',
+    opaqueWindows: true,
+    semanticColors: {
+      diffAdded: '#00a240',
+      diffRemoved: '#e02e2a',
+      skill: '#b06dff',
+    },
+    radix: {
+      ...DEFAULT_RADIX_THEME,
+      accentColor: 'blue',
+      grayColor: 'slate',
+    },
+    surface: '#111111',
   },
   variant: 'dark',
 }
@@ -133,6 +252,9 @@ export const DEFAULT_DESKTOP_THEME_SETTINGS: DesktopThemeSettings = {
     light: DEFAULT_LIGHT_THEME_ID,
     dark: DEFAULT_DARK_THEME_ID,
   },
+  glassmorphismEnabled: true,
+  pointerCursorEnabled: true,
+  reduceMotion: 'system',
   fontSizes: {
     code: 12,
     ui: 14,
@@ -153,10 +275,20 @@ export const DESKTOP_THEME_PRESETS: DesktopThemePreset[] = [
     config: createRadixThemePreset({
       accentScale: 'orange',
       codeThemeId: 'absolutely',
-      inkScale: 'orange',
+      grayScale: 'sand',
       skillScale: 'orange',
-      surfaceScale: 'orange',
       variant: 'light',
+    }),
+  },
+  {
+    id: 'dark-absolutely',
+    label: 'Absolutely Dark',
+    config: createRadixThemePreset({
+      accentScale: 'orange',
+      codeThemeId: 'absolutely',
+      grayScale: 'sand',
+      skillScale: 'orange',
+      variant: 'dark',
     }),
   },
   {
@@ -165,10 +297,20 @@ export const DESKTOP_THEME_PRESETS: DesktopThemePreset[] = [
     config: createRadixThemePreset({
       accentScale: 'purple',
       codeThemeId: 'catppuccin',
-      inkScale: 'purple',
+      grayScale: 'mauve',
       skillScale: 'purple',
-      surfaceScale: 'purple',
       variant: 'light',
+    }),
+  },
+  {
+    id: 'dark-catppuccin',
+    label: 'Catppuccin Dark',
+    config: createRadixThemePreset({
+      accentScale: 'purple',
+      codeThemeId: 'catppuccin',
+      grayScale: 'mauve',
+      skillScale: 'purple',
+      variant: 'dark',
     }),
   },
   {
@@ -177,9 +319,22 @@ export const DESKTOP_THEME_PRESETS: DesktopThemePreset[] = [
     config: createRadixThemePreset({
       accentScale: 'red',
       codeThemeId: 'raycast',
-      fonts: QUOTED_JETBRAINS_FONTS,
+      fonts: DEFAULT_FONTS,
+      grayScale: 'slate',
       skillScale: 'pink',
       variant: 'light',
+    }),
+  },
+  {
+    id: 'dark-raycast',
+    label: 'Raycast Dark',
+    config: createRadixThemePreset({
+      accentScale: 'red',
+      codeThemeId: 'raycast',
+      fonts: DEFAULT_FONTS,
+      grayScale: 'slate',
+      skillScale: 'pink',
+      variant: 'dark',
     }),
   },
   {
@@ -188,15 +343,11 @@ export const DESKTOP_THEME_PRESETS: DesktopThemePreset[] = [
     config: createRadixThemePreset({
       accentScale: 'blue',
       codeThemeId: 'github',
-      fonts: QUOTED_JETBRAINS_FONTS,
+      fonts: DEFAULT_FONTS,
+      grayScale: 'gray',
       skillScale: 'purple',
       variant: 'light',
     }),
-  },
-  {
-    id: DEFAULT_DARK_THEME_ID,
-    label: 'Dracula',
-    config: DEFAULT_DARK_THEME,
   },
   {
     id: 'dark-github',
@@ -204,8 +355,48 @@ export const DESKTOP_THEME_PRESETS: DesktopThemePreset[] = [
     config: createRadixThemePreset({
       accentScale: 'blue',
       codeThemeId: 'github',
+      fonts: DEFAULT_FONTS,
+      grayScale: 'gray',
       skillScale: 'purple',
       variant: 'dark',
+    }),
+  },
+  {
+    id: 'light-dracula',
+    label: 'Dracula',
+    config: createRadixThemePreset({
+      accentScale: 'pink',
+      codeThemeId: 'dracula',
+      grayScale: 'mauve',
+      skillScale: 'pink',
+      variant: 'light',
+    }),
+  },
+  {
+    id: 'dark-dracula',
+    label: 'Dracula',
+    config: createRadixThemePreset({
+      accentScale: 'pink',
+      codeThemeId: 'dracula',
+      grayScale: 'mauve',
+      skillScale: 'pink',
+      variant: 'dark',
+    }),
+  },
+  {
+    id: DEFAULT_DARK_THEME_ID,
+    label: 'CodePilotX Dark',
+    config: DEFAULT_DARK_THEME,
+  },
+  {
+    id: 'light-material',
+    label: 'Material',
+    config: createRadixThemePreset({
+      accentScale: 'cyan',
+      codeThemeId: 'material',
+      grayScale: 'sage',
+      skillScale: 'purple',
+      variant: 'light',
     }),
   },
   {
@@ -214,9 +405,21 @@ export const DESKTOP_THEME_PRESETS: DesktopThemePreset[] = [
     config: createRadixThemePreset({
       accentScale: 'cyan',
       codeThemeId: 'material',
+      grayScale: 'sage',
       skillScale: 'purple',
       surfaceStep: 2,
       variant: 'dark',
+    }),
+  },
+  {
+    id: 'light-vscode-plus',
+    label: 'VSCode Plus',
+    config: createRadixThemePreset({
+      accentScale: 'blue',
+      codeThemeId: 'vscode-plus',
+      grayScale: 'slate',
+      skillScale: 'blue',
+      variant: 'light',
     }),
   },
   {
@@ -225,6 +428,7 @@ export const DESKTOP_THEME_PRESETS: DesktopThemePreset[] = [
     config: createRadixThemePreset({
       accentScale: 'blue',
       codeThemeId: 'vscode-plus',
+      grayScale: 'slate',
       skillScale: 'blue',
       skillStep: 11,
       surfaceStep: 2,
@@ -232,12 +436,48 @@ export const DESKTOP_THEME_PRESETS: DesktopThemePreset[] = [
     }),
   },
   {
-    id: 'dark-codex',
-    label: 'CodePilotX Dark',
+    id: 'light-terminal-green',
+    label: 'Terminal Green',
     config: createRadixThemePreset({
-      accentScale: 'blue',
+      accentScale: 'green',
       codeThemeId: 'codex',
-      skillScale: 'purple',
+      grayScale: 'sage',
+      skillScale: 'green',
+      variant: 'light',
+    }),
+  },
+  {
+    id: 'dark-terminal-green',
+    label: 'Terminal Green Dark',
+    config: createRadixThemePreset({
+      accentScale: 'green',
+      codeThemeId: 'codex',
+      grayScale: 'sage',
+      skillScale: 'green',
+      surfaceStep: 2,
+      variant: 'dark',
+    }),
+  },
+  {
+    id: 'light-iris-focus',
+    label: 'Iris Focus',
+    config: createRadixThemePreset({
+      accentScale: 'iris',
+      codeThemeId: 'catppuccin',
+      grayScale: 'slate',
+      skillScale: 'iris',
+      variant: 'light',
+    }),
+  },
+  {
+    id: 'dark-iris-focus',
+    label: 'Iris Focus Dark',
+    config: createRadixThemePreset({
+      accentScale: 'iris',
+      codeThemeId: 'catppuccin',
+      grayScale: 'slate',
+      skillScale: 'iris',
+      surfaceStep: 2,
       variant: 'dark',
     }),
   },
@@ -251,14 +491,16 @@ function createRadixThemePreset(
     accentStep = 9,
     codeThemeId,
     contrast = options.variant === 'dark' ? 60 : 40,
-    fonts = INTER_FONTS,
-    inkScale = 'gray',
+    fonts = DEFAULT_FONTS,
+    grayScale = 'slate',
+    inkScale = grayScale,
     inkStep = 12,
     opaqueWindows = true,
     skillScale = accentScale,
     skillStep = options.variant === 'dark' ? 11 : 9,
-    surfaceScale = 'gray',
+    surfaceScale = grayScale,
     surfaceStep = 1,
+    radix,
     variant,
   } = options
 
@@ -274,6 +516,12 @@ function createRadixThemePreset(
         diffAdded: radixColor(variant, 'green', variant === 'dark' ? 11 : 9),
         diffRemoved: radixColor(variant, 'red', variant === 'dark' ? 11 : 9),
         skill: radixColor(variant, skillScale, skillStep),
+      },
+      radix: {
+        ...DEFAULT_RADIX_THEME,
+        accentColor: accentScale,
+        grayColor: grayScale,
+        ...radix,
       },
       surface: radixColor(variant, surfaceScale, surfaceStep),
     },
@@ -367,10 +615,27 @@ export function normalizeDesktopThemeSettings(
   return {
     mode: isDesktopThemeMode(value.mode) ? value.mode : 'light',
     activeThemeIds,
+    glassmorphismEnabled:
+      typeof value.glassmorphismEnabled === 'boolean'
+        ? value.glassmorphismEnabled
+        : true,
+    pointerCursorEnabled:
+      typeof value.pointerCursorEnabled === 'boolean'
+        ? value.pointerCursorEnabled
+        : true,
+    reduceMotion: normalizeDesktopReduceMotion(value.reduceMotion),
     fontSizes: normalizeDesktopThemeFontSizes(value.fontSizes),
     customThemes,
     presetOverrides,
   }
+}
+
+function normalizeDesktopReduceMotion(
+  value: unknown,
+): DesktopThemeSettings['reduceMotion'] {
+  return value === 'system' || value === 'on' || value === 'off'
+    ? value
+    : DEFAULT_DESKTOP_THEME_SETTINGS.reduceMotion
 }
 
 export function normalizeDesktopThemeConfig(
@@ -389,19 +654,24 @@ export function normalizeDesktopThemeConfig(
   const semanticColors = isRecord(theme.semanticColors)
     ? theme.semanticColors
     : {}
+  const accent = normalizeHexColor(theme.accent, fallback.theme.accent)
 
   return {
     codeThemeId: isNonEmptyString(value.codeThemeId)
       ? value.codeThemeId
       : fallback.codeThemeId,
     theme: {
-      accent: normalizeHexColor(theme.accent, fallback.theme.accent),
+      accent,
       contrast: normalizeContrast(theme.contrast, fallback.theme.contrast),
       fonts: {
-        code: isNonEmptyString(fonts.code)
-          ? fonts.code
-          : fallback.theme.fonts.code,
-        ui: isNonEmptyString(fonts.ui) ? fonts.ui : fallback.theme.fonts.ui,
+        code: normalizeDesktopThemeFontEntry(
+          fonts.code,
+          fallback.theme.fonts.code,
+        ),
+        ui: normalizeDesktopThemeFontEntry(
+          fonts.ui,
+          fallback.theme.fonts.ui,
+        ),
       },
       ink: normalizeHexColor(theme.ink, fallback.theme.ink),
       opaqueWindows:
@@ -422,6 +692,12 @@ export function normalizeDesktopThemeConfig(
           fallback.theme.semanticColors.skill,
         ),
       },
+      radix: normalizeDesktopThemeRadixConfig(
+        theme.radix,
+        fallback.theme.radix,
+        variant,
+        accent,
+      ),
       surface: normalizeHexColor(theme.surface, fallback.theme.surface),
     },
     variant,
@@ -600,6 +876,40 @@ function normalizeContrast(value: unknown, fallback: number): number {
   return Math.max(0, Math.min(100, Math.round(value)))
 }
 
+function normalizeDesktopThemeFontEntry(
+  value: unknown,
+  fallback: DesktopThemeFontEntry,
+): DesktopThemeFontEntry {
+  if (typeof value === 'string') {
+    return {
+      preset: value.trim(),
+      fallback: fallback.fallback,
+    }
+  }
+  if (!isRecord(value)) {
+    return fallback
+  }
+  return {
+    preset: isNonEmptyString(value.preset)
+      ? value.preset.trim()
+      : fallback.preset,
+    fallback: isNonEmptyString(value.fallback)
+      ? value.fallback.trim()
+      : fallback.fallback,
+  }
+}
+
+export function exportDesktopThemeConfig(
+  config: DesktopThemeConfigV1,
+): { codeThemeId: string; theme: Record<string, unknown>; variant: string } {
+  const { radix: _radix, ...themeWithoutRadix } = config.theme
+  return {
+    codeThemeId: config.codeThemeId,
+    theme: themeWithoutRadix,
+    variant: config.variant,
+  }
+}
+
 function normalizeDesktopThemeFontSizes(
   value: unknown,
 ): DesktopThemeSettings['fontSizes'] {
@@ -608,6 +918,135 @@ function normalizeDesktopThemeFontSizes(
     code: normalizeFontSize(fontSizes.code, 12, 10, 20),
     ui: normalizeFontSize(fontSizes.ui, 14, 11, 20),
   }
+}
+
+function normalizeDesktopThemeRadixConfig(
+  value: unknown,
+  fallback: DesktopThemeRadixConfig,
+  variant: DesktopThemeVariant,
+  accent: string,
+): DesktopThemeRadixConfig {
+  const radix = isRecord(value) ? value : {}
+  const fallbackAccent = fallback.accentColor ?? defaultRadixAccentColor(variant)
+  return {
+    accentColor: isRadixAccentColor(radix.accentColor)
+      ? radix.accentColor
+      : inferRadixAccentColor(accent, variant, fallbackAccent),
+    grayColor: isRadixGrayColor(radix.grayColor)
+      ? radix.grayColor
+      : fallback.grayColor,
+    panelBackground: isRadixPanelBackground(radix.panelBackground)
+      ? radix.panelBackground
+      : fallback.panelBackground,
+    radius: isRadixRadius(radix.radius) ? radix.radius : fallback.radius,
+    scaling: isRadixScaling(radix.scaling)
+      ? radix.scaling
+      : fallback.scaling,
+  }
+}
+
+function inferRadixAccentColor(
+  accent: string,
+  variant: DesktopThemeVariant,
+  fallback: DesktopThemeRadixAccentColor,
+): DesktopThemeRadixAccentColor {
+  const normalizedAccent = accent.toLowerCase()
+  if (normalizedAccent === '#0169cc') return 'blue'
+  if (normalizedAccent === '#00a240') return 'green'
+  if (normalizedAccent === '#e02e2a') return 'red'
+  if (normalizedAccent === '#751ed9' || normalizedAccent === '#b06dff') return 'purple'
+  if (normalizedAccent === DRACULA_PINK[9].toLowerCase()) return 'pink'
+  for (const scale of RADIX_ACCENT_SCALES) {
+    if (normalizedAccent === radixColor(variant, scale, 9).toLowerCase()) {
+      return scale
+    }
+  }
+  const parsedAccent = parseHexColor(normalizedAccent)
+  if (!parsedAccent) return fallback || defaultRadixAccentColor(variant)
+
+  let bestScale: RadixAccentScale | null = null
+  let bestDistance = Number.POSITIVE_INFINITY
+  for (const scale of RADIX_ACCENT_SCALES) {
+    const parsedScale = parseHexColor(radixColor(variant, scale, 9))
+    if (!parsedScale) continue
+    const distance = colorDistance(parsedAccent, parsedScale)
+    if (distance < bestDistance) {
+      bestDistance = distance
+      bestScale = scale
+    }
+  }
+  return bestScale ?? fallback ?? defaultRadixAccentColor(variant)
+}
+
+function defaultRadixAccentColor(
+  variant: DesktopThemeVariant,
+): DesktopThemeRadixAccentColor {
+  return variant === 'dark' ? 'pink' : 'blue'
+}
+
+function isRadixAccentColor(
+  value: unknown,
+): value is DesktopThemeRadixAccentColor {
+  return (
+    typeof value === 'string' &&
+    (RADIX_ACCENT_COLORS as readonly string[]).includes(value)
+  )
+}
+
+function isRadixGrayColor(
+  value: unknown,
+): value is DesktopThemeRadixGrayColor {
+  return (
+    typeof value === 'string' &&
+    (RADIX_GRAY_COLORS as readonly string[]).includes(value)
+  )
+}
+
+function isRadixPanelBackground(
+  value: unknown,
+): value is DesktopThemeRadixPanelBackground {
+  return (
+    typeof value === 'string' &&
+    (RADIX_PANEL_BACKGROUNDS as readonly string[]).includes(value)
+  )
+}
+
+function isRadixRadius(value: unknown): value is DesktopThemeRadixRadius {
+  return (
+    typeof value === 'string' &&
+    (RADIX_RADII as readonly string[]).includes(value)
+  )
+}
+
+function isRadixScaling(value: unknown): value is DesktopThemeRadixScaling {
+  return (
+    typeof value === 'string' &&
+    (RADIX_SCALINGS as readonly string[]).includes(value)
+  )
+}
+
+function parseHexColor(
+  value: string,
+): { red: number; green: number; blue: number } | null {
+  const match = /^#?([0-9a-f]{6})$/i.exec(value)
+  if (!match) return null
+  const hex = match[1]
+  return {
+    red: Number.parseInt(hex.slice(0, 2), 16),
+    green: Number.parseInt(hex.slice(2, 4), 16),
+    blue: Number.parseInt(hex.slice(4, 6), 16),
+  }
+}
+
+function colorDistance(
+  left: { red: number; green: number; blue: number },
+  right: { red: number; green: number; blue: number },
+): number {
+  return (
+    (left.red - right.red) ** 2 +
+    (left.green - right.green) ** 2 +
+    (left.blue - right.blue) ** 2
+  )
 }
 
 function normalizeFontSize(

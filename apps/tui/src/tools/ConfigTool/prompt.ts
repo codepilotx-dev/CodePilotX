@@ -72,6 +72,7 @@ ${modelSection}
 - Enable vim mode: { "setting": "editorMode", "value": "vim" }
 - Enable verbose: { "setting": "verbose", "value": true }
 - Change model: { "setting": "model", "value": "deep" }
+- Change plan execution model: { "setting": "planExecutionModel", "value": "default" }
 - Change permission mode: { "setting": "permissions.defaultMode", "value": "plan" }
 `
 }
@@ -85,9 +86,11 @@ function generateModelSection(): string {
     })
     return `## Model
 - model - Override the default model. Available options:
+- planExecutionModel - Model used after approving a plan for execution. Available options match model.
 ${lines.join('\n')}`
   } catch {
     return `## Model
-- model - Override the default model (fast, default, deep, plan, or full model ID)`
+- model - Override the default model (fast, default, deep, plan, or full model ID)
+- planExecutionModel - Model used after approving a plan for execution (fast, default, deep, or full model ID)`
   }
 }

@@ -376,6 +376,10 @@ export const SettingsSchema = lazySchema(() =>
         .string()
         .optional()
         .describe('Override the default model used by CodePilotX'),
+      planExecutionModel: z
+        .string()
+        .optional()
+        .describe('Model used after a plan is approved for execution'),
       provider: z
         .string()
         .min(1)

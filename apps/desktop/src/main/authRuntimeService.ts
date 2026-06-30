@@ -7,6 +7,7 @@ import {
 import type {
   DesktopAuthStatus,
   DesktopRuntimeStatus,
+  DesktopToolchainDiagnosticReport,
 } from '../shared/types.js'
 import type { DesktopAgentRuntimePreference } from './agentRuntime.js'
 
@@ -28,6 +29,7 @@ export async function getRuntimeStatus(options: {
   configDirectoryPath: string
   runtimePreference: DesktopAgentRuntimePreference
   runtimeSelectionSource: 'default' | 'env'
+  toolchainStatus: DesktopToolchainDiagnosticReport
 }): Promise<DesktopRuntimeStatus> {
   const runtimeKind =
     options.runtimePreference === 'subprocess'
@@ -43,6 +45,12 @@ export async function getRuntimeStatus(options: {
       agentExecutableExists: fileStat.isFile(),
       subprocessFallbackAvailable: fileStat.isFile(),
       configDirectoryPath: options.configDirectoryPath,
+      toolchainEnabled: options.toolchainStatus.enabled,
+      toolchainRoot: options.toolchainStatus.root,
+      managedToolchainRoot: options.toolchainStatus.managedRoot,
+      packagedToolchainRoot: options.toolchainStatus.packagedRoot,
+      toolchainPathEntries: options.toolchainStatus.pathEntries,
+      toolchainBinaries: options.toolchainStatus.binaries,
     }
   } catch {
     return {
@@ -53,6 +61,12 @@ export async function getRuntimeStatus(options: {
       agentExecutableExists: false,
       subprocessFallbackAvailable: false,
       configDirectoryPath: options.configDirectoryPath,
+      toolchainEnabled: options.toolchainStatus.enabled,
+      toolchainRoot: options.toolchainStatus.root,
+      managedToolchainRoot: options.toolchainStatus.managedRoot,
+      packagedToolchainRoot: options.toolchainStatus.packagedRoot,
+      toolchainPathEntries: options.toolchainStatus.pathEntries,
+      toolchainBinaries: options.toolchainStatus.binaries,
     }
   }
 }

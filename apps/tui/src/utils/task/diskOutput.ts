@@ -9,6 +9,7 @@ import {
 } from 'fs/promises'
 import { join } from 'path'
 import { getSessionId } from '../../bootstrap/state.js'
+import { sanitizePathComponent } from '../pathComponent.js'
 import { getErrnoCode } from '../errors.js'
 import { readFileRange, tailFile } from '../fsOperations.js'
 import { logError } from '../log.js'
@@ -49,7 +50,7 @@ export const MAX_TASK_OUTPUT_BYTES_DISPLAY = '5GB'
 let _taskOutputDir: string | undefined
 export function getTaskOutputDir(): string {
   if (_taskOutputDir === undefined) {
-    _taskOutputDir = join(getProjectTempDir(), getSessionId(), 'tasks')
+    _taskOutputDir = join(getProjectTempDir(), sanitizePathComponent(getSessionId()), 'tasks')
   }
   return _taskOutputDir
 }
@@ -70,7 +71,7 @@ async function ensureOutputDir(): Promise<void> {
  * Get the output file path for a task
  */
 export function getTaskOutputPath(taskId: string): string {
-  return join(getTaskOutputDir(), `${taskId}.output`)
+  return join(getTaskOutputDir(), `${sanitizePathComponent(taskId)}.output`)
 }
 
 // Tracks fire-and-forget promises (initTaskOutput, initTaskOutputAsSymlink,

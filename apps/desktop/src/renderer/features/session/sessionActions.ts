@@ -1,6 +1,9 @@
 import { desktopClient } from '../../services/desktopClient.js'
 ﻿import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 import type {
+  DesktopPermissionDecision,
+  LocalRouterMode,
+  ModelProviderID,
   DesktopPermissionMode,
   DesktopPermissionRequest,
   DesktopSessionMetadataPatch,
@@ -25,7 +28,14 @@ import {
 
 export type SessionSettingsSnapshot = {
   permissionMode: DesktopPermissionMode
+  planModeActive: boolean
+  localRouterMode: LocalRouterMode
+  providerID: ModelProviderID
+  providerBaseURL: string
+  debugConversationDump: boolean
   model: string
+  planExecutionModel: string
+  reviewModel: string
   smallFastModel: string
   fastModel: string
   defaultModel: string
@@ -35,6 +45,8 @@ export type SessionSettingsSnapshot = {
   systemPrompt: string
   appendSystemPrompt: string
   additionalDirectories: string
+  installCodexDependencies: boolean
+  rustSearchAndDiffKernels: boolean
 }
 
 export type SessionActionContext = {
@@ -72,8 +84,15 @@ export async function createSessionForWorkspaceAction(
   try {
     const session = await desktopClient.createSession({
       workspacePath: target?.path,
+      localRouterMode: settings.localRouterMode,
       permissionMode: settings.permissionMode,
+      planModeActive: settings.planModeActive,
+      providerID: settings.providerID,
+      providerBaseURL: normalizeOptionalText(settings.providerBaseURL),
+      debugConversationDump: settings.debugConversationDump,
       model: normalizeOptionalText(settings.model),
+      planExecutionModel: normalizeOptionalText(settings.planExecutionModel),
+      reviewModel: normalizeOptionalText(settings.reviewModel),
       smallFastModel: normalizeOptionalText(settings.smallFastModel),
       fastModel: normalizeOptionalText(settings.fastModel),
       defaultModel: normalizeOptionalText(settings.defaultModel),
@@ -85,6 +104,8 @@ export async function createSessionForWorkspaceAction(
       additionalDirectories: parseAdditionalDirectories(
         settings.additionalDirectories,
       ),
+      installCodexDependencies: settings.installCodexDependencies,
+      rustSearchAndDiffKernels: settings.rustSearchAndDiffKernels,
     })
     const workspace = session.workspace
     const nextView = {
@@ -110,8 +131,10 @@ export async function createSessionForWorkspaceAction(
         workspacePath: workspace.path,
         standalone: session.standalone,
         permissionMode: settings.permissionMode,
+        planModeActive: settings.planModeActive,
+        localRouterMode: settings.localRouterMode,
         model: normalizeOptionalText(settings.model) ?? null,
-        fallbackModel: null,
+        reviewModel: normalizeOptionalText(settings.reviewModel) ?? null,
         thinkingMode: settings.thinkingMode,
         hasSystemPrompt: Boolean(normalizeOptionalText(settings.systemPrompt)),
         hasAppendSystemPrompt: Boolean(
@@ -138,7 +161,7 @@ export async function submitSessionMessageAction(
   sessionId: string | null,
   input: DesktopUserMessageInput,
   canSubmit: boolean,
-  model: string,
+  settings: SessionSettingsSnapshot,
   setInput: (value: string) => void,
 ): Promise<void> {
   const trimmed = input.text.trim()
@@ -152,7 +175,13 @@ export async function submitSessionMessageAction(
         text: trimmed,
         attachments,
       },
-      normalizeOptionalText(model),
+      {
+        providerID: settings.providerID,
+        providerBaseURL: normalizeOptionalText(settings.providerBaseURL),
+        model: normalizeOptionalText(settings.model),
+        debugConversationDump: settings.debugConversationDump,
+        localRouterMode: settings.localRouterMode === 'off' ? undefined : settings.localRouterMode,
+      },
     )
   } catch (error) {
     onErrorRef.current(errorMessageOf(error))
@@ -180,6 +209,10 @@ export async function decidePermissionAction(
   behavior: 'allow' | 'deny',
   alwaysAllow = false,
   updatedInput?: Record<string, unknown>,
+  decisionExtras?: Pick<
+    DesktopPermissionDecision,
+    'planExecutionModel' | 'savePlanExecutionModel' | 'rememberOptionId'
+  >,
 ): Promise<void> {
   if (!sessionId) return
   updateSessionView(sessionId, view => ({
@@ -194,6 +227,7 @@ export async function decidePermissionAction(
       message: behavior === 'deny' ? '在桌面端界面中拒绝' : undefined,
       alwaysAllow,
       updatedInput,
+      ...decisionExtras,
     })
   } catch (error) {
     onErrorRef.current(errorMessageOf(error))
@@ -302,6 +336,87 @@ export async function updateSessionMetadataAction(
 
   applySessionView(createEmptySessionView(), context.viewSetters)
   return { nextActiveSession: null, nextWorkspace: null }
+}
+
+export async function setSessionPermissionModeAction(
+  context: SessionActionContext,
+  sessions: SessionListItem[],
+  targetSessionId: string,
+  mode: DesktopPermissionMode,
+): Promise<SessionListItem | null> {
+  try {
+    const snapshot = await desktopClient.setSessionPermissionMode(
+      targetSessionId,
+      mode,
+    )
+    const updatedItem = snapshot.item
+    context.setSessions(
+      sessions.map(session =>
+        session.id === targetSessionId ? updatedItem : session,
+      ),
+    )
+    if (targetSessionId === context.activeSessionIdRef.current) {
+      context.setSessionStatus(updatedItem.status)
+    }
+    return updatedItem
+  } catch (error) {
+    context.onErrorRef.current(errorMessageOf(error))
+    return null
+  }
+}
+
+export async function setSessionLocalRouterModeAction(
+  context: SessionActionContext,
+  sessions: SessionListItem[],
+  targetSessionId: string,
+  mode: LocalRouterMode,
+): Promise<SessionListItem | null> {
+  try {
+    const snapshot = await desktopClient.setSessionLocalRouterMode(
+      targetSessionId,
+      mode,
+    )
+    const updatedItem = snapshot.item
+    context.setSessions(
+      sessions.map(session =>
+        session.id === targetSessionId ? updatedItem : session,
+      ),
+    )
+    if (targetSessionId === context.activeSessionIdRef.current) {
+      context.setSessionStatus(updatedItem.status)
+    }
+    return updatedItem
+  } catch (error) {
+    context.onErrorRef.current(errorMessageOf(error))
+    return null
+  }
+}
+
+export async function setSessionPlanModeActiveAction(
+  context: SessionActionContext,
+  sessions: SessionListItem[],
+  targetSessionId: string,
+  active: boolean,
+): Promise<SessionListItem | null> {
+  try {
+    const snapshot = await desktopClient.setSessionPlanModeActive(
+      targetSessionId,
+      active,
+    )
+    const updatedItem = snapshot.item
+    context.setSessions(
+      sessions.map(session =>
+        session.id === targetSessionId ? updatedItem : session,
+      ),
+    )
+    if (targetSessionId === context.activeSessionIdRef.current) {
+      context.setSessionStatus(updatedItem.status)
+    }
+    return updatedItem
+  } catch (error) {
+    context.onErrorRef.current(errorMessageOf(error))
+    return null
+  }
 }
 
 export function selectSessionAction(

@@ -3243,10 +3243,54 @@ function getPlanModeInstructions(attachment: {
   if (attachment.isSubAgent) {
     return getPlanModeV2SubAgentInstructions(attachment)
   }
+  if (isDesktopProposedPlanModeEnabled()) {
+    return getDesktopProposedPlanModeInstructions(attachment)
+  }
   if (attachment.reminderType === 'sparse') {
     return getPlanModeV2SparseInstructions(attachment)
   }
   return getPlanModeV2Instructions(attachment)
+}
+
+function isDesktopProposedPlanModeEnabled(): boolean {
+  return process.env.CODEPILOTX_DESKTOP_PROPOSED_PLAN === '1'
+}
+
+function getDesktopProposedPlanModeInstructions(attachment: {
+  reminderType: 'full' | 'sparse'
+  planFilePath: string
+  planExists: boolean
+}): UserMessage[] {
+  const content =
+    attachment.reminderType === 'sparse'
+      ? `Plan mode is still active. Continue using read-only exploration and ${ASK_USER_QUESTION_TOOL_NAME} for material clarifications. When the plan is complete, output exactly one complete <proposed_plan>...</proposed_plan> block. Do not call ${ExitPlanModeV2Tool.name}; the Desktop app will save the proposed plan to ${attachment.planFilePath} and ask the user for approval.`
+      : `Plan mode is active. The user does not want implementation yet. You MUST NOT edit files, run non-read-only tools, change configuration, commit, or otherwise mutate the workspace.
+
+Use read-only exploration to understand the request and the codebase. Use ${ASK_USER_QUESTION_TOOL_NAME} only for material clarifications or tradeoff decisions that cannot be answered from the repository.
+
+When the plan is decision-complete, output the final plan inside exactly one complete XML block:
+
+<proposed_plan>
+# Title
+
+## Summary
+...
+
+## Key Changes
+...
+
+## Test Plan
+...
+
+## Assumptions
+...
+</proposed_plan>
+
+Do not call ${ExitPlanModeV2Tool.name}. Do not write the plan file yourself. The Desktop app will extract the <proposed_plan> block, save it to ${attachment.planFilePath}, and show the user the approval UI.`
+
+  return wrapMessagesInSystemReminder([
+    createUserMessage({ content, isMeta: true }),
+  ])
 }
 
 // --
@@ -3453,7 +3497,7 @@ Start by quickly scanning a few key files to form an initial understanding of th
 ### Asking Good Questions
 
 - Never ask what you could find out by reading the code
-- Batch related questions together (use multi-question ${ASK_USER_QUESTION_TOOL_NAME} calls)
+- Respect the ${ASK_USER_QUESTION_TOOL_NAME} question limit. When only one question is allowed, ask the highest-priority question first and use later rounds for follow-ups.
 - Focus on things only the user can answer: requirements, preferences, tradeoffs, edge case priorities
 - Scale depth to the task — a vague feature request needs many rounds; a focused bug fix may need one or none
 
@@ -5234,6 +5278,8 @@ export function createToolUseSummaryMessage(
 export function ensureToolResultPairing(
   messages: (UserMessage | AssistantMessage)[],
 ): (UserMessage | AssistantMessage)[] {
+  messages = mergeAdjacentAssistantToolUseMessages(messages)
+
   const result: (UserMessage | AssistantMessage)[] = []
   let repaired = false
 
@@ -5557,6 +5603,207 @@ export function ensureToolResultPairing(
     )
   }
 
+  return result
+}
+
+type AnthropicMessageParamLike = {
+  role: string
+  content: unknown
+}
+
+type AnthropicContentBlockLike = {
+  type: string
+  [key: string]: unknown
+}
+
+export function ensureAnthropicToolResultPairing<
+  T extends AnthropicMessageParamLike,
+>(messages: T[]): T[] {
+  if (!messages.some(messageParamHasToolBlock)) {
+    return messages
+  }
+
+  const merged = mergeAdjacentAssistantToolUseMessageParams(messages)
+  const result: T[] = []
+
+  for (let i = 0; i < merged.length; i++) {
+    const message = merged[i]!
+    if (message.role !== 'assistant') {
+      const content = Array.isArray(message.content) ? message.content : null
+      if (content && result.at(-1)?.role !== 'assistant') {
+        const withoutOrphanedResults = content.filter(
+          block => block.type !== 'tool_result',
+        )
+        if (withoutOrphanedResults.length !== content.length) {
+          if (withoutOrphanedResults.length > 0) {
+            result.push({ ...message, content: withoutOrphanedResults })
+          }
+          continue
+        }
+      }
+      result.push(message)
+      continue
+    }
+
+    const assistantContent = contentBlocksForMessageParam(message)
+    const toolUseIds = assistantContent
+      .filter(block => block.type === 'tool_use')
+      .map(block => (block as ToolUseBlockParam).id)
+
+    result.push(message)
+    if (toolUseIds.length === 0) continue
+
+    const nextMessage = merged[i + 1]
+    const nextContent =
+      nextMessage?.role === 'user' && Array.isArray(nextMessage.content)
+        ? nextMessage.content
+        : null
+    const existingToolResultIds = new Set(
+      (nextContent ?? [])
+        .filter(block => block.type === 'tool_result')
+        .map(block => (block as ToolResultBlockParam).tool_use_id),
+    )
+    const toolUseIdSet = new Set(toolUseIds)
+    const missingIds = toolUseIds.filter(id => !existingToolResultIds.has(id))
+
+    if (nextMessage?.role !== 'user') {
+      if (missingIds.length > 0) {
+          result.push({
+            role: 'user',
+            content: syntheticToolResultBlocks(missingIds),
+          } as unknown as T)
+      }
+      continue
+    }
+
+    if (!nextContent) {
+      if (missingIds.length > 0) {
+        result.push(nextMessage)
+        result.push({
+          role: 'user',
+          content: syntheticToolResultBlocks(missingIds),
+        } as unknown as T)
+      }
+      continue
+    }
+
+    const patchedContent = hoistToolResults([
+      ...syntheticToolResultBlocks(missingIds),
+      ...nextContent.filter(
+        block =>
+          block.type !== 'tool_result' ||
+          toolUseIdSet.has(
+            (block as unknown as ToolResultBlockParam).tool_use_id,
+          ),
+      ),
+    ] as ContentBlockParam[])
+    if (patchedContent.length > 0) {
+      result.push({ ...nextMessage, content: patchedContent } as T)
+    }
+    i++
+  }
+
+  return result
+}
+
+function messageParamHasToolBlock(message: AnthropicMessageParamLike): boolean {
+  if (!Array.isArray(message.content)) return false
+  return message.content.some(
+    block => block.type === 'tool_use' || block.type === 'tool_result',
+  )
+}
+
+function mergeAdjacentAssistantToolUseMessageParams<
+  T extends AnthropicMessageParamLike,
+>(messages: T[]): T[] {
+  const result: T[] = []
+  for (let i = 0; i < messages.length; ) {
+    const message = messages[i]!
+    if (message.role !== 'assistant') {
+      result.push(message)
+      i++
+      continue
+    }
+
+    const run = [message]
+    let hasToolUse = contentBlocksForMessageParam(message).some(
+      block => block.type === 'tool_use',
+    )
+    let j = i + 1
+    while (messages[j]?.role === 'assistant') {
+      const next = messages[j]!
+      run.push(next)
+      hasToolUse ||= contentBlocksForMessageParam(next).some(
+        block => block.type === 'tool_use',
+      )
+      j++
+    }
+
+    if (run.length > 1 && hasToolUse) {
+      result.push({
+        ...run[0]!,
+        content: run.flatMap(contentBlocksForMessageParam),
+      })
+    } else {
+      result.push(...run)
+    }
+    i = j
+  }
+  return result
+}
+
+function contentBlocksForMessageParam(
+  message: AnthropicMessageParamLike,
+): ContentBlockParam[] {
+  return (typeof message.content === 'string'
+    ? message.content
+      ? [{ type: 'text', text: message.content }]
+      : []
+    : Array.isArray(message.content)
+      ? message.content
+      : []) as unknown as ContentBlockParam[]
+}
+
+function syntheticToolResultBlocks(ids: string[]): ToolResultBlockParam[] {
+  return ids.map(id => ({
+    type: 'tool_result' as const,
+    tool_use_id: id,
+    content: SYNTHETIC_TOOL_RESULT_PLACEHOLDER,
+    is_error: true,
+  }))
+}
+
+function mergeAdjacentAssistantToolUseMessages(
+  messages: (UserMessage | AssistantMessage)[],
+): (UserMessage | AssistantMessage)[] {
+  const result: (UserMessage | AssistantMessage)[] = []
+  for (let i = 0; i < messages.length; ) {
+    const message = messages[i]!
+    if (message.type !== 'assistant') {
+      result.push(message)
+      i++
+      continue
+    }
+
+    const run = [message]
+    let hasToolUse = message.message.content.some(
+      block => block.type === 'tool_use',
+    )
+    let j = i + 1
+    while (messages[j]?.type === 'assistant') {
+      const next = messages[j] as AssistantMessage
+      run.push(next)
+      hasToolUse ||= next.message.content.some(block => block.type === 'tool_use')
+      j++
+    }
+
+    if (run.length > 1 && hasToolUse) {
+      result.push(run.slice(1).reduce(mergeAssistantMessages, run[0]!))
+    } else {
+      result.push(...run)
+    }
+    i = j
+  }
   return result
 }
 

@@ -687,7 +687,6 @@ export type Options = {
   isNonInteractiveSession: boolean
   extraToolSchemas?: BetaToolUnion[]
   maxOutputTokensOverride?: number
-  fallbackModel?: string
   onStreamingFallback?: () => void
   querySource: QuerySource
   agents: AgentDefinition[]
@@ -933,7 +932,6 @@ export async function* executeNonStreamingRequest(
   },
   retryOptions: {
     model: string
-    fallbackModel?: string
     thinkingConfig: ThinkingConfig
     fastMode?: boolean
     signal: AbortSignal
@@ -1006,7 +1004,6 @@ export async function* executeNonStreamingRequest(
     },
     {
       model: retryOptions.model,
-      fallbackModel: undefined,
       thinkingConfig: retryOptions.thinkingConfig,
       ...(isFastModeEnabled() && { fastMode: retryOptions.fastMode }),
       signal: retryOptions.signal,
@@ -1947,7 +1944,6 @@ async function* queryModel(
       },
       {
         model: options.model,
-        fallbackModel: undefined,
         thinkingConfig,
         ...(isFastModeEnabled() ? { fastMode: isFastMode } : false),
         signal,
@@ -2662,7 +2658,6 @@ async function* queryModel(
         { model: options.model, source: options.querySource },
         {
           model: options.model,
-          fallbackModel: undefined,
           thinkingConfig,
           ...(isFastModeEnabled() && { fastMode: isFastMode }),
           signal,
@@ -2753,7 +2748,6 @@ async function* queryModel(
           { model: options.model, source: options.querySource },
           {
             model: options.model,
-            fallbackModel: undefined,
             thinkingConfig,
             ...(isFastModeEnabled() && { fastMode: isFastMode }),
             signal,

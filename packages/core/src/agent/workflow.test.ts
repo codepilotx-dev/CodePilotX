@@ -91,6 +91,29 @@ test('partial runtime message maps to an updated streaming agent_message item', 
   })
 })
 
+test('proposed plan runtime event maps to a proposed_plan item', () => {
+  const events = agentRuntimeEventToThreadEvents(
+    {
+      type: 'proposed_plan',
+      sessionId: 'session-1',
+      text: '# Plan\n\n- Step',
+      streaming: false,
+    },
+    ids,
+  )
+
+  expect(events).toHaveLength(1)
+  expect(events[0]).toMatchObject({
+    type: 'item.completed',
+    item: {
+      id: 'proposed_plan-final',
+      type: 'proposed_plan',
+      status: 'completed',
+      text: '# Plan\n\n- Step',
+    },
+  })
+})
+
 test('tool start and result map to tool item lifecycle events', () => {
   const started = agentRuntimeEventToThreadEvents(
     {
@@ -127,6 +150,48 @@ test('tool start and result map to tool item lifecycle events', () => {
       type: 'tool_result',
       status: 'completed',
       toolName: 'Read',
+    },
+  })
+})
+
+test('runtime tool events preserve upstream tool use ids', () => {
+  const started = agentRuntimeEventToThreadEvents(
+    {
+      type: 'tool_start',
+      sessionId: 'session-1',
+      toolName: 'AskUserQuestion',
+      summary: 'AskUserQuestion',
+      toolUseId: 'call-question-1',
+    },
+    ids,
+  )
+  const completed = agentRuntimeEventToThreadEvents(
+    {
+      type: 'tool_result',
+      sessionId: 'session-1',
+      toolName: 'AskUserQuestion',
+      summary: 'InputValidationError',
+      toolUseId: 'call-question-1',
+      isError: true,
+    },
+    ids,
+  )
+
+  expect(started[0]).toMatchObject({
+    type: 'item.started',
+    item: {
+      id: 'tool_call-call-question-1',
+      toolUseId: 'call-question-1',
+      metadata: { toolUseId: 'call-question-1' },
+    },
+  })
+  expect(completed[0]).toMatchObject({
+    type: 'item.completed',
+    item: {
+      id: 'tool_result-call-question-1',
+      toolUseId: 'call-question-1',
+      isError: true,
+      metadata: { toolUseId: 'call-question-1' },
     },
   })
 })
@@ -184,6 +249,69 @@ test('permission request preserves the existing request id', () => {
       id: 'permission_request-permission-123',
       type: 'permission_request',
       request: { requestId: 'permission-123' },
+    },
+  })
+})
+
+test('guardian review runtime events map to review lifecycle items', () => {
+  const started = agentRuntimeEventToThreadEvents(
+    {
+      type: 'guardian_review',
+      sessionId: 'session-1',
+      reviewId: 'review-1',
+      targetRequestId: 'permission-1',
+      status: 'in_progress',
+      action: {
+        type: 'command',
+        source: 'PowerShell',
+        command: 'echo ok',
+        cwd: 'D:/repo',
+      },
+    },
+    ids,
+  )
+  const completed = agentRuntimeEventToThreadEvents(
+    {
+      type: 'guardian_review',
+      sessionId: 'session-1',
+      reviewId: 'review-1',
+      targetRequestId: 'permission-1',
+      status: 'approved',
+      riskLevel: 'low',
+      userAuthorization: 'high',
+      rationale: 'The command is low risk.',
+      action: {
+        type: 'command',
+        source: 'PowerShell',
+        command: 'echo ok',
+        cwd: 'D:/repo',
+      },
+    },
+    ids,
+  )
+
+  expect(started[0]).toMatchObject({
+    type: 'item.started',
+    item: {
+      id: 'guardian_review-review-1',
+      type: 'guardian_review',
+      status: 'in_progress',
+      reviewId: 'review-1',
+      targetRequestId: 'permission-1',
+      reviewStatus: 'in_progress',
+    },
+  })
+  expect(completed[0]).toMatchObject({
+    type: 'item.completed',
+    item: {
+      id: 'guardian_review-review-1',
+      type: 'guardian_review',
+      status: 'completed',
+      reviewId: 'review-1',
+      reviewStatus: 'approved',
+      riskLevel: 'low',
+      userAuthorization: 'high',
+      rationale: 'The command is low risk.',
     },
   })
 })

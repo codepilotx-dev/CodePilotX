@@ -8,6 +8,7 @@ import {
   readDesktopStoredSettings,
   saveDesktopStoredSettings,
 } from './desktopSettings.js'
+import { mergeDesktopBrowserAllowedSites } from '../shared/settingsSchema.js'
 import {
   deleteProviderApiKey,
   fetchProviderBalance,
@@ -24,6 +25,17 @@ import {
   cancelCopilotLogin,
 } from './copilotAuthService.js'
 import {
+  cloneGithubRepository,
+  getGithubAuthStatus,
+  getGithubProfileOverview,
+  listGithubRepositories,
+  logoutGithub,
+  pollGithubLogin,
+  clearGithubUserStatus,
+  setGithubUserStatus,
+  startGithubLogin,
+} from './githubService.js'
+import {
   listDesktopMcpServers,
   removeDesktopMcpServer,
   saveDesktopMcpServer,
@@ -33,6 +45,18 @@ import {
   readDesktopThemeSettings,
   saveDesktopThemeSettings,
 } from './themeSettings.js'
+import {
+  deleteProjectMemory,
+  listProjectMemories,
+  listProjectMemoryRecalls,
+  readProjectMemory,
+  resetProjectMemory,
+  saveProjectMemory,
+} from './desktopMemoryService.js'
+import {
+  installDesktopSkill,
+  listDesktopSkillCatalog,
+} from './skillsCatalogService.js'
 import type { DesktopApiHandlers } from './ipc.js'
 import { createDesktopApiHandlers } from './ipc.js'
 import { desktopAutoUpdater } from './autoUpdater.js'
@@ -43,15 +67,19 @@ import {
 } from './desktopComposerAttachments.js'
 import { readOptionalWorkspaceFile } from './optionalWorkspaceFile.js'
 import type { DesktopWindowService } from './windowService.js'
+import type { DesktopBrowserService } from './browserService.js'
 import {
   checkoutWorkspaceBranch,
   chooseWorkspace,
   commitWorkspaceChanges,
   createPullRequest,
   createWorkspaceBranch,
+  discardWorkspaceChanges,
+  applyWorkspaceReviewOperation,
   getWorkspaceGitStatus,
   getWorkspaceContext,
   getWorkspaceDiff,
+  getWorkspaceReviewDiff,
   listOpenTargets,
   listWorkspaceFiles,
   openPathWithDefaultTarget,
@@ -60,30 +88,45 @@ import {
   readWorkspaceFile,
   registerAllowedWorkspaces,
 } from './workspaceService.js'
+import type { DebugToolProbeService } from './debugToolProbeService.js'
 import type {
   CreateDesktopSessionOptions,
   CreateDesktopSessionResult,
   DesktopBuiltinPlugin,
   DesktopPermissionDecision,
+  DesktopPermissionMode,
+  DesktopSlashCommandSuggestion,
   DesktopSessionMetadataPatch,
   DesktopSessionSnapshot,
   DesktopStoredSettings,
+  DesktopToolchainDiagnosticReport,
+  DesktopToolchainInstallResult,
   DesktopUserMessageInput,
+  LocalRouterMode,
+  SaveSessionReviewCommentInput,
+  SessionReviewCommentInput,
 } from '../shared/types.js'
 
 export type DesktopApiHandlerDependencies = {
   windowService: DesktopWindowService
+  browserService: DesktopBrowserService
+  debugToolProbeService: DebugToolProbeService
   getRuntimeOptions(): {
     agentExecutablePath: string
     configDirectoryPath: string
     runtimePreference: DesktopAgentRuntimePreference
     runtimeSelectionSource: 'default' | 'env'
   }
+  getToolchainStatus(enabled: boolean): Promise<DesktopToolchainDiagnosticReport>
+  diagnoseToolchain(enabled: boolean): Promise<DesktopToolchainDiagnosticReport>
+  reinstallToolchain(enabled: boolean): Promise<DesktopToolchainInstallResult>
+  deleteToolchain(enabled: boolean): Promise<DesktopToolchainInstallResult>
   listBuiltinPlugins(): Promise<DesktopBuiltinPlugin[]>
   setBuiltinPluginEnabled(
     pluginId: string,
     enabled: boolean,
   ): Promise<DesktopBuiltinPlugin>
+  listSlashCommands(workspacePath?: string): Promise<DesktopSlashCommandSuggestion[]>
   createSession(
     options: CreateDesktopSessionOptions,
   ): Promise<CreateDesktopSessionResult>
@@ -94,6 +137,27 @@ export type DesktopApiHandlerDependencies = {
   updateSessionMetadata(
     sessionId: string,
     patch: DesktopSessionMetadataPatch,
+  ): Promise<DesktopSessionSnapshot>
+  saveSessionReviewComment(
+    input: SaveSessionReviewCommentInput,
+  ): Promise<DesktopSessionSnapshot>
+  resolveSessionReviewComment(
+    input: SessionReviewCommentInput,
+  ): Promise<DesktopSessionSnapshot>
+  deleteSessionReviewComment(
+    input: SessionReviewCommentInput,
+  ): Promise<DesktopSessionSnapshot>
+  setSessionPermissionMode(
+    sessionId: string,
+    mode: DesktopPermissionMode,
+  ): Promise<DesktopSessionSnapshot>
+  setSessionPlanModeActive(
+    sessionId: string,
+    active: boolean,
+  ): Promise<DesktopSessionSnapshot>
+  setSessionLocalRouterMode(
+    sessionId: string,
+    mode: LocalRouterMode,
   ): Promise<DesktopSessionSnapshot>
   sendUserMessage(
     sessionId: string,
@@ -115,19 +179,67 @@ export function buildDesktopApiHandlers(
   const { windowService } = dependencies
   return createDesktopApiHandlers({
     getAuthStatus: async () => getAuthStatus(),
-    getRuntimeStatus: async () => getRuntimeStatus(dependencies.getRuntimeOptions()),
+    getRuntimeStatus: async () => {
+      const settings = await readDesktopStoredSettings()
+      return getRuntimeStatus({
+        ...dependencies.getRuntimeOptions(),
+        toolchainStatus: await dependencies.getToolchainStatus(
+          settings.installCodexDependencies,
+        ),
+      })
+    },
+    diagnoseDesktopToolchain: async () => {
+      const settings = await readDesktopStoredSettings()
+      return dependencies.diagnoseToolchain(settings.installCodexDependencies)
+    },
+    reinstallDesktopToolchain: async () => {
+      const settings = await readDesktopStoredSettings()
+      return dependencies.reinstallToolchain(settings.installCodexDependencies)
+    },
+    deleteDesktopToolchain: async () => {
+      const settings = await readDesktopStoredSettings()
+      return dependencies.deleteToolchain(settings.installCodexDependencies)
+    },
     getDesktopSettings: async () => {
       const settings = await readDesktopStoredSettings()
       registerRecentWorkspaces(settings)
       return settings
     },
     saveDesktopSettings: async (settings: DesktopStoredSettings) => {
-      const savedSettings = await saveDesktopStoredSettings(settings)
+      const currentSettings = await readDesktopStoredSettings()
+      const savedSettings = await saveDesktopStoredSettings({
+        ...settings,
+        browserAllowedSites: mergeDesktopBrowserAllowedSites(
+          currentSettings.browserAllowedSites,
+          settings.browserAllowedSites,
+        ),
+      })
       registerRecentWorkspaces(savedSettings)
       return savedSettings
     },
+    listProjectMemories: async workspacePath =>
+      listProjectMemories(workspacePath),
+    readProjectMemory: async (workspacePath, relativePath) =>
+      readProjectMemory(workspacePath, undefined, relativePath),
+    saveProjectMemory: async input => saveProjectMemory(input),
+    deleteProjectMemory: async input => deleteProjectMemory(input),
+    resetProjectMemory: async input => resetProjectMemory(input),
+    listProjectMemoryRecalls: async workspacePath =>
+      listProjectMemoryRecalls(workspacePath),
+    getBrowserState: dependencies.browserService.getState,
+    openBrowser: dependencies.browserService.open,
+    navigateBrowser: dependencies.browserService.navigate,
+    reloadBrowser: dependencies.browserService.reload,
+    goBackBrowser: dependencies.browserService.goBack,
+    goForwardBrowser: dependencies.browserService.goForward,
+    closeBrowser: dependencies.browserService.close,
+    setBrowserBounds: dependencies.browserService.setBounds,
+    clearBrowserAllowedSites: dependencies.browserService.clearAllowedSites,
     listBuiltinPlugins: dependencies.listBuiltinPlugins,
     setBuiltinPluginEnabled: dependencies.setBuiltinPluginEnabled,
+    listSkillsCatalog: listDesktopSkillCatalog,
+    installSkill: installDesktopSkill,
+    listSlashCommands: dependencies.listSlashCommands,
     listMcpServers: listDesktopMcpServers,
     saveMcpServer: saveDesktopMcpServer,
     removeMcpServer: removeDesktopMcpServer,
@@ -145,6 +257,15 @@ export function buildDesktopApiHandlers(
     startCopilotLogin,
     pollCopilotLogin,
     cancelCopilotLogin,
+    getGithubAuthStatus,
+    startGithubLogin,
+    pollGithubLogin,
+    logoutGithub,
+    listGithubRepositories,
+    getGithubProfileOverview,
+    setGithubUserStatus,
+    clearGithubUserStatus,
+    cloneGithubRepository,
     chooseWorkspace,
     openWorkspace,
     getWorkspaceContext,
@@ -153,7 +274,10 @@ export function buildDesktopApiHandlers(
     createWorkspaceBranch,
     commitWorkspaceChanges,
     pushWorkspaceBranch,
+    discardWorkspaceChanges,
     createPullRequest,
+    getWorkspaceReviewDiff,
+    applyWorkspaceReviewOperation,
     listWorkspaceFiles,
     readWorkspaceFile,
     readOptionalWorkspaceFile: (workspacePath, filePath) =>
@@ -169,6 +293,12 @@ export function buildDesktopApiHandlers(
     getActiveSessionId: dependencies.getActiveSessionId,
     setActiveSession: dependencies.setActiveSession,
     updateSessionMetadata: dependencies.updateSessionMetadata,
+    saveSessionReviewComment: dependencies.saveSessionReviewComment,
+    resolveSessionReviewComment: dependencies.resolveSessionReviewComment,
+    deleteSessionReviewComment: dependencies.deleteSessionReviewComment,
+    setSessionPermissionMode: dependencies.setSessionPermissionMode,
+    setSessionPlanModeActive: dependencies.setSessionPlanModeActive,
+    setSessionLocalRouterMode: dependencies.setSessionLocalRouterMode,
     readWorkflowEventLog: async () => windowService.readWorkflowEventLog(),
     openConfigFile: async () => openConfigFile(dependencies.getRuntimeOptions()),
     openExternalURL,
@@ -182,6 +312,7 @@ export function buildDesktopApiHandlers(
     isWindowMaximized: async () => windowService.isWindowMaximized(),
     newWindow: async () => windowService.newWindow(),
     openDevTools: async () => windowService.openDevTools(),
+    closeDevTools: async () => windowService.closeDevTools(),
     openSettings: async () => windowService.openSettings(),
     logOut: async () => windowService.logOut(),
     exitApp: async () => windowService.exitApp(),
@@ -193,6 +324,23 @@ export function buildDesktopApiHandlers(
     },
     quitAndInstall: async () => {
       desktopAutoUpdater?.quitAndInstall()
+    },
+    listDebugBuiltinTools: async () => {
+      return dependencies.debugToolProbeService.listBuiltinTools()
+    },
+    runDebugToolProbe: async (mode) => {
+      const { controller, runId } = dependencies.debugToolProbeService.startProbe(mode)
+      try {
+        const report = await dependencies.debugToolProbeService.runProbe(mode, controller.signal)
+        dependencies.debugToolProbeService.finishProbeRun(runId)
+        return report
+      } catch (err) {
+        dependencies.debugToolProbeService.finishProbeRun(runId)
+        throw err
+      }
+    },
+    cancelDebugToolProbe: async (runId) => {
+      dependencies.debugToolProbeService.cancelRun(runId)
     },
   })
 }

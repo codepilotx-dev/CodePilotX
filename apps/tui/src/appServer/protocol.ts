@@ -6,6 +6,9 @@ import type {
   TurnItem,
 } from '@codepilotx/core/agent/workflow.js'
 import type {
+  WorkflowSessionView,
+} from '@codepilotx/core/agent/workflowView.js'
+import type {
   ThreadRuntimeForkOptions,
   ThreadRuntimeResumeState,
   ThreadRuntimeSettings,
@@ -14,6 +17,8 @@ import type {
 export const APP_SERVER_PROTOCOL_VERSION = 1 as const
 
 export const THREAD_EVENT_NOTIFICATION = 'thread/event' as const
+export const SESSION_SNAPSHOT_UPDATED_NOTIFICATION =
+  'session/snapshot.updated' as const
 
 export const APP_SERVER_METHODS = [
   'initialize',
@@ -24,6 +29,7 @@ export const APP_SERVER_METHODS = [
   'turn/interrupt',
   'turn/rollback',
   'item/inject',
+  'session/getSnapshot',
 ] as const
 
 export type JsonRpcAppServerMethod = (typeof APP_SERVER_METHODS)[number]
@@ -33,7 +39,10 @@ export type JsonRpcInitializeResult = {
   capabilities: {
     transports: ['stdio']
     methods: readonly JsonRpcAppServerMethod[]
-    notifications: [typeof THREAD_EVENT_NOTIFICATION]
+    notifications: [
+      typeof THREAD_EVENT_NOTIFICATION,
+      typeof SESSION_SNAPSHOT_UPDATED_NOTIFICATION,
+    ]
   }
 }
 
@@ -90,8 +99,23 @@ export type JsonRpcItemInjectParams = {
   eventType?: 'item.started' | 'item.updated' | 'item.completed'
 }
 
+export type JsonRpcSessionGetSnapshotParams = {
+  threadId: ThreadId
+}
+
+export type JsonRpcSessionSnapshot = {
+  threadId: ThreadId
+  eventCount: number
+  updatedAt: string | null
+  view: WorkflowSessionView
+}
+
 export type JsonRpcThreadEventNotificationParams = {
   event: ThreadEvent
+}
+
+export type JsonRpcSessionSnapshotUpdatedNotificationParams = {
+  snapshot: JsonRpcSessionSnapshot
 }
 
 export type JsonRpcErrorData = {
@@ -106,7 +130,10 @@ export function createInitializeResult(): JsonRpcInitializeResult {
     capabilities: {
       transports: ['stdio'],
       methods: APP_SERVER_METHODS,
-      notifications: [THREAD_EVENT_NOTIFICATION],
+      notifications: [
+        THREAD_EVENT_NOTIFICATION,
+        SESSION_SNAPSHOT_UPDATED_NOTIFICATION,
+      ],
     },
   }
 }

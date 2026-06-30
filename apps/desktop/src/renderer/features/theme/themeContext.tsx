@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react'
 import type {
@@ -24,11 +25,24 @@ import {
 type DesktopThemeContextValue = {
   settings: DesktopThemeSettings
   resolvedVariant: DesktopThemeVariant
+  draft: DesktopThemeDraft
   setMode: (mode: DesktopThemeMode) => Promise<void>
   saveSettings: (settings: DesktopThemeSettings) => Promise<void>
 }
 
 const DesktopThemeContext = createContext<DesktopThemeContextValue | null>(null)
+
+type DesktopThemeDraft = {
+  settings: DesktopThemeSettings
+  resolvedVariant: DesktopThemeVariant
+  dirty: boolean
+  saving: boolean
+  setSettings: (settings: DesktopThemeSettings) => void
+  setMode: (mode: DesktopThemeMode) => void
+  save: () => Promise<DesktopThemeSettings>
+  reset: () => void
+  autoSave: () => void
+}
 
 const THEME_VARIABLES = [
   '--contrast',
@@ -39,6 +53,13 @@ const THEME_VARIABLES = [
   '--c-bg-row-hover',
   '--c-bg-chip-hover',
   '--c-bg-card',
+  '--c-popover-bg',
+  '--c-popover-border',
+  '--c-popover-divider',
+  '--glass-surface-bg',
+  '--glass-surface-border',
+  '--glass-surface-highlight',
+  '--glass-surface-blur',
   '--c-surface',
   '--c-ink',
   '--c-border',
@@ -69,6 +90,27 @@ const THEME_VARIABLES = [
   '--c-diff-added',
   '--c-diff-removed',
   '--c-skill',
+  '--surface-base',
+  '--surface-canvas',
+  '--surface-panel',
+  '--surface-raised',
+  '--surface-subtle',
+  '--border-subtle',
+  '--border-muted',
+  '--shadow-float',
+  '--shadow-raised',
+  '--shadow-resting',
+  '--c-chrome-bg',
+  '--c-sidebar-bg',
+  '--c-sidebar-active-bg',
+  '--c-sidebar-hover-bg',
+  '--c-workbench-bg',
+  '--c-panel-bg',
+  '--c-panel-elevated-bg',
+  '--c-panel-border',
+  '--c-panel-shadow',
+  '--c-panel-shadow-raised',
+  '--c-panel-shadow-soft',
   '--ff-sans',
   '--ff-mono',
   '--fs-ui',
@@ -79,6 +121,7 @@ const THEME_VARIABLES = [
   '--fs-14',
   '--fs-15',
   '--fs-16',
+  '--fs-18',
   '--fs-26',
 ]
 
@@ -90,8 +133,17 @@ export function DesktopThemeProvider({
   const [settings, setSettings] = useState<DesktopThemeSettings>(
     DEFAULT_DESKTOP_THEME_SETTINGS,
   )
+  const [draftSettings, setDraftSettings] = useState<DesktopThemeSettings>(
+    DEFAULT_DESKTOP_THEME_SETTINGS,
+  )
+  const draftSettingsRef = useRef(draftSettings)
+  draftSettingsRef.current = draftSettings
+  const [draftSaving, setDraftSaving] = useState(false)
   const [systemVariant, setSystemVariant] =
     useState<DesktopThemeVariant>(getSystemThemeVariant)
+  const [systemReduceMotion, setSystemReduceMotion] = useState(
+    getSystemReduceMotion,
+  )
 
   useEffect(() => {
     let mounted = true
@@ -99,12 +151,15 @@ export function DesktopThemeProvider({
       .getThemeSettings()
       .then(next => {
         if (mounted) {
-          setSettings(normalizeDesktopThemeSettings(next))
+          const normalized = normalizeDesktopThemeSettings(next)
+          setSettings(normalized)
+          setDraftSettings(normalized)
         }
       })
       .catch(() => {
         if (mounted) {
           setSettings(DEFAULT_DESKTOP_THEME_SETTINGS)
+          setDraftSettings(DEFAULT_DESKTOP_THEME_SETTINGS)
         }
       })
     return () => {
@@ -122,17 +177,31 @@ export function DesktopThemeProvider({
     return () => query.removeEventListener('change', handleChange)
   }, [])
 
+  useEffect(() => {
+    const query = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const handleChange = (): void => {
+      setSystemReduceMotion(query.matches)
+    }
+    handleChange()
+    query.addEventListener('change', handleChange)
+    return () => query.removeEventListener('change', handleChange)
+  }, [])
+
   const resolvedVariant =
     settings.mode === 'system' ? systemVariant : settings.mode
+  const draftResolvedVariant =
+    draftSettings.mode === 'system' ? systemVariant : draftSettings.mode
+  const draftDirty = !desktopThemeSettingsEqual(draftSettings, settings)
 
   useEffect(() => {
-    applyDesktopTheme(settings, resolvedVariant)
-  }, [resolvedVariant, settings])
+    applyDesktopTheme(settings, resolvedVariant, systemReduceMotion)
+  }, [resolvedVariant, settings, systemReduceMotion])
 
   const saveSettings = useCallback(
     async (nextSettings: DesktopThemeSettings): Promise<void> => {
       const normalized = normalizeDesktopThemeSettings(nextSettings)
       setSettings(normalized)
+      setDraftSettings(normalized)
       await desktopClient.saveThemeSettings(normalized)
     },
     [],
@@ -145,14 +214,77 @@ export function DesktopThemeProvider({
     [saveSettings, settings],
   )
 
+  const setDraftMode = useCallback((mode: DesktopThemeMode): void => {
+    setDraftSettings(current =>
+      normalizeDesktopThemeSettings({ ...current, mode }),
+    )
+  }, [])
+
+  const setDraftSettingsValue = useCallback(
+    (nextSettings: DesktopThemeSettings): void => {
+      setDraftSettings(normalizeDesktopThemeSettings(nextSettings))
+    },
+    [],
+  )
+
+  const saveDraft = useCallback(async (): Promise<DesktopThemeSettings> => {
+    const normalized = normalizeDesktopThemeSettings(draftSettingsRef.current)
+    setDraftSaving(true)
+    try {
+      await desktopClient.saveThemeSettings(normalized)
+      setSettings(normalized)
+      setDraftSettings(normalized)
+      return normalized
+    } finally {
+      setDraftSaving(false)
+    }
+  }, [])
+
+  const resetDraft = useCallback((): void => {
+    setDraftSettings(settings)
+  }, [settings])
+
+  const saveDraftRef = useRef(saveDraft)
+  saveDraftRef.current = saveDraft
+
+  const autoSave = useCallback(() => {
+    setTimeout(() => { void saveDraftRef.current(); }, 0)
+  }, [])
+
+  const draft = useMemo<DesktopThemeDraft>(
+    () => ({
+      settings: draftSettings,
+      resolvedVariant: draftResolvedVariant,
+      dirty: draftDirty,
+      saving: draftSaving,
+      setSettings: setDraftSettingsValue,
+      setMode: setDraftMode,
+      save: saveDraft,
+      reset: resetDraft,
+      autoSave,
+    }),
+    [
+      draftDirty,
+      draftResolvedVariant,
+      draftSaving,
+      draftSettings,
+      resetDraft,
+      saveDraft,
+      setDraftMode,
+      setDraftSettingsValue,
+      autoSave,
+    ],
+  )
+
   const value = useMemo<DesktopThemeContextValue>(
     () => ({
       settings,
       resolvedVariant,
+      draft,
       setMode,
       saveSettings,
     }),
-    [resolvedVariant, saveSettings, setMode, settings],
+    [draft, resolvedVariant, saveSettings, setMode, settings],
   )
 
   return (
@@ -173,12 +305,20 @@ export function useDesktopTheme(): DesktopThemeContextValue {
 function applyDesktopTheme(
   settings: DesktopThemeSettings,
   variant: DesktopThemeVariant,
+  systemReduceMotion: boolean,
 ): void {
   const root = document.documentElement
+  const reduceMotion =
+    settings.reduceMotion === 'system'
+      ? systemReduceMotion
+      : settings.reduceMotion === 'on'
   root.dataset.theme = variant
   root.dataset.themeId = getDesktopThemeIdForVariant(settings, variant)
   root.classList.toggle('light-theme', variant === 'light')
   root.classList.toggle('dark-theme', variant === 'dark')
+  root.dataset.glassSurfaces = settings.glassmorphismEnabled ? 'on' : 'off'
+  root.dataset.pointerCursor = settings.pointerCursorEnabled ? 'on' : 'off'
+  root.dataset.reduceMotion = reduceMotion ? 'on' : 'off'
   root.style.setProperty('color-scheme', variant)
 
   for (const variable of THEME_VARIABLES) {
@@ -188,83 +328,81 @@ function applyDesktopTheme(
   const config = getDesktopThemeForSelection(settings, variant)
   const { theme } = config
   const dracula = variant === 'dark' && config.codeThemeId === 'dracula'
-  const accentScale = getAccentScale(config.codeThemeId, theme.accent)
   const contrast = clamp(theme.contrast, 0, 100)
-  const bgCardMix = contrastMix(contrast, 0, 4)
-  const bgSoftMix = contrastMix(contrast, 1, 6)
-  const bgHoverMix = contrastMix(contrast, 4, 14)
-  const bgRowHoverMix = contrastMix(contrast, 3, 11)
-  const borderMix = contrastMix(contrast, 8, 28)
-  const borderSoftMix = contrastMix(contrast, 5, 20)
-  const borderFaintMix = contrastMix(contrast, 3, 12)
-  const textMetaMix = contrastMix(contrast, 52, 76)
-  const textSoftMix = contrastMix(contrast, 60, 84)
-  const textMuteMix = contrastMix(contrast, 42, 66)
-  const textPlaceholderMix = contrastMix(contrast, 38, 62)
-  const textDisabledMix = contrastMix(contrast, 28, 52)
-  const iconMix = contrastMix(contrast, 58, 82)
-  const iconSoftMix = contrastMix(contrast, 46, 70)
-  const iconArrowMix = contrastMix(contrast, 36, 60)
-  const scrollbarMix = contrastMix(contrast, 10, 30)
-  const scrollbarHoverMix = contrastMix(contrast, 18, 42)
   root.classList.toggle('dracula-theme', dracula)
+  const bgSoftMix = contrastMix(contrast, 1, 6)
+  const bgRowHoverMix = contrastMix(contrast, 3, 11)
+  const layoutTokens = deriveLayoutThemeTokens(theme, variant, contrast)
   root.style.setProperty('--contrast', String(contrast))
   root.style.setProperty('--c-bg', theme.surface)
   root.style.setProperty('--c-bg-soft', surfaceInkMix(theme, bgSoftMix))
   root.style.setProperty('--c-bg-mask', surfaceInkMix(theme, bgSoftMix))
-  root.style.setProperty('--c-bg-hover', surfaceInkMix(theme, bgHoverMix))
+  root.style.setProperty('--c-bg-hover', surfaceInkMix(theme, contrastMix(contrast, 5, 10)))
   root.style.setProperty('--c-bg-row-hover', surfaceInkMix(theme, bgRowHoverMix))
+  root.style.setProperty('--c-bg-chip-hover', accentMix(theme, contrastMix(contrast, 5, 10)))
+  root.style.setProperty('--c-bg-card', surfaceInkMix(theme, contrastMix(contrast, 1, 4)))
+  root.style.setProperty('--c-popover-bg', theme.surface)
+  root.style.setProperty('--c-popover-border', surfaceInkMix(theme, contrastMix(contrast, 4, 8)))
+  root.style.setProperty('--c-popover-divider', surfaceInkMix(theme, contrastMix(contrast, 3, 6)))
   root.style.setProperty(
-    '--c-bg-chip-hover',
-    accentSurfaceMix(theme, contrastMix(contrast, 8, 18)),
+    '--glass-surface-bg',
+    variant === 'dark'
+      ? colorMix(theme.surface, 82, 'transparent')
+      : colorMix(theme.surface, 88, 'transparent'),
   )
-  root.style.setProperty('--c-bg-card', surfaceInkMix(theme, bgCardMix))
+  root.style.setProperty(
+    '--glass-surface-border',
+    variant === 'dark'
+      ? 'rgba(255, 255, 255, 0.14)'
+      : colorMix(theme.ink, 10, 'transparent'),
+  )
+  root.style.setProperty(
+    '--glass-surface-highlight',
+    variant === 'dark'
+      ? 'rgba(255, 255, 255, 0.08)'
+      : 'rgba(255, 255, 255, 0.72)',
+  )
+  root.style.setProperty('--glass-surface-blur', '14px')
   root.style.setProperty('--c-surface', theme.surface)
   root.style.setProperty('--c-ink', theme.ink)
-  root.style.setProperty('--c-border', surfaceInkMix(theme, borderMix))
-  root.style.setProperty('--c-border-soft', surfaceInkMix(theme, borderSoftMix))
-  root.style.setProperty('--c-border-faint', surfaceInkMix(theme, borderFaintMix))
-  root.style.setProperty('--c-border-row', surfaceInkMix(theme, borderFaintMix))
-  root.style.setProperty('--c-danger', 'var(--red-11)')
-  root.style.setProperty('--c-warning', 'var(--amber-11)')
-  root.style.setProperty('--c-success', 'var(--green-11)')
+  root.style.setProperty('--c-border', surfaceInkMix(theme, contrastMix(contrast, 6, 12)))
+  root.style.setProperty('--c-border-soft', surfaceInkMix(theme, contrastMix(contrast, 4, 8)))
+  root.style.setProperty('--c-border-faint', surfaceInkMix(theme, contrastMix(contrast, 2, 5)))
+  root.style.setProperty('--c-border-row', surfaceInkMix(theme, contrastMix(contrast, 2, 5)))
+  root.style.setProperty('--c-danger', theme.semanticColors.diffRemoved)
+  root.style.setProperty('--c-warning', '#e09f13')
+  root.style.setProperty('--c-success', theme.semanticColors.diffAdded)
   root.style.setProperty('--c-text', theme.ink)
   root.style.setProperty('--c-text-strong', theme.ink)
-  root.style.setProperty('--c-text-meta', inkSurfaceMix(theme, textMetaMix))
-  root.style.setProperty('--c-text-soft', inkSurfaceMix(theme, textSoftMix))
-  root.style.setProperty('--c-text-mute', inkSurfaceMix(theme, textMuteMix))
-  root.style.setProperty(
-    '--c-text-placeholder',
-    inkSurfaceMix(theme, textPlaceholderMix),
-  )
-  root.style.setProperty('--c-text-disabled', inkSurfaceMix(theme, textDisabledMix))
-  root.style.setProperty('--c-text-on-accent', radixVar('gray', variant === 'dark' ? 12 : 1))
-  root.style.setProperty('--c-icon', inkSurfaceMix(theme, iconMix))
-  root.style.setProperty('--c-icon-soft', inkSurfaceMix(theme, iconSoftMix))
-  root.style.setProperty('--c-icon-arrow', inkSurfaceMix(theme, iconArrowMix))
+  root.style.setProperty('--c-text-meta', surfaceInkMix(theme, contrastMix(contrast, 55, 70)))
+  root.style.setProperty('--c-text-soft', surfaceInkMix(theme, contrastMix(contrast, 45, 60)))
+  root.style.setProperty('--c-text-mute', surfaceInkMix(theme, contrastMix(contrast, 35, 50)))
+  root.style.setProperty('--c-text-placeholder', surfaceInkMix(theme, contrastMix(contrast, 25, 40)))
+  root.style.setProperty('--c-text-disabled', surfaceInkMix(theme, contrastMix(contrast, 15, 25)))
+  root.style.setProperty('--c-text-on-accent', surfaceInkMix(theme, contrastMix(contrast, 90, 95)))
+  root.style.setProperty('--c-icon', surfaceInkMix(theme, contrastMix(contrast, 50, 65)))
+  root.style.setProperty('--c-icon-soft', surfaceInkMix(theme, contrastMix(contrast, 40, 55)))
+  root.style.setProperty('--c-icon-arrow', surfaceInkMix(theme, contrastMix(contrast, 30, 45)))
   root.style.setProperty('--c-accent', theme.accent)
   root.style.setProperty('--c-send-bg', theme.accent)
-  root.style.setProperty('--c-send-bg-hover', radixVar(accentScale, 10))
-  root.style.setProperty(
-    '--c-send-bg-disabled',
-    accentSurfaceMix(theme, contrastMix(contrast, 14, 28)),
-  )
+  root.style.setProperty('--c-send-bg-hover', accentMixLighten(theme, 10))
+  root.style.setProperty('--c-send-bg-disabled', accentMix(theme, 50))
   root.style.setProperty('--c-user-bubble-bg', surfaceInkMix(theme, bgRowHoverMix))
-  root.style.setProperty('--c-scrollbar', surfaceInkMix(theme, scrollbarMix))
-  root.style.setProperty(
-    '--c-scrollbar-hover',
-    surfaceInkMix(theme, scrollbarHoverMix),
-  )
+  root.style.setProperty('--c-scrollbar', surfaceInkMix(theme, contrastMix(contrast, 8, 14)))
+  root.style.setProperty('--c-scrollbar-hover', surfaceInkMix(theme, contrastMix(contrast, 15, 25)))
   root.style.setProperty('--c-diff-added', theme.semanticColors.diffAdded)
   root.style.setProperty('--c-diff-removed', theme.semanticColors.diffRemoved)
   root.style.setProperty('--c-skill', theme.semanticColors.skill)
+  for (const [name, value] of Object.entries(layoutTokens)) {
+    root.style.setProperty(name, value)
+  }
   root.style.setProperty(
     '--ff-sans',
-    `${formatFontFamilyStack(theme.fonts.ui)}, -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Helvetica Neue", Arial, "Microsoft YaHei", sans-serif`,
+    buildFontFamilyStack(theme.fonts.ui),
   )
   root.style.setProperty(
     '--ff-mono',
-    `${formatFontFamilyStack(theme.fonts.code)}, ui-monospace, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace`,
+    buildFontFamilyStack(theme.fonts.code),
   )
   const uiFontSize = clamp(settings.fontSizes.ui, 11, 20)
   const codeFontSize = clamp(settings.fontSizes.code, 10, 20)
@@ -276,6 +414,7 @@ function applyDesktopTheme(
   root.style.setProperty('--fs-14', `${uiFontSize}px`)
   root.style.setProperty('--fs-15', `${uiFontSize + 1}px`)
   root.style.setProperty('--fs-16', `${uiFontSize + 2}px`)
+  root.style.setProperty('--fs-18', `${uiFontSize + 4}px`)
   root.style.setProperty('--fs-26', `${uiFontSize + 12}px`)
 }
 
@@ -285,7 +424,75 @@ function getSystemThemeVariant(): DesktopThemeVariant {
     : 'light'
 }
 
+function getSystemReduceMotion(): boolean {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
 type ThemeTokens = DesktopThemeConfigV1['theme']
+
+function deriveLayoutThemeTokens(
+  theme: ThemeTokens,
+  variant: DesktopThemeVariant,
+  contrast: number,
+): Record<string, string> {
+  if (variant === 'dark') {
+    const chromeMix = contrastMix(contrast, 4, 12)
+    const sidebarMix = contrastMix(contrast, 6, 15)
+    const workbenchMix = contrastMix(contrast, 10, 22)
+    const panelMix = contrastMix(contrast, 15, 28)
+    const raisedMix = contrastMix(contrast, 20, 36)
+    return {
+      '--surface-base': surfaceInkMix(theme, workbenchMix),
+      '--surface-canvas': surfaceInkMix(theme, contrastMix(contrast, 12, 24)),
+      '--surface-panel': surfaceInkMix(theme, panelMix),
+      '--surface-raised': surfaceInkMix(theme, raisedMix),
+      '--surface-subtle': surfaceInkMix(theme, sidebarMix),
+      '--border-subtle': surfaceInkMix(theme, contrastMix(contrast, 30, 46)),
+      '--border-muted': surfaceInkMix(theme, contrastMix(contrast, 20, 34)),
+      '--shadow-resting': '0 1px 2px rgba(0, 0, 0, 0.24), 0 1px 0 rgba(255, 255, 255, 0.03) inset',
+      '--shadow-raised': '0 12px 34px rgba(0, 0, 0, 0.28), 0 1px 2px rgba(0, 0, 0, 0.22)',
+      '--shadow-float': '0 24px 64px rgba(0, 0, 0, 0.38), 0 8px 24px rgba(0, 0, 0, 0.28)',
+      '--c-chrome-bg': surfaceInkMix(theme, chromeMix),
+      '--c-sidebar-bg': surfaceInkMix(theme, sidebarMix),
+      '--c-sidebar-active-bg': 'rgba(255, 255, 255, 0.1)',
+      '--c-sidebar-hover-bg': 'rgba(255, 255, 255, 0.1)',
+      '--c-workbench-bg': surfaceInkMix(theme, workbenchMix),
+      '--c-panel-bg': surfaceInkMix(theme, panelMix),
+      '--c-panel-elevated-bg': surfaceInkMix(theme, raisedMix),
+      '--c-panel-border': surfaceInkMix(theme, contrastMix(contrast, 28, 42)),
+      '--c-panel-shadow': 'var(--shadow-float)',
+      '--c-panel-shadow-raised': 'var(--shadow-raised)',
+      '--c-panel-shadow-soft': 'var(--shadow-resting)',
+    }
+  }
+
+  const workbenchMix = contrastMix(contrast, 2, 7)
+  const subtleMix = contrastMix(contrast, 3, 9)
+  const raisedMix = contrastMix(contrast, 0, 3)
+  return {
+    '--surface-base': surfaceInkMix(theme, workbenchMix),
+    '--surface-canvas': surfaceInkMix(theme, contrastMix(contrast, 0, 2)),
+    '--surface-panel': theme.surface,
+    '--surface-raised': surfaceInkMix(theme, raisedMix),
+    '--surface-subtle': surfaceInkMix(theme, subtleMix),
+    '--border-subtle': surfaceInkMix(theme, contrastMix(contrast, 7, 13)),
+    '--border-muted': surfaceInkMix(theme, contrastMix(contrast, 3, 8)),
+    '--shadow-resting': `0 1px 2px ${colorMix(theme.ink, 5, 'transparent')}, 0 1px 0 ${colorMix(theme.surface, 70, 'transparent')} inset`,
+    '--shadow-raised': `0 10px 28px ${colorMix(theme.ink, 8, 'transparent')}, 0 1px 2px ${colorMix(theme.ink, 5, 'transparent')}`,
+    '--shadow-float': `0 22px 60px ${colorMix(theme.ink, 12, 'transparent')}, 0 8px 24px ${colorMix(theme.ink, 8, 'transparent')}`,
+    '--c-chrome-bg': surfaceInkMix(theme, contrastMix(contrast, 1, 4)),
+    '--c-sidebar-bg': surfaceInkMix(theme, subtleMix),
+    '--c-sidebar-active-bg': 'rgba(0, 0, 0, 0.1)',
+    '--c-sidebar-hover-bg': 'rgba(0, 0, 0, 0.1)',
+    '--c-workbench-bg': surfaceInkMix(theme, workbenchMix),
+    '--c-panel-bg': theme.surface,
+    '--c-panel-elevated-bg': surfaceInkMix(theme, raisedMix),
+    '--c-panel-border': surfaceInkMix(theme, contrastMix(contrast, 7, 13)),
+    '--c-panel-shadow': 'var(--shadow-float)',
+    '--c-panel-shadow-raised': 'var(--shadow-raised)',
+    '--c-panel-shadow-soft': 'var(--shadow-resting)',
+  }
+}
 
 function contrastMix(contrast: number, low: number, high: number): number {
   return Math.round(low + (clamp(contrast, 0, 100) / 100) * (high - low))
@@ -295,16 +502,16 @@ function surfaceInkMix(theme: ThemeTokens, inkPercent: number): string {
   return colorMix(theme.surface, 100 - inkPercent, theme.ink)
 }
 
-function inkSurfaceMix(theme: ThemeTokens, inkPercent: number): string {
-  return colorMix(theme.ink, inkPercent, theme.surface)
-}
-
-function accentSurfaceMix(theme: ThemeTokens, accentPercent: number): string {
-  return colorMix(theme.accent, accentPercent, theme.surface)
-}
-
 function colorMix(first: string, firstPercent: number, second: string): string {
   return `color-mix(in srgb, ${first} ${firstPercent}%, ${second})`
+}
+
+function accentMix(theme: ThemeTokens, inkPercent: number): string {
+  return colorMix(theme.accent, 100 - inkPercent, theme.ink)
+}
+
+function accentMixLighten(theme: ThemeTokens, lightenPercent: number): string {
+  return colorMix(theme.surface, lightenPercent, theme.accent)
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -317,6 +524,17 @@ function formatFontFamilyStack(value: string): string {
     .map(formatFontFamilyName)
     .filter(Boolean)
     .join(', ')
+}
+
+function buildFontFamilyStack(entry: {
+  preset: string
+  fallback: string
+}): string {
+  const presetStack = formatFontFamilyStack(entry.preset)
+  const fallbackStack = formatFontFamilyStack(entry.fallback)
+  if (!presetStack) return fallbackStack
+  if (!fallbackStack) return presetStack
+  return `${presetStack}, ${fallbackStack}`
 }
 
 function formatFontFamilyName(value: string): string {
@@ -358,46 +576,9 @@ function isGenericFontFamily(value: string): boolean {
   ]).has(value)
 }
 
-type AccentScale = 'blue' | 'cyan' | 'orange' | 'pink' | 'purple' | 'red'
-
-function getAccentScale(codeThemeId: string, accent: string): AccentScale {
-  switch (codeThemeId) {
-    case 'absolutely':
-      return 'orange'
-    case 'catppuccin':
-      return 'purple'
-    case 'dracula':
-      return 'pink'
-    case 'material':
-      return 'cyan'
-    case 'raycast':
-      return 'red'
-    default:
-      return getAccentScaleFromHex(accent)
-  }
-}
-
-function getAccentScaleFromHex(accent: string): AccentScale {
-  switch (accent.toLowerCase()) {
-    case '#00a2c7':
-      return 'cyan'
-    case '#8e4ec6':
-    case '#d19dff':
-      return 'purple'
-    case '#d6409f':
-    case '#ff79c6':
-    case '#ff8dcc':
-      return 'pink'
-    case '#e5484d':
-    case '#ff9592':
-      return 'red'
-    case '#f76b15':
-      return 'orange'
-    default:
-      return 'blue'
-  }
-}
-
-function radixVar(scale: AccentScale | 'gray' | 'purple', step: number): string {
-  return `var(--${scale}-${step})`
+function desktopThemeSettingsEqual(
+  left: DesktopThemeSettings,
+  right: DesktopThemeSettings,
+): boolean {
+  return JSON.stringify(left) === JSON.stringify(right)
 }

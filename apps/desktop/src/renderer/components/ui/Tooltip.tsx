@@ -1,5 +1,5 @@
-import * as RadixTooltip from '@radix-ui/react-tooltip'
 import type React from 'react'
+import * as RadixTooltip from '@radix-ui/react-tooltip'
 
 type Props = {
   children: React.ReactNode
@@ -7,6 +7,9 @@ type Props = {
   side?: 'top' | 'right' | 'bottom' | 'left'
   align?: 'start' | 'center' | 'end'
   delay?: number
+  delayDuration?: number
+  className?: string
+  sideOffset?: number
   open?: boolean
   defaultOpen?: boolean
   onOpenChange?: (open: boolean) => void
@@ -17,11 +20,7 @@ export function TooltipProvider({
 }: {
   children: React.ReactNode
 }): React.ReactNode {
-  return (
-    <RadixTooltip.Provider delayDuration={350} skipDelayDuration={120}>
-      {children}
-    </RadixTooltip.Provider>
-  )
+  return <RadixTooltip.Provider>{children}</RadixTooltip.Provider>
 }
 
 export function Tooltip({
@@ -30,24 +29,27 @@ export function Tooltip({
   side = 'top',
   align = 'center',
   delay,
+  delayDuration,
+  className = 'tooltip-content',
+  sideOffset = 6,
   open,
   defaultOpen,
   onOpenChange,
 }: Props): React.ReactNode {
   return (
     <RadixTooltip.Root
-      defaultOpen={defaultOpen}
-      delayDuration={delay}
-      onOpenChange={onOpenChange}
       open={open}
+      defaultOpen={defaultOpen}
+      delayDuration={delayDuration ?? delay}
+      onOpenChange={onOpenChange}
     >
       <RadixTooltip.Trigger asChild>{children}</RadixTooltip.Trigger>
       <RadixTooltip.Portal>
         <RadixTooltip.Content
           align={align}
-          className="tooltip-content"
+          className={className}
           side={side}
-          sideOffset={6}
+          sideOffset={sideOffset}
         >
           {content}
           <RadixTooltip.Arrow className="tooltip-arrow" />

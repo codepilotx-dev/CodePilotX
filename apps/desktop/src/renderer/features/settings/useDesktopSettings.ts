@@ -2,15 +2,20 @@ import { desktopClient } from '../../services/desktopClient.js'
 import {
   createContext,
   createElement,
+  useCallback,
   useContext,
   useEffect,
+  useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
 import type { DrawerTab } from '../../uiTypes.js'
 import type {
+  DesktopDiffMarkerStyle,
   DesktopPermissionMode,
   DesktopPersonality,
+  DesktopReviewView,
   DesktopSandboxMode,
   DesktopThinkingMode,
   DesktopWorkspace,
@@ -23,9 +28,12 @@ import {
 } from './settingsStorage.js'
 
 export type UseDesktopSettingsResult = {
+  enableParetoCodeRouter: boolean
+  enableFusionRouter: boolean
   permissionMode: DesktopPermissionMode
   model: string
-  fallbackModel: string
+  planExecutionModel: string
+  reviewModel: string
   smallFastModel: string
   fastModel: string
   defaultModel: string
@@ -43,9 +51,15 @@ export type UseDesktopSettingsResult = {
   showContextUsage: boolean
   defaultOpenTargetId: string
   gitBranchPrefix: string
+  gitPrMergeMethod: 'merge' | 'squash'
+  gitShowPrIconsInSidebar: boolean
+  gitDraftPullRequest: boolean
+  gitAutoDeleteWorktree: boolean
+  gitAutoDeleteWorktreeLimit: number
   allowForcePush: boolean
   commitMessagePrompt: string
   pullRequestPrompt: string
+  githubOAuthClientId: string
   sandboxMode: DesktopSandboxMode
   allowNetworkAccess: boolean
   installCodexDependencies: boolean
@@ -53,10 +67,17 @@ export type UseDesktopSettingsResult = {
   customInstructions: string
   enableMemory: boolean
   skipToolAidedChats: boolean
+  githubMemorySyncEnabled: boolean
+  githubMemoryRepository: string
+  reviewView: DesktopReviewView
+  diffMarkerStyle: DesktopDiffMarkerStyle
+  rustSearchAndDiffKernels: boolean
+  browserAllowedSites: string[]
   settingsLoaded: boolean
   setPermissionMode: (value: DesktopPermissionMode) => void
   setModel: (value: string) => void
-  setFallbackModel: (value: string) => void
+  setPlanExecutionModel: (value: string) => void
+  setReviewModel: (value: string) => void
   setSmallFastModel: (value: string) => void
   setFastModel: (value: string) => void
   setDefaultModel: (value: string) => void
@@ -76,9 +97,15 @@ export type UseDesktopSettingsResult = {
   setShowContextUsage: (value: boolean) => void
   setDefaultOpenTargetId: (value: string) => void
   setGitBranchPrefix: (value: string) => void
+  setGitPrMergeMethod: (value: 'merge' | 'squash') => void
+  setGitShowPrIconsInSidebar: (value: boolean) => void
+  setGitDraftPullRequest: (value: boolean) => void
+  setGitAutoDeleteWorktree: (value: boolean) => void
+  setGitAutoDeleteWorktreeLimit: (value: number) => void
   setAllowForcePush: (value: boolean) => void
   setCommitMessagePrompt: (value: string) => void
   setPullRequestPrompt: (value: string) => void
+  setGithubOAuthClientId: (value: string) => void
   setSandboxMode: (value: DesktopSandboxMode) => void
   setAllowNetworkAccess: (value: boolean) => void
   setInstallCodexDependencies: (value: boolean) => void
@@ -86,6 +113,108 @@ export type UseDesktopSettingsResult = {
   setCustomInstructions: (value: string) => void
   setEnableMemory: (value: boolean) => void
   setSkipToolAidedChats: (value: boolean) => void
+  setGithubMemorySyncEnabled: (value: boolean) => void
+  setGithubMemoryRepository: (value: string) => void
+  setReviewView: (value: DesktopReviewView) => void
+  setDiffMarkerStyle: (value: DesktopDiffMarkerStyle) => void
+  setRustSearchAndDiffKernels: (value: boolean) => void
+  setBrowserAllowedSites: (value: string[]) => void
+  draft: DesktopSettingsDraft
+  flushDesktopSettings: () => Promise<void>
+}
+
+type DesktopSettingsDraftSetter = <
+  Key extends keyof StoredDesktopSettings,
+>(
+  key: Key,
+  value:
+    | StoredDesktopSettings[Key]
+    | ((current: StoredDesktopSettings[Key]) => StoredDesktopSettings[Key]),
+) => void
+
+export type DesktopSettingsDraft = {
+  values: StoredDesktopSettings
+  dirty: boolean
+  saving: boolean
+  setValue: DesktopSettingsDraftSetter
+  save: (baseValues?: StoredDesktopSettings) => Promise<StoredDesktopSettings>
+  reset: () => void
+  autoSave: () => void
+}
+
+export function isSettingsSaveShortcut(event: {
+  ctrlKey: boolean
+  metaKey: boolean
+  key: string
+}): boolean {
+  return (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's'
+}
+
+export function createSettingsSaveShortcutHandler(
+  save: () => Promise<unknown>,
+): (event: {
+  ctrlKey: boolean
+  metaKey: boolean
+  key: string
+  preventDefault: () => void
+}) => Promise<boolean> {
+  return async event => {
+    if (!isSettingsSaveShortcut(event)) return false
+    event.preventDefault()
+    await save()
+    return true
+  }
+}
+
+export function createDesktopSettingsDraft(
+  initialValues: StoredDesktopSettings,
+  saveValues: (
+    values: StoredDesktopSettings,
+  ) => Promise<StoredDesktopSettings | void>,
+): DesktopSettingsDraft {
+  let values = cloneDesktopSettings(initialValues)
+  const dirtyKeys = new Set<keyof StoredDesktopSettings>()
+  let dirty = false
+
+  return {
+    get values() {
+      return values
+    },
+    get dirty() {
+      return dirty
+    },
+    saving: false,
+    setValue(key, value) {
+      values = updateDesktopSettingsValue(values, key, value)
+      dirtyKeys.add(key)
+      dirty = !desktopSettingsEqual(values, initialValues)
+    },
+    async save(baseValues = initialValues) {
+      const snapshot = mergeDesktopSettingsDraft(baseValues, values, dirtyKeys)
+      const saved = await saveValues(snapshot)
+      values = saved
+        ? cloneDesktopSettings(saved)
+        : cloneDesktopSettings(snapshot)
+      dirtyKeys.clear()
+      dirty = false
+      return values
+    },
+    reset() {
+      values = cloneDesktopSettings(initialValues)
+      dirtyKeys.clear()
+      dirty = false
+    },
+    autoSave() {
+      const snapshot = mergeDesktopSettingsDraft(initialValues, values, dirtyKeys)
+      void saveValues(snapshot).then(saved => {
+        values = saved
+          ? cloneDesktopSettings(saved)
+          : cloneDesktopSettings(snapshot)
+        dirtyKeys.clear()
+        dirty = false
+      })
+    },
+  }
 }
 
 const DesktopSettingsContext = createContext<UseDesktopSettingsResult | null>(
@@ -113,13 +242,22 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
   return useDesktopSettingsState()
 }
 
-function useDesktopSettingsState(): UseDesktopSettingsResult {
+  function useDesktopSettingsState(): UseDesktopSettingsResult {
   const initial = readStoredDesktopSettings()
+  const [enableParetoCodeRouter, setEnableParetoCodeRouter] = useState<boolean>(
+    initial.enableParetoCodeRouter ?? false,
+  )
+  const [enableFusionRouter, setEnableFusionRouter] = useState<boolean>(
+    initial.enableFusionRouter ?? false,
+  )
   const [permissionMode, setPermissionMode] = useState<DesktopPermissionMode>(
     initial.permissionMode,
   )
   const [model, setModel] = useState(initial.model)
-  const [fallbackModel, setFallbackModel] = useState(initial.fallbackModel)
+  const [planExecutionModel, setPlanExecutionModel] = useState(
+    initial.planExecutionModel,
+  )
+  const [reviewModel, setReviewModel] = useState(initial.reviewModel)
   const [smallFastModel, setSmallFastModel] = useState(initial.smallFastModel)
   const [fastModel, setFastModel] = useState(initial.fastModel)
   const [defaultModel, setDefaultModel] = useState(initial.defaultModel)
@@ -157,12 +295,30 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
   const [gitBranchPrefix, setGitBranchPrefix] = useState(
     initial.gitBranchPrefix,
   )
+  const [gitPrMergeMethod, setGitPrMergeMethod] = useState<'merge' | 'squash'>(
+    initial.gitPrMergeMethod,
+  )
+  const [gitShowPrIconsInSidebar, setGitShowPrIconsInSidebar] = useState(
+    initial.gitShowPrIconsInSidebar,
+  )
+  const [gitDraftPullRequest, setGitDraftPullRequest] = useState(
+    initial.gitDraftPullRequest,
+  )
+  const [gitAutoDeleteWorktree, setGitAutoDeleteWorktree] = useState(
+    initial.gitAutoDeleteWorktree,
+  )
+  const [gitAutoDeleteWorktreeLimit, setGitAutoDeleteWorktreeLimit] = useState(
+    initial.gitAutoDeleteWorktreeLimit,
+  )
   const [allowForcePush, setAllowForcePush] = useState(initial.allowForcePush)
   const [commitMessagePrompt, setCommitMessagePrompt] = useState(
     initial.commitMessagePrompt,
   )
   const [pullRequestPrompt, setPullRequestPrompt] = useState(
     initial.pullRequestPrompt,
+  )
+  const [githubOAuthClientId, setGithubOAuthClientId] = useState(
+    initial.githubOAuthClientId,
   )
   const [sandboxMode, setSandboxMode] = useState<DesktopSandboxMode>(
     initial.sandboxMode,
@@ -183,7 +339,32 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
   const [skipToolAidedChats, setSkipToolAidedChats] = useState(
     initial.skipToolAidedChats,
   )
+  const [githubMemorySyncEnabled, setGithubMemorySyncEnabled] = useState(
+    initial.githubMemorySyncEnabled,
+  )
+  const [githubMemoryRepository, setGithubMemoryRepository] = useState(
+    initial.githubMemoryRepository,
+  )
+  const [reviewView, setReviewView] = useState<DesktopReviewView>(
+    initial.reviewView,
+  )
+  const [diffMarkerStyle, setDiffMarkerStyle] =
+    useState<DesktopDiffMarkerStyle>(initial.diffMarkerStyle)
+  const [rustSearchAndDiffKernels, setRustSearchAndDiffKernels] = useState(
+    initial.rustSearchAndDiffKernels,
+  )
+  const [browserAllowedSites, setBrowserAllowedSites] = useState<string[]>(
+    initial.browserAllowedSites,
+  )
   const [settingsLoaded, setSettingsLoaded] = useState(false)
+  const skipNextAutoSaveRef = useRef(false)
+  const [draftValues, setDraftValues] = useState<StoredDesktopSettings>(
+    cloneDesktopSettings(initial),
+  )
+  const draftValuesRef = useRef(draftValues)
+  draftValuesRef.current = draftValues
+  const draftDirtyKeysRef = useRef<Set<keyof StoredDesktopSettings>>(new Set())
+  const [draftSaving, setDraftSaving] = useState(false)
 
   useEffect(() => {
     let mounted = true
@@ -191,9 +372,12 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
       .getDesktopSettings()
       .then(settings => {
         if (!mounted) return
+        setEnableParetoCodeRouter(settings.enableParetoCodeRouter ?? false)
+        setEnableFusionRouter(settings.enableFusionRouter ?? false)
         setPermissionMode(settings.permissionMode)
         setModel(settings.model)
-        setFallbackModel(settings.fallbackModel)
+        setPlanExecutionModel(settings.planExecutionModel)
+        setReviewModel(settings.reviewModel)
         setSmallFastModel(settings.smallFastModel)
         setFastModel(settings.fastModel)
         setDefaultModel(settings.defaultModel)
@@ -211,9 +395,15 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
         setShowContextUsage(settings.showContextUsage)
         setDefaultOpenTargetId(settings.defaultOpenTargetId)
         setGitBranchPrefix(settings.gitBranchPrefix)
+        setGitPrMergeMethod(settings.gitPrMergeMethod)
+        setGitShowPrIconsInSidebar(settings.gitShowPrIconsInSidebar)
+        setGitDraftPullRequest(settings.gitDraftPullRequest)
+        setGitAutoDeleteWorktree(settings.gitAutoDeleteWorktree)
+        setGitAutoDeleteWorktreeLimit(settings.gitAutoDeleteWorktreeLimit)
         setAllowForcePush(settings.allowForcePush)
         setCommitMessagePrompt(settings.commitMessagePrompt)
         setPullRequestPrompt(settings.pullRequestPrompt)
+        setGithubOAuthClientId(settings.githubOAuthClientId)
         setSandboxMode(settings.sandboxMode)
         setAllowNetworkAccess(settings.allowNetworkAccess)
         setInstallCodexDependencies(settings.installCodexDependencies)
@@ -221,6 +411,14 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
         setCustomInstructions(settings.customInstructions)
         setEnableMemory(settings.enableMemory)
         setSkipToolAidedChats(settings.skipToolAidedChats)
+        setGithubMemorySyncEnabled(settings.githubMemorySyncEnabled)
+        setGithubMemoryRepository(settings.githubMemoryRepository)
+        setReviewView(settings.reviewView)
+        setDiffMarkerStyle(settings.diffMarkerStyle)
+        setRustSearchAndDiffKernels(settings.rustSearchAndDiffKernels)
+        setBrowserAllowedSites(settings.browserAllowedSites)
+        setDraftValues(cloneDesktopSettings(settings))
+        draftDirtyKeysRef.current.clear()
         setSettingsLoaded(true)
       })
       .catch(() => {
@@ -233,12 +431,14 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     }
   }, [])
 
-  useEffect(() => {
-    if (!settingsLoaded) return
-    const next: StoredDesktopSettings = {
+  const effectiveSettings = useMemo<StoredDesktopSettings>(
+    () => ({
+      enableParetoCodeRouter,
+      enableFusionRouter,
       permissionMode,
       model,
-      fallbackModel: '',
+      planExecutionModel,
+      reviewModel,
       smallFastModel,
       fastModel,
       defaultModel,
@@ -256,9 +456,15 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
       showContextUsage,
       defaultOpenTargetId,
       gitBranchPrefix,
+      gitPrMergeMethod,
+      gitShowPrIconsInSidebar,
+      gitDraftPullRequest,
+      gitAutoDeleteWorktree,
+      gitAutoDeleteWorktreeLimit,
       allowForcePush,
       commitMessagePrompt,
       pullRequestPrompt,
+      githubOAuthClientId,
       sandboxMode,
       allowNetworkAccess,
       installCodexDependencies,
@@ -266,45 +472,209 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
       customInstructions,
       enableMemory,
       skipToolAidedChats,
+      githubMemorySyncEnabled,
+      githubMemoryRepository,
+      reviewView,
+      diffMarkerStyle,
+      rustSearchAndDiffKernels,
+      browserAllowedSites,
+    }),
+    [
+      enableParetoCodeRouter,
+      enableFusionRouter,
+      permissionMode,
+      model,
+      planExecutionModel,
+      reviewModel,
+      smallFastModel,
+      fastModel,
+      defaultModel,
+      deepModel,
+      sessionName,
+      thinkingMode,
+      systemPrompt,
+      appendSystemPrompt,
+      additionalDirectories,
+      recentWorkspaces,
+      drawerTab,
+      selectedModelPreset,
+      providerID,
+      providerBaseURL,
+      showContextUsage,
+      defaultOpenTargetId,
+      gitBranchPrefix,
+      gitPrMergeMethod,
+      gitShowPrIconsInSidebar,
+      gitDraftPullRequest,
+      gitAutoDeleteWorktree,
+      gitAutoDeleteWorktreeLimit,
+      allowForcePush,
+      commitMessagePrompt,
+      pullRequestPrompt,
+      githubOAuthClientId,
+      sandboxMode,
+      allowNetworkAccess,
+      installCodexDependencies,
+      personality,
+      customInstructions,
+      enableMemory,
+      skipToolAidedChats,
+      githubMemorySyncEnabled,
+      githubMemoryRepository,
+      reviewView,
+      diffMarkerStyle,
+      rustSearchAndDiffKernels,
+      browserAllowedSites,
+    ],
+  )
+
+  const draftDirty = useMemo(
+    () => !desktopSettingsEqual(draftValues, effectiveSettings),
+    [draftValues, effectiveSettings],
+  )
+
+  useEffect(() => {
+    if (!settingsLoaded) return
+    if (skipNextAutoSaveRef.current) {
+      skipNextAutoSaveRef.current = false
+      return
     }
-    storeDesktopSettings(next)
-  }, [
-    settingsLoaded,
-    permissionMode,
-    model,
-    smallFastModel,
-    fastModel,
-    defaultModel,
-    deepModel,
-    sessionName,
-    thinkingMode,
-    systemPrompt,
-    appendSystemPrompt,
-    additionalDirectories,
-    recentWorkspaces,
-    drawerTab,
-    selectedModelPreset,
-    providerID,
-    providerBaseURL,
-    showContextUsage,
-    defaultOpenTargetId,
-    gitBranchPrefix,
-    allowForcePush,
-    commitMessagePrompt,
-    pullRequestPrompt,
-    sandboxMode,
-    allowNetworkAccess,
-    installCodexDependencies,
-    personality,
-    customInstructions,
-    enableMemory,
-    skipToolAidedChats,
-  ])
+    storeDesktopSettings(effectiveSettings)
+  }, [effectiveSettings, settingsLoaded])
+
+  useEffect(() => {
+    if (!settingsLoaded || draftDirty) return
+    setDraftValues(cloneDesktopSettings(effectiveSettings))
+    draftDirtyKeysRef.current.clear()
+  }, [draftDirty, effectiveSettings, settingsLoaded])
+
+  const flushDesktopSettings = useCallback(async (): Promise<void> => {
+    try {
+      await desktopClient.saveDesktopSettings(effectiveSettings)
+    } catch {
+      // Persistence is best-effort; the next state change will retry.
+    }
+  }, [effectiveSettings])
+
+  const setDraftValue = useCallback<DesktopSettingsDraftSetter>(
+    (key, value) => {
+      draftDirtyKeysRef.current.add(key)
+      setDraftValues(current => updateDesktopSettingsValue(current, key, value))
+    },
+    [],
+  )
+
+  const applySettingsSnapshot = useCallback(
+    (snapshot: StoredDesktopSettings): void => {
+      setEnableParetoCodeRouter(snapshot.enableParetoCodeRouter ?? false)
+      setEnableFusionRouter(snapshot.enableFusionRouter ?? false)
+      setPermissionMode(snapshot.permissionMode)
+      setModel(snapshot.model)
+      setPlanExecutionModel(snapshot.planExecutionModel)
+      setReviewModel(snapshot.reviewModel)
+      setSmallFastModel(snapshot.smallFastModel)
+      setFastModel(snapshot.fastModel)
+      setDefaultModel(snapshot.defaultModel)
+      setDeepModel(snapshot.deepModel)
+      setSessionName(snapshot.sessionName)
+      setThinkingMode(snapshot.thinkingMode)
+      setSystemPrompt(snapshot.systemPrompt)
+      setAppendSystemPrompt(snapshot.appendSystemPrompt)
+      setAdditionalDirectories(snapshot.additionalDirectories)
+      setRecentWorkspaces(snapshot.recentWorkspaces)
+      setDrawerTab(snapshot.drawerTab)
+      setSelectedModelPreset(snapshot.selectedModelPreset)
+      setProviderID(snapshot.providerID)
+      setProviderBaseURL(snapshot.providerBaseURL)
+      setShowContextUsage(snapshot.showContextUsage)
+      setDefaultOpenTargetId(snapshot.defaultOpenTargetId)
+      setGitBranchPrefix(snapshot.gitBranchPrefix)
+      setGitPrMergeMethod(snapshot.gitPrMergeMethod)
+      setGitShowPrIconsInSidebar(snapshot.gitShowPrIconsInSidebar)
+      setGitDraftPullRequest(snapshot.gitDraftPullRequest)
+      setGitAutoDeleteWorktree(snapshot.gitAutoDeleteWorktree)
+      setGitAutoDeleteWorktreeLimit(snapshot.gitAutoDeleteWorktreeLimit)
+      setAllowForcePush(snapshot.allowForcePush)
+      setCommitMessagePrompt(snapshot.commitMessagePrompt)
+      setPullRequestPrompt(snapshot.pullRequestPrompt)
+      setGithubOAuthClientId(snapshot.githubOAuthClientId)
+      setSandboxMode(snapshot.sandboxMode)
+      setAllowNetworkAccess(snapshot.allowNetworkAccess)
+      setInstallCodexDependencies(snapshot.installCodexDependencies)
+      setPersonality(snapshot.personality)
+      setCustomInstructions(snapshot.customInstructions)
+      setEnableMemory(snapshot.enableMemory)
+      setSkipToolAidedChats(snapshot.skipToolAidedChats)
+      setGithubMemorySyncEnabled(snapshot.githubMemorySyncEnabled)
+      setGithubMemoryRepository(snapshot.githubMemoryRepository)
+      setReviewView(snapshot.reviewView)
+      setDiffMarkerStyle(snapshot.diffMarkerStyle)
+      setRustSearchAndDiffKernels(snapshot.rustSearchAndDiffKernels)
+      setBrowserAllowedSites(snapshot.browserAllowedSites)
+    },
+    [],
+  )
+
+  const saveDraft = useCallback(async (): Promise<StoredDesktopSettings> => {
+    const snapshot = mergeDesktopSettingsDraft(
+      effectiveSettings,
+      draftValuesRef.current,
+      draftDirtyKeysRef.current,
+    )
+    setDraftSaving(true)
+    try {
+      const saved = await desktopClient.saveDesktopSettings(snapshot)
+      const next = cloneDesktopSettings(saved)
+      skipNextAutoSaveRef.current = true
+      applySettingsSnapshot(next)
+      setDraftValues(next)
+      draftDirtyKeysRef.current.clear()
+      return next
+    } finally {
+      setDraftSaving(false)
+    }
+  }, [applySettingsSnapshot, effectiveSettings])
+
+  const resetDraft = useCallback((): void => {
+    setDraftValues(cloneDesktopSettings(effectiveSettings))
+    draftDirtyKeysRef.current.clear()
+  }, [effectiveSettings])
+
+  const saveDraftRef = useRef(saveDraft)
+  saveDraftRef.current = saveDraft
+
+  const autoSave = useCallback(() => {
+    setTimeout(() => { void saveDraftRef.current(); }, 0)
+  }, [])
+
+  const draft = useMemo<DesktopSettingsDraft>(
+    () => ({
+      values: draftValues,
+      dirty: draftDirty,
+      saving: draftSaving,
+      setValue: setDraftValue,
+      save: saveDraft,
+      reset: resetDraft,
+      autoSave,
+    }),
+    [
+      draftDirty,
+      draftSaving,
+      draftValues,
+      resetDraft,
+      saveDraft,
+      setDraftValue,
+      autoSave,
+    ],
+  )
 
   return {
+    enableParetoCodeRouter,
+    enableFusionRouter,
     permissionMode,
     model,
-    fallbackModel,
+    planExecutionModel,
+    reviewModel,
     smallFastModel,
     fastModel,
     defaultModel,
@@ -320,11 +690,17 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     providerID,
     providerBaseURL,
     showContextUsage,
-    defaultOpenTargetId,
+defaultOpenTargetId,
     gitBranchPrefix,
+    gitPrMergeMethod,
+    gitShowPrIconsInSidebar,
+    gitDraftPullRequest,
+    gitAutoDeleteWorktree,
+    gitAutoDeleteWorktreeLimit,
     allowForcePush,
     commitMessagePrompt,
     pullRequestPrompt,
+    githubOAuthClientId,
     sandboxMode,
     allowNetworkAccess,
     installCodexDependencies,
@@ -332,10 +708,17 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     customInstructions,
     enableMemory,
     skipToolAidedChats,
+      githubMemorySyncEnabled,
+      githubMemoryRepository,
+      reviewView,
+      diffMarkerStyle,
+      rustSearchAndDiffKernels,
+    browserAllowedSites,
     settingsLoaded,
     setPermissionMode,
     setModel,
-    setFallbackModel,
+    setPlanExecutionModel,
+    setReviewModel,
     setSmallFastModel,
     setFastModel,
     setDefaultModel,
@@ -353,9 +736,15 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     setShowContextUsage,
     setDefaultOpenTargetId,
     setGitBranchPrefix,
+    setGitPrMergeMethod,
+    setGitShowPrIconsInSidebar,
+    setGitDraftPullRequest,
+    setGitAutoDeleteWorktree,
+    setGitAutoDeleteWorktreeLimit,
     setAllowForcePush,
     setCommitMessagePrompt,
     setPullRequestPrompt,
+    setGithubOAuthClientId,
     setSandboxMode,
     setAllowNetworkAccess,
     setInstallCodexDependencies,
@@ -363,5 +752,74 @@ function useDesktopSettingsState(): UseDesktopSettingsResult {
     setCustomInstructions,
     setEnableMemory,
     setSkipToolAidedChats,
+    setGithubMemorySyncEnabled,
+setGithubMemoryRepository,
+    setReviewView,
+    setDiffMarkerStyle,
+    setRustSearchAndDiffKernels,
+    setBrowserAllowedSites,
+    draft,
+    flushDesktopSettings,
   }
+}
+
+function cloneDesktopSettings(
+  settings: StoredDesktopSettings,
+): StoredDesktopSettings {
+  return {
+    ...settings,
+    recentWorkspaces: settings.recentWorkspaces.map(workspace => ({
+      ...workspace,
+    })),
+    browserAllowedSites: [...settings.browserAllowedSites],
+  }
+}
+
+function updateDesktopSettingsValue<Key extends keyof StoredDesktopSettings>(
+  current: StoredDesktopSettings,
+  key: Key,
+  value:
+    | StoredDesktopSettings[Key]
+    | ((currentValue: StoredDesktopSettings[Key]) => StoredDesktopSettings[Key]),
+): StoredDesktopSettings {
+  const currentValue = current[key]
+  const nextValue =
+    typeof value === 'function'
+      ? (value as (
+          currentValue: StoredDesktopSettings[Key],
+        ) => StoredDesktopSettings[Key])(currentValue)
+      : value
+  return cloneDesktopSettings({
+    ...current,
+    [key]: nextValue,
+  })
+}
+
+function mergeDesktopSettingsDraft(
+  baseValues: StoredDesktopSettings,
+  draftValues: StoredDesktopSettings,
+  dirtyKeys: ReadonlySet<keyof StoredDesktopSettings>,
+): StoredDesktopSettings {
+  const next = cloneDesktopSettings(baseValues)
+  for (const key of dirtyKeys) {
+    ;(next as Record<keyof StoredDesktopSettings, unknown>)[key] =
+      cloneDesktopSettingsValue(draftValues[key])
+  }
+  return next
+}
+
+function cloneDesktopSettingsValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(item =>
+      item && typeof item === 'object' ? { ...item } : item,
+    )
+  }
+  return value
+}
+
+function desktopSettingsEqual(
+  left: StoredDesktopSettings,
+  right: StoredDesktopSettings,
+): boolean {
+  return JSON.stringify(left) === JSON.stringify(right)
 }

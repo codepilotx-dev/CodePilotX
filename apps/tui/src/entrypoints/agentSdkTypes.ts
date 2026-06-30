@@ -20,6 +20,7 @@ export type {
   SDKControlRequest,
   SDKControlResponse,
 } from './sdk/controlTypes.js'
+export type { PermissionMode } from '../types/permissions.js'
 // Re-export core types (common serializable types)
 export * from './sdk/coreTypes.js'
 // Re-export runtime types (callbacks, interfaces with methods)

@@ -1,9 +1,14 @@
 module.exports = {
   appId: 'local.codepilotx.desktop',
   productName: 'CodePilotX Local Desktop',
-  files: ['dist/desktop/**/*', 'dist/desktop-agent/**/*', 'package.json'],
+  files: [
+    'dist/desktop/**/*',
+    'dist/desktop-agent/**/*',
+    'dist/desktop-runtime/**/*',
+    'package.json',
+  ],
   extraResources: [{ from: 'apps/desktop/build/icon.ico', to: 'icon.ico' }],
-  asarUnpack: ['dist/desktop-agent/**/*'],
+  asarUnpack: ['dist/desktop-agent/**/*', 'dist/desktop-runtime/**/*'],
   directories: {
     output: 'release/desktop',
   },

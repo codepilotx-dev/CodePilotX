@@ -2,7 +2,7 @@
 
 CodePilotX 是一个面向本地开发工作流的 AI coding agent。它提供 CLI、终端 TUI 和 Electron 桌面端，支持在项目目录中读取上下文、执行工具、管理会话、修改代码，并通过多 provider 适配层接入不同模型服务。
 
-这个仓库的重点不是简单换壳，而是把 Claude Code 形态的本地 agent 工作流扩展到更适合国内和多模型场景的模型后端，尤其针对 DeepSeek 和 MiniMax 做了工程化优化。
+这个仓库的重点不是简单换壳，而是把 CodePilotX 的本地 agent 工作流扩展到更适合国内和多模型场景的模型后端，尤其针对 DeepSeek 和 MiniMax 做了工程化优化。
 
 ## 亮点
 
@@ -35,39 +35,35 @@ DeepSeek 使用 OpenAI-compatible API，但 CodePilotX 没有只做基础转发�
 
 ## MiniMax 优化
 
-MiniMax 在 CodePilotX 中是独立 provider，不只是 OpenAI-compatible 的一个 URL。主聊天和媒体能力分别做了适配。
+MiniMax 在 CodePilotX 中是独立 provider，不只是 OpenAI-compatible 的一个 URL。主聊天由内置 AI SDK 适配层处理，媒体能力建议交给 MiniMax 官方 CLI。
 
 ### 主聊天适配
 
-- 使用 `vercel-minimax-ai-provider` 和 AI SDK `streamText` 接入 MiniMax Anthropic-compatible endpoint。
+- 使用 AI SDK `streamText` 和 `@ai-sdk/anthropic` 接入 MiniMax Anthropic-compatible endpoint。
 - 默认使用 `https://api.minimaxi.com/anthropic/v1`，模型列表内置 `MiniMax-M2.7`、`MiniMax-M2.7-highspeed`、`MiniMax-M2.5`、`MiniMax-M2.1` 等。
 - 将本地 Anthropic 风格消息转换为 AI SDK `ModelMessage`，保留 user、assistant、tool result、tool call 和 reasoning 内容。
 - 将本地工具 schema 转成 AI SDK tool schema，让 MiniMax 主聊天也能参与 agent 工具调用。
 - 统一映射 MiniMax 响应到本项目的 `AssistantMessage`，包括文本、thinking、tool_use、finish reason、request id 和 usage。
-- 对 MiniMax 主聊天不支持的图片、文档输入给出明确错误，引导使用专门的 MiniMax 工具。
+- 对 MiniMax 主聊天不支持的图片、文档输入给出明确错误，引导使用官方 MiniMax CLI 或提取文本后再进入主聊天。
 - 对 MiniMax 常见错误码做中文化提示，包括限流、鉴权失败、余额不足、TPM/token 限制和参数错误。
 
-### MiniMax 工具集
+### MiniMax 官方 CLI
 
-仓库内置了一组可由 agent 调用的 MiniMax 工具：
+媒体、视觉、语音、音乐、文件和额度等 MiniMax 工作流不再由 CodePilotX 内置插件维护。插件页中的 MiniMax 卡片会打开官方安装入口：
 
-| 工具 | 能力 |
-| --- | --- |
-| `MiniMaxImage` | 文生图、图生图，支持比例、尺寸、seed、返回 URL 或 base64，并可保存本地文件。 |
-| `MiniMaxSpeech` | T2A 语音合成，支持同步和异步任务，保存返回音频。 |
-| `MiniMaxVideo` | 创建、查询、下载视频生成任务。 |
-| `MiniMaxMusic` | 音乐生成、歌词生成和翻唱相关流程。 |
-| `MiniMaxVision` | 图片理解和描述。 |
-| `MiniMaxFile` | 上传、列出、查询、下载、删除 MiniMax 平台文件，并对删除操作要求确认。 |
-| `MiniMaxQuota` | 查询 MiniMax Token Plan / quota 状态。 |
+- MiniMax CLI 文档：<https://platform.minimax.io/docs/token-plan/minimax-cli>
+- 官方仓库：<https://github.com/MiniMax-AI/cli>
 
-这些工具会复用 `MINIMAX_API_KEY` 或 `/connect` 保存的 MiniMax key，并通过本地权限系统检查读写路径。生成物默认写入本地 artifacts 目录，也支持显式指定输出路径。
+官方推荐安装命令：
+
+```bash
+npm install -g mmx-cli
+npx skills add MiniMax-AI/cli -y -g
+```
 
 相关实现主要在：
 
 - `apps/tui/src/services/api/minimax.ts`
-- `apps/tui/src/tools/MiniMaxTool/MiniMaxTool.ts`
-- `apps/tui/src/tools/MiniMaxTool/client.ts`
 - `apps/tui/src/utils/model/providerConfig.ts`
 
 ## 快速开始
@@ -217,3 +213,7 @@ CodePilotX 使用三档任务模型接口，不再暴露 Claude 家族名作为�
 - 桌面端不要直接依赖未暴露的 TUI 内部实现；需要共享能力时通过 `packages/core/` 或既有 workspace alias 暴露。
 - 私有 `@ant/*` 和 native 包在公开环境不可用时由本地 stubs 表示。
 - Claude 模型 ID、Anthropic SDK 包名、`claude.ai` 远端 URL 和 provider/auth 逻辑属于生态兼容层，不应作为普通产品文案重命名。
+
+## 第三方字体
+
+桌面端 UI 默认字体使用 MiSans（小米字体），通过本地 npm 依赖 `misans@4.1.0` 打包分发，不依赖 CDN。MiSans 由小米提供并可免费商用（Apache-2.0），来源：[dsrkafuu/misans](https://github.com/dsrkafuu/misans)。

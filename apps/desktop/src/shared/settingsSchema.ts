@@ -7,12 +7,15 @@ import {
 import type { AgentPermissionPolicy } from '@codepilotx/core/agent/permissions.js'
 import type {
   DesktopDrawerTab,
+  DesktopDiffMarkerStyle,
   DesktopPermissionMode,
   DesktopPersonality,
+  DesktopReviewView,
   DesktopSandboxMode,
   DesktopStoredSettings,
   DesktopThinkingMode,
   DesktopWorkspace,
+  LocalRouterMode,
   ModelProviderID,
 } from './types.js'
 
@@ -41,6 +44,16 @@ export const DESKTOP_PERSONALITIES = new Set<DesktopPersonality>([
   'encouraging',
 ])
 
+export const DESKTOP_REVIEW_VIEWS = new Set<DesktopReviewView>([
+  'inline',
+  'split',
+])
+
+export const DESKTOP_DIFF_MARKER_STYLES = new Set<DesktopDiffMarkerStyle>([
+  'color',
+  'symbol',
+])
+
 export const DESKTOP_DRAWER_TABS = new Set<DesktopDrawerTab>([
   'files',
   'diff',
@@ -53,9 +66,15 @@ export const MAX_RECENT_WORKSPACES = 5
 
 export function defaultDesktopStoredSettings(): DesktopStoredSettings {
   return {
+    enableParetoCodeRouter: false,
+    enableFusionRouter: false,
+    permissionProfile: ':workspace',
+    approvalPolicy: 'on-request',
+    approvalsReviewer: 'user',
     permissionMode: 'default',
     model: '',
-    fallbackModel: '',
+    planExecutionModel: '',
+    reviewModel: '',
     smallFastModel: '',
     fastModel: '',
     defaultModel: '',
@@ -72,17 +91,27 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     providerBaseURL: '',
     showContextUsage: true,
     defaultOpenTargetId: 'default-app',
-    gitBranchPrefix: 'codex/',
+    gitBranchPrefix: 'codepilotx/',
+    gitPrMergeMethod: 'merge',
+    gitShowPrIconsInSidebar: true,
+    gitDraftPullRequest: true,
+    gitAutoDeleteWorktree: true,
+    gitAutoDeleteWorktreeLimit: 15,
     allowForcePush: false,
     commitMessagePrompt: '',
     pullRequestPrompt: '',
-    sandboxMode: 'workspace-write',
-    allowNetworkAccess: true,
+    githubOAuthClientId: '',
     installCodexDependencies: true,
     personality: 'pragmatic',
     customInstructions: '',
     enableMemory: false,
     skipToolAidedChats: false,
+    githubMemorySyncEnabled: false,
+    githubMemoryRepository: '',
+    reviewView: 'inline',
+    diffMarkerStyle: 'color',
+    rustSearchAndDiffKernels: false,
+    browserAllowedSites: [],
   }
 }
 
@@ -95,9 +124,33 @@ export function normalizeDesktopStoredSettings(
       : {}
   const defaults = defaultDesktopStoredSettings()
   return {
+    enableParetoCodeRouter:
+      typeof parsed.enableParetoCodeRouter === 'boolean'
+        ? parsed.enableParetoCodeRouter
+        : defaults.enableParetoCodeRouter,
+    enableFusionRouter:
+      typeof parsed.enableFusionRouter === 'boolean'
+        ? parsed.enableFusionRouter
+        : defaults.enableFusionRouter,
+    permissionProfile: normalizeDesktopPermissionProfile(
+      parsed.permissionProfile,
+      defaults.permissionProfile,
+    ),
+    approvalPolicy: normalizeDesktopApprovalPolicy(
+      parsed.approvalPolicy,
+      defaults.approvalPolicy,
+    ),
+    approvalsReviewer: normalizeDesktopApprovalsReviewer(
+      parsed.approvalsReviewer,
+      defaults.approvalsReviewer,
+    ),
     permissionMode: normalizeDesktopPermissionMode(parsed.permissionMode),
     model: migrateModelAlias(stringOrDefault(parsed.model, defaults.model)),
-    fallbackModel: stringOrDefault(parsed.fallbackModel, defaults.fallbackModel),
+    planExecutionModel: stringOrDefault(
+      parsed.planExecutionModel,
+      defaults.planExecutionModel,
+    ),
+    reviewModel: stringOrDefault(parsed.reviewModel, defaults.reviewModel),
     smallFastModel: stringOrDefault(
       parsed.smallFastModel,
       defaults.smallFastModel,
@@ -165,6 +218,25 @@ export function normalizeDesktopStoredSettings(
       parsed.gitBranchPrefix,
       defaults.gitBranchPrefix,
     ),
+    gitPrMergeMethod: isDesktopGitPrMergeMethod(parsed.gitPrMergeMethod)
+      ? parsed.gitPrMergeMethod
+      : defaults.gitPrMergeMethod,
+    gitShowPrIconsInSidebar:
+      typeof parsed.gitShowPrIconsInSidebar === 'boolean'
+        ? parsed.gitShowPrIconsInSidebar
+        : defaults.gitShowPrIconsInSidebar,
+    gitDraftPullRequest:
+      typeof parsed.gitDraftPullRequest === 'boolean'
+        ? parsed.gitDraftPullRequest
+        : defaults.gitDraftPullRequest,
+    gitAutoDeleteWorktree:
+      typeof parsed.gitAutoDeleteWorktree === 'boolean'
+        ? parsed.gitAutoDeleteWorktree
+        : defaults.gitAutoDeleteWorktree,
+    gitAutoDeleteWorktreeLimit: normalizeGitWorktreeLimit(
+      parsed.gitAutoDeleteWorktreeLimit,
+      defaults.gitAutoDeleteWorktreeLimit,
+    ),
     allowForcePush:
       typeof parsed.allowForcePush === 'boolean'
         ? parsed.allowForcePush
@@ -177,13 +249,10 @@ export function normalizeDesktopStoredSettings(
       parsed.pullRequestPrompt,
       defaults.pullRequestPrompt,
     ),
-    sandboxMode: isDesktopSandboxMode(parsed.sandboxMode)
-      ? parsed.sandboxMode
-      : defaults.sandboxMode,
-    allowNetworkAccess:
-      typeof parsed.allowNetworkAccess === 'boolean'
-        ? parsed.allowNetworkAccess
-        : defaults.allowNetworkAccess,
+    githubOAuthClientId: stringOrDefault(
+      parsed.githubOAuthClientId,
+      defaults.githubOAuthClientId,
+    ),
     installCodexDependencies:
       typeof parsed.installCodexDependencies === 'boolean'
         ? parsed.installCodexDependencies
@@ -203,7 +272,56 @@ export function normalizeDesktopStoredSettings(
       typeof parsed.skipToolAidedChats === 'boolean'
         ? parsed.skipToolAidedChats
         : defaults.skipToolAidedChats,
+    githubMemorySyncEnabled:
+      typeof parsed.githubMemorySyncEnabled === 'boolean'
+        ? parsed.githubMemorySyncEnabled
+        : defaults.githubMemorySyncEnabled,
+    githubMemoryRepository: stringOrDefault(
+      parsed.githubMemoryRepository,
+      defaults.githubMemoryRepository,
+    ),
+    reviewView: isDesktopReviewView(parsed.reviewView)
+      ? parsed.reviewView
+      : defaults.reviewView,
+    diffMarkerStyle: isDesktopDiffMarkerStyle(parsed.diffMarkerStyle)
+      ? parsed.diffMarkerStyle
+      : defaults.diffMarkerStyle,
+    rustSearchAndDiffKernels:
+      typeof parsed.rustSearchAndDiffKernels === 'boolean'
+        ? parsed.rustSearchAndDiffKernels
+        : defaults.rustSearchAndDiffKernels,
+    browserAllowedSites: normalizeStringList(
+      parsed.browserAllowedSites,
+      defaults.browserAllowedSites,
+    ),
   }
+}
+
+export function normalizeDesktopPermissionProfile(
+  value: unknown,
+  fallback = ':workspace',
+): string {
+  return typeof value === 'string' && value.trim() ? value.trim() : fallback
+}
+
+export function normalizeDesktopApprovalPolicy(
+  value: unknown,
+  fallback: DesktopStoredSettings['approvalPolicy'] = 'on-request',
+): DesktopStoredSettings['approvalPolicy'] {
+  return value === 'untrusted' ||
+    value === 'on-request' ||
+    value === 'on-failure' ||
+    value === 'never'
+    ? value
+    : fallback
+}
+
+export function normalizeDesktopApprovalsReviewer(
+  value: unknown,
+  fallback: DesktopStoredSettings['approvalsReviewer'] = 'user',
+): DesktopStoredSettings['approvalsReviewer'] {
+  if (value === 'auto') return 'auto_review'
+  return value === 'user' || value === 'auto_review' ? value : fallback
 }
 
 export function normalizeDesktopWorkspaces(value: unknown): DesktopWorkspace[] {
@@ -231,6 +349,12 @@ export function normalizeDesktopWorkspaces(value: unknown): DesktopWorkspace[] {
   })
 }
 
+export function isDesktopDiffMarkerStyle(
+  value: unknown,
+): value is DesktopDiffMarkerStyle {
+  return DESKTOP_DIFF_MARKER_STYLES.has(value as DesktopDiffMarkerStyle)
+}
+
 export function upsertRecentWorkspace(
   workspaces: DesktopWorkspace[],
   workspace: DesktopWorkspace,
@@ -238,6 +362,15 @@ export function upsertRecentWorkspace(
   if (workspace.isStandalone) return workspaces
   const filtered = workspaces.filter(item => item.path !== workspace.path)
   return [workspace, ...filtered].slice(0, MAX_RECENT_WORKSPACES)
+}
+
+export function mergeDesktopBrowserAllowedSites(
+  current: string[],
+  incoming: string[],
+): string[] {
+  return [...current, ...incoming].filter(
+    (site, index, sites) => sites.indexOf(site) === index,
+  )
 }
 
 export function isDesktopPermissionMode(
@@ -287,6 +420,15 @@ export function isDesktopPersonality(
   )
 }
 
+export function isDesktopReviewView(
+  value: unknown,
+): value is DesktopReviewView {
+  return (
+    typeof value === 'string' &&
+    DESKTOP_REVIEW_VIEWS.has(value as DesktopReviewView)
+  )
+}
+
 export function isDesktopDrawerTab(value: unknown): value is DesktopDrawerTab {
   return (
     typeof value === 'string' &&
@@ -294,12 +436,39 @@ export function isDesktopDrawerTab(value: unknown): value is DesktopDrawerTab {
   )
 }
 
+export const DESKTOP_GIT_PR_MERGE_METHODS = new Set<'merge' | 'squash'>([
+  'merge',
+  'squash',
+])
+
+export function isDesktopGitPrMergeMethod(
+  value: unknown,
+): value is 'merge' | 'squash' {
+  return typeof value === 'string' && DESKTOP_GIT_PR_MERGE_METHODS.has(value as 'merge' | 'squash')
+}
+
+export function normalizeGitWorktreeLimit(
+  value: unknown,
+  fallback: number,
+): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback
+  return Math.max(1, Math.floor(value))
+}
+
 export function isModelProviderID(value: unknown): value is ModelProviderID {
   return typeof value === 'string' && value.trim().length > 0
 }
 
+export { isLocalRouterMode, normalizeLocalRouterMode } from './types.js'
+export type { LocalRouterMode } from './types.js'
+
 function stringOrDefault(value: unknown, fallback: string): string {
   return typeof value === 'string' ? value : fallback
+}
+
+function normalizeStringList(value: unknown, fallback: string[]): string[] {
+  if (!Array.isArray(value)) return fallback
+  return value.filter(item => typeof item === 'string')
 }
 
 function migrateModelAlias(model: string): string {

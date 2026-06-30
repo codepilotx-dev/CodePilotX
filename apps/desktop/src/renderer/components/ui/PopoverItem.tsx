@@ -1,8 +1,8 @@
 import type React from 'react'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
-import * as Tooltip from '@radix-ui/react-tooltip'
 import { Check, ChevronDown, ChevronRight, ChevronUp } from 'lucide-react'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from './iconTokens.js'
+import { Tooltip } from './Tooltip.js'
 
 type Props = {
   children: React.ReactNode
@@ -91,20 +91,15 @@ export function PopoverItem({
   }
 
   return (
-    <Tooltip.Provider delayDuration={350}>
-      <Tooltip.Root>
-        <Tooltip.Trigger asChild>{item}</Tooltip.Trigger>
-        <Tooltip.Portal>
-          <Tooltip.Content
-            align="center"
-            className="popover-item-tooltip"
-            side="right"
-            sideOffset={10}
-          >
-            {meta}
-          </Tooltip.Content>
-        </Tooltip.Portal>
-      </Tooltip.Root>
-    </Tooltip.Provider>
+    <Tooltip
+      align="center"
+      className="popover-item-tooltip"
+      content={meta}
+      delayDuration={350}
+      side="right"
+      sideOffset={10}
+    >
+      {item}
+    </Tooltip>
   )
 }

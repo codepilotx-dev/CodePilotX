@@ -27,6 +27,7 @@ import { mkdirSync, writeFileSync } from 'fs'
 import { mkdir, writeFile } from 'fs/promises'
 import { dirname, join } from 'path'
 import { getSessionId } from '../../bootstrap/state.js'
+import { sanitizePathComponent } from '../pathComponent.js'
 import { registerCleanup } from '../cleanupRegistry.js'
 import { logForDebugging } from '../debug.js'
 import {
@@ -271,7 +272,7 @@ export function initializePerfettoTracing(): void {
     // Determine trace file path
     if (isEnvTruthy(envValue)) {
       const tracesDir = join(getClaudeConfigHomeDir(), 'traces')
-      tracePath = join(tracesDir, `trace-${getSessionId()}.json`)
+      tracePath = join(tracesDir, `trace-${sanitizePathComponent(getSessionId())}.json`)
     } else {
       // Use the provided path
       tracePath = envValue

@@ -69,6 +69,7 @@ import { updateSessionName } from './concurrentSessions.js'
 import { getCwd } from './cwd.js'
 import { logForDebugging } from './debug.js'
 import { logForDiagnosticsNoPII } from './diagLogs.js'
+import { sanitizePathComponent } from './pathComponent.js'
 import { getClaudeConfigHomeDir, isEnvTruthy } from './envUtils.js'
 import { isFsInaccessible } from './errors.js'
 import type { FileHistorySnapshot } from './fileHistory.js'
@@ -201,7 +202,7 @@ export function getProjectsDir(): string {
 
 export function getTranscriptPath(): string {
   const projectDir = getSessionProjectDir() ?? getProjectDir(getOriginalCwd())
-  return join(projectDir, `${getSessionId()}.jsonl`)
+  return join(projectDir, `${sanitizePathComponent(getSessionId())}.jsonl`)
 }
 
 export function getTranscriptPathForSession(sessionId: string): string {
@@ -221,7 +222,7 @@ export function getTranscriptPathForSession(sessionId: string): string {
     return getTranscriptPath()
   }
   const projectDir = getProjectDir(getOriginalCwd())
-  return join(projectDir, `${sessionId}.jsonl`)
+  return join(projectDir, `${sanitizePathComponent(sessionId)}.jsonl`)
 }
 
 // 50 MB — session JSONL can grow to multiple GB (inc-3930). Callers that
@@ -252,8 +253,8 @@ export function getAgentTranscriptPath(agentId: AgentId): string {
   const sessionId = getSessionId()
   const subdir = agentTranscriptSubdirs.get(agentId)
   const base = subdir
-    ? join(projectDir, sessionId, 'subagents', subdir)
-    : join(projectDir, sessionId, 'subagents')
+    ? join(projectDir, sanitizePathComponent(sessionId), 'subagents', subdir)
+    : join(projectDir, sanitizePathComponent(sessionId), 'subagents')
   return join(base, `agent-${agentId}.jsonl`)
 }
 
@@ -321,7 +322,7 @@ function getRemoteAgentsDir(): string {
   // Same sessionProjectDir fallback as getAgentTranscriptPath — the project
   // dir (containing the .jsonl), not the session dir, so sessionId is joined.
   const projectDir = getSessionProjectDir() ?? getProjectDir(getOriginalCwd())
-  return join(projectDir, getSessionId(), 'remote-agents')
+  return join(projectDir, sanitizePathComponent(getSessionId()), 'remote-agents')
 }
 
 function getRemoteAgentMetadataPath(taskId: string): string {

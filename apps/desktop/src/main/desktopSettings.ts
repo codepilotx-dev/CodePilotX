@@ -5,12 +5,13 @@ import {
   CODEPILOTX_CONFIG_DIR_ENV,
   CODEPILOTX_CONFIG_DIR_NAME,
   LEGACY_CLAUDE_CONFIG_DIR_ENV,
-} from '@codepilotx/tui/utils/envUtils.js'
+} from '@codepilotx/core/config/env.js'
 import type { DesktopStoredSettings } from '../shared/types.js'
 import {
   defaultDesktopStoredSettings,
   normalizeDesktopStoredSettings,
 } from '../shared/settingsSchema.js'
+import { readGlobalAgentsMd, saveGlobalAgentsMd } from './desktopAgentsMd.js'
 
 const SETTINGS_FILE_NAME = 'settings.json'
 export function getDesktopConfigDirectoryPath(): string {
@@ -30,11 +31,20 @@ function getDesktopSettingsPath(): string {
 }
 
 export async function readDesktopStoredSettings(): Promise<DesktopStoredSettings> {
+  const configHomeDir = getOpenAgentConfigHomeDir()
+  const globalAgentsMd = await readGlobalAgentsMd(configHomeDir)
   try {
     const raw = await readFile(getDesktopSettingsPath(), 'utf8')
-    return normalizeDesktopStoredSettings(JSON.parse(raw))
+    const settings = normalizeDesktopStoredSettings(JSON.parse(raw))
+    return {
+      ...settings,
+      customInstructions: globalAgentsMd ?? settings.customInstructions,
+    }
   } catch {
-    return defaultDesktopStoredSettings()
+    return {
+      ...defaultDesktopStoredSettings(),
+      customInstructions: globalAgentsMd ?? '',
+    }
   }
 }
 
@@ -45,5 +55,9 @@ export async function saveDesktopStoredSettings(
   const settingsPath = getDesktopSettingsPath()
   await mkdir(dirname(settingsPath), { recursive: true })
   await writeFile(settingsPath, JSON.stringify(normalized, null, 2), 'utf8')
+  await saveGlobalAgentsMd(
+    getOpenAgentConfigHomeDir(),
+    normalized.customInstructions,
+  )
   return normalized
 }

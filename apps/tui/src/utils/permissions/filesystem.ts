@@ -17,6 +17,7 @@ import { checkStatsigFeatureGate_CACHED_MAY_BE_STALE } from '../../services/anal
 import type { AnyObject, Tool, ToolPermissionContext } from '../../Tool.js'
 import { FILE_READ_TOOL_NAME } from '../../tools/FileReadTool/prompt.js'
 import { getCwd } from '../cwd.js'
+import { sanitizePathComponent } from '../pathComponent.js'
 import { getClaudeConfigHomeDir } from '../envUtils.js'
 import {
   getFsImplementation,
@@ -259,7 +260,7 @@ function isSessionPlanFile(absolutePath: string): boolean {
  * Path format: {projectDir}/{sessionId}/session-memory/
  */
 export function getSessionMemoryDir(): string {
-  return join(getProjectDir(getCwd()), getSessionId(), 'session-memory') + sep
+  return join(getProjectDir(getCwd()), sanitizePathComponent(getSessionId()), 'session-memory') + sep
 }
 
 /**
@@ -382,7 +383,7 @@ export function getProjectTempDir(): string {
  * Path format: /tmp/claude-{uid}/{sanitized-cwd}/{sessionId}/scratchpad/
  */
 export function getScratchpadDir(): string {
-  return join(getProjectTempDir(), getSessionId(), 'scratchpad')
+  return join(getProjectTempDir(), sanitizePathComponent(getSessionId()), 'scratchpad')
 }
 
 /**

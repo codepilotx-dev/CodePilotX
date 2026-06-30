@@ -5,6 +5,7 @@ import { createBufferedWriter } from './bufferedWriter.js'
 import { registerCleanup } from './cleanupRegistry.js'
 import { logForDebugging } from './debug.js'
 import { getClaudeConfigHomeDir, isEnvTruthy } from './envUtils.js'
+import { sanitizePathComponent } from './pathComponent.js'
 import { getFsImplementation } from './fsOperations.js'
 import { sanitizePath } from './path.js'
 import { jsonStringify } from './slowOperations.js'
@@ -38,7 +39,7 @@ export function getRecordFilePath(): string | null {
   recordingState.timestamp = Date.now()
   recordingState.filePath = join(
     projectDir,
-    `${getSessionId()}-${recordingState.timestamp}.cast`,
+    `${sanitizePathComponent(getSessionId())}-${recordingState.timestamp}.cast`,
   )
   return recordingState.filePath
 }
@@ -88,7 +89,7 @@ export async function renameRecordingForSession(): Promise<void> {
   const projectDir = join(projectsDir, sanitizePath(getOriginalCwd()))
   const newPath = join(
     projectDir,
-    `${getSessionId()}-${recordingState.timestamp}.cast`,
+    `${sanitizePathComponent(getSessionId())}-${recordingState.timestamp}.cast`,
   )
   if (oldPath === newPath) {
     return

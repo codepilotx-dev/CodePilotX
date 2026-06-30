@@ -1,5 +1,9 @@
 import type { AgentPermissionRequest } from './permissions.js'
 import type {
+  AgentGuardianReviewAction,
+  AgentGuardianReviewStatus,
+  AgentGuardianRiskLevel,
+  AgentGuardianUserAuthorization,
   AgentContextUsage,
   AgentRuntimeEvent,
   AgentSessionStatus,
@@ -23,10 +27,12 @@ export type TurnStatus =
 export type TurnItemType =
   | 'user_message'
   | 'agent_message'
+  | 'proposed_plan'
   | 'reasoning'
   | 'tool_call'
   | 'tool_result'
   | 'permission_request'
+  | 'guardian_review'
   | 'file_change'
   | 'error'
 
@@ -49,6 +55,12 @@ export type UserMessageTurnItem = TurnItemCommon & {
 
 export type AgentMessageTurnItem = TurnItemCommon & {
   type: 'agent_message'
+  text: string
+  streaming?: boolean
+}
+
+export type ProposedPlanTurnItem = TurnItemCommon & {
+  type: 'proposed_plan'
   text: string
   streaming?: boolean
 }
@@ -78,6 +90,17 @@ export type PermissionRequestTurnItem = TurnItemCommon & {
   request: AgentPermissionRequest
 }
 
+export type GuardianReviewTurnItem = TurnItemCommon & {
+  type: 'guardian_review'
+  reviewId: string
+  targetRequestId?: string
+  reviewStatus: AgentGuardianReviewStatus
+  riskLevel?: AgentGuardianRiskLevel
+  userAuthorization?: AgentGuardianUserAuthorization
+  rationale?: string
+  action: AgentGuardianReviewAction
+}
+
 export type FileChangeTurnItem = TurnItemCommon & {
   type: 'file_change'
   filePath: string
@@ -93,10 +116,12 @@ export type ErrorTurnItem = TurnItemCommon & {
 export type TurnItem =
   | UserMessageTurnItem
   | AgentMessageTurnItem
+  | ProposedPlanTurnItem
   | ReasoningTurnItem
   | ToolCallTurnItem
   | ToolResultTurnItem
   | PermissionRequestTurnItem
+  | GuardianReviewTurnItem
   | FileChangeTurnItem
   | ErrorTurnItem
 
@@ -598,10 +623,30 @@ export function agentRuntimeEventToThreadEvents(
       }
       return decorateThreadEvents([itemEvent('item.updated', ids, item, createdAt)], ids)
     }
+    case 'proposed_plan': {
+      const item: ProposedPlanTurnItem = {
+        id: itemId('proposed_plan', event.streaming ? 'partial' : 'final'),
+        type: 'proposed_plan',
+        threadId: ids.threadId,
+        turnId: ids.turnId,
+        status: event.streaming ? 'in_progress' : 'completed',
+        createdAt,
+        updatedAt: createdAt,
+        text: event.text,
+        ...(event.streaming ? { streaming: true } : {}),
+        ...(metadata ? { metadata } : {}),
+      }
+      return decorateThreadEvents(
+        [itemEvent(event.streaming ? 'item.updated' : 'item.completed', ids, item, createdAt)],
+        ids,
+      )
+    }
     case 'tool_start': {
-      const toolUseId = createWorkflowId('tool_use', `${event.toolName}-start`)
+      const toolUseId =
+        event.toolUseId ?? createWorkflowId('tool_use', `${event.toolName}-start`)
+      const itemMetadata = { ...(metadata ?? {}), toolUseId }
       const item: ToolCallTurnItem = {
-        id: itemId('tool_call', `${event.toolName}-start`),
+        id: itemId('tool_call', event.toolUseId ?? `${event.toolName}-start`),
         type: 'tool_call',
         threadId: ids.threadId,
         turnId: ids.turnId,
@@ -610,14 +655,16 @@ export function agentRuntimeEventToThreadEvents(
         toolName: event.toolName,
         summary: event.summary,
         toolUseId,
-        ...(metadata ? { metadata } : {}),
+        metadata: itemMetadata,
       }
       return decorateThreadEvents([itemEvent('item.started', ids, item, createdAt)], ids)
     }
     case 'tool_result': {
-      const toolUseId = createWorkflowId('tool_use', `${event.toolName}-result`)
+      const toolUseId =
+        event.toolUseId ?? createWorkflowId('tool_use', `${event.toolName}-result`)
+      const itemMetadata = { ...(metadata ?? {}), toolUseId }
       const item: ToolResultTurnItem = {
-        id: itemId('tool_result', `${event.toolName}-result`),
+        id: itemId('tool_result', event.toolUseId ?? `${event.toolName}-result`),
         type: 'tool_result',
         threadId: ids.threadId,
         turnId: ids.turnId,
@@ -627,7 +674,7 @@ export function agentRuntimeEventToThreadEvents(
         summary: event.summary,
         toolUseId,
         ...(event.isError ? { isError: true } : {}),
-        ...(metadata ? { metadata } : {}),
+        metadata: itemMetadata,
       }
       return decorateThreadEvents([itemEvent('item.completed', ids, item, createdAt)], ids)
     }
@@ -643,6 +690,30 @@ export function agentRuntimeEventToThreadEvents(
         ...(metadata ? { metadata } : {}),
       }
       return decorateThreadEvents([itemEvent('item.started', ids, item, createdAt)], ids)
+    }
+    case 'guardian_review': {
+      const item: GuardianReviewTurnItem = {
+        id: itemId('guardian_review', event.reviewId),
+        type: 'guardian_review',
+        threadId: ids.threadId,
+        turnId: ids.turnId,
+        status: guardianItemStatus(event.status),
+        createdAt,
+        updatedAt: createdAt,
+        reviewId: event.reviewId,
+        ...(event.targetRequestId ? { targetRequestId: event.targetRequestId } : {}),
+        reviewStatus: event.status,
+        ...(event.riskLevel ? { riskLevel: event.riskLevel } : {}),
+        ...(event.userAuthorization
+          ? { userAuthorization: event.userAuthorization }
+          : {}),
+        ...(event.rationale ? { rationale: event.rationale } : {}),
+        action: event.action,
+        ...(metadata ? { metadata } : {}),
+      }
+      const lifecycle =
+        event.status === 'in_progress' ? 'item.started' : 'item.completed'
+      return decorateThreadEvents([itemEvent(lifecycle, ids, item, createdAt)], ids)
     }
     case 'diff': {
       const item: FileChangeTurnItem = {
@@ -695,6 +766,21 @@ export function agentRuntimeEventToThreadEvents(
     case 'context_usage':
     case 'session_title':
       return []
+  }
+}
+
+function guardianItemStatus(
+  status: AgentGuardianReviewStatus,
+): TurnItemStatus {
+  switch (status) {
+    case 'in_progress':
+      return 'in_progress'
+    case 'approved':
+      return 'completed'
+    case 'denied':
+    case 'timed_out':
+    case 'aborted':
+      return 'failed'
   }
 }
 

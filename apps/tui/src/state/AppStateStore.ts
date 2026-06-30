@@ -405,6 +405,7 @@ export type AppState = DeepImmutable<{
     message: UserMessage
     clearContext?: boolean
     mode?: PermissionMode
+    executionModel?: string
     // Session-scoped permission rules from plan mode (e.g., "run tests", "install dependencies")
     allowedPrompts?: AllowedPrompt[]
   } | null

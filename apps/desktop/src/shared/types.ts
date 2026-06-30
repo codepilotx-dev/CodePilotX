@@ -9,6 +9,7 @@ import type {
   AgentToolLogEntry,
   AgentWorkspace,
 } from '@codepilotx/core/agent/runtime.js'
+import type { CodexCollaborationMode } from '@codepilotx/core/agent/codexSessionContract.js'
 import type {
   AgentPermissionDecision,
   AgentPermissionRequest,
@@ -83,6 +84,105 @@ export type DesktopDiffSummary = {
   patch: string
 }
 
+export type DesktopReviewScope = 'unstaged' | 'staged'
+
+export type DesktopReviewSide = 'left' | 'right'
+
+export type DesktopReviewLineType = 'added' | 'removed' | 'context' | 'meta'
+
+export type DesktopReviewDiffLine = {
+  id: string
+  type: DesktopReviewLineType
+  oldLine: number | null
+  newLine: number | null
+  content: string
+  raw: string
+}
+
+export type DesktopReviewDiffHunk = {
+  id: string
+  header: string
+  oldStart: number
+  oldLines: number
+  newStart: number
+  newLines: number
+  patch: string
+  lines: DesktopReviewDiffLine[]
+}
+
+export type DesktopReviewDiffFile = {
+  path: string
+  originalPath?: string
+  status: string
+  additions: number
+  deletions: number
+  isUntracked: boolean
+  hunks: DesktopReviewDiffHunk[]
+}
+
+export type DesktopReviewScopeSummary = {
+  scope: DesktopReviewScope
+  changedFiles: number
+  additions: number
+  deletions: number
+}
+
+export type DesktopReviewDiffInput = {
+  workspacePath: string
+  scope?: DesktopReviewScope
+}
+
+export type DesktopReviewDiffResult = {
+  scopes: DesktopReviewScopeSummary[]
+  activeScope: DesktopReviewScope
+  files: DesktopReviewDiffFile[]
+  status: DesktopGitStatus
+}
+
+export type DesktopReviewOperationAction = 'stage' | 'unstage' | 'revert'
+
+export type DesktopReviewOperationTarget =
+  | { type: 'file'; path: string }
+  | { type: 'hunk'; path: string; hunkId: string }
+
+export type DesktopReviewOperationInput = {
+  workspacePath: string
+  scope: DesktopReviewScope
+  action: DesktopReviewOperationAction
+  target: DesktopReviewOperationTarget
+}
+
+export type DesktopReviewOperationResult =
+  | { ok: true; status: DesktopGitStatus; reviewDiff: DesktopReviewDiffResult; output?: string }
+  | { ok: false; error: string }
+
+export type DesktopReviewCommentStatus = 'open' | 'resolved'
+
+export type DesktopReviewComment = {
+  id: string
+  sessionId: string
+  filePath: string
+  side: DesktopReviewSide
+  lineNumber: number
+  lineContent: string
+  body: string
+  status: DesktopReviewCommentStatus
+  createdAt: string
+  updatedAt: string
+}
+
+export type SaveSessionReviewCommentInput = {
+  sessionId: string
+  comment:
+    | Omit<DesktopReviewComment, 'id' | 'sessionId' | 'status' | 'createdAt' | 'updatedAt'>
+    | DesktopReviewComment
+}
+
+export type SessionReviewCommentInput = {
+  sessionId: string
+  commentId: string
+}
+
 export type DesktopGitFileChange = {
   path: string
   originalPath?: string
@@ -132,6 +232,12 @@ export type CreatePullRequestInput = {
   draft?: boolean
 }
 
+export type DiscardWorkspaceChangesInput = {
+  workspacePath: string
+  paths: string[]
+  includeUntracked?: boolean
+}
+
 export type DesktopGitWorkspaceResult =
   | { ok: true; workspace: DesktopWorkspace; status: DesktopGitStatus }
   | { ok: false; error: string }
@@ -152,6 +258,67 @@ export type DesktopRuntimeStatus = {
   agentExecutableExists: boolean
   subprocessFallbackAvailable: boolean
   configDirectoryPath: string
+  toolchainEnabled: boolean
+  toolchainRoot: string | null
+  managedToolchainRoot: string
+  packagedToolchainRoot: string
+  toolchainPathEntries: string[]
+  toolchainBinaries: DesktopRuntimeBinaryStatus[]
+}
+
+export type DesktopRuntimeBinaryName = 'node' | 'npm' | 'npx' | 'python' | 'pip'
+
+export type DesktopRuntimeBinarySource =
+  | 'managed'
+  | 'packaged'
+  | 'system'
+  | 'missing'
+
+export type DesktopRuntimeBinaryStatus = {
+  name: DesktopRuntimeBinaryName
+  source: DesktopRuntimeBinarySource
+  path: string | null
+  exists: boolean
+  targetVersion?: string
+  version: string | null
+  error?: string
+}
+
+export type DesktopToolchainDiagnosticReport = {
+  enabled: boolean
+  root: string | null
+  managedRoot: string
+  packagedRoot: string
+  pathEntries: string[]
+  binaries: DesktopRuntimeBinaryStatus[]
+  logPath?: string
+}
+
+export type DesktopToolchainInstallResult =
+  | {
+      ok: true
+      root: string
+      copiedFrom: string | null
+      diagnostics: DesktopToolchainDiagnosticReport
+    }
+  | { ok: false; error: string; diagnostics: DesktopToolchainDiagnosticReport }
+
+export type DesktopBrowserBounds = {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+export type DesktopBrowserState = {
+  open: boolean
+  url: string
+  title: string
+  loading: boolean
+  canGoBack: boolean
+  canGoForward: boolean
+  error: string | null
+  allowedSites: string[]
 }
 
 export type DesktopOpenTargetKind =
@@ -172,6 +339,18 @@ export type DesktopOpenTarget = {
 export type DesktopSessionStatus = AgentSessionStatus
 
 export type DesktopPermissionMode = DesktopAgentPermissionMode
+
+export type DesktopPermissionProfile = string
+
+export type DesktopApprovalPolicy =
+  | 'untrusted'
+  | 'on-request'
+  | 'on-failure'
+  | 'never'
+
+export type DesktopApprovalsReviewer = 'user' | 'auto_review'
+
+export type DesktopCollaborationMode = CodexCollaborationMode
 
 export type DesktopThinkingMode = AgentThinkingMode
 
@@ -242,10 +421,174 @@ export type DesktopCopilotLoginStatus = {
   elapsedMs: number
 }
 
+export type DesktopGithubUser = {
+  login: string
+  id: number
+  name: string | null
+  avatarUrl: string | null
+  htmlUrl: string
+}
+
+export type DesktopGithubAuthStatus = {
+  configured: boolean
+  authenticated: boolean
+  user: DesktopGithubUser | null
+  error?: string
+}
+
+export type DesktopGithubLoginState =
+  | 'idle'
+  | 'starting'
+  | 'awaiting_auth'
+  | 'completed'
+  | 'failed'
+
+export type DesktopGithubLoginStatus = {
+  state: DesktopGithubLoginState
+  userCode: string | null
+  verificationUri: string | null
+  expiresAt: string | null
+  error: string | null
+  auth: DesktopGithubAuthStatus | null
+  elapsedMs: number
+}
+
+export type StartGithubLoginInput = {
+  clientId?: string
+}
+
+export type DesktopGithubRepository = {
+  id: number
+  name: string
+  fullName: string
+  owner: string
+  private: boolean
+  fork: boolean
+  archived: boolean
+  disabled: boolean
+  cloneUrl: string
+  sshUrl: string
+  htmlUrl: string
+  description: string | null
+  defaultBranch: string
+  pushedAt: string | null
+  updatedAt: string | null
+}
+
+export type DesktopGithubRepositoryListResult =
+  | { ok: true; repositories: DesktopGithubRepository[] }
+  | { ok: false; error: string }
+
+export type CloneGithubRepositoryInput = {
+  repository: DesktopGithubRepository
+}
+
+export type DesktopGithubCloneResult =
+  | { ok: true; workspace: DesktopWorkspace }
+  | { ok: false; error: string }
+
+export type DesktopGithubProfileRepository = {
+  id: string
+  name: string
+  fullName: string
+  url: string
+  description: string | null
+  isPrivate: boolean
+  isFork: boolean
+  primaryLanguage: {
+    name: string
+    color: string | null
+  } | null
+  stargazerCount: number
+  forkCount: number
+  updatedAt: string
+}
+
+export type DesktopGithubContributionDay = {
+  date: string
+  count: number
+  color: string
+}
+
+export type DesktopGithubContributionWeek = {
+  days: DesktopGithubContributionDay[]
+}
+
+export type DesktopGithubUserStatus = {
+  emoji: string | null
+  message: string | null
+  indicatesLimitedAvailability: boolean
+  expiresAt: string | null
+}
+
+export type DesktopGithubUserStatusInput = {
+  emoji: string
+  message: string
+  limitedAvailability: boolean
+  expiresAt?: string | null
+}
+
+export type DesktopGithubUserStatusResult =
+  | { ok: true; status: DesktopGithubUserStatus | null }
+  | { ok: false; error: string }
+
+export type DesktopGithubProfileOverview = {
+  user: DesktopGithubUser & {
+    bio: string | null
+    company: string | null
+    location: string | null
+    websiteUrl: string | null
+    email: string | null
+    followers: number
+    following: number
+    repositoryCount: number
+    starredRepositoryCount: number
+    status: DesktopGithubUserStatus | null
+  }
+  organizations: Array<{
+    login: string
+    avatarUrl: string
+    url: string
+  }>
+  pinnedRepositories: DesktopGithubProfileRepository[]
+  popularRepositories: DesktopGithubProfileRepository[]
+  contributions: {
+    totalContributions: number
+    totalCommitContributions: number
+    totalIssueContributions: number
+    totalPullRequestContributions: number
+    totalPullRequestReviewContributions: number
+    restrictedContributionsCount: number
+    weeks: DesktopGithubContributionWeek[]
+  }
+}
+
+export type DesktopGithubProfileOverviewResult =
+  | { ok: true; overview: DesktopGithubProfileOverview }
+  | { ok: false; error: string }
+
 export type SaveDesktopModelProviderOptions = {
   providerID: ModelProviderID
   modelID?: string
   baseURL?: string
+}
+
+export type LocalRouterMode = 'off' | 'pareto-code' | 'fusion'
+
+export const LOCAL_ROUTER_MODES = ['off', 'pareto-code', 'fusion'] as const
+
+export function isLocalRouterMode(value: unknown): value is LocalRouterMode {
+  return (
+    typeof value === 'string' &&
+    (LOCAL_ROUTER_MODES as readonly string[]).includes(value)
+  )
+}
+
+export function normalizeLocalRouterMode(
+  value: unknown,
+  fallback: LocalRouterMode = 'off',
+): LocalRouterMode {
+  return isLocalRouterMode(value) ? value : fallback
 }
 
 export type DesktopSandboxMode =
@@ -260,10 +603,19 @@ export type DesktopPersonality =
   | 'concise'
   | 'encouraging'
 
+export type DesktopReviewView = 'inline' | 'split'
+export type DesktopDiffMarkerStyle = 'color' | 'symbol'
+
 export type DesktopStoredSettings = {
+  enableParetoCodeRouter?: boolean
+  enableFusionRouter?: boolean
+  permissionProfile?: DesktopPermissionProfile
+  approvalPolicy?: DesktopApprovalPolicy
+  approvalsReviewer?: DesktopApprovalsReviewer
   permissionMode: DesktopPermissionMode
   model: string
-  fallbackModel: string
+  planExecutionModel: string
+  reviewModel: string
   smallFastModel: string
   fastModel: string
   defaultModel: string
@@ -280,17 +632,29 @@ export type DesktopStoredSettings = {
   providerBaseURL: string
   showContextUsage: boolean
   defaultOpenTargetId: string
-  gitBranchPrefix: string
+gitBranchPrefix: string
+  gitPrMergeMethod: 'merge' | 'squash'
+  gitShowPrIconsInSidebar: boolean
+  gitDraftPullRequest: boolean
+  gitAutoDeleteWorktree: boolean
+  gitAutoDeleteWorktreeLimit: number
   allowForcePush: boolean
   commitMessagePrompt: string
   pullRequestPrompt: string
-  sandboxMode: DesktopSandboxMode
-  allowNetworkAccess: boolean
+  githubOAuthClientId: string
+  sandboxMode?: DesktopSandboxMode
+  allowNetworkAccess?: boolean
   installCodexDependencies: boolean
   personality: DesktopPersonality
   customInstructions: string
   enableMemory: boolean
   skipToolAidedChats: boolean
+  githubMemorySyncEnabled: boolean
+  githubMemoryRepository: string
+  reviewView: DesktopReviewView
+  diffMarkerStyle: DesktopDiffMarkerStyle
+  rustSearchAndDiffKernels: boolean
+  browserAllowedSites: string[]
 }
 
 export type DesktopMcpScope =
@@ -330,14 +694,78 @@ export type DesktopThemeMode = 'light' | 'dark' | 'system'
 
 export type DesktopThemeVariant = 'light' | 'dark'
 
+export type DesktopThemeFontEntry = {
+  preset: string
+  fallback: string
+}
+
+export type DesktopThemeRadixAccentColor =
+  | 'gray'
+  | 'gold'
+  | 'bronze'
+  | 'brown'
+  | 'yellow'
+  | 'amber'
+  | 'orange'
+  | 'tomato'
+  | 'red'
+  | 'ruby'
+  | 'crimson'
+  | 'pink'
+  | 'plum'
+  | 'purple'
+  | 'violet'
+  | 'iris'
+  | 'indigo'
+  | 'blue'
+  | 'cyan'
+  | 'teal'
+  | 'jade'
+  | 'green'
+  | 'grass'
+  | 'lime'
+  | 'mint'
+  | 'sky'
+
+export type DesktopThemeRadixGrayColor =
+  | 'auto'
+  | 'gray'
+  | 'mauve'
+  | 'slate'
+  | 'sage'
+  | 'olive'
+  | 'sand'
+
+export type DesktopThemeRadixPanelBackground = 'solid' | 'translucent'
+export type DesktopThemeRadixRadius =
+  | 'none'
+  | 'small'
+  | 'medium'
+  | 'large'
+  | 'full'
+export type DesktopThemeRadixScaling =
+  | '90%'
+  | '95%'
+  | '100%'
+  | '105%'
+  | '110%'
+
+export type DesktopThemeRadixConfig = {
+  accentColor: DesktopThemeRadixAccentColor
+  grayColor: DesktopThemeRadixGrayColor
+  panelBackground: DesktopThemeRadixPanelBackground
+  radius: DesktopThemeRadixRadius
+  scaling: DesktopThemeRadixScaling
+}
+
 export type DesktopThemeConfigV1 = {
   codeThemeId: string
   theme: {
     accent: string
     contrast: number
     fonts: {
-      code: string
-      ui: string
+      code: DesktopThemeFontEntry
+      ui: DesktopThemeFontEntry
     }
     ink: string
     opaqueWindows: boolean
@@ -346,6 +774,7 @@ export type DesktopThemeConfigV1 = {
       diffRemoved: string
       skill: string
     }
+    radix: DesktopThemeRadixConfig
     surface: string
   }
   variant: DesktopThemeVariant
@@ -361,6 +790,9 @@ export type DesktopThemeCustomTheme = {
 export type DesktopThemeSettings = {
   mode: DesktopThemeMode
   activeThemeIds: Record<DesktopThemeVariant, string>
+  glassmorphismEnabled: boolean
+  pointerCursorEnabled: boolean
+  reduceMotion: 'system' | 'on' | 'off'
   fontSizes: {
     code: number
     ui: number
@@ -369,9 +801,23 @@ export type DesktopThemeSettings = {
   presetOverrides: Record<string, DesktopThemeConfigV1>
 }
 
-export type DesktopPermissionDecision = AgentPermissionDecision
+export type DesktopPermissionRememberOptionId = 'session' | 'persistentPrefix'
 
-export type DesktopPermissionRequest = AgentPermissionRequest
+export type DesktopPermissionRememberOption = {
+  id: DesktopPermissionRememberOptionId
+  label: string
+  hint?: string
+}
+
+export type DesktopPermissionDecision = AgentPermissionDecision & {
+  planExecutionModel?: string
+  savePlanExecutionModel?: boolean
+  rememberOptionId?: DesktopPermissionRememberOptionId
+}
+
+export type DesktopPermissionRequest = AgentPermissionRequest & {
+  rememberOptions?: DesktopPermissionRememberOption[]
+}
 
 export type DesktopSessionMessage = AgentSessionMessage
 
@@ -383,6 +829,7 @@ export type DesktopSessionListItem = {
   id: string
   sessionName: string | null
   aiTitle: string | null
+  localRouterMode?: LocalRouterMode
   customTitle?: string | null
   tag?: string | null
   summary?: string | null
@@ -398,9 +845,14 @@ export type DesktopSessionListItem = {
   standalone?: boolean
   pinnedAt?: string | null
   archivedAt?: string | null
+  permissionProfile?: DesktopPermissionProfile
+  approvalPolicy?: DesktopApprovalPolicy
+  approvalsReviewer?: DesktopApprovalsReviewer
   permissionMode: DesktopPermissionMode
+  collaborationMode?: DesktopCollaborationMode
+  planModeActive?: boolean
   model: string | null
-  fallbackModel: string | null
+  reviewModel?: string | null
   thinkingMode: DesktopThinkingMode
   hasSystemPrompt: boolean
   hasAppendSystemPrompt: boolean
@@ -411,9 +863,19 @@ export type DesktopSessionListItem = {
 }
 
 export type DesktopSessionSettingsSnapshot = {
+  localRouterMode?: LocalRouterMode
+  permissionProfile?: DesktopPermissionProfile
+  approvalPolicy?: DesktopApprovalPolicy
+  approvalsReviewer?: DesktopApprovalsReviewer
   permissionMode: DesktopPermissionMode
+  collaborationMode?: DesktopCollaborationMode
+  planModeActive?: boolean
+  providerID?: ModelProviderID
+  providerBaseURL?: string
+  debugConversationDump?: boolean
   model?: string
-  fallbackModel?: string
+  planExecutionModel?: string
+  reviewModel?: string
   smallFastModel?: string
   fastModel?: string
   defaultModel?: string
@@ -423,6 +885,9 @@ export type DesktopSessionSettingsSnapshot = {
   systemPrompt?: string
   appendSystemPrompt?: string
   additionalDirectories: string[]
+  installCodexDependencies?: boolean
+  enableMemory?: boolean
+  rustSearchAndDiffKernels?: boolean
 }
 
 export type DesktopSessionViewSnapshot = {
@@ -445,6 +910,7 @@ export type DesktopSessionSnapshot = {
   eventModelVersion?: 1
   workflowEvents?: DesktopWorkflowEvent[]
   workflowEventModelVersion?: 1
+  reviewComments?: DesktopReviewComment[]
   updatedAt: string
 }
 
@@ -458,10 +924,20 @@ export type DesktopAgentEvent = AgentRuntimeEvent
 export type DesktopWorkflowEvent = ThreadEvent
 
 export type CreateDesktopSessionOptions = {
+  localRouterMode?: LocalRouterMode
   workspacePath?: string
+  permissionProfile?: DesktopPermissionProfile
+  approvalPolicy?: DesktopApprovalPolicy
+  approvalsReviewer?: DesktopApprovalsReviewer
   permissionMode?: DesktopPermissionMode
+  collaborationMode?: DesktopCollaborationMode
+  planModeActive?: boolean
+  providerID?: ModelProviderID
+  providerBaseURL?: string
+  debugConversationDump?: boolean
   model?: string
-  fallbackModel?: string
+  planExecutionModel?: string
+  reviewModel?: string
   smallFastModel?: string
   fastModel?: string
   defaultModel?: string
@@ -471,6 +947,9 @@ export type CreateDesktopSessionOptions = {
   systemPrompt?: string
   appendSystemPrompt?: string
   additionalDirectories?: string[]
+  installCodexDependencies?: boolean
+  enableMemory?: boolean
+  rustSearchAndDiffKernels?: boolean
 }
 
 export type CreateDesktopSessionResult = {
@@ -479,9 +958,78 @@ export type CreateDesktopSessionResult = {
   standalone: boolean
 }
 
+export type DesktopModelSelection = {
+  providerID?: ModelProviderID
+  providerBaseURL?: string
+  model?: string
+  debugConversationDump?: boolean
+  localRouterMode?: LocalRouterMode
+}
+
 export type DesktopBuiltinPlugin = {
   id: string
   enabled: boolean
+}
+
+export type DesktopSkillOwnerFilter = 'all' | 'official' | 'community'
+
+export type DesktopSkillCatalogOptions = {
+  query?: string
+  owner?: DesktopSkillOwnerFilter
+  view?: 'all-time' | 'trending' | 'hot'
+  page?: number
+  perPage?: number
+}
+
+export type DesktopSkillCatalogItem = {
+  id: string
+  slug: string
+  name: string
+  source: string
+  installs: number
+  sourceType: string
+  installUrl: string | null
+  url: string
+  isDuplicate: boolean
+  installed: boolean
+  audit: DesktopSkillAudit | null
+}
+
+export type DesktopSkillCatalogResult = {
+  skills: DesktopSkillCatalogItem[]
+  page: number
+  perPage: number
+  total?: number
+  hasMore: boolean
+}
+
+export type DesktopSkillAuditStatus = 'pass' | 'warn' | 'fail'
+
+export type DesktopSkillAudit = {
+  status: DesktopSkillAuditStatus
+  summary: string
+  providerCount: number
+  auditedAt: string | null
+}
+
+export type DesktopSkillInstallOptions = {
+  id: string
+  installUrl?: string | null
+}
+
+export type DesktopSkillInstallResult = {
+  id: string
+  slug: string
+  installed: boolean
+  installPath: string
+}
+
+export type DesktopSlashCommandSuggestion = {
+  name: string
+  title: string
+  description: string
+  category: 'command' | 'skill'
+  scope?: string
 }
 
 export type DesktopUiCommand =
@@ -499,16 +1047,143 @@ export type DesktopUpdateStatus =
   | { phase: 'error'; message: string }
   | { phase: 'no-update' }
 
+export type DebugToolProbeMode = 'safe' | 'realManual' | 'realAuto'
+
+export type DebugToolProbeItemStatus =
+  | 'passed'
+  | 'failed'
+  | 'permissionDenied'
+  | 'unsupportedProbe'
+  | 'skippedByEnvironment'
+
+export type DebugToolProbeItem = {
+  toolName: string
+  status: DebugToolProbeItemStatus
+  reason?: string
+  durationMs?: number
+  permissionRequestId?: string
+  permissionDecision?: string
+  inputSummary?: string
+  error?: string
+}
+
+export type DebugToolProbeReport = {
+  runId: string
+  mode: DebugToolProbeMode
+  startedAt: string
+  finishedAt?: string
+  cancelled?: boolean
+  totalTools: number
+  passed: number
+  failed: number
+  permissionDenied: number
+  unsupportedProbe: number
+  skippedByEnvironment: number
+  items: DebugToolProbeItem[]
+  logPath?: string
+}
+
+export type DesktopProjectMemoryType =
+  | 'user'
+  | 'feedback'
+  | 'project'
+  | 'reference'
+
+export type DesktopProjectMemory = {
+  relativePath: string
+  absolutePath: string
+  type?: DesktopProjectMemoryType
+  description: string | null
+  size: number
+  mtimeMs: number
+}
+
+export type DesktopProjectMemoryListing = {
+  memoryDir: string
+  entrypointPath: string
+  memories: DesktopProjectMemory[]
+}
+
+export type DesktopProjectMemoryContent = DesktopProjectMemory & {
+  content: string
+}
+
+export type SaveProjectMemoryInput = {
+  workspacePath: string
+  relativePath: string
+  content: string
+}
+
+export type DeleteProjectMemoryInput = {
+  workspacePath: string
+  relativePath: string
+}
+
+export type ResetProjectMemoryInput = {
+  workspacePath: string
+  includeRecallLog: boolean
+}
+
+export type DesktopMemoryRecallFile = {
+  relativePath: string
+  type?: DesktopProjectMemoryType
+  description?: string | null
+  mtimeMs?: number
+  truncated?: boolean
+}
+
+export type DesktopMemoryRecallEvent = {
+  sessionId: string
+  createdAt: string
+  querySummary: string
+  status: 'injected'
+  consumedOnIteration: number
+  memories: DesktopMemoryRecallFile[]
+}
+
+export type DesktopMemoryRecallListing = {
+  recallLogPath: string
+  recalls: DesktopMemoryRecallEvent[]
+}
+
 export type DesktopApi = {
   getAuthStatus(): Promise<DesktopAuthStatus>
   getRuntimeStatus(): Promise<DesktopRuntimeStatus>
+  diagnoseDesktopToolchain(): Promise<DesktopToolchainDiagnosticReport>
+  reinstallDesktopToolchain(): Promise<DesktopToolchainInstallResult>
+  deleteDesktopToolchain(): Promise<DesktopToolchainInstallResult>
   getDesktopSettings(): Promise<DesktopStoredSettings>
   saveDesktopSettings(settings: DesktopStoredSettings): Promise<DesktopStoredSettings>
+  listProjectMemories(workspacePath: string): Promise<DesktopProjectMemoryListing>
+  readProjectMemory(
+    workspacePath: string,
+    relativePath: string,
+  ): Promise<DesktopProjectMemoryContent>
+  saveProjectMemory(input: SaveProjectMemoryInput): Promise<DesktopProjectMemory>
+  deleteProjectMemory(input: DeleteProjectMemoryInput): Promise<void>
+  resetProjectMemory(input: ResetProjectMemoryInput): Promise<void>
+  listProjectMemoryRecalls(workspacePath: string): Promise<DesktopMemoryRecallListing>
+  getBrowserState(): Promise<DesktopBrowserState>
+  openBrowser(url?: string): Promise<DesktopBrowserState>
+  navigateBrowser(url: string): Promise<DesktopBrowserState>
+  reloadBrowser(): Promise<DesktopBrowserState>
+  goBackBrowser(): Promise<DesktopBrowserState>
+  goForwardBrowser(): Promise<DesktopBrowserState>
+  closeBrowser(): Promise<DesktopBrowserState>
+  setBrowserBounds(bounds: DesktopBrowserBounds): Promise<DesktopBrowserState>
+  clearBrowserAllowedSites(): Promise<DesktopBrowserState>
   listBuiltinPlugins(): Promise<DesktopBuiltinPlugin[]>
   setBuiltinPluginEnabled(
     pluginId: string,
     enabled: boolean,
   ): Promise<DesktopBuiltinPlugin>
+  listSkillsCatalog(
+    options?: DesktopSkillCatalogOptions,
+  ): Promise<DesktopSkillCatalogResult>
+  installSkill(
+    skill: string | DesktopSkillInstallOptions,
+  ): Promise<DesktopSkillInstallResult>
+  listSlashCommands(workspacePath?: string): Promise<DesktopSlashCommandSuggestion[]>
   listMcpServers(): Promise<DesktopMcpServerListItem[]>
   saveMcpServer(options: SaveDesktopMcpServerOptions): Promise<DesktopMcpServerListItem[]>
   removeMcpServer(name: string, scope: DesktopEditableMcpScope): Promise<DesktopMcpServerListItem[]>
@@ -541,6 +1216,21 @@ export type DesktopApi = {
   startCopilotLogin(): Promise<DesktopCopilotLoginStatus>
   pollCopilotLogin(): Promise<DesktopCopilotLoginStatus>
   cancelCopilotLogin(): Promise<{ cancelled: boolean }>
+  getGithubAuthStatus(): Promise<DesktopGithubAuthStatus>
+  startGithubLogin(
+    input?: StartGithubLoginInput,
+  ): Promise<DesktopGithubLoginStatus>
+  pollGithubLogin(): Promise<DesktopGithubLoginStatus>
+  logoutGithub(): Promise<DesktopGithubAuthStatus>
+  listGithubRepositories(): Promise<DesktopGithubRepositoryListResult>
+  getGithubProfileOverview(): Promise<DesktopGithubProfileOverviewResult>
+  setGithubUserStatus(
+    input: DesktopGithubUserStatusInput,
+  ): Promise<DesktopGithubUserStatusResult>
+  clearGithubUserStatus(): Promise<DesktopGithubUserStatusResult>
+  cloneGithubRepository(
+    input: CloneGithubRepositoryInput,
+  ): Promise<DesktopGithubCloneResult>
   chooseWorkspace(): Promise<DesktopWorkspace | null>
   openWorkspace(workspacePath: string): Promise<DesktopWorkspace>
   getWorkspaceContext(workspacePath: string): Promise<DesktopWorkspace>
@@ -558,9 +1248,18 @@ export type DesktopApi = {
   pushWorkspaceBranch(
     input: PushBranchInput,
   ): Promise<DesktopGitOperationResult>
+  discardWorkspaceChanges(
+    input: DiscardWorkspaceChangesInput,
+  ): Promise<DesktopGitOperationResult>
   createPullRequest(
     input: CreatePullRequestInput,
   ): Promise<DesktopPullRequestResult>
+  getWorkspaceReviewDiff(
+    input: DesktopReviewDiffInput,
+  ): Promise<DesktopReviewDiffResult>
+  applyWorkspaceReviewOperation(
+    input: DesktopReviewOperationInput,
+  ): Promise<DesktopReviewOperationResult>
   listWorkspaceFiles(workspacePath: string): Promise<DesktopFileEntry[]>
   readWorkspaceFile(workspacePath: string, filePath: string): Promise<DesktopFilePreview>
   readOptionalWorkspaceFile(
@@ -581,13 +1280,34 @@ export type DesktopApi = {
     sessionId: string,
     patch: DesktopSessionMetadataPatch,
   ): Promise<DesktopSessionSnapshot>
+  saveSessionReviewComment(
+    input: SaveSessionReviewCommentInput,
+  ): Promise<DesktopSessionSnapshot>
+  resolveSessionReviewComment(
+    input: SessionReviewCommentInput,
+  ): Promise<DesktopSessionSnapshot>
+  deleteSessionReviewComment(
+    input: SessionReviewCommentInput,
+  ): Promise<DesktopSessionSnapshot>
+  setSessionPermissionMode(
+    sessionId: string,
+    mode: DesktopPermissionMode,
+  ): Promise<DesktopSessionSnapshot>
+  setSessionPlanModeActive(
+    sessionId: string,
+    active: boolean,
+  ): Promise<DesktopSessionSnapshot>
+  setSessionLocalRouterMode(
+    sessionId: string,
+    mode: LocalRouterMode,
+  ): Promise<DesktopSessionSnapshot>
   readWorkflowEventLog(): Promise<DesktopWorkflowEvent[]>
   openConfigFile(): Promise<{ path: string }>
   openExternalURL(url: string): Promise<void>
   sendUserMessage(
     sessionId: string,
     content: DesktopUserMessageInput,
-    model?: string,
+    model?: string | DesktopModelSelection,
   ): Promise<void>
   respondToPermission(
     sessionId: string,
@@ -602,6 +1322,7 @@ export type DesktopApi = {
   isWindowMaximized(): Promise<boolean>
   newWindow(): Promise<void>
   openDevTools(): Promise<void>
+  closeDevTools(): Promise<void>
   openSettings(): Promise<void>
   logOut(): Promise<void>
   exitApp(): Promise<void>
@@ -612,4 +1333,11 @@ export type DesktopApi = {
   downloadUpdate(): Promise<void>
   quitAndInstall(): Promise<void>
   onUpdateStatusChange(callback: (status: DesktopUpdateStatus) => void): () => void
+  listDebugBuiltinTools(): Promise<{
+    toolNames: string[]
+    enabled: boolean[]
+    hasProbeInput: boolean[]
+  }>
+  runDebugToolProbe(mode: DebugToolProbeMode): Promise<DebugToolProbeReport>
+  cancelDebugToolProbe(runId: string): Promise<void>
 }

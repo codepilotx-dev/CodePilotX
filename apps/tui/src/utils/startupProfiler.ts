@@ -16,6 +16,7 @@ import {
   logEvent,
 } from '../services/analytics/index.js'
 import { logForDebugging } from './debug.js'
+import { sanitizePathComponent } from './pathComponent.js'
 import { getClaudeConfigHomeDir, isEnvTruthy } from './envUtils.js'
 import { getFsImplementation } from './fsOperations.js'
 import { formatMs, formatTimelineLine, getPerformance } from './profilerBase.js'
@@ -149,7 +150,7 @@ export function isDetailedProfilingEnabled(): boolean {
 }
 
 export function getStartupPerfLogPath(): string {
-  return join(getClaudeConfigHomeDir(), 'startup-perf', `${getSessionId()}.txt`)
+  return join(getClaudeConfigHomeDir(), 'startup-perf', `${sanitizePathComponent(getSessionId())}.txt`)
 }
 
 /**

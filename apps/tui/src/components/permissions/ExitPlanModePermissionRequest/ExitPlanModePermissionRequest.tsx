@@ -51,6 +51,11 @@ import {
   getMainLoopModel,
   getRuntimeMainLoopModel,
 } from '../../../utils/model/model.js'
+import { getModelOptions } from '../../../utils/model/modelOptions.js'
+import {
+  formatPlanExecutionModelForDisplay,
+  getPlanExecutionModelSetting,
+} from '../../../utils/model/planExecutionModel.js'
 import {
   createPromptRuleContent,
   isClassifierPermissionsEnabled,
@@ -81,7 +86,10 @@ import {
   saveAgentName,
   saveCustomTitle,
 } from '../../../utils/sessionStorage.js'
-import { getSettings_DEPRECATED } from '../../../utils/settings/settings.js'
+import {
+  getSettings_DEPRECATED,
+  updateSettingsForSource,
+} from '../../../utils/settings/settings.js'
 import { type OptionWithDescription, Select } from '../../CustomSelect/index.js'
 import { Markdown } from '../../Markdown.js'
 import { PermissionDialog } from '../PermissionDialog.js'
@@ -110,6 +118,8 @@ type ResponseValue =
   | 'yes-default-keep-context'
   | 'yes-resume-auto-mode'
   | 'yes-auto-clear-context'
+  | 'cycle-execution-model'
+  | 'toggle-save-execution-model'
   | 'ultraplan'
   | 'no'
 
@@ -211,6 +221,24 @@ export function ExitPlanModePermissionRequest({
   // acceptFeedback when the user approves — lets users annotate the plan
   // ("also update the README") without a reject+re-plan round-trip.
   const [planFeedback, setPlanFeedback] = useState('')
+  const executionModelOptions = useMemo(() => {
+    try {
+      const values = getModelOptions()
+        .map(option => option.value)
+        .filter((value): value is string => typeof value === 'string')
+      return values.length > 0 ? values : ['default']
+    } catch {
+      return ['default', 'deep', 'fast']
+    }
+  }, [])
+  const [executionModelIndex, setExecutionModelIndex] = useState(() => {
+    const configured = getPlanExecutionModelSetting()
+    const index = executionModelOptions.indexOf(configured)
+    return index >= 0 ? index : 0
+  })
+  const [saveExecutionModel, setSaveExecutionModel] = useState(false)
+  const executionModel =
+    executionModelOptions[executionModelIndex] ?? getPlanExecutionModelSetting()
   const [pastedContents, setPastedContents] = useState<
     Record<number, PastedContent>
   >({})
@@ -231,8 +259,8 @@ export function ExitPlanModePermissionRequest({
   const { mode, isAutoModeAvailable, isBypassPermissionsModeAvailable } =
     toolPermissionContext
   const options = useMemo(
-    () =>
-      buildPlanApprovalOptions({
+    () => {
+      const baseOptions = buildPlanApprovalOptions({
         showClearContext,
         showUltraplan,
         usedPercent: showClearContext
@@ -241,7 +269,28 @@ export function ExitPlanModePermissionRequest({
         isAutoModeAvailable,
         isBypassPermissionsModeAvailable,
         onFeedbackChange: setPlanFeedback,
-      }),
+      })
+      const noIndex = baseOptions.findIndex(option => option.value === 'no')
+      const executionOptions: OptionWithDescription<ResponseValue>[] = [
+        {
+          label: `Execution model: ${formatPlanExecutionModelForDisplay(executionModel)}`,
+          value: 'cycle-execution-model',
+          description: 'Select to cycle plan execution model',
+        },
+        {
+          label: saveExecutionModel
+            ? 'Save execution model as default: yes'
+            : 'Save execution model as default: no',
+          value: 'toggle-save-execution-model',
+        },
+      ]
+      if (noIndex === -1) return [...baseOptions, ...executionOptions]
+      return [
+        ...baseOptions.slice(0, noIndex),
+        ...executionOptions,
+        ...baseOptions.slice(noIndex),
+      ]
+    },
     [
       showClearContext,
       showUltraplan,
@@ -249,6 +298,8 @@ export function ExitPlanModePermissionRequest({
       mode,
       isAutoModeAvailable,
       isBypassPermissionsModeAvailable,
+      executionModel,
+      saveExecutionModel,
     ],
   )
 
@@ -388,6 +439,16 @@ export function ExitPlanModePermissionRequest({
   }
 
   async function handleResponse(value: ResponseValue): Promise<void> {
+    if (value === 'cycle-execution-model') {
+      setExecutionModelIndex(index => (index + 1) % executionModelOptions.length)
+      return
+    }
+
+    if (value === 'toggle-save-execution-model') {
+      setSaveExecutionModel(save => !save)
+      return
+    }
+
     const trimmedFeedback = planFeedback.trim()
     const acceptFeedback = trimmedFeedback || undefined
 
@@ -467,6 +528,11 @@ export function ExitPlanModePermissionRequest({
     }
 
     if (value !== 'no' && !isKeepContextOption) {
+      if (saveExecutionModel) {
+        updateSettingsForSource('userSettings', {
+          planExecutionModel: executionModel,
+        })
+      }
       // Determine the permission mode based on the selected option
       let mode: PermissionMode = 'default'
       if (value === 'yes-bypass-permissions') {
@@ -526,6 +592,7 @@ export function ExitPlanModePermissionRequest({
           },
           clearContext: true,
           mode,
+          executionModel,
           allowedPrompts,
         },
       }))
@@ -547,6 +614,11 @@ export function ExitPlanModePermissionRequest({
       value === 'yes-resume-auto-mode' &&
       isAutoModeGateEnabled()
     ) {
+      if (saveExecutionModel) {
+        updateSettingsForSource('userSettings', {
+          planExecutionModel: executionModel,
+        })
+      }
       logEvent('tengu_plan_exit', {
         planLengthChars: currentPlan.length,
         outcome:
@@ -561,6 +633,7 @@ export function ExitPlanModePermissionRequest({
       autoModeStateModule?.setAutoModeActive(true)
       setAppState(prev => ({
         ...prev,
+        mainLoopModelForSession: executionModel,
         toolPermissionContext: stripDangerousPermissionsForAutoMode({
           ...prev.toolPermissionContext,
           mode: 'auto',
@@ -589,6 +662,11 @@ export function ExitPlanModePermissionRequest({
     }
     const keepContextMode = keepContextModes[value]
     if (keepContextMode) {
+      if (saveExecutionModel) {
+        updateSettingsForSource('userSettings', {
+          planExecutionModel: executionModel,
+        })
+      }
       logEvent('tengu_plan_exit', {
         planLengthChars: currentPlan.length,
         outcome:
@@ -600,6 +678,7 @@ export function ExitPlanModePermissionRequest({
       })
       setHasExitedPlanMode(true)
       setNeedsPlanModeExitAttachment(true)
+      setAppState(prev => ({ ...prev, mainLoopModelForSession: executionModel }))
       onDone()
       toolUseConfirm.onAllow(
         updatedInput,
@@ -616,6 +695,11 @@ export function ExitPlanModePermissionRequest({
     }
     const standardMode = standardModes[value]
     if (standardMode) {
+      if (saveExecutionModel) {
+        updateSettingsForSource('userSettings', {
+          planExecutionModel: executionModel,
+        })
+      }
       logEvent('tengu_plan_exit', {
         planLengthChars: currentPlan.length,
         outcome:
@@ -626,6 +710,7 @@ export function ExitPlanModePermissionRequest({
       })
       setHasExitedPlanMode(true)
       setNeedsPlanModeExitAttachment(true)
+      setAppState(prev => ({ ...prev, mainLoopModelForSession: executionModel }))
       onDone()
       toolUseConfirm.onAllow(
         updatedInput,

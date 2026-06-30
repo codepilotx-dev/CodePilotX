@@ -1,4 +1,6 @@
-import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
+import { setTimeout as delay } from 'node:timers/promises'
+import { mkdir, readFile, rename, stat, unlink, writeFile } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import {
   isAgentApprovalMode,
@@ -6,18 +8,23 @@ import {
 } from '@codepilotx/core/agent/permissions.js'
 import { normalizeThreadEvent } from '@codepilotx/core/agent/workflow.js'
 import {
+  planModeActiveFromCollaborationMode,
+  resolveCodexCollaborationMode,
+} from '@codepilotx/core/agent/codexSessionContract.js'
+import {
   getProjectDir,
   loadAllProjectsMessageLogs,
   loadFullLog,
-} from '@codepilotx/tui/utils/sessionStorage.js'
+} from '@codepilotx/core/session/storage.js'
 import type {
   LogOption,
   SerializedMessage,
-} from '@codepilotx/tui/types/logs.js'
+} from '@codepilotx/core/session/logs.js'
 import type {
   DesktopAgentEvent,
   DesktopContextUsage,
   DesktopPermissionRequest,
+  DesktopReviewComment,
   DesktopSessionEvent,
   DesktopSessionListItem,
   DesktopSessionMessage,
@@ -30,7 +37,13 @@ import type {
   DesktopWorkspace,
 } from '../shared/types.js'
 import { desktopAgentEventToSessionEvent } from '../shared/sessionEventModel.js'
-import { normalizeDesktopPermissionMode } from '../shared/settingsSchema.js'
+import {
+  normalizeDesktopApprovalPolicy,
+  normalizeDesktopApprovalsReviewer,
+  normalizeDesktopPermissionProfile,
+  normalizeDesktopPermissionMode,
+  normalizeLocalRouterMode,
+} from '../shared/settingsSchema.js'
 import { getDesktopConfigDirectoryPath } from './desktopSettings.js'
 import {
   buildDesktopContextUsage,
@@ -69,12 +82,21 @@ type DesktopSessionOverlay = {
   updatedAt?: string
   workflowEvents?: DesktopWorkflowEvent[]
   workflowEventModelVersion?: 1
+  reviewComments?: DesktopReviewComment[]
   legacySnapshot?: DesktopSessionSnapshot
 }
 
 type ParsedTranscriptView = DesktopSessionViewSnapshot & {
   effectiveModel?: string
   events: DesktopSessionEvent[]
+}
+
+type AtomicWriteOperations = {
+  mkdir(path: string, options: { recursive: true }): Promise<unknown>
+  writeFile(path: string, content: string, encoding: 'utf8'): Promise<unknown>
+  rename(from: string, to: string): Promise<unknown>
+  unlink?(path: string): Promise<unknown>
+  delay?(ms: number): Promise<unknown>
 }
 
 const SESSION_INDEX_FILE_NAME = 'sessions.json'
@@ -84,14 +106,80 @@ export function getDesktopSessionIndexPath(): string {
   return join(getDesktopConfigDirectoryPath(), SESSION_INDEX_FILE_NAME)
 }
 
+export function buildDesktopSessionIndexTempPath(
+  filePath: string,
+  nonce: string = randomUUID(),
+): string {
+  return join(dirname(filePath), `.${basename(filePath)}.${nonce}.tmp`)
+}
+
+export async function writeFileAtomically(
+  filePath: string,
+  content: string,
+  operations: AtomicWriteOperations = {
+    mkdir,
+    writeFile,
+    rename,
+    unlink,
+    delay,
+  },
+  nonce?: string,
+): Promise<void> {
+  await operations.mkdir(dirname(filePath), { recursive: true })
+  const tempPath = buildDesktopSessionIndexTempPath(filePath, nonce)
+  await operations.writeFile(tempPath, content, 'utf8')
+  try {
+    await renameWithTransientPermissionRetry(tempPath, filePath, operations)
+  } catch (error) {
+    await operations.unlink?.(tempPath).catch(() => {})
+    throw error
+  }
+}
+
+async function renameWithTransientPermissionRetry(
+  from: string,
+  to: string,
+  operations: Pick<AtomicWriteOperations, 'rename' | 'delay'>,
+): Promise<void> {
+  const retryDelaysMs = [25, 50, 100, 200]
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      await operations.rename(from, to)
+      return
+    } catch (error) {
+      if (
+        attempt >= retryDelaysMs.length ||
+        !isTransientPermissionError(error)
+      ) {
+        throw error
+      }
+      await operations.delay?.(retryDelaysMs[attempt]!)
+    }
+  }
+}
+
+function isTransientPermissionError(error: unknown): boolean {
+  const code = (error as NodeJS.ErrnoException | undefined)?.code
+  return code === 'EPERM' || code === 'EACCES'
+}
+
 export async function loadDesktopSessionStore(): Promise<PersistedDesktopSessions> {
   const persisted = await readDesktopSessionOverlayStore()
-  const overlaysById = new Map(
-    persisted.sessions.map(overlay => [overlay.id, overlay]),
-  )
+  const overlaysById = new Map<string, DesktopSessionOverlay>()
+  for (const overlay of persisted.sessions) {
+    if (overlaysById.has(overlay.id)) {
+      console.warn(`Duplicate desktop session id ignored: ${overlay.id}`)
+      continue
+    }
+    overlaysById.set(overlay.id, overlay)
+  }
   const snapshotsById = new Map<string, DesktopSessionSnapshot>()
 
   for (const snapshot of await loadTranscriptSessionSnapshots(overlaysById)) {
+    if (snapshotsById.has(snapshot.item.id)) {
+      console.warn(`Duplicate desktop session id ignored: ${snapshot.item.id}`)
+      continue
+    }
     snapshotsById.set(snapshot.item.id, snapshot)
   }
 
@@ -149,7 +237,12 @@ export async function saveDesktopSessionStore(
   const overlayStore: PersistedDesktopSessionOverlayStore = {
     activeSessionId: state.activeSessionId,
     sessions: state.sessions.map(snapshot => {
-      const overlay = overlayFromSnapshot(snapshot)
+      const overlay = overlayFromSnapshot(
+        snapshot,
+        shouldPersistRecoverablePendingInteractionSnapshot(snapshot)
+          ? snapshot
+          : undefined,
+      )
       return {
         id: overlay.id,
         workspace: overlay.workspace,
@@ -166,11 +259,12 @@ export async function saveDesktopSessionStore(
         updatedAt: overlay.updatedAt,
         workflowEvents: overlay.workflowEvents,
         workflowEventModelVersion: overlay.workflowEventModelVersion,
+        reviewComments: overlay.reviewComments,
+        legacySnapshot: overlay.legacySnapshot,
       }
     }),
   }
-  await mkdir(dirname(filePath), { recursive: true })
-  await writeFile(filePath, JSON.stringify(overlayStore, null, 2), 'utf8')
+  await writeFileAtomically(filePath, JSON.stringify(overlayStore, null, 2))
 }
 
 export function createDesktopSessionSnapshot(params: {
@@ -204,9 +298,15 @@ export function createDesktopSessionSnapshot(params: {
       standalone,
       pinnedAt: null,
       archivedAt: null,
-      permissionMode: params.settings.permissionMode,
+      permissionProfile: params.settings.permissionProfile,
+      approvalPolicy: params.settings.approvalPolicy,
+      approvalsReviewer: params.settings.approvalsReviewer,
+    permissionMode: params.settings.permissionMode,
+      localRouterMode: params.settings.localRouterMode,
+      collaborationMode: params.settings.collaborationMode,
+      planModeActive: params.settings.planModeActive === true,
       model: params.settings.model ?? null,
-      fallbackModel: params.settings.fallbackModel ?? null,
+      reviewModel: params.settings.reviewModel ?? null,
       thinkingMode: params.settings.thinkingMode,
       hasSystemPrompt: Boolean(params.settings.systemPrompt),
       hasAppendSystemPrompt: Boolean(params.settings.appendSystemPrompt),
@@ -222,6 +322,7 @@ export function createDesktopSessionSnapshot(params: {
     eventModelVersion: 1,
     workflowEvents: [],
     workflowEventModelVersion: 1,
+    reviewComments: [],
     updatedAt: now.toISOString(),
   }
 }
@@ -245,6 +346,9 @@ export function applyDesktopAgentEventToSnapshot(
       ? [...snapshot.workflowEvents]
       : undefined,
     workflowEventModelVersion: snapshot.workflowEventModelVersion,
+    reviewComments: snapshot.reviewComments
+      ? [...snapshot.reviewComments]
+      : undefined,
     updatedAt: new Date().toISOString(),
   }
   const sessionEvent = desktopAgentEventToSessionEvent(event)
@@ -465,6 +569,13 @@ function normalizeSessionOverlay(value: unknown): DesktopSessionOverlay[] {
     raw.workflowEventModelVersion === 1 && Array.isArray(raw.workflowEvents)
       ? raw.workflowEvents.flatMap(normalizeWorkflowEvent)
       : undefined
+  const reviewComments = Array.isArray(raw.reviewComments)
+    ? raw.reviewComments.flatMap(normalizeReviewComment)
+    : undefined
+  const legacySnapshot =
+    raw.legacySnapshot && typeof raw.legacySnapshot === 'object'
+      ? normalizeSessionSnapshot(raw.legacySnapshot)[0]
+      : undefined
   return [
     {
       id: raw.id,
@@ -485,6 +596,8 @@ function normalizeSessionOverlay(value: unknown): DesktopSessionOverlay[] {
       updatedAt: stringOrUndefined(raw.updatedAt),
       workflowEvents,
       workflowEventModelVersion: workflowEvents ? 1 : undefined,
+      reviewComments,
+      legacySnapshot,
     },
   ]
 }
@@ -509,6 +622,9 @@ function normalizeSessionSnapshot(value: unknown): DesktopSessionSnapshot[] {
     Array.isArray(snapshot.workflowEvents)
       ? snapshot.workflowEvents.flatMap(normalizeWorkflowEvent)
       : undefined
+  const reviewComments = Array.isArray(snapshot.reviewComments)
+    ? snapshot.reviewComments.flatMap(normalizeReviewComment)
+    : undefined
   const settings = normalizeSettingsSnapshot(snapshot.settings)
   const effectiveModel =
     validModelName(view.contextUsage?.model) ??
@@ -524,6 +640,14 @@ function normalizeSessionSnapshot(value: unknown): DesktopSessionSnapshot[] {
       : new Date().toISOString()
   const lastMessageAt =
     item.lastMessageAt ?? latestMessageTimestamp(view.messages) ?? updatedAt
+  const recoverablePendingPermissions =
+    recoverablePendingInteractionRequests(view.pendingPermissions)
+  const restoredStatus =
+    recoverablePendingPermissions.length > 0 && item.status === 'waiting'
+      ? 'waiting'
+      : item.status === 'running' || item.status === 'waiting'
+        ? 'done'
+        : item.status
   return [
     {
       item: {
@@ -535,16 +659,13 @@ function normalizeSessionSnapshot(value: unknown): DesktopSessionSnapshot[] {
           item.standalone === true,
         ),
         lastMessageAt,
-        status:
-          item.status === 'running' || item.status === 'waiting'
-            ? 'done'
-            : item.status,
+        status: restoredStatus,
       },
       workspace: normalizedWorkspace,
       settings,
       view: {
         ...view,
-        pendingPermissions: [],
+        pendingPermissions: recoverablePendingPermissions,
         messages: view.messages.map(message => ({
           ...message,
           streaming: false,
@@ -554,6 +675,7 @@ function normalizeSessionSnapshot(value: unknown): DesktopSessionSnapshot[] {
       eventModelVersion: events ? 1 : undefined,
       workflowEvents,
       workflowEventModelVersion: workflowEvents ? 1 : undefined,
+      reviewComments,
       updatedAt,
     },
   ]
@@ -612,6 +734,12 @@ function snapshotFromTranscriptLog(
         events: [] as DesktopSessionEvent[],
         effectiveModel: undefined,
       }
+  const overlayRecoverablePendingPermissions =
+    overlay?.legacySnapshot?.view.pendingPermissions
+      ? recoverablePendingInteractionRequests(
+          normalizeViewSnapshot(overlay.legacySnapshot.view).pendingPermissions,
+        )
+      : []
   const effectiveModel =
     validModelName(parsed.effectiveModel) ??
     validModelName(parsed.contextUsage?.model) ??
@@ -638,17 +766,26 @@ function snapshotFromTranscriptLog(
     standalone,
     pinnedAt: overlay?.pinnedAt ?? null,
     archivedAt: overlay?.archivedAt ?? null,
+    permissionProfile: settings.permissionProfile,
+    approvalPolicy: settings.approvalPolicy,
+    approvalsReviewer: settings.approvalsReviewer,
     permissionMode: settings.permissionMode,
-    model: effectiveModel ?? null,
-    fallbackModel: settings.fallbackModel ?? null,
+      localRouterMode: settings.localRouterMode,
+      collaborationMode: settings.collaborationMode,
+      planModeActive: settings.planModeActive === true,
+      model: effectiveModel ?? null,
+    reviewModel: settings.reviewModel ?? null,
     thinkingMode: settings.thinkingMode,
     hasSystemPrompt: Boolean(settings.systemPrompt),
     hasAppendSystemPrompt: Boolean(settings.appendSystemPrompt),
     additionalDirectoryCount: settings.additionalDirectories.length,
     status:
-      overlay?.status === 'running' || overlay?.status === 'waiting'
-        ? 'done'
-        : overlay?.status ?? 'done',
+      overlayRecoverablePendingPermissions.length > 0 &&
+      overlay?.status === 'waiting'
+        ? 'waiting'
+        : overlay?.status === 'running' || overlay?.status === 'waiting'
+          ? 'done'
+          : overlay?.status ?? 'done',
     lastMessageAt,
     createdAt,
   }
@@ -664,7 +801,7 @@ function snapshotFromTranscriptLog(
     view: {
       messages: parsed.messages,
       toolLog: parsed.toolLog,
-      pendingPermissions: [],
+      pendingPermissions: overlayRecoverablePendingPermissions,
       contextUsage: parsed.contextUsage,
     },
     events: parsed.events,
@@ -673,6 +810,7 @@ function snapshotFromTranscriptLog(
       ? [...overlay.workflowEvents]
       : undefined,
     workflowEventModelVersion: overlay?.workflowEvents ? 1 : undefined,
+    reviewComments: overlay?.reviewComments ? [...overlay.reviewComments] : [],
     updatedAt: overlay?.updatedAt ?? lastMessageAt,
   }
 }
@@ -713,9 +851,15 @@ function snapshotFromOverlay(overlay: DesktopSessionOverlay): DesktopSessionSnap
       standalone,
       pinnedAt: overlay.pinnedAt ?? null,
       archivedAt: overlay.archivedAt ?? null,
+      permissionProfile: settings.permissionProfile,
+      approvalPolicy: settings.approvalPolicy,
+      approvalsReviewer: settings.approvalsReviewer,
       permissionMode: settings.permissionMode,
+      localRouterMode: settings.localRouterMode,
+      collaborationMode: settings.collaborationMode,
+      planModeActive: settings.planModeActive === true,
       model: settings.model ?? null,
-      fallbackModel: settings.fallbackModel ?? null,
+      reviewModel: settings.reviewModel ?? null,
       thinkingMode: settings.thinkingMode,
       hasSystemPrompt: Boolean(settings.systemPrompt),
       hasAppendSystemPrompt: Boolean(settings.appendSystemPrompt),
@@ -734,6 +878,7 @@ function snapshotFromOverlay(overlay: DesktopSessionOverlay): DesktopSessionSnap
     eventModelVersion: 1,
     workflowEvents: overlay.workflowEvents ? [...overlay.workflowEvents] : [],
     workflowEventModelVersion: 1,
+    reviewComments: overlay.reviewComments ? [...overlay.reviewComments] : [],
     updatedAt: overlay.updatedAt ?? createdAt,
   }
 }
@@ -764,6 +909,9 @@ function overlayFromSnapshot(
         : undefined,
     workflowEventModelVersion:
       normalizedSnapshot.workflowEventModelVersion === 1 ? 1 : undefined,
+    reviewComments: normalizedSnapshot.reviewComments
+      ? [...normalizedSnapshot.reviewComments]
+      : undefined,
     legacySnapshot: legacySnapshot
       ? normalizeSnapshotStandalone(legacySnapshot)
       : undefined,
@@ -951,9 +1099,8 @@ function collectToolUses(
     const item = block as Record<string, unknown>
     if (item.type !== 'tool_use') continue
     const toolName = typeof item.name === 'string' ? item.name : 'Tool'
-    if (typeof item.id === 'string') {
-      toolNamesById.set(item.id, toolName)
-    }
+    const toolUseId = typeof item.id === 'string' ? item.id : undefined
+    if (toolUseId) toolNamesById.set(toolUseId, toolName)
     const summary = summarizeToolInput(toolName, item.input)
     const createdAt = timestamp ?? new Date().toISOString()
     toolLog.push(
@@ -970,7 +1117,7 @@ function collectToolUses(
       type: 'tool_call',
       content: summary,
       createdAt,
-      metadata: { toolName },
+      metadata: { toolName, ...(toolUseId ? { toolUseId } : {}) },
     })
   }
 }
@@ -992,6 +1139,8 @@ function collectToolResults(
       typeof item.tool_use_id === 'string'
         ? toolNamesById.get(item.tool_use_id) ?? 'Tool'
         : 'Tool'
+    const toolUseId =
+      typeof item.tool_use_id === 'string' ? item.tool_use_id : undefined
     const summary = summarizeToolInput(toolName, item.content)
     const isError = item.is_error === true
     const createdAt = timestamp ?? new Date().toISOString()
@@ -1010,7 +1159,7 @@ function collectToolResults(
       type: 'tool_result',
       content: summary,
       createdAt,
-      metadata: { toolName, isError },
+      metadata: { toolName, ...(toolUseId ? { toolUseId } : {}), isError },
     })
   }
 }
@@ -1040,10 +1189,22 @@ function normalizeSessionItem(
     standalone: item.standalone === true,
     pinnedAt: nullableString(item.pinnedAt),
     archivedAt: nullableString(item.archivedAt),
+    permissionProfile: normalizeDesktopPermissionProfile(
+      item.permissionProfile,
+    ),
+    approvalPolicy: normalizeDesktopApprovalPolicy(item.approvalPolicy),
+    approvalsReviewer: normalizeDesktopApprovalsReviewer(
+      item.approvalsReviewer,
+    ),
     permissionMode: normalizeDesktopPermissionMode(item.permissionMode),
+    localRouterMode: normalizeLocalRouterMode(item.localRouterMode),
+    ...normalizeSnapshotCollaborationMode({
+      collaborationMode: item.collaborationMode,
+      planModeActive: item.planModeActive,
+    }),
     model: typeof item.model === 'string' ? item.model : null,
-    fallbackModel:
-      typeof item.fallbackModel === 'string' ? item.fallbackModel : null,
+    reviewModel:
+      typeof item.reviewModel === 'string' ? item.reviewModel : null,
     thinkingMode:
       item.thinkingMode === 'enabled' ||
       item.thinkingMode === 'adaptive' ||
@@ -1093,9 +1254,21 @@ function normalizeSettingsSnapshot(
       ? (value as Partial<DesktopSessionSettingsSnapshot>)
       : {}
   return {
+    permissionProfile: normalizeDesktopPermissionProfile(
+      settings.permissionProfile,
+    ),
+    approvalPolicy: normalizeDesktopApprovalPolicy(settings.approvalPolicy),
+    approvalsReviewer: normalizeDesktopApprovalsReviewer(
+      settings.approvalsReviewer,
+    ),
     permissionMode: normalizeDesktopPermissionMode(settings.permissionMode),
+    localRouterMode: normalizeLocalRouterMode(settings.localRouterMode),
+    ...normalizeSnapshotCollaborationMode({
+      collaborationMode: settings.collaborationMode,
+      planModeActive: settings.planModeActive,
+    }),
     model: stringOrUndefined(settings.model),
-    fallbackModel: stringOrUndefined(settings.fallbackModel),
+    reviewModel: stringOrUndefined(settings.reviewModel),
     smallFastModel: stringOrUndefined(settings.smallFastModel),
     fastModel: stringOrUndefined(settings.fastModel),
     defaultModel: stringOrUndefined(settings.defaultModel),
@@ -1114,14 +1287,37 @@ function normalizeSettingsSnapshot(
           (directory): directory is string => typeof directory === 'string',
         )
       : [],
+    installCodexDependencies: settings.installCodexDependencies !== false,
+    enableMemory: settings.enableMemory === true,
+    rustSearchAndDiffKernels: settings.rustSearchAndDiffKernels === true,
   }
 }
 
 function defaultSettingsSnapshot(): DesktopSessionSettingsSnapshot {
   return {
+    localRouterMode: 'off',
+    permissionProfile: ':workspace',
+    approvalPolicy: 'on-request',
+    approvalsReviewer: 'user',
     permissionMode: 'default',
+    collaborationMode: resolveCodexCollaborationMode({ planModeActive: false }),
+    planModeActive: false,
     thinkingMode: 'default',
     additionalDirectories: [],
+    installCodexDependencies: true,
+    enableMemory: false,
+    rustSearchAndDiffKernels: false,
+  }
+}
+
+function normalizeSnapshotCollaborationMode(value: {
+  collaborationMode?: unknown
+  planModeActive?: boolean
+}): Pick<DesktopSessionSettingsSnapshot, 'collaborationMode' | 'planModeActive'> {
+  const collaborationMode = resolveCodexCollaborationMode(value)
+  return {
+    collaborationMode,
+    planModeActive: planModeActiveFromCollaborationMode(collaborationMode),
   }
 }
 
@@ -1252,6 +1448,47 @@ function normalizeSessionEvent(value: unknown): DesktopSessionEvent[] {
   ]
 }
 
+function normalizeReviewComment(value: unknown): DesktopReviewComment[] {
+  if (!value || typeof value !== 'object') return []
+  const comment = value as Partial<DesktopReviewComment>
+  const createdAt = normalizeTimestampString(comment.createdAt)
+  const updatedAt = normalizeTimestampString(comment.updatedAt)
+  if (
+    typeof comment.id !== 'string' ||
+    !comment.id.trim() ||
+    typeof comment.sessionId !== 'string' ||
+    !comment.sessionId.trim() ||
+    typeof comment.filePath !== 'string' ||
+    !comment.filePath.trim() ||
+    (comment.side !== 'left' && comment.side !== 'right') ||
+    typeof comment.lineNumber !== 'number' ||
+    !Number.isInteger(comment.lineNumber) ||
+    comment.lineNumber < 1 ||
+    typeof comment.lineContent !== 'string' ||
+    typeof comment.body !== 'string' ||
+    !comment.body.trim() ||
+    (comment.status !== 'open' && comment.status !== 'resolved') ||
+    !createdAt ||
+    !updatedAt
+  ) {
+    return []
+  }
+  return [
+    {
+      id: comment.id,
+      sessionId: comment.sessionId,
+      filePath: comment.filePath,
+      side: comment.side,
+      lineNumber: comment.lineNumber,
+      lineContent: comment.lineContent,
+      body: comment.body,
+      status: comment.status,
+      createdAt,
+      updatedAt,
+    },
+  ]
+}
+
 function normalizeWorkflowEvent(value: unknown): DesktopWorkflowEvent[] {
   if (!value || typeof value !== 'object') return []
   const event = value as Partial<DesktopWorkflowEvent>
@@ -1308,6 +1545,7 @@ function isSessionEventType(
   return (
     value === 'message' ||
     value === 'assistant_delta' ||
+    value === 'proposed_plan' ||
     value === 'tool_call' ||
     value === 'tool_result' ||
     value === 'status' ||
@@ -1330,6 +1568,8 @@ function normalizePermissionRequest(value: unknown): DesktopPermissionRequest[] 
     {
       requestId: request.requestId,
       toolName: request.toolName,
+      toolUseId:
+        typeof request.toolUseId === 'string' ? request.toolUseId : undefined,
       input: request.input as Record<string, unknown>,
       description: request.description,
       profile: isAgentPermissionProfile(request.profile)
@@ -1338,8 +1578,55 @@ function normalizePermissionRequest(value: unknown): DesktopPermissionRequest[] 
       approvalMode: isAgentApprovalMode(request.approvalMode)
         ? request.approvalMode
         : undefined,
+      approvalsReviewer:
+        request.approvalsReviewer === 'user' ||
+        request.approvalsReviewer === 'auto_review' ||
+        request.approvalsReviewer === 'auto'
+          ? request.approvalsReviewer
+          : undefined,
+      autoReviewFallbackReason:
+        typeof request.autoReviewFallbackReason === 'string'
+          ? request.autoReviewFallbackReason
+          : undefined,
     },
   ]
+}
+
+function shouldPersistRecoverablePendingInteractionSnapshot(
+  snapshot: DesktopSessionSnapshot,
+): boolean {
+  return recoverablePendingInteractionRequests(snapshot.view.pendingPermissions)
+    .length > 0
+}
+
+function recoverablePendingInteractionRequests(
+  requests: DesktopPermissionRequest[],
+): DesktopPermissionRequest[] {
+  return requests.filter(
+    request =>
+      isRecoverablePendingQuestionRequest(request) ||
+      isRecoverablePendingExitPlanModeRequest(request),
+  )
+}
+
+function isRecoverablePendingQuestionRequest(
+  request: DesktopPermissionRequest,
+): boolean {
+  return (
+    request.toolName === 'AskUserQuestion' &&
+    typeof request.toolUseId === 'string' &&
+    request.toolUseId.trim().length > 0
+  )
+}
+
+function isRecoverablePendingExitPlanModeRequest(
+  request: DesktopPermissionRequest,
+): boolean {
+  return (
+    request.toolName === 'ExitPlanMode' &&
+    typeof request.input.plan === 'string' &&
+    request.input.plan.trim().length > 0
+  )
 }
 
 function extractTextContent(content: unknown): string {

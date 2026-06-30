@@ -5,15 +5,23 @@
   justify-content: center;
   flex: 0 0 auto;
   padding: 0;
-  border-radius: var(--r-md);
+  border-radius: var(--radius-4);
   color: var(--c-icon);
-  transition: background 0.15s ease-out;
+  transition:
+    background var(--motion-standard) var(--ease-standard),
+    box-shadow var(--motion-standard) var(--ease-standard),
+    color var(--motion-standard) var(--ease-standard);
   -webkit-app-region: no-drag;
 }
 
 .icon-button:hover,
 .ghost-icon-button:hover {
   color: var(--c-text);
+}
+
+.icon-button:focus-visible,
+.ghost-icon-button:focus-visible {
+  outline: none;
 }
 
 .icon-button svg,

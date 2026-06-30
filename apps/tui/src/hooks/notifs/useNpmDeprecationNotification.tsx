@@ -4,7 +4,7 @@ import { isEnvTruthy } from '@codepilotx/tui/utils/envUtils.js'
 import { useStartupNotification } from './useStartupNotification.js'
 
 const NPM_DEPRECATION_MESSAGE =
-  'CodePilotX has switched from npm to native installer. Run `codepilotx install` or see https://docs.anthropic.com/en/docs/claude-code/getting-started for more options.'
+  'CodePilotX has switched from npm to native installer. Run `codepilotx install` for more options.'
 
 export function useNpmDeprecationNotification(): void {
   useStartupNotification(async () => {

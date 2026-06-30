@@ -127,7 +127,6 @@ export interface RetryContext {
 interface RetryOptions {
   maxRetries?: number
   model: string
-  fallbackModel?: string
   thinkingConfig: ThinkingConfig
   fastMode?: boolean
   signal?: AbortSignal

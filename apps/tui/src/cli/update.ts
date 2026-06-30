@@ -120,18 +120,18 @@ export async function update() {
     writeToStdout('\n')
 
     if (packageManager === 'homebrew') {
-      writeToStdout('Claude is managed by Homebrew.\n')
+      writeToStdout('CodePilotX is managed by Homebrew.\n')
       const latest = await getLatestVersion(channel)
       if (latest && !gte(MACRO.VERSION, latest)) {
         writeToStdout(`Update available: ${MACRO.VERSION} → ${latest}\n`)
         writeToStdout('\n')
         writeToStdout('To update, run:\n')
-        writeToStdout(chalk.bold('  brew upgrade claude-code') + '\n')
+        writeToStdout('Please use your Homebrew package name to update.\n')
       } else {
-        writeToStdout('Claude is up to date!\n')
+        writeToStdout('CodePilotX is up to date!\n')
       }
     } else if (packageManager === 'winget') {
-      writeToStdout('Claude is managed by winget.\n')
+      writeToStdout('CodePilotX is managed by winget.\n')
       const latest = await getLatestVersion(channel)
       if (latest && !gte(MACRO.VERSION, latest)) {
         writeToStdout(`Update available: ${MACRO.VERSION} → ${latest}\n`)
@@ -141,24 +141,24 @@ export async function update() {
           chalk.bold('  winget upgrade Anthropic.CodePilotX') + '\n',
         )
       } else {
-        writeToStdout('Claude is up to date!\n')
+        writeToStdout('CodePilotX is up to date!\n')
       }
     } else if (packageManager === 'apk') {
-      writeToStdout('Claude is managed by apk.\n')
+      writeToStdout('CodePilotX is managed by apk.\n')
       const latest = await getLatestVersion(channel)
       if (latest && !gte(MACRO.VERSION, latest)) {
         writeToStdout(`Update available: ${MACRO.VERSION} → ${latest}\n`)
         writeToStdout('\n')
         writeToStdout('To update, run:\n')
-        writeToStdout(chalk.bold('  apk upgrade claude-code') + '\n')
+        writeToStdout('Please use your apk package name to update.\n')
       } else {
-        writeToStdout('Claude is up to date!\n')
+        writeToStdout('CodePilotX is up to date!\n')
       }
     } else {
       // pacman, deb, and rpm don't get specific commands because they each have
       // multiple frontends (pacman: yay/paru/makepkg, deb: apt/apt-get/aptitude/nala,
       // rpm: dnf/yum/zypper)
-      writeToStdout('Claude is managed by a package manager.\n')
+      writeToStdout('CodePilotX is managed by a package manager.\n')
       writeToStdout('Please use your package manager to update.\n')
     }
 

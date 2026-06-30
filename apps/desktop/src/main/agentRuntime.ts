@@ -1,9 +1,18 @@
 import { randomUUID } from 'node:crypto'
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { existsSync } from 'node:fs'
+import { writeFile } from 'node:fs/promises'
 import { createInterface } from 'node:readline'
+import { getPlanFilePath } from '@codepilotx/tui/utils/plans.js'
+import { parseProposedPlanText } from '@codepilotx/core/agent/proposedPlan.js'
+import {
+  planModeActiveFromCollaborationMode,
+  resolveCodexCollaborationMode,
+  type CodexCollaborationMode,
+} from '@codepilotx/core/agent/codexSessionContract.js'
 import {
   createDesktopHeadlessRuntime,
+  runDesktopHeadlessControlResponse,
   runDesktopHeadlessTurn,
   type DesktopHeadlessOutputControls,
   type DesktopHeadlessRuntime,
@@ -17,20 +26,23 @@ import type {
   DesktopThinkingMode,
   DesktopUserMessageContent,
 } from '../shared/types.js'
-import type { PermissionMode } from '@codepilotx/tui/types/permissions.js'
+import type { PermissionMode } from '@codepilotx/core/agent/permissionMode.js'
 import {
   CODEPILOTX_CONFIG_DIR_ENV,
   LEGACY_CLAUDE_CONFIG_DIR_ENV,
-} from '@codepilotx/tui/utils/envUtils.js'
+} from '@codepilotx/core/config/env.js'
+import { DESKTOP_TOOLCHAIN_ENABLED_ENV } from './desktopRuntimeEnv.js'
 import {
   buildDesktopContextUsage,
   getUsageFromAssistantRecord,
 } from './desktopContextUsage.js'
 import {
+  buildPermissionRememberOptions,
   buildToolResultMetadata,
   extractPartialText,
   getMessageContent,
   getResultErrorMessage,
+  getToolUseId,
   getUpdatedPermissions,
   summarizeToolInput,
 } from './agentRuntimeSupport.js'
@@ -41,16 +53,40 @@ export type DesktopAgentRuntimePreference =
   | 'embedded-headless'
   | 'subprocess'
 
+export type DesktopCodexApprovalPolicy =
+  | 'untrusted'
+  | 'on-request'
+  | 'on-failure'
+  | 'never'
+
+export type DesktopCodexApprovalsReviewer = 'user' | 'auto_review'
+type LegacyDesktopCodexApprovalsReviewer = 'auto'
+export type DesktopCodexSandboxMode =
+  | 'read-only'
+  | 'workspace-write'
+  | 'danger-full-access'
+
 export type DesktopAgentRuntimeContext = {
   sessionId: string
   workspacePath: string
   agentExecutablePath?: string
   configDirectoryPath?: string
   runtimePreference?: DesktopAgentRuntimePreference
+  toolchainEnvironment?: Record<string, string | undefined>
   resumeExistingSession?: boolean
+  permissionProfile?: string
+  sandboxMode?: DesktopCodexSandboxMode
+  approvalPolicy?: DesktopCodexApprovalPolicy
+  approvalsReviewer?: DesktopCodexApprovalsReviewer | LegacyDesktopCodexApprovalsReviewer
   permissionMode?: DesktopPermissionMode
+  collaborationMode?: CodexCollaborationMode
+  planModeActive?: boolean
+  providerID?: string
+  providerBaseURL?: string
+  debugConversationDump?: boolean
   model?: string
-  fallbackModel?: string
+  planExecutionModel?: string
+  reviewModel?: string
   smallFastModel?: string
   fastModel?: string
   defaultModel?: string
@@ -60,17 +96,35 @@ export type DesktopAgentRuntimeContext = {
   systemPrompt?: string
   appendSystemPrompt?: string
   additionalDirectories?: string[]
+  installCodexDependencies?: boolean
+  enableMemory?: boolean
+  rustSearchAndDiffKernels?: boolean
+  serializeHeadlessTurns?: boolean
   emit(event: DesktopAgentEvent): void
   requestPermission(request: DesktopPermissionRequest): Promise<DesktopPermissionDecision>
 }
 
 export type DesktopAgentRuntime = {
   setModel(model: string | undefined): void
+  setModelProvider(
+    providerID: string | undefined,
+    model: string | undefined,
+    providerBaseURL: string | undefined,
+  ): void
+  setPermissionMode(permissionMode: DesktopPermissionMode): void
+  setPlanModeActive(active: boolean): void
+  setDebugConversationDump(enabled: boolean): void
   runUserTurn(content: DesktopUserMessageContent, signal: AbortSignal): Promise<void>
+  runControlResponse(
+    response: Record<string, unknown>,
+    signal: AbortSignal,
+  ): Promise<void>
 }
 
 let headlessQueue: Promise<void> = Promise.resolve()
 const DESKTOP_ENABLED_THINKING_BUDGET = 1_000_000_000
+const SUBPROCESS_STDERR_BUFFER_LIMIT = 16 * 1024
+const BASE_PROCESS_ENV: NodeJS.ProcessEnv = { ...process.env }
 
 function runSerialized<T>(operation: () => Promise<T>): Promise<T> {
   const run = headlessQueue.then(operation, operation)
@@ -81,9 +135,24 @@ function runSerialized<T>(operation: () => Promise<T>): Promise<T> {
   return run
 }
 
+export function appendCappedText(
+  current: string,
+  next: string,
+  maxLength: number,
+): string {
+  if (maxLength <= 0) {
+    return ''
+  }
+  const combined = current + next
+  return combined.length <= maxLength
+    ? combined
+    : combined.slice(combined.length - maxLength)
+}
+
 export function createDesktopAgentRuntime(
   context: DesktopAgentRuntimeContext,
 ): DesktopAgentRuntime {
+  context = normalizeDesktopAgentRuntimeContext(context)
   const preference = context.runtimePreference ?? 'auto'
   if (preference === 'subprocess') {
     desktopDebug('runtime_create_subprocess', {
@@ -99,18 +168,63 @@ export function createDesktopAgentRuntime(
     })
     return new InProcessDesktopAgentRuntime(context)
   } catch (error) {
-    if (
-      preference === 'auto' &&
-      context.agentExecutablePath &&
-      existsSync(context.agentExecutablePath)
-    ) {
-      desktopDebug('runtime_create_embedded_failed_fallback_subprocess', {
-        sessionId: context.sessionId,
-        message: error instanceof Error ? error.message : String(error),
-      })
-      return new CliDesktopAgentRuntime(context)
-    }
+    desktopDebug('runtime_create_embedded_failed', {
+      sessionId: context.sessionId,
+      preference,
+      message: error instanceof Error ? error.message : String(error),
+    })
     throw error
+  }
+}
+
+function normalizeDesktopAgentRuntimeContext(
+  context: DesktopAgentRuntimeContext,
+): DesktopAgentRuntimeContext {
+  const collaborationMode = resolveCodexCollaborationMode({
+    collaborationMode: context.collaborationMode,
+    planModeActive: context.planModeActive,
+  })
+  return {
+    ...context,
+    collaborationMode,
+    planModeActive: planModeActiveFromCollaborationMode(collaborationMode),
+  }
+}
+
+function desktopRuntimeProcessEnv(
+  context: Pick<DesktopAgentRuntimeContext, 'toolchainEnvironment'>,
+): NodeJS.ProcessEnv {
+  const env = {
+    ...process.env,
+    ...context.toolchainEnvironment,
+  }
+  if (context.toolchainEnvironment?.[DESKTOP_TOOLCHAIN_ENABLED_ENV] === '0') {
+    restoreBasePathEnv(env)
+  }
+  return env
+}
+
+function applyDesktopRuntimeProcessEnv(
+  context: Pick<DesktopAgentRuntimeContext, 'toolchainEnvironment'>,
+): void {
+  for (const [key, value] of Object.entries(desktopRuntimeProcessEnv(context))) {
+    if (value === undefined) {
+      delete process.env[key]
+    } else {
+      process.env[key] = value
+    }
+  }
+}
+
+function restoreBasePathEnv(env: NodeJS.ProcessEnv): void {
+  const currentPathKey =
+    Object.keys(env).find(key => key.toLowerCase() === 'path') ?? 'PATH'
+  const basePathKey =
+    Object.keys(BASE_PROCESS_ENV).find(key => key.toLowerCase() === 'path') ??
+    currentPathKey
+  env[currentPathKey] = BASE_PROCESS_ENV[basePathKey]
+  if (currentPathKey !== basePathKey) {
+    delete env[basePathKey]
   }
 }
 
@@ -119,12 +233,42 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
   private emittedAssistantText = false
   private hasStartedCliSession = false
   private partialText = ''
+  private requestedPlanApprovalText: string | null = null
   private readonly toolNamesByUseId = new Map<string, string>()
 
   constructor(private readonly context: DesktopAgentRuntimeContext) {}
 
   setModel(model: string | undefined): void {
     this.context.model = model
+  }
+
+  setModelProvider(
+    providerID: string | undefined,
+    model: string | undefined,
+    providerBaseURL: string | undefined,
+  ): void {
+    this.context.providerID = providerID
+    this.context.providerBaseURL = providerBaseURL
+    this.setModel(model)
+  }
+
+  setPermissionMode(permissionMode: DesktopPermissionMode): void {
+    this.context.permissionMode = permissionMode
+    console.info(
+      `[desktop-runtime] ${new Date().toISOString()} subprocess_set_permission_mode ${JSON.stringify({
+        sessionId: this.context.sessionId,
+        permissionMode,
+      })}`,
+    )
+  }
+
+  setDebugConversationDump(enabled: boolean): void {
+    this.context.debugConversationDump = enabled
+    if (enabled) {
+      desktopDebug('runtime_subprocess_debug_dump_unsupported', {
+        sessionId: this.context.sessionId,
+      })
+    }
   }
 
   async runUserTurn(
@@ -142,7 +286,9 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
     }
     this.emittedAssistantText = false
     this.partialText = ''
+    this.requestedPlanApprovalText = null
     this.toolNamesByUseId.clear()
+    const permissionConfig = codexPermissionConfigForMode(this.context)
 
     const child = spawn(
       executablePath,
@@ -156,6 +302,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
         '--include-partial-messages',
         '--replay-user-messages',
         ...this.sessionResumeArgs(),
+        ...codexPermissionConfigArgs(permissionConfig),
         ...permissionModeArgs(this.context.permissionMode),
         ...permissionPromptToolArgs(),
         ...modelArgs(this.context.model),
@@ -169,7 +316,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
         cwd: this.context.workspacePath,
         windowsHide: true,
         env: {
-          ...process.env,
+          ...desktopRuntimeProcessEnv(this.context),
           [CODEPILOTX_CONFIG_DIR_ENV]:
             this.context.configDirectoryPath ??
             process.env[CODEPILOTX_CONFIG_DIR_ENV],
@@ -178,6 +325,9 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
             process.env[LEGACY_CLAUDE_CONFIG_DIR_ENV],
           CODEPILOTX_DISABLE_MDM_READ: '1',
           CODEPILOTX_DISABLE_MIN_VERSION_CHECK: '1',
+          ...rustSearchAndDiffKernelEnv(this.context),
+          ...memoryRuntimeEnv(this.context),
+          ...desktopProposedPlanEnv(this.context),
           CLAUDE_CODE_DISABLE_MDM_READ: '1',
           CLAUDE_CODE_DISABLE_MIN_VERSION_CHECK: '1',
           ...taskModelEnv(this.context),
@@ -187,7 +337,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
     this.child = child
 
     const cleanupAbort = this.attachAbortHandler(child, signal)
-    const stderr: string[] = []
+    let stderr = ''
 
     child.stderr.on('data', chunk => {
       const text = String(chunk)
@@ -195,15 +345,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
         sessionId: this.context.sessionId,
         textLength: text.length,
       })
-      stderr.push(text)
-      this.context.emit({
-        type: 'tool_result',
-        sessionId: this.context.sessionId,
-        toolName: 'Agent stderr',
-        summary: text.trim(),
-        isError: true,
-        metadata: { stderr: text.trim(), content: text.trim(), result: text },
-      })
+      stderr = appendCappedText(stderr, text, SUBPROCESS_STDERR_BUFFER_LIMIT)
     })
 
     const outputDone = this.consumeStdout(child)
@@ -233,11 +375,115 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
       }
       if (exitCode !== 0) {
         throw new Error(
-          stderr.join('').trim() ||
+          stderr.trim() ||
             `Desktop agent process exited with code ${exitCode}`,
         )
       }
       desktopDebug('runtime_subprocess_turn_done', {
+        sessionId: this.context.sessionId,
+        durationMs: Date.now() - startedAt,
+        exitCode,
+      })
+    } finally {
+      if (this.child === child) {
+        this.child = null
+      }
+      cleanupAbort()
+      if (!child.stdin.destroyed) {
+        child.stdin.end()
+      }
+    }
+  }
+
+  async runControlResponse(
+    response: Record<string, unknown>,
+    signal: AbortSignal,
+  ): Promise<void> {
+    const startedAt = Date.now()
+    desktopDebug('runtime_subprocess_control_response_start', {
+      sessionId: this.context.sessionId,
+    })
+    const executablePath = this.context.agentExecutablePath
+    if (!executablePath || !existsSync(executablePath)) {
+      throw new Error('Desktop agent executable path is not configured')
+    }
+    this.emittedAssistantText = false
+    this.partialText = ''
+    this.requestedPlanApprovalText = null
+    this.toolNamesByUseId.clear()
+    const permissionConfig = codexPermissionConfigForMode(this.context)
+
+    const child = spawn(
+      executablePath,
+      [
+        '--print',
+        '--verbose',
+        '--input-format',
+        'stream-json',
+        '--output-format',
+        'stream-json',
+        '--include-partial-messages',
+        '--replay-user-messages',
+        ...this.sessionResumeArgs(),
+        ...codexPermissionConfigArgs(permissionConfig),
+        ...permissionModeArgs(this.context.permissionMode),
+        ...permissionPromptToolArgs(),
+        ...modelArgs(this.context.model),
+        ...sessionNameArgs(this.context.sessionName),
+        ...thinkingModeArgs(this.context.thinkingMode),
+        ...systemPromptArgs(this.context.systemPrompt),
+        ...appendSystemPromptArgs(this.context.appendSystemPrompt),
+        ...additionalDirectoryArgs(this.context.additionalDirectories),
+      ],
+      {
+        cwd: this.context.workspacePath,
+        windowsHide: true,
+        env: {
+          ...desktopRuntimeProcessEnv(this.context),
+          [CODEPILOTX_CONFIG_DIR_ENV]:
+            this.context.configDirectoryPath ??
+            process.env[CODEPILOTX_CONFIG_DIR_ENV],
+          [LEGACY_CLAUDE_CONFIG_DIR_ENV]:
+            this.context.configDirectoryPath ??
+            process.env[LEGACY_CLAUDE_CONFIG_DIR_ENV],
+          CODEPILOTX_DISABLE_MDM_READ: '1',
+          CODEPILOTX_DISABLE_MIN_VERSION_CHECK: '1',
+          ...rustSearchAndDiffKernelEnv(this.context),
+          ...memoryRuntimeEnv(this.context),
+          ...desktopProposedPlanEnv(this.context),
+          CLAUDE_CODE_DISABLE_MDM_READ: '1',
+          CLAUDE_CODE_DISABLE_MIN_VERSION_CHECK: '1',
+          ...taskModelEnv(this.context),
+        },
+      },
+    )
+    this.child = child
+
+    const cleanupAbort = this.attachAbortHandler(child, signal)
+    let stderr = ''
+    child.stderr.on('data', chunk => {
+      const text = String(chunk)
+      stderr = appendCappedText(stderr, text, SUBPROCESS_STDERR_BUFFER_LIMIT)
+    })
+
+    const outputDone = this.consumeStdout(child)
+    this.writeJsonLine(child, response)
+    this.hasStartedCliSession = true
+
+    try {
+      const exitCode = await new Promise<number | null>((resolve, reject) => {
+        child.once('error', reject)
+        child.once('exit', code => resolve(code))
+      })
+      await outputDone
+      if (signal.aborted) return
+      if (exitCode !== 0) {
+        throw new Error(
+          stderr.trim() ||
+            `Desktop agent process exited with code ${exitCode}`,
+        )
+      }
+      desktopDebug('runtime_subprocess_control_response_done', {
         sessionId: this.context.sessionId,
         durationMs: Date.now() - startedAt,
         exitCode,
@@ -304,13 +550,13 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
 
     switch (message.type) {
       case 'assistant':
-        this.emitAssistantMessage(message)
+        await this.emitAssistantMessage(message)
         return
       case 'system':
         this.emitSystemMessage(message)
         return
       case 'result':
-        this.emitResultMessage(message)
+        await this.emitResultMessage(message)
         return
       case 'control_request':
         await this.handleControlRequest(message)
@@ -331,7 +577,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
     }
   }
 
-  private emitAssistantMessage(message: Record<string, unknown>): void {
+  private async emitAssistantMessage(message: Record<string, unknown>): Promise<void> {
     this.emitContextUsage(message)
     const content = getMessageContent(message)
     if (!Array.isArray(content)) {
@@ -346,20 +592,11 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
       const partialText = extractPartialText(item)
       if (partialText) {
         this.partialText += partialText
-        this.context.emit({
-          type: 'partial_message',
-          sessionId: this.context.sessionId,
-          text: this.partialText,
-        })
+        await this.emitAssistantText(this.partialText, true)
       } else if (item.type === 'text' && typeof item.text === 'string') {
         this.emittedAssistantText = true
         this.partialText = ''
-        this.context.emit({
-          type: 'message',
-          sessionId: this.context.sessionId,
-          role: 'assistant',
-          text: item.text,
-        })
+        await this.emitAssistantText(item.text, false)
       } else if (item.type === 'tool_use') {
         const toolName = typeof item.name === 'string' ? item.name : 'Tool'
         if (typeof item.id === 'string') {
@@ -370,6 +607,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
           sessionId: this.context.sessionId,
           toolName,
           summary: summarizeToolInput(toolName, item.input),
+          toolUseId: getToolUseId(item),
         })
       } else if (item.type === 'tool_result') {
         const toolName = this.toolNameForResult(item)
@@ -378,10 +616,79 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
           sessionId: this.context.sessionId,
           toolName,
           summary: summarizeToolInput(toolName, item.content),
+          toolUseId: getToolUseId(item),
           isError: item.is_error === true,
           metadata: buildToolResultMetadata(item.content),
         })
       }
+    }
+  }
+
+  setPlanModeActive(active: boolean): void {
+    this.context.collaborationMode = resolveCodexCollaborationMode({
+      planModeActive: active,
+    })
+    this.context.planModeActive = active
+    console.info(
+      `[desktop-runtime] ${new Date().toISOString()} subprocess_set_plan_mode ${JSON.stringify({
+        sessionId: this.context.sessionId,
+        planModeActive: active,
+      })}`,
+    )
+  }
+
+  private async emitAssistantText(text: string, streaming: boolean): Promise<void> {
+    if (this.context.planModeActive !== true) {
+      this.context.emit(
+        streaming
+          ? {
+              type: 'partial_message',
+              sessionId: this.context.sessionId,
+              text,
+            }
+          : {
+              type: 'message',
+              sessionId: this.context.sessionId,
+              role: 'assistant',
+              text,
+            },
+      )
+      return
+    }
+
+    const parsed = parseProposedPlanText(text)
+    if (parsed.visibleText) {
+      this.context.emit(
+        streaming
+          ? {
+              type: 'partial_message',
+              sessionId: this.context.sessionId,
+              text: parsed.visibleText,
+            }
+          : {
+              type: 'message',
+              sessionId: this.context.sessionId,
+              role: 'assistant',
+              text: parsed.visibleText,
+            },
+      )
+    }
+    if (!parsed.planText) return
+
+    this.context.emit({
+      type: 'proposed_plan',
+      sessionId: this.context.sessionId,
+      text: parsed.planText,
+      streaming: !parsed.isComplete || streaming,
+    })
+    if (
+      parsed.isComplete &&
+      !streaming &&
+      this.requestedPlanApprovalText !== parsed.planText
+    ) {
+      this.requestedPlanApprovalText = parsed.planText
+      await persistProposedPlan(parsed.planText, this.context)
+      await requestProposedPlanApproval(parsed.planText, this.context)
     }
   }
 
@@ -417,6 +724,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
         sessionId: this.context.sessionId,
         toolName,
         summary: summarizeToolInput(toolName, item.content),
+        toolUseId: getToolUseId(item),
         isError: item.is_error === true,
         metadata: buildToolResultMetadata(item.content),
       })
@@ -443,24 +751,18 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
     })
   }
 
-  private emitResultMessage(message: Record<string, unknown>): void {
+  private async emitResultMessage(message: Record<string, unknown>): Promise<void> {
+    const result = typeof message.result === 'string' ? message.result : ''
     if (
       !this.emittedAssistantText &&
-      typeof message.result === 'string' &&
-      message.result.trim() &&
-      message.result !== this.partialText
+      result.trim()
     ) {
-      this.context.emit({
-        type: 'message',
-        sessionId: this.context.sessionId,
-        role: 'assistant',
-        text: message.result,
-      })
+      if (result !== this.partialText) {
+        await this.emitAssistantText(result, false)
+      }
+      this.emittedAssistantText = true
     }
     this.partialText = ''
-    if (this.child && !this.child.stdin.destroyed) {
-      this.child.stdin.end()
-    }
   }
 
   private async handleControlRequest(
@@ -486,26 +788,16 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
       return
     }
 
-    const toolName =
-      typeof request.tool_name === 'string' ? request.tool_name : 'Tool'
-    const input =
-      request.input && typeof request.input === 'object'
-        ? (request.input as Record<string, unknown>)
-        : {}
-    const decision = await this.context.requestPermission({
+    const permissionRequest = buildDesktopPermissionRequestFromControlRequest(
       requestId,
-      toolName,
-      input,
-      description:
-        typeof request.description === 'string'
-          ? request.description
-          : summarizeToolInput(toolName, input),
-    })
+      request,
+    )
+    const decision = await this.context.requestPermission(permissionRequest)
 
     if (decision.behavior === 'allow') {
       const response: Record<string, unknown> = {
         behavior: 'allow',
-        updatedInput: decision.updatedInput ?? input,
+        updatedInput: decision.updatedInput ?? permissionRequest.input,
         toolUseID: request.tool_use_id,
         decisionClassification: decision.alwaysAllow
           ? 'user_permanent'
@@ -556,6 +848,7 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
 class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
   private emittedAssistantText = false
   private partialText = ''
+  private requestedPlanApprovalText: string | null = null
   private resultError: string | null = null
   private currentSignal: AbortSignal | null = null
   private readonly toolNamesByUseId = new Map<string, string>()
@@ -564,13 +857,28 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
 
   constructor(context: DesktopAgentRuntimeContext) {
     this.context = context
+    const permissionConfig = codexPermissionConfigForMode(context)
+    applyDesktopRuntimeProcessEnv(context)
+    applyRustSearchAndDiffKernelEnv(process.env, context)
+    applyMemoryRuntimeEnv(process.env, context)
     this.runtime = createDesktopHeadlessRuntime({
       sessionId: context.sessionId,
       workspacePath: context.workspacePath,
       configDirectoryPath: context.configDirectoryPath,
       resumeExistingSession: context.resumeExistingSession,
-      permissionMode: tuiPermissionMode(context.permissionMode),
+      permissionProfile: permissionConfig.permissionProfile,
+      sandboxMode: permissionConfig.sandboxMode,
+      approvalPolicy: permissionConfig.approvalPolicy,
+      approvalsReviewer: permissionConfig.approvalsReviewer,
+      permissionMode: tuiPermissionMode(
+        context.permissionMode,
+        context.planModeActive,
+      ),
+      providerID: context.providerID,
+      providerBaseURL: context.providerBaseURL,
+      debugConversationDump: context.debugConversationDump,
       model: context.model,
+      reviewModel: context.reviewModel,
       smallFastModel: context.smallFastModel,
       fastModel: context.fastModel,
       defaultModel: context.defaultModel,
@@ -580,6 +888,8 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
       systemPrompt: context.systemPrompt,
       appendSystemPrompt: context.appendSystemPrompt,
       additionalDirectories: context.additionalDirectories,
+      installCodexDependencies: context.installCodexDependencies,
+      enableMemory: context.enableMemory,
       permissionPromptToolName: permissionPromptToolName(),
       onOutput: (message, controls) =>
         this.handleStructuredOutput(message, controls),
@@ -589,6 +899,53 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
   setModel(model: string | undefined): void {
     this.context.model = model
     this.runtime.setModel(model)
+  }
+
+  setModelProvider(
+    providerID: string | undefined,
+    model: string | undefined,
+    providerBaseURL: string | undefined,
+  ): void {
+    this.context.providerID = providerID
+    this.context.providerBaseURL = providerBaseURL
+    this.runtime.setProvider(providerID, providerBaseURL)
+    this.setModel(model)
+  }
+
+  setPermissionMode(permissionMode: DesktopPermissionMode): void {
+    this.context.permissionMode = permissionMode
+    const permissionConfig = codexPermissionConfigForMode(this.context)
+    console.info(
+      `[desktop-runtime] ${new Date().toISOString()} embedded_set_permission_mode ${JSON.stringify({
+        sessionId: this.context.sessionId,
+        permissionMode,
+      })}`,
+    )
+    this.runtime.setPermissionMode(
+      tuiPermissionMode(permissionMode, this.context.planModeActive),
+    )
+    this.runtime.setCodexPermissionConfig(permissionConfig)
+  }
+
+  setPlanModeActive(active: boolean): void {
+    this.context.collaborationMode = resolveCodexCollaborationMode({
+      planModeActive: active,
+    })
+    this.context.planModeActive = active
+    console.info(
+      `[desktop-runtime] ${new Date().toISOString()} embedded_set_plan_mode ${JSON.stringify({
+        sessionId: this.context.sessionId,
+        planModeActive: active,
+      })}`,
+    )
+    this.runtime.setPermissionMode(
+      tuiPermissionMode(this.context.permissionMode, active),
+    )
+  }
+
+  setDebugConversationDump(enabled: boolean): void {
+    this.context.debugConversationDump = enabled
+    this.runtime.setDebugConversationDump(enabled)
   }
 
   async runUserTurn(
@@ -602,14 +959,21 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
     })
     this.emittedAssistantText = false
     this.partialText = ''
+    this.requestedPlanApprovalText = null
     this.resultError = null
     this.toolNamesByUseId.clear()
     this.currentSignal = signal
 
     try {
-      await runSerialized(() =>
-        runDesktopHeadlessTurn(this.runtime, content, signal),
-      )
+      const turn = () =>
+        runWithDesktopProposedPlanEnv(this.context, () =>
+          runDesktopHeadlessTurn(this.runtime, content, signal),
+        )
+      if (this.context.serializeHeadlessTurns !== false) {
+        await runSerialized(turn)
+      } else {
+        await turn()
+      }
     } finally {
       if (this.currentSignal === signal) {
         this.currentSignal = null
@@ -632,6 +996,53 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
       throw new Error(this.resultError)
     }
     desktopDebug('runtime_embedded_turn_done', {
+      sessionId: this.context.sessionId,
+      durationMs: Date.now() - startedAt,
+    })
+  }
+
+  async runControlResponse(
+    response: Record<string, unknown>,
+    signal: AbortSignal,
+  ): Promise<void> {
+    const startedAt = Date.now()
+    desktopDebug('runtime_embedded_control_response_start', {
+      sessionId: this.context.sessionId,
+    })
+    this.emittedAssistantText = false
+    this.partialText = ''
+    this.requestedPlanApprovalText = null
+    this.resultError = null
+    this.toolNamesByUseId.clear()
+    this.currentSignal = signal
+
+    try {
+      const turn = () =>
+        runWithDesktopProposedPlanEnv(this.context, () =>
+          runDesktopHeadlessControlResponse(this.runtime, response, signal),
+        )
+      if (this.context.serializeHeadlessTurns !== false) {
+        await runSerialized(turn)
+      } else {
+        await turn()
+      }
+    } finally {
+      if (this.currentSignal === signal) {
+        this.currentSignal = null
+      }
+    }
+
+    if (signal.aborted) {
+      desktopDebug('runtime_embedded_control_response_aborted', {
+        sessionId: this.context.sessionId,
+        durationMs: Date.now() - startedAt,
+      })
+      return
+    }
+    if (this.resultError) {
+      throw new Error(this.resultError)
+    }
+    desktopDebug('runtime_embedded_control_response_done', {
       sessionId: this.context.sessionId,
       durationMs: Date.now() - startedAt,
     })
@@ -675,19 +1086,19 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
     ) {
       return
     }
-    this.handleOutputMessage(message as Record<string, unknown>)
+    await this.handleOutputMessage(message as Record<string, unknown>)
   }
 
-  private handleOutputMessage(message: Record<string, unknown>): void {
+  private async handleOutputMessage(message: Record<string, unknown>): Promise<void> {
     switch (message.type) {
       case 'assistant':
-        this.emitAssistantMessage(message)
+        await this.emitAssistantMessage(message)
         return
       case 'system':
         this.emitSystemMessage(message)
         return
       case 'result':
-        this.emitResultMessage(message)
+        await this.emitResultMessage(message)
         return
       case 'user':
         this.emitUserMessage(message)
@@ -697,7 +1108,7 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
     }
   }
 
-  private emitAssistantMessage(message: Record<string, unknown>): void {
+  private async emitAssistantMessage(message: Record<string, unknown>): Promise<void> {
     this.emitContextUsage(message)
     const content = getMessageContent(message)
     if (!Array.isArray(content)) {
@@ -712,20 +1123,11 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
       const partialText = extractPartialText(item)
       if (partialText) {
         this.partialText += partialText
-        this.context.emit({
-          type: 'partial_message',
-          sessionId: this.context.sessionId,
-          text: this.partialText,
-        })
+        await this.emitAssistantText(this.partialText, true)
       } else if (item.type === 'text' && typeof item.text === 'string') {
         this.emittedAssistantText = true
         this.partialText = ''
-        this.context.emit({
-          type: 'message',
-          sessionId: this.context.sessionId,
-          role: 'assistant',
-          text: item.text,
-        })
+        await this.emitAssistantText(item.text, false)
       } else if (item.type === 'tool_use') {
         const toolName = typeof item.name === 'string' ? item.name : 'Tool'
         if (typeof item.id === 'string') {
@@ -736,6 +1138,7 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
           sessionId: this.context.sessionId,
           toolName,
           summary: summarizeToolInput(toolName, item.input),
+          toolUseId: getToolUseId(item),
         })
       } else if (item.type === 'tool_result') {
         const toolName = this.toolNameForResult(item)
@@ -744,10 +1147,66 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
           sessionId: this.context.sessionId,
           toolName,
           summary: summarizeToolInput(toolName, item.content),
+          toolUseId: getToolUseId(item),
           isError: item.is_error === true,
           metadata: buildToolResultMetadata(item.content),
         })
       }
+    }
+  }
+
+  private async emitAssistantText(text: string, streaming: boolean): Promise<void> {
+    if (this.context.planModeActive !== true) {
+      this.context.emit(
+        streaming
+          ? {
+              type: 'partial_message',
+              sessionId: this.context.sessionId,
+              text,
+            }
+          : {
+              type: 'message',
+              sessionId: this.context.sessionId,
+              role: 'assistant',
+              text,
+            },
+      )
+      return
+    }
+
+    const parsed = parseProposedPlanText(text)
+    if (parsed.visibleText) {
+      this.context.emit(
+        streaming
+          ? {
+              type: 'partial_message',
+              sessionId: this.context.sessionId,
+              text: parsed.visibleText,
+            }
+          : {
+              type: 'message',
+              sessionId: this.context.sessionId,
+              role: 'assistant',
+              text: parsed.visibleText,
+            },
+      )
+    }
+    if (!parsed.planText) return
+
+    this.context.emit({
+      type: 'proposed_plan',
+      sessionId: this.context.sessionId,
+      text: parsed.planText,
+      streaming: !parsed.isComplete || streaming,
+    })
+    if (
+      parsed.isComplete &&
+      !streaming &&
+      this.requestedPlanApprovalText !== parsed.planText
+    ) {
+      this.requestedPlanApprovalText = parsed.planText
+      await persistProposedPlan(parsed.planText, this.context)
+      await requestProposedPlanApproval(parsed.planText, this.context)
     }
   }
 
@@ -783,6 +1242,7 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
         sessionId: this.context.sessionId,
         toolName,
         summary: summarizeToolInput(toolName, item.content),
+        toolUseId: getToolUseId(item),
         isError: item.is_error === true,
         metadata: buildToolResultMetadata(item.content),
       })
@@ -809,19 +1269,16 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
     })
   }
 
-  private emitResultMessage(message: Record<string, unknown>): void {
+  private async emitResultMessage(message: Record<string, unknown>): Promise<void> {
+    const result = typeof message.result === 'string' ? message.result : ''
     if (
       !this.emittedAssistantText &&
-      typeof message.result === 'string' &&
-      message.result.trim() &&
-      message.result !== this.partialText
+      result.trim()
     ) {
-      this.context.emit({
-        type: 'message',
-        sessionId: this.context.sessionId,
-        role: 'assistant',
-        text: message.result,
-      })
+      if (result !== this.partialText) {
+        await this.emitAssistantText(result, false)
+      }
+      this.emittedAssistantText = true
     }
     if (message.is_error === true) {
       this.resultError = getResultErrorMessage(message)
@@ -854,26 +1311,25 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
       return
     }
 
-    const toolName =
-      typeof request.tool_name === 'string' ? request.tool_name : 'Tool'
-    const input =
-      request.input && typeof request.input === 'object'
-        ? (request.input as Record<string, unknown>)
-        : {}
-    const decision = await this.context.requestPermission({
+    const permissionRequest = buildDesktopPermissionRequestFromControlRequest(
       requestId,
-      toolName,
-      input,
-      description:
-        typeof request.description === 'string'
-          ? request.description
-          : summarizeToolInput(toolName, input),
-    })
+      request,
+    )
+    const decision = await this.context.requestPermission(permissionRequest)
+    console.info(
+      `[desktop-runtime] ${new Date().toISOString()} embedded_control_decision ${JSON.stringify({
+        sessionId: this.context.sessionId,
+        permissionMode: this.context.permissionMode,
+        toolName: permissionRequest.toolName,
+        behavior: decision.behavior,
+        requestId,
+      })}`,
+    )
 
     if (decision.behavior === 'allow') {
       const response: Record<string, unknown> = {
         behavior: 'allow',
-        updatedInput: decision.updatedInput ?? input,
+        updatedInput: decision.updatedInput ?? permissionRequest.input,
         toolUseID: request.tool_use_id,
         decisionClassification: decision.alwaysAllow
           ? 'user_permanent'
@@ -922,13 +1378,135 @@ function firstResultError(message: Record<string, unknown>): string | undefined 
 export function permissionModeArgs(
   permissionMode: DesktopPermissionMode | undefined,
 ): string[] {
-  if (permissionMode === 'customConfig') {
+  if (permissionMode === 'custom') {
     return []
   }
-  if (permissionMode === 'bypassPermissions') {
+  if (permissionMode === 'full-access') {
     return ['--dangerously-skip-permissions']
   }
-  return ['--permission-mode', permissionMode ?? 'default']
+  return ['--permission-mode', 'default']
+}
+
+export type DesktopCodexPermissionConfigArgs = {
+  sandboxMode?: DesktopCodexSandboxMode
+  permissionProfile?: string
+  approvalPolicy?: DesktopCodexApprovalPolicy
+  approvalsReviewer?: DesktopCodexApprovalsReviewer | LegacyDesktopCodexApprovalsReviewer
+}
+
+export function codexPermissionConfigArgs(
+  config: DesktopCodexPermissionConfigArgs,
+): string[] {
+  return [
+    ...codexConfigOverrideArg('sandbox_mode', config.sandboxMode),
+    ...codexConfigOverrideArg('default_permissions', config.permissionProfile),
+    ...codexConfigOverrideArg('approval_policy', config.approvalPolicy),
+    ...codexConfigOverrideArg(
+      'approvals_reviewer',
+      normalizeApprovalsReviewer(config.approvalsReviewer),
+    ),
+  ]
+}
+
+export function codexPermissionConfigForMode(
+  config: DesktopCodexPermissionConfigArgs & {
+    permissionMode?: DesktopPermissionMode
+  },
+): Omit<DesktopCodexPermissionConfigArgs, 'approvalsReviewer'> & {
+  approvalsReviewer?: DesktopCodexApprovalsReviewer
+} {
+  switch (config.permissionMode) {
+    case 'auto-review':
+      return {
+        sandboxMode: 'workspace-write',
+        approvalPolicy: 'on-request',
+        approvalsReviewer: 'auto_review',
+      }
+    case 'full-access':
+      return {
+        sandboxMode: 'danger-full-access',
+        approvalPolicy: 'never',
+        approvalsReviewer: 'user',
+      }
+    case 'custom':
+      return {
+        sandboxMode: config.sandboxMode,
+        permissionProfile: config.permissionProfile,
+        approvalPolicy: config.approvalPolicy,
+        approvalsReviewer: normalizeApprovalsReviewer(config.approvalsReviewer) as
+          | DesktopCodexApprovalsReviewer
+          | undefined,
+      }
+    case 'default':
+    default:
+      return {
+        sandboxMode: 'workspace-write',
+        approvalPolicy: 'on-request',
+        approvalsReviewer: 'user',
+      }
+  }
+}
+
+function desktopProposedPlanEnv(
+  context: Pick<DesktopAgentRuntimeContext, 'planModeActive'>,
+): Record<string, string> {
+  return context.planModeActive === true
+    ? { CODEPILOTX_DESKTOP_PROPOSED_PLAN: '1' }
+    : {}
+}
+
+async function runWithDesktopProposedPlanEnv<T>(
+  context: Pick<DesktopAgentRuntimeContext, 'planModeActive'>,
+  operation: () => Promise<T>,
+): Promise<T> {
+  const previous = process.env.CODEPILOTX_DESKTOP_PROPOSED_PLAN
+  if (context.planModeActive === true) {
+    process.env.CODEPILOTX_DESKTOP_PROPOSED_PLAN = '1'
+  } else {
+    delete process.env.CODEPILOTX_DESKTOP_PROPOSED_PLAN
+  }
+  try {
+    return await operation()
+  } finally {
+    if (previous === undefined) {
+      delete process.env.CODEPILOTX_DESKTOP_PROPOSED_PLAN
+    } else {
+      process.env.CODEPILOTX_DESKTOP_PROPOSED_PLAN = previous
+    }
+  }
+}
+
+async function persistProposedPlan(
+  planText: string,
+  context: Pick<DesktopAgentRuntimeContext, 'sessionId'>,
+): Promise<void> {
+  try {
+    await writeFile(getPlanFilePath(), planText, { encoding: 'utf-8' })
+  } catch (error) {
+    desktopDebug('runtime_proposed_plan_persist_failed', {
+      sessionId: context.sessionId,
+      message: error instanceof Error ? error.message : String(error),
+    })
+  }
+}
+
+async function requestProposedPlanApproval(
+  planText: string,
+  context: Pick<DesktopAgentRuntimeContext, 'sessionId' | 'requestPermission'>,
+): Promise<void> {
+  await context.requestPermission({
+    requestId: `proposed-plan-${randomUUID()}`,
+    toolName: 'ExitPlanMode',
+    input: {
+      plan: planText,
+      source: 'proposed_plan',
+    },
+    description: '确认计划',
+  })
+}
+
+function codexConfigOverrideArg(key: string, value: string | undefined): string[] {
+  return value ? ['--config', `${key}=${JSON.stringify(value)}`] : []
 }
 
 function getDesktopUserMessageContentTextLength(
@@ -951,8 +1529,22 @@ export function permissionPromptToolArgs(): string[] {
 
 function tuiPermissionMode(
   permissionMode: DesktopPermissionMode | undefined,
+  planModeActive = false,
 ): PermissionMode | undefined {
-  return permissionMode === 'customConfig' ? undefined : permissionMode
+  if (planModeActive) return 'plan'
+  if (permissionMode === 'custom') return undefined
+  if (permissionMode === 'full-access') return 'bypassPermissions'
+  return 'default'
+}
+
+function normalizeApprovalsReviewer(
+  value:
+    | DesktopCodexApprovalsReviewer
+    | LegacyDesktopCodexApprovalsReviewer
+    | undefined,
+): string | undefined {
+  if (value === 'auto') return 'auto_review'
+  return value
 }
 
 function modelArgs(model: string | undefined): string[] {
@@ -973,6 +1565,9 @@ export function taskModelEnv(
       context.defaultModel?.trim() || mainModel,
     CODEPILOTX_DEEP_MODEL:
       context.deepModel?.trim() || mainModel,
+    ...(context.planExecutionModel?.trim()
+      ? { CODEPILOTX_PLAN_EXECUTION_MODEL: context.planExecutionModel.trim() }
+      : {}),
   }
 }
 
@@ -1009,4 +1604,105 @@ function additionalDirectoryArgs(
   return additionalDirectories && additionalDirectories.length > 0
     ? ['--add-dir', ...additionalDirectories]
     : []
+}
+
+export function buildDesktopPermissionRequestFromControlRequest(
+  requestId: string,
+  request: Record<string, unknown>,
+): DesktopPermissionRequest {
+  const toolName =
+    typeof request.tool_name === 'string' ? request.tool_name : 'Tool'
+  const input =
+    request.input && typeof request.input === 'object'
+      ? (request.input as Record<string, unknown>)
+      : {}
+  const rememberOptions = buildPermissionRememberOptions(request)
+  return {
+    requestId,
+    toolName,
+    toolUseId:
+      typeof request.tool_use_id === 'string'
+        ? request.tool_use_id
+        : undefined,
+    input,
+    description:
+      typeof request.description === 'string'
+        ? request.description
+        : summarizeToolInput(toolName, input),
+    ...(rememberOptions.length > 0 ? { rememberOptions } : {}),
+  }
+}
+
+export function buildAskUserQuestionControlResponse({
+  requestId,
+  toolUseId,
+  updatedInput,
+}: {
+  requestId: string
+  toolUseId: string
+  updatedInput: Record<string, unknown>
+}): Record<string, unknown> {
+  return {
+    type: 'control_response',
+    response: {
+      request_id: requestId,
+      subtype: 'success',
+      response: {
+        behavior: 'allow',
+        updatedInput,
+        toolUseID: toolUseId,
+        decisionClassification: 'user_temporary',
+      },
+    },
+  }
+}
+
+export function rustSearchAndDiffKernelEnv(context: {
+  rustSearchAndDiffKernels?: boolean
+}): Record<string, string> {
+  return context.rustSearchAndDiffKernels
+    ? {
+        CODEPILOTX_RUST_GLOB: '1',
+        CODEPILOTX_RUST_GREP: '1',
+        CODEPILOTX_RUST_DIFF: '1',
+      }
+    : {}
+}
+
+export function memoryRuntimeEnv(context: {
+  enableMemory?: boolean
+}): Record<string, string> {
+  if (context.enableMemory === true) {
+    return { CLAUDE_CODE_DISABLE_AUTO_MEMORY: '0' }
+  }
+  if (context.enableMemory === false) {
+    return { CLAUDE_CODE_DISABLE_AUTO_MEMORY: '1' }
+  }
+  return {}
+}
+
+function applyRustSearchAndDiffKernelEnv(
+  env: NodeJS.ProcessEnv,
+  context: { rustSearchAndDiffKernels?: boolean },
+): void {
+  if (context.rustSearchAndDiffKernels) {
+    env.CODEPILOTX_RUST_GLOB = '1'
+    env.CODEPILOTX_RUST_GREP = '1'
+    env.CODEPILOTX_RUST_DIFF = '1'
+  } else {
+    delete env.CODEPILOTX_RUST_GLOB
+    delete env.CODEPILOTX_RUST_GREP
+    delete env.CODEPILOTX_RUST_DIFF
+  }
+}
+
+function applyMemoryRuntimeEnv(
+  env: NodeJS.ProcessEnv,
+  context: { enableMemory?: boolean },
+): void {
+  if (context.enableMemory === true) {
+    env.CLAUDE_CODE_DISABLE_AUTO_MEMORY = '0'
+  } else if (context.enableMemory === false) {
+    env.CLAUDE_CODE_DISABLE_AUTO_MEMORY = '1'
+  }
 }

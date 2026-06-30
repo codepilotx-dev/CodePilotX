@@ -325,6 +325,7 @@ import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
 import { resolveAgentTools } from '../tools/AgentTool/agentToolUtils.js'
 import { resumeAgentBackground } from '../tools/AgentTool/resumeAgent.js'
 import { useMainLoopModel } from '../hooks/useMainLoopModel.js'
+import { resolvePlanExecutionModel } from '../utils/model/planExecutionModel.js'
 import {
   useAppState,
   useSetAppState,
@@ -1220,9 +1221,20 @@ export function REPL({
     }
   }, [mainThreadAgentDefinition, mergedTools])
 
+  // Built-in plugin commands are toggled through the plugin state. Drop any
+  // startup-cached copies from localCommands so enable/disable changes are
+  // reflected by plugins.commands immediately after plugin refresh.
+  const localCommandsWithoutBuiltinPluginCommands = useMemo(
+    () =>
+      localCommands.filter(
+        command => !command.pluginInfo?.repository.endsWith('@builtin'),
+      ),
+    [localCommands],
+  )
+
   // Merge commands from local state, plugins, and MCP
   const commandsWithPlugins = useMergedCommands(
-    localCommands,
+    localCommandsWithoutBuiltinPluginCommands,
     plugins.commands as Command[],
   )
   const mergedCommands = useMergedCommands(
@@ -4132,6 +4144,9 @@ export function REPL({
         initialMsg.message.planContent &&
         "external" === 'ant' &&
         isEnvTruthy(undefined)
+      const executionModel = initialMsg.executionModel
+        ? resolvePlanExecutionModel(initialMsg.executionModel)
+        : undefined
 
       setAppState(prev => {
         // Build and apply permission updates (mode + allowedPrompts rules)
@@ -4157,6 +4172,7 @@ export function REPL({
         return {
           ...prev,
           initialMessage: null,
+          ...(executionModel ? { mainLoopModelForSession: executionModel } : {}),
           toolPermissionContext: updatedToolPermissionContext,
           ...(shouldStorePlanForVerification && {
             pendingPlanVerification: {
@@ -4213,7 +4229,7 @@ export function REPL({
           newAbortController,
           true, // shouldQuery
           [], // additionalAllowedTools
-          mainLoopModel,
+          executionModel ?? mainLoopModel,
         )
       }
 

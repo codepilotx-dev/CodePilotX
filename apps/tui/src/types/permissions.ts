@@ -425,6 +425,10 @@ export type ToolPermissionRulesBySource = {
  */
 export type ToolPermissionContext = {
   readonly mode: PermissionMode
+  readonly permissionProfile?: string
+  readonly sandboxMode?: 'read-only' | 'workspace-write' | 'danger-full-access'
+  readonly approvalPolicy?: 'untrusted' | 'on-request' | 'on-failure' | 'never'
+  readonly approvalsReviewer?: 'user' | 'auto_review'
   readonly additionalWorkingDirectories: ReadonlyMap<
     string,
     AdditionalWorkingDirectory

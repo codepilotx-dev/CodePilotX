@@ -5,6 +5,7 @@ import { addToTotalLinesChanged } from '../cost-tracker.js'
 import type { FileEdit } from '../tools/FileEditTool/types.js'
 import { count } from './array.js'
 import { convertLeadingTabsToSpaces } from './file.js'
+import { tryGetRustPatchFromContents } from './rustDiffRuntime.js'
 
 export const CONTEXT_LINES = 3
 export const DIFF_TIMEOUT_MS = 5_000
@@ -91,6 +92,16 @@ export function getPatchFromContents({
   ignoreWhitespace?: boolean
   singleHunk?: boolean
 }): StructuredPatchHunk[] {
+  const rustHunks = tryGetRustPatchFromContents({
+    oldContent,
+    newContent,
+    contextLines: singleHunk ? 100_000 : CONTEXT_LINES,
+    ignoreWhitespace,
+  })
+  if (rustHunks) {
+    return rustHunks
+  }
+
   const result = structuredPatch(
     filePath,
     filePath,
@@ -139,26 +150,41 @@ export function getPatchForDisplay({
   const preparedFileContents = escapeForDiff(
     convertLeadingTabsToSpaces(fileContents),
   )
+  const preparedNewContents = edits.reduce((p, edit) => {
+    const { old_string, new_string } = edit
+    const replace_all = 'replace_all' in edit ? edit.replace_all : false
+    const escapedOldString = escapeForDiff(
+      convertLeadingTabsToSpaces(old_string),
+    )
+    const escapedNewString = escapeForDiff(
+      convertLeadingTabsToSpaces(new_string),
+    )
+
+    if (replace_all) {
+      return p.replaceAll(escapedOldString, () => escapedNewString)
+    } else {
+      return p.replace(escapedOldString, () => escapedNewString)
+    }
+  }, preparedFileContents)
+
+  const rustHunks = tryGetRustPatchFromContents({
+    oldContent: preparedFileContents,
+    newContent: preparedNewContents,
+    contextLines: CONTEXT_LINES,
+    ignoreWhitespace,
+  })
+  if (rustHunks) {
+    return rustHunks.map(_ => ({
+      ..._,
+      lines: _.lines.map(unescapeFromDiff),
+    }))
+  }
+
   const result = structuredPatch(
     filePath,
     filePath,
     preparedFileContents,
-    edits.reduce((p, edit) => {
-      const { old_string, new_string } = edit
-      const replace_all = 'replace_all' in edit ? edit.replace_all : false
-      const escapedOldString = escapeForDiff(
-        convertLeadingTabsToSpaces(old_string),
-      )
-      const escapedNewString = escapeForDiff(
-        convertLeadingTabsToSpaces(new_string),
-      )
-
-      if (replace_all) {
-        return p.replaceAll(escapedOldString, () => escapedNewString)
-      } else {
-        return p.replace(escapedOldString, () => escapedNewString)
-      }
-    }, preparedFileContents),
+    preparedNewContents,
     undefined,
     undefined,
     {

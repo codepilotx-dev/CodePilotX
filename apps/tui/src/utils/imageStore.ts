@@ -1,6 +1,7 @@
 import { mkdir, open } from 'fs/promises'
 import { join } from 'path'
 import { getSessionId } from '../bootstrap/state.js'
+import { sanitizePathComponent } from './pathComponent.js'
 import type { PastedContent } from './config.js'
 import { logForDebugging } from './debug.js'
 import { getClaudeConfigHomeDir } from './envUtils.js'
@@ -16,7 +17,7 @@ const storedImagePaths = new Map<number, string>()
  * Get the image store directory for the current session.
  */
 function getImageStoreDir(): string {
-  return join(getClaudeConfigHomeDir(), IMAGE_STORE_DIR, getSessionId())
+  return join(getClaudeConfigHomeDir(), IMAGE_STORE_DIR, sanitizePathComponent(getSessionId()))
 }
 
 /**

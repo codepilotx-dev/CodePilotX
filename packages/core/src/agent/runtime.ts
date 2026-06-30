@@ -52,13 +52,52 @@ export type AgentToolLogEntry = {
   createdAt: string
 }
 
+export type AgentGuardianRiskLevel = 'low' | 'medium' | 'high' | 'critical'
+export type AgentGuardianUserAuthorization = 'unknown' | 'low' | 'medium' | 'high'
+export type AgentGuardianReviewStatus =
+  | 'in_progress'
+  | 'approved'
+  | 'denied'
+  | 'timed_out'
+  | 'aborted'
+export type AgentGuardianReviewAction =
+  | {
+      type: 'command'
+      source: string
+      command: string
+      cwd?: string
+    }
+  | {
+      type: 'apply_patch'
+      cwd?: string
+      files: string[]
+    }
+  | {
+      type: 'mcp_tool_call'
+      server?: string
+      toolName: string
+      arguments?: unknown
+    }
+  | {
+      type: 'request_permissions'
+      permissions: unknown
+      reason?: string
+    }
+  | {
+      type: 'toolCall'
+      toolName: string
+      input?: Record<string, unknown>
+    }
+
 export type AgentSessionEventType =
   | 'message'
   | 'assistant_delta'
+  | 'proposed_plan'
   | 'tool_call'
   | 'tool_result'
   | 'status'
   | 'permission_request'
+  | 'guardian_review'
   | 'context_usage'
   | 'file_patch'
   | 'error'
@@ -94,6 +133,15 @@ export type AgentRuntimeEvent =
       sourceThreadId?: string
       sourceLabel?: string
     }
+  | {
+      type: 'proposed_plan'
+      sessionId: string
+      text: string
+      streaming?: boolean
+      createdAt?: string
+      sourceThreadId?: string
+      sourceLabel?: string
+    }
   | { type: 'context_usage'; sessionId: string; usage: AgentContextUsage }
   | { type: 'session_title'; sessionId: string; title: string }
   | {
@@ -101,6 +149,7 @@ export type AgentRuntimeEvent =
       sessionId: string
       toolName: string
       summary: string
+      toolUseId?: string
       sourceThreadId?: string
       sourceLabel?: string
     }
@@ -109,6 +158,7 @@ export type AgentRuntimeEvent =
       sessionId: string
       toolName: string
       summary: string
+      toolUseId?: string
       isError?: boolean
       metadata?: Record<string, unknown>
       sourceThreadId?: string
@@ -118,6 +168,19 @@ export type AgentRuntimeEvent =
       type: 'permission_request'
       sessionId: string
       request: AgentPermissionRequest
+      sourceThreadId?: string
+      sourceLabel?: string
+    }
+  | {
+      type: 'guardian_review'
+      sessionId: string
+      reviewId: string
+      targetRequestId?: string
+      status: AgentGuardianReviewStatus
+      riskLevel?: AgentGuardianRiskLevel
+      userAuthorization?: AgentGuardianUserAuthorization
+      rationale?: string
+      action: AgentGuardianReviewAction
       sourceThreadId?: string
       sourceLabel?: string
     }
@@ -137,7 +200,6 @@ export type AgentSessionSettings = {
   workspacePath?: string
   permissionPolicy?: AgentPermissionPolicy
   model?: string
-  fallbackModel?: string
   sessionName?: string
   thinkingMode?: AgentThinkingMode
   systemPrompt?: string

@@ -3,7 +3,9 @@ import {
   buildOpenAICompatibleFetchInit,
   buildOpenAICompatibleProviderRequestParams,
   readOpenAIStream,
+  toOpenAIMessages,
 } from './openaiCompatible.js'
+import { SYNTHETIC_TOOL_RESULT_PLACEHOLDER } from '../../utils/messages.js'
 
 function openAIChunk(data: object): string {
   return `data: ${JSON.stringify(data)}`
@@ -204,10 +206,126 @@ test('readOpenAIStream accumulates zhipu reasoning, tool calls, and cached token
   expect(result.usage.cache_read_input_tokens).toBe(7)
 })
 
+test('toOpenAIMessages coalesces adjacent assistant tool calls before tool results', () => {
+  const converted = toOpenAIMessages(
+    [
+      assistantToolUse('call_question', 'AskUserQuestion'),
+      assistantToolUse('call_search', 'ToolSearch'),
+      userToolResult('call_question', 'Question validation failed'),
+      userToolResult('call_search', 'Tool loaded'),
+    ] as any,
+    'deepseek',
+  )
+
+  expect(converted.map(message => message.role)).toEqual([
+    'assistant',
+    'tool',
+    'tool',
+  ])
+  expect(converted[0]).toMatchObject({
+    role: 'assistant',
+    tool_calls: [
+      { id: 'call_question', function: { name: 'AskUserQuestion' } },
+      { id: 'call_search', function: { name: 'ToolSearch' } },
+    ],
+  })
+})
+
+test('toOpenAIMessages keeps tool results before sibling user text', () => {
+  const converted = toOpenAIMessages(
+    [
+      assistantToolUse('call_question', 'AskUserQuestion'),
+      {
+        type: 'user',
+        message: {
+          content: [
+            { type: 'text', text: 'Continue after the tool result.' },
+            {
+              type: 'tool_result',
+              tool_use_id: 'call_question',
+              content: 'Question validation failed',
+              is_error: true,
+            },
+          ],
+        },
+      },
+    ] as any,
+    'deepseek',
+  )
+
+  expect(converted.map(message => message.role)).toEqual([
+    'assistant',
+    'tool',
+    'user',
+  ])
+})
+
+test('toOpenAIMessages preserves real tool result content', () => {
+  const converted = toOpenAIMessages(
+    [
+      assistantToolUse('call_glob', 'Glob'),
+      userToolResult('call_glob', 'apps/tui/package.json'),
+    ] as any,
+    'deepseek',
+  )
+  const serialized = JSON.stringify(converted)
+
+  expect(converted).toEqual([
+    expect.objectContaining({
+      role: 'assistant',
+      tool_calls: [
+        expect.objectContaining({
+          id: 'call_glob',
+          function: expect.objectContaining({ name: 'Glob' }),
+        }),
+      ],
+    }),
+    {
+      role: 'tool',
+      tool_call_id: 'call_glob',
+      content: 'apps/tui/package.json',
+    },
+  ])
+  expect(serialized).toContain('apps/tui/package.json')
+  expect(serialized).not.toContain(SYNTHETIC_TOOL_RESULT_PLACEHOLDER)
+  expect(serialized).not.toContain('missing tool result')
+})
+
 function restoreEnv(key: string, value: string | undefined): void {
   if (value === undefined) {
     delete process.env[key]
   } else {
     process.env[key] = value
+  }
+}
+
+function assistantToolUse(id: string, name: string) {
+  return {
+    type: 'assistant',
+    message: {
+      content: [
+        {
+          type: 'tool_use',
+          id,
+          name,
+          input: {},
+        },
+      ],
+    },
+  }
+}
+
+function userToolResult(toolUseId: string, content: string) {
+  return {
+    type: 'user',
+    message: {
+      content: [
+        {
+          type: 'tool_result',
+          tool_use_id: toolUseId,
+          content,
+        },
+      ],
+    },
   }
 }
