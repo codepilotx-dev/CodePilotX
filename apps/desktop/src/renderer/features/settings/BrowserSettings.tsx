@@ -1,7 +1,8 @@
 import type React from 'react'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Trash2 } from 'lucide-react'
 import { desktopClient } from '../../services/desktopClient.js'
+import type { DesktopBrowserSitePermission } from '../../../shared/types.js'
 import { useDesktopSettings } from './useDesktopSettings.js'
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
 import { SettingsSection } from './SettingsSection.js'
@@ -10,17 +11,24 @@ import { SettingsContentArea } from './SettingsContentArea.js';
 export function BrowserSettings(): React.ReactNode {
   const settings = useDesktopSettings()
   const { browserAllowedSites, setBrowserAllowedSites, draft } = settings
+  const [sitePermissions, setSitePermissions] = useState<
+    DesktopBrowserSitePermission[]
+  >([])
 
   useEffect(() => {
     void desktopClient
       .getBrowserState()
-      .then(state => setBrowserAllowedSites(state.allowedSites))
+      .then(state => {
+        setBrowserAllowedSites(state.allowedSites)
+        setSitePermissions(state.sitePermissions)
+      })
       .catch(() => undefined)
   }, [setBrowserAllowedSites])
 
   async function clearAllowedSites(): Promise<void> {
     const nextState = await desktopClient.clearBrowserAllowedSites()
     setBrowserAllowedSites(nextState.allowedSites)
+    setSitePermissions(nextState.sitePermissions)
     draft.setValue('browserAllowedSites', nextState.allowedSites)
   }
 
@@ -39,21 +47,22 @@ export function BrowserSettings(): React.ReactNode {
           <div className="browser-settings-info">
             <span>支持 http、https 和 file URL。</span>
             <span>批注会先插入输入框，由你确认后再发送。</span>
-            <span>本版不启用 Browser Use 或 Developer Mode。</span>
+            <span>Browser Use 通过插件页的 Browser 入口启用。</span>
+            <span>Developer Mode 暂不可用。</span>
           </div>
         </SettingsSection>
 
         <SettingsSection
-          title="允许的网站"
+          title="站点权限"
           description={
-            browserAllowedSites.length
-              ? `已记录 ${browserAllowedSites.length} 个浏览器预览来源。`
-              : '暂无已记录的网站。'
+            sitePermissions.length
+              ? `已记录 ${sitePermissions.length} 个 Browser Use 站点权限。`
+              : '暂无站点权限。'
           }
           actions={
             <button
               className="settings-button danger"
-              disabled={browserAllowedSites.length === 0}
+              disabled={sitePermissions.length === 0 && browserAllowedSites.length === 0}
               type="button"
               onClick={() => void clearAllowedSites()}
             >
@@ -62,16 +71,16 @@ export function BrowserSettings(): React.ReactNode {
             </button>
           }
         >
-          {browserAllowedSites.length ? (
+          {sitePermissions.length ? (
             <div className="browser-allowed-sites">
-              {browserAllowedSites.map(site => (
-                <span className="settings-chip" key={site}>
-                  {site}
+              {sitePermissions.map(site => (
+                <span className="settings-chip" key={site.origin}>
+                  {site.origin} · {site.decision === 'allow' ? '允许' : '拒绝'}
                 </span>
               ))}
             </div>
           ) : (
-            <p className="settings-empty-state">打开页面后会在这里记录来源。</p>
+            <p className="settings-empty-state">Browser Use 请求站点后会在这里记录权限。</p>
           )}
         </SettingsSection>
       </div>

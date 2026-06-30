@@ -51,6 +51,15 @@ const SKILLS_SH_API_DOCS_URL = 'https://www.skills.sh/docs/api#authentication'
 
 const PLUGINS: Plugin[] = [
   {
+    id: 'browser',
+    builtinPluginId: 'browser@builtin',
+    name: 'Browser',
+    description: 'Install Browser Use for the in-app browser',
+    icon: <Eye size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
+    tone: 'chrome',
+    installed: false,
+  },
+  {
     id: 'computer-use',
     name: 'Computer Use',
     description: 'Control Windows apps from CodePilotX',

@@ -13,9 +13,18 @@
  * 1. Import registerBuiltinPlugin from '../builtinPlugins.js'
  * 2. Call registerBuiltinPlugin() with the plugin definition here
  */
+import { registerBuiltinPlugin } from '../builtinPlugins.js'
+import { BrowserUseTool } from './browser/BrowserUseTool.js'
 
 /**
  * Initialize built-in plugins. Called during CLI startup.
  */
 export function initBuiltinPlugins(): void {
+  registerBuiltinPlugin({
+    name: 'browser',
+    description: 'Control the desktop in-app browser',
+    version: '0.1.0',
+    defaultEnabled: false,
+    tools: [BrowserUseTool],
+  })
 }

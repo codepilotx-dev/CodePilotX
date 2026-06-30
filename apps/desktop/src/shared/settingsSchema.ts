@@ -112,6 +112,7 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     diffMarkerStyle: 'color',
     rustSearchAndDiffKernels: false,
     browserAllowedSites: [],
+    browserSitePermissions: [],
   }
 }
 
@@ -294,7 +295,70 @@ export function normalizeDesktopStoredSettings(
       parsed.browserAllowedSites,
       defaults.browserAllowedSites,
     ),
+    browserSitePermissions: normalizeBrowserSitePermissions(
+      parsed.browserSitePermissions,
+      parsed.browserAllowedSites,
+    ),
   }
+}
+
+function normalizeBrowserSitePermissions(
+  value: unknown,
+  legacyAllowedSites: unknown,
+): DesktopStoredSettings['browserSitePermissions'] {
+  if (Array.isArray(value)) {
+    return value.flatMap(item => {
+      if (!item || typeof item !== 'object') return []
+      const record = item as {
+        origin?: unknown
+        decision?: unknown
+        updatedAt?: unknown
+      }
+      if (record.decision !== 'allow' && record.decision !== 'deny') return []
+      const origin = normalizeBrowserPermissionOrigin(record.origin)
+      if (!origin) return []
+      return [
+        {
+          origin,
+          decision: record.decision as 'allow' | 'deny',
+          updatedAt:
+            typeof record.updatedAt === 'string' ? record.updatedAt : '',
+        },
+      ]
+    }).filter(
+      (item, index, items) =>
+        items.findIndex(candidate => candidate.origin === item.origin) === index,
+    )
+  }
+  return normalizeStringList(legacyAllowedSites, []).flatMap(site => {
+    const origin = normalizeBrowserPermissionOrigin(site)
+    return origin
+      ? [
+          {
+            origin,
+            decision: 'allow' as const,
+            updatedAt: '',
+          },
+        ]
+      : []
+  })
+}
+
+function normalizeBrowserPermissionOrigin(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  if (trimmed === 'file://') return trimmed
+  let parsed: URL
+  try {
+    parsed = new URL(trimmed)
+  } catch {
+    return null
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    return null
+  }
+  return parsed.origin
 }
 
 export function normalizeDesktopPermissionProfile(

@@ -311,6 +311,7 @@ function createBrowserMockDesktopClient(): DesktopApi {
         open: true,
         url: url ?? browserState.url,
         allowedSites: settings.browserAllowedSites,
+        sitePermissions: settings.browserSitePermissions,
       }
       return browserState
     },
@@ -327,8 +328,8 @@ function createBrowserMockDesktopClient(): DesktopApi {
     },
     setBrowserBounds: async () => browserState,
     clearBrowserAllowedSites: async () => {
-      settings = { ...settings, browserAllowedSites: [] }
-      browserState = { ...browserState, allowedSites: [] }
+      settings = { ...settings, browserAllowedSites: [], browserSitePermissions: [] }
+      browserState = { ...browserState, allowedSites: [], sitePermissions: [] }
       return browserState
     },
     listBuiltinPlugins: async () => [],
@@ -627,6 +628,7 @@ function emptyBrowserState(): DesktopBrowserState {
     canGoForward: false,
     error: null,
     allowedSites: [],
+    sitePermissions: [],
   }
 }
 

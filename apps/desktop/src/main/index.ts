@@ -48,6 +48,10 @@ import {
   resolveDesktopBrowserDebugPort,
   type DesktopBrowserDebugBridgeServer,
 } from './desktopBrowserDebugBridge.js'
+import {
+  createDesktopBrowserAutomationBridge,
+  type DesktopBrowserAutomationBridgeServer,
+} from './desktopBrowserAutomationBridge.js'
 import { registerDesktopIpcHandlers } from './ipc.js'
 import { createDesktopWindowService } from './windowService.js'
 import { createDesktopBrowserService } from './browserService.js'
@@ -163,7 +167,8 @@ const sessionPersistScheduler = createSessionPersistScheduler({
     console.error('Failed to save desktop sessions.', error)
   },
 })
-const DESKTOP_BUILTIN_PLUGIN_IDS = [] as const
+const DESKTOP_BROWSER_PLUGIN_ID = 'browser@builtin'
+const DESKTOP_BUILTIN_PLUGIN_IDS = [DESKTOP_BROWSER_PLUGIN_ID] as const
 const DESKTOP_PRIMARY_SLASH_COMMANDS = [
   'effort',
   'model',
@@ -1416,6 +1421,7 @@ async function setBuiltinPluginEnabled(
     throw error
   }
   clearAllCaches()
+  await syncDesktopBrowserAutomationBridge()
   return { id: pluginId, enabled }
 }
 
@@ -1459,12 +1465,48 @@ const desktopApiHandlers = buildDesktopApiHandlers({
 })
 
 let desktopBrowserDebugBridgeServer: DesktopBrowserDebugBridgeServer | null = null
+let desktopBrowserAutomationBridgeServer:
+  | DesktopBrowserAutomationBridgeServer
+  | null = null
+const desktopBrowserAutomationBridgeToken = randomUUID()
 const desktopBrowserDebugBridge = createDesktopBrowserDebugBridge({
   handlers: desktopApiHandlers,
   events: desktopBrowserDebugEvents,
   enabled: !app.isPackaged && process.env.NODE_ENV === 'development',
   port: resolveDesktopBrowserDebugPort(),
 })
+
+async function syncDesktopBrowserAutomationBridge(): Promise<void> {
+  const enabled =
+    getSettings_DEPRECATED().enabledPlugins?.[DESKTOP_BROWSER_PLUGIN_ID] === true
+  if (!enabled) {
+    if (desktopBrowserAutomationBridgeServer) {
+      await desktopBrowserAutomationBridgeServer.close()
+      desktopBrowserAutomationBridgeServer = null
+      delete process.env.CODEPILOTX_DESKTOP_BROWSER_BRIDGE_URL
+      delete process.env.CODEPILOTX_DESKTOP_BROWSER_BRIDGE_TOKEN
+      desktopDebug('browser_automation_bridge_stopped', {})
+    }
+    return
+  }
+  if (desktopBrowserAutomationBridgeServer) return
+  const bridge = createDesktopBrowserAutomationBridge({
+    token: desktopBrowserAutomationBridgeToken,
+    handleAction: async input => {
+      const result = await browserService.handleAutomationAction(input)
+      desktopBrowserDebugEvents.emit('desktop:browser-state', await browserService.getState())
+      return result
+    },
+  })
+  desktopBrowserAutomationBridgeServer = await bridge.start()
+  process.env.CODEPILOTX_DESKTOP_BROWSER_BRIDGE_URL =
+    `http://127.0.0.1:${desktopBrowserAutomationBridgeServer.port}`
+  process.env.CODEPILOTX_DESKTOP_BROWSER_BRIDGE_TOKEN =
+    desktopBrowserAutomationBridgeToken
+  desktopDebug('browser_automation_bridge_started', {
+    port: desktopBrowserAutomationBridgeServer.port,
+  })
+}
 
 function registerIpc(): void {
   registerDesktopIpcHandlers(desktopApiHandlers, assertTrustedIpcSender)
@@ -1482,6 +1524,12 @@ void desktopBrowserDebugBridge.start().then(server => {
   }
 }).catch(error => {
   desktopDebug('browser_debug_bridge_failed', {
+    error: error instanceof Error ? error.message : String(error),
+  })
+})
+
+void syncDesktopBrowserAutomationBridge().catch(error => {
+  desktopDebug('browser_automation_bridge_failed', {
     error: error instanceof Error ? error.message : String(error),
   })
 })

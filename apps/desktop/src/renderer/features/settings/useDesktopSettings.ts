@@ -17,6 +17,7 @@ import type {
   DesktopPersonality,
   DesktopReviewView,
   DesktopSandboxMode,
+  DesktopBrowserSitePermission,
   DesktopThinkingMode,
   DesktopWorkspace,
   ModelProviderID,
@@ -73,6 +74,7 @@ export type UseDesktopSettingsResult = {
   diffMarkerStyle: DesktopDiffMarkerStyle
   rustSearchAndDiffKernels: boolean
   browserAllowedSites: string[]
+  browserSitePermissions: DesktopBrowserSitePermission[]
   settingsLoaded: boolean
   setPermissionMode: (value: DesktopPermissionMode) => void
   setModel: (value: string) => void
@@ -356,6 +358,9 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
   const [browserAllowedSites, setBrowserAllowedSites] = useState<string[]>(
     initial.browserAllowedSites,
   )
+  const [browserSitePermissions, setBrowserSitePermissions] = useState<
+    DesktopBrowserSitePermission[]
+  >(initial.browserSitePermissions)
   const [settingsLoaded, setSettingsLoaded] = useState(false)
   const skipNextAutoSaveRef = useRef(false)
   const [draftValues, setDraftValues] = useState<StoredDesktopSettings>(
@@ -417,6 +422,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
         setDiffMarkerStyle(settings.diffMarkerStyle)
         setRustSearchAndDiffKernels(settings.rustSearchAndDiffKernels)
         setBrowserAllowedSites(settings.browserAllowedSites)
+        setBrowserSitePermissions(settings.browserSitePermissions)
         setDraftValues(cloneDesktopSettings(settings))
         draftDirtyKeysRef.current.clear()
         setSettingsLoaded(true)
@@ -478,6 +484,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       diffMarkerStyle,
       rustSearchAndDiffKernels,
       browserAllowedSites,
+      browserSitePermissions,
     }),
     [
       enableParetoCodeRouter,
@@ -525,6 +532,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       diffMarkerStyle,
       rustSearchAndDiffKernels,
       browserAllowedSites,
+      browserSitePermissions,
     ],
   )
 
@@ -609,9 +617,10 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       setGithubMemoryRepository(snapshot.githubMemoryRepository)
       setReviewView(snapshot.reviewView)
       setDiffMarkerStyle(snapshot.diffMarkerStyle)
-      setRustSearchAndDiffKernels(snapshot.rustSearchAndDiffKernels)
-      setBrowserAllowedSites(snapshot.browserAllowedSites)
-    },
+        setRustSearchAndDiffKernels(snapshot.rustSearchAndDiffKernels)
+        setBrowserAllowedSites(snapshot.browserAllowedSites)
+        setBrowserSitePermissions(snapshot.browserSitePermissions)
+      },
     [],
   )
 
@@ -712,8 +721,9 @@ defaultOpenTargetId,
       githubMemoryRepository,
       reviewView,
       diffMarkerStyle,
-      rustSearchAndDiffKernels,
+    rustSearchAndDiffKernels,
     browserAllowedSites,
+    browserSitePermissions,
     settingsLoaded,
     setPermissionMode,
     setModel,
@@ -772,6 +782,9 @@ function cloneDesktopSettings(
       ...workspace,
     })),
     browserAllowedSites: [...settings.browserAllowedSites],
+    browserSitePermissions: settings.browserSitePermissions.map(permission => ({
+      ...permission,
+    })),
   }
 }
 

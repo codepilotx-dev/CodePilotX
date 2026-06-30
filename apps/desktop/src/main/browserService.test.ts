@@ -3,7 +3,11 @@ import {
   browserSiteKeyForURL,
   normalizeBrowserURL,
 } from './browserUrlPolicy.js'
-import { mergeDesktopBrowserAllowedSites } from '../shared/settingsSchema.js'
+import { upsertBrowserSitePermission } from './browserSitePermissions.js'
+import {
+  mergeDesktopBrowserAllowedSites,
+  normalizeDesktopStoredSettings,
+} from '../shared/settingsSchema.js'
 
 describe('normalizeBrowserURL', () => {
   test('allows http, https, and file URLs', () => {
@@ -56,6 +60,76 @@ describe('mergeDesktopBrowserAllowedSites', () => {
       'https://example.com',
       'file://',
       'http://localhost:5173',
+    ])
+  })
+})
+
+describe('browser site permissions', () => {
+  test('migrates legacy browserAllowedSites into allow permissions', () => {
+    const settings = normalizeDesktopStoredSettings({
+      browserAllowedSites: ['https://example.com', 'file://'],
+    })
+
+    expect(settings.browserSitePermissions).toEqual([
+      {
+        origin: 'https://example.com',
+        decision: 'allow',
+        updatedAt: '',
+      },
+      {
+        origin: 'file://',
+        decision: 'allow',
+        updatedAt: '',
+      },
+    ])
+  })
+
+  test('normalizes explicit allow and deny permissions', () => {
+    const settings = normalizeDesktopStoredSettings({
+      browserAllowedSites: ['https://legacy.example'],
+      browserSitePermissions: [
+        {
+          origin: 'https://example.com/path',
+          decision: 'deny',
+          updatedAt: '2026-06-30T00:00:00.000Z',
+        },
+        {
+          origin: 'javascript:alert(1)',
+          decision: 'allow',
+          updatedAt: 'bad',
+        },
+      ],
+    })
+
+    expect(settings.browserSitePermissions).toEqual([
+      {
+        origin: 'https://example.com',
+        decision: 'deny',
+        updatedAt: '2026-06-30T00:00:00.000Z',
+      },
+    ])
+  })
+
+  test('upserts a browser site permission by origin', () => {
+    expect(
+      upsertBrowserSitePermission(
+        [
+          {
+            origin: 'https://example.com',
+            decision: 'deny',
+            updatedAt: 'old',
+          },
+        ],
+        'https://example.com/path',
+        'allow',
+        'now',
+      ),
+    ).toEqual([
+      {
+        origin: 'https://example.com',
+        decision: 'allow',
+        updatedAt: 'now',
+      },
     ])
   })
 })

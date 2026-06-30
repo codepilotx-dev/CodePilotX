@@ -319,6 +319,13 @@ export type DesktopBrowserState = {
   canGoForward: boolean
   error: string | null
   allowedSites: string[]
+  sitePermissions: DesktopBrowserSitePermission[]
+}
+
+export type DesktopBrowserSitePermission = {
+  origin: string
+  decision: 'allow' | 'deny'
+  updatedAt: string
 }
 
 export type DesktopOpenTargetKind =
@@ -655,6 +662,7 @@ gitBranchPrefix: string
   diffMarkerStyle: DesktopDiffMarkerStyle
   rustSearchAndDiffKernels: boolean
   browserAllowedSites: string[]
+  browserSitePermissions: DesktopBrowserSitePermission[]
 }
 
 export type DesktopMcpScope =
