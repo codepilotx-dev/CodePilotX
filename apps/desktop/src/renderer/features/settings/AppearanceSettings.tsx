@@ -49,6 +49,12 @@ function Slider({
   value: number
   onChange: (v: number) => void
 }) {
+  const [displayValue, setDisplayValue] = useState(value)
+
+  useEffect(() => {
+    setDisplayValue(value)
+  }, [value])
+
   return (
     <div className="appearance-slider-wrap">
       <RadixSlider.Root
@@ -56,15 +62,19 @@ function Slider({
         min={0}
         max={100}
         step={1}
-        value={[value]}
-        onValueChange={values => onChange(values[0] ?? value)}
+        value={[displayValue]}
+        onValueChange={values => {
+          const nextValue = values[0] ?? value
+          setDisplayValue(nextValue)
+          onChange(nextValue)
+        }}
       >
         <RadixSlider.Track className="appearance-slider-track">
           <RadixSlider.Range className="appearance-slider-range" />
         </RadixSlider.Track>
         <RadixSlider.Thumb className="appearance-slider-thumb" />
       </RadixSlider.Root>
-      <span className="appearance-slider-value">{value}</span>
+      <span className="appearance-slider-value">{displayValue}</span>
     </div>
   )
 }
