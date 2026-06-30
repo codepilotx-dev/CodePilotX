@@ -14,6 +14,7 @@ const {
   createSettingsSaveShortcutHandler,
   createDesktopSettingsDraft,
   isSettingsSaveShortcut,
+  mergeExternalDesktopSettingsPatch,
 } = await import('./useDesktopSettings.js')
 
 test('connections tab renders the model connection settings page', () => {
@@ -84,6 +85,36 @@ test('desktop settings draft save preserves external effective changes', async (
       branchName: null,
     },
   ])
+})
+
+test('external settings patch does not churn unchanged provider values', () => {
+  const savedSettings = {
+    ...defaultDesktopStoredSettings(),
+    providerID: 'minimax-cn-coding-plan',
+    providerBaseURL: 'https://api.minimaxi.com/anthropic',
+    model: 'MiniMax-M1',
+  }
+
+  const unchanged = mergeExternalDesktopSettingsPatch(savedSettings, savedSettings, {
+    providerID: 'minimax-cn-coding-plan',
+    providerBaseURL: 'https://api.minimaxi.com/anthropic',
+    model: 'MiniMax-M1',
+  })
+
+  expect(unchanged.settingsChanged).toBe(false)
+  expect(unchanged.draftChanged).toBe(false)
+
+  const draftSettings = {
+    ...savedSettings,
+    providerID: 'minimax',
+  }
+  const synced = mergeExternalDesktopSettingsPatch(savedSettings, draftSettings, {
+    providerID: 'minimax-cn-coding-plan',
+  })
+
+  expect(synced.settingsChanged).toBe(false)
+  expect(synced.draftChanged).toBe(true)
+  expect(synced.draftValues.providerID).toBe('minimax-cn-coding-plan')
 })
 
 test('settings save shortcut only matches ctrl or command s', () => {

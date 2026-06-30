@@ -538,6 +538,8 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       browserSitePermissions,
     ],
   )
+  const effectiveSettingsRef = useRef(effectiveSettings)
+  effectiveSettingsRef.current = effectiveSettings
 
   const draftDirty = useMemo(
     () => !desktopSettingsEqual(draftValues, effectiveSettings),
@@ -629,23 +631,27 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
 
   const syncExternalSettingsPatch = useCallback(
     (patch: Partial<StoredDesktopSettings>): void => {
-      const next = cloneDesktopSettings({
-        ...effectiveSettings,
-        ...patch,
-      })
-      skipNextAutoSaveRef.current = true
-      applySettingsSnapshot(next)
-      setDraftValues(current =>
-        cloneDesktopSettings({
-          ...current,
-          ...patch,
-        }),
+      const next = mergeExternalDesktopSettingsPatch(
+        effectiveSettingsRef.current,
+        draftValuesRef.current,
+        patch,
       )
-      for (const key of Object.keys(patch) as Array<keyof StoredDesktopSettings>) {
+      const patchKeys = Object.keys(patch) as Array<keyof StoredDesktopSettings>
+      for (const key of patchKeys) {
         draftDirtyKeysRef.current.delete(key)
       }
+      if (!next.settingsChanged && !next.draftChanged) {
+        return
+      }
+      if (next.settingsChanged) {
+        skipNextAutoSaveRef.current = true
+        applySettingsSnapshot(next.settings)
+      }
+      if (next.draftChanged) {
+        setDraftValues(next.draftValues)
+      }
     },
-    [applySettingsSnapshot, effectiveSettings],
+    [applySettingsSnapshot],
   )
 
   const saveDraft = useCallback(async (): Promise<StoredDesktopSettings> => {
@@ -831,6 +837,32 @@ function updateDesktopSettingsValue<Key extends keyof StoredDesktopSettings>(
     ...current,
     [key]: nextValue,
   })
+}
+
+export function mergeExternalDesktopSettingsPatch(
+  currentSettings: StoredDesktopSettings,
+  currentDraftValues: StoredDesktopSettings,
+  patch: Partial<StoredDesktopSettings>,
+): {
+  settings: StoredDesktopSettings
+  draftValues: StoredDesktopSettings
+  settingsChanged: boolean
+  draftChanged: boolean
+} {
+  const settings = cloneDesktopSettings({
+    ...currentSettings,
+    ...patch,
+  })
+  const draftValues = cloneDesktopSettings({
+    ...currentDraftValues,
+    ...patch,
+  })
+  return {
+    settings,
+    draftValues,
+    settingsChanged: !desktopSettingsEqual(settings, currentSettings),
+    draftChanged: !desktopSettingsEqual(draftValues, currentDraftValues),
+  }
 }
 
 function mergeDesktopSettingsDraft(
