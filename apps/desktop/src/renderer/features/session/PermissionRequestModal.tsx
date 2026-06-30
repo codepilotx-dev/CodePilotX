@@ -81,7 +81,11 @@ export function PermissionRequestModal({
                 />
               ) : (
                 <>
-                  <code>{JSON.stringify(request.input)}</code>
+                  <div className="permission-code-scroll-area">
+                    <div className="permission-code-scroll-content">
+                      <code>{JSON.stringify(request.input)}</code>
+                    </div>
+                  </div>
                   <div className="permission-modal-actions">
                     <button
                       className="primary-button"

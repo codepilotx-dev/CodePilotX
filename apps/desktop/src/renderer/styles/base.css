@@ -46,7 +46,7 @@
   --surface-raised: #f8fafc;
   --surface-subtle: #eef3f8;
   --border-subtle: #dfe7f0;
-  --border-muted: #edf2f7;
+  --border-muted: color-mix(in srgb, #18191b 95%, #edeef0);
   --shadow-resting: 0 1px 2px rgba(31, 41, 55, 0.05), 0 1px 0 rgba(255, 255, 255, 0.7) inset;
   --shadow-raised: 0 10px 28px rgba(31, 41, 55, 0.08), 0 1px 2px rgba(31, 41, 55, 0.05);
   --shadow-float: 0 22px 60px rgba(31, 41, 55, 0.12), 0 8px 24px rgba(31, 41, 55, 0.08);
@@ -215,7 +215,7 @@
   --surface-raised: #323946;
   --surface-subtle: #242a34;
   --border-subtle: rgba(255, 255, 255, 0.1);
-  --border-muted: rgba(255, 255, 255, 0.06);
+  --border-muted: color-mix(in srgb, #18191b 95%, #edeef0);
   --shadow-resting: 0 1px 2px rgba(0, 0, 0, 0.24), 0 1px 0 rgba(255, 255, 255, 0.03) inset;
   --shadow-raised: 0 12px 34px rgba(0, 0, 0, 0.28), 0 1px 2px rgba(0, 0, 0, 0.22);
   --shadow-float: 0 24px 64px rgba(0, 0, 0, 0.38), 0 8px 24px rgba(0, 0, 0, 0.28);
@@ -326,15 +326,6 @@ body {
   font-size: var(--fs-ui);
   scrollbar-color: var(--c-scrollbar) transparent;
   scrollbar-width: thin;
-  scrollbar-gutter: auto;
-}
-
-.scroll-area [data-radix-scroll-area-viewport] {
-  scrollbar-width: none;
-}
-
-.scroll-area [data-radix-scroll-area-viewport]::-webkit-scrollbar {
-  display: none;
 }
 
 button,

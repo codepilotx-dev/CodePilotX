@@ -11,7 +11,10 @@ export function SettingsContentArea({
   className = '',
 }: Props): React.ReactNode {
   return (
-    <ScrollArea className={`settings-content-area ${className}`.trim()}>
+    <ScrollArea
+      className={`settings-content-scroll-area ${className}`.trim()}
+      contentClassName="settings-content-scroll-content"
+    >
       {children}
     </ScrollArea>
   )

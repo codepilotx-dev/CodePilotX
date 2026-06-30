@@ -63,7 +63,10 @@ export function SidebarBody({
   onUnpinSession,
 }: Props): React.ReactNode {
   return (
-    <ScrollArea className="sidebar-body">
+    <ScrollArea
+      className="sidebar-scroll-area"
+      contentClassName="sidebar-scroll-content"
+    >
       <div className="sidebar-section-group">
         {pinnedSessions.length > 0 ? (
           <section className="sidebar-section">

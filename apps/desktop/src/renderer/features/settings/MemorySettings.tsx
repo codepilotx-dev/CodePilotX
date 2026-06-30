@@ -257,87 +257,93 @@ export function MemorySettings(): React.ReactNode {
           </div>
           {error ? <p className="settings-row-error">{error}</p> : null}
           <div className="memory-settings-grid">
-            <div className="memory-settings-list">
-              {filteredMemories.map(memory => (
-                <button
-                  key={memory.relativePath}
-                  className={
-                    selectedPath === memory.relativePath
-                      ? 'memory-settings-item active'
-                      : 'memory-settings-item'
-                  }
-                  onClick={() => void openMemory(memory.relativePath)}
-                  type="button"
-                >
-                  <strong>{memory.relativePath}</strong>
-                  <span>{memory.type ?? 'unknown'}</span>
-                  <small>{memory.description ?? '无描述'}</small>
-                </button>
-              ))}
-              {filteredMemories.length === 0 ? (
-                <div className="settings-empty-state">暂无记忆</div>
-              ) : null}
-            </div>
-            <div className="memory-settings-editor">
-              {selectedMemory ? (
-                <>
-                  <div className="settings-inline-actions">
-                    <strong>{selectedMemory.relativePath}</strong>
-                    <button
-                      className="settings-button"
-                      disabled={busy}
-                      onClick={() => void saveSelected()}
-                      type="button"
-                    >
-                      <Save size={APP_ICON_SIZE} />
-                      保存
-                    </button>
-                    <button
-                      className="settings-button"
-                      disabled={busy}
-                      onClick={() => void deleteSelected()}
-                      type="button"
-                    >
-                      <Trash2 size={APP_ICON_SIZE} />
-                      删除
-                    </button>
-                  </div>
-                  <textarea
-                    className="settings-textarea settings-textarea-tall"
-                    value={selectedMemory.content}
-                    onChange={event =>
-                      setSelectedMemory({
-                        ...selectedMemory,
-                        content: event.target.value,
-                      })
+            <div className="memory-settings-list-scroll-area">
+              <div className="memory-settings-list-scroll-content">
+                {filteredMemories.map(memory => (
+                  <button
+                    key={memory.relativePath}
+                    className={
+                      selectedPath === memory.relativePath
+                        ? 'memory-settings-item active'
+                        : 'memory-settings-item'
                     }
-                  />
-                </>
-              ) : (
-                <div className="settings-empty-state">选择一条记忆查看内容</div>
-              )}
+                    onClick={() => void openMemory(memory.relativePath)}
+                    type="button"
+                  >
+                    <strong>{memory.relativePath}</strong>
+                    <span>{memory.type ?? 'unknown'}</span>
+                    <small>{memory.description ?? '无描述'}</small>
+                  </button>
+                ))}
+                {filteredMemories.length === 0 ? (
+                  <div className="settings-empty-state">暂无记忆</div>
+                ) : null}
+              </div>
+            </div>
+            <div className="memory-settings-editor-scroll-area">
+              <div className="memory-settings-editor-scroll-content">
+                {selectedMemory ? (
+                  <>
+                    <div className="settings-inline-actions">
+                      <strong>{selectedMemory.relativePath}</strong>
+                      <button
+                        className="settings-button"
+                        disabled={busy}
+                        onClick={() => void saveSelected()}
+                        type="button"
+                      >
+                        <Save size={APP_ICON_SIZE} />
+                        保存
+                      </button>
+                      <button
+                        className="settings-button"
+                        disabled={busy}
+                        onClick={() => void deleteSelected()}
+                        type="button"
+                      >
+                        <Trash2 size={APP_ICON_SIZE} />
+                        删除
+                      </button>
+                    </div>
+                    <textarea
+                      className="settings-textarea settings-textarea-tall"
+                      value={selectedMemory.content}
+                      onChange={event =>
+                        setSelectedMemory({
+                          ...selectedMemory,
+                          content: event.target.value,
+                        })
+                      }
+                    />
+                  </>
+                ) : (
+                  <div className="settings-empty-state">选择一条记忆查看内容</div>
+                )}
+              </div>
             </div>
           </div>
         </SettingsSection>
 
         <SettingsSection title="召回时间线">
-          <div className="memory-recall-list">
-            {recalls.map((recall, index) => (
-              <article className="memory-recall-item" key={`${recall.createdAt}-${index}`}>
-                <strong>{new Date(recall.createdAt).toLocaleString()}</strong>
-                <span>{recall.querySummary}</span>
-                <small>
-                  {recall.memories
-                    .map(memory =>
-                      `${memory.relativePath}${memory.truncated ? ' (截断)' : ''}`,
-                    )
-                    .join(', ')}
-                </small>
-              </article>
-            ))}
-            {recalls.length === 0 ? (
-              <div className="settings-empty-state">暂无召回记录</div>
-            ) : null}
+          <div className="memory-recall-list-scroll-area">
+            <div className="memory-recall-list-scroll-content">
+              {recalls.map((recall, index) => (
+                <article className="memory-recall-item" key={`${recall.createdAt}-${index}`}>
+                  <strong>{new Date(recall.createdAt).toLocaleString()}</strong>
+                  <span>{recall.querySummary}</span>
+                  <small>
+                    {recall.memories
+                      .map(memory =>
+                        `${memory.relativePath}${memory.truncated ? ' (截断)' : ''}`,
+                      )
+                      .join(', ')}
+                  </small>
+                </article>
+              ))}
+              {recalls.length === 0 ? (
+                <div className="settings-empty-state">暂无召回记录</div>
+              ) : null}
+            </div>
           </div>
         </SettingsSection>
       </div>

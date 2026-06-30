@@ -232,43 +232,45 @@ export function GithubRepositoryModal({
                     placeholder="搜索仓库"
                   />
                 </label>
-                <div className="github-repository-list">
-                  {loading ? (
-                    <div className="github-repository-empty">正在加载仓库...</div>
-                  ) : filteredRepositories.length === 0 ? (
-                    <div className="github-repository-empty">没有匹配仓库</div>
-                  ) : (
-                    filteredRepositories.map(repository => (
-                      <div className="github-repository-row" key={repository.id}>
-                        <div className="github-repository-main">
-                          <div className="github-repository-title">
-                            {repository.private ? (
-                              <Lock size={APP_ICON_SIZE} />
-                            ) : (
-                              <Unlock size={APP_ICON_SIZE} />
-                            )}
-                            <strong>{repository.fullName}</strong>
-                            {repository.fork ? <span>Fork</span> : null}
+                <div className="github-repository-list-scroll-area">
+                  <div className="github-repository-list-scroll-content">
+                    {loading ? (
+                      <div className="github-repository-empty">正在加载仓库...</div>
+                    ) : filteredRepositories.length === 0 ? (
+                      <div className="github-repository-empty">没有匹配仓库</div>
+                    ) : (
+                      filteredRepositories.map(repository => (
+                        <div className="github-repository-row" key={repository.id}>
+                          <div className="github-repository-main">
+                            <div className="github-repository-title">
+                              {repository.private ? (
+                                <Lock size={APP_ICON_SIZE} />
+                              ) : (
+                                <Unlock size={APP_ICON_SIZE} />
+                              )}
+                              <strong>{repository.fullName}</strong>
+                              {repository.fork ? <span>Fork</span> : null}
+                            </div>
+                            <p>{repository.description ?? '无描述'}</p>
+                            <small>
+                              {repository.defaultBranch}
+                              {repository.pushedAt
+                                ? ` · ${formatDate(repository.pushedAt)}`
+                                : ''}
+                            </small>
                           </div>
-                          <p>{repository.description ?? '无描述'}</p>
-                          <small>
-                            {repository.defaultBranch}
-                            {repository.pushedAt
-                              ? ` · ${formatDate(repository.pushedAt)}`
-                              : ''}
-                          </small>
+                          <button
+                            className="settings-button"
+                            disabled={Boolean(cloningRepo)}
+                            onClick={() => void cloneRepository(repository)}
+                            type="button"
+                          >
+                            {cloningRepo === repository.fullName ? '克隆中...' : '克隆'}
+                          </button>
                         </div>
-                        <button
-                          className="settings-button"
-                          disabled={Boolean(cloningRepo)}
-                          onClick={() => void cloneRepository(repository)}
-                          type="button"
-                        >
-                          {cloningRepo === repository.fullName ? '克隆中...' : '克隆'}
-                        </button>
-                      </div>
-                    ))
-                  )}
+                      ))
+                    )}
+                  </div>
                 </div>
               </>
             )}

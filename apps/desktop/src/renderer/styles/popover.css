@@ -11,9 +11,9 @@
   width: var(--popover-width, max-content);
   max-width: var(--popover-max-width, var(--popover-default-max-width));
   max-height: var(--popover-max-height, min(420px, calc(100vh - 96px)));
+  overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: var(--popover-surface-padding);
   border: 1px solid var(--c-popover-border);
   border-radius: var(--popover-surface-radius);
   background: var(--c-popover-bg);
@@ -26,6 +26,11 @@
   user-select: none;
   -webkit-user-select: none;
   -webkit-app-region: no-drag;
+}
+
+.popover-scroll-content {
+  min-width: 0;
+  padding: var(--popover-surface-padding);
 }
 
 :root[data-glass-surfaces="on"] .popover-surface {
@@ -284,6 +289,7 @@
 
 .popover-provider-list {
   max-height: min(220px, calc(100vh - 220px));
+  overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -316,6 +322,7 @@
     300px,
     calc(var(--radix-dropdown-menu-content-available-height, 360px) - 42px)
   );
+  overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -324,8 +331,15 @@
   width: max-content;
   max-width: calc(240px + var(--popover-width-extra));
   max-height: min(320px, calc(100vh - 96px));
+  overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
+}
+
+.rm-model-menu-scroll-content,
+.rm-model-submenu-scroll-content {
+  min-width: 0;
+  padding: var(--popover-surface-padding);
 }
 
 .context-menu-switch {
@@ -367,10 +381,14 @@
   width: max-content;
   max-width: calc(320px + var(--popover-width-extra));
   max-height: min(360px, calc(100vh - 96px));
-  padding: 10px;
   border-radius: var(--radius-6);
+  overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
+}
+
+.context-plugin-submenu .popover-scroll-content {
+  padding: 10px;
 }
 
 .context-plugin-item {

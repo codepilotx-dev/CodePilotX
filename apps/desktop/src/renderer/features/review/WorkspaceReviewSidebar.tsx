@@ -35,6 +35,7 @@ import { desktopClient } from '../../services/desktopClient.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
 import { PopoverItem } from '../../components/ui/PopoverItem.js'
 import { PopoverMenu } from '../../components/ui/PopoverMenu.js'
+import { ScrollArea } from '../../components/ui/ScrollArea.js'
 import { Tooltip } from '../../components/ui/Tooltip.js'
 import { buildReviewFileTree } from './buildReviewFileTree.js'
 import { CommitPopover } from './CommitPopover.js'
@@ -714,7 +715,11 @@ export function WorkspaceReviewSidebar({
             />
           </label>
 
-          <div className="review-file-tree" role="tree">
+          <ScrollArea
+            className="review-file-tree-scroll"
+            contentClassName="review-file-tree"
+            role="tree"
+          >
             {reviewTree.length > 0 ? (
               reviewTree.map(node => (
                 <ReviewFileTreeNode
@@ -735,7 +740,7 @@ export function WorkspaceReviewSidebar({
                   : '当前筛选下没有匹配的文件。'}
               </div>
             )}
-          </div>
+          </ScrollArea>
 
           {visibleFiles.length > 0 ? (
             <footer className="review-footer">
@@ -772,7 +777,11 @@ export function WorkspaceReviewSidebar({
       ) : null}
 
       {staleComments.length > 0 ? (
-        <section className="review-stale-comments" aria-label="过期评论">
+        <ScrollArea
+          className="review-stale-comments-scroll"
+          contentClassName="review-stale-comments"
+          aria-label="过期评论"
+        >
           <div className="review-stale-title">过期评论</div>
           {staleComments.map(comment => (
             <ReviewComment
@@ -783,7 +792,7 @@ export function WorkspaceReviewSidebar({
               onResolve={() => void resolveComment(comment.id)}
             />
           ))}
-        </section>
+        </ScrollArea>
       ) : null}
 
       <CommitPopover
@@ -988,61 +997,73 @@ function ReviewDiffInline({
   onSaveDraft,
 }: ReviewDiffBodyProps): React.ReactNode {
   return (
-    <div className={`review-diff-lines review-diff-inline marker-${diffMarkerStyle}`}>
-      {file.hunks.map(hunk => (
-        <React.Fragment key={hunk.id}>
-          <ReviewHunkHeader
-            file={file}
-            hunk={hunk}
-            pending={pending}
-            scope={scope}
-            onApplyOperation={onApplyOperation}
-          />
-          {hunk.lines.map(line => {
-            const side = line.type === 'removed' ? 'left' : 'right'
-            const lineNumber = line.type === 'removed' ? line.oldLine : line.newLine
-            const anchor = buildAnchor(file.path, side, lineNumber, line.content)
-            const comments = anchor
-              ? attachedComments.get(commentKey(anchor)) ?? []
-              : []
-            return (
-              <div className={`review-diff-row ${line.type}`} key={line.id}>
-                <LineCommentButton
-                  anchor={anchor}
-                  disabled={!anchor}
-                  onCreateDraft={onCreateDraft}
-                />
-                <span
-                  className={`review-diff-line-number ${
-                    line.type === 'added'
-                      ? 'added'
-                      : line.type === 'removed'
-                        ? 'removed'
-                        : ''
-                  }`}
-                >
-                  {lineNumber ?? ''}
-                </span>
-                <DiffMarker tone={line.type} />
-                <code className="review-diff-line-content">
-                  {line.content || ' '}
-                </code>
-                <LineComments
-                  comments={comments}
-                  draft={draft}
-                  anchor={anchor}
-                  onCancelDraft={onCancelDraft}
-                  onDeleteComment={onDeleteComment}
-                  onDraftBodyChange={onDraftBodyChange}
-                  onResolveComment={onResolveComment}
-                  onSaveDraft={onSaveDraft}
-                />
-              </div>
-            )
-          })}
-        </React.Fragment>
-      ))}
-    </div>
+    <ScrollArea className="review-diff-scroll" contentClassName="review-diff-scroll-content">
+      <div
+        className={`review-diff-lines-scroll-x review-diff-inline marker-${diffMarkerStyle}`}
+      >
+        <div className="review-diff-lines">
+          {file.hunks.map(hunk => (
+            <React.Fragment key={hunk.id}>
+              <ReviewHunkHeader
+                file={file}
+                hunk={hunk}
+                pending={pending}
+                scope={scope}
+                onApplyOperation={onApplyOperation}
+              />
+              {hunk.lines.map(line => {
+                const side = line.type === 'removed' ? 'left' : 'right'
+                const lineNumber =
+                  line.type === 'removed' ? line.oldLine : line.newLine
+                const anchor = buildAnchor(
+                  file.path,
+                  side,
+                  lineNumber,
+                  line.content,
+                )
+                const comments = anchor
+                  ? attachedComments.get(commentKey(anchor)) ?? []
+                  : []
+                return (
+                  <div className={`review-diff-row ${line.type}`} key={line.id}>
+                    <LineCommentButton
+                      anchor={anchor}
+                      disabled={!anchor}
+                      onCreateDraft={onCreateDraft}
+                    />
+                    <span
+                      className={`review-diff-line-number ${
+                        line.type === 'added'
+                          ? 'added'
+                          : line.type === 'removed'
+                            ? 'removed'
+                            : ''
+                      }`}
+                    >
+                      {lineNumber ?? ''}
+                    </span>
+                    <DiffMarker tone={line.type} />
+                    <code className="review-diff-line-content">
+                      {line.content || ' '}
+                    </code>
+                    <LineComments
+                      comments={comments}
+                      draft={draft}
+                      anchor={anchor}
+                      onCancelDraft={onCancelDraft}
+                      onDeleteComment={onDeleteComment}
+                      onDraftBodyChange={onDraftBodyChange}
+                      onResolveComment={onResolveComment}
+                      onSaveDraft={onSaveDraft}
+                    />
+                  </div>
+                )
+              })}
+            </React.Fragment>
+          ))}
+        </div>
+      </div>
+    </ScrollArea>
   )
 }
 
@@ -1062,77 +1083,83 @@ function ReviewDiffSplit({
   onSaveDraft,
 }: ReviewDiffBodyProps): React.ReactNode {
   return (
-    <div className={`review-diff-lines review-diff-split marker-${diffMarkerStyle}`}>
-      {file.hunks.map(hunk => (
-        <React.Fragment key={hunk.id}>
-          <ReviewHunkHeader
-            file={file}
-            hunk={hunk}
-            pending={pending}
-            scope={scope}
-            onApplyOperation={onApplyOperation}
-          />
-          {splitDiffLines(hunk.lines).map(row => (
-            <div
-              className={`review-diff-split-row ${
-                row.paired ? 'paired' : 'single'
-              }`}
-              key={row.id}
-            >
-              {[row.left, row.right].map(cell => {
-                const anchor = buildAnchor(
-                  file.path,
-                  cell.side,
-                  cell.number,
-                  cell.content,
-                )
-                const comments = anchor
-                  ? attachedComments.get(commentKey(anchor)) ?? []
-                  : []
-                return (
-                  <div
-                    className={`review-diff-side ${cell.tone}`}
-                    data-tone={cell.tone}
-                    key={cell.side}
-                  >
-                    <LineCommentButton
-                      anchor={anchor}
-                      disabled={!anchor}
-                      onCreateDraft={onCreateDraft}
-                    />
-                    <span
-                      className={`review-diff-line-number ${
-                        cell.tone === 'added'
-                          ? 'added'
-                          : cell.tone === 'removed'
-                            ? 'removed'
-                            : ''
-                      }`}
-                    >
-                      {cell.number ?? ''}
-                    </span>
-                    <DiffMarker tone={cell.tone} />
-                    <code className="review-diff-line-content">
-                      {cell.tone === 'empty' ? ' ' : cell.content || ' '}
-                    </code>
-                    <LineComments
-                      comments={comments}
-                      draft={draft}
-                      anchor={anchor}
-                      onCancelDraft={onCancelDraft}
-                      onDeleteComment={onDeleteComment}
-                      onDraftBodyChange={onDraftBodyChange}
-                      onResolveComment={onResolveComment}
-                      onSaveDraft={onSaveDraft}
-                    />
-                  </div>
-                )
-              })}
-            </div>
+    <ScrollArea className="review-diff-scroll" contentClassName="review-diff-scroll-content">
+      <div
+        className={`review-diff-lines-scroll-x review-diff-split marker-${diffMarkerStyle}`}
+      >
+        <div className="review-diff-lines">
+          {file.hunks.map(hunk => (
+            <React.Fragment key={hunk.id}>
+              <ReviewHunkHeader
+                file={file}
+                hunk={hunk}
+                pending={pending}
+                scope={scope}
+                onApplyOperation={onApplyOperation}
+              />
+              {splitDiffLines(hunk.lines).map(row => (
+                <div
+                  className={`review-diff-split-row ${
+                    row.paired ? 'paired' : 'single'
+                  }`}
+                  key={row.id}
+                >
+                  {[row.left, row.right].map(cell => {
+                    const anchor = buildAnchor(
+                      file.path,
+                      cell.side,
+                      cell.number,
+                      cell.content,
+                    )
+                    const comments = anchor
+                      ? attachedComments.get(commentKey(anchor)) ?? []
+                      : []
+                    return (
+                      <div
+                        className={`review-diff-side ${cell.tone}`}
+                        data-tone={cell.tone}
+                        key={cell.side}
+                      >
+                        <LineCommentButton
+                          anchor={anchor}
+                          disabled={!anchor}
+                          onCreateDraft={onCreateDraft}
+                        />
+                        <span
+                          className={`review-diff-line-number ${
+                            cell.tone === 'added'
+                              ? 'added'
+                              : cell.tone === 'removed'
+                                ? 'removed'
+                                : ''
+                          }`}
+                        >
+                          {cell.number ?? ''}
+                        </span>
+                        <DiffMarker tone={cell.tone} />
+                        <code className="review-diff-line-content">
+                          {cell.tone === 'empty' ? ' ' : cell.content || ' '}
+                        </code>
+                        <LineComments
+                          comments={comments}
+                          draft={draft}
+                          anchor={anchor}
+                          onCancelDraft={onCancelDraft}
+                          onDeleteComment={onDeleteComment}
+                          onDraftBodyChange={onDraftBodyChange}
+                          onResolveComment={onResolveComment}
+                          onSaveDraft={onSaveDraft}
+                        />
+                      </div>
+                    )
+                  })}
+                </div>
+              ))}
+            </React.Fragment>
           ))}
-        </React.Fragment>
-      ))}
-    </div>
+        </div>
+      </div>
+    </ScrollArea>
   )
 }
 

@@ -597,43 +597,45 @@ export function ComposerCard({
                     preventOutsideDismissWhenDebug(debugMode, event);
                   }}
                 >
-                  <Select.Viewport className="permission-select-viewport">
-                    {permissionOptions.map((option) => (
-                      <Select.Item
-                        className="permission-select-item"
-                        key={option.value}
-                        value={option.value}
-                      >
-                        <span className="permission-select-item-icon">
-                          {getPermissionIcon(option.value)}
-                        </span>
-                        <span className="permission-select-item-body">
-                          <Select.ItemText>{option.label}</Select.ItemText>
-                          {option.detail ? (
-                            <span className="permission-select-item-detail">
-                              {option.value === "auto-review" ? (
-                                <>
-                                  <span>
-                                    {option.detail.replace(/了解更多.*$/, "")}
-                                  </span>
-                                  <span className="permission-select-item-detail-more">
-                                    了解更多
-                                  </span>
-                                </>
-                              ) : (
-                                option.detail
-                              )}
-                            </span>
-                          ) : null}
-                        </span>
-                        <Select.ItemIndicator className="permission-select-item-indicator">
-                          <Check
-                            size={APP_ICON_SIZE}
-                            strokeWidth={APP_ICON_STROKE_WIDTH}
-                          />
-                        </Select.ItemIndicator>
-                      </Select.Item>
-                    ))}
+                  <Select.Viewport className="permission-select-scroll-area">
+                    <div className="permission-select-scroll-content">
+                      {permissionOptions.map((option) => (
+                        <Select.Item
+                          className="permission-select-item"
+                          key={option.value}
+                          value={option.value}
+                        >
+                          <span className="permission-select-item-icon">
+                            {getPermissionIcon(option.value)}
+                          </span>
+                          <span className="permission-select-item-body">
+                            <Select.ItemText>{option.label}</Select.ItemText>
+                            {option.detail ? (
+                              <span className="permission-select-item-detail">
+                                {option.value === "auto-review" ? (
+                                  <>
+                                    <span>
+                                      {option.detail.replace(/了解更多.*$/, "")}
+                                    </span>
+                                    <span className="permission-select-item-detail-more">
+                                      了解更多
+                                    </span>
+                                  </>
+                                ) : (
+                                  option.detail
+                                )}
+                              </span>
+                            ) : null}
+                          </span>
+                          <Select.ItemIndicator className="permission-select-item-indicator">
+                            <Check
+                              size={APP_ICON_SIZE}
+                              strokeWidth={APP_ICON_STROKE_WIDTH}
+                            />
+                          </Select.ItemIndicator>
+                        </Select.Item>
+                      ))}
+                    </div>
                   </Select.Viewport>
                 </Select.Content>
               </Select.Portal>
@@ -787,9 +789,10 @@ export function ComposerCard({
                     preventOutsideDismissWhenDebug(debugMode, event);
                   }}
                 >
-                  {showThinkingOptions ? (
-                    deepSeekThinkingControls ? (
-                      <>
+                  <div className="rm-model-menu-scroll-content">
+                    {showThinkingOptions ? (
+                      deepSeekThinkingControls ? (
+                        <>
                         <div className="rm-section-header">思考模式</div>
                         <DropdownMenu.Item
                           className="rm-menu-item"
@@ -888,14 +891,14 @@ export function ComposerCard({
                         ))}
                         <div className="rm-divider" />
                       </>
-                    )
-                  ) : null}
-                  <div className="rm-section-header">提供商</div>
-                  {providerOptions.length === 0 ? (
-                    <div className="rm-empty">未配置模型</div>
-                  ) : null}
-                  {providerOptions.map((provider) => (
-                    <DropdownMenu.Sub key={provider.providerID}>
+                      )
+                    ) : null}
+                    <div className="rm-section-header">提供商</div>
+                    {providerOptions.length === 0 ? (
+                      <div className="rm-empty">未配置模型</div>
+                    ) : null}
+                    {providerOptions.map((provider) => (
+                      <DropdownMenu.Sub key={provider.providerID}>
                       <DropdownMenu.SubTrigger
                         className={[
                           "rm-sub-trigger",
@@ -928,36 +931,39 @@ export function ComposerCard({
                           sideOffset={8}
                           style={buildPopoverSizingStyle({ maxWidth: 'min(calc(320px + var(--popover-width-extra)), calc(100vw - 32px))' })}
                         >
-                          <div className="rm-section-header">模型</div>
-                          {provider.modelPresets.map((preset) => (
-                            <DropdownMenu.Item
-                              className="rm-menu-item"
-                              key={preset.id}
-                              onSelect={() => {
-                                onProviderModelChange(
-                                  provider.providerID,
-                                  preset.id,
-                                );
-                                closeDropdown();
-                              }}
-                            >
-                              <span className="rm-item-label">
-                                {preset.label}
-                              </span>
-                              {provider.providerID === selectedProviderID &&
-                              preset.id === selectedModelPreset ? (
-                                <Check
-                                  className="rm-item-check"
-                                  size={APP_ICON_SIZE}
-                                  strokeWidth={APP_ICON_STROKE_WIDTH}
-                                />
-                              ) : null}
-                            </DropdownMenu.Item>
-                          ))}
+                          <div className="rm-model-submenu-scroll-content">
+                            <div className="rm-section-header">模型</div>
+                            {provider.modelPresets.map((preset) => (
+                              <DropdownMenu.Item
+                                className="rm-menu-item"
+                                key={preset.id}
+                                onSelect={() => {
+                                  onProviderModelChange(
+                                    provider.providerID,
+                                    preset.id,
+                                  );
+                                  closeDropdown();
+                                }}
+                              >
+                                <span className="rm-item-label">
+                                  {preset.label}
+                                </span>
+                                {provider.providerID === selectedProviderID &&
+                                preset.id === selectedModelPreset ? (
+                                  <Check
+                                    className="rm-item-check"
+                                    size={APP_ICON_SIZE}
+                                    strokeWidth={APP_ICON_STROKE_WIDTH}
+                                  />
+                                ) : null}
+                              </DropdownMenu.Item>
+                            ))}
+                          </div>
                         </DropdownMenu.SubContent>
                       </DropdownMenu.Portal>
                     </DropdownMenu.Sub>
-                  ))}
+                    ))}
+                  </div>
                 </DropdownMenu.Content>
               </DropdownMenu.Portal>
             </DropdownMenu.Root>
@@ -1334,27 +1340,29 @@ function SlashCommandPalette({
   const skillOffset = commandItems.length;
 
   return (
-    <div className="slash-command-palette" role="listbox">
-      {commandItems.length > 0 ? (
-        <SlashCommandSection
-          commands={commandItems}
-          offset={0}
-          selectedIndex={selectedIndex}
-          title={null}
-          onHover={onHover}
-          onSelect={onSelect}
-        />
-      ) : null}
-      {skillItems.length > 0 ? (
-        <SlashCommandSection
-          commands={skillItems}
-          offset={skillOffset}
-          selectedIndex={selectedIndex}
-          title="技能"
-          onHover={onHover}
-          onSelect={onSelect}
-        />
-      ) : null}
+    <div className="slash-command-scroll-area" role="listbox">
+      <div className="slash-command-scroll-content">
+        {commandItems.length > 0 ? (
+          <SlashCommandSection
+            commands={commandItems}
+            offset={0}
+            selectedIndex={selectedIndex}
+            title={null}
+            onHover={onHover}
+            onSelect={onSelect}
+          />
+        ) : null}
+        {skillItems.length > 0 ? (
+          <SlashCommandSection
+            commands={skillItems}
+            offset={skillOffset}
+            selectedIndex={selectedIndex}
+            title="技能"
+            onHover={onHover}
+            onSelect={onSelect}
+          />
+        ) : null}
+      </div>
     </div>
   );
 }

@@ -123,6 +123,7 @@ export function ChatInputDropdown({
   if (maxHeight !== null) {
     style.maxHeight = `${maxHeight}px`
     style.overflowY = 'auto'
+    style.overflowX = 'hidden'
   }
 
   return (
@@ -136,7 +137,7 @@ export function ChatInputDropdown({
       onClick={e => e.stopPropagation()}
       style={style}
     >
-      {children}
+      <div className="chat-input__dropdown-content">{children}</div>
     </div>
   )
 }

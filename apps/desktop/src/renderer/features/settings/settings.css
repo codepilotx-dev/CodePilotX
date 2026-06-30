@@ -9,9 +9,15 @@
   overflow: hidden;
 }
 
-.settings-nav {
+.settings-nav-scroll-area {
   flex: 1 1 auto;
   min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.settings-nav-scroll-content {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 18px;
@@ -153,12 +159,18 @@
 }
 
 /* --- Right Content --- */
-.settings-content-area {
+.settings-content-scroll-area {
   flex: 1;
   background-color: var(--c-bg);
   width: 100%;
   min-width: 0;
   min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.settings-content-scroll-content {
+  min-width: 0;
 }
 
 .settings-content-inner {
@@ -1007,14 +1019,20 @@
   overflow: hidden;
 }
 
-.settings-dropdown-viewport {
+.settings-dropdown-scroll-area {
   display: grid;
-  gap: 2px;
   max-height: max(
     80px,
     calc(min(320px, var(--radix-select-content-available-height)) - 12px)
   );
+  overflow-x: hidden;
   overflow-y: auto;
+}
+
+.settings-dropdown-scroll-content {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
 }
 
 .settings-dropdown-item {
@@ -1301,13 +1319,15 @@
   max-height: min(560px, var(--radix-select-content-available-height));
 }
 
-.theme-dropdown-content .settings-dropdown-viewport {
-  gap: 3px;
+.theme-dropdown-content .settings-dropdown-scroll-area {
   max-height: max(
     96px,
     calc(min(560px, var(--radix-select-content-available-height)) - 20px)
   );
-  padding-right: 6px;
+}
+
+.theme-dropdown-content .settings-dropdown-scroll-content {
+  gap: 3px;
 }
 
 .theme-dropdown-content .settings-dropdown-item {
@@ -2487,7 +2507,7 @@
 
 /* Bento settings pages */
 .settings-page,
-.settings-content-area,
+.settings-content-scroll-area,
 .profile-dashboard {
   background: var(--c-workbench-bg);
 }
@@ -3091,14 +3111,21 @@
   min-height: 420px;
 }
 
-.memory-settings-list,
-.memory-settings-editor,
-.memory-recall-list {
+.memory-settings-list-scroll-area,
+.memory-settings-editor-scroll-area,
+.memory-recall-list-scroll-area {
   min-height: 0;
   border: 1px solid var(--border-muted);
   border-radius: 8px;
   background: var(--c-panel-bg);
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.memory-settings-list-scroll-content,
+.memory-settings-editor-scroll-content,
+.memory-recall-list-scroll-content {
+  min-width: 0;
 }
 
 .memory-settings-item {
@@ -3125,11 +3152,11 @@
   color: var(--c-text-soft);
 }
 
-.memory-settings-editor {
+.memory-settings-editor-scroll-content {
   padding: 12px;
 }
 
-.memory-recall-list {
+.memory-recall-list-scroll-area {
   max-height: 360px;
 }
 

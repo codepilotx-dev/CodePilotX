@@ -84,23 +84,25 @@ export function SettingsDropdown({
             preventOutsideDismissWhenDebug(disableOutsideDismiss, event)
           }}
         >
-          <Select.Viewport className="settings-dropdown-viewport">
-            {options.map(opt => (
-              <Select.Item
-                className="settings-dropdown-item"
-                key={opt.value}
-                tabIndex={-1}
-                value={opt.value === '' ? EMPTY_VALUE : opt.value}
-              >
-                <div className="settings-dropdown-item-inner">
-                  {opt.icon}
-                  <div className="settings-dropdown-item-copy">
-                    <Select.ItemText>{opt.label}</Select.ItemText>
-                    {opt.detail ? <span>{opt.detail}</span> : null}
+          <Select.Viewport className="settings-dropdown-scroll-area">
+            <div className="settings-dropdown-scroll-content">
+              {options.map(opt => (
+                <Select.Item
+                  className="settings-dropdown-item"
+                  key={opt.value}
+                  tabIndex={-1}
+                  value={opt.value === '' ? EMPTY_VALUE : opt.value}
+                >
+                  <div className="settings-dropdown-item-inner">
+                    {opt.icon}
+                    <div className="settings-dropdown-item-copy">
+                      <Select.ItemText>{opt.label}</Select.ItemText>
+                      {opt.detail ? <span>{opt.detail}</span> : null}
+                    </div>
                   </div>
-                </div>
-              </Select.Item>
-            ))}
+                </Select.Item>
+              ))}
+            </div>
           </Select.Viewport>
         </Select.Content>
       </Select.Portal>

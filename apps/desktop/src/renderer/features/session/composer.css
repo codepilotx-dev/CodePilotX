@@ -186,20 +186,30 @@
   color: var(--c-text-mute);
 }
 
-.slash-command-palette {
+.slash-command-palette,
+.slash-command-scroll-area {
   position: absolute;
   left: 0;
   right: 0;
   bottom: calc(100% + 14px);
   z-index: var(--z-popover);
   max-height: min(560px, calc(100vh - 230px));
-  padding: 12px 14px;
   border: 1px solid var(--c-border);
   border-radius: var(--radius-6);
   background: color-mix(in srgb, var(--c-bg) 92%, transparent);
   box-shadow: 0 22px 70px var(--black-a2);
+  overflow-x: hidden;
   overflow-y: auto;
   backdrop-filter: blur(18px);
+}
+
+.slash-command-palette {
+  padding: 12px 14px;
+}
+
+.slash-command-scroll-content {
+  min-width: 0;
+  padding: 12px 14px;
 }
 
 .slash-command-section {
@@ -278,7 +288,8 @@
   white-space: nowrap;
 }
 
-:root[data-theme="dark"] .slash-command-palette {
+:root[data-theme="dark"] .slash-command-palette,
+:root[data-theme="dark"] .slash-command-scroll-area {
   border-color: var(--white-a2);
   background: color-mix(in srgb, var(--c-bg) 88%, transparent);
   box-shadow: 0 22px 70px var(--black-a5);
@@ -534,14 +545,20 @@
   overflow: hidden;
 }
 
-.permission-select-viewport {
+.permission-select-scroll-area {
   display: grid;
-  gap: 2px;
   max-height: max(
     80px,
     calc(min(320px, var(--radix-select-content-available-height)) - 12px)
   );
+  overflow-x: hidden;
   overflow-y: auto;
+}
+
+.permission-select-scroll-content {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
 }
 
 .permission-select-item {
@@ -986,6 +1003,10 @@
   line-height: 1.6;
 }
 
+.composer-input textarea::placeholder {
+  color: var(--c-text-soft);
+}
+
 .composer-bottom {
   margin-top: calc(var(--layout-toolbar-gap) - 4px);
   padding: calc(var(--layout-toolbar-gap) - 4px)
@@ -1029,4 +1050,45 @@
 
 .send-button:focus-visible:not(:disabled) {
   box-shadow: var(--focus-ring);
+}
+
+:root[data-theme="dark"] .composer-input textarea::placeholder {
+  color: var(--c-text-meta);
+}
+
+:root[data-theme="dark"] .composer-top {
+  border-color: rgba(255, 255, 255, 0.075);
+  background: color-mix(in srgb, var(--c-bg) 78%, var(--surface-panel));
+  box-shadow:
+    0 18px 48px rgba(0, 0, 0, 0.32),
+    0 1px 0 rgba(255, 255, 255, 0.035) inset;
+}
+
+:root[data-theme="dark"] .composer-bottom {
+  border-top-color: rgba(255, 255, 255, 0.055);
+}
+
+:root[data-theme="dark"] .chip-button.subtle,
+:root[data-theme="dark"] .chip-button.permission-chip,
+:root[data-theme="dark"] .composer-plan-mode-chip,
+:root[data-theme="dark"] .composer-model-chip-thinking,
+:root[data-theme="dark"] .meta-chip,
+:root[data-theme="dark"] .composer-mic-button {
+  color: var(--c-text-soft);
+}
+
+:root[data-theme="dark"] .composer-model-chip-label {
+  color: var(--c-text-strong);
+}
+
+:root[data-theme="dark"] .chip-button:hover,
+:root[data-theme="dark"] .chip-button.active,
+:root[data-theme="dark"] .chip-button[aria-expanded="true"],
+:root[data-theme="dark"] .chip-button[data-state="open"],
+:root[data-theme="dark"] .meta-chip:hover,
+:root[data-theme="dark"] .meta-chip.active,
+:root[data-theme="dark"] .meta-chip[aria-expanded="true"],
+:root[data-theme="dark"] .meta-chip[data-state="open"],
+:root[data-theme="dark"] .composer .icon-button:hover {
+  background: color-mix(in srgb, var(--c-bg) 68%, var(--surface-raised));
 }

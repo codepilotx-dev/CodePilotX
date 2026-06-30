@@ -65,7 +65,7 @@ export function Dropdown({
             preventOutsideDismissWhenDebug(disableOutsideDismiss, event)
           }}
         >
-          {children}
+          <div className="popover-scroll-content">{children}</div>
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>

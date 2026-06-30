@@ -85,7 +85,11 @@ export function SettingsNav({ activeTab, onBack, onTabChange }: Props) {
   }, [normalizedQuery])
 
   return (
-    <ScrollArea className="settings-nav" aria-label="设置分类">
+    <ScrollArea
+      aria-label="设置分类"
+      className="settings-nav-scroll-area"
+      contentClassName="settings-nav-scroll-content"
+    >
       <div className="settings-nav-header">
         <button className="settings-back-btn" onClick={onBack} type="button">
           <ArrowLeft size={APP_ICON_SIZE} />

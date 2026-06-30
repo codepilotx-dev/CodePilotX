@@ -76,6 +76,10 @@ import { PopoverItem } from "../../components/ui/PopoverItem.js";
 import { PopoverMenu } from "../../components/ui/PopoverMenu.js";
 import { Tooltip } from "../../components/ui/Tooltip.js";
 import { ScrollArea } from "../../components/ui/ScrollArea.js";
+import {
+  loadConversationUiState,
+  saveConversationUiState,
+} from '../layout/conversationUiState.js';
 
 const FALLBACK_OPEN_TARGETS: DesktopOpenTarget[] = [
   {
@@ -213,6 +217,41 @@ export function ConversationPage(): React.ReactNode {
     }
   }, [debugMode, pendingPermissions.length]);
   const [isRefreshingDiff, setIsRefreshingDiff] = React.useState(false);
+  const mainScrollViewportRef = React.useRef<HTMLDivElement>(null);
+  const mainScrollTopRef = React.useRef(0);
+
+  React.useEffect(() => {
+    const el = mainScrollViewportRef.current;
+    if (!el) return;
+
+    const onScroll = (): void => {
+      mainScrollTopRef.current = el.scrollTop;
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [activeSessionId]);
+
+  React.useEffect(() => {
+    const sessionId = activeSessionId;
+
+    return () => {
+      if (!sessionId || mainScrollTopRef.current <= 0) return;
+      const existing = loadConversationUiState(sessionId);
+      if (existing) {
+        existing.mainScrollTop = mainScrollTopRef.current;
+        saveConversationUiState(sessionId, existing);
+      }
+    };
+  }, [activeSessionId]);
+
+  React.useEffect(() => {
+    if (isConversationLoading || !mainScrollViewportRef.current || !activeSessionId) return;
+    const saved = loadConversationUiState(activeSessionId);
+    if (saved?.mainScrollTop) {
+      mainScrollViewportRef.current.scrollTop = saved.mainScrollTop;
+    }
+  }, [isConversationLoading, activeSessionId]);
+
   const handleRefreshDiff = React.useCallback(() => {
     if (isRefreshingDiff) return;
     setIsRefreshingDiff(true);
@@ -670,7 +709,11 @@ export function ConversationPage(): React.ReactNode {
 
       <div className="workflow-page__body">
         <main className="workflow-page__main">
-          <ScrollArea className="workflow-page__scroll">
+          <ScrollArea
+            className="workflow-main-scroll-area"
+            contentClassName="workflow-main-scroll-content"
+            viewportRef={mainScrollViewportRef}
+          >
             <div className="quick-chat-content workflow-page__inner">
               <div className="conversation-stream">
                 {isConversationLoading ? (
@@ -1924,7 +1967,11 @@ function TimelineCommandRunItem({
           <div className="timeline-command-shell-header">
             {view.shellTitle}
           </div>
-          <pre className="timeline-command-shell-body"><span className="timeline-command-shell-prompt">$</span> {view.displayCommand}{view.displayOutput ? `\n${view.displayOutput}` : ""}</pre>
+          <div className="timeline-command-shell-scroll-area">
+            <div className="timeline-command-shell-scroll-x">
+              <pre className="timeline-command-shell-body"><span className="timeline-command-shell-prompt">$</span> {view.displayCommand}{view.displayOutput ? `\n${view.displayOutput}` : ""}</pre>
+            </div>
+          </div>
           <footer className="timeline-command-shell-footer">
             <span className="timeline-command-shell-status">
               {view.statusKind === "success" ? (
@@ -2478,7 +2525,11 @@ function ReviewSidebar({
         />
       ) : null}
 
-      <div className="review-file-list" role="list">
+      <ScrollArea
+        className="review-file-list-scroll-area"
+        contentClassName="review-file-list-scroll-content"
+        role="list"
+      >
         {visibleFiles.length > 0 ? (
           visibleFiles.map((file) => (
             <button
@@ -2505,7 +2556,7 @@ function ReviewSidebar({
               : "当前筛选下没有匹配的文件。"}
           </div>
         )}
-      </div>
+      </ScrollArea>
     </aside>
   );
 }
@@ -3082,7 +3133,13 @@ function EnvironmentPanel({
             <em>-{formatPanelNumber(diffSummary.deletions)}</em>
           </span>
         </button>
-        {showDiff ? <pre className="environment-diff-preview">{diff}</pre> : null}
+        {showDiff ? (
+          <div className="environment-diff-scroll-area">
+            <div className="environment-diff-scroll-x">
+              <pre className="environment-diff-preview">{diff}</pre>
+            </div>
+          </div>
+        ) : null}
         <button
           className="environment-action-row"
           type="button"
@@ -3176,6 +3233,12 @@ export function groupTimelineToolEvents(
       continue;
     }
     if (
+      pendingToolEvents.length > 0 &&
+      (event.type === "error" || event.type === "checkpoint")
+    ) {
+      pendingToolEvents.push(terminalToolResultEvent(event));
+    }
+    if (
       event.type === "tool_call" ||
       event.type === "tool_result" ||
       event.type === "permission_request"
@@ -3189,6 +3252,24 @@ export function groupTimelineToolEvents(
 
   flushToolEvents();
   return items;
+}
+
+function terminalToolResultEvent(
+  event: DesktopSessionEvent,
+): DesktopSessionEvent {
+  return {
+    id: `${event.id}-terminal-tool-result`,
+    sessionId: event.sessionId,
+    type: "tool_result",
+    content:
+      event.type === "error"
+        ? event.content || "操作已中止"
+        : "操作已停止",
+    createdAt: event.createdAt,
+    metadata: {
+      isError: true,
+    },
+  };
 }
 
 export function buildDebugAskUserQuestionRequest(

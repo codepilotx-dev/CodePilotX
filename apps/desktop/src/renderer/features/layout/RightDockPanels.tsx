@@ -30,7 +30,11 @@ export function RightDockPlanPanel({
 }: PlanPanelProps): React.ReactNode {
   if (!plan) {
     return (
-      <ScrollArea className="right-dock-plan" aria-label="计划">
+      <ScrollArea
+        aria-label="计划"
+        className="right-dock-plan-scroll-area"
+        contentClassName="right-dock-plan-scroll-content"
+      >
         <div className="right-dock-empty-state">
           <ListChecks size={58} strokeWidth={1.8} />
           <strong>暂无计划</strong>
@@ -41,7 +45,11 @@ export function RightDockPlanPanel({
   }
 
   return (
-    <ScrollArea className="right-dock-plan" aria-label="计划">
+    <ScrollArea
+      aria-label="计划"
+      className="right-dock-plan-scroll-area"
+      contentClassName="right-dock-plan-scroll-content"
+    >
       <article className="right-dock-plan-document">
         <MarkdownMessage text={plan.content} />
       </article>
@@ -107,7 +115,15 @@ export function RightDockFilesPanel({
                   className="right-dock-file-selection-target"
                   onContextMenu={handlePreviewContextMenu}
                 >
-                  <ScrollArea direction="y"><pre>{selectedFile.content}</pre></ScrollArea>
+                  <ScrollArea
+                    className="right-dock-file-preview-scroll-area"
+                    contentClassName="right-dock-file-preview-scroll-content"
+                    direction="y"
+                  >
+                    <div className="right-dock-file-preview-x-scroll">
+                      <pre>{selectedFile.content}</pre>
+                    </div>
+                  </ScrollArea>
                 </div>
               </ContextMenu.Trigger>
               {shouldShowSelectionSendAction(selectedText) ? (
@@ -149,7 +165,11 @@ export function RightDockFilesPanel({
             onChange={event => setQuery(event.target.value)}
           />
         </label>
-        <ScrollArea className="right-dock-tree-list" role="tree">
+        <ScrollArea
+          className="right-dock-tree-scroll-area"
+          contentClassName="right-dock-tree-scroll-content"
+          role="tree"
+        >
           {visibleFiles.length > 0 ? (
             visibleFiles.map(file => {
               const sendablePath = getSendableFilePath({

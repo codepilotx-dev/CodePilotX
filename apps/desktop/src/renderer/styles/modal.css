@@ -95,9 +95,14 @@
   box-shadow: var(--c-panel-shadow);
 }
 
-.global-error-toast span {
+.global-error-toast-scroll-area {
   min-width: 0;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.global-error-toast-scroll-content {
+  min-width: 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -191,14 +196,24 @@
   color: var(--c-text-soft);
 }
 
-.permission-modal code {
+.permission-code-scroll-area {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.permission-code-scroll-content {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.permission-code-scroll-content code {
   display: block;
-  overflow: auto;
+  min-width: max-content;
   padding: var(--sp-3);
   border-radius: var(--radius-4);
   background: var(--c-bg-soft);
   font-family: var(--ff-mono);
-  white-space: pre-wrap;
+  white-space: pre;
 }
 
 .primary-button {
@@ -238,29 +253,35 @@
   resize: vertical;
 }
 
-.git-workflow-files {
+.git-workflow-files-scroll-area {
   display: grid;
-  gap: 6px;
   max-height: 260px;
-  overflow: auto;
-  padding: var(--sp-3);
+  overflow-x: hidden;
+  overflow-y: auto;
   border: 1px solid var(--c-border-soft);
   border-radius: var(--radius-4);
   background: var(--c-bg-soft);
 }
 
-.git-workflow-files > div,
+.git-workflow-files-scroll-content {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+  padding: var(--sp-3);
+}
+
+.git-workflow-files-scroll-content > div,
 .git-workflow-check {
   display: flex;
   align-items: center;
   gap: var(--sp-2);
 }
 
-.git-workflow-files > div {
+.git-workflow-files-scroll-content > div {
   justify-content: space-between;
 }
 
-.git-workflow-files button {
+.git-workflow-files-scroll-content button {
   min-height: 26px;
   padding: 0 8px;
   border: 1px solid var(--c-border-soft);
@@ -268,14 +289,14 @@
   background: var(--c-bg);
 }
 
-.git-workflow-files label {
+.git-workflow-files-scroll-content label {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--sp-2);
 }
 
-.git-workflow-files label span {
+.git-workflow-files-scroll-content label span {
   min-width: 0;
   overflow: hidden;
   color: var(--c-text);
@@ -283,7 +304,7 @@
   white-space: nowrap;
 }
 
-.git-workflow-files small {
+.git-workflow-files-scroll-content small {
   color: var(--c-text-meta);
   font-family: var(--ff-mono);
 }
@@ -354,13 +375,19 @@
   font: inherit;
 }
 
-.github-repository-list {
+.github-repository-list-scroll-area {
   display: grid;
   max-height: min(52vh, 440px);
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   border: 1px solid var(--c-border-soft);
   border-radius: var(--radius-4);
   background: var(--c-bg);
+}
+
+.github-repository-list-scroll-content {
+  min-width: 0;
+  display: grid;
 }
 
 .github-repository-row {

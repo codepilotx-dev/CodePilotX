@@ -15,23 +15,6 @@
 
 .quick-chat-workspace.with-review-sidebar .quick-chat-content {
   min-width: 0;
-  overflow-y: auto;
-}
-
-
-
-.environment-diff-preview {
-  max-height: 240px;
-  margin: 0;
-  overflow: auto;
-  padding: 10px;
-  border: 1px solid var(--c-border-soft);
-  border-radius: var(--radius-4);
-  background: var(--c-bg-soft);
-  color: var(--c-text);
-  font-family: var(--ff-mono);
-  font-size: var(--fs-code);
-  white-space: pre-wrap;
 }
 
 
@@ -195,12 +178,17 @@
 
 
 
-.review-file-list {
+.review-file-list-scroll-area {
   min-height: 0;
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
-  overflow: auto;
+}
+
+.review-file-list-scroll-content {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 
@@ -291,17 +279,6 @@
 
 
 
-.review-diff-lines {
-  min-width: 0;
-  overflow: auto;
-  padding: 8px 0;
-  font-family: var(--ff-mono);
-  font-size: var(--fs-code);
-  line-height: 1.55;
-}
-
-
-
 .review-diff-line {
   display: grid;
   grid-template-columns: 42px 42px minmax(0, 1fr);
@@ -388,12 +365,26 @@
 
 
 .review-diff-lines {
-  min-width: 0;
-  overflow: auto;
+  min-width: max-content;
   padding: 0;
   font-family: var(--ff-mono);
   font-size: var(--fs-code);
   line-height: 1.55;
+}
+
+.review-diff-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.review-diff-scroll-content {
+  min-height: 100%;
+}
+
+.review-diff-lines-scroll-x {
+  min-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 
@@ -473,7 +464,7 @@
 .review-diff-row .review-diff-line-content {
   padding: 0 12px;
   font-family: inherit;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
 }
 
 
@@ -611,7 +602,7 @@
 
 .review-diff-split .review-diff-side .review-diff-line-content {
   padding: 0 12px;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
   font-family: inherit;
 }
 
@@ -707,10 +698,12 @@
 
 
 
-.review-stale-comments {
+.review-stale-comments-scroll {
   flex: 0 0 auto;
   max-height: 22%;
-  overflow: auto;
+}
+
+.review-stale-comments {
   padding: 10px 12px;
   border-top: 1px solid var(--c-border-soft);
   background: var(--c-bg-soft);
@@ -829,10 +822,15 @@
 
 
 
-.review-sidebar .review-file-tree {
+.review-sidebar .review-file-tree-scroll {
   flex: 1 1 auto;
   min-height: 0;
-  overflow: auto;
+}
+
+.review-sidebar .review-file-tree {
+  display: flex;
+  min-height: 100%;
+  flex-direction: column;
 }
 
 .review-sidebar .review-file-tree-files {
@@ -924,7 +922,7 @@
 
 
 .review-sidebar.hide-files .review-file-search,
-.review-sidebar.hide-files .review-file-tree,
+.review-sidebar.hide-files .review-file-tree-scroll,
 .review-sidebar.hide-files .review-footer {
   display: none;
 }

@@ -61,33 +61,35 @@ export function ConfirmationDialogDebug(): React.ReactNode {
 
   return (
     <section className="dialog-debug-panel" aria-label="对话框调试">
-      <div className="dialog-debug-header">
-        <h3>ConfirmationDialog 调试</h3>
-        <p className="dialog-debug-summary">
-          点击下方按钮即可在右侧唤起对应弹窗，便于检查四种状态的样式与交互。
-        </p>
-      </div>
-
-      <div className="dialog-debug-list">
-        {variants.map(variant => (
-          <button
-            className="dialog-debug-item"
-            key={variant.key}
-            onClick={variant.open}
-            type="button"
-          >
-            <span className="dialog-debug-item-label">{variant.label}</span>
-            <span className="dialog-debug-item-desc">{variant.description}</span>
-          </button>
-        ))}
-      </div>
-
-      {lastAction ? (
-        <div className="dialog-debug-log">
-          <span className="dialog-debug-log-label">最近一次触发：</span>
-          <span className="dialog-debug-log-value">{lastAction}</span>
+      <div className="dialog-debug-panel-content">
+        <div className="dialog-debug-header">
+          <h3>ConfirmationDialog 调试</h3>
+          <p className="dialog-debug-summary">
+            点击下方按钮即可在右侧唤起对应弹窗，便于检查四种状态的样式与交互。
+          </p>
         </div>
-      ) : null}
+
+        <div className="dialog-debug-list">
+          {variants.map(variant => (
+            <button
+              className="dialog-debug-item"
+              key={variant.key}
+              onClick={variant.open}
+              type="button"
+            >
+              <span className="dialog-debug-item-label">{variant.label}</span>
+              <span className="dialog-debug-item-desc">{variant.description}</span>
+            </button>
+          ))}
+        </div>
+
+        {lastAction ? (
+          <div className="dialog-debug-log">
+            <span className="dialog-debug-log-label">最近一次触发：</span>
+            <span className="dialog-debug-log-value">{lastAction}</span>
+          </div>
+        ) : null}
+      </div>
 
       <ConfirmationDialog
         actionLabel="移除"

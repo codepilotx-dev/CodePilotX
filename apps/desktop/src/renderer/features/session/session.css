@@ -658,23 +658,12 @@
   white-space: nowrap;
 }
 
-.exit-plan-mode-model select {
-  max-width: 220px;
+.exit-plan-mode-model-trigger {
   min-width: 84px;
-  height: 28px;
-  padding: 0 24px 0 8px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-4);
-  background: var(--c-bg-soft);
-  color: var(--c-text-strong);
-  font: inherit;
-  font-size: var(--fs-14);
 }
 
-.exit-plan-mode-model select:hover,
-.exit-plan-mode-model select:focus {
-  border-color: var(--c-border-soft);
-  outline: none;
+.exit-plan-mode-model-content {
+  min-width: var(--radix-select-trigger-width);
 }
 
 .exit-plan-mode-options {
@@ -1053,7 +1042,8 @@
   flex-direction: column;
   gap: var(--sp-3);
   min-height: 0;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding: 0 min(10vw, 128px);
 }
 
@@ -1217,18 +1207,28 @@
   font-style: normal;
 }
 
-.environment-diff-preview {
+.environment-diff-scroll-area {
   max-height: 240px;
-  margin: 0;
-  overflow: auto;
-  padding: 10px;
+  overflow-x: hidden;
+  overflow-y: auto;
   border: 1px solid var(--c-border-soft);
   border-radius: var(--radius-4);
   background: var(--c-bg-soft);
+}
+
+.environment-diff-scroll-x {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.environment-diff-preview {
+  min-width: max-content;
+  margin: 0;
+  padding: 10px;
   color: var(--c-text);
   font-family: var(--ff-mono);
   font-size: var(--fs-code);
-  white-space: pre-wrap;
+  white-space: pre;
 }
 
 .environment-source {
@@ -1565,17 +1565,26 @@
   font-size: var(--fs-13);
 }
 
-.timeline-command-shell-body {
+.timeline-command-shell-scroll-area {
   max-height: 260px;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.timeline-command-shell-scroll-x {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.timeline-command-shell-body {
+  min-width: max-content;
   margin: 0;
   padding: 8px 12px 10px;
   color: var(--c-text);
   font-family: var(--ff-mono);
   font-size: var(--fs-code);
   line-height: 1.55;
-  white-space: pre-wrap;
-  word-break: break-word;
+  white-space: pre;
 }
 
 .timeline-command-shell-prompt {
@@ -2371,9 +2380,15 @@
   background: var(--c-bg);
 }
 
-.workflow-page__scroll {
+.workflow-main-scroll-area {
   flex: 1;
   min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.workflow-main-scroll-content {
+  min-width: 0;
   padding: 12px 16px 0;
 }
 
@@ -2717,19 +2732,19 @@
   border-top: 1px solid var(--c-border-faint);
 }
 
-.workflow-page__scroll {
+.workflow-main-scroll-content {
   padding: var(--layout-page-pad-y) var(--layout-page-pad-x)
     calc(var(--floating-composer-h) + var(--layout-composer-safe-pad));
-}
-
-.workflow-page.approval-active .workflow-page__scroll {
-  padding-bottom: min(58vh, 560px);
 }
 
 .workflow-page .quick-chat-content.workflow-page__inner,
 .conversation-page .quick-chat-content {
   width: min(var(--layout-content-w), 100%);
   max-width: var(--layout-content-w);
+}
+
+.workflow-page .quick-chat-content.workflow-page__inner {
+  padding-bottom: 80px;
 }
 
 .conversation-stream {
@@ -2766,6 +2781,47 @@
 .timeline-file-event-title,
 .timeline-command-title {
   font-weight: var(--font-weight-label);
+}
+
+.workflow-composer-card-question,
+.workflow-composer-card-permission,
+.workflow-composer-card-plan,
+.inline-approval-card {
+  color: var(--c-text-strong);
+}
+
+.workflow-composer-card-question .ask-user-question-progress,
+.workflow-composer-card-question .inline-approval-footer-hint,
+.workflow-composer-card-question .inline-approval-option-hint,
+.workflow-composer-card-question .inline-approval-option-info,
+.workflow-composer-card-plan .exit-plan-mode-info,
+.workflow-composer-card-plan .exit-plan-mode-note-icon,
+.workflow-composer-card-plan .exit-plan-mode-skip {
+  color: var(--c-text-soft);
+}
+
+.workflow-composer-card-question .ask-user-question-custom-input::placeholder,
+.workflow-composer-card-question .inline-approval-feedback-input::placeholder,
+.workflow-composer-card-plan .exit-plan-mode-note-input::placeholder {
+  color: var(--c-text-mute);
+}
+
+.workflow-composer-card-question .inline-approval-option,
+.workflow-composer-card-plan .exit-plan-mode-option {
+  color: var(--c-text-strong);
+}
+
+.workflow-composer-card-question .inline-approval-option:not(.selected),
+.workflow-composer-card-plan .exit-plan-mode-option:not(.selected),
+.workflow-composer-card-question .inline-approval-option.custom {
+  background: color-mix(in srgb, var(--c-panel-elevated-bg) 54%, transparent);
+  border-color: color-mix(in srgb, var(--c-text-strong) 12%, transparent);
+}
+
+.workflow-composer-card-question .inline-approval-option.selected,
+.workflow-composer-card-plan .exit-plan-mode-option.selected {
+  background: color-mix(in srgb, var(--c-bg) 72%, var(--c-panel-elevated-bg));
+  border-color: color-mix(in srgb, var(--c-text-strong) 18%, transparent);
 }
 
 .timeline-system-event,
@@ -2814,6 +2870,63 @@
   box-shadow: var(--c-panel-shadow-raised);
 }
 
+:root[data-theme="dark"] .workflow-page__composer-inner,
+:root[data-theme="dark"] .workflow-plan-card,
+:root[data-theme="dark"] .inline-approval-card,
+:root[data-theme="dark"] .workflow-composer-card {
+  border-color: rgba(255, 255, 255, 0.075);
+  background: color-mix(in srgb, var(--c-bg) 78%, var(--surface-panel));
+}
+
+:root[data-theme="dark"] .workflow-plan-card {
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--c-bg) 76%, var(--surface-panel)),
+      color-mix(in srgb, var(--c-bg) 84%, var(--surface-raised))
+    ),
+    var(--c-bg);
+}
+
+:root[data-theme="dark"] .workflow-composer-card-question .inline-approval-option:not(.selected),
+:root[data-theme="dark"] .workflow-composer-card-plan .exit-plan-mode-option:not(.selected),
+:root[data-theme="dark"] .workflow-composer-card-question .inline-approval-option.custom {
+  background: color-mix(in srgb, var(--c-bg) 88%, var(--surface-raised));
+  border-color: rgba(255, 255, 255, 0.055);
+}
+
+:root[data-theme="dark"] .workflow-composer-card-question .inline-approval-option.selected,
+:root[data-theme="dark"] .workflow-composer-card-plan .exit-plan-mode-option.selected {
+  background: color-mix(in srgb, var(--c-bg) 70%, var(--surface-raised));
+  border-color: rgba(255, 255, 255, 0.085);
+}
+
+:root[data-theme="dark"] .workflow-plan-card__body .md-body code:not(pre code),
+:root[data-theme="dark"] .workflow-composer-card .md-body :not(pre) > code {
+  background: color-mix(in srgb, var(--c-bg) 86%, var(--surface-raised));
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  color: var(--c-text-strong);
+}
+
+:root[data-theme="dark"] .workflow-composer-card-question .inline-approval-submit,
+:root[data-theme="dark"] .workflow-composer-card-permission .inline-approval-submit,
+:root[data-theme="dark"] .workflow-composer-card-plan .exit-plan-mode-submit {
+  background: var(--c-send-bg);
+  color: var(--c-text-on-accent);
+}
+
+:root[data-theme="dark"] .workflow-composer-card-question .inline-approval-submit:hover,
+:root[data-theme="dark"] .workflow-composer-card-permission .inline-approval-submit:hover,
+:root[data-theme="dark"] .workflow-composer-card-plan .exit-plan-mode-submit:hover {
+  background: var(--c-send-bg-hover);
+}
+
+:root[data-theme="dark"] .workflow-composer-card-question .inline-approval-option.selected .inline-approval-option-index,
+:root[data-theme="dark"] .workflow-composer-card-plan .exit-plan-mode-option.selected .exit-plan-mode-badge {
+  background: var(--c-accent);
+  color: var(--c-text-on-accent);
+}
+
 .user-message-bubble {
   border-color: color-mix(in srgb, var(--c-text-strong) 12%, transparent);
   box-shadow: none;
@@ -2825,9 +2938,8 @@
 }
 
 .chat-session-header {
-  min-height: 58px;
+  min-height: 48px;
   border-color: var(--border-muted);
-  background: color-mix(in srgb, var(--surface-canvas) 82%, var(--c-workbench-bg));
 }
 
 

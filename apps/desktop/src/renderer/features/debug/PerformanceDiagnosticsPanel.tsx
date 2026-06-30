@@ -69,32 +69,34 @@ export function PerformanceDiagnosticsPanel(): React.ReactNode {
 
   return (
     <section className="performance-diagnostics-panel" aria-label="性能诊断">
-      <div className="performance-diagnostics-header">
-        <h3>性能诊断</h3>
-        <p className="performance-diagnostics-summary">
-          基于 requestAnimationFrame 的本地采样，仅在调试模式显示。
+      <div className="performance-diagnostics-panel-content">
+        <div className="performance-diagnostics-header">
+          <h3>性能诊断</h3>
+          <p className="performance-diagnostics-summary">
+            基于 requestAnimationFrame 的本地采样，仅在调试模式显示。
+          </p>
+        </div>
+        <div className="performance-diagnostics-grid">
+          <StatCard
+            icon={<Gauge size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
+            label="FPS"
+            value={stats.fps ? String(stats.fps) : '采样中'}
+          />
+          <StatCard
+            icon={<Clock size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
+            label="最长帧"
+            value={`${stats.longestFrameMs}ms`}
+          />
+          <StatCard
+            icon={<Activity size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
+            label="长帧"
+            value={String(stats.longFrames)}
+          />
+        </div>
+        <p className="performance-diagnostics-footnote">
+          长帧阈值：{LONG_FRAME_MS}ms；当前窗口样本：{stats.sampleCount} 帧。
         </p>
       </div>
-      <div className="performance-diagnostics-grid">
-        <StatCard
-          icon={<Gauge size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
-          label="FPS"
-          value={stats.fps ? String(stats.fps) : '采样中'}
-        />
-        <StatCard
-          icon={<Clock size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
-          label="最长帧"
-          value={`${stats.longestFrameMs}ms`}
-        />
-        <StatCard
-          icon={<Activity size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
-          label="长帧"
-          value={String(stats.longFrames)}
-        />
-      </div>
-      <p className="performance-diagnostics-footnote">
-        长帧阈值：{LONG_FRAME_MS}ms；当前窗口样本：{stats.sampleCount} 帧。
-      </p>
     </section>
   )
 }

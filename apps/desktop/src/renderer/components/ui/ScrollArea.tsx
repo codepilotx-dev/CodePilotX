@@ -1,41 +1,38 @@
 import React from 'react'
-import * as ScrollAreaPrimitive from '@radix-ui/react-scroll-area'
 import './ScrollArea.css'
 
 type ScrollAreaProps = {
   children: React.ReactNode
   className?: string
+  contentClassName?: string
   style?: React.CSSProperties
   direction?: 'y' | 'x'
+  viewportRef?: React.Ref<HTMLDivElement>
 } & Omit<React.HTMLAttributes<HTMLDivElement>, 'dir' | 'color'>
 
 export function ScrollArea({
   children,
   className,
+  contentClassName,
   direction = 'y',
   style,
+  viewportRef,
   ...rest
 }: ScrollAreaProps): React.ReactNode {
   const rootClassName = ['scroll-area', className].filter(Boolean).join(' ')
-  const orientation = direction === 'x' ? 'horizontal' : 'vertical'
+  const contentClass = ['scroll-area__content', contentClassName]
+    .filter(Boolean)
+    .join(' ')
 
   return (
-    <ScrollAreaPrimitive.Root
+    <div
       className={rootClassName}
+      data-scroll-direction={direction}
+      ref={viewportRef}
       style={style}
-      type="hover"
       {...rest}
     >
-      <ScrollAreaPrimitive.Viewport className="scroll-area__viewport">
-        {children}
-      </ScrollAreaPrimitive.Viewport>
-      <ScrollAreaPrimitive.Scrollbar
-        className="scroll-area__scrollbar"
-        orientation={orientation}
-      >
-        <ScrollAreaPrimitive.Thumb className="scroll-area__thumb" />
-      </ScrollAreaPrimitive.Scrollbar>
-      <ScrollAreaPrimitive.Corner className="scroll-area__corner" />
-    </ScrollAreaPrimitive.Root>
+      <div className={contentClass}>{children}</div>
+    </div>
   )
 }

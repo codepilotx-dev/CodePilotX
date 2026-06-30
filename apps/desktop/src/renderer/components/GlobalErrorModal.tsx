@@ -36,7 +36,9 @@ export function GlobalErrorModal({
       className={`global-error-toast ${isError ? '' : 'status'}`}
       role={isError ? 'alert' : 'status'}
     >
-      <span>{message}</span>
+      <div className="global-error-toast-scroll-area">
+        <div className="global-error-toast-scroll-content">{message}</div>
+      </div>
       <button
         aria-label={isError ? '关闭错误提示' : '关闭通知'}
         onClick={onDismiss}

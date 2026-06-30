@@ -217,33 +217,35 @@ export function GitWorkflowModal({
                       onChange={event => setCommitMessage(event.target.value)}
                     />
                   </label>
-                  <div className="git-workflow-files">
-                    <div>
-                      <strong>变更文件</strong>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setSelectedPaths(changedFiles.map(file => file.path))
-                        }
-                      >
-                        全选
-                      </button>
+                  <div className="git-workflow-files-scroll-area">
+                    <div className="git-workflow-files-scroll-content">
+                      <div>
+                        <strong>变更文件</strong>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSelectedPaths(changedFiles.map(file => file.path))
+                          }
+                        >
+                          全选
+                        </button>
+                      </div>
+                      {changedFiles.length === 0 ? (
+                        <p>当前没有可提交的文件。</p>
+                      ) : (
+                        changedFiles.map(file => (
+                          <label key={`${file.status}:${file.path}`}>
+                            <input
+                              checked={selectedPathSet.has(file.path)}
+                              type="checkbox"
+                              onChange={() => togglePath(file.path)}
+                            />
+                            <span title={file.path}>{file.path}</span>
+                            <small>{file.status.trim() || 'M'}</small>
+                          </label>
+                        ))
+                      )}
                     </div>
-                    {changedFiles.length === 0 ? (
-                      <p>当前没有可提交的文件。</p>
-                    ) : (
-                      changedFiles.map(file => (
-                        <label key={`${file.status}:${file.path}`}>
-                          <input
-                            checked={selectedPathSet.has(file.path)}
-                            type="checkbox"
-                            onChange={() => togglePath(file.path)}
-                          />
-                          <span title={file.path}>{file.path}</span>
-                          <small>{file.status.trim() || 'M'}</small>
-                        </label>
-                      ))
-                    )}
                   </div>
                   <label className="git-workflow-check">
                     <input
