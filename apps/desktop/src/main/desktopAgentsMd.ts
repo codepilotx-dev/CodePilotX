@@ -1,6 +1,7 @@
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { dirname, join, relative, resolve, sep } from 'node:path'
+import { parse as parseToml } from 'smol-toml'
 
 export const DEFAULT_AGENTS_MD_FILENAME = 'AGENTS.md'
 export const LOCAL_AGENTS_MD_FILENAME = 'AGENTS.override.md'
@@ -17,6 +18,7 @@ export type DiscoverProjectAgentsMdOptions = {
   projectRoot: string
   cwd: string
   maxBytes?: number
+  fallbackFilenames?: string[]
 }
 
 export type BuildSessionAppendSystemPromptOptions = {
@@ -26,12 +28,31 @@ export type BuildSessionAppendSystemPromptOptions = {
   existingAppendSystemPrompt?: string
 }
 
-export function getGlobalAgentsMdPath(_configHomeDir: string): string {
+export type GlobalAgentAgentsMdConfig = {
+  project_doc_fallback_filenames?: string[]
+  project_doc_max_bytes?: number
+}
+
+function getGlobalAgentsMdDir(): string {
   return join(
     process.env.USERPROFILE ?? homedir(),
     GLOBAL_AGENTS_MD_DIRNAME,
+  )
+}
+
+export function getGlobalAgentsMdPath(_configHomeDir: string): string {
+  return join(
+    getGlobalAgentsMdDir(),
     DEFAULT_AGENTS_MD_FILENAME,
   )
+}
+
+export function getGlobalAgentsOverrideMdPath(): string {
+  return join(getGlobalAgentsMdDir(), LOCAL_AGENTS_MD_FILENAME)
+}
+
+export function getGlobalConfigTomlPath(): string {
+  return join(getGlobalAgentsMdDir(), 'config.toml')
 }
 
 export async function readGlobalAgentsMd(
@@ -40,6 +61,38 @@ export async function readGlobalAgentsMd(
   try {
     const text = await readFile(getGlobalAgentsMdPath(configHomeDir), 'utf8')
     return text
+  } catch (error) {
+    if (isMissingFileError(error)) return null
+    throw error
+  }
+}
+
+export async function readGlobalAgentsMdEffective(): Promise<string | null> {
+  const overridePath = getGlobalAgentsOverrideMdPath()
+  try {
+    const text = await readFile(overridePath, 'utf8')
+    if (text.trim()) return text
+  } catch (error) {
+    if (!isMissingFileError(error)) throw error
+  }
+  return readGlobalAgentsMd(getGlobalAgentsMdDir())
+}
+
+export async function readGlobalAgentAgentsMdConfig(): Promise<GlobalAgentAgentsMdConfig | null> {
+  try {
+    const raw = await readFile(getGlobalConfigTomlPath(), 'utf8')
+    const parsed = parseToml(raw) as Record<string, unknown>
+    const config: GlobalAgentAgentsMdConfig = {}
+    if (Array.isArray(parsed.project_doc_fallback_filenames)) {
+      config.project_doc_fallback_filenames = parsed.project_doc_fallback_filenames.filter(
+        (f): f is string => typeof f === 'string',
+      )
+    }
+    if (typeof parsed.project_doc_max_bytes === 'number') {
+      config.project_doc_max_bytes = parsed.project_doc_max_bytes
+    }
+    if (config.project_doc_fallback_filenames === undefined && config.project_doc_max_bytes === undefined) return null
+    return config
   } catch (error) {
     if (isMissingFileError(error)) return null
     throw error
@@ -59,6 +112,7 @@ export async function discoverProjectAgentsMd({
   cwd,
   maxBytes = AGENTS_MD_MAX_BYTES,
   projectRoot,
+  fallbackFilenames,
 }: DiscoverProjectAgentsMdOptions): Promise<DesktopAgentsMdDoc[]> {
   if (maxBytes <= 0) return []
   const directories = directoriesFromRoot(resolve(projectRoot), resolve(cwd))
@@ -67,7 +121,7 @@ export async function discoverProjectAgentsMd({
 
   for (const directory of directories) {
     if (remaining <= 0) break
-    const selected = await selectAgentsMdPath(directory)
+    const selected = await selectAgentsMdPath(directory, fallbackFilenames)
     if (!selected) continue
 
     const data = await readFile(selected)
@@ -94,22 +148,35 @@ export function buildAgentsMdInstructions(
 }
 
 export async function buildSessionAppendSystemPrompt({
-  configHomeDir,
+  configHomeDir: _configHomeDir,
   cwd,
   existingAppendSystemPrompt,
   projectRoot,
 }: BuildSessionAppendSystemPromptOptions): Promise<string | undefined> {
-  const [globalInstructions, projectDocs] = await Promise.all([
-    readGlobalAgentsMd(configHomeDir),
+  const [globalInstructions, agentsMdConfig, projectDocs] = await Promise.all([
+    readGlobalAgentsMdEffective(),
+    readGlobalAgentAgentsMdConfig(),
     discoverProjectAgentsMd({
       cwd: cwd ?? projectRoot,
       projectRoot,
+      maxBytes: undefined,
+      fallbackFilenames: undefined,
     }),
   ])
+  const resolvedMaxBytes = agentsMdConfig?.project_doc_max_bytes ?? AGENTS_MD_MAX_BYTES
+  const resolvedFallback = agentsMdConfig?.project_doc_fallback_filenames
+  const resolvedProjectDocs = resolvedFallback !== undefined || resolvedMaxBytes !== AGENTS_MD_MAX_BYTES
+    ? await discoverProjectAgentsMd({
+        cwd: cwd ?? projectRoot,
+        projectRoot,
+        maxBytes: resolvedMaxBytes,
+        fallbackFilenames: resolvedFallback,
+      })
+    : projectDocs
   const agentsMdInstructions = buildAgentsMdInstructions(
     globalInstructions,
-    projectDocs.length > 0 ? cwd ?? projectRoot : null,
-    projectDocs,
+    resolvedProjectDocs.length > 0 ? cwd ?? projectRoot : null,
+    resolvedProjectDocs,
   )
   const parts = [agentsMdInstructions, existingAppendSystemPrompt]
     .map(part => part?.trim())
@@ -140,11 +207,20 @@ function buildAgentsMdText(
   return parts.join('\n\n')
 }
 
-async function selectAgentsMdPath(directory: string): Promise<string | null> {
+async function selectAgentsMdPath(
+  directory: string,
+  fallbackFilenames?: string[],
+): Promise<string | null> {
   const overridePath = join(directory, LOCAL_AGENTS_MD_FILENAME)
   if (await isFile(overridePath)) return overridePath
   const defaultPath = join(directory, DEFAULT_AGENTS_MD_FILENAME)
   if (await isFile(defaultPath)) return defaultPath
+  if (fallbackFilenames) {
+    for (const filename of fallbackFilenames) {
+      const path = join(directory, filename)
+      if (await isFile(path)) return path
+    }
+  }
   return null
 }
 

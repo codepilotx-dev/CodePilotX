@@ -43,6 +43,32 @@ test('readDesktopStoredSettings prefers global AGENTS.md for custom instructions
   await rm(userProfile, { recursive: true, force: true })
 })
 
+test('readDesktopStoredSettings reads AGENTS.md not AGENTS.override.md', async () => {
+  const configDir = await makeConfigDir()
+  const userProfile = await makeConfigDir()
+  process.env[CODEPILOTX_CONFIG_DIR_ENV] = configDir
+  process.env.USERPROFILE = userProfile
+  delete process.env[LEGACY_CLAUDE_CONFIG_DIR_ENV]
+  await mkdir(join(userProfile, '.codepilotx'), { recursive: true })
+  await writeFile(
+    join(userProfile, '.codepilotx', 'AGENTS.md'),
+    'settings content',
+    'utf8',
+  )
+  await writeFile(
+    join(userProfile, '.codepilotx', 'AGENTS.override.md'),
+    'override content',
+    'utf8',
+  )
+
+  const settings = await readDesktopStoredSettings()
+
+  expect(settings.customInstructions).toBe('settings content')
+
+  await rm(configDir, { recursive: true, force: true })
+  await rm(userProfile, { recursive: true, force: true })
+})
+
 test('saveDesktopStoredSettings synchronizes custom instructions to global AGENTS.md', async () => {
   const configDir = await makeConfigDir()
   const userProfile = await makeConfigDir()
@@ -58,6 +84,35 @@ test('saveDesktopStoredSettings synchronizes custom instructions to global AGENT
   expect(
     await readFile(join(userProfile, '.codepilotx', 'AGENTS.md'), 'utf8'),
   ).toBe('中文 instructions')
+
+  await rm(configDir, { recursive: true, force: true })
+  await rm(userProfile, { recursive: true, force: true })
+})
+
+test('saveDesktopStoredSettings does NOT write AGENTS.override.md', async () => {
+  const configDir = await makeConfigDir()
+  const userProfile = await makeConfigDir()
+  process.env[CODEPILOTX_CONFIG_DIR_ENV] = configDir
+  process.env.USERPROFILE = userProfile
+  delete process.env[LEGACY_CLAUDE_CONFIG_DIR_ENV]
+  await mkdir(join(userProfile, '.codepilotx'), { recursive: true })
+  await writeFile(
+    join(userProfile, '.codepilotx', 'AGENTS.override.md'),
+    'preserved override',
+    'utf8',
+  )
+
+  await saveDesktopStoredSettings({
+    ...defaultDesktopStoredSettings(),
+    customInstructions: 'saved from settings',
+  })
+
+  expect(
+    await readFile(join(userProfile, '.codepilotx', 'AGENTS.override.md'), 'utf8'),
+  ).toBe('preserved override')
+  expect(
+    await readFile(join(userProfile, '.codepilotx', 'AGENTS.md'), 'utf8'),
+  ).toBe('saved from settings')
 
   await rm(configDir, { recursive: true, force: true })
   await rm(userProfile, { recursive: true, force: true })
