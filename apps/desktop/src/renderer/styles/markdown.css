@@ -131,7 +131,7 @@
   border-radius: var(--radius-3);
   background: var(--c-bg-soft);
   border: 1px solid var(--c-border-faint);
-  color: var(--c-accent);
+  color: var(--c-text-strong);
   font-family: var(--ff-mono);
   font-size: var(--fs-code);
   line-height: 1.5;

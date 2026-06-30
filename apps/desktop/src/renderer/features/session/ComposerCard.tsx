@@ -954,26 +954,6 @@ export function ComposerCard({
                               ) : null}
                             </DropdownMenu.Item>
                           ))}
-                          <DropdownMenu.Item
-                            className="rm-menu-item"
-                            onSelect={() => {
-                              onProviderModelChange(
-                                provider.providerID,
-                                CUSTOM_MODEL_PRESET_ID,
-                              );
-                              closeDropdown();
-                            }}
-                          >
-                            <span className="rm-item-label">自定义模型</span>
-                            {provider.providerID === selectedProviderID &&
-                            selectedModelPreset === CUSTOM_MODEL_PRESET_ID ? (
-                              <Check
-                                className="rm-item-check"
-                                size={APP_ICON_SIZE}
-                                strokeWidth={APP_ICON_STROKE_WIDTH}
-                              />
-                            ) : null}
-                          </DropdownMenu.Item>
                         </DropdownMenu.SubContent>
                       </DropdownMenu.Portal>
                     </DropdownMenu.Sub>
