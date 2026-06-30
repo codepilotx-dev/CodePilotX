@@ -194,8 +194,8 @@ export function DesktopThemeProvider({
   const draftDirty = !desktopThemeSettingsEqual(draftSettings, settings)
 
   useEffect(() => {
-    applyDesktopTheme(settings, resolvedVariant, systemReduceMotion)
-  }, [resolvedVariant, settings, systemReduceMotion])
+    applyDesktopTheme(draftSettings, draftResolvedVariant, systemReduceMotion)
+  }, [draftResolvedVariant, draftSettings, systemReduceMotion])
 
   const saveSettings = useCallback(
     async (nextSettings: DesktopThemeSettings): Promise<void> => {
