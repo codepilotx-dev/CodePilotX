@@ -112,8 +112,8 @@
 
 
 .automation-button.is-primary:hover {
-  background: var(--gray-11);
-  border-color: var(--gray-11);
+  background: var(--c-send-bg-hover);
+  border-color: var(--c-send-bg-hover);
 }
 
 
@@ -124,7 +124,14 @@
   justify-items: center;
   align-content: center;
   gap: var(--layout-section-gap);
+  min-height: 460px;
   padding: var(--layout-card-pad);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-panel);
+  background:
+    linear-gradient(180deg, var(--c-panel-bg), var(--c-panel-elevated-bg)),
+    var(--c-panel-bg);
+  box-shadow: var(--c-panel-shadow-raised);
 }
 
 
@@ -144,7 +151,7 @@
   justify-content: center;
   width: 120px;
   height: 84px;
-  color: var(--gray-6);
+  color: var(--c-text-mute);
 }
 
 
@@ -234,16 +241,6 @@
   margin: 0 auto;
   padding: var(--layout-page-pad-y) var(--layout-page-pad-x)
     var(--layout-page-pad-bottom);
-}
-
-.automation-canvas {
-  min-height: 460px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-panel);
-  background:
-    linear-gradient(180deg, var(--c-panel-bg), var(--c-panel-elevated-bg)),
-    var(--c-panel-bg);
-  box-shadow: var(--c-panel-shadow-raised);
 }
 
 .automation-header-meta h1 {

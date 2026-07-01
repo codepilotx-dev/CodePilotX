@@ -209,35 +209,51 @@
 }
 
 .quick-chat-hero {
+  width: var(--quick-chat-surface-w);
+  max-width: 100%;
   display: grid;
   gap: 0;
   justify-items: center;
-  text-align: center;
-}
-
-.quick-chat-hero h1,
-.quick-chat-hero {
+  padding: 28px 38px 30px;
+  border: 1px solid color-mix(in srgb, var(--c-text-strong) 9%, var(--c-panel-border));
+  border-radius: 18px;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--c-bg) 54%, var(--c-panel-bg)),
+      var(--c-panel-bg) 52%,
+      color-mix(in srgb, var(--c-panel-elevated-bg) 78%, var(--c-panel-bg))
+    ),
+    var(--c-panel-bg);
+  box-shadow:
+    0 18px 54px color-mix(in srgb, var(--c-text-strong) 10%, transparent),
+    0 1px 0 color-mix(in srgb, var(--c-bg) 72%, transparent) inset;
   color: var(--c-text-strong);
-  font-size: 30px;
-  font-weight: 400;
-  letter-spacing: 0;
- 
+  font-size: 28px;
+  font-weight: 520;
+  line-height: 1.26;
+  text-align: center;
 }
 
 .quick-chat-hero .project-name {
   display: inline-flex;
   align-items: center;
+  margin: 0 2px;
   max-width: min(360px, 100%);
-  padding: 3px 8px;
+  padding: 2px 7px 3px;
   border: 0;
-  border-radius: var(--radius-6);
+  border-radius: 9px;
   background: transparent;
-  color: inherit;
+  color: var(--c-text-strong);
   font-family: inherit;
   font-size: inherit;
   font-weight: inherit;
   line-height: inherit;
   letter-spacing: inherit;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--c-accent) 34%, transparent);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 5px;
   vertical-align: baseline;
   cursor: pointer;
   transition:
@@ -249,8 +265,9 @@
 .quick-chat-hero .project-name:hover,
 .quick-chat-hero .project-name[data-state="open"],
 .quick-chat-hero .project-name[aria-expanded="true"] {
-  background: var(--state-hover-bg);
+  background: color-mix(in srgb, var(--c-accent) 12%, transparent);
   color: var(--c-text-strong);
+  text-decoration-color: var(--c-accent);
 }
 
 .quick-chat-hero .project-name:focus-visible {
@@ -283,14 +300,6 @@
   color: var(--c-text-soft);
 }
 
-.empty-canvas-card,
-.utility-card,
-.message-card {
-  border: 1px solid var(--c-border-soft);
-  background: var(--c-surface);
-  box-shadow: var(--sh-card);
-}
-
 .inline-approval-card {
   width: 100%;
   max-width: var(--composer-w);
@@ -298,10 +307,11 @@
   gap: 10px;
   margin-bottom: 10px;
   padding: 24px 14px 12px;
-  border: 1px solid var(--c-border-soft);
-  border-radius: var(--radius-6);
-  background: var(--c-bg);
-  box-shadow: 0 18px 48px var(--black-a2);
+  border: 1px solid var(--c-panel-border);
+  border-radius: var(--radius-panel);
+  background: var(--c-panel-bg);
+  color: var(--c-text-strong);
+  box-shadow: var(--c-panel-shadow-raised);
 }
 
 .inline-approval-header {
@@ -626,8 +636,8 @@
 }
 
 .exit-plan-mode-button.is-primary:hover {
-  background: var(--gray-11);
-  border-color: var(--gray-11);
+  background: var(--c-send-bg-hover);
+  border-color: var(--c-send-bg-hover);
 }
 
 .exit-plan-mode-title-row {
@@ -1020,7 +1030,6 @@
   background: var(--c-text-strong-hover, var(--c-text));
 }
 
-.empty-canvas-card,
 .utility-card,
 .placeholder-card {
   border-radius: var(--radius-5);
@@ -1033,6 +1042,7 @@
   max-width: 520px;
   margin: auto;
   padding: var(--sp-6);
+  border-radius: var(--radius-5);
   text-align: center;
   color: var(--c-text-soft);
 }
@@ -2060,7 +2070,7 @@
   box-shadow: none;
 }
 
-.inline-approval-card,
+.conversation-page .inline-approval-card,
 .workflow-composer-card {
   gap: 10px;
   padding: 18px 22px 14px;
@@ -2317,7 +2327,7 @@
   .timeline-status-event,
   .chat-thinking-pill,
   .assistant-thinking,
-  .inline-approval-card {
+  .conversation-page .inline-approval-card {
     animation: none;
   }
 
@@ -2434,11 +2444,6 @@
     box-shadow 0.2s ease-out;
 }
 
-.workflow-page__composer-inner:focus-within {
-  border-color: var(--c-border);
-  box-shadow: 0 4px 12px var(--black-a1);
-}
-
 .workflow-page__composer-inner > .composer {
   width: 100%;
   max-width: none;
@@ -2515,11 +2520,14 @@
   flex-direction: column;
   gap: 12px;
   padding: 16px 18px;
-  border: 1px solid var(--c-border-soft);
-  border-radius: var(--radius-5);
-  background: color-mix(in srgb, var(--c-bg-soft) 84%, var(--c-bg));
+  border: 1px solid var(--c-panel-border);
+  border-radius: var(--radius-panel);
+  background:
+    linear-gradient(180deg, var(--c-panel-bg), var(--c-panel-elevated-bg)),
+    var(--c-panel-bg);
   color: var(--c-text-strong);
   font-size: var(--fs-14);
+  box-shadow: var(--c-panel-shadow-raised);
   animation: workflow-item-in 0.28s ease-out;
 }
 
@@ -2641,44 +2649,6 @@
   font-weight: var(--font-weight-label);
 }
 
-/* Desktop conversation surface overrides. Keep this as the final page-level
-   pass for quick chat, workflow, and conversation bento surfaces. */
-.quick-chat-view,
-.utility-view,
-.conversation-page,
-.workflow-page {
-}
-
-.quick-chat-view {
-  max-width: var(--layout-bento-w);
-  padding: clamp(88px, 12.5vh, 112px) var(--layout-page-pad-x)
-    calc(var(--floating-composer-h) + var(--layout-composer-safe-pad));
-}
-
-.quick-chat-hero h1,
-.quick-chat-hero {
-  max-width: 760px;
-  color: var(--c-text-strong);
-  font-size: var(--type-hero-title);
-  font-weight: var(--font-weight-heading);
-  line-height: 1.22;
-}
-
-.quick-chat-hero {
-  width: min(760px, 100%);
-  padding: 32px 40px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 28px;
-  background:
-    linear-gradient(135deg, var(--c-panel-bg), var(--c-panel-elevated-bg)),
-    var(--c-panel-bg);
-  box-shadow: var(--c-panel-shadow-soft);
-}
-
-.quick-chat-hero h1 {
-  margin: 0 auto;
-}
-
 .quick-chat-view .chat-composer,
 .workflow-page .chat-composer.workflow-page__composer {
   position: fixed;
@@ -2707,13 +2677,6 @@
   border-radius: 22px;
   background: var(--c-panel-bg);
   box-shadow: var(--c-panel-shadow);
-}
-
-.workflow-page__composer-inner:focus-within {
-  border-color: color-mix(in srgb, var(--c-accent) 42%, var(--border-subtle));
-  box-shadow:
-    var(--c-panel-shadow),
-    0 0 0 4px color-mix(in srgb, var(--c-accent) 8%, transparent);
 }
 
 .workflow-page__composer-inner .composer-top {
@@ -2785,8 +2748,7 @@
 
 .workflow-composer-card-question,
 .workflow-composer-card-permission,
-.workflow-composer-card-plan,
-.inline-approval-card {
+.workflow-composer-card-plan {
   color: var(--c-text-strong);
 }
 
@@ -2824,30 +2786,6 @@
   border-color: color-mix(in srgb, var(--c-text-strong) 18%, transparent);
 }
 
-.timeline-system-event,
-.timeline-file-event,
-.workflow-plan-card,
-.inline-approval-card,
-.workflow-composer-card {
-  border-color: var(--border-subtle);
-  border-radius: var(--radius-panel);
-  background: var(--c-panel-bg);
-  box-shadow: var(--c-panel-shadow-soft);
-}
-
-.workflow-plan-card {
-  background:
-    linear-gradient(180deg, var(--c-panel-bg), var(--c-panel-elevated-bg)),
-    var(--c-panel-bg);
-}
-
-/* Elevated desktop surface pass for card-like workflow surfaces only. */
-.quick-chat-hero {
-  border-color: var(--c-panel-border);
-  border-radius: calc(var(--radius-panel) + 6px);
-  box-shadow: var(--c-panel-shadow-raised);
-}
-
 .quick-chat-view .chat-composer > .composer,
 .workflow-page__composer-inner {
   border-radius: var(--radius-panel);
@@ -2855,8 +2793,6 @@
 
 .timeline-system-event,
 .timeline-file-event,
-.workflow-plan-card,
-.inline-approval-card,
 .workflow-composer-card {
   border-color: var(--c-panel-border);
   border-radius: var(--radius-panel);
@@ -2864,14 +2800,11 @@
   box-shadow: var(--c-panel-shadow-soft);
 }
 
-.workflow-plan-card,
-.inline-approval-card,
 .workflow-composer-card {
   box-shadow: var(--c-panel-shadow-raised);
 }
 
 :root[data-theme="dark"] .workflow-page__composer-inner,
-:root[data-theme="dark"] .workflow-plan-card,
 :root[data-theme="dark"] .inline-approval-card,
 :root[data-theme="dark"] .workflow-composer-card {
   border-color: rgba(255, 255, 255, 0.075);
@@ -2879,6 +2812,7 @@
 }
 
 :root[data-theme="dark"] .workflow-plan-card {
+  border-color: rgba(255, 255, 255, 0.075);
   background:
     linear-gradient(
       180deg,
@@ -2940,6 +2874,76 @@
 .chat-session-header {
   min-height: 48px;
   border-color: var(--border-muted);
+}
+
+.quick-chat-view {
+  --quick-chat-surface-w: min(780px, 100%);
+  justify-content: flex-start;
+  max-width: none;
+  gap: 28px;
+  padding: clamp(128px, 18vh, 178px) var(--layout-page-pad-x)
+    calc(var(--floating-composer-h) + 132px);
+}
+
+.quick-chat-hero h1 {
+  max-width: 100%;
+}
+
+.quick-chat-view .chat-composer {
+  bottom: clamp(58px, 7vh, 86px);
+}
+
+.quick-chat-view .chat-composer > .composer {
+  width: var(--quick-chat-surface-w);
+  max-width: 780px;
+  padding: 6px;
+  border: 1px solid color-mix(in srgb, var(--c-text-strong) 10%, var(--c-panel-border));
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--c-panel-bg) 86%, var(--c-panel-elevated-bg));
+  box-shadow:
+    0 22px 64px color-mix(in srgb, var(--c-text-strong) 12%, transparent),
+    0 1px 0 color-mix(in srgb, var(--c-bg) 70%, transparent) inset;
+}
+
+.quick-chat-view .composer-top {
+  min-height: 86px;
+  padding: 12px 14px 10px;
+  border: 0;
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--c-panel-bg) 92%, transparent);
+}
+
+.quick-chat-view .composer-bottom {
+  margin-top: 2px;
+  padding: 8px 8px 2px;
+  border-top: 1px solid color-mix(in srgb, var(--c-text-strong) 8%, transparent);
+}
+
+:root[data-theme="dark"] .quick-chat-hero {
+  border-color: rgba(250, 249, 245, 0.09);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--c-panel-bg) 82%, var(--surface-raised)),
+      var(--c-panel-bg) 58%,
+      color-mix(in srgb, var(--surface-product) 22%, var(--c-panel-bg))
+    ),
+    var(--c-panel-bg);
+  box-shadow:
+    0 22px 64px rgba(0, 0, 0, 0.36),
+    0 1px 0 rgba(250, 249, 245, 0.04) inset;
+}
+
+:root[data-theme="dark"] .quick-chat-view .chat-composer > .composer {
+  border-color: rgba(250, 249, 245, 0.1);
+  background: color-mix(in srgb, var(--c-panel-bg) 88%, var(--surface-raised));
+  box-shadow:
+    0 24px 72px rgba(0, 0, 0, 0.42),
+    0 1px 0 rgba(250, 249, 245, 0.035) inset;
+}
+
+:root[data-theme="dark"] .quick-chat-view .composer-top {
+  background: color-mix(in srgb, var(--c-panel-bg) 84%, var(--surface-product));
 }
 
 

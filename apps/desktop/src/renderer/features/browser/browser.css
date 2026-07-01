@@ -1,32 +1,3 @@
-.desktop-main-browser-layout {
-  display: flex;
-  align-items: stretch;
-  gap: 0;
-  width: 100%;
-  height: 100%;
-  min-width: 0;
-  min-height: 0;
-}
-
-
-
-.desktop-main-browser-layout.browser-closed {
-  justify-content: center;
-}
-
-
-
-.right-dock-browser {
-  display: flex;
-  flex: 1 1 auto;
-  min-width: 0;
-  min-height: 0;
-  flex-direction: column;
-  background: var(--c-bg);
-}
-
-
-
 .browser-commandbar {
   display: grid;
   grid-template-columns: minmax(120px, 1fr) minmax(180px, 1.2fr) minmax(

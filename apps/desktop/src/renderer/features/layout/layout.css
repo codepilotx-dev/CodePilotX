@@ -27,6 +27,7 @@
 }
 
 .desktop-main-browser-layout {
+  position: relative;
   display: flex;
   align-items: stretch;
   gap: 0;
@@ -34,6 +35,13 @@
   height: 100%;
   min-width: 0;
   min-height: 0;
+  background:
+    linear-gradient(
+      180deg,
+      var(--surface-canvas) 0%,
+      var(--c-workbench-bg) 58%
+    ),
+    var(--c-workbench-bg);
 }
 
 .desktop-main-browser-layout.browser-closed {
@@ -871,20 +879,8 @@
 }
 
 .desktop-main-stage,
-.desktop-main-browser-layout,
 .desktop-main-route {
   width: 100%;
-}
-
-.desktop-main-browser-layout {
-  position: relative;
-  background:
-    linear-gradient(
-      180deg,
-      var(--surface-canvas) 0%,
-      var(--c-workbench-bg) 58%
-    ),
-    var(--c-workbench-bg);
 }
 
 .desktop-main-route {

@@ -370,7 +370,7 @@ function applyDesktopTheme(
   root.style.setProperty('--c-border-faint', surfaceInkMix(theme, contrastMix(contrast, 2, 5)))
   root.style.setProperty('--c-border-row', surfaceInkMix(theme, contrastMix(contrast, 2, 5)))
   root.style.setProperty('--c-danger', theme.semanticColors.diffRemoved)
-  root.style.setProperty('--c-warning', '#e09f13')
+  root.style.setProperty('--c-warning', '#d4a017')
   root.style.setProperty('--c-success', theme.semanticColors.diffAdded)
   root.style.setProperty('--c-text', theme.ink)
   root.style.setProperty('--c-text-strong', theme.ink)
@@ -379,13 +379,13 @@ function applyDesktopTheme(
   root.style.setProperty('--c-text-mute', surfaceInkMix(theme, contrastMix(contrast, 35, 50)))
   root.style.setProperty('--c-text-placeholder', surfaceInkMix(theme, contrastMix(contrast, 25, 40)))
   root.style.setProperty('--c-text-disabled', surfaceInkMix(theme, contrastMix(contrast, 15, 25)))
-  root.style.setProperty('--c-text-on-accent', surfaceInkMix(theme, contrastMix(contrast, 90, 95)))
+  root.style.setProperty('--c-text-on-accent', '#ffffff')
   root.style.setProperty('--c-icon', surfaceInkMix(theme, contrastMix(contrast, 50, 65)))
   root.style.setProperty('--c-icon-soft', surfaceInkMix(theme, contrastMix(contrast, 40, 55)))
   root.style.setProperty('--c-icon-arrow', surfaceInkMix(theme, contrastMix(contrast, 30, 45)))
   root.style.setProperty('--c-accent', theme.accent)
   root.style.setProperty('--c-send-bg', theme.accent)
-  root.style.setProperty('--c-send-bg-hover', accentMixLighten(theme, 10))
+  root.style.setProperty('--c-send-bg-hover', accentMix(theme, variant === 'dark' ? 12 : 18))
   root.style.setProperty('--c-send-bg-disabled', accentMix(theme, 50))
   root.style.setProperty('--c-user-bubble-bg', surfaceInkMix(theme, bgRowHoverMix))
   root.style.setProperty('--c-scrollbar', surfaceInkMix(theme, contrastMix(contrast, 8, 14)))
@@ -447,6 +447,8 @@ function deriveLayoutThemeTokens(
       '--surface-panel': surfaceInkMix(theme, panelMix),
       '--surface-raised': surfaceInkMix(theme, raisedMix),
       '--surface-subtle': surfaceInkMix(theme, sidebarMix),
+      '--surface-product': '#11100f',
+      '--surface-product-raised': '#252320',
       '--border-subtle': surfaceInkMix(theme, contrastMix(contrast, 30, 46)),
       '--border-muted': surfaceInkMix(theme, contrastMix(contrast, 20, 34)),
       '--shadow-resting': '0 1px 2px rgba(0, 0, 0, 0.24), 0 1px 0 rgba(255, 255, 255, 0.03) inset',
@@ -454,8 +456,8 @@ function deriveLayoutThemeTokens(
       '--shadow-float': '0 24px 64px rgba(0, 0, 0, 0.38), 0 8px 24px rgba(0, 0, 0, 0.28)',
       '--c-chrome-bg': surfaceInkMix(theme, chromeMix),
       '--c-sidebar-bg': surfaceInkMix(theme, sidebarMix),
-      '--c-sidebar-active-bg': 'rgba(255, 255, 255, 0.1)',
-      '--c-sidebar-hover-bg': 'rgba(255, 255, 255, 0.1)',
+      '--c-sidebar-active-bg': colorMix(theme.accent, 22, surfaceInkMix(theme, panelMix)),
+      '--c-sidebar-hover-bg': 'rgba(250, 249, 245, 0.06)',
       '--c-workbench-bg': surfaceInkMix(theme, workbenchMix),
       '--c-panel-bg': surfaceInkMix(theme, panelMix),
       '--c-panel-elevated-bg': surfaceInkMix(theme, raisedMix),
@@ -475,6 +477,8 @@ function deriveLayoutThemeTokens(
     '--surface-panel': theme.surface,
     '--surface-raised': surfaceInkMix(theme, raisedMix),
     '--surface-subtle': surfaceInkMix(theme, subtleMix),
+    '--surface-product': '#181715',
+    '--surface-product-raised': '#252320',
     '--border-subtle': surfaceInkMix(theme, contrastMix(contrast, 7, 13)),
     '--border-muted': surfaceInkMix(theme, contrastMix(contrast, 3, 8)),
     '--shadow-resting': `0 1px 2px ${colorMix(theme.ink, 5, 'transparent')}, 0 1px 0 ${colorMix(theme.surface, 70, 'transparent')} inset`,
@@ -482,8 +486,8 @@ function deriveLayoutThemeTokens(
     '--shadow-float': `0 22px 60px ${colorMix(theme.ink, 12, 'transparent')}, 0 8px 24px ${colorMix(theme.ink, 8, 'transparent')}`,
     '--c-chrome-bg': surfaceInkMix(theme, contrastMix(contrast, 1, 4)),
     '--c-sidebar-bg': surfaceInkMix(theme, subtleMix),
-    '--c-sidebar-active-bg': 'rgba(0, 0, 0, 0.1)',
-    '--c-sidebar-hover-bg': 'rgba(0, 0, 0, 0.1)',
+    '--c-sidebar-active-bg': colorMix(theme.accent, 18, surfaceInkMix(theme, raisedMix)),
+    '--c-sidebar-hover-bg': colorMix(theme.ink, 6, 'transparent'),
     '--c-workbench-bg': surfaceInkMix(theme, workbenchMix),
     '--c-panel-bg': theme.surface,
     '--c-panel-elevated-bg': surfaceInkMix(theme, raisedMix),
@@ -508,10 +512,6 @@ function colorMix(first: string, firstPercent: number, second: string): string {
 
 function accentMix(theme: ThemeTokens, inkPercent: number): string {
   return colorMix(theme.accent, 100 - inkPercent, theme.ink)
-}
-
-function accentMixLighten(theme: ThemeTokens, lightenPercent: number): string {
-  return colorMix(theme.surface, lightenPercent, theme.accent)
 }
 
 function clamp(value: number, min: number, max: number): number {

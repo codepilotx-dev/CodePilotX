@@ -408,7 +408,7 @@
 }
 
 .context-plugin-icon-docs {
-  background: var(--blue-9);
+  background: var(--c-accent);
 }
 
 .context-plugin-icon-pdf {
@@ -424,25 +424,25 @@
 }
 
 .context-plugin-icon-template {
-  background: var(--pink-9);
+  background: var(--c-accent);
 }
 
 .context-plugin-icon-browser {
-  background: var(--cyan-9);
+  background: var(--claude-accent-teal);
 }
 
 .context-plugin-icon-github {
-  background: transparent;
-  color: var(--gray-11);
+  background: var(--surface-product);
+  color: var(--claude-on-dark);
 }
 
 .context-plugin-icon-openai {
   border-radius: var(--radius-full);
-  background: var(--purple-9);
+  background: var(--c-accent);
 }
 
 :root[data-theme="dark"] .context-menu-switch {
-  background: var(--gray-6);
+  background: color-mix(in srgb, var(--claude-on-dark) 14%, var(--c-panel-elevated-bg));
 }
 
 :root[data-theme="dark"] .context-menu-switch[aria-checked="true"] {

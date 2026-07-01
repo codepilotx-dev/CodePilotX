@@ -203,22 +203,22 @@ const DRACULA_PINK = {
 export const DEFAULT_LIGHT_THEME: DesktopThemeConfigV1 = {
   codeThemeId: 'codex',
   theme: {
-    accent: '#0169cc',
+    accent: '#cc785c',
     contrast: 40,
     fonts: DEFAULT_FONTS,
-    ink: '#0d0d0d',
+    ink: '#141413',
     opaqueWindows: true,
     semanticColors: {
-      diffAdded: '#00a240',
-      diffRemoved: '#e02e2a',
-      skill: '#751ed9',
+      diffAdded: '#5db872',
+      diffRemoved: '#c64545',
+      skill: '#cc785c',
     },
     radix: {
       ...DEFAULT_RADIX_THEME,
-      accentColor: 'blue',
-      grayColor: 'slate',
+      accentColor: 'orange',
+      grayColor: 'sand',
     },
-    surface: '#ffffff',
+    surface: '#faf9f5',
   },
   variant: 'light',
 }
@@ -226,22 +226,22 @@ export const DEFAULT_LIGHT_THEME: DesktopThemeConfigV1 = {
 export const DEFAULT_DARK_THEME: DesktopThemeConfigV1 = {
   codeThemeId: 'codex',
   theme: {
-    accent: '#0169cc',
+    accent: '#d98568',
     contrast: 60,
     fonts: DEFAULT_FONTS,
-    ink: '#fcfcfc',
+    ink: '#faf9f5',
     opaqueWindows: true,
     semanticColors: {
-      diffAdded: '#00a240',
-      diffRemoved: '#e02e2a',
-      skill: '#b06dff',
+      diffAdded: '#73c987',
+      diffRemoved: '#d96a65',
+      skill: '#d98568',
     },
     radix: {
       ...DEFAULT_RADIX_THEME,
-      accentColor: 'blue',
-      grayColor: 'slate',
+      accentColor: 'orange',
+      grayColor: 'sand',
     },
-    surface: '#111111',
+    surface: '#181715',
   },
   variant: 'dark',
 }

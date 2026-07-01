@@ -236,7 +236,7 @@
 .md-body .hljs-keyword,
 .md-body .hljs-tag,
 .md-body .hljs-selector-tag {
-  color: var(--purple-11);
+  color: #d98568;
 }
 
 .md-body .hljs-string,
@@ -262,7 +262,7 @@
 .md-body .hljs-name,
 .md-body .hljs-section,
 .md-body .hljs-function .hljs-title {
-  color: var(--blue-11);
+  color: var(--c-accent);
 }
 
 .md-body .hljs-variable,
@@ -279,7 +279,7 @@
 :root[data-theme='light'] .md-body .hljs-keyword,
 :root[data-theme='light'] .md-body .hljs-tag,
 :root[data-theme='light'] .md-body .hljs-selector-tag {
-  color: var(--purple-11);
+  color: #d98568;
 }
 
 :root[data-theme='light'] .md-body .hljs-string,
@@ -292,7 +292,7 @@
 }
 
 :root[data-theme='light'] .md-body .hljs-comment {
-  color: var(--gray-10);
+  color: var(--c-text-meta);
   font-style: italic;
 }
 
@@ -300,7 +300,7 @@
 :root[data-theme='light'] .md-body .hljs-name,
 :root[data-theme='light'] .md-body .hljs-section,
 :root[data-theme='light'] .md-body .hljs-function .hljs-title {
-  color: var(--blue-11);
+  color: var(--c-accent);
 }
 
 :root[data-theme='light'] .md-body .hljs-variable,

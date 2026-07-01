@@ -241,10 +241,15 @@
 }
 
 .settings-card {
-  border: 1px solid var(--c-border-faint);
-  border-radius: 8px;
-  background-color: var(--c-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-panel);
+  background: var(--c-panel-bg);
+  box-shadow: var(--c-panel-shadow-soft);
   overflow: hidden;
+  transition:
+    background var(--motion-standard) var(--ease-standard),
+    border-color var(--motion-standard) var(--ease-standard),
+    box-shadow var(--motion-standard) var(--ease-standard);
 }
 
 /* --- Row --- */
@@ -2532,7 +2537,6 @@
   font-weight: var(--font-weight-heading);
 }
 
-.settings-card,
 .settings-hero-card,
 .radio-card,
 .keyboard-shortcuts-card,
@@ -2587,11 +2591,6 @@
   border-radius: 12px;
 }
 
-.settings-card {
-  overflow: hidden;
-}
-
-.settings-card,
 .radio-card,
 .keyboard-shortcuts-card,
 .billing-metric,

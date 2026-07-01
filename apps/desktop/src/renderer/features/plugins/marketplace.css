@@ -91,8 +91,8 @@
 }
 
 .plugins-button.is-primary:hover {
-  background: var(--gray-11);
-  border-color: var(--gray-11);
+  background: var(--c-send-bg-hover);
+  border-color: var(--c-send-bg-hover);
 }
 
 .plugins-more-dots {
@@ -187,19 +187,22 @@
 .plugins-hero {
   position: relative;
   overflow: hidden;
-  border-radius: var(--radius-6);
-  border: 1px solid var(--c-border-soft);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-panel);
   display: grid;
-  place-items: center;
-  padding: 36px 32px;
-  background: var(--c-bg-soft);
+  place-items: start;
+  padding: 30px 32px;
+  background:
+    linear-gradient(135deg, var(--c-panel-bg), var(--c-panel-elevated-bg)),
+    var(--c-panel-bg);
+  box-shadow: var(--c-panel-shadow-soft);
 }
 
 .plugins-hero-content {
   display: grid;
   gap: var(--sp-4);
-  justify-items: center;
-  text-align: center;
+  justify-items: start;
+  text-align: left;
 }
 
 .plugins-hero-pill {
@@ -223,7 +226,7 @@
   font-family: var(--ff-mono);
   font-size: var(--fs-13);
   font-weight: var(--font-weight-label);
-  color: var(--purple-11);
+  color: var(--c-accent);
 }
 
 .plugins-hero-cta {
@@ -243,7 +246,7 @@
 }
 
 .plugins-hero-cta:hover {
-  background: var(--gray-11);
+  background: var(--c-send-bg-hover);
 }
 
 .plugins-hero-dots {
@@ -345,8 +348,8 @@
 
 /* Brand tone palette */
 .plugins-tone-github {
-  background: var(--gray-12);
-  color: var(--c-text-on-accent);
+  background: var(--surface-product);
+  color: var(--claude-on-dark);
 }
 
 .plugins-tone-chrome {
@@ -370,22 +373,22 @@
 }
 
 .plugins-tone-slack {
-  background: var(--purple-12);
-  color: var(--c-text-on-accent);
+  background: var(--surface-product-raised);
+  color: var(--claude-on-dark);
 }
 
 .plugins-tone-data {
-  background: var(--blue-9);
+  background: var(--claude-accent-teal);
   color: var(--c-text-on-accent);
 }
 
 .plugins-tone-design {
-  background: var(--pink-9);
+  background: var(--c-accent);
   color: var(--c-text-on-accent);
 }
 
 .plugins-tone-creative {
-  background: var(--purple-9);
+  background: var(--claude-accent-amber);
   color: var(--c-text-on-accent);
 }
 
@@ -395,7 +398,7 @@
 }
 
 .plugins-tone-codex {
-  background: linear-gradient(135deg, var(--purple-9), var(--pink-9));
+  background: linear-gradient(135deg, var(--c-accent), var(--claude-accent-amber));
   color: var(--c-text-on-accent);
 }
 
@@ -538,7 +541,6 @@
   font-weight: var(--font-weight-heading);
 }
 
-.plugins-hero,
 .plugins-card,
 .plugins-empty {
   border-color: var(--border-subtle);
@@ -569,19 +571,6 @@
 
 .plugins-search:focus-within {
   border-color: color-mix(in srgb, var(--c-accent) 42%, var(--border-subtle));
-}
-
-.plugins-hero {
-  place-items: start;
-  padding: 30px 32px;
-  background:
-    linear-gradient(135deg, var(--c-panel-bg), var(--c-panel-elevated-bg)),
-    var(--c-panel-bg);
-}
-
-.plugins-hero-content {
-  justify-items: start;
-  text-align: left;
 }
 
 .plugins-grid {

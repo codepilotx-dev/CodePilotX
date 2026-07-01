@@ -22,34 +22,34 @@ const THEME_SUITE_IDS = [
   'iris-focus',
 ] as const
 
-test('DEFAULT_LIGHT_THEME uses Codex-style tokens', () => {
-  expect(DEFAULT_LIGHT_THEME.theme.surface).toBe('#ffffff')
-  expect(DEFAULT_LIGHT_THEME.theme.ink).toBe('#0d0d0d')
-  expect(DEFAULT_LIGHT_THEME.theme.accent).toBe('#0169cc')
-  expect(DEFAULT_LIGHT_THEME.theme.semanticColors.diffAdded).toBe('#00a240')
-  expect(DEFAULT_LIGHT_THEME.theme.semanticColors.diffRemoved).toBe('#e02e2a')
-  expect(DEFAULT_LIGHT_THEME.theme.semanticColors.skill).toBe('#751ed9')
+test('DEFAULT_LIGHT_THEME uses Claude-inspired desktop tokens', () => {
+  expect(DEFAULT_LIGHT_THEME.theme.surface).toBe('#faf9f5')
+  expect(DEFAULT_LIGHT_THEME.theme.ink).toBe('#141413')
+  expect(DEFAULT_LIGHT_THEME.theme.accent).toBe('#cc785c')
+  expect(DEFAULT_LIGHT_THEME.theme.semanticColors.diffAdded).toBe('#5db872')
+  expect(DEFAULT_LIGHT_THEME.theme.semanticColors.diffRemoved).toBe('#c64545')
+  expect(DEFAULT_LIGHT_THEME.theme.semanticColors.skill).toBe('#cc785c')
   expect(DEFAULT_LIGHT_THEME.variant).toBe('light')
 })
 
-test('DEFAULT_DARK_THEME uses Codex-style tokens', () => {
-  expect(DEFAULT_DARK_THEME.theme.surface).toBe('#111111')
-  expect(DEFAULT_DARK_THEME.theme.ink).toBe('#fcfcfc')
-  expect(DEFAULT_DARK_THEME.theme.accent).toBe('#0169cc')
-  expect(DEFAULT_DARK_THEME.theme.semanticColors.diffAdded).toBe('#00a240')
-  expect(DEFAULT_DARK_THEME.theme.semanticColors.diffRemoved).toBe('#e02e2a')
-  expect(DEFAULT_DARK_THEME.theme.semanticColors.skill).toBe('#b06dff')
+test('DEFAULT_DARK_THEME uses Claude-inspired desktop tokens', () => {
+  expect(DEFAULT_DARK_THEME.theme.surface).toBe('#181715')
+  expect(DEFAULT_DARK_THEME.theme.ink).toBe('#faf9f5')
+  expect(DEFAULT_DARK_THEME.theme.accent).toBe('#d98568')
+  expect(DEFAULT_DARK_THEME.theme.semanticColors.diffAdded).toBe('#73c987')
+  expect(DEFAULT_DARK_THEME.theme.semanticColors.diffRemoved).toBe('#d96a65')
+  expect(DEFAULT_DARK_THEME.theme.semanticColors.skill).toBe('#d98568')
   expect(DEFAULT_DARK_THEME.variant).toBe('dark')
 })
 
 test('DEFAULT_LIGHT_THEME has radix config for internal Radix compat', () => {
   expect(DEFAULT_LIGHT_THEME.theme.radix).toBeDefined()
-  expect(DEFAULT_LIGHT_THEME.theme.radix.accentColor).toBe('blue')
+  expect(DEFAULT_LIGHT_THEME.theme.radix.accentColor).toBe('orange')
 })
 
 test('DEFAULT_DARK_THEME has radix config for internal Radix compat', () => {
   expect(DEFAULT_DARK_THEME.theme.radix).toBeDefined()
-  expect(DEFAULT_DARK_THEME.theme.radix.accentColor).toBe('blue')
+  expect(DEFAULT_DARK_THEME.theme.radix.accentColor).toBe('orange')
 })
 
 test('built-in desktop themes include ten paired Radix suites', () => {

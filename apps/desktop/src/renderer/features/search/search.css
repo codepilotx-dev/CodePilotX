@@ -37,24 +37,6 @@
 
 
 
-.empty-canvas-card,
-.utility-card,
-.message-card {
-  border: 1px solid var(--c-border-soft);
-  background: var(--c-surface);
-  box-shadow: var(--sh-card);
-}
-
-
-
-.empty-canvas-card,
-.utility-card,
-.placeholder-card {
-  border-radius: var(--radius-5);
-}
-
-
-
 .utility-view {
   display: grid;
   align-content: start;
@@ -99,7 +81,6 @@
 
 
 
-.search-input-row,
 .search-input {
   display: flex;
   align-items: center;
@@ -112,11 +93,22 @@
 
 
 .search-input-row {
-  width: min(100%, 620px);
-  min-height: 48px;
+  width: 100%;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   margin: 0 auto;
   padding: 0 14px;
-  border-radius: var(--radius-5);
+  border: 1px solid var(--border-subtle);
+  border-color: var(--border-subtle);
+  border-radius: var(--radius-panel);
+  background: var(--c-panel-bg);
+  color: var(--c-icon);
+  box-shadow: var(--c-panel-shadow-raised);
+  transition:
+    border-color var(--motion-standard) var(--ease-standard),
+    box-shadow var(--motion-standard) var(--ease-standard);
 }
 
 
@@ -136,17 +128,14 @@
   gap: 2px;
   justify-items: start;
   padding: 8px 10px;
+  border: 1px solid transparent;
   border-radius: var(--radius-4);
   text-align: left;
+  transition:
+    background var(--motion-standard) var(--ease-standard),
+    border-color var(--motion-standard) var(--ease-standard),
+    box-shadow var(--motion-standard) var(--ease-standard);
 }
-
-
-
-.search-result-row:hover {
-  background: var(--c-bg-row-hover);
-}
-
-
 
 .search-result-row span {
   color: var(--c-text);
@@ -185,33 +174,11 @@
   font-weight: var(--font-weight-heading);
 }
 
-.search-input-row {
-  width: 100%;
-  min-height: 52px;
-  border-color: var(--border-subtle);
-  border-radius: var(--radius-panel);
-  background: var(--c-panel-bg);
-  box-shadow: var(--c-panel-shadow-raised);
-  transition:
-    border-color var(--motion-standard) var(--ease-standard),
-    box-shadow var(--motion-standard) var(--ease-standard);
-}
-
 .search-input-row:focus-within {
   border-color: color-mix(in srgb, var(--c-accent) 42%, var(--border-subtle));
   box-shadow:
     var(--c-panel-shadow-raised),
     var(--focus-ring);
-}
-
-.utility-card,
-.empty-canvas-card,
-.message-card,
-.placeholder-card {
-  border-color: var(--border-subtle);
-  border-radius: var(--radius-panel);
-  background: var(--c-panel-bg);
-  box-shadow: var(--c-panel-shadow-soft);
 }
 
 .utility-card:hover,
@@ -221,14 +188,6 @@
 
 .utility-grid {
   gap: var(--layout-card-gap);
-}
-
-.search-result-row {
-  border: 1px solid transparent;
-  transition:
-    background var(--motion-standard) var(--ease-standard),
-    border-color var(--motion-standard) var(--ease-standard),
-    box-shadow var(--motion-standard) var(--ease-standard);
 }
 
 .search-result-row:hover,

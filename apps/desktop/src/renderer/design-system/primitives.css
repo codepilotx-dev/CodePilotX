@@ -1,39 +1,16 @@
 .ds-surface,
-.settings-card,
-.settings-hero-card,
-.radio-card,
-.keyboard-shortcuts-card,
-.billing-metric,
-.billing-usage-card,
-.settings-copilot-device-code,
-.plugins-hero,
-.plugins-card,
-.plugins-empty,
 .utility-card,
 .empty-canvas-card,
 .message-card,
 .placeholder-card,
-.timeline-system-event,
-.timeline-file-event,
-.workflow-plan-card,
-.inline-approval-card,
-.workflow-composer-card,
-.automation-canvas,
-.appearance-preview-card,
-.appearance-core-card {
-  border-color: var(--c-panel-border);
-  border-radius: var(--radius-panel);
+.plugins-empty {
+  border: 1px solid var(--c-panel-border);
+  border-radius: var(--radius-card);
   background: var(--c-panel-bg);
   box-shadow: var(--c-panel-shadow-soft);
 }
 
 .ds-surface-raised,
-.quick-chat-hero,
-.workflow-page__composer-inner,
-.quick-chat-view .chat-composer > .composer,
-.composer-top,
-.slash-command-palette,
-.slash-command-scroll-area,
 .popover-surface,
 .sidebar-context-menu-content,
 [data-radix-popper-content-wrapper]:has(.popover),
@@ -62,147 +39,6 @@
   color: var(--claude-on-dark);
 }
 
-.desktop-main-browser-layout {
-  background:
-    linear-gradient(180deg, var(--surface-canvas) 0%, var(--surface-subtle) 58%),
-    var(--surface-subtle);
-}
-
-.desktop-menubar,
-.app-menubar,
-.menubar-titlebar {
-  background: var(--c-chrome-bg);
-}
-
-.desktop-main {
-  border-color: var(--c-panel-border);
-  background: var(--c-workbench-bg);
-  box-shadow: none;
-}
-
-.desktop-sidebar,
-.desktop-sidebar-hover-overlay,
-.right-dock-tabs {
-  background: var(--c-sidebar-bg);
-}
-
-.right-dock,
-.right-dock-content,
-.right-dock-browser,
-.right-dock-plan-scroll-area,
-.right-dock-files,
-.right-dock-side-chat,
-.dialog-debug-panel,
-.performance-diagnostics-panel,
-.workflow-page,
-.workflow-page__main,
-.settings-page,
-.settings-content-scroll-area,
-.profile-dashboard {
-  background: var(--c-workbench-bg);
-}
-
-.sidebar-nav-link.active,
-.sidebar-session-row.active,
-.sidebar-settings-link.active,
-.settings-nav-item.active,
-.right-dock-tab-wrap.active {
-  background: var(--c-sidebar-active-bg);
-  color: var(--c-text-strong);
-}
-
-:root[data-theme="dark"] .sidebar-nav-link.active,
-:root[data-theme="dark"] .sidebar-session-row.active,
-:root[data-theme="dark"] .sidebar-settings-link.active,
-:root[data-theme="dark"] .settings-nav-item.active,
-:root.dark-theme .sidebar-nav-link.active,
-:root.dark-theme .sidebar-session-row.active,
-:root.dark-theme .sidebar-settings-link.active,
-:root.dark-theme .settings-nav-item.active,
-:root[data-theme="dark"] .sidebar-row:hover,
-:root[data-theme="dark"] .sidebar-section-header:hover,
-:root[data-theme="dark"] .sidebar-show-more-button:hover,
-:root[data-theme="dark"] .settings-nav-item:hover,
-:root[data-theme="dark"] .settings-back-btn:hover,
-:root[data-theme="dark"] .sidebar-nav-link:hover,
-:root[data-theme="dark"] .sidebar-project-header:hover,
-:root[data-theme="dark"] .sidebar-session-row:hover,
-:root[data-theme="dark"] .sidebar-settings-link:hover,
-:root.dark-theme .sidebar-row:hover,
-:root.dark-theme .sidebar-section-header:hover,
-:root.dark-theme .sidebar-show-more-button:hover,
-:root.dark-theme .settings-nav-item:hover,
-:root.dark-theme .settings-back-btn:hover,
-:root.dark-theme .sidebar-nav-link:hover,
-:root.dark-theme .sidebar-project-header:hover,
-:root.dark-theme .sidebar-session-row:hover,
-:root.dark-theme .sidebar-settings-link:hover,
-:root:not([data-theme="dark"]):not(.dark-theme) .sidebar-nav-link.active,
-:root:not([data-theme="dark"]):not(.dark-theme) .sidebar-session-row.active,
-:root:not([data-theme="dark"]):not(.dark-theme) .sidebar-settings-link.active,
-:root:not([data-theme="dark"]):not(.dark-theme) .settings-nav-item.active,
-:root:not([data-theme="dark"]):not(.dark-theme) .sidebar-row:hover,
-:root:not([data-theme="dark"]):not(.dark-theme) .sidebar-section-header:hover,
-:root:not([data-theme="dark"]):not(.dark-theme) .sidebar-show-more-button:hover,
-:root:not([data-theme="dark"]):not(.dark-theme) .settings-nav-item:hover,
-:root:not([data-theme="dark"]):not(.dark-theme) .settings-back-btn:hover,
-:root:not([data-theme="dark"]):not(.dark-theme) .sidebar-nav-link:hover,
-:root:not([data-theme="dark"]):not(.dark-theme) .sidebar-project-header:hover,
-:root:not([data-theme="dark"]):not(.dark-theme) .sidebar-session-row:hover,
-:root:not([data-theme="dark"]):not(.dark-theme) .sidebar-settings-link:hover {
-  background: var(--c-sidebar-hover-bg);
-}
-
-:root[data-theme="dark"] .sidebar-nav-link.active,
-:root[data-theme="dark"] .sidebar-session-row.active,
-:root[data-theme="dark"] .sidebar-settings-link.active,
-:root[data-theme="dark"] .settings-nav-item.active,
-:root.dark-theme .sidebar-nav-link.active,
-:root.dark-theme .sidebar-session-row.active,
-:root.dark-theme .sidebar-settings-link.active,
-:root.dark-theme .settings-nav-item.active,
-:root:not([data-theme="dark"]):not(.dark-theme) .sidebar-nav-link.active,
-:root:not([data-theme="dark"]):not(.dark-theme) .sidebar-session-row.active,
-:root:not([data-theme="dark"]):not(.dark-theme) .sidebar-settings-link.active,
-:root:not([data-theme="dark"]):not(.dark-theme) .settings-nav-item.active {
-  background: var(--c-sidebar-active-bg);
-}
-
-.quick-chat-hero {
-  border-color: var(--c-panel-border);
-  background:
-    linear-gradient(135deg, var(--c-panel-bg), var(--c-panel-elevated-bg)),
-    var(--c-panel-bg);
-}
-
-.quick-chat-hero h1,
-.quick-chat-hero,
-.utility-view-header h1,
-.settings-page-title,
-.plugins-hero-header h1,
-.automation-header-meta h1,
-.workflow-plan-card__title {
-  color: var(--c-text-strong);
-  letter-spacing: 0;
-}
-
-.composer-top,
-.workflow-page__composer-inner {
-  border-color: var(--c-panel-border);
-  background: var(--c-panel-bg);
-}
-
-.composer-bottom,
-.workflow-page__composer-inner .composer-bottom,
-.chat-session-header,
-.settings-row + .settings-row,
-.mcp-server-row + .mcp-server-row,
-.billing-balance-row + .billing-balance-row,
-.archived-session-row + .archived-session-row {
-  border-color: var(--border-muted);
-}
-
-.send-button,
 .settings-button.is-primary,
 .plugins-button.is-primary,
 .plugins-hero-cta,
@@ -211,13 +47,13 @@
 .workflow-composer-card-permission .inline-approval-submit,
 .workflow-composer-card-plan .exit-plan-mode-submit,
 .exit-plan-mode-submit,
-.inline-approval-submit {
+.inline-approval-submit,
+.send-button {
   border-color: var(--c-send-bg);
   background: var(--c-send-bg);
   color: var(--c-text-on-accent);
 }
 
-.send-button:hover:not(:disabled),
 .settings-button.is-primary:hover:not(:disabled),
 .plugins-button.is-primary:hover,
 .plugins-hero-cta:hover,
@@ -226,10 +62,30 @@
 .workflow-composer-card-permission .inline-approval-submit:hover,
 .workflow-composer-card-plan .exit-plan-mode-submit:hover,
 .exit-plan-mode-submit:hover,
-.inline-approval-submit:hover {
+.inline-approval-submit:hover,
+.send-button:hover:not(:disabled) {
   border-color: var(--c-send-bg-hover);
   background: var(--c-send-bg-hover);
   color: var(--c-text-on-accent);
+}
+
+.settings-button,
+.plugins-button,
+.automation-button,
+.automation-quick-button,
+.plugins-card-action,
+.message-action,
+.chip-button,
+.meta-chip,
+.settings-dropdown,
+.settings-input,
+.settings-textarea,
+.settings-input-number,
+.plugins-search,
+.plugins-filter,
+.right-dock-search,
+.right-dock-terminal-composer input {
+  border-radius: var(--radius-3);
 }
 
 .settings-button,
@@ -240,13 +96,10 @@
 .settings-input,
 .settings-textarea,
 .settings-input-number,
-.search-input-row,
 .plugins-search,
 .plugins-filter,
 .right-dock-search,
-.right-dock-terminal-composer input,
-.permission-select-item,
-.chat-input__dropdown-item {
+.right-dock-terminal-composer input {
   border-color: var(--c-border-soft);
   background: var(--c-panel-bg);
   color: var(--c-text-strong);
@@ -256,16 +109,17 @@
 .plugins-button.is-ghost:hover,
 .automation-button.is-ghost:hover,
 .automation-quick-button:hover,
-.settings-dropdown:hover,
 .plugins-filter:hover,
-.search-result-row:hover,
-.search-result-row:focus-visible,
-.radio-card:hover,
-.keyboard-shortcuts-card:hover,
-.billing-metric:hover,
 .plugins-card:hover,
 .utility-card:hover,
 .message-card:hover,
+.search-result-row:hover,
+.search-result-row:focus-visible {
+  border-color: color-mix(in srgb, var(--c-accent) 26%, var(--c-panel-border));
+  background: color-mix(in srgb, var(--c-accent) 5%, var(--c-panel-bg));
+  box-shadow: var(--c-panel-shadow-soft);
+}
+
 .popover-item:hover:not(:disabled),
 .popover-item.active,
 .popover-item[data-highlighted],
@@ -344,40 +198,6 @@
 .workflow-composer-card-question .inline-approval-option.custom {
   background: color-mix(in srgb, var(--c-panel-elevated-bg) 64%, transparent);
   border-color: var(--border-muted);
-}
-
-.workflow-plan-card {
-  background:
-    linear-gradient(180deg, var(--c-panel-bg), var(--c-panel-elevated-bg)),
-    var(--c-panel-bg);
-}
-
-.plugins-hero {
-  background:
-    linear-gradient(135deg, var(--c-panel-bg), var(--c-panel-elevated-bg)),
-    var(--c-panel-bg);
-}
-
-.automation-canvas {
-  background:
-    linear-gradient(180deg, var(--c-panel-bg), var(--c-panel-elevated-bg)),
-    var(--c-panel-bg);
-}
-
-.plugins-tab.is-active::after {
-  background: var(--c-accent);
-}
-
-.plugins-hero-pill,
-.badge-pill,
-.keyboard-shortcut-key,
-.keyboard-shortcut-unbound,
-.settings-auto-save-badge,
-.profile-identity span,
-.profile-status-line {
-  border-color: var(--c-border-soft);
-  background: var(--c-panel-elevated-bg);
-  color: var(--c-text-strong);
 }
 
 .plugins-tone-codex,
@@ -503,11 +323,6 @@
   color: var(--c-text-mute);
 }
 
-.desktop-sidebar-hover-overlay {
-  border-color: var(--c-panel-border);
-  box-shadow: var(--c-panel-shadow-raised);
-}
-
 .sidebar-update-dot {
   background: var(--claude-accent-amber);
 }
@@ -587,35 +402,6 @@
   background: var(--c-panel-bg);
 }
 
-:root[data-theme="dark"] .composer-top,
-:root[data-theme="dark"] .workflow-page__composer-inner,
-:root[data-theme="dark"] .workflow-plan-card,
-:root[data-theme="dark"] .inline-approval-card,
-:root[data-theme="dark"] .workflow-composer-card,
-:root[data-theme="dark"] .popover-surface,
-:root[data-theme="dark"] .slash-command-palette,
-:root[data-theme="dark"] .slash-command-scroll-area {
-  border-color: var(--c-panel-border);
-  background: var(--c-panel-bg);
-}
-
-:root[data-theme="dark"] .workflow-plan-card {
-  background:
-    linear-gradient(180deg, var(--c-panel-bg), var(--c-panel-elevated-bg)),
-    var(--c-panel-bg);
-}
-
-:root[data-theme="dark"] .md-body .md-code-block,
-:root[data-theme="dark"] .workflow-page .timeline-command-shell,
-:root[data-theme="dark"] .right-dock-plan-document .md-body .md-code-block,
-:root[data-theme="dark"] .appearance-preview-codeblock,
-:root[data-theme="dark"] .environment-diff-preview,
-:root[data-theme="dark"] .right-dock-file-document pre {
-  border-color: rgba(250, 249, 245, 0.08);
-  background: var(--surface-product);
-  color: var(--claude-on-dark);
-}
-
 button:focus-visible,
 a:focus-visible,
 input:focus-visible,
@@ -634,157 +420,19 @@ textarea:focus-visible,
   box-shadow: var(--focus-ring);
 }
 
-/* Runtime appearance settings write these variables inline. The Claude desktop
-   redesign intentionally pins the visual system here without changing settings
-   persistence or business logic. */
-:root {
-  --c-bg: var(--claude-canvas) !important;
-  --c-bg-pure: var(--claude-canvas) !important;
-  --c-bg-soft: var(--claude-surface-soft) !important;
-  --c-bg-subtle: var(--claude-surface-soft) !important;
-  --c-bg-mask: color-mix(in srgb, var(--claude-canvas) 74%, transparent) !important;
-  --c-bg-hover: color-mix(in srgb, var(--claude-ink) 6%, transparent) !important;
-  --c-bg-row-hover: color-mix(in srgb, var(--claude-ink) 5%, transparent) !important;
-  --c-bg-chip-hover: color-mix(in srgb, var(--claude-primary) 16%, var(--claude-canvas)) !important;
-  --c-bg-card: var(--claude-canvas) !important;
-  --c-popover-bg: var(--claude-canvas) !important;
-  --c-popover-border: color-mix(in srgb, var(--claude-ink) 10%, var(--claude-hairline)) !important;
-  --c-popover-divider: var(--claude-hairline-soft) !important;
-  --c-surface: var(--claude-canvas) !important;
-  --c-ink: var(--claude-ink) !important;
-  --c-border: var(--claude-hairline) !important;
-  --c-border-soft: var(--claude-hairline-soft) !important;
-  --c-border-faint: color-mix(in srgb, var(--claude-hairline-soft) 72%, transparent) !important;
-  --c-border-row: var(--claude-hairline-soft) !important;
-  --c-danger: var(--claude-error) !important;
-  --c-warning: var(--claude-warning) !important;
-  --c-success: var(--claude-success) !important;
-  --c-text: var(--claude-body) !important;
-  --c-text-strong: var(--claude-ink) !important;
-  --c-text-meta: var(--claude-muted) !important;
-  --c-text-soft: var(--claude-body) !important;
-  --c-text-mute: var(--claude-muted-soft) !important;
-  --c-text-placeholder: var(--claude-muted-soft) !important;
-  --c-text-disabled: color-mix(in srgb, var(--claude-muted-soft) 70%, var(--claude-canvas)) !important;
-  --c-text-on-accent: var(--claude-on-primary) !important;
-  --c-icon: var(--claude-muted) !important;
-  --c-icon-soft: var(--claude-muted-soft) !important;
-  --c-icon-arrow: var(--claude-muted-soft) !important;
-  --c-accent: var(--claude-primary) !important;
-  --c-send-bg: var(--claude-primary) !important;
-  --c-send-bg-hover: var(--claude-primary-active) !important;
-  --c-send-bg-disabled: var(--claude-primary-disabled) !important;
-  --c-user-bubble-bg: var(--claude-surface-card) !important;
-  --surface-base: var(--claude-surface-soft) !important;
-  --surface-canvas: var(--claude-canvas) !important;
-  --surface-panel: var(--claude-canvas) !important;
-  --surface-raised: var(--claude-surface-card) !important;
-  --surface-subtle: var(--claude-surface-soft) !important;
-  --surface-product: var(--claude-surface-dark) !important;
-  --surface-product-raised: var(--claude-surface-dark-elevated) !important;
-  --border-subtle: var(--claude-hairline) !important;
-  --border-muted: var(--claude-hairline-soft) !important;
-  --shadow-resting: 0 1px 2px rgba(20, 20, 19, 0.04), 0 1px 0 rgba(255, 255, 255, 0.56) inset !important;
-  --shadow-raised: 0 8px 22px rgba(20, 20, 19, 0.075), 0 1px 2px rgba(20, 20, 19, 0.04) !important;
-  --shadow-float: 0 22px 58px rgba(20, 20, 19, 0.14), 0 8px 20px rgba(20, 20, 19, 0.08) !important;
-  --c-chrome-bg: var(--claude-canvas) !important;
-  --c-sidebar-bg: var(--claude-surface-soft) !important;
-  --c-sidebar-active-bg: color-mix(in srgb, var(--claude-primary) 18%, var(--claude-surface-card)) !important;
-  --c-sidebar-hover-bg: color-mix(in srgb, var(--claude-ink) 6%, transparent) !important;
-  --c-workbench-bg: var(--claude-surface-soft) !important;
-  --c-panel-bg: var(--claude-canvas) !important;
-  --c-panel-elevated-bg: var(--claude-surface-card) !important;
-  --c-panel-border: var(--claude-hairline) !important;
-  --c-panel-shadow: var(--shadow-float) !important;
-  --c-panel-shadow-raised: var(--shadow-raised) !important;
-  --c-panel-shadow-soft: var(--shadow-resting) !important;
-  --c-scrollbar: color-mix(in srgb, var(--claude-muted-soft) 62%, transparent) !important;
-  --c-scrollbar-hover: var(--claude-muted) !important;
-  --c-diff-added: var(--claude-success) !important;
-  --c-diff-removed: var(--claude-error) !important;
-  --c-skill: var(--claude-primary) !important;
-  --accent-11: var(--claude-primary-active) !important;
-  --accent-a3: color-mix(in srgb, var(--claude-primary) 18%, transparent) !important;
-  --blue-9: var(--claude-primary) !important;
-  --blue-10: var(--claude-primary-active) !important;
-  --blue-11: var(--claude-primary-active) !important;
-  --purple-9: var(--claude-primary) !important;
-  --purple-11: var(--claude-primary-active) !important;
-  --pink-9: var(--claude-primary) !important;
-  --pink-11: var(--claude-primary-active) !important;
-  --cyan-9: var(--claude-accent-teal) !important;
+:root[data-theme="dark"] .md-body .md-code-block,
+:root[data-theme="dark"] .workflow-page .timeline-command-shell,
+:root[data-theme="dark"] .right-dock-plan-document .md-body .md-code-block,
+:root[data-theme="dark"] .appearance-preview-codeblock,
+:root[data-theme="dark"] .environment-diff-preview,
+:root[data-theme="dark"] .right-dock-file-document pre {
+  border-color: rgba(250, 249, 245, 0.08);
 }
 
-:root[data-theme="dark"] {
-  --c-bg: #181715 !important;
-  --c-bg-pure: #181715 !important;
-  --c-bg-soft: #1f1e1b !important;
-  --c-bg-subtle: #1f1e1b !important;
-  --c-bg-mask: rgba(24, 23, 21, 0.78) !important;
-  --c-bg-hover: rgba(250, 249, 245, 0.07) !important;
-  --c-bg-row-hover: rgba(250, 249, 245, 0.06) !important;
-  --c-bg-chip-hover: color-mix(in srgb, var(--claude-primary) 26%, #1f1e1b) !important;
-  --c-bg-card: #252320 !important;
-  --c-popover-bg: #252320 !important;
-  --c-popover-border: rgba(250, 249, 245, 0.1) !important;
-  --c-popover-divider: rgba(250, 249, 245, 0.08) !important;
-  --c-surface: #181715 !important;
-  --c-ink: var(--claude-on-dark) !important;
-  --c-border: rgba(250, 249, 245, 0.13) !important;
-  --c-border-soft: rgba(250, 249, 245, 0.09) !important;
-  --c-border-faint: rgba(250, 249, 245, 0.065) !important;
-  --c-border-row: rgba(250, 249, 245, 0.075) !important;
-  --c-danger: #d96a65 !important;
-  --c-warning: #e8a55a !important;
-  --c-success: #73c987 !important;
-  --c-text: #dfddd7 !important;
-  --c-text-strong: var(--claude-on-dark) !important;
-  --c-text-meta: var(--claude-on-dark-soft) !important;
-  --c-text-soft: #c4c0b8 !important;
-  --c-text-mute: #9c9890 !important;
-  --c-text-placeholder: #8e8a82 !important;
-  --c-text-disabled: #6e6960 !important;
-  --c-icon: #b8b3aa !important;
-  --c-icon-soft: #9f9a91 !important;
-  --c-icon-arrow: #918c84 !important;
-  --c-accent: #d98568 !important;
-  --c-send-bg: #cc785c !important;
-  --c-send-bg-hover: #e09072 !important;
-  --c-send-bg-disabled: #65473d !important;
-  --c-user-bubble-bg: #252320 !important;
-  --surface-base: #1f1e1b !important;
-  --surface-canvas: #181715 !important;
-  --surface-panel: #252320 !important;
-  --surface-raised: #2e2b26 !important;
-  --surface-subtle: #211f1c !important;
-  --surface-product: #11100f !important;
-  --surface-product-raised: #252320 !important;
-  --border-subtle: rgba(250, 249, 245, 0.1) !important;
-  --border-muted: rgba(250, 249, 245, 0.07) !important;
-  --shadow-resting: 0 1px 2px rgba(0, 0, 0, 0.32), 0 1px 0 rgba(250, 249, 245, 0.025) inset !important;
-  --shadow-raised: 0 12px 32px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.24) !important;
-  --shadow-float: 0 24px 64px rgba(0, 0, 0, 0.42), 0 8px 24px rgba(0, 0, 0, 0.3) !important;
-  --c-chrome-bg: #181715 !important;
-  --c-sidebar-bg: #1f1e1b !important;
-  --c-sidebar-active-bg: color-mix(in srgb, var(--c-accent) 22%, #252320) !important;
-  --c-sidebar-hover-bg: rgba(250, 249, 245, 0.06) !important;
-  --c-workbench-bg: #1f1e1b !important;
-  --c-panel-bg: #252320 !important;
-  --c-panel-elevated-bg: #2e2b26 !important;
-  --c-panel-border: rgba(250, 249, 245, 0.1) !important;
-  --c-scrollbar: rgba(250, 249, 245, 0.18) !important;
-  --c-scrollbar-hover: rgba(250, 249, 245, 0.34) !important;
-  --c-diff-added: #73c987 !important;
-  --c-diff-removed: #d96a65 !important;
-  --c-skill: var(--c-accent) !important;
-  --accent-11: #efb39d !important;
-  --accent-a3: color-mix(in srgb, #d98568 24%, transparent) !important;
-  --blue-9: var(--c-accent) !important;
-  --blue-10: var(--c-send-bg-hover) !important;
-  --blue-11: var(--accent-11) !important;
-  --purple-9: var(--c-accent) !important;
-  --purple-11: var(--accent-11) !important;
-  --pink-9: var(--c-accent) !important;
-  --pink-11: var(--accent-11) !important;
-  --cyan-9: var(--claude-accent-teal) !important;
+:root[data-theme="dark"] .plugins-card:hover,
+:root[data-theme="dark"] .utility-card:hover,
+:root[data-theme="dark"] .automation-quick-button:hover,
+:root[data-theme="dark"] .search-result-row:hover,
+:root[data-theme="dark"] .search-result-row:focus-visible {
+  background: color-mix(in srgb, var(--c-accent) 10%, var(--c-panel-bg));
 }
