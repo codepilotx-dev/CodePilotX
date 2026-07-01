@@ -181,8 +181,30 @@ export function DesktopLayout(): React.ReactNode {
     setSidebarCollapsed(true)
   }, [setSidebarCollapsed])
 
+  const [unavailableWorkspacePaths, setUnavailableWorkspacePaths] = useState<
+    Set<string>
+  >(() => new Set())
+  const markWorkspaceUnavailable = useCallback((target: DesktopWorkspace): void => {
+    setErrorMessage(null)
+    setUnavailableWorkspacePaths(current => {
+      if (current.has(target.path)) return current
+      const next = new Set(current)
+      next.add(target.path)
+      return next
+    })
+  }, [])
+  const clearWorkspaceUnavailable = useCallback((target: DesktopWorkspace): void => {
+    setUnavailableWorkspacePaths(current => {
+      if (!current.has(target.path)) return current
+      const next = new Set(current)
+      next.delete(target.path)
+      return next
+    })
+  }, [])
+
   const workspace = useWorkspaceState({
     onError: (message: string) => setErrorMessage(message || null),
+    onWorkspaceUnavailable: markWorkspaceUnavailable,
     onRecentWorkspacesChange: next => {
       setRecentWorkspaces(next)
     },
@@ -353,24 +375,40 @@ export function DesktopLayout(): React.ReactNode {
     async (): Promise<DesktopWorkspace | null> => {
       const selected = await chooseWorkspace()
       if (!selected) return null
+      clearWorkspaceUnavailable(selected)
       navigate(QUICK_CHAT_PATH)
       setWorkspaceState(selected)
       await refreshWorkspace(selected)
       return selected
     },
-    [chooseWorkspace, navigate, refreshWorkspace, setWorkspaceState],
+    [
+      chooseWorkspace,
+      clearWorkspaceUnavailable,
+      navigate,
+      refreshWorkspace,
+      setWorkspaceState,
+    ],
   )
 
   const handleOpenRecentWorkspace = useCallback(
     async (target: DesktopWorkspace): Promise<DesktopWorkspace | null> => {
+      if (unavailableWorkspacePaths.has(target.path)) return null
       const selected = await openRecentWorkspace(target)
       if (!selected) return null
+      clearWorkspaceUnavailable(selected)
       navigate(QUICK_CHAT_PATH)
       setWorkspaceState(selected)
       await refreshWorkspace(selected)
       return selected
     },
-    [navigate, openRecentWorkspace, refreshWorkspace, setWorkspaceState],
+    [
+      clearWorkspaceUnavailable,
+      navigate,
+      openRecentWorkspace,
+      refreshWorkspace,
+      setWorkspaceState,
+      unavailableWorkspacePaths,
+    ],
   )
 
   const handleClearWorkspace = useCallback((): void => {
@@ -1271,6 +1309,12 @@ export function DesktopLayout(): React.ReactNode {
       setRecentWorkspaces(current =>
         current.filter(workspaceItem => workspaceItem.path !== target.path),
       )
+      setUnavailableWorkspacePaths(current => {
+        if (!current.has(target.path)) return current
+        const next = new Set(current)
+        next.delete(target.path)
+        return next
+      })
       if (currentWorkspace?.path !== target.path) return
       setWorkspaceState(null)
       setDiffState(NO_WORKSPACE_DIFF)
@@ -1358,6 +1402,7 @@ export function DesktopLayout(): React.ReactNode {
       activeSessionId={sessionId}
       recentWorkspaces={recentWorkspaces}
       sessions={sessions}
+      unavailableWorkspacePaths={unavailableWorkspacePaths}
       workspace={currentWorkspace}
       onChooseWorkspace={() => void handleChooseWorkspace()}
       onCreateSession={workspaceItem => void handleCreateSession(workspaceItem)}

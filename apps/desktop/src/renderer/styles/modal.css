@@ -151,6 +151,7 @@
   font-size: var(--fs-13);
 
   transform: translateX(-50%);
+  -webkit-app-region: no-drag;
 }
 
 .archive-session-toast-link,
@@ -159,6 +160,7 @@
   background: transparent;
   font: inherit;
   cursor: pointer;
+  -webkit-app-region: no-drag;
 }
 
 .archive-session-toast-link {

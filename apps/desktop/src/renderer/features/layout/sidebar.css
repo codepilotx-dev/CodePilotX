@@ -232,6 +232,18 @@
   color: var(--c-text);
 }
 
+.sidebar-project-header--unavailable,
+.sidebar-project-header--unavailable:hover,
+.sidebar-project-header--unavailable .sidebar-item-icon,
+.sidebar-project-header--unavailable:hover .sidebar-item-icon,
+.sidebar-project-header--unavailable .sidebar-project-chevron {
+  color: var(--c-text-disabled);
+}
+
+.sidebar-project-header--unavailable:hover {
+  background: transparent;
+}
+
 .sidebar-item-label,
 .sidebar-project-name,
 .sidebar-session-title,
@@ -443,6 +455,7 @@
 }
 
 .sidebar-show-more-button:hover {
+  background: transparent;
   color: var(--c-text);
 }
 

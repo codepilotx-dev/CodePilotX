@@ -30,6 +30,7 @@ type Props = {
   pinnedSessions: SessionListItem[];
   projectWorkspaces: DesktopWorkspace[];
   standaloneSessions: SessionListItem[];
+  unavailableWorkspacePaths: Set<string>;
   unpinnedSessions: SessionListItem[];
   workspace: DesktopWorkspace | null;
   onArchiveSession: (session: SessionListItem) => void;
@@ -50,6 +51,7 @@ export function SidebarBody({
   pinnedSessions,
   projectWorkspaces,
   standaloneSessions,
+  unavailableWorkspacePaths,
   unpinnedSessions,
   workspace,
   onArchiveSession,
@@ -99,6 +101,7 @@ export function SidebarBody({
                 activeSessionId={activeSessionId}
                 collapsedProjectPaths={collapsedProjectPaths}
                 key={project.path}
+                isUnavailable={unavailableWorkspacePaths.has(project.path)}
                 now={now}
                 project={project}
                 sessions={unpinnedSessions}

@@ -389,7 +389,7 @@
 }
 
 .chip-button.subtle {
-  color: var(--c-text-meta);
+  color: var(--c-text-strong);
 }
 
 .chip-button.subtle:hover,
@@ -411,7 +411,7 @@
 }
 
 .composer-model-chip-label {
-  font-weight: 600;
+  font-weight: var(--font-weight-body);
 }
 
 .composer-model-chip-thinking {

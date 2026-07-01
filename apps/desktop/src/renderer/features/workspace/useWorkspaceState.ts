@@ -14,6 +14,7 @@ export const NO_WORKSPACE_DIFF = '未选择项目。'
 
 export type UseWorkspaceStateOptions = {
   onError: (message: string) => void
+  onWorkspaceUnavailable?: (workspace: DesktopWorkspace) => void
   onRecentWorkspacesChange: (
     next: DesktopWorkspace[] | ((current: DesktopWorkspace[]) => DesktopWorkspace[]),
   ) => void
@@ -63,6 +64,8 @@ export function useWorkspaceState(
   const activeSessionIdRef = useRef<string | null>(null)
   const onErrorRef = useRef(options.onError)
   onErrorRef.current = options.onError
+  const onWorkspaceUnavailableRef = useRef(options.onWorkspaceUnavailable)
+  onWorkspaceUnavailableRef.current = options.onWorkspaceUnavailable
   const onRecentWorkspacesChangeRef = useRef(options.onRecentWorkspacesChange)
   onRecentWorkspacesChangeRef.current = options.onRecentWorkspacesChange
 
@@ -162,6 +165,10 @@ export function useWorkspaceState(
           )
         }
       } catch (error) {
+        if (isWorkspaceUnavailableError(error)) {
+          onWorkspaceUnavailableRef.current?.(target)
+          return
+        }
         onErrorRef.current(errorMessageOf(error))
       }
     },
@@ -212,6 +219,10 @@ export function useWorkspaceState(
         const selected = await desktopClient.openWorkspace(target.path)
         return selected
       } catch (error) {
+        if (isWorkspaceUnavailableError(error)) {
+          onWorkspaceUnavailableRef.current?.(target)
+          return null
+        }
         onErrorRef.current(errorMessageOf(error))
         return null
       }
@@ -257,4 +268,9 @@ export function useWorkspaceState(
 
 function errorMessageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
+}
+
+function isWorkspaceUnavailableError(error: unknown): boolean {
+  const message = errorMessageOf(error)
+  return /\b(ENOENT|ENOTDIR|EACCES|EPERM)\b/.test(message)
 }

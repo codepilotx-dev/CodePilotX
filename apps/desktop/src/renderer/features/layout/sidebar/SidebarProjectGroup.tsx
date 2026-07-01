@@ -30,6 +30,7 @@ import {
 type Props = {
   activeSessionId: string | null;
   collapsedProjectPaths: Set<string>;
+  isUnavailable: boolean;
   now: number;
   project: DesktopWorkspace;
   sessions: SessionListItem[];
@@ -47,6 +48,7 @@ type Props = {
 export function SidebarProjectGroup({
   activeSessionId,
   collapsedProjectPaths,
+  isUnavailable,
   now,
   project,
   sessions,
@@ -76,6 +78,7 @@ export function SidebarProjectGroup({
         kind: 'item',
         label: '在资源管理器中打开',
         icon: <FolderOpen size={APP_ICON_SIZE} />,
+        disabled: isUnavailable,
         onSelect: () => {
           void desktopClient.openPathWithDefaultTarget(project.path);
         },
@@ -116,8 +119,13 @@ export function SidebarProjectGroup({
         trigger={
           <SidebarRow
             aria-current={isCurrent ? "page" : undefined}
+            aria-disabled={isUnavailable ? true : undefined}
             aria-expanded={isExpanded}
-            className="sidebar-project-header"
+            className={
+              isUnavailable
+                ? "sidebar-project-header sidebar-project-header--unavailable"
+                : "sidebar-project-header"
+            }
             labelClassName="sidebar-project-name"
             leading={
               project.isGitRepo === true && hovered ? (
@@ -177,6 +185,7 @@ export function SidebarProjectGroup({
                   >
                     <PopoverItem
                       icon={<ExternalLink size={APP_ICON_SIZE} />}
+                      disabled={isUnavailable}
                       onClick={() => onOpenWorkspace(project)}
                     >
                       打开项目
@@ -186,13 +195,18 @@ export function SidebarProjectGroup({
                     </PopoverItem>
                     <PopoverItem
                       icon={<FolderOpen size={APP_ICON_SIZE} />}
+                      disabled={isUnavailable}
                       onClick={() => {
                         void desktopClient.openPathWithDefaultTarget(project.path);
                       }}
                     >
                       在资源管理器中打开
                     </PopoverItem>
-                    <PopoverItem icon={<FolderTree size={APP_ICON_SIZE} />} onClick={() => {}}>
+                    <PopoverItem
+                      disabled={isUnavailable}
+                      icon={<FolderTree size={APP_ICON_SIZE} />}
+                      onClick={() => {}}
+                    >
                       创建永久工作树
                     </PopoverItem>
                     <PopoverItem icon={<Pencil size={APP_ICON_SIZE} />} onClick={() => {}}>
@@ -217,6 +231,7 @@ export function SidebarProjectGroup({
 
                   <IconButton
                     className="icon-button sidebar-project-action-button"
+                    disabled={isUnavailable}
                     onClick={() => onCreateSession(project)}
                     title="新建对话"
                   >
