@@ -16,7 +16,13 @@ import {
   type RightDockState,
   type RightDockToolId,
 } from './rightDockState.js'
-import type { RightDockPlan } from './rightDockTools.js'
+import { rightDockTools, isRightDockToolEnabled, type RightDockPlan } from './rightDockTools.js'
+import {
+  saveConversationUiState,
+  loadConversationUiState,
+  validateConversationUiState,
+  type ConversationUiState,
+} from './conversationUiState.js'
 import { DesktopSidebar } from './DesktopSidebar.js'
 import { GlobalErrorModal } from '../../components/GlobalErrorModal.js'
 import {
@@ -680,6 +686,57 @@ export function DesktopLayout(): React.ReactNode {
       String(rightDockWidth),
     )
   }, [rightDockWidth])
+
+  const prevSessionIdRef = useRef<string | null>(null)
+  const uiSnapshotRef = useRef<ConversationUiState>({
+    rightDock: {
+      open: false,
+      activeTool: null,
+      openTools: [],
+      width: RIGHT_DOCK_DEFAULT_WIDTH,
+    },
+    plan: null,
+    mainScrollTop: 0,
+  })
+  uiSnapshotRef.current = {
+    rightDock: {
+      open: rightDockState.open,
+      activeTool: rightDockState.activeTool,
+      openTools: rightDockState.openTools,
+      width: rightDockWidth,
+    },
+    plan: rightDockPlan,
+    mainScrollTop: 0,
+  }
+
+  useEffect(() => {
+    const prevId = prevSessionIdRef.current
+    const currentId = sessionId
+
+    if (prevId && prevId !== currentId) {
+      saveConversationUiState(prevId, uiSnapshotRef.current)
+    }
+
+    prevSessionIdRef.current = currentId
+
+    if (currentId) {
+      const saved = loadConversationUiState(currentId)
+      if (saved) {
+        const flags = { debugMode: menubarDebugMode }
+        const enabledTools = rightDockTools
+          .filter(tool => isRightDockToolEnabled(tool.id, flags))
+          .map(tool => tool.id)
+        const validated = validateConversationUiState(saved, enabledTools)
+        setRightDockState({
+          open: validated.rightDock.open,
+          activeTool: validated.rightDock.activeTool,
+          openTools: validated.rightDock.openTools,
+        })
+        setRightDockWidth(validated.rightDock.width)
+        setRightDockPlan(validated.plan)
+      }
+    }
+  }, [sessionId, menubarDebugMode])
 
   useEffect(() => {
     const onResize = (): void => {
