@@ -351,12 +351,12 @@
 }
 
 .tooltip-content {
-  background: var(--c-text-strong);
-  color: var(--c-bg);
+  background: var(--c-popover-bg);
+  color: var(--c-text-strong);
 }
 
 .tooltip-arrow {
-  fill: var(--c-text-strong);
+  fill: var(--c-popover-bg);
 }
 
 .md-body .hljs-keyword,

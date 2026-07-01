@@ -686,13 +686,14 @@
 .tooltip-content {
   z-index: var(--z-tooltip);
   padding: 4px 8px;
+  border: 1px solid var(--c-popover-border);
   border-radius: var(--radius-3);
-  background: var(--c-ink);
-  color: var(--c-text-on-accent);
+  background: var(--c-popover-bg);
+  color: var(--c-text-strong);
   font-size: var(--fs-12);
   line-height: 1.4;
   font-weight: 500;
-  box-shadow: 0 4px 12px var(--black-a3);
+  box-shadow: var(--popover-surface-shadow);
   user-select: none;
   animation: tooltip-fade-in var(--motion-fast) var(--ease-out);
 }
@@ -704,7 +705,7 @@
 }
 
 .tooltip-arrow {
-  fill: var(--c-ink);
+  fill: var(--c-popover-bg);
 }
 
 @keyframes tooltip-fade-in {
