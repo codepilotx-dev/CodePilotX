@@ -97,9 +97,9 @@
 
 ### 3. JSX：`apps/desktop/src/renderer/features/session/ConversationPage.tsx`
 
-在 `.review-sidebar-actions` 的 8 个 `.message-action` 图标上去掉 `strokeWidth={APP_ICON_STROKE_WIDTH}`，因为 CSS 已经强制成 1.75，prop 传 `2` 反而误导阅读。
+`.review-sidebar-actions` 块里目前只有 1 个 `.message-action` 图标显式传了 `strokeWidth={APP_ICON_STROKE_WIDTH}`：`Columns2`（位于第 2579 行附近，审阅视图分离模式分支）。该值被 CSS（`--app-icon-stroke-width: 1.75`）覆盖，造成源代码 / 实际渲染不一致的认知割裂。删除这个 prop 即可。
 
-涉及图标：`Sparkles`、`Search`、`RotateCcw`、`FolderOpen`、`Filter`、`Sliders`、`Columns2`、`PanelRight`。其中部分已经没传 strokeWidth，但部分仍传，统一清除以保持源代码和实际渲染一致。
+其它 `.message-action` 图标（`Sparkles`、`Search`、`RotateCcw`、`FolderOpen`、`Filter`、`Sliders`、`PanelRight`）已经只传 `size={APP_ICON_SIZE}`，不动。
 
 ### 4. 不动 `iconTokens.ts`
 
@@ -110,7 +110,7 @@
 1. **代码 review**：
    - `controls.css` 新增的选择器覆盖了 `.review-sidebar-actions .message-action`、`.right-dock-add-button`、`.right-dock-control` 三个区域。
    - `layout.css` 中 `.right-dock-tab-close svg` 尺寸已改为 `var(--app-icon-size)`。
-   - `ConversationPage.tsx` 的 8 个图标不再传 `strokeWidth={APP_ICON_STROKE_WIDTH}`。
+   - `ConversationPage.tsx` 的 `Columns2` 那一行不再传 `strokeWidth={APP_ICON_STROKE_WIDTH}`。
 
 2. **Token 一致性**：
    - `--app-icon-size` = 16px、`--app-icon-stroke-width` = 1.75 在 `base.css` 不变。
