@@ -552,7 +552,7 @@
   min-width: var(--radix-select-trigger-width);
   max-width: var(
     --popover-max-width,
-    min(calc(360px + var(--popover-width-extra)), calc(100vw - 24px))
+    min(calc(300px + var(--popover-width-extra)), calc(100vw - 24px))
   );
   max-height: min(320px, var(--radix-select-content-available-height));
   overflow: hidden;

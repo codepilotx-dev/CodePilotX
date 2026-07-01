@@ -33,6 +33,11 @@
   padding: var(--popover-surface-padding);
 }
 
+.settings-dropdown-content,
+.permission-select-content {
+  padding: var(--popover-surface-padding);
+}
+
 :root[data-glass-surfaces="on"] .popover-surface {
   border-color: var(--glass-surface-border);
   background: var(--glass-surface-bg);

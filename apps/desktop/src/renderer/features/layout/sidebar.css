@@ -485,10 +485,6 @@
   -webkit-app-region: no-drag;
 }
 
-.popover-sidebar-footer {
-  padding: 5px 8px;
-}
-
 .popover-sidebar-footer .popover-item-label {
   padding-right: 30px;
 }
