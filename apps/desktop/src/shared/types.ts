@@ -238,6 +238,12 @@ export type DiscardWorkspaceChangesInput = {
   includeUntracked?: boolean
 }
 
+export type RestoreSessionTurnChangesInput = {
+  sessionId: string
+  turnRestoreId: string
+  paths: string[]
+}
+
 export type DesktopGitWorkspaceResult =
   | { ok: true; workspace: DesktopWorkspace; status: DesktopGitStatus }
   | { ok: false; error: string }
@@ -1128,6 +1134,15 @@ export type DesktopProjectMemoryListing = {
   memories: DesktopProjectMemory[]
 }
 
+export type DesktopUserMemoryListing = {
+  memoryDir: string
+  profilePath: string
+  preferencesPath: string
+  eventsPath: string
+  conversationIndexPath: string
+  memories: DesktopProjectMemory[]
+}
+
 export type DesktopProjectMemoryContent = DesktopProjectMemory & {
   content: string
 }
@@ -1146,6 +1161,34 @@ export type DeleteProjectMemoryInput = {
 export type ResetProjectMemoryInput = {
   workspacePath: string
   includeRecallLog: boolean
+}
+
+export type SaveUserMemoryInput = {
+  relativePath: string
+  content: string
+}
+
+export type DeleteUserMemoryInput = {
+  relativePath: string
+}
+
+export type ResetUserMemoryInput = {
+  includeEventLog: boolean
+}
+
+export type ExportUserMemoryResult = {
+  memoryDir: string
+  files: Array<{
+    relativePath: string
+    content: string
+  }>
+}
+
+export type ImportUserMemoryInput = {
+  files: Array<{
+    relativePath: string
+    content: string
+  }>
 }
 
 export type DesktopMemoryRecallFile = {
@@ -1187,6 +1230,13 @@ export type DesktopApi = {
   deleteProjectMemory(input: DeleteProjectMemoryInput): Promise<void>
   resetProjectMemory(input: ResetProjectMemoryInput): Promise<void>
   listProjectMemoryRecalls(workspacePath: string): Promise<DesktopMemoryRecallListing>
+  listUserMemories(): Promise<DesktopUserMemoryListing>
+  readUserMemory(relativePath: string): Promise<DesktopProjectMemoryContent>
+  saveUserMemory(input: SaveUserMemoryInput): Promise<DesktopProjectMemory>
+  deleteUserMemory(input: DeleteUserMemoryInput): Promise<void>
+  resetUserMemory(input: ResetUserMemoryInput): Promise<void>
+  exportUserMemory(): Promise<ExportUserMemoryResult>
+  importUserMemory(input: ImportUserMemoryInput): Promise<ExportUserMemoryResult>
   getBrowserState(): Promise<DesktopBrowserState>
   openBrowser(url?: string): Promise<DesktopBrowserState>
   navigateBrowser(url: string): Promise<DesktopBrowserState>
@@ -1274,6 +1324,9 @@ export type DesktopApi = {
   ): Promise<DesktopGitOperationResult>
   discardWorkspaceChanges(
     input: DiscardWorkspaceChangesInput,
+  ): Promise<DesktopGitOperationResult>
+  restoreSessionTurnChanges(
+    input: RestoreSessionTurnChangesInput,
   ): Promise<DesktopGitOperationResult>
   createPullRequest(
     input: CreatePullRequestInput,

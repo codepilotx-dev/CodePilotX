@@ -67,7 +67,12 @@ import {
   applySessionPermissionModeToSnapshot,
   createSessionSettingsSnapshot,
 } from './desktopSessionSettings.js'
-import { shouldEmitWorkspaceDiffEvent } from './desktopSessionDiffPolicy.js'
+import { buildTurnDiff } from './desktopSessionDiffPolicy.js'
+import {
+  captureTurnRestoreBaseline,
+  restoreTurnBaselineChanges,
+  type TurnRestoreBaseline,
+} from './desktopTurnRestore.js'
 import { DESKTOP_UPDATE_STATUS_CHANNEL } from '../shared/ipcChannels.js'
 import {
   assertAllowedWorkspace,
@@ -111,6 +116,7 @@ import type {
   DesktopAgentEvent,
   DesktopBuiltinPlugin,
   DesktopApprovalPolicy,
+  DesktopGitOperationResult,
   DesktopModelSelection,
   LocalRouterMode,
   DesktopPermissionDecision,
@@ -125,6 +131,7 @@ import type {
   DesktopWorkspace,
   DesktopWorkflowEvent,
   ModelProviderID,
+  RestoreSessionTurnChangesInput,
   SaveSessionReviewCommentInput,
   SessionReviewCommentInput,
 } from '../shared/types.js'
@@ -155,6 +162,8 @@ type DesktopSessionRecord = {
   snapshot: DesktopSessionSnapshot
   resumeExistingSession: boolean
   turnBaselineDiffPatch?: string | null
+  turnRestoreBaseline?: TurnRestoreBaseline | null
+  turnRestoreId?: string | null
 }
 
 const desktopConfigHomeDir = getOpenAgentConfigHomeDir()
@@ -162,6 +171,14 @@ process.env[CODEPILOTX_CONFIG_DIR_ENV] = desktopConfigHomeDir
 process.env[LEGACY_CLAUDE_CONFIG_DIR_ENV] = desktopConfigHomeDir
 
 const sessions = new Map<string, DesktopSessionRecord>()
+const turnRestoreBaselines = new Map<
+  string,
+  {
+    workspacePath: string
+    baseline: TurnRestoreBaseline
+    paths: Set<string>
+  }
+>()
 const titleGenerationStartedSessionIds = new Set<string>()
 let activeSessionId: string | null = null
 let sessionStoreLoadPromise: Promise<void> | null = null
@@ -408,6 +425,10 @@ function desktopConsoleLog(
   console.info(`[desktop-session] ${new Date().toISOString()} ${event}${suffix}`)
 }
 
+function turnRestoreKey(sessionId: string, turnRestoreId: string): string {
+  return `${sessionId}:${turnRestoreId}`
+}
+
 function attachSessionListeners(record: DesktopSessionRecord): void {
   const session = record.session
   if (!session) return
@@ -453,12 +474,19 @@ function attachSessionListeners(record: DesktopSessionRecord): void {
           return
         }
         const beforePatch = latestRecord.turnBaselineDiffPatch
+        const turnRestoreBaseline = latestRecord.turnRestoreBaseline
+        const turnRestoreId = latestRecord.turnRestoreId
         latestRecord.turnBaselineDiffPatch = null
-        const shouldEmitDiff = shouldEmitWorkspaceDiffEvent({
+        latestRecord.turnRestoreBaseline = null
+        latestRecord.turnRestoreId = null
+        const turnDiff = buildTurnDiff({
           beforePatch,
           afterPatch: diff.patch,
-          standalone: latestRecord.snapshot.item.standalone === true,
         })
+        const shouldEmitDiff =
+          !latestRecord.snapshot.item.standalone &&
+          turnDiff.patch !== 'No file changes.' &&
+          turnDiff.files.length > 0
         desktopConsoleLog('turn_diff_checked', {
           sessionId: session.sessionId,
           permissionMode: latestRecord.snapshot.settings.permissionMode,
@@ -472,7 +500,20 @@ function attachSessionListeners(record: DesktopSessionRecord): void {
           type: 'diff',
           sessionId: session.sessionId,
           filePath: session.workspacePath,
-          patch: diff.patch,
+          patch: turnDiff.patch,
+          metadata: {
+            files: turnDiff.files,
+            ...(turnRestoreId && turnRestoreBaseline
+              ? { turnRestoreId }
+              : {}),
+          },
+        }
+        if (turnRestoreId && turnRestoreBaseline) {
+          turnRestoreBaselines.set(turnRestoreKey(session.sessionId, turnRestoreId), {
+            workspacePath: session.workspacePath,
+            baseline: turnRestoreBaseline,
+            paths: new Set(turnDiff.files.map(file => file.path)),
+          })
         }
         persistAgentEventToRollout(latestRecord.snapshot, diffEvent)
         latestRecord.snapshot = applyDesktopAgentEventToSnapshot(
@@ -628,6 +669,33 @@ async function deleteSessionReviewComment(
   }
   persistSessionStore({ immediate: true })
   return record.snapshot
+}
+
+async function restoreSessionTurnChanges(
+  input: RestoreSessionTurnChangesInput,
+): Promise<DesktopGitOperationResult> {
+  const record = await getSessionRecord(input.sessionId)
+  const key = turnRestoreKey(input.sessionId, input.turnRestoreId)
+  const restore = turnRestoreBaselines.get(key)
+  if (!restore) {
+    return { ok: false, error: 'Turn restore baseline is no longer available.' }
+  }
+  if (normalizeWorkspacePath(restore.workspacePath) !== normalizeWorkspacePath(record.snapshot.workspace.path)) {
+    return { ok: false, error: 'Turn restore workspace no longer matches this session.' }
+  }
+  const paths = input.paths.filter(path => restore.paths.has(path))
+  if (paths.length === 0) {
+    return { ok: false, error: 'No restorable files were selected for this turn.' }
+  }
+  const result = await restoreTurnBaselineChanges({
+    workspacePath: restore.workspacePath,
+    baseline: restore.baseline,
+    paths,
+  })
+  if (result.ok) {
+    turnRestoreBaselines.delete(key)
+  }
+  return result
 }
 
 async function updateSessionReviewCommentStatus(
@@ -1040,9 +1108,16 @@ async function sendUserMessage(
     record.snapshot.settings.providerBaseURL,
   )
   session.setDebugConversationDump(modelSelection.debugConversationDump === true)
-  record.turnBaselineDiffPatch = record.snapshot.item.standalone
-    ? null
-    : (await getWorkspaceDiff(record.snapshot.workspace.path)).patch
+  if (record.snapshot.item.standalone) {
+    record.turnBaselineDiffPatch = null
+    record.turnRestoreBaseline = null
+    record.turnRestoreId = null
+  } else {
+    const workspacePath = record.snapshot.workspace.path
+    record.turnBaselineDiffPatch = (await getWorkspaceDiff(workspacePath)).patch
+    record.turnRestoreBaseline = await captureTurnRestoreBaseline(workspacePath)
+    record.turnRestoreId = randomUUID()
+  }
   desktopConsoleLog('turn_baseline_captured', {
     sessionId,
     permissionMode: record.snapshot.settings.permissionMode,
@@ -1527,6 +1602,7 @@ const desktopApiHandlers = buildDesktopApiHandlers({
   setSessionPlanModeActive,
   setSessionLocalRouterMode,
   sendUserMessage,
+  restoreSessionTurnChanges,
   respondToPermission,
   interruptSession,
   disposeSession,

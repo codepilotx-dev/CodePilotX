@@ -126,6 +126,7 @@ export function desktopAgentEventToSessionEvent(
           filePath: event.filePath,
           patch: event.patch,
           ...parsePatchStats(event.patch),
+          ...eventMetadata(event),
         },
         ...eventSource(event),
       }
@@ -216,6 +217,12 @@ function eventSource(event: DesktopAgentEvent): {
         sourceThreadId: event.sourceThreadId,
         sourceLabel: event.sourceLabel,
       }
+    : {}
+}
+
+function eventMetadata(event: DesktopAgentEvent): Record<string, unknown> {
+  return 'metadata' in event && event.metadata && typeof event.metadata === 'object'
+    ? event.metadata
     : {}
 }
 

@@ -51,6 +51,20 @@ const api: DesktopApi = {
       desktopApiChannel('listProjectMemoryRecalls'),
       workspacePath,
     ),
+  listUserMemories: () =>
+    ipcRenderer.invoke(desktopApiChannel('listUserMemories')),
+  readUserMemory: relativePath =>
+    ipcRenderer.invoke(desktopApiChannel('readUserMemory'), relativePath),
+  saveUserMemory: input =>
+    ipcRenderer.invoke(desktopApiChannel('saveUserMemory'), input),
+  deleteUserMemory: input =>
+    ipcRenderer.invoke(desktopApiChannel('deleteUserMemory'), input),
+  resetUserMemory: input =>
+    ipcRenderer.invoke(desktopApiChannel('resetUserMemory'), input),
+  exportUserMemory: () =>
+    ipcRenderer.invoke(desktopApiChannel('exportUserMemory')),
+  importUserMemory: input =>
+    ipcRenderer.invoke(desktopApiChannel('importUserMemory'), input),
   getBrowserState: () => ipcRenderer.invoke(desktopApiChannel('getBrowserState')),
   openBrowser: url => ipcRenderer.invoke(desktopApiChannel('openBrowser'), url),
   navigateBrowser: url =>
@@ -151,6 +165,8 @@ const api: DesktopApi = {
     ipcRenderer.invoke(desktopApiChannel('pushWorkspaceBranch'), input),
   discardWorkspaceChanges: input =>
     ipcRenderer.invoke(desktopApiChannel('discardWorkspaceChanges'), input),
+  restoreSessionTurnChanges: input =>
+    ipcRenderer.invoke(desktopApiChannel('restoreSessionTurnChanges'), input),
   createPullRequest: input =>
     ipcRenderer.invoke(desktopApiChannel('createPullRequest'), input),
   getWorkspaceReviewDiff: input =>

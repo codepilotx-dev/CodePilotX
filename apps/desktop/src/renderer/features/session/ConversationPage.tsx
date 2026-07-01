@@ -283,15 +283,22 @@ export function ConversationPage(): React.ReactNode {
     });
   }, [activeSessionId, diff, gitStatus, model, onOpenRightDock, onRefreshDiff]);
   const handleDiscardChanges = React.useCallback(
-    async (paths: string[]) => {
+    async (paths: string[], turnRestoreId?: string | null) => {
       if (!workspacePath) return;
       if (paths.length === 0) return;
       try {
-        const result = await desktopClient.discardWorkspaceChanges({
-          workspacePath,
-          paths,
-          includeUntracked: true,
-        });
+        const result =
+          turnRestoreId && activeSessionId
+            ? await desktopClient.restoreSessionTurnChanges({
+                sessionId: activeSessionId,
+                turnRestoreId,
+                paths,
+              })
+            : await desktopClient.discardWorkspaceChanges({
+                workspacePath,
+                paths,
+                includeUntracked: true,
+              });
         if ("error" in result) {
           window.alert(`放弃编辑失败：${result.error}`);
           return;
@@ -303,7 +310,7 @@ export function ConversationPage(): React.ReactNode {
         );
       }
     },
-    [onRefreshDiff, workspacePath],
+    [activeSessionId, onRefreshDiff, workspacePath],
   );
   const [workflowTimelineVisible, setWorkflowTimelineVisible] =
     React.useState(false);
@@ -741,7 +748,9 @@ export function ConversationPage(): React.ReactNode {
                           assistantActionMessageIds.has(item.id)
                         }
                         onOpenPlanInRightDock={onOpenPlanInRightDock}
-                        onDiscardChanges={(paths) => void handleDiscardChanges(paths)}
+                        onDiscardChanges={(paths, turnRestoreId) =>
+                          void handleDiscardChanges(paths, turnRestoreId)
+                        }
                         onReviewCode={handleRunCodeReview}
                         onReviewFiles={openReviewSidebar}
                       />
@@ -1551,7 +1560,7 @@ function TimelineItem({
   onOpenPlanInRightDock: (plan: { title: string; content: string }) => void;
   onReviewFiles: () => void;
   onReviewCode: () => void;
-  onDiscardChanges: (paths: string[]) => void;
+  onDiscardChanges: (paths: string[], turnRestoreId?: string | null) => void;
 }): React.ReactNode {
   if (item.type === "tool_group") {
     return <TimelineToolGroupView group={item} />;
@@ -1618,6 +1627,10 @@ function TimelineItem({
         : filePathFromMetadata
           ? [filePathFromMetadata]
           : [];
+    const turnRestoreId =
+      typeof event.metadata?.turnRestoreId === "string"
+        ? (event.metadata.turnRestoreId as string)
+        : null;
     return (
       <article className="timeline-file-event">
         <div className="timeline-file-event-header">
@@ -1640,8 +1653,8 @@ function TimelineItem({
               type="button"
               onClick={() => {
                 if (discardPaths.length === 0) return;
-                if (window.confirm(`确认放弃 ${discardPaths.length} 个文件的编辑？`)) {
-                  onDiscardChanges(discardPaths);
+                if (window.confirm(`确认恢复 ${discardPaths.length} 个文件到本轮对话开始前的状态？`)) {
+                  onDiscardChanges(discardPaths, turnRestoreId);
                 }
               }}
             >
