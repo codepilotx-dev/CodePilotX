@@ -3,6 +3,7 @@ import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages.mjs
 import { randomUUID } from 'crypto'
 import last from 'lodash-es/last.js'
 import {
+  getClientType,
   getSessionId,
   isSessionPersistenceDisabled,
 } from '@codepilotx/tui/bootstrap/state.js'
@@ -166,7 +167,15 @@ export type QueryEngineConfig = {
   snipReplay?: (
     yieldedSystemMsg: Message,
     store: Message[],
-  ) => { messages: Message[]; executed: boolean } | undefined
+   ) => { messages: Message[]; executed: boolean } | undefined
+}
+
+function shouldEagerFlushTranscript(): boolean {
+  return (
+    isEnvTruthy(process.env.CLAUDE_CODE_EAGER_FLUSH) ||
+    isEnvTruthy(process.env.CLAUDE_CODE_IS_COWORK) ||
+    getClientType() === 'desktop'
+  )
 }
 
 /**
@@ -449,10 +458,7 @@ export class QueryEngine {
         void transcriptPromise
       } else {
         await transcriptPromise
-        if (
-          isEnvTruthy(process.env.CLAUDE_CODE_EAGER_FLUSH) ||
-          isEnvTruthy(process.env.CLAUDE_CODE_IS_COWORK)
-        ) {
+        if (shouldEagerFlushTranscript()) {
           await flushSessionStorage()
         }
       }
@@ -603,10 +609,7 @@ export class QueryEngine {
 
       if (persistSession) {
         await recordTranscript(messages)
-        if (
-          isEnvTruthy(process.env.CLAUDE_CODE_EAGER_FLUSH) ||
-          isEnvTruthy(process.env.CLAUDE_CODE_IS_COWORK)
-        ) {
+        if (shouldEagerFlushTranscript()) {
           await flushSessionStorage()
         }
       }
@@ -836,10 +839,7 @@ export class QueryEngine {
           // Handle max turns reached signal from query.ts
           else if (message.attachment.type === 'max_turns_reached') {
             if (persistSession) {
-              if (
-                isEnvTruthy(process.env.CLAUDE_CODE_EAGER_FLUSH) ||
-                isEnvTruthy(process.env.CLAUDE_CODE_IS_COWORK)
-              ) {
+              if (shouldEagerFlushTranscript()) {
                 await flushSessionStorage()
               }
             }
@@ -966,10 +966,7 @@ export class QueryEngine {
       // Check if USD budget has been exceeded
       if (maxBudgetUsd !== undefined && getTotalCost() >= maxBudgetUsd) {
         if (persistSession) {
-          if (
-            isEnvTruthy(process.env.CLAUDE_CODE_EAGER_FLUSH) ||
-            isEnvTruthy(process.env.CLAUDE_CODE_IS_COWORK)
-          ) {
+          if (shouldEagerFlushTranscript()) {
             await flushSessionStorage()
           }
         }
@@ -1009,10 +1006,7 @@ export class QueryEngine {
         )
         if (callsThisQuery >= maxRetries) {
           if (persistSession) {
-            if (
-              isEnvTruthy(process.env.CLAUDE_CODE_EAGER_FLUSH) ||
-              isEnvTruthy(process.env.CLAUDE_CODE_IS_COWORK)
-            ) {
+            if (shouldEagerFlushTranscript()) {
               await flushSessionStorage()
             }
           }
@@ -1066,10 +1060,7 @@ export class QueryEngine {
     // The desktop app kills the CLI process immediately after receiving the
     // result message, so any unflushed writes would be lost.
     if (persistSession) {
-      if (
-        isEnvTruthy(process.env.CLAUDE_CODE_EAGER_FLUSH) ||
-        isEnvTruthy(process.env.CLAUDE_CODE_IS_COWORK)
-      ) {
+      if (shouldEagerFlushTranscript()) {
         await flushSessionStorage()
       }
     }
