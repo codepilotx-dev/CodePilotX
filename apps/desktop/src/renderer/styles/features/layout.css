@@ -74,7 +74,6 @@
   border-radius: 0;
   background: var(--c-bg);
   color: var(--c-text-strong);
-  padding-left: 5px;
 }
 
 .right-dock-resize-handle {
@@ -92,7 +91,7 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  left: 3px;
+  left: 0;
   width: 2px;
   background: transparent;
   content: "";
