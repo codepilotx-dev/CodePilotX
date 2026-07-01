@@ -1,5 +1,5 @@
 import type React from 'react'
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { Minus, PanelRight, Plus, X } from 'lucide-react'
 import type {
   DesktopBrowserState,
@@ -28,6 +28,11 @@ import {
 } from './rightDockTools.js'
 import { rightDockPanelRenderers } from './rightDockPanelRenderers.js'
 import type { RightDockState } from './rightDockState.js'
+import {
+  SIDEBAR_COLLAPSE_HOLD_MS,
+  SIDEBAR_COLLAPSE_TARGET_SIZE,
+  useSidebarResizeCollapseConfirm,
+} from './useSidebarResizeCollapseConfirm.js'
 
 type Props = {
   state: RightDockState
@@ -124,11 +129,22 @@ export function RightDock({
   const addableTools = visibleTools
 
   const [menuOpen, setMenuOpen] = useState(false)
-  const resizeStartRef = useRef<{
-    startWidth: number
-    startX: number
-  } | null>(null)
-  const [resizing, setResizing] = useState(false)
+
+  const {
+    collapseConfirmKey,
+    collapseConfirmTarget,
+    handleResizeKey,
+    resizing,
+    startResize,
+  } = useSidebarResizeCollapseConfirm({
+    collapsed: false,
+    maxWidth,
+    minWidth,
+    width,
+    onCollapse: onClose,
+    onSetWidth,
+    direction: 'right',
+  })
 
   const panelContext = useMemo<RightDockPanelContext>(
     () => ({
@@ -200,94 +216,40 @@ export function RightDock({
     }
   }, [onBrowserStateChange, state.activeTool, state.open])
 
-  useEffect(() => {
-    if (!resizing) return
-
-    const handlePointerMove = (event: PointerEvent): void => {
-      const start = resizeStartRef.current
-      if (!start) return
-      onSetWidth(start.startWidth + start.startX - event.clientX)
-    }
-
-    const handlePointerUp = (): void => {
-      resizeStartRef.current = null
-      setResizing(false)
-      document.body.classList.remove('right-dock-is-resizing')
-    }
-
-    window.addEventListener('pointermove', handlePointerMove)
-    window.addEventListener('pointerup', handlePointerUp, { once: true })
-    window.addEventListener('pointercancel', handlePointerUp, { once: true })
-    return () => {
-      window.removeEventListener('pointermove', handlePointerMove)
-      window.removeEventListener('pointerup', handlePointerUp)
-      window.removeEventListener('pointercancel', handlePointerUp)
-      document.body.classList.remove('right-dock-is-resizing')
-    }
-  }, [onSetWidth, resizing])
-
   const activePanelRenderer = state.activeTool
     ? rightDockPanelRenderers[state.activeTool]
     : null
 
   return (
-    <aside
-      className={resizing ? 'right-dock resizing' : 'right-dock'}
-      aria-label="右侧工具栏"
-      style={
-        {
-          '--right-dock-current-w': `${width}px`,
-          '--right-dock-max-w': `${maxWidth}px`,
-          '--right-dock-min-w': `${minWidth}px`,
-        } as React.CSSProperties
-      }
-    >
-      <div
-        aria-label="调整右侧栏宽度"
-        aria-orientation="vertical"
-        aria-valuemax={maxWidth}
-        aria-valuemin={minWidth}
-        aria-valuenow={width}
-        className="right-dock-resize-handle"
-        role="separator"
-        tabIndex={0}
-        title="拖拽调整宽度，双击恢复默认宽度"
-        onDoubleClick={onResetWidth}
-        onKeyDown={event => {
-          const step = event.shiftKey ? 32 : 8
-          if (event.key === 'ArrowLeft') {
-            event.preventDefault()
-            onSetWidth(width + step)
-            return
-          }
-          if (event.key === 'ArrowRight') {
-            event.preventDefault()
-            onSetWidth(width - step)
-            return
-          }
-          if (event.key === 'Home') {
-            event.preventDefault()
-            onSetWidth(minWidth)
-            return
-          }
-          if (event.key === 'End') {
-            event.preventDefault()
-            onSetWidth(maxWidth)
-          }
-        }}
-        onPointerDown={event => {
-          event.preventDefault()
-          resizeStartRef.current = {
-            startWidth: width,
-            startX: event.clientX,
-          }
-          document.body.classList.add('right-dock-is-resizing')
-          setResizing(true)
-        }}
-      />
-      <header className="right-dock-tabs">
-        <div className="right-dock-tab-list" role="tablist">
-          {openedTools.length > 0 ? (
+    <>
+      <aside
+        className={resizing ? 'right-dock resizing' : 'right-dock'}
+        aria-label="右侧工具栏"
+        style={
+          {
+            '--right-dock-current-w': `${width}px`,
+            '--right-dock-max-w': `${maxWidth}px`,
+            '--right-dock-min-w': `${minWidth}px`,
+          } as React.CSSProperties
+        }
+      >
+        <div
+          aria-label="调整右侧栏宽度"
+          aria-orientation="vertical"
+          aria-valuemax={maxWidth}
+          aria-valuemin={minWidth}
+          aria-valuenow={width}
+          className="right-dock-resize-handle"
+          role="separator"
+          tabIndex={0}
+          title="拖拽调整宽度，双击恢复默认宽度"
+          onDoubleClick={onResetWidth}
+          onKeyDown={handleResizeKey}
+          onPointerDown={startResize}
+        />
+        <header className="right-dock-tabs">
+          <div className="right-dock-tab-list" role="tablist">
+            {openedTools.length > 0 ? (
             openedTools.map((tool, index) => {
               const isActive = state.activeTool === tool.id
               const label = rightDockDisplayLabel(tool.id, tool.label, panelContext)
@@ -389,6 +351,20 @@ export function RightDock({
         )}
       </div>
     </aside>
+      {collapseConfirmTarget ? (
+        <div
+          key={collapseConfirmKey}
+          aria-hidden="true"
+          className="sidebar-collapse-confirm-target"
+          style={{
+            '--sidebar-collapse-target-ms': `${SIDEBAR_COLLAPSE_HOLD_MS}ms`,
+            '--sidebar-collapse-target-size': `${SIDEBAR_COLLAPSE_TARGET_SIZE}px`,
+            left: `${collapseConfirmTarget.x}px`,
+            top: `${collapseConfirmTarget.y}px`,
+          } as React.CSSProperties}
+        />
+      ) : null}
+    </>
   )
 }
 
