@@ -1363,9 +1363,91 @@ declare module '@codepilotx/core/services/mcp/types.js' {
               path: Array<string | number>
               message: string
             }>
+      }
+        }
+  }
+  export type McpJsonConfig = {
+    mcpServers: Record<string, McpServerConfig>
+  }
+  export function McpJsonConfigSchema(): {
+    safeParse(value: unknown):
+      | { success: true; data: McpJsonConfig }
+      | {
+          success: false
+          error: {
+            issues: Array<{
+              path: Array<string | number>
+              message: string
+            }>
           }
         }
   }
+}
+
+declare module '@codepilotx/core/services/mcp/configRuntime.js' {
+  import type {
+    McpJsonConfig,
+    McpServerConfig,
+    ScopedMcpServerConfig,
+  } from '@codepilotx/core/services/mcp/types.js'
+
+  export type McpServerPolicyEntry = {
+    serverName?: string
+    serverCommand?: string[]
+    serverUrl?: string
+  }
+
+  export type McpServerConfigStore = {
+    getUserMcpServers(): Record<string, McpServerConfig> | undefined
+    saveUserMcpServers(
+      servers: Record<string, McpServerConfig>,
+    ): void | Promise<void>
+    getLocalMcpServers(): Record<string, McpServerConfig> | undefined
+    saveLocalMcpServers(
+      servers: Record<string, McpServerConfig>,
+    ): void | Promise<void>
+    readMcpJsonFile(filePath: string): McpJsonConfig | null
+    writeMcpJsonFile(config: McpJsonConfig, cwd: string): Promise<void>
+    getEnterpriseMcpFilePath(): string
+    getDisabledMcpServers(): string[]
+    getEnabledMcpServers(): string[]
+    saveDisabledMcpServers(disabled: string[]): void | Promise<void>
+    saveEnabledMcpServers(enabled: string[]): void | Promise<void>
+    isDefaultDisabledBuiltin?(name: string): boolean
+  }
+
+  export type McpServerSettingsProvider = {
+    getAllowlist(): McpServerPolicyEntry[] | undefined
+    getDenylist(): McpServerPolicyEntry[] | undefined
+    isManagedOnly(): boolean
+    isPluginOnlyLocked(): boolean
+    isSourceEnabled(source: string): boolean
+    getProjectApprovalStatus(serverName: string): 'approved' | 'rejected' | 'pending'
+  }
+
+  export type McpPluginServerProvider = {
+    loadPluginMcpServers(): Promise<{
+      servers: Record<string, ScopedMcpServerConfig>
+      suppressed: Array<{ name: string; duplicateOf: string }>
+    }>
+  }
+
+  export type McpClaudeAiServerProvider = {
+    isEligible(): boolean
+    fetchConfigs(): Promise<Record<string, ScopedMcpServerConfig>>
+  }
+
+  export type McpConfigRuntime = {
+    configStore: McpServerConfigStore
+    settings?: McpServerSettingsProvider
+    plugins?: McpPluginServerProvider
+    claudeAi?: McpClaudeAiServerProvider
+    getCwd?: () => string
+    logDebug?: (message: string, opts?: { level?: string }) => void
+    logError?: (error: unknown) => void
+  }
+
+  export function configureMcpConfigRuntime(runtime: McpConfigRuntime): void
 }
 
 declare module '@codepilotx/core/services/mcp/config.js' {
@@ -1387,7 +1469,10 @@ declare module '@codepilotx/core/services/mcp/config.js' {
     name: string,
     scope: ConfigScope,
   ): Promise<void>
-  export function setMcpServerEnabled(name: string, enabled: boolean): void
+  export function setMcpServerEnabled(
+    name: string,
+    enabled: boolean,
+  ): Promise<void>
   export function isMcpServerDisabled(name: string): boolean
 }
 

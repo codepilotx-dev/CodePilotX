@@ -78,6 +78,7 @@ import {
   registerAllowedWorkspace,
   workspaceFromPath,
 } from './workspaceService.js'
+import { getStandaloneWorkspaceMetadata } from './standaloneWorkspace.js'
 import { configureGithubService } from './githubService.js'
 import { getOpenAgentConfigHomeDir } from './desktopSettings.js'
 import { buildSessionAppendSystemPrompt } from './desktopAgentsMd.js'
@@ -264,6 +265,9 @@ const jsonRpcAppServerBridge = createDesktopJsonRpcAppServerBridge({
   },
 })
 configureWorkspaceService({ getWindow: windowService.getWindow })
+const { configureDesktopMcpConfigRuntime, registerMcpConfigWorkspaceAccessor } = await import('./mcpConfigRuntimeAdapter.js')
+registerMcpConfigWorkspaceAccessor(getStandaloneWorkspaceMetadata)
+configureDesktopMcpConfigRuntime()
 configureGithubService({ getWindow: windowService.getWindow })
 
 function assertTrustedIpcSender(senderUrl: string | undefined): void {

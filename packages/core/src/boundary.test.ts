@@ -19,7 +19,7 @@ const coreToTuiAllowlist = new Set([
   'packages/core/src/utils/settings/settings.ts',
 ])
 
-const desktopTuiImportBaseline = 22
+const desktopTuiImportBaseline = 9
 
 test('core does not add new dependencies on tui internals', async () => {
   const offenders: string[] = []
@@ -40,6 +40,8 @@ test('desktop tui import count does not grow during migration', async () => {
   let count = 0
 
   for (const file of await sourceFiles(desktopSrc)) {
+    const repoPath = toRepoPath(file)
+    if (repoPath.startsWith('apps/desktop/src/typecheck-shims/')) continue
     const text = await readFile(file, 'utf8')
     count += countMatches(text, /@codepilotx\/tui/g)
   }

@@ -208,6 +208,13 @@ export const init = memoize(async (): Promise<void> => {
       })
     }
 
+    // Configure MCP config runtime so core MCP functions use TUI's
+    // settings, plugins, claude.ai, and file I/O implementations.
+    const { configureTuiMcpConfigRuntime } = await import(
+      '../services/mcp/configRuntimeAdapter.js'
+    )
+    configureTuiMcpConfigRuntime()
+
     logForDiagnosticsNoPII('info', 'init_completed', {
       duration_ms: Date.now() - initStartTime,
     })

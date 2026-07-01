@@ -676,7 +676,7 @@ export type DesktopMcpScope =
   | 'claudeai'
   | 'managed'
 
-export type DesktopEditableMcpScope = 'local' | 'user' | 'project'
+export type DesktopEditableMcpScope = 'local' | 'user'
 
 export type DesktopMcpTransport = 'stdio' | 'sse' | 'http' | 'ws' | 'sdk' | string
 
