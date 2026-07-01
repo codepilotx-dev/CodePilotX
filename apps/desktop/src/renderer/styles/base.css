@@ -4,9 +4,9 @@
   --c-bg-pure: #ffffff;
   --c-bg-soft: var(--gray-2);
   --c-bg-mask: var(--gray-2);
-  --c-bg-hover: var(--gray-3);
-  --c-bg-row-hover: var(--gray-3);
-  --c-bg-chip-hover: var(--blue-3);
+  --c-bg-hover: color-mix(in srgb, var(--c-accent) 8%, transparent);
+  --c-bg-row-hover: color-mix(in srgb, var(--c-accent) 7%, transparent);
+  --c-bg-chip-hover: color-mix(in srgb, var(--c-accent) 16%, var(--c-bg));
   --c-bg-card: #ffffff;
   --c-popover-bg: #ffffff;
   --c-popover-border: rgba(0, 0, 0, 0.06);
@@ -50,8 +50,11 @@
   --shadow-resting: 0 1px 2px rgba(31, 41, 55, 0.05), 0 1px 0 rgba(255, 255, 255, 0.7) inset;
   --shadow-raised: 0 10px 28px rgba(31, 41, 55, 0.08), 0 1px 2px rgba(31, 41, 55, 0.05);
   --shadow-float: 0 22px 60px rgba(31, 41, 55, 0.12), 0 8px 24px rgba(31, 41, 55, 0.08);
-  --radius-panel: 22px;
-  --radius-card: 16px;
+  --radius-button: 8px;
+  --radius-input: 8px;
+  --radius-panel: 12px;
+  --radius-card: 12px;
+  --radius-marquee: 16px;
   --layout-page-pad-x: 32px;
   --layout-page-pad-y: 40px;
   --layout-page-pad-bottom: 72px;
@@ -76,13 +79,13 @@
   --ease-in: ease-in;
   --focus-ring: 0 0 0 3px color-mix(in srgb, var(--c-accent) 24%, transparent);
   --focus-ring-soft: 0 0 0 2px color-mix(in srgb, var(--c-accent) 18%, transparent);
-  --state-hover-bg: color-mix(in srgb, var(--c-text-strong) 5%, transparent);
+  --state-hover-bg: color-mix(in srgb, var(--c-accent) 9%, transparent);
   --state-active-bg: color-mix(in srgb, var(--c-accent) 14%, transparent);
   --grid-gap: var(--layout-card-gap);
   --c-chrome-bg: #fbfcff;
   --c-sidebar-bg: var(--surface-subtle);
-  --c-sidebar-active-bg: rgba(0, 0, 0, 0.1);
-  --c-sidebar-hover-bg: rgba(0, 0, 0, 0.1);
+  --c-sidebar-active-bg: color-mix(in srgb, var(--c-accent) 18%, var(--surface-raised));
+  --c-sidebar-hover-bg: color-mix(in srgb, var(--c-accent) 9%, transparent);
   --c-workbench-bg: var(--surface-base);
   --c-panel-bg: var(--surface-panel);
   --c-panel-elevated-bg: var(--surface-raised);
@@ -150,7 +153,7 @@
   --popover-width-extra: 30px;
   --plan-md-base-size: 0.9em;
 
-  --border-r: 10px;
+  --border-r: 8px;
   --radius-1: calc(var(--border-r) - 6px);
   --radius-2: calc(var(--border-r) - 4px);
   --radius-3: calc(var(--border-r) - 2px);
@@ -173,9 +176,9 @@
   --c-bg-pure: #1a1a1e;
   --c-bg-soft: var(--gray-2);
   --c-bg-mask: var(--gray-2);
-  --c-bg-hover: var(--gray-4);
-  --c-bg-row-hover: var(--gray-3);
-  --c-bg-chip-hover: var(--blue-3);
+  --c-bg-hover: color-mix(in srgb, var(--c-accent) 14%, transparent);
+  --c-bg-row-hover: color-mix(in srgb, var(--c-accent) 12%, transparent);
+  --c-bg-chip-hover: color-mix(in srgb, var(--c-accent) 26%, var(--c-bg));
   --c-bg-card: var(--gray-2);
   --c-popover-bg: #2a2b32;
   --c-popover-border: rgba(255, 255, 255, 0.08);
@@ -221,8 +224,8 @@
   --shadow-float: 0 24px 64px rgba(0, 0, 0, 0.38), 0 8px 24px rgba(0, 0, 0, 0.28);
   --c-chrome-bg: #171a20;
   --c-sidebar-bg: var(--surface-subtle);
-  --c-sidebar-active-bg: rgba(255, 255, 255, 0.1);
-  --c-sidebar-hover-bg: rgba(255, 255, 255, 0.1);
+  --c-sidebar-active-bg: color-mix(in srgb, var(--c-accent) 22%, var(--surface-panel));
+  --c-sidebar-hover-bg: color-mix(in srgb, var(--c-accent) 14%, transparent);
   --c-workbench-bg: var(--surface-base);
   --c-panel-bg: var(--surface-panel);
   --c-panel-elevated-bg: var(--surface-raised);

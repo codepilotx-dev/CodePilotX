@@ -226,7 +226,7 @@ export const DEFAULT_LIGHT_THEME: DesktopThemeConfigV1 = {
 export const DEFAULT_DARK_THEME: DesktopThemeConfigV1 = {
   codeThemeId: 'codex',
   theme: {
-    accent: '#d98568',
+    accent: '#cc785c',
     contrast: 60,
     fonts: DEFAULT_FONTS,
     ink: '#faf9f5',
@@ -234,7 +234,7 @@ export const DEFAULT_DARK_THEME: DesktopThemeConfigV1 = {
     semanticColors: {
       diffAdded: '#73c987',
       diffRemoved: '#d96a65',
-      skill: '#d98568',
+      skill: '#cc785c',
     },
     radix: {
       ...DEFAULT_RADIX_THEME,

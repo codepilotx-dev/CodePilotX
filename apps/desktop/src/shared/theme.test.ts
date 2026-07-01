@@ -35,10 +35,10 @@ test('DEFAULT_LIGHT_THEME uses Claude-inspired desktop tokens', () => {
 test('DEFAULT_DARK_THEME uses Claude-inspired desktop tokens', () => {
   expect(DEFAULT_DARK_THEME.theme.surface).toBe('#181715')
   expect(DEFAULT_DARK_THEME.theme.ink).toBe('#faf9f5')
-  expect(DEFAULT_DARK_THEME.theme.accent).toBe('#d98568')
+  expect(DEFAULT_DARK_THEME.theme.accent).toBe('#cc785c')
   expect(DEFAULT_DARK_THEME.theme.semanticColors.diffAdded).toBe('#73c987')
   expect(DEFAULT_DARK_THEME.theme.semanticColors.diffRemoved).toBe('#d96a65')
-  expect(DEFAULT_DARK_THEME.theme.semanticColors.skill).toBe('#d98568')
+  expect(DEFAULT_DARK_THEME.theme.semanticColors.skill).toBe('#cc785c')
   expect(DEFAULT_DARK_THEME.variant).toBe('dark')
 })
 
