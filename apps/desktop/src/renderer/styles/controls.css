@@ -29,7 +29,10 @@
 .window-toolbar-icon svg,
 .message-action svg,
 .meta-chip svg,
-.chip-button svg {
+.chip-button svg,
+.review-sidebar-actions .message-action svg,
+.right-dock-add-button > svg,
+.right-dock-control > svg {
   width: var(--app-icon-size);
   height: var(--app-icon-size);
   display: block;
