@@ -424,6 +424,9 @@ export function ComposerCard({
   const reasoningTokens = contextUsage?.reasoningTokens ?? 0;
   const showContextUsageDetails =
     promptCacheTotalTokens > 0 || reasoningTokens > 0;
+  const usedPercent = contextUsage
+    ? Math.min(100, Math.max(0, contextUsage.usedPercent))
+    : 0;
 
   return (
     <div
@@ -707,9 +710,10 @@ export function ComposerCard({
           <div className="toolbar-right">
             {showContextUsage ? (
               <span
-                aria-label="上下文窗口使用量"
+                aria-label={`上下文窗口使用量：${contextUsage ? `已用 ${usedPercent}%，剩余 ${100 - usedPercent}%` : '暂无数据'}`}
                 className="context-usage-chip"
                 tabIndex={0}
+                style={{ '--context-usage-progress': usedPercent } as React.CSSProperties}
               >
                 <span className="chip-dot" />
                 <span className="context-usage-popover" role="tooltip">

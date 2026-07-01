@@ -311,3 +311,52 @@ test('ComposerCard shows model catalog loading in composer and model chip', () =
   expect(html).toContain('composer-model-loading-spinner')
   expect(html).toContain('>加载模型列表中……<')
 })
+
+test('ComposerCard renders context usage chip with progress ring CSS variable and accessible label', () => {
+  const html = renderWithProviders(
+    <ComposerCard
+      {...baseProps}
+      showContextUsage={true}
+      contextUsage={{
+        model: 'abab6.5s-chat',
+        provider: 'MiniMax',
+        contextWindow: 8000,
+        inputTokens: 100,
+        outputTokens: 50,
+        cacheCreationInputTokens: 20,
+        cacheReadInputTokens: 30,
+        reasoningTokens: 10,
+        promptCacheHitTokens: 30,
+        promptCacheMissTokens: 10,
+        usedTokens: 200,
+        remainingTokens: 7800,
+        usedPercent: 36,
+        remainingPercent: 64,
+      }}
+    />,
+  )
+
+  expect(html).toContain('context-usage-chip')
+  expect(html).toContain('chip-dot')
+  expect(html).toContain('--context-usage-progress:36')
+  expect(html).toContain('上下文窗口使用量：已用 36%，剩余 64%')
+  expect(html).toContain('已用 36%，剩余 64%')
+  expect(html).toContain('abab6.5s-chat')
+  expect(html).toContain('MiniMax')
+})
+
+test('ComposerCard shows fallback when showContextUsage is true but contextUsage is null', () => {
+  const html = renderWithProviders(
+    <ComposerCard
+      {...baseProps}
+      showContextUsage={true}
+      contextUsage={null}
+    />,
+  )
+
+  expect(html).toContain('context-usage-chip')
+  expect(html).toContain('chip-dot')
+  expect(html).toContain('--context-usage-progress:0')
+  expect(html).toContain('上下文窗口使用量：暂无数据')
+  expect(html).toContain('暂无上下文统计')
+})
