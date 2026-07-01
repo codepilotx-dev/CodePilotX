@@ -55,6 +55,8 @@ export {
 const execFileAsync = promisify(execFile)
 const IGNORED_DIRECTORY_NAMES = new Set([
   '.git',
+  '.cache',
+  '.Temp',
   'node_modules',
   'dist',
   'bun_cache',

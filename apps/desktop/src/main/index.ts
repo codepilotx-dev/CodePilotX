@@ -89,6 +89,7 @@ import {
   applyDesktopWorkflowEventsToSnapshot,
   appendDesktopRolloutItems,
   createDesktopSessionMetaRolloutItem,
+  createLightweightDesktopSessionSnapshot,
   createDesktopSessionSnapshot,
   desktopSessionTranscriptExists,
   hydrateDesktopSessionSnapshot,
@@ -98,6 +99,7 @@ import {
 } from './sessionPersistence.js'
 import { desktopAgentEventToRolloutItems } from './desktopRolloutPersistence.js'
 import { createSessionPersistScheduler } from './sessionPersistScheduler.js'
+import { createSessionStoreChangeEmitter } from './sessionStoreChangeEmitter.js'
 import type {
   CreateDesktopSessionOptions,
   CreateDesktopSessionResult,
@@ -160,7 +162,7 @@ let activeSessionId: string | null = null
 let sessionStoreLoadPromise: Promise<void> | null = null
 let quittingAfterSessionStoreFlush = false
 const sessionPersistScheduler = createSessionPersistScheduler({
-  debounceMs: 150,
+  debounceMs: 5000,
   getState: () => ({
     activeSessionId,
     sessions: [...sessions.values()].map(record => record.snapshot),
@@ -169,6 +171,10 @@ const sessionPersistScheduler = createSessionPersistScheduler({
   onError: error => {
     console.error('Failed to save desktop sessions.', error)
   },
+})
+const sessionStoreChangeEmitter = createSessionStoreChangeEmitter({
+  debounceMs: 1000,
+  emit: emitSessionStoreChange,
 })
 const DESKTOP_BROWSER_PLUGIN_ID = 'browser@builtin'
 const DESKTOP_BUILTIN_PLUGIN_IDS = [DESKTOP_BROWSER_PLUGIN_ID] as const
@@ -361,7 +367,7 @@ async function ensureSessionStoreLoaded(): Promise<void> {
 
 function persistSessionStore(options?: { immediate?: boolean }): void {
   sessionPersistScheduler.requestSave(options)
-  emitSessionStoreChange()
+  sessionStoreChangeEmitter.requestEmit(options)
 }
 
 async function flushSessionStorePersistence(): Promise<void> {
@@ -371,7 +377,9 @@ async function flushSessionStorePersistence(): Promise<void> {
 function emitSessionStoreChange(): void {
   windowService.emitSessionStoreChange({
     activeSessionId,
-    sessions: [...sessions.values()].map(record => record.snapshot),
+    sessions: [...sessions.values()].map(record =>
+      createLightweightDesktopSessionSnapshot(record.snapshot),
+    ),
   })
 }
 
@@ -529,6 +537,9 @@ async function setActiveSession(sessionId: string | null): Promise<void> {
   await ensureSessionStoreLoaded()
   if (sessionId !== null && !sessions.has(sessionId)) {
     throw new Error(`Unknown desktop session: ${sessionId}`)
+  }
+  if (activeSessionId === sessionId) {
+    return
   }
   activeSessionId = sessionId
   persistSessionStore({ immediate: true })

@@ -1,5 +1,7 @@
 import type { DesktopWorkflowEvent } from '../../../shared/types.js'
 
+const MAX_WORKFLOW_EVENTS = 100
+
 export function workflowEventKey(event: DesktopWorkflowEvent): string {
   if (event.eventId) return `event:${event.eventId}`
   const turnId = 'turnId' in event ? event.turnId : 'thread'
@@ -22,7 +24,7 @@ export function appendUniqueWorkflowEvent(
   if (events.some(existing => workflowEventKey(existing) === key)) {
     return events
   }
-  return [...events, event]
+  return [...events, event].slice(-MAX_WORKFLOW_EVENTS)
 }
 
 export function dedupeWorkflowEvents(

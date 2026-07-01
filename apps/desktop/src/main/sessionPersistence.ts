@@ -1,6 +1,14 @@
 import { randomUUID } from 'node:crypto'
 import { setTimeout as delay } from 'node:timers/promises'
-import { mkdir, readFile, rename, stat, unlink, writeFile } from 'node:fs/promises'
+import {
+  mkdir,
+  readFile,
+  readdir,
+  rename,
+  stat,
+  unlink,
+  writeFile,
+} from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import {
   isAgentApprovalMode,
@@ -113,8 +121,22 @@ type AtomicWriteOperations = {
   delay?(ms: number): Promise<unknown>
 }
 
+type CleanupStaleTempOperations = {
+  readdir?(path: string, options: { withFileTypes: true }): Promise<
+    Array<{
+      name: string
+      isFile(): boolean
+    }>
+  >
+  stat?(path: string): Promise<{ mtimeMs: number }>
+  unlink?(path: string): Promise<unknown>
+  nowMs?: number
+  staleAgeMs?: number
+}
+
 const SESSION_INDEX_FILE_NAME = 'sessions.json'
 const TRANSCRIPT_ENRICH_LIMIT = Number.MAX_SAFE_INTEGER
+const MAX_PERSISTED_WORKFLOW_EVENTS = 100
 
 export { appendDesktopRolloutItems }
 
@@ -172,6 +194,46 @@ export async function writeFileAtomically(
     await operations.unlink?.(tempPath).catch(() => {})
     throw error
   }
+}
+
+const SESSION_INDEX_TEMP_STALE_AGE_MS = 10 * 60 * 1000
+
+export async function cleanupStaleDesktopSessionIndexTempFiles(
+  filePath: string,
+  operations: CleanupStaleTempOperations = {},
+): Promise<void> {
+  const dir = dirname(filePath)
+  const prefix = `.${basename(filePath)}.`
+  const suffix = '.tmp'
+  const readDir = operations.readdir ?? readdir
+  const readStat = operations.stat ?? stat
+  const remove = operations.unlink ?? unlink
+  const nowMs = operations.nowMs ?? Date.now()
+  const staleAgeMs = operations.staleAgeMs ?? SESSION_INDEX_TEMP_STALE_AGE_MS
+
+  let entries: Awaited<ReturnType<NonNullable<CleanupStaleTempOperations['readdir']>>>
+  try {
+    entries = await readDir(dir, { withFileTypes: true })
+  } catch {
+    return
+  }
+
+  await Promise.all(
+    entries.map(async entry => {
+      if (!entry.isFile()) return
+      if (!entry.name.startsWith(prefix) || !entry.name.endsWith(suffix)) {
+        return
+      }
+      const tempPath = join(dir, entry.name)
+      try {
+        const info = await readStat(tempPath)
+        if (nowMs - info.mtimeMs < staleAgeMs) return
+        await remove(tempPath)
+      } catch {
+        // Best-effort cleanup must not block session persistence.
+      }
+    }),
+  )
 }
 
 async function renameWithTransientPermissionRetry(
@@ -352,6 +414,7 @@ export async function saveDesktopSessionStore(
     }),
   }
   await writeFileAtomically(filePath, JSON.stringify(overlayStore, null, 2))
+  await cleanupStaleDesktopSessionIndexTempFiles(filePath)
 }
 
 export function createDesktopSessionSnapshot(params: {
@@ -418,6 +481,24 @@ export function createDesktopSessionSnapshot(params: {
     workflowEventModelVersion: 1,
     reviewComments: [],
     updatedAt: now.toISOString(),
+  }
+}
+
+export function createLightweightDesktopSessionSnapshot(
+  snapshot: DesktopSessionSnapshot,
+): DesktopSessionSnapshot {
+  return {
+    ...snapshot,
+    view: {
+      messages: [],
+      toolLog: [],
+      pendingPermissions: snapshot.view.pendingPermissions,
+      contextUsage: snapshot.view.contextUsage,
+    },
+    events: undefined,
+    eventModelVersion: undefined,
+    workflowEvents: undefined,
+    workflowEventModelVersion: undefined,
   }
 }
 
@@ -605,10 +686,16 @@ export function applyDesktopWorkflowEventsToSnapshot(
 
   return {
     ...snapshot,
-    workflowEvents: [...existingEvents, ...appendedEvents],
+    workflowEvents: recentWorkflowEvents([...existingEvents, ...appendedEvents]),
     workflowEventModelVersion: 1,
     updatedAt: new Date().toISOString(),
   }
+}
+
+function recentWorkflowEvents(
+  workflowEvents: DesktopWorkflowEvent[],
+): DesktopWorkflowEvent[] {
+  return workflowEvents.slice(-MAX_PERSISTED_WORKFLOW_EVENTS)
 }
 
 export function removePendingPermissionFromSnapshot(
@@ -1032,7 +1119,7 @@ function overlayFromSnapshot(
     workflowEvents:
       normalizedSnapshot.workflowEventModelVersion === 1 &&
       normalizedSnapshot.workflowEvents
-        ? [...normalizedSnapshot.workflowEvents]
+        ? recentWorkflowEvents(normalizedSnapshot.workflowEvents)
         : undefined,
     workflowEventModelVersion:
       normalizedSnapshot.workflowEventModelVersion === 1 ? 1 : undefined,

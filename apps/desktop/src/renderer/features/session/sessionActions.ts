@@ -69,6 +69,9 @@ export function activateSession(
   context: SessionActionContext,
   nextSessionId: string | null,
 ): void {
+  if (context.activeSessionIdRef.current === nextSessionId) {
+    return
+  }
   context.activeSessionIdRef.current = nextSessionId
   context.setSessionId(nextSessionId)
   void desktopClient.setActiveSession(nextSessionId).catch(error => {
