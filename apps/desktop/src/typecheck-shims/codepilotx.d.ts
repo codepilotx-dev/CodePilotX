@@ -199,6 +199,7 @@ declare module '@codepilotx/core/agent/runtime.js' {
         sessionId: string
         filePath: string
         patch: string
+        metadata?: Record<string, unknown>
         sourceThreadId?: string
         sourceLabel?: string
       }
@@ -1544,9 +1545,28 @@ declare module '@codepilotx/core/memory/state.js' {
     autoMemPath: string
     entrypointPath: string
     hasPathOverride: boolean
-    source: 'override' | 'setting' | 'default'
+    source: 'override' | 'setting' | 'repo' | 'default'
+  }
+  export type RepoMemorySkeletonFile = {
+    relativePath: string
+    content: string
+  }
+  export type UserMemoryPaths = {
+    memoryDir: string
+    profilePath: string
+    preferencesPath: string
+    eventsPath: string
+    conversationIndexPath: string
   }
   export function parseMemoryType(raw: unknown): MemoryType | undefined
+  export function buildRepoMemorySkeleton(): RepoMemorySkeletonFile[]
+  export function buildUserMemorySkeleton(): RepoMemorySkeletonFile[]
+  export function parseMemoryFrontmatter(
+    content: string,
+  ): Record<string, string>
+  export function resolveUserMemoryPaths(input: {
+    configHomeDir: string
+  }): UserMemoryPaths
   export function resolveAutoMemoryPaths(input: {
     configHomeDir: string
     projectRoot: string
@@ -1555,5 +1575,6 @@ declare module '@codepilotx/core/memory/state.js' {
     pathOverride?: string
     trustedDirectorySetting?: string
     homeDir: string
+    repoMemoryEnabled?: boolean
   }): AutoMemoryPaths
 }

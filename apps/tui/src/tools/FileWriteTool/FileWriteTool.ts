@@ -7,6 +7,7 @@ import { clearDeliveredDiagnosticsForFile } from '../../services/lsp/LSPDiagnost
 import { getLspServerManager } from '../../services/lsp/manager.js'
 import { notifyVscodeFileUpdated } from '../../services/mcp/vscodeSdkMcp.js'
 import { checkTeamMemSecrets } from '../../services/teamMemorySync/teamMemSecretGuard.js'
+import { checkRepoMemoryContentSafety } from '../../utils/repoMemorySafety.js'
 import {
   activateConditionalSkillsForPaths,
   addSkillDirectories,
@@ -157,6 +158,10 @@ export const FileWriteTool = buildTool({
     const secretError = checkTeamMemSecrets(fullFilePath, content)
     if (secretError) {
       return { result: false, message: secretError, errorCode: 0 }
+    }
+    const repoMemoryError = checkRepoMemoryContentSafety(fullFilePath, content)
+    if (repoMemoryError) {
+      return { result: false, message: repoMemoryError, errorCode: 0 }
     }
 
     // Check if path should be ignored based on permission settings

@@ -5621,6 +5621,76 @@ async function run(): Promise<CommanderCommand> {
       await mcpResetChoicesHandler()
     })
 
+  const memory = program
+    .command('memory')
+    .description('Manage global user memory')
+    .configureHelp(createSortedHelpConfig())
+    .enablePositionalOptions()
+
+  memory
+    .command('show')
+    .description('Show global user memory files')
+    .action(async () => {
+      const { memoryShowHandler } = await import('./cli/handlers/memory.js')
+      await memoryShowHandler()
+    })
+
+  memory
+    .command('add <text>')
+    .description('Add an explicit global user memory event')
+    .action(async (text: string) => {
+      const { memoryAddHandler } = await import('./cli/handlers/memory.js')
+      await memoryAddHandler(text)
+    })
+
+  memory
+    .command('forget <text>')
+    .description('Record a global user memory forget event')
+    .action(async (text: string) => {
+      const { memoryForgetHandler } = await import('./cli/handlers/memory.js')
+      await memoryForgetHandler(text)
+    })
+
+  memory
+    .command('edit [relativePath]')
+    .description('Open a global user memory file in your editor')
+    .action(async (relativePath?: string) => {
+      const { memoryEditHandler } = await import('./cli/handlers/memory.js')
+      await memoryEditHandler(relativePath)
+    })
+
+  memory
+    .command('export [outputPath]')
+    .description('Export global user memory as JSON')
+    .action(async (outputPath?: string) => {
+      const { memoryExportHandler } = await import('./cli/handlers/memory.js')
+      await memoryExportHandler(outputPath)
+    })
+
+  memory
+    .command('import <inputPath>')
+    .description('Import global user memory from an exported JSON file')
+    .action(async (inputPath: string) => {
+      const { memoryImportHandler } = await import('./cli/handlers/memory.js')
+      await memoryImportHandler(inputPath)
+    })
+
+  memory
+    .command('enable')
+    .description('Enable memory in user settings')
+    .action(async () => {
+      const { memoryEnableHandler } = await import('./cli/handlers/memory.js')
+      await memoryEnableHandler()
+    })
+
+  memory
+    .command('disable')
+    .description('Disable memory in user settings')
+    .action(async () => {
+      const { memoryDisableHandler } = await import('./cli/handlers/memory.js')
+      await memoryDisableHandler()
+    })
+
   // claude server
   if (feature('DIRECT_CONNECT')) {
     program

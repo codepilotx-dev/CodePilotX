@@ -6,6 +6,7 @@ import { clearDeliveredDiagnosticsForFile } from '../../services/lsp/LSPDiagnost
 import { getLspServerManager } from '../../services/lsp/manager.js'
 import { notifyVscodeFileUpdated } from '../../services/mcp/vscodeSdkMcp.js'
 import { checkTeamMemSecrets } from '../../services/teamMemorySync/teamMemSecretGuard.js'
+import { checkRepoMemoryContentSafety } from '../../utils/repoMemorySafety.js'
 import {
   activateConditionalSkillsForPaths,
   addSkillDirectories,
@@ -144,6 +145,10 @@ export const FileEditTool = buildTool({
     const secretError = checkTeamMemSecrets(fullFilePath, new_string)
     if (secretError) {
       return { result: false, message: secretError, errorCode: 0 }
+    }
+    const repoMemoryError = checkRepoMemoryContentSafety(fullFilePath, new_string)
+    if (repoMemoryError) {
+      return { result: false, message: repoMemoryError, errorCode: 0 }
     }
     if (old_string === new_string) {
       return {

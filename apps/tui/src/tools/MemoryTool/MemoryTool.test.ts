@@ -8,14 +8,18 @@ import { MemoryTool } from './MemoryTool.js'
 
 let tmpDir: string
 let autoMemPath: string
+let userMemPath: string
 let mockContext: any
 
 beforeEach(async () => {
   tmpDir = join(tmpdir(), `memory-tool-test-${Date.now()}`)
   autoMemPath = join(tmpDir, 'memory')
+  userMemPath = join(tmpDir, 'config', 'user-memory')
   await mkdir(autoMemPath, { recursive: true })
+  await mkdir(userMemPath, { recursive: true })
 
   process.env.CLAUDE_COWORK_MEMORY_PATH_OVERRIDE = autoMemPath
+  process.env.CODEPILOTX_CONFIG_DIR = join(tmpDir, 'config')
   getAutoMemPath.cache?.clear?.()
 
   mockContext = {
@@ -47,6 +51,7 @@ beforeEach(async () => {
 
 afterEach(async () => {
   delete process.env.CLAUDE_COWORK_MEMORY_PATH_OVERRIDE
+  delete process.env.CODEPILOTX_CONFIG_DIR
   getAutoMemPath.cache?.clear?.()
   await rm(tmpDir, { recursive: true, force: true }).catch(() => {})
 })
@@ -83,6 +88,8 @@ describe('MemoryTool', () => {
 
   test('view /memories lists files', async () => {
     await writeFile(join(autoMemPath, 'topic.md'), '---\ntype: user\ndescription: test\n---\n# Topic')
+    await mkdir(join(autoMemPath, 'nested'), { recursive: true })
+    await writeFile(join(autoMemPath, 'nested', 'deep.md'), '# Deep')
 
     const result = await callTool({ command: 'view', path: '/memories' })
     const output = result.data as any
@@ -91,6 +98,39 @@ describe('MemoryTool', () => {
     const names = output.files!.map((f: any) => f.path)
     expect(names).toContain('/memories/MEMORY.md')
     expect(names).toContain('/memories/topic.md')
+    expect(names).toContain('/memories/nested/deep.md')
+  })
+
+  test('view /user-memory lists global user memory files', async () => {
+    await writeFile(join(userMemPath, 'profile.memory.md'), '# User Memory')
+    await writeFile(join(userMemPath, 'preferences.json'), '{"language":"zh-CN"}\n')
+    await writeFile(join(userMemPath, 'memory_events.jsonl'), '')
+
+    const result = await callTool({ command: 'view', path: '/user-memory' })
+    const output = result.data as any
+    const names = output.files!.map((f: any) => f.path)
+    expect(names).toContain('/user-memory/profile.memory.md')
+    expect(names).toContain('/user-memory/preferences.json')
+    expect(names).toContain('/user-memory/memory_events.jsonl')
+  })
+
+  test('create can write global user memory files', async () => {
+    const result = await callTool({
+      command: 'create',
+      path: '/user-memory/topics/coding.md',
+      file_text: '# Coding\n\nPrefers TypeScript.',
+    })
+    const output = result.data as any
+    expect(output.content).toContain('Created')
+    expect(await readFile(join(userMemPath, 'topics', 'coding.md'), 'utf8')).toContain('TypeScript')
+  })
+
+  test('rejects traversal under /user-memory', async () => {
+    const validateResult = await MemoryTool.validateInput!(
+      { command: 'create', path: '/user-memory/../escape.md', file_text: '# test' },
+      mockContext,
+    )
+    expect(validateResult.result).toBe(false)
   })
 
   test('view single file reads content', async () => {
@@ -125,6 +165,17 @@ describe('MemoryTool', () => {
     expect(output.content).toContain('Created')
     const content = await readFile(join(autoMemPath, 'new-topic.md'), 'utf8')
     expect(content).toContain('# New Memory')
+  })
+
+  test('create rejects high-confidence secrets', async () => {
+    const result = await callTool({
+      command: 'create',
+      path: '/memories/secret.md',
+      file_text: 'token = ghp_123456789012345678901234567890123456',
+    })
+    const output = result.data as any
+    expect(output.content).toContain('cannot be written to memory')
+    expect(existsSync(join(autoMemPath, 'secret.md'))).toBe(false)
   })
 
   test('create fails on existing file', async () => {

@@ -1,5 +1,6 @@
 import { appendFile, mkdir } from 'node:fs/promises'
 import { dirname, relative } from 'node:path'
+import { parseMemoryFrontmatter } from '@codepilotx/core/memory/state.js'
 import { parseMemoryType, type MemoryType } from '../memdir/memoryTypes.js'
 
 const RECALL_LOG_NAME = '.recall-events.jsonl'
@@ -32,7 +33,7 @@ export async function appendMemoryRecallEvent(
     status: input.status ?? 'injected',
     consumedOnIteration: input.consumedOnIteration,
     memories: input.memories.map(memory => {
-      const frontmatter = parseFrontmatter(memory.content)
+      const frontmatter = parseMemoryFrontmatter(memory.content)
       return {
         relativePath: relative(input.memoryDir, memory.path),
         ...(parseMemoryType(frontmatter.type)
@@ -56,19 +57,4 @@ function summarizeQuery(query: string): string {
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, QUERY_SUMMARY_MAX_LENGTH)
-}
-
-function parseFrontmatter(content: string): Record<string, string> {
-  if (!content.startsWith('---')) return {}
-  const end = content.indexOf('\n---', 3)
-  if (end < 0) return {}
-  const values: Record<string, string> = {}
-  for (const line of content.slice(3, end).split(/\r?\n/)) {
-    const separator = line.indexOf(':')
-    if (separator <= 0) continue
-    values[line.slice(0, separator).trim()] = line
-      .slice(separator + 1)
-      .trim()
-  }
-  return values
 }
