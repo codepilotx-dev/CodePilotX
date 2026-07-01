@@ -428,6 +428,66 @@ export function useSessionState(
   }, [handleWorkflowEvent])
 
   useEffect(() => {
+    const unsubscribe = desktopClient.onSessionStoreChange(change => {
+      const nextSessions = change.sessions.map(snapshot => snapshot.item)
+      const nextViews = { ...sessionViewsRef.current }
+      const nextWorkspaces = { ...sessionWorkspacesRef.current }
+      for (const snapshot of change.sessions) {
+        const existingView = nextViews[snapshot.item.id]
+        const snapshotView: SessionViewState = {
+          ...snapshot.view,
+          eventModelVersion: snapshot.eventModelVersion,
+          events: snapshot.events ?? [],
+          workflowEvents: dedupeWorkflowEvents(snapshot.workflowEvents ?? []),
+          contextUsage: snapshot.view.contextUsage ?? null,
+          selectedFile: existingView?.selectedFile ?? null,
+        }
+        nextViews[snapshot.item.id] = {
+          ...snapshotView,
+          ...deriveWorkflowViewPatch(
+            snapshotView.workflowEvents,
+            snapshotView,
+            snapshot.item.id,
+          ),
+        }
+        nextWorkspaces[snapshot.item.id] = snapshot.workspace
+      }
+      const knownIds = new Set(change.sessions.map(snapshot => snapshot.item.id))
+      for (const id of Object.keys(nextViews)) {
+        if (!knownIds.has(id)) {
+          delete nextViews[id]
+        }
+      }
+      for (const id of Object.keys(nextWorkspaces)) {
+        if (!knownIds.has(id)) {
+          delete nextWorkspaces[id]
+        }
+      }
+      sessionViewsRef.current = nextViews
+      sessionWorkspacesRef.current = nextWorkspaces
+      sessionsRef.current = nextSessions
+      setSessions(nextSessions)
+
+      const currentId = activeSessionIdRef.current
+      if (!currentId) return
+      const currentSession = nextSessions.find(session => session.id === currentId)
+      if (!currentSession || currentSession.archivedAt) {
+        activeSessionIdRef.current = null
+        setSessionId(null)
+        setSessionStatus('idle')
+        applySessionView(createEmptySessionView(), viewSetters)
+        setInput(inputBySessionRef.current[HOME_INPUT_KEY] ?? '')
+        return
+      }
+      setSessionStatus(currentSession.status)
+      applySessionView(nextViews[currentId] ?? createEmptySessionView(), viewSetters)
+    })
+    return () => {
+      unsubscribe()
+    }
+  }, [viewSetters])
+
+  useEffect(() => {
     let disposed = false
     async function hydrateSessions(): Promise<void> {
       try {

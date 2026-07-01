@@ -3,6 +3,10 @@ import {
   assertDesktopApiSchemaCoverage,
   validateDesktopApiArgs,
 } from './desktopApiSchema.js'
+import {
+  DESKTOP_SETTINGS_CHANGE_CHANNEL,
+  DESKTOP_SESSION_STORE_CHANGE_CHANNEL,
+} from './ipcChannels.js'
 
 test('desktop API schema covers every IPC method', () => {
   expect(() => assertDesktopApiSchemaCoverage()).not.toThrow()
@@ -44,4 +48,14 @@ test('desktop API schema validates sendUserMessage with localRouterMode', () => 
     { text: 'hello' },
     { providerID: 'minimax', localRouterMode: 'pareto-code' },
   ])
+})
+
+test('desktop API exposes shared state subscription channels', () => {
+  expect(DESKTOP_SESSION_STORE_CHANGE_CHANNEL).toBe(
+    'desktop:session-store-change',
+  )
+  expect(DESKTOP_SETTINGS_CHANGE_CHANNEL).toBe('desktop:settings-change')
+
+  expect(DESKTOP_SESSION_STORE_CHANGE_CHANNEL).toStartWith('desktop:')
+  expect(DESKTOP_SETTINGS_CHANGE_CHANNEL).toStartWith('desktop:')
 })

@@ -7,17 +7,22 @@ import type {
   DesktopAgentEvent,
   DesktopPermissionDecision,
   DesktopPermissionRequest,
+  DesktopSettingsChange,
+  DesktopSessionStoreChange,
   DesktopUiCommand,
   DesktopWorkflowEvent,
 } from '../shared/types.js'
 import {
   DESKTOP_AGENT_EVENT_CHANNEL,
+  DESKTOP_SETTINGS_CHANGE_CHANNEL,
+  DESKTOP_SESSION_STORE_CHANGE_CHANNEL,
   DESKTOP_UI_COMMAND_CHANNEL,
   DESKTOP_WORKFLOW_EVENT_CHANNEL,
 } from '../shared/ipcChannels.js'
 import { getDesktopConfigDirectoryPath } from './desktopSettings.js'
 import { isDevToolsShortcut } from './desktopDevToolsShortcut.js'
 import { DesktopWorkflowProjector } from './workflowProjection.js'
+import { createWindowRegistry } from './windowRegistry.js'
 
 const DEFAULT_WINDOW_WIDTH = 1440
 const DEFAULT_WINDOW_HEIGHT = 920
@@ -44,6 +49,8 @@ export type DesktopWindowService = {
   hasOpenWindows(): boolean
   emitAgentEvent(event: DesktopAgentEvent): DesktopWorkflowEvent[]
   emitWorkflowEvent(event: DesktopWorkflowEvent): DesktopWorkflowEvent
+  emitSessionStoreChange(change: DesktopSessionStoreChange): void
+  emitSettingsChange(change: DesktopSettingsChange): void
   emitPermissionDecision(
     sessionId: string,
     request: DesktopPermissionRequest,
@@ -69,14 +76,15 @@ export function createDesktopWindowService(options: {
   preloadPath: () => string
   emitDesktopEvent?: (channel: string, payload: unknown) => void
 }): DesktopWindowService {
-  let mainWindow: BrowserWindow | null = null
+  const windows = createWindowRegistry<BrowserWindow>()
+  let lastFocusedWindow: BrowserWindow | null = null
   let windowStateSaveTimer: ReturnType<typeof setTimeout> | null = null
   const workflowProjector = new DesktopWorkflowProjector()
 
   function createWindow(): void {
     const restoredWindowState = getRestoredWindowState()
     const icon = options.iconPath()
-    mainWindow = new BrowserWindow({
+    const window = new BrowserWindow({
       ...restoredWindowState.bounds,
       minWidth: MIN_WINDOW_WIDTH,
       minHeight: MIN_WINDOW_HEIGHT,
@@ -92,31 +100,39 @@ export function createDesktopWindowService(options: {
     })
 
     if (restoredWindowState.maximized) {
-      mainWindow.maximize()
+      window.maximize()
     }
-    mainWindow.setMenuBarVisibility(false)
-    mainWindow.setAutoHideMenuBar(true)
-    mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
-    mainWindow.webContents.on('will-navigate', (event, url) => {
+    windows.add(window)
+    lastFocusedWindow = window
+    window.setMenuBarVisibility(false)
+    window.setAutoHideMenuBar(true)
+    window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+    window.webContents.on('will-navigate', (event, url) => {
       if (url !== options.rendererUrl()) {
         event.preventDefault()
       }
     })
-    mainWindow.webContents.on('before-input-event', (event, input) => {
+    window.webContents.on('before-input-event', (event, input) => {
       if (!isDevToolsShortcut(input)) return
       event.preventDefault()
       openDevTools()
     })
+    window.on('focus', () => {
+      lastFocusedWindow = window
+    })
 
-    void mainWindow.loadURL(options.rendererUrl())
-    registerWindowStatePersistence(mainWindow)
-    mainWindow.on('closed', () => {
-      mainWindow = null
+    void window.loadURL(options.rendererUrl())
+    registerWindowStatePersistence(window)
+    window.on('closed', () => {
+      windows.delete(window)
+      if (lastFocusedWindow === window) {
+        lastFocusedWindow = windows.all().at(-1) ?? null
+      }
     })
   }
 
   function sendUiCommand(command: DesktopUiCommand): void {
-    mainWindow?.webContents.send(DESKTOP_UI_COMMAND_CHANNEL, command)
+    getTargetWindow()?.webContents.send(DESKTOP_UI_COMMAND_CHANNEL, command)
     options.emitDesktopEvent?.(DESKTOP_UI_COMMAND_CHANNEL, command)
   }
 
@@ -196,25 +212,26 @@ export function createDesktopWindowService(options: {
   }
 
   function minimizeWindow(): void {
-    mainWindow?.minimize()
+    getTargetWindow()?.minimize()
   }
 
   function toggleWindowMaximized(): boolean {
-    if (!mainWindow) return false
-    if (mainWindow.isMaximized()) {
-      mainWindow.unmaximize()
+    const window = getTargetWindow()
+    if (!window) return false
+    if (window.isMaximized()) {
+      window.unmaximize()
       return false
     }
-    mainWindow.maximize()
+    window.maximize()
     return true
   }
 
   function closeWindow(): void {
-    mainWindow?.close()
+    getTargetWindow()?.close()
   }
 
   function isWindowMaximized(): boolean {
-    return mainWindow?.isMaximized() ?? false
+    return getTargetWindow()?.isMaximized() ?? false
   }
 
   function newWindow(): void {
@@ -222,11 +239,11 @@ export function createDesktopWindowService(options: {
   }
 
   function openDevTools(): void {
-    mainWindow?.webContents.openDevTools()
+    getTargetWindow()?.webContents.openDevTools()
   }
 
   function closeDevTools(): void {
-    mainWindow?.webContents.closeDevTools()
+    getTargetWindow()?.webContents.closeDevTools()
   }
 
   function openSettings(): void {
@@ -242,16 +259,26 @@ export function createDesktopWindowService(options: {
   }
 
   function emitAgentEvent(event: DesktopAgentEvent): DesktopWorkflowEvent[] {
-    mainWindow?.webContents.send(DESKTOP_AGENT_EVENT_CHANNEL, event)
+    windows.broadcast(DESKTOP_AGENT_EVENT_CHANNEL, event)
     options.emitDesktopEvent?.(DESKTOP_AGENT_EVENT_CHANNEL, event)
     return workflowProjector.project(event).map(emitWorkflowEvent)
   }
 
   function emitWorkflowEvent(event: DesktopWorkflowEvent): DesktopWorkflowEvent {
-    mainWindow?.webContents.send(DESKTOP_WORKFLOW_EVENT_CHANNEL, event)
+    windows.broadcast(DESKTOP_WORKFLOW_EVENT_CHANNEL, event)
     options.emitDesktopEvent?.(DESKTOP_WORKFLOW_EVENT_CHANNEL, event)
     appendWorkflowEventLog(event)
     return event
+  }
+
+  function emitSessionStoreChange(change: DesktopSessionStoreChange): void {
+    windows.broadcast(DESKTOP_SESSION_STORE_CHANGE_CHANNEL, change)
+    options.emitDesktopEvent?.(DESKTOP_SESSION_STORE_CHANGE_CHANNEL, change)
+  }
+
+  function emitSettingsChange(change: DesktopSettingsChange): void {
+    windows.broadcast(DESKTOP_SETTINGS_CHANGE_CHANNEL, change)
+    options.emitDesktopEvent?.(DESKTOP_SETTINGS_CHANGE_CHANNEL, change)
   }
 
   function emitPermissionDecision(
@@ -337,10 +364,12 @@ export function createDesktopWindowService(options: {
   return {
     createWindow,
     createApplicationMenu,
-    getWindow: () => mainWindow,
+    getWindow: getTargetWindow,
     hasOpenWindows: () => BrowserWindow.getAllWindows().length > 0,
     emitAgentEvent,
     emitWorkflowEvent,
+    emitSessionStoreChange,
+    emitSettingsChange,
     emitPermissionDecision,
     readWorkflowEventLog,
     sendUiCommand,
@@ -354,6 +383,18 @@ export function createDesktopWindowService(options: {
     openSettings,
     logOut,
     exitApp,
+  }
+
+  function getTargetWindow(): BrowserWindow | null {
+    const focused = BrowserWindow.getFocusedWindow()
+    if (focused && !focused.isDestroyed()) {
+      lastFocusedWindow = focused
+      return focused
+    }
+    if (lastFocusedWindow && !lastFocusedWindow.isDestroyed()) {
+      return lastFocusedWindow
+    }
+    return windows.all().at(-1) ?? null
   }
 }
 

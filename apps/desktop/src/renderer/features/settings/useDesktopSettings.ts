@@ -682,6 +682,12 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
     [applySettingsSnapshot],
   )
 
+  useEffect(() => {
+    return desktopClient.onDesktopSettingsChange(change => {
+      syncExternalSettingsPatch(change.settings)
+    })
+  }, [syncExternalSettingsPatch])
+
   const saveDraft = useCallback(async (): Promise<StoredDesktopSettings> => {
     const snapshot = mergeDesktopSettingsDraft(
       effectiveSettings,

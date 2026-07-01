@@ -1,6 +1,8 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import {
   DESKTOP_AGENT_EVENT_CHANNEL,
+  DESKTOP_SETTINGS_CHANGE_CHANNEL,
+  DESKTOP_SESSION_STORE_CHANGE_CHANNEL,
   DESKTOP_UI_COMMAND_CHANNEL,
   DESKTOP_WORKFLOW_EVENT_CHANNEL,
   DESKTOP_UPDATE_STATUS_CHANNEL,
@@ -9,6 +11,8 @@ import {
 import type {
   DesktopAgentEvent,
   DesktopApi,
+  DesktopSettingsChange,
+  DesktopSessionStoreChange,
   DesktopUiCommand,
   DesktopWorkflowEvent,
   DesktopUpdateStatus,
@@ -278,6 +282,26 @@ const api: DesktopApi = {
     }
     ipcRenderer.on(DESKTOP_UI_COMMAND_CHANNEL, listener)
     return () => ipcRenderer.off(DESKTOP_UI_COMMAND_CHANNEL, listener)
+  },
+  onSessionStoreChange: callback => {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      change: DesktopSessionStoreChange,
+    ) => {
+      callback(change)
+    }
+    ipcRenderer.on(DESKTOP_SESSION_STORE_CHANGE_CHANNEL, listener)
+    return () => ipcRenderer.off(DESKTOP_SESSION_STORE_CHANGE_CHANNEL, listener)
+  },
+  onDesktopSettingsChange: callback => {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      change: DesktopSettingsChange,
+    ) => {
+      callback(change)
+    }
+    ipcRenderer.on(DESKTOP_SETTINGS_CHANGE_CHANNEL, listener)
+    return () => ipcRenderer.off(DESKTOP_SETTINGS_CHANGE_CHANNEL, listener)
   },
   checkForUpdates: () =>
     ipcRenderer.invoke(desktopApiChannel('checkForUpdates')),

@@ -1,5 +1,9 @@
 import { describe, expect, test } from 'bun:test'
-import type { DesktopApi, DesktopRuntimeStatus } from '../../shared/types.js'
+import type {
+  DesktopApi,
+  DesktopRuntimeStatus,
+  DesktopSessionStoreChange,
+} from '../../shared/types.js'
 import {
   DESKTOP_BROWSER_DEBUG_MODE_STORAGE_KEY,
   createDesktopClient,
@@ -57,6 +61,55 @@ describe('desktopClient environment selection', () => {
       loading: false,
     })
     expect(client.onAgentEvent(() => {})).toBeFunction()
+    expect(client.onSessionStoreChange(() => {})).toBeFunction()
+    expect(client.onDesktopSettingsChange(() => {})).toBeFunction()
+  })
+
+  test('browser mock emits session store changes to subscribers', async () => {
+    const client = createDesktopClient({
+      window: {},
+      localStorage: memoryStorage(),
+      fetch: async () => {
+        throw new Error('fetch should not be used while debug mode is off')
+      },
+    })
+    const changes: DesktopSessionStoreChange[] = []
+    const unsubscribe = client.onSessionStoreChange(change => {
+      changes.push(change)
+    })
+
+    await client.createSession({ workspacePath: undefined })
+    unsubscribe()
+    await client.createSession({ workspacePath: undefined })
+
+    expect(changes).toHaveLength(1)
+    expect(changes[0]?.sessions).toHaveLength(1)
+  })
+
+  test('browser mock emits saved settings changes to subscribers', async () => {
+    const client = createDesktopClient({
+      window: {},
+      localStorage: memoryStorage(),
+      fetch: async () => {
+        throw new Error('fetch should not be used while debug mode is off')
+      },
+    })
+    const changes: string[] = []
+    const unsubscribe = client.onDesktopSettingsChange(change => {
+      changes.push(change.settings.model)
+    })
+
+    await client.saveDesktopSettings({
+      ...(await client.getDesktopSettings()),
+      model: 'model-a',
+    })
+    unsubscribe()
+    await client.saveDesktopSettings({
+      ...(await client.getDesktopSettings()),
+      model: 'model-b',
+    })
+
+    expect(changes).toEqual(['model-a'])
   })
 
   test('uses the browser debug bridge when debug mode is persisted', async () => {

@@ -171,6 +171,7 @@ export type DesktopApiHandlerDependencies = {
   ): Promise<void>
   interruptSession(sessionId: string): Promise<void>
   disposeSession(sessionId: string): Promise<void>
+  onDesktopSettingsSaved?(settings: DesktopStoredSettings): void
 }
 
 export function buildDesktopApiHandlers(
@@ -215,6 +216,7 @@ export function buildDesktopApiHandlers(
         ),
       })
       registerRecentWorkspaces(savedSettings)
+      dependencies.onDesktopSettingsSaved?.(savedSettings)
       return savedSettings
     },
     listProjectMemories: async workspacePath =>

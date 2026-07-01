@@ -1,6 +1,8 @@
 import {
   DESKTOP_AGENT_EVENT_CHANNEL,
   DESKTOP_API_METHODS,
+  DESKTOP_SETTINGS_CHANGE_CHANNEL,
+  DESKTOP_SESSION_STORE_CHANGE_CHANNEL,
   DESKTOP_UI_COMMAND_CHANNEL,
   DESKTOP_UPDATE_STATUS_CHANNEL,
   DESKTOP_WORKFLOW_EVENT_CHANNEL,
@@ -21,6 +23,8 @@ import type {
   DesktopModelProviderSummary,
   DesktopReviewDiffResult,
   DesktopRuntimeStatus,
+  DesktopSettingsChange,
+  DesktopSessionStoreChange,
   DesktopSessionSnapshot,
   DesktopStoredSettings,
   DesktopThemeSettings,
@@ -115,6 +119,14 @@ function createSwitchingBrowserDesktopClient(
     )
   client.onUiCommand = callback =>
     subscribeWithModeSwitch(environment, () => currentClient().onUiCommand(callback))
+  client.onSessionStoreChange = callback =>
+    subscribeWithModeSwitch(environment, () =>
+      currentClient().onSessionStoreChange(callback),
+    )
+  client.onDesktopSettingsChange = callback =>
+    subscribeWithModeSwitch(environment, () =>
+      currentClient().onDesktopSettingsChange(callback),
+    )
   client.onUpdateStatusChange = callback =>
     subscribeWithModeSwitch(environment, () =>
       currentClient().onUpdateStatusChange(callback),
@@ -201,6 +213,8 @@ function createBrowserMockDesktopClient(): DesktopApi {
   let browserState: DesktopBrowserState = emptyBrowserState()
   const sessions = new Map<string, DesktopSessionSnapshot>()
   let activeSessionId: string | null = null
+  const sessionStoreListeners = new Set<(change: DesktopSessionStoreChange) => void>()
+  const settingsListeners = new Set<(change: DesktopSettingsChange) => void>()
 
   const runtimeStatus: DesktopRuntimeStatus = {
     runtimeKind: 'embedded-headless',
@@ -276,6 +290,7 @@ function createBrowserMockDesktopClient(): DesktopApi {
     getDesktopSettings: async () => settings,
     saveDesktopSettings: async next => {
       settings = { ...settings, ...next }
+      emitSettingsChange()
       return settings
     },
     listProjectMemories: async workspacePath => ({
@@ -461,6 +476,7 @@ function createBrowserMockDesktopClient(): DesktopApi {
       const snapshot = mockSessionSnapshot(sessionId, workspace, options)
       sessions.set(sessionId, snapshot)
       activeSessionId = sessionId
+      emitSessionStoreChange()
       return {
         sessionId,
         workspace,
@@ -476,6 +492,7 @@ function createBrowserMockDesktopClient(): DesktopApi {
     getActiveSessionId: async () => activeSessionId,
     setActiveSession: async sessionId => {
       activeSessionId = sessionId
+      emitSessionStoreChange()
     },
     updateSessionMetadata: async (sessionId, patch) => {
       const snapshot = sessions.get(sessionId)
@@ -486,6 +503,7 @@ function createBrowserMockDesktopClient(): DesktopApi {
         updatedAt: new Date().toISOString(),
       }
       sessions.set(sessionId, next)
+      emitSessionStoreChange()
       return next
     },
     saveSessionReviewComment: async input => requireMockSession(sessions, input.sessionId),
@@ -498,6 +516,7 @@ function createBrowserMockDesktopClient(): DesktopApi {
         settings: { ...snapshot.settings, permissionMode: mode },
       }
       sessions.set(sessionId, next)
+      emitSessionStoreChange()
       return next
     },
     setSessionPlanModeActive: async (sessionId, active) => {
@@ -513,6 +532,7 @@ function createBrowserMockDesktopClient(): DesktopApi {
         },
       }
       sessions.set(sessionId, next)
+      emitSessionStoreChange()
       return next
     },
     setSessionLocalRouterMode: async (sessionId, mode) => {
@@ -523,6 +543,7 @@ function createBrowserMockDesktopClient(): DesktopApi {
         settings: { ...snapshot.settings, localRouterMode: mode },
       }
       sessions.set(sessionId, next)
+      emitSessionStoreChange()
       return next
     },
     readWorkflowEventLog: async () => [],
@@ -535,6 +556,10 @@ function createBrowserMockDesktopClient(): DesktopApi {
     interruptSession: async () => {},
     disposeSession: async sessionId => {
       sessions.delete(sessionId)
+      if (activeSessionId === sessionId) {
+        activeSessionId = [...sessions.keys()][0] ?? null
+      }
+      emitSessionStoreChange()
     },
     minimizeWindow: async () => {},
     toggleWindowMaximized: async () => false,
@@ -549,6 +574,18 @@ function createBrowserMockDesktopClient(): DesktopApi {
     onAgentEvent: () => noop,
     onWorkflowEvent: () => noop,
     onUiCommand: () => noop,
+    onSessionStoreChange: callback => {
+      sessionStoreListeners.add(callback)
+      return () => {
+        sessionStoreListeners.delete(callback)
+      }
+    },
+    onDesktopSettingsChange: callback => {
+      settingsListeners.add(callback)
+      return () => {
+        settingsListeners.delete(callback)
+      }
+    },
     checkForUpdates: async () => {},
     downloadUpdate: async () => {},
     quitAndInstall: async () => {},
@@ -573,6 +610,23 @@ function createBrowserMockDesktopClient(): DesktopApi {
     }),
     cancelDebugToolProbe: async () => {},
   }
+
+  function emitSessionStoreChange(): void {
+    const change: DesktopSessionStoreChange = {
+      activeSessionId,
+      sessions: [...sessions.values()],
+    }
+    for (const listener of sessionStoreListeners) {
+      listener(change)
+    }
+  }
+
+  function emitSettingsChange(): void {
+    const change: DesktopSettingsChange = { settings }
+    for (const listener of settingsListeners) {
+      listener(change)
+    }
+  }
 }
 
 function createInvokingDesktopClient(
@@ -587,6 +641,10 @@ function createInvokingDesktopClient(
   client.onWorkflowEvent = callback =>
     subscribe(DESKTOP_WORKFLOW_EVENT_CHANNEL, callback)
   client.onUiCommand = callback => subscribe(DESKTOP_UI_COMMAND_CHANNEL, callback)
+  client.onSessionStoreChange = callback =>
+    subscribe(DESKTOP_SESSION_STORE_CHANGE_CHANNEL, callback)
+  client.onDesktopSettingsChange = callback =>
+    subscribe(DESKTOP_SETTINGS_CHANGE_CHANNEL, callback)
   client.onUpdateStatusChange = callback =>
     subscribe<DesktopUpdateStatus>(DESKTOP_UPDATE_STATUS_CHANNEL, callback)
   return client

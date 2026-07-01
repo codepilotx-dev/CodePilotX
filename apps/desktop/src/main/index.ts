@@ -1,4 +1,4 @@
-import { app } from 'electron'
+import { app, BrowserWindow } from 'electron'
 import { EventEmitter } from 'node:events'
 import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
@@ -361,10 +361,18 @@ async function ensureSessionStoreLoaded(): Promise<void> {
 
 function persistSessionStore(options?: { immediate?: boolean }): void {
   sessionPersistScheduler.requestSave(options)
+  emitSessionStoreChange()
 }
 
 async function flushSessionStorePersistence(): Promise<void> {
   await sessionPersistScheduler.flush()
+}
+
+function emitSessionStoreChange(): void {
+  windowService.emitSessionStoreChange({
+    activeSessionId,
+    sessions: [...sessions.values()].map(record => record.snapshot),
+  })
 }
 
 function desktopConsoleLog(
@@ -1495,6 +1503,9 @@ const desktopApiHandlers = buildDesktopApiHandlers({
   respondToPermission,
   interruptSession,
   disposeSession,
+  onDesktopSettingsSaved: settings => {
+    windowService.emitSettingsChange({ settings })
+  },
 })
 
 let desktopBrowserDebugBridgeServer: DesktopBrowserDebugBridgeServer | null = null
@@ -1569,8 +1580,11 @@ void syncDesktopBrowserAutomationBridge().catch(error => {
 
 createDesktopAutoUpdater({
   onStatusChange: (status) => {
-    const window = windowService.getWindow()
-    window?.webContents.send(DESKTOP_UPDATE_STATUS_CHANNEL, status)
+    for (const window of BrowserWindow.getAllWindows()) {
+      if (!window.isDestroyed() && !window.webContents.isDestroyed()) {
+        window.webContents.send(DESKTOP_UPDATE_STATUS_CHANNEL, status)
+      }
+    }
     desktopBrowserDebugEvents.emit(DESKTOP_UPDATE_STATUS_CHANNEL, status)
   },
 })

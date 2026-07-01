@@ -929,6 +929,15 @@ export type DesktopSessionSnapshot = {
   updatedAt: string
 }
 
+export type DesktopSessionStoreChange = {
+  activeSessionId: string | null
+  sessions: DesktopSessionSnapshot[]
+}
+
+export type DesktopSettingsChange = {
+  settings: DesktopStoredSettings
+}
+
 export type DesktopSessionMetadataPatch = {
   pinnedAt?: string | null
   archivedAt?: string | null
@@ -1344,6 +1353,8 @@ export type DesktopApi = {
   onAgentEvent(callback: (event: DesktopAgentEvent) => void): () => void
   onWorkflowEvent(callback: (event: DesktopWorkflowEvent) => void): () => void
   onUiCommand(callback: (command: DesktopUiCommand) => void): () => void
+  onSessionStoreChange(callback: (change: DesktopSessionStoreChange) => void): () => void
+  onDesktopSettingsChange(callback: (change: DesktopSettingsChange) => void): () => void
   checkForUpdates(): Promise<void>
   downloadUpdate(): Promise<void>
   quitAndInstall(): Promise<void>

@@ -41,20 +41,37 @@ export type DesktopBrowserService = {
 export function createDesktopBrowserService(options: {
   getWindow: () => BrowserWindow | null
 }): DesktopBrowserService {
-  let view: WebContentsView | null = null
-  let bounds: Rectangle | null = null
-  let viewState: BrowserViewState = emptyViewState()
+  type BrowserWindowState = {
+    view: WebContentsView | null
+    bounds: Rectangle | null
+    viewState: BrowserViewState
+  }
+  const states = new WeakMap<BrowserWindow, BrowserWindowState>()
 
-  function ensureView(): WebContentsView {
+  function getWindowState(): { window: BrowserWindow; state: BrowserWindowState } {
     const window = options.getWindow()
     if (!window) {
       throw new Error('Browser window is not available.')
     }
-    if (view && !view.webContents.isDestroyed()) {
-      attachView(window, view)
-      return view
+    let state = states.get(window)
+    if (!state) {
+      state = {
+        view: null,
+        bounds: null,
+        viewState: emptyViewState(),
+      }
+      states.set(window, state)
     }
-    view = new WebContentsView({
+    return { window, state }
+  }
+
+  function ensureView(): WebContentsView {
+    const { window, state } = getWindowState()
+    if (state.view && !state.view.webContents.isDestroyed()) {
+      attachView(window, state.view)
+      return state.view
+    }
+    const view = new WebContentsView({
       webPreferences: {
         contextIsolation: true,
         nodeIntegration: false,
@@ -72,19 +89,22 @@ export function createDesktopBrowserService(options: {
     view.webContents.on('will-navigate', (event, nextURL) => {
       if (!isAllowedBrowserURL(nextURL)) {
         event.preventDefault()
-        setError('Only http, https, and file URLs can be opened.')
+        setError(state, 'Only http, https, and file URLs can be opened.')
       }
     })
-    view.webContents.on('did-start-loading', () => updateViewState({ error: null }))
-    view.webContents.on('did-stop-loading', () => updateViewState())
-    view.webContents.on('did-navigate', () => updateViewState())
-    view.webContents.on('did-navigate-in-page', () => updateViewState())
-    view.webContents.on('page-title-updated', () => updateViewState())
+    view.webContents.on('did-start-loading', () =>
+      updateViewState(state, { error: null }),
+    )
+    view.webContents.on('did-stop-loading', () => updateViewState(state))
+    view.webContents.on('did-navigate', () => updateViewState(state))
+    view.webContents.on('did-navigate-in-page', () => updateViewState(state))
+    view.webContents.on('page-title-updated', () => updateViewState(state))
     view.webContents.on('did-fail-load', (_event, _code, description) => {
-      setError(description)
+      setError(state, description)
     })
+    state.view = view
     attachView(window, view)
-    applyBounds()
+    applyBounds(state)
     return view
   }
 
@@ -93,38 +113,42 @@ export function createDesktopBrowserService(options: {
     window.contentView.addChildView(nextView)
   }
 
-  function applyBounds(): void {
-    if (!view || !bounds) return
-    view.setBounds(bounds)
+  function applyBounds(state: BrowserWindowState): void {
+    if (!state.view || !state.bounds) return
+    state.view.setBounds(state.bounds)
   }
 
-  function updateViewState(patch: { error?: string | null } = {}): void {
-    if (!view || view.webContents.isDestroyed()) {
-      viewState = emptyViewState()
+  function updateViewState(
+    state: BrowserWindowState,
+    patch: { error?: string | null } = {},
+  ): void {
+    if (!state.view || state.view.webContents.isDestroyed()) {
+      state.viewState = emptyViewState()
       return
     }
-    viewState = {
-      url: view.webContents.getURL(),
-      title: view.webContents.getTitle(),
-      loading: view.webContents.isLoading(),
-      canGoBack: view.webContents.canGoBack(),
-      canGoForward: view.webContents.canGoForward(),
-      error: 'error' in patch ? patch.error ?? null : viewState.error,
+    state.viewState = {
+      url: state.view.webContents.getURL(),
+      title: state.view.webContents.getTitle(),
+      loading: state.view.webContents.isLoading(),
+      canGoBack: state.view.webContents.canGoBack(),
+      canGoForward: state.view.webContents.canGoForward(),
+      error: 'error' in patch ? patch.error ?? null : state.viewState.error,
     }
   }
 
-  function setError(message: string): void {
-    updateViewState({ error: message })
+  function setError(state: BrowserWindowState, message: string): void {
+    updateViewState(state, { error: message })
   }
 
   async function state(): Promise<DesktopBrowserState> {
-    if (view && !view.webContents.isDestroyed()) {
-      updateViewState()
+    const { state: windowState } = getWindowState()
+    if (windowState.view && !windowState.view.webContents.isDestroyed()) {
+      updateViewState(windowState)
     }
     const settings = await readDesktopStoredSettings()
     return {
-      open: Boolean(view && !view.webContents.isDestroyed()),
-      ...viewState,
+      open: Boolean(windowState.view && !windowState.view.webContents.isDestroyed()),
+      ...windowState.viewState,
       allowedSites: settings.browserAllowedSites,
       sitePermissions: settings.browserSitePermissions,
     }
@@ -135,7 +159,7 @@ export function createDesktopBrowserService(options: {
     const browserView = ensureView()
     await rememberAllowedSite(normalizedURL)
     await browserView.webContents.loadURL(normalizedURL)
-    updateViewState({ error: null })
+    updateViewState(getWindowState().state, { error: null })
     return state()
   }
 
@@ -144,46 +168,55 @@ export function createDesktopBrowserService(options: {
     async open(url = 'about:blank') {
       ensureView()
       if (url === 'about:blank') {
-        viewState = emptyViewState()
+        getWindowState().state.viewState = emptyViewState()
         return state()
       }
       return navigateTo(url)
     },
     navigate: navigateTo,
     async reload() {
-      if (view && !view.webContents.isDestroyed()) {
-        view.webContents.reload()
+      const { state: windowState } = getWindowState()
+      if (windowState.view && !windowState.view.webContents.isDestroyed()) {
+        windowState.view.webContents.reload()
       }
       return state()
     },
     async goBack() {
-      if (view && !view.webContents.isDestroyed() && view.webContents.canGoBack()) {
-        view.webContents.goBack()
+      const { state: windowState } = getWindowState()
+      if (
+        windowState.view &&
+        !windowState.view.webContents.isDestroyed() &&
+        windowState.view.webContents.canGoBack()
+      ) {
+        windowState.view.webContents.goBack()
       }
       return state()
     },
     async goForward() {
+      const { state: windowState } = getWindowState()
       if (
-        view &&
-        !view.webContents.isDestroyed() &&
-        view.webContents.canGoForward()
+        windowState.view &&
+        !windowState.view.webContents.isDestroyed() &&
+        windowState.view.webContents.canGoForward()
       ) {
-        view.webContents.goForward()
+        windowState.view.webContents.goForward()
       }
       return state()
     },
     async close() {
-      if (view && !view.webContents.isDestroyed()) {
-        options.getWindow()?.contentView.removeChildView(view)
-        view.webContents.close()
+      const { window, state: windowState } = getWindowState()
+      if (windowState.view && !windowState.view.webContents.isDestroyed()) {
+        window.contentView.removeChildView(windowState.view)
+        windowState.view.webContents.close()
       }
-      view = null
-      viewState = emptyViewState()
+      windowState.view = null
+      windowState.viewState = emptyViewState()
       return state()
     },
     async setBounds(nextBounds) {
-      bounds = normalizeBounds(nextBounds)
-      applyBounds()
+      const { state: windowState } = getWindowState()
+      windowState.bounds = normalizeBounds(nextBounds)
+      applyBounds(windowState)
       return state()
     },
     async clearAllowedSites() {
