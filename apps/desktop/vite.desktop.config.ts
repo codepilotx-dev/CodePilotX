@@ -9,7 +9,6 @@ import {
 const desktopRendererPort = Number.parseInt(
   process.env.DESKTOP_RENDERER_PORT ??
     process.env.CODEPILOTX_DESKTOP_RENDERER_PORT ??
-    process.env.CLAUDE_CODE_DESKTOP_RENDERER_PORT ??
     '5000',
   10,
 )

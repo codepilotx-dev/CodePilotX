@@ -9,15 +9,13 @@ const electronPath = require('electron')
 const rendererPort = Number.parseInt(
   process.env.DESKTOP_RENDERER_PORT ??
     process.env.CODEPILOTX_DESKTOP_RENDERER_PORT ??
-    process.env.CLAUDE_CODE_DESKTOP_RENDERER_PORT ??
     '5000',
   10,
 )
 const rendererUrl = `http://127.0.0.1:${rendererPort}/`
 const mainEntry = resolve(root, 'dist/desktop/main/index.js')
 const desktopRuntimeEnv =
-  process.env.CODEPILOTX_DESKTOP_RUNTIME ??
-  process.env.CLAUDE_CODE_DESKTOP_RUNTIME
+  process.env.CODEPILOTX_DESKTOP_RUNTIME
 const runtimeMode =
   process.argv.includes('--subprocess') ||
   desktopRuntimeEnv === 'subprocess'
