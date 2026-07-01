@@ -1981,8 +1981,7 @@
 .user-message-bubble {
   max-width: min(560px, 70%);
   padding: 9px 14px;
-  border-radius: var(--radius-6);
-  border-top-right-radius: 4px;
+  border-radius: var(--radius-user-message);
   background: var(--c-text-strong);
   color: var(--c-bg);
   font-size: var(--fs-14);
@@ -1990,6 +1989,90 @@
   word-break: break-word;
   
   white-space: pre-wrap;
+}
+
+.user-message-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 6px;
+  color: var(--c-text-meta);
+  font-size: var(--fs-12);
+  line-height: 1;
+}
+
+.user-message-meta time {
+  font-variant-numeric: tabular-nums;
+}
+
+.user-message-meta .message-action {
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-3);
+  color: var(--c-text-meta);
+}
+
+.user-message-meta .message-action svg {
+  width: var(--app-icon-size-sm);
+  height: var(--app-icon-size-sm);
+}
+
+.user-message-editor {
+  width: min(var(--composer-w), 100%);
+  min-height: 116px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 18px 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-user-message);
+  background: var(--c-panel-bg);
+  color: var(--c-text-strong);
+}
+
+.user-message-editor textarea {
+  width: 100%;
+  flex: 1;
+  min-height: 58px;
+  resize: none;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: var(--fs-14);
+  line-height: 1.6;
+}
+
+.user-message-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+}
+
+.user-message-editor-button {
+  min-height: 32px;
+  padding: 0 13px;
+  border-radius: var(--radius-5);
+  font-size: var(--fs-13);
+  font-weight: var(--font-weight-label);
+}
+
+.user-message-editor-button.secondary {
+  border: 1px solid var(--c-border-soft);
+  background: color-mix(in srgb, var(--c-panel-bg) 82%, var(--c-text-strong));
+  color: var(--c-text-strong);
+}
+
+.user-message-editor-button.primary {
+  background: var(--c-text-strong);
+  color: var(--c-bg);
+}
+
+.user-message-editor-button:disabled {
+  cursor: default;
+  opacity: 0.55;
 }
 
 .assistant-message-body {
@@ -2724,8 +2807,7 @@
   max-width: min(620px, 72%);
   padding: 12px 16px;
   border: 1px solid var(--border-subtle);
-  border-radius: 16px;
-  border-top-right-radius: 6px;
+  border-radius: var(--radius-user-message);
   background: var(--c-panel-bg);
   color: var(--c-text-strong);
   box-shadow: none;

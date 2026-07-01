@@ -160,6 +160,7 @@
   --radius-4: var(--border-r);
   --radius-5: calc(var(--border-r) + 4px);
   --radius-6: var(--radius-card);
+  --radius-user-message: var(--radius-6);
   --radius-full: 9999px;
   --z-right-dock: 90;
   --z-composer: 95;

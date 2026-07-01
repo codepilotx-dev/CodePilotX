@@ -35,6 +35,7 @@ export type QuickChatContextValue = {
   onOpenWorkspacePath: () => void
   onOpenRightDock: (tool: RightDockToolId) => void
   onOpenPlanInRightDock: (plan: RightDockPlan) => void
+  onSubmitEditedUserMessage: (text: string) => Promise<void>
   onAppendComposerText: (text: string) => void
   onAddComposerFiles: (filePaths: string[]) => void
   onRefreshDiff: () => void

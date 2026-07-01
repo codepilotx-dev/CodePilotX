@@ -1213,47 +1213,19 @@ export function deriveAssistantActionMessageIds({
   timelineEvents: DesktopSessionEvent[];
 }): Set<string> {
   const visibleIds = new Set<string>();
-  let turnOpen = false;
   let lastAssistantMessageId: string | null = null;
 
-  function closeTurn(): void {
-    if (lastAssistantMessageId) {
-      visibleIds.add(lastAssistantMessageId);
-    }
-    turnOpen = false;
-    lastAssistantMessageId = null;
-  }
-
   for (const event of timelineEvents) {
-    if (
-      event.type === "message" &&
-      event.role === "user" &&
-      Boolean(event.content?.trim())
-    ) {
-      if (!turnOpen) {
-        turnOpen = true;
-        lastAssistantMessageId = null;
-      }
-      continue;
-    }
-
-    if (!turnOpen) continue;
-
     if (
       event.type === "message" &&
       event.role === "assistant" &&
       Boolean(event.content?.trim())
     ) {
       lastAssistantMessageId = event.id;
-      continue;
-    }
-
-    if (event.type === "checkpoint" || event.type === "error") {
-      closeTurn();
     }
   }
 
-  if (turnOpen && lastAssistantMessageId && !isActiveSessionStatus(sessionStatus)) {
+  if (lastAssistantMessageId && !isActiveSessionStatus(sessionStatus)) {
     visibleIds.add(lastAssistantMessageId);
   }
 
@@ -2019,6 +1991,11 @@ function ChatMessage({
   message: Message;
   showActions: boolean;
 }): React.ReactNode {
+  const { onSubmitEditedUserMessage, sessionStatus } = useQuickChatContext();
+  const [isEditing, setIsEditing] = React.useState(false);
+  const [draft, setDraft] = React.useState(message.text);
+  const [isSubmittingEdit, setIsSubmittingEdit] = React.useState(false);
+  const editTextareaRef = React.useRef<HTMLTextAreaElement | null>(null);
   const shouldTypewrite =
     message.role === "assistant" &&
     !message.streaming &&
@@ -2027,14 +2004,109 @@ function ChatMessage({
     enabled: shouldTypewrite,
     text: message.text,
   });
+  const canSubmitEdit =
+    Boolean(draft.trim()) &&
+    !isSubmittingEdit &&
+    sessionStatus !== "running" &&
+    sessionStatus !== "waiting";
+
+  React.useEffect(() => {
+    if (!isEditing) return;
+    setDraft(message.text);
+    window.requestAnimationFrame(() => {
+      editTextareaRef.current?.focus();
+      editTextareaRef.current?.setSelectionRange(
+        editTextareaRef.current.value.length,
+        editTextareaRef.current.value.length,
+      );
+    });
+  }, [isEditing, message.text]);
+
+  async function submitEdit(): Promise<void> {
+    if (!canSubmitEdit) return;
+    setIsSubmittingEdit(true);
+    try {
+      await onSubmitEditedUserMessage(draft.trim());
+      setIsEditing(false);
+    } catch (error) {
+      window.alert(
+        `发送失败：${error instanceof Error ? error.message : String(error)}`,
+      );
+    } finally {
+      setIsSubmittingEdit(false);
+    }
+  }
 
   if (message.role === "user") {
+    const sentAt = formatUserMessageTime(message.createdAt);
+    if (isEditing) {
+      return (
+        <article className="chat-message-row user">
+          <div className="user-message-editor">
+            <textarea
+              ref={editTextareaRef}
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  event.preventDefault();
+                  setIsEditing(false);
+                  setDraft(message.text);
+                  return;
+                }
+                if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+                  event.preventDefault();
+                  void submitEdit();
+                }
+              }}
+            />
+            <div className="user-message-editor-actions">
+              <button
+                className="user-message-editor-button secondary"
+                onClick={() => {
+                  setIsEditing(false);
+                  setDraft(message.text);
+                }}
+                type="button"
+              >
+                取消
+              </button>
+              <button
+                className="user-message-editor-button primary"
+                disabled={!canSubmitEdit}
+                onClick={() => void submitEdit()}
+                type="button"
+              >
+                发送
+              </button>
+            </div>
+          </div>
+        </article>
+      );
+    }
+
     return (
       <article className="chat-message-row user">
         <div className="user-message-bubble">{message.text}</div>
-        <MessageActionButton label="复制" tip="复制" text={message.text}>
-          <Copy size={APP_ICON_SIZE} />
-        </MessageActionButton>
+        <div className="user-message-meta" aria-label="用户消息操作">
+          {sentAt ? <time>{sentAt}</time> : null}
+          <MessageActionButton label="复制" tip="复制" text={message.text}>
+            <Copy size={APP_ICON_SIZE} />
+          </MessageActionButton>
+          <Tooltip content="修改">
+            <button
+              aria-label="修改"
+              className="message-action"
+              onClick={() => {
+                setDraft(message.text);
+                setIsEditing(true);
+              }}
+              type="button"
+            >
+              <Pencil size={APP_ICON_SIZE} />
+            </button>
+          </Tooltip>
+        </div>
       </article>
     );
   }
@@ -2083,6 +2155,16 @@ function isRecentMessage(createdAt: string | number | undefined): boolean {
     typeof createdAt === "number" ? createdAt : Date.parse(createdAt);
   if (!Number.isFinite(timestamp)) return false;
   return Date.now() - timestamp < 6000;
+}
+
+function formatUserMessageTime(createdAt: string | number | undefined): string {
+  if (createdAt === undefined) return "";
+  const date = new Date(createdAt);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 function MessageActionButton({

@@ -659,6 +659,17 @@ export function DesktopLayout(): React.ReactNode {
     [input, setInput],
   )
 
+  const handleSubmitEditedUserMessage = useCallback(
+    async (text: string): Promise<void> => {
+      if (!activeSessionItem) return
+      await submitToSession(activeSessionItem.id, {
+        text,
+        attachments: [],
+      })
+    },
+    [activeSessionItem, submitToSession],
+  )
+
   const handleAddComposerFiles = useCallback((filePaths: string[]): void => {
     if (filePaths.length === 0) return
     void desktopClient
@@ -1561,6 +1572,7 @@ export function DesktopLayout(): React.ReactNode {
             onOpenWorkspacePath: handleOpenWorkspacePath,
             onOpenRightDock: openRightDockTool,
             onOpenPlanInRightDock: handleOpenPlanDock,
+            onSubmitEditedUserMessage: handleSubmitEditedUserMessage,
             onAppendComposerText: handleAppendComposerText,
             onAddComposerFiles: handleAddComposerFiles,
             onRefreshDiff: handleRefreshDiff,
