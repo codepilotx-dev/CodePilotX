@@ -147,6 +147,37 @@ test('updates a permission-gated command to failed when the tool result errors',
   expect(commandRunView(group.runs[0]!).statusLabel).toBe('失败')
 })
 
+test('stops an unfinished command when a terminal error arrives', () => {
+  const items = groupTimelineToolEvents([
+    toolCallEvent('tool-1', 'Bash', 'npm test'),
+    errorEvent('error-1', 'This operation was aborted'),
+  ])
+
+  expect(items).toHaveLength(2)
+  const group = items[0]
+  expect(group?.type).toBe('tool_group')
+  if (group?.type !== 'tool_group') throw new Error('Expected tool group')
+  expect(group.runs).toHaveLength(1)
+  expect(group.runs[0]?.isRunning).toBe(false)
+  expect(commandRunView(group.runs[0]!).statusLabel).toBe('失败')
+  expect(items[1]?.type).toBe('error')
+})
+
+test('stops an unfinished command when the turn checkpoint arrives', () => {
+  const items = groupTimelineToolEvents([
+    toolCallEvent('tool-1', 'Bash', 'npm test'),
+    checkpointEvent('done-1'),
+  ])
+
+  expect(items).toHaveLength(2)
+  const group = items[0]
+  expect(group?.type).toBe('tool_group')
+  if (group?.type !== 'tool_group') throw new Error('Expected tool group')
+  expect(group.runs[0]?.isRunning).toBe(false)
+  expect(commandRunView(group.runs[0]!).statusLabel).toBe('失败')
+  expect(items[1]?.type).toBe('checkpoint')
+})
+
 test('keeps standalone errors as system timeline events', () => {
   const items = groupTimelineToolEvents([
     errorEvent('error-1', 'Something failed'),
