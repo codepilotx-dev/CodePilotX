@@ -847,6 +847,11 @@ export type DesktopSessionListItem = {
   prUrl?: string | null
   prRepository?: string | null
   transcriptPath?: string | null
+  rolloutPath?: string | null
+  legacyTranscriptPath?: string | null
+  source?: "user" | "internal_guardian" | "subagent" | null
+  parentSessionId?: string | null
+  guardianRolloutPath?: string | null
   fileSize?: number | null
   workspaceName: string
   workspacePath: string
@@ -1144,7 +1149,7 @@ export type DesktopMemoryRecallEvent = {
   sessionId: string
   createdAt: string
   querySummary: string
-  status: 'injected'
+  status: 'injected' | 'viewed'
   consumedOnIteration: number
   memories: DesktopMemoryRecallFile[]
 }

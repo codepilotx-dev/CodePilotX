@@ -3,7 +3,10 @@ import type {
   DesktopAgentEvent,
   DesktopSessionStatus,
 } from '../../../shared/types.js'
-import { desktopAgentEventToSessionEvent } from '../../../shared/sessionEventModel.js'
+import {
+  desktopAgentEventToSessionEvent,
+  isInternalReviewerMessageText,
+} from '../../../shared/sessionEventModel.js'
 import type { Message, SessionListItem } from '../../uiTypes.js'
 import type {
   AddToolLogEntry,
@@ -37,6 +40,10 @@ export function handleSessionAgentEvent(
     onRefreshActiveWorkspaceRef,
     onOpenDrawerPermissionsRef,
   } = context
+
+  if (isInternalReviewerAgentEvent(event)) {
+    return
+  }
 
   const sessionEvent = desktopAgentEventToSessionEvent(event)
   if (sessionEvent) {
@@ -228,4 +235,13 @@ export function handleSessionAgentEvent(
       ),
     }))
   }
+}
+
+function isInternalReviewerAgentEvent(event: DesktopAgentEvent): boolean {
+  return (
+    (event.type === 'message' ||
+      event.type === 'partial_message' ||
+      event.type === 'proposed_plan') &&
+    isInternalReviewerMessageText(event.text)
+  )
 }

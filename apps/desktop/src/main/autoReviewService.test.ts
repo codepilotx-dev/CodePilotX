@@ -1,4 +1,11 @@
 import { expect, test } from 'bun:test'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import {
+  CODEPILOTX_CONFIG_DIR_ENV,
+  LEGACY_CLAUDE_CONFIG_DIR_ENV,
+} from '@codepilotx/core/config/env.js'
 import type { DesktopAgentRuntime, DesktopAgentRuntimeContext } from './agentRuntime.js'
 import {
   createDesktopAutoReviewService,
@@ -209,4 +216,69 @@ test('createRuntimeReviewerPromptRunner passes serializeHeadlessTurns:false to s
   expect(capturedContext!.sessionId).toMatch(
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
   )
+})
+
+test('default reviewer runner writes a hidden internal guardian rollout', async () => {
+  const previousConfigDir = process.env[CODEPILOTX_CONFIG_DIR_ENV]
+  const previousLegacyConfigDir = process.env[LEGACY_CLAUDE_CONFIG_DIR_ENV]
+  const configDir = await mkdtemp(join(tmpdir(), 'desktop-guardian-rollout-'))
+  process.env[CODEPILOTX_CONFIG_DIR_ENV] = configDir
+  process.env[LEGACY_CLAUDE_CONFIG_DIR_ENV] = configDir
+  try {
+    const service = createDesktopAutoReviewService({
+      createRuntime: (context: DesktopAgentRuntimeContext): DesktopAgentRuntime => ({
+        setModel: () => {},
+        setModelProvider: () => {},
+        setDebugConversationDump: () => {},
+        setPermissionMode: () => {},
+        setPlanModeActive: () => {},
+        runControlResponse: async () => {},
+        async runUserTurn() {
+          context.emit({
+            type: 'message',
+            sessionId: context.sessionId,
+            role: 'assistant',
+            text: '{"outcome":"allow","rationale":"safe"}',
+          })
+        },
+      }),
+    })
+
+    const result = await service.review({
+      sessionId: 'parent-session',
+      workspacePath: 'C:/repo',
+      model: 'test-model',
+      request: {
+        requestId: 'permission-hidden',
+        toolName: 'PowerShell',
+        input: { command: 'echo ok' },
+        description: 'Run shell',
+      },
+      policy: {
+        profile: ':workspace',
+        approvalMode: 'on-request',
+        approvalsReviewer: 'auto_review',
+        sandboxMode: 'workspace-write',
+      },
+    })
+
+    expect(result.guardianRolloutPath).toBeString()
+    const content = await readFile(result.guardianRolloutPath!, 'utf8')
+    expect(content).toContain('"source":"internal_guardian"')
+    expect(content).toContain('"parentSessionId":"parent-session"')
+    expect(content).toContain('Review this permission request. Return only JSON.')
+    expect(content).toContain('\\"outcome\\":\\"allow\\"')
+  } finally {
+    if (previousConfigDir === undefined) {
+      delete process.env[CODEPILOTX_CONFIG_DIR_ENV]
+    } else {
+      process.env[CODEPILOTX_CONFIG_DIR_ENV] = previousConfigDir
+    }
+    if (previousLegacyConfigDir === undefined) {
+      delete process.env[LEGACY_CLAUDE_CONFIG_DIR_ENV]
+    } else {
+      process.env[LEGACY_CLAUDE_CONFIG_DIR_ENV] = previousLegacyConfigDir
+    }
+    await rm(configDir, { recursive: true, force: true })
+  }
 })

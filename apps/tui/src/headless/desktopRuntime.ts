@@ -9,6 +9,8 @@ import type {
 import {
   setClientType,
   setCwdState,
+  getSessionId,
+  getSessionProjectDir,
   setOriginalCwd,
   setProjectRoot,
   setSessionTrustAccepted,
@@ -134,6 +136,7 @@ const DESKTOP_WORKFLOW_TOOL_NAMES = new Set([
   'ReadMcpResourceTool',
   'EnterWorktree',
   'ExitWorktree',
+  'memory',
 ])
 
 export function createDesktopHeadlessRuntime(
@@ -275,6 +278,7 @@ class EmbeddedDesktopHeadlessRuntime implements DesktopHeadlessRuntime {
         signal,
       )
       this.currentInput = input
+      const previousSession = captureGlobalSessionState()
       this.prepareGlobalSessionState()
       try {
         const commands = await getCommands(this.options.workspacePath)
@@ -349,6 +353,7 @@ class EmbeddedDesktopHeadlessRuntime implements DesktopHeadlessRuntime {
           durationMs: Date.now() - startedAt,
         })
       } finally {
+        restoreGlobalSessionState(previousSession)
         if (this.currentInput === input) {
           input.close()
           this.currentInput = null
@@ -384,51 +389,56 @@ class EmbeddedDesktopHeadlessRuntime implements DesktopHeadlessRuntime {
         })
         return
       }
+      const previousSession = captureGlobalSessionState()
       this.prepareGlobalSessionState()
-      const commands = await getCommands(this.options.workspacePath)
-      await runHeadless(
-        input(),
-        () => this.store.getState(),
-        this.store.setState,
-        commands,
-        this.tools,
-        {},
-        [],
-        {
-          continue: undefined,
-          resume: this.hasStartedHeadlessSession ||
-            this.options.resumeExistingSession
-            ? this.options.sessionId
-            : undefined,
-          resumeSessionAt: undefined,
-          verbose: true,
-          outputFormat: 'stream-json',
-          jsonSchema: undefined,
-          permissionPromptToolName: this.options.permissionPromptToolName,
-          allowedTools: undefined,
-          thinkingConfig: thinkingConfigFromDesktopMode(
-            this.options.thinkingMode,
-          ),
-          maxTurns: undefined,
-          maxBudgetUsd: undefined,
-          taskBudget: undefined,
-          systemPrompt: this.options.systemPrompt,
-          appendSystemPrompt: this.options.appendSystemPrompt,
-          userSpecifiedModel: this.options.model,
-          teleport: undefined,
-          sdkUrl: undefined,
-          replayUserMessages: true,
-          includePartialMessages: true,
-          forkSession: false,
-          rewindFiles: undefined,
-          enableAuthStatus: false,
-          agent: undefined,
-          workload: undefined,
-          exitOnComplete: false,
-          createStructuredIO: inputPrompt =>
-            this.createStructuredIO(inputPrompt, signal),
-        },
-      )
+      try {
+        const commands = await getCommands(this.options.workspacePath)
+        await runHeadless(
+          input(),
+          () => this.store.getState(),
+          this.store.setState,
+          commands,
+          this.tools,
+          {},
+          [],
+          {
+            continue: undefined,
+            resume: this.hasStartedHeadlessSession ||
+              this.options.resumeExistingSession
+              ? this.options.sessionId
+              : undefined,
+            resumeSessionAt: undefined,
+            verbose: true,
+            outputFormat: 'stream-json',
+            jsonSchema: undefined,
+            permissionPromptToolName: this.options.permissionPromptToolName,
+            allowedTools: undefined,
+            thinkingConfig: thinkingConfigFromDesktopMode(
+              this.options.thinkingMode,
+            ),
+            maxTurns: undefined,
+            maxBudgetUsd: undefined,
+            taskBudget: undefined,
+            systemPrompt: this.options.systemPrompt,
+            appendSystemPrompt: this.options.appendSystemPrompt,
+            userSpecifiedModel: this.options.model,
+            teleport: undefined,
+            sdkUrl: undefined,
+            replayUserMessages: true,
+            includePartialMessages: true,
+            forkSession: false,
+            rewindFiles: undefined,
+            enableAuthStatus: false,
+            agent: undefined,
+            workload: undefined,
+            exitOnComplete: false,
+            createStructuredIO: inputPrompt =>
+              this.createStructuredIO(inputPrompt, signal),
+          },
+        )
+      } finally {
+        restoreGlobalSessionState(previousSession)
+      }
     })
     this.hasStartedHeadlessSession = true
     logDesktopHeadless('control_response_turn_done', {
@@ -608,6 +618,22 @@ class DesktopHeadlessInput implements AsyncIterable<string> {
     this.waiter = null
     waiter?.()
   }
+}
+
+type CapturedGlobalSessionState = {
+  sessionId: ReturnType<typeof getSessionId>
+  projectDir: string | null
+}
+
+function captureGlobalSessionState(): CapturedGlobalSessionState {
+  return {
+    sessionId: getSessionId(),
+    projectDir: getSessionProjectDir(),
+  }
+}
+
+function restoreGlobalSessionState(state: CapturedGlobalSessionState): void {
+  switchSession(state.sessionId, state.projectDir)
 }
 
 function logDesktopHeadless(

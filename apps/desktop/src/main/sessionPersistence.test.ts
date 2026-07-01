@@ -10,7 +10,9 @@ import {
 } from '@codepilotx/core/config/env.js'
 import { getProjectDir } from '@codepilotx/core/session/storage.js'
 import {
+  applyDesktopAgentEventToSnapshot,
   applyDesktopWorkflowEventsToSnapshot,
+  appendDesktopRolloutItems,
   buildDesktopSessionIndexTempPath,
   createDesktopSessionSnapshot,
   getDesktopSessionIndexPath,
@@ -170,6 +172,165 @@ test('transcript restore preserves tool use ids in session events', async () => 
       'call-question-1',
       'call-question-1',
     ])
+  })
+})
+
+test('new desktop session snapshots include rollout metadata', async () => {
+  await withDesktopConfig(async configDir => {
+    const sessionId = randomUUID()
+    const projectPath = join(configDir, 'rollout-project')
+    const snapshot = createDesktopSessionSnapshot({
+      sessionId,
+      workspace: {
+        path: projectPath,
+        name: 'rollout-project',
+        branchName: null,
+        isGitRepo: false,
+      },
+      standalone: false,
+      settings: {
+        permissionMode: 'default',
+        thinkingMode: 'default',
+        additionalDirectories: [],
+      },
+    })
+
+    expect(snapshot.item.rolloutPath).toBe(
+      join(getProjectDir(projectPath), `${sessionId}.rollout.jsonl`),
+    )
+    expect(snapshot.item.legacyTranscriptPath).toBe(
+      join(getProjectDir(projectPath), `${sessionId}.jsonl`),
+    )
+    expect(snapshot.item.source).toBe('user')
+  })
+})
+
+test('hydrateDesktopSessionSnapshot prefers rollout over legacy transcript and filters reviewer prompts', async () => {
+  await withDesktopConfig(async configDir => {
+    const sessionId = randomUUID()
+    const projectPath = join(configDir, 'rollout-hydrate-project')
+    await writeTranscript(projectPath, sessionId, 'legacy prompt')
+    const rolloutPath = join(getProjectDir(projectPath), `${sessionId}.rollout.jsonl`)
+    await appendDesktopRolloutItems(rolloutPath, [
+      {
+        type: 'session_meta',
+        payload: {
+          id: sessionId,
+          timestamp: '2026-01-01T00:00:00.000Z',
+          cwd: projectPath,
+          originator: 'desktop',
+          cli_version: 'test',
+          source: 'user',
+        },
+      },
+      {
+        type: 'event_msg',
+        payload: {
+          eventType: 'message',
+          role: 'assistant',
+          content:
+            'Review this permission request. Return only JSON.\n\nInput JSON: {}\n\nAllowed output schema:',
+          createdAt: '2026-01-01T00:00:01.000Z',
+        },
+      },
+      {
+        type: 'event_msg',
+        payload: {
+          eventType: 'message',
+          role: 'user',
+          content: 'Review this permission request. Return only JSON.',
+          createdAt: '2026-01-01T00:00:01.500Z',
+        },
+      },
+      {
+        type: 'event_msg',
+        payload: {
+          eventType: 'message',
+          role: 'assistant',
+          content: '{"error":"No permission request provided to review."}',
+          createdAt: '2026-01-01T00:00:01.750Z',
+        },
+      },
+      {
+        type: 'event_msg',
+        payload: {
+          eventType: 'message',
+          role: 'assistant',
+          content: 'rollout response',
+          createdAt: '2026-01-01T00:00:02.000Z',
+        },
+      },
+    ])
+    const snapshot = createDesktopSessionSnapshot({
+      sessionId,
+      workspace: {
+        path: projectPath,
+        name: 'rollout-hydrate-project',
+        branchName: null,
+        isGitRepo: false,
+      },
+      standalone: false,
+      settings: {
+        permissionMode: 'default',
+        thinkingMode: 'default',
+        additionalDirectories: [],
+      },
+    })
+
+    const hydrated = await hydrateDesktopSessionSnapshot(snapshot)
+
+    expect(hydrated.view.messages.map(message => message.text)).toEqual([
+      'rollout response',
+    ])
+    expect(hydrated.view.messages.some(message => message.text.includes('legacy prompt'))).toBe(false)
+    expect(hydrated.view.messages.some(message => message.text.includes('Review this permission request'))).toBe(false)
+  })
+})
+
+test('guardian review events store hidden rollout path in session metadata', async () => {
+  await withDesktopConfig(async configDir => {
+    const sessionId = randomUUID()
+    const projectPath = join(configDir, 'guardian-parent-project')
+    const snapshot = createDesktopSessionSnapshot({
+      sessionId,
+      workspace: {
+        path: projectPath,
+        name: 'guardian-parent-project',
+        branchName: null,
+        isGitRepo: false,
+      },
+      standalone: false,
+      settings: {
+        permissionMode: 'default',
+        thinkingMode: 'default',
+        additionalDirectories: [],
+      },
+    })
+
+    const updated = applyDesktopAgentEventToSnapshot(snapshot, {
+      type: 'guardian_review',
+      sessionId,
+      reviewId: 'guardian-review-1',
+      targetRequestId: 'permission-1',
+      status: 'approved',
+      riskLevel: 'low',
+      userAuthorization: 'high',
+      rationale: 'safe',
+      action: {
+        type: 'command',
+        source: 'PowerShell',
+        command: 'echo ok',
+      },
+      guardianRolloutPath: join(projectPath, '.guardian.rollout.jsonl'),
+    })
+
+    expect(updated.item.guardianRolloutPath).toBe(
+      join(projectPath, '.guardian.rollout.jsonl'),
+    )
+    expect(updated.view.messages).toEqual([])
+    expect(updated.events?.at(-1)?.metadata).toMatchObject({
+      guardianRolloutPath: join(projectPath, '.guardian.rollout.jsonl'),
+    })
   })
 })
 

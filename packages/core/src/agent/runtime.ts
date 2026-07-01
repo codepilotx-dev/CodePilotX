@@ -181,6 +181,7 @@ export type AgentRuntimeEvent =
       userAuthorization?: AgentGuardianUserAuthorization
       rationale?: string
       action: AgentGuardianReviewAction
+      guardianRolloutPath?: string
       sourceThreadId?: string
       sourceLabel?: string
     }

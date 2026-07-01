@@ -36,7 +36,16 @@ import type {
   DesktopWorkflowEvent,
   DesktopWorkspace,
 } from '../shared/types.js'
-import { desktopAgentEventToSessionEvent } from '../shared/sessionEventModel.js'
+import {
+  desktopAgentEventToSessionEvent,
+  isInternalReviewerMessageText,
+} from '../shared/sessionEventModel.js'
+import {
+  appendDesktopRolloutItems,
+  parseDesktopRolloutSnapshot,
+  type DesktopRolloutItem,
+  type DesktopRolloutSource,
+} from './desktopRolloutPersistence.js'
 import {
   normalizeDesktopApprovalPolicy,
   normalizeDesktopApprovalsReviewer,
@@ -80,6 +89,11 @@ type DesktopSessionOverlay = {
   createdAt?: string
   lastMessageAt?: string | null
   updatedAt?: string
+  rolloutPath?: string | null
+  legacyTranscriptPath?: string | null
+  source?: DesktopRolloutSource | null
+  parentSessionId?: string | null
+  guardianRolloutPath?: string | null
   workflowEvents?: DesktopWorkflowEvent[]
   workflowEventModelVersion?: 1
   reviewComments?: DesktopReviewComment[]
@@ -101,6 +115,30 @@ type AtomicWriteOperations = {
 
 const SESSION_INDEX_FILE_NAME = 'sessions.json'
 const TRANSCRIPT_ENRICH_LIMIT = Number.MAX_SAFE_INTEGER
+
+export { appendDesktopRolloutItems }
+
+export function createDesktopSessionMetaRolloutItem(
+  snapshot: DesktopSessionSnapshot,
+): DesktopRolloutItem {
+  return {
+    type: 'session_meta',
+    payload: {
+      id: snapshot.item.id,
+      timestamp: snapshot.item.createdAt,
+      cwd: snapshot.workspace.path,
+      originator: 'desktop',
+      cli_version: 'desktop',
+      source: snapshot.item.source ?? 'user',
+      ...(snapshot.item.parentSessionId
+        ? { parentSessionId: snapshot.item.parentSessionId }
+        : {}),
+      ...(snapshot.item.guardianRolloutPath
+        ? { guardianRolloutPath: snapshot.item.guardianRolloutPath }
+        : {}),
+    },
+  }
+}
 
 export function getDesktopSessionIndexPath(): string {
   return join(getDesktopConfigDirectoryPath(), SESSION_INDEX_FILE_NAME)
@@ -215,6 +253,50 @@ export async function desktopSessionTranscriptExists(
 export async function hydrateDesktopSessionSnapshot(
   snapshot: DesktopSessionSnapshot,
 ): Promise<DesktopSessionSnapshot> {
+  const rolloutPath = rolloutPathForSnapshot(snapshot)
+  try {
+    await stat(rolloutPath)
+    const parsed = await parseDesktopRolloutSnapshot(
+      rolloutPath,
+      snapshot.item.id,
+    )
+    const effectiveModel =
+      validModelName(parsed.effectiveModel) ??
+      validModelName(parsed.view.contextUsage?.model) ??
+      validModelName(snapshot.settings.model)
+    return {
+      ...snapshot,
+      item: {
+        ...snapshot.item,
+        rolloutPath,
+        legacyTranscriptPath:
+          snapshot.item.legacyTranscriptPath ??
+          transcriptPathForSnapshot(snapshot),
+        model: effectiveModel ?? snapshot.item.model,
+        status:
+          snapshot.item.status === 'running' || snapshot.item.status === 'waiting'
+            ? 'done'
+            : snapshot.item.status,
+      },
+      settings:
+        effectiveModel && effectiveModel !== snapshot.settings.model
+          ? { ...snapshot.settings, model: effectiveModel }
+          : snapshot.settings,
+      view: parsed.view,
+      events: parsed.events,
+      eventModelVersion: 1,
+      updatedAt: new Date().toISOString(),
+    }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException | undefined)?.code !== 'ENOENT') {
+      console.warn(
+        `Failed to hydrate desktop rollout ${rolloutPath}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      )
+    }
+  }
+
   const transcriptPath = transcriptPathForSnapshot(snapshot)
   try {
     await stat(transcriptPath)
@@ -257,6 +339,11 @@ export async function saveDesktopSessionStore(
         createdAt: overlay.createdAt,
         lastMessageAt: overlay.lastMessageAt,
         updatedAt: overlay.updatedAt,
+        rolloutPath: overlay.rolloutPath,
+        legacyTranscriptPath: overlay.legacyTranscriptPath,
+        source: overlay.source,
+        parentSessionId: overlay.parentSessionId,
+        guardianRolloutPath: overlay.guardianRolloutPath,
         workflowEvents: overlay.workflowEvents,
         workflowEventModelVersion: overlay.workflowEventModelVersion,
         reviewComments: overlay.reviewComments,
@@ -278,6 +365,8 @@ export function createDesktopSessionSnapshot(params: {
   const createdAt = now.toISOString()
   const workspace = normalizeStandaloneWorkspace(params.workspace)
   const standalone = isStandaloneSession(workspace, params.standalone)
+  const legacyTranscriptPath = getTranscriptPath(workspace.path, params.sessionId)
+  const rolloutPath = getRolloutPath(workspace.path, params.sessionId)
   return {
     item: {
       id: params.sessionId,
@@ -291,7 +380,12 @@ export function createDesktopSessionSnapshot(params: {
       prNumber: null,
       prUrl: null,
       prRepository: null,
-      transcriptPath: getTranscriptPath(workspace.path, params.sessionId),
+      transcriptPath: legacyTranscriptPath,
+      rolloutPath,
+      legacyTranscriptPath,
+      source: 'user',
+      parentSessionId: null,
+      guardianRolloutPath: null,
       fileSize: null,
       workspaceName: workspace.name,
       workspacePath: workspace.path,
@@ -331,6 +425,9 @@ export function applyDesktopAgentEventToSnapshot(
   snapshot: DesktopSessionSnapshot,
   event: DesktopAgentEvent,
 ): DesktopSessionSnapshot {
+  if (isInternalReviewerAgentEvent(event)) {
+    return snapshot
+  }
   const next: DesktopSessionSnapshot = {
     ...snapshot,
     item: { ...snapshot.item },
@@ -407,6 +504,13 @@ export function applyDesktopAgentEventToSnapshot(
       model: event.usage.model,
     }
     next.view.contextUsage = event.usage
+    return next
+  }
+
+  if (event.type === 'guardian_review') {
+    if (event.guardianRolloutPath) {
+      next.item.guardianRolloutPath = event.guardianRolloutPath
+    }
     return next
   }
 
@@ -594,6 +698,11 @@ function normalizeSessionOverlay(value: unknown): DesktopSessionOverlay[] {
       createdAt: stringOrUndefined(raw.createdAt),
       lastMessageAt: normalizeTimestampString(raw.lastMessageAt),
       updatedAt: stringOrUndefined(raw.updatedAt),
+      rolloutPath: nullableString(raw.rolloutPath),
+      legacyTranscriptPath: nullableString(raw.legacyTranscriptPath),
+      source: normalizeDesktopRolloutSource(raw.source),
+      parentSessionId: nullableString(raw.parentSessionId),
+      guardianRolloutPath: nullableString(raw.guardianRolloutPath),
       workflowEvents,
       workflowEventModelVersion: workflowEvents ? 1 : undefined,
       reviewComments,
@@ -747,6 +856,8 @@ function snapshotFromTranscriptLog(
   const createdAt = log.created.toISOString()
   const lastMessageAt = log.modified.toISOString()
   const transcriptPath = log.fullPath ?? getTranscriptPath(workspace.path, sessionId)
+  const rolloutPath =
+    overlay?.rolloutPath ?? getRolloutPath(workspace.path, sessionId)
   const item: DesktopSessionListItem = {
     id: sessionId,
     sessionName: overlay?.sessionName ?? settings.sessionName ?? null,
@@ -760,6 +871,11 @@ function snapshotFromTranscriptLog(
     prUrl: log.prUrl ?? null,
     prRepository: log.prRepository ?? null,
     transcriptPath,
+    rolloutPath,
+    legacyTranscriptPath: overlay?.legacyTranscriptPath ?? transcriptPath,
+    source: overlay?.source ?? 'user',
+    parentSessionId: overlay?.parentSessionId ?? null,
+    guardianRolloutPath: overlay?.guardianRolloutPath ?? null,
     fileSize: log.fileSize ?? null,
     workspaceName: workspace.name,
     workspacePath: workspace.path,
@@ -845,6 +961,12 @@ function snapshotFromOverlay(overlay: DesktopSessionOverlay): DesktopSessionSnap
       prUrl: null,
       prRepository: null,
       transcriptPath: getTranscriptPath(workspace.path, overlay.id),
+      rolloutPath: overlay.rolloutPath ?? getRolloutPath(workspace.path, overlay.id),
+      legacyTranscriptPath:
+        overlay.legacyTranscriptPath ?? getTranscriptPath(workspace.path, overlay.id),
+      source: overlay.source ?? 'user',
+      parentSessionId: overlay.parentSessionId ?? null,
+      guardianRolloutPath: overlay.guardianRolloutPath ?? null,
       fileSize: null,
       workspaceName: workspace.name,
       workspacePath: workspace.path,
@@ -902,6 +1024,11 @@ function overlayFromSnapshot(
     createdAt: normalizedSnapshot.item.createdAt,
     lastMessageAt: normalizedSnapshot.item.lastMessageAt ?? null,
     updatedAt: normalizedSnapshot.updatedAt,
+    rolloutPath: normalizedSnapshot.item.rolloutPath ?? null,
+    legacyTranscriptPath: normalizedSnapshot.item.legacyTranscriptPath ?? null,
+    source: normalizedSnapshot.item.source ?? null,
+    parentSessionId: normalizedSnapshot.item.parentSessionId ?? null,
+    guardianRolloutPath: normalizedSnapshot.item.guardianRolloutPath ?? null,
     workflowEvents:
       normalizedSnapshot.workflowEventModelVersion === 1 &&
       normalizedSnapshot.workflowEvents
@@ -1181,6 +1308,11 @@ function normalizeSessionItem(
     prUrl: nullableString(item.prUrl),
     prRepository: nullableString(item.prRepository),
     transcriptPath: nullableString(item.transcriptPath),
+    rolloutPath: nullableString(item.rolloutPath),
+    legacyTranscriptPath: nullableString(item.legacyTranscriptPath),
+    source: normalizeDesktopRolloutSource(item.source),
+    parentSessionId: nullableString(item.parentSessionId),
+    guardianRolloutPath: nullableString(item.guardianRolloutPath),
     fileSize: typeof item.fileSize === 'number' ? item.fileSize : null,
     workspaceName:
       typeof item.workspaceName === 'string' ? item.workspaceName : '',
@@ -1678,13 +1810,34 @@ function createToolLogEntry(params: {
 
 function transcriptPathForSnapshot(snapshot: DesktopSessionSnapshot): string {
   return (
+    snapshot.item.legacyTranscriptPath ??
     snapshot.item.transcriptPath ??
     getTranscriptPath(snapshot.workspace.path, snapshot.item.id)
   )
 }
 
+function isInternalReviewerAgentEvent(event: DesktopAgentEvent): boolean {
+  return (
+    (event.type === 'message' ||
+      event.type === 'partial_message' ||
+      event.type === 'proposed_plan') &&
+    isInternalReviewerMessageText(event.text)
+  )
+}
+
 function getTranscriptPath(workspacePath: string, sessionId: string): string {
   return join(getProjectDir(workspacePath), `${sessionId}.jsonl`)
+}
+
+function rolloutPathForSnapshot(snapshot: DesktopSessionSnapshot): string {
+  return (
+    snapshot.item.rolloutPath ??
+    getRolloutPath(snapshot.workspace.path, snapshot.item.id)
+  )
+}
+
+function getRolloutPath(workspacePath: string, sessionId: string): string {
+  return join(getProjectDir(workspacePath), `${sessionId}.rollout.jsonl`)
 }
 
 function compareSnapshotsByRecency(
@@ -1745,6 +1898,14 @@ function nullableString(value: unknown): string | null {
 
 function stringOrUndefined(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value : undefined
+}
+
+function normalizeDesktopRolloutSource(
+  value: unknown,
+): DesktopRolloutSource | null {
+  return value === 'user' || value === 'internal_guardian' || value === 'subagent'
+    ? value
+    : null
 }
 
 function validModelName(value: unknown): string | undefined {

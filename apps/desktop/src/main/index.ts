@@ -87,6 +87,8 @@ import { getModelProviderState } from './modelProviderService.js'
 import {
   applyDesktopAgentEventToSnapshot,
   applyDesktopWorkflowEventsToSnapshot,
+  appendDesktopRolloutItems,
+  createDesktopSessionMetaRolloutItem,
   createDesktopSessionSnapshot,
   desktopSessionTranscriptExists,
   hydrateDesktopSessionSnapshot,
@@ -94,6 +96,7 @@ import {
   removePendingPermissionFromSnapshot,
   saveDesktopSessionStore,
 } from './sessionPersistence.js'
+import { desktopAgentEventToRolloutItems } from './desktopRolloutPersistence.js'
 import { createSessionPersistScheduler } from './sessionPersistScheduler.js'
 import type {
   CreateDesktopSessionOptions,
@@ -398,6 +401,7 @@ function attachSessionListeners(record: DesktopSessionRecord): void {
       return
     }
     const timestampedEvent = withDesktopMessageTimestamp(event)
+    persistAgentEventToRollout(currentRecord.snapshot, timestampedEvent)
     currentRecord.snapshot = applyDesktopAgentEventToSnapshot(
       currentRecord.snapshot,
       timestampedEvent,
@@ -438,6 +442,7 @@ function attachSessionListeners(record: DesktopSessionRecord): void {
           filePath: session.workspacePath,
           patch: diff.patch,
         }
+        persistAgentEventToRollout(latestRecord.snapshot, diffEvent)
         latestRecord.snapshot = applyDesktopAgentEventToSnapshot(
           latestRecord.snapshot,
           diffEvent,
@@ -449,6 +454,23 @@ function attachSessionListeners(record: DesktopSessionRecord): void {
         persistSessionStore({ immediate: true })
       })
     }
+  })
+}
+
+function persistAgentEventToRollout(
+  snapshot: DesktopSessionSnapshot,
+  event: DesktopAgentEvent,
+): void {
+  const rolloutPath = snapshot.item.rolloutPath?.trim()
+  if (!rolloutPath) return
+  const items = desktopAgentEventToRolloutItems(event)
+  if (items.length === 0) return
+  void appendDesktopRolloutItems(rolloutPath, items).catch(error => {
+    desktopDebug('rollout_append_failed', {
+      sessionId: event.sessionId,
+      type: event.type,
+      message: error instanceof Error ? error.message : String(error),
+    })
   })
 }
 
@@ -856,6 +878,17 @@ async function createSession(
       standalone,
       settings,
     }),
+  }
+  const rolloutPath = record.snapshot.item.rolloutPath?.trim()
+  if (rolloutPath) {
+    void appendDesktopRolloutItems(rolloutPath, [
+      createDesktopSessionMetaRolloutItem(record.snapshot),
+    ]).catch(error => {
+      desktopDebug('rollout_session_meta_append_failed', {
+        sessionId: session.sessionId,
+        message: error instanceof Error ? error.message : String(error),
+      })
+    })
   }
   sessions.set(session.sessionId, record)
   activeSessionId = session.sessionId

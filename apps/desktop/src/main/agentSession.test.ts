@@ -547,6 +547,29 @@ test('session rejects a second AskUserQuestion while one is pending', async () =
   ])
 })
 
+test('interrupted session emits a done event after runtime observes abort', async () => {
+  const events: DesktopAgentEvent[] = []
+  const session = createDesktopAgentSession(
+    {
+      workspacePath: resolve('tmp', 'desktop-workspace'),
+      sessionId: 'session-interrupt-done',
+      suppressStartupMessage: true,
+      permissionMode: 'default',
+    },
+    {
+      createRuntime: () => createAbortAwareRuntime(),
+    },
+  )
+  session.on('event', event => events.push(event))
+
+  const turn = session.sendUserMessage('run command', 'run command')
+  await Promise.resolve()
+  await session.interrupt()
+  await turn
+
+  expect(events.some(event => event.type === 'done')).toBe(true)
+})
+
 test('disposing a session rejects pending permission with dispose reason', async () => {
   const decisions: unknown[] = []
   let sawPermissionRequest: (() => void) | undefined
@@ -641,6 +664,23 @@ function createRecoveredPlanRuntime(
     runControlResponse: async () => {},
     runUserTurn: async content => {
       userTurns.push(content)
+    },
+  }
+}
+
+function createAbortAwareRuntime(): DesktopAgentRuntime {
+  return {
+    setModel: () => {},
+    setModelProvider: () => {},
+    setDebugConversationDump: () => {},
+    setPermissionMode: () => {},
+    setPlanModeActive: () => {},
+    runControlResponse: async () => {},
+    async runUserTurn(_content, signal) {
+      if (signal.aborted) return
+      await new Promise<void>(resolve => {
+        signal.addEventListener('abort', () => resolve(), { once: true })
+      })
     },
   }
 }

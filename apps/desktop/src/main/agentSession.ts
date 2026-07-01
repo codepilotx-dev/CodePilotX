@@ -270,6 +270,8 @@ class LocalDesktopAgentSession
           sessionId: this.sessionId,
           durationMs: Date.now() - startedAt,
         })
+        this.emitStatus('done')
+        this.emitEvent({ type: 'done', sessionId: this.sessionId })
         return
       }
       this.emitStatus('done')
@@ -510,6 +512,7 @@ class LocalDesktopAgentSession
         userAuthorization: autoReview.assessment.userAuthorization,
         rationale: autoReview.assessment.rationale,
         action: guardianAction,
+        guardianRolloutPath: autoReview.guardianRolloutPath,
       })
       return autoReview.decision
     }

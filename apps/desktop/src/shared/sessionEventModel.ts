@@ -10,6 +10,7 @@ export function desktopAgentEventToSessionEvent(
   const createdAt = eventCreatedAt(event)
   switch (event.type) {
     case 'message':
+      if (isInternalReviewerMessageText(event.text)) return null
       return {
         id: randomId(),
         sessionId: event.sessionId,
@@ -20,6 +21,7 @@ export function desktopAgentEventToSessionEvent(
         ...eventSource(event),
       }
     case 'partial_message':
+      if (isInternalReviewerMessageText(event.text)) return null
       return {
         id: randomId(),
         sessionId: event.sessionId,
@@ -30,6 +32,7 @@ export function desktopAgentEventToSessionEvent(
         ...eventSource(event),
       }
     case 'proposed_plan':
+      if (isInternalReviewerMessageText(event.text)) return null
       return {
         id: randomId(),
         sessionId: event.sessionId,
@@ -99,6 +102,7 @@ export function desktopAgentEventToSessionEvent(
           userAuthorization: event.userAuthorization,
           rationale: event.rationale,
           action: event.action,
+          guardianRolloutPath: event.guardianRolloutPath,
         },
         ...eventSource(event),
       }
@@ -146,6 +150,25 @@ export function desktopAgentEventToSessionEvent(
     case 'session_title':
       return null
   }
+}
+
+export function isInternalReviewerPromptText(text: string): boolean {
+  const trimmed = text.trim()
+  const sentinel = 'Review this permission request. Return only JSON.'
+  return (
+    trimmed === sentinel ||
+    trimmed.startsWith(`${sentinel}\n`) ||
+    (text.includes(sentinel) &&
+      text.includes('Input JSON:') &&
+      text.includes('Allowed output schema:'))
+  )
+}
+
+export function isInternalReviewerMessageText(text: string): boolean {
+  return (
+    isInternalReviewerPromptText(text) ||
+    text.trim() === '{"error":"No permission request provided to review."}'
+  )
 }
 
 export function legacyMessagesToSessionEvents(

@@ -189,6 +189,7 @@ declare module '@codepilotx/core/agent/runtime.js' {
         userAuthorization?: AgentGuardianUserAuthorization
         rationale?: string
         action: AgentGuardianReviewAction
+        guardianRolloutPath?: string
         sourceThreadId?: string
         sourceLabel?: string
       }

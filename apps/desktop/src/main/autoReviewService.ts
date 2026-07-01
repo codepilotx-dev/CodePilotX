@@ -1,11 +1,18 @@
 import { randomUUID } from 'node:crypto'
+import { join } from 'node:path'
 import type { AgentPermissionPolicy } from '@codepilotx/core/agent/permissions.js'
+import { getProjectDir } from '@codepilotx/core/session/storage.js'
 import {
   createDesktopAgentRuntime,
   type DesktopAgentRuntime,
   type DesktopAgentRuntimeContext,
 } from './agentRuntime.js'
+import {
+  appendDesktopRolloutItems,
+  desktopAgentEventToRolloutItems,
+} from './desktopRolloutPersistence.js'
 import type {
+  DesktopAgentEvent,
   DesktopPermissionDecision,
   DesktopPermissionRequest,
 } from '../shared/types.js'
@@ -16,6 +23,7 @@ export type DesktopAutoReviewOutcome =
     decision: DesktopPermissionDecision
     assessment: DesktopGuardianAssessment
     reason: string
+    guardianRolloutPath?: string
   }
 
 export type DesktopGuardianRiskLevel = 'low' | 'medium' | 'high' | 'critical'
@@ -39,7 +47,12 @@ export type DesktopAutoReviewRequest = {
 export type DesktopAutoReviewRunner = (
   request: DesktopAutoReviewRequest,
   prompt: string,
-) => Promise<string>
+) => Promise<string | DesktopAutoReviewRunnerResult>
+
+export type DesktopAutoReviewRunnerResult = {
+  text: string
+  guardianRolloutPath?: string
+}
 
 export type DesktopAutoReviewService = {
   review(request: DesktopAutoReviewRequest): Promise<DesktopAutoReviewOutcome>
@@ -68,11 +81,18 @@ export function createDesktopAutoReviewService(options: {
         experimentalReviewModel: Boolean(request.reviewModel?.trim()),
       })
       try {
-        const text = await runReviewerPrompt(
+        const reviewResult = normalizeAutoReviewRunnerResult(
+          await runReviewerPrompt(
           request,
           buildAutoReviewPrompt(request),
+          ),
         )
-        const outcome = parseAutoReviewResponse(text)
+        const outcome = {
+          ...parseAutoReviewResponse(reviewResult.text),
+          ...(reviewResult.guardianRolloutPath
+            ? { guardianRolloutPath: reviewResult.guardianRolloutPath }
+            : {}),
+        }
         logAutoReview('decision', {
           sessionId: request.sessionId,
           requestId: request.request.requestId,
@@ -143,7 +163,7 @@ function createRuntimeReviewerPromptRunner(
   createRuntime: (context: DesktopAgentRuntimeContext) => DesktopAgentRuntime,
   timeoutMs: number,
 ): DesktopAutoReviewRunner {
-  return async request => {
+  return async (request, prompt) => {
     const abortController = new AbortController()
     let timedOut = false
     const timeout = setTimeout(() => {
@@ -151,8 +171,51 @@ function createRuntimeReviewerPromptRunner(
       abortController.abort()
     }, timeoutMs)
     const assistantMessages: string[] = []
+    const reviewerSessionId = randomUUID()
+    const candidateGuardianRolloutPath = join(
+      getProjectDir(request.workspacePath),
+      `${request.sessionId}-${request.request.requestId}.guardian.rollout.jsonl`,
+    )
+    let guardianRolloutPath: string | undefined
+    const rolloutWrites: Promise<void>[] = []
+    try {
+      await appendDesktopRolloutItems(
+        candidateGuardianRolloutPath,
+        [
+          {
+            type: 'session_meta',
+            payload: {
+              id: reviewerSessionId,
+              timestamp: new Date().toISOString(),
+              cwd: request.workspacePath,
+              originator: 'desktop',
+              cli_version: 'desktop',
+              source: 'internal_guardian',
+              parentSessionId: request.sessionId,
+            },
+          },
+          {
+            type: 'event_msg',
+            payload: {
+              eventType: 'message',
+              role: 'user',
+              content: prompt,
+              createdAt: new Date().toISOString(),
+            },
+          },
+        ],
+        { includeInternal: true },
+      )
+      guardianRolloutPath = candidateGuardianRolloutPath
+    } catch (error) {
+      logAutoReview('guardian_rollout_write_failed', {
+        sessionId: request.sessionId,
+        requestId: request.request.requestId,
+        reason: error instanceof Error ? error.message : String(error),
+      })
+    }
     const runtime = createRuntime({
-      sessionId: randomUUID(),
+      sessionId: reviewerSessionId,
       workspacePath: request.workspacePath,
       runtimePreference: 'embedded-headless',
       serializeHeadlessTurns: false,
@@ -164,6 +227,11 @@ function createRuntimeReviewerPromptRunner(
       model: request.reviewModel?.trim() || request.model?.trim(),
       systemPrompt: AUTO_REVIEW_SYSTEM_PROMPT,
       emit: event => {
+        if (guardianRolloutPath) {
+          rolloutWrites.push(
+            appendGuardianRolloutEvent(guardianRolloutPath, event),
+          )
+        }
         if (event.type === 'message' && event.role === 'assistant') {
           assistantMessages.push(event.text)
         }
@@ -174,7 +242,7 @@ function createRuntimeReviewerPromptRunner(
       }),
     })
     try {
-      await runtime.runUserTurn(buildAutoReviewPrompt(request), abortController.signal)
+      await runtime.runUserTurn(prompt, abortController.signal)
     } catch (error) {
       if (abortController.signal.aborted) {
         logAutoReview('decision', {
@@ -190,11 +258,27 @@ function createRuntimeReviewerPromptRunner(
       throw error
     } finally {
       clearTimeout(timeout)
+      await Promise.allSettled(rolloutWrites)
     }
     const text = assistantMessages.join('\n').trim()
     if (!text) throw new Error('Reviewer returned no response')
-    return text
+    return { text, guardianRolloutPath }
   }
+}
+
+function normalizeAutoReviewRunnerResult(
+  result: string | DesktopAutoReviewRunnerResult,
+): DesktopAutoReviewRunnerResult {
+  return typeof result === 'string' ? { text: result } : result
+}
+
+function appendGuardianRolloutEvent(
+  rolloutPath: string,
+  event: DesktopAgentEvent,
+): Promise<void> {
+  const items = desktopAgentEventToRolloutItems(event)
+  if (items.length === 0) return Promise.resolve()
+  return appendDesktopRolloutItems(rolloutPath, items)
 }
 
 function buildAutoReviewPrompt(request: DesktopAutoReviewRequest): string {
