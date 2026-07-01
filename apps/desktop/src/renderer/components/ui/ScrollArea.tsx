@@ -1,5 +1,5 @@
 import React from 'react'
-import './ScrollArea.css'
+import '../../styles/components/scroll-area.css'
 
 type ScrollAreaProps = {
   children: React.ReactNode
