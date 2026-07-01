@@ -1134,19 +1134,13 @@ export function getLargeMemoryFiles(files: MemoryFileInfo[]): MemoryFileInfo[] {
 }
 
 /**
- * When tengu_moth_copse is on, the findRelevantMemories prefetch surfaces
- * memory files via attachments, so the MEMORY.md index is no longer injected
- * into the system prompt. Callsites that care about "what's actually in
- * context" (context builder, /context viz) should filter through this.
+ * Filters out auto-memory and team-memory files from the injected context.
+ * With the memory tool, these files are accessed on-demand via `memory.view`
+ * rather than being automatically injected into the conversation context.
  */
 export function filterInjectedMemoryFiles(
   files: MemoryFileInfo[],
 ): MemoryFileInfo[] {
-  const skipMemoryIndex = getFeatureValue_CACHED_MAY_BE_STALE(
-    'tengu_moth_copse',
-    false,
-  )
-  if (!skipMemoryIndex) return files
   return files.filter(f => f.type !== 'AutoMem' && f.type !== 'TeamMem')
 }
 

@@ -50,7 +50,7 @@ export function buildCombinedMemoryPrompt(
         '',
         `**Step 2** — add a pointer to that file in the same directory's \`${ENTRYPOINT_NAME}\`. Each directory (private and team) has its own \`${ENTRYPOINT_NAME}\` index — each entry should be one line, under ~150 characters: \`- [Title](file.md) — one-line hook\`. They have no frontmatter. Never write memory content directly into a \`${ENTRYPOINT_NAME}\`.`,
         '',
-        `- Both \`${ENTRYPOINT_NAME}\` indexes are loaded into your conversation context — lines after ${MAX_ENTRYPOINT_LINES} will be truncated, so keep them concise`,
+        `- Use \`memory.view\` to read \`${ENTRYPOINT_NAME}\` and topic files on demand`,
         '- Keep the name, description, and type fields in memory files up-to-date with the content',
         '- Organize memory semantically by topic, not chronologically',
         '- Update or remove memories that turn out to be wrong or outdated',
@@ -60,7 +60,7 @@ export function buildCombinedMemoryPrompt(
   const lines = [
     '# Memory',
     '',
-    `You have a persistent, file-based memory system with two directories: a private directory at \`${autoDir}\` and a shared team directory at \`${teamDir}\`. ${DIRS_EXIST_GUIDANCE}`,
+    `You have a persistent, file-based memory system accessible via the \`memory\` tool with two directories. Use \`memory.view /memories/MEMORY.md\` to read the private index and \`memory.view /memories/team/MEMORY.md\` to read the team index.`,
     '',
     "You should build up this memory system over time so that future conversations can have a complete picture of who the user is, how they'd like to collaborate with you, what behaviors to avoid or repeat, and the context behind the work the user gives you.",
     '',

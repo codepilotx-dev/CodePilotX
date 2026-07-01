@@ -59,7 +59,7 @@ export type DesktopMemoryRecallEvent = {
   sessionId: string
   createdAt: string
   querySummary: string
-  status: 'injected'
+  status: 'injected' | 'viewed'
   consumedOnIteration: number
   memories: DesktopMemoryRecallFile[]
 }
@@ -226,7 +226,7 @@ function parseRecallEvent(line: string): DesktopMemoryRecallEvent[] {
       typeof parsed.sessionId !== 'string' ||
       typeof parsed.createdAt !== 'string' ||
       typeof parsed.querySummary !== 'string' ||
-      parsed.status !== 'injected' ||
+      (parsed.status !== 'injected' && parsed.status !== 'viewed') ||
       typeof parsed.consumedOnIteration !== 'number' ||
       !Array.isArray(parsed.memories)
     ) {

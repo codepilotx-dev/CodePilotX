@@ -85,3 +85,25 @@ test('project memory reset can preserve or delete recall log', async () => {
   await resetProjectMemory({ workspacePath, configHomeDir, includeRecallLog: true })
   expect((await listProjectMemoryRecalls(workspacePath, configHomeDir)).recalls).toEqual([])
 })
+
+test('project memory recalls include viewed memory tool events', async () => {
+  const { workspacePath, configHomeDir } = await makeWorkspace()
+  const listing = await listProjectMemories(workspacePath, configHomeDir)
+  await mkdir(listing.memoryDir, { recursive: true })
+  await writeFile(
+    join(listing.memoryDir, '.recall-events.jsonl'),
+    JSON.stringify({
+      sessionId: 's1',
+      createdAt: '2026-06-30T00:00:00.000Z',
+      querySummary: 'Viewed memory files',
+      status: 'viewed',
+      consumedOnIteration: 0,
+      memories: [{ relativePath: 'prefs.md', truncated: false }],
+    }) + '\n',
+    'utf8',
+  )
+
+  const recalls = (await listProjectMemoryRecalls(workspacePath, configHomeDir)).recalls
+  expect(recalls).toHaveLength(1)
+  expect(recalls[0]?.status).toBe('viewed')
+})

@@ -10,6 +10,7 @@ export type MemoryRecallInput = {
   sessionId: string
   query: string
   consumedOnIteration: number
+  status?: 'injected' | 'viewed'
   memories: Array<{
     path: string
     content: string
@@ -28,7 +29,7 @@ export async function appendMemoryRecallEvent(
     sessionId: input.sessionId,
     createdAt: new Date().toISOString(),
     querySummary: summarizeQuery(input.query),
-    status: 'injected' as const,
+    status: input.status ?? 'injected',
     consumedOnIteration: input.consumedOnIteration,
     memories: input.memories.map(memory => {
       const frontmatter = parseFrontmatter(memory.content)

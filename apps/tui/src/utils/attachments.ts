@@ -2359,15 +2359,12 @@ export type MemoryPrefetch = {
  * handle with settlement tracking. Bound with `using` in query.ts.
  */
 export function startRelevantMemoryPrefetch(
-  messages: ReadonlyArray<Message>,
-  toolUseContext: ToolUseContext,
+  _messages: ReadonlyArray<Message>,
+  _toolUseContext: ToolUseContext,
 ): MemoryPrefetch | undefined {
-  if (
-    !isAutoMemoryEnabled() ||
-    !getFeatureValue_CACHED_MAY_BE_STALE('tengu_moth_copse', false)
-  ) {
-    return undefined
-  }
+  // Disabled: with the on-demand memory tool (`memory.view`), the model
+  // accesses memories explicitly rather than via automatic prefetch.
+  return undefined
 
   const lastUserMessage = messages.findLast(m => m.type === 'user' && !m.isMeta)
   if (!lastUserMessage) {
