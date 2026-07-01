@@ -429,7 +429,7 @@ export async function saveDesktopSessionStore(
  */
 function syncMetadataToSqlite(state: PersistedDesktopSessions): void {
   try {
-    const { SessionDatabase, upsertSession, backfillSessions } =
+    const { SessionDatabase, upsertSession, touchRecencyAt, backfillSessions } =
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       require('@codepilotx/core/session/sqlite/index.js')
 
@@ -439,6 +439,9 @@ function syncMetadataToSqlite(state: PersistedDesktopSessions): void {
       const { item, workspace, settings } = sessionSnapshot
       const now = Date.now()
 
+      const updatedAtMs = item.lastMessageAt
+        ? new Date(item.lastMessageAt).getTime()
+        : now
       upsertSession({
         id: item.id,
         project_path: workspace.path,
@@ -447,9 +450,7 @@ function syncMetadataToSqlite(state: PersistedDesktopSessions): void {
         created_at_ms: item.createdAt
           ? new Date(item.createdAt).getTime()
           : now,
-        updated_at_ms: item.lastMessageAt
-          ? new Date(item.lastMessageAt).getTime()
-          : now,
+        updated_at_ms: updatedAtMs,
         title: item.customTitle ?? item.aiTitle ?? item.sessionName ?? '',
         preview: item.firstPrompt ?? '',
         first_user_message: item.firstPrompt ?? '',
@@ -463,6 +464,7 @@ function syncMetadataToSqlite(state: PersistedDesktopSessions): void {
         thinking_mode: item.thinkingMode,
         git_branch: item.gitBranch ?? undefined,
       })
+      touchRecencyAt(item.id, updatedAtMs)
     }
 
     // Ensure backfill completes so the SQLite index is fully populated

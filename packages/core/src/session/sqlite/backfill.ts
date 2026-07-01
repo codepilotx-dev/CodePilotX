@@ -39,6 +39,8 @@ interface TranscriptLiteMeta {
   createdTs: number
   updatedTs: number
   firstPrompt: string
+  title?: string
+  summary?: string
   messageCount: number
   fileSize: number
   gitBranch?: string
@@ -63,7 +65,12 @@ function extractTranscriptMeta(
   if (stat.size === 0) return null
 
   const content = readTranscriptHead(filePath, Math.min(stat.size, 64 * 1024))
+  const tail =
+    stat.size > 64 * 1024
+      ? readTranscriptTail(filePath, Math.min(stat.size, 64 * 1024), stat.size)
+      : content
   const lines = content.split(/\r?\n/)
+  const tailLines = tail.split(/\r?\n/)
 
   let sessionId = basename(filePath, extname(filePath))
   const uuidRegex =
@@ -77,6 +84,10 @@ function extractTranscriptMeta(
   let messageCount = 0
   let gitBranch: string | undefined
   let foundFirstUser = false
+  let customTitle: string | undefined
+  let aiTitle: string | undefined
+  let lastPrompt: string | undefined
+  let summary: string | undefined
 
   for (const line of lines) {
     if (!line.trim()) continue
@@ -143,6 +154,26 @@ function extractTranscriptMeta(
     }
   }
 
+  for (const line of tailLines) {
+    if (!line.trim()) continue
+    let entry: Record<string, unknown>
+    try {
+      entry = JSON.parse(line) as Record<string, unknown>
+    } catch {
+      continue
+    }
+    if (entry.type === 'custom-title' && typeof entry.customTitle === 'string') {
+      customTitle = entry.customTitle
+    } else if (entry.type === 'ai-title' && typeof entry.aiTitle === 'string') {
+      aiTitle = entry.aiTitle
+    } else if (entry.type === 'last-prompt' && typeof entry.lastPrompt === 'string') {
+      lastPrompt = entry.lastPrompt
+    } else if (entry.type === 'summary' && typeof entry.summary === 'string') {
+      summary = entry.summary
+    }
+    if (typeof entry.gitBranch === 'string') gitBranch = entry.gitBranch
+  }
+
   if (!sessionId || !projectPath) return null
 
   const fileMs = stat.mtime.getTime()
@@ -151,7 +182,9 @@ function extractTranscriptMeta(
     projectPath,
     createdTs: createdTs ?? fileMs,
     updatedTs: updatedTs ?? fileMs,
-    firstPrompt: firstPrompt || '(session)',
+    firstPrompt: lastPrompt || firstPrompt || '(session)',
+    title: customTitle ?? aiTitle,
+    summary,
     messageCount,
     fileSize: stat.size,
     gitBranch,
@@ -275,8 +308,9 @@ export async function backfillSessions(
           message_count: meta.messageCount,
           file_size: meta.fileSize,
           source: overlay?.source ?? 'unknown',
-          title: overlay?.title ?? meta.firstPrompt,
+          title: overlay?.title ?? meta.title ?? meta.firstPrompt,
           git_branch: overlay?.gitBranch ?? meta.gitBranch,
+          summary: meta.summary,
           status: overlay?.status ?? 'active',
           pinned: overlay?.pinned ? 1 : 0,
           archived: overlay?.archived ? 1 : 0,
@@ -318,6 +352,22 @@ function readTranscriptHead(filePath: string, bytesToRead: number): string {
   try {
     const buffer = Buffer.alloc(bytesToRead)
     const bytesRead = readSync(fd, buffer, 0, bytesToRead, 0)
+    return buffer.subarray(0, bytesRead).toString('utf8')
+  } finally {
+    closeSync(fd)
+  }
+}
+
+function readTranscriptTail(
+  filePath: string,
+  bytesToRead: number,
+  fileSize: number,
+): string {
+  const fd = openSync(filePath, 'r')
+  try {
+    const buffer = Buffer.alloc(bytesToRead)
+    const start = Math.max(0, fileSize - bytesToRead)
+    const bytesRead = readSync(fd, buffer, 0, bytesToRead, start)
     return buffer.subarray(0, bytesRead).toString('utf8')
   } finally {
     closeSync(fd)

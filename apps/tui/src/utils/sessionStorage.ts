@@ -847,7 +847,7 @@ class Project {
    */
   private async syncCurrentSessionToSqlite(sessionId: string): Promise<void> {
     try {
-      const { SessionDatabase, upsertSession } = await import(
+      const { SessionDatabase, touchRecencyAt, upsertSession } = await import(
         '@codepilotx/core/session/sqlite/index.js'
       )
       // Ensure DB is open (may fail if better-sqlite3 unavailable)
@@ -878,6 +878,7 @@ class Project {
         session_mode: this.currentSessionMode ?? 'normal',
         git_branch: undefined,
       })
+      touchRecencyAt(sessionId, now)
     } catch {
       // Best-effort: don't let SQLite errors disrupt the app
     }

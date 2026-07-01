@@ -65,9 +65,10 @@ export function listSessions(
   // Search — substring match on title and preview
   if (params.searchTerm) {
     conditions.push(
-      '(instr(s.title, ?) > 0 OR instr(s.preview, ?) > 0)',
+      '(instr(lower(s.title), ?) > 0 OR instr(lower(s.preview), ?) > 0)',
     )
-    bindings.push(params.searchTerm, params.searchTerm)
+    const normalizedSearchTerm = normalizeSearchTerm(params.searchTerm)
+    bindings.push(normalizedSearchTerm, normalizedSearchTerm)
   }
 
   // Keyset cursor
@@ -111,6 +112,10 @@ export function listSessions(
   }
 
   return { sessions: rows, nextCursor, hasMore }
+}
+
+export function normalizeSearchTerm(searchTerm: string): string {
+  return searchTerm.toLocaleLowerCase()
 }
 
 // ---------------------------------------------------------------------------

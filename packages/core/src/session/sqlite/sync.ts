@@ -61,7 +61,7 @@ export function upsertSession(upsert: SessionUpsert): void {
         project_path = excluded.project_path,
         transcript_path = excluded.transcript_path,
         rollout_path = COALESCE(excluded.rollout_path, sessions.rollout_path),
-        created_at_ms = excluded.created_at_ms,
+        created_at_ms = sessions.created_at_ms,
         updated_at_ms = excluded.updated_at_ms,
         recency_at_ms = sessions.recency_at_ms,
         title = excluded.title,
@@ -139,7 +139,7 @@ export function deleteSession(id: string): void {
  * Normalize an upsert payload into the shape expected by the prepared
  * statement, applying preservation rules.
  */
-function normalizeUpsert(
+export function normalizeUpsert(
   u: SessionUpsert,
   existing: Record<string, unknown> | undefined,
 ): Record<string, unknown> {
