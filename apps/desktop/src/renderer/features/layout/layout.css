@@ -301,9 +301,13 @@
 }
 
 .right-dock-add-button:hover,
-.right-dock-control:hover,
-.right-dock-control.active {
+.right-dock-control:hover {
   background: var(--c-sidebar-hover-bg);
+  color: var(--c-text-strong);
+}
+
+.right-dock-control.active {
+  background: var(--c-sidebar-active-bg);
   color: var(--c-text-strong);
 }
 
@@ -781,9 +785,12 @@
   text-align: left;
 }
 
-.right-dock-tree-row:hover,
+.right-dock-tree-row:hover {
+  background: var(--c-bg-row-hover);
+}
+
 .right-dock-tree-row.active {
-  background: var(--c-bg-hover);
+  background: var(--state-active-bg);
 }
 
 .right-dock-tree-row span {

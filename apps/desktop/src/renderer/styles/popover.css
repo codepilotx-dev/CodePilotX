@@ -349,7 +349,7 @@
   margin-left: auto;
   flex: 0 0 auto;
   border-radius: var(--radius-full);
-  background: var(--gray-5);
+  background: color-mix(in srgb, var(--c-text-strong) 12%, var(--c-panel-bg));
   transition: background 0.15s ease-out;
 }
 
@@ -538,8 +538,23 @@
 .sidebar-context-menu-item[data-highlighted],
 .sidebar-context-menu-sub-trigger[data-highlighted],
 .sidebar-context-menu-sub-trigger[data-state="open"] {
-  background: var(--c-bg-hover);
+  background: var(--state-hover-bg);
   outline: none;
+}
+
+.popover-item.active,
+.popover-item[data-highlighted],
+.menubar-item[data-highlighted],
+.settings-dropdown-item[data-highlighted],
+.permission-select-item[data-highlighted],
+.rm-model-menu .rm-menu-item[data-highlighted],
+.rm-model-menu .rm-sub-trigger[data-highlighted],
+.rm-model-menu .rm-sub-trigger[data-state="open"],
+.chat-input__dropdown-item.is-active,
+.sidebar-context-menu-item[data-highlighted],
+.sidebar-context-menu-sub-trigger[data-highlighted],
+.sidebar-context-menu-sub-trigger[data-state="open"] {
+  background: var(--state-active-bg);
 }
 
 .popover-item:hover:not(:disabled) .popover-item-icon,

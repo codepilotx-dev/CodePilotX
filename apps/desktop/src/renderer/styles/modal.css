@@ -549,16 +549,16 @@
 }
 
 .confirmation-dialog-actions button.confirmation-cancel:hover {
-  background: var(--c-bg-hover);
+  background: var(--state-hover-bg);
 }
 
 .confirmation-dialog-action.primary {
-  background: var(--gray-12);
-  color: var(--gray-1);
+  background: var(--c-send-bg);
+  color: var(--c-text-on-accent);
 }
 
 .confirmation-dialog-action.primary:hover {
-  background: var(--gray-11);
+  background: var(--c-send-bg-hover);
 }
 
 .confirmation-dialog-action.danger {

@@ -137,11 +137,11 @@
 }
 
 .settings-nav-item:hover {
-  background-color: var(--c-bg-hover);
+  background-color: var(--c-sidebar-hover-bg);
 }
 
 .settings-nav-item.active {
-  background-color: var(--c-bg-hover);
+  background-color: var(--c-sidebar-active-bg);
   color: var(--c-text-strong);
   font-weight: var(--font-weight-label);
 }
@@ -1093,19 +1093,22 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 6px 12px;
-  border: 1px solid var(--c-border);
-  border-radius: var(--radius-4);
+  min-height: 40px;
+  padding: 0 20px;
+  border: 1px solid var(--c-border-soft);
+  border-radius: var(--radius-button);
   background-color: var(--c-bg);
-  font-size: var(--fs-13);
-  color: var(--c-text);
+  color: var(--c-text-strong);
+  font-size: 14px;
+  font-weight: var(--font-weight-label);
+  line-height: 1;
   cursor: pointer;
   transition: background-color 0.15s ease;
   white-space: nowrap;
 }
 
 .settings-button:hover {
-  background-color: var(--c-bg-hover);
+  background-color: var(--c-bg-chip-hover);
 }
 
 .settings-button svg {
@@ -1154,7 +1157,7 @@
 
 .segmented-control-item.active,
 .segmented-control-item[data-state="active"] {
-  background-color: var(--c-bg-row-hover);
+  background-color: var(--state-active-bg);
   color: var(--c-text-strong);
   font-weight: 500;
 }
@@ -1236,7 +1239,7 @@
 }
 
 .appearance-mode-option.active {
-  background-color: var(--c-bg-row-hover);
+  background-color: var(--state-active-bg);
   color: var(--c-text-strong);
 }
 
@@ -2205,7 +2208,9 @@
 }
 
 .settings-button.primary:hover {
-  filter: brightness(0.96);
+  border-color: var(--c-send-bg-hover);
+  background: var(--c-send-bg-hover);
+  color: var(--c-text-on-accent);
 }
 
 .settings-button.ghost {
@@ -2605,7 +2610,7 @@
 .keyboard-shortcuts-card:hover,
 .billing-metric:hover {
   border-color: var(--c-panel-border);
-  background: var(--c-panel-elevated-bg);
+  background: var(--c-bg-chip-hover);
 }
 
 .settings-button,
@@ -3139,9 +3144,12 @@
   text-align: left;
 }
 
-.memory-settings-item:hover,
+.memory-settings-item:hover {
+  background: var(--c-bg-row-hover);
+}
+
 .memory-settings-item.active {
-  background: var(--c-bg-hover);
+  background: var(--state-active-bg);
 }
 
 .memory-settings-item span,

@@ -360,8 +360,8 @@
 }
 
 .send-button:disabled {
-  background: var(--gray-6);
-  color: var(--gray-9);
+  background: var(--c-send-bg-disabled);
+  color: var(--c-text-meta);
   transform: none;
 }
 
@@ -394,8 +394,8 @@
 
 .chip-button.subtle:hover,
 .chip-button.subtle.active {
-  color: var(--c-text);
-  background: var(--state-hover-bg);
+  background: var(--c-bg-chip-hover);
+  color: var(--c-text-strong);
 }
 
 .composer-model-chip {
@@ -424,32 +424,50 @@
 }
 
 .chip-button.permission-chip {
-  color: var(--c-text-meta);
+  border: 1px solid var(--permission-chip-border, transparent);
+  border-radius: var(--radius-button);
+  background: var(--permission-chip-bg, transparent);
+  color: var(--permission-chip-color, var(--c-text-meta));
   transition:
     background var(--motion-standard) var(--ease-standard),
+    border-color var(--motion-standard) var(--ease-standard),
     box-shadow var(--motion-standard) var(--ease-standard),
     color var(--motion-standard) var(--ease-standard);
 }
 
 .chip-button.permission-chip:hover,
 .permission-select-trigger:hover {
-  background: var(--state-hover-bg);
+  border-color: var(--permission-chip-hover-border, var(--permission-chip-border, transparent));
+  background: var(--permission-chip-hover-bg, color-mix(in srgb, var(--c-accent) 11%, var(--c-bg)));
+  color: var(--permission-chip-hover-color, var(--permission-chip-color, var(--c-text-strong)));
 }
 
 .permission-chip-default,
 .permission-chip-customConfig {
-  --permission-chip-bg: var(--c-bg-hover);
-  --permission-chip-color: var(--c-text);
+  --permission-chip-bg: color-mix(in srgb, var(--c-accent) 5%, var(--c-bg));
+  --permission-chip-border: color-mix(in srgb, var(--c-accent) 10%, var(--c-border-soft));
+  --permission-chip-color: var(--c-text-strong);
+  --permission-chip-hover-bg: color-mix(in srgb, var(--c-accent) 11%, var(--c-bg));
+  --permission-chip-hover-border: color-mix(in srgb, var(--c-accent) 24%, var(--c-border-soft));
+  --permission-chip-hover-color: var(--c-text-strong);
 }
 
 .permission-chip-auto {
-  --permission-chip-bg: var(--c-bg-chip-hover);
-  --permission-chip-color: var(--c-accent);
+  --permission-chip-bg: color-mix(in srgb, var(--c-accent) 10%, var(--c-bg));
+  --permission-chip-border: color-mix(in srgb, var(--c-accent) 18%, var(--c-border-soft));
+  --permission-chip-color: var(--c-text-strong);
+  --permission-chip-hover-bg: color-mix(in srgb, var(--c-accent) 18%, var(--c-bg));
+  --permission-chip-hover-border: color-mix(in srgb, var(--c-accent) 34%, var(--c-border-soft));
+  --permission-chip-hover-color: var(--c-text-strong);
 }
 
 .permission-chip-bypassPermissions {
   --permission-chip-bg: var(--orange-3);
+  --permission-chip-border: color-mix(in srgb, var(--orange-9) 22%, var(--c-border-soft));
   --permission-chip-color: var(--orange-11);
+  --permission-chip-hover-bg: color-mix(in srgb, var(--orange-9) 18%, var(--c-bg));
+  --permission-chip-hover-border: color-mix(in srgb, var(--orange-9) 38%, var(--c-border-soft));
+  --permission-chip-hover-color: var(--orange-11);
 }
 
 .composer-plan-mode-chip {
@@ -573,7 +591,7 @@
 
 .permission-select-item[data-highlighted],
 .permission-select-item:focus-visible {
-  background: var(--state-hover-bg);
+  background: var(--state-active-bg);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c-accent) 20%, transparent);
 }
 
@@ -701,11 +719,12 @@
 
 .meta-chip:hover {
   color: var(--c-text-strong);
-  background: var(--state-hover-bg);
+  background: var(--c-bg-chip-hover);
 }
 
 .meta-chip.active {
   color: var(--c-text-strong);
+  background: var(--state-active-bg);
 }
 
 .meta-chip span {
@@ -858,10 +877,11 @@
 }
 
 .chat-input__dropdown-item:hover {
-  background: var(--c-bg-hover);
+  background: var(--state-hover-bg);
 }
 
 .chat-input__dropdown-item.is-active {
+  background: var(--state-active-bg);
   color: var(--c-accent);
 }
 
@@ -897,7 +917,7 @@
 }
 
 .chat-input__dropdown-check {
-  color: #ff6a2c;
+  color: var(--c-accent);
   flex-shrink: 0;
 }
 
@@ -938,13 +958,13 @@
   margin-left: auto;
   flex: 0 0 auto;
   border-radius: var(--radius-full);
-  background: #d1d5db;
+  background: color-mix(in srgb, var(--c-text-strong) 12%, var(--c-panel-bg));
   transition: background 0.15s ease-out;
   cursor: pointer;
 }
 
 .chat-input__dropdown-switch[aria-checked="true"] {
-  background: #ff6a2c;
+  background: var(--c-accent);
 }
 
 .chat-input__dropdown-switch-thumb {
@@ -953,7 +973,7 @@
   height: 16px;
   margin: 3px;
   border-radius: 50%;
-  background: #ffffff;
+  background: var(--c-bg);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
   transition: transform 0.15s ease-out;
 }
@@ -964,11 +984,11 @@
 }
 
 :root[data-theme="dark"] .chat-input__dropdown-switch {
-  background: #4b5563;
+  background: color-mix(in srgb, var(--c-text-strong) 16%, var(--c-panel-bg));
 }
 
 :root[data-theme="dark"] .chat-input__dropdown-switch-thumb {
-  background: #e5e7eb;
+  background: var(--c-bg);
 }
 
 /* Desktop composer surface overrides. Keep this section as the single later
@@ -1009,15 +1029,19 @@
 }
 
 .chip-button:hover,
+.meta-chip:hover,
+.composer .icon-button:hover {
+  background: var(--c-bg-chip-hover);
+  color: var(--c-text-strong);
+}
+
 .chip-button.active,
 .chip-button[aria-expanded="true"],
 .chip-button[data-state="open"],
-.meta-chip:hover,
 .meta-chip.active,
 .meta-chip[aria-expanded="true"],
-.meta-chip[data-state="open"],
-.composer .icon-button:hover {
-  background: var(--c-panel-elevated-bg);
+.meta-chip[data-state="open"] {
+  background: var(--state-active-bg);
   color: var(--c-text-strong);
 }
 
@@ -1032,7 +1056,6 @@
 .composer .icon-button:focus-visible,
 .send-button:focus-visible {
   outline: none;
-   
 }
 
 :root[data-theme="dark"] .composer-input textarea::placeholder {
@@ -1049,7 +1072,6 @@
 }
 
 :root[data-theme="dark"] .chip-button.subtle,
-:root[data-theme="dark"] .chip-button.permission-chip,
 :root[data-theme="dark"] .composer-plan-mode-chip,
 :root[data-theme="dark"] .composer-model-chip-thinking,
 :root[data-theme="dark"] .meta-chip,
@@ -1057,23 +1079,32 @@
   color: var(--c-text-soft);
 }
 
+:root[data-theme="dark"] .chip-button.permission-chip {
+  color: var(--permission-chip-color, var(--c-text-strong));
+}
+
 :root[data-theme="dark"] .composer-model-chip-label {
   color: var(--c-text-strong);
 }
 
 :root[data-theme="dark"] .chip-button:hover,
+:root[data-theme="dark"] .meta-chip:hover,
+:root[data-theme="dark"] .composer .icon-button:hover {
+  background: var(--c-bg-chip-hover);
+}
+
 :root[data-theme="dark"] .chip-button.active,
 :root[data-theme="dark"] .chip-button[aria-expanded="true"],
 :root[data-theme="dark"] .chip-button[data-state="open"],
-:root[data-theme="dark"] .meta-chip:hover,
 :root[data-theme="dark"] .meta-chip.active,
 :root[data-theme="dark"] .meta-chip[aria-expanded="true"],
-:root[data-theme="dark"] .meta-chip[data-state="open"],
-:root[data-theme="dark"] .composer .icon-button:hover {
-  background: color-mix(in srgb, var(--c-bg) 68%, var(--surface-raised));
+:root[data-theme="dark"] .meta-chip[data-state="open"] {
+  background: var(--state-active-bg);
 }
 
 :root[data-theme="dark"] .chip-button.permission-chip:hover,
 :root[data-theme="dark"] .permission-select-trigger:hover {
-  background: var(--state-hover-bg);
+  border-color: var(--permission-chip-hover-border, var(--c-border));
+  background: var(--permission-chip-hover-bg, color-mix(in srgb, var(--c-accent) 16%, var(--c-bg)));
+  color: var(--permission-chip-hover-color, var(--c-text-strong));
 }
