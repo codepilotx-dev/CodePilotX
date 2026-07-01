@@ -2576,7 +2576,7 @@ function ReviewSidebar({
               {reviewView === "inline" ? (
                 <Sliders size={APP_ICON_SIZE} />
               ) : (
-                <Columns2 size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <Columns2 size={APP_ICON_SIZE} />
               )}
             </button>
           </Tooltip>
