@@ -415,6 +415,61 @@ export async function saveDesktopSessionStore(
   }
   await writeFileAtomically(filePath, JSON.stringify(overlayStore, null, 2))
   await cleanupStaleDesktopSessionIndexTempFiles(filePath)
+
+  // Best-effort sync to SQLite index
+  syncMetadataToSqlite(state)
+}
+
+/**
+ * Sync desktop session metadata to the SQLite index.
+ *
+ * Called after saving sessions.json so both stores stay in sync.
+ * Errors are silently swallowed — this is an optimisation, not a
+ * correctness requirement.
+ */
+function syncMetadataToSqlite(state: PersistedDesktopSessions): void {
+  try {
+    const { SessionDatabase, upsertSession, backfillSessions } =
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      require('@codepilotx/core/session/sqlite/index.js')
+
+    SessionDatabase.getInstance().open()
+
+    for (const sessionSnapshot of state.sessions) {
+      const { item, workspace, settings } = sessionSnapshot
+      const now = Date.now()
+
+      upsertSession({
+        id: item.id,
+        project_path: workspace.path,
+        transcript_path: item.transcriptPath ?? item.rolloutPath ?? '',
+        rollout_path: item.rolloutPath ?? null,
+        created_at_ms: item.createdAt
+          ? new Date(item.createdAt).getTime()
+          : now,
+        updated_at_ms: item.lastMessageAt
+          ? new Date(item.lastMessageAt).getTime()
+          : now,
+        title: item.customTitle ?? item.aiTitle ?? item.sessionName ?? '',
+        preview: item.firstPrompt ?? '',
+        first_user_message: item.firstPrompt ?? '',
+        source: 'desktop',
+        status: item.status ?? 'active',
+        pinned: item.pinnedAt ? 1 : 0,
+        archived: item.archivedAt ? 1 : 0,
+        session_mode: 'normal',
+        model_provider: settings?.providerID,
+        model: item.model ?? undefined,
+        thinking_mode: item.thinkingMode,
+        git_branch: item.gitBranch ?? undefined,
+      })
+    }
+
+    // Ensure backfill completes so the SQLite index is fully populated
+    backfillSessions()
+  } catch {
+    // SQLite not available — this is a best-effort sync
+  }
 }
 
 export function createDesktopSessionSnapshot(params: {

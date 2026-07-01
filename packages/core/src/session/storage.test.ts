@@ -8,6 +8,7 @@ import {
   loadAllProjectsMessageLogs,
   loadFullLog,
   saveAiGeneratedTitle,
+  sqliteRowToLogOption,
 } from './storage.js'
 import type { LogOption, SerializedMessage } from './logs.js'
 
@@ -60,4 +61,24 @@ test('saveAiGeneratedTitle can write to an explicit transcript path', async () =
   } finally {
     await rm(dir, { recursive: true, force: true })
   }
+})
+
+test('sqlite session rows keep the original workspace path in log options', () => {
+  const log = sqliteRowToLogOption(
+    {
+      id: randomUUID(),
+      project_path: 'D:\\VueProject\\ClaudeCode',
+      transcript_path: 'D:\\VueProject\\ClaudeCode\\.codepilotx\\session.jsonl',
+      created_at_ms: 1,
+      updated_at_ms: 2,
+      preview: 'hello',
+      title: 'hello',
+      message_count: 1,
+      file_size: 10,
+      is_sidechain: 0,
+    },
+    0,
+  )
+
+  expect(log.projectPath).toBe('D:\\VueProject\\ClaudeCode')
 })

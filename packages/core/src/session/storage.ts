@@ -1,4 +1,4 @@
-import { appendFileSync, mkdirSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync } from 'node:fs'
 import { readdir, readFile, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
@@ -38,6 +38,36 @@ export async function loadAllProjectsMessageLogs(
   limit?: number,
   _options?: LoadAllProjectsMessageLogsOptions,
 ): Promise<LogOption[]> {
+  // Try SQLite index first (faster, keyset-paginated)
+  if (!_options?.skipIndex) {
+    try {
+      const { SessionDatabase, listSessions, isBackfillComplete, backfillSessions } =
+        await import('./sqlite/index.js')
+      SessionDatabase.getInstance().open()
+
+      if (isBackfillComplete()) {
+        const result = listSessions({
+          sortKey: 'updated_at_ms',
+          sortDirection: 'desc',
+          pageSize: limit ?? 100,
+          includeEmptyPreview: true,
+        })
+        if (result.sessions.length > 0) {
+          return result.sessions.map((row, idx) => sqliteRowToLogOption(row, idx))
+        }
+      } else {
+        // Backfill hasn't completed yet — start it in the background
+        // so the next load can use the index
+        void backfillSessions().catch(() => {
+          /* best-effort */
+        })
+      }
+    } catch {
+      // SQLite not available — fall back to directory scanning
+    }
+  }
+
+  // Fallback: scan project directories
   let projectDirs
   try {
     projectDirs = await readdir(getProjectsDir(), { withFileTypes: true })
@@ -75,6 +105,35 @@ export async function loadAllProjectsMessageLogs(
   }
 
   return sortLogs(logs).map((log, value) => ({ ...log, value }))
+}
+
+/**
+ * Convert a SQLite SessionRow to the legacy LogOption format.
+ */
+export function sqliteRowToLogOption(
+  row: Record<string, unknown>,
+  idx: number,
+): LogOption {
+  const created = new Date((row.created_at_ms as number) ?? Date.now())
+  const modified = new Date((row.updated_at_ms as number) ?? Date.now())
+  return {
+    date: modified.toISOString(),
+    messages: [],
+    fullPath: (row.transcript_path as string) ?? undefined,
+    value: idx,
+    created,
+    modified,
+    firstPrompt: (row.preview as string) || (row.title as string) || '(session)',
+    messageCount: (row.message_count as number) ?? 0,
+    fileSize: (row.file_size as number) ?? 0,
+    isSidechain: (row.is_sidechain as number) === 1,
+    isLite: true,
+    sessionId: row.id as string,
+    projectPath: (row.project_path as string) ?? undefined,
+    gitBranch: (row.git_branch as string) ?? undefined,
+    customTitle: (row.title as string) || undefined,
+    summary: (row.summary as string) ?? undefined,
+  }
 }
 
 export async function loadFullLog(log: LogOption): Promise<LogOption> {
