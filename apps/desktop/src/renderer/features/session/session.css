@@ -216,7 +216,7 @@
   justify-items: center;
   padding: 28px 38px 30px;
   border: 1px solid color-mix(in srgb, var(--c-text-strong) 9%, var(--c-panel-border));
-  border-radius: 18px;
+  border-radius: var(--radius-input);
   background:
     linear-gradient(
       180deg,
@@ -242,7 +242,7 @@
   max-width: min(360px, 100%);
   padding: 2px 7px 3px;
   border: 0;
-  border-radius: 9px;
+  border-radius: var(--radius-button);
   background: transparent;
   color: var(--c-text-strong);
   font-family: inherit;
@@ -840,20 +840,21 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 34px;
-  padding: 0 12px 0 14px;
-  border: 0;
-  border-radius: var(--radius-6);
-  background: var(--c-text-strong);
-  color: var(--c-bg);
-  font-size: var(--fs-13);
+  min-height: 40px;
+  padding: 0 20px;
+  border: 1px solid var(--c-send-bg);
+  border-radius: var(--radius-button);
+  background: var(--c-send-bg);
+  color: var(--c-text-on-accent);
+  font-size: 14px;
   font-weight: var(--font-weight-label);
   cursor: pointer;
   transition: background 0.15s;
 }
 
 .exit-plan-mode-submit:hover {
-  background: var(--c-text-strong-hover, var(--c-text));
+  background: var(--c-send-bg-hover);
+  border-color: var(--c-send-bg-hover);
 }
 
 .inline-approval-option-hint {
@@ -1011,23 +1012,24 @@
 }
 
 .inline-approval-submit {
-  min-height: 34px;
+  min-height: 40px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 0 12px 0 14px;
-  border: 0;
-  border-radius: var(--radius-6);
-  background: var(--c-text-strong);
-  color: var(--c-bg);
-  font-size: var(--fs-13);
+  padding: 0 20px;
+  border: 1px solid var(--c-send-bg);
+  border-radius: var(--radius-button);
+  background: var(--c-send-bg);
+  color: var(--c-text-on-accent);
+  font-size: 14px;
   font-weight: var(--font-weight-label);
   cursor: pointer;
   transition: background 0.15s;
 }
 
 .inline-approval-submit:hover {
-  background: var(--c-text-strong-hover, var(--c-text));
+  background: var(--c-send-bg-hover);
+  border-color: var(--c-send-bg-hover);
 }
 
 .utility-card,
@@ -2175,13 +2177,13 @@
 
 .inline-approval-option:not(.selected):hover,
 .exit-plan-mode-option:not(.selected):hover {
-  background: var(--c-bg-soft);
+  background: var(--state-hover-bg);
 }
 
 .inline-approval-option.selected,
 .exit-plan-mode-option.selected {
-  background: var(--c-bg-soft);
-  border-color: var(--c-border-soft);
+  background: var(--state-active-bg);
+  border-color: color-mix(in srgb, var(--c-accent) 24%, var(--c-border-soft));
 }
 
 .inline-approval-option-index,
@@ -2242,16 +2244,16 @@
 .workflow-composer-card-question .inline-approval-submit,
 .workflow-composer-card-permission .inline-approval-submit,
 .workflow-composer-card-plan .exit-plan-mode-submit {
-  min-height: 34px;
-  border-radius: var(--radius-6);
-  background: var(--c-text-strong);
-  color: var(--c-bg);
+  min-height: 40px;
+  border-radius: var(--radius-button);
+  background: var(--c-send-bg);
+  color: var(--c-text-on-accent);
 }
 
 .workflow-composer-card-question .inline-approval-submit:hover,
 .workflow-composer-card-permission .inline-approval-submit:hover,
 .workflow-composer-card-plan .exit-plan-mode-submit:hover {
-  background: var(--c-text-strong-hover, var(--c-text));
+  background: var(--c-send-bg-hover);
 }
 
 .workflow-composer-card-permission .inline-approval-summary {
@@ -2674,7 +2676,7 @@
   padding: calc(var(--layout-toolbar-gap) - 2px) var(--layout-toolbar-gap)
     calc(var(--layout-toolbar-gap) - 4px);
   border: 1px solid var(--border-subtle);
-  border-radius: 22px;
+  border-radius: var(--radius-card);
   background: var(--c-panel-bg);
   box-shadow: var(--c-panel-shadow);
 }
@@ -2684,7 +2686,7 @@
   padding: var(--layout-toolbar-gap) calc(var(--layout-card-pad) - 10px)
     calc(var(--layout-toolbar-gap) - 4px);
   border: 0;
-  border-radius: 18px;
+  border-radius: var(--radius-marquee);
   background: transparent;
   box-shadow: none;
 }
@@ -2776,14 +2778,14 @@
 .workflow-composer-card-question .inline-approval-option:not(.selected),
 .workflow-composer-card-plan .exit-plan-mode-option:not(.selected),
 .workflow-composer-card-question .inline-approval-option.custom {
-  background: color-mix(in srgb, var(--c-panel-elevated-bg) 54%, transparent);
-  border-color: color-mix(in srgb, var(--c-text-strong) 12%, transparent);
+  background: color-mix(in srgb, var(--c-accent) 5%, var(--c-panel-bg));
+  border-color: color-mix(in srgb, var(--c-accent) 12%, transparent);
 }
 
 .workflow-composer-card-question .inline-approval-option.selected,
 .workflow-composer-card-plan .exit-plan-mode-option.selected {
-  background: color-mix(in srgb, var(--c-bg) 72%, var(--c-panel-elevated-bg));
-  border-color: color-mix(in srgb, var(--c-text-strong) 18%, transparent);
+  background: var(--state-active-bg);
+  border-color: color-mix(in srgb, var(--c-accent) 30%, transparent);
 }
 
 .quick-chat-view .chat-composer > .composer,
@@ -2825,14 +2827,14 @@
 :root[data-theme="dark"] .workflow-composer-card-question .inline-approval-option:not(.selected),
 :root[data-theme="dark"] .workflow-composer-card-plan .exit-plan-mode-option:not(.selected),
 :root[data-theme="dark"] .workflow-composer-card-question .inline-approval-option.custom {
-  background: color-mix(in srgb, var(--c-bg) 88%, var(--surface-raised));
-  border-color: rgba(255, 255, 255, 0.055);
+  background: color-mix(in srgb, var(--c-accent) 7%, var(--c-panel-bg));
+  border-color: color-mix(in srgb, var(--c-accent) 16%, transparent);
 }
 
 :root[data-theme="dark"] .workflow-composer-card-question .inline-approval-option.selected,
 :root[data-theme="dark"] .workflow-composer-card-plan .exit-plan-mode-option.selected {
-  background: color-mix(in srgb, var(--c-bg) 70%, var(--surface-raised));
-  border-color: rgba(255, 255, 255, 0.085);
+  background: var(--state-active-bg);
+  border-color: color-mix(in srgb, var(--c-accent) 32%, transparent);
 }
 
 :root[data-theme="dark"] .workflow-plan-card__body .md-body code:not(pre code),
@@ -2898,7 +2900,7 @@
   max-width: 780px;
   padding: 6px;
   border: 1px solid color-mix(in srgb, var(--c-text-strong) 10%, var(--c-panel-border));
-  border-radius: 18px;
+  border-radius: var(--radius-marquee);
   background: color-mix(in srgb, var(--c-panel-bg) 86%, var(--c-panel-elevated-bg));
   box-shadow:
     0 22px 64px color-mix(in srgb, var(--c-text-strong) 12%, transparent),
@@ -2909,7 +2911,7 @@
   min-height: 86px;
   padding: 12px 14px 10px;
   border: 0;
-  border-radius: 13px;
+  border-radius: var(--radius-card);
   background: color-mix(in srgb, var(--c-panel-bg) 92%, transparent);
 }
 

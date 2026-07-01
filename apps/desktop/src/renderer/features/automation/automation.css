@@ -73,10 +73,11 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 34px;
-  padding: 0 14px;
-  border-radius: var(--radius-4);
-  font-size: var(--fs-13);
+  height: 40px;
+  padding: 0 20px;
+  border-radius: var(--radius-button);
+  font-size: 14px;
+  font-weight: var(--font-weight-label);
   cursor: pointer;
   border: 1px solid var(--c-border-soft);
   background: var(--c-bg);
@@ -98,9 +99,9 @@
 
 
 .automation-button.is-primary {
-  background: var(--c-text-strong);
-  color: var(--c-bg);
-  border-color: var(--c-text-strong);
+  background: var(--c-send-bg);
+  color: var(--c-text-on-accent);
+  border-color: var(--c-send-bg);
 }
 
 
@@ -266,7 +267,7 @@
 .automation-button:hover,
 .automation-quick-button:hover {
   border-color: var(--c-panel-border);
-  background: var(--c-panel-elevated-bg);
+  background: var(--c-bg-chip-hover);
   transform: translateY(-1px);
 }
 
@@ -278,5 +279,4 @@
 .automation-button:focus-visible,
 .automation-quick-button:focus-visible {
   outline: none;
-   
 }

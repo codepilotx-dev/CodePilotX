@@ -191,6 +191,7 @@ export type AgentRuntimeEvent =
       sessionId: string
       filePath: string
       patch: string
+      metadata?: Record<string, unknown>
       sourceThreadId?: string
       sourceLabel?: string
     }

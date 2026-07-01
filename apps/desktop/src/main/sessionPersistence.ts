@@ -1,6 +1,14 @@
 import { randomUUID } from 'node:crypto'
 import { setTimeout as delay } from 'node:timers/promises'
-import { mkdir, readFile, rename, stat, unlink, writeFile } from 'node:fs/promises'
+import {
+  mkdir,
+  readFile,
+  readdir,
+  rename,
+  stat,
+  unlink,
+  writeFile,
+} from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import {
   isAgentApprovalMode,
@@ -113,8 +121,22 @@ type AtomicWriteOperations = {
   delay?(ms: number): Promise<unknown>
 }
 
+type CleanupStaleTempOperations = {
+  readdir?(path: string, options: { withFileTypes: true }): Promise<
+    Array<{
+      name: string
+      isFile(): boolean
+    }>
+  >
+  stat?(path: string): Promise<{ mtimeMs: number }>
+  unlink?(path: string): Promise<unknown>
+  nowMs?: number
+  staleAgeMs?: number
+}
+
 const SESSION_INDEX_FILE_NAME = 'sessions.json'
 const TRANSCRIPT_ENRICH_LIMIT = Number.MAX_SAFE_INTEGER
+const MAX_PERSISTED_WORKFLOW_EVENTS = 100
 
 export { appendDesktopRolloutItems }
 
@@ -172,6 +194,46 @@ export async function writeFileAtomically(
     await operations.unlink?.(tempPath).catch(() => {})
     throw error
   }
+}
+
+const SESSION_INDEX_TEMP_STALE_AGE_MS = 10 * 60 * 1000
+
+export async function cleanupStaleDesktopSessionIndexTempFiles(
+  filePath: string,
+  operations: CleanupStaleTempOperations = {},
+): Promise<void> {
+  const dir = dirname(filePath)
+  const prefix = `.${basename(filePath)}.`
+  const suffix = '.tmp'
+  const readDir = operations.readdir ?? readdir
+  const readStat = operations.stat ?? stat
+  const remove = operations.unlink ?? unlink
+  const nowMs = operations.nowMs ?? Date.now()
+  const staleAgeMs = operations.staleAgeMs ?? SESSION_INDEX_TEMP_STALE_AGE_MS
+
+  let entries: Awaited<ReturnType<NonNullable<CleanupStaleTempOperations['readdir']>>>
+  try {
+    entries = await readDir(dir, { withFileTypes: true })
+  } catch {
+    return
+  }
+
+  await Promise.all(
+    entries.map(async entry => {
+      if (!entry.isFile()) return
+      if (!entry.name.startsWith(prefix) || !entry.name.endsWith(suffix)) {
+        return
+      }
+      const tempPath = join(dir, entry.name)
+      try {
+        const info = await readStat(tempPath)
+        if (nowMs - info.mtimeMs < staleAgeMs) return
+        await remove(tempPath)
+      } catch {
+        // Best-effort cleanup must not block session persistence.
+      }
+    }),
+  )
 }
 
 async function renameWithTransientPermissionRetry(
@@ -352,6 +414,64 @@ export async function saveDesktopSessionStore(
     }),
   }
   await writeFileAtomically(filePath, JSON.stringify(overlayStore, null, 2))
+  await cleanupStaleDesktopSessionIndexTempFiles(filePath)
+
+  // Best-effort sync to SQLite index
+  syncMetadataToSqlite(state)
+}
+
+/**
+ * Sync desktop session metadata to the SQLite index.
+ *
+ * Called after saving sessions.json so both stores stay in sync.
+ * Errors are silently swallowed — this is an optimisation, not a
+ * correctness requirement.
+ */
+function syncMetadataToSqlite(state: PersistedDesktopSessions): void {
+  try {
+    const { SessionDatabase, upsertSession, touchRecencyAt, backfillSessions } =
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      require('@codepilotx/core/session/sqlite/index.js')
+
+    SessionDatabase.getInstance().open()
+
+    for (const sessionSnapshot of state.sessions) {
+      const { item, workspace, settings } = sessionSnapshot
+      const now = Date.now()
+
+      const updatedAtMs = item.lastMessageAt
+        ? new Date(item.lastMessageAt).getTime()
+        : now
+      upsertSession({
+        id: item.id,
+        project_path: workspace.path,
+        transcript_path: item.transcriptPath ?? item.rolloutPath ?? '',
+        rollout_path: item.rolloutPath ?? null,
+        created_at_ms: item.createdAt
+          ? new Date(item.createdAt).getTime()
+          : now,
+        updated_at_ms: updatedAtMs,
+        title: item.customTitle ?? item.aiTitle ?? item.sessionName ?? '',
+        preview: item.firstPrompt ?? '',
+        first_user_message: item.firstPrompt ?? '',
+        source: 'desktop',
+        status: item.status ?? 'active',
+        pinned: item.pinnedAt ? 1 : 0,
+        archived: item.archivedAt ? 1 : 0,
+        session_mode: 'normal',
+        model_provider: settings?.providerID,
+        model: item.model ?? undefined,
+        thinking_mode: item.thinkingMode,
+        git_branch: item.gitBranch ?? undefined,
+      })
+      touchRecencyAt(item.id, updatedAtMs)
+    }
+
+    // Ensure backfill completes so the SQLite index is fully populated
+    backfillSessions()
+  } catch {
+    // SQLite not available — this is a best-effort sync
+  }
 }
 
 export function createDesktopSessionSnapshot(params: {
@@ -418,6 +538,24 @@ export function createDesktopSessionSnapshot(params: {
     workflowEventModelVersion: 1,
     reviewComments: [],
     updatedAt: now.toISOString(),
+  }
+}
+
+export function createLightweightDesktopSessionSnapshot(
+  snapshot: DesktopSessionSnapshot,
+): DesktopSessionSnapshot {
+  return {
+    ...snapshot,
+    view: {
+      messages: [],
+      toolLog: [],
+      pendingPermissions: snapshot.view.pendingPermissions,
+      contextUsage: snapshot.view.contextUsage,
+    },
+    events: undefined,
+    eventModelVersion: undefined,
+    workflowEvents: undefined,
+    workflowEventModelVersion: undefined,
   }
 }
 
@@ -605,10 +743,16 @@ export function applyDesktopWorkflowEventsToSnapshot(
 
   return {
     ...snapshot,
-    workflowEvents: [...existingEvents, ...appendedEvents],
+    workflowEvents: recentWorkflowEvents([...existingEvents, ...appendedEvents]),
     workflowEventModelVersion: 1,
     updatedAt: new Date().toISOString(),
   }
+}
+
+function recentWorkflowEvents(
+  workflowEvents: DesktopWorkflowEvent[],
+): DesktopWorkflowEvent[] {
+  return workflowEvents.slice(-MAX_PERSISTED_WORKFLOW_EVENTS)
 }
 
 export function removePendingPermissionFromSnapshot(
@@ -1032,7 +1176,7 @@ function overlayFromSnapshot(
     workflowEvents:
       normalizedSnapshot.workflowEventModelVersion === 1 &&
       normalizedSnapshot.workflowEvents
-        ? [...normalizedSnapshot.workflowEvents]
+        ? recentWorkflowEvents(normalizedSnapshot.workflowEvents)
         : undefined,
     workflowEventModelVersion:
       normalizedSnapshot.workflowEventModelVersion === 1 ? 1 : undefined,

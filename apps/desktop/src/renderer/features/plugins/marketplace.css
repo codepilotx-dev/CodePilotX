@@ -61,12 +61,13 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 30px;
-  padding: 0 12px;
-  border-radius: var(--radius-4);
-  font-size: var(--fs-13);
+  height: 40px;
+  padding: 0 20px;
+  border-radius: var(--radius-button);
+  font-size: 14px;
+  font-weight: var(--font-weight-label);
   background: var(--c-bg);
-  border: 1px solid var(--c-border);
+  border: 1px solid var(--c-border-soft);
   color: var(--c-text-strong);
   cursor: pointer;
   transition:
@@ -81,9 +82,9 @@
 }
 
 .plugins-button.is-primary {
-  background: var(--c-text-strong);
-  color: var(--c-bg);
-  border-color: var(--c-text-strong);
+  background: var(--c-send-bg);
+  color: var(--c-text-on-accent);
+  border-color: var(--c-send-bg);
 }
 
 .plugins-button.is-ghost:hover {
@@ -233,14 +234,14 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 34px;
-  padding: 0 14px;
-  border-radius: var(--radius-6);
-  background: var(--c-text-strong);
-  color: var(--c-bg);
-  font-size: var(--fs-13);
-  font-weight: 500;
-  border: 0;
+  height: 40px;
+  padding: 0 20px;
+  border: 1px solid var(--c-send-bg);
+  border-radius: var(--radius-button);
+  background: var(--c-send-bg);
+  color: var(--c-text-on-accent);
+  font-size: 14px;
+  font-weight: var(--font-weight-label);
   cursor: pointer;
   transition: background 120ms ease;
 }
@@ -587,6 +588,6 @@
 }
 
 .plugins-card:hover {
-  background: var(--c-panel-elevated-bg);
+  background: var(--c-bg-chip-hover);
   box-shadow: var(--c-panel-shadow-raised);
 }

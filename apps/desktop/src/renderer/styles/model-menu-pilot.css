@@ -22,7 +22,7 @@
 
 .rm-model-menu .rm-sub-trigger:hover,
 .rm-model-menu .rm-sub-trigger[data-highlighted] {
-  background: var(--c-bg-hover);
+  background: var(--state-hover-bg);
 }
 
 .rm-model-menu .rm-sub-trigger:hover .rm-item-check,
@@ -33,7 +33,7 @@
 }
 
 .rm-model-menu .rm-sub-trigger[data-state="open"] {
-  background: var(--c-bg-hover);
+  background: var(--state-active-bg);
 }
 
 .rm-model-menu .rm-sub-trigger[data-state="open"] .rm-item-check,
@@ -68,7 +68,11 @@
 
 .rm-model-menu .rm-menu-item:hover,
 .rm-model-menu .rm-menu-item[data-highlighted] {
-  background: var(--c-bg-hover);
+  background: var(--state-hover-bg);
+}
+
+.rm-model-menu .rm-menu-item[data-highlighted] {
+  background: var(--state-active-bg);
 }
 
 .rm-model-menu .rm-menu-item:hover .rm-item-check,

@@ -111,6 +111,8 @@ const THEME_VARIABLES = [
   '--c-panel-shadow',
   '--c-panel-shadow-raised',
   '--c-panel-shadow-soft',
+  '--state-hover-bg',
+  '--state-active-bg',
   '--ff-sans',
   '--ff-mono',
   '--fs-ui',
@@ -331,15 +333,22 @@ function applyDesktopTheme(
   const contrast = clamp(theme.contrast, 0, 100)
   root.classList.toggle('dracula-theme', dracula)
   const bgSoftMix = contrastMix(contrast, 1, 6)
-  const bgRowHoverMix = contrastMix(contrast, 3, 11)
+  const bgRowHoverMix = variant === 'dark' ? 12 : 7
+  const bgHoverMix = variant === 'dark' ? 14 : 8
+  const stateHoverMix = variant === 'dark' ? 14 : 9
+  const stateActiveMix = variant === 'dark' ? 22 : 15
+  const chipHoverSurface =
+    variant === 'dark'
+      ? surfaceInkMix(theme, contrastMix(contrast, 6, 15))
+      : theme.surface
   const layoutTokens = deriveLayoutThemeTokens(theme, variant, contrast)
   root.style.setProperty('--contrast', String(contrast))
   root.style.setProperty('--c-bg', theme.surface)
   root.style.setProperty('--c-bg-soft', surfaceInkMix(theme, bgSoftMix))
   root.style.setProperty('--c-bg-mask', surfaceInkMix(theme, bgSoftMix))
-  root.style.setProperty('--c-bg-hover', surfaceInkMix(theme, contrastMix(contrast, 5, 10)))
-  root.style.setProperty('--c-bg-row-hover', surfaceInkMix(theme, bgRowHoverMix))
-  root.style.setProperty('--c-bg-chip-hover', accentMix(theme, contrastMix(contrast, 5, 10)))
+  root.style.setProperty('--c-bg-hover', colorMix(theme.accent, bgHoverMix, 'transparent'))
+  root.style.setProperty('--c-bg-row-hover', colorMix(theme.accent, bgRowHoverMix, 'transparent'))
+  root.style.setProperty('--c-bg-chip-hover', colorMix(theme.accent, variant === 'dark' ? 26 : 16, chipHoverSurface))
   root.style.setProperty('--c-bg-card', surfaceInkMix(theme, contrastMix(contrast, 1, 4)))
   root.style.setProperty('--c-popover-bg', theme.surface)
   root.style.setProperty('--c-popover-border', surfaceInkMix(theme, contrastMix(contrast, 4, 8)))
@@ -385,14 +394,22 @@ function applyDesktopTheme(
   root.style.setProperty('--c-icon-arrow', surfaceInkMix(theme, contrastMix(contrast, 30, 45)))
   root.style.setProperty('--c-accent', theme.accent)
   root.style.setProperty('--c-send-bg', theme.accent)
-  root.style.setProperty('--c-send-bg-hover', accentMix(theme, variant === 'dark' ? 12 : 18))
-  root.style.setProperty('--c-send-bg-disabled', accentMix(theme, 50))
+  root.style.setProperty(
+    '--c-send-bg-hover',
+    isClaudePrimaryAccent(theme.accent) ? '#a9583e' : accentMix(theme, variant === 'dark' ? 12 : 18),
+  )
+  root.style.setProperty(
+    '--c-send-bg-disabled',
+    isClaudePrimaryAccent(theme.accent) ? '#e6dfd8' : accentMix(theme, 50),
+  )
   root.style.setProperty('--c-user-bubble-bg', surfaceInkMix(theme, bgRowHoverMix))
   root.style.setProperty('--c-scrollbar', surfaceInkMix(theme, contrastMix(contrast, 8, 14)))
   root.style.setProperty('--c-scrollbar-hover', surfaceInkMix(theme, contrastMix(contrast, 15, 25)))
   root.style.setProperty('--c-diff-added', theme.semanticColors.diffAdded)
   root.style.setProperty('--c-diff-removed', theme.semanticColors.diffRemoved)
   root.style.setProperty('--c-skill', theme.semanticColors.skill)
+  root.style.setProperty('--state-hover-bg', colorMix(theme.accent, stateHoverMix, 'transparent'))
+  root.style.setProperty('--state-active-bg', colorMix(theme.accent, stateActiveMix, 'transparent'))
   for (const [name, value] of Object.entries(layoutTokens)) {
     root.style.setProperty(name, value)
   }
@@ -508,6 +525,10 @@ function surfaceInkMix(theme: ThemeTokens, inkPercent: number): string {
 
 function colorMix(first: string, firstPercent: number, second: string): string {
   return `color-mix(in srgb, ${first} ${firstPercent}%, ${second})`
+}
+
+function isClaudePrimaryAccent(accent: string): boolean {
+  return accent.toLowerCase() === '#cc785c'
 }
 
 function accentMix(theme: ThemeTokens, inkPercent: number): string {

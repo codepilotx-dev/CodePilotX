@@ -29,7 +29,6 @@
 .md-body .md-code-block,
 .md-body pre,
 .md-body pre code,
-.workflow-page .timeline-command-shell,
 .right-dock-plan-document .md-body .md-code-block,
 .appearance-preview-codeblock,
 .environment-diff-preview,
@@ -40,6 +39,7 @@
 }
 
 .settings-button.is-primary,
+.settings-button.primary,
 .plugins-button.is-primary,
 .plugins-hero-cta,
 .automation-button.is-primary,
@@ -47,14 +47,22 @@
 .workflow-composer-card-permission .inline-approval-submit,
 .workflow-composer-card-plan .exit-plan-mode-submit,
 .exit-plan-mode-submit,
-.inline-approval-submit,
-.send-button {
+.inline-approval-submit {
+  min-height: 40px;
+  height: 40px;
+  padding: 0 20px;
+  border: 1px solid var(--c-send-bg);
+  border-radius: var(--radius-button);
   border-color: var(--c-send-bg);
   background: var(--c-send-bg);
   color: var(--c-text-on-accent);
+  font-size: 14px;
+  font-weight: var(--font-weight-label);
+  line-height: 1;
 }
 
 .settings-button.is-primary:hover:not(:disabled),
+.settings-button.primary:hover:not(:disabled),
 .plugins-button.is-primary:hover,
 .plugins-hero-cta:hover,
 .automation-button.is-primary:hover,
@@ -62,11 +70,34 @@
 .workflow-composer-card-permission .inline-approval-submit:hover,
 .workflow-composer-card-plan .exit-plan-mode-submit:hover,
 .exit-plan-mode-submit:hover,
-.inline-approval-submit:hover,
+.inline-approval-submit:hover {
+  border-color: var(--c-send-bg-hover);
+  background: var(--c-send-bg-hover);
+  color: var(--c-text-on-accent);
+}
+
+.send-button {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0;
+  border: 1px solid var(--c-send-bg);
+  border-radius: var(--radius-full);
+  background: var(--c-send-bg);
+  color: var(--c-text-on-accent);
+}
+
 .send-button:hover:not(:disabled) {
   border-color: var(--c-send-bg-hover);
   background: var(--c-send-bg-hover);
   color: var(--c-text-on-accent);
+}
+
+.send-button:disabled {
+  border-color: var(--c-send-bg-disabled);
+  background: var(--c-send-bg-disabled);
+  color: var(--c-text-meta);
 }
 
 .settings-button,
@@ -85,24 +116,49 @@
 .plugins-filter,
 .right-dock-search,
 .right-dock-terminal-composer input {
-  border-radius: var(--radius-3);
+  border-radius: var(--radius-button);
 }
 
-.settings-button,
-.plugins-button,
-.automation-button,
+.settings-button:not(.is-primary):not(.primary):not(.danger):not(.link),
+.plugins-button:not(.is-primary),
+.automation-button:not(.is-primary),
 .automation-quick-button,
 .settings-dropdown,
 .settings-input,
 .settings-textarea,
 .settings-input-number,
+.search-input-row,
 .plugins-search,
 .plugins-filter,
 .right-dock-search,
 .right-dock-terminal-composer input {
+  min-height: 40px;
   border-color: var(--c-border-soft);
-  background: var(--c-panel-bg);
+  background: var(--c-bg);
   color: var(--c-text-strong);
+}
+
+.settings-button:not(.is-primary):not(.primary):not(.danger):not(.link),
+.plugins-button:not(.is-primary),
+.automation-button:not(.is-primary),
+.automation-quick-button {
+  height: 40px;
+  padding: 0 20px;
+  border: 1px solid var(--c-border-soft);
+  font-size: 14px;
+  font-weight: var(--font-weight-label);
+  line-height: 1;
+}
+
+.settings-input,
+.settings-textarea,
+.settings-input-number,
+.search-input-row,
+.plugins-search,
+.plugins-filter,
+.right-dock-search,
+.right-dock-terminal-composer input {
+  border-radius: var(--radius-input);
 }
 
 .settings-button:hover,
@@ -136,18 +192,27 @@
 .sidebar-context-menu-item[data-highlighted],
 .sidebar-context-menu-sub-trigger[data-highlighted],
 .sidebar-context-menu-sub-trigger[data-state="open"] {
-  background: var(--c-bg-hover);
+  background: var(--state-hover-bg);
   border-color: var(--c-panel-border);
 }
 
+.popover-item.active,
+.popover-item[data-highlighted],
+.menubar-item[data-highlighted],
+.settings-dropdown-item[data-highlighted],
+.permission-select-item[data-highlighted],
+.rm-model-menu .rm-menu-item[data-highlighted],
+.rm-model-menu .rm-sub-trigger[data-highlighted],
+.rm-model-menu .rm-sub-trigger[data-state="open"],
+.chat-input__dropdown-item.is-active,
+.sidebar-context-menu-item[data-highlighted],
+.sidebar-context-menu-sub-trigger[data-highlighted],
+.sidebar-context-menu-sub-trigger[data-state="open"] {
+  background: var(--state-active-bg);
+}
+
 .chip-button:hover,
-.chip-button.active,
-.chip-button[aria-expanded="true"],
-.chip-button[data-state="open"],
 .meta-chip:hover,
-.meta-chip.active,
-.meta-chip[aria-expanded="true"],
-.meta-chip[data-state="open"],
 .composer .icon-button:hover,
 .message-action:hover,
 .message-action[data-state="open"],
@@ -157,6 +222,24 @@
 .menubar-trigger[data-highlighted] {
   background: var(--state-hover-bg);
   color: var(--c-text-strong);
+}
+
+.chip-button.active,
+.chip-button[aria-expanded="true"],
+.chip-button[data-state="open"],
+.meta-chip.active,
+.meta-chip[aria-expanded="true"],
+.meta-chip[data-state="open"],
+.message-action[data-state="open"],
+.menubar-trigger[data-state="open"],
+.menubar-trigger[data-highlighted] {
+  background: var(--state-active-bg);
+  color: var(--c-text-strong);
+}
+
+.chip-button:hover,
+.meta-chip:hover {
+  background: var(--c-bg-chip-hover);
 }
 
 .chip-button,
@@ -196,7 +279,7 @@
 .workflow-composer-card-question .inline-approval-option:not(.selected),
 .workflow-composer-card-plan .exit-plan-mode-option:not(.selected),
 .workflow-composer-card-question .inline-approval-option.custom {
-  background: color-mix(in srgb, var(--c-panel-elevated-bg) 64%, transparent);
+  background: color-mix(in srgb, var(--c-accent) 4%, var(--c-panel-bg));
   border-color: var(--border-muted);
 }
 
@@ -421,7 +504,6 @@ textarea:focus-visible,
 }
 
 :root[data-theme="dark"] .md-body .md-code-block,
-:root[data-theme="dark"] .workflow-page .timeline-command-shell,
 :root[data-theme="dark"] .right-dock-plan-document .md-body .md-code-block,
 :root[data-theme="dark"] .appearance-preview-codeblock,
 :root[data-theme="dark"] .environment-diff-preview,

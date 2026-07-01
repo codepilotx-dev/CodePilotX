@@ -43,6 +43,7 @@ import {
   appendUniqueWorkflowEvent,
   dedupeWorkflowEvents,
 } from './workflowEventDedup.js'
+import { mergeSessionStoreSnapshotView } from './sessionStoreMerge.js'
 import { deriveWorkflowViewPatch } from './workflowViewPatch.js'
 import {
   applySessionView,
@@ -433,15 +434,10 @@ export function useSessionState(
       const nextViews = { ...sessionViewsRef.current }
       const nextWorkspaces = { ...sessionWorkspacesRef.current }
       for (const snapshot of change.sessions) {
-        const existingView = nextViews[snapshot.item.id]
-        const snapshotView: SessionViewState = {
-          ...snapshot.view,
-          eventModelVersion: snapshot.eventModelVersion,
-          events: snapshot.events ?? [],
-          workflowEvents: dedupeWorkflowEvents(snapshot.workflowEvents ?? []),
-          contextUsage: snapshot.view.contextUsage ?? null,
-          selectedFile: existingView?.selectedFile ?? null,
-        }
+        const snapshotView = mergeSessionStoreSnapshotView(
+          nextViews[snapshot.item.id],
+          snapshot,
+        )
         nextViews[snapshot.item.id] = {
           ...snapshotView,
           ...deriveWorkflowViewPatch(

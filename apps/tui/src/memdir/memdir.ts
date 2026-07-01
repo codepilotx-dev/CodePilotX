@@ -1,5 +1,6 @@
 import { feature } from 'bun:bundle'
 import { join } from 'path'
+import { buildRepoMemorySkeleton } from '@codepilotx/core/memory/state.js'
 import { getFsImplementation } from '../utils/fsOperations.js'
 import { getAutoMemPath, isAutoMemoryEnabled } from './paths.js'
 
@@ -130,6 +131,7 @@ export async function ensureMemoryDirExists(memoryDir: string): Promise<void> {
   const fs = getFsImplementation()
   try {
     await fs.mkdir(memoryDir)
+    await ensureRepoMemorySkeleton(memoryDir)
   } catch (e) {
     // fs.mkdir already handles EEXIST internally. Anything reaching here is
     // a real problem (EACCES/EPERM/EROFS) — log so --debug shows why. Prompt
@@ -143,6 +145,19 @@ export async function ensureMemoryDirExists(memoryDir: string): Promise<void> {
       `ensureMemoryDirExists failed for ${memoryDir}: ${code ?? String(e)}`,
       { level: 'debug' },
     )
+  }
+}
+
+async function ensureRepoMemorySkeleton(memoryDir: string): Promise<void> {
+  if (!memoryDir.replace(/[/\\]+$/, '').endsWith('.memory')) return
+  const fs = getFsImplementation()
+  for (const file of buildRepoMemorySkeleton()) {
+    const fullPath = join(memoryDir, file.relativePath)
+    try {
+      fs.readFileSync(fullPath, { encoding: 'utf-8' })
+    } catch {
+      await fs.appendFileSync(fullPath, file.content, { mode: 0o600 })
+    }
   }
 }
 

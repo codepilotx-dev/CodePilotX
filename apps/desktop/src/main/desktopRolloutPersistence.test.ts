@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path'
 import { expect, test } from 'bun:test'
 import {
   appendDesktopRolloutItems,
+  createRolloutWriteScheduler,
   desktopAgentEventToRolloutItems,
   parseDesktopRolloutSnapshot,
   shouldPersistDesktopRolloutItem,
@@ -198,3 +199,88 @@ function eventItem(eventType: string, payload: Record<string, unknown>) {
     },
   } satisfies DesktopRolloutItem
 }
+
+test('rollout write scheduler flush returns after all pending writes complete', async () => {
+  await withTempDir(async dir => {
+    const rolloutPath = join(dir, 'session.rollout.jsonl')
+    const scheduler = createRolloutWriteScheduler()
+
+    scheduler.append(rolloutPath, [sessionMetaItem('session-1', dir)])
+    scheduler.append(rolloutPath, [
+      eventItem('message', {
+        role: 'user',
+        content: 'hello',
+        createdAt: '2026-01-01T00:00:00.000Z',
+      }),
+    ])
+    scheduler.append(rolloutPath, [
+      eventItem('message', {
+        role: 'assistant',
+        content: 'hi there',
+        createdAt: '2026-01-01T00:00:01.000Z',
+      }),
+    ])
+
+    await scheduler.flush()
+
+    const lines = (await readFile(rolloutPath, 'utf8')).trim().split('\n')
+    expect(lines).toHaveLength(3)
+    expect(lines[0]!).toContain('"type":"session_meta"')
+    expect(lines[1]!).toContain('"type":"event_msg"')
+    expect(lines[2]!).toContain('"type":"event_msg"')
+  })
+})
+
+test('rollout write scheduler maintains order across multiple appends', async () => {
+  await withTempDir(async dir => {
+    const rolloutPath = join(dir, 'session.rollout.jsonl')
+    const scheduler = createRolloutWriteScheduler()
+
+    for (let i = 0; i < 10; i++) {
+      scheduler.append(rolloutPath, [
+        eventItem('message', {
+          role: 'user',
+          content: `message ${i}`,
+          createdAt: `2026-01-01T00:00:0${i}.000Z`,
+        }),
+      ])
+    }
+
+    await scheduler.flush()
+
+    const lines = (await readFile(rolloutPath, 'utf8')).trim().split('\n')
+    expect(lines).toHaveLength(10)
+    for (let i = 0; i < 10; i++) {
+      expect(lines[i]!).toContain(`message ${i}`)
+    }
+  })
+})
+
+test('rollout write scheduler continues after single append failure', async () => {
+  await withTempDir(async dir => {
+    const validPath = join(dir, 'valid.rollout.jsonl')
+    const invalidPath = join(dir, 'nonexistent', 'invalid.rollout.jsonl')
+    const scheduler = createRolloutWriteScheduler({
+      onError: () => {},
+    })
+
+    scheduler.append(validPath, [sessionMetaItem('session-1', dir)])
+    scheduler.append(invalidPath, [
+      eventItem('message', { role: 'user', content: 'this will fail' }),
+    ])
+    scheduler.append(validPath, [
+      eventItem('message', {
+        role: 'user',
+        content: 'after failure',
+        createdAt: '2026-01-01T00:00:00.000Z',
+      }),
+    ])
+
+    await scheduler.flush()
+
+    const lines = (await readFile(validPath, 'utf8')).trim().split('\n')
+    expect(lines).toHaveLength(2)
+    expect(lines[0]!).toContain('"type":"session_meta"')
+    expect(lines[1]!).toContain('after failure')
+  })
+})

@@ -319,6 +319,39 @@ function createBrowserMockDesktopClient(): DesktopApi {
       recallLogPath: `${workspacePath || 'mock'}/.codepilotx-memory/.recall-events.jsonl`,
       recalls: [],
     }),
+    listUserMemories: async () => ({
+      memoryDir: 'mock/user-memory/',
+      profilePath: 'mock/user-memory/profile.memory.md',
+      preferencesPath: 'mock/user-memory/preferences.json',
+      eventsPath: 'mock/user-memory/memory_events.jsonl',
+      conversationIndexPath: 'mock/user-memory/conversation_index.sqlite',
+      memories: [],
+    }),
+    readUserMemory: async relativePath => ({
+      relativePath,
+      absolutePath: relativePath,
+      description: null,
+      size: 0,
+      mtimeMs: 0,
+      content: '',
+    }),
+    saveUserMemory: async input => ({
+      relativePath: input.relativePath,
+      absolutePath: input.relativePath,
+      description: null,
+      size: input.content.length,
+      mtimeMs: Date.now(),
+    }),
+    deleteUserMemory: async () => {},
+    resetUserMemory: async () => {},
+    exportUserMemory: async () => ({
+      memoryDir: 'mock/user-memory/',
+      files: [],
+    }),
+    importUserMemory: async input => ({
+      memoryDir: 'mock/user-memory/',
+      files: input.files,
+    }),
     getBrowserState: async () => browserState,
     openBrowser: async url => {
       browserState = {
@@ -444,6 +477,10 @@ function createBrowserMockDesktopClient(): DesktopApi {
     discardWorkspaceChanges: async () => ({
       ok: false,
       error: '浏览器 mock 模式不会放弃文件改动。',
+    }),
+    restoreSessionTurnChanges: async () => ({
+      ok: false,
+      error: '浏览器 mock 模式不会恢复对话轮次改动。',
     }),
     createPullRequest: async () => ({
       ok: false,

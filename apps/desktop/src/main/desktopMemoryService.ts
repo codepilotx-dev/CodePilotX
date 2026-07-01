@@ -8,7 +8,7 @@ import {
 } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { basename, dirname, isAbsolute, join, normalize, relative, resolve, sep } from 'node:path'
-import { resolveAutoMemoryPaths, type MemoryType, parseMemoryType } from '@codepilotx/core/memory/state.js'
+import { buildRepoMemorySkeleton, buildUserMemorySkeleton, parseMemoryFrontmatter, resolveAutoMemoryPaths, resolveUserMemoryPaths, type MemoryType, parseMemoryType } from '@codepilotx/core/memory/state.js'
 
 const ENTRYPOINT_NAME = 'MEMORY.md'
 const RECALL_LOG_NAME = '.recall-events.jsonl'
@@ -25,6 +25,15 @@ export type DesktopProjectMemory = {
 export type DesktopProjectMemoryListing = {
   memoryDir: string
   entrypointPath: string
+  memories: DesktopProjectMemory[]
+}
+
+export type DesktopUserMemoryListing = {
+  memoryDir: string
+  profilePath: string
+  preferencesPath: string
+  eventsPath: string
+  conversationIndexPath: string
   memories: DesktopProjectMemory[]
 }
 
@@ -45,6 +54,27 @@ export type ResetProjectMemoryInput = {
   workspacePath: string
   configHomeDir?: string
   includeRecallLog: boolean
+}
+
+export type SaveUserMemoryInput = {
+  configHomeDir?: string
+  relativePath: string
+  content: string
+}
+
+export type DeleteUserMemoryInput = {
+  configHomeDir?: string
+  relativePath: string
+}
+
+export type ResetUserMemoryInput = {
+  configHomeDir?: string
+  includeEventLog: boolean
+}
+
+export type ExportUserMemoryResult = {
+  memoryDir: string
+  files: Array<{ relativePath: string; content: string }>
 }
 
 export type DesktopMemoryRecallFile = {
@@ -72,6 +102,7 @@ export function getProjectMemoryPaths(
     configHomeDir,
     homeDir: homedir(),
     projectRoot: workspacePath,
+    repoMemoryEnabled: true,
   })
   return {
     memoryDir: paths.autoMemPath,
@@ -85,11 +116,25 @@ export async function listProjectMemories(
   configHomeDir?: string,
 ): Promise<DesktopProjectMemoryListing> {
   const paths = getProjectMemoryPaths(workspacePath, configHomeDir)
+  await ensureProjectMemorySkeleton(paths.memoryDir)
   const files = await listMarkdownFiles(paths.memoryDir)
   const memories = await Promise.all(files.map(file => readMemoryMetadata(paths.memoryDir, file)))
   return {
     memoryDir: paths.memoryDir,
     entrypointPath: paths.entrypointPath,
+    memories: memories.sort((a, b) => b.mtimeMs - a.mtimeMs),
+  }
+}
+
+export async function listUserMemories(
+  configHomeDir = defaultConfigHomeDir(),
+): Promise<DesktopUserMemoryListing> {
+  const paths = getUserMemoryPaths(configHomeDir)
+  await ensureUserMemorySkeleton(paths.memoryDir)
+  const files = await listUserMemoryFiles(paths.memoryDir)
+  const memories = await Promise.all(files.map(file => readMemoryMetadata(paths.memoryDir, file)))
+  return {
+    ...paths,
     memories: memories.sort((a, b) => b.mtimeMs - a.mtimeMs),
   }
 }
@@ -100,7 +145,22 @@ export async function readProjectMemory(
   relativePath: string,
 ): Promise<DesktopProjectMemory & { content: string }> {
   const paths = getProjectMemoryPaths(workspacePath, configHomeDir)
+  await ensureProjectMemorySkeleton(paths.memoryDir)
   const absolutePath = resolveMemoryFilePath(paths.memoryDir, relativePath)
+  const [content, metadata] = await Promise.all([
+    readFile(absolutePath, 'utf8'),
+    readMemoryMetadata(paths.memoryDir, relativePath),
+  ])
+  return { ...metadata, content }
+}
+
+export async function readUserMemory(
+  configHomeDir: string | undefined,
+  relativePath: string,
+): Promise<DesktopProjectMemory & { content: string }> {
+  const paths = getUserMemoryPaths(configHomeDir)
+  await ensureUserMemorySkeleton(paths.memoryDir)
+  const absolutePath = resolveUserMemoryFilePath(paths.memoryDir, relativePath)
   const [content, metadata] = await Promise.all([
     readFile(absolutePath, 'utf8'),
     readMemoryMetadata(paths.memoryDir, relativePath),
@@ -112,7 +172,19 @@ export async function saveProjectMemory(
   input: SaveProjectMemoryInput,
 ): Promise<DesktopProjectMemory> {
   const paths = getProjectMemoryPaths(input.workspacePath, input.configHomeDir)
+  await ensureProjectMemorySkeleton(paths.memoryDir)
   const absolutePath = resolveMemoryFilePath(paths.memoryDir, input.relativePath)
+  await mkdir(dirname(absolutePath), { recursive: true })
+  await writeFile(absolutePath, input.content, 'utf8')
+  return readMemoryMetadata(paths.memoryDir, input.relativePath)
+}
+
+export async function saveUserMemory(
+  input: SaveUserMemoryInput,
+): Promise<DesktopProjectMemory> {
+  const paths = getUserMemoryPaths(input.configHomeDir)
+  await ensureUserMemorySkeleton(paths.memoryDir)
+  const absolutePath = resolveUserMemoryFilePath(paths.memoryDir, input.relativePath)
   await mkdir(dirname(absolutePath), { recursive: true })
   await writeFile(absolutePath, input.content, 'utf8')
   return readMemoryMetadata(paths.memoryDir, input.relativePath)
@@ -123,6 +195,13 @@ export async function deleteProjectMemory(
 ): Promise<void> {
   const paths = getProjectMemoryPaths(input.workspacePath, input.configHomeDir)
   await rm(resolveMemoryFilePath(paths.memoryDir, input.relativePath), { force: true })
+}
+
+export async function deleteUserMemory(
+  input: DeleteUserMemoryInput,
+): Promise<void> {
+  const paths = getUserMemoryPaths(input.configHomeDir)
+  await rm(resolveUserMemoryFilePath(paths.memoryDir, input.relativePath), { force: true })
 }
 
 export async function resetProjectMemory(
@@ -136,6 +215,83 @@ export async function resetProjectMemory(
     return
   }
   await rm(paths.memoryDir, { recursive: true, force: true })
+}
+
+export async function resetUserMemory(
+  input: ResetUserMemoryInput,
+): Promise<void> {
+  const paths = getUserMemoryPaths(input.configHomeDir)
+  if (!input.includeEventLog) {
+    const files = await listUserMemoryFiles(paths.memoryDir)
+    await Promise.all(
+      files
+        .filter(file => file !== 'memory_events.jsonl')
+        .map(file => rm(resolveUserMemoryFilePath(paths.memoryDir, file), { force: true })),
+    )
+    return
+  }
+  await rm(paths.memoryDir, { recursive: true, force: true })
+}
+
+export async function exportUserMemory(
+  configHomeDir = defaultConfigHomeDir(),
+): Promise<ExportUserMemoryResult> {
+  const paths = getUserMemoryPaths(configHomeDir)
+  await ensureUserMemorySkeleton(paths.memoryDir)
+  const files = await listUserMemoryFiles(paths.memoryDir)
+  const exported = await Promise.all(
+    files.map(async relativePath => ({
+      relativePath,
+      content: await readFile(resolveUserMemoryFilePath(paths.memoryDir, relativePath), 'utf8'),
+    })),
+  )
+  return {
+    memoryDir: paths.memoryDir,
+    files: exported.sort((a, b) => a.relativePath.localeCompare(b.relativePath)),
+  }
+}
+
+export async function importUserMemory(
+  configHomeDir: string | undefined,
+  files: Array<{ relativePath: string; content: string }>,
+): Promise<ExportUserMemoryResult> {
+  const paths = getUserMemoryPaths(configHomeDir)
+  await ensureUserMemorySkeleton(paths.memoryDir)
+  for (const file of files) {
+    const absolutePath = resolveUserMemoryFilePath(paths.memoryDir, file.relativePath)
+    await mkdir(dirname(absolutePath), { recursive: true })
+    await writeFile(absolutePath, file.content, 'utf8')
+  }
+  return exportUserMemory(configHomeDir)
+}
+
+async function ensureProjectMemorySkeleton(memoryDir: string): Promise<void> {
+  await mkdir(memoryDir, { recursive: true })
+  for (const file of buildRepoMemorySkeleton()) {
+    const absolutePath =
+      file.relativePath === ENTRYPOINT_NAME
+        ? join(memoryDir, ENTRYPOINT_NAME)
+        : resolveMemoryFilePath(memoryDir, file.relativePath)
+    try {
+      await readFile(absolutePath, 'utf8')
+    } catch {
+      await mkdir(dirname(absolutePath), { recursive: true })
+      await writeFile(absolutePath, file.content, 'utf8')
+    }
+  }
+}
+
+async function ensureUserMemorySkeleton(memoryDir: string): Promise<void> {
+  await mkdir(memoryDir, { recursive: true })
+  for (const file of buildUserMemorySkeleton()) {
+    const absolutePath = resolveUserMemoryFilePath(memoryDir, file.relativePath)
+    try {
+      await readFile(absolutePath, 'utf8')
+    } catch {
+      await mkdir(dirname(absolutePath), { recursive: true })
+      await writeFile(absolutePath, file.content, 'utf8')
+    }
+  }
 }
 
 export async function listProjectMemoryRecalls(
@@ -167,6 +323,18 @@ async function listMarkdownFiles(memoryDir: string): Promise<string[]> {
   }
 }
 
+async function listUserMemoryFiles(memoryDir: string): Promise<string[]> {
+  try {
+    const entries = await readdir(memoryDir, { recursive: true, withFileTypes: true })
+    return entries
+      .filter(entry => entry.isFile())
+      .map(entry => normalize(relative(memoryDir, join(entry.parentPath, entry.name))))
+      .filter(file => isAllowedUserMemoryPath(file))
+  } catch {
+    return []
+  }
+}
+
 async function readMemoryMetadata(
   memoryDir: string,
   relativePath: string,
@@ -176,7 +344,7 @@ async function readMemoryMetadata(
     stat(absolutePath),
     readFile(absolutePath, 'utf8').catch(() => ''),
   ])
-  const frontmatter = parseFrontmatter(content)
+  const frontmatter = parseMemoryFrontmatter(content)
   return {
     relativePath: normalize(relativePath),
     absolutePath,
@@ -205,18 +373,35 @@ function resolveMemoryFilePath(memoryDir: string, rawRelativePath: string): stri
   return resolved
 }
 
-function parseFrontmatter(content: string): Record<string, string> {
-  if (!content.startsWith('---')) return {}
-  const end = content.indexOf('\n---', 3)
-  if (end < 0) return {}
-  const body = content.slice(3, end)
-  const values: Record<string, string> = {}
-  for (const line of body.split(/\r?\n/)) {
-    const index = line.indexOf(':')
-    if (index <= 0) continue
-    values[line.slice(0, index).trim()] = line.slice(index + 1).trim()
+function resolveUserMemoryFilePath(memoryDir: string, rawRelativePath: string): string {
+  if (
+    !rawRelativePath ||
+    rawRelativePath.includes('\0') ||
+    isAbsolute(rawRelativePath) ||
+    !isAllowedUserMemoryPath(rawRelativePath)
+  ) {
+    throw new Error('Invalid memory path')
   }
-  return values
+  const resolved = resolve(memoryDir, rawRelativePath)
+  const root = memoryDir.endsWith(sep) ? memoryDir : `${memoryDir}${sep}`
+  if (!resolved.startsWith(root)) {
+    throw new Error('Invalid memory path')
+  }
+  return resolved
+}
+
+function isAllowedUserMemoryPath(relativePath: string): boolean {
+  const normalized = normalize(relativePath)
+  if (basename(normalized) === 'conversation_index.sqlite') return false
+  return (
+    normalized.endsWith('.md') ||
+    normalized.endsWith('.json') ||
+    normalized.endsWith('.jsonl')
+  )
+}
+
+function getUserMemoryPaths(configHomeDir = defaultConfigHomeDir()) {
+  return resolveUserMemoryPaths({ configHomeDir })
 }
 
 function parseRecallEvent(line: string): DesktopMemoryRecallEvent[] {

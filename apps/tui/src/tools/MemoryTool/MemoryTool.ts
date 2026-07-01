@@ -1,5 +1,6 @@
 import { dirname, extname, join, normalize, relative, resolve, sep } from 'path'
 import { z } from 'zod/v4'
+import { buildUserMemorySkeleton, parseMemoryFrontmatter, resolveUserMemoryPaths } from '@codepilotx/core/memory/state.js'
 import { logEvent } from '@codepilotx/tui/services/analytics/index.js'
 import type { ToolUseContext } from '../../Tool.js'
 import { buildTool, type ToolDef } from '../../Tool.js'
@@ -11,13 +12,16 @@ import { getFileModificationTime, writeTextContent } from '../../utils/file.js'
 import { getFsImplementation } from '../../utils/fsOperations.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { appendMemoryRecallEvent } from '../../utils/memoryRecallLog.js'
+import { scanForSecrets } from '../../services/teamMemorySync/secretScanner.js'
 import {
   MEMORIES_VIRTUAL_ROOT,
   MEMORY_MAX_LIST_ITEMS,
   MEMORY_TOOL_NAME,
   MEMORY_VIEW_DEFAULT_LINES,
   MEMORY_VIEW_DEFAULT_BYTES,
+  USER_MEMORY_VIRTUAL_ROOT,
 } from './constants.js'
+import { getClaudeConfigHomeDir } from '../../utils/envUtils.js'
 import { getMemoryToolPrompt } from './prompt.js'
 import {
   getToolUseSummary,
@@ -91,18 +95,54 @@ type Output = {
   totalFiles?: number
 }
 
-function getRealPath(virtualPath: string): string | null {
-  if (!virtualPath.startsWith(MEMORIES_VIRTUAL_ROOT)) return null
+type MemoryRootResolution = {
+  realPath: string
+  rootPath: string
+  virtualRoot: typeof MEMORIES_VIRTUAL_ROOT | typeof USER_MEMORY_VIRTUAL_ROOT
+}
 
-  const autoMemPath = getAutoMemPath()
-  const relativePart = virtualPath.slice(MEMORIES_VIRTUAL_ROOT.length)
+function getUserMemPath(): string {
+  return resolveUserMemoryPaths({ configHomeDir: getClaudeConfigHomeDir() }).memoryDir
+}
+
+async function ensureUserMemorySkeleton(): Promise<void> {
+  const fs = getFsImplementation()
+  const memoryDir = getUserMemPath()
+  await fs.mkdir(memoryDir)
+  for (const file of buildUserMemorySkeleton()) {
+    const fullPath = join(memoryDir, file.relativePath)
+    try {
+      await fs.readFileBytes(fullPath)
+    } catch {
+      await fs.mkdir(dirname(fullPath))
+      writeTextContent(fullPath, file.content, 'utf8', 'LF')
+    }
+  }
+}
+
+function getMemoryRoot(virtualPath: string): { virtualRoot: typeof MEMORIES_VIRTUAL_ROOT | typeof USER_MEMORY_VIRTUAL_ROOT; rootPath: string } | null {
+  if (virtualPath === MEMORIES_VIRTUAL_ROOT || virtualPath.startsWith(MEMORIES_VIRTUAL_ROOT + '/')) {
+    return { virtualRoot: MEMORIES_VIRTUAL_ROOT, rootPath: getAutoMemPath() }
+  }
+  if (virtualPath === USER_MEMORY_VIRTUAL_ROOT || virtualPath.startsWith(USER_MEMORY_VIRTUAL_ROOT + '/')) {
+    return { virtualRoot: USER_MEMORY_VIRTUAL_ROOT, rootPath: getUserMemPath() }
+  }
+  return null
+}
+
+function getRealPath(virtualPath: string): MemoryRootResolution | null {
+  const memoryRoot = getMemoryRoot(virtualPath)
+  if (!memoryRoot) return null
+
+  const { virtualRoot, rootPath } = memoryRoot
+  const relativePart = virtualPath.slice(virtualRoot.length)
 
   if (relativePart === '' || relativePart === '/') {
-    return autoMemPath
+    return { realPath: rootPath, rootPath, virtualRoot }
   }
 
   // Ensure path does not end with trailing separator
-  const normalizedRoot = normalize(autoMemPath).replace(/[/\\]+$/, '')
+  const normalizedRoot = normalize(rootPath).replace(/[/\\]+$/, '')
 
   // SECURITY checks
   if (!relativePart.startsWith('/')) return null
@@ -119,55 +159,79 @@ function getRealPath(virtualPath: string): string | null {
     return null
   }
 
-  return normalized
+  return { realPath: normalized, rootPath, virtualRoot }
 }
 
 function validateMutationPath(virtualPath: string): string {
-  const realPath = getRealPath(virtualPath)
-  if (!realPath) {
-    throw new Error(`Invalid path: ${virtualPath}. Must be under ${MEMORIES_VIRTUAL_ROOT}`)
+  const resolved = getRealPath(virtualPath)
+  if (!resolved) {
+    throw new Error(`Invalid path: ${virtualPath}. Must be under ${MEMORIES_VIRTUAL_ROOT} or ${USER_MEMORY_VIRTUAL_ROOT}`)
   }
-  if (realPath === getAutoMemPath()) {
-    throw new Error(`Cannot mutate the root ${MEMORIES_VIRTUAL_ROOT} directory`)
+  if (resolved.realPath === resolved.rootPath) {
+    throw new Error(`Cannot mutate the root ${resolved.virtualRoot} directory`)
   }
-  if (extname(realPath) !== '.md') {
-    throw new Error('Mutation operations only support .md files')
+  const extension = extname(resolved.realPath)
+  if (
+    resolved.virtualRoot === MEMORIES_VIRTUAL_ROOT &&
+    extension !== '.md'
+  ) {
+    throw new Error('Project memory mutation operations only support .md files')
   }
-  return realPath
+  if (
+    resolved.virtualRoot === USER_MEMORY_VIRTUAL_ROOT &&
+    !['.md', '.json', '.jsonl'].includes(extension)
+  ) {
+    throw new Error('User memory mutation operations only support .md, .json, and .jsonl files')
+  }
+  return resolved.realPath
 }
 
 function validateViewPath(virtualPath: string): string {
-  const realPath = getRealPath(virtualPath)
-  if (!realPath) {
-    throw new Error(`Invalid path: ${virtualPath}. Must be under ${MEMORIES_VIRTUAL_ROOT}`)
+  const resolved = getRealPath(virtualPath)
+  if (!resolved) {
+    throw new Error(`Invalid path: ${virtualPath}. Must be under ${MEMORIES_VIRTUAL_ROOT} or ${USER_MEMORY_VIRTUAL_ROOT}`)
   }
-  return realPath
+  return resolved.realPath
 }
 
 function virtualFromReal(realPath: string): string {
-  const autoMemPath = getAutoMemPath()
-  if (realPath === normalize(autoMemPath)) return MEMORIES_VIRTUAL_ROOT
-  const rel = relative(autoMemPath, realPath)
-  return `${MEMORIES_VIRTUAL_ROOT}/${rel.replace(/\\/g, '/')}`
+  const roots = [
+    { virtualRoot: USER_MEMORY_VIRTUAL_ROOT, rootPath: getUserMemPath() },
+    { virtualRoot: MEMORIES_VIRTUAL_ROOT, rootPath: getAutoMemPath() },
+  ] as const
+  for (const { virtualRoot, rootPath } of roots) {
+    if (realPath === normalize(rootPath)) return virtualRoot
+    const rel = relative(rootPath, realPath)
+    if (rel && !rel.startsWith('..') && !relative(rootPath, realPath).includes(':')) {
+      return `${virtualRoot}/${rel.replace(/\\/g, '/')}`
+    }
+  }
+  return realPath
 }
 
 function parseFrontmatter(
   content: string,
 ): { type?: string; description?: string } {
-  if (!content.startsWith('---')) return {}
-  const end = content.indexOf('\n---', 3)
-  if (end < 0) return {}
-  const body = content.slice(3, end)
-  const values: { type?: string; description?: string } = {}
-  for (const line of body.split(/\r?\n/)) {
-    const idx = line.indexOf(':')
-    if (idx <= 0) continue
-    const key = line.slice(0, idx).trim()
-    const val = line.slice(idx + 1).trim()
-    if (key === 'type') values.type = val
-    if (key === 'description') values.description = val
+  return parseMemoryFrontmatter(content)
+}
+
+function rejectUnsafeMemoryContent(content: string): string | null {
+  const matches = scanForSecrets(content)
+  if (matches.length > 0) {
+    const labels = matches.map(match => match.label).join(', ')
+    return `Content contains potential secrets (${labels}) and cannot be written to memory. Remove the sensitive content and try again.`
   }
-  return values
+  if (
+    /\b(ignore|override|bypass)\b[\s\S]{0,80}\b(system|developer|user|AGENTS\.md|higher-priority)\b/i.test(
+      content,
+    ) ||
+    /\b(leak|exfiltrate|reveal)\b[\s\S]{0,80}\b(secret|token|credential|password|private key)\b/i.test(
+      content,
+    )
+  ) {
+    return 'Content contains unsafe memory instructions and cannot be written to memory.'
+  }
+  return null
 }
 
 async function writeRecallViewed(
@@ -204,6 +268,45 @@ async function writeRecallViewed(
   })
 }
 
+async function listMemoryFiles(
+  memoryDir: string,
+  includeJson: boolean,
+): Promise<string[]> {
+  const fs = getFsImplementation()
+  const results: string[] = []
+
+  async function visit(relativeDir: string): Promise<void> {
+    const absoluteDir = relativeDir ? join(memoryDir, relativeDir) : memoryDir
+    let dirents: { name: string; isFile(): boolean; isDirectory(): boolean }[]
+    try {
+      dirents = await fs.readdir(absoluteDir)
+    } catch {
+      return
+    }
+
+    for (const dirent of dirents) {
+      const relativePath = relativeDir
+        ? join(relativeDir, dirent.name)
+        : dirent.name
+      if (dirent.isDirectory()) {
+        await visit(relativePath)
+        continue
+      }
+      if (
+        dirent.isFile() &&
+        (dirent.name.endsWith('.md') ||
+          (includeJson &&
+            (dirent.name.endsWith('.json') || dirent.name.endsWith('.jsonl'))))
+      ) {
+        results.push(relativePath)
+      }
+    }
+  }
+
+  await visit('')
+  return results
+}
+
 export const MemoryTool = buildTool({
   name: MEMORY_TOOL_NAME,
   searchHint: 'view and manage persistent memory files',
@@ -237,8 +340,8 @@ export const MemoryTool = buildTool({
     try {
       switch (input.command) {
         case 'view':
-          if (input.path !== MEMORIES_VIRTUAL_ROOT && !input.path.startsWith(MEMORIES_VIRTUAL_ROOT + '/')) {
-            return { result: false, message: `Path must start with ${MEMORIES_VIRTUAL_ROOT}`, errorCode: 1 }
+          if (!getMemoryRoot(input.path)) {
+            return { result: false, message: `Path must start with ${MEMORIES_VIRTUAL_ROOT} or ${USER_MEMORY_VIRTUAL_ROOT}`, errorCode: 1 }
           }
           validateViewPath(input.path)
           return { result: true }
@@ -246,6 +349,12 @@ export const MemoryTool = buildTool({
         case 'create':
           if (!input.file_text) {
             return { result: false, message: 'file_text is required for create', errorCode: 1 }
+          }
+          {
+            const unsafe = rejectUnsafeMemoryContent(input.file_text)
+            if (unsafe) {
+              return { result: false, message: unsafe, errorCode: 1 }
+            }
           }
           validateMutationPath(input.path)
           return { result: true }
@@ -257,6 +366,12 @@ export const MemoryTool = buildTool({
           if (!input.new_str) {
             return { result: false, message: 'new_str is required for str_replace', errorCode: 1 }
           }
+          {
+            const unsafe = rejectUnsafeMemoryContent(input.new_str)
+            if (unsafe) {
+              return { result: false, message: unsafe, errorCode: 1 }
+            }
+          }
           validateMutationPath(input.path)
           return { result: true }
 
@@ -266,6 +381,12 @@ export const MemoryTool = buildTool({
           }
           if (!input.new_str) {
             return { result: false, message: 'new_str is required for insert', errorCode: 1 }
+          }
+          {
+            const unsafe = rejectUnsafeMemoryContent(input.new_str)
+            if (unsafe) {
+              return { result: false, message: unsafe, errorCode: 1 }
+            }
           }
           validateMutationPath(input.path)
           return { result: true }
@@ -294,27 +415,27 @@ export const MemoryTool = buildTool({
   },
   async call(input: Input, context: ToolUseContext) {
     const fs = getFsImplementation()
-    const autoMemPath = getAutoMemPath()
+    if (input.path === USER_MEMORY_VIRTUAL_ROOT || input.path.startsWith(USER_MEMORY_VIRTUAL_ROOT + '/')) {
+      await ensureUserMemorySkeleton()
+    }
 
     switch (input.command) {
       case 'view': {
+        const resolved = getRealPath(input.path)
+        if (!resolved) throw new Error(`Invalid path: ${input.path}`)
         const realPath = validateViewPath(input.path)
 
-        if (realPath === autoMemPath || realPath === normalize(autoMemPath)) {
+        if (realPath === resolved.rootPath || realPath === normalize(resolved.rootPath)) {
           // List directory contents
           const entries: Array<{ name: string; path: string; type?: string; description?: string }> = []
-          let dirents: { name: string; isFile(): boolean }[]
-          try {
-            dirents = await fs.readdir(autoMemPath)
-          } catch {
-            dirents = []
-          }
+          const files = await listMemoryFiles(
+            resolved.rootPath,
+            resolved.virtualRoot === USER_MEMORY_VIRTUAL_ROOT,
+          )
 
-          for (const dirent of dirents) {
+          for (const relativePath of files) {
             if (entries.length >= MEMORY_MAX_LIST_ITEMS) break
-            if (!dirent.isFile()) continue
-            if (!dirent.name.endsWith('.md')) continue
-            const fullPath = join(autoMemPath, dirent.name)
+            const fullPath = join(resolved.rootPath, relativePath)
 
             let type: string | undefined
             let description: string | undefined
@@ -329,7 +450,7 @@ export const MemoryTool = buildTool({
             }
 
             entries.push({
-              name: dirent.name,
+              name: relativePath.replace(/\\/g, '/'),
               path: virtualFromReal(fullPath),
               type,
               description,
@@ -341,7 +462,7 @@ export const MemoryTool = buildTool({
           return {
             data: {
               command: 'view',
-              path: MEMORIES_VIRTUAL_ROOT,
+              path: resolved.virtualRoot,
               files: entries,
               totalFiles: entries.length,
             } satisfies Output,
@@ -416,6 +537,16 @@ export const MemoryTool = buildTool({
 
       case 'create': {
         const realPath = validateMutationPath(input.path)
+        const unsafe = rejectUnsafeMemoryContent(input.file_text!)
+        if (unsafe) {
+          return {
+            data: {
+              command: 'create',
+              path: input.path,
+              content: unsafe,
+            } satisfies Output,
+          }
+        }
 
         // Check file doesn't already exist
         try {
@@ -489,6 +620,16 @@ export const MemoryTool = buildTool({
         }
 
         const updatedContent = fileContent.replace(old_str!, new_str!)
+        const unsafe = rejectUnsafeMemoryContent(updatedContent)
+        if (unsafe) {
+          return {
+            data: {
+              command: 'str_replace',
+              path: input.path,
+              content: unsafe,
+            } satisfies Output,
+          }
+        }
         writeTextContent(realPath, updatedContent, 'utf8', 'LF')
 
         context.readFileState.set(realPath, {
@@ -537,6 +678,16 @@ export const MemoryTool = buildTool({
         const insertAt = Math.min(insert_line!, lines.length)
         lines.splice(insertAt, 0, new_str!)
         const updatedContent = lines.join('\n')
+        const unsafe = rejectUnsafeMemoryContent(updatedContent)
+        if (unsafe) {
+          return {
+            data: {
+              command: 'insert',
+              path: input.path,
+              content: unsafe,
+            } satisfies Output,
+          }
+        }
         writeTextContent(realPath, updatedContent, 'utf8', 'LF')
 
         context.readFileState.set(realPath, {
@@ -680,5 +831,3 @@ export const MemoryTool = buildTool({
   renderToolResultMessage,
   renderToolUseErrorMessage,
 } satisfies ToolDef<ReturnType<typeof inputSchema>, Output>)
-
-

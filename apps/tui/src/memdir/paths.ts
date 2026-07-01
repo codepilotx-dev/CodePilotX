@@ -58,6 +58,7 @@ function getResolvedAutoMemoryPaths() {
     remoteMemoryDir: process.env.CLAUDE_CODE_REMOTE_MEMORY_DIR,
     pathOverride: getAutoMemPathOverride(),
     trustedDirectorySetting: getAutoMemPathSetting(),
+    repoMemoryEnabled: true,
   })
 }
 

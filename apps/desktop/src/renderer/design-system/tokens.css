@@ -42,8 +42,8 @@
   --c-bg-soft: var(--claude-surface-soft);
   --c-bg-subtle: var(--claude-surface-soft);
   --c-bg-mask: color-mix(in srgb, var(--claude-canvas) 74%, transparent);
-  --c-bg-hover: color-mix(in srgb, var(--claude-ink) 6%, transparent);
-  --c-bg-row-hover: color-mix(in srgb, var(--claude-ink) 5%, transparent);
+  --c-bg-hover: color-mix(in srgb, var(--claude-primary) 8%, transparent);
+  --c-bg-row-hover: color-mix(in srgb, var(--claude-primary) 7%, transparent);
   --c-bg-chip-hover: color-mix(in srgb, var(--claude-primary) 16%, var(--claude-canvas));
   --c-bg-card: var(--claude-canvas);
   --c-popover-bg: var(--claude-canvas);
@@ -94,9 +94,12 @@
   --shadow-float: 0 22px 58px rgba(20, 20, 19, 0.14), 0 8px 20px rgba(20, 20, 19, 0.08);
   --shadow-2: var(--shadow-raised);
 
-  --radius-panel: 14px;
+  --radius-button: 8px;
+  --radius-input: 8px;
+  --radius-panel: 12px;
   --radius-card: 12px;
-  --border-r: 10px;
+  --radius-marquee: 16px;
+  --border-r: 8px;
   --layout-page-pad-x: 32px;
   --layout-page-pad-y: 36px;
   --layout-page-pad-bottom: 72px;
@@ -108,7 +111,7 @@
   --c-chrome-bg: var(--claude-canvas);
   --c-sidebar-bg: var(--claude-surface-soft);
   --c-sidebar-active-bg: color-mix(in srgb, var(--claude-primary) 18%, var(--claude-surface-card));
-  --c-sidebar-hover-bg: color-mix(in srgb, var(--claude-ink) 6%, transparent);
+  --c-sidebar-hover-bg: color-mix(in srgb, var(--claude-primary) 9%, transparent);
   --c-workbench-bg: var(--claude-surface-soft);
   --c-panel-bg: var(--claude-canvas);
   --c-panel-elevated-bg: var(--claude-surface-card);
@@ -137,7 +140,7 @@
 
   --focus-ring: 0 0 0 3px color-mix(in srgb, var(--claude-primary) 24%, transparent);
   --focus-ring-soft: 0 0 0 2px color-mix(in srgb, var(--claude-primary) 18%, transparent);
-  --state-hover-bg: color-mix(in srgb, var(--claude-ink) 5%, transparent);
+  --state-hover-bg: color-mix(in srgb, var(--claude-primary) 9%, transparent);
   --state-active-bg: color-mix(in srgb, var(--claude-primary) 15%, transparent);
 }
 
@@ -148,8 +151,8 @@
   --c-bg-soft: #1f1e1b;
   --c-bg-subtle: #1f1e1b;
   --c-bg-mask: rgba(24, 23, 21, 0.78);
-  --c-bg-hover: rgba(250, 249, 245, 0.07);
-  --c-bg-row-hover: rgba(250, 249, 245, 0.06);
+  --c-bg-hover: color-mix(in srgb, var(--claude-primary) 14%, transparent);
+  --c-bg-row-hover: color-mix(in srgb, var(--claude-primary) 12%, transparent);
   --c-bg-chip-hover: color-mix(in srgb, var(--claude-primary) 26%, #1f1e1b);
   --c-bg-card: #252320;
   --c-popover-bg: #252320;
@@ -178,11 +181,11 @@
   --c-icon: #b8b3aa;
   --c-icon-soft: #9f9a91;
   --c-icon-arrow: #918c84;
-  --c-accent: #d98568;
-  --accent-11: #efb39d;
-  --accent-a3: color-mix(in srgb, #d98568 24%, transparent);
+  --c-accent: #cc785c;
+  --accent-11: #a9583e;
+  --accent-a3: color-mix(in srgb, #cc785c 24%, transparent);
   --c-send-bg: #cc785c;
-  --c-send-bg-hover: #e09072;
+  --c-send-bg-hover: #a9583e;
   --c-send-bg-disabled: #65473d;
   --c-user-bubble-bg: #252320;
 
@@ -203,7 +206,9 @@
   --c-chrome-bg: #181715;
   --c-sidebar-bg: #1f1e1b;
   --c-sidebar-active-bg: color-mix(in srgb, var(--c-accent) 22%, #252320);
-  --c-sidebar-hover-bg: rgba(250, 249, 245, 0.06);
+  --c-sidebar-hover-bg: color-mix(in srgb, var(--c-accent) 14%, transparent);
+  --state-hover-bg: color-mix(in srgb, var(--c-accent) 14%, transparent);
+  --state-active-bg: color-mix(in srgb, var(--c-accent) 22%, transparent);
   --c-workbench-bg: #1f1e1b;
   --c-panel-bg: #252320;
   --c-panel-elevated-bg: #2e2b26;

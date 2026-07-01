@@ -77,6 +77,12 @@ const discardWorkspaceChangesInput = z.object({
   includeUntracked: z.boolean().optional(),
 })
 
+const restoreSessionTurnChangesInput = z.object({
+  sessionId: z.string(),
+  turnRestoreId: z.string(),
+  paths: z.array(z.string()),
+})
+
 const createPullRequestInput = z.object({
   workspacePath: z.string(),
   title: z.string(),
@@ -210,6 +216,25 @@ const resetProjectMemoryInput = z.object({
   includeRecallLog: z.boolean(),
 })
 
+const userMemoryPathInput = z.object({
+  relativePath: z.string(),
+})
+
+const saveUserMemoryInput = userMemoryPathInput.extend({
+  content: z.string(),
+})
+
+const resetUserMemoryInput = z.object({
+  includeEventLog: z.boolean(),
+})
+
+const importUserMemoryInput = z.object({
+  files: z.array(z.object({
+    relativePath: z.string(),
+    content: z.string(),
+  })),
+})
+
 export const DESKTOP_API_ARG_SCHEMAS = {
   getAuthStatus: emptyArgs,
   getRuntimeStatus: emptyArgs,
@@ -224,6 +249,13 @@ export const DESKTOP_API_ARG_SCHEMAS = {
   deleteProjectMemory: z.tuple([memoryPathInput]),
   resetProjectMemory: z.tuple([resetProjectMemoryInput]),
   listProjectMemoryRecalls: z.tuple([z.string()]),
+  listUserMemories: emptyArgs,
+  readUserMemory: z.tuple([z.string()]),
+  saveUserMemory: z.tuple([saveUserMemoryInput]),
+  deleteUserMemory: z.tuple([userMemoryPathInput]),
+  resetUserMemory: z.tuple([resetUserMemoryInput]),
+  exportUserMemory: emptyArgs,
+  importUserMemory: z.tuple([importUserMemoryInput]),
   getBrowserState: emptyArgs,
   openBrowser: z.tuple([z.string().optional()]),
   navigateBrowser: z.tuple([z.string()]),
@@ -286,6 +318,7 @@ export const DESKTOP_API_ARG_SCHEMAS = {
   commitWorkspaceChanges: z.tuple([commitChangesInput]),
   pushWorkspaceBranch: z.tuple([pushBranchInput]),
   discardWorkspaceChanges: z.tuple([discardWorkspaceChangesInput]),
+  restoreSessionTurnChanges: z.tuple([restoreSessionTurnChangesInput]),
   createPullRequest: z.tuple([createPullRequestInput]),
   getWorkspaceReviewDiff: z.tuple([getWorkspaceReviewDiffInput]),
   applyWorkspaceReviewOperation: z.tuple([reviewOperationInput]),

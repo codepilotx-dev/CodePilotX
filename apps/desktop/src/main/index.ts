@@ -67,7 +67,12 @@ import {
   applySessionPermissionModeToSnapshot,
   createSessionSettingsSnapshot,
 } from './desktopSessionSettings.js'
-import { shouldEmitWorkspaceDiffEvent } from './desktopSessionDiffPolicy.js'
+import { buildTurnDiff } from './desktopSessionDiffPolicy.js'
+import {
+  captureTurnRestoreBaseline,
+  restoreTurnBaselineChanges,
+  type TurnRestoreBaseline,
+} from './desktopTurnRestore.js'
 import { DESKTOP_UPDATE_STATUS_CHANNEL } from '../shared/ipcChannels.js'
 import {
   assertAllowedWorkspace,
@@ -78,6 +83,7 @@ import {
   registerAllowedWorkspace,
   workspaceFromPath,
 } from './workspaceService.js'
+import { getStandaloneWorkspaceMetadata } from './standaloneWorkspace.js'
 import { configureGithubService } from './githubService.js'
 import { getOpenAgentConfigHomeDir } from './desktopSettings.js'
 import { buildSessionAppendSystemPrompt } from './desktopAgentsMd.js'
@@ -89,6 +95,7 @@ import {
   applyDesktopWorkflowEventsToSnapshot,
   appendDesktopRolloutItems,
   createDesktopSessionMetaRolloutItem,
+  createLightweightDesktopSessionSnapshot,
   createDesktopSessionSnapshot,
   desktopSessionTranscriptExists,
   hydrateDesktopSessionSnapshot,
@@ -96,14 +103,20 @@ import {
   removePendingPermissionFromSnapshot,
   saveDesktopSessionStore,
 } from './sessionPersistence.js'
-import { desktopAgentEventToRolloutItems } from './desktopRolloutPersistence.js'
+import {
+  createRolloutWriteScheduler,
+  desktopAgentEventToRolloutItems,
+  type RolloutWriteScheduler,
+} from './desktopRolloutPersistence.js'
 import { createSessionPersistScheduler } from './sessionPersistScheduler.js'
+import { createSessionStoreChangeEmitter } from './sessionStoreChangeEmitter.js'
 import type {
   CreateDesktopSessionOptions,
   CreateDesktopSessionResult,
   DesktopAgentEvent,
   DesktopBuiltinPlugin,
   DesktopApprovalPolicy,
+  DesktopGitOperationResult,
   DesktopModelSelection,
   LocalRouterMode,
   DesktopPermissionDecision,
@@ -118,6 +131,7 @@ import type {
   DesktopWorkspace,
   DesktopWorkflowEvent,
   ModelProviderID,
+  RestoreSessionTurnChangesInput,
   SaveSessionReviewCommentInput,
   SessionReviewCommentInput,
 } from '../shared/types.js'
@@ -148,6 +162,8 @@ type DesktopSessionRecord = {
   snapshot: DesktopSessionSnapshot
   resumeExistingSession: boolean
   turnBaselineDiffPatch?: string | null
+  turnRestoreBaseline?: TurnRestoreBaseline | null
+  turnRestoreId?: string | null
 }
 
 const desktopConfigHomeDir = getOpenAgentConfigHomeDir()
@@ -155,12 +171,20 @@ process.env[CODEPILOTX_CONFIG_DIR_ENV] = desktopConfigHomeDir
 process.env[LEGACY_CLAUDE_CONFIG_DIR_ENV] = desktopConfigHomeDir
 
 const sessions = new Map<string, DesktopSessionRecord>()
+const turnRestoreBaselines = new Map<
+  string,
+  {
+    workspacePath: string
+    baseline: TurnRestoreBaseline
+    paths: Set<string>
+  }
+>()
 const titleGenerationStartedSessionIds = new Set<string>()
 let activeSessionId: string | null = null
 let sessionStoreLoadPromise: Promise<void> | null = null
 let quittingAfterSessionStoreFlush = false
 const sessionPersistScheduler = createSessionPersistScheduler({
-  debounceMs: 150,
+  debounceMs: 5000,
   getState: () => ({
     activeSessionId,
     sessions: [...sessions.values()].map(record => record.snapshot),
@@ -168,6 +192,18 @@ const sessionPersistScheduler = createSessionPersistScheduler({
   save: saveDesktopSessionStore,
   onError: error => {
     console.error('Failed to save desktop sessions.', error)
+  },
+})
+const sessionStoreChangeEmitter = createSessionStoreChangeEmitter({
+  debounceMs: 1000,
+  emit: emitSessionStoreChange,
+})
+const rolloutWriteScheduler: RolloutWriteScheduler = createRolloutWriteScheduler({
+  onError: (error, rolloutPath) => {
+    desktopDebug('rollout_append_failed', {
+      rolloutPath,
+      message: error instanceof Error ? error.message : String(error),
+    })
   },
 })
 const DESKTOP_BROWSER_PLUGIN_ID = 'browser@builtin'
@@ -246,6 +282,9 @@ const jsonRpcAppServerBridge = createDesktopJsonRpcAppServerBridge({
   },
 })
 configureWorkspaceService({ getWindow: windowService.getWindow })
+const { configureDesktopMcpConfigRuntime, registerMcpConfigWorkspaceAccessor } = await import('./mcpConfigRuntimeAdapter.js')
+registerMcpConfigWorkspaceAccessor(getStandaloneWorkspaceMetadata)
+configureDesktopMcpConfigRuntime()
 configureGithubService({ getWindow: windowService.getWindow })
 
 function assertTrustedIpcSender(senderUrl: string | undefined): void {
@@ -361,7 +400,7 @@ async function ensureSessionStoreLoaded(): Promise<void> {
 
 function persistSessionStore(options?: { immediate?: boolean }): void {
   sessionPersistScheduler.requestSave(options)
-  emitSessionStoreChange()
+  sessionStoreChangeEmitter.requestEmit(options)
 }
 
 async function flushSessionStorePersistence(): Promise<void> {
@@ -371,7 +410,9 @@ async function flushSessionStorePersistence(): Promise<void> {
 function emitSessionStoreChange(): void {
   windowService.emitSessionStoreChange({
     activeSessionId,
-    sessions: [...sessions.values()].map(record => record.snapshot),
+    sessions: [...sessions.values()].map(record =>
+      createLightweightDesktopSessionSnapshot(record.snapshot),
+    ),
   })
 }
 
@@ -382,6 +423,10 @@ function desktopConsoleLog(
   const suffix =
     Object.keys(fields).length > 0 ? ` ${JSON.stringify(fields)}` : ''
   console.info(`[desktop-session] ${new Date().toISOString()} ${event}${suffix}`)
+}
+
+function turnRestoreKey(sessionId: string, turnRestoreId: string): string {
+  return `${sessionId}:${turnRestoreId}`
 }
 
 function attachSessionListeners(record: DesktopSessionRecord): void {
@@ -429,12 +474,19 @@ function attachSessionListeners(record: DesktopSessionRecord): void {
           return
         }
         const beforePatch = latestRecord.turnBaselineDiffPatch
+        const turnRestoreBaseline = latestRecord.turnRestoreBaseline
+        const turnRestoreId = latestRecord.turnRestoreId
         latestRecord.turnBaselineDiffPatch = null
-        const shouldEmitDiff = shouldEmitWorkspaceDiffEvent({
+        latestRecord.turnRestoreBaseline = null
+        latestRecord.turnRestoreId = null
+        const turnDiff = buildTurnDiff({
           beforePatch,
           afterPatch: diff.patch,
-          standalone: latestRecord.snapshot.item.standalone === true,
         })
+        const shouldEmitDiff =
+          !latestRecord.snapshot.item.standalone &&
+          turnDiff.patch !== 'No file changes.' &&
+          turnDiff.files.length > 0
         desktopConsoleLog('turn_diff_checked', {
           sessionId: session.sessionId,
           permissionMode: latestRecord.snapshot.settings.permissionMode,
@@ -448,7 +500,20 @@ function attachSessionListeners(record: DesktopSessionRecord): void {
           type: 'diff',
           sessionId: session.sessionId,
           filePath: session.workspacePath,
-          patch: diff.patch,
+          patch: turnDiff.patch,
+          metadata: {
+            files: turnDiff.files,
+            ...(turnRestoreId && turnRestoreBaseline
+              ? { turnRestoreId }
+              : {}),
+          },
+        }
+        if (turnRestoreId && turnRestoreBaseline) {
+          turnRestoreBaselines.set(turnRestoreKey(session.sessionId, turnRestoreId), {
+            workspacePath: session.workspacePath,
+            baseline: turnRestoreBaseline,
+            paths: new Set(turnDiff.files.map(file => file.path)),
+          })
         }
         persistAgentEventToRollout(latestRecord.snapshot, diffEvent)
         latestRecord.snapshot = applyDesktopAgentEventToSnapshot(
@@ -473,13 +538,7 @@ function persistAgentEventToRollout(
   if (!rolloutPath) return
   const items = desktopAgentEventToRolloutItems(event)
   if (items.length === 0) return
-  void appendDesktopRolloutItems(rolloutPath, items).catch(error => {
-    desktopDebug('rollout_append_failed', {
-      sessionId: event.sessionId,
-      type: event.type,
-      message: error instanceof Error ? error.message : String(error),
-    })
-  })
+  rolloutWriteScheduler.append(rolloutPath, items)
 }
 
 function createRuntimeForRecord(record: DesktopSessionRecord): DesktopAgentSession {
@@ -529,6 +588,9 @@ async function setActiveSession(sessionId: string | null): Promise<void> {
   await ensureSessionStoreLoaded()
   if (sessionId !== null && !sessions.has(sessionId)) {
     throw new Error(`Unknown desktop session: ${sessionId}`)
+  }
+  if (activeSessionId === sessionId) {
+    return
   }
   activeSessionId = sessionId
   persistSessionStore({ immediate: true })
@@ -607,6 +669,33 @@ async function deleteSessionReviewComment(
   }
   persistSessionStore({ immediate: true })
   return record.snapshot
+}
+
+async function restoreSessionTurnChanges(
+  input: RestoreSessionTurnChangesInput,
+): Promise<DesktopGitOperationResult> {
+  const record = await getSessionRecord(input.sessionId)
+  const key = turnRestoreKey(input.sessionId, input.turnRestoreId)
+  const restore = turnRestoreBaselines.get(key)
+  if (!restore) {
+    return { ok: false, error: 'Turn restore baseline is no longer available.' }
+  }
+  if (normalizeWorkspacePath(restore.workspacePath) !== normalizeWorkspacePath(record.snapshot.workspace.path)) {
+    return { ok: false, error: 'Turn restore workspace no longer matches this session.' }
+  }
+  const paths = input.paths.filter(path => restore.paths.has(path))
+  if (paths.length === 0) {
+    return { ok: false, error: 'No restorable files were selected for this turn.' }
+  }
+  const result = await restoreTurnBaselineChanges({
+    workspacePath: restore.workspacePath,
+    baseline: restore.baseline,
+    paths,
+  })
+  if (result.ok) {
+    turnRestoreBaselines.delete(key)
+  }
+  return result
 }
 
 async function updateSessionReviewCommentStatus(
@@ -1019,9 +1108,16 @@ async function sendUserMessage(
     record.snapshot.settings.providerBaseURL,
   )
   session.setDebugConversationDump(modelSelection.debugConversationDump === true)
-  record.turnBaselineDiffPatch = record.snapshot.item.standalone
-    ? null
-    : (await getWorkspaceDiff(record.snapshot.workspace.path)).patch
+  if (record.snapshot.item.standalone) {
+    record.turnBaselineDiffPatch = null
+    record.turnRestoreBaseline = null
+    record.turnRestoreId = null
+  } else {
+    const workspacePath = record.snapshot.workspace.path
+    record.turnBaselineDiffPatch = (await getWorkspaceDiff(workspacePath)).patch
+    record.turnRestoreBaseline = await captureTurnRestoreBaseline(workspacePath)
+    record.turnRestoreId = randomUUID()
+  }
   desktopConsoleLog('turn_baseline_captured', {
     sessionId,
     permissionMode: record.snapshot.settings.permissionMode,
@@ -1047,8 +1143,12 @@ async function sendUserMessage(
       durationMs: Date.now() - startedAt,
       message: error instanceof Error ? error.message : String(error),
     })
+    await rolloutWriteScheduler.flush()
+    await flushSessionStorePersistence()
     throw error
   }
+  await rolloutWriteScheduler.flush()
+  await flushSessionStorePersistence()
 }
 
 type NormalizedDesktopModelSelection = {
@@ -1342,6 +1442,8 @@ function isRecoverableExitPlanModePermission(
 async function interruptSession(sessionId: string): Promise<void> {
   const record = await getSessionRecord(sessionId)
   await record.session?.interrupt()
+  await rolloutWriteScheduler.flush()
+  await flushSessionStorePersistence()
 }
 
 async function disposeSession(sessionId: string): Promise<void> {
@@ -1500,6 +1602,7 @@ const desktopApiHandlers = buildDesktopApiHandlers({
   setSessionPlanModeActive,
   setSessionLocalRouterMode,
   sendUserMessage,
+  restoreSessionTurnChanges,
   respondToPermission,
   interruptSession,
   disposeSession,
@@ -1609,7 +1712,9 @@ app.on('before-quit', event => {
   if (!quittingAfterSessionStoreFlush) {
     event.preventDefault()
     quittingAfterSessionStoreFlush = true
-    void flushSessionStorePersistence().finally(() => {
+    disposeAllSessions()
+    void rolloutWriteScheduler.flush().finally(async () => {
+      await flushSessionStorePersistence()
       app.quit()
     })
     return

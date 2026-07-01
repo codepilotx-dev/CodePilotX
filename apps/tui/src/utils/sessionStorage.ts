@@ -839,6 +839,51 @@ class Project {
     }
   }
 
+  /**
+   * Synchronise the current session's metadata to the SQLite index.
+   *
+   * Best-effort: SQLite may not be available (disabled, first-run, or
+   * better-sqlite3 fails to load). Errors are silently swallowed.
+   */
+  private async syncCurrentSessionToSqlite(sessionId: string): Promise<void> {
+    try {
+      const { SessionDatabase, touchRecencyAt, upsertSession } = await import(
+        '@codepilotx/core/session/sqlite/index.js'
+      )
+      // Ensure DB is open (may fail if better-sqlite3 unavailable)
+      SessionDatabase.getInstance().open()
+    } catch {
+      return // SQLite not available — skip silently
+    }
+
+    try {
+      const projectDir = getSessionProjectDir()
+      const transcriptPath = this.sessionFile ?? getTranscriptPath()
+      const now = Date.now()
+
+      upsertSession({
+        id: sessionId,
+        project_path: projectDir ?? 'unknown',
+        transcript_path: transcriptPath,
+        rollout_path: null,
+        created_at_ms: now,
+        updated_at_ms: now,
+        recency_at_ms: now,
+        title: this.currentSessionTitle ?? this.currentSessionLastPrompt ?? '',
+        preview: this.currentSessionLastPrompt ?? '',
+        first_user_message: this.currentSessionLastPrompt ?? '',
+        message_count: 0,
+        file_size: 0,
+        source: 'tui',
+        session_mode: this.currentSessionMode ?? 'normal',
+        git_branch: undefined,
+      })
+      touchRecencyAt(sessionId, now)
+    } catch {
+      // Best-effort: don't let SQLite errors disrupt the app
+    }
+  }
+
   async flush(): Promise<void> {
     // Cancel pending timer
     if (this.flushTimer) {
@@ -851,6 +896,13 @@ class Project {
     }
     // Drain anything remaining in the queues
     await this.drainWriteQueue()
+    // Sync session metadata to SQLite index (best-effort)
+    if (this.sessionFile) {
+      const sessionId = getSessionId() as string
+      if (sessionId) {
+        void this.syncCurrentSessionToSqlite(sessionId)
+      }
+    }
 
     // Wait for non-queue tracked operations (e.g. removeMessageByUuid)
     if (this.pendingWriteCount === 0) {
@@ -1079,6 +1131,11 @@ class Project {
           this.currentSessionLastPrompt =
             flat.length > 200 ? flat.slice(0, 200).trim() + '…' : flat
         }
+      }
+
+      // Sync session metadata to SQLite index (best-effort)
+      if (this.sessionFile) {
+        void this.syncCurrentSessionToSqlite(sessionId)
       }
     })
   }

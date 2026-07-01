@@ -224,63 +224,24 @@
   background: var(--c-sidebar-active-bg);
 }
 
-:root[data-theme="dark"] .sidebar-nav-link.active,
-:root[data-theme="dark"] .sidebar-session-row.active,
-:root[data-theme="dark"] .sidebar-settings-link.active,
-:root[data-theme="dark"] .settings-nav-item.active,
-:root.dark-theme .sidebar-nav-link.active,
-:root.dark-theme .sidebar-session-row.active,
-:root.dark-theme .sidebar-settings-link.active,
-:root.dark-theme .settings-nav-item.active {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-:root:not([data-theme="dark"]):not(.dark-theme) .sidebar-nav-link.active,
-:root:not([data-theme="dark"]):not(.dark-theme) .sidebar-session-row.active,
-:root:not([data-theme="dark"]):not(.dark-theme) .sidebar-settings-link.active,
-:root:not([data-theme="dark"]):not(.dark-theme) .settings-nav-item.active {
-  background: rgba(0, 0, 0, 0.05);
-}
-
-:root[data-theme="dark"] .sidebar-row:hover,
-:root[data-theme="dark"] .sidebar-section-header:hover,
-:root[data-theme="dark"] .sidebar-show-more-button:hover,
-:root[data-theme="dark"] .settings-nav-item:hover,
-:root[data-theme="dark"] .settings-back-btn:hover,
-:root[data-theme="dark"] .sidebar-nav-link:hover,
-:root[data-theme="dark"] .sidebar-project-header:hover,
-:root[data-theme="dark"] .sidebar-session-row:hover,
-:root[data-theme="dark"] .sidebar-settings-link:hover,
-:root.dark-theme .sidebar-row:hover,
-:root.dark-theme .sidebar-section-header:hover,
-:root.dark-theme .sidebar-show-more-button:hover,
-:root.dark-theme .settings-nav-item:hover,
-:root.dark-theme .settings-back-btn:hover,
-:root.dark-theme .sidebar-nav-link:hover,
-:root.dark-theme .sidebar-project-header:hover,
-:root.dark-theme .sidebar-session-row:hover,
-:root.dark-theme .sidebar-settings-link:hover {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-:root:not([data-theme="dark"]):not(.dark-theme) .sidebar-row:hover,
-:root:not([data-theme="dark"]):not(.dark-theme) .sidebar-section-header:hover,
-:root:not([data-theme="dark"]):not(.dark-theme) .sidebar-show-more-button:hover,
-:root:not([data-theme="dark"]):not(.dark-theme) .settings-nav-item:hover,
-:root:not([data-theme="dark"]):not(.dark-theme) .settings-back-btn:hover,
-:root:not([data-theme="dark"]):not(.dark-theme) .sidebar-nav-link:hover,
-:root:not([data-theme="dark"]):not(.dark-theme) .sidebar-project-header:hover,
-:root:not([data-theme="dark"]):not(.dark-theme) .sidebar-session-row:hover,
-:root:not([data-theme="dark"]):not(.dark-theme) .sidebar-settings-link:hover {
-  background: rgba(0, 0, 0, 0.05);
-}
-
 .sidebar-nav-link:hover .sidebar-item-icon,
 .sidebar-nav-link.active .sidebar-item-icon,
 .sidebar-project-header:hover .sidebar-item-icon,
 .sidebar-settings-link:hover .sidebar-item-icon,
 .sidebar-settings-link.active .sidebar-item-icon {
   color: var(--c-text);
+}
+
+.sidebar-project-header--unavailable,
+.sidebar-project-header--unavailable:hover,
+.sidebar-project-header--unavailable .sidebar-item-icon,
+.sidebar-project-header--unavailable:hover .sidebar-item-icon,
+.sidebar-project-header--unavailable .sidebar-project-chevron {
+  color: var(--c-text-disabled);
+}
+
+.sidebar-project-header--unavailable:hover {
+  background: transparent;
 }
 
 .sidebar-item-label,
@@ -494,6 +455,7 @@
 }
 
 .sidebar-show-more-button:hover {
+  background: transparent;
   color: var(--c-text);
 }
 
@@ -534,10 +496,6 @@
   background: transparent;
   cursor: pointer;
   -webkit-app-region: no-drag;
-}
-
-.popover-sidebar-footer {
-  padding: 5px 8px;
 }
 
 .popover-sidebar-footer .popover-item-label {

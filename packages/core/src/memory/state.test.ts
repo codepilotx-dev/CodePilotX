@@ -1,10 +1,13 @@
 import { join, sep } from 'node:path'
 import { expect, test } from 'bun:test'
 import {
+  buildRepoMemorySkeleton,
+  buildUserMemorySkeleton,
   isPathWithinAutoMemory,
   parseMemoryType,
   resolveAutoMemoryDailyLogPath,
   resolveAutoMemoryPaths,
+  resolveUserMemoryPaths,
   resolveAutoMemoryState,
   validateAutoMemoryDirectory,
 } from './state.js'
@@ -79,6 +82,18 @@ test('resolveAutoMemoryPaths returns override, setting, and default paths', () =
   expect(defaults.entrypointPath.endsWith(`${sep}memory${sep}MEMORY.md`)).toBe(
     true,
   )
+
+  const repo = resolveAutoMemoryPaths({
+    configHomeDir: join(homeDir, '.claude'),
+    homeDir,
+    projectRoot: join(homeDir, 'repo'),
+    repoMemoryEnabled: true,
+  })
+  expect(repo).toMatchObject({
+    autoMemPath: `${join(homeDir, 'repo', '.memory')}${sep}`,
+    entrypointPath: join(homeDir, 'repo', '.memory', 'MEMORY.md'),
+    source: 'repo',
+  })
 })
 
 test('memory path helpers reject dangerous directories and locate files', () => {
@@ -103,4 +118,43 @@ test('parseMemoryType accepts only known memory types', () => {
   expect(parseMemoryType('feedback')).toBe('feedback')
   expect(parseMemoryType('architecture')).toBeUndefined()
   expect(parseMemoryType(null)).toBeUndefined()
+})
+
+test('buildRepoMemorySkeleton creates index and section files', () => {
+  const skeleton = buildRepoMemorySkeleton()
+  expect(skeleton.map(file => file.relativePath)).toEqual([
+    'MEMORY.md',
+    'recent_changes.md',
+    'active_context.md',
+    'long_term_memory.md',
+    'user_preferences.md',
+    'rules.md',
+  ])
+  expect(skeleton[0]?.content).toContain('[Recent Changes](recent_changes.md)')
+  expect(skeleton[1]?.content).toContain('Do not store raw chat transcripts')
+  expect(skeleton[5]?.content).toContain('Advisory Context Rules')
+})
+
+test('resolveUserMemoryPaths locates global user memory under config home', () => {
+  const configHomeDir = join(sep, 'Users', 'xiao', '.codepilotx')
+  const paths = resolveUserMemoryPaths({ configHomeDir })
+
+  expect(paths.memoryDir).toBe(`${join(configHomeDir, 'user-memory')}${sep}`)
+  expect(paths.profilePath).toBe(join(configHomeDir, 'user-memory', 'profile.memory.md'))
+  expect(paths.preferencesPath).toBe(join(configHomeDir, 'user-memory', 'preferences.json'))
+  expect(paths.eventsPath).toBe(join(configHomeDir, 'user-memory', 'memory_events.jsonl'))
+  expect(paths.conversationIndexPath).toBe(join(configHomeDir, 'user-memory', 'conversation_index.sqlite'))
+})
+
+test('buildUserMemorySkeleton creates profile preferences and event files', () => {
+  const skeleton = buildUserMemorySkeleton()
+
+  expect(skeleton.map(file => file.relativePath)).toEqual([
+    'profile.memory.md',
+    'preferences.json',
+    'memory_events.jsonl',
+  ])
+  expect(skeleton[0]?.content).toContain('Current user instructions override memory')
+  expect(skeleton[1]?.content).toContain('"language": "zh-CN"')
+  expect(skeleton[2]?.content).toBe('')
 })

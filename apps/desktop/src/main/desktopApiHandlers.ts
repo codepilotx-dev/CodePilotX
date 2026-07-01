@@ -47,11 +47,18 @@ import {
 } from './themeSettings.js'
 import {
   deleteProjectMemory,
+  deleteUserMemory,
+  exportUserMemory,
+  importUserMemory,
   listProjectMemories,
   listProjectMemoryRecalls,
+  listUserMemories,
   readProjectMemory,
+  readUserMemory,
   resetProjectMemory,
+  resetUserMemory,
   saveProjectMemory,
+  saveUserMemory,
 } from './desktopMemoryService.js'
 import {
   installDesktopSkill,
@@ -96,6 +103,7 @@ import type {
   DesktopPermissionDecision,
   DesktopPermissionMode,
   DesktopSlashCommandSuggestion,
+  DesktopGitOperationResult,
   DesktopSessionMetadataPatch,
   DesktopSessionSnapshot,
   DesktopStoredSettings,
@@ -103,6 +111,7 @@ import type {
   DesktopToolchainInstallResult,
   DesktopUserMessageInput,
   LocalRouterMode,
+  RestoreSessionTurnChangesInput,
   SaveSessionReviewCommentInput,
   SessionReviewCommentInput,
 } from '../shared/types.js'
@@ -171,6 +180,9 @@ export type DesktopApiHandlerDependencies = {
   ): Promise<void>
   interruptSession(sessionId: string): Promise<void>
   disposeSession(sessionId: string): Promise<void>
+  restoreSessionTurnChanges(
+    input: RestoreSessionTurnChangesInput,
+  ): Promise<DesktopGitOperationResult>
   onDesktopSettingsSaved?(settings: DesktopStoredSettings): void
 }
 
@@ -228,6 +240,35 @@ export function buildDesktopApiHandlers(
     resetProjectMemory: async input => resetProjectMemory(input),
     listProjectMemoryRecalls: async workspacePath =>
       listProjectMemoryRecalls(workspacePath),
+    listUserMemories: async () =>
+      listUserMemories(dependencies.getRuntimeOptions().configDirectoryPath),
+    readUserMemory: async relativePath =>
+      readUserMemory(
+        dependencies.getRuntimeOptions().configDirectoryPath,
+        relativePath,
+      ),
+    saveUserMemory: async input =>
+      saveUserMemory({
+        ...input,
+        configHomeDir: dependencies.getRuntimeOptions().configDirectoryPath,
+      }),
+    deleteUserMemory: async input =>
+      deleteUserMemory({
+        ...input,
+        configHomeDir: dependencies.getRuntimeOptions().configDirectoryPath,
+      }),
+    resetUserMemory: async input =>
+      resetUserMemory({
+        ...input,
+        configHomeDir: dependencies.getRuntimeOptions().configDirectoryPath,
+      }),
+    exportUserMemory: async () =>
+      exportUserMemory(dependencies.getRuntimeOptions().configDirectoryPath),
+    importUserMemory: async input =>
+      importUserMemory(
+        dependencies.getRuntimeOptions().configDirectoryPath,
+        input.files,
+      ),
     getBrowserState: dependencies.browserService.getState,
     openBrowser: dependencies.browserService.open,
     navigateBrowser: dependencies.browserService.navigate,
@@ -277,6 +318,7 @@ export function buildDesktopApiHandlers(
     commitWorkspaceChanges,
     pushWorkspaceBranch,
     discardWorkspaceChanges,
+    restoreSessionTurnChanges: dependencies.restoreSessionTurnChanges,
     createPullRequest,
     getWorkspaceReviewDiff,
     applyWorkspaceReviewOperation,

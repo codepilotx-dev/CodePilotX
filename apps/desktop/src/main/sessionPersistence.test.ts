@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, mkdir, readFile, rm, stat, utimes, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { expect, spyOn, test } from 'bun:test'
@@ -14,7 +14,9 @@ import {
   applyDesktopWorkflowEventsToSnapshot,
   appendDesktopRolloutItems,
   buildDesktopSessionIndexTempPath,
+  cleanupStaleDesktopSessionIndexTempFiles,
   createDesktopSessionSnapshot,
+  createLightweightDesktopSessionSnapshot,
   getDesktopSessionIndexPath,
   hydrateDesktopSessionSnapshot,
   loadDesktopSessionStore,
@@ -529,6 +531,152 @@ test('writeFileAtomically removes temp file when rename retries are exhausted', 
   expect(calls).toContain(`unlink:${tempPath}`)
 })
 
+test('cleanupStaleDesktopSessionIndexTempFiles removes only old session index temps', async () => {
+  await withDesktopConfig(async configDir => {
+    const indexPath = getDesktopSessionIndexPath()
+    await mkdir(dirname(indexPath), { recursive: true })
+    const oldTempPath = buildDesktopSessionIndexTempPath(indexPath, 'old')
+    const freshTempPath = buildDesktopSessionIndexTempPath(indexPath, 'fresh')
+    const unrelatedTempPath = join(dirname(indexPath), '.settings.json.old.tmp')
+    await writeFile(oldTempPath, 'old', 'utf8')
+    await writeFile(freshTempPath, 'fresh', 'utf8')
+    await writeFile(unrelatedTempPath, 'unrelated', 'utf8')
+
+    await cleanupStaleDesktopSessionIndexTempFiles(indexPath, {
+      nowMs: 10_000,
+      staleAgeMs: 5_000,
+      stat: async path => ({
+        mtimeMs: path === oldTempPath ? 1_000 : 9_000,
+      }),
+    })
+
+    await expect(readFile(oldTempPath, 'utf8')).rejects.toThrow()
+    expect(await readFile(freshTempPath, 'utf8')).toBe('fresh')
+    expect(await readFile(unrelatedTempPath, 'utf8')).toBe('unrelated')
+  })
+})
+
+test('saveDesktopSessionStore cleans stale temp files after successful save', async () => {
+  await withDesktopConfig(async () => {
+    const sessionId = randomUUID()
+    const indexPath = getDesktopSessionIndexPath()
+    await mkdir(dirname(indexPath), { recursive: true })
+    const staleTempPath = buildDesktopSessionIndexTempPath(indexPath, 'stale')
+    await writeFile(staleTempPath, 'stale', 'utf8')
+    const oldDate = new Date(Date.now() - 60 * 60 * 1000)
+    await utimes(staleTempPath, oldDate, oldDate)
+
+    const snapshot = createDesktopSessionSnapshot({
+      sessionId,
+      workspace: {
+        path: join(dirname(indexPath), 'project'),
+        name: 'project',
+        branchName: null,
+        isGitRepo: false,
+      },
+      standalone: false,
+      settings: {
+        permissionMode: 'default',
+        thinkingMode: 'default',
+        additionalDirectories: [],
+      },
+    })
+
+    await saveDesktopSessionStore({
+      activeSessionId: sessionId,
+      sessions: [snapshot],
+    })
+
+    expect(await stat(indexPath).then(() => true)).toBe(true)
+    await expect(readFile(staleTempPath, 'utf8')).rejects.toThrow()
+  })
+})
+
+test('createLightweightDesktopSessionSnapshot strips heavy view content', () => {
+  const sessionId = randomUUID()
+  const snapshot = createDesktopSessionSnapshot({
+    sessionId,
+    workspace: {
+      path: 'D:\\workspace',
+      name: 'workspace',
+      branchName: null,
+      isGitRepo: false,
+    },
+    standalone: false,
+    settings: {
+      permissionMode: 'default',
+      thinkingMode: 'default',
+      additionalDirectories: [],
+    },
+  })
+  const heavy = {
+    ...snapshot,
+    view: {
+      messages: [
+        {
+          id: 'message-1',
+          role: 'assistant' as const,
+          text: 'large response',
+          createdAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+      toolLog: [
+        {
+          id: 'tool-1',
+          toolName: 'Read',
+          summary: 'large tool output',
+          kind: 'result' as const,
+          createdAt: '10:00:00',
+          expanded: false,
+        },
+      ],
+      pendingPermissions: [
+        {
+          requestId: 'permission-1',
+          toolName: 'Bash',
+          description: 'Run command',
+          input: {},
+        },
+      ],
+      contextUsage: {
+        model: 'test-model',
+        contextWindow: 100,
+        inputTokens: 8,
+        outputTokens: 2,
+        cacheCreationInputTokens: 0,
+        cacheReadInputTokens: 0,
+        reasoningTokens: 0,
+        promptCacheHitTokens: 0,
+        promptCacheMissTokens: 0,
+        usedTokens: 10,
+        remainingTokens: 90,
+        usedPercent: 10,
+        remainingPercent: 90,
+      },
+    },
+    events: [
+      {
+        id: 'event-1',
+        type: 'status' as const,
+        sessionId,
+        createdAt: '2026-01-01T00:00:00.000Z',
+      },
+    ],
+    eventModelVersion: 1 as const,
+    workflowEvents: [],
+    workflowEventModelVersion: 1 as const,
+  }
+
+  const light = createLightweightDesktopSessionSnapshot(heavy)
+
+  expect(light.view.messages).toEqual([])
+  expect(light.view.toolLog).toEqual([])
+  expect(light.events).toBeUndefined()
+  expect(light.eventModelVersion).toBeUndefined()
+  expect(light.view.pendingPermissions).toEqual(heavy.view.pendingPermissions)
+  expect(light.view.contextUsage).toEqual(heavy.view.contextUsage)
+})
+
 test('AskUserQuestion pending permission with tool use id survives desktop restart', async () => {
   await withDesktopConfig(async configDir => {
     const sessionId = randomUUID()
@@ -820,6 +968,86 @@ test('applying workflow events normalizes events and skips duplicates', () => {
   })
 })
 
+test('applying workflow events keeps only the recent event window', () => {
+  const sessionId = randomUUID()
+  const now = new Date('2026-01-01T00:00:00.000Z')
+  const snapshot = createDesktopSessionSnapshot({
+    sessionId,
+    workspace: {
+      path: 'D:\\project',
+      name: 'project',
+      branchName: null,
+      isGitRepo: false,
+    },
+    standalone: false,
+    settings: {
+      permissionMode: 'default',
+      thinkingMode: 'default',
+      additionalDirectories: [],
+    },
+  })
+  const events = Array.from({ length: 130 }, (_, index) =>
+    threadStarted(
+      sessionId,
+      new Date(now.getTime() + index * 1000).toISOString(),
+      `workflow-event-${index}`,
+    ),
+  )
+
+  const next = applyDesktopWorkflowEventsToSnapshot(snapshot, events)
+
+  expect(next.workflowEvents).toHaveLength(100)
+  expect(next.workflowEvents?.[0]?.createdAt).toBe(
+    new Date(now.getTime() + 30_000).toISOString(),
+  )
+  expect(next.workflowEvents?.at(-1)?.createdAt).toBe(
+    new Date(now.getTime() + 129_000).toISOString(),
+  )
+})
+
+test('saveDesktopSessionStore persists only the recent workflow event window', async () => {
+  await withDesktopConfig(async () => {
+    const sessionId = randomUUID()
+    const now = new Date('2026-01-01T00:00:00.000Z')
+    const snapshot = createDesktopSessionSnapshot({
+      sessionId,
+      workspace: {
+        path: 'D:\\project',
+        name: 'project',
+        branchName: null,
+        isGitRepo: false,
+      },
+      standalone: false,
+      settings: {
+        permissionMode: 'default',
+        thinkingMode: 'default',
+        additionalDirectories: [],
+      },
+    })
+    snapshot.workflowEventModelVersion = 1
+    snapshot.workflowEvents = Array.from({ length: 130 }, (_, index) =>
+      threadStarted(
+        sessionId,
+        new Date(now.getTime() + index * 1000).toISOString(),
+        `workflow-event-${index}`,
+      ),
+    )
+
+    await saveDesktopSessionStore({
+      activeSessionId: sessionId,
+      sessions: [snapshot],
+    })
+
+    const store = await loadDesktopSessionStore()
+    const restored = store.sessions.find(item => item.item.id === sessionId)
+
+    expect(restored?.workflowEvents).toHaveLength(100)
+    expect(restored?.workflowEvents?.[0]?.createdAt).toBe(
+      new Date(now.getTime() + 30_000).toISOString(),
+    )
+  })
+})
+
 async function withDesktopConfig(
   run: (configDir: string) => Promise<void>,
 ): Promise<void> {
@@ -982,9 +1210,10 @@ function persistedOverlay(
 function threadStarted(
   sessionId: string,
   createdAt: string,
+  eventId = 'workflow-event-1',
 ): DesktopWorkflowEvent {
   return {
-    eventId: 'workflow-event-1',
+    eventId,
     type: 'thread.started',
     threadId: sessionId,
     createdAt,

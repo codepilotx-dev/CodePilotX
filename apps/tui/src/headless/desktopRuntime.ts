@@ -181,8 +181,6 @@ class EmbeddedDesktopHeadlessRuntime implements DesktopHeadlessRuntime {
     }
     process.env.CODEPILOTX_DISABLE_MDM_READ = '1'
     process.env.CODEPILOTX_DISABLE_MIN_VERSION_CHECK = '1'
-    process.env.CLAUDE_CODE_DISABLE_MDM_READ = '1'
-    process.env.CLAUDE_CODE_DISABLE_MIN_VERSION_CHECK = '1'
     process.env.CLAUDE_CODE_ENTRYPOINT = 'desktop'
     process.env.CODEPILOTX_INSTALL_CODEX_DEPENDENCIES =
       options.installCodexDependencies === false ? '0' : '1'

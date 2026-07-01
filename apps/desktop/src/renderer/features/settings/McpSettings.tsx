@@ -16,7 +16,6 @@ type McpTransportTemplate = 'stdio' | 'http' | 'sse' | 'ws'
 
 const SCOPE_OPTIONS: Array<{ value: DesktopEditableMcpScope; label: string }> = [
   { value: 'user', label: '用户' },
-  { value: 'project', label: '项目 .mcp.json' },
   { value: 'local', label: '本地项目配置' },
 ]
 
@@ -27,7 +26,7 @@ const TYPE_OPTIONS: Array<{ value: McpTransportTemplate; label: string }> = [
   { value: 'ws', label: 'ws' },
 ]
 
-const READONLY_SCOPES = new Set(['enterprise', 'managed', 'dynamic', 'claudeai'])
+const READONLY_SCOPES = new Set(['enterprise', 'managed', 'dynamic', 'claudeai', 'project'])
 
 type FormState = {
   originalName: string
@@ -188,7 +187,7 @@ export function McpSettings(): React.ReactNode {
       <div className="settings-content-inner">
         <h2 className="settings-page-title">MCP 服务器</h2>
         <p className="settings-page-desc">
-          管理 Model Context Protocol 连接。用户、项目和本地 scope 可编辑；企业、插件和动态来源仅展示。
+          管理 Model Context Protocol 连接。用户和本地 scope 可编辑；企业、项目、插件和动态来源仅展示。
         </p>
 
         <SettingsSection

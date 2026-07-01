@@ -1,5 +1,5 @@
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { join, sep } from 'node:path'
 import { tmpdir } from 'node:os'
 import { expect, test } from 'bun:test'
 import {
@@ -24,6 +24,15 @@ async function makeWorkspace() {
 
 test('project memory service lists reads saves and deletes markdown memories', async () => {
   const { workspacePath, configHomeDir } = await makeWorkspace()
+  const initial = await listProjectMemories(workspacePath, configHomeDir)
+  expect(initial.memoryDir).toBe(join(workspacePath, '.memory') + sep)
+  expect(initial.memories.map(memory => memory.relativePath)).toContain(
+    'recent_changes.md',
+  )
+  expect(await readFile(join(workspacePath, '.memory', 'MEMORY.md'), 'utf8')).toContain(
+    '[Recent Changes](recent_changes.md)',
+  )
+
   const saved = await saveProjectMemory({
     workspacePath,
     configHomeDir,
@@ -36,14 +45,18 @@ test('project memory service lists reads saves and deletes markdown memories', a
   expect(saved.description).toBe('User prefers concise replies')
 
   const listed = await listProjectMemories(workspacePath, configHomeDir)
-  expect(listed.memories.map(memory => memory.relativePath)).toEqual(['prefs.md'])
-  expect(listed.memories[0]?.type).toBe('feedback')
+  expect(listed.memories.map(memory => memory.relativePath)).toContain('prefs.md')
+  expect(listed.memories.find(memory => memory.relativePath === 'prefs.md')?.type).toBe('feedback')
 
   const read = await readProjectMemory(workspacePath, configHomeDir, 'prefs.md')
   expect(read.content).toContain('Keep replies short.')
 
   await deleteProjectMemory({ workspacePath, configHomeDir, relativePath: 'prefs.md' })
-  expect((await listProjectMemories(workspacePath, configHomeDir)).memories).toEqual([])
+  expect(
+    (await listProjectMemories(workspacePath, configHomeDir)).memories.map(
+      memory => memory.relativePath,
+    ),
+  ).not.toContain('prefs.md')
 })
 
 test('project memory service rejects path traversal', async () => {
@@ -80,7 +93,11 @@ test('project memory reset can preserve or delete recall log', async () => {
   expect((await listProjectMemoryRecalls(workspacePath, configHomeDir)).recalls).toHaveLength(1)
   await resetProjectMemory({ workspacePath, configHomeDir, includeRecallLog: false })
   expect((await listProjectMemoryRecalls(workspacePath, configHomeDir)).recalls).toHaveLength(1)
-  expect((await listProjectMemories(workspacePath, configHomeDir)).memories).toEqual([])
+  expect(
+    (await listProjectMemories(workspacePath, configHomeDir)).memories.map(
+      memory => memory.relativePath,
+    ),
+  ).not.toContain('prefs.md')
 
   await resetProjectMemory({ workspacePath, configHomeDir, includeRecallLog: true })
   expect((await listProjectMemoryRecalls(workspacePath, configHomeDir)).recalls).toEqual([])

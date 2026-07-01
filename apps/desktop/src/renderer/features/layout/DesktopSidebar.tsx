@@ -14,6 +14,7 @@ type Props = {
   activeSessionId: string | null;
   recentWorkspaces: DesktopWorkspace[];
   sessions: SessionListItem[];
+  unavailableWorkspacePaths: Set<string>;
   workspace: DesktopWorkspace | null;
   onChooseWorkspace: () => void;
   onCreateSession: (workspace?: DesktopWorkspace | null) => void;
@@ -30,6 +31,7 @@ export function DesktopSidebar({
   activeSessionId,
   recentWorkspaces,
   sessions,
+  unavailableWorkspacePaths,
   workspace,
   onChooseWorkspace,
   onCreateSession,
@@ -114,6 +116,7 @@ export function DesktopSidebar({
         pinnedSessions={pinnedSessions}
         projectWorkspaces={projectWorkspaces}
         standaloneSessions={standaloneSessions}
+        unavailableWorkspacePaths={unavailableWorkspacePaths}
         unpinnedSessions={unpinnedSessions}
         workspace={workspace}
         onArchiveSession={archiveSession}

@@ -31,6 +31,19 @@ test('appendUniqueWorkflowEvent ignores duplicate event ids', () => {
   expect(events[0]?.createdAt).toBe(base.createdAt)
 })
 
+test('appendUniqueWorkflowEvent keeps only the recent event window', () => {
+  const events = Array.from({ length: 130 }, (_, index) =>
+    turnStarted(`event-${index}`),
+  ).reduce(
+    (current, event) => appendUniqueWorkflowEvent(current, event),
+    [] as DesktopWorkflowEvent[],
+  )
+
+  expect(events).toHaveLength(100)
+  expect(events[0]?.eventId).toBe('event-30')
+  expect(events.at(-1)?.eventId).toBe('event-129')
+})
+
 test('dedupeWorkflowEvents uses a fallback key for events without event ids', () => {
   const event = toolCall(undefined)
   const duplicate = toolCall(undefined)

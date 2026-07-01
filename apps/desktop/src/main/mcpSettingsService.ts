@@ -17,7 +17,7 @@ import type {
   SaveDesktopMcpServerOptions,
 } from '../shared/types.js'
 
-const EDITABLE_SCOPES = new Set<ConfigScope>(['local', 'user', 'project'])
+const EDITABLE_SCOPES = new Set<ConfigScope>(['local', 'user'])
 
 export async function listDesktopMcpServers(): Promise<
   DesktopMcpServerListItem[]
@@ -103,7 +103,7 @@ export async function setDesktopMcpServerEnabled(
   name: string,
   enabled: boolean,
 ): Promise<DesktopMcpServerListItem[]> {
-  setTuiMcpServerEnabled(requireMcpServerName(name), enabled)
+  await setTuiMcpServerEnabled(requireMcpServerName(name), enabled)
   return listDesktopMcpServers()
 }
 
@@ -155,7 +155,7 @@ function requireMcpServerName(value: string): string {
 }
 
 function requireEditableScope(value: string): DesktopEditableMcpScope {
-  if (value === 'local' || value === 'user' || value === 'project') {
+  if (value === 'local' || value === 'user') {
     return value
   }
   throw new Error(`Unsupported editable MCP scope: ${value}`)
