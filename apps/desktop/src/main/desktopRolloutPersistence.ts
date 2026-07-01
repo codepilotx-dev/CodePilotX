@@ -70,6 +70,61 @@ export type ParsedDesktopRolloutSnapshot = {
   effectiveModel?: string
 }
 
+export type RolloutWriteScheduler = {
+  append(rolloutPath: string, items: DesktopRolloutItem[]): void
+  flush(): Promise<void>
+}
+
+export function createRolloutWriteScheduler(options?: {
+  onError?: (error: unknown, rolloutPath: string) => void
+}): RolloutWriteScheduler {
+  const queues = new Map<string, DesktopRolloutItem[]>()
+  const inFlight = new Map<string, Promise<void>>()
+
+  const drainQueue = async (rolloutPath: string): Promise<void> => {
+    let items = queues.get(rolloutPath)
+    if (!items || items.length === 0) {
+      inFlight.delete(rolloutPath)
+      return
+    }
+
+    do {
+      queues.delete(rolloutPath)
+      try {
+        await appendDesktopRolloutItems(rolloutPath, items)
+      } catch (error) {
+        options.onError?.(error, rolloutPath)
+      }
+      items = queues.get(rolloutPath)
+    } while (items && items.length > 0)
+
+    inFlight.delete(rolloutPath)
+  }
+
+  return {
+    append(rolloutPath: string, items: DesktopRolloutItem[]) {
+      let existing = queues.get(rolloutPath)
+      if (!existing) {
+        existing = []
+        queues.set(rolloutPath, existing)
+      }
+      existing.push(...items)
+
+      if (!inFlight.has(rolloutPath)) {
+        const promise = drainQueue(rolloutPath)
+        inFlight.set(rolloutPath, promise)
+      }
+    },
+
+    async flush() {
+      const promises = [...inFlight.values()]
+      if (promises.length > 0) {
+        await Promise.all(promises)
+      }
+    },
+  }
+}
+
 export async function appendDesktopRolloutItems(
   rolloutPath: string,
   items: DesktopRolloutItem[],

@@ -97,7 +97,11 @@ import {
   removePendingPermissionFromSnapshot,
   saveDesktopSessionStore,
 } from './sessionPersistence.js'
-import { desktopAgentEventToRolloutItems } from './desktopRolloutPersistence.js'
+import {
+  createRolloutWriteScheduler,
+  desktopAgentEventToRolloutItems,
+  type RolloutWriteScheduler,
+} from './desktopRolloutPersistence.js'
 import { createSessionPersistScheduler } from './sessionPersistScheduler.js'
 import { createSessionStoreChangeEmitter } from './sessionStoreChangeEmitter.js'
 import type {
@@ -175,6 +179,14 @@ const sessionPersistScheduler = createSessionPersistScheduler({
 const sessionStoreChangeEmitter = createSessionStoreChangeEmitter({
   debounceMs: 1000,
   emit: emitSessionStoreChange,
+})
+const rolloutWriteScheduler: RolloutWriteScheduler = createRolloutWriteScheduler({
+  onError: (error, rolloutPath) => {
+    desktopDebug('rollout_append_failed', {
+      rolloutPath,
+      message: error instanceof Error ? error.message : String(error),
+    })
+  },
 })
 const DESKTOP_BROWSER_PLUGIN_ID = 'browser@builtin'
 const DESKTOP_BUILTIN_PLUGIN_IDS = [DESKTOP_BROWSER_PLUGIN_ID] as const
@@ -481,13 +493,7 @@ function persistAgentEventToRollout(
   if (!rolloutPath) return
   const items = desktopAgentEventToRolloutItems(event)
   if (items.length === 0) return
-  void appendDesktopRolloutItems(rolloutPath, items).catch(error => {
-    desktopDebug('rollout_append_failed', {
-      sessionId: event.sessionId,
-      type: event.type,
-      message: error instanceof Error ? error.message : String(error),
-    })
-  })
+  rolloutWriteScheduler.append(rolloutPath, items)
 }
 
 function createRuntimeForRecord(record: DesktopSessionRecord): DesktopAgentSession {
@@ -1058,8 +1064,12 @@ async function sendUserMessage(
       durationMs: Date.now() - startedAt,
       message: error instanceof Error ? error.message : String(error),
     })
+    await rolloutWriteScheduler.flush()
+    await flushSessionStorePersistence()
     throw error
   }
+  await rolloutWriteScheduler.flush()
+  await flushSessionStorePersistence()
 }
 
 type NormalizedDesktopModelSelection = {
@@ -1353,6 +1363,8 @@ function isRecoverableExitPlanModePermission(
 async function interruptSession(sessionId: string): Promise<void> {
   const record = await getSessionRecord(sessionId)
   await record.session?.interrupt()
+  await rolloutWriteScheduler.flush()
+  await flushSessionStorePersistence()
 }
 
 async function disposeSession(sessionId: string): Promise<void> {
@@ -1620,7 +1632,9 @@ app.on('before-quit', event => {
   if (!quittingAfterSessionStoreFlush) {
     event.preventDefault()
     quittingAfterSessionStoreFlush = true
-    void flushSessionStorePersistence().finally(() => {
+    disposeAllSessions()
+    void rolloutWriteScheduler.flush().finally(async () => {
+      await flushSessionStorePersistence()
       app.quit()
     })
     return
