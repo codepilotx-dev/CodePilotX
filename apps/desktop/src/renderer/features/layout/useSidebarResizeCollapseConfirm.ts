@@ -45,6 +45,9 @@ type UseSidebarResizeCollapseConfirmInput = {
   width: number
   onCollapse: () => void
   onSetWidth: (width: number) => void
+  /** `'left'` (default): drag right edge to resize, pointer right = wider.
+   *  `'right'`: drag left edge to resize, pointer left = wider. */
+  direction?: 'left' | 'right'
 }
 
 export type UseSidebarResizeCollapseConfirmResult = {
@@ -107,6 +110,7 @@ export function useSidebarResizeCollapseConfirm({
   width,
   onCollapse,
   onSetWidth,
+  direction = 'left',
 }: UseSidebarResizeCollapseConfirmInput): UseSidebarResizeCollapseConfirmResult {
   const [resizing, setResizing] = useState(false)
   const [start, setStart] = useState<ResizeStart>({ x: 0, width })
@@ -150,7 +154,10 @@ export function useSidebarResizeCollapseConfirm({
     if (!resizing) return
 
     function handlePointerMove(event: PointerEvent): void {
-      const rawWidth = start.width + event.clientX - start.x
+      const rawWidth =
+        direction === 'right'
+          ? start.width + start.x - event.clientX
+          : start.width + event.clientX - start.x
       const result = computeSidebarResizeCollapseConfirm({
         rawWidth,
         minWidth,
@@ -190,6 +197,7 @@ export function useSidebarResizeCollapseConfirm({
   }, [
     clearCollapseConfirm,
     clearHoldTimer,
+    direction,
     minWidth,
     onSetWidth,
     resizing,
@@ -215,10 +223,12 @@ export function useSidebarResizeCollapseConfirm({
   function handleResizeKey(event: React.KeyboardEvent<HTMLDivElement>): void {
     if (collapsed) return
     const step = event.shiftKey ? 32 : 8
-    if (event.key === 'ArrowLeft') {
+    const decreaseKey = direction === 'right' ? 'ArrowRight' : 'ArrowLeft'
+    const increaseKey = direction === 'right' ? 'ArrowLeft' : 'ArrowRight'
+    if (event.key === decreaseKey) {
       event.preventDefault()
       onSetWidth(width - step)
-    } else if (event.key === 'ArrowRight') {
+    } else if (event.key === increaseKey) {
       event.preventDefault()
       onSetWidth(width + step)
     } else if (event.key === 'Home') {
