@@ -201,11 +201,23 @@ function buildPlanExecutionModelOptions(settings: ReturnType<typeof useDesktopSe
     settings.smallFastModel,
   ].filter((value): value is string => Boolean(value && value.trim()))
   const unique = Array.from(new Set(candidates))
-  const options = unique.map(value => ({ value, label: value }))
+  const options = unique.map(value => {
+    const parsed = splitProviderModel(value)
+    return {
+      value,
+      label: parsed ? `${parsed.modelID} (${parsed.providerID})` : value,
+    }
+  })
   if (!options.some(option => option.value === '')) {
     options.unshift({ value: '', label: '默认' })
   }
   return options
+}
+
+function splitProviderModel(value: string): { providerID: string; modelID: string } | null {
+  const slash = value.indexOf('/')
+  if (slash <= 0 || slash === value.length - 1) return null
+  return { providerID: value.slice(0, slash), modelID: value.slice(slash + 1) }
 }
 
 export function extractPlanSummary(request: DesktopPermissionRequest): string {

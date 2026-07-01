@@ -11,7 +11,7 @@ import {
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
 import { RadioCard } from './RadioCard.js';
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js';
-import { SettingsRow } from './SettingsRow.js';
+import { SettingsAutoSaveBadge, SettingsRow } from './SettingsRow.js';
 import { SettingsSection } from './SettingsSection.js';
 import { SettingsDropdown } from './SettingsDropdown.js';
 import { SegmentedControl } from './SegmentedControl.js';
@@ -19,7 +19,6 @@ import { useDesktopSettings } from './useDesktopSettings.js';
 import { SettingsContentArea } from './SettingsContentArea.js';
 import type {
   DesktopOpenTarget,
-  DesktopPermissionMode,
   DesktopReviewView,
   DesktopThinkingMode,
 } from '../../../shared/types.js';
@@ -141,6 +140,8 @@ export function GeneralSettings({
   const {
     thinkingMode,
     permissionMode,
+    enableAutoReviewPermissionMode,
+    enableFullAccessPermissionMode,
     showContextUsage,
     defaultOpenTargetId,
     reviewView,
@@ -168,13 +169,6 @@ export function GeneralSettings({
   const setThinkingMode = useCallback(
     (value: DesktopThinkingMode) => {
       draft.setValue('thinkingMode', value)
-      draft.autoSave()
-    },
-    [draft],
-  )
-  const setPermissionMode = useCallback(
-    (value: DesktopPermissionMode) => {
-      draft.setValue('permissionMode', value)
       draft.autoSave()
     },
     [draft],
@@ -227,22 +221,19 @@ export function GeneralSettings({
     setThinkingMode(next === 'coding' ? 'default' : 'adaptive');
   };
 
-  const defaultPermOn = permissionMode === 'default';
-  const autoApproveOn = permissionMode === 'auto-review';
-  const fullAccessOn = permissionMode === 'full-access';
-  const customConfigOn = permissionMode === 'custom';
-
   const handleAutoApprove = (checked: boolean) => {
-    if (checked) setPermissionMode('auto-review');
-    else setPermissionMode('default');
+    draft.setValue('enableAutoReviewPermissionMode', checked);
+    if (!checked && permissionMode === 'auto-review') {
+      draft.setValue('permissionMode', 'default');
+    }
+    draft.autoSave();
   };
   const handleFullAccess = (checked: boolean) => {
-    if (checked) setPermissionMode('full-access');
-    else setPermissionMode('auto-review');
-  };
-  const handleCustomConfig = (checked: boolean) => {
-    if (checked) setPermissionMode('custom');
-    else setPermissionMode('default');
+    draft.setValue('enableFullAccessPermissionMode', checked);
+    if (!checked && permissionMode === 'full-access') {
+      draft.setValue('permissionMode', 'default');
+    }
+    draft.autoSave();
   };
 
   useEffect(() => {
@@ -296,6 +287,7 @@ export function GeneralSettings({
         <SettingsSection
           title='工作模式'
           description='选择 CodePilotX 显示多少技术细节'
+          actions={<SettingsAutoSaveBadge />}
           bare
         >
           <RadioGroup.Root
@@ -323,8 +315,9 @@ export function GeneralSettings({
             autoSave
             control={
               <ToggleSwitch
-                checked={defaultPermOn}
-                onChange={() => setPermissionMode('default')}
+                checked
+                disabled
+                onChange={() => {}}
                 ariaLabel='默认权限'
               />
             }
@@ -341,7 +334,7 @@ export function GeneralSettings({
             }
             control={
               <ToggleSwitch
-                checked={autoApproveOn}
+                checked={enableAutoReviewPermissionMode ?? false}
                 onChange={handleAutoApprove}
                 ariaLabel='自动审核'
               />
@@ -359,21 +352,9 @@ export function GeneralSettings({
             }
             control={
               <ToggleSwitch
-                checked={fullAccessOn}
+                checked={enableFullAccessPermissionMode ?? false}
                 onChange={handleFullAccess}
                 ariaLabel='完全访问权限'
-              />
-            }
-          />
-          <SettingsRow
-            title='自定义（config.toml）'
-            description='Oh-my-agentcode 使用 config.toml 中定义的权限，不从桌面端覆盖权限模式。'
-            autoSave
-            control={
-              <ToggleSwitch
-                checked={customConfigOn}
-                onChange={handleCustomConfig}
-                ariaLabel='自定义 config.toml 权限'
               />
             }
           />
@@ -458,6 +439,7 @@ export function GeneralSettings({
           <SettingsRow
             title='代码审查'
             description='审阅侧栏中 diff 的展示方式：行内视图（叠加显示）或分离视图（左右对照）'
+            autoSave
             control={
               <SegmentedControl
                 value={reviewView}

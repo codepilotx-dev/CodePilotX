@@ -23,6 +23,7 @@
 @import 'misans/lib/Normal/MiSans-Semibold.min.css';
 @import 'misans/lib/Normal/MiSans-Bold.min.css';
 @import './styles/base.css';
+@import './design-system/tokens.css';
 @import './styles/shell.css';
 @import './styles/controls.css';
 @import './styles/markdown.css';
@@ -40,3 +41,4 @@
 @import './features/plugins/marketplace.css';
 @import './features/automation/automation.css';
 @import './styles/model-menu-pilot.css';
+@import './design-system/primitives.css';

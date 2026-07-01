@@ -16,7 +16,7 @@ import type {
 import { hasBlockingComposerAttachmentErrors } from '../../../shared/desktopUserMessage.js'
 import { desktopClient } from '../../services/desktopClient.js'
 import {
-  PERMISSION_MODE_OPTIONS,
+  getVisiblePermissionModeOptions,
   THINKING_MODE_OPTIONS,
 } from '../settings/settingsStorage.js'
 import type { ModelPreset } from '../../modelPresets.js'
@@ -40,6 +40,8 @@ type Props = {
   localRouterMode: LocalRouterMode
   enableParetoCodeRouter: boolean
   enableFusionRouter: boolean
+  enableAutoReviewPermissionMode: boolean
+  enableFullAccessPermissionMode: boolean
   thinkingMode: DesktopThinkingMode
   selectedProviderID?: ModelProviderID
   selectedModelPreset: string
@@ -96,6 +98,8 @@ export function DesktopComposer({
   localRouterMode,
   enableParetoCodeRouter,
   enableFusionRouter,
+  enableAutoReviewPermissionMode,
+  enableFullAccessPermissionMode,
   thinkingMode,
   selectedProviderID,
   selectedModelPreset,
@@ -147,9 +151,29 @@ export function DesktopComposer({
     [attachments],
   )
   const branchName = getDesktopComposerBranchName(workspace)
+  const permissionOptions = useMemo(
+    () =>
+      getVisiblePermissionModeOptions({
+        enableAutoReviewPermissionMode,
+        enableFullAccessPermissionMode,
+      }),
+    [enableAutoReviewPermissionMode, enableFullAccessPermissionMode],
+  )
+  const permissionModeVisible = permissionOptions.some(
+    option => option.value === permissionMode,
+  )
+  const effectivePermissionMode = permissionModeVisible
+    ? permissionMode
+    : 'default'
   const hasConversationMessages = messages.some(
     message => message.role !== 'system',
   )
+
+  useEffect(() => {
+    if (permissionModeVisible) return
+    onPermissionChange('default')
+  }, [onPermissionChange, permissionModeVisible])
+
   useEffect(() => {
     let cancelled = false
     desktopClient
@@ -238,7 +262,7 @@ export function DesktopComposer({
       input={input}
       canSubmit={canSubmit}
       sessionStatus={sessionStatus}
-      permissionMode={permissionMode}
+      permissionMode={effectivePermissionMode}
       planModeActive={planModeActive}
       localRouterMode={localRouterMode}
       enableParetoCodeRouter={enableParetoCodeRouter}
@@ -256,7 +280,7 @@ export function DesktopComposer({
       contextUsage={contextUsage}
       modelPresets={modelPresets}
       providerOptions={providerOptions}
-      permissionOptions={PERMISSION_MODE_OPTIONS}
+      permissionOptions={permissionOptions}
       thinkingOptions={THINKING_MODE_OPTIONS}
       branchName={branchName}
       branches={workspace?.branches ?? []}

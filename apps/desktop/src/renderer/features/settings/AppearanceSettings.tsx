@@ -457,7 +457,10 @@ export function AppearanceSettings() {
               className={`appearance-mode-card appearance-mode-card-${option.value} ${
                 settings.mode === option.value ? 'is-active' : ''
               }`}
-              onClick={() => void theme.setMode(option.value)}
+              onClick={() => {
+                theme.draft.setMode(option.value)
+                theme.draft.autoSave()
+              }}
               role="radio"
             >
               <span className="appearance-mode-visual" aria-hidden="true">
@@ -644,6 +647,7 @@ export function AppearanceSettings() {
           <SettingsRow
             title="减少动态效果"
             description="减少动画效果或匹配系统设置"
+            autoSave
             control={
               <SegmentedControl
                 value={settings.reduceMotion}
@@ -659,6 +663,7 @@ export function AppearanceSettings() {
           <SettingsRow
             title="差异标记"
             description="使用彩色背景，或在每个更改行上显示 + / - 符号"
+            autoSave
             control={
               <SegmentedControl
                 value={desktopSettings.draft.values.diffMarkerStyle}

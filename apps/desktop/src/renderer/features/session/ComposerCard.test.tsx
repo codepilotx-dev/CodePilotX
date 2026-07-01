@@ -10,6 +10,9 @@ import {
 import { IconButton } from '../../components/ui/IconButton.js'
 import { DesktopThemeProvider } from '../theme/themeContext.js'
 import type { DesktopComposerAttachment } from '../../../shared/types.js'
+import {
+  getVisiblePermissionModeOptions,
+} from '../settings/settingsStorage.js'
 
 if (typeof globalThis.window === 'undefined') {
   Object.defineProperty(globalThis, 'window', {
@@ -231,6 +234,25 @@ test('ComposerCard exposes narrow-width composer chip labels for CSS collapse', 
   expect(html).toContain('>ClaudeCode<')
   expect(html).toContain('>本地模式<')
   expect(html).toContain('>codex/codex-compatible-convergence<')
+})
+
+test('getVisiblePermissionModeOptions hides gated permission modes', () => {
+  const defaultOnly = getVisiblePermissionModeOptions({
+    enableAutoReviewPermissionMode: false,
+    enableFullAccessPermissionMode: false,
+  })
+  expect(defaultOnly.map(option => option.value)).toEqual(['default'])
+
+  const allEnabled = getVisiblePermissionModeOptions({
+    enableAutoReviewPermissionMode: true,
+    enableFullAccessPermissionMode: true,
+  })
+  expect(allEnabled.map(option => option.value)).toEqual([
+    'default',
+    'auto-review',
+    'full-access',
+  ])
+  expect(allEnabled.map(option => option.value)).not.toContain('custom')
 })
 
 test('ChatInputDropdown renders width custom properties when sizes are provided', () => {

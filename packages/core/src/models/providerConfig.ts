@@ -726,8 +726,11 @@ export function getSelectedProviderModelMetadata(
   return getProviderModelMetadata(getSelectedProviderID(), modelID)
 }
 
-export function shouldUseOpenAICompatibleProvider(): boolean {
-  const route = resolveAiSdkProviderRoute(getSelectedProviderConfig())
+export function shouldUseOpenAICompatibleProvider(explicitProviderID?: string): boolean {
+  const config = explicitProviderID
+    ? getCachedProviderConfig(explicitProviderID)
+    : getSelectedProviderConfig()
+  const route = resolveAiSdkProviderRoute(config)
   return (
     route === 'openai-compatible' ||
     route === 'openai' ||
@@ -735,19 +738,22 @@ export function shouldUseOpenAICompatibleProvider(): boolean {
   )
 }
 
-export function shouldUseAnthropicCompatibleProvider(): boolean {
-  return (
-    resolveAiSdkProviderRoute(getSelectedProviderConfig()) ===
-    'anthropic-compatible'
-  )
+export function shouldUseAnthropicCompatibleProvider(explicitProviderID?: string): boolean {
+  const config = explicitProviderID
+    ? getCachedProviderConfig(explicitProviderID)
+    : getSelectedProviderConfig()
+  return resolveAiSdkProviderRoute(config) === 'anthropic-compatible'
 }
 
-export function shouldUseMiniMaxProvider(): boolean {
-  return shouldUseAnthropicCompatibleProvider()
+export function shouldUseMiniMaxProvider(explicitProviderID?: string): boolean {
+  return shouldUseAnthropicCompatibleProvider(explicitProviderID)
 }
 
-export function shouldUseGitHubCopilotProvider(): boolean {
-  return resolveAiSdkProviderRoute(getSelectedProviderConfig()) === 'github-copilot'
+export function shouldUseGitHubCopilotProvider(explicitProviderID?: string): boolean {
+  const config = explicitProviderID
+    ? getCachedProviderConfig(explicitProviderID)
+    : getSelectedProviderConfig()
+  return resolveAiSdkProviderRoute(config) === 'github-copilot'
 }
 
 export function resolveAiSdkProviderRoute(

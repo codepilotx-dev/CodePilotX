@@ -616,6 +616,8 @@ export type DesktopDiffMarkerStyle = 'color' | 'symbol'
 export type DesktopStoredSettings = {
   enableParetoCodeRouter?: boolean
   enableFusionRouter?: boolean
+  enableAutoReviewPermissionMode?: boolean
+  enableFullAccessPermissionMode?: boolean
   permissionProfile?: DesktopPermissionProfile
   approvalPolicy?: DesktopApprovalPolicy
   approvalsReviewer?: DesktopApprovalsReviewer

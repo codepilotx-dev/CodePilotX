@@ -175,6 +175,7 @@ export async function* queryOpenAICompatibleModelWithStreaming({
   signal,
   thinkingConfig,
   options,
+  explicitProviderID,
 }: {
   messages: Message[]
   systemPrompt: SystemPrompt
@@ -182,11 +183,14 @@ export async function* queryOpenAICompatibleModelWithStreaming({
   signal: AbortSignal
   thinkingConfig?: ThinkingConfig
   options: Options
+  explicitProviderID?: string
 }): AsyncGenerator<StreamEvent | AssistantMessage, void> {
-  const providerID = getSelectedProviderID()
-  const provider = getSelectedProviderConfig()
-  const apiKey = getProviderApiKey(providerID)
-  const apiKeySource = getProviderApiKeySource(providerID) ?? null
+  const effectiveProviderID = explicitProviderID ?? getSelectedProviderID()
+  const provider = explicitProviderID
+    ? getProviderConfig(explicitProviderID)
+    : getSelectedProviderConfig()
+  const apiKey = getProviderApiKey(effectiveProviderID)
+  const apiKeySource = getProviderApiKeySource(effectiveProviderID) ?? null
   const baseURL = provider.baseURL
 
   if (!baseURL) {
@@ -210,9 +214,9 @@ export async function* queryOpenAICompatibleModelWithStreaming({
       normalizeMessagesForAPI(messages, tools),
     )
     const apiTools = await buildOpenAITools(tools, options)
-    const isDeepSeek = isDeepSeekProvider(providerID)
+    const isDeepSeek = isDeepSeekProvider(effectiveProviderID)
     const providerParams = buildOpenAICompatibleProviderRequestParams({
-      providerID,
+      providerID: effectiveProviderID,
       model: options.model,
       thinkingConfig,
       temperatureOverride: options.temperatureOverride,
@@ -236,11 +240,11 @@ export async function* queryOpenAICompatibleModelWithStreaming({
       model: options.model,
       messages: [
         ...sysPromptBlocks,
-        ...toOpenAIMessages(normalizedMessages, providerID),
+        ...toOpenAIMessages(normalizedMessages, effectiveProviderID),
       ],
       ...toolParams,
       max_tokens:
-        options.maxOutputTokensOverride ?? defaultMaxTokensForModel(options.model, providerID),
+        options.maxOutputTokensOverride ?? defaultMaxTokensForModel(options.model, effectiveProviderID),
       stream: true,
       stream_options: { include_usage: true },
       ...providerParams,
@@ -256,7 +260,7 @@ export async function* queryOpenAICompatibleModelWithStreaming({
       userID: isDeepSeek ? resolveDeepSeekUserId(options) : undefined,
     })
     setConversationDebugProvider({
-      providerID,
+      providerID: effectiveProviderID,
       baseURL,
       model: options.model,
       apiKeySource,
@@ -266,7 +270,7 @@ export async function* queryOpenAICompatibleModelWithStreaming({
         .slice(0, 12),
     })
     recordConversationDebugApi('openai_compatible_request', {
-      providerID,
+      providerID: effectiveProviderID,
       url: requestURL,
       headers: fetchInit.headers,
       body: requestBody,

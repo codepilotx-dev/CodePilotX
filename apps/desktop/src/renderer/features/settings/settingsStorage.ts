@@ -33,12 +33,21 @@ export const PERMISSION_MODE_OPTIONS: Array<{
     label: "完全访问权限",
     detail: "CodePilotX 会自动放行所有权限工具（风险升高）",
   },
-  {
-    value: "custom",
-    label: "自定义（config.toml）",
-    detail: "CodePilotX 使用 config.toml 中定义的权限",
-  },
 ];
+
+export function getVisiblePermissionModeOptions({
+  enableAutoReviewPermissionMode,
+  enableFullAccessPermissionMode,
+}: {
+  enableAutoReviewPermissionMode?: boolean;
+  enableFullAccessPermissionMode?: boolean;
+}): typeof PERMISSION_MODE_OPTIONS {
+  return PERMISSION_MODE_OPTIONS.filter((option) => {
+    if (option.value === "auto-review") return enableAutoReviewPermissionMode;
+    if (option.value === "full-access") return enableFullAccessPermissionMode;
+    return option.value === "default";
+  });
+}
 
 export const THINKING_MODE_OPTIONS: Array<{
   value: DesktopThinkingMode;

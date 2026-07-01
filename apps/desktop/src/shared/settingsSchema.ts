@@ -68,6 +68,8 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
   return {
     enableParetoCodeRouter: false,
     enableFusionRouter: false,
+    enableAutoReviewPermissionMode: false,
+    enableFullAccessPermissionMode: false,
     permissionProfile: ':workspace',
     approvalPolicy: 'on-request',
     approvalsReviewer: 'user',
@@ -124,6 +126,7 @@ export function normalizeDesktopStoredSettings(
       ? (value as Partial<DesktopStoredSettings>)
       : {}
   const defaults = defaultDesktopStoredSettings()
+  const permissionMode = normalizeDesktopPermissionMode(parsed.permissionMode)
   return {
     enableParetoCodeRouter:
       typeof parsed.enableParetoCodeRouter === 'boolean'
@@ -133,6 +136,18 @@ export function normalizeDesktopStoredSettings(
       typeof parsed.enableFusionRouter === 'boolean'
         ? parsed.enableFusionRouter
         : defaults.enableFusionRouter,
+    enableAutoReviewPermissionMode:
+      typeof parsed.enableAutoReviewPermissionMode === 'boolean'
+        ? parsed.enableAutoReviewPermissionMode
+        : permissionMode === 'auto-review'
+          ? true
+          : defaults.enableAutoReviewPermissionMode,
+    enableFullAccessPermissionMode:
+      typeof parsed.enableFullAccessPermissionMode === 'boolean'
+        ? parsed.enableFullAccessPermissionMode
+        : permissionMode === 'full-access'
+          ? true
+          : defaults.enableFullAccessPermissionMode,
     permissionProfile: normalizeDesktopPermissionProfile(
       parsed.permissionProfile,
       defaults.permissionProfile,
@@ -145,7 +160,7 @@ export function normalizeDesktopStoredSettings(
       parsed.approvalsReviewer,
       defaults.approvalsReviewer,
     ),
-    permissionMode: normalizeDesktopPermissionMode(parsed.permissionMode),
+    permissionMode: permissionMode === 'custom' ? 'default' : permissionMode,
     model: migrateModelAlias(stringOrDefault(parsed.model, defaults.model)),
     planExecutionModel: stringOrDefault(
       parsed.planExecutionModel,

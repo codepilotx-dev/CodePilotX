@@ -109,6 +109,8 @@ export function DesktopLayout(): React.ReactNode {
     rustSearchAndDiffKernels,
     enableParetoCodeRouter,
     enableFusionRouter,
+    enableAutoReviewPermissionMode,
+    enableFullAccessPermissionMode,
     recentWorkspaces,
     selectedModelPreset,
     providerID,
@@ -1401,6 +1403,8 @@ export function DesktopLayout(): React.ReactNode {
       localRouterMode={effectiveLocalRouterMode}
       enableParetoCodeRouter={enableParetoCodeRouter ?? false}
       enableFusionRouter={enableFusionRouter ?? false}
+      enableAutoReviewPermissionMode={enableAutoReviewPermissionMode ?? false}
+      enableFullAccessPermissionMode={enableFullAccessPermissionMode ?? false}
       thinkingMode={thinkingMode}
       selectedProviderID={selectedProviderID}
       selectedModelPreset={resolvedSelectedModelPreset}

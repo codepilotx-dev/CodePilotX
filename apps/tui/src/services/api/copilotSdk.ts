@@ -22,7 +22,7 @@ import {
   normalizeContentFromAPI,
   normalizeMessagesForAPI,
 } from '../../utils/messages.js'
-import { getSelectedProviderConfig, getSelectedProviderID } from '../../utils/model/providerConfig.js'
+import { getProviderConfig, getSelectedProviderConfig, getSelectedProviderID } from '../../utils/model/providerConfig.js'
 import { asSystemPrompt, type SystemPrompt } from '../../utils/systemPromptType.js'
 
 let sharedClient: CopilotClient | null = null
@@ -66,15 +66,20 @@ export async function* queryCopilotSdkWithStreaming({
   tools,
   signal,
   options,
+  explicitProviderID,
 }: {
   messages: Message[]
   systemPrompt: SystemPrompt
   tools: Tools
   signal: AbortSignal
   options: Options
+  explicitProviderID?: string
 }): AsyncGenerator<StreamEvent | AssistantMessage, void> {
-  const providerID = getSelectedProviderID()
-  const provider = getSelectedProviderConfig()
+  const effectiveProviderID = explicitProviderID ?? getSelectedProviderID()
+  const provider = explicitProviderID
+    ? getProviderConfig(explicitProviderID)
+    : getSelectedProviderConfig()
+  void provider // hint: provider may only be used by future extensions
   const model = options.model?.trim() || 'claude-sonnet-4.5'
 
   let session: Awaited<ReturnType<CopilotClient['createSession']>> | null = null
@@ -172,7 +177,7 @@ export async function* queryCopilotSdkWithStreaming({
       requestID,
       tools,
       agentId: options.agentId,
-      providerID,
+      providerID: effectiveProviderID,
     })
   } catch (error) {
     if (signal.aborted) {

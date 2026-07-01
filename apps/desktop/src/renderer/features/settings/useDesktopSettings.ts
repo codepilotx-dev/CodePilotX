@@ -31,6 +31,8 @@ import {
 export type UseDesktopSettingsResult = {
   enableParetoCodeRouter: boolean
   enableFusionRouter: boolean
+  enableAutoReviewPermissionMode: boolean
+  enableFullAccessPermissionMode: boolean
   permissionMode: DesktopPermissionMode
   model: string
   planExecutionModel: string
@@ -77,6 +79,8 @@ export type UseDesktopSettingsResult = {
   browserSitePermissions: DesktopBrowserSitePermission[]
   settingsLoaded: boolean
   setPermissionMode: (value: DesktopPermissionMode) => void
+  setEnableAutoReviewPermissionMode: (value: boolean) => void
+  setEnableFullAccessPermissionMode: (value: boolean) => void
   setModel: (value: string) => void
   setPlanExecutionModel: (value: string) => void
   setReviewModel: (value: string) => void
@@ -255,6 +259,14 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
   const [enableFusionRouter, setEnableFusionRouter] = useState<boolean>(
     initial.enableFusionRouter ?? false,
   )
+  const [
+    enableAutoReviewPermissionMode,
+    setEnableAutoReviewPermissionMode,
+  ] = useState<boolean>(initial.enableAutoReviewPermissionMode ?? false)
+  const [
+    enableFullAccessPermissionMode,
+    setEnableFullAccessPermissionMode,
+  ] = useState<boolean>(initial.enableFullAccessPermissionMode ?? false)
   const [permissionMode, setPermissionMode] = useState<DesktopPermissionMode>(
     initial.permissionMode,
   )
@@ -382,6 +394,12 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
         if (!mounted) return
         setEnableParetoCodeRouter(settings.enableParetoCodeRouter ?? false)
         setEnableFusionRouter(settings.enableFusionRouter ?? false)
+        setEnableAutoReviewPermissionMode(
+          settings.enableAutoReviewPermissionMode ?? false,
+        )
+        setEnableFullAccessPermissionMode(
+          settings.enableFullAccessPermissionMode ?? false,
+        )
         setPermissionMode(settings.permissionMode)
         setModel(settings.model)
         setPlanExecutionModel(settings.planExecutionModel)
@@ -444,6 +462,8 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
     () => ({
       enableParetoCodeRouter,
       enableFusionRouter,
+      enableAutoReviewPermissionMode,
+      enableFullAccessPermissionMode,
       permissionMode,
       model,
       planExecutionModel,
@@ -492,6 +512,8 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
     [
       enableParetoCodeRouter,
       enableFusionRouter,
+      enableAutoReviewPermissionMode,
+      enableFullAccessPermissionMode,
       permissionMode,
       model,
       planExecutionModel,
@@ -581,6 +603,12 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
     (snapshot: StoredDesktopSettings): void => {
       setEnableParetoCodeRouter(snapshot.enableParetoCodeRouter ?? false)
       setEnableFusionRouter(snapshot.enableFusionRouter ?? false)
+      setEnableAutoReviewPermissionMode(
+        snapshot.enableAutoReviewPermissionMode ?? false,
+      )
+      setEnableFullAccessPermissionMode(
+        snapshot.enableFullAccessPermissionMode ?? false,
+      )
       setPermissionMode(snapshot.permissionMode)
       setModel(snapshot.model)
       setPlanExecutionModel(snapshot.planExecutionModel)
@@ -710,6 +738,8 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
   return {
     enableParetoCodeRouter,
     enableFusionRouter,
+    enableAutoReviewPermissionMode,
+    enableFullAccessPermissionMode,
     permissionMode,
     model,
     planExecutionModel,
@@ -756,6 +786,8 @@ defaultOpenTargetId,
     browserSitePermissions,
     settingsLoaded,
     setPermissionMode,
+    setEnableAutoReviewPermissionMode,
+    setEnableFullAccessPermissionMode,
     setModel,
     setPlanExecutionModel,
     setReviewModel,

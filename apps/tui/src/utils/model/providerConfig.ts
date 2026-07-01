@@ -174,25 +174,27 @@ export function getSelectedProviderModelMetadata(modelID: string) {
   )
 }
 
-export function shouldUseOpenAICompatibleProvider() {
+export function shouldUseOpenAICompatibleProvider(explicitProviderID?: string) {
   return withTuiProviderRuntime(() =>
-    coreProviderConfig.shouldUseOpenAICompatibleProvider(),
+    coreProviderConfig.shouldUseOpenAICompatibleProvider(explicitProviderID),
   )
 }
 
-export function shouldUseAnthropicCompatibleProvider() {
+export function shouldUseAnthropicCompatibleProvider(explicitProviderID?: string) {
   return withTuiProviderRuntime(() =>
-    coreProviderConfig.shouldUseAnthropicCompatibleProvider(),
+    coreProviderConfig.shouldUseAnthropicCompatibleProvider(explicitProviderID),
   )
 }
 
-export function shouldUseMiniMaxProvider() {
-  return withTuiProviderRuntime(() => coreProviderConfig.shouldUseMiniMaxProvider())
+export function shouldUseMiniMaxProvider(explicitProviderID?: string) {
+  return withTuiProviderRuntime(() =>
+    coreProviderConfig.shouldUseMiniMaxProvider(explicitProviderID),
+  )
 }
 
-export function shouldUseGitHubCopilotProvider() {
+export function shouldUseGitHubCopilotProvider(explicitProviderID?: string) {
   return withTuiProviderRuntime(() =>
-    coreProviderConfig.shouldUseGitHubCopilotProvider(),
+    coreProviderConfig.shouldUseGitHubCopilotProvider(explicitProviderID),
   )
 }
 

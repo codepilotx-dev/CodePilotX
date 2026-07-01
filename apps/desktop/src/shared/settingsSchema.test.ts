@@ -132,6 +132,24 @@ test('desktop settings fallback router toggles to false when missing', () => {
   ).toBe(false)
 })
 
+test('desktop settings normalize permission option toggles as booleans', () => {
+  const defaults = defaultDesktopStoredSettings()
+  expect(defaults.enableAutoReviewPermissionMode).toBe(false)
+  expect(defaults.enableFullAccessPermissionMode).toBe(false)
+  expect(
+    normalizeDesktopStoredSettings({
+      enableAutoReviewPermissionMode: true,
+      enableFullAccessPermissionMode: true,
+    }).enableAutoReviewPermissionMode,
+  ).toBe(true)
+  expect(
+    normalizeDesktopStoredSettings({
+      enableAutoReviewPermissionMode: 'true',
+      enableFullAccessPermissionMode: 'true',
+    }).enableFullAccessPermissionMode,
+  ).toBe(false)
+})
+
 test('isLocalRouterMode validates router mode values', () => {
   expect(isLocalRouterMode('off')).toBe(true)
   expect(isLocalRouterMode('pareto-code')).toBe(true)

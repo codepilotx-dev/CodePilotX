@@ -12,6 +12,7 @@ import type {
 import { SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
 import { SettingsDropdown } from './SettingsDropdown.js'
+import { TaskModelSelect } from './TaskModelSelect.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog.js'
@@ -246,6 +247,102 @@ export function ConfigSettings(): React.ReactNode {
                 checked={draft.values.allowNetworkAccess}
                 onChange={value => {
                   draft.setValue('allowNetworkAccess', value)
+                  draft.autoSave()
+                }}
+              />
+            }
+          />
+        </SettingsSection>
+
+        <SettingsSection
+          title="任务模型"
+          description="这些模型对应轻量、常规和深度任务入口；留空时会使用上面的会话主模型。"
+        >
+          <SettingsRow
+            title="快速模型"
+            description="用于标题、摘要、Hook、检索等轻量辅助任务；未配置时使用主模型。"
+            control={
+              <TaskModelSelect
+                value={draft.values.smallFastModel}
+                mainModel={settings.model}
+                taskModelKey="smallFastModel"
+                onChange={v => {
+                  draft.setValue('smallFastModel', v)
+                  draft.autoSave()
+                }}
+              />
+            }
+          />
+          <SettingsRow
+            title="快速任务模型"
+            description="用于低成本子任务、轻量 Agent 和辅助生成；未配置时使用主模型。"
+            control={
+              <TaskModelSelect
+                value={draft.values.fastModel}
+                mainModel={settings.model}
+                taskModelKey="fastModel"
+                onChange={v => {
+                  draft.setValue('fastModel', v)
+                  draft.autoSave()
+                }}
+              />
+            }
+          />
+          <SettingsRow
+            title="默认任务模型"
+            description="用于常规 Agent、计划外的主力任务入口；未配置时使用主模型。"
+            control={
+              <TaskModelSelect
+                value={draft.values.defaultModel}
+                mainModel={settings.model}
+                taskModelKey="defaultModel"
+                onChange={v => {
+                  draft.setValue('defaultModel', v)
+                  draft.autoSave()
+                }}
+              />
+            }
+          />
+          <SettingsRow
+            title="深度任务模型"
+            description="用于高质量推理、复杂修改和深度审查；未配置时使用主模型。"
+            control={
+              <TaskModelSelect
+                value={draft.values.deepModel}
+                mainModel={settings.model}
+                taskModelKey="deepModel"
+                onChange={v => {
+                  draft.setValue('deepModel', v)
+                  draft.autoSave()
+                }}
+              />
+            }
+          />
+          <SettingsRow
+            title="计划执行模型"
+            description="批准计划后用于实施阶段；未配置时使用默认任务模型。"
+            control={
+              <TaskModelSelect
+                value={draft.values.planExecutionModel}
+                mainModel={settings.model}
+                taskModelKey="planExecutionModel"
+                onChange={v => {
+                  draft.setValue('planExecutionModel', v)
+                  draft.autoSave()
+                }}
+              />
+            }
+          />
+          <SettingsRow
+            title="自动审查模型（实验）"
+            description="仅用于 auto-review reviewer session；自定义模型可能因能力、格式或配置不兼容导致 auto-review 失效并回退人工审批。"
+            control={
+              <TaskModelSelect
+                value={draft.values.reviewModel}
+                mainModel={settings.model}
+                taskModelKey="reviewModel"
+                onChange={v => {
+                  draft.setValue('reviewModel', v)
                   draft.autoSave()
                 }}
               />

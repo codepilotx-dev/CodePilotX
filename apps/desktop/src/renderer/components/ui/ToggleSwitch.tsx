@@ -5,14 +5,16 @@ type Props = {
   checked: boolean
   onChange: (checked: boolean) => void
   ariaLabel?: string
+  disabled?: boolean
 }
 
-export function ToggleSwitch({ checked, onChange, ariaLabel }: Props) {
+export function ToggleSwitch({ checked, onChange, ariaLabel, disabled = false }: Props) {
   return (
     <Switch.Root
       aria-label={ariaLabel}
       className={`toggle-switch ${checked ? 'on' : ''}`}
       checked={checked}
+      disabled={disabled}
       onCheckedChange={onChange}
     >
       <Switch.Thumb className="toggle-knob" />

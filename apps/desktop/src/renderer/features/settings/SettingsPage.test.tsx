@@ -60,6 +60,20 @@ test('desktop settings draft changes do not save until committed', async () => {
   expect(saves).toEqual(['draft-model'])
 })
 
+test('desktop settings draft auto-save commits changed values immediately', async () => {
+  const savedSettings = defaultDesktopStoredSettings()
+  const saves: string[] = []
+  const draft = createDesktopSettingsDraft(savedSettings, async snapshot => {
+    saves.push(snapshot.thinkingMode)
+  })
+
+  draft.setValue('thinkingMode', 'adaptive')
+  draft.autoSave()
+  await Promise.resolve()
+
+  expect(saves).toEqual(['adaptive'])
+})
+
 test('desktop settings draft save preserves external effective changes', async () => {
   const savedSettings = defaultDesktopStoredSettings()
   const draft = createDesktopSettingsDraft(savedSettings, async snapshot => snapshot)

@@ -638,10 +638,6 @@ const nextState = await desktopClient.deleteProviderApiKey(providerID)
   const dropdownModelValue = modelOptions.some(option => option.value === model)
     ? model
     : dropdownModelOptions[0]?.value ?? NO_MODEL_OPTION
-  const taskModelOptions = useMemo(
-    () => buildTaskModelOptions(modelOptions, model),
-    [model, modelOptions],
-  )
 
   return (
     <SettingsContentArea>
@@ -963,120 +959,6 @@ const nextState = await desktopClient.deleteProviderApiKey(providerID)
           />
         </SettingsSection>
 
-        <SettingsSection
-          title="任务模型"
-          description="这些模型对应轻量、常规和深度任务入口；留空时会使用上面的会话主模型。"
-        >
-          <SettingsRow
-            title="快速模型"
-            description="用于标题、摘要、Hook、检索等轻量辅助任务；未配置时使用主模型。"
-            control={
-              <SettingsDropdown
-                ariaLabel="快速任务模型"
-                value={taskModelValue(
-                  settings.draft.values.smallFastModel,
-                  taskModelOptions,
-                )}
-                options={taskModelOptions}
-                onChange={value => {
-                  settings.draft.setValue('smallFastModel', value)
-                  settings.draft.autoSave()
-                }}
-              />
-            }
-          />
-          <SettingsRow
-            title="快速任务模型"
-            description="用于低成本子任务、轻量 Agent 和辅助生成；未配置时使用主模型。"
-            control={
-              <SettingsDropdown
-                ariaLabel="快速任务模型"
-                value={taskModelValue(
-                  settings.draft.values.fastModel,
-                  taskModelOptions,
-                )}
-                options={taskModelOptions}
-                onChange={value => {
-                  settings.draft.setValue('fastModel', value)
-                  settings.draft.autoSave()
-                }}
-              />
-            }
-          />
-          <SettingsRow
-            title="默认任务模型"
-            description="用于常规 Agent、计划外的主力任务入口；未配置时使用主模型。"
-            control={
-              <SettingsDropdown
-                ariaLabel="默认任务模型"
-                value={taskModelValue(
-                  settings.draft.values.defaultModel,
-                  taskModelOptions,
-                )}
-                options={taskModelOptions}
-                onChange={value => {
-                  settings.draft.setValue('defaultModel', value)
-                  settings.draft.autoSave()
-                }}
-              />
-            }
-          />
-          <SettingsRow
-            title="深度任务模型"
-            description="用于高质量推理、复杂修改和深度审查；未配置时使用主模型。"
-            control={
-              <SettingsDropdown
-                ariaLabel="深度任务模型"
-                value={taskModelValue(
-                  settings.draft.values.deepModel,
-                  taskModelOptions,
-                )}
-                options={taskModelOptions}
-                onChange={value => {
-                  settings.draft.setValue('deepModel', value)
-                  settings.draft.autoSave()
-                }}
-              />
-            }
-          />
-          <SettingsRow
-            title="计划执行模型"
-            description="批准计划后用于实施阶段；未配置时使用默认任务模型。"
-            control={
-              <SettingsDropdown
-                ariaLabel="计划执行模型"
-                value={taskModelValue(
-                  settings.draft.values.planExecutionModel,
-                  taskModelOptions,
-                )}
-                options={taskModelOptions}
-                onChange={value => {
-                  settings.draft.setValue('planExecutionModel', value)
-                  settings.draft.autoSave()
-                }}
-              />
-            }
-          />
-          <SettingsRow
-            title="自动审查模型（实验）"
-            description="仅用于 auto-review reviewer session；自定义模型可能因能力、格式或配置不兼容导致 auto-review 失效并回退人工审批。"
-            control={
-              <SettingsDropdown
-                ariaLabel="自动审查模型"
-                value={taskModelValue(
-                  settings.draft.values.reviewModel,
-                  taskModelOptions,
-                )}
-                options={taskModelOptions}
-                onChange={value => {
-                  settings.draft.setValue('reviewModel', value)
-                  settings.draft.autoSave()
-                }}
-              />
-            }
-          />
-        </SettingsSection>
-
         {isDeepSeek ? (
           <SettingsSection title="DeepSeek 状态" description="DeepSeek 直连模式会保留余额查询、思考参数和输出 token 优化。">
             <SettingsRow
@@ -1286,29 +1168,6 @@ function modelOptionDetail(metadata: DesktopModelMetadata | undefined): string |
   const sources = metadata.catalogSources?.join('+')
   if (sources) parts.push(sources)
   return parts.join(' / ')
-}
-
-function buildTaskModelOptions(
-  modelOptions: Array<{ value: string; label: string; detail?: string }>,
-  mainModel: string,
-): Array<{ value: string; label: string; detail?: string }> {
-  const inheritedLabel = mainModel ? `使用主模型 (${mainModel})` : '使用主模型'
-  return [
-    {
-      value: '',
-      label: inheritedLabel,
-      detail: '不单独配置时，运行时会继承会话主模型。',
-    },
-    ...modelOptions,
-  ]
-}
-
-function taskModelValue(
-  value: string,
-  options: Array<{ value: string; label: string; detail?: string }>,
-): string {
-  if (!value) return ''
-  return options.some(option => option.value === value) ? value : ''
 }
 
 function formatModelMetadata(metadata: DesktopModelMetadata): string {

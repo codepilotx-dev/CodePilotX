@@ -129,6 +129,7 @@ export function GitSettings(): React.ReactNode {
           <SettingsRow
             title="拉取请求合并方法"
             description="选择 CodePilotX 合并拉取请求的方法"
+            autoSave
             control={
               <SegmentedControl
                 value={gitPrMergeMethod}

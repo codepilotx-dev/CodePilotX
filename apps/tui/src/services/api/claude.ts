@@ -261,6 +261,7 @@ import {
   shouldUseGitHubCopilotProvider,
   shouldUseMiniMaxProvider,
   shouldUseOpenAICompatibleProvider,
+  splitProviderModel,
 } from '../../utils/model/providerConfig.js'
 
 // Define a type that represents valid JSON values
@@ -710,6 +711,10 @@ export type Options = {
   // so the model can pace itself. `remaining` is computed by the caller
   // (query.ts decrements across the agentic loop).
   taskBudget?: { total: number; remaining?: number }
+  // When set, overrides the global provider selection and routes the request
+  // to the specified provider. The value should be a providerID parsed from
+  // a `provider/model` string via splitProviderModel().
+  explicitProviderID?: string
 }
 
 export async function queryModelWithoutStreaming({
@@ -727,7 +732,13 @@ export async function queryModelWithoutStreaming({
   signal: AbortSignal
   options: Options
 }): Promise<AssistantMessage> {
-  if (shouldUseMiniMaxProvider()) {
+  const routingProviderID = options.explicitProviderID
+    ?? (() => {
+      const parsed = splitProviderModel(options.model)
+      return parsed?.providerID ?? null
+    })()
+
+  if (shouldUseMiniMaxProvider(routingProviderID)) {
     let assistantMessage: AssistantMessage | undefined
     for await (const message of queryMiniMaxWithAiSdkStreaming({
       messages,
@@ -736,6 +747,7 @@ export async function queryModelWithoutStreaming({
       signal,
       _thinkingConfig: thinkingConfig,
       options,
+      explicitProviderID: routingProviderID ?? undefined,
     })) {
       if (message.type === 'assistant') {
         assistantMessage = message
@@ -750,7 +762,7 @@ export async function queryModelWithoutStreaming({
     return assistantMessage
   }
 
-  if (shouldUseOpenAICompatibleProvider()) {
+  if (shouldUseOpenAICompatibleProvider(routingProviderID)) {
     let assistantMessage: AssistantMessage | undefined
     for await (const message of queryOpenAICompatibleModelWithStreaming({
       messages,
@@ -759,6 +771,7 @@ export async function queryModelWithoutStreaming({
       signal,
       thinkingConfig,
       options,
+      explicitProviderID: routingProviderID ?? undefined,
     })) {
       if (message.type === 'assistant') {
         assistantMessage = message
@@ -773,7 +786,7 @@ export async function queryModelWithoutStreaming({
     return assistantMessage
   }
 
-  if (shouldUseGitHubCopilotProvider()) {
+  if (shouldUseGitHubCopilotProvider(routingProviderID)) {
     let assistantMessage: AssistantMessage | undefined
     for await (const message of queryCopilotSdkWithStreaming({
       messages,
@@ -781,6 +794,7 @@ export async function queryModelWithoutStreaming({
       tools,
       signal,
       options,
+      explicitProviderID: routingProviderID ?? undefined,
     })) {
       if (message.type === 'assistant') {
         assistantMessage = message
@@ -841,7 +855,13 @@ export async function* queryModelWithStreaming({
   StreamEvent | AssistantMessage | SystemAPIErrorMessage,
   void
 > {
-  if (shouldUseMiniMaxProvider()) {
+  const routingProviderID = options.explicitProviderID
+    ?? (() => {
+      const parsed = splitProviderModel(options.model)
+      return parsed?.providerID ?? null
+    })()
+
+  if (shouldUseMiniMaxProvider(routingProviderID)) {
     yield* queryMiniMaxWithAiSdkStreaming({
       messages,
       systemPrompt,
@@ -849,11 +869,12 @@ export async function* queryModelWithStreaming({
       signal,
       _thinkingConfig: thinkingConfig,
       options,
+      explicitProviderID: routingProviderID ?? undefined,
     })
     return
   }
 
-  if (shouldUseOpenAICompatibleProvider()) {
+  if (shouldUseOpenAICompatibleProvider(routingProviderID)) {
     yield* queryOpenAICompatibleModelWithStreaming({
       messages,
       systemPrompt,
@@ -861,17 +882,19 @@ export async function* queryModelWithStreaming({
       signal,
       thinkingConfig,
       options,
+      explicitProviderID: routingProviderID ?? undefined,
     })
     return
   }
 
-  if (shouldUseGitHubCopilotProvider()) {
+  if (shouldUseGitHubCopilotProvider(routingProviderID)) {
     yield* queryCopilotSdkWithStreaming({
       messages,
       systemPrompt,
       tools,
       signal,
       options,
+      explicitProviderID: routingProviderID ?? undefined,
     })
     return
   }

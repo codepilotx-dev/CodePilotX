@@ -61,6 +61,7 @@ export async function* queryMiniMaxWithAiSdkStreaming({
   signal,
   _thinkingConfig,
   options,
+  explicitProviderID,
 }: {
   messages: Message[]
   systemPrompt: SystemPrompt
@@ -68,11 +69,14 @@ export async function* queryMiniMaxWithAiSdkStreaming({
   signal: AbortSignal
   _thinkingConfig?: ThinkingConfig
   options: Options
+  explicitProviderID?: string
 }): AsyncGenerator<StreamEvent | AssistantMessage, void> {
-  const providerID = getSelectedProviderID()
-  const provider = getSelectedProviderConfig()
-  const apiKey = getProviderApiKey(providerID)
-  const apiKeySource = getProviderApiKeySource(providerID) ?? null
+  const effectiveProviderID = explicitProviderID ?? getSelectedProviderID()
+  const provider = explicitProviderID
+    ? getProviderConfig(explicitProviderID)
+    : getSelectedProviderConfig()
+  const apiKey = getProviderApiKey(effectiveProviderID)
+  const apiKeySource = getProviderApiKeySource(effectiveProviderID) ?? null
   if (!apiKey) {
     yield createAssistantAPIErrorMessage({
       content:
@@ -98,7 +102,7 @@ export async function* queryMiniMaxWithAiSdkStreaming({
     const aiTools = await buildMiniMaxAiSdkTools(tools, options)
     const aiSdkMessages = toAiSdkMessages(normalizedMessages, tools)
     setConversationDebugProvider({
-      providerID,
+      providerID: effectiveProviderID,
       baseURL: provider.baseURL,
       model: resolveMiniMaxModel(options.model),
       apiKeySource,
