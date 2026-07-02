@@ -887,3 +887,67 @@
   background: var(--permission-chip-hover-bg, var(--c-sidebar-hover-bg));
   color: var(--permission-chip-hover-color, var(--c-text-strong));
 }
+
+/* Shared composer visual shell — used by main composer and side chat composer. */
+.composer-surface {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: calc(var(--layout-toolbar-gap) - 2px) var(--layout-toolbar-gap)
+    calc(var(--layout-toolbar-gap) - 4px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--c-panel-bg);
+  box-shadow: 0 2px 8px var(--black-a1);
+  transition:
+    height 0.24s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.2s ease-out,
+    box-shadow 0.2s ease-out;
+}
+
+.composer-surface > .composer {
+  width: 100%;
+  max-width: none;
+  padding-bottom: 0;
+}
+
+.composer-surface .composer-top {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.composer-surface .composer-bottom {
+  display: none;
+  width: 100%;
+  max-width: none;
+  margin-top: 8px;
+  padding: 8px 0 0;
+  border-top: 1px solid var(--c-border-faint);
+}
+
+.composer-surface--display-bottom .composer-bottom {
+  display: flex;
+}
+
+.composer-surface .inline-approval-card,
+.composer-surface .workflow-composer-card {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
+.composer-surface .composer-change-summary {
+  max-width: none;
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: var(--radius-5);
+  box-shadow: none;
+  background: var(--c-bg-soft);
+}

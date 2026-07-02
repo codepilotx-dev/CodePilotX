@@ -861,52 +861,11 @@
   background: var(--c-bg);
 }
 
-.right-dock-side-chat-empty {
-  position: absolute;
-  inset: 0;
-}
-
-.right-dock-side-chat-composer {
+.right-dock-side-chat > .composer-surface {
   position: absolute;
   left: 44px;
   right: 44px;
   bottom: 28px;
-  display: grid;
-  gap: 8px;
-  padding: 18px 20px;
-  border: 1px solid var(--c-border-soft);
-  border-radius: var(--radius-6);
-  background: var(--c-bg);
-  box-shadow: 0 18px 52px var(--black-a2);
-}
-
-.right-dock-side-chat-composer textarea {
-  width: 100%;
-  min-height: 54px;
-  border: 0;
-  outline: 0;
-  resize: none;
-  background: transparent;
-  color: var(--c-text);
-  font-family: inherit;
-  font-size: var(--fs-18);
-  font-style: inherit;
-  font-weight: inherit;
-  line-height: inherit;
-}
-
-.right-dock-side-chat-actions {
-  display: flex;
-  justify-content: space-between;
-}
-
-.right-dock-side-chat-actions button {
-  min-width: 34px;
-  height: 34px;
-  border: 0;
-  border-radius: var(--radius-6);
-  background: var(--c-bg-hover);
-  color: var(--c-text-meta);
 }
 
 .app-shell.menubar-debug-mode .workflow-page__sidebar {
@@ -980,7 +939,6 @@
 
 .right-dock-search,
 .right-dock-file-document header,
-.right-dock-side-chat-composer,
 .right-dock-terminal-composer input {
   border-color: var(--c-border-soft);
   border-radius: var(--radius-6);
