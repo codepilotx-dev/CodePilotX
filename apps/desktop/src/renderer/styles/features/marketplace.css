@@ -57,45 +57,6 @@
   gap: var(--sp-2);
 }
 
-.plugins-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 40px;
-  padding: 0 20px;
-  border-radius: var(--radius-button);
-  font-size: 14px;
-  font-weight: var(--font-weight-label);
-  background: var(--c-bg);
-  border: 1px solid var(--c-border-soft);
-  color: var(--c-text-strong);
-  cursor: pointer;
-  transition:
-    background var(--motion-standard) var(--ease-standard),
-    border-color var(--motion-standard) var(--ease-standard),
-    box-shadow var(--motion-standard) var(--ease-standard),
-    color var(--motion-standard) var(--ease-standard);
-}
-
-.plugins-button.is-ghost {
-  background: transparent;
-}
-
-.plugins-button.is-primary {
-  background: var(--c-send-bg);
-  color: var(--c-text-on-accent);
-  border-color: var(--c-send-bg);
-}
-
-.plugins-button.is-ghost:hover {
-  background: var(--c-bg-hover);
-}
-
-.plugins-button.is-primary:hover {
-  background: var(--c-send-bg-hover);
-  border-color: var(--c-send-bg-hover);
-}
-
 .plugins-more-dots {
   display: inline-flex;
   flex-direction: column;
@@ -230,26 +191,6 @@
   color: var(--c-accent);
 }
 
-.plugins-hero-cta {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 40px;
-  padding: 0 20px;
-  border: 1px solid var(--c-send-bg);
-  border-radius: var(--radius-button);
-  background: var(--c-send-bg);
-  color: var(--c-text-on-accent);
-  font-size: 14px;
-  font-weight: var(--font-weight-label);
-  cursor: pointer;
-  transition: background 120ms ease;
-}
-
-.plugins-hero-cta:hover {
-  background: var(--c-send-bg-hover);
-}
-
 .plugins-hero-dots {
   position: absolute;
   top: 50%;
@@ -357,7 +298,7 @@
   background: linear-gradient(
     135deg,
     var(--red-9),
-    var(--orange-9) 60%,
+    var(--claude-accent-amber) 60%,
     var(--amber-9)
   );
   color: var(--c-text-on-accent);

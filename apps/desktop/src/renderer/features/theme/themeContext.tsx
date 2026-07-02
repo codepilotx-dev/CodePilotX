@@ -59,6 +59,9 @@ const THEME_VARIABLES = [
   '--glass-surface-bg',
   '--glass-surface-border',
   '--glass-surface-highlight',
+  '--glass-surface-text',
+  '--glass-surface-text-meta',
+  '--glass-surface-text-disabled',
   '--glass-surface-blur',
   '--c-surface',
   '--c-ink',
@@ -334,21 +337,18 @@ function applyDesktopTheme(
   root.classList.toggle('dracula-theme', dracula)
   const bgSoftMix = contrastMix(contrast, 1, 6)
   const bgRowHoverMix = variant === 'dark' ? 12 : 7
-  const bgHoverMix = variant === 'dark' ? 14 : 8
   const stateHoverMix = variant === 'dark' ? 14 : 9
   const stateActiveMix = variant === 'dark' ? 22 : 15
-  const chipHoverSurface =
-    variant === 'dark'
-      ? surfaceInkMix(theme, contrastMix(contrast, 6, 15))
-      : theme.surface
   const layoutTokens = deriveLayoutThemeTokens(theme, variant, contrast)
+  const sidebarHoverBg =
+    layoutTokens['--c-sidebar-hover-bg'] ?? colorMix(theme.accent, stateHoverMix, 'transparent')
   root.style.setProperty('--contrast', String(contrast))
   root.style.setProperty('--c-bg', theme.surface)
   root.style.setProperty('--c-bg-soft', surfaceInkMix(theme, bgSoftMix))
   root.style.setProperty('--c-bg-mask', surfaceInkMix(theme, bgSoftMix))
-  root.style.setProperty('--c-bg-hover', colorMix(theme.accent, bgHoverMix, 'transparent'))
-  root.style.setProperty('--c-bg-row-hover', colorMix(theme.accent, bgRowHoverMix, 'transparent'))
-  root.style.setProperty('--c-bg-chip-hover', colorMix(theme.accent, variant === 'dark' ? 26 : 16, chipHoverSurface))
+  root.style.setProperty('--c-bg-hover', sidebarHoverBg)
+  root.style.setProperty('--c-bg-row-hover', sidebarHoverBg)
+  root.style.setProperty('--c-bg-chip-hover', sidebarHoverBg)
   root.style.setProperty('--c-bg-card', surfaceInkMix(theme, contrastMix(contrast, 1, 4)))
   root.style.setProperty('--c-popover-bg', theme.surface)
   root.style.setProperty('--c-popover-border', surfaceInkMix(theme, contrastMix(contrast, 4, 8)))
@@ -356,8 +356,8 @@ function applyDesktopTheme(
   root.style.setProperty(
     '--glass-surface-bg',
     variant === 'dark'
-      ? colorMix(theme.surface, 82, 'transparent')
-      : colorMix(theme.surface, 88, 'transparent'),
+      ? colorMix(theme.surface, 20, 'transparent')
+      : colorMix(theme.surface, 20, 'transparent'),
   )
   root.style.setProperty(
     '--glass-surface-border',
@@ -370,6 +370,22 @@ function applyDesktopTheme(
     variant === 'dark'
       ? 'rgba(255, 255, 255, 0.08)'
       : 'rgba(255, 255, 255, 0.72)',
+  )
+  root.style.setProperty(
+    '--glass-surface-text',
+    variant === 'dark' ? 'rgba(255, 255, 255, 0.94)' : theme.ink,
+  )
+  root.style.setProperty(
+    '--glass-surface-text-meta',
+    variant === 'dark'
+      ? 'rgba(255, 255, 255, 0.72)'
+      : colorMix(theme.ink, 78, theme.surface),
+  )
+  root.style.setProperty(
+    '--glass-surface-text-disabled',
+    variant === 'dark'
+      ? 'rgba(255, 255, 255, 0.42)'
+      : colorMix(theme.ink, 52, theme.surface),
   )
   root.style.setProperty('--glass-surface-blur', '14px')
   root.style.setProperty('--c-surface', theme.surface)
@@ -408,7 +424,7 @@ function applyDesktopTheme(
   root.style.setProperty('--c-diff-added', theme.semanticColors.diffAdded)
   root.style.setProperty('--c-diff-removed', theme.semanticColors.diffRemoved)
   root.style.setProperty('--c-skill', theme.semanticColors.skill)
-  root.style.setProperty('--state-hover-bg', colorMix(theme.accent, stateHoverMix, 'transparent'))
+  root.style.setProperty('--state-hover-bg', sidebarHoverBg)
   root.style.setProperty('--state-active-bg', colorMix(theme.accent, stateActiveMix, 'transparent'))
   for (const [name, value] of Object.entries(layoutTokens)) {
     root.style.setProperty(name, value)

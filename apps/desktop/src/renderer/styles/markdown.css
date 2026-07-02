@@ -232,85 +232,36 @@
   font-size: inherit;
 }
 
-/* highlight.js 主题（极简，仅改色不引外部 css） */
+/* highlight.js 主题（Claude-branded colors） */
 .md-body .hljs-keyword,
 .md-body .hljs-tag,
-.md-body .hljs-selector-tag {
-  color: #d98568;
-}
-
-.md-body .hljs-string,
-.md-body .hljs-attr,
-.md-body .hljs-doctag {
-  color: var(--green-11);
-}
-
-.md-body .hljs-number,
-.md-body .hljs-literal,
-.md-body .hljs-symbol,
-.md-body .hljs-bullet {
-  color: var(--orange-11);
-}
-
-.md-body .hljs-comment,
-.md-body .hljs-quote {
-  color: var(--c-text-meta);
-  font-style: italic;
-}
-
+.md-body .hljs-selector-tag,
 .md-body .hljs-title,
 .md-body .hljs-name,
 .md-body .hljs-section,
 .md-body .hljs-function .hljs-title {
-  color: var(--c-accent);
-}
-
-.md-body .hljs-variable,
-.md-body .hljs-template-variable,
-.md-body .hljs-attribute {
-  color: var(--red-11);
-}
-
-.md-body .hljs-built_in,
-.md-body .hljs-type {
-  color: var(--amber-11);
-}
-
-:root[data-theme='light'] .md-body .hljs-keyword,
-:root[data-theme='light'] .md-body .hljs-tag,
-:root[data-theme='light'] .md-body .hljs-selector-tag {
   color: #d98568;
 }
 
-:root[data-theme='light'] .md-body .hljs-string,
-:root[data-theme='light'] .md-body .hljs-attr {
-  color: var(--green-11);
+.md-body .hljs-string,
+.md-body .hljs-attr {
+  color: var(--claude-accent-teal);
 }
 
-:root[data-theme='light'] .md-body .hljs-number {
-  color: var(--amber-11);
+.md-body .hljs-number,
+.md-body .hljs-built_in,
+.md-body .hljs-type {
+  color: var(--claude-accent-amber);
 }
 
-:root[data-theme='light'] .md-body .hljs-comment {
-  color: var(--c-text-meta);
+.md-body .hljs-comment {
+  color: var(--c-text-mute);
   font-style: italic;
 }
 
-:root[data-theme='light'] .md-body .hljs-title,
-:root[data-theme='light'] .md-body .hljs-name,
-:root[data-theme='light'] .md-body .hljs-section,
-:root[data-theme='light'] .md-body .hljs-function .hljs-title {
-  color: var(--c-accent);
-}
-
-:root[data-theme='light'] .md-body .hljs-variable,
-:root[data-theme='light'] .md-body .hljs-attribute {
-  color: var(--red-11);
-}
-
-:root[data-theme='light'] .md-body .hljs-built_in,
-:root[data-theme='light'] .md-body .hljs-type {
-  color: var(--amber-11);
+.md-body .hljs-variable,
+.md-body .hljs-attribute {
+  color: var(--c-text-soft);
 }
 
 /* 表格 */

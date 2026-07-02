@@ -759,6 +759,15 @@
   animation: none;
 }
 
+.sidebar-brand-floating,
+.sidebar-history-watermark {
+  color: var(--c-text-mute);
+}
+
+.sidebar-update-dot {
+  background: var(--claude-accent-amber);
+}
+
 .sidebar-settings-icon-wrap {
   position: relative;
   display: inline-flex;
@@ -771,5 +780,4 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #f0b400;
 }

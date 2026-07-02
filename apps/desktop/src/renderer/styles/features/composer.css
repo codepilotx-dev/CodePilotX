@@ -1,3 +1,10 @@
+/* Context limit banner — wired from primitives */
+.context-limit-reached-banner {
+  border-color: var(--c-border-soft);
+  background: color-mix(in srgb, var(--c-panel-bg) 74%, transparent);
+  color: var(--c-text-meta);
+}
+
 .composer {
   position: relative;
   z-index: var(--z-composer);
@@ -15,9 +22,9 @@
   align-items: center;
   gap: 6px;
   padding: 6px 12px 6px 10px;
-  background: var(--orange-3);
-  color: var(--orange-11);
-  border-bottom: 1px solid var(--orange-6);
+  border-bottom: 1px solid color-mix(in srgb, var(--claude-accent-amber) 50%, var(--c-border));
+  background: color-mix(in srgb, var(--claude-accent-amber) 18%, var(--c-panel-bg));
+  color: var(--c-warning);
   font-size: var(--fs-12);
   line-height: 1.4;
   font-weight: 500;
@@ -28,18 +35,8 @@
   height: var(--app-icon-size);
   display: block;
   flex-shrink: 0;
-  color: var(--orange-10);
+  color: var(--c-warning);
   stroke-width: var(--app-icon-stroke-width);
-}
-
-:root[data-theme="dark"] .permission-warning-banner {
-  background: var(--orange-3);
-  color: var(--orange-11);
-  border-bottom-color: var(--orange-6);
-}
-
-:root[data-theme="dark"] .permission-warning-banner > svg {
-  color: var(--orange-10);
 }
 
 .composer-top {
@@ -82,8 +79,8 @@
 }
 
 .composer-attachment-card.error {
-  border-color: var(--orange-6);
-  background: var(--orange-2);
+  border-color: color-mix(in srgb, var(--claude-accent-amber) 50%, transparent);
+  background: color-mix(in srgb, var(--claude-accent-amber) 15%, transparent);
 }
 
 .composer-attachment-thumbnail {
@@ -134,7 +131,7 @@
 }
 
 .composer-attachment-card.error .composer-attachment-meta {
-  color: var(--orange-11);
+  color: var(--c-warning);
 }
 
 .composer-attachment-remove {
@@ -240,7 +237,7 @@
 
 .slash-command-item:hover,
 .slash-command-item.is-selected {
-  background: var(--c-bg-row-hover);
+  background: var(--c-sidebar-hover-bg);
 }
 
 .slash-command-item-icon {
@@ -317,6 +314,14 @@
   border-radius: var(--radius-full);
 }
 
+.composer .send-button {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  margin-left: 2px;
+}
+
 .composer-mic-button {
   width: 22px;
   height: 22px;
@@ -328,74 +333,17 @@
 }
 
 .composer .icon-button:hover {
-  background: var(--c-bg-hover);
+  background: var(--c-sidebar-hover-bg);
 }
 
 .composer .icon-button.active {
-  background: var(--c-bg-hover);
+  background: var(--c-sidebar-hover-bg);
   color: var(--c-text);
-}
-
-.send-button {
-  width: 28px;
-  height: 28px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin-left: 2px;
-  border-radius: var(--radius-full);
-  background: var(--c-send-bg);
-  color: var(--c-text-on-accent);
-  transition:
-    background var(--motion-standard) var(--ease-standard),
-    opacity var(--motion-standard) var(--ease-standard);
-}
-
-.send-button:hover:not(:disabled) {
-  background: var(--c-send-bg-hover);
-}
-
-.send-button:active:not(:disabled) {
-  opacity: 0.92;
-}
-
-.send-button:disabled {
-  background: var(--c-send-bg-disabled);
-  color: var(--c-text-meta);
-  transform: none;
 }
 
 .composer-bottom {
   gap: 10px;
   padding: 6px;
-}
-
-.chip-button {
-  appearance: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 5px 10px;
-  border: 0;
-  border-radius: var(--radius-6);
-  background: transparent;
-  color: var(--c-accent);
-  font-size: var(--fs-12);
-  transition:
-    background var(--motion-standard) var(--ease-standard),
-    box-shadow var(--motion-standard) var(--ease-standard),
-    color var(--motion-standard) var(--ease-standard),
-    transform var(--motion-fast) var(--ease-standard);
-}
-
-.chip-button.subtle {
-  color: var(--c-text-strong);
-}
-
-.chip-button.subtle:hover,
-.chip-button.subtle.active {
-  background: var(--c-bg-chip-hover);
-  color: var(--c-text-strong);
 }
 
 .composer-model-chip {
@@ -438,17 +386,17 @@
 .chip-button.permission-chip:hover,
 .permission-select-trigger:hover {
   border-color: var(--permission-chip-hover-border, var(--permission-chip-border, transparent));
-  background: var(--permission-chip-hover-bg, color-mix(in srgb, var(--c-accent) 11%, var(--c-bg)));
+  background: var(--permission-chip-hover-bg, var(--c-sidebar-hover-bg));
   color: var(--permission-chip-hover-color, var(--permission-chip-color, var(--c-text-strong)));
 }
 
 .permission-chip-default,
 .permission-chip-customConfig {
-  --permission-chip-bg: color-mix(in srgb, var(--c-accent) 5%, var(--c-bg));
-  --permission-chip-border: color-mix(in srgb, var(--c-accent) 10%, var(--c-border-soft));
+  --permission-chip-bg: transparent;
+  --permission-chip-border: transparent;
   --permission-chip-color: var(--c-text-strong);
-  --permission-chip-hover-bg: color-mix(in srgb, var(--c-accent) 11%, var(--c-bg));
-  --permission-chip-hover-border: color-mix(in srgb, var(--c-accent) 24%, var(--c-border-soft));
+  --permission-chip-hover-bg: var(--c-sidebar-hover-bg);
+  --permission-chip-hover-border: var(--permission-chip-border);
   --permission-chip-hover-color: var(--c-text-strong);
 }
 
@@ -456,18 +404,18 @@
   --permission-chip-bg: color-mix(in srgb, var(--c-accent) 10%, var(--c-bg));
   --permission-chip-border: color-mix(in srgb, var(--c-accent) 18%, var(--c-border-soft));
   --permission-chip-color: var(--c-text-strong);
-  --permission-chip-hover-bg: color-mix(in srgb, var(--c-accent) 18%, var(--c-bg));
-  --permission-chip-hover-border: color-mix(in srgb, var(--c-accent) 34%, var(--c-border-soft));
+  --permission-chip-hover-bg: var(--c-sidebar-hover-bg);
+  --permission-chip-hover-border: var(--permission-chip-border);
   --permission-chip-hover-color: var(--c-text-strong);
 }
 
 .permission-chip-bypassPermissions {
-  --permission-chip-bg: var(--orange-3);
-  --permission-chip-border: color-mix(in srgb, var(--orange-9) 22%, var(--c-border-soft));
-  --permission-chip-color: var(--orange-11);
-  --permission-chip-hover-bg: color-mix(in srgb, var(--orange-9) 18%, var(--c-bg));
-  --permission-chip-hover-border: color-mix(in srgb, var(--orange-9) 38%, var(--c-border-soft));
-  --permission-chip-hover-color: var(--orange-11);
+  --permission-chip-bg: color-mix(in srgb, var(--claude-accent-amber) 15%, var(--c-bg));
+  --permission-chip-border: color-mix(in srgb, var(--claude-accent-amber) 25%, var(--c-border-soft));
+  --permission-chip-color: var(--c-warning);
+  --permission-chip-hover-bg: var(--c-sidebar-hover-bg);
+  --permission-chip-hover-border: var(--permission-chip-border);
+  --permission-chip-hover-color: var(--c-warning);
 }
 
 .composer-plan-mode-chip {
@@ -572,31 +520,6 @@
   min-width: 0;
   display: grid;
   gap: 2px;
-}
-
-.permission-select-item {
-  display: flex;
-  align-items: center;
-  min-height: 32px;
-  gap: 10px;
-  padding: 6px 10px;
-  border-radius: 8px;
-  color: var(--c-text);
-  font-size: var(--fs-14);
-  cursor: pointer;
-  outline: none;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-.permission-select-item[data-highlighted],
-.permission-select-item:focus-visible {
-  background: var(--state-active-bg);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c-accent) 20%, transparent);
-}
-
-.permission-select-item[data-state="checked"] {
-  color: var(--c-text-strong);
 }
 
 .permission-select-item-icon {
@@ -712,40 +635,6 @@
   transform: translateX(-50%) translateY(0);
 }
 
-.meta-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  max-width: 220px;
-  padding: 6px 10px;
-  border-radius: var(--radius-4);
-  color: var(--c-text-meta);
-  font-size: var(--fs-12);
-  line-height: 16px;
-  transition:
-    background var(--motion-standard) var(--ease-standard),
-    box-shadow var(--motion-standard) var(--ease-standard),
-    color var(--motion-standard) var(--ease-standard);
-}
-
-.meta-chip:hover {
-  color: var(--c-text-strong);
-  background: var(--c-bg-chip-hover);
-}
-
-.meta-chip.active {
-  color: var(--c-text-strong);
-  background: var(--state-active-bg);
-}
-
-.meta-chip span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
-
 @media (max-width: 960px) {
   .composer-bottom {
     gap: 8px;
@@ -771,6 +660,12 @@
     max-width: 96px;
     padding-inline: 8px;
   }
+}
+
+.composer-change-summary {
+  border-color: var(--c-border-soft);
+  background: color-mix(in srgb, var(--c-panel-bg) 74%, transparent);
+  color: var(--c-text-meta);
 }
 
 .home-debug-toolbar {
@@ -867,33 +762,10 @@
 }
 
 .chat-input__dropdown-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 32px;
-  padding: 6px 10px;
-  border-radius: 8px;
-  font-size: var(--fs-14);
-  color: var(--c-text);
-  cursor: pointer;
-  user-select: none;
-  outline: none;
-  transition: background 0.12s ease-out;
   background: transparent;
   border: 0;
-  width: 100%;
-  text-align: left;
   font-family: inherit;
   line-height: 1.6;
-}
-
-.chat-input__dropdown-item:hover {
-  background: var(--state-hover-bg);
-}
-
-.chat-input__dropdown-item.is-active {
-  background: var(--state-active-bg);
-  color: var(--c-accent);
 }
 
 .chat-input__dropdown-leading {
@@ -1002,8 +874,7 @@
   background: var(--c-bg);
 }
 
-/* Desktop composer surface overrides. Keep this section as the single later
-   pass for the floating bento composer shell. */
+/* Desktop composer surface overrides. */
 .composer {
   border-radius: var(--radius-panel);
   background: transparent;
@@ -1033,42 +904,6 @@
   border-top: 1px solid var(--border-muted);
 }
 
-.composer .icon-button,
-.chip-button,
-.meta-chip {
-  border-radius: 999px;
-}
-
-.chip-button:hover,
-.meta-chip:hover,
-.composer .icon-button:hover {
-  background: var(--c-bg-chip-hover);
-  color: var(--c-text-strong);
-}
-
-.chip-button.active,
-.chip-button[aria-expanded="true"],
-.chip-button[data-state="open"],
-.meta-chip.active,
-.meta-chip[aria-expanded="true"],
-.meta-chip[data-state="open"] {
-  background: var(--state-active-bg);
-  color: var(--c-text-strong);
-}
-
-.chip-button:active,
-.meta-chip:active,
-.composer .icon-button:active {
-  transform: translateY(1px);
-}
-
-.chip-button:focus-visible,
-.meta-chip:focus-visible,
-.composer .icon-button:focus-visible,
-.send-button:focus-visible {
-  outline: none;
-}
-
 :root[data-theme="dark"] .composer-input textarea::placeholder {
   color: var(--c-text-meta);
 }
@@ -1082,40 +917,13 @@
   border-top-color: rgba(255, 255, 255, 0.055);
 }
 
-:root[data-theme="dark"] .chip-button.subtle,
-:root[data-theme="dark"] .composer-plan-mode-chip,
-:root[data-theme="dark"] .composer-model-chip-thinking,
-:root[data-theme="dark"] .meta-chip,
-:root[data-theme="dark"] .composer-mic-button {
-  color: var(--c-text-soft);
-}
-
-:root[data-theme="dark"] .chip-button.permission-chip {
-  color: var(--permission-chip-color, var(--c-text-strong));
-}
-
 :root[data-theme="dark"] .composer-model-chip-label {
   color: var(--c-text-strong);
-}
-
-:root[data-theme="dark"] .chip-button:hover,
-:root[data-theme="dark"] .meta-chip:hover,
-:root[data-theme="dark"] .composer .icon-button:hover {
-  background: var(--c-bg-chip-hover);
-}
-
-:root[data-theme="dark"] .chip-button.active,
-:root[data-theme="dark"] .chip-button[aria-expanded="true"],
-:root[data-theme="dark"] .chip-button[data-state="open"],
-:root[data-theme="dark"] .meta-chip.active,
-:root[data-theme="dark"] .meta-chip[aria-expanded="true"],
-:root[data-theme="dark"] .meta-chip[data-state="open"] {
-  background: var(--state-active-bg);
 }
 
 :root[data-theme="dark"] .chip-button.permission-chip:hover,
 :root[data-theme="dark"] .permission-select-trigger:hover {
   border-color: var(--permission-chip-hover-border, var(--c-border));
-  background: var(--permission-chip-hover-bg, color-mix(in srgb, var(--c-accent) 16%, var(--c-bg)));
+  background: var(--permission-chip-hover-bg, var(--c-sidebar-hover-bg));
   color: var(--permission-chip-hover-color, var(--c-text-strong));
 }

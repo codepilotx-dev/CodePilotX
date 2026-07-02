@@ -69,52 +69,8 @@
 
 
 
-.automation-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 40px;
-  padding: 0 20px;
-  border-radius: var(--radius-button);
-  font-size: 14px;
-  font-weight: var(--font-weight-label);
-  cursor: pointer;
-  border: 1px solid var(--c-border-soft);
-  background: var(--c-bg);
-  color: var(--c-text-strong);
-  transition:
-    background var(--motion-standard) var(--ease-standard),
-    border-color var(--motion-standard) var(--ease-standard),
-    box-shadow var(--motion-standard) var(--ease-standard),
-    color var(--motion-standard) var(--ease-standard),
-    transform var(--motion-fast) var(--ease-standard);
-}
-
-
-
 .automation-button.is-ghost {
   background: transparent;
-}
-
-
-
-.automation-button.is-primary {
-  background: var(--c-send-bg);
-  color: var(--c-text-on-accent);
-  border-color: var(--c-send-bg);
-}
-
-
-
-.automation-button.is-ghost:hover {
-  background: var(--c-bg-hover);
-}
-
-
-
-.automation-button.is-primary:hover {
-  background: var(--c-send-bg-hover);
-  border-color: var(--c-send-bg-hover);
 }
 
 
