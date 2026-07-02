@@ -42,6 +42,7 @@ type Props = {
   enableFusionRouter: boolean
   enableAutoReviewPermissionMode: boolean
   enableFullAccessPermissionMode: boolean
+  planExecutionModel?: string
   thinkingMode: DesktopThinkingMode
   selectedProviderID?: ModelProviderID
   selectedModelPreset: string
@@ -101,6 +102,7 @@ export function DesktopComposer({
   enableFusionRouter,
   enableAutoReviewPermissionMode,
   enableFullAccessPermissionMode,
+  planExecutionModel,
   thinkingMode,
   selectedProviderID,
   selectedModelPreset,
@@ -136,6 +138,7 @@ export function DesktopComposer({
   submitToSession,
 }: Props): React.ReactNode {
   const navigate = useNavigate()
+  const [goalModeEnabled, setGoalModeEnabled] = useState(false)
   const [slashCommands, setSlashCommands] = useState<
     DesktopSlashCommandSuggestion[]
   >([])
@@ -215,15 +218,31 @@ export function DesktopComposer({
       const skillPrefix = selectedSkillToken
         ? `[${selectedSkillToken.name}](${selectedSkillToken.skillPath})`
         : ''
-      const submittedInput = skillPrefix
+      let submittedInput = skillPrefix
         ? `${skillPrefix} ${input}`
         : input
+
+      // Goal mode: wrap with strict execution instructions
+      if (goalModeEnabled) {
+        submittedInput = buildGoalModePrompt(submittedInput)
+        // Switch to plan execution model if configured
+        if (planExecutionModel) {
+          const slashIdx = planExecutionModel.indexOf('/')
+          if (slashIdx > 0 && slashIdx < planExecutionModel.length - 1) {
+            const providerID = planExecutionModel.slice(0, slashIdx) as ModelProviderID
+            const modelPresetID = planExecutionModel.slice(slashIdx + 1)
+            onProviderModelChange(providerID, modelPresetID)
+          }
+        }
+      }
+
       const submittedAttachments = attachments
       const messageInput = {
         text: submittedInput,
         attachments: submittedAttachments,
       }
       setSelectedSkillToken(null)
+      setGoalModeEnabled(false)
       if (isQuickChatPage) {
         onInputChange('')
         onAttachmentsChange([])
@@ -287,6 +306,8 @@ export function DesktopComposer({
       sessionStatus={sessionStatus}
       permissionMode={effectivePermissionMode}
       planModeActive={planModeActive}
+      goalModeEnabled={goalModeEnabled}
+      onGoalModeChange={setGoalModeEnabled}
       localRouterMode={localRouterMode}
       enableParetoCodeRouter={enableParetoCodeRouter}
       enableFusionRouter={enableFusionRouter}
@@ -356,4 +377,18 @@ export function getDesktopComposerBranchName(
 
 function sessionPath(sessionId: string): string {
   return `/sessions/${encodeURIComponent(sessionId)}`
+}
+
+export const GOAL_MODE_SYSTEM_PROMPT = `You are in goal execution mode. Follow these instructions strictly:
+
+1. First read AGENTS.md and relevant code to understand the project context.
+2. Review the pasted plan/goal below before making any edits.
+3. If the plan is unclear, stale, unsafe, or conflicts with repository reality, ask targeted questions before implementing.
+4. Create or update task tracking from the plan.
+5. Execute in small stages.
+6. Use subagents for large independent investigation or review work.
+7. Verify your work before reporting completion.`
+
+export function buildGoalModePrompt(userText: string): string {
+  return `${GOAL_MODE_SYSTEM_PROMPT}\n\nThe user's goal/plan:\n---\n${userText}\n---`
 }

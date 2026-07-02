@@ -1,4 +1,5 @@
 import React from "react";
+import * as ContextMenu from "@radix-ui/react-context-menu";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
   AppWindow,
@@ -72,6 +73,12 @@ import type { Message } from "../../uiTypes.js";
 import { InlineApprovalCard } from "./InlineApprovalCard.js";
 import { parseAskUserQuestions } from "./AskUserQuestionApproval.js";
 import { MarkdownMessage } from "./MarkdownMessage.js";
+import { ComposerSurface } from "./ComposerSurface.js";
+import {
+  clearConversationSelectionHighlight,
+  createConversationSelectionSnapshot,
+  installConversationSelectionHighlight,
+} from "./conversationSelectionHighlight.js";
 import { useTypewriterText } from "./TypewriterText.js";
 import { PopoverItem } from "../../components/ui/PopoverItem.js";
 import { PopoverMenu } from "../../components/ui/PopoverMenu.js";
@@ -144,6 +151,8 @@ export function ConversationPage(): React.ReactNode {
     onAcceptExitPlanMode,
     onOpenRightDock,
     onOpenPlanInRightDock,
+    onAppendComposerText,
+    onAppendSideChatText,
     permissionMode,
     pendingPermissions,
     composer,
@@ -208,6 +217,7 @@ export function ConversationPage(): React.ReactNode {
     timelineEvents,
   });
   const [sessionMenuOpen, setSessionMenuOpen] = React.useState(false);
+  const [conversationSelectedText, setConversationSelectedText] = React.useState("");
   const [openTargetMenuOpen, setOpenTargetMenuOpen] = React.useState(false);
   const [environmentPopoverOpen, setEnvironmentPopoverOpen] = React.useState(false);
   const [openTargets, setOpenTargets] =
@@ -220,6 +230,11 @@ export function ConversationPage(): React.ReactNode {
       setDebugAskUserQuestionRequest(null);
     }
   }, [debugMode, pendingPermissions.length]);
+  React.useEffect(() => {
+    return () => {
+      clearConversationSelectionHighlight();
+    };
+  }, []);
   const [isRefreshingDiff, setIsRefreshingDiff] = React.useState(false);
   const mainScrollViewportRef = React.useRef<HTMLDivElement>(null);
   const mainScrollTopRef = React.useRef(0);
@@ -346,6 +361,33 @@ export function ConversationPage(): React.ReactNode {
     composer ? "mounted" : "unmounted",
   ]);
 
+  const workflowPageRef = React.useRef<HTMLElement>(null);
+  React.useEffect(() => {
+    const composerEl = composerTransition.ref.current;
+    const pageEl = workflowPageRef.current;
+    if (!composerEl || !pageEl) return;
+
+    const updateDimensions = (): void => {
+      const rect = composerEl.getBoundingClientRect();
+      pageEl.style.setProperty('--workflow-composer-width', `${rect.width}px`);
+      pageEl.style.setProperty('--workflow-composer-height', `${rect.height}px`);
+    };
+
+    updateDimensions();
+
+    let observer: ResizeObserver | null = null;
+    try {
+      observer = new ResizeObserver(updateDimensions);
+      observer.observe(composerEl);
+    } catch {
+      // ResizeObserver not available; CSS fallback handles dimension variables
+    }
+
+    return () => {
+      observer?.disconnect();
+    };
+  }, [composer, composerTransition.ref, workflowPageRef]);
+
   React.useEffect(() => {
     let mounted = true;
     void desktopClient
@@ -459,6 +501,33 @@ export function ConversationPage(): React.ReactNode {
     onRefreshDiff();
     onOpenRightDock('review');
   }
+
+  function handleConversationContextMenu(): void {
+    clearConversationSelectionHighlight();
+    const snapshot = createConversationSelectionSnapshot(window.getSelection());
+    setConversationSelectedText(snapshot?.text ?? "");
+    if (snapshot) {
+      installConversationSelectionHighlight(snapshot.range);
+    }
+  }
+
+  function handleAddToConversation(): void {
+    const text = conversationSelectedText.trim();
+    if (!text) return;
+    onAppendComposerText(text);
+    clearConversationSelectionHighlight();
+    setConversationSelectedText("");
+  }
+
+  function handleAskInSideChat(): void {
+    const text = conversationSelectedText.trim();
+    if (!text) return;
+    onAppendSideChatText(text);
+    clearConversationSelectionHighlight();
+    setConversationSelectedText("");
+  }
+
+  const showConversationContextMenu = conversationSelectedText.trim().length > 0;
 
   const workspaceHeaderTitle = React.useMemo(
     () => (
@@ -797,6 +866,7 @@ export function ConversationPage(): React.ReactNode {
 
   return (
     <section
+      ref={workflowPageRef}
       className={
         activePermissionRequest
           ? "conversation-page workflow-page approval-active"
@@ -811,49 +881,80 @@ export function ConversationPage(): React.ReactNode {
             viewportRef={mainScrollViewportRef}
           >
             <div className="quick-chat-content workflow-page__inner">
-              <div className="conversation-stream">
-                {isConversationLoading ? (
-                  <div className="assistant-thinking">加载对话中</div>
-                ) : (
-                  <>
-                    {workflowTimelineVisible ? (
-                      <WorkflowDebugTimeline
-                        activeSessionId={activeSessionId}
-                        consistencyDiagnostics={workflowConsistencyDiagnostics}
-                        diagnostics={workflowDerivedState.diagnostics}
-                        events={workflowEvents}
-                        workspacePath={workspacePath}
-                      />
-                    ) : null}
-                    {timelineItems.map((item) => (
-                      <TimelineItem
-                        item={item}
-                        key={item.id}
-                        rightDockPlanContent={rightDockPlanContent}
-                        rightDockPlanOpen={rightDockOpen && rightDockTool === "plan"}
-                        showActions={
-                          item.type === "message" &&
-                          item.role === "assistant" &&
-                          assistantActionMessageIds.has(item.id)
-                        }
-                        onOpenPlanInRightDock={onOpenPlanInRightDock}
-                        onDiscardChanges={(paths, turnRestoreId) =>
-                          void handleDiscardChanges(paths, turnRestoreId)
-                        }
-                        onReviewCode={handleRunCodeReview}
-                        onReviewFiles={openReviewSidebar}
-                      />
-                    ))}
-                  </>
-                )}
-                {!isConversationLoading && showThinking ? <ThinkingPill /> : null}
-              </div>
+              <ContextMenu.Root
+                onOpenChange={(open) => {
+                  if (!open) {
+                    clearConversationSelectionHighlight();
+                  }
+                }}
+              >
+                <ContextMenu.Trigger asChild>
+                  <div
+                    className="conversation-stream"
+                    onContextMenu={handleConversationContextMenu}
+                  >
+                    {isConversationLoading ? (
+                      <div className="assistant-thinking">加载对话中</div>
+                    ) : (
+                      <>
+                        {workflowTimelineVisible ? (
+                          <WorkflowDebugTimeline
+                            activeSessionId={activeSessionId}
+                            consistencyDiagnostics={workflowConsistencyDiagnostics}
+                            diagnostics={workflowDerivedState.diagnostics}
+                            events={workflowEvents}
+                            workspacePath={workspacePath}
+                          />
+                        ) : null}
+                        {timelineItems.map((item) => (
+                          <TimelineItem
+                            item={item}
+                            key={item.id}
+                            rightDockPlanContent={rightDockPlanContent}
+                            rightDockPlanOpen={rightDockOpen && rightDockTool === "plan"}
+                            showActions={
+                              item.type === "message" &&
+                              item.role === "assistant" &&
+                              assistantActionMessageIds.has(item.id)
+                            }
+                            onOpenPlanInRightDock={onOpenPlanInRightDock}
+                            onDiscardChanges={(paths, turnRestoreId) =>
+                              void handleDiscardChanges(paths, turnRestoreId)
+                            }
+                            onReviewCode={handleRunCodeReview}
+                            onReviewFiles={openReviewSidebar}
+                          />
+                        ))}
+                      </>
+                    )}
+                    {!isConversationLoading && showThinking ? <ThinkingPill /> : null}
+                  </div>
+                </ContextMenu.Trigger>
+                {showConversationContextMenu ? (
+                  <ContextMenu.Portal>
+                    <ContextMenu.Content className="sidebar-context-menu-content">
+                      <ContextMenu.Item
+                        className="sidebar-context-menu-item"
+                        onSelect={handleAddToConversation}
+                      >
+                        添加到对话
+                      </ContextMenu.Item>
+                      <ContextMenu.Item
+                        className="sidebar-context-menu-item"
+                        onSelect={handleAskInSideChat}
+                      >
+                        在侧边聊天中提问
+                      </ContextMenu.Item>
+                    </ContextMenu.Content>
+                  </ContextMenu.Portal>
+                ) : null}
+              </ContextMenu.Root>
             </div>
           </ScrollArea>
 
           {composer ? (
             <footer className="chat-composer workflow-page__composer">
-              <div
+              <ComposerSurface
                 ref={composerTransition.ref}
                 className="workflow-page__composer-inner"
                 style={composerTransition.style}
@@ -878,7 +979,7 @@ export function ConversationPage(): React.ReactNode {
                 ) : (
                   composer
                 )}
-              </div>
+              </ComposerSurface>
             </footer>
           ) : null}
         </main>
@@ -2820,52 +2921,59 @@ function ReviewDiffInline({
   lines: ReviewDiffLine[];
 }): React.ReactNode {
   return (
-    <div className={`review-diff-lines review-diff-inline marker-${diffMarkerStyle}`}>
-      {lines.map((line) => {
-        if (line.type === "meta") {
-          return (
-            <div className={`review-diff-row ${line.type}`} key={line.id}>
-              <span className="review-diff-line-content">{line.content}</span>
-            </div>
-          );
-        }
-        if (line.type === "hunk") {
-          return (
-            <React.Fragment key={line.id}>
-              {line.unmodifiedBefore && line.unmodifiedBefore > 0 ? (
-                <div className="review-diff-unmodified">
-                  {line.unmodifiedBefore} unmodified lines
+    <ScrollArea
+      className="review-diff-scroll"
+      contentClassName="review-diff-scroll-content"
+    >
+      <div className="review-diff-lines-scroll-x">
+        <div className={`review-diff-lines review-diff-inline marker-${diffMarkerStyle}`}>
+          {lines.map((line) => {
+            if (line.type === "meta") {
+              return (
+                <div className={`review-diff-row ${line.type}`} key={line.id}>
+                  <span className="review-diff-line-content">{line.content}</span>
                 </div>
-              ) : null}
-              <div className={`review-diff-row ${line.type}`}>
-                <span className="review-diff-line-content">{line.content}</span>
+              );
+            }
+            if (line.type === "hunk") {
+              return (
+                <React.Fragment key={line.id}>
+                  {line.unmodifiedBefore && line.unmodifiedBefore > 0 ? (
+                    <div className="review-diff-unmodified">
+                      {line.unmodifiedBefore} unmodified lines
+                    </div>
+                  ) : null}
+                  <div className={`review-diff-row ${line.type}`}>
+                    <span className="review-diff-line-content">{line.content}</span>
+                  </div>
+                </React.Fragment>
+              );
+            }
+            const lineNumber =
+              line.type === "added" ? line.newLine : line.oldLine;
+            return (
+              <div className={`review-diff-row ${line.type}`} key={line.id}>
+                <span
+                  className={`review-diff-line-number ${
+                    line.type === "added"
+                      ? "added"
+                      : line.type === "removed"
+                        ? "removed"
+                        : ""
+                  }`}
+                >
+                  {lineNumber ?? ""}
+                </span>
+                <DiffMarker tone={line.type} />
+                <code className="review-diff-line-content">
+                  {formatInlineDiffContent(line, diffMarkerStyle)}
+                </code>
               </div>
-            </React.Fragment>
-          );
-        }
-        const lineNumber =
-          line.type === "added" ? line.newLine : line.oldLine;
-        return (
-          <div className={`review-diff-row ${line.type}`} key={line.id}>
-            <span
-              className={`review-diff-line-number ${
-                line.type === "added"
-                  ? "added"
-                  : line.type === "removed"
-                    ? "removed"
-                    : ""
-              }`}
-            >
-              {lineNumber ?? ""}
-            </span>
-            <DiffMarker tone={line.type} />
-            <code className="review-diff-line-content">
-              {formatInlineDiffContent(line, diffMarkerStyle)}
-            </code>
-          </div>
-        );
-      })}
-    </div>
+            );
+          })}
+        </div>
+      </div>
+    </ScrollArea>
   );
 }
 
@@ -2878,71 +2986,78 @@ function ReviewDiffSplit({
 }): React.ReactNode {
   const rows = React.useMemo(() => splitDiffLines(lines), [lines]);
   return (
-    <div className={`review-diff-lines review-diff-split marker-${diffMarkerStyle}`}>
-      {rows.map((row) => {
-        if (row.hunk) {
-          return (
-            <div className="review-diff-row hunk" key={row.id}>
-              <span className="review-diff-line-content">{row.hunk.content}</span>
-            </div>
-          );
-        }
-        if (row.meta) {
-          return (
-            <div className="review-diff-row meta" key={row.id}>
-              <span className="review-diff-line-content">{row.meta.content}</span>
-            </div>
-          );
-        }
-        return (
-          <React.Fragment key={row.id}>
-            {row.unmodifiedBefore && row.unmodifiedBefore > 0 ? (
-              <div className="review-diff-unmodified">
-                {row.unmodifiedBefore} unmodified lines
-              </div>
-            ) : null}
-            <div
-              className={`review-diff-split-row ${
-                row.paired ? "paired" : "single"
-              }`}
-            >
-              <div
-                className={`review-diff-side ${row.left.tone}`}
-                data-tone={row.left.tone}
-              >
-                <span
-                  className={`review-diff-line-number ${
-                    row.left.tone === "removed" ? "removed" : ""
+    <ScrollArea
+      className="review-diff-scroll"
+      contentClassName="review-diff-scroll-content"
+    >
+      <div className="review-diff-lines-scroll-x">
+        <div className={`review-diff-lines review-diff-split marker-${diffMarkerStyle}`}>
+          {rows.map((row) => {
+            if (row.hunk) {
+              return (
+                <div className="review-diff-row hunk" key={row.id}>
+                  <span className="review-diff-line-content">{row.hunk.content}</span>
+                </div>
+              );
+            }
+            if (row.meta) {
+              return (
+                <div className="review-diff-row meta" key={row.id}>
+                  <span className="review-diff-line-content">{row.meta.content}</span>
+                </div>
+              );
+            }
+            return (
+              <React.Fragment key={row.id}>
+                {row.unmodifiedBefore && row.unmodifiedBefore > 0 ? (
+                  <div className="review-diff-unmodified">
+                    {row.unmodifiedBefore} unmodified lines
+                  </div>
+                ) : null}
+                <div
+                  className={`review-diff-split-row ${
+                    row.paired ? "paired" : "single"
                   }`}
                 >
-                  {row.left.number ?? ""}
-                </span>
-                <DiffMarker tone={row.left.tone} />
-                <code className="review-diff-line-content">
-                  {row.left.tone === "empty" ? " " : row.left.content}
-                </code>
-              </div>
-              <div
-                className={`review-diff-side ${row.right.tone}`}
-                data-tone={row.right.tone}
-              >
-                <span
-                  className={`review-diff-line-number ${
-                    row.right.tone === "added" ? "added" : ""
-                  }`}
-                >
-                  {row.right.number ?? ""}
-                </span>
-                <DiffMarker tone={row.right.tone} />
-                <code className="review-diff-line-content">
-                  {row.right.tone === "empty" ? " " : row.right.content}
-                </code>
-              </div>
-            </div>
-          </React.Fragment>
-        );
-      })}
-    </div>
+                  <div
+                    className={`review-diff-side ${row.left.tone}`}
+                    data-tone={row.left.tone}
+                  >
+                    <span
+                      className={`review-diff-line-number ${
+                        row.left.tone === "removed" ? "removed" : ""
+                      }`}
+                    >
+                      {row.left.number ?? ""}
+                    </span>
+                    <DiffMarker tone={row.left.tone} />
+                    <code className="review-diff-line-content">
+                      {row.left.tone === "empty" ? " " : row.left.content}
+                    </code>
+                  </div>
+                  <div
+                    className={`review-diff-side ${row.right.tone}`}
+                    data-tone={row.right.tone}
+                  >
+                    <span
+                      className={`review-diff-line-number ${
+                        row.right.tone === "added" ? "added" : ""
+                      }`}
+                    >
+                      {row.right.number ?? ""}
+                    </span>
+                    <DiffMarker tone={row.right.tone} />
+                    <code className="review-diff-line-content">
+                      {row.right.tone === "empty" ? " " : row.right.content}
+                    </code>
+                  </div>
+                </div>
+              </React.Fragment>
+            );
+          })}
+        </div>
+      </div>
+    </ScrollArea>
   );
 }
 

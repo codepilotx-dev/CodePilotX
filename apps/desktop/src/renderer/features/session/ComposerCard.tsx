@@ -48,7 +48,6 @@ import type {
   ModelProviderID,
 } from "../../../shared/types.js";
 import type { ModelPreset } from "../../modelPresets.js";
-import { CUSTOM_MODEL_PRESET_ID } from "../../modelPresets.js";
 import { ChipButton } from "../../components/ui/ChipButton.js";
 import { IconButton } from "../../components/ui/IconButton.js";
 import { MetaChip } from "../../components/ui/MetaChip.js";
@@ -165,10 +164,12 @@ type Props = {
   canSubmit: boolean;
   sessionStatus: DesktopSessionStatus;
   permissionMode: DesktopPermissionMode;
-  planModeActive?: boolean;
-  localRouterMode?: LocalRouterMode;
-  enableParetoCodeRouter?: boolean;
-  enableFusionRouter?: boolean;
+	planModeActive?: boolean;
+	goalModeEnabled?: boolean;
+	onGoalModeChange?: (enabled: boolean) => void;
+	localRouterMode?: LocalRouterMode;
+	enableParetoCodeRouter?: boolean;
+	enableFusionRouter?: boolean;
   thinkingMode: DesktopThinkingMode;
   selectedProviderID: ModelProviderID;
   selectedModelPreset: string;
@@ -223,10 +224,12 @@ export function ComposerCard({
   canSubmit,
   sessionStatus,
   permissionMode,
-  planModeActive = false,
-  localRouterMode = 'off',
-  enableParetoCodeRouter = false,
-  enableFusionRouter = false,
+	planModeActive = false,
+	goalModeEnabled = false,
+	onGoalModeChange,
+	localRouterMode = 'off',
+	enableParetoCodeRouter = false,
+	enableFusionRouter = false,
   thinkingMode,
   selectedProviderID,
   selectedModelPreset,
@@ -277,7 +280,6 @@ export function ComposerCard({
     null,
   );
   const [branchSearch, setBranchSearch] = useState("");
-  const [goalModeEnabled, setGoalModeEnabled] = useState(false);
   const [dismissedSlashInput, setDismissedSlashInput] = useState<string | null>(
     null,
   );
@@ -287,31 +289,31 @@ export function ComposerCard({
   const selectedPermission = permissionOptions.find(
     (option) => option.value === permissionMode,
   );
-  const composerPlaceholder = modelCatalogLoading
+	const composerPlaceholder = modelCatalogLoading
     ? "加载模型列表中……"
+    : goalModeEnabled
+    ? "粘贴你的计划或目标…"
     : planModeActive
     ? "Describe your task to generate a plan..."
     : placeholder;
-  const selectedModel = modelPresets.find(
-    (preset) => preset.id === selectedModelPreset,
-  );
   const selectedProvider = providerOptions.find(
     (provider) => provider.providerID === selectedProviderID,
   );
+  const selectedModel =
+    modelPresets.find((preset) => preset.id === selectedModelPreset) ??
+    selectedProvider?.modelPresets.find(
+      (preset) => preset.id === selectedModelPreset,
+    );
   const selectedModelLabel = modelCatalogLoading
     ? "加载模型列表中……"
     : !modelConfigured
     ? "未配置模型"
-    : selectedModelPreset === CUSTOM_MODEL_PRESET_ID
-      ? "自定义模型"
-      : (selectedModel?.label ?? selectedModelPreset);
+    : (selectedModel?.label ?? "未选择模型");
   const selectedModelTitle = modelCatalogLoading
     ? "加载模型列表中……"
     : !modelConfigured
     ? "未配置模型"
-    : selectedModelPreset === CUSTOM_MODEL_PRESET_ID
-      ? "自定义模型"
-      : (selectedModel?.label ?? selectedModelPreset);
+    : (selectedModel?.label ?? "未选择模型");
   const selectedThinking = thinkingOptions.find(
     (option) => option.value === thinkingMode,
   );
@@ -417,7 +419,7 @@ export function ComposerCard({
     closeDropdown();
   }
 
-  function handleSlashCommandSelect(
+	function handleSlashCommandSelect(
     cmd: DesktopSlashCommandSuggestion,
   ): void {
     // Mode commands: trigger the appropriate mode action
@@ -432,7 +434,19 @@ export function ComposerCard({
       return;
     }
 
-    // Mode commands that remain as-is (goal, etc.) - just close dropdown
+    // Goal command: enable goal mode and strip the prefix
+    if (cmd.name === "goal") {
+      const cmdPrefix = "/" + cmd.name;
+      const remainingText = input.startsWith(cmdPrefix)
+        ? input.slice(cmdPrefix.length).trimStart()
+        : "";
+      onInputChange(remainingText);
+      onGoalModeChange?.(true);
+      setDismissedSlashInput(cmdPrefix);
+      return;
+    }
+
+    // Other command mode items: just close dropdown
     if (cmd.category === "command") {
       closeChatInputDropdown();
       return;
@@ -531,8 +545,15 @@ export function ComposerCard({
         <span className="chat-input__dropdown-label">Files and folders</span>
       </div>
       <div
-        className="chat-input__dropdown-item"
-        onClick={closeChatInputDropdown}
+        aria-pressed={goalModeEnabled}
+        className={[
+          "chat-input__dropdown-item",
+          goalModeEnabled ? "is-active" : "",
+        ].join(" ")}
+        onClick={() => {
+          onGoalModeChange?.(!goalModeEnabled);
+          closeChatInputDropdown();
+        }}
       >
         <span className="chat-input__dropdown-leading">
           <Target size={14} />
@@ -1016,6 +1037,37 @@ export function ComposerCard({
                 </Select.Content>
               </Select.Portal>
             </Select.Root>
+            {goalModeEnabled ? (
+              <>
+                <span className="toolbar-divider" />
+                <button
+                  aria-pressed="true"
+                  className="chip-button composer-plan-mode-chip active"
+                  onClick={() => {
+                    onGoalModeChange?.(false);
+                  }}
+                  title="目标模式"
+                  type="button"
+                >
+                  <span
+                    aria-hidden="true"
+                    className="composer-plan-mode-chip-icon"
+                  >
+                    <Target
+                      className="composer-plan-mode-chip-icon-plan"
+                      size={APP_ICON_SIZE}
+                      strokeWidth={APP_ICON_STROKE_WIDTH}
+                    />
+                    <X
+                      className="composer-plan-mode-chip-icon-exit"
+                      size={10}
+                      strokeWidth={APP_ICON_STROKE_WIDTH}
+                    />
+                  </span>
+                  <span>目标</span>
+                </button>
+              </>
+            ) : null}
             {planModeActive ? (
               <>
                 <span className="toolbar-divider" />
