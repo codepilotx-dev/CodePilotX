@@ -1,11 +1,12 @@
 import type React from 'react'
 import { useState } from 'react'
-import * as Select from '@radix-ui/react-select'
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import {
   ArrowDown,
   ArrowUp,
   Check,
   ChevronDown,
+  ChevronRight,
   CornerDownLeft,
   Pencil,
 } from 'lucide-react'
@@ -14,15 +15,15 @@ import type {
 } from '../../../shared/types.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
 import { buildPopoverSizingStyle } from '../../components/ui/popoverSizing.js'
-import { useDesktopSettings } from '../settings/useDesktopSettings.js'
-
-const DEFAULT_PLAN_EXECUTION_MODEL_VALUE = '__default_plan_execution_model__'
+import { useQuickChatContext, type ProviderModelOption } from './QuickChatContext.js'
 
 export type ExitPlanModeApprovalProps = {
   request: DesktopPermissionRequest
   onAccept: (options?: {
     note?: string
     planExecutionModel?: string
+    planExecutionProviderID?: string
+    planExecutionProviderBaseURL?: string
     savePlanExecutionModel?: boolean
   }) => void
   onRevise: () => void
@@ -32,22 +33,35 @@ export function ExitPlanModeApproval({
   onAccept,
   onRevise,
 }: ExitPlanModeApprovalProps): React.ReactNode {
-  const settings = useDesktopSettings()
+  const { providerModelOptions } = useQuickChatContext()
   const [note, setNote] = useState('')
-  const modelOptions = buildPlanExecutionModelOptions(settings)
-  const [planExecutionModel, setPlanExecutionModel] = useState(
-    settings.draft.values.planExecutionModel ||
-      settings.defaultModel ||
-      settings.model ||
-      modelOptions[0]?.value ||
-      '',
-  )
+  const [selectedProviderID, setSelectedProviderID] = useState('')
+  const [selectedModelValue, setSelectedModelValue] = useState('')
+  const [selectedProviderBaseURL, setSelectedProviderBaseURL] = useState<string | undefined>(undefined)
   const [savePlanExecutionModel, setSavePlanExecutionModel] = useState(false)
+
+  const selectedLabel = deriveSelectedLabel(
+    selectedProviderID,
+    selectedModelValue,
+    providerModelOptions,
+  )
+
+  function handleProviderModelSelect(
+    providerID: string,
+    modelValue: string,
+    baseURL: string | undefined,
+  ): void {
+    setSelectedProviderID(providerID)
+    setSelectedModelValue(modelValue)
+    setSelectedProviderBaseURL(baseURL)
+  }
 
   function handleAccept(): void {
     onAccept({
       note: note.trim() || undefined,
-      planExecutionModel: planExecutionModel || undefined,
+      planExecutionProviderID: selectedProviderID || undefined,
+      planExecutionModel: selectedModelValue || undefined,
+      planExecutionProviderBaseURL: selectedProviderBaseURL,
       savePlanExecutionModel,
     })
   }
@@ -60,62 +74,128 @@ export function ExitPlanModeApproval({
         </p>
         <label className="exit-plan-mode-model">
           <span>使用</span>
-          <Select.Root
-            value={selectValueFromPlanExecutionModel(planExecutionModel)}
-            onValueChange={value =>
-              setPlanExecutionModel(planExecutionModelFromSelectValue(value))
-            }
-          >
-            <Select.Trigger
-              aria-label="计划执行模型"
-              className="chip-button subtle composer-model-chip exit-plan-mode-model-trigger"
-              title="计划执行模型"
-            >
-              <span className="permission-select-trigger-label composer-model-chip-label">
-                {modelOptions.find(option => option.value === planExecutionModel)
-                  ?.label ?? '默认'}
-              </span>
-              <Select.Icon asChild>
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger asChild>
+              <button
+                aria-label="计划执行模型"
+                className="chip-button subtle composer-model-chip exit-plan-mode-model-trigger"
+                title="计划执行模型"
+                type="button"
+              >
+                <span className="permission-select-trigger-label composer-model-chip-label">
+                  {selectedLabel}
+                </span>
                 <ChevronDown
                   size={APP_ICON_SIZE}
                   strokeWidth={APP_ICON_STROKE_WIDTH}
                 />
-              </Select.Icon>
-            </Select.Trigger>
-            <Select.Portal>
-              <Select.Content
+              </button>
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Portal>
+              <DropdownMenu.Content
                 align="start"
                 className="popover-surface rm-model-menu exit-plan-mode-model-content"
                 collisionPadding={12}
-                position="popper"
                 side="bottom"
                 sideOffset={6}
                 style={buildPopoverSizingStyle()}
               >
-                <Select.Viewport className="permission-select-scroll-area">
-                  <div className="permission-select-scroll-content">
-                    {modelOptions.map(option => (
-                      <Select.Item
-                        className="rm-menu-item"
-                        key={option.value || '__default__'}
-                        value={selectValueFromPlanExecutionModel(option.value)}
-                      >
-                        <span className="rm-item-label">
-                          <Select.ItemText>{option.label}</Select.ItemText>
-                        </span>
-                        <Select.ItemIndicator className="rm-item-check">
-                          <Check
-                            size={APP_ICON_SIZE}
-                            strokeWidth={APP_ICON_STROKE_WIDTH}
-                          />
-                        </Select.ItemIndicator>
-                      </Select.Item>
-                    ))}
-                  </div>
-                </Select.Viewport>
-              </Select.Content>
-            </Select.Portal>
-          </Select.Root>
+                <div className="rm-model-menu-scroll-content">
+                  <DropdownMenu.Item
+                    className="rm-menu-item"
+                    onSelect={() => {
+                      setSelectedProviderID('')
+                      setSelectedModelValue('')
+                      setSelectedProviderBaseURL(undefined)
+                    }}
+                  >
+                    <span className="rm-item-label">默认</span>
+                    {!selectedProviderID ? (
+                      <Check
+                        className="rm-item-check"
+                        size={APP_ICON_SIZE}
+                        strokeWidth={APP_ICON_STROKE_WIDTH}
+                      />
+                    ) : null}
+                  </DropdownMenu.Item>
+                  {providerModelOptions.length === 0 ? (
+                    <div className="rm-empty">未配置模型</div>
+                  ) : (
+                    <>
+                      <div className="rm-divider" />
+                      <div className="rm-section-header">提供商</div>
+                      {providerModelOptions.map(provider => (
+                        <DropdownMenu.Sub key={provider.providerID}>
+                          <DropdownMenu.SubTrigger
+                            className={[
+                              'rm-sub-trigger',
+                              provider.providerID === selectedProviderID
+                                ? 'selected'
+                                : '',
+                            ].join(' ')}
+                          >
+                            <span className="rm-sub-trigger-content">
+                              <span className="rm-item-label">
+                                {provider.displayName}
+                              </span>
+                              {provider.providerID === selectedProviderID ? (
+                                <Check
+                                  className="rm-item-check rm-provider-check"
+                                  size={APP_ICON_SIZE}
+                                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                                />
+                              ) : null}
+                            </span>
+                            <ChevronRight
+                              className="rm-item-arrow"
+                              size={APP_ICON_SIZE}
+                            />
+                          </DropdownMenu.SubTrigger>
+                          <DropdownMenu.Portal>
+                            <DropdownMenu.SubContent
+                              className="popover-surface rm-model-menu rm-model-submenu"
+                              alignOffset={-6}
+                              sideOffset={8}
+                              style={buildPopoverSizingStyle({ maxWidth: 'min(calc(320px + var(--popover-width-extra)), calc(100vw - 32px))' })}
+                            >
+                              <div className="rm-model-submenu-scroll-content">
+                                <div className="rm-section-header">模型</div>
+                                {provider.modelPresets.map(preset => (
+                                  <DropdownMenu.Item
+                                    className="rm-menu-item"
+                                    key={preset.id}
+                                    onSelect={() => {
+                                      handleProviderModelSelect(
+                                        provider.providerID,
+                                        preset.value,
+                                        provider.baseURL,
+                                      )
+                                    }}
+                                  >
+                                    <span className="rm-item-label">
+                                      {preset.label}
+                                    </span>
+                                    {provider.providerID === selectedProviderID &&
+                                    preset.value === selectedModelValue ? (
+                                      <Check
+                                        className="rm-item-check"
+                                        size={APP_ICON_SIZE}
+                                        strokeWidth={APP_ICON_STROKE_WIDTH}
+                                      />
+                                    ) : null}
+                                  </DropdownMenu.Item>
+                                ))}
+                              </div>
+                            </DropdownMenu.SubContent>
+                          </DropdownMenu.Portal>
+                        </DropdownMenu.Sub>
+                      ))}
+                    </>
+                  )}
+                </div>
+              </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Root>
           <span>模型</span>
         </label>
       </div>
@@ -180,44 +260,16 @@ export function ExitPlanModeApproval({
   )
 }
 
-function selectValueFromPlanExecutionModel(value: string): string {
-  return value || DEFAULT_PLAN_EXECUTION_MODEL_VALUE
-}
-
-function planExecutionModelFromSelectValue(value: string): string {
-  return value === DEFAULT_PLAN_EXECUTION_MODEL_VALUE ? '' : value
-}
-
-function buildPlanExecutionModelOptions(settings: ReturnType<typeof useDesktopSettings>): Array<{
-  value: string
-  label: string
-}> {
-  const candidates = [
-    settings.draft.values.planExecutionModel,
-    settings.defaultModel,
-    settings.model,
-    settings.deepModel,
-    settings.fastModel,
-    settings.smallFastModel,
-  ].filter((value): value is string => Boolean(value && value.trim()))
-  const unique = Array.from(new Set(candidates))
-  const options = unique.map(value => {
-    const parsed = splitProviderModel(value)
-    return {
-      value,
-      label: parsed ? `${parsed.modelID} (${parsed.providerID})` : value,
-    }
-  })
-  if (!options.some(option => option.value === '')) {
-    options.unshift({ value: '', label: '默认' })
-  }
-  return options
-}
-
-function splitProviderModel(value: string): { providerID: string; modelID: string } | null {
-  const slash = value.indexOf('/')
-  if (slash <= 0 || slash === value.length - 1) return null
-  return { providerID: value.slice(0, slash), modelID: value.slice(slash + 1) }
+function deriveSelectedLabel(
+  providerID: string,
+  modelValue: string,
+  providerModelOptions: ProviderModelOption[],
+): string {
+  if (!providerID || !modelValue) return '默认'
+  const provider = providerModelOptions.find(p => p.providerID === providerID)
+  if (!provider) return modelValue
+  const preset = provider.modelPresets.find(p => p.value === modelValue)
+  return preset?.label ?? modelValue
 }
 
 export function extractPlanSummary(request: DesktopPermissionRequest): string {
