@@ -53,7 +53,7 @@ export function resolveModelPresetId(
   if (selectedModelPreset && selectedModelPreset !== CUSTOM_MODEL_PRESET_ID) {
     return presets.some(preset => preset.id === selectedModelPreset)
       ? selectedModelPreset
-      : CUSTOM_MODEL_PRESET_ID
+      : ''
   }
-  return findModelPresetByValue(model, presets)?.id ?? CUSTOM_MODEL_PRESET_ID
+  return findModelPresetByValue(model, presets)?.id ?? ''
 }
