@@ -10,6 +10,7 @@ type Props = {
   side?: 'top' | 'right' | 'bottom' | 'left'
   sideOffset?: number
   collisionPadding?: number
+  avoidCollisions?: boolean
   trigger: React.ReactNode
   autoWidth?: boolean
   disableOutsideDismiss?: boolean
@@ -25,6 +26,7 @@ export function PopoverMenu({
   side,
   sideOffset,
   collisionPadding,
+  avoidCollisions,
   trigger,
   autoWidth = false,
   disableOutsideDismiss,
@@ -53,6 +55,7 @@ export function PopoverMenu({
       side={dropdownSide}
       sideOffset={dropdownSideOffset}
       collisionPadding={collisionPadding}
+      avoidCollisions={avoidCollisions}
       textMode={textMode}
       trigger={trigger}
       width={width}

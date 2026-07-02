@@ -16,6 +16,7 @@ type Props = {
   side?: 'top' | 'right' | 'bottom' | 'left'
   sideOffset?: number
   collisionPadding?: number
+  avoidCollisions?: boolean
   textMode?: 'nowrap' | 'wrap'
   onOpenChange?: (open: boolean) => void
 } & PopoverSizingProps
@@ -31,6 +32,7 @@ export function Dropdown({
   side = 'bottom',
   sideOffset = 6,
   collisionPadding,
+  avoidCollisions = true,
   textMode = 'nowrap',
   width,
   maxWidth,
@@ -58,6 +60,7 @@ export function Dropdown({
             textMode === 'wrap' ? 'popover-text-wrap' : '',
           ].join(' ')}
           collisionPadding={collisionPadding}
+          avoidCollisions={avoidCollisions}
           side={side}
           sideOffset={sideOffset}
           style={buildPopoverSizingStyle({ width, maxWidth })}
