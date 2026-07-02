@@ -2346,11 +2346,12 @@
   width: min(var(--workflow-composer-width, var(--layout-content-w)), 100%);
   max-width: var(--workflow-composer-width, var(--layout-content-w));
   margin: 0 auto;
-  padding: 0 0
-    calc(var(--workflow-composer-height, 200px) + var(--layout-composer-bottom));
+  padding: 20px 0
+    calc(
+      var(--workflow-composer-height, 200px) + var(--layout-composer-bottom) +
+        100px
+    );
 }
-
-
 
 .workflow-page__composer-inner {
   width: min(calc(var(--layout-content-w) + 25px), 100%);
