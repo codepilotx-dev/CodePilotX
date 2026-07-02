@@ -1655,12 +1655,26 @@ let desktopBrowserAutomationBridgeServer:
   | DesktopBrowserAutomationBridgeServer
   | null = null
 const desktopBrowserAutomationBridgeToken = randomUUID()
-const desktopBrowserDebugBridge = createDesktopBrowserDebugBridge({
-  handlers: desktopApiHandlers,
-  events: desktopBrowserDebugEvents,
-  enabled: !app.isPackaged && process.env.NODE_ENV === 'development',
-  port: resolveDesktopBrowserDebugPort(),
-})
+const desktopBrowserDebugBridgeToken = randomUUID()
+
+async function syncDesktopBrowserDebugBridge(): Promise<void> {
+  if (!desktopBrowserDebugBridgeServer) {
+    const bridge = createDesktopBrowserDebugBridge({
+      handlers: desktopApiHandlers,
+      events: desktopBrowserDebugEvents,
+      enabled: !app.isPackaged && process.env.NODE_ENV === 'development',
+      port: resolveDesktopBrowserDebugPort(),
+      token: desktopBrowserDebugBridgeToken,
+    })
+    const server = await bridge.start()
+    if (server) {
+      desktopBrowserDebugBridgeServer = server
+      process.env.CODEPILOTX_DESKTOP_BROWSER_DEBUG_BRIDGE_TOKEN =
+        desktopBrowserDebugBridgeToken
+      desktopDebug('browser_debug_bridge_started', { port: server.port })
+    }
+  }
+}
 
 async function syncDesktopBrowserAutomationBridge(): Promise<void> {
   const enabled =
@@ -1703,12 +1717,7 @@ enableConfigs()
 app.setAppUserModelId(DESKTOP_APP_ID)
 registerIpc()
 
-void desktopBrowserDebugBridge.start().then(server => {
-  desktopBrowserDebugBridgeServer = server
-  if (server) {
-    desktopDebug('browser_debug_bridge_started', { port: server.port })
-  }
-}).catch(error => {
+void syncDesktopBrowserDebugBridge().catch(error => {
   desktopDebug('browser_debug_bridge_failed', {
     error: error instanceof Error ? error.message : String(error),
   })

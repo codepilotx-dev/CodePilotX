@@ -44,6 +44,7 @@ export function createDesktopBrowserDebugBridge(options: {
   events: EventEmitter
   enabled: boolean
   port?: number
+  token?: string
 }): DesktopBrowserDebugBridge {
   return {
     async start(): Promise<DesktopBrowserDebugBridgeServer | null> {
@@ -74,10 +75,19 @@ async function handleRequest(
   options: {
     handlers: DesktopApiHandlers
     events: EventEmitter
+    token?: string
   },
   request: IncomingMessage,
   response: ServerResponse,
 ): Promise<void> {
+  // Require bearer token if configured (matching automation bridge pattern)
+  if (options.token) {
+    const authHeader = request.headers.authorization
+    if (!authHeader || authHeader !== `Bearer ${options.token}`) {
+      writeText(response, 401, 'Unauthorized')
+      return
+    }
+  }
   setCorsHeaders(response)
   if (request.method === 'OPTIONS') {
     response.writeHead(204)
@@ -156,9 +166,9 @@ function handleEvents(events: EventEmitter, response: ServerResponse): void {
 }
 
 function setCorsHeaders(response: ServerResponse): void {
-  response.setHeader('access-control-allow-origin', '*')
+  response.setHeader('access-control-allow-origin', 'http://127.0.0.1')
   response.setHeader('access-control-allow-methods', 'GET,POST,OPTIONS')
-  response.setHeader('access-control-allow-headers', 'content-type')
+  response.setHeader('access-control-allow-headers', 'content-type, authorization')
 }
 
 async function readJsonBody(request: IncomingMessage): Promise<{ args?: unknown }> {
