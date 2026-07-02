@@ -374,7 +374,13 @@ class LocalDesktopAgentSession
     }
 
     this.setPlanModeActive(false)
-    if (decision.planExecutionModel) {
+    if (decision.planExecutionProviderID) {
+      this.setModelProvider(
+        decision.planExecutionProviderID,
+        decision.planExecutionModel,
+        decision.planExecutionProviderBaseURL,
+      )
+    } else if (decision.planExecutionModel) {
       this.setModel(decision.planExecutionModel)
     }
     await this.sendUserMessage(

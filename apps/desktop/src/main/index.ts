@@ -1378,8 +1378,10 @@ function isExitPlanModeApproval(
   return (
     request?.toolName === 'ExitPlanMode' &&
     decision.behavior === 'allow' &&
-    typeof decision.planExecutionModel === 'string' &&
-    decision.planExecutionModel.trim().length > 0
+    ((typeof decision.planExecutionModel === 'string' &&
+      decision.planExecutionModel.trim().length > 0) ||
+     (typeof decision.planExecutionProviderID === 'string' &&
+      decision.planExecutionProviderID.trim().length > 0))
   )
 }
 
@@ -1387,25 +1389,53 @@ async function applyPlanExecutionModelDecision(
   record: DesktopSessionRecord,
   decision: DesktopPermissionDecision,
 ): Promise<void> {
+  const providerID = normalizeOptionalText(decision.planExecutionProviderID)
+  const providerBaseURL = normalizeOptionalText(decision.planExecutionProviderBaseURL)
   const model = normalizeOptionalText(decision.planExecutionModel)
-  if (!model) return
-  record.snapshot = {
-    ...record.snapshot,
-    item: {
-      ...record.snapshot.item,
-      model,
-    },
-    settings: {
-      ...record.snapshot.settings,
-      model,
-      planExecutionModel: decision.savePlanExecutionModel
-        ? model
-        : record.snapshot.settings.planExecutionModel,
-    },
-    updatedAt: new Date().toISOString(),
+  const hasProvider = Boolean(providerID)
+  const hasModel = Boolean(model)
+
+  if (!hasProvider && !hasModel) return
+
+  if (hasProvider) {
+    record.snapshot = {
+      ...record.snapshot,
+      item: {
+        ...record.snapshot.item,
+        model: model ?? record.snapshot.settings.model,
+      },
+      settings: {
+        ...record.snapshot.settings,
+        providerID: providerID as ModelProviderID ?? record.snapshot.settings.providerID,
+        providerBaseURL: providerBaseURL ?? record.snapshot.settings.providerBaseURL,
+        model: model ?? record.snapshot.settings.model,
+        planExecutionModel: decision.savePlanExecutionModel
+          ? model ?? record.snapshot.settings.planExecutionModel
+          : record.snapshot.settings.planExecutionModel,
+      },
+      updatedAt: new Date().toISOString(),
+    }
+    record.session?.setModelProvider(providerID, model, providerBaseURL)
+  } else if (model) {
+    record.snapshot = {
+      ...record.snapshot,
+      item: {
+        ...record.snapshot.item,
+        model,
+      },
+      settings: {
+        ...record.snapshot.settings,
+        model,
+        planExecutionModel: decision.savePlanExecutionModel
+          ? model
+          : record.snapshot.settings.planExecutionModel,
+      },
+      updatedAt: new Date().toISOString(),
+    }
+    record.session?.setModel(model)
   }
-  record.session?.setModel(model)
-  if (decision.savePlanExecutionModel === true) {
+
+  if (decision.savePlanExecutionModel === true && model) {
     const settings = await readDesktopStoredSettings()
     await saveDesktopStoredSettings({
       ...settings,
