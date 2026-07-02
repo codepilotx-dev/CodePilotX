@@ -141,6 +141,7 @@
 :root[data-theme="dark"] .meta-chip:hover,
 :root[data-theme="dark"] .composer .icon-button:hover {
   background: var(--c-sidebar-hover-bg);
+  color: var(--c-text-strong);
 }
 
 :root[data-theme="dark"] .chip-button.active,

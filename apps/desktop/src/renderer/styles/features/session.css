@@ -7,8 +7,6 @@
   width: 100%;
 }
 
-
-
 .quick-chat-view,
 .utility-view {
   min-height: 100%;
@@ -245,12 +243,12 @@
 
 .quick-chat-hero .project-name:focus-visible {
   outline: none;
-  box-shadow: var(--focus-ring);
 }
 
 .quick-chat-project-popover {
   position: static;
   display: block;
+  translate: -50% 0;
   transform-origin: var(
     --radix-dropdown-menu-content-transform-origin,
     top center
@@ -1070,8 +1068,6 @@
 .assistant-thinking {
   align-items: flex-start;
 }
-
-
 
 .chat-message-row.user > .message-action {
   display: none;
@@ -1915,7 +1911,7 @@
   font-size: var(--fs-14);
 
   word-break: break-word;
-  
+
   white-space: pre-wrap;
 }
 
@@ -2296,8 +2292,6 @@
   gap: 12px;
 }
 
-
-
 .workflow-composer-card-plan .exit-plan-mode-actions {
   flex: 0 0 auto;
 }
@@ -2469,7 +2463,6 @@
   min-height: 0;
   padding: 0;
   border: 0;
-
 }
 
 .workflow-page__composer-inner .composer-bottom {
@@ -2664,7 +2657,6 @@
   font-weight: var(--font-weight-label);
 }
 
-.quick-chat-view .chat-composer,
 .workflow-page .chat-composer.workflow-page__composer {
   position: fixed;
   z-index: var(--z-composer);
@@ -2836,15 +2828,25 @@
     var(--c-bg);
 }
 
-:root[data-theme="dark"] .workflow-composer-card-question .inline-approval-option:not(.selected),
-:root[data-theme="dark"] .workflow-composer-card-plan .exit-plan-mode-option:not(.selected),
-:root[data-theme="dark"] .workflow-composer-card-question .inline-approval-option.custom {
+:root[data-theme="dark"]
+  .workflow-composer-card-question
+  .inline-approval-option:not(.selected),
+:root[data-theme="dark"]
+  .workflow-composer-card-plan
+  .exit-plan-mode-option:not(.selected),
+:root[data-theme="dark"]
+  .workflow-composer-card-question
+  .inline-approval-option.custom {
   background: color-mix(in srgb, var(--c-accent) 7%, var(--c-panel-bg));
   border-color: color-mix(in srgb, var(--c-accent) 16%, transparent);
 }
 
-:root[data-theme="dark"] .workflow-composer-card-question .inline-approval-option.selected,
-:root[data-theme="dark"] .workflow-composer-card-plan .exit-plan-mode-option.selected {
+:root[data-theme="dark"]
+  .workflow-composer-card-question
+  .inline-approval-option.selected,
+:root[data-theme="dark"]
+  .workflow-composer-card-plan
+  .exit-plan-mode-option.selected {
   background: var(--state-active-bg);
   border-color: color-mix(in srgb, var(--c-accent) 32%, transparent);
 }
@@ -2856,21 +2858,37 @@
   color: var(--c-text-strong);
 }
 
-:root[data-theme="dark"] .workflow-composer-card-question .inline-approval-submit,
-:root[data-theme="dark"] .workflow-composer-card-permission .inline-approval-submit,
+:root[data-theme="dark"]
+  .workflow-composer-card-question
+  .inline-approval-submit,
+:root[data-theme="dark"]
+  .workflow-composer-card-permission
+  .inline-approval-submit,
 :root[data-theme="dark"] .workflow-composer-card-plan .exit-plan-mode-submit {
   background: var(--c-send-bg);
   color: var(--c-text-on-accent);
 }
 
-:root[data-theme="dark"] .workflow-composer-card-question .inline-approval-submit:hover,
-:root[data-theme="dark"] .workflow-composer-card-permission .inline-approval-submit:hover,
-:root[data-theme="dark"] .workflow-composer-card-plan .exit-plan-mode-submit:hover {
+:root[data-theme="dark"]
+  .workflow-composer-card-question
+  .inline-approval-submit:hover,
+:root[data-theme="dark"]
+  .workflow-composer-card-permission
+  .inline-approval-submit:hover,
+:root[data-theme="dark"]
+  .workflow-composer-card-plan
+  .exit-plan-mode-submit:hover {
   background: var(--c-send-bg-hover);
 }
 
-:root[data-theme="dark"] .workflow-composer-card-question .inline-approval-option.selected .inline-approval-option-index,
-:root[data-theme="dark"] .workflow-composer-card-plan .exit-plan-mode-option.selected .exit-plan-mode-badge {
+:root[data-theme="dark"]
+  .workflow-composer-card-question
+  .inline-approval-option.selected
+  .inline-approval-option-index,
+:root[data-theme="dark"]
+  .workflow-composer-card-plan
+  .exit-plan-mode-option.selected
+  .exit-plan-mode-badge {
   background: var(--c-accent);
   color: var(--c-text-on-accent);
 }
@@ -2891,29 +2909,45 @@
 }
 
 .quick-chat-view {
-  --quick-chat-surface-w: min(780px, 100%);
-  justify-content: flex-start;
+  --quick-chat-surface-w: min(760px, 100%);
+  justify-content: center;
   max-width: none;
-  gap: 28px;
-  padding: clamp(128px, 18vh, 178px) var(--layout-page-pad-x)
-    calc(var(--floating-composer-h) + 132px);
+  gap: 34px;
+  padding: 0 var(--layout-page-pad-x) clamp(64px, 8vh, 104px);
 }
 
 .quick-chat-hero h1 {
   max-width: 100%;
+  margin: 0;
+  color: var(--c-text-strong);
+  font-size: inherit;
+  font-weight: var(--font-weight-heading);
+  padding: 3px 6px;
+  letter-spacing: 0;
+  text-wrap: balance;
+  user-select: none;
 }
 
 .quick-chat-view .chat-composer {
-  bottom: clamp(58px, 7vh, 86px);
+  position: static;
+  width: var(--quick-chat-surface-w);
+  max-width: 100%;
+  margin: 0;
+  pointer-events: auto;
 }
 
 .quick-chat-view .chat-composer > .composer {
   width: var(--quick-chat-surface-w);
-  max-width: 780px;
+  max-width: 100%;
   padding: 6px;
-  border: 1px solid color-mix(in srgb, var(--c-text-strong) 10%, var(--c-panel-border));
+  border: 1px solid
+    color-mix(in srgb, var(--c-text-strong) 10%, var(--c-panel-border));
   border-radius: var(--radius-marquee);
-  background: color-mix(in srgb, var(--c-panel-bg) 86%, var(--c-panel-elevated-bg));
+  background: color-mix(
+    in srgb,
+    var(--c-panel-bg) 86%,
+    var(--c-panel-elevated-bg)
+  );
   box-shadow:
     0 22px 64px color-mix(in srgb, var(--c-text-strong) 12%, transparent),
     0 1px 0 color-mix(in srgb, var(--c-bg) 70%, transparent) inset;
@@ -2944,5 +2978,3 @@
 :root[data-theme="dark"] .quick-chat-view .composer-top {
   background: color-mix(in srgb, var(--c-panel-bg) 84%, var(--surface-product));
 }
-
-

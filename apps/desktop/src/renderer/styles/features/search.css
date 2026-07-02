@@ -190,8 +190,7 @@
   gap: var(--layout-card-gap);
 }
 
-.search-result-row:hover,
-.search-result-row:focus-visible {
+.search-result-row:hover {
   border-color: var(--border-muted);
   background: var(--c-bg-row-hover);
 }

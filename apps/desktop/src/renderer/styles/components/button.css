@@ -256,8 +256,7 @@
 .plugins-card:hover,
 .utility-card:hover,
 .message-card:hover,
-.search-result-row:hover,
-.search-result-row:focus-visible {
+.search-result-row:hover {
   border-color: color-mix(in srgb, var(--c-accent) 26%, var(--c-panel-border));
   background: color-mix(in srgb, var(--c-accent) 5%, var(--c-panel-bg));
   box-shadow: var(--c-panel-shadow-soft);
@@ -316,7 +315,6 @@
 :root[data-theme="dark"] .plugins-card:hover,
 :root[data-theme="dark"] .utility-card:hover,
 :root[data-theme="dark"] .automation-quick-button:hover,
-:root[data-theme="dark"] .search-result-row:hover,
-:root[data-theme="dark"] .search-result-row:focus-visible {
+:root[data-theme="dark"] .search-result-row:hover {
   background: color-mix(in srgb, var(--c-accent) 10%, var(--c-panel-bg));
 }
