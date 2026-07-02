@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import {
+  buildAppendText,
   buildFileSelectionPrompt,
   getSendableFilePath,
   shouldShowSelectionSendAction,
@@ -53,5 +54,25 @@ describe('right dock file send helpers', () => {
         },
       }),
     ).toBeNull()
+  })
+
+  test('buildAppendText appends with newline separator when prev is non-empty', () => {
+    expect(buildAppendText('hello', 'world')).toBe('hello\n\nworld')
+  })
+
+  test('buildAppendText appends directly when prev is empty', () => {
+    expect(buildAppendText('', 'hello')).toBe('hello')
+  })
+
+  test('buildAppendText returns prev unchanged when text is only whitespace', () => {
+    expect(buildAppendText('hello', '   ')).toBe('hello')
+  })
+
+  test('buildAppendText trims the appended text', () => {
+    expect(buildAppendText('hello', '  world  ')).toBe('hello\n\nworld')
+  })
+
+  test('buildAppendText handles prev whitespace but empty text', () => {
+    expect(buildAppendText('  ', 'world')).toBe('world')
   })
 })

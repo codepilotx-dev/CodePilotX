@@ -552,6 +552,48 @@ test('ComposerCard shows model catalog loading in composer and model chip', () =
   expect(html).toContain('>加载模型列表中……<')
 })
 
+test('ComposerCard labels selected provider model instead of custom fallback', () => {
+  const html = renderWithProviders(
+    <ComposerCard
+      {...baseProps}
+      selectedProviderID="deepseek"
+      selectedModelPreset="deepseek-v4-pro"
+      modelPresets={[]}
+      providerOptions={[
+        {
+          providerID: 'deepseek',
+          displayName: 'DeepSeek',
+          modelPresets: [
+            {
+              id: 'deepseek-v4-pro',
+              label: 'DeepSeek V4 Pro',
+              value: 'deepseek-v4-pro',
+            },
+          ],
+        },
+      ]}
+    />,
+  )
+
+  expect(html).toContain('>DeepSeek V4 Pro<')
+  expect(html).not.toContain('>自定义模型<')
+})
+
+test('ComposerCard shows unselected model state for unmatched legacy custom preset', () => {
+  const html = renderWithProviders(
+    <ComposerCard
+      {...baseProps}
+      selectedModelPreset="__custom__"
+      modelPresets={[]}
+      providerOptions={[]}
+    />,
+  )
+
+  expect(html).toContain('>未选择模型<')
+  expect(html).not.toContain('>deepseek-chat<')
+  expect(html).not.toContain('>自定义模型<')
+})
+
 test('ComposerCard renders context usage chip with progress ring CSS variable and accessible label', () => {
   const html = renderWithProviders(
     <ComposerCard
@@ -586,17 +628,81 @@ test('ComposerCard renders context usage chip with progress ring CSS variable an
 })
 
 test('ComposerCard shows fallback when showContextUsage is true but contextUsage is null', () => {
-  const html = renderWithProviders(
-    <ComposerCard
-      {...baseProps}
-      showContextUsage={true}
-      contextUsage={null}
-    />,
-  )
+	  const html = renderWithProviders(
+	    <ComposerCard
+	      {...baseProps}
+	      showContextUsage={true}
+	      contextUsage={null}
+	    />,
+	  )
+	
+	  expect(html).toContain('context-usage-chip')
+	  expect(html).toContain('chip-dot')
+	  expect(html).toContain('--context-usage-progress:0')
+	  expect(html).toContain('上下文窗口使用量：暂无数据')
+	  expect(html).toContain('暂无上下文统计')
+	})
 
-  expect(html).toContain('context-usage-chip')
-  expect(html).toContain('chip-dot')
-  expect(html).toContain('--context-usage-progress:0')
-  expect(html).toContain('上下文窗口使用量：暂无数据')
-  expect(html).toContain('暂无上下文统计')
-})
+test('ComposerCard renders goal mode chip when goalModeEnabled is true', () => {
+	  const html = renderWithProviders(
+	    <ComposerCard
+	      {...baseProps}
+	      goalModeEnabled={true}
+	      onGoalModeChange={() => {}}
+	    />,
+	  )
+	
+	  expect(html).toContain('composer-plan-mode-chip active')
+	  expect(html).toContain('>目标<')
+	  expect(html).toContain('目标模式')
+	})
+
+test('ComposerCard shows goal mode placeholder when goalModeEnabled is true', () => {
+	  const html = renderWithProviders(
+	    <ComposerCard
+	      {...baseProps}
+	      goalModeEnabled={true}
+	      onGoalModeChange={() => {}}
+	    />,
+	  )
+	
+	  expect(html).toContain('placeholder="粘贴你的计划或目标…"')
+	})
+
+test('ComposerCard does not render goal mode chip when goalModeEnabled is false', () => {
+	  const html = renderWithProviders(
+	    <ComposerCard {...baseProps} />,
+	  )
+	
+	  expect(html).not.toContain('>目标<')
+	  expect(html).not.toContain('目标模式')
+	})
+
+test('ComposerCard renders target icon in goal mode toolbar chip', () => {
+	  const html = renderWithProviders(
+	    <ComposerCard
+	      {...baseProps}
+	      goalModeEnabled={true}
+	      onGoalModeChange={() => {}}
+	    />,
+	  )
+	
+	  // The goal mode toolbar chip uses the Target icon
+	  expect(html).toContain('lucide-target')
+	  expect(html).toContain('composer-plan-mode-chip-icon-plan')
+	})
+
+test('ComposerCard goal mode and plan mode chips are independent', () => {
+	  const html = renderWithProviders(
+	    <ComposerCard
+	      {...baseProps}
+	      goalModeEnabled={true}
+	      onGoalModeChange={() => {}}
+	      planModeActive={true}
+	    />,
+	  )
+	
+	  // Both chips should appear independently
+	  expect(html).toContain('>目标<')
+	  expect(html).toContain('>计划<')
+	})
