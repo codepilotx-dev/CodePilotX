@@ -26,6 +26,9 @@ export function registerJsonRpcAppServer(
     server.rollbackTurn(params as never),
   )
   connection.onRequest('item/inject', params => server.injectItem(params as never))
+  connection.onRequest('session/getSnapshot', params =>
+    server.getSessionSnapshot(params as never),
+  )
 }
 
 export function createStdioJsonRpcAppServer(): MessageConnection {
