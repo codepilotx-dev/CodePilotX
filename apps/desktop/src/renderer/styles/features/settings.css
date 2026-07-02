@@ -1755,7 +1755,11 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--c-accent), var(--claude-accent-amber));
+  background: linear-gradient(
+    90deg,
+    var(--c-accent),
+    var(--claude-accent-amber)
+  );
 }
 
 .billing-usage-meta {
@@ -2341,13 +2345,6 @@
   font-size: var(--fs-13);
 }
 
-/* Bento settings pages */
-.settings-page,
-.settings-content-scroll-area,
-.profile-dashboard {
-  background: var(--c-workbench-bg);
-}
-
 .settings-content-inner,
 .profile-dashboard-header,
 .profile-hero,
@@ -2714,7 +2711,11 @@
 }
 
 .appearance-mode-card-system .appearance-mode-window {
-  background: linear-gradient(90deg, var(--claude-surface-card) 0 50%, var(--surface-product) 50% 100%);
+  background: linear-gradient(
+    90deg,
+    var(--claude-surface-card) 0 50%,
+    var(--surface-product) 50% 100%
+  );
 }
 
 .appearance-mode-card-dark .appearance-mode-window {
@@ -2746,7 +2747,8 @@
   box-shadow:
     0 14px 0 color-mix(in srgb, var(--claude-on-dark-soft) 72%, transparent),
     -32px 40px 0 -1px color-mix(in srgb, var(--c-accent) 48%, transparent),
-    34px 40px 0 -1px color-mix(in srgb, var(--claude-on-dark-soft) 58%, transparent);
+    34px 40px 0 -1px
+      color-mix(in srgb, var(--claude-on-dark-soft) 58%, transparent);
 }
 
 .appearance-mode-sheet {
@@ -2763,7 +2765,11 @@
 }
 
 .appearance-mode-card-system .appearance-mode-sheet {
-  background: linear-gradient(90deg, var(--claude-canvas) 0 50%, var(--claude-surface-dark-elevated) 50% 100%);
+  background: linear-gradient(
+    90deg,
+    var(--claude-canvas) 0 50%,
+    var(--claude-surface-dark-elevated) 50% 100%
+  );
 }
 
 .appearance-mode-label {

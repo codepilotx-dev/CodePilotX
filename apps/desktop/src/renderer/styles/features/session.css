@@ -2903,11 +2903,6 @@
   max-width: min(820px, 100%);
 }
 
-.chat-session-header {
-  min-height: 48px;
-  border-color: var(--border-muted);
-}
-
 .quick-chat-view {
   --quick-chat-surface-w: min(760px, 100%);
   justify-content: center;

@@ -22,8 +22,13 @@
   align-items: center;
   gap: 6px;
   padding: 6px 12px 6px 10px;
-  border-bottom: 1px solid color-mix(in srgb, var(--claude-accent-amber) 50%, var(--c-border));
-  background: color-mix(in srgb, var(--claude-accent-amber) 18%, var(--c-panel-bg));
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--claude-accent-amber) 50%, var(--c-border));
+  background: color-mix(
+    in srgb,
+    var(--claude-accent-amber) 18%,
+    var(--c-panel-bg)
+  );
   color: var(--c-warning);
   font-size: var(--fs-12);
   line-height: 1.4;
@@ -42,8 +47,7 @@
 .composer-top {
   position: relative;
   padding: calc(var(--layout-toolbar-gap) - 2px)
-    calc(var(--layout-card-pad) - 8px)
-    calc(var(--layout-toolbar-gap) - 4px);
+    calc(var(--layout-card-pad) - 8px) calc(var(--layout-toolbar-gap) - 4px);
   border: 1px solid var(--c-border);
   background: #fffeff;
   border-radius: calc(var(--border-r) + 8px);
@@ -51,8 +55,7 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  transition:
-    min-height 0.24s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: min-height 0.24s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .composer-attachments {
@@ -385,9 +388,15 @@
 
 .chip-button.permission-chip:hover,
 .permission-select-trigger:hover {
-  border-color: var(--permission-chip-hover-border, var(--permission-chip-border, transparent));
+  border-color: var(
+    --permission-chip-hover-border,
+    var(--permission-chip-border, transparent)
+  );
   background: var(--permission-chip-hover-bg, var(--c-sidebar-hover-bg));
-  color: var(--permission-chip-hover-color, var(--permission-chip-color, var(--c-text-strong)));
+  color: var(
+    --permission-chip-hover-color,
+    var(--permission-chip-color, var(--c-text-strong))
+  );
 }
 
 .permission-chip-default,
@@ -402,7 +411,11 @@
 
 .permission-chip-auto {
   --permission-chip-bg: color-mix(in srgb, var(--c-accent) 10%, var(--c-bg));
-  --permission-chip-border: color-mix(in srgb, var(--c-accent) 18%, var(--c-border-soft));
+  --permission-chip-border: color-mix(
+    in srgb,
+    var(--c-accent) 18%,
+    var(--c-border-soft)
+  );
   --permission-chip-color: var(--c-text-strong);
   --permission-chip-hover-bg: var(--c-sidebar-hover-bg);
   --permission-chip-hover-border: var(--permission-chip-border);
@@ -410,8 +423,16 @@
 }
 
 .permission-chip-bypassPermissions {
-  --permission-chip-bg: color-mix(in srgb, var(--claude-accent-amber) 15%, var(--c-bg));
-  --permission-chip-border: color-mix(in srgb, var(--claude-accent-amber) 25%, var(--c-border-soft));
+  --permission-chip-bg: color-mix(
+    in srgb,
+    var(--claude-accent-amber) 15%,
+    var(--c-bg)
+  );
+  --permission-chip-border: color-mix(
+    in srgb,
+    var(--claude-accent-amber) 25%,
+    var(--c-border-soft)
+  );
   --permission-chip-color: var(--c-warning);
   --permission-chip-hover-bg: var(--c-sidebar-hover-bg);
   --permission-chip-hover-border: var(--permission-chip-border);
@@ -567,20 +588,21 @@
 }
 
 .chip-dot {
-  width: 11px;
-  height: 11px;
+  width: 100%;
+  height: 100%;
   display: inline-block;
   position: relative;
   border-radius: var(--radius-full);
   background: conic-gradient(
     var(--c-text-soft) calc(var(--context-usage-progress, 0) * 1%),
-    color-mix(in srgb, var(--c-text-soft) 20%, transparent) calc(var(--context-usage-progress, 0) * 1%),
+    color-mix(in srgb, var(--c-text-soft) 20%, transparent)
+      calc(var(--context-usage-progress, 0) * 1%),
     color-mix(in srgb, var(--c-text-soft) 20%, transparent) 360deg
   );
 }
 
 .chip-dot::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: 2px;
   border-radius: var(--radius-full);
@@ -592,8 +614,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 22px;
+  width: 13px;
+  height: 13px;
   flex-shrink: 0;
   color: var(--c-text-soft);
   cursor: default;
@@ -899,8 +921,7 @@
 .composer-bottom {
   margin-top: calc(var(--layout-toolbar-gap) - 4px);
   padding: calc(var(--layout-toolbar-gap) - 4px)
-    calc(var(--layout-toolbar-gap) - 8px)
-    calc(var(--layout-toolbar-gap) - 10px);
+    calc(var(--layout-toolbar-gap) - 8px) calc(var(--layout-toolbar-gap) - 10px);
   border-top: 1px solid var(--border-muted);
 }
 
