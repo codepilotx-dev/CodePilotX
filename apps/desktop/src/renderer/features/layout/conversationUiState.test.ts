@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, test } from 'bun:test'
 import {
+  createDefaultConversationUiState,
   saveConversationUiState,
   loadConversationUiState,
   validateConversationUiState,
@@ -30,6 +31,8 @@ function makeState(overrides?: Partial<ConversationUiState>): ConversationUiStat
     rightDock: { open: true, activeTool: 'plan', openTools: ['review', 'plan'], width: 680 },
     plan: { title: '计划书', content: '## 计划\n\n实施步骤...' },
     mainScrollTop: 1200,
+    sideChatInput: '',
+    sideChatAttachments: [],
     ...overrides,
   }
 }
@@ -67,6 +70,40 @@ describe('saveConversationUiState / loadConversationUiState', () => {
     saveConversationUiState(sessionId, makeState({ mainScrollTop: 2 }))
 
     expect(loadConversationUiState(sessionId)?.mainScrollTop).toBe(2)
+  })
+
+  test('round-trips sideChatInput and sideChatAttachments', () => {
+    const sessionId = 'test-sidechat-roundtrip'
+    const state = makeState({
+      sideChatInput: '帮我看看这个文件',
+      sideChatAttachments: [
+        {
+          id: 'att-2',
+          name: 'main.ts',
+          path: '/src/main.ts',
+          mediaType: 'text/typescript',
+          sizeBytes: 500,
+          kind: 'document',
+          status: 'ready',
+        },
+      ],
+    })
+
+    saveConversationUiState(sessionId, state)
+    const loaded = loadConversationUiState(sessionId)
+
+    expect(loaded?.sideChatInput).toBe('帮我看看这个文件')
+    expect(loaded?.sideChatAttachments).toEqual([
+      {
+        id: 'att-2',
+        name: 'main.ts',
+        path: '/src/main.ts',
+        mediaType: 'text/typescript',
+        sizeBytes: 500,
+        kind: 'document',
+        status: 'ready',
+      },
+    ])
   })
 })
 
@@ -152,5 +189,78 @@ describe('validateConversationUiState', () => {
     const state = makeState({ mainScrollTop: 999 })
     const validated = validateConversationUiState(state, VALID_TOOLS)
     expect(validated.mainScrollTop).toBe(999)
+  })
+
+  test('preserves sideChatInput through validation', () => {
+    const state = makeState({
+      sideChatInput: '帮我查一下代码',
+      rightDock: {
+        open: true,
+        activeTool: 'bad-tool' as any,
+        openTools: ['bad-tool'] as any,
+        width: 680,
+      },
+    })
+    const validated = validateConversationUiState(state, VALID_TOOLS)
+    expect(validated.sideChatInput).toBe('帮我查一下代码')
+  })
+
+  test('preserves sideChatAttachments through validation', () => {
+    const state = makeState({
+      sideChatAttachments: [
+        {
+          id: 'att-1',
+          name: 'test.ts',
+          path: '/test.ts',
+          mediaType: 'text/typescript',
+          sizeBytes: 100,
+          kind: 'document',
+          status: 'ready',
+        },
+      ],
+      rightDock: {
+        open: true,
+        activeTool: 'bad-tool' as any,
+        openTools: ['bad-tool'] as any,
+        width: 680,
+      },
+    })
+    const validated = validateConversationUiState(state, VALID_TOOLS)
+    expect(validated.sideChatAttachments).toEqual([
+      {
+        id: 'att-1',
+        name: 'test.ts',
+        path: '/test.ts',
+        mediaType: 'text/typescript',
+        sizeBytes: 100,
+        kind: 'document',
+        status: 'ready',
+      },
+    ])
+  })
+
+  test('defaults sideChatInput to empty string when missing from saved state', () => {
+    const state = makeState() as any
+    delete state.sideChatInput
+    delete state.sideChatAttachments
+    const validated = validateConversationUiState(state, VALID_TOOLS)
+    expect(validated.sideChatInput).toBe('')
+    expect(validated.sideChatAttachments).toEqual([])
+  })
+})
+
+describe('createDefaultConversationUiState', () => {
+  test('returns dock closed, plan null, side chat empty', () => {
+    const state = createDefaultConversationUiState()
+    expect(state.rightDock.open).toBe(false)
+    expect(state.rightDock.activeTool).toBeNull()
+    expect(state.rightDock.openTools).toEqual([])
+    expect(state.plan).toBeNull()
+    expect(state.sideChatInput).toBe('')
+    expect(state.sideChatAttachments).toEqual([])
+  })
+
+  test('accepts a custom width', () => {
+    expect(createDefaultConversationUiState(520).rightDock.width).toBe(520)
   })
 })

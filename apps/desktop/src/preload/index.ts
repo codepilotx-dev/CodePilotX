@@ -11,6 +11,8 @@ import {
 import type {
   DesktopAgentEvent,
   DesktopApi,
+  DesktopDataLocationMigrationResult,
+  DesktopDataLocationState,
   DesktopSettingsChange,
   DesktopSessionStoreChange,
   DesktopUiCommand,
@@ -272,6 +274,10 @@ const api: DesktopApi = {
   openSettings: () => ipcRenderer.invoke(desktopApiChannel('openSettings')),
   logOut: () => ipcRenderer.invoke(desktopApiChannel('logOut')),
   exitApp: () => ipcRenderer.invoke(desktopApiChannel('exitApp')),
+  getDataLocation: () =>
+    ipcRenderer.invoke(desktopApiChannel('getDataLocation')),
+  chooseDataLocation: () =>
+    ipcRenderer.invoke(desktopApiChannel('chooseDataLocation')),
   onAgentEvent: callback => {
     const listener = (_event: Electron.IpcRendererEvent, payload: DesktopAgentEvent) => {
       callback(payload)

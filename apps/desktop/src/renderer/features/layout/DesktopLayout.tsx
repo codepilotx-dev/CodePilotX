@@ -18,6 +18,7 @@ import {
 } from './rightDockState.js'
 import { rightDockTools, isRightDockToolEnabled, type RightDockPlan } from './rightDockTools.js'
 import {
+  createDefaultConversationUiState,
   saveConversationUiState,
   loadConversationUiState,
   validateConversationUiState,
@@ -783,16 +784,9 @@ export function DesktopLayout(): React.ReactNode {
   }, [rightDockWidth])
 
   const prevSessionIdRef = useRef<string | null>(null)
-  const uiSnapshotRef = useRef<ConversationUiState>({
-    rightDock: {
-      open: false,
-      activeTool: null,
-      openTools: [],
-      width: RIGHT_DOCK_DEFAULT_WIDTH,
-    },
-    plan: null,
-    mainScrollTop: 0,
-  })
+  const uiSnapshotRef = useRef<ConversationUiState>(
+    createDefaultConversationUiState(rightDockWidth),
+  )
   uiSnapshotRef.current = {
     rightDock: {
       open: rightDockState.open,
@@ -802,6 +796,8 @@ export function DesktopLayout(): React.ReactNode {
     },
     plan: rightDockPlan,
     mainScrollTop: 0,
+    sideChatInput,
+    sideChatAttachments,
   }
 
   useEffect(() => {
@@ -814,13 +810,14 @@ export function DesktopLayout(): React.ReactNode {
 
     prevSessionIdRef.current = currentId
 
+    const flags = { debugMode: menubarDebugMode }
+    const enabledTools = rightDockTools
+      .filter(tool => isRightDockToolEnabled(tool.id, flags))
+      .map(tool => tool.id)
+
     if (currentId) {
       const saved = loadConversationUiState(currentId)
       if (saved) {
-        const flags = { debugMode: menubarDebugMode }
-        const enabledTools = rightDockTools
-          .filter(tool => isRightDockToolEnabled(tool.id, flags))
-          .map(tool => tool.id)
         const validated = validateConversationUiState(saved, enabledTools)
         setRightDockState({
           open: validated.rightDock.open,
@@ -829,7 +826,29 @@ export function DesktopLayout(): React.ReactNode {
         })
         setRightDockWidth(validated.rightDock.width)
         setRightDockPlan(validated.plan)
+        setSideChatInput(validated.sideChatInput)
+        setSideChatAttachments(validated.sideChatAttachments)
+      } else {
+        /* No saved state — force defaults */
+        setRightDockState({
+          open: false,
+          activeTool: null,
+          openTools: [],
+        })
+        setRightDockPlan(null)
+        setSideChatInput('')
+        setSideChatAttachments([])
       }
+    } else {
+      /* Quick-chat — force defaults */
+      setRightDockState({
+        open: false,
+        activeTool: null,
+        openTools: [],
+      })
+      setRightDockPlan(null)
+      setSideChatInput('')
+      setSideChatAttachments([])
     }
   }, [sessionId, menubarDebugMode])
 

@@ -86,6 +86,7 @@ import {
 import { getStandaloneWorkspaceMetadata } from './standaloneWorkspace.js'
 import { configureGithubService } from './githubService.js'
 import { getOpenAgentConfigHomeDir } from './desktopSettings.js'
+import { resolveEffectiveConfigDir } from './desktopDataLocation.js'
 import { buildSessionAppendSystemPrompt } from './desktopAgentsMd.js'
 import { desktopDebug } from './desktopDebug.js'
 import { isTrustedRendererUrl } from './rendererTrust.js'
@@ -166,7 +167,7 @@ type DesktopSessionRecord = {
   turnRestoreId?: string | null
 }
 
-const desktopConfigHomeDir = getOpenAgentConfigHomeDir()
+const desktopConfigHomeDir = resolveEffectiveConfigDir()
 process.env[CODEPILOTX_CONFIG_DIR_ENV] = desktopConfigHomeDir
 process.env[LEGACY_CLAUDE_CONFIG_DIR_ENV] = desktopConfigHomeDir
 

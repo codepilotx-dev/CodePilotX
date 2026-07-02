@@ -1080,6 +1080,21 @@ export type DesktopUpdateStatus =
   | { phase: 'error'; message: string }
   | { phase: 'no-update' }
 
+export type DesktopDataLocationControlSource = 'env' | 'bootstrap' | 'default'
+
+export type DesktopDataLocationState = {
+  currentConfigDir: string
+  pendingConfigDir: string | null
+  controlSource: DesktopDataLocationControlSource
+  isEnvControlled: boolean
+}
+
+export type DesktopDataLocationMigrationResult = {
+  sourceDir: string
+  targetDir: string
+  success: boolean
+}
+
 export type DebugToolProbeMode = 'safe' | 'realManual' | 'realAuto'
 
 export type DebugToolProbeItemStatus =
@@ -1406,6 +1421,8 @@ export type DesktopApi = {
   openSettings(): Promise<void>
   logOut(): Promise<void>
   exitApp(): Promise<void>
+  getDataLocation(): Promise<DesktopDataLocationState>
+  chooseDataLocation(): Promise<DesktopDataLocationMigrationResult | null>
   onAgentEvent(callback: (event: DesktopAgentEvent) => void): () => void
   onWorkflowEvent(callback: (event: DesktopWorkflowEvent) => void): () => void
   onUiCommand(callback: (command: DesktopUiCommand) => void): () => void

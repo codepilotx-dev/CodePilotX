@@ -19,6 +19,8 @@ import type {
   CreateDesktopSessionOptions,
   DesktopApi,
   DesktopBrowserState,
+  DesktopDataLocationMigrationResult,
+  DesktopDataLocationState,
   DesktopModelProviderState,
   DesktopModelProviderSummary,
   DesktopReviewDiffResult,
@@ -608,6 +610,14 @@ function createBrowserMockDesktopClient(): DesktopApi {
     openSettings: async () => {},
     logOut: async () => {},
     exitApp: async () => {},
+    getDataLocation: async (): Promise<DesktopDataLocationState> => ({
+      currentConfigDir: '',
+      pendingConfigDir: null,
+      controlSource: 'default',
+      isEnvControlled: false,
+    }),
+    chooseDataLocation: async (): Promise<DesktopDataLocationMigrationResult | null> =>
+      null,
     onAgentEvent: () => noop,
     onWorkflowEvent: () => noop,
     onUiCommand: () => noop,

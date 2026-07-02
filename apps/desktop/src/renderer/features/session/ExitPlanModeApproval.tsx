@@ -1,6 +1,6 @@
-import type React from 'react'
-import { useState } from 'react'
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
+import type React from "react";
+import { useState } from "react";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
   ArrowDown,
   ArrowUp,
@@ -9,51 +9,57 @@ import {
   ChevronRight,
   CornerDownLeft,
   Pencil,
-} from 'lucide-react'
-import type {
-  DesktopPermissionRequest,
-} from '../../../shared/types.js'
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
-import { buildPopoverSizingStyle } from '../../components/ui/popoverSizing.js'
-import { useQuickChatContext, type ProviderModelOption } from './QuickChatContext.js'
+} from "lucide-react";
+import type { DesktopPermissionRequest } from "../../../shared/types.js";
+import {
+  APP_ICON_SIZE,
+  APP_ICON_STROKE_WIDTH,
+} from "../../components/ui/iconTokens.js";
+import { buildPopoverSizingStyle } from "../../components/ui/popoverSizing.js";
+import {
+  useQuickChatContext,
+  type ProviderModelOption,
+} from "./QuickChatContext.js";
 
 export type ExitPlanModeApprovalProps = {
-  request: DesktopPermissionRequest
+  request: DesktopPermissionRequest;
   onAccept: (options?: {
-    note?: string
-    planExecutionModel?: string
-    planExecutionProviderID?: string
-    planExecutionProviderBaseURL?: string
-    savePlanExecutionModel?: boolean
-  }) => void
-  onRevise: () => void
-}
+    note?: string;
+    planExecutionModel?: string;
+    planExecutionProviderID?: string;
+    planExecutionProviderBaseURL?: string;
+    savePlanExecutionModel?: boolean;
+  }) => void;
+  onRevise: () => void;
+};
 
 export function ExitPlanModeApproval({
   onAccept,
   onRevise,
 }: ExitPlanModeApprovalProps): React.ReactNode {
-  const { providerModelOptions } = useQuickChatContext()
-  const [note, setNote] = useState('')
-  const [selectedProviderID, setSelectedProviderID] = useState('')
-  const [selectedModelValue, setSelectedModelValue] = useState('')
-  const [selectedProviderBaseURL, setSelectedProviderBaseURL] = useState<string | undefined>(undefined)
-  const [savePlanExecutionModel, setSavePlanExecutionModel] = useState(false)
+  const { providerModelOptions } = useQuickChatContext();
+  const [note, setNote] = useState("");
+  const [selectedProviderID, setSelectedProviderID] = useState("");
+  const [selectedModelValue, setSelectedModelValue] = useState("");
+  const [selectedProviderBaseURL, setSelectedProviderBaseURL] = useState<
+    string | undefined
+  >(undefined);
+  const [savePlanExecutionModel, setSavePlanExecutionModel] = useState(false);
 
   const selectedLabel = deriveSelectedLabel(
     selectedProviderID,
     selectedModelValue,
     providerModelOptions,
-  )
+  );
 
   function handleProviderModelSelect(
     providerID: string,
     modelValue: string,
     baseURL: string | undefined,
   ): void {
-    setSelectedProviderID(providerID)
-    setSelectedModelValue(modelValue)
-    setSelectedProviderBaseURL(baseURL)
+    setSelectedProviderID(providerID);
+    setSelectedModelValue(modelValue);
+    setSelectedProviderBaseURL(baseURL);
   }
 
   function handleAccept(): void {
@@ -63,15 +69,13 @@ export function ExitPlanModeApproval({
       planExecutionModel: selectedModelValue || undefined,
       planExecutionProviderBaseURL: selectedProviderBaseURL,
       savePlanExecutionModel,
-    })
+    });
   }
 
   return (
     <div className="exit-plan-mode-approval">
       <div className="exit-plan-mode-title-row">
-        <p className="exit-plan-mode-title">
-          实施此计划?
-        </p>
+        <p className="exit-plan-mode-title">实施此计划?</p>
         <label className="exit-plan-mode-model">
           <span>使用</span>
           <DropdownMenu.Root>
@@ -104,9 +108,9 @@ export function ExitPlanModeApproval({
                   <DropdownMenu.Item
                     className="rm-menu-item"
                     onSelect={() => {
-                      setSelectedProviderID('')
-                      setSelectedModelValue('')
-                      setSelectedProviderBaseURL(undefined)
+                      setSelectedProviderID("");
+                      setSelectedModelValue("");
+                      setSelectedProviderBaseURL(undefined);
                     }}
                   >
                     <span className="rm-item-label">默认</span>
@@ -124,15 +128,15 @@ export function ExitPlanModeApproval({
                     <>
                       <div className="rm-divider" />
                       <div className="rm-section-header">提供商</div>
-                      {providerModelOptions.map(provider => (
+                      {providerModelOptions.map((provider) => (
                         <DropdownMenu.Sub key={provider.providerID}>
                           <DropdownMenu.SubTrigger
                             className={[
-                              'rm-sub-trigger',
+                              "rm-sub-trigger",
                               provider.providerID === selectedProviderID
-                                ? 'selected'
-                                : '',
-                            ].join(' ')}
+                                ? "selected"
+                                : "",
+                            ].join(" ")}
                           >
                             <span className="rm-sub-trigger-content">
                               <span className="rm-item-label">
@@ -156,11 +160,14 @@ export function ExitPlanModeApproval({
                               className="popover-surface rm-model-menu rm-model-submenu"
                               alignOffset={-6}
                               sideOffset={8}
-                              style={buildPopoverSizingStyle({ maxWidth: 'min(calc(320px + var(--popover-width-extra)), calc(100vw - 32px))' })}
+                              style={buildPopoverSizingStyle({
+                                maxWidth:
+                                  "min(calc(320px + var(--popover-width-extra)), calc(100vw - 32px))",
+                              })}
                             >
                               <div className="rm-model-submenu-scroll-content">
                                 <div className="rm-section-header">模型</div>
-                                {provider.modelPresets.map(preset => (
+                                {provider.modelPresets.map((preset) => (
                                   <DropdownMenu.Item
                                     className="rm-menu-item"
                                     key={preset.id}
@@ -169,13 +176,14 @@ export function ExitPlanModeApproval({
                                         provider.providerID,
                                         preset.value,
                                         provider.baseURL,
-                                      )
+                                      );
                                     }}
                                   >
                                     <span className="rm-item-label">
                                       {preset.label}
                                     </span>
-                                    {provider.providerID === selectedProviderID &&
+                                    {provider.providerID ===
+                                      selectedProviderID &&
                                     preset.value === selectedModelValue ? (
                                       <Check
                                         className="rm-item-check"
@@ -200,15 +208,20 @@ export function ExitPlanModeApproval({
         </label>
       </div>
 
-      <div className="exit-plan-mode-options">
+      <div className="exit-plan-mode-info-row">
         <label className="exit-plan-mode-info">
           <input
             type="checkbox"
             checked={savePlanExecutionModel}
-            onChange={event => setSavePlanExecutionModel(event.target.checked)}
+            onChange={(event) =>
+              setSavePlanExecutionModel(event.target.checked)
+            }
           />
           <span>保存为默认计划执行模型</span>
         </label>
+      </div>
+
+      <div className="exit-plan-mode-options">
         <button
           className="exit-plan-mode-option selected"
           type="button"
@@ -234,7 +247,7 @@ export function ExitPlanModeApproval({
             className="exit-plan-mode-note-input"
             placeholder="否，请告知 CodePilotX 如何调整"
             value={note}
-            onChange={event => setNote(event.target.value)}
+            onChange={(event) => setNote(event.target.value)}
           />
         </div>
         <div className="exit-plan-mode-actions">
@@ -257,7 +270,7 @@ export function ExitPlanModeApproval({
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 function deriveSelectedLabel(
@@ -265,25 +278,27 @@ function deriveSelectedLabel(
   modelValue: string,
   providerModelOptions: ProviderModelOption[],
 ): string {
-  if (!providerID || !modelValue) return '默认'
-  const provider = providerModelOptions.find(p => p.providerID === providerID)
-  if (!provider) return modelValue
-  const preset = provider.modelPresets.find(p => p.value === modelValue)
-  return preset?.label ?? modelValue
+  if (!providerID || !modelValue) return "默认";
+  const provider = providerModelOptions.find(
+    (p) => p.providerID === providerID,
+  );
+  if (!provider) return modelValue;
+  const preset = provider.modelPresets.find((p) => p.value === modelValue);
+  return preset?.label ?? modelValue;
 }
 
 export function extractPlanSummary(request: DesktopPermissionRequest): string {
-  const input = request.input ?? {}
-  const candidateKeys = ['plan', 'planMarkdown', 'summary', 'content', 'text']
+  const input = request.input ?? {};
+  const candidateKeys = ["plan", "planMarkdown", "summary", "content", "text"];
   for (const key of candidateKeys) {
-    const value = input[key]
-    if (typeof value === 'string' && value.trim()) {
-      return value
+    const value = input[key];
+    if (typeof value === "string" && value.trim()) {
+      return value;
     }
   }
   try {
-    return JSON.stringify(input, null, 2)
+    return JSON.stringify(input, null, 2);
   } catch {
-    return ''
+    return "";
   }
 }

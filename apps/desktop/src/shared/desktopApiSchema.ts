@@ -368,6 +368,8 @@ export const DESKTOP_API_ARG_SCHEMAS = {
   openSettings: emptyArgs,
   logOut: emptyArgs,
   exitApp: emptyArgs,
+  getDataLocation: emptyArgs,
+  chooseDataLocation: emptyArgs,
   checkForUpdates: emptyArgs,
   downloadUpdate: emptyArgs,
   quitAndInstall: emptyArgs,

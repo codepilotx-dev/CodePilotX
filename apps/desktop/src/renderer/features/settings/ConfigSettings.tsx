@@ -5,6 +5,7 @@ import { desktopClient } from '../../services/desktopClient.js'
 import { useDesktopSettings } from './useDesktopSettings.js'
 import { PERMISSION_MODE_OPTIONS } from './settingsStorage.js'
 import type {
+  DesktopDataLocationState,
   DesktopRuntimeStatus,
   DesktopSandboxMode,
   DesktopToolchainDiagnosticReport,
@@ -60,6 +61,25 @@ export function ConfigSettings(): React.ReactNode {
   const [reinstallingToolchain, setReinstallingToolchain] = useState(false)
   const [deletingToolchain, setDeletingToolchain] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [dataLocation, setDataLocation] = useState<DesktopDataLocationState | null>(
+    null,
+  )
+  const [changingLocation, setChangingLocation] = useState(false)
+
+  useEffect(() => {
+    let mounted = true
+    void desktopClient
+      .getDataLocation()
+      .then(state => {
+        if (mounted) setDataLocation(state)
+      })
+      .catch(() => {
+        if (mounted) setDataLocation(null)
+      })
+    return () => {
+      mounted = false
+    }
+  }, [])
 
   useEffect(() => {
     let mounted = true
@@ -81,6 +101,27 @@ export function ConfigSettings(): React.ReactNode {
       setRuntimeStatus(await desktopClient.getRuntimeStatus())
     } catch {
       setRuntimeStatus(null)
+    }
+  }
+
+  const handleChooseDataLocation = async (): Promise<void> => {
+    if (changingLocation) return
+    setChangingLocation(true)
+    try {
+      const result = await desktopClient.chooseDataLocation()
+      if (result) {
+        // Migration succeeded: show the pending state
+        const newState = await desktopClient.getDataLocation()
+        setDataLocation(newState)
+        window.alert(
+          `数据已迁移到：${result.targetDir}\n\n请重启应用使新位置生效。当前会话继续使用旧目录。`,
+        )
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      window.alert(`更改数据位置失败：${message}`)
+    } finally {
+      setChangingLocation(false)
     }
   }
 
@@ -346,6 +387,61 @@ export function ConfigSettings(): React.ReactNode {
                   draft.autoSave()
                 }}
               />
+            }
+          />
+        </SettingsSection>
+
+        <SettingsSection
+          title="数据位置"
+          description="CodePilotX 配置和会话数据存储位置。更改后需要重启应用才能生效。"
+        >
+          <SettingsRow
+            title="当前数据目录"
+            description={
+              dataLocation
+                ? dataLocation.currentConfigDir
+                : '加载中…'
+            }
+            control={
+              <span className="settings-row-status">
+                {dataLocation
+                  ? dataLocation.isEnvControlled
+                    ? '环境变量控制'
+                    : dataLocation.controlSource === 'bootstrap'
+                      ? '待生效'
+                      : '默认位置'
+                  : '—'}
+              </span>
+            }
+          />
+          {dataLocation?.pendingConfigDir ? (
+            <SettingsRow
+              title="待生效目录"
+              description={`重启后将使用：${dataLocation.pendingConfigDir}`}
+              control={
+                <span className="settings-row-status">等待重启</span>
+              }
+            />
+          ) : null}
+          <SettingsRow
+            title="更改位置"
+            description={
+              dataLocation?.isEnvControlled
+                ? '当前由环境变量 CODEPILOTX_CONFIG_DIR 或 CLAUDE_CONFIG_DIR 控制。移除环境变量后可使用桌面设置管理。'
+                : '选择新的数据存储目录，系统将自动迁移现有数据。'
+            }
+            control={
+              <button
+                className="settings-button"
+                disabled={
+                  changingLocation ||
+                  dataLocation?.isEnvControlled
+                }
+                onClick={() => void handleChooseDataLocation()}
+                type="button"
+              >
+                {changingLocation ? '处理中…' : '选择目录'}
+              </button>
             }
           />
         </SettingsSection>

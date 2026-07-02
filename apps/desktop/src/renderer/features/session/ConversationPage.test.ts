@@ -4,7 +4,9 @@ import type { DesktopSessionEvent, DesktopSessionStatus } from '../../../shared/
 const idleStatus: DesktopSessionStatus = 'idle'
 const runningStatus: DesktopSessionStatus = 'running'
 let deriveAssistantActionMessageIds: typeof import('./ConversationPage.js').deriveAssistantActionMessageIds
+let deriveTimelineSourceEvents: typeof import('./ConversationPage.js').deriveTimelineSourceEvents
 let groupTimelineToolEvents: typeof import('./ConversationPage.js').groupTimelineToolEvents
+let groupTimelineExecutionPhases: typeof import('./ConversationPage.js').groupTimelineExecutionPhases
 let commandRunView: typeof import('./ConversationPage.js').commandRunView
 let toggleOpenCommandRunIds: typeof import('./ConversationPage.js').toggleOpenCommandRunIds
 let parseAskUserQuestionTimelineResult: typeof import('./ConversationPage.js').parseAskUserQuestionTimelineResult
@@ -20,7 +22,9 @@ beforeAll(async () => {
   const conversationPage = await import('./ConversationPage.js')
   deriveAssistantActionMessageIds =
     conversationPage.deriveAssistantActionMessageIds
+  deriveTimelineSourceEvents = conversationPage.deriveTimelineSourceEvents
   groupTimelineToolEvents = conversationPage.groupTimelineToolEvents
+  groupTimelineExecutionPhases = conversationPage.groupTimelineExecutionPhases
   commandRunView = conversationPage.commandRunView
   toggleOpenCommandRunIds = conversationPage.toggleOpenCommandRunIds
   parseAskUserQuestionTimelineResult =
@@ -100,6 +104,27 @@ test('treats legacy idle transcripts without checkpoints as completed', () => {
   })
 
   expect([...visible]).toEqual(['assistant-2'])
+})
+
+test('prefers live session events while a workflow-backed turn is active', () => {
+  const workflowEvents = [
+    userEvent('workflow-user-1', 'Previous task'),
+    assistantEvent('workflow-assistant-1', 'Previous answer'),
+    checkpointEvent('workflow-done-1'),
+  ]
+  const liveEvents = [
+    userEvent('live-user-1', 'New task'),
+    assistantEvent('live-assistant-1', 'Working now'),
+  ]
+
+  expect(
+    deriveTimelineSourceEvents({
+      conversationMessages: [],
+      events: liveEvents,
+      sessionStatus: runningStatus,
+      workflowEvents,
+    }),
+  ).toBe(liveEvents)
 })
 
 test('keeps permission requests inside the running command shell', () => {
@@ -274,6 +299,35 @@ test('plan card becomes a compact summary when docked', () => {
   })
 })
 
+test('shows assistant actions for the final message in a plan turn', () => {
+  const visible = deriveAssistantActionMessageIds({
+    sessionStatus: idleStatus,
+    timelineEvents: [
+      userEvent('user-1', 'Implement feature'),
+      assistantEvent('assistant-1', 'I will inspect code first'),
+      proposedPlanEvent('plan-1', '# Implementation Plan\n\nStep 1...'),
+      assistantEvent('assistant-2', 'Done with implementation'),
+      checkpointEvent('done-1'),
+    ],
+  })
+
+  expect([...visible]).toEqual(['assistant-2'])
+})
+
+test('still shows actions for final assistant message when turn has no proposed_plan', () => {
+  const visible = deriveAssistantActionMessageIds({
+    sessionStatus: idleStatus,
+    timelineEvents: [
+      userEvent('user-1', 'Build it'),
+      assistantEvent('assistant-1', 'First answer'),
+      assistantEvent('assistant-2', 'Final answer'),
+      checkpointEvent('done-1'),
+    ],
+  })
+
+  expect([...visible]).toEqual(['assistant-2'])
+})
+
 test('buildDebugAskUserQuestionRequest creates a three-question card fixture', () => {
   const request = buildDebugAskUserQuestionRequest()
   const questions = request.input.questions as Array<{
@@ -288,6 +342,130 @@ test('buildDebugAskUserQuestionRequest creates a three-question card fixture', (
     '最后一题应该如何提交？',
   ])
   expect(questions[1]?.multiSelect).toBe(true)
+})
+
+// --- groupTimelineExecutionPhases ---
+
+function toolGroupItem(id: string, toolName: string, isRunning = false): ReturnType<typeof import('./ConversationPage.js')['groupTimelineToolEvents']>[number] & { type: 'tool_group' } {
+  return {
+    id: `tool-group-${id}`,
+    type: 'tool_group' as const,
+    runs: [
+      {
+        id: `${id}-run`,
+        toolUseId: `${id}-tool-use`,
+        toolName,
+        callContent: toolName === 'Bash' ? 'npm test' : '',
+        resultContent: isRunning ? '' : 'done',
+        isError: false,
+        isRunning,
+        isWaitingForPermission: false,
+      },
+    ],
+  }
+}
+
+const idleSessionStatus: DesktopSessionStatus = 'idle'
+const runningSessionStatus: DesktopSessionStatus = 'running'
+
+test('groupTimelineExecutionPhases passes through items in a non-plan turn unchanged', () => {
+  const items = groupTimelineToolEvents([
+    userEvent('user-1', 'Hello'),
+    assistantEvent('assistant-1', 'Hi there'),
+    checkpointEvent('done-1'),
+  ])
+  const phaseItems = groupTimelineExecutionPhases(items, idleSessionStatus)
+
+  // All items pass through unchanged (includes checkpoint which is invisible in rendering)
+  expect(phaseItems).toHaveLength(3)
+  expect(phaseItems[0]).toBe(items[0])
+  expect(phaseItems[1]).toBe(items[1])
+  expect(phaseItems[2]).toBe(items[2])
+})
+
+test('groupTimelineExecutionPhases wraps execution items after a plan into a phase', () => {
+  const items = groupTimelineToolEvents([
+    userEvent('user-1', 'Build feature'),
+    proposedPlanEvent('plan-1', '# Plan'),
+    assistantEvent('assistant-1', 'Starting implementation...'),
+    toolCallEvent('tool-1', 'Bash', 'npm test'),
+    toolResultEvent('result-1', 'Bash', 'passed', false),
+    filePatchEvent('file-1', '/src/index.ts'),
+    assistantEvent('assistant-2', 'Done with feature'),
+    checkpointEvent('done-1'),
+  ])
+  const phaseItems = groupTimelineExecutionPhases(items, idleSessionStatus)
+
+  // Expected: [user, plan, execution_phase, file_patch, final_summary, checkpoint]
+  expect(phaseItems[0]).toBe(items[0]) // user message
+  expect(phaseItems[1]).toBe(items[1]) // proposed_plan
+
+  // Execution phase
+  const phase = phaseItems[2]
+  expect(phase?.type).toBe('execution_phase')
+  if (phase?.type !== 'execution_phase') throw new Error('Expected execution phase')
+  expect(phase.isComplete).toBe(true)
+  expect(phase.items).toHaveLength(2) // assistant-1 + tool_group
+  expect(phase.items[0]).toBe(items[2]) // assistant-1
+
+  // File patch stays outside
+  expect(phaseItems[3]).toBe(items[4]) // file_patch
+
+  // Final summary
+  expect(phaseItems[4]).toBe(items[5]) // assistant-2
+})
+
+test('groupTimelineExecutionPhases keeps execution phase expanded while running', () => {
+  const items = groupTimelineToolEvents([
+    userEvent('user-1', 'Build feature'),
+    proposedPlanEvent('plan-1', '# Plan'),
+    assistantEvent('assistant-1', 'Working...'),
+    toolCallEvent('tool-1', 'Bash', 'npm test'),
+    // No checkpoint — turn is still active
+  ])
+  const phaseItems = groupTimelineExecutionPhases(items, runningSessionStatus)
+
+  const phase = phaseItems[2]
+  expect(phase?.type).toBe('execution_phase')
+  if (phase?.type !== 'execution_phase') throw new Error('Expected execution phase')
+  expect(phase.isComplete).toBe(false) // not complete while running
+})
+
+test('groupTimelineExecutionPhases handles plan turn without execution items', () => {
+  const items = groupTimelineToolEvents([
+    userEvent('user-1', 'Build feature'),
+    proposedPlanEvent('plan-1', '# Plan'),
+    assistantEvent('assistant-1', 'Done'),
+    checkpointEvent('done-1'),
+  ])
+  const phaseItems = groupTimelineExecutionPhases(items, idleSessionStatus)
+
+  // No execution phase since there are no intermediate items between plan and final
+  // Result: [user, plan, assistant (final), checkpoint]
+  expect(phaseItems).toHaveLength(4)
+  // Assistant is the final summary (outside phase)
+  expect(phaseItems[2]).toBe(items[2])
+})
+
+test('groupTimelineExecutionPhases handles plan turn without final assistant message', () => {
+  const items = groupTimelineToolEvents([
+    userEvent('user-1', 'Build feature'),
+    proposedPlanEvent('plan-1', '# Plan'),
+    toolCallEvent('tool-1', 'Bash', 'npm test'),
+    toolResultEvent('result-1', 'Bash', 'passed', false),
+    filePatchEvent('file-1', '/src/index.ts'),
+    checkpointEvent('done-1'),
+  ])
+  const phaseItems = groupTimelineExecutionPhases(items, idleSessionStatus)
+
+  // Expected: [user, plan, execution_phase, file_patch, checkpoint]
+  const phase = phaseItems[2]
+  expect(phase?.type).toBe('execution_phase')
+  if (phase?.type !== 'execution_phase') throw new Error('Expected execution phase')
+  expect(phase.items).toHaveLength(1) // just the tool group
+
+  // No final summary message — file patch is the last visible item
+  expect(phaseItems[3]).toBe(items[3]) // file_patch
 })
 
 function userEvent(id: string, content: string): DesktopSessionEvent {
@@ -321,6 +499,18 @@ function checkpointEvent(id: string): DesktopSessionEvent {
     content: 'done',
     createdAt: '2026-06-26T00:00:01.000Z',
     metadata: { status: 'done' },
+  }
+}
+
+function proposedPlanEvent(id: string, content: string): DesktopSessionEvent {
+  return {
+    id,
+    sessionId: 'session-1',
+    type: 'proposed_plan',
+    role: 'assistant',
+    content,
+    createdAt: '2026-06-26T00:00:00.500Z',
+    metadata: {},
   }
 }
 
@@ -438,5 +628,20 @@ function errorEvent(id: string, content: string): DesktopSessionEvent {
     role: 'system',
     content,
     createdAt: '2026-06-26T00:00:01.000Z',
+  }
+}
+
+function filePatchEvent(id: string, filePath: string): DesktopSessionEvent {
+  return {
+    id,
+    sessionId: 'session-1',
+    type: 'file_patch',
+    content: `Edited ${filePath}`,
+    createdAt: '2026-06-26T00:00:01.000Z',
+    metadata: {
+      files: [{ path: filePath, additions: 5, deletions: 2 }],
+      additions: 5,
+      deletions: 2,
+    },
   }
 }

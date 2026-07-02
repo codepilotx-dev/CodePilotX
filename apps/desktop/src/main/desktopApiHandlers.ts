@@ -96,10 +96,16 @@ import {
   registerAllowedWorkspaces,
 } from './workspaceService.js'
 import type { DebugToolProbeService } from './debugToolProbeService.js'
+import {
+  getDataLocationState,
+  chooseAndMigrateDataLocation,
+} from './desktopDataLocation.js'
 import type {
   CreateDesktopSessionOptions,
   CreateDesktopSessionResult,
   DesktopBuiltinPlugin,
+  DesktopDataLocationMigrationResult,
+  DesktopDataLocationState,
   DesktopPermissionDecision,
   DesktopPermissionMode,
   DesktopSlashCommandSuggestion,
@@ -360,6 +366,10 @@ export function buildDesktopApiHandlers(
     openSettings: async () => windowService.openSettings(),
     logOut: async () => windowService.logOut(),
     exitApp: async () => windowService.exitApp(),
+    getDataLocation: async (): Promise<DesktopDataLocationState> =>
+      getDataLocationState(),
+    chooseDataLocation: async (): Promise<DesktopDataLocationMigrationResult | null> =>
+      chooseAndMigrateDataLocation(),
     checkForUpdates: async () => {
       desktopAutoUpdater?.checkForUpdates()
     },

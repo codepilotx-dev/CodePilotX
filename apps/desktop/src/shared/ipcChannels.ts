@@ -121,6 +121,8 @@ export const DESKTOP_API_METHODS = [
   'openSettings',
   'logOut',
   'exitApp',
+  'getDataLocation',
+  'chooseDataLocation',
   'checkForUpdates',
   'downloadUpdate',
   'quitAndInstall',
