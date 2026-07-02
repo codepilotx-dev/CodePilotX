@@ -35,9 +35,51 @@
   align-items: stretch;
   gap: 0;
   width: 100%;
+  flex: 1 1 auto;
+  height: auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+.desktop-workspace {
+  --workspace-header-h: 46px;
+  width: 100%;
   height: 100%;
   min-width: 0;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.desktop-workspace-header {
+  height: var(--workspace-header-h);
+  min-height: var(--workspace-header-h);
+  padding: 0;
+  gap: 0;
+}
+
+.desktop-workspace-header-main {
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  flex: 1 1 auto;
+  padding: var(--sp-2) var(--sp-5);
+}
+
+.desktop-workspace-header-dock {
+  height: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex: 0 0 max(var(--right-dock-offset, 0px), 76px);
+  padding: 0 12px 0 16px;
+  border-left: 1px solid var(--c-border-soft);
 }
 
 .desktop-main-browser-layout.browser-closed {
@@ -57,13 +99,14 @@
   z-index: var(--z-right-dock);
   right: 0;
   bottom: 0;
+  top: calc(var(--menubar-h) + var(--workspace-header-h, 46px));
   display: flex;
   flex: none;
   flex-direction: column;
   width: var(--right-dock-current-w);
   min-width: var(--right-dock-min-w);
   max-width: var(--right-dock-max-w);
-  height: calc(100vh - var(--menubar-h));
+  height: calc(100vh - var(--menubar-h) - var(--workspace-header-h, 46px));
   min-height: 0;
   overflow: hidden;
   border: 1px solid var(--c-border-soft);

@@ -10,7 +10,7 @@ import {
   getDesktopComposerBranchName,
 } from '../session/DesktopComposer.js'
 import { DesktopAppShell } from './DesktopAppShell.js'
-import { RightDock } from './RightDock.js'
+import { RightDock, RightDockHeader } from './RightDock.js'
 import {
   applyRightDockAction,
   type RightDockState,
@@ -41,6 +41,10 @@ import type {
   WindowMenuAction,
 } from './MenuBar.js'
 import { QuickChatContext } from '../session/QuickChatContext.js'
+import {
+  WorkspaceHeaderContext,
+  type WorkspaceHeaderContent,
+} from './WorkspaceHeaderContext.js'
 import { SearchContext } from '../search/SearchContext.js'
 import type { SessionListItem } from '../../uiTypes.js'
 import { useDesktopSettings } from '../settings/useDesktopSettings.js'
@@ -160,6 +164,9 @@ export function DesktopLayout(): React.ReactNode {
     openTools: [],
   })
   const [rightDockPlan, setRightDockPlan] = useState<RightDockPlan | null>(null)
+  const [bottomPanelVisible, setBottomPanelVisible] = useState(false)
+  const [workspaceHeaderContent, setWorkspaceHeaderContent] =
+    useState<WorkspaceHeaderContent | null>(null)
   const [menubarDebugMode, setMenubarDebugMode] = useState(() =>
     readDesktopBrowserDebugMode(),
   )
@@ -1496,6 +1503,13 @@ export function DesktopLayout(): React.ReactNode {
       submitToSession={submitToSession}
     />
   ) : null
+  const toggleBottomPanelVisible = useCallback((): void => {
+    setBottomPanelVisible(current => !current)
+  }, [])
+  const workspaceHeaderContextValue = useMemo(
+    () => ({ setHeaderContent: setWorkspaceHeaderContent }),
+    [],
+  )
 
   return (
     <div className="desktop-frame">
@@ -1547,8 +1561,9 @@ export function DesktopLayout(): React.ReactNode {
         sidebar={sidebar}
         menubarDebugMode={menubarDebugMode}
       >
-        <QuickChatContext.Provider
-          value={{
+        <WorkspaceHeaderContext.Provider value={workspaceHeaderContextValue}>
+          <QuickChatContext.Provider
+            value={{
             isConversationRoute,
             isConversationLoading,
             sidebarCollapsed,
@@ -1628,82 +1643,112 @@ export function DesktopLayout(): React.ReactNode {
               isQuickChatPage || isConversationLoading ? [] : pendingPermissions,
             sessionStatus,
             composer: isConversationLoading ? null : composer,
+            bottomPanelVisible,
+            onToggleBottomPanel: toggleBottomPanelVisible,
             rightDockOpen: rightDockState.open,
             rightDockTool: rightDockState.activeTool,
             rightDockPlanContent: rightDockPlan?.content ?? null,
             debugMode: menubarDebugMode,
-          }}
-        >
-          <SearchContext.Provider
-            value={{
+            }}
+          >
+            <SearchContext.Provider
+              value={{
               query: searchQuery,
               workspaces: search.filteredWorkspaces,
               sessions: search.filteredSessions,
               onQueryChange: setSearchQuery,
               onOpenWorkspace: handleOpenRecentWorkspace,
               onSelectSession: handleSelectSession,
-            }}
-          >
-            <div
-              className={
-                rightDockState.open
-                  ? 'desktop-main-browser-layout'
-                  : 'desktop-main-browser-layout browser-closed'
-              }
-              style={
-                {
-                  '--right-dock-offset': rightDockState.open
-                    ? `${rightDockWidth}px`
-                    : '0px',
-                  '--sidebar-w': sidebarCollapsed ? '0px' : `${sidebarWidth}px`,
-                } as React.CSSProperties
-              }
+              }}
             >
-              <div className="desktop-main-route">
-                <Outlet />
-              </div>
-              {rightDockState.open ? (
-                <RightDock
-                  state={rightDockState}
-                  browserState={browserState}
-                  debugMode={menubarDebugMode}
-                  defaultBranch={derivedDefaultBranch}
-                  files={workspaceFiles}
-                  gitStatus={gitStatus}
-                  isRefreshingReview={false}
-                  diffMarkerStyle={diffMarkerStyle}
-                  maxWidth={RIGHT_DOCK_MAX_WIDTH}
-                  minWidth={RIGHT_DOCK_MIN_WIDTH}
-                  reviewView={reviewView}
-                  plan={rightDockPlan}
-                  selectedFile={selectedFile}
-                  sessionId={sessionId}
-                  sessionStatus={sessionStatus}
-                  width={rightDockWidth}
-                  workspace={currentWorkspace}
-                  quickChatOnly={isQuickChatPage}
-                  onAppendBrowserAnnotation={handleBrowserAnnotation}
-                  onAppendComposerText={handleAppendComposerText}
-                  onAddComposerFiles={handleAddComposerFiles}
-                  onBrowserStateChange={setBrowserState}
-                  onClose={closeRightDock}
-                  onCloseTool={closeRightDockTool}
-                  onCreateBranch={() => setGitWorkflowMode('branch')}
-                  onOpenTool={handleRightDockToolSelect}
-                  onOpenWorkspacePath={handleOpenWorkspacePath}
-                  onPreviewFile={file => void previewFile(file)}
-                  onRefreshReview={handleRefreshDiff}
-                  onResetWidth={handleResetRightDockWidth}
-                  onSelectTool={selectRightDockTool}
-                  onSetWidth={handleSetRightDockWidth}
-                  onToggleReviewView={() =>
-                    setReviewView(reviewView === 'inline' ? 'split' : 'inline')
+              <div
+                className="desktop-workspace"
+                style={
+                  {
+                    '--right-dock-offset': rightDockState.open
+                      ? `${rightDockWidth}px`
+                      : '0px',
+                    '--sidebar-w': sidebarCollapsed ? '0px' : `${sidebarWidth}px`,
+                  } as React.CSSProperties
+                }
+              >
+                <header className="chat-session-header desktop-workspace-header">
+                  <div className="desktop-workspace-header-main">
+                    {workspaceHeaderContent?.title ?? (
+                      <div className="chat-session-title" aria-hidden="true" />
+                    )}
+                    {workspaceHeaderContent?.actions ?? (
+                      <div className="chat-session-actions" aria-hidden="true" />
+                    )}
+                  </div>
+                  <div className="desktop-workspace-header-dock">
+                    {workspaceHeaderContent?.dockActions ?? null}
+                    <RightDockHeader
+                      state={rightDockState}
+                      debugMode={menubarDebugMode}
+                      quickChatOnly={isQuickChatPage}
+                      plan={rightDockPlan}
+                      onClose={closeRightDock}
+                      onCloseTool={closeRightDockTool}
+                      onOpenTool={handleRightDockToolSelect}
+                      onSelectTool={selectRightDockTool}
+                    />
+                  </div>
+                </header>
+                <div
+                  className={
+                    rightDockState.open
+                      ? 'desktop-main-browser-layout'
+                      : 'desktop-main-browser-layout browser-closed'
                   }
-                />
-              ) : null}
-            </div>
-          </SearchContext.Provider>
-        </QuickChatContext.Provider>
+                >
+                  <div className="desktop-main-route">
+                    <Outlet />
+                  </div>
+                  {rightDockState.open ? (
+                    <RightDock
+                      state={rightDockState}
+                      browserState={browserState}
+                      debugMode={menubarDebugMode}
+                      defaultBranch={derivedDefaultBranch}
+                      files={workspaceFiles}
+                      gitStatus={gitStatus}
+                      isRefreshingReview={false}
+                      diffMarkerStyle={diffMarkerStyle}
+                      maxWidth={RIGHT_DOCK_MAX_WIDTH}
+                      minWidth={RIGHT_DOCK_MIN_WIDTH}
+                      reviewView={reviewView}
+                      plan={rightDockPlan}
+                      selectedFile={selectedFile}
+                      sessionId={sessionId}
+                      sessionStatus={sessionStatus}
+                      width={rightDockWidth}
+                      workspace={currentWorkspace}
+                      quickChatOnly={isQuickChatPage}
+                      onAppendBrowserAnnotation={handleBrowserAnnotation}
+                      onAppendComposerText={handleAppendComposerText}
+                      onAddComposerFiles={handleAddComposerFiles}
+                      onBrowserStateChange={setBrowserState}
+                      onClose={closeRightDock}
+                      onCloseTool={closeRightDockTool}
+                      onCreateBranch={() => setGitWorkflowMode('branch')}
+                      onOpenTool={handleRightDockToolSelect}
+                      onOpenWorkspacePath={handleOpenWorkspacePath}
+                      onPreviewFile={file => void previewFile(file)}
+                      onRefreshReview={handleRefreshDiff}
+                      onResetWidth={handleResetRightDockWidth}
+                      onSelectTool={selectRightDockTool}
+                      onSetWidth={handleSetRightDockWidth}
+                      onToggleReviewView={() =>
+                        setReviewView(reviewView === 'inline' ? 'split' : 'inline')
+                      }
+                    />
+                  ) : null}
+                </div>
+              </div>
+            </SearchContext.Provider>
+          </QuickChatContext.Provider>
+        </WorkspaceHeaderContext.Provider>
       </DesktopAppShell>
     </div>
   )

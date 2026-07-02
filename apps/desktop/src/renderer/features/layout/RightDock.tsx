@@ -70,6 +70,17 @@ type Props = {
   onToggleReviewView: () => void
 }
 
+type RightDockHeaderProps = {
+  state: RightDockState
+  debugMode?: boolean
+  quickChatOnly?: boolean
+  plan: RightDockPlan | null
+  onClose: () => void
+  onCloseTool: (tool: RightDockToolId) => void
+  onOpenTool: (tool: RightDockToolId) => void
+  onSelectTool: (tool: RightDockToolId) => void
+}
+
 export function RightDock({
   state,
   browserState,
@@ -109,26 +120,6 @@ export function RightDock({
     () => ({ debugMode, quickChatOnly }),
     [debugMode, quickChatOnly],
   )
-  const visibleTools = useMemo(() => getVisibleRightDockTools(flags), [flags])
-  const visibleToolIds = useMemo(
-    () => new Set(visibleTools.map(tool => tool.id)),
-    [visibleTools],
-  )
-  const openedTools = useMemo(
-    () =>
-      state.openTools
-        .map(id => getRightDockTool(id))
-        .filter(
-          (tool): tool is NonNullable<ReturnType<typeof getRightDockTool>> =>
-            Boolean(tool) &&
-            visibleToolIds.has(tool.id) &&
-            isRightDockToolEnabled(tool.id, flags),
-        ),
-    [flags, state.openTools, visibleToolIds],
-  )
-  const addableTools = visibleTools
-
-  const [menuOpen, setMenuOpen] = useState(false)
 
   const {
     collapseConfirmKey,
@@ -247,101 +238,6 @@ export function RightDock({
           onKeyDown={handleResizeKey}
           onPointerDown={startResize}
         />
-        <header className="right-dock-tabs">
-          <div className="right-dock-tab-list" role="tablist">
-            {openedTools.length > 0 ? (
-            openedTools.map((tool, index) => {
-              const isActive = state.activeTool === tool.id
-              const label = rightDockDisplayLabel(tool.id, tool.label, panelContext)
-              return (
-                <Fragment key={tool.id}>
-                  {index > 0 ? <span className="right-dock-tab-divider" /> : null}
-                  <div
-                    className={
-                      isActive ? 'right-dock-tab-wrap active' : 'right-dock-tab-wrap'
-                    }
-                    role="tab"
-                    aria-selected={isActive}
-                  >
-                    <button
-                      className={isActive ? 'right-dock-tab active' : 'right-dock-tab'}
-                      title={label}
-                      type="button"
-                      onClick={() => onSelectTool(tool.id)}
-                    >
-                      <span className="right-dock-tab-icon">{tool.icon}</span>
-                      <span>{label}</span>
-                    </button>
-                    <IconButton
-                      className="right-dock-tab-close"
-                      title={`关闭 ${label}`}
-                      onClick={event => {
-                        event.stopPropagation()
-                        onCloseTool(tool.id)
-                      }}
-                    >
-                      <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-                    </IconButton>
-                  </div>
-                </Fragment>
-              )
-            })
-          ) : (
-            <span className="right-dock-tab-empty">使用 + 添加工具</span>
-          )}
-          <PopoverMenu
-            align="end"
-            className="popover-right-dock-add"
-            collisionPadding={44}
-            open={menuOpen}
-            side="bottom"
-            sideOffset={12}
-            trigger={
-              <button
-                className="right-dock-add-button"
-                type="button"
-                title="添加工具"
-              >
-                <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-              </button>
-            }
-            onOpenChange={setMenuOpen}
-          >
-            {addableTools.map(tool => {
-              const opened = state.openTools.includes(tool.id)
-              const isActive = state.activeTool === tool.id
-              return (
-                <PopoverItem
-                  key={tool.id}
-                  active={isActive}
-                  icon={tool.icon}
-                  selected={opened}
-                  shortcut={tool.shortcut}
-                  onClick={() => {
-                    if (opened) {
-                      onSelectTool(tool.id)
-                    } else {
-                      onOpenTool(tool.id)
-                    }
-                    setMenuOpen(false)
-                  }}
-                >
-                  {tool.label}
-                </PopoverItem>
-              )
-            })}
-          </PopoverMenu>
-        </div>
-        <div className="right-dock-controls">
-          <IconButton className="right-dock-control" title="隐藏右侧面板" onClick={onClose}>
-            <Minus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-          </IconButton>
-          <IconButton className="right-dock-control active" title="关闭右侧面板" onClick={onClose}>
-            <PanelRight size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-          </IconButton>
-        </div>
-      </header>
-
       <div className="right-dock-content">
         {state.open && activePanelRenderer ? activePanelRenderer(panelContext) : (
           <div className="right-dock-empty-state">
@@ -368,13 +264,159 @@ export function RightDock({
   )
 }
 
+export function RightDockHeader({
+  state,
+  debugMode = false,
+  quickChatOnly = false,
+  plan,
+  onClose,
+  onCloseTool,
+  onOpenTool,
+  onSelectTool,
+}: RightDockHeaderProps): React.ReactNode {
+  const flags = useMemo<RightDockPanelContext['flags']>(
+    () => ({ debugMode, quickChatOnly }),
+    [debugMode, quickChatOnly],
+  )
+  const visibleTools = useMemo(() => getVisibleRightDockTools(flags), [flags])
+  const visibleToolIds = useMemo(
+    () => new Set(visibleTools.map(tool => tool.id)),
+    [visibleTools],
+  )
+  const openedTools = useMemo(
+    () =>
+      state.openTools
+        .map(id => getRightDockTool(id))
+        .filter(
+          (tool): tool is NonNullable<ReturnType<typeof getRightDockTool>> =>
+            Boolean(tool) &&
+            visibleToolIds.has(tool.id) &&
+            isRightDockToolEnabled(tool.id, flags),
+        ),
+    [flags, state.openTools, visibleToolIds],
+  )
+  const [menuOpen, setMenuOpen] = useState(false)
+
+  if (!state.open) {
+    return (
+      <div className="right-dock-controls">
+        <IconButton
+          className="right-dock-control"
+          title="显示右侧面板"
+          onClick={() => onOpenTool(state.activeTool ?? 'review')}
+        >
+          <PanelRight size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+        </IconButton>
+      </div>
+    )
+  }
+
+  return (
+    <>
+      <div className="right-dock-tab-list" role="tablist">
+        {openedTools.length > 0 ? (
+          openedTools.map((tool, index) => {
+            const isActive = state.activeTool === tool.id
+            const label = rightDockDisplayLabel(tool.id, tool.label, plan)
+            return (
+              <Fragment key={tool.id}>
+                {index > 0 ? <span className="right-dock-tab-divider" /> : null}
+                <div
+                  className={
+                    isActive ? 'right-dock-tab-wrap active' : 'right-dock-tab-wrap'
+                  }
+                  role="tab"
+                  aria-selected={isActive}
+                >
+                  <button
+                    className={isActive ? 'right-dock-tab active' : 'right-dock-tab'}
+                    title={label}
+                    type="button"
+                    onClick={() => onSelectTool(tool.id)}
+                  >
+                    <span className="right-dock-tab-icon">{tool.icon}</span>
+                    <span>{label}</span>
+                  </button>
+                  <IconButton
+                    className="right-dock-tab-close"
+                    title={`关闭 ${label}`}
+                    onClick={event => {
+                      event.stopPropagation()
+                      onCloseTool(tool.id)
+                    }}
+                  >
+                    <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                  </IconButton>
+                </div>
+              </Fragment>
+            )
+          })
+        ) : (
+          <span className="right-dock-tab-empty">使用 + 添加工具</span>
+        )}
+        <PopoverMenu
+          align="end"
+          avoidCollisions={false}
+          className="popover-right-dock-add"
+          collisionPadding={44}
+          open={menuOpen}
+          side="bottom"
+          sideOffset={12}
+          trigger={
+            <button
+              className="right-dock-add-button"
+              type="button"
+              title="添加工具"
+            >
+              <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            </button>
+          }
+          onOpenChange={setMenuOpen}
+        >
+          {visibleTools.map(tool => {
+            const opened = state.openTools.includes(tool.id)
+            const isActive = state.activeTool === tool.id
+            return (
+              <PopoverItem
+                key={tool.id}
+                active={isActive}
+                icon={tool.icon}
+                selected={opened}
+                shortcut={tool.shortcut}
+                onClick={() => {
+                  if (opened) {
+                    onSelectTool(tool.id)
+                  } else {
+                    onOpenTool(tool.id)
+                  }
+                  setMenuOpen(false)
+                }}
+              >
+                {tool.label}
+              </PopoverItem>
+            )
+          })}
+        </PopoverMenu>
+      </div>
+      <div className="right-dock-controls">
+        <IconButton className="right-dock-control" title="隐藏右侧面板" onClick={onClose}>
+          <Minus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+        </IconButton>
+        <IconButton className="right-dock-control active" title="关闭右侧面板" onClick={onClose}>
+          <PanelRight size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+        </IconButton>
+      </div>
+    </>
+  )
+}
+
 function rightDockDisplayLabel(
   toolId: RightDockToolId,
   fallback: string,
-  context: RightDockPanelContext,
+  plan: RightDockPlan | null,
 ): string {
   if (toolId === 'plan') {
-    return context.plan?.title || fallback
+    return plan?.title || fallback
   }
   return fallback
 }

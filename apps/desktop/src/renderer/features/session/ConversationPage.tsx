@@ -80,6 +80,7 @@ import {
   loadConversationUiState,
   saveConversationUiState,
 } from '../layout/conversationUiState.js';
+import { useWorkspaceHeader } from '../layout/WorkspaceHeaderContext.js';
 
 const FALLBACK_OPEN_TARGETS: DesktopOpenTarget[] = [
   {
@@ -145,6 +146,8 @@ export function ConversationPage(): React.ReactNode {
     permissionMode,
     pendingPermissions,
     composer,
+    bottomPanelVisible,
+    onToggleBottomPanel,
     rightDockOpen,
     rightDockTool,
     rightDockPlanContent,
@@ -208,7 +211,6 @@ export function ConversationPage(): React.ReactNode {
   const [openTargets, setOpenTargets] =
     React.useState<DesktopOpenTarget[]>(FALLBACK_OPEN_TARGETS);
   const [showPinnedSummary, setShowPinnedSummary] = React.useState(true);
-  const [bottomPanelVisible, setBottomPanelVisible] = React.useState(false);
   const [debugAskUserQuestionRequest, setDebugAskUserQuestionRequest] =
     React.useState<DesktopPermissionRequest | null>(null);
   React.useEffect(() => {
@@ -421,11 +423,6 @@ export function ConversationPage(): React.ReactNode {
       });
   }
 
-  function toggleReviewSidebar(): void {
-    onOpenRightDock('review');
-    onRefreshDiff();
-  }
-
   function openDebugAskUserQuestionCard(): void {
     if (hasRealPendingPermission) return;
     setDebugAskUserQuestionRequest(
@@ -461,6 +458,281 @@ export function ConversationPage(): React.ReactNode {
     onOpenRightDock('review');
   }
 
+  const workspaceHeaderTitle = React.useMemo(
+    () => (
+      <div className="chat-session-title">
+        <span>
+          {isConversationLoading ? "加载对话中" : renderedSessionTitle}
+        </span>
+        <PopoverMenu
+          align="start"
+          className="popover-session-actions"
+          open={sessionMenuOpen}
+          trigger={
+            <button
+              aria-label="更多会话操作"
+              className="message-action"
+              title="更多操作"
+              type="button"
+            >
+              <MoreHorizontal size={APP_ICON_SIZE} />
+            </button>
+          }
+          onOpenChange={setSessionMenuOpen}
+        >
+          <PopoverItem
+            icon={<Pin size={APP_ICON_SIZE} />}
+            shortcut="Ctrl+Alt+P"
+            disabled={!hasActiveSession}
+            onClick={toggleSessionPinned}
+          >
+            {isSessionPinned ? "取消置顶" : "置顶对话"}
+          </PopoverItem>
+          <PopoverItem
+            disabled
+            icon={<Pencil size={APP_ICON_SIZE} />}
+            shortcut="Ctrl+Alt+R"
+          >
+            重命名对话
+          </PopoverItem>
+          <PopoverItem
+            disabled={!hasActiveSession}
+            icon={<Archive size={APP_ICON_SIZE} />}
+            shortcut="Ctrl+Shift+A"
+            onClick={archiveCurrentSession}
+          >
+            归档对话
+          </PopoverItem>
+          <div className="popover-divider" />
+          <PopoverItem
+            disabled
+            icon={<MessageSquarePlus size={APP_ICON_SIZE} />}
+          >
+            打开侧边聊天
+          </PopoverItem>
+          <SessionSubmenu
+            disabled={!hasActiveSession && !workspacePath}
+            icon={<Copy size={APP_ICON_SIZE} />}
+            label="复制"
+          >
+            <PopoverItem
+              disabled={!workspacePath}
+              icon={<Copy size={APP_ICON_SIZE} />}
+              shortcut="Ctrl+Shift+C"
+              onClick={() => copyText(workspacePath ?? "")}
+            >
+              复制工作目录
+            </PopoverItem>
+            <PopoverItem
+              disabled={!hasActiveSession}
+              icon={<Copy size={APP_ICON_SIZE} />}
+              shortcut="Ctrl+Alt+C"
+              onClick={() => copyText(activeSessionId ?? "")}
+            >
+              复制会话 ID
+            </PopoverItem>
+            <PopoverItem
+              disabled={!hasActiveSession}
+              icon={<Copy size={APP_ICON_SIZE} />}
+              shortcut="Ctrl+Alt+L"
+              onClick={copySessionDeepLink}
+            >
+              复制深度链接
+            </PopoverItem>
+          </SessionSubmenu>
+          <SessionSubmenu
+            disabled={!workspacePath}
+            icon={<GitBranch size={APP_ICON_SIZE} />}
+            label="分支"
+          >
+            <PopoverItem
+              icon={<Laptop size={APP_ICON_SIZE} />}
+              onClick={openBranchFlow}
+            >
+              派生到本地
+            </PopoverItem>
+            <PopoverItem disabled icon={<GitBranch size={APP_ICON_SIZE} />}>
+              派生到新工作树
+            </PopoverItem>
+          </SessionSubmenu>
+          <PopoverItem
+            icon={<Workflow size={APP_ICON_SIZE} />}
+            onClick={openAutomationView}
+          >
+            添加自动化...
+          </PopoverItem>
+          <div className="popover-divider" />
+          <PopoverItem
+            disabled
+            icon={<AppWindow size={APP_ICON_SIZE} />}
+          >
+            在新窗口中打开
+          </PopoverItem>
+        </PopoverMenu>
+      </div>
+    ),
+    [
+      activeSessionId,
+      hasActiveSession,
+      isConversationLoading,
+      isSessionPinned,
+      renderedSessionTitle,
+      sessionMenuOpen,
+      workspacePath,
+    ],
+  );
+
+  const workspaceHeaderActions = React.useMemo(
+    () => (
+      <div className="chat-session-actions">
+        <div className="open-target-split-button">
+          <Tooltip content={`用 ${selectedOpenTarget.label} 打开`}>
+            <button
+              aria-label={`用 ${selectedOpenTarget.label} 打开`}
+              className="message-action open-target-main"
+              disabled={!workspacePath}
+              type="button"
+              onClick={openWorkspaceWithDefaultTarget}
+            >
+              {renderOpenTargetIcon(selectedOpenTarget)}
+            </button>
+          </Tooltip>
+          <PopoverMenu
+            align="end"
+            className="popover-open-targets"
+            open={openTargetMenuOpen}
+            sideOffset={4}
+            trigger={
+              <button
+                aria-label="切换默认打开目标"
+                className="message-action open-target-trigger"
+                disabled={!workspacePath}
+                type="button"
+              >
+                <ChevronDown size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              </button>
+            }
+            onOpenChange={setOpenTargetMenuOpen}
+          >
+            {openTargets.map((target) => (
+              <PopoverItem
+                icon={renderOpenTargetIcon(target)}
+                key={target.id}
+                selected={target.id === defaultOpenTargetId}
+                withCheck
+                onClick={() => selectOpenTarget(target.id)}
+              >
+                {target.label}
+              </PopoverItem>
+            ))}
+          </PopoverMenu>
+        </div>
+        <Tooltip
+          content={showPinnedSummary ? "隐藏置顶摘要" : "显示置顶摘要"}
+        >
+          <button
+            aria-label={showPinnedSummary ? "隐藏置顶摘要" : "显示置顶摘要"}
+            aria-pressed={showPinnedSummary}
+            className="message-action"
+            disabled={!workspacePath}
+            type="button"
+            onClick={() => setShowPinnedSummary((current) => !current)}
+          >
+            <Columns2 size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+          </button>
+        </Tooltip>
+        <Tooltip
+          content={
+            workflowTimelineVisible
+              ? "隐藏 workflow 事件"
+              : "显示 workflow 事件"
+          }
+        >
+          <button
+            aria-label={
+              workflowTimelineVisible
+                ? "隐藏 workflow 事件"
+                : "显示 workflow 事件"
+            }
+            aria-pressed={workflowTimelineVisible}
+            className="message-action"
+            disabled={!hasActiveSession}
+            type="button"
+            onClick={() => setWorkflowTimelineVisible((current) => !current)}
+          >
+            <Workflow size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+          </button>
+        </Tooltip>
+        {debugMode ? (
+          <Tooltip
+            content={
+              hasRealPendingPermission
+                ? "已有真实审批请求，不能打开 mock 卡片"
+                : "弹出 AskUserQuestion 调试卡片"
+            }
+          >
+            <button
+              aria-label="弹出 AskUserQuestion 调试卡片"
+              className="message-action"
+              disabled={hasRealPendingPermission}
+              type="button"
+              onClick={openDebugAskUserQuestionCard}
+            >
+              <MessageSquarePlus
+                size={APP_ICON_SIZE}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
+            </button>
+          </Tooltip>
+        ) : null}
+      </div>
+    ),
+    [
+      debugMode,
+      defaultOpenTargetId,
+      hasActiveSession,
+      hasRealPendingPermission,
+      openTargetMenuOpen,
+      openTargets,
+      selectedOpenTarget,
+      showPinnedSummary,
+      workflowTimelineVisible,
+      workspacePath,
+    ],
+  );
+
+  const workspaceHeaderDockActions = React.useMemo(
+    () => (
+      <div className="chat-session-actions">
+        <Tooltip
+          content={bottomPanelVisible ? "隐藏底部面板" : "显示底部面板"}
+        >
+          <button
+            aria-label={bottomPanelVisible ? "隐藏底部面板" : "显示底部面板"}
+            aria-pressed={bottomPanelVisible}
+            className="message-action"
+            type="button"
+            onClick={onToggleBottomPanel}
+          >
+            <PanelBottom size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+          </button>
+        </Tooltip>
+      </div>
+    ),
+    [bottomPanelVisible, onToggleBottomPanel],
+  );
+
+  const workspaceHeaderContent = React.useMemo(
+    () => ({
+      title: workspaceHeaderTitle,
+      actions: workspaceHeaderActions,
+      dockActions: workspaceHeaderDockActions,
+    }),
+    [workspaceHeaderActions, workspaceHeaderDockActions, workspaceHeaderTitle],
+  );
+
+  useWorkspaceHeader(workspaceHeaderContent);
+
   return (
     <section
       className={
@@ -469,251 +741,6 @@ export function ConversationPage(): React.ReactNode {
           : "conversation-page workflow-page"
       }
     >
-      <header className="chat-session-header">
-        <div className="chat-session-title">
-          <span>
-            {isConversationLoading ? "加载对话中" : renderedSessionTitle}
-          </span>
-          <PopoverMenu
-            align="start"
-            className="popover-session-actions"
-            open={sessionMenuOpen}
-            trigger={
-              <button
-                aria-label="更多会话操作"
-                className="message-action"
-                title="更多操作"
-                type="button"
-              >
-                <MoreHorizontal size={APP_ICON_SIZE} />
-              </button>
-            }
-            onOpenChange={setSessionMenuOpen}
-          >
-            <PopoverItem
-              icon={<Pin size={APP_ICON_SIZE} />}
-              shortcut="Ctrl+Alt+P"
-              disabled={!hasActiveSession}
-              onClick={toggleSessionPinned}
-            >
-              {isSessionPinned ? "取消置顶" : "置顶对话"}
-            </PopoverItem>
-            <PopoverItem
-              disabled
-              icon={<Pencil size={APP_ICON_SIZE} />}
-              shortcut="Ctrl+Alt+R"
-            >
-              重命名对话
-            </PopoverItem>
-            <PopoverItem
-              disabled={!hasActiveSession}
-              icon={<Archive size={APP_ICON_SIZE} />}
-              shortcut="Ctrl+Shift+A"
-              onClick={archiveCurrentSession}
-            >
-              归档对话
-            </PopoverItem>
-            <div className="popover-divider" />
-            <PopoverItem
-              disabled
-              icon={<MessageSquarePlus size={APP_ICON_SIZE} />}
-            >
-              打开侧边聊天
-            </PopoverItem>
-            <SessionSubmenu
-              disabled={!hasActiveSession && !workspacePath}
-              icon={<Copy size={APP_ICON_SIZE} />}
-              label="复制"
-            >
-              <PopoverItem
-                disabled={!workspacePath}
-                icon={<Copy size={APP_ICON_SIZE} />}
-                shortcut="Ctrl+Shift+C"
-                onClick={() => copyText(workspacePath ?? "")}
-              >
-                复制工作目录
-              </PopoverItem>
-              <PopoverItem
-                disabled={!hasActiveSession}
-                icon={<Copy size={APP_ICON_SIZE} />}
-                shortcut="Ctrl+Alt+C"
-                onClick={() => copyText(activeSessionId ?? "")}
-              >
-                复制会话 ID
-              </PopoverItem>
-              <PopoverItem
-                disabled={!hasActiveSession}
-                icon={<Copy size={APP_ICON_SIZE} />}
-                shortcut="Ctrl+Alt+L"
-                onClick={copySessionDeepLink}
-              >
-                复制深度链接
-              </PopoverItem>
-            </SessionSubmenu>
-            <SessionSubmenu
-              disabled={!workspacePath}
-              icon={<GitBranch size={APP_ICON_SIZE} />}
-              label="分支"
-            >
-              <PopoverItem
-                icon={<Laptop size={APP_ICON_SIZE} />}
-                onClick={openBranchFlow}
-              >
-                派生到本地
-              </PopoverItem>
-              <PopoverItem disabled icon={<GitBranch size={APP_ICON_SIZE} />}>
-                派生到新工作树
-              </PopoverItem>
-            </SessionSubmenu>
-            <PopoverItem
-              icon={<Workflow size={APP_ICON_SIZE} />}
-              onClick={openAutomationView}
-            >
-              添加自动化...
-            </PopoverItem>
-            <div className="popover-divider" />
-            <PopoverItem
-              disabled
-              icon={<AppWindow size={APP_ICON_SIZE} />}
-            >
-              在新窗口中打开
-            </PopoverItem>
-          </PopoverMenu>
-        </div>
-        <div className="chat-session-actions">
-          <div className="open-target-split-button">
-            <Tooltip content={`用 ${selectedOpenTarget.label} 打开`}>
-              <button
-                aria-label={`用 ${selectedOpenTarget.label} 打开`}
-                className="message-action open-target-main"
-                disabled={!workspacePath}
-                type="button"
-                onClick={openWorkspaceWithDefaultTarget}
-              >
-                {renderOpenTargetIcon(selectedOpenTarget)}
-              </button>
-            </Tooltip>
-            <PopoverMenu
-              align="end"
-              className="popover-open-targets"
-              open={openTargetMenuOpen}
-              sideOffset={4}
-              trigger={
-                <button
-                  aria-label="切换默认打开目标"
-                  className="message-action open-target-trigger"
-                  disabled={!workspacePath}
-                  type="button"
-                >
-                  <ChevronDown size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-                </button>
-              }
-              onOpenChange={setOpenTargetMenuOpen}
-            >
-              {openTargets.map((target) => (
-                <PopoverItem
-                  icon={renderOpenTargetIcon(target)}
-                  key={target.id}
-                  selected={target.id === defaultOpenTargetId}
-                  withCheck
-                  onClick={() => selectOpenTarget(target.id)}
-                >
-                  {target.label}
-                </PopoverItem>
-              ))}
-            </PopoverMenu>
-          </div>
-          <Tooltip
-            content={showPinnedSummary ? "隐藏置顶摘要" : "显示置顶摘要"}
-          >
-            <button
-              aria-label={showPinnedSummary ? "隐藏置顶摘要" : "显示置顶摘要"}
-              aria-pressed={showPinnedSummary}
-              className="message-action"
-              disabled={!workspacePath}
-              type="button"
-              onClick={() => setShowPinnedSummary((current) => !current)}
-            >
-              <Columns2 size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-            </button>
-          </Tooltip>
-          <Tooltip
-            content={
-              workflowTimelineVisible
-                ? "隐藏 workflow 事件"
-                : "显示 workflow 事件"
-            }
-          >
-            <button
-              aria-label={
-                workflowTimelineVisible
-                  ? "隐藏 workflow 事件"
-                  : "显示 workflow 事件"
-              }
-              aria-pressed={workflowTimelineVisible}
-              className="message-action"
-              disabled={!hasActiveSession}
-              type="button"
-              onClick={() => setWorkflowTimelineVisible((current) => !current)}
-            >
-              <Workflow size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-            </button>
-          </Tooltip>
-          {debugMode ? (
-            <Tooltip
-              content={
-                hasRealPendingPermission
-                  ? "已有真实审批请求，不能打开 mock 卡片"
-                  : "弹出 AskUserQuestion 调试卡片"
-              }
-            >
-              <button
-                aria-label="弹出 AskUserQuestion 调试卡片"
-                className="message-action"
-                disabled={hasRealPendingPermission}
-                type="button"
-                onClick={openDebugAskUserQuestionCard}
-              >
-                <MessageSquarePlus
-                  size={APP_ICON_SIZE}
-                  strokeWidth={APP_ICON_STROKE_WIDTH}
-                />
-              </button>
-            </Tooltip>
-          ) : null}
-          <Tooltip
-            content={bottomPanelVisible ? "隐藏底部面板" : "显示底部面板"}
-          >
-            <button
-              aria-label={bottomPanelVisible ? "隐藏底部面板" : "显示底部面板"}
-              aria-pressed={bottomPanelVisible}
-              className="message-action"
-              type="button"
-              onClick={() => setBottomPanelVisible((current) => !current)}
-            >
-              <PanelBottom size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-            </button>
-          </Tooltip>
-          <Tooltip
-            content={
-              rightDockOpen && rightDockTool === 'review'
-                ? "右侧审查已打开"
-                : "显示右侧审查"
-            }
-          >
-            <button
-              aria-label="显示右侧审查"
-              aria-pressed={rightDockOpen && rightDockTool === 'review'}
-              className="message-action"
-              type="button"
-              onClick={toggleReviewSidebar}
-            >
-              <PanelRight size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-            </button>
-          </Tooltip>
-        </div>
-      </header>
-
       <div className="workflow-page__body">
         <main className="workflow-page__main">
           <ScrollArea

@@ -70,6 +70,8 @@ export type QuickChatContextValue = {
   pendingPermissions: DesktopPermissionRequest[]
   sessionStatus: DesktopSessionStatus
   composer: React.ReactNode
+  bottomPanelVisible: boolean
+  onToggleBottomPanel: () => void
   rightDockOpen: boolean
   rightDockTool: RightDockToolId | null
   rightDockPlanContent: string | null
