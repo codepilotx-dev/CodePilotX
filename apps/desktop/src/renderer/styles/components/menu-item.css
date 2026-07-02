@@ -1,0 +1,90 @@
+/* ===== Unified Menu / Dropdown Item Primitive =====
+   This is the single source of truth for all menu/dropdown items.
+   Feature files must not redefine these base properties.
+   All values follow the dev-tool density standard:
+   - item height ≈ 32px, padding 6px 10px, gap 10px, radius 8px.
+*/
+
+/* --- Menu Item Container --- */
+.popover-item,
+.popover-sub-trigger,
+.menubar-item,
+.settings-dropdown-item,
+.permission-select-item,
+.chat-input__dropdown-item,
+.sidebar-context-menu-item,
+.sidebar-context-menu-sub-trigger,
+.rm-model-menu .rm-menu-item,
+.rm-model-menu .rm-sub-trigger {
+  position: relative;
+  width: 100%;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  color: var(--c-text);
+  font-size: var(--fs-14);
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: background var(--motion-fast) var(--ease-out);
+  -webkit-app-region: no-drag;
+}
+
+/* --- Disabled State --- */
+.popover-item:disabled,
+.popover-item[data-disabled],
+.popover-sub-trigger[data-disabled],
+.menubar-item[data-disabled],
+.settings-dropdown-item[data-disabled],
+.permission-select-item[data-disabled],
+.chat-input__dropdown-item:disabled,
+.sidebar-context-menu-item[data-disabled],
+.rm-model-menu .rm-menu-item[data-disabled] {
+  color: var(--c-text-disabled);
+  pointer-events: none;
+}
+
+/* --- Hover / Highlight / Active States --- */
+.popover-item:hover:not(:disabled),
+.popover-item.active,
+.popover-item[data-highlighted],
+.popover-sub-trigger:hover,
+.popover-sub-trigger[data-highlighted],
+.popover-sub-trigger[data-state="open"],
+.menubar-item[data-highlighted],
+.settings-dropdown-item[data-highlighted],
+.permission-select-item[data-highlighted],
+.rm-model-menu .rm-menu-item:hover,
+.rm-model-menu .rm-menu-item[data-highlighted],
+.rm-model-menu .rm-sub-trigger:hover,
+.rm-model-menu .rm-sub-trigger[data-highlighted],
+.rm-model-menu .rm-sub-trigger[data-state="open"],
+.chat-input__dropdown-item:hover,
+.chat-input__dropdown-item.is-active,
+.sidebar-context-menu-item[data-highlighted],
+.sidebar-context-menu-sub-trigger[data-highlighted],
+.sidebar-context-menu-sub-trigger[data-state="open"] {
+  background: var(--c-sidebar-hover-bg);
+}
+
+.popover-item.active,
+.popover-item[data-highlighted],
+.popover-sub-trigger[data-highlighted],
+.popover-sub-trigger[data-state="open"],
+.menubar-item[data-highlighted],
+.settings-dropdown-item[data-highlighted],
+.permission-select-item[data-highlighted],
+.rm-model-menu .rm-menu-item[data-highlighted],
+.rm-model-menu .rm-sub-trigger[data-highlighted],
+.rm-model-menu .rm-sub-trigger[data-state="open"],
+.chat-input__dropdown-item.is-active,
+.sidebar-context-menu-item[data-highlighted],
+.sidebar-context-menu-sub-trigger[data-highlighted],
+.sidebar-context-menu-sub-trigger[data-state="open"] {
+  background: var(--c-sidebar-hover-bg);
+}

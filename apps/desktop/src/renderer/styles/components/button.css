@@ -1,0 +1,322 @@
+/* ===== Shared Button Patterns ===== */
+
+/* --- Icon Buttons --- */
+.icon-button,
+.ghost-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  padding: 0;
+  border-radius: var(--radius-4);
+  color: var(--c-icon);
+  transition:
+    background var(--motion-standard) var(--ease-standard),
+    box-shadow var(--motion-standard) var(--ease-standard),
+    color var(--motion-standard) var(--ease-standard);
+  -webkit-app-region: no-drag;
+}
+
+.icon-button:hover,
+.ghost-icon-button:hover {
+  color: var(--c-text);
+}
+
+.icon-button:focus-visible,
+.ghost-icon-button:focus-visible {
+  outline: none;
+}
+
+.icon-button svg,
+.ghost-icon-button svg,
+.window-toolbar-icon svg,
+.message-action svg,
+.meta-chip svg,
+.chip-button svg,
+.review-sidebar-actions .message-action svg,
+.right-dock-add-button > svg,
+.right-dock-control > svg {
+  width: var(--app-icon-size);
+  height: var(--app-icon-size);
+  display: block;
+  flex: 0 0 auto;
+  stroke-width: var(--app-icon-stroke-width);
+}
+
+/* --- Send Button --- */
+.send-button {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--c-send-bg);
+  border-radius: var(--radius-full);
+  background: var(--c-send-bg);
+  color: var(--c-text-on-accent);
+  transition:
+    background var(--motion-standard) var(--ease-standard),
+    opacity var(--motion-standard) var(--ease-standard);
+}
+
+.send-button:hover:not(:disabled) {
+  border-color: var(--c-send-bg-hover);
+  background: var(--c-send-bg-hover);
+  color: var(--c-text-on-accent);
+}
+
+.send-button:active:not(:disabled) {
+  opacity: 0.92;
+}
+
+.send-button:disabled {
+  border-color: var(--c-send-bg-disabled);
+  background: var(--c-send-bg-disabled);
+  color: var(--c-text-meta);
+}
+
+/* --- Primary Action Buttons --- */
+.settings-button.is-primary,
+.settings-button.primary,
+.plugins-button.is-primary,
+.plugins-hero-cta,
+.automation-button.is-primary,
+.workflow-composer-card-question .inline-approval-submit,
+.workflow-composer-card-permission .inline-approval-submit,
+.workflow-composer-card-plan .exit-plan-mode-submit,
+.exit-plan-mode-submit,
+.inline-approval-submit {
+  min-height: 40px;
+  height: 40px;
+  padding: 0 20px;
+  border: 1px solid var(--c-send-bg);
+  border-radius: var(--radius-button);
+  border-color: var(--c-send-bg);
+  background: var(--c-send-bg);
+  color: var(--c-text-on-accent);
+  font-size: 14px;
+  font-weight: var(--font-weight-label);
+  line-height: 1;
+}
+
+.settings-button.is-primary:hover:not(:disabled),
+.settings-button.primary:hover:not(:disabled),
+.plugins-button.is-primary:hover,
+.plugins-hero-cta:hover,
+.automation-button.is-primary:hover,
+.workflow-composer-card-question .inline-approval-submit:hover,
+.workflow-composer-card-permission .inline-approval-submit:hover,
+.workflow-composer-card-plan .exit-plan-mode-submit:hover,
+.exit-plan-mode-submit:hover,
+.inline-approval-submit:hover {
+  border-color: var(--c-send-bg-hover);
+  background: var(--c-send-bg-hover);
+  color: var(--c-text-on-accent);
+}
+
+/* --- Secondary/Default Buttons --- */
+.settings-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background var(--motion-standard) var(--ease-standard),
+    border-color var(--motion-standard) var(--ease-standard),
+    box-shadow var(--motion-standard) var(--ease-standard),
+    color var(--motion-standard) var(--ease-standard);
+}
+
+.plugins-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition:
+    background var(--motion-standard) var(--ease-standard),
+    border-color var(--motion-standard) var(--ease-standard),
+    box-shadow var(--motion-standard) var(--ease-standard),
+    color var(--motion-standard) var(--ease-standard);
+}
+
+.automation-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition:
+    background var(--motion-standard) var(--ease-standard),
+    border-color var(--motion-standard) var(--ease-standard),
+    box-shadow var(--motion-standard) var(--ease-standard),
+    color var(--motion-standard) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
+}
+
+.automation-quick-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition:
+    background var(--motion-standard) var(--ease-standard),
+    border-color var(--motion-standard) var(--ease-standard),
+    box-shadow var(--motion-standard) var(--ease-standard),
+    color var(--motion-standard) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
+}
+
+.settings-button:not(.is-primary):not(.primary):not(.danger):not(.link),
+.plugins-button:not(.is-primary),
+.automation-button:not(.is-primary),
+.automation-quick-button {
+  min-height: 40px;
+  height: 40px;
+  padding: 0 20px;
+  border: 1px solid var(--c-border-soft);
+  border-radius: var(--radius-button);
+  background: var(--c-bg);
+  color: var(--c-text-strong);
+  font-size: 14px;
+  font-weight: var(--font-weight-label);
+  line-height: 1;
+}
+
+.settings-button:hover {
+  background-color: var(--c-bg-chip-hover);
+}
+
+.settings-button svg {
+  width: var(--app-icon-size);
+  height: var(--app-icon-size);
+  display: block;
+  margin-right: 6px;
+  stroke-width: var(--app-icon-stroke-width);
+}
+
+.settings-button:not(.is-primary):not(.primary):not(.danger):not(.link),
+.plugins-button:not(.is-primary),
+.automation-button:not(.is-primary),
+.automation-quick-button,
+.settings-dropdown,
+.settings-input,
+.settings-textarea,
+.settings-input-number,
+.search-input-row,
+.plugins-search,
+.plugins-filter,
+.right-dock-search,
+.right-dock-terminal-composer input {
+  min-height: 40px;
+  border-color: var(--c-border-soft);
+  background: var(--c-bg);
+  color: var(--c-text-strong);
+}
+
+/* --- Button / Control Border Radius --- */
+.settings-button,
+.plugins-button,
+.automation-button,
+.automation-quick-button,
+.plugins-card-action,
+.message-action,
+.chip-button,
+.meta-chip,
+.settings-dropdown,
+.settings-input,
+.settings-textarea,
+.settings-input-number,
+.plugins-search,
+.plugins-filter,
+.right-dock-search,
+.right-dock-terminal-composer input {
+  border-radius: var(--radius-button);
+}
+
+.settings-input,
+.settings-textarea,
+.settings-input-number,
+.search-input-row,
+.plugins-search,
+.plugins-filter,
+.right-dock-search,
+.right-dock-terminal-composer input {
+  border-radius: var(--radius-input);
+}
+
+/* --- Generic Hover Effect for Buttons & Cards --- */
+.settings-button:hover,
+.plugins-button.is-ghost:hover,
+.automation-button.is-ghost:hover,
+.automation-quick-button:hover,
+.plugins-filter:hover,
+.plugins-card:hover,
+.utility-card:hover,
+.message-card:hover,
+.search-result-row:hover,
+.search-result-row:focus-visible {
+  border-color: color-mix(in srgb, var(--c-accent) 26%, var(--c-panel-border));
+  background: color-mix(in srgb, var(--c-accent) 5%, var(--c-panel-bg));
+  box-shadow: var(--c-panel-shadow-soft);
+}
+
+/* --- Message Action Button --- */
+.message-action {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-4);
+  color: var(--c-text-meta);
+}
+
+.message-action:hover {
+  background: var(--c-bg-hover);
+  color: var(--c-text);
+}
+
+.message-action[aria-pressed="true"],
+.message-action[data-state="open"] {
+  background: var(--c-bg-hover);
+  color: var(--c-text);
+}
+
+.message-action:disabled {
+  color: var(--c-text-disabled);
+  cursor: default;
+  opacity: 0.6;
+}
+
+.message-action:disabled:hover {
+  background: transparent;
+}
+
+/* --- Window Toolbar Icon --- */
+.window-toolbar-icon {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border-radius: var(--radius-4);
+  color: var(--c-icon);
+  -webkit-app-region: no-drag;
+}
+
+.window-toolbar-icon:hover {
+  background: var(--c-bg-hover);
+}
+
+/* --- Dark theme overrides --- */
+:root[data-theme="dark"] .plugins-card:hover,
+:root[data-theme="dark"] .utility-card:hover,
+:root[data-theme="dark"] .automation-quick-button:hover,
+:root[data-theme="dark"] .search-result-row:hover,
+:root[data-theme="dark"] .search-result-row:focus-visible {
+  background: color-mix(in srgb, var(--c-accent) 10%, var(--c-panel-bg));
+}

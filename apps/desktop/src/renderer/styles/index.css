@@ -14,21 +14,32 @@
 @import '@radix-ui/colors/pink-dark.css';
 @import '@radix-ui/colors/cyan.css';
 @import '@radix-ui/colors/cyan-dark.css';
-@import '@radix-ui/colors/orange.css';
-@import '@radix-ui/colors/orange-dark.css';
 @import '@radix-ui/colors/black-alpha.css';
 @import '@radix-ui/colors/white-alpha.css';
 @import 'misans/lib/Normal/MiSans-Regular.min.css';
 @import 'misans/lib/Normal/MiSans-Medium.min.css';
 @import 'misans/lib/Normal/MiSans-Semibold.min.css';
 @import 'misans/lib/Normal/MiSans-Bold.min.css';
+
+/* --- Base: reset, body, focus, motion — no token variables --- */
 @import './base.css';
+
+/* --- Design tokens (Claude-branded variables, overrides base defaults) --- */
 @import './design-system/tokens.css';
+
+/* --- Shared Component Patterns --- */
+@import './components/button.css';
+@import './components/card.css';
+@import './components/input.css';
+@import './components/chip.css';
+@import './components/switch.css';
+@import './components/menu-item.css';
+@import './components/scroll-area.css';
+
+/* --- Layout --- */
 @import './shell.css';
-@import './controls.css';
-@import './markdown.css';
-@import './popover.css';
-@import './modal.css';
+
+/* --- Feature Pages --- */
 @import './features/layout-chrome.css';
 @import './features/layout-sidebar.css';
 @import './features/layout.css';
@@ -40,5 +51,9 @@
 @import './features/settings.css';
 @import './features/marketplace.css';
 @import './features/automation.css';
+
+/* --- Legacy: structured feature CSS kept as-is --- */
+@import './markdown.css';
+@import './popover.css';
+@import './modal.css';
 @import './model-menu-pilot.css';
-@import './design-system/primitives.css';
