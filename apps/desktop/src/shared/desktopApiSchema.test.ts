@@ -59,3 +59,46 @@ test('desktop API exposes shared state subscription channels', () => {
   expect(DESKTOP_SESSION_STORE_CHANGE_CHANNEL).toStartWith('desktop:')
   expect(DESKTOP_SETTINGS_CHANGE_CHANNEL).toStartWith('desktop:')
 })
+
+test('desktop API schema validates permission decision with provider fields', () => {
+  const validDecision = {
+    behavior: 'allow' as const,
+    planExecutionModel: 'claude-sonnet-4-20250514',
+    planExecutionProviderID: 'anthropic',
+    planExecutionProviderBaseURL: 'https://api.anthropic.com',
+    savePlanExecutionModel: true,
+  }
+  expect(
+    validateDesktopApiArgs('respondToPermission', [
+      'session-1',
+      'request-1',
+      validDecision,
+    ]),
+  ).toEqual(['session-1', 'request-1', validDecision])
+
+  // Provider fields are optional
+  const minimalDecision = {
+    behavior: 'deny' as const,
+  }
+  expect(
+    validateDesktopApiArgs('respondToPermission', [
+      'session-1',
+      'request-1',
+      minimalDecision,
+    ]),
+  ).toEqual(['session-1', 'request-1', minimalDecision])
+
+  // Provider fields can be empty strings (treated as optional)
+  const emptyProviderDecision = {
+    behavior: 'allow' as const,
+    planExecutionProviderID: '',
+    planExecutionProviderBaseURL: '',
+  }
+  expect(() =>
+    validateDesktopApiArgs('respondToPermission', [
+      'session-1',
+      'request-1',
+      emptyProviderDecision,
+    ]),
+  ).not.toThrow()
+})

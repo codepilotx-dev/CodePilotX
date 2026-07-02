@@ -435,6 +435,48 @@ test('recovered ExitPlanMode approval starts implementation turn', async () => {
   expect(String(userTurns[0])).toContain('# 计划\n\n- 实施功能')
 })
 
+test('recovered ExitPlanMode with provider info calls setModelProvider', async () => {
+  const userTurns: unknown[] = []
+  const modelProviderCalls: Array<{ providerID: string | undefined; model: string | undefined; baseURL: string | undefined }> = []
+  const session = createDesktopAgentSession(
+    {
+      workspacePath: resolve('tmp', 'desktop-workspace'),
+      sessionId: 'session-recovered-plan-provider',
+      suppressStartupMessage: true,
+      permissionMode: 'default',
+      planModeActive: true,
+    },
+    {
+      createRuntime: () => createRecoveredPlanRuntime(userTurns, [], modelProviderCalls),
+    },
+  )
+
+  await session.respondToRecoveredExitPlanMode(
+    {
+      requestId: 'plan-permission-2',
+      toolName: 'ExitPlanMode',
+      input: { plan: '# 计划\n\n- 实施功能' },
+      description: '确认计划',
+    },
+    {
+      behavior: 'allow',
+      planExecutionProviderID: 'anthropic',
+      planExecutionModel: 'claude-sonnet-4-20250514',
+      planExecutionProviderBaseURL: 'https://api.anthropic.com',
+    },
+  )
+
+  expect(userTurns).toHaveLength(1)
+  expect(modelProviderCalls).toHaveLength(1)
+  expect(modelProviderCalls[0]).toEqual({
+    providerID: 'anthropic',
+    model: 'claude-sonnet-4-20250514',
+    baseURL: 'https://api.anthropic.com',
+  })
+  expect(String(userTurns[0])).toContain('用户已批准以下计划')
+  expect(String(userTurns[0])).toContain('# 计划\n\n- 实施功能')
+})
+
 test('auto-review sub-runtime execution does not deadlock parent turn on serial queue', async () => {
   const decisions: unknown[] = []
   const events: DesktopAgentEvent[] = []
@@ -652,12 +694,17 @@ function createRecoveredQuestionRuntime(
 function createRecoveredPlanRuntime(
   userTurns: unknown[],
   models: unknown[] = [],
+  modelProviderCalls?: Array<{ providerID: string | undefined; model: string | undefined; baseURL: string | undefined }>,
 ): DesktopAgentRuntime {
   return {
     setModel: model => {
       models.push(model)
     },
-    setModelProvider: () => {},
+    setModelProvider: (providerID, model, baseURL) => {
+      if (modelProviderCalls) {
+        modelProviderCalls.push({ providerID, model, baseURL })
+      }
+    },
     setDebugConversationDump: () => {},
     setPermissionMode: () => {},
     setPlanModeActive: () => {},
