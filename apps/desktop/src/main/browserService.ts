@@ -89,7 +89,7 @@ export function createDesktopBrowserService(options: {
     view.webContents.on('will-navigate', (event, nextURL) => {
       if (!isAllowedBrowserURL(nextURL)) {
         event.preventDefault()
-        setError(state, 'Only http, https, and file URLs can be opened.')
+        setError(state, 'Only http and https URLs can be opened.')
       }
     })
     view.webContents.on('did-start-loading', () =>
@@ -237,6 +237,17 @@ export function createDesktopBrowserService(options: {
     input: DesktopBrowserAutomationAction,
   ): Promise<unknown> {
     await ensureAutomationSiteAllowed(input)
+    // Prevent automation from reading or manipulating file:// pages.
+    // Navigation to file: URLs is already blocked by normalizeBrowserURL, but
+    // this check covers actions that run inside the current page context.
+    const { url: currentURL } = await state()
+    if (
+      input.action !== 'open_url' &&
+      currentURL &&
+      currentURL.startsWith('file://')
+    ) {
+      throw new Error('Automation actions are not allowed on file:// pages.')
+    }
     switch (input.action) {
       case 'open_url': {
         const url = requireString(input.url, 'url')

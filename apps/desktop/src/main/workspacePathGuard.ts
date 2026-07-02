@@ -1,10 +1,14 @@
+import { existsSync, realpathSync } from 'node:fs'
 import { resolve, sep } from 'node:path'
 
 const allowedWorkspacePaths = new Set<string>()
 
 export function normalizeWorkspacePath(workspacePath: string): string {
   const resolvedPath = resolve(workspacePath)
-  return process.platform === 'win32' ? resolvedPath.toLowerCase() : resolvedPath
+  // Resolve symlinks/junctions to prevent escape via realpath bypass.
+  // If the path doesn't exist yet (e.g. new workspace), fall back to resolve.
+  const realPath = existsSync(resolvedPath) ? realpathSync(resolvedPath) : resolvedPath
+  return process.platform === 'win32' ? realPath.toLowerCase() : realPath
 }
 
 export function registerAllowedWorkspace(workspacePath: string): void {

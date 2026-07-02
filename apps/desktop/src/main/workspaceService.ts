@@ -982,7 +982,7 @@ export async function readWorkspaceFile(
   filePath: string,
 ): Promise<DesktopFilePreview> {
   const resolvedWorkspace = assertAllowedWorkspace(workspacePath)
-  const resolvedFile = resolve(filePath)
+  const resolvedFile = normalizeWorkspacePath(filePath)
   const workspacePrefix = resolvedWorkspace.endsWith(sep)
     ? resolvedWorkspace
     : `${resolvedWorkspace}${sep}`
