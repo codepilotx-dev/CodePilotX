@@ -178,6 +178,8 @@ const permissionDecision = z.object({
   alwaysAllow: z.boolean().optional(),
   updatedInput: unknownObject.optional(),
   planExecutionModel: optionalText,
+  planExecutionProviderID: optionalText,
+  planExecutionProviderBaseURL: optionalText,
   savePlanExecutionModel: z.boolean().optional(),
   rememberOptionId: z.enum(['session', 'persistentPrefix']).optional(),
 })
