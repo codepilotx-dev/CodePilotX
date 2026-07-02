@@ -50,11 +50,13 @@
 .menubar-trigger {
   padding: 2px 10px;
   border: 0;
-  border-radius: var(--radius-3);
   background: transparent;
   color: var(--c-text-meta);
+  font-family: inherit;
   font-size: var(--fs-14) !important;
-  font: inherit;
+  font-style: inherit;
+  font-weight: inherit;
+  line-height: inherit;
   white-space: nowrap;
   -webkit-app-region: no-drag;
   border-radius: calc(var(--border-r) - 2px);

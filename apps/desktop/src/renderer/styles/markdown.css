@@ -99,8 +99,9 @@
 
 .md-body hr {
   margin: var(--sp-4) 0;
-  border: 0;
-  border-top: 1px solid var(--c-border-soft);
+  border-width: 1px 0 0;
+  border-style: solid;
+  border-color: var(--c-border-soft);
 }
 
 .md-body a {

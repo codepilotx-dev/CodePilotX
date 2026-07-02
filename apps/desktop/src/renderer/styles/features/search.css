@@ -101,7 +101,6 @@
   margin: 0 auto;
   padding: 0 14px;
   border: 1px solid var(--border-subtle);
-  border-color: var(--border-subtle);
   border-radius: var(--radius-panel);
   background: var(--c-panel-bg);
   color: var(--c-icon);

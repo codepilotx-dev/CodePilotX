@@ -158,10 +158,46 @@
 
 .composer-input {
   padding: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+}
+
+.composer-skill-token {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 6px 0 4px;
+  margin-top: 9px;
+  flex-shrink: 0;
+  border: 1px solid color-mix(in srgb, var(--c-accent) 25%, var(--c-border));
+  border-radius: var(--radius-4);
+  background: color-mix(in srgb, var(--c-accent) 8%, var(--c-bg));
+  color: var(--c-accent);
+  font-size: var(--fs-12);
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.composer-skill-token-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--c-accent);
+}
+
+.composer-skill-token-label {
+  white-space: nowrap;
 }
 
 .composer-input textarea {
   width: 100%;
+  flex: 1;
+  min-width: 0;
   max-height: 40vh;
   min-height: 40px;
   padding: 0;
@@ -736,6 +772,18 @@
   height: 10px;
   border-radius: 50%;
   flex-shrink: 0;
+}
+
+.chat-input__dropdown-empty {
+  padding: 12px 16px;
+  color: var(--c-text-meta);
+  font-size: var(--fs-13);
+  text-align: center;
+}
+
+.chat-input__dropdown-items {
+  display: grid;
+  gap: 2px;
 }
 
 .chat-input__dropdown-agent-icon {

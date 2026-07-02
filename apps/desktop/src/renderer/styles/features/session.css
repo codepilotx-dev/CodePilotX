@@ -75,7 +75,6 @@
   display: none !important;
   width: 100%;
   max-width: calc(var(--composer-w) - 60px);
-  display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 15px;
@@ -761,8 +760,10 @@
   resize: none;
   background: transparent;
   color: var(--c-text-strong);
-  font: inherit;
+  font-family: inherit;
   font-size: var(--fs-15);
+  font-style: inherit;
+  font-weight: inherit;
   padding: 0;
   line-height: 1.5;
 }
@@ -798,8 +799,11 @@
   border-radius: var(--radius-4);
   background: var(--c-bg-soft);
   color: var(--c-text-soft);
-  font: inherit;
+  font-family: inherit;
   font-size: var(--fs-12);
+  font-style: inherit;
+  font-weight: inherit;
+  line-height: inherit;
 }
 
 .exit-plan-mode-skip:hover {
@@ -895,7 +899,10 @@
   resize: none;
   background: transparent;
   color: inherit;
-  font: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  font-style: inherit;
+  font-weight: inherit;
   padding: 0;
   line-height: 1.5;
 }
@@ -1246,8 +1253,11 @@
   resize: none;
   background: transparent;
   color: var(--c-text);
-  font: inherit;
+  font-family: inherit;
   font-size: var(--fs-18);
+  font-style: inherit;
+  font-weight: inherit;
+  line-height: inherit;
 }
 
 .right-dock-side-chat-actions {
@@ -1963,8 +1973,10 @@
   outline: 0;
   background: transparent;
   color: inherit;
-  font: inherit;
+  font-family: inherit;
   font-size: var(--fs-14);
+  font-style: inherit;
+  font-weight: inherit;
   line-height: 1.6;
 }
 
@@ -2245,9 +2257,8 @@
 .workflow-composer-card-question .inline-approval-footer,
 .workflow-composer-card-question .inline-approval-footer-split {
   justify-content: space-between;
-  padding: 0;
   border-top: 1px solid var(--c-border-faint);
-  padding-top: 10px;
+  padding: 10px 0 0;
 }
 
 .workflow-composer-card-question .inline-approval-submit,
@@ -2415,8 +2426,7 @@
   width: min(calc(var(--layout-content-w) - 20px), 100%);
   max-width: calc(var(--layout-content-w) - 20px);
   margin: 0 auto;
-  padding: 0;
-  padding-bottom: 80px;
+  padding: 0 0 80px;
 }
 
 .workflow-page .conversation-stream {

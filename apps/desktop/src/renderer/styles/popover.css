@@ -22,7 +22,6 @@
   overscroll-behavior: contain;
   border: 1px solid var(--c-popover-border);
   border-radius: var(--popover-surface-radius);
-  background: var(--c-popover-bg);
   background-color: var(--c-popover-bg);
   backdrop-filter: none;
   box-shadow: var(--popover-surface-shadow);
@@ -80,7 +79,6 @@
 :root[data-glass-surfaces="on"] .appearance-color-popover,
 :root[data-glass-surfaces="on"] .rm-model-menu {
   border-color: var(--glass-surface-border);
-  background: var(--glass-surface-bg);
   background-color: var(--glass-surface-bg);
   color: var(--glass-surface-text, var(--c-text));
   -webkit-backdrop-filter: blur(var(--glass-surface-blur)) saturate(1.18);
@@ -126,7 +124,6 @@
   z-index: var(--z-popover) !important;
   border-radius: var(--popover-surface-radius);
   background: transparent;
-  background-color: transparent;
   backdrop-filter: none;
   box-shadow: none;
   color: var(--c-text);
@@ -156,7 +153,6 @@
   --c-text-meta: var(--glass-surface-text-meta, var(--c-text-meta));
   --c-text-disabled: var(--glass-surface-text-disabled, var(--c-text-disabled));
   border-color: var(--glass-surface-border);
-  background: var(--glass-surface-bg);
   background-color: var(--glass-surface-bg);
   color: var(--glass-surface-text-meta, var(--c-text-meta));
   -webkit-backdrop-filter: blur(var(--glass-surface-blur)) saturate(1.18);
@@ -243,7 +239,6 @@
 :root[data-glass-surfaces="on"]
   [data-radix-popper-content-wrapper]:has(.rm-model-menu) {
   background: transparent;
-  background-color: transparent;
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
   box-shadow: none;

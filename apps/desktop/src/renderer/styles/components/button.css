@@ -94,7 +94,6 @@
   padding: 0 20px;
   border: 1px solid var(--c-send-bg);
   border-radius: var(--radius-button);
-  border-color: var(--c-send-bg);
   background: var(--c-send-bg);
   color: var(--c-text-on-accent);
   font-size: 14px;

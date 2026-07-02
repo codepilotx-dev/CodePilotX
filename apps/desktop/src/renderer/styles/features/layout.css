@@ -1,8 +1,8 @@
 .desktop-main {
   background: var(--c-bg);
-  border: 1px solid var(--c-border);
-  border-right: 0;
-  border-bottom: 0;
+  border-width: 1px 0 0 1px;
+  border-style: solid;
+  border-color: var(--c-panel-border);
   flex: 1;
   min-width: 0;
   min-height: 0;
@@ -12,7 +12,6 @@
   justify-content: flex-start;
   width: 100%;
   position: relative;
-  border-color: var(--c-panel-border);
   box-shadow: 0px 0px 5px 0px rgba(0, 0, 0, 0.1);
 }
 
@@ -349,9 +348,11 @@
   color: var(--c-text-strong);
 }
 
-.popover-right-dock-add {
-  position: static;
+.popover.popover-right-dock-add {
+  position: relative;
   display: block;
+  bottom: auto;
+  left: auto;
   transform-origin: var(
     --radix-dropdown-menu-content-transform-origin,
     top right
@@ -793,8 +794,11 @@
   outline: 0;
   background: transparent;
   color: var(--c-text-strong);
-  font: inherit;
+  font-family: inherit;
   font-size: var(--fs-16);
+  font-style: inherit;
+  font-weight: inherit;
+  line-height: inherit;
 }
 
 .right-dock-tree-scroll-area {
@@ -884,8 +888,11 @@
   resize: none;
   background: transparent;
   color: var(--c-text);
-  font: inherit;
+  font-family: inherit;
   font-size: var(--fs-18);
+  font-style: inherit;
+  font-weight: inherit;
+  line-height: inherit;
 }
 
 .right-dock-side-chat-actions {

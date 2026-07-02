@@ -3057,8 +3057,9 @@
   width: 100%;
   gap: 4px;
   padding: 10px 12px 10px 12px;
-  border: 0;
-  border-bottom: 1px solid var(--border-muted);
+  border-width: 0 0 1px;
+  border-style: solid;
+  border-color: var(--border-muted);
   background: transparent;
   color: var(--c-text);
   text-align: left;
