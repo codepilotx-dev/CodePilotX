@@ -43,10 +43,14 @@ await mkdir(cacheRoot, { recursive: true })
 await rm(runtimeRoot, { recursive: true, force: true })
 await mkdir(runtimeRoot, { recursive: true })
 
-for (const artifact of Object.values(artifacts)) {
+for (const [name, artifact] of Object.entries(artifacts)) {
   await download(artifact.url, artifact.archive)
   const actualSha256 = await sha256File(artifact.archive)
-  if (artifact.sha256 && actualSha256 !== artifact.sha256) {
+  if (artifact.sha256 === null) {
+    console.warn(
+      `[WARN] ${name}: sha256 is null. Computed: ${actualSha256}. Set this in the artifact config to enable integrity verification.`,
+    )
+  } else if (actualSha256 !== artifact.sha256) {
     throw new Error(
       `Checksum mismatch for ${artifact.url}: expected ${artifact.sha256}, got ${actualSha256}`,
     )
