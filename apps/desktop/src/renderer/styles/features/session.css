@@ -2683,7 +2683,7 @@
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-card);
   background: var(--c-panel-bg);
-  box-shadow: var(--c-panel-shadow);
+
 }
 
 .workflow-page__composer-inner .composer-top {
