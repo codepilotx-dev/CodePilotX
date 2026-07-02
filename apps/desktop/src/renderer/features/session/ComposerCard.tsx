@@ -5,18 +5,15 @@ import * as Select from "@radix-ui/react-select";
 import {
   ArrowUp,
   Blocks,
-  Box,
   Brain,
   Check,
   ChevronDown,
   ChevronRight,
-  CircleGauge,
   Compass,
   FileText,
   Folder,
   FileSpreadsheet,
   GitBranch,
-  GitFork,
   Hand,
   ListChecks,
   Mic,
@@ -246,7 +243,6 @@ export function ComposerCard({
   recentWorkspaces,
   workspace,
   attachments = [],
-  slashCommands = [],
   placeholder = "随心输入",
   onChooseWorkspace,
   onInputChange,
@@ -275,7 +271,6 @@ export function ComposerCard({
   );
   const [branchSearch, setBranchSearch] = useState("");
   const [goalModeEnabled, setGoalModeEnabled] = useState(false);
-  const [slashSelectedIndex, setSlashSelectedIndex] = useState(0);
   const [dismissedSlashInput, setDismissedSlashInput] = useState<string | null>(
     null,
   );
@@ -332,30 +327,14 @@ export function ComposerCard({
     );
   }, [branchName, branchSearch, branches]);
 
-  const slashInput = input.trimStart();
-  const slashQuery =
-    slashInput.startsWith("/") && !/\s/.test(slashInput.slice(1))
-      ? slashInput.slice(1).toLowerCase()
-      : null;
-  const visibleSlashCommands = useMemo(() => {
-    if (slashQuery === null) return [];
-    return slashCommands.filter((command) => {
-      if (!slashQuery) return true;
-      return (
-        command.name.toLowerCase().includes(slashQuery) ||
-        command.title.toLowerCase().includes(slashQuery) ||
-        command.description.toLowerCase().includes(slashQuery)
-      );
-    });
-  }, [slashCommands, slashQuery]);
-  const showSlashPalette =
-    slashQuery !== null &&
-    input !== dismissedSlashInput &&
-    visibleSlashCommands.length > 0;
+  const showSlashContextDropdown =
+    input.trimStart() === "/" && input !== dismissedSlashInput;
 
   useEffect(() => {
-    setSlashSelectedIndex(0);
-  }, [slashQuery, visibleSlashCommands.length]);
+    if (input.trimStart() !== "/") {
+      setDismissedSlashInput(null);
+    }
+  }, [input]);
 
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -369,12 +348,11 @@ export function ComposerCard({
     setOpenDropdown(null);
   }
 
-  function selectSlashCommand(command: DesktopSlashCommandSuggestion): void {
-    onInputChange(`/${command.name} `);
-    setDismissedSlashInput(null);
-    requestAnimationFrame(() => {
-      textareaRef.current?.focus();
-    });
+  function closeChatInputDropdown(): void {
+    if (showSlashContextDropdown) {
+      setDismissedSlashInput(input);
+    }
+    closeDropdown();
   }
 
   function handleFileDrop(event: React.DragEvent<HTMLDivElement>): void {
@@ -425,6 +403,161 @@ export function ComposerCard({
   const usedPercent = contextUsage
     ? Math.min(100, Math.max(0, contextUsage.usedPercent))
     : 0;
+  const contextDropdownContent = (
+    <>
+      <div className="chat-input__dropdown-section-title">添加</div>
+      <div
+        className="chat-input__dropdown-item"
+        onClick={() => {
+          onOpenFiles();
+          closeChatInputDropdown();
+        }}
+      >
+        <span className="chat-input__dropdown-leading">
+          <Paperclip size={14} />
+        </span>
+        <span className="chat-input__dropdown-label">Files and folders</span>
+      </div>
+      <div
+        className="chat-input__dropdown-item"
+        onClick={closeChatInputDropdown}
+      >
+        <span className="chat-input__dropdown-leading">
+          <Target size={14} />
+        </span>
+        <span className="chat-input__dropdown-label">目标</span>
+        <span className="chat-input__dropdown-hint">
+          设置 CodePilotX 将持续努力实现的目标
+        </span>
+      </div>
+      <div
+        aria-pressed={planModeActive}
+        className={[
+          "chat-input__dropdown-item",
+          planModeActive ? "is-active" : "",
+        ].join(" ")}
+        onClick={() => {
+          onPlanModeChange?.(true);
+          closeChatInputDropdown();
+        }}
+      >
+        <span className="chat-input__dropdown-leading">
+          <ListChecks size={14} />
+        </span>
+        <span className="chat-input__dropdown-label">计划模式</span>
+        <span className="chat-input__dropdown-hint">开启计划模式</span>
+      </div>
+      {enableParetoCodeRouter || enableFusionRouter ? (
+        <>
+          <div className="chat-input__dropdown-separator" />
+          <div className="chat-input__dropdown-section-title">Router</div>
+          {enableParetoCodeRouter ? (
+            <div
+              aria-pressed={localRouterMode === "pareto-code"}
+              className={[
+                "chat-input__dropdown-item",
+                localRouterMode === "pareto-code" ? "is-active" : "",
+              ].join(" ")}
+              onClick={() => {
+                onLocalRouterModeChange?.(
+                  localRouterMode === "pareto-code" ? "off" : "pareto-code",
+                );
+                closeChatInputDropdown();
+              }}
+            >
+              <span className="chat-input__dropdown-leading">
+                <Sparkles size={14} />
+              </span>
+              <span className="chat-input__dropdown-label">Pareto Code</span>
+              <span className="chat-input__dropdown-hint">本地智能选模型</span>
+            </div>
+          ) : null}
+          {enableFusionRouter ? (
+            <div
+              aria-pressed={localRouterMode === "fusion"}
+              className={[
+                "chat-input__dropdown-item",
+                localRouterMode === "fusion" ? "is-active" : "",
+              ].join(" ")}
+              onClick={() => {
+                onLocalRouterModeChange?.(
+                  localRouterMode === "fusion" ? "off" : "fusion",
+                );
+                closeChatInputDropdown();
+              }}
+            >
+              <span className="chat-input__dropdown-leading">
+                <Brain size={14} />
+              </span>
+              <span className="chat-input__dropdown-label">Fusion</span>
+              <span className="chat-input__dropdown-hint">多模型会审</span>
+            </div>
+          ) : null}
+        </>
+      ) : null}
+      <div className="chat-input__dropdown-separator" />
+
+      <div className="chat-input__dropdown-section-title">智能体</div>
+
+      {CONTEXT_AGENT_OPTIONS.map((agent) => (
+        <div
+          className="chat-input__dropdown-item"
+          key={agent.name}
+          onClick={closeChatInputDropdown}
+        >
+          <span
+            className="chat-input__dropdown-agent-icon"
+            style={{
+              color: agent.tone === "red" ? "#ef4444" : "#f59e0b",
+            }}
+          >
+            {agent.icon === "DNA" ? "🧬" : "⚛️"}
+          </span>
+          <span className="chat-input__dropdown-label">{agent.name}</span>
+          <span className="chat-input__dropdown-hint">{agent.role}</span>
+        </div>
+      ))}
+
+      <div className="chat-input__dropdown-separator" />
+
+      <div className="chat-input__dropdown-section-title">插件</div>
+
+      {INSTALLED_CONTEXT_PLUGINS.map((plugin) => (
+        <div
+          className="chat-input__dropdown-item"
+          key={plugin.name}
+          onClick={() => {
+            if (plugin.tone === "browser") {
+              onOpenBrowser?.();
+            }
+            closeChatInputDropdown();
+          }}
+        >
+          <span
+            className={["chat-input__dropdown-bullet"].join(" ")}
+            style={{
+              background:
+                plugin.tone === "docs"
+                  ? "#3b82f6"
+                  : plugin.tone === "pdf"
+                    ? "#ef4444"
+                    : plugin.tone === "sheets"
+                      ? "#22c55e"
+                      : plugin.tone === "slides"
+                        ? "#f59e0b"
+                        : plugin.tone === "template"
+                          ? "#ec4899"
+                          : "#06b6d4",
+            }}
+          />
+          <span className="chat-input__dropdown-label">{plugin.name}</span>
+          <span className="chat-input__dropdown-hint">
+            {plugin.description}
+          </span>
+        </div>
+      ))}
+    </>
+  );
 
   return (
     <div
@@ -495,19 +628,7 @@ export function ComposerCard({
             value={input}
             onChange={(event) => onInputChange(event.target.value)}
             onKeyDown={(event) => {
-              if (showSlashPalette) {
-                if (event.key === "ArrowDown") {
-                  event.preventDefault();
-                  setSlashSelectedIndex((index) =>
-                    Math.min(index + 1, visibleSlashCommands.length - 1),
-                  );
-                  return;
-                }
-                if (event.key === "ArrowUp") {
-                  event.preventDefault();
-                  setSlashSelectedIndex((index) => Math.max(index - 1, 0));
-                  return;
-                }
+              if (showSlashContextDropdown) {
                 if (event.key === "Escape") {
                   event.preventDefault();
                   setDismissedSlashInput(input);
@@ -515,8 +636,6 @@ export function ComposerCard({
                 }
                 if (event.key === "Enter" && !event.shiftKey) {
                   event.preventDefault();
-                  const command = visibleSlashCommands[slashSelectedIndex];
-                  if (command) selectSlashCommand(command);
                   return;
                 }
               }
@@ -530,14 +649,17 @@ export function ComposerCard({
           />
         </div>
 
-        {showSlashPalette ? (
-          <SlashCommandPalette
-            commands={visibleSlashCommands}
-            selectedIndex={slashSelectedIndex}
-            onHover={setSlashSelectedIndex}
-            onSelect={selectSlashCommand}
-          />
-        ) : null}
+        <ChatInputDropdown
+          open={showSlashContextDropdown}
+          side="bottom"
+          maxWidth="100%"
+          disableOutsideDismiss={debugMode}
+          onClose={() => {
+            setDismissedSlashInput(input);
+          }}
+        >
+          {contextDropdownContent}
+        </ChatInputDropdown>
 
         <div className="composer-toolbar">
           <div className="toolbar-left">
@@ -1003,155 +1125,11 @@ export function ComposerCard({
         </div>
         <ChatInputDropdown
           open={openDropdown === "context"}
-          onClose={closeDropdown}
+          onClose={closeChatInputDropdown}
           disableOutsideDismiss={debugMode}
           side={contextDropdownSide}
         >
-          <div
-            className="chat-input__dropdown-item"
-            onClick={() => {
-              onOpenFiles();
-              closeDropdown();
-            }}
-          >
-            <span className="chat-input__dropdown-leading">
-              <Paperclip size={14} />
-            </span>
-            <span className="chat-input__dropdown-label">
-              Files and folders
-            </span>
-          </div>
-          <div className="chat-input__dropdown-item" onClick={closeDropdown}>
-            <span className="chat-input__dropdown-leading">
-              <Target size={14} />
-            </span>
-            <span className="chat-input__dropdown-label">目标</span>
-            <span className="chat-input__dropdown-hint">
-              设置 CodePilotX 将持续努力实现的目标
-            </span>
-          </div>
-          <div
-            aria-pressed={planModeActive}
-            className={[
-              "chat-input__dropdown-item",
-              planModeActive ? "is-active" : "",
-            ].join(" ")}
-            onClick={() => {
-              onPlanModeChange?.(true);
-              closeDropdown();
-            }}
-          >
-            <span className="chat-input__dropdown-leading">
-              <ListChecks size={14} />
-            </span>
-            <span className="chat-input__dropdown-label">计划模式</span>
-            <span className="chat-input__dropdown-hint">开启计划模式</span>
-          </div>
-          {(enableParetoCodeRouter || enableFusionRouter) ? (
-            <>
-              <div className="chat-input__dropdown-separator" />
-              <div className="chat-input__dropdown-section-title">Router</div>
-              {enableParetoCodeRouter ? (
-                <div
-                  aria-pressed={localRouterMode === 'pareto-code'}
-                  className={[
-                    "chat-input__dropdown-item",
-                    localRouterMode === 'pareto-code' ? "is-active" : "",
-                  ].join(" ")}
-                  onClick={() => {
-                    onLocalRouterModeChange?.(localRouterMode === 'pareto-code' ? 'off' : 'pareto-code');
-                    closeDropdown();
-                  }}
-                >
-                  <span className="chat-input__dropdown-leading">
-                    <Sparkles size={14} />
-                  </span>
-                  <span className="chat-input__dropdown-label">Pareto Code</span>
-                  <span className="chat-input__dropdown-hint">本地智能选模型</span>
-                </div>
-              ) : null}
-              {enableFusionRouter ? (
-                <div
-                  aria-pressed={localRouterMode === 'fusion'}
-                  className={[
-                    "chat-input__dropdown-item",
-                    localRouterMode === 'fusion' ? "is-active" : "",
-                  ].join(" ")}
-                  onClick={() => {
-                    onLocalRouterModeChange?.(localRouterMode === 'fusion' ? 'off' : 'fusion');
-                    closeDropdown();
-                  }}
-                >
-                  <span className="chat-input__dropdown-leading">
-                    <Brain size={14} />
-                  </span>
-                  <span className="chat-input__dropdown-label">Fusion</span>
-                  <span className="chat-input__dropdown-hint">多模型会审</span>
-                </div>
-              ) : null}
-            </>
-          ) : null}
-          <div className="chat-input__dropdown-separator" />
-
-          <div className="chat-input__dropdown-section-title">智能体</div>
-
-          {CONTEXT_AGENT_OPTIONS.map((agent) => (
-            <div
-              className="chat-input__dropdown-item"
-              key={agent.name}
-              onClick={closeDropdown}
-            >
-              <span
-                className="chat-input__dropdown-agent-icon"
-                style={{
-                  color: agent.tone === "red" ? "#ef4444" : "#f59e0b",
-                }}
-              >
-                {agent.icon === "DNA" ? "🧬" : "⚛️"}
-              </span>
-              <span className="chat-input__dropdown-label">{agent.name}</span>
-              <span className="chat-input__dropdown-hint">{agent.role}</span>
-            </div>
-          ))}
-
-          <div className="chat-input__dropdown-separator" />
-
-          <div className="chat-input__dropdown-section-title">插件</div>
-
-          {INSTALLED_CONTEXT_PLUGINS.map((plugin) => (
-            <div
-              className="chat-input__dropdown-item"
-              key={plugin.name}
-              onClick={() => {
-                if (plugin.tone === "browser") {
-                  onOpenBrowser?.();
-                }
-                closeDropdown();
-              }}
-            >
-              <span
-                className={["chat-input__dropdown-bullet"].join(" ")}
-                style={{
-                  background:
-                    plugin.tone === "docs"
-                      ? "#3b82f6"
-                      : plugin.tone === "pdf"
-                        ? "#ef4444"
-                        : plugin.tone === "sheets"
-                          ? "#22c55e"
-                          : plugin.tone === "slides"
-                            ? "#f59e0b"
-                            : plugin.tone === "template"
-                              ? "#ec4899"
-                              : "#06b6d4",
-                }}
-              />
-              <span className="chat-input__dropdown-label">{plugin.name}</span>
-              <span className="chat-input__dropdown-hint">
-                {plugin.description}
-              </span>
-            </div>
-          ))}
+          {contextDropdownContent}
         </ChatInputDropdown>
       </div>
 
@@ -1292,136 +1270,6 @@ function formatCompactNumber(value: number): string {
 
 function trimNumber(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
-}
-
-function getSlashCommandIcon(
-  command: DesktopSlashCommandSuggestion,
-): React.ReactNode {
-  switch (command.name) {
-    case "effort":
-      return <Brain size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />;
-    case "model":
-      return <Box size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />;
-    case "branch":
-      return (
-        <GitFork size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-      );
-    case "status":
-      return (
-        <CircleGauge size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-      );
-    case "plan":
-      return (
-        <ListChecks size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-      );
-    case "remember":
-    case "goal":
-      return <Brain size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />;
-    default:
-      return (
-        <Sparkles size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-      );
-  }
-}
-
-function SlashCommandPalette({
-  commands,
-  selectedIndex,
-  onHover,
-  onSelect,
-}: {
-  commands: DesktopSlashCommandSuggestion[];
-  selectedIndex: number;
-  onHover: (index: number) => void;
-  onSelect: (command: DesktopSlashCommandSuggestion) => void;
-}): React.ReactNode {
-  const commandItems = commands.filter(
-    (command) => command.category === "command",
-  );
-  const skillItems = commands.filter((command) => command.category === "skill");
-  const skillOffset = commandItems.length;
-
-  return (
-    <div className="slash-command-scroll-area" role="listbox">
-      <div className="slash-command-scroll-content">
-        {commandItems.length > 0 ? (
-          <SlashCommandSection
-            commands={commandItems}
-            offset={0}
-            selectedIndex={selectedIndex}
-            title={null}
-            onHover={onHover}
-            onSelect={onSelect}
-          />
-        ) : null}
-        {skillItems.length > 0 ? (
-          <SlashCommandSection
-            commands={skillItems}
-            offset={skillOffset}
-            selectedIndex={selectedIndex}
-            title="技能"
-            onHover={onHover}
-            onSelect={onSelect}
-          />
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function SlashCommandSection({
-  commands,
-  offset,
-  selectedIndex,
-  title,
-  onHover,
-  onSelect,
-}: {
-  commands: DesktopSlashCommandSuggestion[];
-  offset: number;
-  selectedIndex: number;
-  title: string | null;
-  onHover: (index: number) => void;
-  onSelect: (command: DesktopSlashCommandSuggestion) => void;
-}): React.ReactNode {
-  return (
-    <div className="slash-command-section">
-      {title ? (
-        <div className="slash-command-section-title">{title}</div>
-      ) : null}
-      {commands.map((command, index) => {
-        const absoluteIndex = offset + index;
-        const selected = absoluteIndex === selectedIndex;
-        return (
-          <button
-            aria-selected={selected}
-            className={[
-              "slash-command-item",
-              selected ? "is-selected" : "",
-            ].join(" ")}
-            key={command.name}
-            onClick={() => onSelect(command)}
-            onMouseEnter={() => onHover(absoluteIndex)}
-            role="option"
-            type="button"
-          >
-            <span className="slash-command-item-icon">
-              {getSlashCommandIcon(command)}
-            </span>
-            <span className="slash-command-item-body">
-              <span className="slash-command-item-title">{command.title}</span>
-              <span className="slash-command-item-description">
-                {command.description}
-              </span>
-            </span>
-            {command.scope ? (
-              <span className="slash-command-item-scope">{command.scope}</span>
-            ) : null}
-          </button>
-        );
-      })}
-    </div>
-  );
 }
 
 function attachmentTypeLabel(attachment: DesktopComposerAttachment): string {

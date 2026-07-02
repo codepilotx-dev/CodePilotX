@@ -136,6 +136,35 @@ test('ChatInputDropdown adds --bottom modifier class when side is "bottom"', () 
   expect(html).toContain('chat-input__dropdown--bottom')
 })
 
+test('ComposerCard renders context items for slash input instead of slash commands', () => {
+  const html = renderWithProviders(
+    <ComposerCard
+      {...baseProps}
+      input="/"
+      slashCommands={[
+        {
+          name: 'status',
+          title: '状态',
+          description: '显示 CodePilotX 状态',
+          category: 'command',
+        },
+      ]}
+    />,
+  )
+
+  expect(html).toContain('popover-surface chat-input__dropdown chat-input__dropdown--bottom')
+  expect(html).toContain('--popover-max-width:100%')
+  expect(html.indexOf('chat-input__dropdown-section-title">添加')).toBeLessThan(
+    html.indexOf('Files and folders'),
+  )
+  expect(html).toContain('Files and folders')
+  expect(html).toContain('智能体')
+  expect(html).toContain('插件')
+  expect(html).not.toContain('状态')
+  expect(html).not.toContain('slash-command-scroll-area')
+  expect(html).not.toContain('slash-command-palette')
+})
+
 test('computeDropdownMaxHeight clamps dropdown height to remaining page space', () => {
   const safetyMargin = 16
 
