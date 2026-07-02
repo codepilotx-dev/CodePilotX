@@ -217,7 +217,7 @@ function isPromiseLike<T>(value: T): value is T & PromiseLike<unknown> & {
 export const DEEPSEEK_MODEL_METADATA: Record<string, ModelMetadata> = {
   'deepseek-v4-pro': {
     id: 'deepseek-v4-pro',
-    label: 'V4 Pro',
+    label: 'DeepSeek V4 Pro',
     description: 'Complex agent and high-quality coding tasks',
     badge: 'Quality',
     catalogSources: ['models.dev'],
@@ -225,7 +225,7 @@ export const DEEPSEEK_MODEL_METADATA: Record<string, ModelMetadata> = {
   },
   'deepseek-v4-flash': {
     id: 'deepseek-v4-flash',
-    label: 'V4 Flash',
+    label: 'DeepSeek V4 Flash',
     description: 'Fast responses, light tasks, and economical usage',
     badge: 'Fast',
     catalogSources: ['models.dev'],

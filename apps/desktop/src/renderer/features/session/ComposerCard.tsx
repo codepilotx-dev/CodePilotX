@@ -299,9 +299,7 @@ export function ComposerCard({
     ? "未配置模型"
     : selectedModelPreset === CUSTOM_MODEL_PRESET_ID
       ? "自定义模型"
-      : (selectedModel?.shortLabel ??
-        selectedModel?.label ??
-        selectedModelPreset);
+      : (selectedModel?.label ?? selectedModelPreset);
   const selectedModelTitle = modelCatalogLoading
     ? "加载模型列表中……"
     : !modelConfigured
