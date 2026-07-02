@@ -41,8 +41,8 @@ export function QuickChatView(): React.ReactNode {
               maxWidth="min(420px, calc(100vw - 48px))"
               open={projectMenuOpen}
               recentWorkspaces={recentWorkspaces}
-              side="bottom"
-              sideOffset={10}
+              side="top"
+              sideOffset={6}
               trigger={
                 <button
                   aria-label="选择项目"
