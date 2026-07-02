@@ -2412,9 +2412,11 @@
 }
 
 .workflow-page .quick-chat-content.workflow-page__inner {
-  max-width: 760px;
+  width: min(calc(var(--layout-content-w) - 20px), 100%);
+  max-width: calc(var(--layout-content-w) - 20px);
   margin: 0 auto;
   padding: 0;
+  padding-bottom: 80px;
 }
 
 .workflow-page .conversation-stream {
@@ -2436,16 +2438,18 @@
 }
 
 .workflow-page__composer-inner {
-  width: 100%;
-  max-width: 780px;
+  width: min(var(--layout-content-w), 100%);
+  max-width: var(--layout-content-w);
+  pointer-events: auto;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 12px 16px 10px;
-  border: 1px solid var(--c-border-soft);
-  border-radius: var(--radius-6);
-  background: var(--c-bg);
+  padding: calc(var(--layout-toolbar-gap) - 2px) var(--layout-toolbar-gap)
+    calc(var(--layout-toolbar-gap) - 4px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--c-panel-bg);
   box-shadow: 0 2px 8px var(--black-a1);
   transition:
     height 0.24s cubic-bezier(0.4, 0, 0.2, 1),
@@ -2463,6 +2467,9 @@
   min-height: 0;
   padding: 0;
   border: 0;
+
+  background: transparent;
+  box-shadow: none;
 }
 
 .workflow-page__composer-inner .composer-bottom {
@@ -2670,51 +2677,9 @@
   pointer-events: none;
 }
 
-.quick-chat-view .chat-composer > .composer,
-.workflow-page__composer-inner {
-  width: min(var(--layout-content-w), 100%);
-  max-width: var(--layout-content-w);
-  pointer-events: auto;
-}
-
-.workflow-page__composer-inner {
-  padding: calc(var(--layout-toolbar-gap) - 2px) var(--layout-toolbar-gap)
-    calc(var(--layout-toolbar-gap) - 4px);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-card);
-  background: var(--c-panel-bg);
-
-}
-
-.workflow-page__composer-inner .composer-top {
-  min-height: 98px;
-  padding: var(--layout-toolbar-gap) calc(var(--layout-card-pad) - 10px)
-    calc(var(--layout-toolbar-gap) - 4px);
-  border: 0;
-  border-radius: var(--radius-marquee);
-  background: transparent;
-  box-shadow: none;
-}
-
-.workflow-page__composer-inner .composer-bottom {
-  margin-top: calc(var(--layout-toolbar-gap) - 4px);
-  padding: calc(var(--layout-toolbar-gap) - 4px) 0 0;
-  border-top: 1px solid var(--c-border-faint);
-}
-
 .workflow-main-scroll-content {
   padding: var(--layout-page-pad-y) var(--layout-page-pad-x)
     calc(var(--floating-composer-h) + var(--layout-composer-safe-pad));
-}
-
-.workflow-page .quick-chat-content.workflow-page__inner,
-.conversation-page .quick-chat-content {
-  width: min(var(--layout-content-w), 100%);
-  max-width: var(--layout-content-w);
-}
-
-.workflow-page .quick-chat-content.workflow-page__inner {
-  padding-bottom: 80px;
 }
 
 .conversation-stream {
