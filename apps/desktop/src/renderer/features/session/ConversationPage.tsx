@@ -40,7 +40,10 @@ import {
   Workflow,
   X,
 } from "lucide-react";
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
+import {
+  APP_ICON_SIZE,
+  APP_ICON_STROKE_WIDTH,
+} from "../../components/ui/iconTokens.js";
 import { legacyMessagesToSessionEvents } from "../../../shared/sessionEventModel.js";
 import { deriveWorkflowSessionState } from "../../../shared/workflowReducer.js";
 import type {
@@ -87,8 +90,8 @@ import { ScrollArea } from "../../components/ui/ScrollArea.js";
 import {
   loadConversationUiState,
   saveConversationUiState,
-} from '../layout/conversationUiState.js';
-import { useWorkspaceHeader } from '../layout/WorkspaceHeaderContext.js';
+} from "../layout/conversationUiState.js";
+import { useWorkspaceHeader } from "../layout/WorkspaceHeaderContext.js";
 
 const FALLBACK_OPEN_TARGETS: DesktopOpenTarget[] = [
   {
@@ -110,14 +113,18 @@ const FALLBACK_OPEN_TARGETS: DesktopOpenTarget[] = [
 
 const DEBUG_ASK_USER_QUESTION_REQUEST_ID_PREFIX = "debug-ask-user-question";
 
-function useElapsedSeconds(startTimeMs: number | undefined, isRunning: boolean): number {
+function useElapsedSeconds(
+  startTimeMs: number | undefined,
+  isRunning: boolean,
+): number {
   const [seconds, setSeconds] = React.useState(0);
   React.useEffect(() => {
     if (!isRunning || !startTimeMs) {
       setSeconds(0);
       return;
     }
-    const tick = () => setSeconds(Math.floor((Date.now() - startTimeMs) / 1000));
+    const tick = () =>
+      setSeconds(Math.floor((Date.now() - startTimeMs) / 1000));
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
@@ -187,21 +194,22 @@ export function ConversationPage(): React.ReactNode {
       }),
     [activeSessionId, messages, workflowEvents],
   );
-  const timelineEvents = React.useMemo(
-    () => {
-      const sourceEvents =
-        workflowDerivedState.events.length > 0
-          ? workflowDerivedState.events
-          : events.length > 0
-            ? events
-            : legacyMessagesToSessionEvents("legacy", conversationMessages);
-      return foldTimelineEvents(sourceEvents);
-    },
-    [conversationMessages, events, workflowDerivedState.events],
-  );
+  const timelineEvents = React.useMemo(() => {
+    const sourceEvents = deriveTimelineSourceEvents({
+      conversationMessages,
+      events,
+      sessionStatus,
+      workflowEvents: workflowDerivedState.events,
+    });
+    return foldTimelineEvents(sourceEvents);
+  }, [conversationMessages, events, sessionStatus, workflowDerivedState.events]);
   const timelineItems = React.useMemo(
     () => groupTimelineToolEvents(timelineEvents),
     [timelineEvents],
+  );
+  const phaseItems = React.useMemo(
+    () => groupTimelineExecutionPhases(timelineItems, sessionStatus),
+    [timelineItems, sessionStatus],
   );
   const assistantActionMessageIds = React.useMemo(
     () =>
@@ -217,11 +225,14 @@ export function ConversationPage(): React.ReactNode {
     timelineEvents,
   });
   const [sessionMenuOpen, setSessionMenuOpen] = React.useState(false);
-  const [conversationSelectedText, setConversationSelectedText] = React.useState("");
+  const [conversationSelectedText, setConversationSelectedText] =
+    React.useState("");
   const [openTargetMenuOpen, setOpenTargetMenuOpen] = React.useState(false);
-  const [environmentPopoverOpen, setEnvironmentPopoverOpen] = React.useState(false);
-  const [openTargets, setOpenTargets] =
-    React.useState<DesktopOpenTarget[]>(FALLBACK_OPEN_TARGETS);
+  const [environmentPopoverOpen, setEnvironmentPopoverOpen] =
+    React.useState(false);
+  const [openTargets, setOpenTargets] = React.useState<DesktopOpenTarget[]>(
+    FALLBACK_OPEN_TARGETS,
+  );
   const [showPinnedSummary, setShowPinnedSummary] = React.useState(true);
   const [debugAskUserQuestionRequest, setDebugAskUserQuestionRequest] =
     React.useState<DesktopPermissionRequest | null>(null);
@@ -246,8 +257,8 @@ export function ConversationPage(): React.ReactNode {
     const onScroll = (): void => {
       mainScrollTopRef.current = el.scrollTop;
     };
-    el.addEventListener('scroll', onScroll, { passive: true });
-    return () => el.removeEventListener('scroll', onScroll);
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
   }, [activeSessionId]);
 
   React.useEffect(() => {
@@ -264,7 +275,12 @@ export function ConversationPage(): React.ReactNode {
   }, [activeSessionId]);
 
   React.useEffect(() => {
-    if (isConversationLoading || !mainScrollViewportRef.current || !activeSessionId) return;
+    if (
+      isConversationLoading ||
+      !mainScrollViewportRef.current ||
+      !activeSessionId
+    )
+      return;
     const saved = loadConversationUiState(activeSessionId);
     if (saved?.mainScrollTop) {
       mainScrollViewportRef.current.scrollTop = saved.mainScrollTop;
@@ -292,7 +308,7 @@ export function ConversationPage(): React.ReactNode {
     [messages],
   );
   const handleRunCodeReview = React.useCallback(() => {
-    onOpenRightDock('review');
+    onOpenRightDock("review");
     onRefreshDiff();
     void submitReviewAction({
       sessionId: activeSessionId,
@@ -369,8 +385,11 @@ export function ConversationPage(): React.ReactNode {
 
     const updateDimensions = (): void => {
       const rect = composerEl.getBoundingClientRect();
-      pageEl.style.setProperty('--workflow-composer-width', `${rect.width}px`);
-      pageEl.style.setProperty('--workflow-composer-height', `${rect.height}px`);
+      pageEl.style.setProperty("--workflow-composer-width", `${rect.width}px`);
+      pageEl.style.setProperty(
+        "--workflow-composer-height",
+        `${rect.height}px`,
+      );
     };
 
     updateDimensions();
@@ -476,7 +495,7 @@ export function ConversationPage(): React.ReactNode {
 
   function decideInlinePermission(
     request: DesktopPermissionRequest,
-    behavior: 'allow' | 'deny',
+    behavior: "allow" | "deny",
     alwaysAllow?: boolean,
     updatedInput?: Record<string, unknown>,
     decisionExtras?: Parameters<typeof onDecidePermission>[4],
@@ -484,7 +503,7 @@ export function ConversationPage(): React.ReactNode {
     if (isDebugAskUserQuestionRequest(request)) {
       setDebugAskUserQuestionRequest(null);
       if (updatedInput) {
-        console.info('Debug AskUserQuestion submitted', updatedInput);
+        console.info("Debug AskUserQuestion submitted", updatedInput);
       }
       return;
     }
@@ -499,7 +518,7 @@ export function ConversationPage(): React.ReactNode {
 
   function openReviewSidebar(): void {
     onRefreshDiff();
-    onOpenRightDock('review');
+    onOpenRightDock("review");
   }
 
   function handleConversationContextMenu(): void {
@@ -527,7 +546,8 @@ export function ConversationPage(): React.ReactNode {
     setConversationSelectedText("");
   }
 
-  const showConversationContextMenu = conversationSelectedText.trim().length > 0;
+  const showConversationContextMenu =
+    conversationSelectedText.trim().length > 0;
 
   const workspaceHeaderTitle = React.useMemo(
     () => (
@@ -633,10 +653,7 @@ export function ConversationPage(): React.ReactNode {
             添加自动化...
           </PopoverItem>
           <div className="popover-divider" />
-          <PopoverItem
-            disabled
-            icon={<AppWindow size={APP_ICON_SIZE} />}
-          >
+          <PopoverItem disabled icon={<AppWindow size={APP_ICON_SIZE} />}>
             在新窗口中打开
           </PopoverItem>
         </PopoverMenu>
@@ -680,7 +697,10 @@ export function ConversationPage(): React.ReactNode {
                 disabled={!workspacePath}
                 type="button"
               >
-                <ChevronDown size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <ChevronDown
+                  size={APP_ICON_SIZE}
+                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                />
               </button>
             }
             onOpenChange={setOpenTargetMenuOpen}
@@ -698,9 +718,7 @@ export function ConversationPage(): React.ReactNode {
             ))}
           </PopoverMenu>
         </div>
-        <Tooltip
-          content={showPinnedSummary ? "隐藏置顶摘要" : "显示置顶摘要"}
-        >
+        <Tooltip content={showPinnedSummary ? "隐藏置顶摘要" : "显示置顶摘要"}>
           <button
             aria-label={showPinnedSummary ? "隐藏置顶摘要" : "显示置顶摘要"}
             aria-pressed={showPinnedSummary}
@@ -709,7 +727,10 @@ export function ConversationPage(): React.ReactNode {
             type="button"
             onClick={() => setShowPinnedSummary((current) => !current)}
           >
-            <Columns2 size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <Columns2
+              size={APP_ICON_SIZE}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+            />
           </button>
         </Tooltip>
         <Tooltip
@@ -731,7 +752,10 @@ export function ConversationPage(): React.ReactNode {
             type="button"
             onClick={() => setWorkflowTimelineVisible((current) => !current)}
           >
-            <Workflow size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <Workflow
+              size={APP_ICON_SIZE}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+            />
           </button>
         </Tooltip>
         {debugMode ? (
@@ -784,7 +808,9 @@ export function ConversationPage(): React.ReactNode {
           >
             变更
             <span className="environment-diff-counts">
-              <strong>+{formatPanelNumber(composerDiffSummary.additions)}</strong>
+              <strong>
+                +{formatPanelNumber(composerDiffSummary.additions)}
+              </strong>
               <em>-{formatPanelNumber(composerDiffSummary.deletions)}</em>
             </span>
           </PopoverItem>
@@ -835,9 +861,7 @@ export function ConversationPage(): React.ReactNode {
   const workspaceHeaderDockActions = React.useMemo(
     () => (
       <div className="chat-session-actions">
-        <Tooltip
-          content={bottomPanelVisible ? "隐藏底部面板" : "显示底部面板"}
-        >
+        <Tooltip content={bottomPanelVisible ? "隐藏底部面板" : "显示底部面板"}>
           <button
             aria-label={bottomPanelVisible ? "隐藏底部面板" : "显示底部面板"}
             aria-pressed={bottomPanelVisible}
@@ -845,7 +869,10 @@ export function ConversationPage(): React.ReactNode {
             type="button"
             onClick={onToggleBottomPanel}
           >
-            <PanelBottom size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <PanelBottom
+              size={APP_ICON_SIZE}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+            />
           </button>
         </Tooltip>
       </div>
@@ -900,18 +927,22 @@ export function ConversationPage(): React.ReactNode {
                         {workflowTimelineVisible ? (
                           <WorkflowDebugTimeline
                             activeSessionId={activeSessionId}
-                            consistencyDiagnostics={workflowConsistencyDiagnostics}
+                            consistencyDiagnostics={
+                              workflowConsistencyDiagnostics
+                            }
                             diagnostics={workflowDerivedState.diagnostics}
                             events={workflowEvents}
                             workspacePath={workspacePath}
                           />
                         ) : null}
-                        {timelineItems.map((item) => (
+                        {phaseItems.map((item) => (
                           <TimelineItem
                             item={item}
                             key={item.id}
                             rightDockPlanContent={rightDockPlanContent}
-                            rightDockPlanOpen={rightDockOpen && rightDockTool === "plan"}
+                            rightDockPlanOpen={
+                              rightDockOpen && rightDockTool === "plan"
+                            }
                             showActions={
                               item.type === "message" &&
                               item.role === "assistant" &&
@@ -927,7 +958,9 @@ export function ConversationPage(): React.ReactNode {
                         ))}
                       </>
                     )}
-                    {!isConversationLoading && showThinking ? <ThinkingPill /> : null}
+                    {!isConversationLoading && showThinking ? (
+                      <ThinkingPill />
+                    ) : null}
                   </div>
                 </ContextMenu.Trigger>
                 {showConversationContextMenu ? (
@@ -963,10 +996,18 @@ export function ConversationPage(): React.ReactNode {
                   <div className="composer-change-summary">
                     <span>
                       {gitStatus?.files.length ?? 0} 个文件已更改
-                      <strong> +{formatPanelNumber(composerDiffSummary.additions)}</strong>
-                      <em> -{formatPanelNumber(composerDiffSummary.deletions)}</em>
+                      <strong>
+                        {" "}
+                        +{formatPanelNumber(composerDiffSummary.additions)}
+                      </strong>
+                      <em>
+                        {" "}
+                        -{formatPanelNumber(composerDiffSummary.deletions)}
+                      </em>
                     </span>
-                    <button type="button" onClick={handleRunCodeReview}>审查</button>
+                    <button type="button" onClick={handleRunCodeReview}>
+                      审查
+                    </button>
                   </div>
                 ) : null}
                 {activePermissionRequest ? (
@@ -1186,7 +1227,8 @@ function WorkflowDiagnosticsSummary({
           ) : null}
           {diagnostics.missingToolResults.length > 0 ? (
             <span>
-              未完成工具: {diagnostics.missingToolResults.slice(0, 3).join(", ")}
+              未完成工具:{" "}
+              {diagnostics.missingToolResults.slice(0, 3).join(", ")}
             </span>
           ) : null}
           {diagnostics.outOfOrderSequences.length > 0 ? (
@@ -1315,11 +1357,7 @@ function SessionSubmenu({
 function renderOpenTargetIcon(target: DesktopOpenTarget): React.ReactNode {
   if (target.iconDataUrl) {
     return (
-      <img
-        alt=""
-        className="chat-open-target-icon"
-        src={target.iconDataUrl}
-      />
+      <img alt="" className="chat-open-target-icon" src={target.iconDataUrl} />
     );
   }
   if (target.kind === "file-explorer") {
@@ -1380,7 +1418,11 @@ function deriveWorkflowThinkingVisible({
   const currentTurnEvents = timelineEvents.slice(lastUserMessageIndex + 1);
   for (const event of currentTurnEvents) {
     const type = event.type as string;
-    if (type === "checkpoint" || type === "error" || type === "turn.interrupted") {
+    if (
+      type === "checkpoint" ||
+      type === "error" ||
+      type === "turn.interrupted"
+    ) {
       return false;
     }
     if (
@@ -1395,6 +1437,29 @@ function deriveWorkflowThinkingVisible({
   return true;
 }
 
+export function deriveTimelineSourceEvents({
+  conversationMessages,
+  events,
+  sessionStatus,
+  workflowEvents,
+}: {
+  conversationMessages: Message[];
+  events: DesktopSessionEvent[];
+  sessionStatus: DesktopSessionStatus;
+  workflowEvents: DesktopSessionEvent[];
+}): DesktopSessionEvent[] {
+  if (isActiveSessionStatus(sessionStatus) && events.length > 0) {
+    return events;
+  }
+  if (workflowEvents.length > 0) {
+    return workflowEvents;
+  }
+  if (events.length > 0) {
+    return events;
+  }
+  return legacyMessagesToSessionEvents("legacy", conversationMessages);
+}
+
 export function deriveAssistantActionMessageIds({
   sessionStatus,
   timelineEvents,
@@ -1405,10 +1470,14 @@ export function deriveAssistantActionMessageIds({
   const visibleIds = new Set<string>();
   let turnAssistantMessageId: string | null = null;
 
+  const resetTurn = () => {
+    turnAssistantMessageId = null;
+  };
+
   const commitCompletedTurn = () => {
     if (!turnAssistantMessageId) return;
     visibleIds.add(turnAssistantMessageId);
-    turnAssistantMessageId = null;
+    resetTurn();
   };
 
   for (const event of timelineEvents) {
@@ -1420,10 +1489,7 @@ export function deriveAssistantActionMessageIds({
       turnAssistantMessageId = event.id;
       continue;
     }
-    if (
-      event.type === "checkpoint" ||
-      event.type === "error"
-    ) {
+    if (event.type === "checkpoint" || event.type === "error") {
       commitCompletedTurn();
     }
   }
@@ -1471,9 +1537,14 @@ function WorkflowPlanCard({
           type="button"
           onClick={onOpenInRightDock}
         >
-          <span className="workflow-plan-card__label">{presentation.label}</span>
+          <span className="workflow-plan-card__label">
+            {presentation.label}
+          </span>
           <span className="workflow-plan-card__compact-title">{title}</span>
-          <PanelRight size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+          <PanelRight
+            size={APP_ICON_SIZE}
+            strokeWidth={APP_ICON_STROKE_WIDTH}
+          />
         </button>
       </article>
     );
@@ -1492,7 +1563,10 @@ function WorkflowPlanCard({
               type="button"
               onClick={onOpenInRightDock}
             >
-              <Maximize2 size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              <Maximize2
+                size={APP_ICON_SIZE}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
             </button>
           ) : null}
         </div>
@@ -1553,6 +1627,15 @@ type TimelineToolGroup = {
   type: "tool_group";
   runs: TimelineToolRun[];
 };
+
+type ExecutionPhaseGroup = {
+  id: string;
+  type: "execution_phase";
+  items: TimelineItem[];
+  isComplete: boolean;
+};
+
+type PhaseTimelineItem = TimelineItem | ExecutionPhaseGroup;
 
 type TimelineItem = DesktopSessionEvent | TimelineToolGroup;
 
@@ -1728,7 +1811,7 @@ function TimelineItem({
   onReviewCode,
   onDiscardChanges,
 }: {
-  item: TimelineItem;
+  item: PhaseTimelineItem;
   rightDockPlanContent: string | null;
   rightDockPlanOpen: boolean;
   showActions: boolean;
@@ -1737,6 +1820,17 @@ function TimelineItem({
   onReviewCode: () => void;
   onDiscardChanges: (paths: string[], turnRestoreId?: string | null) => void;
 }): React.ReactNode {
+  if (item.type === "execution_phase") {
+    return (
+      <ExecutionPhaseView
+        phase={item}
+        onOpenPlanInRightDock={onOpenPlanInRightDock}
+        onDiscardChanges={onDiscardChanges}
+        onReviewCode={onReviewCode}
+        onReviewFiles={onReviewFiles}
+      />
+    );
+  }
   if (item.type === "tool_group") {
     return <TimelineToolGroupView group={item} />;
   }
@@ -1762,14 +1856,18 @@ function TimelineItem({
     if (!summary) return null;
     const title = planTitleFromSummary(summary);
     return (
-      <WorkflowPlanCard
-        summary={summary}
-        streaming={event.metadata?.streaming === true}
-        isDocked={rightDockPlanOpen && rightDockPlanContent === summary}
-        onOpenInRightDock={() =>
-          onOpenPlanInRightDock({ title, content: summary })
-        }
-      />
+      <article className="chat-message-row assistant">
+        <div className="assistant-message-body">
+          <WorkflowPlanCard
+            summary={summary}
+            streaming={event.metadata?.streaming === true}
+            isDocked={rightDockPlanOpen && rightDockPlanContent === summary}
+            onOpenInRightDock={() =>
+              onOpenPlanInRightDock({ title, content: summary })
+            }
+          />
+        </div>
+      </article>
     );
   }
 
@@ -1786,11 +1884,13 @@ function TimelineItem({
     const fileCount = files.length;
     const title = `已编辑 ${fileCount || 1} 个文件`;
     const totalAdditions =
-      additions ?? files.reduce((total, file) => total + Number(file.additions ?? 0), 0);
+      additions ??
+      files.reduce((total, file) => total + Number(file.additions ?? 0), 0);
     const totalDeletions =
-      deletions ?? files.reduce((total, file) => total + Number(file.deletions ?? 0), 0);
+      deletions ??
+      files.reduce((total, file) => total + Number(file.deletions ?? 0), 0);
     const filePaths = files
-      .map(file => (typeof file.path === "string" ? file.path : null))
+      .map((file) => (typeof file.path === "string" ? file.path : null))
       .filter((p): p is string => Boolean(p));
     const filePathFromMetadata =
       typeof event.metadata?.filePath === "string"
@@ -1816,8 +1916,12 @@ function TimelineItem({
             <span className="timeline-file-event-copy">
               <strong>{title}</strong>
               <small>
-                <span className="diff-added">+{formatPanelNumber(totalAdditions)}</span>
-                <span className="diff-removed">-{formatPanelNumber(totalDeletions)}</span>
+                <span className="diff-added">
+                  +{formatPanelNumber(totalAdditions)}
+                </span>
+                <span className="diff-removed">
+                  -{formatPanelNumber(totalDeletions)}
+                </span>
               </small>
             </span>
           </div>
@@ -1828,7 +1932,11 @@ function TimelineItem({
               type="button"
               onClick={() => {
                 if (discardPaths.length === 0) return;
-                if (window.confirm(`确认恢复 ${discardPaths.length} 个文件到本轮对话开始前的状态？`)) {
+                if (
+                  window.confirm(
+                    `确认恢复 ${discardPaths.length} 个文件到本轮对话开始前的状态？`,
+                  )
+                ) {
                   onDiscardChanges(discardPaths, turnRestoreId);
                 }
               }}
@@ -1907,9 +2015,9 @@ function TimelineToolGroupView({
     ? `正在运行命令，已持续 ${groupElapsed} s`
     : onlyQuestionResults
       ? `已询问 ${questionResultCount} 个问题`
-    : commandCount === 1
-      ? "已运行命令"
-      : `已运行 ${commandCount} 条命令`;
+      : commandCount === 1
+        ? "已运行命令"
+        : `已运行 ${commandCount} 条命令`;
 
   return (
     <article
@@ -1926,19 +2034,14 @@ function TimelineToolGroupView({
         onClick={() => setExpanded((value) => !value)}
       >
         <Code2 size={APP_ICON_SIZE} />
-        <span>
-          {groupSummaryLabel}
-        </span>
+        <span>{groupSummaryLabel}</span>
         <ChevronDown
           className="timeline-command-group-chevron"
           size={APP_ICON_SIZE}
           strokeWidth={APP_ICON_STROKE_WIDTH}
         />
       </button>
-      <div
-        aria-hidden={!expanded}
-        className="timeline-command-details"
-      >
+      <div aria-hidden={!expanded} className="timeline-command-details">
         <div className="timeline-command-details-inner">
           <ul className="timeline-command-list">
             {group.runs.map((run) => {
@@ -1956,6 +2059,71 @@ function TimelineToolGroupView({
               );
             })}
           </ul>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function ExecutionPhaseView({
+  phase,
+  onOpenPlanInRightDock,
+  onDiscardChanges,
+  onReviewCode,
+  onReviewFiles,
+}: {
+  phase: ExecutionPhaseGroup;
+  onOpenPlanInRightDock: (plan: { title: string; content: string }) => void;
+  onDiscardChanges: (paths: string[], turnRestoreId?: string | null) => void;
+  onReviewCode: () => void;
+  onReviewFiles: () => void;
+}): React.ReactNode {
+  const [expanded, setExpanded] = React.useState(!phase.isComplete);
+
+  // Auto-expand while running
+  React.useEffect(() => {
+    if (!phase.isComplete && !expanded) {
+      setExpanded(true);
+    }
+  }, [phase.isComplete, expanded]);
+
+  return (
+    <article
+      className={
+        expanded
+          ? "execution-phase execution-phase--expanded"
+          : "execution-phase"
+      }
+    >
+      <button
+        aria-expanded={expanded}
+        className="execution-phase-summary"
+        type="button"
+        onClick={() => setExpanded((value) => !value)}
+      >
+        <Code2 size={APP_ICON_SIZE} />
+        <span>{phase.isComplete ? "已处理" : "正在处理"}</span>
+        <ChevronDown
+          className="execution-phase-chevron"
+          size={APP_ICON_SIZE}
+          strokeWidth={APP_ICON_STROKE_WIDTH}
+        />
+      </button>
+      <div aria-hidden={!expanded} className="execution-phase-details">
+        <div className="execution-phase-details-inner">
+          {phase.items.map((childItem) => (
+            <TimelineItem
+              item={childItem}
+              key={childItem.id}
+              rightDockPlanContent={null}
+              rightDockPlanOpen={false}
+              showActions={false}
+              onOpenPlanInRightDock={onOpenPlanInRightDock}
+              onDiscardChanges={onDiscardChanges}
+              onReviewCode={onReviewCode}
+              onReviewFiles={onReviewFiles}
+            />
+          ))}
         </div>
       </div>
     </article>
@@ -2050,7 +2218,9 @@ function answersFromUnknown(value: unknown): Record<string, string> | null {
 function isStringRecord(value: unknown): value is Record<string, string> {
   if (!isRecordValue(value)) return false;
   const entries = Object.entries(value);
-  return entries.length > 0 && entries.every(([, item]) => typeof item === "string");
+  return (
+    entries.length > 0 && entries.every(([, item]) => typeof item === "string")
+  );
 }
 
 function isRecordValue(value: unknown): value is Record<string, unknown> {
@@ -2060,11 +2230,12 @@ function isRecordValue(value: unknown): value is Record<string, unknown> {
 export function commandRunView(run: TimelineToolRun): CommandRunView {
   const toolLabel = displayToolName(run.toolName);
   const displayCommand = run.callContent || run.resultContent || toolLabel;
-  const statusKind: CommandRunStatusKind = run.isWaitingForPermission || run.isRunning
-    ? "running"
-    : run.isError
-      ? "error"
-      : "success";
+  const statusKind: CommandRunStatusKind =
+    run.isWaitingForPermission || run.isRunning
+      ? "running"
+      : run.isError
+        ? "error"
+        : "success";
   const statusLabel = run.isWaitingForPermission
     ? "等待权限"
     : statusKind === "running"
@@ -2145,19 +2316,18 @@ function TimelineCommandRunItem({
         />
       </button>
 
-      <div
-        aria-hidden={!isOpen}
-        className="timeline-command-shell-wrap"
-      >
+      <div aria-hidden={!isOpen} className="timeline-command-shell-wrap">
         <article
           className={`timeline-command-shell timeline-command-shell--${view.statusKind}`}
         >
-          <div className="timeline-command-shell-header">
-            {view.shellTitle}
-          </div>
+          <div className="timeline-command-shell-header">{view.shellTitle}</div>
           <div className="timeline-command-shell-scroll-area">
             <div className="timeline-command-shell-scroll-x">
-              <pre className="timeline-command-shell-body"><span className="timeline-command-shell-prompt">$</span> {view.displayCommand}{view.displayOutput ? `\n${view.displayOutput}` : ""}</pre>
+              <pre className="timeline-command-shell-body">
+                <span className="timeline-command-shell-prompt">$</span>{" "}
+                {view.displayCommand}
+                {view.displayOutput ? `\n${view.displayOutput}` : ""}
+              </pre>
             </div>
           </div>
           <footer className="timeline-command-shell-footer">
@@ -2168,10 +2338,7 @@ function TimelineCommandRunItem({
                   strokeWidth={APP_ICON_STROKE_WIDTH}
                 />
               ) : view.statusKind === "error" ? (
-                <X
-                  size={APP_ICON_SIZE}
-                  strokeWidth={APP_ICON_STROKE_WIDTH}
-                />
+                <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
               ) : (
                 <Circle
                   size={APP_ICON_SIZE}
@@ -2199,10 +2366,9 @@ function ChatMessage({
   const [draft, setDraft] = React.useState(message.text);
   const [isSubmittingEdit, setIsSubmittingEdit] = React.useState(false);
   const editTextareaRef = React.useRef<HTMLTextAreaElement | null>(null);
-  const shouldTypewrite =
-    message.role === "assistant" &&
-    !message.streaming &&
-    isRecentMessage(message.createdAt);
+  // Typewriter effect removed: completed messages display immediately.
+  // Real streaming output is handled via MarkdownMessage `streaming` prop.
+  const shouldTypewrite = false;
   const renderedText = useTypewriterText({
     enabled: shouldTypewrite,
     text: message.text,
@@ -2429,14 +2595,25 @@ type ReviewSplitRow = {
   unmodifiedBefore?: number;
   hunk?: { content: string };
   meta?: { content: string };
-  left: { number: number | null; content: string; tone: "removed" | "context" | "empty" };
-  right: { number: number | null; content: string; tone: "added" | "context" | "empty" };
+  left: {
+    number: number | null;
+    content: string;
+    tone: "removed" | "context" | "empty";
+  };
+  right: {
+    number: number | null;
+    content: string;
+    tone: "added" | "context" | "empty";
+  };
   paired: boolean;
 };
 
 type ReviewFilter = "all" | "added" | "modified" | "removed";
 
-function filterStatusForFile(file: { status: string; isUntracked: boolean }): ReviewFilter {
+function filterStatusForFile(file: {
+  status: string;
+  isUntracked: boolean;
+}): ReviewFilter {
   if (file.isUntracked) return "added";
   const trimmed = file.status.trim();
   if (trimmed.startsWith("A") || trimmed.startsWith("??")) return "added";
@@ -2473,12 +2650,11 @@ function ReviewSidebar({
   onOpenWorkspacePath: () => void;
   onRunCodeReview: () => void;
 }): React.ReactNode {
-  const turnGroup = React.useMemo(
-    () => deriveReviewTurns(events),
-    [events],
-  );
+  const turnGroup = React.useMemo(() => deriveReviewTurns(events), [events]);
   const turns = turnGroup.turns;
-  const [selectedTurnId, setSelectedTurnId] = React.useState<string | null>(null);
+  const [selectedTurnId, setSelectedTurnId] = React.useState<string | null>(
+    null,
+  );
   const [turnMenuOpen, setTurnMenuOpen] = React.useState(false);
   const selectedTurn = React.useMemo(
     () => turns.find((turn) => turn.id === selectedTurnId) ?? null,
@@ -2519,10 +2695,7 @@ function ReviewSidebar({
   const [filterMenuOpen, setFilterMenuOpen] = React.useState(false);
 
   React.useEffect(() => {
-    if (
-      selectedTurnId &&
-      !turns.some((turn) => turn.id === selectedTurnId)
-    ) {
+    if (selectedTurnId && !turns.some((turn) => turn.id === selectedTurnId)) {
       setSelectedTurnId(null);
     }
   }, [turns, selectedTurnId]);
@@ -2535,7 +2708,7 @@ function ReviewSidebar({
     setSelectedPath((current) =>
       current && files.some((file) => file.path === current)
         ? current
-        : files[0]?.path ?? null,
+        : (files[0]?.path ?? null),
     );
   }, [files]);
 
@@ -2550,12 +2723,19 @@ function ReviewSidebar({
 
   React.useEffect(() => {
     if (visibleFiles.length === 0) {
-      if (files.length > 0 && selectedPath && !visibleFiles.some((f) => f.path === selectedPath)) {
+      if (
+        files.length > 0 &&
+        selectedPath &&
+        !visibleFiles.some((f) => f.path === selectedPath)
+      ) {
         setSelectedPath(visibleFiles[0]?.path ?? null);
       }
       return;
     }
-    if (!selectedPath || !visibleFiles.some((file) => file.path === selectedPath)) {
+    if (
+      !selectedPath ||
+      !visibleFiles.some((file) => file.path === selectedPath)
+    ) {
       setSelectedPath(visibleFiles[0]?.path ?? null);
     }
   }, [visibleFiles, files, selectedPath]);
@@ -2637,9 +2817,7 @@ function ReviewSidebar({
                   >
                     <span className="popover-turn-label">
                       <strong>第 {turn.index} 轮</strong>
-                      <small>
-                        {truncateToWidth(turn.userMessageText, 60)}
-                      </small>
+                      <small>{truncateToWidth(turn.userMessageText, 60)}</small>
                       <small className="popover-turn-stats">
                         {turn.files.length} 个文件
                         <span className="diff-added">
@@ -2800,9 +2978,7 @@ function ReviewSidebar({
         <div
           className="review-sidebar-context"
           title={
-            selectedTurn
-              ? selectedTurn.userMessageText
-              : "全部轮次（累积变更）"
+            selectedTurn ? selectedTurn.userMessageText : "全部轮次（累积变更）"
           }
         >
           <Eye size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
@@ -2898,9 +3074,15 @@ function ReviewDiffPreview({
       </div>
       {file.lines.length > 0 ? (
         view === "split" ? (
-          <ReviewDiffSplit diffMarkerStyle={diffMarkerStyle} lines={file.lines} />
+          <ReviewDiffSplit
+            diffMarkerStyle={diffMarkerStyle}
+            lines={file.lines}
+          />
         ) : (
-          <ReviewDiffInline diffMarkerStyle={diffMarkerStyle} lines={file.lines} />
+          <ReviewDiffInline
+            diffMarkerStyle={diffMarkerStyle}
+            lines={file.lines}
+          />
         )
       ) : (
         <div className="review-empty-state">
@@ -2926,12 +3108,16 @@ function ReviewDiffInline({
       contentClassName="review-diff-scroll-content"
     >
       <div className="review-diff-lines-scroll-x">
-        <div className={`review-diff-lines review-diff-inline marker-${diffMarkerStyle}`}>
+        <div
+          className={`review-diff-lines review-diff-inline marker-${diffMarkerStyle}`}
+        >
           {lines.map((line) => {
             if (line.type === "meta") {
               return (
                 <div className={`review-diff-row ${line.type}`} key={line.id}>
-                  <span className="review-diff-line-content">{line.content}</span>
+                  <span className="review-diff-line-content">
+                    {line.content}
+                  </span>
                 </div>
               );
             }
@@ -2944,7 +3130,9 @@ function ReviewDiffInline({
                     </div>
                   ) : null}
                   <div className={`review-diff-row ${line.type}`}>
-                    <span className="review-diff-line-content">{line.content}</span>
+                    <span className="review-diff-line-content">
+                      {line.content}
+                    </span>
                   </div>
                 </React.Fragment>
               );
@@ -2991,19 +3179,25 @@ function ReviewDiffSplit({
       contentClassName="review-diff-scroll-content"
     >
       <div className="review-diff-lines-scroll-x">
-        <div className={`review-diff-lines review-diff-split marker-${diffMarkerStyle}`}>
+        <div
+          className={`review-diff-lines review-diff-split marker-${diffMarkerStyle}`}
+        >
           {rows.map((row) => {
             if (row.hunk) {
               return (
                 <div className="review-diff-row hunk" key={row.id}>
-                  <span className="review-diff-line-content">{row.hunk.content}</span>
+                  <span className="review-diff-line-content">
+                    {row.hunk.content}
+                  </span>
                 </div>
               );
             }
             if (row.meta) {
               return (
                 <div className="review-diff-row meta" key={row.id}>
-                  <span className="review-diff-line-content">{row.meta.content}</span>
+                  <span className="review-diff-line-content">
+                    {row.meta.content}
+                  </span>
                 </div>
               );
             }
@@ -3064,7 +3258,10 @@ function ReviewDiffSplit({
 function DiffMarker({
   tone,
 }: {
-  tone: ReviewDiffLine['type'] | ReviewSplitRow['left']['tone'] | ReviewSplitRow['right']['tone'];
+  tone:
+    | ReviewDiffLine["type"]
+    | ReviewSplitRow["left"]["tone"]
+    | ReviewSplitRow["right"]["tone"];
 }): React.ReactNode {
   return (
     <span className={`review-diff-marker ${tone}`} aria-hidden="true">
@@ -3531,6 +3728,114 @@ export function groupTimelineToolEvents(
   return items;
 }
 
+export function groupTimelineExecutionPhases(
+  items: TimelineItem[],
+  sessionStatus: DesktopSessionStatus,
+): PhaseTimelineItem[] {
+  const result: PhaseTimelineItem[] = [];
+  let i = 0;
+
+  while (i < items.length) {
+    const item = items[i];
+
+    if (item.type === "proposed_plan") {
+      // Found a proposed_plan — look ahead to find the rest of this turn
+      const planItem = item;
+
+      // Find the turn end: next checkpoint, error, user message, or end of items
+      let turnEnd = i + 1;
+      while (turnEnd < items.length) {
+        const next = items[turnEnd];
+        if (
+          next.type === "checkpoint" ||
+          next.type === "error" ||
+          (next.type === "message" && next.role === "user")
+        ) {
+          break;
+        }
+        turnEnd++;
+      }
+
+      // Emit the plan card
+      result.push(planItem);
+      i++;
+
+      // Categorize items between plan and end of turn
+      const turnItems = items.slice(i, turnEnd);
+
+      // Find the last assistant message in the turn items
+      let lastAssistantIndex = -1;
+      for (let j = turnItems.length - 1; j >= 0; j--) {
+        const ti = turnItems[j];
+        if (ti && ti.type === "message" && ti.role === "assistant") {
+          lastAssistantIndex = j;
+          break;
+        }
+      }
+
+      // Separate items into execution, file patches, and final message
+      const executionItems: TimelineItem[] = [];
+      const filePatches: TimelineItem[] = [];
+      let finalMessage: TimelineItem | null = null;
+
+      for (let j = 0; j < turnItems.length; j++) {
+        const ti = turnItems[j];
+        if (ti.type === "file_patch") {
+          filePatches.push(ti);
+        } else if (
+          j === lastAssistantIndex &&
+          ti.type === "message" &&
+          ti.role === "assistant"
+        ) {
+          finalMessage = ti;
+        } else if (ti.type === "checkpoint") {
+          // Skip checkpoints inside execution phase (rendered hidden)
+        } else {
+          executionItems.push(ti);
+        }
+      }
+
+      // Determine if the turn is complete
+      const isActive =
+        sessionStatus === "running" || sessionStatus === "waiting";
+      const hasTurnEnd = turnEnd < items.length;
+      const endedByCheckpointOrError =
+        hasTurnEnd &&
+        (items[turnEnd]?.type === "checkpoint" ||
+          items[turnEnd]?.type === "error");
+      const isComplete = endedByCheckpointOrError || (!isActive && !hasTurnEnd);
+
+      // Emit execution phase group only if there are execution items
+      if (executionItems.length > 0) {
+        result.push({
+          id: `execution-phase-${planItem.id}`,
+          type: "execution_phase",
+          items: executionItems,
+          isComplete,
+        });
+      }
+
+      // Emit file patches (result cards — stay visible)
+      for (const fp of filePatches) {
+        result.push(fp);
+      }
+
+      // Emit final summary message (with actions)
+      if (finalMessage) {
+        result.push(finalMessage);
+      }
+
+      // Skip past the turn items we've processed
+      i = turnEnd;
+    } else {
+      result.push(item);
+      i++;
+    }
+  }
+
+  return result;
+}
+
 function terminalToolResultEvent(
   event: DesktopSessionEvent,
 ): DesktopSessionEvent {
@@ -3539,9 +3844,7 @@ function terminalToolResultEvent(
     sessionId: event.sessionId,
     type: "tool_result",
     content:
-      event.type === "error"
-        ? event.content || "操作已中止"
-        : "操作已停止",
+      event.type === "error" ? event.content || "操作已中止" : "操作已停止",
     createdAt: event.createdAt,
     metadata: {
       isError: true,
@@ -3617,10 +3920,14 @@ export function buildDebugAskUserQuestionRequest(
 function isDebugAskUserQuestionRequest(
   request: DesktopPermissionRequest,
 ): boolean {
-  return request.requestId.startsWith(DEBUG_ASK_USER_QUESTION_REQUEST_ID_PREFIX)
+  return request.requestId.startsWith(
+    DEBUG_ASK_USER_QUESTION_REQUEST_ID_PREFIX,
+  );
 }
 
-function buildToolGroup(events: DesktopSessionEvent[]): TimelineToolGroup | null {
+function buildToolGroup(
+  events: DesktopSessionEvent[],
+): TimelineToolGroup | null {
   const runs: TimelineToolRun[] = [];
 
   for (const event of events) {
@@ -3681,10 +3988,7 @@ function buildToolGroup(events: DesktopSessionEvent[]): TimelineToolGroup | null
 
   const visibleRuns = runs.filter(
     (run) =>
-      run.callContent ||
-      run.resultContent ||
-      run.isError ||
-      run.isRunning,
+      run.callContent || run.resultContent || run.isError || run.isRunning,
   );
 
   if (visibleRuns.length === 0) return null;
@@ -3755,7 +4059,9 @@ function normalizedToolContent(
   if (!content) return "";
   if (event.type === "tool_result" && content === toolName) return "";
   const prefix = `${toolName}:`;
-  return content.startsWith(prefix) ? content.slice(prefix.length).trim() : content;
+  return content.startsWith(prefix)
+    ? content.slice(prefix.length).trim()
+    : content;
 }
 
 function summarizeDiff(diff: string): { additions: number; deletions: number } {
