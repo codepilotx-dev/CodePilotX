@@ -83,6 +83,7 @@ export async function createSessionForWorkspaceAction(
   context: SessionActionContext,
   settings: SessionSettingsSnapshot,
   target: DesktopWorkspace | null,
+  initialSessionName?: string,
 ): Promise<string | null> {
   try {
     const session = await desktopClient.createSession({
@@ -100,7 +101,7 @@ export async function createSessionForWorkspaceAction(
       fastModel: normalizeOptionalText(settings.fastModel),
       defaultModel: normalizeOptionalText(settings.defaultModel),
       deepModel: normalizeOptionalText(settings.deepModel),
-      sessionName: normalizeOptionalText(settings.sessionName),
+      sessionName: initialSessionName ?? normalizeOptionalText(settings.sessionName),
       thinkingMode: settings.thinkingMode,
       systemPrompt: normalizeOptionalText(settings.systemPrompt),
       appendSystemPrompt: normalizeOptionalText(settings.appendSystemPrompt),
@@ -128,7 +129,7 @@ export async function createSessionForWorkspaceAction(
     context.setSessions(current => [
       {
         id: session.sessionId,
-        sessionName: normalizeOptionalText(settings.sessionName) ?? null,
+        sessionName: initialSessionName ?? normalizeOptionalText(settings.sessionName) ?? null,
         aiTitle: null,
         workspaceName: workspace.name,
         workspacePath: workspace.path,

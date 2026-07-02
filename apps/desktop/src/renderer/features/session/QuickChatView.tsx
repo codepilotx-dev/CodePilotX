@@ -13,6 +13,7 @@ export function QuickChatView(): React.ReactNode {
     workspaceName,
     workspacePath,
     onChooseWorkspace,
+    onCloneGithub,
     onClearWorkspace,
     onOpenWorkspace,
   } = useQuickChatContext();
@@ -56,6 +57,10 @@ export function QuickChatView(): React.ReactNode {
               workspace={currentWorkspace}
               onChooseWorkspace={() => {
                 void onChooseWorkspace();
+                setProjectMenuOpen(false);
+              }}
+              onCloneGithub={() => {
+                onCloneGithub();
                 setProjectMenuOpen(false);
               }}
               onClearWorkspace={() => {

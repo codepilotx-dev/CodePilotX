@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test'
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { ComposerCard, CONTEXT_AGENT_OPTIONS } from './ComposerCard.js'
+import { ComposerCard, CONTEXT_AGENT_OPTIONS, getActiveComposerMention } from './ComposerCard.js'
 import {
   ChatInputDropdown,
   computeDropdownMaxHeight,
@@ -136,7 +136,7 @@ test('ChatInputDropdown adds --bottom modifier class when side is "bottom"', () 
   expect(html).toContain('chat-input__dropdown--bottom')
 })
 
-test('ComposerCard renders context items for slash input instead of slash commands', () => {
+test('ComposerCard shows full slash command list when input is just "/"', () => {
   const html = renderWithProviders(
     <ComposerCard
       {...baseProps}
@@ -154,15 +154,215 @@ test('ComposerCard renders context items for slash input instead of slash comman
 
   expect(html).toContain('popover-surface chat-input__dropdown chat-input__dropdown--bottom')
   expect(html).toContain('--popover-max-width:100%')
-  expect(html.indexOf('chat-input__dropdown-section-title">添加')).toBeLessThan(
-    html.indexOf('Files and folders'),
+  // Full list shown for "/"
+  expect(html).toContain('状态')
+  expect(html).not.toContain('Files and folders')
+  expect(html).not.toContain('智能体')
+  expect(html).not.toContain('插件')
+})
+
+test('ComposerCard shows full slash command list when input is "/ "', () => {
+  const html = renderWithProviders(
+    <ComposerCard
+      {...baseProps}
+      input="/ "
+      slashCommands={[
+        {
+          name: 'status',
+          title: '状态',
+          description: '显示状态',
+          category: 'command',
+        },
+      ]}
+    />,
   )
-  expect(html).toContain('Files and folders')
-  expect(html).toContain('智能体')
-  expect(html).toContain('插件')
+
+  expect(html).toContain('状态')
+})
+
+test('ComposerCard filters slash commands by keyword', () => {
+  const html = renderWithProviders(
+    <ComposerCard
+      {...baseProps}
+      input="/计"
+      slashCommands={[
+        {
+          name: 'plan',
+          title: '计划模式',
+          description: '开启计划模式',
+          category: 'command',
+        },
+        {
+          name: 'status',
+          title: '状态',
+          description: '显示状态',
+          category: 'command',
+        },
+      ]}
+    />,
+  )
+
+  expect(html).toContain('计划模式')
   expect(html).not.toContain('状态')
-  expect(html).not.toContain('slash-command-scroll-area')
-  expect(html).not.toContain('slash-command-palette')
+})
+
+test('ComposerCard filters slash commands by name as well as title', () => {
+  const html = renderWithProviders(
+    <ComposerCard
+      {...baseProps}
+      input="/plan"
+      slashCommands={[
+        {
+          name: 'goal',
+          title: '目标',
+          description: '设置目标',
+          category: 'command',
+        },
+        {
+          name: 'plan',
+          title: '计划模式',
+          description: '开启计划模式',
+          category: 'command',
+        },
+      ]}
+    />,
+  )
+
+  expect(html).toContain('计划模式')
+  expect(html).not.toContain('目标')
+})
+
+test('ComposerCard shows no commands when no slash commands match', () => {
+  const html = renderWithProviders(
+    <ComposerCard
+      {...baseProps}
+      input="/xyz"
+      slashCommands={[
+        {
+          name: 'status',
+          title: '状态',
+          description: '显示状态',
+          category: 'command',
+        },
+      ]}
+    />,
+  )
+
+  expect(html).toContain('无命令')
+  expect(html).not.toContain('状态')
+})
+
+test('ComposerCard shows section headers for commands and skills in slash dropdown', () => {
+  const html = renderWithProviders(
+    <ComposerCard
+      {...baseProps}
+      input="/"
+      slashCommands={[
+        {
+          name: 'status',
+          title: '状态',
+          description: '显示状态',
+          category: 'command',
+        },
+        {
+          name: 'mmx-cli',
+          title: 'Mmx CLI',
+          description: 'MiniMax AI platform',
+          category: 'skill',
+          skillPath: 'C:\\Users\\test\\.agents\\skills\\mmx-cli\\SKILL.md',
+        },
+      ]}
+    />,
+  )
+
+  expect(html).toContain('chat-input__dropdown-section-title">命令<')
+  expect(html).toContain('chat-input__dropdown-section-title">Skills<')
+  expect(html).toContain('状态')
+  expect(html).toContain('Mmx CLI')
+  expect(html).toContain('chat-input__dropdown-separator')
+})
+
+test('ComposerCard renders inline skill token when selectedSkillToken is provided', () => {
+  const html = renderWithProviders(
+    <ComposerCard
+      {...baseProps}
+      selectedSkillToken={{
+        name: 'mmx-cli',
+        title: 'Mmx CLI',
+        description: 'MiniMax AI platform',
+        category: 'skill',
+        skillPath: 'C:\\Users\\XiaoHi\\.agents\\skills\\mmx-cli\\SKILL.md',
+      }}
+    />,
+  )
+
+  expect(html).toContain('composer-skill-token')
+  expect(html).toContain('composer-skill-token-label')
+  expect(html).toContain('Mmx CLI')
+  // Inline skill token has no close button
+  expect(html).not.toContain('composer-skill-tag-remove')
+  // Markdown link should not appear in textarea value
+  expect(html).not.toContain('SKILL.md')
+})
+
+test('ComposerCard does not render inline skill token when no skill is selected', () => {
+  const html = renderWithProviders(
+    <ComposerCard
+      {...baseProps}
+      selectedSkillToken={undefined}
+    />,
+  )
+
+  expect(html).not.toContain('composer-skill-token')
+})
+
+test('getActiveComposerMention detects @ at start of line', () => {
+  expect(getActiveComposerMention('@mmx', 4)).toEqual({
+    start: 0,
+    end: 4,
+    query: 'mmx',
+  })
+})
+
+test('getActiveComposerMention detects @ after whitespace', () => {
+  expect(getActiveComposerMention('hello @mmx', 10)).toEqual({
+    start: 6,
+    end: 10,
+    query: 'mmx',
+  })
+})
+
+test('getActiveComposerMention returns null for @midword', () => {
+  expect(getActiveComposerMention('email@example.com', 16)).toBeNull()
+})
+
+test('getActiveComposerMention returns null for query with space', () => {
+  expect(getActiveComposerMention('@mmx cli', 8)).toBeNull()
+})
+
+test('getActiveComposerMention returns null when cursor not at end of mention', () => {
+  expect(getActiveComposerMention('@mmx hello', 3)).toBeNull()
+})
+
+test('getActiveComposerMention returns null when selectionStart is null', () => {
+  expect(getActiveComposerMention('@mmx', null)).toBeNull()
+})
+
+test('getActiveComposerMention returns null for empty input', () => {
+  expect(getActiveComposerMention('', 0)).toBeNull()
+})
+
+test('ComposerCard shows running state stop button with Esc tooltip', () => {
+  const html = renderWithProviders(
+    <ComposerCard
+      {...baseProps}
+      sessionStatus="running"
+    />,
+  )
+
+  expect(html).toContain('停止 Esc')
+  expect(html).toContain('lucide-square')
+  expect(html).not.toContain('lucide-arrow-up')
 })
 
 test('computeDropdownMaxHeight clamps dropdown height to remaining page space', () => {

@@ -18,6 +18,7 @@ import {
   FolderOpen,
   GitBranch,
   GitPullRequest,
+  Globe,
   Laptop,
   Maximize2,
   MessageSquarePlus,
@@ -208,6 +209,7 @@ export function ConversationPage(): React.ReactNode {
   });
   const [sessionMenuOpen, setSessionMenuOpen] = React.useState(false);
   const [openTargetMenuOpen, setOpenTargetMenuOpen] = React.useState(false);
+  const [environmentPopoverOpen, setEnvironmentPopoverOpen] = React.useState(false);
   const [openTargets, setOpenTargets] =
     React.useState<DesktopOpenTarget[]>(FALLBACK_OPEN_TARGETS);
   const [showPinnedSummary, setShowPinnedSummary] = React.useState(true);
@@ -322,7 +324,7 @@ export function ConversationPage(): React.ReactNode {
   const showComposerChangeSummary = Boolean(
     workspacePath && gitStatus && gitStatus.files.length > 0,
   );
-  const composerDiffSummary = summarizeDiff(diff);
+  const composerDiffSummary = React.useMemo(() => summarizeDiff(diff), [diff]);
   const fallbackTitle = React.useMemo(
     () => getConversationTitle(timelineEvents),
     [timelineEvents],
@@ -685,11 +687,71 @@ export function ConversationPage(): React.ReactNode {
             </button>
           </Tooltip>
         ) : null}
+        <PopoverMenu
+          align="end"
+          className="popover-environment"
+          open={environmentPopoverOpen}
+          sideOffset={4}
+          trigger={
+            <button
+              aria-label="环境信息"
+              className="message-action"
+              disabled={!workspacePath}
+              title="环境信息"
+              type="button"
+            >
+              <Globe size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            </button>
+          }
+          onOpenChange={setEnvironmentPopoverOpen}
+        >
+          <DropdownMenu.Label className="popover-item-label">
+            环境信息
+          </DropdownMenu.Label>
+          <DropdownMenu.Separator />
+          <PopoverItem
+            icon={<FileDiff size={APP_ICON_SIZE} />}
+            onClick={onRefreshDiff}
+          >
+            变更
+            <span className="environment-diff-counts">
+              <strong>+{formatPanelNumber(composerDiffSummary.additions)}</strong>
+              <em>-{formatPanelNumber(composerDiffSummary.deletions)}</em>
+            </span>
+          </PopoverItem>
+          <PopoverItem
+            icon={<Laptop size={APP_ICON_SIZE} />}
+            onClick={onOpenWorkspacePath}
+          >
+            本地
+          </PopoverItem>
+          <PopoverItem
+            icon={<GitBranch size={APP_ICON_SIZE} />}
+            onClick={onCreateBranch}
+          >
+            {branchName?.trim() || "未检测到 Git 分支"}
+          </PopoverItem>
+          <PopoverItem
+            icon={<Upload size={APP_ICON_SIZE} />}
+            onClick={onCommitOrPush}
+          >
+            提交或推送
+          </PopoverItem>
+          <PopoverItem
+            icon={<GitPullRequest size={APP_ICON_SIZE} />}
+            onClick={onCreatePullRequest}
+          >
+            创建拉取请求
+          </PopoverItem>
+        </PopoverMenu>
       </div>
     ),
     [
+      branchName,
+      composerDiffSummary,
       debugMode,
       defaultOpenTargetId,
+      environmentPopoverOpen,
       hasActiveSession,
       hasRealPendingPermission,
       openTargetMenuOpen,
@@ -3219,7 +3281,7 @@ function fileBadge(path: string): string {
 
 function EnvironmentPanel({
   branchName,
-  diff,
+  diff: _diff,
   gitStatus,
   workspacePath,
   onCommitOrPush,
@@ -3238,86 +3300,51 @@ function EnvironmentPanel({
   onOpenWorkspacePath: () => void;
   onRefreshDiff: () => void;
 }): React.ReactNode {
-  const [showDiff, setShowDiff] = React.useState(false);
-  const diffSummary = summarizeDiff(diff);
+  const diffSummary = summarizeDiff(_diff);
   const gitLabel = branchName?.trim() || "未检测到 Git 分支";
   const changedFileCount = gitStatus?.files.length ?? 0;
 
   return (
-    <aside className="environment-panel" aria-label="环境信息">
-      <div className="environment-panel-header">
-        <span>环境信息</span>
-        <button aria-label="环境设置" className="message-action" type="button">
-          <Settings size={APP_ICON_SIZE} />
-        </button>
-      </div>
-
-      <div className="environment-action-list">
-        <button
-          className="environment-action-row"
-          type="button"
-          onClick={() => {
-            onRefreshDiff();
-            setShowDiff((current) => !current);
-          }}
-        >
-          <FileDiff size={APP_ICON_SIZE} />
-          <span>变更{changedFileCount ? ` (${changedFileCount})` : ""}</span>
-          <span className="environment-diff-counts">
-            <strong>+{formatPanelNumber(diffSummary.additions)}</strong>
-            <em>-{formatPanelNumber(diffSummary.deletions)}</em>
-          </span>
-        </button>
-        {showDiff ? (
-          <div className="environment-diff-scroll-area">
-            <div className="environment-diff-scroll-x">
-              <pre className="environment-diff-preview">{diff}</pre>
-            </div>
-          </div>
-        ) : null}
-        <button
-          className="environment-action-row"
-          type="button"
-          onClick={onOpenWorkspacePath}
-        >
-          <Laptop size={APP_ICON_SIZE} />
-          <span>本地</span>
-          <ChevronRight className="environment-row-chevron" size={APP_ICON_SIZE} />
-        </button>
-        <button
-          className="environment-action-row"
-          type="button"
-          onClick={onCreateBranch}
-        >
-          <GitBranch size={APP_ICON_SIZE} />
-          <span title={gitLabel}>{gitLabel}</span>
-          <ChevronRight className="environment-row-chevron" size={APP_ICON_SIZE} />
-        </button>
-        <button
-          className="environment-action-row"
-          type="button"
-          onClick={onCommitOrPush}
-        >
-          <Upload size={APP_ICON_SIZE} />
-          <span>提交或推送</span>
-        </button>
-        <button
-          className="environment-action-row"
-          type="button"
-          onClick={onCreatePullRequest}
-        >
-          <GitPullRequest size={APP_ICON_SIZE} />
-          <span>创建拉取请求</span>
-        </button>
-      </div>
-
-      <div className="environment-source">
-        <span>来源</span>
-        <small title={workspacePath ?? undefined}>
-          {workspacePath ? "本地项目" : "暂无来源"}
-        </small>
-      </div>
-    </aside>
+    <div className="environment-panel">
+      <DropdownMenu.Label className="popover-item-label">
+        环境信息
+      </DropdownMenu.Label>
+      <DropdownMenu.Separator />
+      <PopoverItem
+        icon={<FileDiff size={APP_ICON_SIZE} />}
+        onClick={onRefreshDiff}
+      >
+        变更{changedFileCount ? ` (${changedFileCount})` : ""}
+        <span className="environment-diff-counts">
+          <strong>+{formatPanelNumber(diffSummary.additions)}</strong>
+          <em>-{formatPanelNumber(diffSummary.deletions)}</em>
+        </span>
+      </PopoverItem>
+      <PopoverItem
+        icon={<Laptop size={APP_ICON_SIZE} />}
+        onClick={onOpenWorkspacePath}
+      >
+        本地
+      </PopoverItem>
+      <PopoverItem
+        icon={<GitBranch size={APP_ICON_SIZE} />}
+        onClick={onCreateBranch}
+      >
+        {gitLabel}
+      </PopoverItem>
+      <PopoverItem
+        icon={<Upload size={APP_ICON_SIZE} />}
+        onClick={onCommitOrPush}
+      >
+        提交或推送
+      </PopoverItem>
+      <PopoverItem
+        icon={<GitPullRequest size={APP_ICON_SIZE} />}
+        onClick={onCreatePullRequest}
+      >
+        创建拉取请求
+      </PopoverItem>
+    </div>
   );
 }
 

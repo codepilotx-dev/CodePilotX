@@ -1060,6 +1060,7 @@ export type DesktopSlashCommandSuggestion = {
   description: string
   category: 'command' | 'skill'
   scope?: string
+  skillPath?: string
 }
 
 export type DesktopUiCommand =

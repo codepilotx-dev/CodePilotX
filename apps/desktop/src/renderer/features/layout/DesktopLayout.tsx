@@ -1603,6 +1603,7 @@ export function DesktopLayout(): React.ReactNode {
             onCommitOrPush: () => setGitWorkflowMode('commitPush'),
             onCreatePullRequest: () => setGitWorkflowMode('pullRequest'),
             onChooseWorkspace: handleChooseWorkspace,
+            onCloneGithub: () => setGithubRepositoryModalOpen(true),
             onOpenWorkspace: handleOpenRecentWorkspace,
             onClearWorkspace: handleClearWorkspace,
             onDecidePermission: (

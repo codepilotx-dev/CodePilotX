@@ -80,6 +80,7 @@ type Props = {
   onThinkingChange: (value: DesktopThinkingMode) => void
   createSessionForWorkspace: (
     target?: DesktopWorkspace | null,
+    initialSessionName?: string,
   ) => Promise<string | null>
   submitToSession: (
     targetSessionId: string,
@@ -138,9 +139,12 @@ export function DesktopComposer({
   const [slashCommands, setSlashCommands] = useState<
     DesktopSlashCommandSuggestion[]
   >([])
+  const [selectedSkillToken, setSelectedSkillToken] = useState<
+    (DesktopSlashCommandSuggestion & { skillPath: string }) | null
+  >(null)
   const hasAttachmentErrors = hasBlockingComposerAttachmentErrors(attachments)
   const canSubmit =
-    (Boolean(input.trim()) || attachments.length > 0) &&
+    (Boolean(input.trim()) || attachments.length > 0 || selectedSkillToken !== null) &&
     !hasAttachmentErrors &&
     modelConfigured &&
     sessionStatus !== 'running' &&
@@ -208,18 +212,27 @@ export function DesktopComposer({
   function handleSubmit(): void {
     void (async () => {
       if (!modelConfigured) return
-      const submittedInput = input
+      const skillPrefix = selectedSkillToken
+        ? `[${selectedSkillToken.name}](${selectedSkillToken.skillPath})`
+        : ''
+      const submittedInput = skillPrefix
+        ? `${skillPrefix} ${input}`
+        : input
       const submittedAttachments = attachments
       const messageInput = {
         text: submittedInput,
         attachments: submittedAttachments,
       }
+      setSelectedSkillToken(null)
       if (isQuickChatPage) {
         onInputChange('')
         onAttachmentsChange([])
+        const sessionName = selectedSkillToken
+          ? `$${selectedSkillToken.name} ${input}`
+          : undefined
         const nextSessionId = workspace
-          ? await createSessionForWorkspace(workspace)
-          : await createSessionForWorkspace(null)
+          ? await createSessionForWorkspace(workspace, sessionName)
+          : await createSessionForWorkspace(null, sessionName)
         if (!nextSessionId) return
         navigate(sessionPath(nextSessionId))
         await submitToSession(nextSessionId, messageInput)
@@ -257,6 +270,16 @@ export function DesktopComposer({
     )
   }
 
+  function handleSkillSelect(
+    skill: DesktopSlashCommandSuggestion & { skillPath: string },
+  ): void {
+    setSelectedSkillToken(skill)
+  }
+
+  function handleSkillDeselect(): void {
+    setSelectedSkillToken(null)
+  }
+
   return (
     <ComposerCard
       input={input}
@@ -288,6 +311,7 @@ export function DesktopComposer({
       workspace={workspace}
       attachments={attachments}
       slashCommands={slashCommands}
+      selectedSkillToken={selectedSkillToken ?? undefined}
       placeholder={
         modelCatalogLoading
           ? '加载模型列表中……'
@@ -315,6 +339,8 @@ export function DesktopComposer({
       onLocalRouterModeChange={onLocalRouterModeChange}
       onSubmit={handleSubmit}
       onThinkingChange={onThinkingChange}
+      onSkillSelect={handleSkillSelect}
+      onSkillDeselect={handleSkillDeselect}
       contextDropdownSide={isQuickChatPage ? 'bottom' : 'top'}
     />
   )

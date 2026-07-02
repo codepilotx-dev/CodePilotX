@@ -1515,12 +1515,20 @@ async function listSlashCommands(
     .map(command => {
       const name = getCommandName(command)
       const isSkill = command.type === 'prompt'
+      const skillRoot = isSkill
+        ? (command as { skillRoot?: string }).skillRoot
+        : undefined
+      const skillPath =
+        skillRoot
+          ? join(skillRoot, 'SKILL.md')
+          : undefined
       return {
         name,
         title: DESKTOP_SLASH_COMMAND_TITLE_OVERRIDES[name] ?? name,
         description: formatDescriptionWithSource(command),
         category: isSkill ? 'skill' : 'command',
         ...(isSkill && { scope: '个人' }),
+        ...(skillPath && { skillPath }),
       } satisfies DesktopSlashCommandSuggestion
     })
 

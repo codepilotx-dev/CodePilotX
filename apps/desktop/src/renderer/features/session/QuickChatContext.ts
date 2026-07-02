@@ -44,6 +44,7 @@ export type QuickChatContextValue = {
   onCommitOrPush: () => void
   onCreatePullRequest: () => void
   onChooseWorkspace: () => Promise<DesktopWorkspace | null>
+  onCloneGithub: () => void
   onOpenWorkspace: (workspace: DesktopWorkspace) => Promise<DesktopWorkspace | null>
   onClearWorkspace: () => void
   onDecidePermission: (

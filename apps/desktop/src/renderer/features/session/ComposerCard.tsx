@@ -1,5 +1,5 @@
 ﻿import type React from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import * as Select from "@radix-ui/react-select";
 import {
@@ -189,6 +189,7 @@ type Props = {
   workspace: DesktopWorkspace | null;
   attachments?: DesktopComposerAttachment[];
   slashCommands?: DesktopSlashCommandSuggestion[];
+  selectedSkillToken?: DesktopSlashCommandSuggestion & { skillPath: string };
   placeholder?: string;
   onChooseWorkspace: () => void;
   onInputChange: (value: string) => void;
@@ -211,6 +212,8 @@ type Props = {
   onLocalRouterModeChange?: (mode: LocalRouterMode) => void;
   onSubmit: () => void;
   onThinkingChange: (value: DesktopThinkingMode) => void;
+  onSkillSelect?: (skill: DesktopSlashCommandSuggestion & { skillPath: string }) => void;
+  onSkillDeselect?: () => void;
   contextDropdownSide?: "top" | "bottom";
   debugMode?: boolean;
 };
@@ -243,6 +246,8 @@ export function ComposerCard({
   recentWorkspaces,
   workspace,
   attachments = [],
+  slashCommands,
+  selectedSkillToken,
   placeholder = "随心输入",
   onChooseWorkspace,
   onInputChange,
@@ -262,6 +267,8 @@ export function ComposerCard({
   onLocalRouterModeChange,
   onSubmit,
   onThinkingChange,
+  onSkillSelect,
+  onSkillDeselect,
   contextDropdownSide = "top",
   debugMode = false,
 }: Props): React.ReactNode {
@@ -274,6 +281,9 @@ export function ComposerCard({
   const [dismissedSlashInput, setDismissedSlashInput] = useState<string | null>(
     null,
   );
+  const [isComposing, setIsComposing] = useState(false);
+  const [dismissedMention, setDismissedMention] = useState<number | null>(null);
+  const [selectionStart, setSelectionStart] = useState<number | null>(null);
   const selectedPermission = permissionOptions.find(
     (option) => option.value === permissionMode,
   );
@@ -328,13 +338,65 @@ export function ComposerCard({
   }, [branchName, branchSearch, branches]);
 
   const showSlashContextDropdown =
-    input.trimStart() === "/" && input !== dismissedSlashInput;
+    input.startsWith("/") && input !== dismissedSlashInput;
+
+  const slashSearch = useMemo(() => {
+    if (!input.startsWith("/")) return "";
+    return input.slice(1).trimStart();
+  }, [input]);
+
+  const filteredSlashCommands = useMemo(() => {
+    if (!showSlashContextDropdown) return [];
+    if (!slashSearch) return slashCommands ?? [];
+    const keyword = slashSearch.toLowerCase();
+    return (slashCommands ?? []).filter(
+      (cmd) =>
+        cmd.title.toLowerCase().includes(keyword) ||
+        cmd.name.toLowerCase().includes(keyword),
+    );
+  }, [showSlashContextDropdown, slashSearch, slashCommands]);
+
+  const activeMention = useMemo(() => {
+    if (isComposing) return null;
+    if (dismissedMention !== null) return null;
+    const sel = selectionStart;
+    if (sel == null || sel <= 0) return null;
+    const textBefore = input.slice(0, sel);
+    const atIndex = textBefore.lastIndexOf("@");
+    if (atIndex === -1) return null;
+    if (atIndex > 0 && input[atIndex - 1] !== " ") return null;
+    const query = textBefore.slice(atIndex + 1);
+    if (query.includes(" ")) return null;
+    return { start: atIndex, end: sel, query };
+  }, [input, isComposing, dismissedMention, selectionStart]);
+
+  const mentionCommands = useMemo(() => {
+    if (!activeMention) return [];
+    const keyword = activeMention.query.toLowerCase();
+    return (slashCommands ?? [])
+      .filter((cmd) => cmd.category === "skill")
+      .filter(
+        (cmd) =>
+          cmd.title.toLowerCase().includes(keyword) ||
+          cmd.name.toLowerCase().includes(keyword),
+      );
+  }, [activeMention, slashCommands]);
 
   useEffect(() => {
     if (input.trimStart() !== "/") {
       setDismissedSlashInput(null);
     }
   }, [input]);
+
+  useEffect(() => {
+    // Reset mention dismissal when input changes away from the @ position
+    if (dismissedMention !== null) {
+      const atIndex = input.lastIndexOf("@", dismissedMention);
+      if (atIndex === -1 || input.slice(atIndex).includes(" ")) {
+        setDismissedMention(null);
+      }
+    }
+  }, [input, dismissedMention]);
 
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -353,6 +415,56 @@ export function ComposerCard({
       setDismissedSlashInput(input);
     }
     closeDropdown();
+  }
+
+  function handleSlashCommandSelect(
+    cmd: DesktopSlashCommandSuggestion,
+  ): void {
+    // Mode commands: trigger the appropriate mode action
+    if (cmd.name === "plan") {
+      const cmdPrefix = "/" + cmd.name;
+      const remainingText = input.startsWith(cmdPrefix)
+        ? input.slice(cmdPrefix.length).trimStart()
+        : "";
+      onInputChange(remainingText);
+      onPlanModeChange?.(true);
+      setDismissedSlashInput(cmdPrefix);
+      return;
+    }
+
+    // Mode commands that remain as-is (goal, etc.) - just close dropdown
+    if (cmd.category === "command") {
+      closeChatInputDropdown();
+      return;
+    }
+
+    // Skill commands: show a tag and extract user text
+    if (cmd.category === "skill" && "skillPath" in cmd && cmd.skillPath) {
+      const skillWithPath = cmd as DesktopSlashCommandSuggestion & {
+        skillPath: string;
+      };
+      const cmdPrefix = "/" + cmd.name;
+      const remainingText = input.startsWith(cmdPrefix)
+        ? input.slice(cmdPrefix.length).trimStart()
+        : "";
+      onInputChange(remainingText);
+      onSkillSelect?.(skillWithPath);
+      setDismissedSlashInput(cmdPrefix);
+    }
+  }
+
+  function handleMentionSelect(
+    cmd: DesktopSlashCommandSuggestion,
+  ): void {
+    if (!activeMention || cmd.category !== "skill" || !("skillPath" in cmd) || !cmd.skillPath) return;
+    const skillWithPath = cmd as DesktopSlashCommandSuggestion & {
+      skillPath: string;
+    };
+    const newInput = input.slice(0, activeMention.start) + input.slice(activeMention.end);
+    onInputChange(newInput);
+    onSkillSelect?.(skillWithPath);
+    setDismissedMention(activeMention.start);
+    setSelectionStart(activeMention.start);
   }
 
   function handleFileDrop(event: React.DragEvent<HTMLDivElement>): void {
@@ -623,28 +735,78 @@ export function ComposerCard({
           </div>
         ) : null}
         <div className="composer-input">
+          {selectedSkillToken ? (
+            <span className="composer-skill-token">
+              <Sparkles
+                className="composer-skill-token-icon"
+                size={14}
+                strokeWidth={2}
+              />
+              <span className="composer-skill-token-label">
+                {selectedSkillToken.title}
+              </span>
+            </span>
+          ) : null}
           <textarea
             ref={textareaRef}
             value={input}
-            onChange={(event) => onInputChange(event.target.value)}
+            onChange={(event) => {
+              setSelectionStart(event.target.selectionStart);
+              onInputChange(event.target.value);
+            }}
+            onSelect={(event) => {
+              setSelectionStart(event.currentTarget.selectionStart);
+            }}
+            onCompositionStart={() => setIsComposing(true)}
+            onCompositionEnd={() => {
+              setIsComposing(false);
+              setSelectionStart(
+                textareaRef.current?.selectionStart ?? null,
+              );
+            }}
             onKeyDown={(event) => {
-              if (showSlashContextDropdown) {
-                if (event.key === "Escape") {
+              // Escape: dismiss dropdowns or interrupt session
+              if (event.key === "Escape") {
+                if (showSlashContextDropdown) {
                   event.preventDefault();
                   setDismissedSlashInput(input);
                   return;
                 }
+                if (activeMention) {
+                  event.preventDefault();
+                  setDismissedMention(activeMention.start);
+                  return;
+                }
+                if (sessionStatus === "running" || sessionStatus === "waiting") {
+                  event.preventDefault();
+                  onInterrupt();
+                  return;
+                }
+              }
+
+              // Backspace: remove skill chip when input is empty
+              if (event.key === "Backspace" && input.length === 0 && selectedSkillToken) {
+                event.preventDefault();
+                onSkillDeselect?.();
+                return;
+              }
+
+              // Prevent Enter during slash dropdown
+              if (showSlashContextDropdown) {
                 if (event.key === "Enter" && !event.shiftKey) {
                   event.preventDefault();
                   return;
                 }
               }
+
               if (event.key !== "Enter" || event.shiftKey) return;
               event.preventDefault();
               if (canSubmit) onSubmit();
             }}
             onPaste={handlePaste}
-            placeholder={composerPlaceholder}
+            placeholder={
+              selectedSkillToken ? '' : composerPlaceholder
+            }
             rows={1}
           />
         </div>
@@ -658,7 +820,98 @@ export function ComposerCard({
             setDismissedSlashInput(input);
           }}
         >
-          {contextDropdownContent}
+          {filteredSlashCommands.length === 0 ? (
+            <div className="chat-input__dropdown-empty">无命令</div>
+          ) : (
+            <div className="chat-input__dropdown-items">
+              {(() => {
+                const commands = filteredSlashCommands.filter(
+                  (c) => c.category === "command",
+                );
+                const skills = filteredSlashCommands.filter(
+                  (c) => c.category === "skill",
+                );
+                const sections: {
+                  title: string;
+                  items: typeof filteredSlashCommands;
+                }[] = [];
+                if (commands.length > 0) {
+                  sections.push({ title: "命令", items: commands });
+                }
+                if (skills.length > 0) {
+                  sections.push({ title: "Skills", items: skills });
+                }
+                return sections.map((section, si) => (
+                  <Fragment key={section.title}>
+                    {si > 0 ? (
+                      <div className="chat-input__dropdown-separator" />
+                    ) : null}
+                    <div className="chat-input__dropdown-section-title">
+                      {section.title}
+                    </div>
+                    {section.items.map((cmd) => (
+                      <div
+                        className="chat-input__dropdown-item"
+                        key={cmd.name}
+                        onClick={() => handleSlashCommandSelect(cmd)}
+                      >
+                        <span className="chat-input__dropdown-leading">
+                          {cmd.category === "skill" ? (
+                            <Sparkles size={14} strokeWidth={1.5} />
+                          ) : cmd.name === "plan" ? (
+                            <ListChecks size={14} strokeWidth={1.5} />
+                          ) : (
+                            <Search size={14} strokeWidth={1.5} />
+                          )}
+                        </span>
+                        <span className="chat-input__dropdown-label">
+                          {cmd.title}
+                        </span>
+                        <span className="chat-input__dropdown-hint">
+                          {cmd.description}
+                        </span>
+                      </div>
+                    ))}
+                  </Fragment>
+                ));
+              })()}
+            </div>
+          )}
+        </ChatInputDropdown>
+
+        <ChatInputDropdown
+          open={Boolean(activeMention)}
+          side="bottom"
+          maxWidth="100%"
+          disableOutsideDismiss={debugMode}
+          onClose={() => {
+            if (activeMention) setDismissedMention(activeMention.start);
+          }}
+        >
+          {mentionCommands.length === 0 ? (
+            <div className="chat-input__dropdown-empty">无命令</div>
+          ) : (
+            <div className="chat-input__dropdown-items">
+              <div className="chat-input__dropdown-section-title">Skills</div>
+              {mentionCommands.map((cmd) => (
+                <div
+                  className="chat-input__dropdown-item"
+                  key={cmd.name}
+                  onClick={() => handleMentionSelect(cmd)}
+                >
+                  <span className="chat-input__dropdown-leading">
+                    <Sparkles size={14} strokeWidth={1.5} />
+                  </span>
+                  <span className="chat-input__dropdown-label">
+                    {cmd.title}
+                  </span>
+                  <span className="chat-input__dropdown-hint">
+                    {cmd.description}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </ChatInputDropdown>
 
         <div className="composer-toolbar">
@@ -1105,7 +1358,7 @@ export function ComposerCard({
               onClick={isRunning ? onInterrupt : onSubmit}
               title={
                 isRunning
-                  ? "停止"
+                  ? "停止 Esc"
                   : modelConfigured
                     ? "发送"
                     : (modelConfigurationMessage ?? "未配置模型")
@@ -1298,4 +1551,35 @@ function getFilePathsFromFileList(files: FileList): string[] {
     .filter(
       (path): path is string => typeof path === "string" && path.length > 0,
     );
+}
+
+/**
+ * Detects an active @mention query before the text cursor.
+ * Returns the range and query text, or null if no active mention.
+ *
+ * Rules:
+ * - `@` must be at line start or preceded by whitespace
+ * - Query is the continuous text after `@` up to the cursor
+ * - Returns null when cursor is not at the end of the mention text
+ */
+export function getActiveComposerMention(
+  input: string,
+  selectionStart: number | null,
+): { start: number; end: number; query: string } | null {
+  if (selectionStart == null || selectionStart <= 0) return null;
+  const textBefore = input.slice(0, selectionStart);
+  const atIndex = textBefore.lastIndexOf("@");
+  if (atIndex === -1) return null;
+  if (atIndex > 0 && input[atIndex - 1] !== " ") return null;
+  const query = textBefore.slice(atIndex + 1);
+  if (query.includes(" ")) return null;
+  // Cursor must be at end of query — no valid mention chars immediately after
+  const charAfterCursor = input[selectionStart];
+  if (
+    charAfterCursor &&
+    /[a-zA-Z0-9\u4e00-\u9fff-]/.test(charAfterCursor)
+  ) {
+    return null;
+  }
+  return { start: atIndex, end: selectionStart, query };
 }

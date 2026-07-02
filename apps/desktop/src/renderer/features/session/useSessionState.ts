@@ -102,7 +102,7 @@ export type UseSessionStateResult = {
   input: string
   setInput: (value: string) => void
   activateSessionById: (targetSessionId: string | null) => DesktopWorkspace | null
-  createSessionForWorkspace: (target?: DesktopWorkspace | null) => Promise<string | null>
+  createSessionForWorkspace: (target?: DesktopWorkspace | null, initialSessionName?: string) => Promise<string | null>
   submit: (target?: DesktopWorkspace | null) => Promise<void>
   submitToSession: (
     targetSessionId: string,
@@ -587,11 +587,12 @@ export function useSessionState(
   )
 
   const createSessionForWorkspace = useCallback(
-    async (target: DesktopWorkspace | null): Promise<string | null> =>
+    async (target: DesktopWorkspace | null, initialSessionName?: string): Promise<string | null> =>
       createSessionForWorkspaceAction(
         actionContext,
         settingsSnapshot,
         target,
+        initialSessionName,
       ),
     [actionContext, settingsSnapshot],
   )
