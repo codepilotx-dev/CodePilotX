@@ -302,7 +302,7 @@ export function ProfileSettings(): React.ReactNode {
           </section>
         )}
         {statusEditorOpen ? (
-          <div className="profile-status-popover" role="dialog" aria-label="设置 GitHub 状态">
+          <div className="popover-surface profile-status-popover" role="dialog" aria-label="设置 GitHub 状态">
             <div className="profile-status-popover-header">
               <strong>设置 GitHub 状态</strong>
               <button

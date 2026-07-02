@@ -4,38 +4,10 @@
   max-height: min(420px, calc(100vh - 96px));
 }
 
-.rm-model-menu .rm-sub-trigger {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 32px;
-  padding: 6px 10px;
-  border-radius: 8px;
-  color: var(--c-text);
-  font-size: var(--fs-14);
-  line-height: 1.4;
-  cursor: default;
-  outline: none;
-  user-select: none;
-  transition: background 0.12s ease-out;
-}
-
-.rm-model-menu .rm-sub-trigger:hover,
-.rm-model-menu .rm-sub-trigger[data-highlighted] {
-  background: var(--state-hover-bg);
-}
-
 .rm-model-menu .rm-sub-trigger:hover .rm-item-check,
 .rm-model-menu .rm-sub-trigger[data-highlighted] .rm-item-check,
 .rm-model-menu .rm-sub-trigger:hover .rm-item-arrow,
-.rm-model-menu .rm-sub-trigger[data-highlighted] .rm-item-arrow {
-  color: var(--c-text);
-}
-
-.rm-model-menu .rm-sub-trigger[data-state="open"] {
-  background: var(--state-active-bg);
-}
-
+.rm-model-menu .rm-sub-trigger[data-highlighted] .rm-item-arrow,
 .rm-model-menu .rm-sub-trigger[data-state="open"] .rm-item-check,
 .rm-model-menu .rm-sub-trigger[data-state="open"] .rm-item-arrow {
   color: var(--c-text);
@@ -50,41 +22,11 @@
   );
 }
 
-.rm-model-menu .rm-menu-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 32px;
-  padding: 6px 10px;
-  border-radius: 8px;
-  color: var(--c-text);
-  font-size: var(--fs-14);
-
-  cursor: default;
-  outline: none;
-  user-select: none;
-  transition: background 0.12s ease-out;
-}
-
-.rm-model-menu .rm-menu-item:hover,
-.rm-model-menu .rm-menu-item[data-highlighted] {
-  background: var(--state-hover-bg);
-}
-
-.rm-model-menu .rm-menu-item[data-highlighted] {
-  background: var(--state-active-bg);
-}
-
 .rm-model-menu .rm-menu-item:hover .rm-item-check,
 .rm-model-menu .rm-menu-item[data-highlighted] .rm-item-check,
 .rm-model-menu .rm-menu-item:hover .rm-item-arrow,
 .rm-model-menu .rm-menu-item[data-highlighted] .rm-item-arrow {
   color: var(--c-text);
-}
-
-.rm-model-menu .rm-menu-item[data-disabled] {
-  color: var(--c-text-disabled);
-  pointer-events: none;
 }
 
 .rm-model-menu .rm-section-header {
