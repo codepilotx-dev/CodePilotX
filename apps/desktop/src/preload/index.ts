@@ -242,6 +242,11 @@ const api: DesktopApi = {
     ipcRenderer.invoke(desktopApiChannel('openExternalURL'), url),
   chooseComposerFiles: () =>
     ipcRenderer.invoke(desktopApiChannel('chooseComposerFiles')),
+  authorizeComposerFilePaths: filePaths =>
+    ipcRenderer.invoke(
+      desktopApiChannel('authorizeComposerFilePaths'),
+      filePaths,
+    ),
   readComposerFiles: filePaths =>
     ipcRenderer.invoke(desktopApiChannel('readComposerFiles'), filePaths),
   sendUserMessage: (sessionId, content, model) =>

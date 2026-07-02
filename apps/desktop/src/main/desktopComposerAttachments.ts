@@ -5,6 +5,15 @@ import type {
   DesktopComposerAttachment,
   DesktopComposerAttachmentKind,
 } from '../shared/types.js'
+import { isPathInsideAllowedWorkspace } from './workspacePathGuard.js'
+
+/**
+ * Set of file paths authorized by the most recent chooseComposerFiles dialog.
+ * readDesktopComposerAttachments checks each path against this set before
+ * reading, preventing the renderer from reading arbitrary files via the
+ * readComposerFiles IPC method.
+ */
+const authorizedReadPaths = new Set<string>()
 
 export type DesktopComposerAttachmentLimits = {
   maxImageBytes: number
@@ -103,12 +112,37 @@ export async function chooseDesktopComposerFiles(): Promise<
     properties: ['openFile', 'multiSelections'],
   })
   if (result.canceled) return []
+  // Register dialog-selected paths as authorized for this read batch
+  for (const filePath of result.filePaths) {
+    authorizedReadPaths.add(filePath)
+  }
   return readDesktopComposerAttachments(result.filePaths)
+}
+
+/**
+ * Register file paths that should be authorized for the next
+ * readDesktopComposerAttachments call. Used by the drag-and-drop path so that
+ * the renderer can grant authorization via IPC before requesting file content.
+ */
+export function authorizeComposerFilePaths(filePaths: string[]): void {
+  for (const filePath of filePaths) {
+    authorizedReadPaths.add(filePath)
+  }
 }
 
 export async function readDesktopComposerAttachments(
   filePaths: string[],
 ): Promise<DesktopComposerAttachment[]> {
+  // Every path must be authorized (from dialog, drag-drop, or inside workspace)
+  for (const filePath of filePaths) {
+    if (!authorizedReadPaths.has(filePath) && !isPathInsideAllowedWorkspace(filePath)) {
+      throw new Error(
+        `File path not authorized: ${filePath}. Use chooseComposerFiles or authorizeComposerFilePaths first.`,
+      )
+    }
+  }
+  // Clear authorization set after use (one-shot tokens)
+  authorizedReadPaths.clear()
   return Promise.all(
     filePaths.map(filePath => readDesktopComposerAttachment(filePath)),
   )

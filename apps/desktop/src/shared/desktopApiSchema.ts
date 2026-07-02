@@ -328,6 +328,7 @@ export const DESKTOP_API_ARG_SCHEMAS = {
   readWorkspaceFile: z.tuple([z.string(), z.string()]),
   readOptionalWorkspaceFile: z.tuple([z.string(), z.string()]),
   chooseComposerFiles: emptyArgs,
+  authorizeComposerFilePaths: z.tuple([z.array(z.string())]),
   readComposerFiles: z.tuple([z.array(z.string())]),
   getWorkspaceDiff: z.tuple([z.string()]),
   getThemeSettings: emptyArgs,

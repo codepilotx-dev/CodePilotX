@@ -271,6 +271,9 @@ export function DesktopComposer({
 
   async function handleAddFilePaths(filePaths: string[]): Promise<void> {
     if (filePaths.length === 0) return
+    // Grant authorization so the main process knows these paths came from a
+    // trusted OS event (drag-and-drop / paste) rather than arbitrary IPC.
+    await desktopClient.authorizeComposerFilePaths(filePaths)
     const selected = await desktopClient.readComposerFiles(filePaths)
     appendAttachments(selected)
   }

@@ -718,7 +718,8 @@ export function DesktopLayout(): React.ReactNode {
   const handleAddComposerFiles = useCallback((filePaths: string[]): void => {
     if (filePaths.length === 0) return
     void desktopClient
-      .readComposerFiles(filePaths)
+      .authorizeComposerFilePaths(filePaths)
+      .then(() => desktopClient.readComposerFiles(filePaths))
       .then(nextAttachments => {
         if (nextAttachments.length === 0) return
         setComposerAttachments(current => {

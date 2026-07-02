@@ -88,6 +88,7 @@ export const DESKTOP_API_METHODS = [
   'readWorkspaceFile',
   'readOptionalWorkspaceFile',
   'chooseComposerFiles',
+  'authorizeComposerFilePaths',
   'readComposerFiles',
   'getWorkspaceDiff',
   'getThemeSettings',

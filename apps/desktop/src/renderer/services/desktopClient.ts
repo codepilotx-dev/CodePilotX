@@ -165,10 +165,19 @@ function createBrowserDebugDesktopClient(
 
   async function invoke(method: DesktopApiMethod, args: unknown[]): Promise<unknown> {
     let response: Response
+    const headers: Record<string, string> = { 'content-type': 'application/json' }
+    // Pass bearer token to the debug bridge if set by the main process.
+    const debugToken =
+      environment.localStorage?.getItem(DESKTOP_BROWSER_DEBUG_MODE_STORAGE_KEY) === '1'
+        ? (typeof process !== 'undefined' && process.env?.CODEPILOTX_DESKTOP_BROWSER_DEBUG_BRIDGE_TOKEN)
+        : undefined
+    if (debugToken) {
+      headers['authorization'] = `Bearer ${debugToken}`
+    }
     try {
       response = await requestFetch(`${baseURL}/desktop-api/${method}`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers,
         body: JSON.stringify({ args: encodeDesktopBridgeArgs(method, args) }),
       })
     } catch (error) {
@@ -501,6 +510,7 @@ function createBrowserMockDesktopClient(): DesktopApi {
     }),
     readOptionalWorkspaceFile: async () => null,
     chooseComposerFiles: async () => [],
+    authorizeComposerFilePaths: async () => {},
     readComposerFiles: async () => [],
     getWorkspaceDiff: async () => ({
       patch: '',

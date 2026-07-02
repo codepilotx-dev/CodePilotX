@@ -1362,6 +1362,7 @@ export type DesktopApi = {
     filePath: string,
   ): Promise<DesktopFilePreview | null>
   chooseComposerFiles(): Promise<DesktopComposerAttachment[]>
+  authorizeComposerFilePaths(filePaths: string[]): Promise<void>
   readComposerFiles(filePaths: string[]): Promise<DesktopComposerAttachment[]>
   getWorkspaceDiff(workspacePath: string): Promise<DesktopDiffSummary>
   getThemeSettings(): Promise<DesktopThemeSettings>

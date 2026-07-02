@@ -69,6 +69,7 @@ import { createDesktopApiHandlers } from './ipc.js'
 import { desktopAutoUpdater } from './autoUpdater.js'
 import type { DesktopAgentRuntimePreference } from './agentRuntime.js'
 import {
+  authorizeComposerFilePaths,
   chooseDesktopComposerFiles,
   readDesktopComposerAttachments,
 } from './desktopComposerAttachments.js'
@@ -333,6 +334,9 @@ export function buildDesktopApiHandlers(
     readOptionalWorkspaceFile: (workspacePath, filePath) =>
       readOptionalWorkspaceFile(readWorkspaceFile, workspacePath, filePath),
     chooseComposerFiles: chooseDesktopComposerFiles,
+    authorizeComposerFilePaths: async filePaths => {
+      authorizeComposerFilePaths(filePaths)
+    },
     readComposerFiles: readDesktopComposerAttachments,
     getWorkspaceDiff,
     getThemeSettings: readDesktopThemeSettings,
