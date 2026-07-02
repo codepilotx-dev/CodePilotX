@@ -1240,7 +1240,13 @@ export function deriveAssistantActionMessageIds({
   timelineEvents: DesktopSessionEvent[];
 }): Set<string> {
   const visibleIds = new Set<string>();
-  let lastAssistantMessageId: string | null = null;
+  let turnAssistantMessageId: string | null = null;
+
+  const commitCompletedTurn = () => {
+    if (!turnAssistantMessageId) return;
+    visibleIds.add(turnAssistantMessageId);
+    turnAssistantMessageId = null;
+  };
 
   for (const event of timelineEvents) {
     if (
@@ -1248,12 +1254,19 @@ export function deriveAssistantActionMessageIds({
       event.role === "assistant" &&
       Boolean(event.content?.trim())
     ) {
-      lastAssistantMessageId = event.id;
+      turnAssistantMessageId = event.id;
+      continue;
+    }
+    if (
+      event.type === "checkpoint" ||
+      event.type === "error"
+    ) {
+      commitCompletedTurn();
     }
   }
 
-  if (lastAssistantMessageId && !isActiveSessionStatus(sessionStatus)) {
-    visibleIds.add(lastAssistantMessageId);
+  if (!isActiveSessionStatus(sessionStatus)) {
+    commitCompletedTurn();
   }
 
   return visibleIds;
