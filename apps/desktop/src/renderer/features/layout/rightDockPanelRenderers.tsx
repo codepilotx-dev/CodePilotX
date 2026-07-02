@@ -24,7 +24,7 @@ export const rightDockPanelRenderers: Record<RightDockToolId, RightDockPanelRend
   browser: ctx => <DesktopBrowserPanel {...ctx.browser} />,
   plan: ctx => <RightDockPlanPanel plan={ctx.plan} />,
   files: ctx => <RightDockFilesPanel {...ctx.files} />,
-  sideChat: () => <RightDockSideChatPanel />,
+  sideChat: ctx => <RightDockSideChatPanel {...ctx.sideChat} />,
   terminal: () => <RightDockTerminalPanel />,
   toolProbe: () => <ToolProbePanel />,
   dialogDebug: () => <ConfirmationDialogDebug />,

@@ -68,6 +68,9 @@ type Props = {
   onSelectTool: (tool: RightDockToolId) => void
   onSetWidth: (width: number) => void
   onToggleReviewView: () => void
+  // side chat
+  sideChatComposer: React.ReactNode
+  sideChatFocusVersion: number
 }
 
 type RightDockHeaderProps = {
@@ -115,6 +118,8 @@ export function RightDock({
   onSelectTool,
   onSetWidth,
   onToggleReviewView,
+  sideChatComposer,
+  sideChatFocusVersion,
 }: Props): React.ReactNode {
   const flags = useMemo<RightDockPanelContext['flags']>(
     () => ({ debugMode, quickChatOnly }),
@@ -171,6 +176,10 @@ export function RightDock({
       },
       plan,
       flags,
+      sideChat: {
+        composer: sideChatComposer,
+        focusVersion: sideChatFocusVersion,
+      },
     }),
     [
       browserState,
@@ -194,6 +203,8 @@ export function RightDock({
       selectedFile,
       sessionId,
       sessionStatus,
+      sideChatComposer,
+      sideChatFocusVersion,
       workspace,
     ],
   )

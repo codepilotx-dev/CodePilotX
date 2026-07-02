@@ -10,6 +10,7 @@ type SidebarNavItem = {
   label: string;
   icon: React.ReactNode;
   path: string;
+  showActiveStyle?: boolean;
 };
 
 const TOP_NAV_ITEMS: SidebarNavItem[] = [
@@ -18,12 +19,14 @@ const TOP_NAV_ITEMS: SidebarNavItem[] = [
     label: "快速对话",
     icon: <SquarePen size={APP_ICON_SIZE} />,
     path: "/quick-chat",
+    showActiveStyle: false,
   },
   {
     view: "search",
     label: "搜索",
     icon: <Search size={APP_ICON_SIZE} />,
     path: "/search",
+    showActiveStyle: false,
   },
   {
     view: "plugins",
@@ -46,22 +49,21 @@ type Props = {
 export function SidebarTopNav({ isActiveView }: Props): React.ReactNode {
   return (
     <nav className="sidebar-top-nav" aria-label="快捷入口">
-      {TOP_NAV_ITEMS.map((item) => (
-        <SidebarRow
-          active={isActiveView(item.view)}
-          asChild
-          className={
-            isActiveView(item.view)
-              ? "sidebar-nav-link active"
-              : "sidebar-nav-link"
-          }
-          key={item.view}
-          labelClassName="sidebar-item-label"
-          leading={item.icon}
-        >
-          <Link to={item.path}>{item.label}</Link>
-        </SidebarRow>
-      ))}
+      {TOP_NAV_ITEMS.map((item) => {
+        const showActiveStyle = item.showActiveStyle !== false && isActiveView(item.view);
+        return (
+          <SidebarRow
+            active={showActiveStyle}
+            asChild
+            className={showActiveStyle ? "sidebar-nav-link active" : "sidebar-nav-link"}
+            key={item.view}
+            labelClassName="sidebar-item-label"
+            leading={item.icon}
+          >
+            <Link to={item.path}>{item.label}</Link>
+          </SidebarRow>
+        );
+      })}
     </nav>
   );
 }

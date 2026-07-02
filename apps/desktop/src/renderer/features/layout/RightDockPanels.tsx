@@ -1,5 +1,5 @@
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type React from 'react'
-import { useMemo, useState } from 'react'
 import * as ContextMenu from '@radix-ui/react-context-menu'
 import { FileText, Folder, FolderOpen, ListChecks, Search, SquareTerminal } from 'lucide-react'
 import type {
@@ -9,6 +9,7 @@ import type {
 } from '../../../shared/types.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
 import { ScrollArea } from '../../components/ui/ScrollArea.js'
+import { ComposerSurface } from '../session/ComposerSurface.js'
 import { MarkdownMessage } from '../session/MarkdownMessage.js'
 import type { RightDockPlan } from './rightDockTools.js'
 
@@ -235,22 +236,27 @@ export function RightDockFilesPanel({
   )
 }
 
-export function RightDockSideChatPanel(): React.ReactNode {
+export function RightDockSideChatPanel({
+  composer,
+  focusVersion,
+}: {
+  composer: React.ReactNode
+  focusVersion: number
+}): React.ReactNode {
+  const surfaceRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (focusVersion > 0) {
+      const textarea = surfaceRef.current?.querySelector('textarea')
+      textarea?.focus()
+    }
+  }, [focusVersion])
+
   return (
     <section className="right-dock-side-chat" aria-label="侧边聊天">
-      <div className="right-dock-side-chat-empty" />
-      <div className="right-dock-side-chat-composer">
-        <textarea
-          aria-label="侧边聊天输入"
-          disabled
-          placeholder="侧边聊天将在后续版本接入"
-          rows={3}
-        />
-        <div className="right-dock-side-chat-actions">
-          <button disabled type="button">+</button>
-          <button disabled type="button">发送</button>
-        </div>
-      </div>
+      <ComposerSurface ref={surfaceRef}>
+        {composer}
+      </ComposerSurface>
     </section>
   )
 }
@@ -295,6 +301,19 @@ export function buildFileSelectionPrompt({
 
 export function shouldShowSelectionSendAction(selectedText: string): boolean {
   return selectedText.trim().length > 0
+}
+
+/**
+ * Appends `text` to the end of `prev`, trimming `text` first.
+ * Adds a `\n\n` separator if `prev` already contains non-whitespace content.
+ * Returns `prev` unchanged if trimmed `text` is empty.
+ */
+export function buildAppendText(prev: string, text: string): string {
+  const trimmed = text.trim()
+  if (!trimmed) return prev
+  const existing = prev.trim()
+  if (!existing) return trimmed
+  return `${prev}\n\n${trimmed}`
 }
 
 export function getSendableFilePath({

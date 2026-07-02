@@ -68,6 +68,10 @@ export type RightDockPanelContext = {
     onAppendComposerText?: (text: string) => void
     onAddComposerFiles?: (filePaths: string[]) => void
   }
+  sideChat: {
+    composer: ReactNode
+    focusVersion: number
+  }
   plan: RightDockPlan | null
   flags: RightDockFlags
 }
