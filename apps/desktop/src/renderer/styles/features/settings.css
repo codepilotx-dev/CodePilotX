@@ -2690,12 +2690,7 @@
   background: var(--c-panel-elevated-bg);
   transition:
     border-color 0.16s ease,
-    box-shadow 0.16s ease,
-    transform 0.16s ease;
-}
-
-.appearance-mode-card:hover .appearance-mode-visual {
-  transform: translateY(-1px);
+    box-shadow 0.16s ease;
 }
 
 .appearance-mode-card.is-active .appearance-mode-visual {

@@ -44,7 +44,7 @@
 .conversation-page .chat-composer .inline-approval-card {
   z-index: var(--z-composer);
   width: 100%;
-  margin-bottom: 10px;
+
   pointer-events: auto;
 }
 
@@ -493,7 +493,6 @@
 
 .exit-plan-mode-approval {
   display: grid;
-  gap: 14px;
 }
 
 .exit-plan-mode-header {
@@ -694,13 +693,6 @@
   margin: 0;
 }
 
-.exit-plan-mode-note-row {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  gap: 12px;
-}
-
 .exit-plan-mode-note-wrap {
   flex: 1;
   min-width: 0;
@@ -793,14 +785,6 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 40px;
-  padding: 0 20px;
-  border: 1px solid var(--c-send-bg);
-  border-radius: var(--radius-button);
-  background: var(--c-send-bg);
-  color: var(--c-text-on-accent);
-  font-size: 14px;
-  font-weight: var(--font-weight-label);
   cursor: pointer;
   transition: background 0.15s;
 }
@@ -1824,14 +1808,7 @@
   width: 100%;
 }
 
-.chat-message-row,
-.timeline-command-group,
-.timeline-system-event,
-.timeline-file-event,
-.timeline-status-event,
-.chat-thinking-pill {
-  animation: workflow-item-in 0.28s ease-out;
-}
+/* Entrance animation removed from generic message rows — only plan/approval cards retain it. */
 
 .chat-message-row.user {
   gap: 4px;
@@ -1979,9 +1956,7 @@
 }
 
 .assistant-thinking {
-  animation:
-    workflow-item-in 0.28s ease-out,
-    workflow-pulse 1.4s ease-in-out infinite;
+  animation: workflow-pulse 1.4s ease-in-out infinite;
 }
 
 .timeline-system-event {
@@ -2016,14 +1991,89 @@
   box-shadow: none;
 }
 
+.execution-phase {
+  max-width: min(760px, 100%);
+  display: flex;
+  flex-direction: column;
+  color: var(--c-text-meta);
+  font-size: var(--fs-13);
+}
+
+.execution-phase-summary {
+  width: fit-content;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: var(--c-text-soft);
+  font-family: inherit;
+  font-size: var(--fs-13);
+  text-align: left;
+  cursor: pointer;
+  transition: color 0.15s ease-out;
+}
+
+.execution-phase-summary:hover {
+  color: var(--c-text);
+}
+
+.execution-phase-summary svg {
+  width: var(--app-icon-size);
+  height: var(--app-icon-size);
+  display: block;
+  flex: 0 0 auto;
+  color: var(--c-icon);
+  stroke-width: var(--app-icon-stroke-width);
+}
+
+.execution-phase-chevron {
+  margin-left: 2px;
+  opacity: 0;
+  transform: rotate(-90deg);
+  transition:
+    opacity 0.15s ease-out,
+    transform 0.18s ease-out;
+}
+
+.execution-phase-summary:hover .execution-phase-chevron,
+.execution-phase--expanded .execution-phase-chevron {
+  opacity: 1;
+}
+
+.execution-phase--expanded .execution-phase-chevron {
+  transform: rotate(0deg);
+}
+
+.execution-phase-details {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition:
+    max-height 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.18s ease-out;
+}
+
+.execution-phase--expanded .execution-phase-details {
+  max-height: 900px;
+  opacity: 1;
+}
+
+.execution-phase-details-inner {
+  padding-top: 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .conversation-page .inline-approval-card,
 .workflow-composer-card {
   gap: 10px;
-  padding: 18px 22px 14px;
-  border: 1px solid var(--c-border-soft);
+  padding: 0 10px;
+
   border-radius: var(--radius-6);
-  background: var(--c-bg);
-  box-shadow: 0 10px 30px var(--black-a1);
+
   animation: workflow-card-in 0.24s cubic-bezier(0.4, 0, 0.2, 1);
   transform-origin: bottom center;
 }
@@ -2053,7 +2103,7 @@
 
 .ask-user-question-approval,
 .exit-plan-mode-approval {
-  gap: 12px;
+  gap: 5px;
 }
 
 .ask-user-question-approval {
@@ -2189,7 +2239,6 @@
 .workflow-composer-card-question .inline-approval-submit,
 .workflow-composer-card-permission .inline-approval-submit,
 .workflow-composer-card-plan .exit-plan-mode-submit {
-  min-height: 40px;
   border-radius: var(--radius-button);
   background: var(--c-send-bg);
   color: var(--c-text-on-accent);
@@ -2225,7 +2274,7 @@
 .workflow-composer-card-plan .exit-plan-mode-note-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .workflow-composer-card-plan .exit-plan-mode-actions {
@@ -2265,23 +2314,14 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .chat-message-row,
-  .timeline-command-group,
-  .timeline-system-event,
-  .timeline-file-event,
-  .timeline-status-event,
-  .chat-thinking-pill,
-  .assistant-thinking,
-  .conversation-page .inline-approval-card {
-    animation: none;
-  }
-
   .assistant-message-actions {
     transition: none;
   }
 
   .timeline-command-details,
   .timeline-command-group-chevron,
+  .execution-phase-details,
+  .execution-phase-chevron,
   .timeline-command-row,
   .timeline-command-row-chevron,
   .timeline-command-shell-wrap {
@@ -2289,12 +2329,6 @@
   }
 }
 
-:root[data-reduce-motion="on"] .chat-message-row,
-:root[data-reduce-motion="on"] .timeline-command-group,
-:root[data-reduce-motion="on"] .timeline-system-event,
-:root[data-reduce-motion="on"] .timeline-file-event,
-:root[data-reduce-motion="on"] .timeline-status-event,
-:root[data-reduce-motion="on"] .chat-thinking-pill,
 :root[data-reduce-motion="on"] .assistant-thinking,
 :root[data-reduce-motion="on"] .inline-approval-card,
 :root[data-reduce-motion="on"] .workflow-composer-card,
@@ -2305,11 +2339,12 @@
 :root[data-reduce-motion="on"] .assistant-message-actions,
 :root[data-reduce-motion="on"] .timeline-command-details,
 :root[data-reduce-motion="on"] .timeline-command-group-chevron,
+:root[data-reduce-motion="on"] .execution-phase-details,
+:root[data-reduce-motion="on"] .execution-phase-chevron,
 :root[data-reduce-motion="on"] .timeline-command-row,
 :root[data-reduce-motion="on"] .timeline-command-row-chevron,
 :root[data-reduce-motion="on"] .timeline-command-shell-wrap,
-:root[data-reduce-motion="on"] .workflow-page__composer-inner,
-:root[data-reduce-motion="on"] .workflow-plan-card__dock {
+:root[data-reduce-motion="on"] .workflow-page__composer-inner {
   transition: none;
 }
 
@@ -2360,7 +2395,8 @@
   margin: 0 auto;
 }
 
-.workflow-page .timeline-command-group {
+.workflow-page .timeline-command-group,
+.workflow-page .execution-phase {
   max-width: 100%;
 }
 
@@ -2393,7 +2429,7 @@
   width: var(--workflow-composer-width, var(--layout-content-w));
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   padding: 16px 18px;
   border: 1px solid var(--c-panel-border);
   border-radius: var(--radius-panel);
@@ -2439,8 +2475,7 @@
   cursor: pointer;
   transition:
     background 0.15s ease-out,
-    color 0.15s ease-out,
-    transform 0.18s ease-out;
+    color 0.15s ease-out;
 }
 
 .workflow-plan-card__dock:hover {
@@ -2458,6 +2493,18 @@
 
 .workflow-plan-card__body {
   position: relative;
+  max-height: 150px;
+  overflow: hidden;
+}
+
+.workflow-plan-card__body::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 40px;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.3) 10%, rgba(0, 0, 0, 0.1) 90%);
 }
 
 .workflow-plan-card__body .md-body {
@@ -2718,6 +2765,7 @@
 }
 
 .timeline-command-group,
+.execution-phase,
 .timeline-file-event {
   max-width: min(820px, 100%);
 }

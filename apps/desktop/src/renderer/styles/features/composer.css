@@ -391,9 +391,7 @@
   position: absolute;
   inset: 0;
   margin: auto;
-  transition:
-    opacity 0.12s ease-out,
-    transform 0.12s ease-out;
+  transition: opacity 0.12s ease-out;
 }
 
 .composer-plan-mode-chip-icon-exit {
@@ -403,17 +401,14 @@
   border-radius: 999px;
   background: color-mix(in srgb, currentColor 18%, transparent);
   opacity: 0;
-  transform: scale(0.8);
 }
 
 .composer-plan-mode-chip:hover .composer-plan-mode-chip-icon-plan {
   opacity: 0;
-  transform: scale(0.8);
 }
 
 .composer-plan-mode-chip:hover .composer-plan-mode-chip-icon-exit {
   opacity: 1;
-  transform: scale(1);
 }
 
 .toolbar-divider {
@@ -672,7 +667,9 @@
 :root[data-reduce-motion="on"] .composer-card,
 :root[data-reduce-motion="on"] .composer-input,
 :root[data-reduce-motion="on"] .context-usage-popover,
-:root[data-reduce-motion="on"] .composer-mode-switch-thumb {
+:root[data-reduce-motion="on"] .composer-mode-switch-thumb,
+:root[data-reduce-motion="on"] .composer-plan-mode-chip-icon-plan,
+:root[data-reduce-motion="on"] .composer-plan-mode-chip-icon-exit {
   transition: none;
 }
 
