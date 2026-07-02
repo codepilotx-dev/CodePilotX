@@ -116,6 +116,8 @@ export type UseSessionStateResult = {
     updatedInput?: Record<string, unknown>,
     decisionExtras?: {
       planExecutionModel?: string
+      planExecutionProviderID?: string
+      planExecutionProviderBaseURL?: string
       savePlanExecutionModel?: boolean
       rememberOptionId?: DesktopPermissionDecision['rememberOptionId']
     },
@@ -701,6 +703,8 @@ export function useSessionState(
       updatedInput?: Record<string, unknown>,
       decisionExtras?: {
         planExecutionModel?: string
+        planExecutionProviderID?: string
+        planExecutionProviderBaseURL?: string
         savePlanExecutionModel?: boolean
         rememberOptionId?: DesktopPermissionDecision['rememberOptionId']
       },

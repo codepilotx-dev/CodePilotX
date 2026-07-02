@@ -1,6 +1,7 @@
 import type React from 'react'
 import { createContext, useContext } from 'react'
 import type { Message } from '../../uiTypes.js'
+import type { ModelPreset } from '../../modelPresets.js'
 import type {
   DesktopGitStatus,
   DesktopPermissionDecision,
@@ -13,6 +14,13 @@ import type {
 } from '../../../shared/types.js'
 import type { RightDockToolId } from '../layout/rightDockState.js'
 import type { RightDockPlan } from '../layout/rightDockTools.js'
+
+export type ProviderModelOption = {
+  providerID: string
+  displayName: string
+  modelPresets: ModelPreset[]
+  baseURL: string | undefined
+}
 
 export type QuickChatContextValue = {
   isConversationRoute: boolean
@@ -29,6 +37,7 @@ export type QuickChatContextValue = {
   recentWorkspaces: DesktopWorkspace[]
   permissionMode: DesktopPermissionMode
   planModeActive: boolean
+  providerModelOptions: ProviderModelOption[]
   onArchiveSession: () => void
   onCreateBranch: () => void
   onOpenAutomation: () => void
@@ -37,6 +46,7 @@ export type QuickChatContextValue = {
   onOpenPlanInRightDock: (plan: RightDockPlan) => void
   onSubmitEditedUserMessage: (text: string) => Promise<void>
   onAppendComposerText: (text: string) => void
+  onAppendSideChatText: (text: string) => void
   onAddComposerFiles: (filePaths: string[]) => void
   onRefreshDiff: () => void
   onToggleSidebar: () => void
@@ -54,7 +64,7 @@ export type QuickChatContextValue = {
     updatedInput?: Record<string, unknown>,
     decisionExtras?: Pick<
       DesktopPermissionDecision,
-      'rememberOptionId' | 'planExecutionModel' | 'savePlanExecutionModel'
+      'rememberOptionId' | 'planExecutionModel' | 'planExecutionProviderID' | 'planExecutionProviderBaseURL' | 'savePlanExecutionModel'
     >,
   ) => void
   onAcceptExitPlanMode: (
@@ -62,6 +72,8 @@ export type QuickChatContextValue = {
     options?: {
       note?: string
       planExecutionModel?: string
+      planExecutionProviderID?: string
+      planExecutionProviderBaseURL?: string
       savePlanExecutionModel?: boolean
     },
   ) => void

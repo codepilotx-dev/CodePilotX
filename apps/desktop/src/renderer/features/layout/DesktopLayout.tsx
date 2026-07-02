@@ -66,7 +66,6 @@ import {
   withModelCatalogLoading,
 } from '../../hooks/useModelCatalogLoading.js'
 import {
-  CUSTOM_MODEL_PRESET_ID,
   buildModelPresets,
   resolveModelPresetId,
 } from '../../modelPresets.js'
@@ -165,6 +164,11 @@ export function DesktopLayout(): React.ReactNode {
   })
   const [rightDockPlan, setRightDockPlan] = useState<RightDockPlan | null>(null)
   const [bottomPanelVisible, setBottomPanelVisible] = useState(false)
+  const [sideChatInput, setSideChatInput] = useState('')
+  const [sideChatFocusVersion, setSideChatFocusVersion] = useState(0)
+  const [sideChatAttachments, setSideChatAttachments] = useState<
+    DesktopComposerAttachment[]
+  >([])
   const [workspaceHeaderContent, setWorkspaceHeaderContent] =
     useState<WorkspaceHeaderContent | null>(null)
   const [menubarDebugMode, setMenubarDebugMode] = useState(() =>
@@ -666,6 +670,39 @@ export function DesktopLayout(): React.ReactNode {
     [input, setInput],
   )
 
+  const handleAppendSideChatText = useCallback(
+    (text: string): void => {
+      const trimmed = text.trim()
+      if (!trimmed) return
+      setSideChatInput(prev => {
+        const existing = prev.trim()
+        if (!existing) return trimmed
+        return `${prev}\n\n${trimmed}`
+      })
+      setSideChatFocusVersion(v => v + 1)
+      setRightDockState(current =>
+        applyRightDockAction(
+          current,
+          { type: 'openTool', tool: 'sideChat' },
+          { debugMode: menubarDebugMode },
+        ),
+      )
+    },
+    [menubarDebugMode],
+  )
+
+  const sideChatSubmitToSession = useCallback(
+    async (
+      sessionId: string,
+      value: { text: string; attachments: DesktopComposerAttachment[] },
+    ): Promise<void> => {
+      await submitToSession(sessionId, value)
+      setSideChatInput('')
+      setSideChatAttachments([])
+    },
+    [submitToSession],
+  )
+
   const handleSubmitEditedUserMessage = useCallback(
     async (text: string): Promise<void> => {
       if (!activeSessionItem) return
@@ -936,12 +973,15 @@ export function DesktopLayout(): React.ReactNode {
   }, [activeSessionItem?.model])
   const providerModelOptions = useMemo(
     () => {
-      const providers =
-        modelProviders.length > 0
-          ? modelProviders
-          : providerState
-            ? [providerState.provider]
-            : []
+      const providers = [...modelProviders]
+      if (
+        providerState &&
+        !providers.some(
+          provider => provider.providerID === providerState.provider.providerID,
+        )
+      ) {
+        providers.unshift(providerState.provider)
+      }
       return providers.filter(provider => provider.apiKeyConfigured).map(provider => {
         const isSelected =
           provider.providerID === providerState?.selectedProviderID
@@ -952,17 +992,22 @@ export function DesktopLayout(): React.ReactNode {
           providerID: provider.providerID,
           displayName: provider.displayName,
           modelPresets: buildModelPresets(models),
+          baseURL: provider.baseURL,
         }
       })
     },
     [modelProviders, providerState],
   )
+  const selectedProviderID = providerState?.selectedProviderID ?? providerID
+  const selectedProviderModelPresets =
+    providerModelOptions.find(
+      provider => provider.providerID === selectedProviderID,
+    )?.modelPresets ?? modelPresets
   const resolvedSelectedModelPreset = resolveModelPresetId(
     model,
     selectedModelPreset,
-    modelPresets,
+    selectedProviderModelPresets,
   )
-  const selectedProviderID = providerState?.selectedProviderID ?? providerID
   const selectedProviderSummary =
     modelProviders.find(provider => provider.providerID === selectedProviderID) ??
     (providerState?.provider.providerID === selectedProviderID
@@ -1003,7 +1048,7 @@ export function DesktopLayout(): React.ReactNode {
     const nextPreset = resolveModelPresetId(
       activeModel,
       undefined,
-      modelPresets,
+      selectedProviderModelPresets,
     )
     if (selectedModelPreset !== nextPreset) {
       setSelectedModelPreset(nextPreset)
@@ -1012,7 +1057,7 @@ export function DesktopLayout(): React.ReactNode {
     activeSessionItem?.id,
     activeSessionItem?.model,
     model,
-    modelPresets,
+    selectedProviderModelPresets,
     selectedModelPreset,
     setModel,
     setSelectedModelPreset,
@@ -1127,35 +1172,6 @@ export function DesktopLayout(): React.ReactNode {
         providerState?.selectedProviderID === providerID
           ? providerState.baseURL
           : providerSummary?.baseURL
-
-      if (nextPresetId === CUSTOM_MODEL_PRESET_ID) {
-        const customValue = window.prompt('输入自定义模型名称', model)
-        if (!customValue) return
-        const trimmed = customValue.trim()
-        if (!trimmed) return
-        setProviderID(providerID)
-        setProviderBaseURL(baseURL ?? '')
-        setModel(trimmed)
-        setSelectedModelPreset(CUSTOM_MODEL_PRESET_ID)
-        void desktopClient
-          .saveModelProvider({
-            providerID,
-            modelID: trimmed,
-            baseURL,
-          })
-          .then(next => {
-            setProviderState(next)
-            setProviderID(next.selectedProviderID)
-            setProviderBaseURL(next.baseURL ?? '')
-            setModel(next.model)
-          })
-          .catch(error =>
-            setErrorMessage(
-              error instanceof Error ? error.message : String(error),
-            ),
-          )
-        return
-      }
 
       const preset = providerOption.modelPresets.find(
         item => item.id === nextPresetId,
@@ -1468,6 +1484,7 @@ export function DesktopLayout(): React.ReactNode {
       enableFusionRouter={enableFusionRouter ?? false}
       enableAutoReviewPermissionMode={enableAutoReviewPermissionMode ?? false}
       enableFullAccessPermissionMode={enableFullAccessPermissionMode ?? false}
+      planExecutionModel={planExecutionModel}
       thinkingMode={thinkingMode}
       selectedProviderID={selectedProviderID}
       selectedModelPreset={resolvedSelectedModelPreset}
@@ -1479,7 +1496,7 @@ export function DesktopLayout(): React.ReactNode {
       debugMode={menubarDebugMode}
       showContextUsage={showContextUsage}
       contextUsage={contextUsage}
-      modelPresets={modelPresets}
+      modelPresets={selectedProviderModelPresets}
       providerOptions={providerModelOptions}
       recentWorkspaces={recentWorkspaces}
       workspace={currentWorkspace}
@@ -1503,6 +1520,57 @@ export function DesktopLayout(): React.ReactNode {
       submitToSession={submitToSession}
     />
   ) : null
+  const sideChatComposer =
+    isQuickChatPage || isConversationRoute ? (
+      <DesktopComposer
+        input={sideChatInput}
+        messages={messages}
+        isQuickChatPage={isQuickChatPage}
+        routedSessionId={activeSessionItem?.id ?? null}
+        sessionStatus={sessionStatus}
+        permissionMode={permissionMode}
+        planModeActive={planModeActive}
+        localRouterMode={effectiveLocalRouterMode}
+        enableParetoCodeRouter={enableParetoCodeRouter ?? false}
+        enableFusionRouter={enableFusionRouter ?? false}
+        enableAutoReviewPermissionMode={enableAutoReviewPermissionMode ?? false}
+        enableFullAccessPermissionMode={enableFullAccessPermissionMode ?? false}
+        planExecutionModel={planExecutionModel}
+        thinkingMode={thinkingMode}
+        selectedProviderID={selectedProviderID}
+        selectedModelPreset={resolvedSelectedModelPreset}
+        modelConfigured={modelConfigured}
+        modelCatalogLoading={modelCatalogLoading}
+        modelConfigurationMessage={modelConfigurationMessage}
+        showThinkingOptions={showThinkingOptions}
+        deepSeekThinkingControls={deepSeekThinkingControls}
+        debugMode={menubarDebugMode}
+        showContextUsage={showContextUsage}
+        contextUsage={contextUsage}
+        modelPresets={selectedProviderModelPresets}
+        providerOptions={providerModelOptions}
+        recentWorkspaces={recentWorkspaces}
+        workspace={currentWorkspace}
+        attachments={sideChatAttachments}
+        onAttachmentsChange={setSideChatAttachments}
+        onChooseWorkspace={handleChooseWorkspace}
+        onInputChange={setSideChatInput}
+        onInterrupt={interrupt}
+        onProviderModelChange={handleProviderModelChange}
+        onOpenWorkspace={handleOpenRecentWorkspace}
+        onCloneGithub={() => setGithubRepositoryModalOpen(true)}
+        onClearWorkspace={handleClearWorkspace}
+        onOpenBrowser={handleOpenBrowser}
+        onBranchSelect={handleBranchSelect}
+        onCreateBranch={() => setGitWorkflowMode('branch')}
+        onPermissionChange={handlePermissionChange}
+        onPlanModeChange={handlePlanModeChange}
+        onLocalRouterModeChange={handleLocalRouterModeChange}
+        onThinkingChange={setThinkingMode}
+        createSessionForWorkspace={createSessionForWorkspace}
+        submitToSession={sideChatSubmitToSession}
+      />
+    ) : null
   const toggleBottomPanelVisible = useCallback((): void => {
     setBottomPanelVisible(current => !current)
   }, [])
@@ -1589,6 +1657,7 @@ export function DesktopLayout(): React.ReactNode {
             onOpenPlanInRightDock: handleOpenPlanDock,
             onSubmitEditedUserMessage: handleSubmitEditedUserMessage,
             onAppendComposerText: handleAppendComposerText,
+            onAppendSideChatText: handleAppendSideChatText,
             onAddComposerFiles: handleAddComposerFiles,
             onRefreshDiff: handleRefreshDiff,
             onToggleSidebar: toggleSidebarCollapsed,
@@ -1630,12 +1699,15 @@ export function DesktopLayout(): React.ReactNode {
                 options?.note ? { feedback: options.note } : undefined,
                 {
                   planExecutionModel: options?.planExecutionModel,
+                  planExecutionProviderID: options?.planExecutionProviderID,
+                  planExecutionProviderBaseURL: options?.planExecutionProviderBaseURL,
                   savePlanExecutionModel: options?.savePlanExecutionModel,
                 },
               )
             },
             permissionMode,
             planModeActive,
+            providerModelOptions,
             events: isQuickChatPage || isConversationLoading ? [] : events,
             workflowEvents:
               isQuickChatPage || isConversationLoading ? [] : workflowEvents,
@@ -1743,6 +1815,8 @@ export function DesktopLayout(): React.ReactNode {
                       onToggleReviewView={() =>
                         setReviewView(reviewView === 'inline' ? 'split' : 'inline')
                       }
+                      sideChatComposer={sideChatComposer}
+                      sideChatFocusVersion={sideChatFocusVersion}
                     />
                   ) : null}
                 </div>

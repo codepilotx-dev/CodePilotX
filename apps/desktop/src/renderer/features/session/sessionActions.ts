@@ -215,7 +215,7 @@ export async function decidePermissionAction(
   updatedInput?: Record<string, unknown>,
   decisionExtras?: Pick<
     DesktopPermissionDecision,
-    'planExecutionModel' | 'savePlanExecutionModel' | 'rememberOptionId'
+    'planExecutionModel' | 'planExecutionProviderID' | 'planExecutionProviderBaseURL' | 'savePlanExecutionModel' | 'rememberOptionId'
   >,
 ): Promise<void> {
   if (!sessionId) return
