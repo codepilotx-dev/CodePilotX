@@ -14,18 +14,29 @@ import {
   getVisiblePermissionModeOptions,
 } from '../settings/settingsStorage.js'
 
+const testWindow = typeof globalThis.window === 'undefined'
+  ? {}
+  : globalThis.window
+
 if (typeof globalThis.window === 'undefined') {
   Object.defineProperty(globalThis, 'window', {
     configurable: true,
     value: {
-    matchMedia: () => ({
+      ...testWindow,
+    },
+  })
+}
+
+if (typeof globalThis.window.matchMedia !== 'function') {
+  Object.defineProperty(globalThis.window, 'matchMedia', {
+    configurable: true,
+    value: () => ({
       matches: false,
       addEventListener: () => {},
       removeEventListener: () => {},
       addListener: () => {},
       removeListener: () => {},
     }),
-    },
   })
 }
 
