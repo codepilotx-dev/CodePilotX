@@ -46,6 +46,7 @@ export const DESKTOP_API_METHODS = [
   'installSkill',
   'listSlashCommands',
   'listMcpServers',
+  'getMcpRuntimeStatus',
   'saveMcpServer',
   'removeMcpServer',
   'setMcpServerEnabled',

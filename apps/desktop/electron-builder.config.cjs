@@ -1,6 +1,6 @@
 module.exports = {
   appId: 'local.codepilotx.desktop',
-  productName: 'CodePilotX Local Desktop',
+	  productName: 'CodePilotX',
   files: [
     'dist/desktop/**/*',
     'dist/desktop-agent/**/*',

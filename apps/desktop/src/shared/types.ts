@@ -76,6 +76,11 @@ export type DesktopComposerAttachment = {
 export type DesktopUserMessageInput = {
   text: string
   attachments?: DesktopComposerAttachment[]
+  skillInvocation?: {
+    name: string
+    args?: string
+    skillPath?: string
+  }
 }
 
 export type DesktopUserMessageContent = string | ContentBlockParam[]
@@ -707,6 +712,24 @@ export type DesktopMcpServerListItem = {
   config: DesktopMcpServerConfig
 }
 
+export type DesktopMcpRuntimeServerStatus = {
+  name: string
+  scope: DesktopMcpScope
+  type: DesktopMcpTransport
+  status: 'connected' | 'failed' | 'pending' | 'disabled' | 'unsupported'
+  error?: string
+  toolCount: number
+  resourceCount: number
+  promptCount: number
+}
+
+export type DesktopMcpRuntimeStatus = {
+  servers: DesktopMcpRuntimeServerStatus[]
+  totalTools: number
+  totalResources: number
+  totalPrompts: number
+}
+
 export type SaveDesktopMcpServerOptions = {
   originalName?: string
   name: string
@@ -1285,6 +1308,7 @@ export type DesktopApi = {
   ): Promise<DesktopSkillInstallResult>
   listSlashCommands(workspacePath?: string): Promise<DesktopSlashCommandSuggestion[]>
   listMcpServers(): Promise<DesktopMcpServerListItem[]>
+  getMcpRuntimeStatus(sessionId?: string): Promise<DesktopMcpRuntimeStatus>
   saveMcpServer(options: SaveDesktopMcpServerOptions): Promise<DesktopMcpServerListItem[]>
   removeMcpServer(name: string, scope: DesktopEditableMcpScope): Promise<DesktopMcpServerListItem[]>
   setMcpServerEnabled(name: string, enabled: boolean): Promise<DesktopMcpServerListItem[]>

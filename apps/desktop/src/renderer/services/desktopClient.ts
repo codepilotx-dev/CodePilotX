@@ -408,6 +408,7 @@ function createBrowserMockDesktopClient(): DesktopApi {
     }),
     listSlashCommands: async () => [],
     listMcpServers: async () => [],
+    getMcpRuntimeStatus: async () => ({ servers: [], totalTools: 0, totalResources: 0, totalPrompts: 0 }),
     saveMcpServer: async () => [],
     removeMcpServer: async () => [],
     setMcpServerEnabled: async () => [],

@@ -273,6 +273,7 @@ export const DESKTOP_API_ARG_SCHEMAS = {
   installSkill: z.tuple([skillInstallInput]),
   listSlashCommands: z.tuple([z.string().optional()]),
   listMcpServers: emptyArgs,
+  getMcpRuntimeStatus: z.tuple([z.string().optional()]),
   saveMcpServer: z.tuple([
     z.object({
       originalName: optionalText,

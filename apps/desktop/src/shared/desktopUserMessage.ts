@@ -16,13 +16,22 @@ export function buildDesktopUserMessageContent(
 ): DesktopUserMessageContent {
   const text = input.text.trim()
   const attachments = input.attachments ?? []
+
+  // Handle skill invocation: wrap the skill info so the runtime's SkillTool
+  // can process it naturally alongside the user's text.
+  const skillPrefix = input.skillInvocation
+    ? formatSkillInvocation(input.skillInvocation)
+    : ''
+
+  const combinedText = [skillPrefix, text].filter(Boolean).join('\n\n')
+
   if (attachments.length === 0) {
-    return text
+    return combinedText || text
   }
 
   const blocks: ContentBlockParam[] = []
-  if (text) {
-    blocks.push({ type: 'text', text })
+  if (combinedText) {
+    blocks.push({ type: 'text', text: combinedText })
   }
   for (const attachment of attachments) {
     if (attachment.status === 'error') {
@@ -38,11 +47,17 @@ export function desktopUserMessageInputToPreviewText(
 ): string {
   const text = input.text.trim()
   const attachments = input.attachments ?? []
-  if (attachments.length === 0) return text
-  const attachmentSummary = attachments
-    .map(attachment => `[${attachment.name}]`)
-    .join(' ')
-  return [text, attachmentSummary].filter(Boolean).join(' ')
+  const skillInfo = input.skillInvocation
+    ? `[skill: ${input.skillInvocation.name}]`
+    : ''
+  const parts = [skillInfo, text]
+  if (attachments.length > 0) {
+    const attachmentSummary = attachments
+      .map(attachment => `[${attachment.name}]`)
+      .join(' ')
+    parts.push(attachmentSummary)
+  }
+  return parts.filter(Boolean).join(' ')
 }
 
 function attachmentToContentBlocks(
@@ -134,4 +149,16 @@ function formatFileSize(bytes: number): string {
 
 function trimNumber(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(1)
+}
+
+function formatSkillInvocation(invocation: {
+  name: string
+  args?: string
+  skillPath?: string
+}): string {
+  const skillRef = invocation.skillPath
+    ? `[${invocation.name}](${invocation.skillPath})`
+    : invocation.name
+  const args = invocation.args ? ` ${invocation.args}` : ''
+  return `/${skillRef}${args}`
 }

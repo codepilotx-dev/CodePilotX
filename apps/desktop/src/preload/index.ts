@@ -95,6 +95,7 @@ const api: DesktopApi = {
   listSlashCommands: workspacePath =>
     ipcRenderer.invoke(desktopApiChannel('listSlashCommands'), workspacePath),
   listMcpServers: () => ipcRenderer.invoke(desktopApiChannel('listMcpServers')),
+  getMcpRuntimeStatus: (sessionId?: string) => ipcRenderer.invoke(desktopApiChannel('getMcpRuntimeStatus'), sessionId),
   saveMcpServer: options =>
     ipcRenderer.invoke(desktopApiChannel('saveMcpServer'), options),
   removeMcpServer: (name, scope) =>
