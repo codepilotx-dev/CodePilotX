@@ -118,6 +118,7 @@ import type {
   DesktopBuiltinPlugin,
   DesktopApprovalPolicy,
   DesktopGitOperationResult,
+  DesktopMcpRuntimeStatus,
   DesktopModelSelection,
   LocalRouterMode,
   DesktopPermissionDecision,
@@ -151,7 +152,11 @@ import {
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
-const DESKTOP_APP_ID = 'local.codepilotx.desktop'
+const DESKTOP_DEBUG_ENABLED = !app.isPackaged && process.env.NODE_ENV === 'development'
+const DESKTOP_APP_NAME = app.isPackaged ? 'CodePilotX' : 'CodePilotX Dev'
+const DESKTOP_APP_USER_MODEL_ID = app.isPackaged
+  ? 'local.codepilotx.desktop'
+  : 'local.codepilotx.desktop.dev'
 const DESKTOP_THINKING_MODES = new Set<DesktopThinkingMode>([
   'default',
   'enabled',
@@ -255,6 +260,8 @@ const windowService = createDesktopWindowService({
   iconPath: desktopIconPath,
   rendererUrl,
   preloadPath: () => join(__dirname, '../preload/index.js'),
+  appName: DESKTOP_APP_NAME,
+  debugEnabled: DESKTOP_DEBUG_ENABLED,
   emitDesktopEvent: (channel, payload) => {
     desktopBrowserDebugEvents.emit(channel, payload)
   },
@@ -578,6 +585,21 @@ async function getSession(sessionId: string): Promise<DesktopSessionSnapshot> {
     persistSessionStore()
   }
   return record.snapshot
+}
+
+async function getMcpRuntimeStatus(
+  sessionId?: string,
+): Promise<DesktopMcpRuntimeStatus> {
+  await ensureSessionStoreLoaded()
+  const id = sessionId ?? activeSessionId
+  if (!id) {
+    return { servers: [], totalTools: 0, totalResources: 0, totalPrompts: 0 }
+  }
+  const record = sessions.get(id)
+  if (!record?.session) {
+    return { servers: [], totalTools: 0, totalResources: 0, totalPrompts: 0 }
+  }
+  return record.session.getMcpRuntimeStatus() as DesktopMcpRuntimeStatus
 }
 
 async function getActiveSessionId(): Promise<string | null> {
@@ -1483,6 +1505,13 @@ async function disposeSession(sessionId: string): Promise<void> {
   if (activeSessionId === sessionId) {
     activeSessionId = [...sessions.keys()][0] ?? null
   }
+  // Remove from SQLite index
+  try {
+    const { removeSessionFromIndex } = await import('./desktopSessionIndex.js')
+    removeSessionFromIndex(sessionId)
+  } catch {
+    // best-effort
+  }
   persistSessionStore({ immediate: true })
   await record.session?.dispose()
 }
@@ -1611,6 +1640,7 @@ const desktopApiHandlers = buildDesktopApiHandlers({
   windowService,
   browserService,
   debugToolProbeService,
+  debugEnabled: DESKTOP_DEBUG_ENABLED,
   getRuntimeOptions: () => {
     const runtimeSelection = getDesktopRuntimeSelection()
     return {
@@ -1628,6 +1658,7 @@ const desktopApiHandlers = buildDesktopApiHandlers({
   listBuiltinPlugins,
   setBuiltinPluginEnabled,
   listSlashCommands,
+  getMcpRuntimeStatus,
   createSession,
   listSessions,
   getSession,
@@ -1714,7 +1745,7 @@ function registerIpc(): void {
 
 applyDesktopAgentRuntimeEnvDefaults()
 enableConfigs()
-app.setAppUserModelId(DESKTOP_APP_ID)
+app.setAppUserModelId(DESKTOP_APP_USER_MODEL_ID)
 registerIpc()
 
 void syncDesktopBrowserDebugBridge().catch(error => {

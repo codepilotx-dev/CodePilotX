@@ -273,6 +273,29 @@ export async function loadDesktopSessionStore(): Promise<PersistedDesktopSession
     }
     overlaysById.set(overlay.id, overlay)
   }
+
+  // SQLite-backed list: open index, backfill, list, merge overlays
+  try {
+    const { ensureDesktopSessionIndex, listDesktopSessionRows } =
+      await import('./desktopSessionIndex.js')
+
+    ensureDesktopSessionIndex(overlaysById)
+    const sessions = listDesktopSessionRows(overlaysById)
+
+    // Resolve activeSessionId from overlay; fall back to first non-archived
+    const activeSessionId = sessions.some(
+      snapshot => snapshot.item.id === persisted.activeSessionId,
+    )
+      ? persisted.activeSessionId
+      : sessions.find(snapshot => !snapshot.item.archivedAt)?.item.id ??
+        sessions[0]?.item.id ??
+        null
+
+    return { activeSessionId, sessions }
+  } catch {
+    // SQLite unavailable — fall back to transcript scan
+  }
+
   const snapshotsById = new Map<string, DesktopSessionSnapshot>()
 
   for (const snapshot of await loadTranscriptSessionSnapshots(overlaysById)) {
@@ -507,60 +530,13 @@ export async function saveDesktopSessionStore(
   await cleanupStaleDesktopSessionIndexTempFiles(filePath)
 
   // Best-effort sync to SQLite index
-  syncMetadataToSqlite(state)
-}
-
-/**
- * Sync desktop session metadata to the SQLite index.
- *
- * Called after saving sessions.json so both stores stay in sync.
- * Errors are silently swallowed — this is an optimisation, not a
- * correctness requirement.
- */
-function syncMetadataToSqlite(state: PersistedDesktopSessions): void {
   try {
-    const { SessionDatabase, upsertSession, touchRecencyAt, backfillSessions } =
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      require('@codepilotx/core/session/sqlite/index.js')
-
-    SessionDatabase.getInstance().open()
-
-    for (const sessionSnapshot of state.sessions) {
-      const { item, workspace, settings } = sessionSnapshot
-      const now = Date.now()
-
-      const updatedAtMs = item.lastMessageAt
-        ? new Date(item.lastMessageAt).getTime()
-        : now
-      upsertSession({
-        id: item.id,
-        project_path: workspace.path,
-        transcript_path: item.transcriptPath ?? item.rolloutPath ?? '',
-        rollout_path: item.rolloutPath ?? null,
-        created_at_ms: item.createdAt
-          ? new Date(item.createdAt).getTime()
-          : now,
-        updated_at_ms: updatedAtMs,
-        title: item.customTitle ?? item.aiTitle ?? item.sessionName ?? '',
-        preview: item.firstPrompt ?? '',
-        first_user_message: item.firstPrompt ?? '',
-        source: 'desktop',
-        status: item.status ?? 'active',
-        pinned: item.pinnedAt ? 1 : 0,
-        archived: item.archivedAt ? 1 : 0,
-        session_mode: 'normal',
-        model_provider: settings?.providerID,
-        model: item.model ?? undefined,
-        thinking_mode: item.thinkingMode,
-        git_branch: item.gitBranch ?? undefined,
-      })
-      touchRecencyAt(item.id, updatedAtMs)
+    const { syncDesktopSnapshotToSqlite } = await import('./desktopSessionIndex.js')
+    for (const snapshot of state.sessions) {
+      syncDesktopSnapshotToSqlite(snapshot)
     }
-
-    // Ensure backfill completes so the SQLite index is fully populated
-    backfillSessions()
   } catch {
-    // SQLite not available — this is a best-effort sync
+    // SQLite not available
   }
 }
 
@@ -1031,6 +1007,7 @@ async function loadTranscriptSessionSnapshots(
   let logs: LogOption[]
   try {
     logs = await loadAllProjectsMessageLogs(undefined, {
+      skipIndex: true,
       initialEnrichCount: TRANSCRIPT_ENRICH_LIMIT,
     })
   } catch {

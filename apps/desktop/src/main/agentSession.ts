@@ -5,8 +5,8 @@ import {
   createDesktopAgentRuntime,
   buildAskUserQuestionControlResponse,
   type DesktopAgentRuntime,
-  type DesktopAgentRuntimePreference,
   type DesktopAgentRuntimeContext,
+  type DesktopAgentRuntimePreference,
 } from './agentRuntime.js'
 import {
   createDesktopAutoReviewService,
@@ -90,6 +90,21 @@ export type DesktopAgentSession = {
   ): Promise<void>
   interrupt(): Promise<void>
   dispose(): Promise<void>
+  getMcpRuntimeStatus(): {
+    servers: Array<{
+      name: string
+      scope: string
+      type: string
+      status: 'connected' | 'failed' | 'pending' | 'disabled' | 'unsupported'
+      error?: string
+      toolCount: number
+      resourceCount: number
+      promptCount: number
+    }>
+    totalTools: number
+    totalResources: number
+    totalPrompts: number
+  }
   on<EventName extends keyof DesktopAgentSessionEvents>(
     eventName: EventName,
     listener: (...args: DesktopAgentSessionEvents[EventName]) => void,
@@ -414,6 +429,10 @@ class LocalDesktopAgentSession
     this.currentAbortController?.abort()
     this.emitEvent({ type: 'done', sessionId: this.sessionId })
     this.removeAllListeners()
+  }
+
+  getMcpRuntimeStatus() {
+    return this.runtime.getMcpRuntimeStatus()
   }
 
   private async requestPermission(

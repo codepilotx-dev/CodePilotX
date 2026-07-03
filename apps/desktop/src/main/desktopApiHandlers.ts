@@ -107,6 +107,7 @@ import type {
   DesktopBuiltinPlugin,
   DesktopDataLocationMigrationResult,
   DesktopDataLocationState,
+  DesktopMcpRuntimeStatus,
   DesktopPermissionDecision,
   DesktopPermissionMode,
   DesktopSlashCommandSuggestion,
@@ -127,6 +128,7 @@ export type DesktopApiHandlerDependencies = {
   windowService: DesktopWindowService
   browserService: DesktopBrowserService
   debugToolProbeService: DebugToolProbeService
+  debugEnabled: boolean
   getRuntimeOptions(): {
     agentExecutablePath: string
     configDirectoryPath: string
@@ -143,6 +145,7 @@ export type DesktopApiHandlerDependencies = {
     enabled: boolean,
   ): Promise<DesktopBuiltinPlugin>
   listSlashCommands(workspacePath?: string): Promise<DesktopSlashCommandSuggestion[]>
+  getMcpRuntimeStatus(sessionId?: string): Promise<DesktopMcpRuntimeStatus>
   createSession(
     options: CreateDesktopSessionOptions,
   ): Promise<CreateDesktopSessionResult>
@@ -196,7 +199,7 @@ export type DesktopApiHandlerDependencies = {
 export function buildDesktopApiHandlers(
   dependencies: DesktopApiHandlerDependencies,
 ): DesktopApiHandlers {
-  const { windowService } = dependencies
+  const { windowService, debugEnabled } = dependencies
   return createDesktopApiHandlers({
     getAuthStatus: async () => getAuthStatus(),
     getRuntimeStatus: async () => {
@@ -290,6 +293,7 @@ export function buildDesktopApiHandlers(
     listSkillsCatalog: listDesktopSkillCatalog,
     installSkill: installDesktopSkill,
     listSlashCommands: dependencies.listSlashCommands,
+    getMcpRuntimeStatus: dependencies.getMcpRuntimeStatus ?? (async () => ({ servers: [], totalTools: 0, totalResources: 0, totalPrompts: 0 })),
     listMcpServers: listDesktopMcpServers,
     saveMcpServer: saveDesktopMcpServer,
     removeMcpServer: removeDesktopMcpServer,
@@ -364,9 +368,15 @@ export function buildDesktopApiHandlers(
     toggleWindowMaximized: async () => windowService.toggleWindowMaximized(),
     closeWindow: async () => windowService.closeWindow(),
     isWindowMaximized: async () => windowService.isWindowMaximized(),
-    newWindow: async () => windowService.newWindow(),
-    openDevTools: async () => windowService.openDevTools(),
-    closeDevTools: async () => windowService.closeDevTools(),
+	    newWindow: async () => windowService.newWindow(),
+	    openDevTools: async () => {
+	      if (!debugEnabled) return
+	      windowService.openDevTools()
+	    },
+	    closeDevTools: async () => {
+	      if (!debugEnabled) return
+	      windowService.closeDevTools()
+	    },
     openSettings: async () => windowService.openSettings(),
     logOut: async () => windowService.logOut(),
     exitApp: async () => windowService.exitApp(),
@@ -380,26 +390,33 @@ export function buildDesktopApiHandlers(
     downloadUpdate: async () => {
       desktopAutoUpdater?.downloadUpdate()
     },
-    quitAndInstall: async () => {
-      desktopAutoUpdater?.quitAndInstall()
-    },
-    listDebugBuiltinTools: async () => {
-      return dependencies.debugToolProbeService.listBuiltinTools()
-    },
-    runDebugToolProbe: async (mode) => {
-      const { controller, runId } = dependencies.debugToolProbeService.startProbe(mode)
-      try {
-        const report = await dependencies.debugToolProbeService.runProbe(mode, controller.signal)
-        dependencies.debugToolProbeService.finishProbeRun(runId)
-        return report
-      } catch (err) {
-        dependencies.debugToolProbeService.finishProbeRun(runId)
-        throw err
-      }
-    },
-    cancelDebugToolProbe: async (runId) => {
-      dependencies.debugToolProbeService.cancelRun(runId)
-    },
+	    quitAndInstall: async () => {
+	      desktopAutoUpdater?.quitAndInstall()
+	    },
+	    listDebugBuiltinTools: async () => {
+	      if (!debugEnabled) {
+	        return { toolNames: [], enabled: [], hasProbeInput: [] }
+	      }
+	      return dependencies.debugToolProbeService.listBuiltinTools()
+	    },
+	    runDebugToolProbe: async (mode) => {
+	      if (!debugEnabled) {
+	        throw new Error('Debug tools are disabled in packaged builds.')
+	      }
+	      const { controller, runId } = dependencies.debugToolProbeService.startProbe(mode)
+	      try {
+	        const report = await dependencies.debugToolProbeService.runProbe(mode, controller.signal)
+	        dependencies.debugToolProbeService.finishProbeRun(runId)
+	        return report
+	      } catch (err) {
+	        dependencies.debugToolProbeService.finishProbeRun(runId)
+	        throw err
+	      }
+	    },
+	    cancelDebugToolProbe: async (runId) => {
+	      if (!debugEnabled) return
+	      dependencies.debugToolProbeService.cancelRun(runId)
+	    },
   })
 }
 

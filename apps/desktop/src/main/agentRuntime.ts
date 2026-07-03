@@ -119,6 +119,21 @@ export type DesktopAgentRuntime = {
     response: Record<string, unknown>,
     signal: AbortSignal,
   ): Promise<void>
+  getMcpRuntimeStatus(): {
+    servers: Array<{
+      name: string
+      scope: string
+      type: string
+      status: 'connected' | 'failed' | 'pending' | 'disabled' | 'unsupported'
+      error?: string
+      toolCount: number
+      resourceCount: number
+      promptCount: number
+    }>
+    totalTools: number
+    totalResources: number
+    totalPrompts: number
+  }
 }
 
 let headlessQueue: Promise<void> = Promise.resolve()
@@ -843,6 +858,11 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
     }
     child.stdin.write(`${JSON.stringify(message)}\n`)
   }
+
+  getMcpRuntimeStatus() {
+    // Subprocess mode does not expose MCP runtime status
+    return { servers: [], totalTools: 0, totalResources: 0, totalPrompts: 0 }
+  }
 }
 
 class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
@@ -889,12 +909,13 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
       appendSystemPrompt: context.appendSystemPrompt,
       additionalDirectories: context.additionalDirectories,
       installCodexDependencies: context.installCodexDependencies,
-      enableMemory: context.enableMemory,
-      permissionPromptToolName: permissionPromptToolName(),
-      onOutput: (message, controls) =>
-        this.handleStructuredOutput(message, controls),
-    })
-  }
+	      enableMemory: context.enableMemory,
+	      permissionPromptToolName: permissionPromptToolName(),
+	      mcpEnabled: true,
+	      onOutput: (message, controls) =>
+	        this.handleStructuredOutput(message, controls),
+	    })
+	  }
 
   setModel(model: string | undefined): void {
     this.context.model = model
@@ -1046,6 +1067,10 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
       sessionId: this.context.sessionId,
       durationMs: Date.now() - startedAt,
     })
+  }
+
+  getMcpRuntimeStatus() {
+    return (this.runtime as any).getMcpRuntimeStatus()
   }
 
   private async handleStructuredOutput(

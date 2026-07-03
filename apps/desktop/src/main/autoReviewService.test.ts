@@ -119,28 +119,29 @@ test('createDesktopAutoReviewService maps reviewer failures to fail-closed denia
 })
 
 test('reviewer runtime abort returns fail-closed deny', async () => {
-  const service = createDesktopAutoReviewService({
-    timeoutMs: 50,
-    createRuntime: (
-      context: DesktopAgentRuntimeContext,
-    ): DesktopAgentRuntime => ({
-      setModel: () => {},
-      setModelProvider: () => {},
-      setDebugConversationDump: () => {},
-      setPermissionMode: () => {},
-      setPlanModeActive: () => {},
-      runControlResponse: async () => {},
-      async runUserTurn(_content, signal) {
-        await new Promise<void>(resolve => {
-          if (signal.aborted) {
-            resolve()
-            return
-          }
-          signal.addEventListener('abort', () => resolve(), { once: true })
-        })
-      },
-    }),
-  })
+	  const service = createDesktopAutoReviewService({
+	    timeoutMs: 50,
+	    createRuntime: (
+	      context: DesktopAgentRuntimeContext,
+	    ): DesktopAgentRuntime => ({
+	      setModel: () => {},
+	      setModelProvider: () => {},
+	      setDebugConversationDump: () => {},
+	      setPermissionMode: () => {},
+	      setPlanModeActive: () => {},
+        getMcpRuntimeStatus: () => ({ servers: [], totalTools: 0, totalResources: 0, totalPrompts: 0 }),
+	      runControlResponse: async () => {},
+	      async runUserTurn(_content, signal) {
+	        await new Promise<void>(resolve => {
+	          if (signal.aborted) {
+	            resolve()
+	            return
+	          }
+	          signal.addEventListener('abort', () => resolve(), { once: true })
+	        })
+	      },
+	    }),
+	  })
 
   const result = await service.review({
     sessionId: 'session-abort',
@@ -178,22 +179,23 @@ test('createRuntimeReviewerPromptRunner passes serializeHeadlessTurns:false to s
   const service = createDesktopAutoReviewService({
     createRuntime: (context: DesktopAgentRuntimeContext): DesktopAgentRuntime => {
       capturedContext = context
-      return {
-        setModel: () => {},
-        setModelProvider: () => {},
-        setDebugConversationDump: () => {},
-        setPermissionMode: () => {},
-        setPlanModeActive: () => {},
-        runControlResponse: async () => {},
-        async runUserTurn() {
-          // Complete immediately — we only need to verify context
-        },
-      }
-    },
-  })
+	      return {
+	        setModel: () => {},
+	        setModelProvider: () => {},
+	        setDebugConversationDump: () => {},
+	        setPermissionMode: () => {},
+	        setPlanModeActive: () => {},
+          getMcpRuntimeStatus: () => ({ servers: [], totalTools: 0, totalResources: 0, totalPrompts: 0 }),
+	        runControlResponse: async () => {},
+	        async runUserTurn() {
+	          // Complete immediately — we only need to verify context
+	        },
+	      }
+	    },
+	  })
 
-  await service.review({
-    sessionId: 'session-ctx',
+	  await service.review({
+	    sessionId: 'session-ctx',
     workspacePath: 'C:/repo',
     model: 'test-model',
     request: {
@@ -225,23 +227,24 @@ test('default reviewer runner writes a hidden internal guardian rollout', async 
   process.env[CODEPILOTX_CONFIG_DIR_ENV] = configDir
   process.env[LEGACY_CLAUDE_CONFIG_DIR_ENV] = configDir
   try {
-    const service = createDesktopAutoReviewService({
-      createRuntime: (context: DesktopAgentRuntimeContext): DesktopAgentRuntime => ({
-        setModel: () => {},
-        setModelProvider: () => {},
-        setDebugConversationDump: () => {},
-        setPermissionMode: () => {},
-        setPlanModeActive: () => {},
-        runControlResponse: async () => {},
-        async runUserTurn() {
-          context.emit({
-            type: 'message',
-            sessionId: context.sessionId,
-            role: 'assistant',
-            text: '{"outcome":"allow","rationale":"safe"}',
-          })
-        },
-      }),
+	    const service = createDesktopAutoReviewService({
+	      createRuntime: (context: DesktopAgentRuntimeContext): DesktopAgentRuntime => ({
+	        setModel: () => {},
+	        setModelProvider: () => {},
+	        setDebugConversationDump: () => {},
+	        setPermissionMode: () => {},
+	        setPlanModeActive: () => {},
+          getMcpRuntimeStatus: () => ({ servers: [], totalTools: 0, totalResources: 0, totalPrompts: 0 }),
+	        runControlResponse: async () => {},
+	        async runUserTurn() {
+	          context.emit({
+	            type: 'message',
+	            sessionId: context.sessionId,
+	            role: 'assistant',
+	            text: '{"outcome":"allow","rationale":"safe"}',
+	          })
+	        },
+	      }),
     })
 
     const result = await service.review({

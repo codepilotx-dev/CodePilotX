@@ -70,12 +70,14 @@ export type DesktopWindowService = {
   exitApp(): void
 }
 
-export function createDesktopWindowService(options: {
-  iconPath: () => string | undefined
-  rendererUrl: () => string
-  preloadPath: () => string
-  emitDesktopEvent?: (channel: string, payload: unknown) => void
-}): DesktopWindowService {
+	export function createDesktopWindowService(options: {
+	  iconPath: () => string | undefined
+	  rendererUrl: () => string
+	  preloadPath: () => string
+	  emitDesktopEvent?: (channel: string, payload: unknown) => void
+	  appName?: string
+	  debugEnabled?: boolean
+	}): DesktopWindowService {
   const windows = createWindowRegistry<BrowserWindow>()
   let lastFocusedWindow: BrowserWindow | null = null
   let windowStateSaveTimer: ReturnType<typeof setTimeout> | null = null
@@ -84,13 +86,13 @@ export function createDesktopWindowService(options: {
   function createWindow(): void {
     const restoredWindowState = getRestoredWindowState()
     const icon = options.iconPath()
-    const window = new BrowserWindow({
-      ...restoredWindowState.bounds,
-      minWidth: MIN_WINDOW_WIDTH,
-      minHeight: MIN_WINDOW_HEIGHT,
-      frame: false,
-      title: 'CodePilotX Local Desktop',
-      ...(icon ? { icon } : {}),
+	    const window = new BrowserWindow({
+	      ...restoredWindowState.bounds,
+	      minWidth: MIN_WINDOW_WIDTH,
+	      minHeight: MIN_WINDOW_HEIGHT,
+	      frame: false,
+	      title: options.appName ?? 'CodePilotX Dev',
+	      ...(icon ? { icon } : {}),
       webPreferences: {
         preload: options.preloadPath(),
         contextIsolation: true,
@@ -112,11 +114,13 @@ export function createDesktopWindowService(options: {
         event.preventDefault()
       }
     })
-    window.webContents.on('before-input-event', (event, input) => {
-      if (!isDevToolsShortcut(input)) return
-      event.preventDefault()
-      openDevTools()
-    })
+	    window.webContents.on('before-input-event', (event, input) => {
+	      if (!isDevToolsShortcut(input)) return
+	      event.preventDefault()
+	      if (options.debugEnabled !== false) {
+	        openDevTools()
+	      }
+	    })
     window.on('focus', () => {
       lastFocusedWindow = window
     })
@@ -136,80 +140,87 @@ export function createDesktopWindowService(options: {
     options.emitDesktopEvent?.(DESKTOP_UI_COMMAND_CHANNEL, command)
   }
 
-  function createApplicationMenu(): void {
-    const template = [
-      {
-        label: 'File',
-        submenu: [
-          {
-            label: 'New Conversation',
-            accelerator: 'CmdOrCtrl+N',
-            click: () => sendUiCommand('newConversation'),
-          },
-          {
-            label: 'Choose Workspace',
-            accelerator: 'CmdOrCtrl+O',
-            click: () => sendUiCommand('chooseWorkspace'),
-          },
-          {
-            label: 'Refresh Workspace',
-            accelerator: 'CmdOrCtrl+R',
-            click: () => sendUiCommand('refreshWorkspace'),
-          },
-          { type: 'separator' as const },
-          { role: 'close' as const, label: 'Close Window' },
-        ],
-      },
-      {
-        label: 'Edit',
-        submenu: [
-          { role: 'undo' as const, label: 'Undo' },
-          { role: 'redo' as const, label: 'Redo' },
-          { type: 'separator' as const },
-          { role: 'cut' as const, label: 'Cut' },
-          { role: 'copy' as const, label: 'Copy' },
-          { role: 'paste' as const, label: 'Paste' },
-          { role: 'selectAll' as const, label: 'Select All' },
-        ],
-      },
-      {
-        label: 'View',
-        submenu: [
-          { role: 'reload' as const, label: 'Reload' },
-          { role: 'forceReload' as const, label: 'Force Reload' },
-          { role: 'resetZoom' as const, label: 'Actual Size' },
-          { role: 'zoomIn' as const, label: 'Zoom In' },
-          { role: 'zoomOut' as const, label: 'Zoom Out' },
-          { type: 'separator' as const },
-          { role: 'togglefullscreen' as const, label: 'Toggle Full Screen' },
-        ],
-      },
-      {
-        label: 'Window',
-        submenu: [
-          { role: 'minimize' as const, label: 'Minimize' },
-          { role: 'zoom' as const, label: 'Zoom' },
-          { role: 'front' as const, label: 'Bring All to Front' },
-          { type: 'separator' as const },
-          { label: '调试...', click: () => openDevTools() },
-        ],
-      },
-      {
-        label: 'Help',
-        submenu: [
-          {
-            label: 'CodePilotX Local Development',
-            click: () => {
-              void shell.openExternal(
-                'https://github.com/anthropics/claude-code',
-              )
-            },
-          },
-        ],
-      },
-    ]
-    Menu.setApplicationMenu(Menu.buildFromTemplate(template))
-  }
+	  function createApplicationMenu(): void {
+	    const appName = options.appName ?? 'CodePilotX Dev'
+	    const debugEnabled = options.debugEnabled !== false
+	    const windowSubmenu: Electron.MenuItemConstructorOptions[] = [
+	      { role: 'minimize' as const, label: 'Minimize' },
+	      { role: 'zoom' as const, label: 'Zoom' },
+	      { role: 'front' as const, label: 'Bring All to Front' },
+	    ]
+	    if (debugEnabled) {
+	      windowSubmenu.push(
+	        { type: 'separator' as const },
+	        { label: '调试...', click: () => openDevTools() },
+	      )
+	    }
+	    const template: Electron.MenuItemConstructorOptions[] = [
+	      {
+	        label: 'File',
+	        submenu: [
+	          {
+	            label: 'New Conversation',
+	            accelerator: 'CmdOrCtrl+N',
+	            click: () => sendUiCommand('newConversation'),
+	          },
+	          {
+	            label: 'Choose Workspace',
+	            accelerator: 'CmdOrCtrl+O',
+	            click: () => sendUiCommand('chooseWorkspace'),
+	          },
+	          {
+	            label: 'Refresh Workspace',
+	            accelerator: 'CmdOrCtrl+R',
+	            click: () => sendUiCommand('refreshWorkspace'),
+	          },
+	          { type: 'separator' as const },
+	          { role: 'close' as const, label: 'Close Window' },
+	        ],
+	      },
+	      {
+	        label: 'Edit',
+	        submenu: [
+	          { role: 'undo' as const, label: 'Undo' },
+	          { role: 'redo' as const, label: 'Redo' },
+	          { type: 'separator' as const },
+	          { role: 'cut' as const, label: 'Cut' },
+	          { role: 'copy' as const, label: 'Copy' },
+	          { role: 'paste' as const, label: 'Paste' },
+	          { role: 'selectAll' as const, label: 'Select All' },
+	        ],
+	      },
+	      {
+	        label: 'View',
+	        submenu: [
+	          { role: 'reload' as const, label: 'Reload' },
+	          { role: 'forceReload' as const, label: 'Force Reload' },
+	          { role: 'resetZoom' as const, label: 'Actual Size' },
+	          { role: 'zoomIn' as const, label: 'Zoom In' },
+	          { role: 'zoomOut' as const, label: 'Zoom Out' },
+	          { type: 'separator' as const },
+	          { role: 'togglefullscreen' as const, label: 'Toggle Full Screen' },
+	        ],
+	      },
+	      {
+	        label: 'Window',
+	        submenu: windowSubmenu,
+	      },
+	      {
+	        label: 'Help',
+	        submenu: [
+	          {
+	            label: appName,
+	            click: () => {
+	              void shell.openExternal(
+	                'https://github.com/anthropics/claude-code',
+	              )
+	            },
+	          },
+	        ],
+	      },
+	    ]
+	    Menu.setApplicationMenu(Menu.buildFromTemplate(template))
+	  }
 
   function minimizeWindow(): void {
     getTargetWindow()?.minimize()
@@ -238,13 +249,15 @@ export function createDesktopWindowService(options: {
     createWindow()
   }
 
-  function openDevTools(): void {
-    getTargetWindow()?.webContents.openDevTools()
-  }
+	  function openDevTools(): void {
+	    if (options.debugEnabled === false) return
+	    getTargetWindow()?.webContents.openDevTools()
+	  }
 
-  function closeDevTools(): void {
-    getTargetWindow()?.webContents.closeDevTools()
-  }
+	  function closeDevTools(): void {
+	    if (options.debugEnabled === false) return
+	    getTargetWindow()?.webContents.closeDevTools()
+	  }
 
   function openSettings(): void {
     sendUiCommand('openSettings')

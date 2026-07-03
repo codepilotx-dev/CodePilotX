@@ -491,12 +491,13 @@ test('auto-review sub-runtime execution does not deadlock parent turn on serial 
       approvalsReviewer: 'auto_review',
     },
     {
-      createRuntime: context => ({
+	    createRuntime: context => ({
         setModel: () => {},
         setModelProvider: () => {},
         setDebugConversationDump: () => {},
         setPermissionMode: () => {},
         setPlanModeActive: () => {},
+        getMcpRuntimeStatus: () => ({ servers: [], totalTools: 0, totalResources: 0, totalPrompts: 0 }),
         runControlResponse: async () => {},
         async runUserTurn(_content, signal) {
           const decision = await context.requestPermission({
@@ -683,9 +684,10 @@ function createRecoveredQuestionRuntime(
     setModelProvider: () => {},
     setDebugConversationDump: () => {},
     setPermissionMode: () => {},
-    setPlanModeActive: () => {},
-    runUserTurn: async () => {},
-    runControlResponse: async response => {
+	    setPlanModeActive: () => {},
+      getMcpRuntimeStatus: () => ({ servers: [], totalTools: 0, totalResources: 0, totalPrompts: 0 }),
+	    runUserTurn: async () => {},
+	    runControlResponse: async response => {
       controlResponses.push(response)
     },
   }
@@ -707,23 +709,25 @@ function createRecoveredPlanRuntime(
     },
     setDebugConversationDump: () => {},
     setPermissionMode: () => {},
-    setPlanModeActive: () => {},
-    runControlResponse: async () => {},
-    runUserTurn: async content => {
-      userTurns.push(content)
-    },
-  }
-}
+	    setPlanModeActive: () => {},
+      getMcpRuntimeStatus: () => ({ servers: [], totalTools: 0, totalResources: 0, totalPrompts: 0 }),
+	    runControlResponse: async () => {},
+	    runUserTurn: async content => {
+	      userTurns.push(content)
+	    },
+	  }
+	}
 
-function createAbortAwareRuntime(): DesktopAgentRuntime {
-  return {
-    setModel: () => {},
-    setModelProvider: () => {},
-    setDebugConversationDump: () => {},
-    setPermissionMode: () => {},
-    setPlanModeActive: () => {},
-    runControlResponse: async () => {},
-    async runUserTurn(_content, signal) {
+	function createAbortAwareRuntime(): DesktopAgentRuntime {
+	  return {
+	    setModel: () => {},
+	    setModelProvider: () => {},
+	    setDebugConversationDump: () => {},
+	    setPermissionMode: () => {},
+	    setPlanModeActive: () => {},
+      getMcpRuntimeStatus: () => ({ servers: [], totalTools: 0, totalResources: 0, totalPrompts: 0 }),
+	    runControlResponse: async () => {},
+	    async runUserTurn(_content, signal) {
       if (signal.aborted) return
       await new Promise<void>(resolve => {
         signal.addEventListener('abort', () => resolve(), { once: true })
@@ -741,64 +745,67 @@ function createDoubleQuestionRuntime(
     setModelProvider: () => {},
     setDebugConversationDump: () => {},
     setPermissionMode: () => {},
-    setPlanModeActive: () => {},
-    runControlResponse: async () => {},
-    async runUserTurn() {
-      const firstDecision = context.requestPermission({
-        requestId: 'question-1',
-        toolName: 'AskUserQuestion',
-        input: questionInput('First?'),
-        description: 'Answer first question',
-      })
-      await Promise.resolve()
-      decisions.push(
-        await context.requestPermission({
-          requestId: 'question-2',
-          toolName: 'AskUserQuestion',
-          input: questionInput('Second?'),
-          description: 'Answer second question',
-        }),
-      )
-      decisions.push(await firstDecision)
-    },
-  }
-}
+	    setPlanModeActive: () => {},
+      getMcpRuntimeStatus: () => ({ servers: [], totalTools: 0, totalResources: 0, totalPrompts: 0 }),
+	    runControlResponse: async () => {},
+	    async runUserTurn() {
+	      const firstDecision = context.requestPermission({
+	        requestId: 'question-1',
+	        toolName: 'AskUserQuestion',
+	        input: questionInput('First?'),
+	        description: 'Answer first question',
+	      })
+	      await Promise.resolve()
+	      decisions.push(
+	        await context.requestPermission({
+	          requestId: 'question-2',
+	          toolName: 'AskUserQuestion',
+	          input: questionInput('Second?'),
+	          description: 'Answer second question',
+	        }),
+	      )
+	      decisions.push(await firstDecision)
+	    },
+	  }
+	}
 
-function createPermissionRuntime(
-  context: DesktopAgentRuntimeContext,
-  decisions: unknown[],
-): DesktopAgentRuntime {
-  return {
-    setModel: () => {},
-    setModelProvider: () => {},
-    setDebugConversationDump: () => {},
-    setPermissionMode: () => {},
-    setPlanModeActive: () => {},
-    runControlResponse: async () => {},
-    async runUserTurn() {
-      const decision = await context.requestPermission({
-        requestId: 'permission-1',
-        toolName: 'PowerShell',
-        input: { command: 'echo ok' },
-        description: 'Run shell',
-      })
-      decisions.push(decision)
-    },
-  }
-}
+	function createPermissionRuntime(
+	  context: DesktopAgentRuntimeContext,
+	  decisions: unknown[],
+	): DesktopAgentRuntime {
+	  return {
+	    setModel: () => {},
+	    setModelProvider: () => {},
+	    setDebugConversationDump: () => {},
+	    setPermissionMode: () => {},
+	    setPlanModeActive: () => {},
+      getMcpRuntimeStatus: () => ({ servers: [], totalTools: 0, totalResources: 0, totalPrompts: 0 }),
+	    runControlResponse: async () => {},
+	    async runUserTurn() {
+	      const decision = await context.requestPermission({
+	        requestId: 'permission-1',
+	        toolName: 'PowerShell',
+	        input: { command: 'echo ok' },
+	        description: 'Run shell',
+	      })
+	      decisions.push(decision)
+	    },
+	  }
+	}
 
-function createLatePermissionAfterAbortRuntime(
-  context: DesktopAgentRuntimeContext,
-  decisions: unknown[],
-): DesktopAgentRuntime {
-  return {
-    setModel: () => {},
-    setModelProvider: () => {},
-    setDebugConversationDump: () => {},
-    setPermissionMode: () => {},
-    setPlanModeActive: () => {},
-    runControlResponse: async () => {},
-    async runUserTurn(_content, signal) {
+	function createLatePermissionAfterAbortRuntime(
+	  context: DesktopAgentRuntimeContext,
+	  decisions: unknown[],
+	): DesktopAgentRuntime {
+	  return {
+	    setModel: () => {},
+	    setModelProvider: () => {},
+	    setDebugConversationDump: () => {},
+	    setPermissionMode: () => {},
+	    setPlanModeActive: () => {},
+      getMcpRuntimeStatus: () => ({ servers: [], totalTools: 0, totalResources: 0, totalPrompts: 0 }),
+	    runControlResponse: async () => {},
+	    async runUserTurn(_content, signal) {
       await new Promise<void>(resolve => {
         signal.addEventListener('abort', () => resolve(), { once: true })
       })
