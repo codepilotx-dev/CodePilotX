@@ -1,6 +1,7 @@
 import { realpath } from 'fs/promises'
 import ignore from 'ignore'
 import memoize from 'lodash-es/memoize.js'
+import os from 'node:os'
 import {
   basename,
   dirname,
@@ -402,7 +403,8 @@ export function createSkillCommand({
 
 /**
  * Loads skills from a /skills/ directory path.
- * Only supports directory format: skill-name/SKILL.md
+ * Supports directory format: skill-name/SKILL.md
+ * Also loads from .system/<skill-name>/SKILL.md (system-provided skills).
  */
 async function loadSkillsFromSkillsDir(
   basePath: string,
@@ -421,10 +423,14 @@ async function loadSkillsFromSkillsDir(
   const results = await Promise.all(
     entries.map(async (entry): Promise<SkillWithPath | null> => {
       try {
-        // Only support directory format: skill-name/SKILL.md
         if (!entry.isDirectory() && !entry.isSymbolicLink()) {
-          // Single .md files are NOT supported in /skills/ directory
           return null
+        }
+
+        // .system subdirectory: load skills from .system/<skill>/SKILL.md
+        if (entry.name === '.system') {
+          const systemDirPath = join(basePath, '.system')
+          return loadSystemSkillsFromDir(systemDirPath, source, fs)
         }
 
         const skillDirPath = join(basePath, entry.name)
@@ -434,8 +440,6 @@ async function loadSkillsFromSkillsDir(
         try {
           content = await fs.readFile(skillFilePath, { encoding: 'utf-8' })
         } catch (e: unknown) {
-          // SKILL.md doesn't exist, skip this entry. Log non-ENOENT errors
-          // (EACCES/EPERM/EIO) so permission/IO problems are diagnosable.
           if (!isENOENT(e)) {
             logForDebugging(`[skills] failed to read ${skillFilePath}: ${e}`, {
               level: 'warn',
@@ -464,7 +468,90 @@ async function loadSkillsFromSkillsDir(
             markdownContent,
             source,
             baseDir: skillDirPath,
-            loadedFrom: 'skills',
+            loadedFrom: source === 'policySettings' ? 'managed' : 'skills',
+            paths,
+          }),
+          filePath: skillFilePath,
+        }
+      } catch (error) {
+        logError(error)
+        return null
+      }
+    }),
+  )
+
+  const flatResults: SkillWithPath[] = []
+  for (const r of results) {
+    if (r !== null) {
+      if (Array.isArray(r)) {
+        flatResults.push(...r)
+      } else {
+        flatResults.push(r)
+      }
+    }
+  }
+  return flatResults
+}
+
+/**
+ * Loads skills from a .system/<skill>/SKILL.md layout.
+ * These are system-provided skills that live in a .system subdirectory.
+ */
+async function loadSystemSkillsFromDir(
+  systemDirPath: string,
+  source: SettingSource,
+  fs: ReturnType<typeof getFsImplementation>,
+): Promise<SkillWithPath[] | null> {
+  let systemEntries
+  try {
+    systemEntries = await fs.readdir(systemDirPath)
+  } catch {
+    return null
+  }
+
+  const results = await Promise.all(
+    systemEntries.map(async (entry): Promise<SkillWithPath | null> => {
+      try {
+        if (!entry.isDirectory() && !entry.isSymbolicLink()) {
+          return null
+        }
+
+        const skillDirPath = join(systemDirPath, entry.name)
+        const skillFilePath = join(skillDirPath, 'SKILL.md')
+
+        let content: string
+        try {
+          content = await fs.readFile(skillFilePath, { encoding: 'utf-8' })
+        } catch (e: unknown) {
+          if (!isENOENT(e)) {
+            logForDebugging(`[skills] failed to read ${skillFilePath}: ${e}`, {
+              level: 'warn',
+            })
+          }
+          return null
+        }
+
+        const { frontmatter, content: markdownContent } = parseFrontmatter(
+          content,
+          skillFilePath,
+        )
+
+        const skillName = entry.name
+        const parsed = parseSkillFrontmatterFields(
+          frontmatter,
+          markdownContent,
+          skillName,
+        )
+        const paths = parseSkillPaths(frontmatter)
+
+        return {
+          skill: createSkillCommand({
+            ...parsed,
+            skillName,
+            markdownContent,
+            source,
+            baseDir: skillDirPath,
+            loadedFrom: 'managed',
             paths,
           }),
           filePath: skillFilePath,
@@ -674,13 +761,20 @@ export const getSkillDirCommands = memoize(
       return additionalSkillsNested.flat().map(s => s.skill)
     }
 
-    // Load from /skills/ directories, additional dirs, and legacy /commands/ in parallel
+    // Additional common skill roots: ~/.codex/skills and ~/.agents/skills
+    // These are shared skill directories used by the desktop app and other tools.
+    const extraSkillRoots = [
+      join(os.homedir(), '.codex', 'skills'),
+      join(os.homedir(), '.agents', 'skills'),
+    ].filter(dir => dir !== userSkillsDir)
+
     // (all independent — different directories, no shared state)
     const [
       managedSkills,
       userSkills,
       projectSkillsNested,
       additionalSkillsNested,
+      extraRootSkills,
       legacyCommands,
     ] = await Promise.all([
       isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_POLICY_SKILLS)
@@ -706,6 +800,13 @@ export const getSkillDirCommands = memoize(
             ),
           )
         : Promise.resolve([]),
+      !skillsLocked
+        ? Promise.all(
+            extraSkillRoots.map(dir =>
+              loadSkillsFromSkillsDir(dir, 'userSettings'),
+            ),
+          )
+        : Promise.resolve([]),
       // Legacy commands-as-skills goes through markdownConfigLoader with
       // subdir='commands', which our agents-only guard there skips. Block
       // here when skills are locked — these ARE skills, regardless of the
@@ -719,6 +820,7 @@ export const getSkillDirCommands = memoize(
       ...userSkills,
       ...projectSkillsNested.flat(),
       ...additionalSkillsNested.flat(),
+      ...extraRootSkills.flat(),
       ...legacyCommands,
     ]
 

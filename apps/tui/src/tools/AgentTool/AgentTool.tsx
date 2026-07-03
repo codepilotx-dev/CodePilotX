@@ -69,7 +69,10 @@ import {
   getDenyRuleForAgent,
 } from '../../utils/permissions/permissions.js'
 import { enqueueSdkEvent } from '../../utils/sdkEventQueue.js'
-import { writeAgentMetadata } from '../../utils/sessionStorage.js'
+import {
+  getAgentTranscriptPath,
+  writeAgentMetadata,
+} from '../../utils/sessionStorage.js'
 import { sleep } from '../../utils/sleep.js'
 import { buildEffectiveSystemPrompt } from '../../utils/systemPrompt.js'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
@@ -91,6 +94,7 @@ import { spawnTeammate } from '../shared/spawnMultiAgent.js'
 import { setAgentColor } from './agentColorManager.js'
 import {
   agentToolResultSchema,
+  boundedFinalMessage,
   classifyHandoffIfNeeded,
   emitTaskProgress,
   extractPartialResult,
@@ -1771,15 +1775,27 @@ The agent is now running and will receive instructions via mailbox.`,
       // agentId/usage trailer below — a metadata-only block at the prompt tail.
       // Some models read that as "nothing to act on" and end their turn
       // immediately. Say so explicitly so the parent has something to react to.
-      const contentOrMarker =
+      let contentOrMarker: Array<{ type: 'text'; text: string }> =
         data.content.length > 0
-          ? data.content
+          ? [...data.content]
           : [
               {
                 type: 'text' as const,
                 text: '(Subagent completed but returned no output.)',
               },
             ]
+
+      // Bound the sync content before it enters the main context.
+      // Combine all text blocks, apply the character limit, and replace with
+      // a single bounded block. This prevents subagent final reports from
+      // consuming excessive parent-context tokens while preserving discoverability.
+      if (contentOrMarker.length > 0) {
+        const combined = contentOrMarker.map(b => b.text).join('\n')
+        const bounded = boundedFinalMessage(combined, data.transcriptPath)
+        if (bounded !== combined) {
+          contentOrMarker = [{ type: 'text' as const, text: bounded }]
+        }
+      }
       // One-shot built-ins (Explore, Plan) are never continued via SendMessage
       // — the agentId hint and <usage> block are dead weight (~135 chars ×
       // 34M Explore runs/week ≈ 1-2 Gtok/week). Telemetry doesn't parse this
@@ -1796,6 +1812,9 @@ The agent is now running and will receive instructions via mailbox.`,
           content: contentOrMarker,
         }
       }
+      const transcriptInfoText = data.transcriptPath
+        ? `\ntranscript_path: ${data.transcriptPath}`
+        : ''
       return {
         tool_use_id: toolUseID,
         type: 'tool_result',
@@ -1803,7 +1822,7 @@ The agent is now running and will receive instructions via mailbox.`,
           ...contentOrMarker,
           {
             type: 'text',
-            text: `agentId: ${data.agentId} (use SendMessage with to: '${data.agentId}' to continue this agent)${worktreeInfoText}
+            text: `agentId: ${data.agentId} (use SendMessage with to: '${data.agentId}' to continue this agent)${worktreeInfoText}${transcriptInfoText}
 <usage>total_tokens: ${data.totalTokens}
 tool_uses: ${data.totalToolUseCount}
 duration_ms: ${data.totalDurationMs}</usage>`,

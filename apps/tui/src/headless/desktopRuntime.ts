@@ -41,6 +41,20 @@ import {
 import { resetRipgrepConfigCache } from '../utils/ripgrep.js'
 import { saveSelectedProvider } from '../utils/model/providerConfig.js'
 import { runWithConversationDebugDump } from '../utils/conversationDebugDump.js'
+import type {
+  MCPServerConnection,
+  ConnectedMCPServer,
+  ScopedMcpServerConfig,
+} from '../services/mcp/types.js'
+import { getAllMcpConfigs } from '../services/mcp/config.js'
+import {
+  connectToServer,
+  fetchToolsForClient,
+  fetchCommandsForClient,
+  fetchResourcesForClient,
+  clearServerCache,
+} from '../services/mcp/client.js'
+import { getMcpPrefix } from '../services/mcp/mcpStringUtils.js'
 
 export type DesktopHeadlessThinkingMode =
   | 'default'
@@ -78,6 +92,8 @@ export type DesktopHeadlessRuntimeOptions = {
   additionalDirectories?: string[]
   installCodexDependencies?: boolean
   enableMemory?: boolean
+  /** If true, load and connect to MCP servers from config on each turn */
+  mcpEnabled?: boolean
   askUserQuestionMaxQuestions?: number
   permissionPromptToolName?: string
   onOutput(
@@ -91,6 +107,22 @@ export type DesktopHeadlessCodexPermissionConfig = {
   sandboxMode?: 'read-only' | 'workspace-write' | 'danger-full-access'
   approvalPolicy?: 'untrusted' | 'on-request' | 'on-failure' | 'never'
   approvalsReviewer?: 'user' | 'auto_review'
+}
+
+export type DesktopHeadlessRuntimeMcpStatus = {
+  servers: Array<{
+    name: string
+    scope: string
+    type: string
+    status: 'connected' | 'failed' | 'pending' | 'disabled' | 'unsupported'
+    error?: string
+    toolCount: number
+    resourceCount: number
+    promptCount: number
+  }>
+  totalTools: number
+  totalResources: number
+  totalPrompts: number
 }
 
 export type DesktopHeadlessRuntime = {
@@ -110,6 +142,7 @@ export type DesktopHeadlessRuntime = {
     response: Record<string, unknown>,
     signal: AbortSignal,
   ): Promise<void>
+  getMcpRuntimeStatus(): DesktopHeadlessRuntimeMcpStatus
 }
 
 const DESKTOP_ENABLED_THINKING_BUDGET = 1_000_000_000
@@ -171,6 +204,11 @@ class EmbeddedDesktopHeadlessRuntime implements DesktopHeadlessRuntime {
   private hasStartedHeadlessSession = false
   private currentInput: DesktopHeadlessInput | null = null
   private readonly store: Store<ReturnType<typeof getInitialDesktopAppState>>
+  private mcpConfigs: ScopedMcpServerConfig[] = []
+  private mcpConnections: MCPServerConnection[] = []
+  private mcpTools: Tools = []
+  private mcpCommands: ReturnType<typeof getDefaultAppState>['mcp']['commands'] = []
+  private mcpResources: ReturnType<typeof getDefaultAppState>['mcp']['resources'] = {}
 
   constructor(private readonly options: DesktopHeadlessRuntimeOptions) {
     this.store = createStore(getInitialDesktopAppState(options))
@@ -265,6 +303,12 @@ class EmbeddedDesktopHeadlessRuntime implements DesktopHeadlessRuntime {
       const previousState = captureDesktopRuntimeGlobalState()
       this.prepareDesktopRuntimeEnv()
       this.prepareGlobalSessionState()
+
+      // Sync MCP servers before each turn if enabled
+      if (this.options.mcpEnabled) {
+        await this.syncMcpServers()
+      }
+
       try {
         const commands = await getCommands(this.options.workspacePath)
         logDesktopHeadless('run_headless_start', {
@@ -377,6 +421,12 @@ class EmbeddedDesktopHeadlessRuntime implements DesktopHeadlessRuntime {
       const previousSession = captureDesktopRuntimeGlobalState()
       this.prepareDesktopRuntimeEnv()
       this.prepareGlobalSessionState()
+
+      // Sync MCP servers before each turn if enabled
+      if (this.options.mcpEnabled) {
+        await this.syncMcpServers()
+      }
+
       try {
         const commands = await getCommands(this.options.workspacePath)
         await runHeadless(
@@ -434,7 +484,186 @@ class EmbeddedDesktopHeadlessRuntime implements DesktopHeadlessRuntime {
   }
 
   private get tools() {
-    return getDesktopHeadlessTools(this.store.getState().toolPermissionContext)
+    const baseTools = getDesktopHeadlessTools(
+      this.store.getState().toolPermissionContext,
+    )
+    // Merge MCP tools (desktop-managed connections). Deduplicate by name:
+    // built-in tools take priority over MCP tools with the same name.
+    if (this.mcpTools.length === 0) return baseTools
+    const toolMap = new Map<string, Tool>()
+    for (const t of this.mcpTools) toolMap.set(t.name, t)
+    for (const t of baseTools) toolMap.set(t.name, t) // base wins
+    return [...toolMap.values()]
+  }
+
+  /**
+   * Sync MCP server connections: load configs, connect/disconnect servers,
+   * fetch tools/resources/commands, and update appState.mcp.
+   */
+  private async syncMcpServers(): Promise<void> {
+    try {
+      const { servers: newConfigs } = await getAllMcpConfigs()
+      const currentNames = new Set(this.mcpConfigs.map(c => c.name))
+      const newNames = new Set(newConfigs.map(c => c.name))
+
+      const toRemove = this.mcpConfigs.filter(c => !newNames.has(c.name))
+      const toAdd = newConfigs.filter(c => !currentNames.has(c.name))
+
+      // Clean up removed servers
+      for (const removed of toRemove) {
+        const conn = this.mcpConnections.find(c => c.name === removed.name)
+        if (conn?.type === 'connected') {
+          try {
+            await conn.cleanup()
+          } catch {
+            // Ignore cleanup errors
+          }
+        }
+        try {
+          await clearServerCache(removed.name, removed)
+        } catch {
+          // Ignore
+        }
+      }
+
+      // Keep connections for servers that still exist
+      const keptConnections = this.mcpConnections.filter(
+        c => currentNames.has(c.name) && newNames.has(c.name),
+      )
+
+      // Connect to new servers and fetch tools
+      const newConnections: MCPServerConnection[] = []
+      const newTools: Tools = []
+
+      for (const config of toAdd) {
+        try {
+          const client = await connectToServer(config.name, config)
+          newConnections.push(client)
+
+          if (client.type === 'connected') {
+            const tools = await fetchToolsForClient(client)
+            newTools.push(...tools)
+          }
+        } catch {
+          newConnections.push({
+            type: 'failed',
+            name: config.name,
+            config,
+            error: 'Connection failed',
+          })
+        }
+      }
+
+      // Update state
+      this.mcpConfigs = newConfigs
+      this.mcpConnections = [...keptConnections, ...newConnections]
+
+      // Rebuild tools: keep tools from kept connections, add new ones
+      const keptNames = new Set(
+        keptConnections.map(c => {
+          const prefix = `mcp__${c.name}__`
+          return c.name
+        }),
+      )
+      this.mcpTools = this.mcpTools.filter(t => {
+        for (const name of keptNames) {
+          if (t.name.startsWith(`mcp__${name}__`)) return true
+        }
+        return false
+      })
+      this.mcpTools.push(...newTools)
+
+      // Fetch commands (prompts) and resources from connected servers
+      this.mcpCommands = []
+      this.mcpResources = {}
+
+      for (const conn of this.mcpConnections) {
+        if (conn.type === 'connected') {
+          try {
+            const commands = await fetchCommandsForClient(conn)
+            this.mcpCommands.push(...commands)
+          } catch {
+            // Ignore
+          }
+          try {
+            const resources = await fetchResourcesForClient(conn)
+            const prefix = getMcpPrefix(conn.name)
+            this.mcpResources[prefix] = resources
+          } catch {
+            // Ignore
+          }
+        }
+      }
+
+      // Write MCP state to appState so tools like ListMcpResourcesTool can see it
+      this.store.setState(prev => ({
+        ...prev,
+        mcp: {
+          clients: this.mcpConnections,
+          tools: this.mcpTools,
+          commands: this.mcpCommands,
+          resources: this.mcpResources,
+          pluginReconnectKey: prev.mcp.pluginReconnectKey,
+        },
+      }))
+
+      logDesktopHeadless('mcp_sync_done', {
+        sessionId: this.options.sessionId,
+        configs: newConfigs.length,
+        connected: this.mcpConnections.filter(c => c.type === 'connected').length,
+        tools: this.mcpTools.length,
+      })
+    } catch (err) {
+      logDesktopHeadless('mcp_sync_error', {
+        sessionId: this.options.sessionId,
+        error: err instanceof Error ? err.message : String(err),
+      })
+    }
+  }
+
+  /**
+   * Get MCP runtime status for display in the settings UI.
+   */
+  getMcpRuntimeStatus(): DesktopHeadlessRuntimeMcpStatus {
+    return {
+      servers: this.mcpConnections.map(conn => {
+        const config = this.mcpConfigs.find(c => c.name === conn.name)
+        const toolCount =
+          conn.type === 'connected'
+            ? this.mcpTools.filter(t =>
+                t.name.startsWith(`mcp__${conn.name}__`),
+              ).length
+            : 0
+        return {
+          name: conn.name,
+          scope: config?.scope ?? 'user',
+          type: config?.type ?? 'stdio',
+          status:
+            conn.type === 'connected'
+              ? 'connected'
+              : conn.type === 'failed'
+                ? 'failed'
+                : conn.type === 'pending'
+                  ? 'pending'
+                  : 'disabled',
+          error: conn.type === 'failed' ? conn.error : undefined,
+          toolCount,
+          resourceCount: conn.type === 'connected' ? (this.mcpResources[getMcpPrefix(conn.name)]?.length ?? 0) : 0,
+          promptCount: conn.type === 'connected'
+            ? this.mcpCommands.filter(
+                c =>
+                  (c as { source?: string }).source === conn.name,
+              ).length
+            : 0,
+        }
+      }),
+      totalTools: this.mcpTools.length,
+      totalResources: Object.values(this.mcpResources).reduce(
+        (sum, res) => sum + res.length,
+        0,
+      ),
+      totalPrompts: this.mcpCommands.length,
+    }
   }
 
   private prepareGlobalSessionState(): void {

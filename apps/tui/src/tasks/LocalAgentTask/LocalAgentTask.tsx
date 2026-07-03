@@ -6,6 +6,7 @@ import {
   TASK_ID_TAG,
   TASK_NOTIFICATION_TAG,
   TOOL_USE_ID_TAG,
+  TRANSCRIPT_PATH_TAG,
   WORKTREE_BRANCH_TAG,
   WORKTREE_PATH_TAG,
   WORKTREE_TAG,
@@ -274,6 +275,7 @@ export function enqueueAgentNotification({
   finalMessage,
   usage,
   toolUseId,
+  transcriptPath,
   worktreePath,
   worktreeBranch,
 }: {
@@ -289,6 +291,8 @@ export function enqueueAgentNotification({
     durationMs: number
   }
   toolUseId?: string
+  /** Path to the subagent's sidechain transcript on disk. */
+  transcriptPath?: string
   worktreePath?: string
   worktreeBranch?: string
 }): void {
@@ -327,6 +331,9 @@ export function enqueueAgentNotification({
   const toolUseIdLine = toolUseId
     ? `\n<${TOOL_USE_ID_TAG}>${toolUseId}</${TOOL_USE_ID_TAG}>`
     : ''
+  const transcriptPathLine = transcriptPath
+    ? `\n<${TRANSCRIPT_PATH_TAG}>${transcriptPath}</${TRANSCRIPT_PATH_TAG}>`
+    : ''
   const resultSection = finalMessage ? `\n<result>${finalMessage}</result>` : ''
   const usageSection = usage
     ? `\n<usage><total_tokens>${usage.totalTokens}</total_tokens><tool_uses>${usage.toolUses}</tool_uses><duration_ms>${usage.durationMs}</duration_ms></usage>`
@@ -337,7 +344,7 @@ export function enqueueAgentNotification({
 
   const message = `<${TASK_NOTIFICATION_TAG}>
 <${TASK_ID_TAG}>${taskId}</${TASK_ID_TAG}>${toolUseIdLine}
-<${OUTPUT_FILE_TAG}>${outputPath}</${OUTPUT_FILE_TAG}>
+<${OUTPUT_FILE_TAG}>${outputPath}</${OUTPUT_FILE_TAG}>${transcriptPathLine}
 <${STATUS_TAG}>${status}</${STATUS_TAG}>
 <${SUMMARY_TAG}>${summary}</${SUMMARY_TAG}>${resultSection}${usageSection}${worktreeSection}
 </${TASK_NOTIFICATION_TAG}>`

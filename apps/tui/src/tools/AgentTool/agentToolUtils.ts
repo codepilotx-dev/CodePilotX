@@ -56,6 +56,8 @@ import {
 import { emitTaskProgress as emitTaskProgressEvent } from '../../utils/task/sdkProgress.js'
 import { isInProcessTeammate } from '../../utils/teammateContext.js'
 import { getTokenCountFromUsage } from '../../utils/tokens.js'
+import { getTaskOutputPath } from '../../utils/task/diskOutput.js'
+import { getAgentTranscriptPath } from '../../utils/sessionStorage.js'
 import { EXIT_PLAN_MODE_V2_TOOL_NAME } from '../ExitPlanModeTool/constants.js'
 import { AGENT_TOOL_NAME, LEGACY_AGENT_TOOL_NAME } from './constants.js'
 import type { AgentDefinition } from './loadAgentsDir.js'
@@ -247,14 +249,20 @@ export const agentToolResultSchema = lazySchema(() =>
         })
         .nullable(),
       service_tier: z.enum(['standard', 'priority', 'batch']).nullable(),
-      cache_creation: z
-        .object({
-          ephemeral_1h_input_tokens: z.number(),
-          ephemeral_5m_input_tokens: z.number(),
-        })
-        .nullable(),
-    }),
-  }),
+	      cache_creation: z
+	        .object({
+	          ephemeral_1h_input_tokens: z.number(),
+	          ephemeral_5m_input_tokens: z.number(),
+	        })
+	        .nullable(),
+	    }),
+	    // Path to the subagent's full sidechain transcript on disk.
+	    // Allows the parent agent to review the complete subagent conversation
+	    // without loading it into the main context.
+	    transcriptPath: z.string().optional(),
+	    // Path to the subagent's task output file on disk.
+	    outputFile: z.string().optional(),
+	  }),
 )
 
 export type AgentToolResult = z.input<ReturnType<typeof agentToolResultSchema>>
@@ -345,6 +353,12 @@ export function finalizeAgentTool(
     })
   }
 
+  // Resolve paths to the subagent's full artifacts on disk so the parent
+  // agent can reference them without consuming main-context tokens.
+  const agentIdTyped = asAgentId(agentId)
+  const transcriptPath = getAgentTranscriptPath(agentIdTyped)
+  const outputFile = getTaskOutputPath(agentId)
+
   return {
     agentId,
     agentType,
@@ -353,6 +367,8 @@ export function finalizeAgentTool(
     totalTokens,
     totalToolUseCount,
     usage: lastAssistantMessage.message.usage,
+    transcriptPath,
+    outputFile,
   }
 }
 
@@ -499,6 +515,40 @@ export function extractPartialResult(
   return undefined
 }
 
+/**
+ * Maximum character length for a subagent's final message entering the main
+ * agent context. Messages over this limit are truncated with a path hint so
+ * the parent agent can read the full content from disk without consuming
+ * excessive context-window tokens.
+ */
+export const MAX_FINAL_MESSAGE_CHARS = 20_000
+
+/**
+ * Bounds a subagent's final message before it enters the main agent context.
+ *
+ * If the message exceeds `MAX_FINAL_MESSAGE_CHARS`, it is truncated at the
+ * limit and a note is appended referencing the full-content path on disk.
+ * This avoids injecting large subagent outputs into the parent context while
+ * preserving discoverability of the complete result.
+ *
+ * @param finalMessage - The extracted final message text (may be undefined).
+ * @param pathHint - Optional path to the full content (outputFile or transcriptPath).
+ * @returns The bounded message, or undefined if the input was undefined.
+ */
+export function boundedFinalMessage(
+  finalMessage: string | undefined,
+  pathHint?: string,
+): string | undefined {
+  if (!finalMessage) return finalMessage
+  if (finalMessage.length <= MAX_FINAL_MESSAGE_CHARS) return finalMessage
+
+  const truncated = finalMessage.slice(0, MAX_FINAL_MESSAGE_CHARS)
+  const pathNote = pathHint
+    ? `\n[Content truncated. Full content available at: ${pathHint}]`
+    : `\n[Content truncated. Total length: ${finalMessage.length} characters.]`
+  return truncated + pathNote
+}
+
 type SetAppState = (f: (prev: AppState) => AppState) => void
 
 /**
@@ -619,6 +669,12 @@ export async function runAsyncAgentLifecycle({
       }
     }
 
+    // Bound the final message before it enters the main context so the parent
+    // agent receives a digest rather than the full subagent output. The full
+    // content is available on disk via transcriptPath/outputFile.
+    const pathHint = agentResult.outputFile ?? agentResult.transcriptPath
+    finalMessage = boundedFinalMessage(finalMessage, pathHint) ?? finalMessage
+
     const worktreeResult = await getWorktreeResult()
 
     enqueueAgentNotification({
@@ -633,6 +689,7 @@ export async function runAsyncAgentLifecycle({
         durationMs: agentResult.totalDurationMs,
       },
       toolUseId: toolUseContext.toolUseId,
+      transcriptPath: agentResult.transcriptPath,
       ...worktreeResult,
     })
   } catch (error) {
@@ -656,13 +713,15 @@ export async function runAsyncAgentLifecycle({
       })
       const worktreeResult = await getWorktreeResult()
       const partialResult = extractPartialResult(agentMessages)
+      const killedOutputPath = getTaskOutputPath(taskId)
       enqueueAgentNotification({
         taskId,
         description,
         status: 'killed',
         setAppState: rootSetAppState,
         toolUseId: toolUseContext.toolUseId,
-        finalMessage: partialResult,
+        finalMessage: boundedFinalMessage(partialResult, killedOutputPath),
+        transcriptPath: getAgentTranscriptPath(asAgentId(taskId)),
         ...worktreeResult,
       })
       return
@@ -677,6 +736,7 @@ export async function runAsyncAgentLifecycle({
       error: msg,
       setAppState: rootSetAppState,
       toolUseId: toolUseContext.toolUseId,
+      transcriptPath: getAgentTranscriptPath(asAgentId(taskId)),
       ...worktreeResult,
     })
   } finally {
