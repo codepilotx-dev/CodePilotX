@@ -25,6 +25,7 @@ import {
   type SessionViewStateSetters,
   type UpdateSessionView,
 } from './sessionViewState.js'
+import { sortSessionsByRecency } from './sessionSorting.js'
 
 export type SessionSettingsSnapshot = {
   permissionMode: DesktopPermissionMode
@@ -46,6 +47,7 @@ export type SessionSettingsSnapshot = {
   appendSystemPrompt: string
   additionalDirectories: string
   installCodexDependencies: boolean
+  enableMemory: boolean
   rustSearchAndDiffKernels: boolean
 }
 
@@ -109,6 +111,7 @@ export async function createSessionForWorkspaceAction(
         settings.additionalDirectories,
       ),
       installCodexDependencies: settings.installCodexDependencies,
+      enableMemory: settings.enableMemory,
       rustSearchAndDiffKernels: settings.rustSearchAndDiffKernels,
     })
     const workspace = session.workspace
@@ -126,8 +129,9 @@ export async function createSessionForWorkspaceAction(
     context.setSessionStatus('idle')
     applySessionView(nextView, context.viewSetters)
     const now = new Date()
-    context.setSessions(current => [
-      {
+    context.setSessions(current =>
+      sortSessionsByRecency([
+        {
         id: session.sessionId,
         sessionName: initialSessionName ?? normalizeOptionalText(settings.sessionName) ?? null,
         aiTitle: null,
@@ -149,10 +153,11 @@ export async function createSessionForWorkspaceAction(
         ).length,
         status: 'idle',
         lastMessageAt: now.toISOString(),
-        createdAt: now.toLocaleTimeString(),
+        createdAt: now.toISOString(),
       },
       ...current,
-    ])
+      ]),
+    )
     return session.sessionId
   } catch (error) {
     context.onErrorRef.current(errorMessageOf(error))
@@ -307,8 +312,10 @@ export async function updateSessionMetadataAction(
     return null
   }
 
-  const updatedSessions = sessions.map(session =>
-    session.id === targetSessionId ? updatedSession! : session,
+  const updatedSessions = sortSessionsByRecency(
+    sessions.map(session =>
+      session.id === targetSessionId ? updatedSession! : session,
+    ),
   )
   context.setSessions(updatedSessions)
 
@@ -355,8 +362,10 @@ export async function setSessionPermissionModeAction(
     )
     const updatedItem = snapshot.item
     context.setSessions(
-      sessions.map(session =>
-        session.id === targetSessionId ? updatedItem : session,
+      sortSessionsByRecency(
+        sessions.map(session =>
+          session.id === targetSessionId ? updatedItem : session,
+        ),
       ),
     )
     if (targetSessionId === context.activeSessionIdRef.current) {
@@ -382,8 +391,10 @@ export async function setSessionLocalRouterModeAction(
     )
     const updatedItem = snapshot.item
     context.setSessions(
-      sessions.map(session =>
-        session.id === targetSessionId ? updatedItem : session,
+      sortSessionsByRecency(
+        sessions.map(session =>
+          session.id === targetSessionId ? updatedItem : session,
+        ),
       ),
     )
     if (targetSessionId === context.activeSessionIdRef.current) {
@@ -409,8 +420,10 @@ export async function setSessionPlanModeActiveAction(
     )
     const updatedItem = snapshot.item
     context.setSessions(
-      sessions.map(session =>
-        session.id === targetSessionId ? updatedItem : session,
+      sortSessionsByRecency(
+        sessions.map(session =>
+          session.id === targetSessionId ? updatedItem : session,
+        ),
       ),
     )
     if (targetSessionId === context.activeSessionIdRef.current) {

@@ -68,7 +68,7 @@
   left: 0;
   top: 0;
   bottom: 0;
-  z-index: 12;
+  z-index: calc(var(--z-composer) + 1);
   width: var(--sidebar-current-w);
   height: auto;
   display: flex;

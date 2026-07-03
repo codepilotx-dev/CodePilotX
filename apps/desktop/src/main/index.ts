@@ -904,7 +904,7 @@ async function createSession(
     projectRoot: workspacePath,
   })
   const installCodexDependencies = options.installCodexDependencies !== false
-  const enableMemory = options.enableMemory === true
+  const enableMemory = options.enableMemory !== false
   const rustSearchAndDiffKernels = options.rustSearchAndDiffKernels === true
   const additionalDirectories = await normalizeAdditionalDirectories(
     options.additionalDirectories,

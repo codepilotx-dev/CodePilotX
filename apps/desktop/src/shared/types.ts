@@ -619,6 +619,12 @@ export type DesktopPersonality =
 export type DesktopReviewView = 'inline' | 'split'
 export type DesktopDiffMarkerStyle = 'color' | 'symbol'
 
+export type DesktopRemovedWorkspace = {
+  path: string
+  name: string
+  removedAt: string
+}
+
 export type DesktopStoredSettings = {
   enableParetoCodeRouter?: boolean
   enableFusionRouter?: boolean
@@ -641,6 +647,8 @@ export type DesktopStoredSettings = {
   appendSystemPrompt: string
   additionalDirectories: string
   recentWorkspaces: DesktopWorkspace[]
+  lastActiveWorkspacePath: string
+  removedWorkspaces: DesktopRemovedWorkspace[]
   drawerTab: DesktopDrawerTab
   selectedModelPreset: string
   providerID: ModelProviderID

@@ -53,7 +53,7 @@ export function createSessionSettingsSnapshot(params: {
     thinkingMode: params.thinkingMode,
     additionalDirectories: params.additionalDirectories,
     installCodexDependencies: params.installCodexDependencies !== false,
-    enableMemory: params.enableMemory === true,
+    enableMemory: params.enableMemory !== false,
     rustSearchAndDiffKernels: params.rustSearchAndDiffKernels === true,
   }
   if (params.providerID) settings.providerID = params.providerID

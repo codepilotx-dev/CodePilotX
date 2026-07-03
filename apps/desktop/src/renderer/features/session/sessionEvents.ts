@@ -8,6 +8,7 @@ import {
   isInternalReviewerMessageText,
 } from '../../../shared/sessionEventModel.js'
 import type { Message, SessionListItem } from '../../uiTypes.js'
+import { sortSessionsByRecency } from './sessionSorting.js'
 import type {
   AddToolLogEntry,
   UpdateSessionView,
@@ -73,10 +74,12 @@ export function handleSessionAgentEvent(
   if (event.type === 'message') {
     const createdAt = event.createdAt ?? new Date().toISOString()
     setSessions(current =>
-      current.map(session =>
-        session.id === event.sessionId
-          ? { ...session, lastMessageAt: createdAt }
-          : session,
+      sortSessionsByRecency(
+        current.map(session =>
+          session.id === event.sessionId
+            ? { ...session, lastMessageAt: createdAt }
+            : session,
+        ),
       ),
     )
     updateSessionView(event.sessionId, view => ({
@@ -187,10 +190,12 @@ export function handleSessionAgentEvent(
   if (event.type === 'error') {
     const createdAt = new Date().toISOString()
     setSessions(current =>
-      current.map(session =>
-        session.id === event.sessionId
-          ? { ...session, status: 'error', lastMessageAt: createdAt }
-          : session,
+      sortSessionsByRecency(
+        current.map(session =>
+          session.id === event.sessionId
+            ? { ...session, status: 'error', lastMessageAt: createdAt }
+            : session,
+        ),
       ),
     )
     if (event.sessionId === activeSessionIdRef.current) {
@@ -216,10 +221,11 @@ export function handleSessionAgentEvent(
   }
 
   if (event.type === 'done') {
+    const createdAt = new Date().toISOString()
     setSessions(current =>
       current.map(session =>
         session.id === event.sessionId
-          ? { ...session, status: 'done' }
+          ? { ...session, status: 'done', lastMessageAt: createdAt }
           : session,
       ),
     )

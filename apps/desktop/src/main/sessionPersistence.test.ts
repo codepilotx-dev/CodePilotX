@@ -282,10 +282,63 @@ test('hydrateDesktopSessionSnapshot prefers rollout over legacy transcript and f
     const hydrated = await hydrateDesktopSessionSnapshot(snapshot)
 
     expect(hydrated.view.messages.map(message => message.text)).toEqual([
+      'legacy prompt',
       'rollout response',
     ])
-    expect(hydrated.view.messages.some(message => message.text.includes('legacy prompt'))).toBe(false)
     expect(hydrated.view.messages.some(message => message.text.includes('Review this permission request'))).toBe(false)
+  })
+})
+
+test('hydrateDesktopSessionSnapshot backfills missing rollout user messages from transcript', async () => {
+  await withDesktopConfig(async configDir => {
+    const sessionId = randomUUID()
+    const projectPath = join(configDir, 'rollout-missing-user-project')
+    await writeTranscript(projectPath, sessionId, 'first user prompt')
+    const rolloutPath = join(getProjectDir(projectPath), `${sessionId}.rollout.jsonl`)
+    await appendDesktopRolloutItems(rolloutPath, [
+      {
+        type: 'session_meta',
+        payload: {
+          id: sessionId,
+          timestamp: '2026-01-01T00:00:00.000Z',
+          cwd: projectPath,
+          originator: 'desktop',
+          cli_version: 'test',
+          source: 'user',
+        },
+      },
+      {
+        type: 'event_msg',
+        payload: {
+          eventType: 'message',
+          role: 'assistant',
+          content: 'rollout response',
+          createdAt: '2026-01-01T00:00:02.000Z',
+        },
+      },
+    ])
+    const snapshot = createDesktopSessionSnapshot({
+      sessionId,
+      workspace: {
+        path: projectPath,
+        name: 'rollout-missing-user-project',
+        branchName: null,
+        isGitRepo: false,
+      },
+      standalone: false,
+      settings: {
+        permissionMode: 'default',
+        thinkingMode: 'default',
+        additionalDirectories: [],
+      },
+    })
+
+    const hydrated = await hydrateDesktopSessionSnapshot(snapshot)
+
+    expect(hydrated.view.messages.map(message => message.text)).toEqual([
+      'first user prompt',
+      'rollout response',
+    ])
   })
 })
 

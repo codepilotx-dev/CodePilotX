@@ -8,12 +8,17 @@ import type {
 } from '../entrypoints/sdk/controlTypes.js'
 import {
   setClientType,
+  getClientType,
   setCwdState,
+  getCwdState,
   getSessionId,
   getSessionProjectDir,
   setOriginalCwd,
+  getOriginalCwd,
   setProjectRoot,
+  getProjectRoot,
   setSessionTrustAccepted,
+  getSessionTrustAccepted,
   switchSession,
 } from '../bootstrap/state.js'
 import { createStore, type Store } from '../state/store.js'
@@ -175,29 +180,10 @@ class EmbeddedDesktopHeadlessRuntime implements DesktopHeadlessRuntime {
       permissionProfile: options.permissionProfile ?? ':workspace',
       approvalPolicy: options.approvalPolicy ?? 'on-request',
     })
-    if (options.configDirectoryPath) {
-      process.env[CODEPILOTX_CONFIG_DIR_ENV] = options.configDirectoryPath
-      process.env[LEGACY_CLAUDE_CONFIG_DIR_ENV] = options.configDirectoryPath
-    }
-    process.env.CODEPILOTX_DISABLE_MDM_READ = '1'
-    process.env.CODEPILOTX_DISABLE_MIN_VERSION_CHECK = '1'
-    process.env.CLAUDE_CODE_ENTRYPOINT = 'desktop'
-    process.env.CODEPILOTX_INSTALL_CODEX_DEPENDENCIES =
-      options.installCodexDependencies === false ? '0' : '1'
-    if (options.enableMemory === true) {
-      process.env.CLAUDE_CODE_DISABLE_AUTO_MEMORY = '0'
-    } else if (options.enableMemory === false) {
-      process.env.CLAUDE_CODE_DISABLE_AUTO_MEMORY = '1'
-    }
-    process.env.USE_BUILTIN_RIPGREP = '0'
-    applyAskUserQuestionMaxQuestionsEnv(options)
-    applyTaskModelEnv(options)
-    resetRipgrepConfigCache()
   }
 
   setModel(model: string | undefined): void {
     this.options.model = model
-    applyTaskModelEnv(this.options)
   }
 
   setProvider(
@@ -276,7 +262,8 @@ class EmbeddedDesktopHeadlessRuntime implements DesktopHeadlessRuntime {
         signal,
       )
       this.currentInput = input
-      const previousSession = captureGlobalSessionState()
+      const previousState = captureDesktopRuntimeGlobalState()
+      this.prepareDesktopRuntimeEnv()
       this.prepareGlobalSessionState()
       try {
         const commands = await getCommands(this.options.workspacePath)
@@ -351,7 +338,7 @@ class EmbeddedDesktopHeadlessRuntime implements DesktopHeadlessRuntime {
           durationMs: Date.now() - startedAt,
         })
       } finally {
-        restoreGlobalSessionState(previousSession)
+        restoreDesktopRuntimeGlobalState(previousState)
         if (this.currentInput === input) {
           input.close()
           this.currentInput = null
@@ -387,7 +374,8 @@ class EmbeddedDesktopHeadlessRuntime implements DesktopHeadlessRuntime {
         })
         return
       }
-      const previousSession = captureGlobalSessionState()
+      const previousSession = captureDesktopRuntimeGlobalState()
+      this.prepareDesktopRuntimeEnv()
       this.prepareGlobalSessionState()
       try {
         const commands = await getCommands(this.options.workspacePath)
@@ -435,7 +423,7 @@ class EmbeddedDesktopHeadlessRuntime implements DesktopHeadlessRuntime {
           },
         )
       } finally {
-        restoreGlobalSessionState(previousSession)
+        restoreDesktopRuntimeGlobalState(previousSession)
       }
     })
     this.hasStartedHeadlessSession = true
@@ -474,6 +462,28 @@ class EmbeddedDesktopHeadlessRuntime implements DesktopHeadlessRuntime {
     if (result.error) {
       throw result.error
     }
+  }
+
+  private prepareDesktopRuntimeEnv(): void {
+    if (this.options.configDirectoryPath) {
+      process.env[CODEPILOTX_CONFIG_DIR_ENV] = this.options.configDirectoryPath
+      process.env[LEGACY_CLAUDE_CONFIG_DIR_ENV] =
+        this.options.configDirectoryPath
+    }
+    process.env.CODEPILOTX_DISABLE_MDM_READ = '1'
+    process.env.CODEPILOTX_DISABLE_MIN_VERSION_CHECK = '1'
+    process.env.CLAUDE_CODE_ENTRYPOINT = 'desktop'
+    process.env.CODEPILOTX_INSTALL_CODEX_DEPENDENCIES =
+      this.options.installCodexDependencies === false ? '0' : '1'
+    if (this.options.enableMemory === true) {
+      process.env.CLAUDE_CODE_DISABLE_AUTO_MEMORY = '0'
+    } else if (this.options.enableMemory === false) {
+      process.env.CLAUDE_CODE_DISABLE_AUTO_MEMORY = '1'
+    }
+    process.env.USE_BUILTIN_RIPGREP = '0'
+    applyAskUserQuestionMaxQuestionsEnv(this.options)
+    applyTaskModelEnv(this.options)
+    resetRipgrepConfigCache()
   }
 
   private createStructuredIO(
@@ -618,20 +628,71 @@ class DesktopHeadlessInput implements AsyncIterable<string> {
   }
 }
 
-type CapturedGlobalSessionState = {
+/** @internal exported for testing only */
+export type DesktopRuntimeGlobalState = {
   sessionId: ReturnType<typeof getSessionId>
-  projectDir: string | null
+  sessionProjectDir: string | null
+  originalCwd: string
+  projectRoot: string
+  cwdState: string
+  clientType: string
+  sessionTrustAccepted: boolean
+  env: Record<string, string | undefined>
 }
 
-function captureGlobalSessionState(): CapturedGlobalSessionState {
+/** @internal exported for testing only */
+export function captureDesktopRuntimeGlobalState(): DesktopRuntimeGlobalState {
+  const envKeys = [
+    CODEPILOTX_CONFIG_DIR_ENV,
+    LEGACY_CLAUDE_CONFIG_DIR_ENV,
+    'CODEPILOTX_DISABLE_MDM_READ',
+    'CODEPILOTX_DISABLE_MIN_VERSION_CHECK',
+    'CLAUDE_CODE_ENTRYPOINT',
+    'CODEPILOTX_INSTALL_CODEX_DEPENDENCIES',
+    'CLAUDE_CODE_DISABLE_AUTO_MEMORY',
+    'USE_BUILTIN_RIPGREP',
+    'CODEPILOTX_ASK_USER_QUESTION_MAX_QUESTIONS',
+    'ANTHROPIC_SMALL_FAST_MODEL',
+    'CODEPILOTX_FAST_MODEL',
+    'CODEPILOTX_DEFAULT_MODEL',
+    'CODEPILOTX_DEEP_MODEL',
+  ] as const
+
+  const env: Record<string, string | undefined> = {}
+  for (const key of envKeys) {
+    env[key] = process.env[key]
+  }
+
   return {
     sessionId: getSessionId(),
-    projectDir: getSessionProjectDir(),
+    sessionProjectDir: getSessionProjectDir(),
+    originalCwd: getOriginalCwd(),
+    projectRoot: getProjectRoot(),
+    cwdState: getCwdState(),
+    clientType: getClientType(),
+    sessionTrustAccepted: getSessionTrustAccepted(),
+    env,
   }
 }
 
-function restoreGlobalSessionState(state: CapturedGlobalSessionState): void {
-  switchSession(state.sessionId, state.projectDir)
+/** @internal exported for testing only */
+export function restoreDesktopRuntimeGlobalState(
+  snapshot: DesktopRuntimeGlobalState,
+): void {
+  switchSession(snapshot.sessionId, snapshot.sessionProjectDir)
+  setOriginalCwd(snapshot.originalCwd)
+  setProjectRoot(snapshot.projectRoot)
+  setCwdState(snapshot.cwdState)
+  setClientType(snapshot.clientType)
+  setSessionTrustAccepted(snapshot.sessionTrustAccepted)
+
+  for (const [key, value] of Object.entries(snapshot.env)) {
+    if (value === undefined) {
+      delete process.env[key]
+    } else {
+      process.env[key] = value
+    }
+  }
 }
 
 function logDesktopHeadless(

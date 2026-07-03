@@ -77,6 +77,7 @@ import type {
   DesktopBrowserState,
   DesktopComposerAttachment,
   DesktopPermissionMode,
+  DesktopRemovedWorkspace,
   DesktopWorkspace,
   LocalRouterMode,
   ModelProviderID,
@@ -196,6 +197,12 @@ export function DesktopLayout(): React.ReactNode {
   const [unavailableWorkspacePaths, setUnavailableWorkspacePaths] = useState<
     Set<string>
   >(() => new Set())
+  const [removedWorkspaces, setRemovedWorkspaces] = useState<
+    DesktopRemovedWorkspace[]
+  >(() => settings.draft.values.removedWorkspaces ?? [])
+  const [lastActiveWorkspacePath, setLastActiveWorkspacePath] = useState(
+    () => settings.draft.values.lastActiveWorkspacePath ?? '',
+  )
   const markWorkspaceUnavailable = useCallback((target: DesktopWorkspace): void => {
     setErrorMessage(null)
     setUnavailableWorkspacePaths(current => {
@@ -205,6 +212,17 @@ export function DesktopLayout(): React.ReactNode {
       return next
     })
   }, [])
+  const clearWorkspaceRemoved = useCallback(
+    (target: DesktopWorkspace): void => {
+      setRemovedWorkspaces(current => {
+        const next = current.filter(r => r.path !== target.path)
+        if (next.length === current.length) return current
+        settings.syncExternalSettingsPatch({ removedWorkspaces: next })
+        return next
+      })
+    },
+    [settings],
+  )
   const clearWorkspaceUnavailable = useCallback((target: DesktopWorkspace): void => {
     setUnavailableWorkspacePaths(current => {
       if (!current.has(target.path)) return current
@@ -321,6 +339,16 @@ export function DesktopLayout(): React.ReactNode {
     new URLSearchParams(location.search).get('tab') ?? 'general'
 
   useEffect(() => {
+    if (!settingsLoaded) return
+    setRemovedWorkspaces(settings.draft.values.removedWorkspaces)
+    setLastActiveWorkspacePath(settings.draft.values.lastActiveWorkspacePath)
+  }, [
+    settings.draft.values.lastActiveWorkspacePath,
+    settings.draft.values.removedWorkspaces,
+    settingsLoaded,
+  ])
+
+  useEffect(() => {
     if (!isSettingsRoute) {
       settingsReturnPathRef.current = fullLocationPath
     }
@@ -388,17 +416,22 @@ export function DesktopLayout(): React.ReactNode {
       const selected = await chooseWorkspace()
       if (!selected) return null
       clearWorkspaceUnavailable(selected)
+      clearWorkspaceRemoved(selected)
       navigate(QUICK_CHAT_PATH)
       setWorkspaceState(selected)
+      setLastActiveWorkspacePath(selected.path)
+      settings.syncExternalSettingsPatch({ lastActiveWorkspacePath: selected.path })
       await refreshWorkspace(selected)
       return selected
     },
     [
       chooseWorkspace,
       clearWorkspaceUnavailable,
+      clearWorkspaceRemoved,
       navigate,
       refreshWorkspace,
       setWorkspaceState,
+      settings,
     ],
   )
 
@@ -408,18 +441,23 @@ export function DesktopLayout(): React.ReactNode {
       const selected = await openRecentWorkspace(target)
       if (!selected) return null
       clearWorkspaceUnavailable(selected)
+      clearWorkspaceRemoved(selected)
       navigate(QUICK_CHAT_PATH)
       setWorkspaceState(selected)
+      setLastActiveWorkspacePath(selected.path)
+      settings.syncExternalSettingsPatch({ lastActiveWorkspacePath: selected.path })
       await refreshWorkspace(selected)
       return selected
     },
     [
       clearWorkspaceUnavailable,
+      clearWorkspaceRemoved,
       navigate,
       openRecentWorkspace,
       refreshWorkspace,
       setWorkspaceState,
       unavailableWorkspacePaths,
+      settings,
     ],
   )
 
@@ -444,9 +482,11 @@ export function DesktopLayout(): React.ReactNode {
     (selected: DesktopWorkspace): void => {
       navigate(QUICK_CHAT_PATH)
       setWorkspaceState(selected)
+      setLastActiveWorkspacePath(selected.path)
+      settings.syncExternalSettingsPatch({ lastActiveWorkspacePath: selected.path })
       void refreshWorkspace(selected)
     },
-    [navigate, refreshWorkspace, setWorkspaceState],
+    [navigate, refreshWorkspace, setWorkspaceState, settings],
   )
 
   useEffect(() => {
@@ -456,12 +496,14 @@ export function DesktopLayout(): React.ReactNode {
         isQuickChatPage,
         hasCurrentWorkspace: Boolean(currentWorkspace),
         hasAttemptedRestore: lastWorkspaceRestoreAttemptedRef.current,
-        recentWorkspaceCount: recentWorkspaces.length,
+        hasLastActiveWorkspacePath: Boolean(lastActiveWorkspacePath),
       })
     ) {
       return
     }
-    const lastWorkspace = recentWorkspaces[0]
+    const lastWorkspace = recentWorkspaces.find(
+      w => w.path === lastActiveWorkspacePath,
+    ) ?? recentWorkspaces[0]
     if (!lastWorkspace) return
     lastWorkspaceRestoreAttemptedRef.current = true
     void handleOpenRecentWorkspace(lastWorkspace)
@@ -469,6 +511,7 @@ export function DesktopLayout(): React.ReactNode {
     currentWorkspace,
     handleOpenRecentWorkspace,
     isQuickChatPage,
+    lastActiveWorkspacePath,
     recentWorkspaces,
     settingsLoaded,
   ])
@@ -1360,6 +1403,17 @@ export function DesktopLayout(): React.ReactNode {
 
   const handleRemoveWorkspace = useCallback(
     (target: DesktopWorkspace): void => {
+      // Record removal so the project doesn't reappear from sessions
+      setRemovedWorkspaces(current => {
+        const next = current.filter(r => r.path !== target.path)
+        next.push({
+          path: target.path,
+          name: target.name,
+          removedAt: new Date().toISOString(),
+        })
+        settings.syncExternalSettingsPatch({ removedWorkspaces: next })
+        return next
+      })
       setRecentWorkspaces(current =>
         current.filter(workspaceItem => workspaceItem.path !== target.path),
       )
@@ -1385,6 +1439,7 @@ export function DesktopLayout(): React.ReactNode {
       setRecentWorkspaces,
       setSelectedFile,
       setWorkspaceState,
+      settings,
     ],
   )
 
@@ -1455,6 +1510,7 @@ export function DesktopLayout(): React.ReactNode {
     <DesktopSidebar
       activeSessionId={sessionId}
       recentWorkspaces={recentWorkspaces}
+      removedWorkspaces={removedWorkspaces}
       sessions={sessions}
       unavailableWorkspacePaths={unavailableWorkspacePaths}
       workspace={currentWorkspace}

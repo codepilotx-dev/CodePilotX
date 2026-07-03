@@ -20,6 +20,7 @@ import type { SessionListItem } from "../../../uiTypes.js";
 import { IconButton } from "../../../components/ui/IconButton.js";
 import { PopoverItem } from "../../../components/ui/PopoverItem.js";
 import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
+import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js'
 import { SidebarRow } from "./SidebarRow.js";
 import { SidebarSessionGroup } from "./SidebarSessionGroup.js";
 import {
@@ -64,6 +65,7 @@ export function SidebarProjectGroup({
 }: Props): React.ReactNode {
   const [hovered, setHovered] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
   const groupKey = `project:${project.path}`;
   const projectSessions = sessions.filter(
     (session) => !session.standalone && session.workspacePath === project.path,
@@ -107,7 +109,7 @@ export function SidebarProjectGroup({
         label: '移除',
         icon: <X size={APP_ICON_SIZE} />,
         color: 'red',
-        onSelect: () => onRemoveWorkspace(project),
+        onSelect: () => setConfirmRemoveOpen(true),
       },
     ];
   }
@@ -223,11 +225,31 @@ export function SidebarProjectGroup({
                     </PopoverItem>
                     <PopoverItem
                       icon={<X size={APP_ICON_SIZE} />}
-                      onClick={() => onRemoveWorkspace(project)}
+                      onClick={() => {
+                        setMenuOpen(false);
+                        setConfirmRemoveOpen(true);
+                      }}
                     >
                       移除
                     </PopoverItem>
                   </PopoverMenu>
+
+                  <ConfirmationDialog
+                    actionLabel="移除"
+                    cancelLabel="取消"
+                    description="该项目将从 Codex 中移除，其下的对话将一并归档。磁盘上的文件不会被删除。"
+                    open={confirmRemoveOpen}
+                    title={`移除 ${project.name}?`}
+                    tone="danger"
+                    onAction={() => {
+                      setConfirmRemoveOpen(false);
+                      projectSessions.forEach((session) => onArchiveSession(session));
+                      onRemoveWorkspace(project);
+                    }}
+                    onCancel={() => {
+                      setConfirmRemoveOpen(false);
+                    }}
+                  />
 
                   <IconButton
                     className="icon-button sidebar-project-action-button"

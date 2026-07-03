@@ -63,6 +63,7 @@ export const DESKTOP_DRAWER_TABS = new Set<DesktopDrawerTab>([
 ])
 
 export const MAX_RECENT_WORKSPACES = 5
+export const MAX_REMOVED_WORKSPACES = 50
 
 export function defaultDesktopStoredSettings(): DesktopStoredSettings {
   return {
@@ -106,7 +107,9 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     installCodexDependencies: true,
     personality: 'pragmatic',
     customInstructions: '',
-    enableMemory: false,
+    enableMemory: true,
+    lastActiveWorkspacePath: '',
+    removedWorkspaces: [],
     skipToolAidedChats: false,
     githubMemorySyncEnabled: false,
     githubMemoryRepository: '',
@@ -285,6 +288,14 @@ export function normalizeDesktopStoredSettings(
       typeof parsed.enableMemory === 'boolean'
         ? parsed.enableMemory
         : defaults.enableMemory,
+    lastActiveWorkspacePath:
+      typeof parsed.lastActiveWorkspacePath === 'string'
+        ? parsed.lastActiveWorkspacePath
+        : defaults.lastActiveWorkspacePath,
+    removedWorkspaces: normalizeRemovedWorkspaces(
+      parsed.removedWorkspaces,
+      defaults.removedWorkspaces,
+    ),
     skipToolAidedChats:
       typeof parsed.skipToolAidedChats === 'boolean'
         ? parsed.skipToolAidedChats
@@ -429,6 +440,31 @@ export function normalizeDesktopWorkspaces(value: unknown): DesktopWorkspace[] {
   })
 }
 
+export function normalizeRemovedWorkspaces(
+  value: unknown,
+  fallback: DesktopStoredSettings['removedWorkspaces'],
+): DesktopStoredSettings['removedWorkspaces'] {
+  if (!Array.isArray(value)) return fallback
+  return value.flatMap(item => {
+    if (!item || typeof item !== 'object') return []
+    const record = item as {
+      path?: unknown
+      name?: unknown
+      removedAt?: unknown
+    }
+    if (typeof record.path !== 'string') return []
+    if (typeof record.name !== 'string') return []
+    return [
+      {
+        path: record.path,
+        name: record.name,
+        removedAt:
+          typeof record.removedAt === 'string' ? record.removedAt : new Date().toISOString(),
+      },
+    ]
+  }).slice(0, MAX_REMOVED_WORKSPACES)
+}
+
 export function isDesktopDiffMarkerStyle(
   value: unknown,
 ): value is DesktopDiffMarkerStyle {
@@ -440,8 +476,15 @@ export function upsertRecentWorkspace(
   workspace: DesktopWorkspace,
 ): DesktopWorkspace[] {
   if (workspace.isStandalone) return workspaces
-  const filtered = workspaces.filter(item => item.path !== workspace.path)
-  return [workspace, ...filtered].slice(0, MAX_RECENT_WORKSPACES)
+  const index = workspaces.findIndex(item => item.path === workspace.path)
+  if (index >= 0) {
+    // Update in-place without changing position
+    const next = [...workspaces]
+    next[index] = workspace
+    return next
+  }
+  // Append new workspace to the end
+  return [...workspaces, workspace].slice(-MAX_RECENT_WORKSPACES)
 }
 
 export function mergeDesktopBrowserAllowedSites(

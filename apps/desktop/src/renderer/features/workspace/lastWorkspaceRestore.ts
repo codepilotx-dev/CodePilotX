@@ -3,7 +3,8 @@ export type LastWorkspaceRestoreState = {
   isQuickChatPage: boolean
   hasCurrentWorkspace: boolean
   hasAttemptedRestore: boolean
-  recentWorkspaceCount: number
+  hasLastActiveWorkspacePath?: boolean
+  recentWorkspaceCount?: number
 }
 
 export function shouldRestoreLastWorkspace(
@@ -14,6 +15,6 @@ export function shouldRestoreLastWorkspace(
     state.isQuickChatPage &&
     !state.hasCurrentWorkspace &&
     !state.hasAttemptedRestore &&
-    state.recentWorkspaceCount > 0
+    (state.hasLastActiveWorkspacePath || (state.recentWorkspaceCount ?? 0) > 0)
   )
 }

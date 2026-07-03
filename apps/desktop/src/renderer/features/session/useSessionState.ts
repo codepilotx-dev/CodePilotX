@@ -56,6 +56,7 @@ import {
   type SessionViewStateSetters,
   type UpdateSessionView,
 } from './sessionViewState.js'
+import { sortSessionsByRecency } from './sessionSorting.js'
 
 export type UseSessionStateOptions = {
   permissionMode: DesktopPermissionMode
@@ -321,12 +322,16 @@ export function useSessionState(
         ...sessionWorkspacesRef.current,
         [snapshot.item.id]: snapshot.workspace,
       }
-      sessionsRef.current = sessionsRef.current.map(session =>
-        session.id === snapshot.item.id ? nextItem : session,
+      sessionsRef.current = sortSessionsByRecency(
+        sessionsRef.current.map(session =>
+          session.id === snapshot.item.id ? nextItem : session,
+        ),
       )
       setSessions(current =>
-        current.map(session =>
-          session.id === snapshot.item.id ? nextItem : session,
+        sortSessionsByRecency(
+          current.map(session =>
+            session.id === snapshot.item.id ? nextItem : session,
+          ),
         ),
       )
       if (activeSessionIdRef.current === snapshot.item.id) {
@@ -432,7 +437,9 @@ export function useSessionState(
 
   useEffect(() => {
     const unsubscribe = desktopClient.onSessionStoreChange(change => {
-      const nextSessions = change.sessions.map(snapshot => snapshot.item)
+      const nextSessions = sortSessionsByRecency(
+        change.sessions.map(snapshot => snapshot.item),
+      )
       const nextViews = { ...sessionViewsRef.current }
       const nextWorkspaces = { ...sessionWorkspacesRef.current }
       for (const snapshot of change.sessions) {
@@ -492,7 +499,9 @@ export function useSessionState(
         const sessionSnapshots = await desktopClient.listSessions()
         if (disposed) return
 
-        const nextSessions = sessionSnapshots.map(snapshot => snapshot.item)
+        const nextSessions = sortSessionsByRecency(
+          sessionSnapshots.map(snapshot => snapshot.item),
+        )
         const nextViews: Record<string, SessionViewState> = {}
         const nextWorkspaces: Record<string, DesktopWorkspace> = {}
         for (const snapshot of sessionSnapshots) {

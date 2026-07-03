@@ -316,62 +316,152 @@ export async function hydrateDesktopSessionSnapshot(
   snapshot: DesktopSessionSnapshot,
 ): Promise<DesktopSessionSnapshot> {
   const rolloutPath = rolloutPathForSnapshot(snapshot)
-  try {
-    await stat(rolloutPath)
-    const parsed = await parseDesktopRolloutSnapshot(
-      rolloutPath,
-      snapshot.item.id,
-    )
-    const effectiveModel =
-      validModelName(parsed.effectiveModel) ??
-      validModelName(parsed.view.contextUsage?.model) ??
-      validModelName(snapshot.settings.model)
-    return {
-      ...snapshot,
-      item: {
-        ...snapshot.item,
+  const tryLoadRollout = async (): Promise<DesktopSessionSnapshot | null> => {
+    try {
+      await stat(rolloutPath)
+      const parsed = await parseDesktopRolloutSnapshot(
         rolloutPath,
-        legacyTranscriptPath:
-          snapshot.item.legacyTranscriptPath ??
-          transcriptPathForSnapshot(snapshot),
-        model: effectiveModel ?? snapshot.item.model,
-        status:
-          snapshot.item.status === 'running' || snapshot.item.status === 'waiting'
-            ? 'done'
-            : snapshot.item.status,
-      },
-      settings:
-        effectiveModel && effectiveModel !== snapshot.settings.model
-          ? { ...snapshot.settings, model: effectiveModel }
-          : snapshot.settings,
-      view: parsed.view,
-      events: parsed.events,
-      eventModelVersion: 1,
-      updatedAt: new Date().toISOString(),
-    }
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException | undefined)?.code !== 'ENOENT') {
-      console.warn(
-        `Failed to hydrate desktop rollout ${rolloutPath}: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        snapshot.item.id,
       )
+      const effectiveModel =
+        validModelName(parsed.effectiveModel) ??
+        validModelName(parsed.view.contextUsage?.model) ??
+        validModelName(snapshot.settings.model)
+      return {
+        ...snapshot,
+        item: {
+          ...snapshot.item,
+          rolloutPath,
+          legacyTranscriptPath:
+            snapshot.item.legacyTranscriptPath ??
+            transcriptPathForSnapshot(snapshot),
+          model: effectiveModel ?? snapshot.item.model,
+          status:
+            snapshot.item.status === 'running' || snapshot.item.status === 'waiting'
+              ? 'done'
+              : snapshot.item.status,
+        },
+        settings:
+          effectiveModel && effectiveModel !== snapshot.settings.model
+            ? { ...snapshot.settings, model: effectiveModel }
+            : snapshot.settings,
+        view: parsed.view,
+        events: parsed.events,
+        eventModelVersion: 1,
+        updatedAt: new Date().toISOString(),
+      }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException | undefined)?.code !== 'ENOENT') {
+        console.warn(
+          `Failed to hydrate desktop rollout ${rolloutPath}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        )
+      }
+      return null
     }
   }
 
-  const transcriptPath = transcriptPathForSnapshot(snapshot)
-  try {
-    await stat(transcriptPath)
-  } catch {
-    return snapshot
+  const tryLoadTranscript = async (): Promise<DesktopSessionSnapshot | null> => {
+    const transcriptPath = transcriptPathForSnapshot(snapshot)
+    try {
+      await stat(transcriptPath)
+    } catch {
+      return null
+    }
+    try {
+      const log = await loadFullLog(logOptionFromSnapshot(snapshot, transcriptPath))
+      return snapshotFromTranscriptLog(log, overlayFromSnapshot(snapshot), true)
+    } catch {
+      return null
+    }
   }
 
-  try {
-    const log = await loadFullLog(logOptionFromSnapshot(snapshot, transcriptPath))
-    return snapshotFromTranscriptLog(log, overlayFromSnapshot(snapshot), true)
-  } catch {
-    return snapshot
+  const [rolloutResult, transcriptResult] = await Promise.all([
+    tryLoadRollout(),
+    tryLoadTranscript(),
+  ])
+
+  if (rolloutResult && transcriptResult) {
+    return backfillUserMessagesFromTranscript(rolloutResult, transcriptResult)
   }
+
+  // Return whichever source loaded, or the original snapshot
+  return rolloutResult ?? transcriptResult ?? snapshot
+}
+
+function backfillUserMessagesFromTranscript(
+  rolloutSnapshot: DesktopSessionSnapshot,
+  transcriptSnapshot: DesktopSessionSnapshot,
+): DesktopSessionSnapshot {
+  if (rolloutSnapshot.view.messages.some(message => message.role === 'user')) {
+    return rolloutSnapshot
+  }
+
+  const existing = new Set(rolloutSnapshot.view.messages.map(messageKey))
+  const backfilledMessages = transcriptSnapshot.view.messages.filter(message => {
+    if (message.role !== 'user') return false
+    if (isInternalReviewerMessageText(message.text)) return false
+    return !existing.has(messageKey(message))
+  })
+  if (backfilledMessages.length === 0) {
+    return rolloutSnapshot
+  }
+
+  const backfilledEventKeys = new Set(
+    backfilledMessages.map(
+      message => `${message.role}|${message.text}|${message.createdAt}`,
+    ),
+  )
+  const backfilledEvents =
+    transcriptSnapshot.events?.filter(event => {
+      if (event.type !== 'message' || event.role !== 'user') return false
+      return backfilledEventKeys.has(
+        `${event.role}|${event.content}|${event.createdAt}`,
+      )
+    }) ?? []
+
+  return {
+    ...rolloutSnapshot,
+    view: {
+      ...rolloutSnapshot.view,
+      messages: [
+        ...rolloutSnapshot.view.messages,
+        ...backfilledMessages,
+      ].sort(compareMessagesByCreatedAt),
+    },
+    events: [...(rolloutSnapshot.events ?? []), ...backfilledEvents].sort(
+      compareEventsByCreatedAt,
+    ),
+    eventModelVersion: 1,
+  }
+}
+
+function messageKey(message: DesktopSessionMessage): string {
+  return `${message.role}|${message.text}|${message.createdAt}`
+}
+
+function compareMessagesByCreatedAt(
+  left: DesktopSessionMessage,
+  right: DesktopSessionMessage,
+): number {
+  return (
+    timestampMs(left.createdAt) - timestampMs(right.createdAt) ||
+    roleSortRank(left.role) - roleSortRank(right.role)
+  )
+}
+
+function compareEventsByCreatedAt(
+  left: DesktopSessionEvent,
+  right: DesktopSessionEvent,
+): number {
+  return timestampMs(left.createdAt) - timestampMs(right.createdAt)
+}
+
+function roleSortRank(role: DesktopSessionMessage['role']): number {
+  if (role === 'user') return 0
+  if (role === 'assistant') return 1
+  return 2
 }
 
 export async function saveDesktopSessionStore(
@@ -711,6 +801,7 @@ export function applyDesktopAgentEventToSnapshot(
 
   if (event.type === 'done') {
     next.item.status = 'done'
+    next.item.lastMessageAt = new Date().toISOString()
     next.view.pendingPermissions = []
     next.view.messages = next.view.messages.map(message =>
       message.streaming ? { ...message, streaming: false } : message,
@@ -1564,7 +1655,7 @@ function normalizeSettingsSnapshot(
         )
       : [],
     installCodexDependencies: settings.installCodexDependencies !== false,
-    enableMemory: settings.enableMemory === true,
+    enableMemory: settings.enableMemory !== false,
     rustSearchAndDiffKernels: settings.rustSearchAndDiffKernels === true,
   }
 }
@@ -1581,7 +1672,7 @@ function defaultSettingsSnapshot(): DesktopSessionSettingsSnapshot {
     thinkingMode: 'default',
     additionalDirectories: [],
     installCodexDependencies: true,
-    enableMemory: false,
+    enableMemory: true,
     rustSearchAndDiffKernels: false,
   }
 }
@@ -1989,8 +2080,15 @@ function compareSnapshotsByRecency(
   right: DesktopSessionSnapshot,
 ): number {
   return (
-    timestampMs(right.item.lastMessageAt ?? right.updatedAt) -
-    timestampMs(left.item.lastMessageAt ?? left.updatedAt)
+    snapshotRecencyMs(right) - snapshotRecencyMs(left) ||
+    timestampMs(right.item.createdAt) - timestampMs(left.item.createdAt) ||
+    right.item.id.localeCompare(left.item.id)
+  )
+}
+
+function snapshotRecencyMs(snapshot: DesktopSessionSnapshot): number {
+  return timestampMs(
+    snapshot.item.lastMessageAt ?? snapshot.updatedAt ?? snapshot.item.createdAt,
   )
 }
 
@@ -2024,7 +2122,9 @@ function dateFromString(value: unknown): Date {
 }
 
 function timestampMs(value: unknown): number {
-  return dateFromString(value).getTime()
+  if (typeof value !== 'string') return 0
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? 0 : date.getTime()
 }
 
 function normalizeStatus(status: unknown): DesktopSessionStatus {

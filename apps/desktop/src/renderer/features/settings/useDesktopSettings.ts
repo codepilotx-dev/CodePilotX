@@ -293,6 +293,12 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
   const [recentWorkspaces, setRecentWorkspaces] = useState<DesktopWorkspace[]>(
     initial.recentWorkspaces,
   )
+  const [lastActiveWorkspacePath, setLastActiveWorkspacePath] = useState(
+    initial.lastActiveWorkspacePath,
+  )
+  const [removedWorkspaces, setRemovedWorkspaces] = useState(
+    initial.removedWorkspaces,
+  )
   const [drawerTab, setDrawerTab] = useState<DrawerTab>(initial.drawerTab)
   const [selectedModelPreset, setSelectedModelPreset] = useState<string>(
     initial.selectedModelPreset,
@@ -414,6 +420,8 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
         setAppendSystemPrompt(settings.appendSystemPrompt)
         setAdditionalDirectories(settings.additionalDirectories)
         setRecentWorkspaces(settings.recentWorkspaces)
+        setLastActiveWorkspacePath(settings.lastActiveWorkspacePath)
+        setRemovedWorkspaces(settings.removedWorkspaces)
         setDrawerTab(settings.drawerTab)
         setSelectedModelPreset(settings.selectedModelPreset)
         setProviderID(settings.providerID)
@@ -478,6 +486,8 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       appendSystemPrompt,
       additionalDirectories,
       recentWorkspaces,
+      lastActiveWorkspacePath,
+      removedWorkspaces,
       drawerTab,
       selectedModelPreset,
       providerID,
@@ -528,6 +538,8 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       appendSystemPrompt,
       additionalDirectories,
       recentWorkspaces,
+      lastActiveWorkspacePath,
+      removedWorkspaces,
       drawerTab,
       selectedModelPreset,
       providerID,
@@ -623,6 +635,8 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       setAppendSystemPrompt(snapshot.appendSystemPrompt)
       setAdditionalDirectories(snapshot.additionalDirectories)
       setRecentWorkspaces(snapshot.recentWorkspaces)
+      setLastActiveWorkspacePath(snapshot.lastActiveWorkspacePath)
+      setRemovedWorkspaces(snapshot.removedWorkspaces)
       setDrawerTab(snapshot.drawerTab)
       setSelectedModelPreset(snapshot.selectedModelPreset)
       setProviderID(snapshot.providerID)
@@ -848,6 +862,9 @@ function cloneDesktopSettings(
   return {
     ...settings,
     recentWorkspaces: settings.recentWorkspaces.map(workspace => ({
+      ...workspace,
+    })),
+    removedWorkspaces: settings.removedWorkspaces.map(workspace => ({
       ...workspace,
     })),
     browserAllowedSites: [...settings.browserAllowedSites],

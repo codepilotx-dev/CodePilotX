@@ -2,6 +2,7 @@ import type React from "react";
 import { useLocation } from "react-router-dom";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
+  DesktopRemovedWorkspace,
   DesktopSessionMetadataPatch,
   DesktopWorkspace,
 } from "../../../shared/types.js";
@@ -13,6 +14,7 @@ import { SidebarTopNav } from "./sidebar/SidebarTopNav.js";
 type Props = {
   activeSessionId: string | null;
   recentWorkspaces: DesktopWorkspace[];
+  removedWorkspaces: DesktopRemovedWorkspace[];
   sessions: SessionListItem[];
   unavailableWorkspacePaths: Set<string>;
   workspace: DesktopWorkspace | null;
@@ -30,6 +32,7 @@ type Props = {
 export function DesktopSidebar({
   activeSessionId,
   recentWorkspaces,
+  removedWorkspaces,
   sessions,
   unavailableWorkspacePaths,
   workspace,
@@ -71,8 +74,8 @@ export function DesktopSidebar({
     [unpinnedSessions],
   );
   const projectWorkspaces = useMemo(
-    () => mergeProjectWorkspaces(recentWorkspaces, unpinnedSessions),
-    [recentWorkspaces, unpinnedSessions],
+    () => mergeProjectWorkspaces(recentWorkspaces, unpinnedSessions, removedWorkspaces),
+    [recentWorkspaces, unpinnedSessions, removedWorkspaces],
   );
 
   function isActiveView(view: AppView): boolean {
@@ -144,13 +147,17 @@ function compareTimestamp(
 function mergeProjectWorkspaces(
   recentWorkspaces: DesktopWorkspace[],
   sessions: SessionListItem[],
+  removedWorkspaces: DesktopRemovedWorkspace[],
 ): DesktopWorkspace[] {
+  const removedPaths = new Set(removedWorkspaces.map(r => r.path));
   const byPath = new Map<string, DesktopWorkspace>();
   for (const workspace of recentWorkspaces) {
+    if (removedPaths.has(workspace.path)) continue;
     byPath.set(workspace.path, workspace);
   }
   for (const session of sessions) {
     if (session.standalone || byPath.has(session.workspacePath)) continue;
+    if (removedPaths.has(session.workspacePath)) continue;
     byPath.set(session.workspacePath, {
       name: session.workspaceName,
       path: session.workspacePath,
