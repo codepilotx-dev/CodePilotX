@@ -92,6 +92,7 @@ import {
   saveConversationUiState,
 } from "../layout/conversationUiState.js";
 import { useWorkspaceHeader } from "../layout/WorkspaceHeaderContext.js";
+import { SessionTimelineView } from "./SessionTimelineView.js";
 
 const FALLBACK_OPEN_TARGETS: DesktopOpenTarget[] = [
   {
@@ -247,19 +248,18 @@ export function ConversationPage(): React.ReactNode {
     };
   }, []);
   const [isRefreshingDiff, setIsRefreshingDiff] = React.useState(false);
-  const mainScrollViewportRef = React.useRef<HTMLDivElement>(null);
+  const timelineListRef = React.useRef<
+    import("virtua").VListHandle | null
+  >(null);
   const mainScrollTopRef = React.useRef(0);
+  const scrollRestoredRef = React.useRef(false);
 
-  React.useEffect(() => {
-    const el = mainScrollViewportRef.current;
-    if (!el) return;
-
-    const onScroll = (): void => {
-      mainScrollTopRef.current = el.scrollTop;
-    };
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
-  }, [activeSessionId]);
+  const handleTimelineScroll = React.useCallback(
+    (scrollTop: number) => {
+      mainScrollTopRef.current = scrollTop;
+    },
+    [],
+  );
 
   React.useEffect(() => {
     const sessionId = activeSessionId;
@@ -275,15 +275,18 @@ export function ConversationPage(): React.ReactNode {
   }, [activeSessionId]);
 
   React.useEffect(() => {
-    if (
-      isConversationLoading ||
-      !mainScrollViewportRef.current ||
-      !activeSessionId
-    )
-      return;
+    if (isConversationLoading || !activeSessionId) return;
+    if (scrollRestoredRef.current) return;
     const saved = loadConversationUiState(activeSessionId);
-    if (saved?.mainScrollTop) {
-      mainScrollViewportRef.current.scrollTop = saved.mainScrollTop;
+    if (saved?.mainScrollTop && timelineListRef.current) {
+      scrollRestoredRef.current = true;
+      requestAnimationFrame(() => {
+        try {
+          timelineListRef.current?.scrollTo(saved.mainScrollTop);
+        } catch {
+          // VList may not be ready yet; silently ignore
+        }
+      });
     }
   }, [isConversationLoading, activeSessionId]);
 
@@ -902,39 +905,43 @@ export function ConversationPage(): React.ReactNode {
     >
       <div className="workflow-page__body">
         <main className="workflow-page__main">
-          <ScrollArea
-            className="workflow-main-scroll-area"
-            contentClassName="workflow-main-scroll-content"
-            viewportRef={mainScrollViewportRef}
-          >
-            <div className="quick-chat-content workflow-page__inner">
-              <ContextMenu.Root
-                onOpenChange={(open) => {
-                  if (!open) {
-                    clearConversationSelectionHighlight();
-                  }
-                }}
-              >
-                <ContextMenu.Trigger asChild>
-                  <div
-                    className="conversation-stream"
-                    onContextMenu={handleConversationContextMenu}
-                  >
-                    {isConversationLoading ? (
-                      <div className="assistant-thinking">加载对话中</div>
-                    ) : (
-                      <>
-                        {workflowTimelineVisible ? (
-                          <WorkflowDebugTimeline
-                            activeSessionId={activeSessionId}
-                            consistencyDiagnostics={
-                              workflowConsistencyDiagnostics
-                            }
-                            diagnostics={workflowDerivedState.diagnostics}
-                            events={workflowEvents}
-                            workspacePath={workspacePath}
-                          />
-                        ) : null}
+          <div className="workflow-main-scroll-area">
+            <ContextMenu.Root
+              onOpenChange={(open) => {
+                if (!open) {
+                  clearConversationSelectionHighlight();
+                }
+              }}
+            >
+              <ContextMenu.Trigger asChild>
+                <div
+                  className="session-timeline-wrapper"
+                  onContextMenu={handleConversationContextMenu}
+                >
+                  {isConversationLoading ? (
+                    <div className="assistant-thinking">加载对话中</div>
+                  ) : (
+                    <>
+                      {workflowTimelineVisible ? (
+                        <WorkflowDebugTimeline
+                          activeSessionId={activeSessionId}
+                          consistencyDiagnostics={
+                            workflowConsistencyDiagnostics
+                          }
+                          diagnostics={workflowDerivedState.diagnostics}
+                          events={workflowEvents}
+                          workspacePath={workspacePath}
+                        />
+                      ) : null}
+                      <SessionTimelineView
+                        count={phaseItems.length + (showThinking ? 1 : 0) + 1}
+                        scrollToBottom={
+                          sessionStatus === "running" ||
+                          sessionStatus === "waiting"
+                        }
+                        onScroll={handleTimelineScroll}
+                        listRef={timelineListRef}
+                      >
                         {phaseItems.map((item) => (
                           <TimelineItem
                             item={item}
@@ -956,34 +963,45 @@ export function ConversationPage(): React.ReactNode {
                             onReviewFiles={openReviewSidebar}
                           />
                         ))}
-                      </>
-                    )}
-                    {!isConversationLoading && showThinking ? (
-                      <ThinkingPill />
-                    ) : null}
-                  </div>
-                </ContextMenu.Trigger>
-                {showConversationContextMenu ? (
-                  <ContextMenu.Portal>
-                    <ContextMenu.Content className="sidebar-context-menu-content">
-                      <ContextMenu.Item
-                        className="sidebar-context-menu-item"
-                        onSelect={handleAddToConversation}
-                      >
-                        添加到对话
-                      </ContextMenu.Item>
-                      <ContextMenu.Item
-                        className="sidebar-context-menu-item"
-                        onSelect={handleAskInSideChat}
-                      >
-                        在侧边聊天中提问
-                      </ContextMenu.Item>
-                    </ContextMenu.Content>
-                  </ContextMenu.Portal>
-                ) : null}
-              </ContextMenu.Root>
-            </div>
-          </ScrollArea>
+                        {!isConversationLoading && showThinking ? (
+                          <div
+                            className="chat-thinking-pill session-turn-row"
+                            role="status"
+                            aria-live="polite"
+                          >
+                            <Sparkles
+                              size={APP_ICON_SIZE}
+                              strokeWidth={APP_ICON_STROKE_WIDTH}
+                            />
+                            <span>正在思考</span>
+                          </div>
+                        ) : null}
+                        <div className="session-bottom-spacer" />
+                      </SessionTimelineView>
+                    </>
+                  )}
+                </div>
+              </ContextMenu.Trigger>
+              {showConversationContextMenu ? (
+                <ContextMenu.Portal>
+                  <ContextMenu.Content className="sidebar-context-menu-content">
+                    <ContextMenu.Item
+                      className="sidebar-context-menu-item"
+                      onSelect={handleAddToConversation}
+                    >
+                      添加到对话
+                    </ContextMenu.Item>
+                    <ContextMenu.Item
+                      className="sidebar-context-menu-item"
+                      onSelect={handleAskInSideChat}
+                    >
+                      在侧边聊天中提问
+                    </ContextMenu.Item>
+                  </ContextMenu.Content>
+                </ContextMenu.Portal>
+              ) : null}
+            </ContextMenu.Root>
+          </div>
 
           {composer ? (
             <footer className="chat-composer workflow-page__composer">
@@ -1608,7 +1626,7 @@ export function planCardPresentation({
   };
 }
 
-type TimelineToolRun = {
+export type TimelineToolRun = {
   id: string;
   toolUseId?: string;
   toolName: string;
@@ -1622,22 +1640,22 @@ type TimelineToolRun = {
   startedAtMs?: number;
 };
 
-type TimelineToolGroup = {
+export type TimelineToolGroup = {
   id: string;
   type: "tool_group";
   runs: TimelineToolRun[];
 };
 
-type ExecutionPhaseGroup = {
+export type ExecutionPhaseGroup = {
   id: string;
   type: "execution_phase";
   items: TimelineItem[];
   isComplete: boolean;
 };
 
-type PhaseTimelineItem = TimelineItem | ExecutionPhaseGroup;
+export type PhaseTimelineItem = TimelineItem | ExecutionPhaseGroup;
 
-type TimelineItem = DesktopSessionEvent | TimelineToolGroup;
+export type TimelineItem = DesktopSessionEvent | TimelineToolGroup;
 
 function workflowComposerMode(
   request: DesktopPermissionRequest | null,
