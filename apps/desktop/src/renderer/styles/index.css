@@ -48,6 +48,7 @@
 @import './features/search.css';
 @import './features/browser.css';
 @import './features/review.css';
+@import './features/timeline.css';
 @import './features/settings.css';
 @import './features/marketplace.css';
 @import './features/automation.css';

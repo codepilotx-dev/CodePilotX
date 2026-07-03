@@ -2373,19 +2373,15 @@
 .workflow-main-scroll-area {
   flex: 1;
   min-height: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* VList manages its own scroll */
 }
 
-.workflow-page .quick-chat-content.workflow-page__inner {
-  width: min(var(--workflow-composer-width, var(--layout-content-w)), 100%);
-  max-width: var(--workflow-composer-width, var(--layout-content-w));
-  margin: 0 auto;
-  padding: 20px 0
-    calc(
-      var(--workflow-composer-height, 200px) + var(--layout-composer-bottom) +
-        100px
-    );
+.workflow-main-scroll-content {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
 }
 
 .workflow-page__composer-inner {
