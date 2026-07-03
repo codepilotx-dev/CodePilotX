@@ -281,7 +281,56 @@ function formatRelativeConversationTime(
 
   const elapsed = Math.max(0, now - time);
   if (elapsed < MINUTE_MS) return "刚刚";
-  if (elapsed < HOUR_MS) return `${Math.floor(elapsed / MINUTE_MS)} 分`;
+  if (elapsed < HOUR_MS) return `${Math.floor(elapsed / MINUTE_MS)} 分钟`;
   if (elapsed < DAY_MS) return `${Math.floor(elapsed / HOUR_MS)} 小时`;
-  return `${Math.floor(elapsed / DAY_MS)} 天`;
+
+  // Calendar-based comparison using local timezone date boundaries
+  const from = new Date(time);
+  const to = new Date(now);
+
+  const fromDate = new Date(
+    from.getFullYear(),
+    from.getMonth(),
+    from.getDate(),
+  );
+  const toDate = new Date(to.getFullYear(), to.getMonth(), to.getDate());
+  const calendarDayDiff = Math.round(
+    (toDate.getTime() - fromDate.getTime()) / DAY_MS,
+  );
+
+  if (calendarDayDiff < 7) {
+    return `${calendarDayDiff} 天`;
+  }
+
+  // Check for full natural year
+  const yearDiff = to.getFullYear() - from.getFullYear();
+  const totalMonthDiff =
+    to.getFullYear() * 12 +
+    to.getMonth() -
+    (from.getFullYear() * 12 + from.getMonth());
+
+  if (yearDiff >= 1) {
+    if (
+      to.getMonth() > from.getMonth() ||
+      (to.getMonth() === from.getMonth() && to.getDate() >= from.getDate())
+    ) {
+      return `${yearDiff} 年`;
+    }
+    if (yearDiff > 1) {
+      return `${yearDiff - 1} 年`;
+    }
+  }
+
+  // Check for full natural month
+  if (totalMonthDiff >= 1) {
+    if (to.getDate() >= from.getDate()) {
+      return `${totalMonthDiff} 月`;
+    }
+    if (totalMonthDiff > 1) {
+      return `${totalMonthDiff - 1} 月`;
+    }
+  }
+
+  // Weeks
+  return `${Math.floor(calendarDayDiff / 7)} 周`;
 }
