@@ -1,0 +1,218 @@
+/**
+ * timeline.css — Session timeline (virtual-scroll view) styles.
+ *
+ * Visual conventions follow opencode's turn/part DOM structure
+ * (data-component / data-slot), but all colors, radii, shadows,
+ * and typography use existing desktop tokens.
+ *
+ * This file is imported via index.css alongside session.css.
+ */
+
+/* ── Main wrapper (replaces old ScrollArea + conversation-stream) ── */
+
+.session-timeline-wrapper {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  width: min(var(--workflow-composer-width, var(--layout-content-w, 760px)), 100%);
+  max-width: var(--workflow-composer-width, var(--layout-content-w, 760px));
+  margin: 0 auto;
+  padding: 20px 0 0;
+}
+
+/* ── Top-level container ──────────────────────────────── */
+
+.session-timeline-container {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  position: relative;
+  overflow: hidden;  /* VList manages its own scroll */
+}
+
+/* Keep the VList from causing layout shifts */
+.session-timeline-vlist {
+  outline: none !important;
+}
+
+.session-timeline-vlist > :first-child {
+  /* VList's inner scroll container; ensure proper width */
+  min-width: 0;
+}
+
+/* ── Individual row wrapper ───────────────────────────── */
+
+.session-turn-row {
+  /* Row spacing matches the existing conversation-stream gap */
+  padding: 0 var(--layout-page-pad-x, 20px);
+  /* Container query context for responsive adjustments */
+  container-type: inline-size;
+}
+
+.session-turn-row + .session-turn-row,
+.session-turn-row + .timeline-command-group,
+.session-turn-row + .execution-phase,
+.timeline-command-group + .session-turn-row,
+.execution-phase + .session-turn-row {
+  margin-top: var(--layout-section-gap, 6px);
+}
+
+/* ── Bottom spacer ────────────────────────────────────── */
+
+.session-bottom-spacer {
+  height: 200px;
+  pointer-events: none;
+}
+
+/* ── Turn divider ─────────────────────────────────────── */
+
+.session-turn-divider {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: 8px;
+  padding-bottom: 4px;
+}
+
+.turn-divider-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--c-text-meta, #999);
+  font-size: var(--fs-12, 12px);
+  font-weight: var(--font-weight-label, 500);
+  user-select: none;
+}
+
+.turn-divider-label::before,
+.turn-divider-label::after {
+  content: '';
+  display: block;
+  height: 1px;
+  width: 24px;
+  background: var(--c-border-soft, #eee);
+}
+
+.turn-divider-label::after {
+  width: 100%;
+  flex: 1;
+}
+
+/* ── Data-attribute based contextual styling ──────────── */
+
+/* User messages: override for virtual-list context */
+[data-component='session-turn'][data-slot='user-message'] {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+[data-component='session-turn'][data-slot='user-message']
+  .chat-message-row.user {
+  max-width: 100%;
+}
+
+/* Assistant messages: full width */
+[data-component='session-turn'][data-slot='assistant-message']
+  .chat-message-row.assistant {
+  max-width: 100%;
+}
+
+[data-component='session-turn'][data-slot='assistant-message']
+  .assistant-message-body {
+  max-width: min(760px, 100%);
+}
+
+/* Plan cards: full width in timeline */
+[data-component='session-turn'][data-slot='plan']
+  .chat-message-row.assistant {
+  max-width: 100%;
+}
+
+[data-component='session-turn'][data-slot='plan']
+  .workflow-plan-card {
+  width: 100%;
+  max-width: min(760px, 100%);
+}
+
+/* Thinking pill: left-aligned, compact */
+[data-component='session-turn'][data-slot='thinking'] {
+  display: flex;
+  justify-content: flex-start;
+}
+
+/* Error rows */
+[data-component='session-turn'][data-slot='error']
+  .timeline-system-event {
+  max-width: min(680px, 100%);
+}
+
+/* System event rows */
+[data-component='session-turn'][data-slot='permission_request']
+  .timeline-system-event {
+  max-width: min(680px, 100%);
+}
+
+/* ── Adapt existing classes to timeline layout ────────── */
+
+/* Existing conversation-stream children inside the virtual list
+   need their auto-margin removed since VList handles positioning. */
+.session-timeline-container .conversation-stream {
+  margin: 0;
+  gap: 0;
+}
+
+/* Ensure existing tool-group and execution-phase fit */
+.session-timeline-container .timeline-command-group,
+.session-timeline-container .execution-phase,
+.session-timeline-container .timeline-file-event {
+  max-width: 100%;
+}
+
+.session-timeline-container .timeline-command-group-summary:hover,
+.session-timeline-container .execution-phase-summary:hover {
+  background: transparent;
+}
+
+/* Assistant message action buttons need to stay visible in virtual context */
+.session-timeline-container .assistant-message-actions {
+  opacity: 0;
+}
+
+.session-timeline-container .chat-message-row.assistant:hover
+  .assistant-message-actions,
+.session-timeline-container .chat-message-row.assistant:focus-within
+  .assistant-message-actions {
+  opacity: 1;
+}
+
+/* ── Workflow debug timeline stays visible above virtual list ── */
+
+.session-timeline-wrapper .workflow-debug-timeline {
+  flex-shrink: 0;
+  margin: 0 auto;
+  width: min(760px, calc(100% - 40px));
+}
+
+/* ── Thinking pill in virtual list ────────────────────── */
+
+.session-timeline-container .chat-thinking-pill {
+  margin: 0;
+  margin-left: var(--layout-page-pad-x, 20px);
+}
+
+/* ── Responsive: narrower viewports ───────────────────── */
+
+@container (max-width: 600px) {
+  .session-turn-row {
+    padding: 0 12px;
+  }
+
+  .user-message-bubble {
+    max-width: 85%;
+  }
+}
