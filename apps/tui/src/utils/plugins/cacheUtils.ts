@@ -1,5 +1,6 @@
 import { readdir, rm, stat, unlink, writeFile } from 'fs/promises'
 import { join } from 'path'
+import { registerCacheCleanup, clearAllCaches as coreClearAllCaches } from '@codepilotx/core/utils/plugins/cache.js'
 import { clearCommandsCache } from '../../commands.js'
 import { clearAllOutputStylesCache } from '../../constants/outputStyles.js'
 import { clearAgentDefinitionsCache } from '../../tools/AgentTool/loadAgentsDir.js'
@@ -23,6 +24,25 @@ import { isPluginZipCacheEnabled } from './zipCache.js'
 const ORPHANED_AT_FILENAME = '.orphaned_at'
 const CLEANUP_AGE_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
 
+// Register TUI-specific cache cleanup callbacks with core
+registerCacheCleanup(() => {
+  clearPluginCache()
+  clearPluginCommandCache()
+  clearPluginAgentCache()
+  clearPluginHookCache()
+  pruneRemovedPluginHooks().catch(e => logError(e))
+  clearPluginOptionsCache()
+  clearPluginOutputStyleCache()
+  clearAllOutputStylesCache()
+})
+
+registerCacheCleanup(() => {
+  clearCommandsCache()
+  clearAgentDefinitionsCache()
+  clearPromptCache()
+  resetSentSkillNames()
+})
+
 export function clearAllPluginCaches(): void {
   clearPluginCache()
   clearPluginCommandCache()
@@ -42,11 +62,7 @@ export function clearAllPluginCaches(): void {
 }
 
 export function clearAllCaches(): void {
-  clearAllPluginCaches()
-  clearCommandsCache()
-  clearAgentDefinitionsCache()
-  clearPromptCache()
-  resetSentSkillNames()
+  coreClearAllCaches()
 }
 
 /**
