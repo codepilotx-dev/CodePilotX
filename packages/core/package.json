@@ -1,5 +1,9 @@
 {
   "name": "@codepilotx/core",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "exports": {
+    "./*.js": "./src/*.js",
+    "./package.json": "./package.json"
+  }
 }

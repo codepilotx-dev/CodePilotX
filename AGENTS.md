@@ -106,6 +106,23 @@ These instructions apply to the whole `ClaudeCode` tree unless a nested
 - Do not edit generated files by hand. See nested instructions under
   `types/generated`.
 
+## Reference Reuse Workflow
+- Before developing any new feature, first inspect `D:\GitHubProject\Agent` for
+  similar implementations.
+- Use UTF-8 when reading files.
+- Search reference repositories with `rg` before writing new logic.
+- Prefer same-stack references first:
+  1. `D:\GitHubProject\Agent\claude-code-master`
+  2. `D:\GitHubProject\Agent\codex-main`
+  3. `D:\GitHubProject\Agent\opencode-dev`
+  4. `D:\GitHubProject\Agent\openai-agents-python`
+- If a matching implementation exists, copy or adapt the existing logic instead
+  of inventing a new one.
+- If no suitable implementation exists, write the smallest local implementation
+  that follows this repository's existing patterns.
+- When reusing reference logic, mention the source repository/path in the
+  handoff.
+
 ## Validation
 - First look for nearby existing validation patterns or commands.
 - If no runnable test/build command is available in this checkout, do a
