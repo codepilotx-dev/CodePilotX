@@ -31,10 +31,7 @@ export async function getRuntimeStatus(options: {
   runtimeSelectionSource: 'default' | 'env'
   toolchainStatus: DesktopToolchainDiagnosticReport
 }): Promise<DesktopRuntimeStatus> {
-  const runtimeKind =
-    options.runtimePreference === 'subprocess'
-      ? 'subprocess'
-      : 'embedded-headless'
+  const runtimeKind = runtimeKindForPreference(options.runtimePreference)
   try {
     const fileStat = await stat(options.agentExecutablePath)
     return {
@@ -69,4 +66,12 @@ export async function getRuntimeStatus(options: {
       toolchainBinaries: options.toolchainStatus.binaries,
     }
   }
+}
+
+function runtimeKindForPreference(
+  preference: DesktopAgentRuntimePreference,
+): DesktopRuntimeStatus['runtimeKind'] {
+  if (preference === 'subprocess') return 'subprocess'
+  if (preference === 'embedded-headless') return 'embedded-headless'
+  return 'sidecar'
 }

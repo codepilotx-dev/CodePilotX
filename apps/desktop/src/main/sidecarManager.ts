@@ -1,0 +1,403 @@
+import { spawn, type ChildProcess } from 'node:child_process'
+import { EventEmitter } from 'node:events'
+import {
+  createMessageConnection,
+  StreamMessageReader,
+  StreamMessageWriter,
+  type MessageConnection,
+} from 'vscode-jsonrpc/node'
+import type {
+  JsonRpcInitializeResult,
+  JsonRpcThreadStartParams,
+  JsonRpcThreadStartResult,
+  JsonRpcTurnStartParams,
+  JsonRpcTurnStartResult,
+  JsonRpcTurnInterruptParams,
+  JsonRpcSessionGetSnapshotParams,
+  JsonRpcSessionSnapshot,
+} from '@codepilotx/core/appServer/protocol.js'
+import {
+  THREAD_EVENT_NOTIFICATION,
+  SESSION_SNAPSHOT_UPDATED_NOTIFICATION,
+} from '@codepilotx/core/appServer/protocol.js'
+import type { ThreadEvent } from '@codepilotx/core/agent/workflow.js'
+import { desktopDebug } from './desktopDebug.js'
+
+/**
+ * SidecarManager 管理 app-server sidecar 子进程的生命周期与 JSON-RPC 通信。
+ *
+ * 生命周期：
+ *   1. 构造 SidecarManager（传入 sidecar 进程路径、cwd、env）
+ *   2. start() → spawn 子进程 → 建立 JSON-RPC 连接 → initialize 握手
+ *   3. 调用 JSON-RPC 方法（startThread / startTurn / interruptTurn / …）
+ *   4. 订阅 thread/event、session/snapshot.updated 通知
+ *   5. stop() → 清理子进程与连接
+ *   6. 失败时通过 FallbackError 通知调用方回退到 embedded 模式
+ */
+
+// ── Public types ──────────────────────────────────────────────────────────
+
+export type SidecarEventMap = {
+  threadEvent: [event: ThreadEvent]
+  sessionSnapshotUpdated: [snapshot: JsonRpcSessionSnapshot]
+  /** sidecar 进程异常退出时的通知 */
+  crash: [error: Error]
+  /** 来自 sidecar 的工具权限请求 */
+  permissionRequest: [context: SidecarPermissionContext]
+}
+
+export type SidecarPermissionContext = {
+  requestId: string
+  toolName: string
+  toolUseId?: string
+  input: Record<string, unknown>
+  description: string
+}
+
+export type SidecarPermissionDecision = {
+  behavior: 'allow' | 'deny'
+  updatedInput?: Record<string, unknown>
+  alwaysAllow?: boolean
+  message?: string
+}
+
+export const SIDECAR_RUNNER_ENV = 'CODEPILOTX_JSON_RPC_APP_SERVER' as const
+
+// ── SidecarManager ────────────────────────────────────────────────────────
+
+export class SidecarManager {
+  private child: ChildProcess | null = null
+  private connection: MessageConnection | null = null
+  private initialized = false
+  private readonly emitter = new EventEmitter()
+  private cleanupSteps: Array<() => void> = []
+  private startupResolve: (() => void) | null = null
+  private startupReject: ((err: Error) => void) | null = null
+
+  constructor(
+    private readonly options: {
+      /** sidecar entrypoint JS/TS 路径 */
+      entrypoint: string
+      /** 工作目录 */
+      cwd: string
+      /** 传递给 sidecar 的环境变量 */
+      env: Record<string, string | undefined>
+      /** 用于执行 entrypoint 的运行时（bun / node） */
+      runtime?: string
+      /** 额外 spawn 参数 */
+      runtimeArgs?: string[]
+      /** 连接超时（毫秒） */
+      startTimeoutMs?: number
+    },
+  ) {}
+
+  // ── Lifecycle ───────────────────────────────────────────────────────────
+
+  async start(): Promise<void> {
+    if (this.initialized) return
+
+    desktopDebug('sidecar_start', {
+      entrypoint: this.options.entrypoint,
+      cwd: this.options.cwd,
+    })
+
+    const timeout = this.options.startTimeoutMs ?? 15_000
+    const runtime = this.options.runtime ?? 'bun'
+    const runtimeArgs = this.options.runtimeArgs ?? ['run']
+
+    // 1. Spawn 子进程
+    const child = spawn(runtime, [...runtimeArgs, this.options.entrypoint], {
+      cwd: this.options.cwd,
+      windowsHide: true,
+      env: {
+        ...process.env,
+        ...this.options.env,
+        // 标记自身为 sidecar 模式
+        [SIDECAR_RUNNER_ENV]: '1',
+      },
+      stdio: ['pipe', 'pipe', 'pipe'],
+    })
+    this.child = child
+    this.cleanupSteps.push(() => this.killChild())
+
+    // 2. 捕获 stderr
+    const stderrChunks: Buffer[] = []
+    child.stderr?.on('data', (chunk: Buffer) => {
+      stderrChunks.push(chunk)
+    })
+
+    // 3. 建立 JSON-RPC 连接
+    const connection = createMessageConnection(
+      new StreamMessageReader(child.stdout!),
+      new StreamMessageWriter(child.stdin!),
+    )
+    this.connection = connection
+    connection.listen()
+
+    // 4. 注册通知处理器
+    connection.onNotification(THREAD_EVENT_NOTIFICATION, (params: { event: ThreadEvent }) => {
+      desktopDebug('sidecar_thread_event', {
+        type: params.event.type,
+        threadId: params.event.threadId,
+      })
+      this.emitter.emit('threadEvent', params.event)
+    })
+
+    connection.onNotification(
+      SESSION_SNAPSHOT_UPDATED_NOTIFICATION,
+      (params: { snapshot: JsonRpcSessionSnapshot }) => {
+        this.emitter.emit('sessionSnapshotUpdated', params.snapshot)
+      },
+    )
+
+    // 5. 注册 pending/tool/permission 通知处理器
+    connection.onNotification('pending/tool/permission', (params: SidecarPermissionContext) => {
+      desktopDebug('sidecar_permission_request', {
+        requestId: params.requestId,
+        toolName: params.toolName,
+      })
+      this.handlePermissionRequest(params)
+    })
+
+    // 6. 等待子进程就绪（进程启动 + initialize 握手）
+    const startupPromise = new Promise<void>((resolve, reject) => {
+      this.startupResolve = resolve
+      this.startupReject = reject
+    })
+
+    // 子进程 exit 监听
+    const exitHandler = (code: number | null, signal: string | null) => {
+      const error = new Error(
+        `Sidecar process exited unexpectedly (code=${code}, signal=${signal})` +
+          (stderrChunks.length > 0
+            ? `: ${Buffer.concat(stderrChunks).toString('utf8').slice(0, 1000)}`
+            : ''),
+      )
+      this.emitter.emit('crash', error)
+      this.startupReject?.(error)
+    }
+    child.on('exit', exitHandler)
+    this.cleanupSteps.push(() => child.off('exit', exitHandler))
+
+    // 子进程 error 监听
+    const errorHandler = (err: Error) => {
+      this.emitter.emit('crash', err)
+      this.startupReject?.(err)
+    }
+    child.on('error', errorHandler)
+    this.cleanupSteps.push(() => child.off('error', errorHandler))
+
+    // 7. 发送 initialize 握手
+    try {
+      const result = await this.withTimeout(
+        connection.sendRequest<JsonRpcInitializeResult>('initialize', {}),
+        timeout,
+        'Sidecar initialize timeout',
+      )
+      desktopDebug('sidecar_initialized', { result })
+      this.initialized = true
+      this.startupResolve?.()
+    } catch (err) {
+      this.startupReject?.(err instanceof Error ? err : new Error(String(err)))
+      throw err
+    }
+
+    return startupPromise
+  }
+
+  async stop(): Promise<void> {
+    desktopDebug('sidecar_stop', {})
+    // 反向清理
+    for (const step of this.cleanupSteps.reverse()) {
+      try {
+        step()
+      } catch {
+        // 忽略清理中的错误
+      }
+    }
+    this.cleanupSteps = []
+    this.connection = null
+    this.child = null
+    this.initialized = false
+  }
+
+  // ── JSON-RPC 方法 ───────────────────────────────────────────────────────
+
+  async startThread(
+    params: JsonRpcThreadStartParams,
+  ): Promise<JsonRpcThreadStartResult> {
+    this.ensureConnected()
+    return this.connection!.sendRequest('thread/start', params)
+  }
+
+  async startTurn(
+    params: JsonRpcTurnStartParams,
+  ): Promise<JsonRpcTurnStartResult> {
+    this.ensureConnected()
+    return this.connection!.sendRequest('turn/start', params)
+  }
+
+  async interruptTurn(
+    params: JsonRpcTurnInterruptParams,
+  ): Promise<ThreadEvent> {
+    this.ensureConnected()
+    return this.connection!.sendRequest('turn/interrupt', params)
+  }
+
+  async getSessionSnapshot(
+    params: JsonRpcSessionGetSnapshotParams,
+  ): Promise<JsonRpcSessionSnapshot> {
+    this.ensureConnected()
+    return this.connection!.sendRequest('session/getSnapshot', params)
+  }
+
+  /** 响应 sidecar 的权限请求（由 Desktop 在收到 pending/tool/permission 后调用） */
+  respondPermission(
+    requestId: string,
+    decision: SidecarPermissionDecision,
+  ): void {
+    this.ensureConnected()
+    void this.connection!
+      .sendRequest('control/submit', { requestId, decision })
+      .catch(error => {
+        desktopDebug('sidecar_permission_response_failed', {
+          requestId,
+          message: error instanceof Error ? error.message : String(error),
+        })
+      })
+  }
+
+  // ── Event 订阅 ──────────────────────────────────────────────────────────
+
+  on<K extends keyof SidecarEventMap>(
+    event: K,
+    listener: (...args: SidecarEventMap[K]) => void,
+  ): this {
+    this.emitter.on(event, listener as (...args: unknown[]) => void)
+    return this
+  }
+
+  off<K extends keyof SidecarEventMap>(
+    event: K,
+    listener: (...args: SidecarEventMap[K]) => void,
+  ): this {
+    this.emitter.off(event, listener as (...args: unknown[]) => void)
+    return this
+  }
+
+  get isRunning(): boolean {
+    return this.initialized && this.child !== null && !this.child.killed
+  }
+
+  // ── Private ─────────────────────────────────────────────────────────────
+
+  private ensureConnected(): void {
+    if (!this.connection || !this.initialized) {
+      throw new Error('Sidecar not initialized. Call start() first.')
+    }
+  }
+
+  private handlePermissionRequest(
+    context: SidecarPermissionContext,
+  ): void {
+    // 通知 Desktop 层显示权限对话框，Desktop 层通过 respondPermission() 响应
+    this.emitter.emit('permissionRequest', context)
+  }
+
+  private killChild(): void {
+    if (this.child && !this.child.killed) {
+      try {
+        this.child.kill()
+      } catch {
+        // 忽略 kill 失败
+      }
+    }
+  }
+
+  private withTimeout<T>(
+    promise: Promise<T>,
+    ms: number,
+    message: string,
+  ): Promise<T> {
+    return Promise.race([
+      promise,
+      new Promise<T>((_, reject) =>
+        setTimeout(() => reject(new Error(message)), ms),
+      ),
+    ])
+  }
+}
+
+// ── 工具：构建 sidecar env ─────────────────────────────────────────────────
+
+/**
+ * 根据 DesktopAgentRuntimeContext 构建传递给 sidecar 进程的 env。
+ * 这些 env 会被 entrypoints/appServer.ts 读取并用来初始化运行时。
+ */
+export function buildSidecarEnv(
+  context: SidecarEnvContext,
+): Record<string, string | undefined> {
+  return {
+    CODEPILOTX_SIDECAR_SESSION_ID: context.sessionId,
+    CODEPILOTX_SIDECAR_WORKSPACE: context.workspacePath,
+    CODEPILOTX_SIDECAR_MODEL: context.model,
+    CODEPILOTX_SIDECAR_PROVIDER_ID: context.providerID,
+    CODEPILOTX_SIDECAR_PROVIDER_BASE_URL: context.providerBaseURL,
+    CODEPILOTX_SIDECAR_PERMISSION_MODE: context.permissionMode,
+    CODEPILOTX_SIDECAR_SANDBOX_MODE: context.sandboxMode,
+    CODEPILOTX_SIDECAR_APPROVAL_POLICY: context.approvalPolicy,
+    CODEPILOTX_SIDECAR_APPROVALS_REVIEWER: context.approvalsReviewer,
+    CODEPILOTX_SIDECAR_PERMISSION_PROFILE: context.permissionProfile,
+    CODEPILOTX_SIDECAR_CONFIG_DIR: context.configDirectoryPath,
+    CODEPILOTX_SIDECAR_DEBUG_DUMP: context.debugConversationDump ? '1' : '0',
+    CODEPILOTX_SIDECAR_THINKING_MODE: context.thinkingMode,
+    CODEPILOTX_SIDECAR_SYSTEM_PROMPT: context.systemPrompt,
+    CODEPILOTX_SIDECAR_APPEND_SYSTEM_PROMPT: context.appendSystemPrompt,
+    CODEPILOTX_SIDECAR_ADDITIONAL_DIRS: context.additionalDirectories?.join(';'),
+    CODEPILOTX_SIDECAR_INSTALL_DEPS: context.installCodexDependencies ? '1' : '0',
+    CODEPILOTX_SIDECAR_ENABLE_MEMORY: context.enableMemory ? '1' : '0',
+    CODEPILOTX_SIDECAR_REVIEW_MODEL: context.reviewModel,
+    CODEPILOTX_SIDECAR_SMALL_FAST_MODEL: context.smallFastModel,
+    CODEPILOTX_SIDECAR_FAST_MODEL: context.fastModel,
+    CODEPILOTX_SIDECAR_DEFAULT_MODEL: context.defaultModel,
+    CODEPILOTX_SIDECAR_DEEP_MODEL: context.deepModel,
+    CODEPILOTX_SIDECAR_SESSION_NAME: context.sessionName,
+  }
+}
+
+export type SidecarEnvContext = {
+  sessionId: string
+  workspacePath: string
+  model?: string
+  providerID?: string
+  providerBaseURL?: string
+  permissionMode?: string
+  sandboxMode?: string
+  approvalPolicy?: string
+  approvalsReviewer?: string
+  permissionProfile?: string
+  configDirectoryPath?: string
+  debugConversationDump?: boolean
+  thinkingMode?: string
+  systemPrompt?: string
+  appendSystemPrompt?: string
+  additionalDirectories?: string[]
+  installCodexDependencies?: boolean
+  enableMemory?: boolean
+  reviewModel?: string
+  smallFastModel?: string
+  fastModel?: string
+  defaultModel?: string
+  deepModel?: string
+  sessionName?: string
+}
+
+export class SidecarStartError extends Error {
+  constructor(
+    message: string,
+    public readonly cause?: Error,
+  ) {
+    super(message)
+    this.name = 'SidecarStartError'
+  }
+}

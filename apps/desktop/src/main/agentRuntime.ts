@@ -47,9 +47,12 @@ import {
   summarizeToolInput,
 } from './agentRuntimeSupport.js'
 import { desktopDebug } from './desktopDebug.js'
+import { SidecarDesktopAgentRuntime } from './sidecarAgentRuntime.js'
+import { SidecarStartError } from './sidecarManager.js'
 
 export type DesktopAgentRuntimePreference =
   | 'auto'
+  | 'sidecar'
   | 'embedded-headless'
   | 'subprocess'
 
@@ -176,19 +179,36 @@ export function createDesktopAgentRuntime(
     })
     return new CliDesktopAgentRuntime(context)
   }
-  try {
+  if (preference === 'embedded-headless') {
     desktopDebug('runtime_create_embedded', {
       sessionId: context.sessionId,
       preference,
     })
     return new InProcessDesktopAgentRuntime(context)
+  }
+  if (preference === 'auto') {
+    desktopDebug('runtime_create_auto_sidecar', {
+      sessionId: context.sessionId,
+      preference,
+    })
+    return new AutoFallbackDesktopAgentRuntime(context)
+  }
+  try {
+    desktopDebug('runtime_create_sidecar', {
+      sessionId: context.sessionId,
+      preference,
+    })
+    return new SidecarDesktopAgentRuntime(context)
   } catch (error) {
-    desktopDebug('runtime_create_embedded_failed', {
+    desktopDebug('runtime_create_sidecar_failed', {
       sessionId: context.sessionId,
       preference,
       message: error instanceof Error ? error.message : String(error),
     })
-    throw error
+    throw new SidecarStartError(
+      `Sidecar runtime creation failed: ${error instanceof Error ? error.message : String(error)}`,
+      error instanceof Error ? error : undefined,
+    )
   }
 }
 
@@ -240,6 +260,96 @@ function restoreBasePathEnv(env: NodeJS.ProcessEnv): void {
   env[currentPathKey] = BASE_PROCESS_ENV[basePathKey]
   if (currentPathKey !== basePathKey) {
     delete env[basePathKey]
+  }
+}
+
+class AutoFallbackDesktopAgentRuntime implements DesktopAgentRuntime {
+  private readonly sidecar: SidecarDesktopAgentRuntime
+  private fallback: InProcessDesktopAgentRuntime | null = null
+
+  constructor(private readonly context: DesktopAgentRuntimeContext) {
+    this.sidecar = new SidecarDesktopAgentRuntime(context)
+  }
+
+  setModel(model: string | undefined): void {
+    this.sidecar.setModel(model)
+    this.fallback?.setModel(model)
+  }
+
+  setModelProvider(
+    providerID: string | undefined,
+    model: string | undefined,
+    providerBaseURL: string | undefined,
+  ): void {
+    this.sidecar.setModelProvider(providerID, model, providerBaseURL)
+    this.fallback?.setModelProvider(providerID, model, providerBaseURL)
+  }
+
+  setPermissionMode(permissionMode: DesktopPermissionMode): void {
+    this.sidecar.setPermissionMode(permissionMode)
+    this.fallback?.setPermissionMode(permissionMode)
+  }
+
+  setPlanModeActive(active: boolean): void {
+    this.sidecar.setPlanModeActive(active)
+    this.fallback?.setPlanModeActive(active)
+  }
+
+  setDebugConversationDump(enabled: boolean): void {
+    this.sidecar.setDebugConversationDump(enabled)
+    this.fallback?.setDebugConversationDump(enabled)
+  }
+
+  async runUserTurn(
+    content: DesktopUserMessageContent,
+    signal: AbortSignal,
+  ): Promise<void> {
+    if (this.fallback) {
+      await this.fallback.runUserTurn(content, signal)
+      return
+    }
+    try {
+      await this.sidecar.runUserTurn(content, signal)
+    } catch (error) {
+      if (!(error instanceof SidecarStartError) || signal.aborted) {
+        throw error
+      }
+      desktopDebug('runtime_auto_sidecar_failed_fallback_embedded', {
+        sessionId: this.context.sessionId,
+        message: error.message,
+      })
+      await this.sidecar.dispose()
+      this.fallback = new InProcessDesktopAgentRuntime(this.context)
+      await this.fallback.runUserTurn(content, signal)
+    }
+  }
+
+  async runControlResponse(
+    response: Record<string, unknown>,
+    signal: AbortSignal,
+  ): Promise<void> {
+    if (this.fallback) {
+      await this.fallback.runControlResponse(response, signal)
+      return
+    }
+    try {
+      await this.sidecar.runControlResponse(response, signal)
+    } catch (error) {
+      if (!(error instanceof SidecarStartError) || signal.aborted) {
+        throw error
+      }
+      desktopDebug('runtime_auto_sidecar_control_failed_fallback_embedded', {
+        sessionId: this.context.sessionId,
+        message: error.message,
+      })
+      await this.sidecar.dispose()
+      this.fallback = new InProcessDesktopAgentRuntime(this.context)
+      await this.fallback.runControlResponse(response, signal)
+    }
+  }
+
+  getMcpRuntimeStatus() {
+    return (this.fallback ?? this.sidecar).getMcpRuntimeStatus()
   }
 }
 

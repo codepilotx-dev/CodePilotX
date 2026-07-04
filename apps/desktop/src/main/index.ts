@@ -42,7 +42,6 @@ import {
   buildDesktopToolchainEnvPatch,
 } from './desktopRuntimeEnv.js'
 import { createDesktopToolchainService } from './desktopToolchainService.js'
-import { createDesktopJsonRpcAppServerBridge } from './desktopJsonRpcAppServerBridge.js'
 import {
   createDesktopBrowserDebugBridge,
   resolveDesktopBrowserDebugPort,
@@ -274,22 +273,7 @@ const desktopToolchainService = createDesktopToolchainService({
   resourcesPath: process.resourcesPath,
   userDataPath: app.getPath('userData'),
 })
-const jsonRpcAppServerThreadIds = new Set<string>()
-const jsonRpcAppServerBridge = createDesktopJsonRpcAppServerBridge({
-  onWorkflowEvent: event => {
-    const emittedEvent = windowService.emitWorkflowEvent(event)
-    const record = sessions.get(emittedEvent.threadId)
-    if (record) {
-      record.snapshot = applyDesktopWorkflowEventsToSnapshot(record.snapshot, [
-        emittedEvent,
-      ])
-      persistSessionStore({
-        immediate: isImmediatePersistWorkflowEvent(emittedEvent),
-      })
-    }
-  },
-})
-configureWorkspaceService({ getWindow: windowService.getWindow })
+	configureWorkspaceService({ getWindow: windowService.getWindow })
 const { configureDesktopMcpConfigRuntime, registerMcpConfigWorkspaceAccessor } = await import('./mcpConfigRuntimeAdapter.js')
 registerMcpConfigWorkspaceAccessor(getStandaloneWorkspaceMetadata)
 configureDesktopMcpConfigRuntime()
@@ -327,6 +311,7 @@ function getDesktopRuntimeSelection(): {
   }
   if (
     value === 'auto' ||
+    value === 'sidecar' ||
     value === 'embedded-headless' ||
     value === 'subprocess'
   ) {
@@ -1010,10 +995,9 @@ async function createSession(
       })
     })
   }
-  sessions.set(session.sessionId, record)
-  activeSessionId = session.sessionId
-  attachSessionListeners(record)
-  startJsonRpcAppServerThread(session.sessionId)
+	sessions.set(session.sessionId, record)
+	  activeSessionId = session.sessionId
+	  attachSessionListeners(record)
   persistSessionStore({ immediate: true })
   return { sessionId: session.sessionId, workspace, standalone }
 }
@@ -1149,12 +1133,10 @@ async function sendUserMessage(
   })
   activeSessionId = record.snapshot.item.id
   persistSessionStore({ immediate: true })
-  if (shouldGenerateTitle) {
-    scheduleAiTitleGeneration(record, trimmedContent)
-  }
-  await startJsonRpcAppServerThread(sessionId)
-  await startJsonRpcAppServerTurn(sessionId, runtimeContent)
-  try {
+	  if (shouldGenerateTitle) {
+	    scheduleAiTitleGeneration(record, trimmedContent)
+	  }
+	  try {
     await session.sendUserMessage(runtimeContent, trimmedContent)
     desktopDebug('send_user_message_done', {
       sessionId,
@@ -1289,40 +1271,7 @@ function scheduleAiTitleGeneration(
     )
     persistSessionStore()
   })
-}
-
-async function startJsonRpcAppServerThread(sessionId: string): Promise<void> {
-  if (!jsonRpcAppServerBridge || jsonRpcAppServerThreadIds.has(sessionId)) {
-    return
-  }
-  jsonRpcAppServerThreadIds.add(sessionId)
-  try {
-    await jsonRpcAppServerBridge.startThread(sessionId)
-  } catch (error) {
-    jsonRpcAppServerThreadIds.delete(sessionId)
-    desktopDebug('json_rpc_app_server_thread_start_failed', {
-      sessionId,
-      message: error instanceof Error ? error.message : String(error),
-    })
-  }
-}
-
-async function startJsonRpcAppServerTurn(
-  sessionId: string,
-  content: DesktopUserMessageContent,
-): Promise<void> {
-  if (!jsonRpcAppServerBridge) {
-    return
-  }
-  try {
-    await jsonRpcAppServerBridge.startTurn(sessionId, content)
-  } catch (error) {
-    desktopDebug('json_rpc_app_server_turn_start_failed', {
-      sessionId,
-      message: error instanceof Error ? error.message : String(error),
-    })
-  }
-}
+	}
 
 function getSessionTitleModel(record: DesktopSessionRecord): string {
   const model = record.snapshot.settings.model
