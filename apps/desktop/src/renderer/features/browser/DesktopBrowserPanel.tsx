@@ -22,6 +22,13 @@ type Props = {
   onStateChange: (state: DesktopBrowserState) => void
 }
 
+type BrowserBounds = {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
 export function DesktopBrowserPanel({
   state,
   onAppendAnnotation,
@@ -34,6 +41,7 @@ export function DesktopBrowserPanel({
   const [annotationOpen, setAnnotationOpen] = useState(false)
   const [annotationTarget, setAnnotationTarget] = useState('')
   const [annotationBody, setAnnotationBody] = useState('')
+  const lastBoundsRef = useRef<BrowserBounds | null>(null)
 
   useEffect(() => {
     if (state.url) {
@@ -45,37 +53,53 @@ export function DesktopBrowserPanel({
     const viewport = viewportRef.current
     if (!viewport || !state.open) return
 
-    const syncBounds = (): void => {
-      if (!state.url) {
-        void desktopClient
-          .setBrowserBounds({ x: 0, y: 0, width: 0, height: 0 })
-          .then(onStateChange)
-          .catch(() => undefined)
+    let animationFrame = 0
+    const setBounds = (bounds: BrowserBounds): void => {
+      const previous = lastBoundsRef.current
+      if (previous && sameBrowserBounds(previous, bounds)) {
         return
       }
-      const rect = viewport.getBoundingClientRect()
+
+      lastBoundsRef.current = bounds
       void desktopClient
-        .setBrowserBounds({
-          x: rect.left,
-          y: rect.top,
-          width: rect.width,
-          height: rect.height,
-        })
+        .setBrowserBounds(bounds)
         .then(onStateChange)
         .catch(() => undefined)
     }
 
+    const syncBounds = (): void => {
+      if (!state.url) {
+        setBounds({ x: 0, y: 0, width: 0, height: 0 })
+        return
+      }
+      const rect = viewport.getBoundingClientRect()
+      setBounds({
+        x: rect.left,
+        y: rect.top,
+        width: rect.width,
+        height: rect.height,
+      })
+    }
+
+    const scheduleSyncBounds = (): void => {
+      if (animationFrame) return
+      animationFrame = window.requestAnimationFrame(() => {
+        animationFrame = 0
+        syncBounds()
+      })
+    }
+
     syncBounds()
-    const resizeObserver = new ResizeObserver(syncBounds)
+    const resizeObserver = new ResizeObserver(scheduleSyncBounds)
     resizeObserver.observe(viewport)
-    window.addEventListener('resize', syncBounds)
+    window.addEventListener('resize', scheduleSyncBounds)
     return () => {
-      void desktopClient
-        .setBrowserBounds({ x: 0, y: 0, width: 0, height: 0 })
-        .then(onStateChange)
-        .catch(() => undefined)
+      if (animationFrame) {
+        window.cancelAnimationFrame(animationFrame)
+      }
+      setBounds({ x: 0, y: 0, width: 0, height: 0 })
       resizeObserver.disconnect()
-      window.removeEventListener('resize', syncBounds)
+      window.removeEventListener('resize', scheduleSyncBounds)
     }
   }, [onStateChange, state.open, state.url])
 
@@ -260,5 +284,14 @@ export function DesktopBrowserPanel({
         </div>
       ) : null}
     </section>
+  )
+}
+
+function sameBrowserBounds(a: BrowserBounds, b: BrowserBounds): boolean {
+  return (
+    Math.abs(a.x - b.x) < 0.5 &&
+    Math.abs(a.y - b.y) < 0.5 &&
+    Math.abs(a.width - b.width) < 0.5 &&
+    Math.abs(a.height - b.height) < 0.5
   )
 }

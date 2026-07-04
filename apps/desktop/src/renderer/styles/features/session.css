@@ -1610,6 +1610,7 @@
   color: var(--c-text);
   font-size: var(--fs-14);
   box-shadow: var(--sh-card);
+  margin-top: 10px;
 }
 
 .timeline-file-event-header {

@@ -136,7 +136,7 @@ test('ChatInputDropdown adds --bottom modifier class when side is "bottom"', () 
   expect(html).toContain('chat-input__dropdown--bottom')
 })
 
-test('ComposerCard shows full slash command list when input is just "/"', () => {
+test('ComposerCard shows unified menu with all 7 groups when input is just "/"', () => {
   const html = renderWithProviders(
     <ComposerCard
       {...baseProps}
@@ -154,11 +154,19 @@ test('ComposerCard shows full slash command list when input is just "/"', () => 
 
   expect(html).toContain('popover-surface chat-input__dropdown chat-input__dropdown--bottom')
   expect(html).toContain('--popover-max-width:100%')
-  // Full list shown for "/"
+  // Unified menu shows all non-empty groups (Skills hidden because no skill commands)
+  expect(html).toContain('>添加<')
+  expect(html).toContain('>目标<')
+  expect(html).toContain('>计划模式<')
+  expect(html).toContain('>智能体<')
+  expect(html).toContain('>插件<')
+  expect(html).toContain('>命令<')
+  expect(html).not.toContain('>Skills<')
+  // Each group contains expected items
+  expect(html).toContain('Files and folders')
+  expect(html).toContain('Schrodinger')
+  expect(html).toContain('Documents')
   expect(html).toContain('状态')
-  expect(html).not.toContain('Files and folders')
-  expect(html).not.toContain('智能体')
-  expect(html).not.toContain('插件')
 })
 
 test('ComposerCard shows full slash command list when input is "/ "', () => {
@@ -252,7 +260,7 @@ test('ComposerCard shows no commands when no slash commands match', () => {
   expect(html).not.toContain('状态')
 })
 
-test('ComposerCard shows section headers for commands and skills in slash dropdown', () => {
+test('ComposerCard shows unified menu groups including Skills and 命令', () => {
   const html = renderWithProviders(
     <ComposerCard
       {...baseProps}
@@ -275,8 +283,14 @@ test('ComposerCard shows section headers for commands and skills in slash dropdo
     />,
   )
 
-  expect(html).toContain('chat-input__dropdown-section-title">命令<')
+  // All 7 groups render
+  expect(html).toContain('chat-input__dropdown-section-title">添加<')
+  expect(html).toContain('chat-input__dropdown-section-title">目标<')
+  expect(html).toContain('chat-input__dropdown-section-title">计划模式<')
+  expect(html).toContain('chat-input__dropdown-section-title">智能体<')
+  expect(html).toContain('chat-input__dropdown-section-title">插件<')
   expect(html).toContain('chat-input__dropdown-section-title">Skills<')
+  expect(html).toContain('chat-input__dropdown-section-title">命令<')
   expect(html).toContain('状态')
   expect(html).toContain('Mmx CLI')
   expect(html).toContain('chat-input__dropdown-separator')
@@ -705,4 +719,51 @@ test('ComposerCard goal mode and plan mode chips are independent', () => {
 	  // Both chips should appear independently
 	  expect(html).toContain('>目标<')
 	  expect(html).toContain('>计划<')
+	})
+
+test('getActiveComposerMention detects @brain for skill filtering', () => {
+	  expect(getActiveComposerMention('@brain', 6)).toEqual({
+	    start: 0,
+	    end: 6,
+	    query: 'brain',
+	  })
+	})
+
+test('ComposerCard unified menu filters by Chinese keyword "/计" across all groups', () => {
+	  const html = renderWithProviders(
+	    <ComposerCard
+	      {...baseProps}
+	      input="/计"
+	      slashCommands={[
+	        { name: 'plan', title: '计划模式', description: '开启计划模式', category: 'command' },
+	        { name: 'status', title: '状态', description: '显示状态', category: 'command' },
+	      ]}
+	    />,
+	  )
+
+	  // 计划模式 from 计划模式 group matches keyword "计"
+	  expect(html).toContain('>计划模式<')
+	  // 状态 does not contain "计" → hidden
+	  expect(html).not.toContain('>状态<')
+	  // Hardcoded items without "计" are also hidden
+	  expect(html).not.toContain('Files and folders')
+	  expect(html).not.toContain('Schrodinger')
+	  expect(html).not.toContain('Documents')
+	})
+
+test('ComposerCard unified menu filters by English keyword across hardcoded and command items', () => {
+	  const html = renderWithProviders(
+	    <ComposerCard
+	      {...baseProps}
+	      input="/goal"
+	    />,
+	  )
+
+	  // 目标 group item matches "goal" in matchText
+	  expect(html).toContain('>目标<')
+	  // Other groups without "goal" match are hidden
+	  expect(html).not.toContain('>添加<')
+	  expect(html).not.toContain('>计划模式<')
+	  expect(html).not.toContain('>智能体<')
+	  expect(html).not.toContain('>插件<')
 	})

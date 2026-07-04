@@ -711,7 +711,6 @@
   background: transparent;
   border: 0;
   font-family: inherit;
-  line-height: 1.6;
 }
 
 .chat-input__dropdown-leading {
@@ -781,6 +780,7 @@
 .chat-input__dropdown-items {
   display: grid;
   gap: 2px;
+  padding: 0 5px;
 }
 
 .chat-input__dropdown-agent-icon {

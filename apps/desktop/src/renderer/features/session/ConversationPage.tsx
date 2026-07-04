@@ -386,26 +386,38 @@ export function ConversationPage(): React.ReactNode {
     const pageEl = workflowPageRef.current;
     if (!composerEl || !pageEl) return;
 
+    let animationFrame = 0;
+    let lastWidth = 0;
+
     const updateDimensions = (): void => {
       const rect = composerEl.getBoundingClientRect();
+      if (Math.abs(rect.width - lastWidth) < 0.5) return;
+      lastWidth = rect.width;
       pageEl.style.setProperty("--workflow-composer-width", `${rect.width}px`);
-      pageEl.style.setProperty(
-        "--workflow-composer-height",
-        `${rect.height}px`,
-      );
+    };
+
+    const scheduleUpdateDimensions = (): void => {
+      if (animationFrame) return;
+      animationFrame = window.requestAnimationFrame(() => {
+        animationFrame = 0;
+        updateDimensions();
+      });
     };
 
     updateDimensions();
 
     let observer: ResizeObserver | null = null;
     try {
-      observer = new ResizeObserver(updateDimensions);
+      observer = new ResizeObserver(scheduleUpdateDimensions);
       observer.observe(composerEl);
     } catch {
       // ResizeObserver not available; CSS fallback handles dimension variables
     }
 
     return () => {
+      if (animationFrame) {
+        window.cancelAnimationFrame(animationFrame);
+      }
       observer?.disconnect();
     };
   }, [composer, composerTransition.ref, workflowPageRef]);

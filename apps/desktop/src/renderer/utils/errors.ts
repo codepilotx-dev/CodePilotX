@@ -1,5 +1,21 @@
+const RESIZE_OBSERVER_LOOP_MESSAGES = [
+  'ResizeObserver loop completed with undelivered notifications.',
+  'ResizeObserver loop limit exceeded',
+]
+
 export function fullErrorMessage(error: unknown): string {
   return formatUnknownError(error, new WeakSet<object>())
+}
+
+export function isResizeObserverLoopError(error: unknown): boolean {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'string'
+        ? error
+        : null
+  if (!message) return false
+  return RESIZE_OBSERVER_LOOP_MESSAGES.some(item => message.includes(item))
 }
 
 function formatUnknownError(error: unknown, seen: WeakSet<object>): string {

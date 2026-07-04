@@ -18,8 +18,7 @@
   display: flex;
   flex-direction: column;
   position: relative;
-  width: min(var(--workflow-composer-width, var(--layout-content-w, 760px)), 100%);
-  max-width: var(--workflow-composer-width, var(--layout-content-w, 760px));
+
   margin: 0 auto;
   padding: 20px 0 0;
 }
@@ -31,7 +30,7 @@
   min-height: 0;
   width: 100%;
   position: relative;
-  overflow: hidden;  /* VList manages its own scroll */
+  overflow: hidden; /* VList manages its own scroll */
 }
 
 /* Keep the VList from causing layout shifts */
@@ -42,6 +41,12 @@
 .session-timeline-vlist > :first-child {
   /* VList's inner scroll container; ensure proper width */
   min-width: 0;
+  width: min(
+    var(--workflow-composer-width, var(--layout-content-w, 760px)),
+    100%
+  );
+  max-width: var(--workflow-composer-width, var(--layout-content-w, 760px));
+  margin: auto;
 }
 
 /* ── Individual row wrapper ───────────────────────────── */
@@ -90,7 +95,7 @@
 
 .turn-divider-label::before,
 .turn-divider-label::after {
-  content: '';
+  content: "";
   display: block;
   height: 1px;
   width: 24px;
@@ -105,54 +110,51 @@
 /* ── Data-attribute based contextual styling ──────────── */
 
 /* User messages: override for virtual-list context */
-[data-component='session-turn'][data-slot='user-message'] {
+[data-component="session-turn"][data-slot="user-message"] {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
 }
 
-[data-component='session-turn'][data-slot='user-message']
+[data-component="session-turn"][data-slot="user-message"]
   .chat-message-row.user {
   max-width: 100%;
 }
 
 /* Assistant messages: full width */
-[data-component='session-turn'][data-slot='assistant-message']
+[data-component="session-turn"][data-slot="assistant-message"]
   .chat-message-row.assistant {
   max-width: 100%;
 }
 
-[data-component='session-turn'][data-slot='assistant-message']
+[data-component="session-turn"][data-slot="assistant-message"]
   .assistant-message-body {
   max-width: min(760px, 100%);
 }
 
 /* Plan cards: full width in timeline */
-[data-component='session-turn'][data-slot='plan']
-  .chat-message-row.assistant {
+[data-component="session-turn"][data-slot="plan"] .chat-message-row.assistant {
   max-width: 100%;
 }
 
-[data-component='session-turn'][data-slot='plan']
-  .workflow-plan-card {
+[data-component="session-turn"][data-slot="plan"] .workflow-plan-card {
   width: 100%;
   max-width: min(760px, 100%);
 }
 
 /* Thinking pill: left-aligned, compact */
-[data-component='session-turn'][data-slot='thinking'] {
+[data-component="session-turn"][data-slot="thinking"] {
   display: flex;
   justify-content: flex-start;
 }
 
 /* Error rows */
-[data-component='session-turn'][data-slot='error']
-  .timeline-system-event {
+[data-component="session-turn"][data-slot="error"] .timeline-system-event {
   max-width: min(680px, 100%);
 }
 
 /* System event rows */
-[data-component='session-turn'][data-slot='permission_request']
+[data-component="session-turn"][data-slot="permission_request"]
   .timeline-system-event {
   max-width: min(680px, 100%);
 }
@@ -183,9 +185,11 @@
   opacity: 0;
 }
 
-.session-timeline-container .chat-message-row.assistant:hover
+.session-timeline-container
+  .chat-message-row.assistant:hover
   .assistant-message-actions,
-.session-timeline-container .chat-message-row.assistant:focus-within
+.session-timeline-container
+  .chat-message-row.assistant:focus-within
   .assistant-message-actions {
   opacity: 1;
 }

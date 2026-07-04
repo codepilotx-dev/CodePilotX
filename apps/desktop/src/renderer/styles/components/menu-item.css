@@ -33,6 +33,7 @@
   -webkit-user-select: none;
   transition: background var(--motion-fast) var(--ease-out);
   -webkit-app-region: no-drag;
+  overflow: hidden;
 }
 
 /* --- Disabled State --- */

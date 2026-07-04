@@ -152,6 +152,39 @@ const INSTALLED_CONTEXT_PLUGINS: ContextPlugin[] = [
   },
 ];
 
+type UnifiedMenuGroup =
+  | "添加"
+  | "目标"
+  | "计划模式"
+  | "智能体"
+  | "插件"
+  | "Skills"
+  | "命令";
+
+type UnifiedMenuItem = {
+  group: UnifiedMenuGroup;
+  key: string;
+  label: string;
+  hint?: string;
+  icon: React.ReactNode;
+  /** Text for keyword filtering (label + keywords) */
+  matchText: string;
+  /** Whether the item is active/pressed */
+  isActive?: boolean;
+  /** Core action, without trigger-text-clearing or dropdown-closing */
+  onSelect: () => void;
+};
+
+const UNIFIED_GROUP_ORDER: UnifiedMenuGroup[] = [
+  "添加",
+  "目标",
+  "计划模式",
+  "智能体",
+  "插件",
+  "Skills",
+  "命令",
+];
+
 const PERMISSION_CHIP_CLASS_NAMES: Record<DesktopPermissionMode, string> = {
   default: "permission-chip permission-chip-default",
   "auto-review": "permission-chip permission-chip-auto",
@@ -164,12 +197,12 @@ type Props = {
   canSubmit: boolean;
   sessionStatus: DesktopSessionStatus;
   permissionMode: DesktopPermissionMode;
-	planModeActive?: boolean;
-	goalModeEnabled?: boolean;
-	onGoalModeChange?: (enabled: boolean) => void;
-	localRouterMode?: LocalRouterMode;
-	enableParetoCodeRouter?: boolean;
-	enableFusionRouter?: boolean;
+  planModeActive?: boolean;
+  goalModeEnabled?: boolean;
+  onGoalModeChange?: (enabled: boolean) => void;
+  localRouterMode?: LocalRouterMode;
+  enableParetoCodeRouter?: boolean;
+  enableFusionRouter?: boolean;
   thinkingMode: DesktopThinkingMode;
   selectedProviderID: ModelProviderID;
   selectedModelPreset: string;
@@ -213,7 +246,9 @@ type Props = {
   onLocalRouterModeChange?: (mode: LocalRouterMode) => void;
   onSubmit: () => void;
   onThinkingChange: (value: DesktopThinkingMode) => void;
-  onSkillSelect?: (skill: DesktopSlashCommandSuggestion & { skillPath: string }) => void;
+  onSkillSelect?: (
+    skill: DesktopSlashCommandSuggestion & { skillPath: string },
+  ) => void;
   onSkillDeselect?: () => void;
   contextDropdownSide?: "top" | "bottom";
   debugMode?: boolean;
@@ -224,12 +259,12 @@ export function ComposerCard({
   canSubmit,
   sessionStatus,
   permissionMode,
-	planModeActive = false,
-	goalModeEnabled = false,
-	onGoalModeChange,
-	localRouterMode = 'off',
-	enableParetoCodeRouter = false,
-	enableFusionRouter = false,
+  planModeActive = false,
+  goalModeEnabled = false,
+  onGoalModeChange,
+  localRouterMode = "off",
+  enableParetoCodeRouter = false,
+  enableFusionRouter = false,
   thinkingMode,
   selectedProviderID,
   selectedModelPreset,
@@ -289,13 +324,13 @@ export function ComposerCard({
   const selectedPermission = permissionOptions.find(
     (option) => option.value === permissionMode,
   );
-	const composerPlaceholder = modelCatalogLoading
+  const composerPlaceholder = modelCatalogLoading
     ? "加载模型列表中……"
     : goalModeEnabled
-    ? "粘贴你的计划或目标…"
-    : planModeActive
-    ? "Describe your task to generate a plan..."
-    : placeholder;
+      ? "粘贴你的计划或目标…"
+      : planModeActive
+        ? "Describe your task to generate a plan..."
+        : placeholder;
   const selectedProvider = providerOptions.find(
     (provider) => provider.providerID === selectedProviderID,
   );
@@ -307,13 +342,13 @@ export function ComposerCard({
   const selectedModelLabel = modelCatalogLoading
     ? "加载模型列表中……"
     : !modelConfigured
-    ? "未配置模型"
-    : (selectedModel?.label ?? "未选择模型");
+      ? "未配置模型"
+      : (selectedModel?.label ?? "未选择模型");
   const selectedModelTitle = modelCatalogLoading
     ? "加载模型列表中……"
     : !modelConfigured
-    ? "未配置模型"
-    : (selectedModel?.label ?? "未选择模型");
+      ? "未配置模型"
+      : (selectedModel?.label ?? "未选择模型");
   const selectedThinking = thinkingOptions.find(
     (option) => option.value === thinkingMode,
   );
@@ -347,17 +382,6 @@ export function ComposerCard({
     return input.slice(1).trimStart();
   }, [input]);
 
-  const filteredSlashCommands = useMemo(() => {
-    if (!showSlashContextDropdown) return [];
-    if (!slashSearch) return slashCommands ?? [];
-    const keyword = slashSearch.toLowerCase();
-    return (slashCommands ?? []).filter(
-      (cmd) =>
-        cmd.title.toLowerCase().includes(keyword) ||
-        cmd.name.toLowerCase().includes(keyword),
-    );
-  }, [showSlashContextDropdown, slashSearch, slashCommands]);
-
   const activeMention = useMemo(() => {
     if (isComposing) return null;
     if (dismissedMention !== null) return null;
@@ -372,17 +396,147 @@ export function ComposerCard({
     return { start: atIndex, end: sel, query };
   }, [input, isComposing, dismissedMention, selectionStart]);
 
-  const mentionCommands = useMemo(() => {
-    if (!activeMention) return [];
-    const keyword = activeMention.query.toLowerCase();
-    return (slashCommands ?? [])
-      .filter((cmd) => cmd.category === "skill")
-      .filter(
-        (cmd) =>
-          cmd.title.toLowerCase().includes(keyword) ||
-          cmd.name.toLowerCase().includes(keyword),
-      );
-  }, [activeMention, slashCommands]);
+  const unifiedMenuItems = useMemo((): UnifiedMenuItem[] => {
+    const items: UnifiedMenuItem[] = [];
+
+    // 添加
+    items.push({
+      group: "添加",
+      key: "add-files",
+      label: "Files and folders",
+      icon: <Paperclip size={14} />,
+      matchText: "Files and folders 添加 add files",
+      onSelect: () => {
+        onOpenFiles();
+      },
+    });
+
+    // 目标
+    items.push({
+      group: "目标",
+      key: "goal-mode",
+      label: "目标",
+      hint: "设置 CodePilotX 将持续努力实现的目标",
+      icon: <Target size={14} />,
+      matchText: "目标 goal",
+      isActive: goalModeEnabled,
+      onSelect: () => {
+        onGoalModeChange?.(!goalModeEnabled);
+      },
+    });
+
+    // 计划模式
+    items.push({
+      group: "计划模式",
+      key: "plan-mode",
+      label: "计划模式",
+      hint: "开启计划模式",
+      icon: <ListChecks size={14} />,
+      matchText: "计划模式 plan",
+      isActive: planModeActive,
+      onSelect: () => {
+        onPlanModeChange?.(true);
+      },
+    });
+
+    // 智能体
+    for (const agent of CONTEXT_AGENT_OPTIONS) {
+      items.push({
+        group: "智能体",
+        key: `agent-${agent.name}`,
+        label: agent.name,
+        hint: agent.role,
+        icon: (
+          <span
+            className="chat-input__dropdown-agent-icon"
+            style={{
+              color: agent.tone === "red" ? "#ef4444" : "#f59e0b",
+            }}
+          >
+            {agent.icon === "DNA" ? "🧬" : "⚛️"}
+          </span>
+        ),
+        matchText: `${agent.name} ${agent.role} 智能体`,
+        onSelect: () => {},
+      });
+    }
+
+    // 插件
+    for (const plugin of INSTALLED_CONTEXT_PLUGINS) {
+      const bgColor =
+        plugin.tone === "docs"
+          ? "#3b82f6"
+          : plugin.tone === "pdf"
+            ? "#ef4444"
+            : plugin.tone === "sheets"
+              ? "#22c55e"
+              : plugin.tone === "slides"
+                ? "#f59e0b"
+                : plugin.tone === "template"
+                  ? "#ec4899"
+                  : "#06b6d4";
+      items.push({
+        group: "插件",
+        key: `plugin-${plugin.name}`,
+        label: plugin.name,
+        hint: plugin.description,
+        icon: (
+          <span className="chat-input__dropdown-bullet" style={{ background: bgColor }} />
+        ),
+        matchText: `${plugin.name} ${plugin.description} 插件`,
+        onSelect: () => {
+          if (plugin.tone === "browser") {
+            onOpenBrowser?.();
+          }
+        },
+      });
+    }
+
+    // Skills + 命令 (from slashCommands)
+    const planGoalNames = new Set(["plan", "goal"]);
+    for (const cmd of slashCommands ?? []) {
+      if (cmd.category === "skill") {
+        items.push({
+          group: "Skills",
+          key: `skill-${cmd.name}`,
+          label: cmd.title,
+          hint: cmd.description,
+          icon: <Sparkles size={14} strokeWidth={1.5} />,
+          matchText: `${cmd.title} ${cmd.name}`,
+          onSelect: () => {
+            if ("skillPath" in cmd && cmd.skillPath) {
+              onSkillSelect?.(
+                cmd as DesktopSlashCommandSuggestion & {
+                  skillPath: string;
+                },
+              );
+            }
+          },
+        });
+      } else if (cmd.category === "command" && !planGoalNames.has(cmd.name)) {
+        items.push({
+          group: "命令",
+          key: `cmd-${cmd.name}`,
+          label: cmd.title,
+          hint: cmd.description,
+          icon: <Search size={14} strokeWidth={1.5} />,
+          matchText: `${cmd.title} ${cmd.name}`,
+          onSelect: () => {},
+        });
+      }
+    }
+
+    return items;
+  }, [
+    slashCommands,
+    goalModeEnabled,
+    planModeActive,
+    onOpenFiles,
+    onGoalModeChange,
+    onPlanModeChange,
+    onOpenBrowser,
+    onSkillSelect,
+  ]);
 
   useEffect(() => {
     if (input.trimStart() !== "/") {
@@ -412,73 +566,33 @@ export function ComposerCard({
     setOpenDropdown(null);
   }
 
-  function closeChatInputDropdown(): void {
-    if (showSlashContextDropdown) {
-      setDismissedSlashInput(input);
-    }
+  function handleUnifiedPlusSelect(item: UnifiedMenuItem): void {
+    item.onSelect();
     closeDropdown();
   }
 
-	function handleSlashCommandSelect(
-    cmd: DesktopSlashCommandSuggestion,
-  ): void {
-    // Mode commands: trigger the appropriate mode action
-    if (cmd.name === "plan") {
-      const cmdPrefix = "/" + cmd.name;
-      const remainingText = input.startsWith(cmdPrefix)
-        ? input.slice(cmdPrefix.length).trimStart()
-        : "";
-      onInputChange(remainingText);
-      onPlanModeChange?.(true);
-      setDismissedSlashInput(cmdPrefix);
-      return;
+  function handleUnifiedSlashSelect(item: UnifiedMenuItem): void {
+    // Clear slash trigger text (preserve text after the /command)
+    const slashMatch = input.match(/^\/\S+/);
+    if (slashMatch) {
+      onInputChange(input.slice(slashMatch[0].length).trimStart());
     }
-
-    // Goal command: enable goal mode and strip the prefix
-    if (cmd.name === "goal") {
-      const cmdPrefix = "/" + cmd.name;
-      const remainingText = input.startsWith(cmdPrefix)
-        ? input.slice(cmdPrefix.length).trimStart()
-        : "";
-      onInputChange(remainingText);
-      onGoalModeChange?.(true);
-      setDismissedSlashInput(cmdPrefix);
-      return;
-    }
-
-    // Other command mode items: just close dropdown
-    if (cmd.category === "command") {
-      closeChatInputDropdown();
-      return;
-    }
-
-    // Skill commands: show a tag and extract user text
-    if (cmd.category === "skill" && "skillPath" in cmd && cmd.skillPath) {
-      const skillWithPath = cmd as DesktopSlashCommandSuggestion & {
-        skillPath: string;
-      };
-      const cmdPrefix = "/" + cmd.name;
-      const remainingText = input.startsWith(cmdPrefix)
-        ? input.slice(cmdPrefix.length).trimStart()
-        : "";
-      onInputChange(remainingText);
-      onSkillSelect?.(skillWithPath);
-      setDismissedSlashInput(cmdPrefix);
-    }
+    setDismissedSlashInput(input);
+    item.onSelect();
+    closeDropdown();
   }
 
-  function handleMentionSelect(
-    cmd: DesktopSlashCommandSuggestion,
-  ): void {
-    if (!activeMention || cmd.category !== "skill" || !("skillPath" in cmd) || !cmd.skillPath) return;
-    const skillWithPath = cmd as DesktopSlashCommandSuggestion & {
-      skillPath: string;
-    };
-    const newInput = input.slice(0, activeMention.start) + input.slice(activeMention.end);
-    onInputChange(newInput);
-    onSkillSelect?.(skillWithPath);
-    setDismissedMention(activeMention.start);
-    setSelectionStart(activeMention.start);
+  function handleUnifiedMentionSelect(item: UnifiedMenuItem): void {
+    if (activeMention) {
+      const newInput =
+        input.slice(0, activeMention.start) +
+        input.slice(activeMention.end);
+      onInputChange(newInput);
+      setDismissedMention(activeMention.start);
+      setSelectionStart(activeMention.start);
+    }
+    item.onSelect();
+    closeDropdown();
   }
 
   function handleFileDrop(event: React.DragEvent<HTMLDivElement>): void {
@@ -499,8 +613,7 @@ export function ComposerCard({
 
   function getPermissionIcon(value: DesktopPermissionMode): React.ReactNode {
     if (value === "default") return <Hand size={APP_ICON_SIZE} />;
-    if (value === "full-access")
-      return <ShieldAlert size={APP_ICON_SIZE} />;
+    if (value === "full-access") return <ShieldAlert size={APP_ICON_SIZE} />;
     if (value === "custom") return <Wrench size={APP_ICON_SIZE} />;
     return <ShieldCheck size={APP_ICON_SIZE} />;
   }
@@ -529,168 +642,78 @@ export function ComposerCard({
   const usedPercent = contextUsage
     ? Math.min(100, Math.max(0, contextUsage.usedPercent))
     : 0;
-  const contextDropdownContent = (
-    <>
-      <div className="chat-input__dropdown-section-title">添加</div>
-      <div
-        className="chat-input__dropdown-item"
-        onClick={() => {
-          onOpenFiles();
-          closeChatInputDropdown();
-        }}
-      >
-        <span className="chat-input__dropdown-leading">
-          <Paperclip size={14} />
-        </span>
-        <span className="chat-input__dropdown-label">Files and folders</span>
+  function UnifiedMenuContent({
+    items,
+    keyword,
+    onItemSelect,
+  }: {
+    items: UnifiedMenuItem[];
+    keyword: string;
+    onItemSelect: (item: UnifiedMenuItem) => void;
+  }): React.ReactNode {
+    const kw = keyword.toLowerCase().trim();
+    const filtered = kw
+      ? items.filter((item) => item.matchText.toLowerCase().includes(kw))
+      : items;
+
+    // Group by group in fixed order
+    const grouped = new Map<UnifiedMenuGroup, UnifiedMenuItem[]>();
+    for (const item of filtered) {
+      const list = grouped.get(item.group) ?? [];
+      list.push(item);
+      grouped.set(item.group, list);
+    }
+
+    const visibleGroups = UNIFIED_GROUP_ORDER.filter(
+      (g) => (grouped.get(g)?.length ?? 0) > 0,
+    );
+
+    if (visibleGroups.length === 0) {
+      return <div className="chat-input__dropdown-empty">无命令</div>;
+    }
+
+    return (
+      <div className="chat-input__dropdown-items">
+        {visibleGroups.map((group, gi) => (
+          <Fragment key={group}>
+            {gi > 0 ? (
+              <div className="chat-input__dropdown-separator" />
+            ) : null}
+            <div className="chat-input__dropdown-section-title">{group}</div>
+            {(grouped.get(group) ?? []).map((item) => (
+              <div
+                aria-pressed={
+                  item.isActive && item.group === "目标"
+                    ? true
+                    : item.isActive && item.group === "计划模式"
+                      ? true
+                      : undefined
+                }
+                className={[
+                  "chat-input__dropdown-item",
+                  item.isActive ? "is-active" : "",
+                ].join(" ")}
+                key={item.key}
+                onClick={() => onItemSelect(item)}
+              >
+                <span className="chat-input__dropdown-leading">
+                  {item.icon}
+                </span>
+                <span className="chat-input__dropdown-label">
+                  {item.label}
+                </span>
+                {item.hint ? (
+                  <span className="chat-input__dropdown-hint">
+                    {item.hint}
+                  </span>
+                ) : null}
+              </div>
+            ))}
+          </Fragment>
+        ))}
       </div>
-      <div
-        aria-pressed={goalModeEnabled}
-        className={[
-          "chat-input__dropdown-item",
-          goalModeEnabled ? "is-active" : "",
-        ].join(" ")}
-        onClick={() => {
-          onGoalModeChange?.(!goalModeEnabled);
-          closeChatInputDropdown();
-        }}
-      >
-        <span className="chat-input__dropdown-leading">
-          <Target size={14} />
-        </span>
-        <span className="chat-input__dropdown-label">目标</span>
-        <span className="chat-input__dropdown-hint">
-          设置 CodePilotX 将持续努力实现的目标
-        </span>
-      </div>
-      <div
-        aria-pressed={planModeActive}
-        className={[
-          "chat-input__dropdown-item",
-          planModeActive ? "is-active" : "",
-        ].join(" ")}
-        onClick={() => {
-          onPlanModeChange?.(true);
-          closeChatInputDropdown();
-        }}
-      >
-        <span className="chat-input__dropdown-leading">
-          <ListChecks size={14} />
-        </span>
-        <span className="chat-input__dropdown-label">计划模式</span>
-        <span className="chat-input__dropdown-hint">开启计划模式</span>
-      </div>
-      {enableParetoCodeRouter || enableFusionRouter ? (
-        <>
-          <div className="chat-input__dropdown-separator" />
-          <div className="chat-input__dropdown-section-title">Router</div>
-          {enableParetoCodeRouter ? (
-            <div
-              aria-pressed={localRouterMode === "pareto-code"}
-              className={[
-                "chat-input__dropdown-item",
-                localRouterMode === "pareto-code" ? "is-active" : "",
-              ].join(" ")}
-              onClick={() => {
-                onLocalRouterModeChange?.(
-                  localRouterMode === "pareto-code" ? "off" : "pareto-code",
-                );
-                closeChatInputDropdown();
-              }}
-            >
-              <span className="chat-input__dropdown-leading">
-                <Sparkles size={14} />
-              </span>
-              <span className="chat-input__dropdown-label">Pareto Code</span>
-              <span className="chat-input__dropdown-hint">本地智能选模型</span>
-            </div>
-          ) : null}
-          {enableFusionRouter ? (
-            <div
-              aria-pressed={localRouterMode === "fusion"}
-              className={[
-                "chat-input__dropdown-item",
-                localRouterMode === "fusion" ? "is-active" : "",
-              ].join(" ")}
-              onClick={() => {
-                onLocalRouterModeChange?.(
-                  localRouterMode === "fusion" ? "off" : "fusion",
-                );
-                closeChatInputDropdown();
-              }}
-            >
-              <span className="chat-input__dropdown-leading">
-                <Brain size={14} />
-              </span>
-              <span className="chat-input__dropdown-label">Fusion</span>
-              <span className="chat-input__dropdown-hint">多模型会审</span>
-            </div>
-          ) : null}
-        </>
-      ) : null}
-      <div className="chat-input__dropdown-separator" />
-
-      <div className="chat-input__dropdown-section-title">智能体</div>
-
-      {CONTEXT_AGENT_OPTIONS.map((agent) => (
-        <div
-          className="chat-input__dropdown-item"
-          key={agent.name}
-          onClick={closeChatInputDropdown}
-        >
-          <span
-            className="chat-input__dropdown-agent-icon"
-            style={{
-              color: agent.tone === "red" ? "#ef4444" : "#f59e0b",
-            }}
-          >
-            {agent.icon === "DNA" ? "🧬" : "⚛️"}
-          </span>
-          <span className="chat-input__dropdown-label">{agent.name}</span>
-          <span className="chat-input__dropdown-hint">{agent.role}</span>
-        </div>
-      ))}
-
-      <div className="chat-input__dropdown-separator" />
-
-      <div className="chat-input__dropdown-section-title">插件</div>
-
-      {INSTALLED_CONTEXT_PLUGINS.map((plugin) => (
-        <div
-          className="chat-input__dropdown-item"
-          key={plugin.name}
-          onClick={() => {
-            if (plugin.tone === "browser") {
-              onOpenBrowser?.();
-            }
-            closeChatInputDropdown();
-          }}
-        >
-          <span
-            className={["chat-input__dropdown-bullet"].join(" ")}
-            style={{
-              background:
-                plugin.tone === "docs"
-                  ? "#3b82f6"
-                  : plugin.tone === "pdf"
-                    ? "#ef4444"
-                    : plugin.tone === "sheets"
-                      ? "#22c55e"
-                      : plugin.tone === "slides"
-                        ? "#f59e0b"
-                        : plugin.tone === "template"
-                          ? "#ec4899"
-                          : "#06b6d4",
-            }}
-          />
-          <span className="chat-input__dropdown-label">{plugin.name}</span>
-          <span className="chat-input__dropdown-hint">
-            {plugin.description}
-          </span>
-        </div>
-      ))}
-    </>
-  );
+    );
+  }
 
   return (
     <div
@@ -781,9 +804,7 @@ export function ComposerCard({
             onCompositionStart={() => setIsComposing(true)}
             onCompositionEnd={() => {
               setIsComposing(false);
-              setSelectionStart(
-                textareaRef.current?.selectionStart ?? null,
-              );
+              setSelectionStart(textareaRef.current?.selectionStart ?? null);
             }}
             onKeyDown={(event) => {
               // Escape: dismiss dropdowns or interrupt session
@@ -798,7 +819,10 @@ export function ComposerCard({
                   setDismissedMention(activeMention.start);
                   return;
                 }
-                if (sessionStatus === "running" || sessionStatus === "waiting") {
+                if (
+                  sessionStatus === "running" ||
+                  sessionStatus === "waiting"
+                ) {
                   event.preventDefault();
                   onInterrupt();
                   return;
@@ -806,7 +830,11 @@ export function ComposerCard({
               }
 
               // Backspace: remove skill chip when input is empty
-              if (event.key === "Backspace" && input.length === 0 && selectedSkillToken) {
+              if (
+                event.key === "Backspace" &&
+                input.length === 0 &&
+                selectedSkillToken
+              ) {
                 event.preventDefault();
                 onSkillDeselect?.();
                 return;
@@ -825,9 +853,7 @@ export function ComposerCard({
               if (canSubmit) onSubmit();
             }}
             onPaste={handlePaste}
-            placeholder={
-              selectedSkillToken ? '' : composerPlaceholder
-            }
+            placeholder={selectedSkillToken ? "" : composerPlaceholder}
             rows={1}
           />
         </div>
@@ -841,63 +867,11 @@ export function ComposerCard({
             setDismissedSlashInput(input);
           }}
         >
-          {filteredSlashCommands.length === 0 ? (
-            <div className="chat-input__dropdown-empty">无命令</div>
-          ) : (
-            <div className="chat-input__dropdown-items">
-              {(() => {
-                const commands = filteredSlashCommands.filter(
-                  (c) => c.category === "command",
-                );
-                const skills = filteredSlashCommands.filter(
-                  (c) => c.category === "skill",
-                );
-                const sections: {
-                  title: string;
-                  items: typeof filteredSlashCommands;
-                }[] = [];
-                if (commands.length > 0) {
-                  sections.push({ title: "命令", items: commands });
-                }
-                if (skills.length > 0) {
-                  sections.push({ title: "Skills", items: skills });
-                }
-                return sections.map((section, si) => (
-                  <Fragment key={section.title}>
-                    {si > 0 ? (
-                      <div className="chat-input__dropdown-separator" />
-                    ) : null}
-                    <div className="chat-input__dropdown-section-title">
-                      {section.title}
-                    </div>
-                    {section.items.map((cmd) => (
-                      <div
-                        className="chat-input__dropdown-item"
-                        key={cmd.name}
-                        onClick={() => handleSlashCommandSelect(cmd)}
-                      >
-                        <span className="chat-input__dropdown-leading">
-                          {cmd.category === "skill" ? (
-                            <Sparkles size={14} strokeWidth={1.5} />
-                          ) : cmd.name === "plan" ? (
-                            <ListChecks size={14} strokeWidth={1.5} />
-                          ) : (
-                            <Search size={14} strokeWidth={1.5} />
-                          )}
-                        </span>
-                        <span className="chat-input__dropdown-label">
-                          {cmd.title}
-                        </span>
-                        <span className="chat-input__dropdown-hint">
-                          {cmd.description}
-                        </span>
-                      </div>
-                    ))}
-                  </Fragment>
-                ));
-              })()}
-            </div>
-          )}
+          <UnifiedMenuContent
+            items={unifiedMenuItems}
+            keyword={slashSearch}
+            onItemSelect={handleUnifiedSlashSelect}
+          />
         </ChatInputDropdown>
 
         <ChatInputDropdown
@@ -909,30 +883,11 @@ export function ComposerCard({
             if (activeMention) setDismissedMention(activeMention.start);
           }}
         >
-          {mentionCommands.length === 0 ? (
-            <div className="chat-input__dropdown-empty">无命令</div>
-          ) : (
-            <div className="chat-input__dropdown-items">
-              <div className="chat-input__dropdown-section-title">Skills</div>
-              {mentionCommands.map((cmd) => (
-                <div
-                  className="chat-input__dropdown-item"
-                  key={cmd.name}
-                  onClick={() => handleMentionSelect(cmd)}
-                >
-                  <span className="chat-input__dropdown-leading">
-                    <Sparkles size={14} strokeWidth={1.5} />
-                  </span>
-                  <span className="chat-input__dropdown-label">
-                    {cmd.title}
-                  </span>
-                  <span className="chat-input__dropdown-hint">
-                    {cmd.description}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
+          <UnifiedMenuContent
+            items={unifiedMenuItems}
+            keyword={activeMention?.query ?? ""}
+            onItemSelect={handleUnifiedMentionSelect}
+          />
         </ChatInputDropdown>
 
         <div className="composer-toolbar">
@@ -1099,16 +1054,20 @@ export function ComposerCard({
                 </button>
               </>
             ) : null}
-            {localRouterMode !== 'off' ? (
+            {localRouterMode !== "off" ? (
               <>
                 <span className="toolbar-divider" />
                 <button
                   aria-pressed="true"
                   className="chip-button composer-plan-mode-chip active"
                   onClick={() => {
-                    onLocalRouterModeChange?.('off');
+                    onLocalRouterModeChange?.("off");
                   }}
-                  title={localRouterMode === 'pareto-code' ? 'Pareto Code Router' : 'Fusion Router'}
+                  title={
+                    localRouterMode === "pareto-code"
+                      ? "Pareto Code Router"
+                      : "Fusion Router"
+                  }
                   type="button"
                 >
                   <span
@@ -1126,7 +1085,9 @@ export function ComposerCard({
                       strokeWidth={APP_ICON_STROKE_WIDTH}
                     />
                   </span>
-                  <span>{localRouterMode === 'pareto-code' ? 'Pareto' : 'Fusion'}</span>
+                  <span>
+                    {localRouterMode === "pareto-code" ? "Pareto" : "Fusion"}
+                  </span>
                 </button>
               </>
             ) : null}
@@ -1135,10 +1096,14 @@ export function ComposerCard({
           <div className="toolbar-right">
             {showContextUsage ? (
               <span
-                aria-label={`上下文窗口使用量：${contextUsage ? `已用 ${usedPercent}%，剩余 ${100 - usedPercent}%` : '暂无数据'}`}
+                aria-label={`上下文窗口使用量：${contextUsage ? `已用 ${usedPercent}%，剩余 ${100 - usedPercent}%` : "暂无数据"}`}
                 className="context-usage-chip"
                 tabIndex={0}
-                style={{ '--context-usage-progress': usedPercent } as React.CSSProperties}
+                style={
+                  {
+                    "--context-usage-progress": usedPercent,
+                  } as React.CSSProperties
+                }
               >
                 <span className="chip-dot" />
                 <span className="context-usage-popover" role="tooltip">
@@ -1222,94 +1187,15 @@ export function ComposerCard({
                     {showThinkingOptions ? (
                       deepSeekThinkingControls ? (
                         <>
-                        <div className="rm-section-header">思考模式</div>
-                        <DropdownMenu.Item
-                          className="rm-menu-item"
-                          onSelect={() => {
-                            onThinkingChange("default");
-                          }}
-                        >
-                          <span className="rm-item-label">启用</span>
-                          {thinkingMode !== "disabled" ? (
-                            <Check
-                              className="rm-item-check"
-                              size={APP_ICON_SIZE}
-                              strokeWidth={APP_ICON_STROKE_WIDTH}
-                            />
-                          ) : null}
-                        </DropdownMenu.Item>
-                        <DropdownMenu.Item
-                          className="rm-menu-item"
-                          onSelect={() => {
-                            onThinkingChange("disabled");
-                            closeDropdown();
-                          }}
-                        >
-                          <span className="rm-item-label">禁用</span>
-                          {thinkingMode === "disabled" ? (
-                            <Check
-                              className="rm-item-check"
-                              size={APP_ICON_SIZE}
-                              strokeWidth={APP_ICON_STROKE_WIDTH}
-                            />
-                          ) : null}
-                        </DropdownMenu.Item>
-                        {thinkingMode !== "disabled" ? (
-                          <>
-                            <div className="rm-divider" />
-                            <div className="rm-section-header">推理强度</div>
-                            <DropdownMenu.Item
-                              className="rm-menu-item"
-                              onSelect={() => {
-                                onThinkingChange("default");
-                                closeDropdown();
-                              }}
-                            >
-                              <span className="rm-item-label">高</span>
-                              {thinkingMode !== "enabled" ? (
-                                <Check
-                                  className="rm-item-check"
-                                  size={APP_ICON_SIZE}
-                                  strokeWidth={APP_ICON_STROKE_WIDTH}
-                                />
-                              ) : null}
-                            </DropdownMenu.Item>
-                            <DropdownMenu.Item
-                              className="rm-menu-item"
-                              onSelect={() => {
-                                onThinkingChange("enabled");
-                                closeDropdown();
-                              }}
-                            >
-                              <span className="rm-item-label">超高</span>
-                              {thinkingMode === "enabled" ? (
-                                <Check
-                                  className="rm-item-check"
-                                  size={APP_ICON_SIZE}
-                                  strokeWidth={APP_ICON_STROKE_WIDTH}
-                                />
-                              ) : null}
-                            </DropdownMenu.Item>
-                          </>
-                        ) : null}
-                        <div className="rm-divider" />
-                      </>
-                    ) : (
-                      <>
-                        <div className="rm-section-header">推理</div>
-                        {thinkingOptions.map((option) => (
+                          <div className="rm-section-header">思考模式</div>
                           <DropdownMenu.Item
                             className="rm-menu-item"
-                            key={option.value}
                             onSelect={() => {
-                              onThinkingChange(option.value);
-                              closeDropdown();
+                              onThinkingChange("default");
                             }}
                           >
-                            <span className="rm-item-label">
-                              {option.label}
-                            </span>
-                            {option.value === thinkingMode ? (
+                            <span className="rm-item-label">启用</span>
+                            {thinkingMode !== "disabled" ? (
                               <Check
                                 className="rm-item-check"
                                 size={APP_ICON_SIZE}
@@ -1317,9 +1203,88 @@ export function ComposerCard({
                               />
                             ) : null}
                           </DropdownMenu.Item>
-                        ))}
-                        <div className="rm-divider" />
-                      </>
+                          <DropdownMenu.Item
+                            className="rm-menu-item"
+                            onSelect={() => {
+                              onThinkingChange("disabled");
+                              closeDropdown();
+                            }}
+                          >
+                            <span className="rm-item-label">禁用</span>
+                            {thinkingMode === "disabled" ? (
+                              <Check
+                                className="rm-item-check"
+                                size={APP_ICON_SIZE}
+                                strokeWidth={APP_ICON_STROKE_WIDTH}
+                              />
+                            ) : null}
+                          </DropdownMenu.Item>
+                          {thinkingMode !== "disabled" ? (
+                            <>
+                              <div className="rm-divider" />
+                              <div className="rm-section-header">推理强度</div>
+                              <DropdownMenu.Item
+                                className="rm-menu-item"
+                                onSelect={() => {
+                                  onThinkingChange("default");
+                                  closeDropdown();
+                                }}
+                              >
+                                <span className="rm-item-label">高</span>
+                                {thinkingMode !== "enabled" ? (
+                                  <Check
+                                    className="rm-item-check"
+                                    size={APP_ICON_SIZE}
+                                    strokeWidth={APP_ICON_STROKE_WIDTH}
+                                  />
+                                ) : null}
+                              </DropdownMenu.Item>
+                              <DropdownMenu.Item
+                                className="rm-menu-item"
+                                onSelect={() => {
+                                  onThinkingChange("enabled");
+                                  closeDropdown();
+                                }}
+                              >
+                                <span className="rm-item-label">超高</span>
+                                {thinkingMode === "enabled" ? (
+                                  <Check
+                                    className="rm-item-check"
+                                    size={APP_ICON_SIZE}
+                                    strokeWidth={APP_ICON_STROKE_WIDTH}
+                                  />
+                                ) : null}
+                              </DropdownMenu.Item>
+                            </>
+                          ) : null}
+                          <div className="rm-divider" />
+                        </>
+                      ) : (
+                        <>
+                          <div className="rm-section-header">推理</div>
+                          {thinkingOptions.map((option) => (
+                            <DropdownMenu.Item
+                              className="rm-menu-item"
+                              key={option.value}
+                              onSelect={() => {
+                                onThinkingChange(option.value);
+                                closeDropdown();
+                              }}
+                            >
+                              <span className="rm-item-label">
+                                {option.label}
+                              </span>
+                              {option.value === thinkingMode ? (
+                                <Check
+                                  className="rm-item-check"
+                                  size={APP_ICON_SIZE}
+                                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                                />
+                              ) : null}
+                            </DropdownMenu.Item>
+                          ))}
+                          <div className="rm-divider" />
+                        </>
                       )
                     ) : null}
                     <div className="rm-section-header">提供商</div>
@@ -1328,69 +1293,72 @@ export function ComposerCard({
                     ) : null}
                     {providerOptions.map((provider) => (
                       <DropdownMenu.Sub key={provider.providerID}>
-                      <DropdownMenu.SubTrigger
-                        className={[
-                          "rm-sub-trigger",
-                          provider.providerID === selectedProviderID
-                            ? "selected"
-                            : "",
-                        ].join(" ")}
-                      >
-                        <span className="rm-sub-trigger-content">
-                          <span className="rm-item-label">
-                            {provider.displayName}
-                          </span>
-                          {provider.providerID === selectedProviderID ? (
-                            <Check
-                              className="rm-item-check rm-provider-check"
-                              size={APP_ICON_SIZE}
-                              strokeWidth={APP_ICON_STROKE_WIDTH}
-                            />
-                          ) : null}
-                        </span>
-                        <ChevronRight
-                          className="rm-item-arrow"
-                          size={APP_ICON_SIZE}
-                        />
-                      </DropdownMenu.SubTrigger>
-                      <DropdownMenu.Portal>
-                        <DropdownMenu.SubContent
-                          className="popover-surface rm-model-menu rm-model-submenu"
-                          alignOffset={-6}
-                          sideOffset={8}
-                          style={buildPopoverSizingStyle({ maxWidth: 'min(calc(320px + var(--popover-width-extra)), calc(100vw - 32px))' })}
+                        <DropdownMenu.SubTrigger
+                          className={[
+                            "rm-sub-trigger",
+                            provider.providerID === selectedProviderID
+                              ? "selected"
+                              : "",
+                          ].join(" ")}
                         >
-                          <div className="rm-model-submenu-scroll-content">
-                            <div className="rm-section-header">模型</div>
-                            {provider.modelPresets.map((preset) => (
-                              <DropdownMenu.Item
-                                className="rm-menu-item"
-                                key={preset.id}
-                                onSelect={() => {
-                                  onProviderModelChange(
-                                    provider.providerID,
-                                    preset.id,
-                                  );
-                                  closeDropdown();
-                                }}
-                              >
-                                <span className="rm-item-label">
-                                  {preset.label}
-                                </span>
-                                {provider.providerID === selectedProviderID &&
-                                preset.id === selectedModelPreset ? (
-                                  <Check
-                                    className="rm-item-check"
-                                    size={APP_ICON_SIZE}
-                                    strokeWidth={APP_ICON_STROKE_WIDTH}
-                                  />
-                                ) : null}
-                              </DropdownMenu.Item>
-                            ))}
-                          </div>
-                        </DropdownMenu.SubContent>
-                      </DropdownMenu.Portal>
-                    </DropdownMenu.Sub>
+                          <span className="rm-sub-trigger-content">
+                            <span className="rm-item-label">
+                              {provider.displayName}
+                            </span>
+                            {provider.providerID === selectedProviderID ? (
+                              <Check
+                                className="rm-item-check rm-provider-check"
+                                size={APP_ICON_SIZE}
+                                strokeWidth={APP_ICON_STROKE_WIDTH}
+                              />
+                            ) : null}
+                          </span>
+                          <ChevronRight
+                            className="rm-item-arrow"
+                            size={APP_ICON_SIZE}
+                          />
+                        </DropdownMenu.SubTrigger>
+                        <DropdownMenu.Portal>
+                          <DropdownMenu.SubContent
+                            className="popover-surface rm-model-menu rm-model-submenu"
+                            alignOffset={-6}
+                            sideOffset={8}
+                            style={buildPopoverSizingStyle({
+                              maxWidth:
+                                "min(calc(320px + var(--popover-width-extra)), calc(100vw - 32px))",
+                            })}
+                          >
+                            <div className="rm-model-submenu-scroll-content">
+                              <div className="rm-section-header">模型</div>
+                              {provider.modelPresets.map((preset) => (
+                                <DropdownMenu.Item
+                                  className="rm-menu-item"
+                                  key={preset.id}
+                                  onSelect={() => {
+                                    onProviderModelChange(
+                                      provider.providerID,
+                                      preset.id,
+                                    );
+                                    closeDropdown();
+                                  }}
+                                >
+                                  <span className="rm-item-label">
+                                    {preset.label}
+                                  </span>
+                                  {provider.providerID === selectedProviderID &&
+                                  preset.id === selectedModelPreset ? (
+                                    <Check
+                                      className="rm-item-check"
+                                      size={APP_ICON_SIZE}
+                                      strokeWidth={APP_ICON_STROKE_WIDTH}
+                                    />
+                                  ) : null}
+                                </DropdownMenu.Item>
+                              ))}
+                            </div>
+                          </DropdownMenu.SubContent>
+                        </DropdownMenu.Portal>
+                      </DropdownMenu.Sub>
                     ))}
                   </div>
                 </DropdownMenu.Content>
@@ -1430,11 +1398,15 @@ export function ComposerCard({
         </div>
         <ChatInputDropdown
           open={openDropdown === "context"}
-          onClose={closeChatInputDropdown}
+          onClose={closeDropdown}
           disableOutsideDismiss={debugMode}
           side={contextDropdownSide}
         >
-          {contextDropdownContent}
+          <UnifiedMenuContent
+            items={unifiedMenuItems}
+            keyword=""
+            onItemSelect={handleUnifiedPlusSelect}
+          />
         </ChatInputDropdown>
       </div>
 
@@ -1627,10 +1599,7 @@ export function getActiveComposerMention(
   if (query.includes(" ")) return null;
   // Cursor must be at end of query — no valid mention chars immediately after
   const charAfterCursor = input[selectionStart];
-  if (
-    charAfterCursor &&
-    /[a-zA-Z0-9\u4e00-\u9fff-]/.test(charAfterCursor)
-  ) {
+  if (charAfterCursor && /[a-zA-Z0-9\u4e00-\u9fff-]/.test(charAfterCursor)) {
     return null;
   }
   return { start: atIndex, end: selectionStart, query };

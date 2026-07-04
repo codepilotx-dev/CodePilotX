@@ -6,7 +6,7 @@ import { DesktopThemeProvider } from './features/theme/themeContext.js'
 import { TooltipProvider } from './components/ui/Tooltip.js'
 import { GlobalErrorModal } from './components/GlobalErrorModal.js'
 import { useEffect, useState } from 'react'
-import { fullErrorMessage } from './utils/errors.js'
+import { fullErrorMessage, isResizeObserverLoopError } from './utils/errors.js'
 
 export function App(): React.ReactNode {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -16,10 +16,21 @@ export function App(): React.ReactNode {
       setErrorMessage(fullErrorMessage(error))
     }
     const handleError = (event: ErrorEvent): void => {
+      if (
+        isResizeObserverLoopError(event.error) ||
+        isResizeObserverLoopError(event.message)
+      ) {
+        event.preventDefault()
+        return
+      }
       event.preventDefault()
       showError(event.error ?? event.message)
     }
     const handleUnhandledRejection = (event: PromiseRejectionEvent): void => {
+      if (isResizeObserverLoopError(event.reason)) {
+        event.preventDefault()
+        return
+      }
       event.preventDefault()
       showError(event.reason)
     }

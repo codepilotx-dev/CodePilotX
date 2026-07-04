@@ -262,8 +262,8 @@ export type DesktopPullRequestResult =
   | { ok: false; error: string }
 
 export type DesktopRuntimeStatus = {
-  runtimeKind: 'subprocess' | 'in-process-headless' | 'embedded-headless'
-  runtimePreference: 'auto' | 'embedded-headless' | 'subprocess'
+  runtimeKind: 'subprocess' | 'in-process-headless' | 'embedded-headless' | 'sidecar'
+  runtimePreference: 'auto' | 'embedded-headless' | 'subprocess' | 'sidecar'
   runtimeSelectionSource: 'default' | 'env'
   agentExecutablePath: string
   agentExecutableExists: boolean
