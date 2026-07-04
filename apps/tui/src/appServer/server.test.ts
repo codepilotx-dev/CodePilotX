@@ -22,7 +22,7 @@ test('initialize returns protocol version and supported capabilities', async () 
 test('thread/start emits a thread event notification', async () => {
   const notifications: ThreadEvent[] = []
   const server = new JsonRpcAppServer(createRegistry(), {
-    onThreadEvent: event => notifications.push(event),
+    onThreadEvent: event => { notifications.push(event) },
   })
 
   const result = await server.startThread({
@@ -46,8 +46,8 @@ test('turn/start emits every streamed thread event before resolving', async () =
   const notifications: ThreadEvent[] = []
   const snapshots: Array<{ threadId: string; eventCount: number }> = []
   const server = new JsonRpcAppServer(createRegistry(), {
-    onThreadEvent: event => notifications.push(event),
-    onSessionSnapshotUpdated: snapshot => snapshots.push(snapshot),
+    onThreadEvent: event => { notifications.push(event) },
+    onSessionSnapshotUpdated: snapshot => { snapshots.push(snapshot) },
   })
 
   const result = await server.startTurn({

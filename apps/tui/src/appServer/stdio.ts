@@ -4,12 +4,12 @@ import {
   StreamMessageWriter,
   type MessageConnection,
 } from 'vscode-jsonrpc/node'
-import { JsonRpcAppServer } from './server.js'
+import { createAppServer } from './server.js'
 import { THREAD_EVENT_NOTIFICATION } from './protocol.js'
 
 export function registerJsonRpcAppServer(
   connection: MessageConnection,
-  server = new JsonRpcAppServer(undefined, {
+  server = createAppServer({
     onThreadEvent: event =>
       connection.sendNotification(THREAD_EVENT_NOTIFICATION, { event }),
   }),

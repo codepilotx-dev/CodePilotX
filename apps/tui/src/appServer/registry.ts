@@ -4,6 +4,10 @@ import type {
   TurnItemEvent,
 } from '@codepilotx/core/agent/workflow.js'
 import { deriveWorkflowSessionView } from '@codepilotx/core/agent/workflowView.js'
+import type { JsonRpcAppServerRegistry } from '@codepilotx/core/appServer/server.js'
+import { InMemoryEventStore } from '@codepilotx/core/agent/eventStore.js'
+import { EventStoreSnapshotHelper } from '@codepilotx/core/agent/snapshotHelper.js'
+import type { EventStorePort } from '@codepilotx/core/agent/ports.js'
 import { ThreadRuntime } from '../workflow/ThreadRuntime.js'
 import type {
   ThreadRuntimeLifecycleResult,
@@ -52,14 +56,29 @@ export type ThreadRuntimeLike = {
   ): TurnItemEvent
 }
 
-export class AppServerThreadRegistry {
-  constructor(private readonly runtime: ThreadRuntimeLike = new ThreadRuntime()) {}
+/**
+ * AppServerThreadRegistry —— 将 TUI 的 ThreadRuntime 适配为 JsonRpcAppServerRegistry。
+ *
+ * v2 迁移：事件存储使用 core 的 InMemoryEventStore，快照推导使用
+ * EventStoreSnapshotHelper，逐步减少 registry 内部的自维护逻辑。
+ */
+export class AppServerThreadRegistry implements JsonRpcAppServerRegistry {
+  private readonly eventStore: EventStorePort
+  private readonly snapshotHelper: EventStoreSnapshotHelper
 
-  private readonly eventsByThreadId = new Map<ThreadId, ThreadEvent[]>()
+  constructor(private readonly runtime: ThreadRuntimeLike = new ThreadRuntime()) {
+    this.eventStore = new InMemoryEventStore()
+    this.snapshotHelper = new EventStoreSnapshotHelper(this.eventStore)
+  }
 
+  /**
+   * 注：params.settings 来自 core 协议定义的 JsonRpcThreadRuntimeSettings
+   * （即 Record<string, unknown>），运行时侧期望 ThreadRuntimeSettings。
+   * 此处作为适配层做窄化转换，运行时结构保持兼容。
+   */
   startThread(params: JsonRpcThreadStartParams): ThreadRuntimeStartResult {
     const result = this.runtime.startThread({
-      ...params.settings,
+      ...(params.settings as ThreadRuntimeSettings),
       ...(params.threadId ? { threadId: params.threadId } : {}),
     })
     this.recordEvent(result.event)
@@ -69,7 +88,7 @@ export class AppServerThreadRegistry {
   resumeThread(params: JsonRpcThreadResumeParams): ThreadRuntimeLifecycleResult {
     const result = this.runtime.resumeThread(
       params.threadId,
-      params.settings,
+      params.settings as ThreadRuntimeSettings,
       params.state,
     )
     this.recordEvent(result.event)
@@ -77,7 +96,10 @@ export class AppServerThreadRegistry {
   }
 
   forkThread(params: JsonRpcThreadForkParams): ThreadRuntimeLifecycleResult {
-    const result = this.runtime.forkThread(params.sourceThreadId, params.options)
+    const result = this.runtime.forkThread(
+      params.sourceThreadId,
+      params.options as ThreadRuntimeForkOptions,
+    )
     this.recordEvent(result.event)
     return result
   }
@@ -121,21 +143,19 @@ export class AppServerThreadRegistry {
   getSessionSnapshot(
     params: JsonRpcSessionGetSnapshotParams,
   ): JsonRpcSessionSnapshot {
-    const events = this.eventsByThreadId.get(params.threadId)
-    if (!events) {
-      throw new Error(`Unknown thread ${params.threadId}`)
-    }
-    return {
-      threadId: params.threadId,
-      eventCount: events.length,
-      updatedAt: events.at(-1)?.createdAt ?? null,
-      view: deriveWorkflowSessionView(events, params.threadId),
-    }
+    return this.snapshotHelper.getSnapshot(params.threadId)
   }
 
   private recordEvent(event: ThreadEvent): void {
-    const events = this.eventsByThreadId.get(event.threadId) ?? []
-    events.push(event)
-    this.eventsByThreadId.set(event.threadId, events)
+    this.eventStore.append(event)
   }
+}
+
+// Helper type: core JsonRpcThreadRuntimeForkOptions 的 settings 字段是
+// Record<string, unknown>，但 ThreadRuntime 需要 ThreadRuntimeSettings。
+// 此处用于 registry 内部适配，不暴露到协议层。
+type ThreadRuntimeForkOptions = {
+  threadId?: ThreadId
+  settings?: ThreadRuntimeSettings
+  metadata?: Record<string, unknown>
 }
