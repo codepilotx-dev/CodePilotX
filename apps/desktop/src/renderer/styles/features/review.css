@@ -129,14 +129,68 @@
 }
 
 .review-diff-preview {
-  flex: 0 1 auto;
+  flex: 1 1 auto;
+  min-width: 0;
   min-height: 0;
-  max-height: 46%;
+  max-height: none;
   display: flex;
   flex-direction: column;
-  border-bottom: 1px solid var(--c-border-soft);
+  border-right: 1px solid var(--c-border-soft);
   background: var(--c-bg);
   overflow: hidden;
+}
+
+.review-sidebar-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+  overflow: hidden;
+}
+
+.review-file-tree-panel {
+  flex: 0 0 var(--review-file-tree-panel-w, 340px);
+  width: var(--review-file-tree-panel-w, 340px);
+  min-width: 240px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--c-bg);
+}
+
+.review-file-tree-resize-handle {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 8px;
+  width: 8px;
+  margin-right: -4px;
+  margin-left: -4px;
+  cursor: col-resize;
+  outline: 0;
+}
+
+.review-file-tree-resize-handle::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 3px;
+  width: 1px;
+  background: var(--c-border-soft);
+}
+
+.review-file-tree-resize-handle:hover::after,
+.review-file-tree-resize-handle:focus-visible::after,
+.review-sidebar-main.resizing-file-tree .review-file-tree-resize-handle::after {
+  width: 2px;
+  background: color-mix(in srgb, var(--c-accent) 64%, var(--c-border-soft));
+}
+
+.review-file-tree-is-resizing,
+.review-file-tree-is-resizing * {
+  cursor: col-resize !important;
+  user-select: none !important;
 }
 
 .review-file-list-scroll-area {
@@ -171,6 +225,25 @@
 .review-file-row.preview-header {
   flex: 0 0 auto;
   background: var(--c-bg-hover);
+  cursor: pointer;
+  outline: 0;
+}
+
+.review-file-row.preview-header:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: -2px;
+}
+
+.review-file-collapse-chevron {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  color: var(--c-text-mute);
+}
+
+.review-file-row.preview-header:hover .review-file-collapse-chevron,
+.review-file-row.preview-header:focus-visible .review-file-collapse-chevron {
+  color: var(--c-text-strong);
 }
 
 .review-file-badge {
@@ -302,6 +375,22 @@
 
 .review-diff-scroll-content {
   min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.review-diff-file-preview {
+  flex: 0 0 auto;
+  min-width: 0;
+  border-bottom: 1px solid var(--c-border-soft);
+}
+
+.review-diff-file-preview:last-child {
+  border-bottom: 0;
+}
+
+.review-diff-lazy-placeholder {
+  pointer-events: none;
 }
 
 .review-diff-lines-scroll-x {
@@ -557,7 +646,7 @@
 
 .review-stale-comments-scroll {
   flex: 0 0 auto;
-  max-height: 22%;
+  max-height: 24%;
 }
 
 .review-stale-comments {
@@ -728,6 +817,33 @@
   margin-left: auto;
 }
 
+.review-comment-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  border-radius: var(--radius-4);
+  background: color-mix(in srgb, var(--c-accent) 14%, transparent);
+  color: var(--c-accent);
+  font-size: var(--fs-11);
+  font-weight: 600;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+
+.review-file-tree-dir .review-comment-badge {
+  margin-left: auto;
+}
+
+.review-file-tree-row .review-comment-badge {
+  margin-left: 0;
+}
+
+.review-comment-badge svg {
+  flex: 0 0 auto;
+}
+
 .review-sidebar .review-footer {
   flex: 0 0 auto;
   display: flex;
@@ -755,15 +871,18 @@
   border-color: var(--c-border);
 }
 
-.review-sidebar.hide-files .review-file-search,
-.review-sidebar.hide-files .review-file-tree-scroll,
-.review-sidebar.hide-files .review-footer {
+.review-sidebar.hide-files .review-file-tree-panel {
+  display: none;
+}
+
+.review-sidebar.hide-files .review-file-tree-resize-handle {
   display: none;
 }
 
 .review-sidebar.hide-files .review-diff-preview {
   flex: 1 1 auto;
   max-height: none;
+  border-right: 0;
 }
 
 .review-popover {

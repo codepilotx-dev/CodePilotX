@@ -17,7 +17,7 @@ export function buildReviewFileTree(
   const root = createNode(ROOT_DIR, '(root)')
   for (const file of files) {
     const segments = file.path.split('/')
-    const fileName = segments.pop() ?? file.path
+    segments.pop() // remove filename, leaving only directory segments
     let current = root
     for (const segment of segments) {
       const childPath = current.dirPath
@@ -30,7 +30,7 @@ export function buildReviewFileTree(
       }
       current = child
     }
-    current.files.push({ ...file, path: fileName })
+    current.files.push(file)
   }
 
   sortNode(root)

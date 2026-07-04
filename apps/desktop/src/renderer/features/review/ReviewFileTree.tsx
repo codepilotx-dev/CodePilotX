@@ -5,12 +5,14 @@ import {
   FileDiff,
   Folder,
   FolderOpen,
+  MessageSquare,
 } from 'lucide-react'
 import type { DesktopReviewDiffFile } from '../../../shared/types.js'
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
 import type { ReviewFileTreeNode } from './buildReviewFileTree.js'
 
 type Props = {
+  commentCountsByPath?: Readonly<Record<string, number>>
   depth?: number
   node: ReviewFileTreeNode
   collapsedDirs: Set<string>
@@ -20,6 +22,7 @@ type Props = {
 }
 
 export function ReviewFileTreeNode({
+  commentCountsByPath,
   depth = 0,
   node,
   collapsedDirs,
@@ -29,6 +32,9 @@ export function ReviewFileTreeNode({
 }: Props): React.ReactNode {
   const isRoot = node.dirPath === ''
   const collapsed = !isRoot && collapsedDirs.has(node.dirPath)
+  const dirCommentCount = !isRoot
+    ? (commentCountsByPath?.[node.dirPath] ?? 0)
+    : 0
 
   return (
     <React.Fragment>
@@ -50,7 +56,10 @@ export function ReviewFileTreeNode({
           ) : (
             <FolderOpen size={APP_ICON_SIZE} />
           )}
-          <span>{node.dirLabel}</span>
+          <span className="review-file-tree-dir-label">{node.dirLabel}</span>
+          {dirCommentCount > 0 ? (
+            <span className="review-comment-badge">{dirCommentCount}</span>
+          ) : null}
         </button>
       ) : null}
 
@@ -59,6 +68,7 @@ export function ReviewFileTreeNode({
           {node.files.map(file => (
             <ReviewFileRow
               active={file.path === selectedPath}
+              commentCount={commentCountsByPath?.[file.path] ?? 0}
               depth={isRoot ? depth : depth + 1}
               file={file}
               key={file.path}
@@ -72,6 +82,7 @@ export function ReviewFileTreeNode({
         ? node.children.map(child => (
             <ReviewFileTreeNode
               collapsedDirs={collapsedDirs}
+              commentCountsByPath={commentCountsByPath}
               depth={isRoot ? depth : depth + 1}
               key={child.dirPath}
               node={child}
@@ -87,15 +98,18 @@ export function ReviewFileTreeNode({
 
 function ReviewFileRow({
   active,
+  commentCount,
   depth,
   file,
   onSelect,
 }: {
   active: boolean
+  commentCount: number
   depth: number
   file: DesktopReviewDiffFile
   onSelect: (path: string) => void
 }): React.ReactNode {
+  const displayName = basenameOf(file.path)
   return (
     <button
       className={active ? 'review-file-tree-row active' : 'review-file-tree-row'}
@@ -105,7 +119,13 @@ function ReviewFileRow({
       onClick={() => onSelect(file.path)}
     >
       <span className="review-file-badge">{fileBadge(file.path)}</span>
-      <span className="review-file-path">{file.path}</span>
+      <span className="review-file-path">{displayName}</span>
+      {commentCount > 0 ? (
+        <span className="review-comment-badge">
+          <MessageSquare size={12} />
+          {commentCount}
+        </span>
+      ) : null}
       <span className="review-file-counts">
         <strong>+{formatPanelNumber(file.additions)}</strong>
         <em>-{formatPanelNumber(file.deletions)}</em>
@@ -122,4 +142,9 @@ function fileBadge(path: string): React.ReactNode {
 function formatPanelNumber(value: number): string {
   if (value > 999) return '999+'
   return String(value)
+}
+
+function basenameOf(path: string): string {
+  const index = path.lastIndexOf('/')
+  return index >= 0 ? path.slice(index + 1) : path
 }

@@ -53,9 +53,11 @@ describe('buildReviewFileTree', () => {
       'apps/desktop/test',
     ])
     const srcNode = desktop?.children.find(c => c.dirPath === 'apps/desktop/src')
-    expect(srcNode?.files.map(f => f.path)).toEqual(['main.ts'])
+    expect(srcNode?.files.map(f => f.path)).toEqual(['apps/desktop/src/main.ts'])
     expect(srcNode?.children.map(c => c.dirPath)).toEqual(['apps/desktop/src/renderer'])
-    expect(srcNode?.children[0]?.files.map(f => f.path)).toEqual(['app.tsx'])
+    expect(srcNode?.children[0]?.files.map(f => f.path)).toEqual([
+      'apps/desktop/src/renderer/app.tsx',
+    ])
   })
 
   test('keeps duplicate basenames under different directories intact', () => {
@@ -68,8 +70,21 @@ describe('buildReviewFileTree', () => {
     expect(labels).toEqual(['src', 'test'])
     const src = tree.find(node => node.dirLabel === 'src')
     const test = tree.find(node => node.dirLabel === 'test')
-    expect(src?.children[0]?.files[0]?.path).toBe('index.ts')
-    expect(test?.children[0]?.files[0]?.path).toBe('index.ts')
+    expect(src?.children[0]?.files[0]?.path).toBe('src/utils/index.ts')
+    expect(test?.children[0]?.files[0]?.path).toBe('test/utils/index.ts')
+  })
+
+  test('preserves full file paths for selection and diff lookups', () => {
+    const tree = buildReviewFileTree([
+      fakeFile('apps/desktop/src/main.ts'),
+      fakeFile('README.md'),
+    ])
+    const root = tree[0]
+    expect(root?.files.map(f => f.path)).toEqual(['README.md'])
+    const apps = root?.children.find(c => c.dirPath === 'apps')
+    const desktop = apps?.children.find(c => c.dirPath === 'apps/desktop')
+    const src = desktop?.children.find(c => c.dirPath === 'apps/desktop/src')
+    expect(src?.files.map(f => f.path)).toEqual(['apps/desktop/src/main.ts'])
   })
 
   test('sorts directory children alphabetically and files alphabetically', () => {
@@ -83,8 +98,8 @@ describe('buildReviewFileTree', () => {
     expect(root?.files.map(f => f.path)).toEqual(['apple.ts', 'zebra.ts'])
     expect(root?.children.map(c => c.dirLabel)).toEqual(['src'])
     expect(root?.children[0]?.files.map(f => f.path)).toEqual([
-      'a-file.ts',
-      'z-file.ts',
+      'src/a-file.ts',
+      'src/z-file.ts',
     ])
   })
 })
