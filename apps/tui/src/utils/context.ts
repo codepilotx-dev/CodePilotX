@@ -119,13 +119,35 @@ function getThirdPartyContextWindow(model: string): number | undefined {
   return getKnownThirdPartyContextWindow(model)
 }
 
+const DEEPSEEK_1M_MODELS = new Set([
+  'deepseek-v4-flash',
+  'deepseek-v4-pro',
+  'deepseek-reasoner',
+  'deepseek-chat',
+])
+
 function getKnownThirdPartyContextWindow(model: string): number | undefined {
   const m = model.toLowerCase()
+
+  // Support provider-prefixed model names (e.g., "deepseek/deepseek-v4-flash")
+  if (m.includes('/')) {
+    const modelName = m.split('/').pop()!
+    if (DEEPSEEK_1M_MODELS.has(modelName)) {
+      return 1_000_000
+    }
+  }
+
   if (m.includes('gpt-4.1')) return 1_000_000
   if (m.includes('gpt-4o')) return 128_000
   if (m.includes('gpt-oss-120b')) return 131_072
   if (m.includes('llama-3.3-70b')) return 131_072
-  if (m.includes('deepseek')) return 64_000
+
+  // Exact DeepSeek model matching instead of generic catch-all
+  // DeepSeek models currently all have 1M context per Models.dev
+  if (DEEPSEEK_1M_MODELS.has(m)) {
+    return 1_000_000
+  }
+
   return undefined
 }
 
