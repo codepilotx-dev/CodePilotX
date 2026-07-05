@@ -16,5 +16,17 @@ test('context window honors explicit 1m model suffix', () => {
 
 test('context window recognizes common third-party model families', () => {
   expect(getContextWindowForModel('openai/gpt-4o')).toBe(128_000)
-  expect(getContextWindowForModel('deepseek-chat')).toBe(64_000)
+  expect(getContextWindowForModel('deepseek-chat')).toBe(1_000_000)
+})
+
+test('context window returns 1M for known DeepSeek models', () => {
+  expect(getContextWindowForModel('deepseek-v4-flash')).toBe(1_000_000)
+  expect(getContextWindowForModel('deepseek-v4-pro')).toBe(1_000_000)
+  expect(getContextWindowForModel('deepseek-reasoner')).toBe(1_000_000)
+  expect(getContextWindowForModel('deepseek-chat')).toBe(1_000_000)
+})
+
+test('context window supports provider-prefixed model names', () => {
+  expect(getContextWindowForModel('deepseek/deepseek-v4-flash')).toBe(1_000_000)
+  expect(getContextWindowForModel('deepseek/deepseek-v4-pro')).toBe(1_000_000)
 })

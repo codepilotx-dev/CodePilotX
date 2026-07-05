@@ -10,6 +10,7 @@ const {
   captureDesktopRuntimeGlobalState,
   restoreDesktopRuntimeGlobalState,
   createDesktopHeadlessRuntime,
+  normalizeMcpConfigEntries,
 } = await import('./desktopRuntime.js')
 
 beforeEach(() => {
@@ -247,6 +248,27 @@ test('constructor does not modify bootstrap state', async () => {
   expect(state.getOriginalCwd()).toBe(cwdBefore)
   expect(state.getClientType()).toBe(clientTypeBefore)
   expect(state.getSessionTrustAccepted()).toBe(trustBefore)
+})
+
+test('normalizes MCP config record into named entries', () => {
+  const entries = normalizeMcpConfigEntries({
+    filesystem: {
+      type: 'stdio',
+      command: 'node',
+      args: ['server.js'],
+      scope: 'user',
+    },
+  })
+
+  expect(entries).toEqual([
+    {
+      name: 'filesystem',
+      type: 'stdio',
+      command: 'node',
+      args: ['server.js'],
+      scope: 'user',
+    },
+  ])
 })
 
 // ---------------------------------------------------------------------------

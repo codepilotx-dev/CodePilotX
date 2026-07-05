@@ -214,6 +214,70 @@ describe('desktopClient environment selection', () => {
     expect(storage.getItem(DESKTOP_BROWSER_DEBUG_MODE_STORAGE_KEY)).toBe('0')
     expect(readDesktopBrowserDebugMode(storage)).toBe(false)
   })
+
+  describe('debug bridge token flow', () => {
+    const TOKEN = 'test-bridge-token-456'
+
+    test('sends Authorization header when debugBridgeToken is in environment', async () => {
+      const headers: Record<string, string> = {}
+      const client = createDesktopClient({
+        window: {},
+        localStorage: memoryStorage({
+          [DESKTOP_BROWSER_DEBUG_MODE_STORAGE_KEY]: '1',
+        }),
+        debugBridgePort: 53271,
+        debugBridgeToken: TOKEN,
+        fetch: async (_input, init) => {
+          Object.assign(headers, init?.headers)
+          return jsonResponse(runtimeStatus)
+        },
+      })
+
+      await client.getRuntimeStatus()
+      expect(headers['authorization']).toBe(`Bearer ${TOKEN}`)
+    })
+
+    test('includes token as query parameter in EventSource URL', async () => {
+      const capturedUrls: string[] = []
+      const client = createDesktopClient({
+        window: {},
+        localStorage: memoryStorage({
+          [DESKTOP_BROWSER_DEBUG_MODE_STORAGE_KEY]: '1',
+        }),
+        debugBridgePort: 53271,
+        debugBridgeToken: TOKEN,
+        eventSourceFactory: (url: string) => {
+          capturedUrls.push(url)
+          return new EventTarget() as unknown as EventSource
+        },
+      })
+
+      client.onAgentEvent(() => {})
+      expect(capturedUrls).toEqual([
+        `http://127.0.0.1:53271/desktop-events?token=${TOKEN}`,
+      ])
+    })
+
+    test('does not include token in EventSource URL when no token is available', async () => {
+      const capturedUrls: string[] = []
+      const client = createDesktopClient({
+        window: {},
+        localStorage: memoryStorage({
+          [DESKTOP_BROWSER_DEBUG_MODE_STORAGE_KEY]: '1',
+        }),
+        debugBridgePort: 53271,
+        eventSourceFactory: (url: string) => {
+          capturedUrls.push(url)
+          return new EventTarget() as unknown as EventSource
+        },
+      })
+
+      client.onAgentEvent(() => {})
+      expect(capturedUrls).toEqual([
+        'http://127.0.0.1:53271/desktop-events',
+      ])
+    })
+  })
 })
 
 function memoryStorage(initial: Record<string, string> = {}): Storage {

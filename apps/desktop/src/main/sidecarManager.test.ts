@@ -1,4 +1,4 @@
-import { expect, mock, test } from 'bun:test'
+import { beforeEach, expect, mock, test } from 'bun:test'
 import * as childProcess from 'node:child_process'
 import { EventEmitter } from 'node:events'
 import { PassThrough } from 'node:stream'
@@ -50,10 +50,21 @@ class FakeChildProcess extends EventEmitter {
 }
 
 const fakeConnection = new FakeConnection()
+const spawnedChildren: FakeChildProcess[] = []
+let nextSpawnError: Error | null = null
+const spawnMock = mock(() => {
+  const child = new FakeChildProcess()
+  spawnedChildren.push(child)
+  const error = nextSpawnError
+  if (error) {
+    queueMicrotask(() => child.emit('error', error))
+  }
+  return child
+})
 
 mock.module('node:child_process', () => ({
   ...childProcess,
-  spawn: mock(() => new FakeChildProcess()),
+  spawn: spawnMock,
 }))
 
 mock.module('vscode-jsonrpc/node', () => ({
@@ -76,7 +87,16 @@ mock.module('vscode-jsonrpc/node', () => ({
   },
 }))
 
-const { SidecarManager } = await import('./sidecarManager.js')
+const { SidecarManager, buildSidecarEnv } = await import('./sidecarManager.js')
+
+beforeEach(() => {
+  fakeConnection.notificationHandlers.clear()
+  fakeConnection.requestHandlers.clear()
+  fakeConnection.sentRequests.length = 0
+  spawnedChildren.length = 0
+  nextSpawnError = null
+  spawnMock.mockClear()
+})
 
 test('sidecar permission notifications are returned through control/submit', async () => {
   const manager = new SidecarManager({
@@ -107,4 +127,28 @@ test('sidecar permission notifications are returned through control/submit', asy
       decision: { behavior: 'allow' },
     },
   })
+})
+
+test('sidecar start reports spawn errors before sending initialize', async () => {
+  nextSpawnError = new Error('spawn bun ENOENT')
+  const manager = new SidecarManager({
+    entrypoint: 'apps/tui/src/entrypoints/appServer.ts',
+    cwd: process.cwd(),
+    env: {},
+  })
+
+  await expect(manager.start()).rejects.toThrow('spawn bun ENOENT')
+  expect(fakeConnection.sentRequests.some(request => request.method === 'initialize')).toBe(false)
+})
+
+test('sidecar env preserves desktop runtime environment paths', () => {
+  const env = buildSidecarEnv({
+    sessionId: 'session-1',
+    workspacePath: 'C:\\workspace',
+    runtimeEnvironment: {
+      Path: 'C:\\bun;C:\\Windows\\System32',
+    },
+  } as any)
+
+  expect(env.Path).toBe('C:\\bun;C:\\Windows\\System32')
 })
