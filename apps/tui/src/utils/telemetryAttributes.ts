@@ -1,4 +1,3 @@
-import type { Attributes } from '@opentelemetry/api'
 import { getSessionId } from '@codepilotx/tui/bootstrap/state.js'
 import { getOauthAccountInfo } from './auth.js'
 import { getOrCreateUserID } from './config.js'
@@ -26,11 +25,11 @@ function shouldIncludeAttribute(
   return isEnvTruthy(envValue)
 }
 
-export function getTelemetryAttributes(): Attributes {
+export function getTelemetryAttributes(): Record<string, unknown> {
   const userId = getOrCreateUserID()
   const sessionId = getSessionId()
 
-  const attributes: Attributes = {
+  const attributes: Record<string, unknown> = {
     'user.id': userId,
   }
 

@@ -1,9 +1,15 @@
 import type { BetaMessageStreamParams } from '@anthropic-ai/sdk/resources/beta/messages/messages.mjs'
-import type { Attributes, Meter, MetricOptions } from '@opentelemetry/api'
-import type { logs } from '@opentelemetry/api-logs'
-import type { LoggerProvider } from '@opentelemetry/sdk-logs'
-import type { MeterProvider } from '@opentelemetry/sdk-metrics'
-import type { BasicTracerProvider } from '@opentelemetry/sdk-trace-base'
+// Inline minimal types to avoid importing removed @opentelemetry packages.
+// All telemetry is no-op, so these types are only used for null-safe state storage.
+type Attributes = Record<string, unknown>
+type Meter = { createCounter: (...args: unknown[]) => unknown }
+type MetricOptions = Record<string, unknown>
+type LoggerProvider = { shutdown: () => Promise<void>; forceFlush: () => Promise<void> }
+type MeterProvider = { shutdown: () => Promise<void>; forceFlush: () => Promise<void>; getMeter: (...args: unknown[]) => Meter }
+type BasicTracerProvider = { shutdown: () => Promise<void>; forceFlush: () => Promise<void> }
+
+/** Minimal logger interface matching the shape returned by logs.getLogger() */
+type OTelLogger = { emit: (record: { body: string; attributes: Attributes }) => void }
 import { realpathSync } from 'fs'
 import sumBy from 'lodash-es/sumBy.js'
 import { cwd } from 'process'
@@ -102,7 +108,7 @@ type State = {
   parentSessionId: SessionId | undefined
   // Logger state
   loggerProvider: LoggerProvider | null
-  eventLogger: ReturnType<typeof logs.getLogger> | null
+	eventLogger: OTelLogger | null
   // Meter provider state
   meterProvider: MeterProvider | null
   // Tracer provider state
@@ -1028,12 +1034,12 @@ export function setLoggerProvider(provider: LoggerProvider | null): void {
   STATE.loggerProvider = provider
 }
 
-export function getEventLogger(): ReturnType<typeof logs.getLogger> | null {
+export function getEventLogger(): OTelLogger | null {
   return STATE.eventLogger
 }
 
 export function setEventLogger(
-  logger: ReturnType<typeof logs.getLogger> | null,
+	logger: OTelLogger | null,
 ): void {
   STATE.eventLogger = logger
 }

@@ -1,26 +1,24 @@
-import type { DiagLogger } from '@opentelemetry/api'
-import { logForDebugging } from '../debug.js'
-import { logError } from '../log.js'
-export class CodePilotXDiagLogger implements DiagLogger {
-  error(message: string, ..._: unknown[]) {
-    logError(new Error(message))
-    logForDebugging(`[3P telemetry] OTEL diag error: ${message}`, {
-      level: 'error',
-    })
+/**
+ * Telemetry diagnostic logger
+ *
+ * NO-OP FACADE: All telemetry diagnostic logging has been removed.
+ * Preserves the class export so callers don't break.
+ */
+
+export class CodePilotXDiagLogger {
+  error(_message: string, ..._args: unknown[]) {
+    // No-op
   }
-  warn(message: string, ..._: unknown[]) {
-    logError(new Error(message))
-    logForDebugging(`[3P telemetry] OTEL diag warn: ${message}`, {
-      level: 'warn',
-    })
+  warn(_message: string, ..._args: unknown[]) {
+    // No-op
   }
   info(_message: string, ..._args: unknown[]) {
-    return
+    // No-op
   }
   debug(_message: string, ..._args: unknown[]) {
-    return
+    // No-op
   }
   verbose(_message: string, ..._args: unknown[]) {
-    return
+    // No-op
   }
 }
