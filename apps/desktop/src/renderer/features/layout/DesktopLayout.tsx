@@ -88,8 +88,8 @@ const RUNTIME_WARNING_MESSAGE =
   '桌面端 agent 运行时缺失，发送消息前请先执行 `bun run desktop:agent:build`。'
 const QUICK_CHAT_PATH = '/quick-chat'
 const RIGHT_DOCK_WIDTH_STORAGE_KEY = 'codex.desktop.rightDockWidth'
-const RIGHT_DOCK_MIN_WIDTH = 520
-const RIGHT_DOCK_MAX_WIDTH = 760
+const RIGHT_DOCK_MIN_WIDTH = 400
+const RIGHT_DOCK_MAX_WIDTH = 850
 const RIGHT_DOCK_DEFAULT_WIDTH = 680
 const RIGHT_DOCK_MAIN_MIN_WIDTH = 520
 
@@ -868,7 +868,7 @@ export function DesktopLayout(): React.ReactNode {
           activeTool: validated.rightDock.activeTool,
           openTools: validated.rightDock.openTools,
         })
-        setRightDockWidth(validated.rightDock.width)
+        setRightDockWidth(clampRightDockWidth(validated.rightDock.width))
         setRightDockPlan(validated.plan)
         setSideChatInput(validated.sideChatInput)
         setSideChatAttachments(validated.sideChatAttachments)
@@ -895,6 +895,17 @@ export function DesktopLayout(): React.ReactNode {
       setSideChatAttachments([])
     }
   }, [sessionId, menubarDebugMode])
+
+  useEffect(() => {
+    const handleBeforeUnload = (): void => {
+      const currentSessionId = sessionId
+      if (currentSessionId) {
+        saveConversationUiState(currentSessionId, uiSnapshotRef.current)
+      }
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [sessionId])
 
   useEffect(() => {
     const onResize = (): void => {

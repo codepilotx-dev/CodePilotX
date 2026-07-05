@@ -147,6 +147,22 @@
   display: flex;
   align-items: stretch;
   overflow: hidden;
+  position: relative;
+}
+
+.review-file-tree-resize-preview {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  z-index: 2;
+  background: color-mix(in srgb, var(--c-accent) 64%, var(--c-border-soft));
+  pointer-events: none;
+  display: none;
+}
+
+.review-sidebar-main.resizing-file-tree .review-file-tree-resize-preview {
+  display: block;
 }
 
 .review-file-tree-panel {
@@ -391,6 +407,45 @@
 
 .review-diff-lazy-placeholder {
   pointer-events: none;
+}
+
+/* Virtual-scroll diff body */
+.review-diff-file-preview.virtualized {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.review-diff-file-preview.virtualized.fill-space {
+  flex: 1;
+  min-height: 0;
+}
+
+.review-diff-virtual-body {
+  flex: 1;
+  min-height: 0;
+}
+
+.review-diff-vlist {
+  overflow-x: auto !important;
+}
+
+.review-diff-vlist-row {
+  min-width: max-content;
+  white-space: pre;
+  font-family: var(--ff-mono);
+  font-size: var(--fs-code);
+  line-height: 1.55;
+}
+
+.review-diff-vlist-row .review-diff-row {
+  grid-template-columns: 24px 42px 0 minmax(0, 1fr);
+}
+
+.review-diff-vlist-row .review-diff-split-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  min-width: 0;
 }
 
 .review-diff-lines-scroll-x {

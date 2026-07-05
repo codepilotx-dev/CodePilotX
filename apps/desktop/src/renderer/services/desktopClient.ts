@@ -54,6 +54,7 @@ export type DesktopClientEnvironment = {
   fetch?: (input: string, init?: RequestInit) => Promise<Response>
   eventSourceFactory?: (url: string) => EventSource
   debugBridgePort?: number
+  debugBridgeToken?: string
 }
 
 export function createDesktopClient(
@@ -163,14 +164,23 @@ function createBrowserDebugDesktopClient(
     environment.eventSourceFactory ??
     ((url: string) => new EventSource(url))
 
+  /** Resolve the debug bridge token from the environment or Vite-injected env. */
+  function getDebugToken(): string | undefined {
+    if (environment.debugBridgeToken) return environment.debugBridgeToken
+    try {
+      const viteToken =
+        import.meta.env?.CODEPILOTX_DESKTOP_BROWSER_DEBUG_BRIDGE_TOKEN
+      if (viteToken) return viteToken
+    } catch {
+      // import.meta.env may not be available in some environments (e.g. older runtimes)
+    }
+    return undefined
+  }
+
   async function invoke(method: DesktopApiMethod, args: unknown[]): Promise<unknown> {
     let response: Response
     const headers: Record<string, string> = { 'content-type': 'application/json' }
-    // Pass bearer token to the debug bridge if set by the main process.
-    const debugToken =
-      environment.localStorage?.getItem(DESKTOP_BROWSER_DEBUG_MODE_STORAGE_KEY) === '1'
-        ? (typeof process !== 'undefined' && process.env?.CODEPILOTX_DESKTOP_BROWSER_DEBUG_BRIDGE_TOKEN)
-        : undefined
+    const debugToken = getDebugToken()
     if (debugToken) {
       headers['authorization'] = `Bearer ${debugToken}`
     }
@@ -202,7 +212,11 @@ function createBrowserDebugDesktopClient(
   ): () => void {
     let source: EventSource
     try {
-      source = eventSourceFactory(`${baseURL}/desktop-events`)
+      const token = getDebugToken()
+      const eventsUrl = token
+        ? `${baseURL}/desktop-events?token=${encodeURIComponent(token)}`
+        : `${baseURL}/desktop-events`
+      source = eventSourceFactory(eventsUrl)
     } catch {
       return () => {}
     }
