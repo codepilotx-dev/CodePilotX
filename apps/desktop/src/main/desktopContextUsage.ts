@@ -44,7 +44,11 @@ export function buildDesktopContextUsage(params: {
     return null
   }
 
-  const contextWindow = getContextWindowForModel(params.model)
+  const provider =
+    params.provider === undefined
+      ? inferProviderFromModel(params.model)
+      : params.provider || undefined
+  const contextWindow = getContextWindowForModel(params.model, provider)
   const hasOpenAICompatibleUsageDetails =
     params.usage.reasoning_tokens !== undefined ||
     params.usage.prompt_cache_hit_tokens !== undefined ||
@@ -62,10 +66,7 @@ export function buildDesktopContextUsage(params: {
 
   return {
     model: params.model,
-    provider:
-      params.provider === undefined
-        ? inferProviderFromModel(params.model)
-        : params.provider || undefined,
+    provider,
     contextWindow,
     inputTokens,
     outputTokens,

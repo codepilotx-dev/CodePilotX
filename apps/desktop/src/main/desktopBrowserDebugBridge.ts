@@ -80,21 +80,32 @@ async function handleRequest(
   request: IncomingMessage,
   response: ServerResponse,
 ): Promise<void> {
-  // Require bearer token if configured (matching automation bridge pattern)
-  if (options.token) {
-    const authHeader = request.headers.authorization
-    if (!authHeader || authHeader !== `Bearer ${options.token}`) {
-      writeText(response, 401, 'Unauthorized')
-      return
-    }
-  }
-  setCorsHeaders(response)
+  // Set CORS headers on every response so browsers can read errors like 401.
+  setCorsHeaders(request, response)
+
+  // OPTIONS preflight: no auth needed — the browser needs to see CORS headers
+  // before it will send the real request.
   if (request.method === 'OPTIONS') {
     response.writeHead(204)
     response.end()
     return
   }
+
   const url = new URL(request.url ?? '/', 'http://127.0.0.1')
+
+  // Auth check: bearer token for POST API, query token for GET SSE.
+  if (options.token) {
+    const authHeader = request.headers.authorization
+    const queryToken = url.searchParams.get('token')
+    const isValid =
+      authHeader === `Bearer ${options.token}` ||
+      queryToken === options.token
+    if (!isValid) {
+      writeText(response, 401, 'Unauthorized')
+      return
+    }
+  }
+
   if (request.method === 'GET' && url.pathname === '/desktop-events') {
     handleEvents(options.events, response)
     return
@@ -144,7 +155,6 @@ async function handleRequest(
 
 function handleEvents(events: EventEmitter, response: ServerResponse): void {
   response.writeHead(200, {
-    'access-control-allow-origin': '*',
     'cache-control': 'no-cache',
     connection: 'keep-alive',
     'content-type': 'text/event-stream; charset=utf-8',
@@ -165,10 +175,20 @@ function handleEvents(events: EventEmitter, response: ServerResponse): void {
   })
 }
 
-function setCorsHeaders(response: ServerResponse): void {
-  response.setHeader('access-control-allow-origin', 'http://127.0.0.1')
+function setCorsHeaders(
+  request: IncomingMessage,
+  response: ServerResponse,
+): void {
+  const origin = request.headers.origin
+  const allowedOrigin =
+    origin &&
+    (origin.startsWith('http://127.0.0.1') || origin.startsWith('http://localhost'))
+      ? origin
+      : 'http://127.0.0.1'
+  response.setHeader('access-control-allow-origin', allowedOrigin)
   response.setHeader('access-control-allow-methods', 'GET,POST,OPTIONS')
   response.setHeader('access-control-allow-headers', 'content-type, authorization')
+  response.setHeader('vary', 'origin')
 }
 
 async function readJsonBody(request: IncomingMessage): Promise<{ args?: unknown }> {

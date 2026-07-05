@@ -65,6 +65,7 @@ export class SidecarDesktopAgentRuntime implements DesktopAgentRuntime {
         additionalDirectories: context.additionalDirectories,
         installCodexDependencies: context.installCodexDependencies,
         enableMemory: context.enableMemory,
+        runtimeEnvironment: context.toolchainEnvironment,
         reviewModel: context.reviewModel,
         smallFastModel: context.smallFastModel,
         fastModel: context.fastModel,

@@ -126,7 +126,35 @@ export class SidecarManager {
       stderrChunks.push(chunk)
     })
 
-    // 3. 建立 JSON-RPC 连接
+    // 3. 先监听子进程错误；Windows 上 bun 不在 PATH 时会异步触发 ENOENT。
+    const startupPromise = new Promise<void>((resolve, reject) => {
+      this.startupResolve = resolve
+      this.startupReject = reject
+    })
+    void startupPromise.catch(() => undefined)
+
+    const exitHandler = (code: number | null, signal: string | null) => {
+      const error = createSidecarExitError(code, signal, stderrChunks)
+      this.emitter.emit('crash', error)
+      this.startupReject?.(error)
+    }
+    child.on('exit', exitHandler)
+    this.cleanupSteps.push(() => child.off('exit', exitHandler))
+
+    const errorHandler = (err: Error) => {
+      this.emitter.emit('crash', err)
+      this.startupReject?.(err)
+    }
+    child.on('error', errorHandler)
+    this.cleanupSteps.push(() => child.off('error', errorHandler))
+
+    await this.withTimeout(
+      waitForSpawnReady(child, stderrChunks),
+      timeout,
+      'Sidecar spawn timeout',
+    )
+
+    // 4. 建立 JSON-RPC 连接
     const connection = createMessageConnection(
       new StreamMessageReader(child.stdout!),
       new StreamMessageWriter(child.stdin!),
@@ -134,7 +162,7 @@ export class SidecarManager {
     this.connection = connection
     connection.listen()
 
-    // 4. 注册通知处理器
+    // 5. 注册通知处理器
     connection.onNotification(THREAD_EVENT_NOTIFICATION, (params: { event: ThreadEvent }) => {
       desktopDebug('sidecar_thread_event', {
         type: params.event.type,
@@ -150,7 +178,7 @@ export class SidecarManager {
       },
     )
 
-    // 5. 注册 pending/tool/permission 通知处理器
+    // 6. 注册 pending/tool/permission 通知处理器
     connection.onNotification('pending/tool/permission', (params: SidecarPermissionContext) => {
       desktopDebug('sidecar_permission_request', {
         requestId: params.requestId,
@@ -158,34 +186,6 @@ export class SidecarManager {
       })
       this.handlePermissionRequest(params)
     })
-
-    // 6. 等待子进程就绪（进程启动 + initialize 握手）
-    const startupPromise = new Promise<void>((resolve, reject) => {
-      this.startupResolve = resolve
-      this.startupReject = reject
-    })
-
-    // 子进程 exit 监听
-    const exitHandler = (code: number | null, signal: string | null) => {
-      const error = new Error(
-        `Sidecar process exited unexpectedly (code=${code}, signal=${signal})` +
-          (stderrChunks.length > 0
-            ? `: ${Buffer.concat(stderrChunks).toString('utf8').slice(0, 1000)}`
-            : ''),
-      )
-      this.emitter.emit('crash', error)
-      this.startupReject?.(error)
-    }
-    child.on('exit', exitHandler)
-    this.cleanupSteps.push(() => child.off('exit', exitHandler))
-
-    // 子进程 error 监听
-    const errorHandler = (err: Error) => {
-      this.emitter.emit('crash', err)
-      this.startupReject?.(err)
-    }
-    child.on('error', errorHandler)
-    this.cleanupSteps.push(() => child.off('error', errorHandler))
 
     // 7. 发送 initialize 握手
     try {
@@ -338,6 +338,7 @@ export function buildSidecarEnv(
   context: SidecarEnvContext,
 ): Record<string, string | undefined> {
   return {
+    ...context.runtimeEnvironment,
     CODEPILOTX_SIDECAR_SESSION_ID: context.sessionId,
     CODEPILOTX_SIDECAR_WORKSPACE: context.workspacePath,
     CODEPILOTX_SIDECAR_MODEL: context.model,
@@ -384,12 +385,62 @@ export type SidecarEnvContext = {
   additionalDirectories?: string[]
   installCodexDependencies?: boolean
   enableMemory?: boolean
+  runtimeEnvironment?: Record<string, string | undefined>
   reviewModel?: string
   smallFastModel?: string
   fastModel?: string
   defaultModel?: string
   deepModel?: string
   sessionName?: string
+}
+
+function waitForSpawnReady(
+  child: ChildProcess,
+  stderrChunks: Buffer[],
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    let settled = false
+    let timer: NodeJS.Immediate | null = null
+
+    const cleanup = () => {
+      if (settled) return false
+      settled = true
+      if (timer) {
+        clearImmediate(timer)
+      }
+      child.off('spawn', onSpawn)
+      child.off('error', onError)
+      child.off('exit', onExit)
+      return true
+    }
+    const onSpawn = () => {
+      if (cleanup()) resolve()
+    }
+    const onError = (error: Error) => {
+      if (cleanup()) reject(error)
+    }
+    const onExit = (code: number | null, signal: string | null) => {
+      if (cleanup()) reject(createSidecarExitError(code, signal, stderrChunks))
+    }
+
+    child.once('spawn', onSpawn)
+    child.once('error', onError)
+    child.once('exit', onExit)
+    timer = setImmediate(onSpawn)
+  })
+}
+
+function createSidecarExitError(
+  code: number | null,
+  signal: string | null,
+  stderrChunks: Buffer[],
+): Error {
+  return new Error(
+    `Sidecar process exited unexpectedly (code=${code}, signal=${signal})` +
+      (stderrChunks.length > 0
+        ? `: ${Buffer.concat(stderrChunks).toString('utf8').slice(0, 1000)}`
+        : ''),
+  )
 }
 
 export class SidecarStartError extends Error {

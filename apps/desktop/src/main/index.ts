@@ -1635,7 +1635,8 @@ let desktopBrowserAutomationBridgeServer:
   | DesktopBrowserAutomationBridgeServer
   | null = null
 const desktopBrowserAutomationBridgeToken = randomUUID()
-const desktopBrowserDebugBridgeToken = randomUUID()
+const desktopBrowserDebugBridgeToken =
+  process.env.CODEPILOTX_DESKTOP_BROWSER_DEBUG_BRIDGE_TOKEN ?? randomUUID()
 
 async function syncDesktopBrowserDebugBridge(): Promise<void> {
   if (!desktopBrowserDebugBridgeServer) {

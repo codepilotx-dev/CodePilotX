@@ -184,6 +184,16 @@ export function createDesktopHeadlessRuntime(
   return new EmbeddedDesktopHeadlessRuntime(options)
 }
 
+/** @internal exported for testing only */
+export function normalizeMcpConfigEntries(
+  configs: Record<string, ScopedMcpServerConfig>,
+): ScopedMcpServerConfig[] {
+  return Object.entries(configs).map(([name, config]) => ({
+    ...config,
+    name,
+  }))
+}
+
 export async function runDesktopHeadlessTurn(
   runtime: DesktopHeadlessRuntime,
   content: string | ContentBlockParam[],
@@ -502,7 +512,8 @@ class EmbeddedDesktopHeadlessRuntime implements DesktopHeadlessRuntime {
    */
   private async syncMcpServers(): Promise<void> {
     try {
-      const { servers: newConfigs } = await getAllMcpConfigs()
+      const { servers } = await getAllMcpConfigs()
+      const newConfigs = normalizeMcpConfigEntries(servers)
       const currentNames = new Set(this.mcpConfigs.map(c => c.name))
       const newNames = new Set(newConfigs.map(c => c.name))
 
