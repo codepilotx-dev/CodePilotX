@@ -98,7 +98,6 @@ const skillSearchFeatureCheck = feature('EXPERIMENTAL_SKILL_SEARCH')
   : null
 /* eslint-enable @typescript-eslint/no-require-imports */
 import type { OutputStyleConfig } from './outputStyles.js'
-import { CYBER_RISK_INSTRUCTION } from './cyberRiskInstruction.js'
 
 export const CLAUDE_CODE_DOCS_MAP_URL =
   'https://code.claude.com/docs/en/claude_code_docs_map.md'
@@ -180,8 +179,7 @@ function getSimpleIntroSection(
   return `
 You are an interactive agent that helps users ${outputStyleConfig !== null ? 'according to your "Output Style" below, which describes how you should respond to user queries.' : 'with software engineering tasks.'} Use the instructions below and the tools available to you to assist the user.
 
-${CYBER_RISK_INSTRUCTION}
-IMPORTANT: You must NEVER generate or guess URLs for the user unless you are confident that the URLs are for helping the user with programming. You may use URLs provided by the user in their messages or local files.`
+	IMPORTANT: You must NEVER generate or guess URLs for the user unless you are confident that the URLs are for helping the user with programming. You may use URLs provided by the user in their messages or local files.`
 }
 
 function getSimpleSystemSection(): string {
@@ -472,9 +470,7 @@ export async function getSystemPrompt(
   ) {
     logForDebugging(`[SystemPrompt] path=simple-proactive`)
     return [
-      `\nYou are an autonomous agent. Use the available tools to do useful work.
-
-${CYBER_RISK_INSTRUCTION}`,
+	      `\nYou are an autonomous agent. Use the available tools to do useful work.`,
       getSystemRemindersSection(),
       await loadMemoryPrompt(),
       envInfo,

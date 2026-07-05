@@ -19,7 +19,7 @@ import { logError } from '../../utils/log.js'
 import type { buildMessageLookups } from '../../utils/messages.js'
 import { MessageResponse } from '../MessageResponse.js'
 import { useSelectedMessageBg } from '../messageActions.js'
-import { SentryErrorBoundary } from '../SentryErrorBoundary.js'
+import { ErrorBoundary } from '../ErrorBoundary.js'
 import { ToolUseLoader } from '../ToolUseLoader.js'
 import { HookProgressMessage } from './HookProgressMessage.js'
 
@@ -290,7 +290,7 @@ function renderToolUseProgressMessage(
       }) ?? null
     return (
       <>
-        <SentryErrorBoundary>
+        <ErrorBoundary>
           <HookProgressMessage
             hookEvent="PreToolUse"
             lookups={lookups}
@@ -298,7 +298,7 @@ function renderToolUseProgressMessage(
             verbose={verbose}
             isTranscriptMode={isTranscriptMode}
           />
-        </SentryErrorBoundary>
+        </ErrorBoundary>
         {toolMessages}
       </>
     )
