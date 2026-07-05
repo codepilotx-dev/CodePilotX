@@ -1477,10 +1477,13 @@ declare module '@codepilotx/core/services/mcp/config.js' {
   export function isMcpServerDisabled(name: string): boolean
 }
 
-declare module '@codepilotx/core/models/context.js' {
-  export const MODEL_CONTEXT_WINDOW_DEFAULT: number
-  export function getContextWindowForModel(model: string): number
-}
+	declare module '@codepilotx/core/models/context.js' {
+	  export const MODEL_CONTEXT_WINDOW_DEFAULT: number
+	  export function getContextWindowForModel(
+	    model: string,
+	    provider?: string,
+	  ): number
+	}
 
 declare module '@codepilotx/core/models/providerConfig.js' {
   import type {

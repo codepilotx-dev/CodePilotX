@@ -116,6 +116,8 @@ These instructions apply to the whole `ClaudeCode` tree unless a nested
   2. `D:\GitHubProject\Agent\codex-main`
   3. `D:\GitHubProject\Agent\opencode-dev`
   4. `D:\GitHubProject\Agent\openai-agents-python`
+- For tasks that explicitly target mobile UI or mobile client behavior, also
+  inspect `D:\GitHubProject\Agent\OpenCodeUI-main` first.
 - If a matching implementation exists, copy or adapt the existing logic instead
   of inventing a new one.
 - If no suitable implementation exists, write the smallest local implementation

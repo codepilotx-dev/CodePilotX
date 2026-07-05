@@ -1,4 +1,5 @@
 import { spawn, spawnSync } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { createRequire } from 'node:module'
 import { resolve } from 'node:path'
 import { build, createServer } from 'vite'
@@ -203,6 +204,13 @@ async function main() {
   process.on('SIGTERM', () => {
     cleanup().finally(() => process.exit(0))
   })
+
+  // Generate or reuse a dev token for the desktop browser debug bridge.
+  // This token is available to both Vite (via define) and Electron (via env)
+  // so the browser-side debug client can authenticate with the bridge server.
+  const debugBridgeToken =
+    process.env.CODEPILOTX_DESKTOP_BROWSER_DEBUG_BRIDGE_TOKEN ?? randomUUID()
+  process.env.CODEPILOTX_DESKTOP_BROWSER_DEBUG_BRIDGE_TOKEN = debugBridgeToken
 
   if (runtimeMode === 'subprocess') {
     log('building desktop agent')

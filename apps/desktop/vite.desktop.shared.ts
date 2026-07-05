@@ -36,6 +36,9 @@ export const desktopMacroDefines = {
   'import.meta.env.CODEPILOTX_DESKTOP_BROWSER_DEBUG_PORT': JSON.stringify(
     process.env.CODEPILOTX_DESKTOP_BROWSER_DEBUG_PORT ?? '',
   ),
+  'import.meta.env.CODEPILOTX_DESKTOP_BROWSER_DEBUG_BRIDGE_TOKEN': JSON.stringify(
+    process.env.CODEPILOTX_DESKTOP_BROWSER_DEBUG_BRIDGE_TOKEN ?? '',
+  ),
 }
 
 function disableBundledFeaturesPlugin() {
