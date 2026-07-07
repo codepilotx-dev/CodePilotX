@@ -162,7 +162,7 @@ export function deriveReviewTurns(
       continue
     }
     if (!currentTurn) continue
-    if (event.type === 'file_patch') {
+    if (event.type === 'file_patch' && event.metadata?.turnScoped === true) {
       const patchText = asString(event.metadata?.patch) ?? ''
       const files = collectFilesFromPatchEvent(event)
       currentTurn.filePatchEventIds.push(event.id)

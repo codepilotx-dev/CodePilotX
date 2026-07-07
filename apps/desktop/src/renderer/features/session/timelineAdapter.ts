@@ -58,7 +58,10 @@ function isPlan(item: TimelineItem): boolean {
 }
 
 function isDiff(item: TimelineItem): boolean {
-  return item.type === 'file_patch';
+  return (
+    item.type === 'file_patch' &&
+    (item as DesktopSessionEvent).metadata?.turnScoped === true
+  );
 }
 
 function isError(item: TimelineItem): boolean {

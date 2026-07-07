@@ -193,6 +193,7 @@ function filePatchEvent(id: string, filePath: string): DesktopSessionEvent {
       files: [{ path: filePath, additions: 5, deletions: 2 }],
       additions: 5,
       deletions: 2,
+      turnScoped: true,
     },
   };
 }
@@ -302,6 +303,32 @@ test('converts file patches into diff_summary rows', () => {
   if (diffRow?.type === 'diff_summary') {
     expect(diffRow.eventId).toBe('file-1');
   }
+});
+
+test('hides file_patch without turnScoped metadata', () => {
+  const events = [
+    userEvent('user-2', 'Old session'),
+    {
+      id: 'file-legacy',
+      sessionId: 'session-1',
+      type: 'file_patch' as const,
+      content: 'Edited /src/old.ts',
+      createdAt: '2026-06-26T00:00:01.000Z',
+      metadata: {
+        files: [{ path: '/src/old.ts', additions: 3, deletions: 1 }],
+        additions: 3,
+        deletions: 1,
+        // no turnScoped
+      },
+    },
+    checkpointEvent('done-2'),
+  ];
+  const items = buildPhaseItems(events, 'idle' as DesktopSessionStatus);
+  const callbacks = mockCallbacks();
+  const rows = convertPhaseItemsToRows(items, 'idle' as DesktopSessionStatus, new Set(), callbacks);
+
+  const diffRow = rows.find((r) => r.type === 'diff_summary');
+  expect(diffRow).toBeUndefined();
 });
 
 test('converts errors into error rows', () => {

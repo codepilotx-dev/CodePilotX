@@ -642,6 +642,7 @@ function filePatchEvent(id: string, filePath: string): DesktopSessionEvent {
       files: [{ path: filePath, additions: 5, deletions: 2 }],
       additions: 5,
       deletions: 2,
+      turnScoped: true,
     },
   }
 }
