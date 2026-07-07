@@ -898,7 +898,13 @@ export function ConversationPage(): React.ReactNode {
         }
       >
         <main className="workflow-page__main">
-          <header className="chat-session-header">
+          <header
+            className={
+              rightDockOpen
+                ? "chat-session-header"
+                : "chat-session-header chat-session-header--dock-closed"
+            }
+          >
             {workspaceHeaderTitle}
             {workspaceHeaderActions}
           </header>
