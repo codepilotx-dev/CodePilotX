@@ -90,6 +90,7 @@ use eventsource_stream::Eventsource;
 use futures::Stream;
 use futures::StreamExt;
 use http::HeaderMap as ApiHeaderMap;
+use http::HeaderName;
 use http::HeaderValue;
 use http::StatusCode as HttpStatusCode;
 use reqwest::StatusCode;
@@ -154,6 +155,7 @@ const X_OPENAI_INTERNAL_CODEX_RESPONSES_LITE_HEADER: &str =
     "x-openai-internal-codex-responses-lite";
 const RESPONSES_ENDPOINT: &str = "/responses";
 const ANTHROPIC_MESSAGES_ENDPOINT: &str = "/messages";
+const CHAT_COMPLETIONS_ENDPOINT: &str = "/chat/completions";
 const ANTHROPIC_VERSION_HEADER: &str = "anthropic-version";
 const ANTHROPIC_VERSION_VALUE: &str = "2023-06-01";
 const RESPONSES_COMPACT_ENDPOINT: &str = "/responses/compact";
@@ -273,6 +275,48 @@ impl RequestRouteTelemetry {
     fn for_endpoint(endpoint: &'static str) -> Self {
         Self { endpoint }
     }
+}
+
+// ── Chat Completions types ──────────────────────────────────────────
+
+#[derive(Debug, Serialize)]
+struct ChatCompletionsRequest {
+    model: String,
+    messages: Vec<ChatCompletionMessage>,
+    stream: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    stream_options: Option<ChatCompletionStreamOptions>,
+}
+
+#[derive(Debug, Serialize)]
+struct ChatCompletionStreamOptions {
+    include_usage: bool,
+}
+
+#[derive(Debug, Serialize)]
+struct ChatCompletionMessage {
+    role: String,
+    content: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct ChatCompletionChunk {
+    #[serde(default)]
+    choices: Vec<ChatCompletionChoice>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ChatCompletionChoice {
+    #[serde(default)]
+    delta: ChatCompletionDelta,
+    #[serde(default, rename = "finish_reason")]
+    finish_reason: Option<String>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct ChatCompletionDelta {
+    #[serde(default)]
+    content: Option<String>,
 }
 
 /// A session-scoped client for model-provider API calls.
@@ -938,6 +982,45 @@ impl ModelClient {
         }
     }
 
+    fn build_chat_completions_request(
+        &self,
+        prompt: &Prompt,
+        model_info: &ModelInfo,
+    ) -> ChatCompletionsRequest {
+        let mut messages = Vec::new();
+
+        for item in prompt.get_formatted_input_for_request(/*use_responses_lite*/ false) {
+            let ResponseItem::Message { role, content, .. } = item else {
+                continue;
+            };
+            let text = chat_completions_text_from_content_items(&content);
+            if text.trim().is_empty() {
+                continue;
+            }
+            let role = if role == "assistant" { "assistant" } else { "user" };
+            messages.push(ChatCompletionMessage {
+                role: role.to_string(),
+                content: text,
+            });
+        }
+
+        if messages.is_empty() {
+            messages.push(ChatCompletionMessage {
+                role: "user".to_string(),
+                content: "Continue.".to_string(),
+            });
+        }
+
+        ChatCompletionsRequest {
+            model: model_info.slug.clone(),
+            messages,
+            stream: true,
+            stream_options: Some(ChatCompletionStreamOptions {
+                include_usage: false,
+            }),
+        }
+    }
+
     fn prepare_response_items_for_request(&self, input: &mut [ResponseItem], store: bool) {
         if self.state.item_ids_enabled || store {
             return;
@@ -1593,6 +1676,100 @@ impl ModelClientSession {
         ))
     }
 
+    // ── Chat Completions API ────────────────────────────────────────
+
+    async fn stream_chat_completions_api(
+        &self,
+        prompt: &Prompt,
+        model_info: &ModelInfo,
+        session_telemetry: &SessionTelemetry,
+        inference_trace: &InferenceTraceContext,
+    ) -> Result<ResponseStream> {
+        let client_setup = self.client.current_client_setup().await?;
+        let request = self
+            .client
+            .build_chat_completions_request(prompt, model_info);
+        let inference_trace_attempt = inference_trace.start_attempt();
+        inference_trace_attempt.record_started(&request);
+
+        let stream_result = self
+            .send_chat_completions_request(&client_setup, &request)
+            .await;
+        match stream_result {
+            Ok(api_stream) => {
+                let (stream, _) = map_response_stream(
+                    api_stream,
+                    session_telemetry.clone(),
+                    inference_trace_attempt,
+                );
+                Ok(stream)
+            }
+            Err(err) => {
+                let response_debug_context = extract_response_debug_context_from_api_error(&err);
+                let err = map_api_error(err);
+                inference_trace_attempt.record_failed(
+                    &err,
+                    response_debug_context.request_id.as_deref(),
+                    /*output_items*/ &[],
+                );
+                Err(err)
+            }
+        }
+    }
+
+    async fn send_chat_completions_request(
+        &self,
+        client_setup: &CurrentClientSetup,
+        request: &ChatCompletionsRequest,
+    ) -> std::result::Result<codex_api::ResponseStream, ApiError> {
+        let url = client_setup
+            .api_provider
+            .url_for_path(CHAT_COMPLETIONS_ENDPOINT);
+        let mut headers = client_setup.api_provider.headers.clone();
+        client_setup.api_auth.add_auth_headers(&mut headers);
+        headers.insert(
+            http::header::ACCEPT,
+            HeaderValue::from_static("text/event-stream"),
+        );
+        headers.insert(
+            http::header::CONTENT_TYPE,
+            HeaderValue::from_static("application/json"),
+        );
+        // DeepSeek-specific: X-User-Id header
+        headers.insert(
+            HeaderName::from_static("x-user-id"),
+            HeaderValue::from_static("codepilotx-cli"),
+        );
+
+        let response = build_reqwest_client()
+            .post(url)
+            .headers(headers)
+            .json(request)
+            .send()
+            .await
+            .map_err(|err| ApiError::Stream(format!("chat completions request failed: {err}")))?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let status = HttpStatusCode::from_u16(status.as_u16())
+                .unwrap_or(HttpStatusCode::INTERNAL_SERVER_ERROR);
+            let message = response.text().await.unwrap_or_else(|err| err.to_string());
+            return Err(ApiError::Api { status, message });
+        }
+
+        let upstream_request_id = response
+            .headers()
+            .get("x-request-id")
+            .or_else(|| response.headers().get("request-id"))
+            .and_then(|value| value.to_str().ok())
+            .map(str::to_string);
+        Ok(spawn_chat_completions_stream(
+            response.bytes_stream().eventsource(),
+            client_setup.api_provider.stream_idle_timeout,
+            upstream_request_id,
+        ))
+    }
+
     /// Streams a turn via the Responses API over WebSocket transport.
     #[allow(clippy::too_many_arguments)]
     #[instrument(
@@ -1909,6 +2086,15 @@ impl ModelClientSession {
                 )
                 .await
             }
+            WireApi::ChatCompletions => {
+                self.stream_chat_completions_api(
+                    prompt,
+                    model_info,
+                    session_telemetry,
+                    inference_trace,
+                )
+                .await
+            }
         }
     }
 
@@ -2010,6 +2196,18 @@ fn push_anthropic_text_message(messages: &mut Vec<AnthropicMessage>, role: &str,
         role: role.to_string(),
         content: vec![block],
     });
+}
+
+fn chat_completions_text_from_content_items(content: &[ContentItem]) -> String {
+    let mut text = String::new();
+    for item in content {
+        match item {
+            ContentItem::OutputText { text: t, .. } => text.push_str(t),
+            ContentItem::InputText { text: t } => text.push_str(t),
+            _ => {}
+        }
+    }
+    text
 }
 
 fn spawn_anthropic_messages_stream<S, E>(
@@ -2235,6 +2433,183 @@ async fn send_anthropic_output_final(
         }))
         .await
         .is_ok()
+}
+
+/// Spawns a background task that parses a Chat Completions SSE stream and emits `ResponseEvent`s.
+///
+/// Handles the standard OpenAI-compatible Chat Completions streaming format:
+/// - `data: {"choices":[{"delta":{"content":"..."},"finish_reason":null}]}`
+/// - `data: [DONE]` as stream terminator
+fn spawn_chat_completions_stream<S, E>(
+    event_stream: S,
+    idle_timeout: Duration,
+    upstream_request_id: Option<String>,
+) -> codex_api::ResponseStream
+where
+    S: Stream<Item = std::result::Result<Event, EventStreamError<E>>> + Send + 'static,
+    E: std::fmt::Display + Send + Sync + 'static,
+{
+    let (tx_event, rx_event) = mpsc::channel::<std::result::Result<ResponseEvent, ApiError>>(
+        RESPONSE_STREAM_CHANNEL_CAPACITY,
+    );
+    tokio::spawn(async move {
+        let mut event_stream = Box::pin(event_stream);
+        let response_id = upstream_request_id.unwrap_or_else(|| "chat-completions".to_string());
+        let item_id = "chat-completions-item".to_string();
+        let mut assistant_text = String::new();
+
+        loop {
+            let poll = tokio::time::timeout(idle_timeout, event_stream.next()).await;
+            let event = match poll {
+                Ok(Some(Ok(event))) => event,
+                Ok(Some(Err(err))) => {
+                    let _ = tx_event
+                        .send(Err(ApiError::Stream(format!(
+                            "chat completions stream error: {err}"
+                        ))))
+                        .await;
+                    return;
+                }
+                Ok(None) => break,
+                Err(_) => {
+                    let _ = tx_event
+                        .send(Err(ApiError::Stream(
+                            "chat completions stream idle timeout".to_string(),
+                        )))
+                        .await;
+                    return;
+                }
+            };
+
+            // `data: [DONE]` — stream terminator
+            if event.data.trim() == "[DONE]" {
+                break;
+            }
+
+            let Ok(chunk) = serde_json::from_str::<ChatCompletionChunk>(&event.data) else {
+                continue;
+            };
+
+            for choice in &chunk.choices {
+                if let Some(ref text) = choice.delta.content {
+                    assistant_text.push_str(text);
+                    let _ = tx_event
+                        .send(Ok(ResponseEvent::OutputTextDelta(text.clone())))
+                        .await;
+                }
+
+                if let Some(ref finish_reason) = choice.finish_reason {
+                    match finish_reason.as_str() {
+                        "stop" | "length" => {
+                            // Emit final message with accumulated text
+                            if !assistant_text.is_empty() {
+                                let _ = tx_event
+                                    .send(Ok(ResponseEvent::OutputItemDone(
+                                        ResponseItem::Message {
+                                            id: Some(item_id.clone()),
+                                            role: "assistant".to_string(),
+                                            content: vec![ContentItem::OutputText {
+                                                text: std::mem::take(&mut assistant_text),
+                                            }],
+                                            phase: None,
+                                            metadata: None,
+                                        },
+                                    )))
+                                    .await;
+                            }
+                            let _ = tx_event
+                                .send(Ok(ResponseEvent::Completed {
+                                    response_id: response_id.clone(),
+                                    token_usage: None,
+                                    end_turn: Some(true),
+                                }))
+                                .await;
+                            return;
+                        }
+                        "tool_calls" => {
+                            // Tool calls not yet supported — emit text as message for now
+                            if !assistant_text.is_empty() {
+                                let _ = tx_event
+                                    .send(Ok(ResponseEvent::OutputItemDone(
+                                        ResponseItem::Message {
+                                            id: Some(item_id.clone()),
+                                            role: "assistant".to_string(),
+                                            content: vec![ContentItem::OutputText {
+                                                text: std::mem::take(&mut assistant_text),
+                                            }],
+                                            phase: None,
+                                            metadata: None,
+                                        },
+                                    )))
+                                    .await;
+                            }
+                            let _ = tx_event
+                                .send(Ok(ResponseEvent::Completed {
+                                    response_id: response_id.clone(),
+                                    token_usage: None,
+                                    end_turn: Some(true),
+                                }))
+                                .await;
+                            return;
+                        }
+                        _ => {
+                            // Unknown finish reason — treat as stop
+                            if !assistant_text.is_empty() {
+                                let _ = tx_event
+                                    .send(Ok(ResponseEvent::OutputItemDone(
+                                        ResponseItem::Message {
+                                            id: Some(item_id.clone()),
+                                            role: "assistant".to_string(),
+                                            content: vec![ContentItem::OutputText {
+                                                text: std::mem::take(&mut assistant_text),
+                                            }],
+                                            phase: None,
+                                            metadata: None,
+                                        },
+                                    )))
+                                    .await;
+                            }
+                            let _ = tx_event
+                                .send(Ok(ResponseEvent::Completed {
+                                    response_id: response_id.clone(),
+                                    token_usage: None,
+                                    end_turn: Some(true),
+                                }))
+                                .await;
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Stream ended without explicit completion — emit accumulated text if any
+        if !assistant_text.is_empty() {
+            let _ = tx_event
+                .send(Ok(ResponseEvent::OutputItemDone(ResponseItem::Message {
+                    id: Some(item_id),
+                    role: "assistant".to_string(),
+                    content: vec![ContentItem::OutputText {
+                        text: assistant_text,
+                    }],
+                    phase: None,
+                    metadata: None,
+                })))
+                .await;
+        }
+        let _ = tx_event
+            .send(Ok(ResponseEvent::Completed {
+                response_id,
+                token_usage: None,
+                end_turn: Some(true),
+            }))
+            .await;
+    });
+
+    codex_api::ResponseStream {
+        rx_event,
+        upstream_request_id: None,
+    }
 }
 
 fn map_response_stream(
