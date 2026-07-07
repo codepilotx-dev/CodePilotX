@@ -46,8 +46,6 @@ describe('getAuthStatus', () => {
    */
   const testRuntime: AppRuntime = {
     auth: {
-      checkAndRefreshOAuthTokenIfNeeded: async () => false,
-      getClaudeAIOAuthTokens: () => null,
       hasProfileScope: () => false,
       isClaudeAISubscriber: () => false,
       saveApiKey: async () => {},

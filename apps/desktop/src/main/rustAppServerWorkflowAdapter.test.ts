@@ -134,7 +134,7 @@ describe('rustAppServerWorkflowAdapter', () => {
     })
   })
 
-  test('item/completed with non-agentMessage type is ignored', () => {
+  test('item/completed with commandExecution emits tool_result', () => {
     const state = createRustAppServerWorkflowState()
     const events: DesktopAgentEvent[] = []
 
@@ -145,6 +145,33 @@ describe('rustAppServerWorkflowAdapter', () => {
           type: 'commandExecution',
           id: 'item-2',
           command: 'ls',
+          exitCode: 0,
+          output: 'file1.txt\nfile2.txt',
+        },
+      },
+      e => events.push(e),
+      state,
+      SESSION_ID,
+    )
+
+    expect(events).toHaveLength(1)
+    expect(events[0]).toMatchObject({
+      type: 'tool_result',
+      sessionId: SESSION_ID,
+      toolName: 'Bash',
+    })
+  })
+
+  test('item/completed with unknown type is ignored', () => {
+    const state = createRustAppServerWorkflowState()
+    const events: DesktopAgentEvent[] = []
+
+    handleServerNotification(
+      'item/completed',
+      {
+        item: {
+          type: 'unknownCustomType',
+          id: 'item-3',
         },
       },
       e => events.push(e),
@@ -245,5 +272,214 @@ describe('rustAppServerWorkflowAdapter', () => {
     )
 
     expect(events).toHaveLength(0)
+  })
+
+  test('state resets for new turn after error', () => {
+    const state = createRustAppServerWorkflowState()
+    const events: DesktopAgentEvent[] = []
+
+    // Simulate: turn starts, error occurs, then a new turn starts
+    handleServerNotification(
+      'turn/started',
+      { turn: { id: 'turn-1' } },
+      e => events.push(e),
+      state,
+      SESSION_ID,
+    )
+    state.assistantDeltaBuffer = 'partial text before error'
+
+    handleServerNotification(
+      'error',
+      { error: { message: 'API error' } },
+      e => events.push(e),
+      state,
+      SESSION_ID,
+    )
+
+    // After error, state should be cleaned up
+    expect(state.activeTurnId).toBeNull()
+    expect(state.assistantDeltaBuffer).toBe('')
+
+    // New turn starts
+    handleServerNotification(
+      'turn/started',
+      { turn: { id: 'turn-2' } },
+      e => events.push(e),
+      state,
+      SESSION_ID,
+    )
+
+    expect(state.activeTurnId).toBe('turn-2')
+    expect(state.assistantDeltaBuffer).toBe('')
+    // Only the error event was emitted (turn/started doesn't emit events)
+    expect(events).toHaveLength(1)
+  })
+
+  test('delta buffer is cleared by turn/completed', () => {
+    const state = createRustAppServerWorkflowState()
+    const events: DesktopAgentEvent[] = []
+
+    handleServerNotification(
+      'turn/started',
+      { turn: { id: 'turn-abc' } },
+      e => events.push(e),
+      state,
+      SESSION_ID,
+    )
+    state.assistantDeltaBuffer = 'accumulated text'
+
+    handleServerNotification(
+      'turn/completed',
+      { threadId: 'thread-abc', turn: { id: 'turn-abc' } },
+      e => events.push(e),
+      state,
+      SESSION_ID,
+    )
+
+    expect(state.activeTurnId).toBeNull()
+    expect(state.assistantDeltaBuffer).toBe('')
+    expect(events).toHaveLength(1)
+    expect(events[0]).toEqual({ type: 'done', sessionId: SESSION_ID })
+  })
+
+  // ── New: item/started ──────────────────────────────────────────────
+
+  test('item/started with dynamicToolCall emits tool_start', () => {
+    const state = createRustAppServerWorkflowState()
+    const events: DesktopAgentEvent[] = []
+
+    handleServerNotification(
+      'item/started',
+      {
+        item: {
+          type: 'dynamicToolCall',
+          id: 'tool-item-1',
+          tool_name: 'Bash',
+          input: { command: 'ls' },
+        },
+      },
+      e => events.push(e),
+      state,
+      SESSION_ID,
+    )
+
+    expect(events).toHaveLength(1)
+    expect(events[0]).toEqual({
+      type: 'tool_start',
+      sessionId: SESSION_ID,
+      toolName: 'Bash',
+      summary: expect.stringContaining('ls'),
+      toolUseId: 'tool-item-1',
+    })
+  })
+
+  test('item/started with commandExecution emits tool_start (Bash)', () => {
+    const state = createRustAppServerWorkflowState()
+    const events: DesktopAgentEvent[] = []
+
+    handleServerNotification(
+      'item/started',
+      {
+        item: {
+          type: 'commandExecution',
+          id: 'cmd-item-1',
+          command: 'ls -la',
+        },
+      },
+      e => events.push(e),
+      state,
+      SESSION_ID,
+    )
+
+    expect(events).toHaveLength(1)
+    expect(events[0]).toMatchObject({
+      type: 'tool_start',
+      toolName: 'Bash',
+      toolUseId: 'cmd-item-1',
+    })
+  })
+
+  // ── New: item/agentMessage/delta ───────────────────────────────────
+
+  test('item/agentMessage/delta emits partial_message', () => {
+    const state = createRustAppServerWorkflowState()
+    const events: DesktopAgentEvent[] = []
+
+    handleServerNotification(
+      'item/agentMessage/delta',
+      { itemDelta: { text: 'Hello from agent delta' } },
+      e => events.push(e),
+      state,
+      SESSION_ID,
+    )
+
+    expect(state.assistantDeltaBuffer).toBe('Hello from agent delta')
+    expect(events).toHaveLength(1)
+    expect(events[0]).toEqual({
+      type: 'partial_message',
+      sessionId: SESSION_ID,
+      text: 'Hello from agent delta',
+    })
+  })
+
+  // ── New: item/completed with tool/permission types ────────────────
+
+  test('item/completed with dynamicToolCall emits tool_result', () => {
+    const state = createRustAppServerWorkflowState()
+    const events: DesktopAgentEvent[] = []
+
+    handleServerNotification(
+      'item/completed',
+      {
+        item: {
+          type: 'dynamicToolCall',
+          id: 'tool-item-2',
+          tool_name: 'Read',
+          status: 'completed',
+          result: { content: 'file contents' },
+        },
+      },
+      e => events.push(e),
+      state,
+      SESSION_ID,
+    )
+
+    expect(events).toHaveLength(1)
+    expect(events[0]).toMatchObject({
+      type: 'tool_result',
+      toolName: 'Read',
+      toolUseId: 'tool-item-2',
+      isError: false,
+    })
+  })
+
+  test('item/completed with fileChange emits tool_result', () => {
+    const state = createRustAppServerWorkflowState()
+    const events: DesktopAgentEvent[] = []
+
+    handleServerNotification(
+      'item/completed',
+      {
+        item: {
+          type: 'fileChange',
+          id: 'fc-item-1',
+          status: 'completed',
+          changes: [
+            { path: 'src/index.ts', status: 'modified' },
+          ],
+        },
+      },
+      e => events.push(e),
+      state,
+      SESSION_ID,
+    )
+
+    expect(events).toHaveLength(1)
+    expect(events[0]).toMatchObject({
+      type: 'tool_result',
+      toolName: 'ApplyPatch',
+      toolUseId: 'fc-item-1',
+      isError: false,
+    })
   })
 })

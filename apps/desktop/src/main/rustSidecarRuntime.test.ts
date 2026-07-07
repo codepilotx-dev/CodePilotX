@@ -190,6 +190,153 @@ describe('rust sidecar runtime options', () => {
       await rm(configDir, { force: true, recursive: true })
     }
   })
+
+  test('logs provider config with wireApi and endpoint (no api key)', async () => {
+    const configDir = await mkdtemp(join(tmpdir(), 'rust-sidecar-logging-'))
+    const restore1 = withEnv(CODEPILOTX_CONFIG_DIR_ENV, configDir)
+    const restore2 = withEnv(LEGACY_CLAUDE_CONFIG_DIR_ENV, configDir)
+    const restore3 = withEnv('MINIMAX_API_KEY', 'sk-minimax-test-key')
+
+    try {
+      const context = {
+        sessionId: 'session-log-1',
+        workspacePath: process.cwd(),
+        providerID: 'minimax-cn',
+        providerBaseURL: 'https://api.minimaxi.com/anthropic/v1',
+        model: 'MiniMax-M3',
+        emit: () => {},
+        requestPermission: async () => ({ behavior: 'deny' }),
+      } satisfies DesktopAgentRuntimeContext
+
+      // Capture process.stdout.write to verify debug output
+      const captured: string[] = []
+      const originalWrite = process.stdout.write.bind(process.stdout)
+      process.stdout.write = ((chunk: unknown) => {
+        captured.push(String(chunk))
+        return true
+      }) as typeof process.stdout.write
+
+      try {
+        clearProviderConfigCatalogCacheForTests()
+        await withProviderConfigRuntime(
+          {
+            fetch: (async () => {
+              throw new Error('network disabled')
+            }) as unknown as typeof fetch,
+          },
+          () => createRustSidecarOptions(context),
+        )
+      } finally {
+        process.stdout.write = originalWrite
+      }
+
+      const configLine = captured.find(line =>
+        line.includes('rust_provider_config'),
+      )
+      expect(configLine).toBeTruthy()
+      expect(configLine).toContain('"providerID":"minimax-cn"')
+      expect(configLine).toContain('"wireApi":"anthropic_messages"')
+      expect(configLine).toContain(
+        '"endpoint":"https://api.minimaxi.com/anthropic/v1"',
+      )
+      // API key must NOT appear in any debug line
+      const anyKeyLeak = captured.find(line => line.includes('sk-minimax'))
+      expect(anyKeyLeak).toBeUndefined()
+    } finally {
+      restore1[Symbol.dispose]()
+      restore2[Symbol.dispose]()
+      restore3[Symbol.dispose]()
+      await rm(configDir, { force: true, recursive: true })
+    }
+  })
+
+  test('openai provider uses responses wire_api without endpoint leak', async () => {
+    const configDir = await mkdtemp(join(tmpdir(), 'rust-sidecar-openai-'))
+    using _restoreConfigDir = withEnv(CODEPILOTX_CONFIG_DIR_ENV, configDir)
+    using _restoreClaude = withEnv(LEGACY_CLAUDE_CONFIG_DIR_ENV, configDir)
+    using _restoreKey = withEnv('OPENAI_API_KEY', 'sk-openai-test')
+
+    try {
+      const context = {
+        sessionId: 'session-openai-1',
+        workspacePath: process.cwd(),
+        providerID: 'openai',
+        model: 'gpt-4o',
+        emit: () => {},
+        requestPermission: async () => ({ behavior: 'deny' }),
+      } satisfies DesktopAgentRuntimeContext
+
+      clearProviderConfigCatalogCacheForTests()
+      const options = await withProviderConfigRuntime(
+        {
+          fetch: (async () => {
+            throw new Error('network disabled')
+          }) as unknown as typeof fetch,
+        },
+        () => createRustSidecarOptions(context),
+      )
+
+      expect(options.args).toContain('model="gpt-4o"')
+      expect(options.args).toContain('model_provider="openai"')
+      expect(options.args).toContain(
+        'model_providers.openai.wire_api="responses"',
+      )
+      // No base_url set → no base_url arg
+      expect(
+        options.args.find(a => a.startsWith('model_providers.openai.base_url')),
+      ).toBeUndefined()
+      // API key is in env, not args
+      expect(options.args).not.toContain('sk-openai-test')
+      expect(options.env.OPENAI_API_KEY).toBe('sk-openai-test')
+    } finally {
+      await rm(configDir, { force: true, recursive: true })
+    }
+  })
+
+  test('deepseek provider uses chat_completions wire_api', async () => {
+    const configDir = await mkdtemp(join(tmpdir(), 'rust-sidecar-deepseek-'))
+    using _restoreConfigDir = withEnv(CODEPILOTX_CONFIG_DIR_ENV, configDir)
+    using _restoreClaude = withEnv(LEGACY_CLAUDE_CONFIG_DIR_ENV, configDir)
+    using _restoreKey = withEnv('DEEPSEEK_API_KEY', 'sk-deepseek-test-key')
+
+    try {
+      const context = {
+        sessionId: 'session-deepseek-1',
+        workspacePath: process.cwd(),
+        providerID: 'deepseek',
+        model: 'deepseek-chat',
+        emit: () => {},
+        requestPermission: async () => ({ behavior: 'deny' }),
+      } satisfies DesktopAgentRuntimeContext
+
+      clearProviderConfigCatalogCacheForTests()
+      const options = await withProviderConfigRuntime(
+        {
+          fetch: (async () => {
+            throw new Error('network disabled')
+          }) as unknown as typeof fetch,
+        },
+        () => createRustSidecarOptions(context),
+      )
+
+      expect(options.args).toContain('model="deepseek-chat"')
+      expect(options.args).toContain('model_provider="deepseek"')
+      expect(options.args).toContain(
+        'model_providers.deepseek.wire_api="chat_completions"',
+      )
+      expect(options.args).toContain(
+        'model_providers.deepseek.base_url="https://api.deepseek.com"',
+      )
+      expect(options.args).toContain(
+        'model_providers.deepseek.env_key="DEEPSEEK_API_KEY"',
+      )
+      // API key is in env, not args
+      expect(options.args).not.toContain('sk-deepseek-test-key')
+      expect(options.env.DEEPSEEK_API_KEY).toBe('sk-deepseek-test-key')
+    } finally {
+      await rm(configDir, { force: true, recursive: true })
+    }
+  })
 })
 
 // ── Non-text input rejection ────────────────────────────────────────
@@ -224,6 +371,6 @@ describe('RustSidecarDesktopAgentRuntime input validation', () => {
         { behavior: 'allow' },
         new AbortController().signal,
       ),
-    ).rejects.toThrow('not supported')
+    ).rejects.toThrow('unsupported')
   })
 })

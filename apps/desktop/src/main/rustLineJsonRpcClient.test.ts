@@ -100,4 +100,127 @@ describe('RustLineJsonRpcClient', () => {
 
     await expect(resultPromise).rejects.toThrow('closed')
   })
+
+  test('onAnyNotification receives all notifications regardless of method', async () => {
+    const input = new PassThrough()
+    const output = new PassThrough()
+    const client = new RustLineJsonRpcClient({ input, output })
+    const received: Array<{ method: string; params: unknown }> = []
+
+    client.onAnyNotification((method, params) => {
+      received.push({ method, params })
+    })
+
+    input.write(`${JSON.stringify({
+      jsonrpc: '2.0',
+      method: 'thread/started',
+      params: { thread: { id: 't1' } },
+    })}\n`)
+    input.write(`${JSON.stringify({
+      jsonrpc: '2.0',
+      method: 'item/started',
+      params: { item: { type: 'dynamicToolCall' } },
+    })}\n`)
+
+    expect(received).toHaveLength(2)
+    expect(received[0]).toEqual({
+      method: 'thread/started',
+      params: { thread: { id: 't1' } },
+    })
+    expect(received[1]).toEqual({
+      method: 'item/started',
+      params: { item: { type: 'dynamicToolCall' } },
+    })
+  })
+
+  test('onAnyNotification disposer stops receiving notifications', async () => {
+    const input = new PassThrough()
+    const output = new PassThrough()
+    const client = new RustLineJsonRpcClient({ input, output })
+    const received: string[] = []
+
+    const dispose = client.onAnyNotification((method) => {
+      received.push(method)
+    })
+    dispose()
+
+    input.write(`${JSON.stringify({
+      jsonrpc: '2.0',
+      method: 'turn/started',
+      params: {},
+    })}\n`)
+
+    expect(received).toHaveLength(0)
+  })
+
+  test('onRequest handler is called for server-initiated requests', async () => {
+    const input = new PassThrough()
+    const output = new PassThrough()
+    const client = new RustLineJsonRpcClient({ input, output })
+    const writes: string[] = []
+    output.on('data', chunk => writes.push(chunk.toString('utf8')))
+
+    const handler = client.onRequest('item/tool/call', async (params, id) => {
+      return { result: 'executed', toolUseId: (params as Record<string, unknown>).tool_use_id }
+    })
+
+    input.write(`${JSON.stringify({
+      jsonrpc: '2.0',
+      method: 'item/tool/call',
+      id: 42,
+      params: { tool_use_id: 'tool-1', name: 'Bash' },
+    })}\n`)
+
+    // Small delay for the async handler to respond
+    await new Promise(r => setTimeout(r, 10))
+
+    const response = JSON.parse(writes.join('').trim())
+    expect(response).toEqual({
+      jsonrpc: '2.0',
+      id: 42,
+      result: { result: 'executed', toolUseId: 'tool-1' },
+    })
+
+    handler()
+  })
+
+  test('unhandled server request gets auto error response', async () => {
+    const input = new PassThrough()
+    const output = new PassThrough()
+    const client = new RustLineJsonRpcClient({ input, output })
+    const writes: string[] = []
+    output.on('data', chunk => writes.push(chunk.toString('utf8')))
+
+    input.write(`${JSON.stringify({
+      jsonrpc: '2.0',
+      method: 'item/permissions/requestApproval',
+      id: 99,
+      params: { tool_name: 'Bash' },
+    })}\n`)
+
+    await new Promise(r => setTimeout(r, 10))
+
+    const response = JSON.parse(writes.join('').trim())
+    expect(response.id).toBe(99)
+    expect(response.result).toBeTruthy()
+    expect(response.result.isError).toBe(true)
+    expect(response.result.error).toContain('not supported')
+  })
+
+  test('sendResponse sends a JSON-RPC response to a server request', async () => {
+    const input = new PassThrough()
+    const output = new PassThrough()
+    const client = new RustLineJsonRpcClient({ input, output })
+    const writes: string[] = []
+    output.on('data', chunk => writes.push(chunk.toString('utf8')))
+
+    client.sendResponse(7, { behavior: 'allow', toolUseID: 'tool-2' })
+
+    const response = JSON.parse(writes.join('').trim())
+    expect(response).toEqual({
+      jsonrpc: '2.0',
+      id: 7,
+      result: { behavior: 'allow', toolUseID: 'tool-2' },
+    })
+  })
 })

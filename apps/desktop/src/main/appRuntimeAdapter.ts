@@ -83,18 +83,13 @@ function getAuthTokenSourceImpl(): { source: string; hasToken: boolean } {
     return { source: 'CLAUDE_CODE_OAUTH_TOKEN', hasToken: true }
   }
 
-  // Check shared credentials for exchanged token
+  // Check shared credentials for exchanged token (GitHub exchange only)
   const creds = readJsonSync(credentialsPath())
   const oauth = creds.claudeAiOauth as
     | { accessToken?: string; source?: string }
     | undefined
-  if (oauth?.accessToken) {
-    if (oauth.source === 'github_exchange') {
-      return { source: 'github_exchange', hasToken: true }
-    }
-    if (oauth.accessToken) {
-      return { source: 'claude.ai', hasToken: true }
-    }
+  if (oauth?.accessToken && oauth.source === 'github_exchange') {
+    return { source: 'github_exchange', hasToken: true }
   }
 
   return { source: 'none', hasToken: false }
@@ -150,31 +145,6 @@ function getDesktopSettingsJson(): Record<string, unknown> {
 export function configureDesktopCoreAppRuntime(): void {
   const runtime: AppRuntime = {
     auth: {
-      checkAndRefreshOAuthTokenIfNeeded: async () => {
-        // Desktop doesn't support OAuth token refresh directly
-        return false
-      },
-      getClaudeAIOAuthTokens: () => {
-        const creds = readJsonSync(credentialsPath())
-        const oauth = creds.claudeAiOauth as {
-          accessToken?: string
-          refreshToken?: string | null
-          expiresAt?: number
-          scopes?: string[]
-          subscriptionType?: string | null
-          rateLimitTier?: string | null
-          source?: string
-        } | undefined
-        if (!oauth?.accessToken) return null
-        return {
-          accessToken: oauth.accessToken,
-          refreshToken: oauth.refreshToken ?? null,
-          expiresAt: oauth.expiresAt ?? null,
-          scopes: oauth.scopes ?? [],
-          subscriptionType: oauth.subscriptionType ?? null,
-          rateLimitTier: oauth.rateLimitTier ?? null,
-        }
-      },
       hasProfileScope: () => {
         // GitHub-exchanged tokens don't have Anthropic profile scope
         return false

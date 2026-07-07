@@ -1,4 +1,7 @@
-import type { RustLineJsonRpcClient } from './rustLineJsonRpcClient.js'
+import type {
+  RustLineJsonRpcClient,
+  JsonRpcId,
+} from './rustLineJsonRpcClient.js'
 import type {
   InitializeParams,
   InitializeResponse,
@@ -9,15 +12,21 @@ import type {
   TurnInterruptParams,
   TurnInterruptResponse,
 } from './rustAppServerProtocol/index.js'
+import { desktopDebug } from './desktopDebug.js'
 
 /**
  * Typed JSON-RPC client for the Rust app-server protocol.
  *
- * Wraps the raw line-delimited transport and exposes typed methods
- * for the subset of methods needed by the first text-only integration.
+ * Supports:
+ * - Standard methods: initialize, initialized, thread/start, turn/start, turn/interrupt
+ * - All server notifications via onAnyNotification
+ * - Server-initiated requests (tool calls, permission approvals, command/file approvals)
+ * - Control response forwarding
  */
 export class RustAppServerClient {
   constructor(private readonly transport: RustLineJsonRpcClient) {}
+
+  // ── Standard request/notification methods ─────────────────────────
 
   async initialize(params: InitializeParams): Promise<InitializeResponse> {
     return this.transport.sendRequest(
@@ -53,31 +62,17 @@ export class RustAppServerClient {
     ) as Promise<TurnInterruptResponse>
   }
 
+  // ── All-notification listener (wildcard) ──────────────────────────
+
+  /**
+   * Register a listener for ALL server notifications, regardless of method.
+   * Replaces the previous hard-coded per-method subscription approach.
+   * Existing per-method subscriptions are still supported via onNotification().
+   */
   onServerNotification(
     listener: (method: string, params: unknown) => void,
   ): () => void {
-    const disposers: Array<() => void> = []
-    // Register a wildcard handler by subscribing to all known methods.
-    // For this first version, handle the methods we care about explicitly.
-    const methods = [
-      'thread/started',
-      'turn/started',
-      'turn/completed',
-      'item/delta',
-      'item/completed',
-      'error',
-    ]
-    for (const method of methods) {
-      const dispose = this.transport.onNotification(method, params =>
-        listener(method, params),
-      )
-      disposers.push(dispose)
-    }
-    return () => {
-      for (const dispose of disposers) {
-        dispose()
-      }
-    }
+    return this.transport.onAnyNotification(listener)
   }
 
   /** Register a listener for a specific notification method. */
@@ -87,6 +82,51 @@ export class RustAppServerClient {
   ): () => void {
     return this.transport.onNotification(method, listener)
   }
+
+  // ── Server-initiated request handlers ─────────────────────────────
+
+  /**
+   * Register a handler for a server-initiated JSON-RPC request.
+   * The handler receives (params, requestId) and must return the result
+   * (which is sent back as the JSON-RPC response).
+   *
+   * Known server request methods:
+   * - item/tool/call              — Dynamic tool call needing client execution
+   * - item/permissions/requestApproval  — Permission approval request
+   * - item/commandExecution/requestApproval — Shell command approval
+   * - item/fileChange/requestApproval   — File change approval
+   */
+  onServerRequest(
+    method: string,
+    handler: (params: unknown, id: JsonRpcId) => Promise<unknown>,
+  ): () => void {
+    return this.transport.onRequest(method, handler)
+  }
+
+  /**
+   * Send a response to a server-initiated request.
+   * Used when the runtime has resolved a permission/tool decision and
+   * needs to respond to a pending server request.
+   */
+  sendControlResponse(requestId: JsonRpcId, result: unknown): void {
+    this.transport.sendResponse(requestId, result)
+  }
+
+  // ── Tool result notification ──────────────────────────────────────
+
+  /**
+   * Notify the server that a tool has completed execution with a result.
+   * The server uses this to continue the turn with the tool output.
+   */
+  notifyToolResult(params: {
+    toolUseId: string
+    result: unknown
+    isError?: boolean
+  }): void {
+    this.transport.sendNotification('item/tool/result', params)
+  }
+
+  // ── Lifecycle ─────────────────────────────────────────────────────
 
   close(): void {
     this.transport.close()

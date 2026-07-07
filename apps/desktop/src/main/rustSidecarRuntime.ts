@@ -28,6 +28,7 @@ import {
   handleServerNotification,
   type RustAppServerWorkflowState,
 } from './rustAppServerWorkflowAdapter.js'
+import type { JsonRpcId } from './rustLineJsonRpcClient.js'
 import { desktopDebug } from './desktopDebug.js'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -151,7 +152,7 @@ type RustProviderConfigOverrides = {
   env: Record<string, string | undefined>
 }
 
-type RustWireApi = 'responses' | 'anthropic_messages'
+type RustWireApi = 'responses' | 'anthropic_messages' | 'chat_completions'
 
 async function createRustModelProviderOverrides(
   context: DesktopAgentRuntimeContext,
@@ -168,6 +169,11 @@ async function createRustModelProviderOverrides(
   const envKey = getRustProviderEnvKey(provider)
   const wireApi = getRustProviderWireApi(provider)
   const apiKey = getProviderApiKey(providerID)?.trim()
+  desktopDebug('rust_provider_config', {
+    providerID,
+    wireApi,
+    endpoint: baseURL || provider.baseURL || null,
+  })
   const args = [
     ...(model ? rustConfigOverride('model', model) : []),
     ...rustConfigOverride('model_provider', providerID),
@@ -201,6 +207,7 @@ async function createRustModelProviderOverrides(
 }
 
 function getRustProviderWireApi(provider: ProviderConfig): RustWireApi {
+  // Anthropic Messages API for Anthropic-compatible providers
   if (
     provider.npmPackage === '@ai-sdk/anthropic' ||
     provider.kind === 'anthropic' ||
@@ -209,6 +216,20 @@ function getRustProviderWireApi(provider: ProviderConfig): RustWireApi {
   ) {
     return 'anthropic_messages'
   }
+
+  // OpenAI official supports the Responses API
+  if (provider.npmPackage === '@ai-sdk/openai') {
+    return 'responses'
+  }
+
+  // DeepSeek only supports /v1/chat/completions, not Responses API
+  if (provider.providerID === 'deepseek') {
+    return 'chat_completions'
+  }
+
+  // Other OpenAI-compatible providers: default to Responses API.
+  // Providers that only support Chat Completions should be added to
+  // the explicit providerID check above.
   return 'responses'
 }
 
@@ -251,6 +272,12 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
   private currentTurnReject: ((error: Error) => void) | null = null
   private pendingTurnSignal: AbortSignal | null = null
   private disposeNotificationListener: (() => void) | null = null
+  private disposeServerRequestHandlers: Array<() => void> | null = null
+  private pendingServerRequest: {
+    id: JsonRpcId
+    method: string
+    params: unknown
+  } | null = null
 
   constructor(private readonly context: DesktopAgentRuntimeContext) {}
 
@@ -332,11 +359,45 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
   }
 
   async runControlResponse(
-    _response: Record<string, unknown>,
+    response: Record<string, unknown>,
     _signal: AbortSignal,
   ): Promise<void> {
+    // Permission/tool decision from the desktop permission UI
+    const ctrlResponse = response.response as Record<string, unknown> | undefined
+    if (ctrlResponse && this.pendingServerRequest) {
+      const subtype = ctrlResponse.subtype
+      if (subtype === 'success') {
+        const decision = ctrlResponse.response as Record<string, unknown> | undefined
+        this.appServerClient?.sendControlResponse(this.pendingServerRequest.id, {
+          behavior: 'allow',
+          ...(decision ?? {}),
+        })
+        this.pendingServerRequest = null
+        return
+      }
+      if (subtype === 'error') {
+        this.appServerClient?.sendControlResponse(this.pendingServerRequest.id, {
+          behavior: 'deny',
+          error: String(ctrlResponse.error ?? 'Permission denied'),
+        })
+        this.pendingServerRequest = null
+        return
+      }
+    }
+
+    // Direct response (without wrapping)
+    if (this.pendingServerRequest && typeof response.behavior === 'string') {
+      this.appServerClient?.sendControlResponse(
+        this.pendingServerRequest.id,
+        response,
+      )
+      this.pendingServerRequest = null
+      return
+    }
+
+    // Unknown control response format
     throw new Error(
-      'Rust sidecar control responses (permissions/tools) are not supported in the first text-only version.',
+      `Rust sidecar control response unsupported: ${JSON.stringify(response).slice(0, 200)}`,
     )
   }
 
@@ -369,6 +430,9 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
 
     this.disposeNotificationListener?.()
     this.disposeNotificationListener = null
+
+    this.disposeServerRequestHandlers?.forEach(dispose => dispose())
+    this.disposeServerRequestHandlers = null
 
     this.appServerClient?.close()
     this.appServerClient = null
@@ -454,7 +518,10 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
       },
     )
 
-    // 4. Initialize
+    // 4. Wire up server request handlers (tool calls, permissions, etc.)
+    this.setupServerRequestHandlers()
+
+    // 5. Initialize
     const initResult = await this.appServerClient.initialize({
       clientInfo: {
         name: 'codepilotx-desktop',
@@ -470,11 +537,11 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
       userAgent: initResult.userAgent,
     })
 
-    // 5. Send initialized notification
+    // 6. Send initialized notification
     this.appServerClient.notifyInitialized()
     this.initialized = true
 
-    // 6. Start thread
+    // 7. Start thread
     const threadResult = await this.appServerClient.startThread({
       model: this.context.model ?? undefined,
       modelProvider: this.context.providerID ?? undefined,
@@ -517,12 +584,97 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
     )
   }
 
+  /**
+   * Register handlers for server-initiated JSON-RPC requests.
+   * These handle tool execution and permission approval flows.
+   */
+  private setupServerRequestHandlers(): void {
+    if (!this.appServerClient) return
+    const disposers: Array<() => void> = []
+
+    // Dynamic tool call — server asks client to execute a tool
+    disposers.push(
+      this.appServerClient.onServerRequest(
+        'item/tool/call',
+        async (params, id) => this.handleToolCallRequest(params, id),
+      ),
+    )
+
+    // Permission approval requests
+    for (const method of [
+      'item/permissions/requestApproval',
+      'item/commandExecution/requestApproval',
+      'item/fileChange/requestApproval',
+    ]) {
+      disposers.push(
+        this.appServerClient.onServerRequest(
+          method,
+          async (params, id) => this.handlePermissionRequest(params, id, method),
+        ),
+      )
+    }
+
+    this.disposeServerRequestHandlers = disposers
+  }
+
+  private async handleToolCallRequest(
+    params: unknown,
+    requestId: JsonRpcId,
+  ): Promise<unknown> {
+    const p = params as Record<string, unknown> | null
+    const toolName = String(p?.name ?? p?.tool_name ?? 'Tool')
+    const toolUseId = String(p?.id ?? p?.tool_use_id ?? p?.toolUseId ?? '')
+
+    desktopDebug('rust_tool_call_request', {
+      toolName,
+      toolUseId,
+    })
+
+    // Store pending request for runControlResponse forwarding
+    this.pendingServerRequest = { id: requestId, method: 'item/tool/call', params }
+
+    // Emit tool_start event so desktop UI renders a tool card
+    this.context.emit({
+      type: 'tool_start',
+      sessionId: this.context.sessionId,
+      toolName,
+      summary: p?.input ? JSON.stringify(p.input).slice(0, 500) : '',
+      toolUseId,
+    })
+
+    // Return acknowledgment — real result comes via runControlResponse
+    return { status: 'pending' }
+  }
+
+  private async handlePermissionRequest(
+    params: unknown,
+    requestId: JsonRpcId,
+    method: string,
+  ): Promise<unknown> {
+    const p = params as Record<string, unknown> | null
+    const toolName = String(p?.tool_name ?? 'Tool')
+
+    desktopDebug('rust_permission_request', {
+      method,
+      toolName,
+    })
+
+    // Store pending request for runControlResponse forwarding
+    this.pendingServerRequest = { id: requestId, method, params }
+
+    // Desktop permission flow is handled by runControlResponse
+    return { status: 'pending' }
+  }
+
   private async interruptActiveTurn(): Promise<void> {
     if (
       !this.appServerClient ||
       !this.workflowState.threadId ||
       !this.workflowState.activeTurnId
     ) {
+      // If there's no active turn to interrupt but the turn promise is still
+      // pending, resolve it so the UI doesn't hang.
+      this.currentTurnResolve?.()
       return
     }
     try {
@@ -530,10 +682,15 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
         threadId: this.workflowState.threadId,
         turnId: this.workflowState.activeTurnId,
       })
+      // Resolve the turn promise immediately on successful interrupt response,
+      // rather than waiting for a delayed turn/completed notification.
+      this.currentTurnResolve?.()
     } catch (err) {
       desktopDebug('rust_sidecar_interrupt_failed', {
         message: err instanceof Error ? err.message : String(err),
       })
+      // Safety net: resolve so the UI clears even if the interrupt RPC fails.
+      this.currentTurnResolve?.()
     }
   }
 }

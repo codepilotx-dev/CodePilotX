@@ -1,7 +1,8 @@
 import { createInterface, type Interface } from 'node:readline'
 import type { Readable, Writable } from 'node:stream'
+import { desktopDebug } from './desktopDebug.js'
 
-type JsonRpcId = number
+export type JsonRpcId = number
 
 type PendingRequest = {
   resolve: (value: unknown) => void
@@ -21,6 +22,13 @@ export class RustLineJsonRpcClient {
     string,
     Set<(params: unknown) => void>
   >()
+  private readonly anyNotificationListeners = new Set<
+    (method: string, params: unknown) => void
+  >()
+  private readonly serverRequestHandlers = new Map<
+    string,
+    (params: unknown, id: JsonRpcId) => Promise<unknown>
+  >()
   private readonly lines: Interface
   private closed = false
 
@@ -35,7 +43,9 @@ export class RustLineJsonRpcClient {
       crlfDelay: Infinity,
     })
     this.lines.on('line', line => this.handleLine(line))
-    this.lines.on('close', () => this.rejectAll(new Error('Rust JSON-RPC input closed')))
+    this.lines.on('close', () =>
+      this.rejectAll(new Error('Rust JSON-RPC input closed')),
+    )
   }
 
   sendNotification(method: string, params?: unknown): void {
@@ -95,6 +105,55 @@ export class RustLineJsonRpcClient {
     }
   }
 
+  /**
+   * Register a listener for ALL server notifications, regardless of method.
+   * The listener receives (method, params). Returns a disposer function.
+   */
+  onAnyNotification(
+    listener: (method: string, params: unknown) => void,
+  ): () => void {
+    this.anyNotificationListeners.add(listener)
+    return () => {
+      this.anyNotificationListeners.delete(listener)
+    }
+  }
+
+  /**
+   * Register a handler for a server-initiated JSON-RPC request.
+   * The handler receives (params, id) and must return the result.
+   * Unhandled server requests get an automatic error response so the
+   * server does not hang waiting for a reply.
+   */
+  onRequest(
+    method: string,
+    handler: (params: unknown, id: JsonRpcId) => Promise<unknown>,
+  ): () => void {
+    this.serverRequestHandlers.set(method, handler)
+    return () => {
+      if (this.serverRequestHandlers.get(method) === handler) {
+        this.serverRequestHandlers.delete(method)
+      }
+    }
+  }
+
+  /**
+   * Send a response to a server-initiated request (JSON-RPC response with
+   * the request's id).
+   */
+  sendResponse(id: JsonRpcId, result: unknown): void {
+    if (this.closed) return
+    const message = {
+      jsonrpc: '2.0',
+      id,
+      result,
+    }
+    this.streams.output.write(`${JSON.stringify(message)}\n`, error => {
+      if (error) {
+        throw error
+      }
+    })
+  }
+
   close(): void {
     if (this.closed) return
     this.closed = true
@@ -114,21 +173,81 @@ export class RustLineJsonRpcClient {
     }
     if (!isRecord(message)) return
 
+    // ── Server request (has both method and id) ───────────────────────
+    if (typeof message.method === 'string' && typeof message.id === 'number') {
+      desktopDebug('rust_raw_server_request', {
+        method: message.method,
+        paramKeys: isRecord(message.params)
+          ? Object.keys(message.params)
+          : undefined,
+      })
+      this.handleServerRequest(message.method, message.id, message.params)
+      return
+    }
+
+    // ── Response to our outgoing request (has id, no method) ──────────
     if (typeof message.id === 'number') {
       this.handleResponse(message.id, message)
       return
     }
 
+    // ── Notification (has method, no id) ──────────────────────────────
     if (typeof message.method === 'string') {
+      desktopDebug('rust_raw_server_notification', {
+        method: message.method,
+        paramKeys: isRecord(message.params)
+          ? Object.keys(message.params)
+          : undefined,
+      })
+
+      // Method-specific listeners
       const listeners = this.notifications.get(message.method)
-      if (!listeners) return
-      for (const listener of listeners) {
-        listener(message.params)
+      if (listeners) {
+        for (const listener of listeners) {
+          listener(message.params)
+        }
+      }
+
+      // Wildcard listeners
+      for (const listener of this.anyNotificationListeners) {
+        listener(message.method, message.params)
       }
     }
   }
 
-  private handleResponse(id: JsonRpcId, message: Record<string, unknown>): void {
+  private async handleServerRequest(
+    method: string,
+    id: JsonRpcId,
+    params: unknown,
+  ): Promise<void> {
+    const handler = this.serverRequestHandlers.get(method)
+    if (!handler) {
+      desktopDebug('rust_unhandled_server_request', { method })
+      this.sendResponse(id, {
+        isError: true,
+        error: `Server request "${method}" is not supported by this client`,
+      })
+      return
+    }
+    try {
+      const result = await handler(params, id)
+      this.sendResponse(id, result)
+    } catch (err) {
+      desktopDebug('rust_server_request_handler_error', {
+        method,
+        message: err instanceof Error ? err.message : String(err),
+      })
+      this.sendResponse(id, {
+        isError: true,
+        error: err instanceof Error ? err.message : String(err),
+      })
+    }
+  }
+
+  private handleResponse(
+    id: JsonRpcId,
+    message: Record<string, unknown>,
+  ): void {
     const pending = this.pending.get(id)
     if (!pending) return
     this.pending.delete(id)
