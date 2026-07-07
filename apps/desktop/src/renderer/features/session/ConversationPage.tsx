@@ -954,29 +954,37 @@ export function ConversationPage(): React.ReactNode {
                         listRef={timelineListRef}
                       >
                         {phaseItems.map((item) => (
-                          <TimelineItem
-                            item={item}
+                          <div
+                            className="session-turn-row"
+                            data-component="session-turn"
+                            data-slot={timelineItemSlot(item)}
                             key={item.id}
-                            rightDockPlanContent={rightDockPlanContent}
-                            rightDockPlanOpen={
-                              rightDockOpen && rightDockTool === "plan"
-                            }
-                            showActions={
-                              item.type === "message" &&
-                              item.role === "assistant" &&
-                              assistantActionMessageIds.has(item.id)
-                            }
-                            onOpenPlanInRightDock={onOpenPlanInRightDock}
-                            onDiscardChanges={(paths, turnRestoreId) =>
-                              void handleDiscardChanges(paths, turnRestoreId)
-                            }
-                            onReviewCode={handleRunCodeReview}
-                            onReviewFiles={openReviewSidebar}
-                          />
+                          >
+                            <TimelineItem
+                              item={item}
+                              rightDockPlanContent={rightDockPlanContent}
+                              rightDockPlanOpen={
+                                rightDockOpen && rightDockTool === "plan"
+                              }
+                              showActions={
+                                item.type === "message" &&
+                                item.role === "assistant" &&
+                                assistantActionMessageIds.has(item.id)
+                              }
+                              onOpenPlanInRightDock={onOpenPlanInRightDock}
+                              onDiscardChanges={(paths, turnRestoreId) =>
+                                void handleDiscardChanges(paths, turnRestoreId)
+                              }
+                              onReviewCode={handleRunCodeReview}
+                              onReviewFiles={openReviewSidebar}
+                            />
+                          </div>
                         ))}
                         {!isConversationLoading && showThinking ? (
                           <div
                             className="chat-thinking-pill session-turn-row"
+                            data-component="session-turn"
+                            data-slot="thinking"
                             role="status"
                             aria-live="polite"
                           >
@@ -1959,6 +1967,13 @@ function trimNodeTitle(value: string): string {
   const normalized = value.replace(/\s+/g, " ").trim();
   if (normalized.length <= 30) return normalized;
   return `${normalized.slice(0, 30)}...`;
+}
+
+function timelineItemSlot(item: PhaseTimelineItem): string {
+  if (item.type === "message" || item.type === "assistant_delta") {
+    return `${item.role ?? "system"}-message`;
+  }
+  return item.type;
 }
 
 function TimelineItem({

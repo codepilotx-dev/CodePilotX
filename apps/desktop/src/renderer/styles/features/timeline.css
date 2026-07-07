@@ -49,8 +49,7 @@
 /* ── Individual row wrapper ───────────────────────────── */
 
 .session-turn-row {
-  /* Row spacing matches the existing conversation-stream gap */
-  padding: 0;
+  padding: 7px 0;
   /* Container query context for responsive adjustments */
   container-type: inline-size;
 }
@@ -60,13 +59,33 @@
 .session-turn-row + .execution-phase,
 .timeline-command-group + .session-turn-row,
 .execution-phase + .session-turn-row {
-  margin-top: var(--layout-section-gap, 6px);
+  margin-top: 8px;
+}
+
+[data-component="session-turn"][data-slot="user-message"] {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+[data-component="session-turn"][data-slot="assistant-message"] {
+  padding-top: 14px;
+  padding-bottom: 14px;
+}
+
+[data-component="session-turn"][data-slot="error"],
+[data-component="session-turn"][data-slot="permission_request"],
+[data-component="session-turn"][data-slot="file_patch"],
+[data-component="session-turn"][data-slot="tool_group"],
+[data-component="session-turn"][data-slot="execution_phase"],
+[data-component="session-turn"][data-slot="proposed_plan"] {
+  padding-top: 16px;
+  padding-bottom: 16px;
 }
 
 /* ── Bottom spacer ────────────────────────────────────── */
 
 .session-bottom-spacer {
-  height: 200px;
+  height: 330px;
   pointer-events: none;
 }
 
@@ -123,6 +142,11 @@
   max-width: min(520px, 70%);
 }
 
+[data-component="session-turn"][data-slot="user-message"]
+  .user-message-meta {
+  margin-top: 10px;
+}
+
 /* Assistant messages: full width */
 [data-component="session-turn"][data-slot="assistant-message"]
   .chat-message-row.assistant {
@@ -153,12 +177,16 @@
 /* Error rows */
 [data-component="session-turn"][data-slot="error"] .timeline-system-event {
   max-width: min(680px, 100%);
+  margin-top: 0;
+  margin-bottom: 0;
 }
 
 /* System event rows */
 [data-component="session-turn"][data-slot="permission_request"]
   .timeline-system-event {
   max-width: min(680px, 100%);
+  margin-top: 0;
+  margin-bottom: 0;
 }
 
 /* ── Adapt existing classes to timeline layout ────────── */
@@ -174,7 +202,13 @@
 .session-timeline-container .timeline-command-group,
 .session-timeline-container .execution-phase,
 .session-timeline-container .timeline-file-event {
+  margin: 0;
   max-width: 100%;
+}
+
+.session-timeline-container .timeline-system-event,
+.session-timeline-container .workflow-plan-card {
+  margin: 0;
 }
 
 .session-timeline-container .timeline-command-group-summary:hover,
