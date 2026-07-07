@@ -7,7 +7,6 @@
  *
  * Eligibility:
  * - Console users (API key): All eligible
- * - OAuth users (Claude.ai): Only Team and Enterprise/C4E subscribers are eligible
  * - API fails open (non-blocking) - if fetch fails, continues without restrictions
  * - API returns empty restrictions for users without policy limits
  */
@@ -17,16 +16,8 @@ import { createHash } from 'crypto'
 import { readFileSync as fsReadFileSync } from 'fs'
 import { unlink, writeFile } from 'fs/promises'
 import { join } from 'path'
-import {
-  CLAUDE_AI_INFERENCE_SCOPE,
-  getOauthConfig,
-  OAUTH_BETA_HEADER,
-} from '../../constants/oauth.js'
-import {
-  checkAndRefreshOAuthTokenIfNeeded,
-  getAnthropicApiKeyWithSource,
-  getClaudeAIOAuthTokens,
-} from '../../utils/auth.js'
+import { getOauthConfig } from '../../constants/oauth.js'
+import { getAnthropicApiKeyWithSource } from '../../utils/auth.js'
 import { registerCleanup } from '../../utils/cleanupRegistry.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { getClaudeConfigHomeDir } from '../../utils/envUtils.js'
@@ -184,30 +175,9 @@ export function isPolicyLimitsEligible(): boolean {
       return true
     }
   } catch {
-    // No API key available - continue to check OAuth
+  // No API key available.
   }
-
-  // For OAuth users, check if they have Claude.ai tokens
-  const tokens = getClaudeAIOAuthTokens()
-  if (!tokens?.accessToken) {
-    return false
-  }
-
-  // Must have Claude.ai inference scope
-  if (!tokens.scopes?.includes(CLAUDE_AI_INFERENCE_SCOPE)) {
-    return false
-  }
-
-  // Only Team and Enterprise OAuth users are eligible — these orgs have
-  // admin-configurable policy restrictions (e.g. allow_remote_sessions)
-  if (
-    tokens.subscriptionType !== 'enterprise' &&
-    tokens.subscriptionType !== 'team'
-  ) {
-    return false
-  }
-
-  return true
+  return false
 }
 
 /**
@@ -222,13 +192,12 @@ export async function waitForPolicyLimitsToLoad(): Promise<void> {
 
 /**
  * Get auth headers for policy limits without calling getSettings()
- * Supports both API key and OAuth authentication
+ * Supports API key authentication.
  */
 function getAuthHeaders(): {
   headers: Record<string, string>
   error?: string
 } {
-  // Try API key first (for Console users)
   try {
     const { key: apiKey } = getAnthropicApiKeyWithSource({
       skipRetrievingKeyFromApiKeyHelper: true,
@@ -241,18 +210,7 @@ function getAuthHeaders(): {
       }
     }
   } catch {
-    // No API key available - continue to check OAuth
-  }
-
-  // Fall back to OAuth tokens (for Claude.ai users)
-  const oauthTokens = getClaudeAIOAuthTokens()
-  if (oauthTokens?.accessToken) {
-    return {
-      headers: {
-        Authorization: `Bearer ${oauthTokens.accessToken}`,
-        'anthropic-beta': OAUTH_BETA_HEADER,
-      },
-    }
+    // No API key available.
   }
 
   return {
@@ -301,8 +259,6 @@ async function fetchPolicyLimits(
   cachedChecksum?: string,
 ): Promise<PolicyLimitsFetchResult> {
   try {
-    await checkAndRefreshOAuthTokenIfNeeded()
-
     const authHeaders = getAuthHeaders()
     if (authHeaders.error) {
       return {

@@ -5,7 +5,6 @@ import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
 } from '@codepilotx/tui/services/analytics/index.js'
-import { getClaudeAIOAuthTokens } from '@codepilotx/tui/utils/auth.js'
 import { getGlobalConfig, saveGlobalConfig } from '@codepilotx/tui/utils/config.js'
 import { logForDebugging } from '@codepilotx/tui/utils/debug.js'
 import { isEnvDefinedFalsy } from '@codepilotx/tui/utils/envUtils.js'
@@ -39,6 +38,9 @@ const MCP_SERVERS_BETA_HEADER = 'mcp-servers-2025-12-04'
 export const fetchClaudeAIMcpConfigsIfEligible = memoize(
   async (): Promise<Record<string, ScopedMcpServerConfig>> => {
     try {
+      logForDebugging('[claudeai-mcp] Disabled: Claude OAuth removed')
+      return {}
+
       if (isEnvDefinedFalsy(process.env.ENABLE_CLAUDEAI_MCP_SERVERS)) {
         logForDebugging('[claudeai-mcp] Disabled via env var')
         logEvent('tengu_claudeai_mcp_eligibility', {
@@ -48,7 +50,7 @@ export const fetchClaudeAIMcpConfigsIfEligible = memoize(
         return {}
       }
 
-      const tokens = getClaudeAIOAuthTokens()
+      const tokens = null
       if (!tokens?.accessToken) {
         logForDebugging('[claudeai-mcp] No access token')
         logEvent('tengu_claudeai_mcp_eligibility', {

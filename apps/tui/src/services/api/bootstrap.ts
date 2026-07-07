@@ -1,12 +1,8 @@
 import axios from 'axios'
 import isEqual from 'lodash-es/isEqual.js'
-import {
-  getAnthropicApiKey,
-  getClaudeAIOAuthTokens,
-  hasProfileScope,
-} from '@codepilotx/tui/utils/auth.js'
+import { getAnthropicApiKey } from '@codepilotx/tui/utils/auth.js'
 import { z } from 'zod'
-import { getOauthConfig, OAUTH_BETA_HEADER } from '../../constants/oauth.js'
+import { getOauthConfig } from '../../constants/oauth.js'
 import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { withOAuth401Retry } from '../../utils/http.js'
@@ -50,43 +46,22 @@ async function fetchBootstrapAPI(): Promise<BootstrapResponse | null> {
     return null
   }
 
-  // OAuth preferred (requires user:profile scope — service-key OAuth tokens
-  // lack it and would 403). Fall back to API key auth for console users.
   const apiKey = getAnthropicApiKey()
-  const hasUsableOAuth =
-    getClaudeAIOAuthTokens()?.accessToken && hasProfileScope()
-  if (!hasUsableOAuth && !apiKey) {
-    logForDebugging('[Bootstrap] Skipped: no usable OAuth or API key')
+  if (!apiKey) {
+    logForDebugging('[Bootstrap] Skipped: no API key')
     return null
   }
 
   const endpoint = `${getOauthConfig().BASE_API_URL}/api/claude_cli/bootstrap`
 
-  // withOAuth401Retry handles the refresh-and-retry. API key users fail
-  // through on 401 (no refresh mechanism — no OAuth token to pass).
   try {
     return await withOAuth401Retry(async () => {
-      // Re-read OAuth each call so the retry picks up the refreshed token.
-      const token = getClaudeAIOAuthTokens()?.accessToken
-      let authHeaders: Record<string, string>
-      if (token && hasProfileScope()) {
-        authHeaders = {
-          Authorization: `Bearer ${token}`,
-          'anthropic-beta': OAUTH_BETA_HEADER,
-        }
-      } else if (apiKey) {
-        authHeaders = { 'x-api-key': apiKey }
-      } else {
-        logForDebugging('[Bootstrap] No auth available on retry, aborting')
-        return null
-      }
-
       logForDebugging('[Bootstrap] Fetching')
       const response = await axios.get<unknown>(endpoint, {
         headers: {
           'Content-Type': 'application/json',
           'User-Agent': getCodePilotXUserAgent(),
-          ...authHeaders,
+          'x-api-key': apiKey,
         },
         timeout: 5000,
       })

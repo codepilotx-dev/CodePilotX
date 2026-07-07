@@ -28,22 +28,13 @@ import axios from 'axios'
 import { createHash } from 'crypto'
 import { mkdir, readdir, readFile, stat, writeFile } from 'fs/promises'
 import { join, relative, sep } from 'path'
-import {
-  CLAUDE_AI_INFERENCE_SCOPE,
-  CLAUDE_AI_PROFILE_SCOPE,
-  getOauthConfig,
-  OAUTH_BETA_HEADER,
-} from '../../constants/oauth.js'
+import { getOauthConfig } from '../../constants/oauth.js'
 import {
   getTeamMemPath,
   PathTraversalError,
   validateTeamMemKey,
 } from '../../memdir/teamMemPaths.js'
 import { count } from '../../utils/array.js'
-import {
-  checkAndRefreshOAuthTokenIfNeeded,
-  getClaudeAIOAuthTokens,
-} from '../../utils/auth.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { classifyAxiosError } from '../../utils/errors.js'
 import { getGithubRepo } from '../../utils/git.js'
@@ -149,15 +140,7 @@ function isErrnoException(e: unknown): e is NodeJS.ErrnoException {
  * Check if user is authenticated with first-party OAuth (required for team memory sync).
  */
 function isUsingOAuth(): boolean {
-  if (getAPIProvider() !== 'firstParty' || !isFirstPartyAnthropicBaseUrl()) {
-    return false
-  }
-  const tokens = getClaudeAIOAuthTokens()
-  return Boolean(
-    tokens?.accessToken &&
-      tokens.scopes?.includes(CLAUDE_AI_INFERENCE_SCOPE) &&
-      tokens.scopes.includes(CLAUDE_AI_PROFILE_SCOPE),
-  )
+  return false
 }
 
 function getTeamMemorySyncEndpoint(repoSlug: string): string {
@@ -170,17 +153,7 @@ function getAuthHeaders(): {
   headers?: Record<string, string>
   error?: string
 } {
-  const oauthTokens = getClaudeAIOAuthTokens()
-  if (oauthTokens?.accessToken) {
-    return {
-      headers: {
-        Authorization: `Bearer ${oauthTokens.accessToken}`,
-        'anthropic-beta': OAUTH_BETA_HEADER,
-        'User-Agent': getCodePilotXUserAgent(),
-      },
-    }
-  }
-  return { error: 'No OAuth token available for team memory sync' }
+  return { error: 'Team memory sync requires Claude OAuth and is unavailable' }
 }
 
 // ─── Fetch (pull) ────────────────────────────────────────────
@@ -191,8 +164,6 @@ async function fetchTeamMemoryOnce(
   etag?: string | null,
 ): Promise<TeamMemorySyncFetchResult> {
   try {
-    await checkAndRefreshOAuthTokenIfNeeded()
-
     const auth = getAuthHeaders()
     if (auth.error) {
       return {
@@ -317,7 +288,6 @@ async function fetchTeamMemoryHashes(
   repoSlug: string,
 ): Promise<TeamMemoryHashesResult> {
   try {
-    await checkAndRefreshOAuthTokenIfNeeded()
     const auth = getAuthHeaders()
     if (auth.error) {
       return { success: false, error: auth.error, errorType: 'auth' }
@@ -466,8 +436,6 @@ async function uploadTeamMemory(
   ifMatchChecksum?: string | null,
 ): Promise<TeamMemorySyncUploadResult> {
   try {
-    await checkAndRefreshOAuthTokenIfNeeded()
-
     const auth = getAuthHeaders()
     if (auth.error) {
       return { success: false, error: auth.error, errorType: 'auth' }

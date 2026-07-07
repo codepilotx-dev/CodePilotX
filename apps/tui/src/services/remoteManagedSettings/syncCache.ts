@@ -7,11 +7,7 @@
  * mirror alongside the leaf's state.
  */
 
-import { CLAUDE_AI_INFERENCE_SCOPE } from '../../constants/oauth.js'
-import {
-  getAnthropicApiKeyWithSource,
-  getClaudeAIOAuthTokens,
-} from '../../utils/auth.js'
+import { getAnthropicApiKeyWithSource } from '../../utils/auth.js'
 import {
   getAPIProvider,
   isFirstPartyAnthropicBaseUrl,
@@ -34,12 +30,6 @@ export function resetSyncCache(): void {
  *
  * Eligibility:
  * - Console users (API key): All eligible (must have actual key, not just apiKeyHelper)
- * - OAuth users with known subscriptionType: Only Enterprise/C4E and Team
- * - OAuth users with subscriptionType === null (externally-injected tokens via
- *   CLAUDE_CODE_OAUTH_TOKEN / FD, or keychain tokens missing metadata): Eligible —
- *   the API returns empty settings for ineligible orgs, so the cost of a false
- *   positive is one round-trip
- *
  * This is a pre-check to determine if we should query the API.
  * The API will return empty settings for users without managed settings.
  *
@@ -65,32 +55,6 @@ export function isRemoteManagedSettingsEligible(): boolean {
   // those require physical deployment and a different IT intent.
   if (process.env.CLAUDE_CODE_ENTRYPOINT === 'local-agent') {
     return (cached = setEligibility(false))
-  }
-
-  // Check OAuth first: most Claude.ai users have no API key in the keychain.
-  // The API key check spawns `security find-generic-password` (~20-50ms) which
-  // returns null for OAuth-only users. Checking OAuth first short-circuits
-  // that subprocess for the common case.
-  const tokens = getClaudeAIOAuthTokens()
-
-  // Externally-injected tokens (CCD via CLAUDE_CODE_OAUTH_TOKEN, CCR via
-  // CLAUDE_CODE_OAUTH_TOKEN_FILE_DESCRIPTOR, Agent SDK, CI) carry no
-  // subscriptionType metadata — getClaudeAIOAuthTokens() constructs them with
-  // subscriptionType: null. The token itself is valid; let the API decide.
-  // fetchRemoteManagedSettings handles 204/404 gracefully (returns {}), and
-  // settings.ts falls through to MDM/file when remote is empty, so ineligible
-  // orgs pay one round-trip and nothing else changes.
-  if (tokens?.accessToken && tokens.subscriptionType === null) {
-    return (cached = setEligibility(true))
-  }
-
-  if (
-    tokens?.accessToken &&
-    tokens.scopes?.includes(CLAUDE_AI_INFERENCE_SCOPE) &&
-    (tokens.subscriptionType === 'enterprise' ||
-      tokens.subscriptionType === 'team')
-  ) {
-    return (cached = setEligibility(true))
   }
 
   // Console users (API key) are eligible if we can get the actual key
