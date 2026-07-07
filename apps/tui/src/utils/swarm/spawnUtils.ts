@@ -94,11 +94,6 @@ export function buildInheritedCliFlags(options?: {
  * parent's env, so we forward any that are set in the current process.
  */
 const TEAMMATE_ENV_VARS = [
-  // API provider selection — without these, teammates default to firstParty
-  // and send requests to the wrong endpoint (GitHub issue #23561)
-  'CLAUDE_CODE_USE_BEDROCK',
-  'CLAUDE_CODE_USE_VERTEX',
-  'CLAUDE_CODE_USE_FOUNDRY',
   // Custom API endpoint
   'ANTHROPIC_BASE_URL',
   // Config directory override

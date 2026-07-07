@@ -17,10 +17,8 @@ import type {
   SettingsJson,
 } from '@codepilotx/core/runtime/appRuntime.js'
 import {
-  checkAndRefreshOAuthTokenIfNeeded,
   getAnthropicApiKey,
   getAuthTokenSource,
-  getClaudeAIOAuthTokens,
   getOauthAccountInfo,
   hasAnthropicApiKeyAuth,
   hasProfileScope,
@@ -47,8 +45,6 @@ import {
 export function configureTuiCoreAppRuntime(): void {
   const runtime: AppRuntime = {
     auth: {
-      checkAndRefreshOAuthTokenIfNeeded,
-      getClaudeAIOAuthTokens,
       hasProfileScope,
       isClaudeAISubscriber,
       saveApiKey,

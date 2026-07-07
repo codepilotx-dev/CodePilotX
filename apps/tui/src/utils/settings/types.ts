@@ -263,20 +263,6 @@ export const SettingsSchema = lazySchema(() =>
         .string()
         .optional()
         .describe('Path to a script that outputs authentication values'),
-      awsCredentialExport: z
-        .string()
-        .optional()
-        .describe('Path to a script that exports AWS credentials'),
-      awsAuthRefresh: z
-        .string()
-        .optional()
-        .describe('Path to a script that refreshes AWS authentication'),
-      gcpAuthRefresh: z
-        .string()
-        .optional()
-        .describe(
-          'Command to refresh GCP authentication (e.g., gcloud auth application-default login)',
-        ),
       // Gated so the SDK generator (which runs without CLAUDE_CODE_ENABLE_XAA)
       // doesn't surface this in GlobalClaudeSettings. Read via getXaaIdpSettings().
       // .passthrough() on the outer object keeps an existing settings.json key

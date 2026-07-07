@@ -28,10 +28,6 @@ import { getOrganizationUUID } from '../services/oauth/client.js'
 import { AppStateProvider } from '../state/AppState.js'
 import type { Message, SystemMessage } from '../types/message.js'
 import type { PermissionMode } from '../types/permissions.js'
-import {
-  checkAndRefreshOAuthTokenIfNeeded,
-  getClaudeAIOAuthTokens,
-} from './auth.js'
 import { checkGithubAppInstalled } from './background/remote/preconditions.js'
 import {
   deserializeMessages,
@@ -540,6 +536,8 @@ export async function teleportResumeCodeSession(
   sessionId: string,
   onProgress?: TeleportProgressCallback,
 ): Promise<TeleportRemoteResponse> {
+  throw new Error('Remote sessions require Claude OAuth and are removed')
+
   if (!isPolicyAllowed('allow_remote_sessions')) {
     throw new Error(
       "Remote sessions are disabled by your organization's policy.",
@@ -549,7 +547,7 @@ export async function teleportResumeCodeSession(
   logForDebugging(`Resuming code session ID: ${sessionId}`)
 
   try {
-    const accessToken = getClaudeAIOAuthTokens()?.accessToken
+    const accessToken = ''
     if (!accessToken) {
       logEvent('tengu_teleport_resume_error', {
         error_type:
@@ -844,7 +842,9 @@ export async function pollRemoteSessionEvents(
   afterId: string | null = null,
   opts?: { skipMetadata?: boolean },
 ): Promise<PollRemoteSessionResponse> {
-  const accessToken = getClaudeAIOAuthTokens()?.accessToken
+  throw new Error('Remote sessions require Claude OAuth and are removed')
+
+  const accessToken = ''
   if (!accessToken) {
     throw new Error('No access token for polling')
   }
@@ -1008,9 +1008,10 @@ export async function teleportToRemote(options: {
 }): Promise<TeleportToRemoteResponse | null> {
   const { initialMessage, signal } = options
   try {
+    return null
+
     // Check authentication
-    await checkAndRefreshOAuthTokenIfNeeded()
-    const accessToken = getClaudeAIOAuthTokens()?.accessToken
+    const accessToken = ''
     if (!accessToken) {
       logError(new Error('No access token found for remote session creation'))
       return null
@@ -1489,7 +1490,9 @@ export async function teleportToRemote(options: {
  * reaper collects it.
  */
 export async function archiveRemoteSession(sessionId: string): Promise<void> {
-  const accessToken = getClaudeAIOAuthTokens()?.accessToken
+  return
+
+  const accessToken = ''
   if (!accessToken) return
   const orgUUID = await getOrganizationUUID()
   if (!orgUUID) return

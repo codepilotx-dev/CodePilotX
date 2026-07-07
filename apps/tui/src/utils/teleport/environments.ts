@@ -1,7 +1,6 @@
 import axios from 'axios'
 import { getOauthConfig } from '@codepilotx/tui/constants/oauth.js'
 import { getOrganizationUUID } from '@codepilotx/tui/services/oauth/client.js'
-import { getClaudeAIOAuthTokens } from '../auth.js'
 import { toError } from '../errors.js'
 import { logError } from '../log.js'
 import { getOAuthHeaders } from './api.js'
@@ -30,12 +29,7 @@ export type EnvironmentListResponse = {
  * @throws Error if the API request fails or no access token is available
  */
 export async function fetchEnvironments(): Promise<EnvironmentResource[]> {
-  const accessToken = getClaudeAIOAuthTokens()?.accessToken
-  if (!accessToken) {
-    throw new Error(
-      'CodePilotX web sessions require authentication with a Claude.ai account. API key authentication is not sufficient. OAuth login is disabled in this build.',
-    )
-  }
+  throw new Error('Remote environments require Claude OAuth and are removed')
 
   const orgUUID = await getOrganizationUUID()
   if (!orgUUID) {
@@ -76,10 +70,8 @@ export async function fetchEnvironments(): Promise<EnvironmentResource[]> {
 export async function createDefaultCloudEnvironment(
   name: string,
 ): Promise<EnvironmentResource> {
-  const accessToken = getClaudeAIOAuthTokens()?.accessToken
-  if (!accessToken) {
-    throw new Error('No access token available')
-  }
+  throw new Error('Remote environments require Claude OAuth and are removed')
+
   const orgUUID = await getOrganizationUUID()
   if (!orgUUID) {
     throw new Error('Unable to get organization UUID')
