@@ -118,6 +118,11 @@
   max-width: 100%;
 }
 
+[data-component="session-turn"][data-slot="user-message"]
+  .user-message-bubble {
+  max-width: min(520px, 70%);
+}
+
 /* Assistant messages: full width */
 [data-component="session-turn"][data-slot="assistant-message"]
   .chat-message-row.assistant {
@@ -126,7 +131,7 @@
 
 [data-component="session-turn"][data-slot="assistant-message"]
   .assistant-message-body {
-  max-width: min(760px, 100%);
+  max-width: min(780px, 100%);
 }
 
 /* Plan cards: full width in timeline */
@@ -196,14 +201,13 @@
 .session-timeline-wrapper .workflow-debug-timeline {
   flex-shrink: 0;
   margin: 0 auto;
-  width: min(760px, calc(100% - 40px));
+  width: var(--workflow-content-w, min(760px, calc(100% - 40px)));
 }
 
 /* ── Thinking pill in virtual list ────────────────────── */
 
 .session-timeline-container .chat-thinking-pill {
   margin: 0;
-  margin-left: var(--layout-page-pad-x, 20px);
 }
 
 /* ── Responsive: narrower viewports ───────────────────── */
@@ -222,7 +226,7 @@
 
 .conversation-turn-nav-rail {
   position: absolute;
-  left: 0;
+  left: max(8px, calc((100% - var(--workflow-content-w, 760px)) / 2 - 34px));
   top: 0;
   bottom: 0;
   z-index: 5;
@@ -240,26 +244,25 @@
   display: block;
   padding: 0;
   border: none;
-  border-radius: 2px;
+  border-radius: 1px;
   cursor: pointer;
   background: var(--c-border-faint, var(--c-border-soft));
-  width: 3px;
-  height: 20px;
+  width: 8px;
+  height: 2px;
   min-width: 0;
   min-height: 0;
   flex-shrink: 0;
   transition:
     width var(--motion-fast, 150ms) var(--ease-out, ease-out),
-    height var(--motion-fast, 150ms) var(--ease-out, ease-out),
     background var(--motion-fast, 150ms) var(--ease-out, ease-out);
 }
 
 .conversation-turn-nav-item:hover,
 .conversation-turn-nav-item:focus-visible {
   outline: none;
-  width: 4px;
-  height: 36px;
-  background: var(--c-text-meta);
+  width: 22px;
+  height: 2px;
+  background: var(--c-text-strong);
 }
 
 .conversation-turn-nav-item:focus-visible {
@@ -270,9 +273,9 @@
 /* ── Turn preview card (inside tooltip) ──────────────────── */
 
 .conversation-turn-preview-card {
-  min-width: 220px;
-  max-width: 300px;
-  padding: 10px 12px;
+  min-width: 200px;
+  max-width: 280px;
+  padding: 10px;
   color: var(--c-text);
 }
 
@@ -288,6 +291,10 @@
 
 .preview-card-assistant-text {
   margin-top: 6px;
+  /* line-clamp lives on the inner .md-body so Markdown renders don't break the clamp */
+}
+
+.preview-card-assistant-text .md-body {
   font-size: var(--fs-12, 12px);
   line-height: 1.45;
   color: var(--c-text-meta);
@@ -295,6 +302,35 @@
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* Compact markdown inside the preview card — tighten spacing */
+.preview-card-assistant-text .md-body p,
+.preview-card-assistant-text .md-body li {
+  margin: 0;
+}
+
+.preview-card-assistant-text .md-body p + p {
+  margin-top: 4px;
+}
+
+.preview-card-assistant-text .md-body ul,
+.preview-card-assistant-text .md-body ol {
+  margin: 2px 0;
+  padding-left: 16px;
+}
+
+.preview-card-assistant-text .md-body code {
+  font-size: calc(var(--fs-12, 12px) * 0.92);
+  padding: 0 4px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--c-text-meta) 10%, transparent);
+}
+
+.preview-card-assistant-text .md-body a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 1px;
 }
 
 .preview-card-files {

@@ -2357,7 +2357,15 @@
 }
 
 .workflow-page {
-  background: var(--c-bg);
+  --workflow-content-w: min(820px, calc(100vw - 96px));
+  --workflow-dock-w: min(980px, calc(100vw - 96px));
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--c-bg) 92%, var(--c-panel-elevated-bg)) 0%,
+      var(--c-bg) 34%
+    ),
+    var(--c-bg);
   overflow: hidden;
 }
 
@@ -2376,7 +2384,7 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  background: var(--c-bg);
+  background: transparent;
 }
 
 .workflow-main-scroll-area {
@@ -2385,7 +2393,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden; /* VList manages its own scroll */
-  border-top: 1px solid var(--c-border-soft);
+  border-top: 1px solid color-mix(in srgb, var(--c-border-soft) 72%, transparent);
 }
 
 .workflow-main-scroll-content {
@@ -2395,8 +2403,8 @@
 }
 
 .workflow-page__composer-inner {
-  width: min(calc(var(--layout-content-w) + 25px), 100%);
-  max-width: calc(var(--layout-content-w) + 25px);
+  width: var(--workflow-dock-w);
+  max-width: var(--workflow-dock-w);
   pointer-events: auto;
   margin: 0 auto;
 }
@@ -2404,6 +2412,14 @@
 .workflow-page .timeline-command-group,
 .workflow-page .execution-phase {
   max-width: 100%;
+}
+
+.workflow-page .chat-session-header {
+  min-height: 48px;
+  padding: 0 14px;
+  border-bottom: 1px solid color-mix(in srgb, var(--c-border-soft) 68%, transparent);
+  background: color-mix(in srgb, var(--c-bg) 88%, transparent);
+  backdrop-filter: blur(14px);
 }
 
 .workflow-page .timeline-command-group-summary {
@@ -2428,7 +2444,45 @@
 
 .workflow-page .timeline-file-event {
   max-width: 100%;
-  border-radius: var(--radius-5);
+  border-radius: var(--radius-panel);
+}
+
+.workflow-page__composer .composer-surface {
+  width: 100%;
+  padding: 0 0 12px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.workflow-page__composer .composer {
+  width: 100%;
+  padding: 5px;
+  border: 1px solid color-mix(in srgb, var(--c-text-strong) 11%, var(--c-panel-border));
+  border-radius: var(--radius-marquee);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--c-panel-bg) 94%, var(--c-panel-elevated-bg)),
+      color-mix(in srgb, var(--c-panel-bg) 86%, var(--c-bg))
+    ),
+    var(--c-panel-bg);
+  box-shadow:
+    0 22px 60px color-mix(in srgb, var(--c-text-strong) 10%, transparent),
+    0 1px 0 color-mix(in srgb, #ffffff 40%, transparent) inset;
+}
+
+.workflow-page__composer .composer-top {
+  min-height: 86px;
+  padding: 12px 14px 10px;
+  border: 0;
+  border-radius: var(--radius-card);
+  background: color-mix(in srgb, var(--c-panel-bg) 90%, transparent);
+}
+
+.workflow-page__composer .composer-bottom {
+  margin-top: 2px;
+  padding: 8px 8px 2px;
+  border-top: 1px solid color-mix(in srgb, var(--c-text-strong) 8%, transparent);
 }
 
 .workflow-plan-card {
@@ -2680,12 +2734,97 @@
   box-shadow: var(--c-panel-shadow-raised);
 }
 
+.timeline-file-event {
+  overflow: hidden;
+}
+
+.timeline-file-event-header {
+  min-height: 46px;
+  padding: 11px 12px;
+  background: color-mix(in srgb, var(--c-panel-elevated-bg) 42%, transparent);
+}
+
+.timeline-file-event-icon {
+  border-radius: var(--radius-4);
+  background: color-mix(in srgb, var(--c-accent) 10%, var(--c-panel-bg));
+  color: var(--c-accent);
+}
+
+.timeline-file-event-copy strong,
+.timeline-file-event-title {
+  font-size: var(--fs-14);
+  font-weight: var(--font-weight-label);
+}
+
+.timeline-file-event-list {
+  margin: 0;
+  padding: 2px 12px 10px 46px;
+  background: color-mix(in srgb, var(--c-bg) 58%, transparent);
+}
+
+.timeline-file-event-list li {
+  min-height: 28px;
+  border-top: 1px solid color-mix(in srgb, var(--c-border-soft) 62%, transparent);
+}
+
+.timeline-system-event.error {
+  border-color: color-mix(in srgb, var(--c-danger) 42%, var(--c-panel-border));
+  background: color-mix(in srgb, var(--c-danger) 7%, var(--c-panel-bg));
+  color: var(--c-text-strong);
+}
+
 :root[data-theme="dark"] .workflow-page__composer-inner,
 :root[data-theme="dark"] .composer-surface,
 :root[data-theme="dark"] .inline-approval-card,
 :root[data-theme="dark"] .workflow-composer-card {
   border-color: rgba(255, 255, 255, 0.075);
   background: color-mix(in srgb, var(--c-bg) 78%, var(--surface-panel));
+}
+
+:root[data-theme="dark"] .workflow-page {
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--c-bg) 82%, var(--surface-raised)) 0%,
+      var(--c-bg) 36%
+    ),
+    var(--c-bg);
+}
+
+:root[data-theme="dark"] .workflow-page .chat-session-header {
+  border-bottom-color: rgba(255, 255, 255, 0.065);
+  background: color-mix(in srgb, var(--c-bg) 84%, transparent);
+}
+
+:root[data-theme="dark"] .workflow-page__composer .composer {
+  border-color: rgba(250, 249, 245, 0.1);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--c-panel-bg) 88%, var(--surface-raised)),
+      color-mix(in srgb, var(--c-panel-bg) 78%, var(--surface-product))
+    ),
+    var(--c-panel-bg);
+  box-shadow:
+    0 24px 72px rgba(0, 0, 0, 0.42),
+    0 1px 0 rgba(250, 249, 245, 0.035) inset;
+}
+
+:root[data-theme="dark"] .workflow-page__composer .composer-top {
+  background: color-mix(in srgb, var(--c-panel-bg) 84%, var(--surface-product));
+}
+
+:root[data-theme="dark"] .timeline-file-event-header {
+  background: color-mix(in srgb, var(--surface-raised) 34%, transparent);
+}
+
+:root[data-theme="dark"] .timeline-file-event-list {
+  background: color-mix(in srgb, var(--c-bg) 68%, transparent);
+}
+
+:root[data-theme="dark"] .timeline-system-event.error {
+  border-color: color-mix(in srgb, var(--c-danger) 48%, rgba(255, 255, 255, 0.08));
+  background: color-mix(in srgb, var(--c-danger) 13%, var(--c-panel-bg));
 }
 
 :root[data-theme="dark"] .workflow-plan-card {
