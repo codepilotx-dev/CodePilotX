@@ -6,6 +6,9 @@ Use `D:\GitHubProject\Agent\codex-main\codex-rs` as the long-term Rust agent
 core reference while keeping the current Electron/React desktop shell. This is
 not a TypeScript-to-Rust line-by-line rewrite.
 
+The reference repository is read-only for this branch. Current development
+uses the copied workspace under `rust/codex-rs`.
+
 ## Current Desktop Boundary
 
 - Runtime selection is controlled by `CODEPILOTX_DESKTOP_RUNTIME` or
@@ -23,6 +26,10 @@ not a TypeScript-to-Rust line-by-line rewrite.
 Primary source repository:
 
 `D:\GitHubProject\Agent\codex-main\codex-rs`
+
+Current repository copy:
+
+`rust/codex-rs`
 
 Key Rust crates:
 
@@ -51,9 +58,12 @@ manager without a transport adapter.
 
 - `rust-sidecar` can be selected and reported in runtime status.
 - `CODEPILOTX_RUST_APP_SERVER` can point at a local `codex-app-server` binary.
-- Default development lookup checks `rust/codex-rs/target/debug/codex-app-server`.
+- Default development lookup checks this repository's
+  `rust/codex-rs/target/debug/codex-app-server`.
 - `RustLineJsonRpcClient` provides the newline-delimited JSON-RPC transport
   needed by Rust `stdio://`.
+- Explicit `rust-sidecar` falls back to embedded headless when the local Rust
+  app-server binary is missing.
 
 ### Implemented (this slice)
 
@@ -116,8 +126,9 @@ complete vertical slice for text-only agent conversation:
 ### Local Try-Out
 
 ```sh
-# Point to a built codex-app-server binary
-export CODEPILOTX_RUST_APP_SERVER=./rust/codex-rs/target/debug/codex-app-server.exe
+# Build the current repository's Rust app-server
+cd rust/codex-rs
+cargo build -p codex-app-server
 
 # Launch desktop with rust-sidecar
 CODEPILOTX_DESKTOP_RUNTIME=rust-sidecar bun run dev:desktop
