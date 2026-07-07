@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { spawn, type ChildProcess } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
@@ -12,7 +13,10 @@ import type {
   DesktopAgentRuntime,
   DesktopAgentRuntimeContext,
 } from './agentRuntime.js'
+import { buildDesktopPermissionRequestFromControlRequest } from './agentRuntime.js'
 import type {
+  DesktopPermissionDecision,
+  DesktopPermissionRequest,
   DesktopUserMessageContent,
   DesktopPermissionMode,
 } from '../shared/types.js'
@@ -111,6 +115,7 @@ export async function createRustSidecarOptions(
       'stdio://',
       '--session-source',
       'vscode',
+      ...(context.planModeActive ? ['-c', 'collaboration_mode=plan'] : []),
       ...providerConfig.args,
     ],
     cwd: context.workspacePath,
@@ -246,6 +251,7 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
   private pendingTurnSignal: AbortSignal | null = null
   private disposeNotificationListener: (() => void) | null = null
   private disposeServerRequestHandlers: Array<() => void> | null = null
+  private planModeActive = false
   private pendingServerRequest: {
     id: JsonRpcId
     method: string
@@ -270,7 +276,9 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
 
   setPermissionMode(_permissionMode: DesktopPermissionMode): void {}
 
-  setPlanModeActive(_active: boolean): void {}
+  setPlanModeActive(active: boolean): void {
+    this.planModeActive = active
+  }
 
   setDebugConversationDump(enabled: boolean): void {
     this.context.debugConversationDump = enabled
@@ -335,7 +343,17 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
     response: Record<string, unknown>,
     _signal: AbortSignal,
   ): Promise<void> {
-    // Permission/tool decision from the desktop permission UI
+    // Permission requests are now handled directly in handlePermissionRequest
+    // via context.requestPermission(). Tool calls use async execution +
+    // notifyToolResult. runControlResponse is required by the interface but
+    // not needed for the normal Rust sidecar permission/tool flow.
+    // It may be needed in the future for AskUserQuestion recovery or similar
+    // control flows.
+    desktopDebug('rust_control_response_unexpected', {
+      keys: Object.keys(response),
+    })
+
+    // Still handle any pending server request (e.g., from edge cases)
     const ctrlResponse = response.response as Record<string, unknown> | undefined
     if (ctrlResponse && this.pendingServerRequest) {
       const subtype = ctrlResponse.subtype
@@ -370,7 +388,7 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
 
     // Unknown control response format
     throw new Error(
-      `Rust sidecar control response unsupported: ${JSON.stringify(response).slice(0, 200)}`,
+      `Rust sidecar control response not supported in current architecture: ${JSON.stringify(response).slice(0, 200)}`,
     )
   }
 
@@ -587,56 +605,284 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
       )
     }
 
+    // MCP elicitation requests (tool + resource request for MCP servers)
+    disposers.push(
+      this.appServerClient.onServerRequest(
+        'mcpServer/elicitation/request',
+        async (params, id) => this.handleMcpElicitationRequest(params, id),
+      ),
+    )
+
     this.disposeServerRequestHandlers = disposers
   }
 
   private async handleToolCallRequest(
     params: unknown,
-    requestId: JsonRpcId,
+    _requestId: JsonRpcId,
   ): Promise<unknown> {
     const p = params as Record<string, unknown> | null
-    const toolName = String(p?.name ?? p?.tool_name ?? 'Tool')
-    const toolUseId = String(p?.id ?? p?.tool_use_id ?? p?.toolUseId ?? '')
+    const toolName = String(p?.tool ?? p?.name ?? p?.tool_name ?? 'Tool')
+    const toolUseId = String(p?.callId ?? p?.id ?? p?.tool_use_id ?? '')
+    const toolArgs = p?.arguments ?? p?.input ?? {}
 
     desktopDebug('rust_tool_call_request', {
       toolName,
       toolUseId,
+      namespace: p?.namespace as string | undefined,
     })
-
-    // Store pending request for runControlResponse forwarding
-    this.pendingServerRequest = { id: requestId, method: 'item/tool/call', params }
 
     // Emit tool_start event so desktop UI renders a tool card
     this.context.emit({
       type: 'tool_start',
       sessionId: this.context.sessionId,
       toolName,
-      summary: p?.input ? JSON.stringify(p.input).slice(0, 500) : '',
+      summary: JSON.stringify(toolArgs).slice(0, 500),
       toolUseId,
     })
 
-    // Return acknowledgment — real result comes via runControlResponse
+    // Execute tool asynchronously and send result via notifyToolResult.
+    // The handler returns { status: 'pending' } immediately so the JSON-RPC
+    // response acknowledges the request. The actual result is delivered
+    // as a separate item/tool/result notification.
+    this.executeToolAndNotify(
+      toolName,
+      toolUseId,
+      toolArgs,
+      p?.namespace as string | null | undefined,
+    ).catch((err: Error) => {
+      desktopDebug('rust_tool_call_exec_error', {
+        toolName,
+        error: err.message,
+      })
+    })
+
+    // Return acknowledgment — real result comes via notifyToolResult
     return { status: 'pending' }
   }
 
   private async handlePermissionRequest(
     params: unknown,
-    requestId: JsonRpcId,
+    _requestId: JsonRpcId,
     method: string,
   ): Promise<unknown> {
     const p = params as Record<string, unknown> | null
-    const toolName = String(p?.tool_name ?? 'Tool')
 
     desktopDebug('rust_permission_request', {
       method,
-      toolName,
+      paramKeys: p ? Object.keys(p) : [],
     })
 
-    // Store pending request for runControlResponse forwarding
-    this.pendingServerRequest = { id: requestId, method, params }
+    // Build DesktopPermissionRequest using existing helper from agentRuntime
+    const requestId = `rust-perm-${randomUUID()}`
+    const controlRequest = this.buildPermissionControlRequest(method, p)
+    const permissionRequest = buildDesktopPermissionRequestFromControlRequest(
+      requestId,
+      controlRequest,
+    )
 
-    // Desktop permission flow is handled by runControlResponse
-    return { status: 'pending' }
+    // Show permission dialog and await user decision (blocks the JSON-RPC
+    // handler until the user responds — other messages can still be processed
+    // since the event loop keeps running during async/await)
+    const decision = await this.context.requestPermission(permissionRequest)
+
+    // Map decision back to Rust protocol response type
+    return this.mapPermissionDecision(method, decision)
+  }
+
+  /**
+   * Handle MCP elicitation request — server asks client to elicit input
+   * from an MCP server (e.g., a form fill or tool selection request).
+   */
+  private async handleMcpElicitationRequest(
+    params: unknown,
+    _requestId: JsonRpcId,
+  ): Promise<unknown> {
+    const p = params as Record<string, unknown> | null
+    const serverName = p?.serverName as string | undefined
+
+    desktopDebug('rust_mcp_elicitation_request', {
+      serverName,
+      requestKeys: p?.request ? Object.keys(p.request as Record<string, unknown>) : [],
+    })
+
+    // Build DesktopPermissionRequest for MCP elicitation
+    const permissionRequest: DesktopPermissionRequest = {
+      requestId: `rust-mcp-${randomUUID()}`,
+      toolName: 'McpElicitation',
+      toolUseId: p?.turnId as string | undefined,
+      input: {
+        serverName,
+        request: p?.request,
+      },
+      description: serverName
+        ? `MCP 服务器 "${serverName}" 请求输入`
+        : 'MCP 服务器请求输入',
+    }
+
+    // Ask user for permission
+    const decision = await this.context.requestPermission(permissionRequest)
+
+    if (decision.behavior === 'deny') {
+      return { cancelled: true }
+    }
+
+    // For now, return cancelled since full MCP elicitation requires
+    // desktop-side form rendering which is not yet implemented
+    return { cancelled: true, reason: 'MCP elicitation form not yet supported on desktop' }
+  }
+
+  /**
+   * Map raw server notification to protocol-specific control request record
+   * suitable for buildDesktopPermissionRequestFromControlRequest.
+   */
+  private buildPermissionControlRequest(
+    method: string,
+    p: Record<string, unknown> | null,
+  ): Record<string, unknown> {
+    switch (method) {
+      case 'item/commandExecution/requestApproval':
+        return {
+          tool_name: 'Bash',
+          tool_use_id: p?.itemId ?? null,
+          input: {
+            command: p?.command,
+            cwd: p?.cwd,
+            reason: p?.reason,
+          },
+          description: p?.command
+            ? `运行命令: ${String(p.command).slice(0, 200)}`
+            : '执行命令',
+        }
+      case 'item/fileChange/requestApproval':
+        return {
+          tool_name: 'ApplyPatch',
+          tool_use_id: p?.itemId ?? null,
+          input: {
+            filePath: p?.filePath,
+            changes: p?.changes,
+          },
+          description: '修改文件',
+        }
+      case 'item/permissions/requestApproval':
+      default:
+        return {
+          tool_name: 'Permissions',
+          tool_use_id: p?.itemId ?? null,
+          input: {
+            permissions: p?.permissions,
+            reason: p?.reason,
+          },
+          description:
+            typeof p?.reason === 'string' ? p.reason : '请求权限',
+        }
+    }
+  }
+
+  /**
+   * Map DesktopPermissionDecision back to Rust protocol response type.
+   */
+  private mapPermissionDecision(
+    method: string,
+    decision: DesktopPermissionDecision,
+  ): unknown {
+    const allowed = decision.behavior === 'allow'
+
+    switch (method) {
+      case 'item/commandExecution/requestApproval':
+        return { decision: allowed ? 'accept' : 'decline' }
+      case 'item/fileChange/requestApproval':
+        return { decision: allowed ? 'accept' : 'decline' }
+      case 'item/permissions/requestApproval':
+      default:
+        return {
+          permissions: allowed ? { fileSystem: {}, network: {} } : {},
+          scope: 'turn' as const,
+        }
+    }
+  }
+
+  /**
+   * Execute a tool asynchronously and send the result to the Rust server
+   * via notifyToolResult notification. Also emits tool_result event for UI.
+   */
+  private async executeToolAndNotify(
+    toolName: string,
+    toolUseId: string,
+    args: unknown,
+    _namespace: string | null | undefined,
+  ): Promise<void> {
+    try {
+      // Attempt tool execution on the desktop side
+      const result = await this.executeDesktopTool(toolName, args)
+
+      // Send result to Rust server so the turn can continue
+      this.appServerClient?.notifyToolResult({
+        toolUseId,
+        result: result.contentItems,
+        isError: !result.success,
+      })
+
+      // Emit tool_result event for desktop UI timeline
+      this.context.emit({
+        type: 'tool_result',
+        sessionId: this.context.sessionId,
+        toolName,
+        summary: result.success ? 'Tool executed successfully' : 'Tool execution failed',
+        toolUseId,
+        isError: !result.success,
+        metadata: { contentItems: result.contentItems },
+      })
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err)
+      desktopDebug('rust_tool_call_exec_failed', { toolName, error: errorMsg })
+
+      this.appServerClient?.notifyToolResult({
+        toolUseId,
+        result: [{ type: 'inputText' as const, text: `Error: ${errorMsg}` }],
+        isError: true,
+      })
+
+      this.context.emit({
+        type: 'tool_result',
+        sessionId: this.context.sessionId,
+        toolName,
+        summary: `Error: ${errorMsg}`,
+        toolUseId,
+        isError: true,
+      })
+    }
+  }
+
+  /**
+   * Execute a tool that the Rust server delegated to the desktop client.
+   *
+   * Most tools (Bash, Read, Write, Edit, etc.) are handled by the Rust
+   * server internally. This handler processes tools that require client-side
+   * execution (e.g., VS Code extension tools, plugin tools, MCP tools).
+   *
+   * For the MVP, all tool calls return "not available" since the desktop
+   * client doesn't yet have a standalone tool executor. The Rust server
+   * handles the common tools internally.
+   */
+  private async executeDesktopTool(
+    toolName: string,
+    _args: unknown,
+  ): Promise<{
+    contentItems: Array<
+      | { type: 'inputText'; text: string }
+      | { type: 'inputImage'; imageUrl: string }
+    >
+    success: boolean
+  }> {
+    return {
+      contentItems: [
+        {
+          type: 'inputText',
+          text: `Tool "${toolName}" execution not available on the desktop client. The Rust app-server should handle this tool internally.`,
+        },
+      ],
+      success: false,
+    }
   }
 
   private async interruptActiveTurn(): Promise<void> {

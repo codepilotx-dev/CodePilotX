@@ -371,6 +371,6 @@ describe('RustSidecarDesktopAgentRuntime input validation', () => {
         { behavior: 'allow' },
         new AbortController().signal,
       ),
-    ).rejects.toThrow('unsupported')
+    ).rejects.toThrow('not supported')
   })
 })

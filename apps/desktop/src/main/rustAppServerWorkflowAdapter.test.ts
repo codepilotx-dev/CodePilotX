@@ -475,11 +475,175 @@ describe('rustAppServerWorkflowAdapter', () => {
     )
 
     expect(events).toHaveLength(1)
-    expect(events[0]).toMatchObject({
-      type: 'tool_result',
-      toolName: 'ApplyPatch',
-      toolUseId: 'fc-item-1',
-      isError: false,
-    })
-  })
-})
+	    expect(events[0]).toMatchObject({
+	      type: 'tool_result',
+	      toolName: 'ApplyPatch',
+	      toolUseId: 'fc-item-1',
+	      isError: false,
+	    })
+	  })
+
+	  // ── Plan notification ────────────────────────────────────────────
+
+	  test('turn/plan/updated emits proposed_plan with formatted plan text', () => {
+	    const state = createRustAppServerWorkflowState()
+	    const events: DesktopAgentEvent[] = []
+
+	    handleServerNotification(
+	      'turn/plan/updated',
+	      {
+	        threadId: 'thread-abc',
+	        turnId: 'turn-xyz',
+	        explanation: 'I will modify the file.',
+	        plan: [
+	          { step: 'Read the file', status: 'completed' },
+	          { step: 'Apply the edit', status: 'inProgress' },
+	        ],
+	      },
+	      e => events.push(e),
+	      state,
+	      SESSION_ID,
+	    )
+
+	    expect(events).toHaveLength(1)
+	    expect(events[0]).toEqual({
+	      type: 'proposed_plan',
+	      sessionId: SESSION_ID,
+	      text: 'I will modify the file.\n1. Read the file [completed]\n2. Apply the edit [inProgress]',
+	      streaming: true,
+	    })
+	  })
+
+	  test('item/plan/delta emits proposed_plan with streaming true', () => {
+	    const state = createRustAppServerWorkflowState()
+	    const events: DesktopAgentEvent[] = []
+
+	    handleServerNotification(
+	      'item/plan/delta',
+	      { threadId: 'thread-abc', turnId: 'turn-xyz', itemId: 'item-1', delta: 'Step 1: Analyze' },
+	      e => events.push(e),
+	      state,
+	      SESSION_ID,
+	    )
+
+	    expect(events).toHaveLength(1)
+	    expect(events[0]).toEqual({
+	      type: 'proposed_plan',
+	      sessionId: SESSION_ID,
+	      text: 'Step 1: Analyze',
+	      streaming: true,
+	    })
+	  })
+
+	  // ── Command output delta ─────────────────────────────────────────
+
+	  test('item/commandExecution/outputDelta emits partial_message with formatted output', () => {
+	    const state = createRustAppServerWorkflowState()
+	    const events: DesktopAgentEvent[] = []
+
+	    handleServerNotification(
+	      'item/commandExecution/outputDelta',
+	      { threadId: 'thread-abc', turnId: 'turn-xyz', itemId: 'item-1', delta: 'file1.txt\n' },
+	      e => events.push(e),
+	      state,
+	      SESSION_ID,
+	    )
+
+	    expect(events).toHaveLength(1)
+	    expect(events[0]).toEqual({
+	      type: 'partial_message',
+	      sessionId: SESSION_ID,
+	      text: '```bash\nfile1.txt\n\n```',
+	    })
+	  })
+
+	  // ── File change patch updated ────────────────────────────────────
+
+	  test('item/fileChange/patchUpdated emits diff events for each file', () => {
+	    const state = createRustAppServerWorkflowState()
+	    const events: DesktopAgentEvent[] = []
+
+	    handleServerNotification(
+	      'item/fileChange/patchUpdated',
+	      {
+	        threadId: 'thread-abc',
+	        turnId: 'turn-xyz',
+	        itemId: 'item-1',
+	        files: [
+	          { path: 'src/index.ts', patch: 'diff --git a/src/index.ts b/src/index.ts\n@@ -1 +1 @@\n-old\n+new' },
+	        ],
+	      },
+	      e => events.push(e),
+	      state,
+	      SESSION_ID,
+	    )
+
+	    expect(events).toHaveLength(1)
+	    expect(events[0]).toEqual({
+	      type: 'diff',
+	      sessionId: SESSION_ID,
+	      filePath: 'src/index.ts',
+	      patch: 'diff --git a/src/index.ts b/src/index.ts\n@@ -1 +1 @@\n-old\n+new',
+	      metadata: { itemId: 'item-1' },
+	    })
+	  })
+
+	  // ── Turn diff updated ────────────────────────────────────────────
+
+	  test('turn/diff/updated emits aggregated diff event', () => {
+	    const state = createRustAppServerWorkflowState()
+	    const events: DesktopAgentEvent[] = []
+
+	    handleServerNotification(
+	      'turn/diff/updated',
+	      { threadId: 'thread-abc', turnId: 'turn-xyz', diff: 'diff --git a/file.ts b/file.ts\n@@ -1,3 +1,4 @@\n-old\n+new' },
+	      e => events.push(e),
+	      state,
+	      SESSION_ID,
+	    )
+
+	    expect(events).toHaveLength(1)
+	    expect(events[0]).toEqual({
+	      type: 'diff',
+	      sessionId: SESSION_ID,
+	      filePath: '(aggregated)',
+	      patch: 'diff --git a/file.ts b/file.ts\n@@ -1,3 +1,4 @@\n-old\n+new',
+	    })
+	  })
+
+	  // ── Reasoning delta ──────────────────────────────────────────────
+
+	  test('reasoning/textDelta emits partial_message with reasoning prefix', () => {
+	    const state = createRustAppServerWorkflowState()
+	    const events: DesktopAgentEvent[] = []
+
+	    handleServerNotification(
+	      'reasoning/textDelta',
+	      { threadId: 'thread-abc', turnId: 'turn-xyz', itemId: 'item-1', delta: 'Step 1: think...', contentIndex: 0 },
+	      e => events.push(e),
+	      state,
+	      SESSION_ID,
+	    )
+
+	    expect(events).toHaveLength(1)
+	    expect(events[0].type).toBe('partial_message')
+	    expect((events[0] as { text: string }).text).toContain('推理...')
+	  })
+
+	  test('reasoning/summaryTextDelta emits partial_message with summary prefix', () => {
+	    const state = createRustAppServerWorkflowState()
+	    const events: DesktopAgentEvent[] = []
+
+	    handleServerNotification(
+	      'reasoning/summaryTextDelta',
+	      { threadId: 'thread-abc', turnId: 'turn-xyz', itemId: 'item-1', delta: 'Summary: analyzed', summaryIndex: 0 },
+	      e => events.push(e),
+	      state,
+	      SESSION_ID,
+	    )
+
+	    expect(events).toHaveLength(1)
+	    expect(events[0].type).toBe('partial_message')
+	    expect((events[0] as { text: string }).text).toContain('推理摘要')
+	  })
+	})

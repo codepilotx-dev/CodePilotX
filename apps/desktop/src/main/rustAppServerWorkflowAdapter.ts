@@ -9,6 +9,8 @@ import type { DesktopAgentEvent } from '../shared/types.js'
  * - `item/agentMessage/delta` (+ fallback `item/delta`) — streaming text
  * - `item/completed` — agentMessage, dynamicToolCall, commandExecution, fileChange
  * - Standard turn/thread lifecycle: thread/started, turn/started, turn/completed, error
+ * - Plan/reasoning: turn/plan/updated, item/plan/delta, reasoning text deltas
+ * - Progress deltas: commandExecution/outputDelta, fileChange/patchUpdated, turn/diff/updated
  *
  * Server-initiated requests (item/tool/call, item/permissions/requestApproval, etc.)
  * are handled by the runtime's server request handler, not this adapter.
@@ -253,26 +255,140 @@ export function handleServerNotification(
       break
     }
 
+    // ── Plan notifications ─────────────────────────────────────────
+    case 'turn/plan/updated': {
+      const p = params as Record<string, unknown> | null
+      if (!p) break
+      const plan = p.plan as Array<Record<string, unknown>> | undefined
+      const explanation = p.explanation as string | null | undefined
+      const planText = [
+        ...(explanation ? [explanation] : []),
+        ...(plan
+          ? plan.map(
+              (step, i) => `${i + 1}. ${step.step} [${step.status ?? 'pending'}]`,
+            )
+          : []),
+      ].join('\n')
+      emit({
+        type: 'proposed_plan',
+        sessionId,
+        text: planText,
+        streaming: true,
+      })
+      desktopDebug('rust_adapter_plan_updated', {
+        stepCount: plan?.length ?? 0,
+        textLength: planText.length,
+      })
+      break
+    }
+
+    case 'item/plan/delta': {
+      const p = params as Record<string, unknown> | null
+      if (!p) break
+      const delta = p.delta as string | undefined
+      if (delta) {
+        emit({
+          type: 'proposed_plan',
+          sessionId,
+          text: delta,
+          streaming: true,
+        })
+      }
+      break
+    }
+
+    // ── Reasoning notifications ────────────────────────────────────
+    case 'reasoning/textDelta': {
+      const p = params as Record<string, unknown> | null
+      if (!p) break
+      const delta = p.delta as string | undefined
+      if (delta) {
+        state.assistantDeltaBuffer += delta
+        emit({
+          type: 'partial_message',
+          sessionId,
+          text: `*推理...* ${delta.slice(0, 100)}`,
+        })
+      }
+      break
+    }
+
+    case 'reasoning/summaryTextDelta': {
+      const p = params as Record<string, unknown> | null
+      if (!p) break
+      const delta = p.delta as string | undefined
+      if (delta) {
+        state.assistantDeltaBuffer += delta
+        emit({
+          type: 'partial_message',
+          sessionId,
+          text: `*推理摘要...* ${delta.slice(0, 100)}`,
+        })
+      }
+      break
+    }
+
     // ── File change / command execution progress deltas ──────────
     case 'item/commandExecution/outputDelta': {
       const p = params as Record<string, unknown> | null
       if (!p) break
-      const delta = p.delta as Record<string, unknown> | null
-      desktopDebug('rust_adapter_command_output', {
-        textPreview: typeof delta?.text === 'string'
-          ? (delta.text as string).slice(0, 200)
-          : undefined,
-      })
-      // Currently not emitting output delta as events — handled by tool_result
+      const delta = p.delta as string | undefined
+      if (delta) {
+        desktopDebug('rust_adapter_command_output', {
+          textPreview: delta.slice(0, 200),
+        })
+        // Emit as partial tool output for live display.
+        // Full output is available when item/completed fires.
+        emit({
+          type: 'partial_message',
+          sessionId,
+          text: `\`\`\`bash\n${delta.slice(0, 500)}\n\`\`\``,
+        })
+      }
       break
     }
 
     case 'item/fileChange/patchUpdated': {
       const p = params as Record<string, unknown> | null
       if (!p) break
+      const files = p.files as Array<Record<string, unknown>> | undefined
       desktopDebug('rust_adapter_file_change_patch', {
-        fileCount: Array.isArray(p.files) ? p.files.length : undefined,
+        fileCount: Array.isArray(files) ? files.length : undefined,
+        filePaths: files?.map(f => f.path as string).filter(Boolean),
       })
+      // Emit diff events for each changed file
+      if (Array.isArray(files)) {
+        for (const file of files) {
+          if (typeof file.path === 'string' && typeof file.patch === 'string') {
+            emit({
+              type: 'diff',
+              sessionId,
+              filePath: file.path,
+              patch: file.patch,
+              metadata: { itemId: p.itemId },
+            })
+          }
+        }
+      }
+      break
+    }
+
+    // ── Turn-level diff notification ───────────────────────────────
+    case 'turn/diff/updated': {
+      const p = params as Record<string, unknown> | null
+      if (!p) break
+      const diff = p.diff as string | undefined
+      if (diff) {
+        desktopDebug('rust_adapter_turn_diff', {
+          diffLength: diff.length,
+        })
+        emit({
+          type: 'diff',
+          sessionId,
+          filePath: '(aggregated)',
+          patch: diff,
+        })
+      }
       break
     }
 
