@@ -82,6 +82,7 @@ describe('RustAppServerClient', () => {
 
     const resultPromise = client.startThread({
       model: 'test-model',
+      modelProvider: 'test-minimax',
       cwd: '/workspace',
       ephemeral: true,
     })
@@ -90,6 +91,7 @@ describe('RustAppServerClient', () => {
     expect(sent.method).toBe('thread/start')
     expect(sent.params).toEqual({
       model: 'test-model',
+      modelProvider: 'test-minimax',
       cwd: '/workspace',
       ephemeral: true,
     })

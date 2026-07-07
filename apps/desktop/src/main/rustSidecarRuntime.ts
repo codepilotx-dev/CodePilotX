@@ -251,6 +251,8 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
     desktopDebug('rust_sidecar_start', {
       executable: executablePath,
       cwd: this.context.workspacePath,
+      providerID: this.context.providerID ?? null,
+      model: this.context.model ?? null,
     })
 
     if (!existsSync(executablePath)) {
@@ -334,6 +336,7 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
     // 6. Start thread
     const threadResult = await this.appServerClient.startThread({
       model: this.context.model ?? undefined,
+      modelProvider: this.context.providerID ?? undefined,
       cwd: this.context.workspacePath,
       ephemeral: true,
     })
