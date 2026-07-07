@@ -9,6 +9,21 @@ import {
 } from './rustSidecarRuntime.js'
 import type { DesktopAgentRuntimeContext } from './agentRuntime.js'
 
+/** Temporarily set process.env[key] and restore on dispose. */
+function withEnv(key: string, value: string): Disposable {
+  const previous = process.env[key]
+  process.env[key] = value
+  return {
+    [Symbol.dispose]() {
+      if (previous === undefined) {
+        delete process.env[key]
+      } else {
+        process.env[key] = previous
+      }
+    },
+  }
+}
+
 // ── Options / executable resolution tests ───────────────────────────
 
 describe('rust sidecar runtime options', () => {
@@ -44,6 +59,43 @@ describe('rust sidecar runtime options', () => {
     expect(options.cwd).toBe(process.cwd())
     expect(options.env.CODEPILOTX_SIDECAR_SESSION_ID).toBe('session-1')
     expect(options.env.CODEPILOTX_SIDECAR_MODEL).toBe('test-model')
+  })
+
+  test('inherits process.env including CODEX_HOME', () => {
+    using _restore = withEnv('CODEX_HOME', '/custom/codex-home')
+
+    const context = {
+      sessionId: 'session-2',
+      workspacePath: process.cwd(),
+      model: 'test-model',
+      emit: () => {},
+      requestPermission: async () => ({ behavior: 'deny' }),
+    } satisfies DesktopAgentRuntimeContext
+
+    const options = createRustSidecarOptions(context)
+
+    // CODEX_HOME 已透传
+    expect(options.env.CODEX_HOME).toBe('/custom/codex-home')
+    // sidecar 专属变量仍正常生成
+    expect(options.env.CODEPILOTX_SIDECAR_SESSION_ID).toBe('session-2')
+    expect(options.env.CODEPILOTX_SIDECAR_MODEL).toBe('test-model')
+  })
+
+  test('sidecar env overrides process.env on conflict', () => {
+    using _restore = withEnv('CODEPILOTX_SIDECAR_MODEL', 'should-be-overridden')
+
+    const context = {
+      sessionId: 'session-3',
+      workspacePath: process.cwd(),
+      model: 'override-model',
+      emit: () => {},
+      requestPermission: async () => ({ behavior: 'deny' }),
+    } satisfies DesktopAgentRuntimeContext
+
+    const options = createRustSidecarOptions(context)
+
+    // sidecar 专属变量应覆盖 process.env 中的同名值
+    expect(options.env.CODEPILOTX_SIDECAR_MODEL).toBe('override-model')
   })
 })
 
