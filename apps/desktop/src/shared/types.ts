@@ -33,7 +33,9 @@ export type DesktopAuthStatus = {
   organizationName?: string | null
 }
 
-export type DesktopWorkspace = AgentWorkspace
+export interface DesktopWorkspace extends AgentWorkspace {
+  pinnedAt?: string | null
+}
 
 export type DesktopFileEntry = {
   name: string
@@ -640,6 +642,8 @@ export type DesktopRemovedWorkspace = {
   removedAt: string
 }
 
+export type SidebarSectionId = 'pinned' | 'projects' | 'conversations'
+
 export type DesktopStoredSettings = {
   enableParetoCodeRouter?: boolean
   enableFusionRouter?: boolean
@@ -693,8 +697,9 @@ gitBranchPrefix: string
   reviewView: DesktopReviewView
   diffMarkerStyle: DesktopDiffMarkerStyle
   rustSearchAndDiffKernels: boolean
-  browserAllowedSites: string[]
-  browserSitePermissions: DesktopBrowserSitePermission[]
+	  browserAllowedSites: string[]
+	  collapsedSidebarSections: SidebarSectionId[]
+	  browserSitePermissions: DesktopBrowserSitePermission[]
 }
 
 export type DesktopMcpScope =

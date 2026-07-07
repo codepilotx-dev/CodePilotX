@@ -3,7 +3,9 @@ import {
   defaultDesktopStoredSettings,
   isLocalRouterMode,
   normalizeDesktopStoredSettings,
+  normalizeDesktopWorkspaces,
   normalizeLocalRouterMode,
+  upsertRecentWorkspace,
 } from './settingsSchema.js'
 
 test('desktop settings no longer store AskUserQuestion max questions', () => {
@@ -150,15 +152,120 @@ test('desktop settings normalize permission option toggles as booleans', () => {
   ).toBe(false)
 })
 
-test('isLocalRouterMode validates router mode values', () => {
-  expect(isLocalRouterMode('off')).toBe(true)
-  expect(isLocalRouterMode('pareto-code')).toBe(true)
-  expect(isLocalRouterMode('fusion')).toBe(true)
-  expect(isLocalRouterMode('invalid')).toBe(false)
-  expect(isLocalRouterMode(undefined)).toBe(false)
-  expect(normalizeLocalRouterMode('off')).toBe('off')
-  expect(normalizeLocalRouterMode('pareto-code')).toBe('pareto-code')
-  expect(normalizeLocalRouterMode('fusion')).toBe('fusion')
-  expect(normalizeLocalRouterMode('invalid')).toBe('off')
-  expect(normalizeLocalRouterMode(undefined)).toBe('off')
-})
+	test('isLocalRouterMode validates router mode values', () => {
+	  expect(isLocalRouterMode('off')).toBe(true)
+	  expect(isLocalRouterMode('pareto-code')).toBe(true)
+	  expect(isLocalRouterMode('fusion')).toBe(true)
+	  expect(isLocalRouterMode('invalid')).toBe(false)
+	  expect(isLocalRouterMode(undefined)).toBe(false)
+	  expect(normalizeLocalRouterMode('off')).toBe('off')
+	  expect(normalizeLocalRouterMode('pareto-code')).toBe('pareto-code')
+	  expect(normalizeLocalRouterMode('fusion')).toBe('fusion')
+	  expect(normalizeLocalRouterMode('invalid')).toBe('off')
+	  expect(normalizeLocalRouterMode(undefined)).toBe('off')
+	})
+
+	test('normalizeDesktopWorkspaces preserves valid pinnedAt string', () => {
+	  const result = normalizeDesktopWorkspaces([
+	    { name: 'test', path: '/test', pinnedAt: '2026-07-07T10:00:00.000Z' },
+	  ])
+	  expect(result).toHaveLength(1)
+	  expect(result[0].pinnedAt).toBe('2026-07-07T10:00:00.000Z')
+	})
+
+	test('normalizeDesktopWorkspaces normalizes non-string pinnedAt to null', () => {
+	  const result = normalizeDesktopWorkspaces([
+	    { name: 'test', path: '/test', pinnedAt: 123 },
+	  ])
+	  expect(result).toHaveLength(1)
+	  expect(result[0].pinnedAt).toBeNull()
+	})
+
+	test('normalizeDesktopWorkspaces normalizes missing pinnedAt to null', () => {
+	  const result = normalizeDesktopWorkspaces([
+	    { name: 'test', path: '/test' },
+	  ])
+	  expect(result).toHaveLength(1)
+	  expect(result[0].pinnedAt).toBeNull()
+	})
+
+	test('upsertRecentWorkspace preserves existing pinnedAt when incoming lacks it', () => {
+	  const workspaces = [
+	    { name: 'existing', path: '/existing', pinnedAt: '2026-07-07T10:00:00.000Z' },
+	  ]
+	  const result = upsertRecentWorkspace(workspaces, {
+	    name: 'existing',
+	    path: '/existing',
+	  })
+	  expect(result).toHaveLength(1)
+	  expect(result[0].pinnedAt).toBe('2026-07-07T10:00:00.000Z')
+	})
+
+	test('upsertRecentWorkspace updates pinnedAt when incoming has explicit value', () => {
+	  const workspaces = [
+	    { name: 'existing', path: '/existing', pinnedAt: '2026-07-07T10:00:00.000Z' },
+	  ]
+	  const result = upsertRecentWorkspace(workspaces, {
+	    name: 'existing',
+	    path: '/existing',
+	    pinnedAt: '2026-07-08T10:00:00.000Z',
+	  })
+	  expect(result).toHaveLength(1)
+	  expect(result[0].pinnedAt).toBe('2026-07-08T10:00:00.000Z')
+	})
+
+	test('upsertRecentWorkspace clears pinnedAt when incoming has explicit null', () => {
+	  const workspaces = [
+	    { name: 'existing', path: '/existing', pinnedAt: '2026-07-07T10:00:00.000Z' },
+	  ]
+	  const result = upsertRecentWorkspace(workspaces, {
+	    name: 'existing',
+	    path: '/existing',
+	    pinnedAt: null,
+	  })
+	  expect(result).toHaveLength(1)
+	  expect(result[0].pinnedAt).toBeNull()
+	})
+
+	test('desktop settings default collapsed sidebar sections to empty', () => {
+	  expect(defaultDesktopStoredSettings().collapsedSidebarSections).toEqual([])
+	})
+
+	test('desktop settings normalize collapsed sidebar sections preserves valid values', () => {
+	  expect(
+	    normalizeDesktopStoredSettings({ collapsedSidebarSections: ['pinned'] })
+	      .collapsedSidebarSections,
+	  ).toEqual(['pinned'])
+	})
+
+	test('desktop settings normalize collapsed sidebar sections filters invalid values', () => {
+	  expect(
+	    normalizeDesktopStoredSettings({ collapsedSidebarSections: ['invalid'] })
+	      .collapsedSidebarSections,
+	  ).toEqual([])
+	})
+
+	test('desktop settings normalize collapsed sidebar sections deduplicates', () => {
+	  expect(
+	    normalizeDesktopStoredSettings({
+	      collapsedSidebarSections: ['pinned', 'pinned'],
+	    }).collapsedSidebarSections,
+	  ).toEqual(['pinned'])
+	})
+
+	test('desktop settings normalize collapsed sidebar sections handles partial validity', () => {
+	  expect(
+	    normalizeDesktopStoredSettings({
+	      collapsedSidebarSections: ['pinned', 'invalid', 'projects'],
+	    }).collapsedSidebarSections,
+	  ).toEqual(['pinned', 'projects'])
+	})
+
+	test('desktop settings normalize collapsed sidebar sections rejects non-array', () => {
+	  expect(
+	    normalizeDesktopStoredSettings({
+	      collapsedSidebarSections: 'pinned',
+	    }).collapsedSidebarSections,
+	  ).toEqual([])
+	})
+

@@ -17,6 +17,7 @@ import type {
   DesktopWorkspace,
   LocalRouterMode,
   ModelProviderID,
+  SidebarSectionId,
 } from './types.js'
 
 export const DESKTOP_PERMISSION_MODES = new Set<DesktopPermissionMode>([
@@ -64,6 +65,12 @@ export const DESKTOP_DRAWER_TABS = new Set<DesktopDrawerTab>([
 
 export const MAX_RECENT_WORKSPACES = 5
 export const MAX_REMOVED_WORKSPACES = 50
+
+export const VALID_SIDEBAR_SECTION_IDS: readonly SidebarSectionId[] = [
+  'pinned',
+  'projects',
+  'conversations',
+]
 
 export function defaultDesktopStoredSettings(): DesktopStoredSettings {
   return {
@@ -117,8 +124,9 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     reviewView: 'inline',
     diffMarkerStyle: 'color',
     rustSearchAndDiffKernels: false,
-    browserAllowedSites: [],
-    browserSitePermissions: [],
+	    browserAllowedSites: [],
+	    collapsedSidebarSections: [],
+	    browserSitePermissions: [],
   }
 }
 
@@ -327,6 +335,14 @@ export function normalizeDesktopStoredSettings(
       parsed.browserAllowedSites,
       defaults.browserAllowedSites,
     ),
+    collapsedSidebarSections: normalizeStringList(
+      parsed.collapsedSidebarSections,
+      defaults.collapsedSidebarSections,
+    ).filter(
+      (id, index, arr) =>
+        (VALID_SIDEBAR_SECTION_IDS as readonly string[]).includes(id) &&
+        arr.indexOf(id) === index,
+    ) as SidebarSectionId[],
     browserSitePermissions: normalizeBrowserSitePermissions(
       parsed.browserSitePermissions,
       parsed.browserAllowedSites,
@@ -428,20 +444,24 @@ export function normalizeDesktopWorkspaces(value: unknown): DesktopWorkspace[] {
     if (workspace.isStandalone) return []
     if (typeof workspace.name !== 'string') return []
     if (typeof workspace.path !== 'string') return []
-    return [
-      {
-        name: workspace.name,
-        path: workspace.path,
-        branchName:
-          typeof workspace.branchName === 'string'
-            ? workspace.branchName
-            : null,
-        isGitRepo:
-          typeof workspace.isGitRepo === 'boolean'
-            ? workspace.isGitRepo
-            : undefined,
-      },
-    ]
+      return [
+        {
+          name: workspace.name,
+          path: workspace.path,
+          branchName:
+            typeof workspace.branchName === 'string'
+              ? workspace.branchName
+              : null,
+          isGitRepo:
+            typeof workspace.isGitRepo === 'boolean'
+              ? workspace.isGitRepo
+              : undefined,
+          pinnedAt:
+            typeof workspace.pinnedAt === 'string'
+              ? workspace.pinnedAt
+              : null,
+        },
+      ]
   })
 }
 
@@ -485,7 +505,12 @@ export function upsertRecentWorkspace(
   if (index >= 0) {
     // Update in-place without changing position
     const next = [...workspaces]
-    next[index] = workspace
+    next[index] = {
+      ...workspace,
+      pinnedAt: workspace.pinnedAt !== undefined
+        ? workspace.pinnedAt
+        : next[index].pinnedAt ?? null,
+    }
     return next
   }
   // Append new workspace to the end
