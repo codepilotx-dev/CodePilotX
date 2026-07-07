@@ -21,6 +21,7 @@ import {
   PROVIDER_CONFIGS,
   resolveAiSdkProviderRoute,
   resolveProviderApiKeyFromSources,
+  resolveProviderWireApi,
   saveProviderApiKey,
   saveSelectedProvider,
   shouldUseGitHubCopilotProvider,
@@ -158,6 +159,55 @@ test('core provider routes and metadata helpers match TUI contract', async () =>
         defaultModels: [],
       }),
     ).toBe('openai')
+
+    // ProviderWireApi resolution
+    expect(
+      resolveProviderWireApi({
+        providerID: 'minimax',
+        kind: 'minimax',
+        npmPackage: undefined,
+      }),
+    ).toBe('anthropic_messages')
+
+    expect(
+      resolveProviderWireApi({
+        providerID: 'deepseek',
+        kind: 'openai-compatible',
+        npmPackage: '@ai-sdk/openai-compatible',
+      }),
+    ).toBe('chat_completions')
+
+    expect(
+      resolveProviderWireApi({
+        providerID: 'openai',
+        kind: 'openai-compatible',
+        npmPackage: '@ai-sdk/openai',
+      }),
+    ).toBe('responses')
+
+    expect(
+      resolveProviderWireApi({
+        providerID: 'zhipu',
+        kind: 'openai-compatible',
+        npmPackage: '@ai-sdk/openai-compatible',
+      }),
+    ).toBe('chat_completions')
+
+    expect(
+      resolveProviderWireApi({
+        providerID: 'anthropic',
+        kind: 'anthropic',
+        npmPackage: '@ai-sdk/anthropic',
+      }),
+    ).toBe('anthropic_messages')
+
+    expect(
+      resolveProviderWireApi({
+        providerID: 'unknown-provider',
+        kind: 'openai-compatible',
+        npmPackage: undefined,
+      }),
+    ).toBe('chat_completions')
 
     saveSelectedProvider({
       providerID: 'zhipu',

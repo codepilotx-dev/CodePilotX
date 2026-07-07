@@ -7,6 +7,11 @@ export type ModelProviderKind =
   | 'minimax'
   | 'github-copilot'
 
+export type ProviderWireApi =
+  | 'responses'
+  | 'chat_completions'
+  | 'anthropic_messages'
+
 export type ModelMetadata = {
   id: string
   name?: string
@@ -49,6 +54,7 @@ export type ModelProviderSummary = {
   modelsDevSource?: boolean
   gatewaySource?: boolean
   requiresBaseURL?: boolean
+  wireApi?: ProviderWireApi
 }
 
 export type ModelProviderConfig = Omit<
@@ -213,6 +219,7 @@ export function createModelProviderSummary(
     modelsDevSource: provider.modelsDevSource,
     gatewaySource: provider.gatewaySource,
     requiresBaseURL: provider.requiresBaseURL,
+    wireApi: provider.wireApi,
   }
 }
 

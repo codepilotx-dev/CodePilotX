@@ -22,6 +22,7 @@ import {
   type ModelProviderKind,
   type ProviderBalanceInfo,
   type ProviderTokenPlanUsageInfo,
+  type ProviderWireApi,
 } from './provider.js'
 
 export type {
@@ -31,6 +32,7 @@ export type {
   ModelProviderKind,
   ProviderBalanceInfo,
   ProviderTokenPlanUsageInfo,
+  ProviderWireApi,
 } from './provider.js'
 
 export { formatProviderModel, isModelProviderID, splitProviderModel }
@@ -414,6 +416,7 @@ export const PROVIDER_CONFIGS: Record<string, ModelProviderConfig> = {
     modelMetadata: ZHIPU_MODEL_METADATA,
     docURL: 'https://open.bigmodel.cn/dev/api/normal-model/glm-4',
     logoURL: 'https://open.bigmodel.cn/favicon.ico',
+    wireApi: 'chat_completions',
   },
 }
 
@@ -841,6 +844,29 @@ export function resolveAiSdkProviderRoute(
   return 'unsupported'
 }
 
+export function resolveProviderWireApi(
+  provider: Pick<ModelProviderConfig, 'kind' | 'npmPackage' | 'providerID'>,
+): ProviderWireApi {
+  // Anthropic Messages API for Anthropic-compatible providers
+  if (
+    provider.npmPackage === '@ai-sdk/anthropic' ||
+    provider.kind === 'anthropic' ||
+    provider.kind === 'anthropic-compatible' ||
+    provider.kind === 'minimax'
+  ) {
+    return 'anthropic_messages'
+  }
+
+  // OpenAI official supports the Responses API
+  if (provider.npmPackage === '@ai-sdk/openai') {
+    return 'responses'
+  }
+
+  // All OpenAI-compatible providers (including DeepSeek, Zhipu, etc.)
+  // use Chat Completions protocol
+  return 'chat_completions'
+}
+
 export function resolveProviderApiKeyFromSources(
   provider: Pick<ModelProviderConfig, 'providerID' | 'apiKeyEnvVar' | 'envVars'>,
   sources: {
@@ -1004,6 +1030,7 @@ function mergeModelsDevCatalog(
           npmPackage: fromModelsDev.npmPackage ?? existing.npmPackage,
           requiresBaseURL:
             fromModelsDev.requiresBaseURL ?? existing.requiresBaseURL,
+          wireApi: fromModelsDev.wireApi ?? existing.wireApi,
           defaultModels: existing.defaultModels.length
             ? existing.defaultModels
             : fromModelsDev.defaultModels,
@@ -1035,9 +1062,11 @@ function providerFromModelsDev(
     provider.models,
     globalModels,
   )
+  const kind = inferProviderKind(providerID, provider)
+  const npmPackage = typeof provider.npm === 'string' ? provider.npm : undefined
   return {
     providerID,
-    kind: inferProviderKind(providerID, provider),
+    kind,
     displayName:
       typeof provider.name === 'string' && provider.name.trim()
         ? provider.name
@@ -1049,10 +1078,11 @@ function providerFromModelsDev(
     modelMetadata,
     docURL: typeof provider.doc === 'string' ? provider.doc : undefined,
     logoURL: `${MODELS_DEV_LOGO_BASE_URL}/${providerID}.svg`,
-    npmPackage: typeof provider.npm === 'string' ? provider.npm : undefined,
+    npmPackage,
     modelsDevSource: true,
     requiresBaseURL:
-      !baseURL && inferProviderKind(providerID, provider) === 'openai-compatible',
+      !baseURL && kind === 'openai-compatible',
+    wireApi: resolveProviderWireApi({ kind, npmPackage, providerID }),
   }
 }
 
@@ -1227,6 +1257,7 @@ function buildFallbackProviderConfig(providerID: string): ModelProviderConfig {
       envVars: [],
       defaultModels: [],
       requiresBaseURL: false,
+      wireApi: 'chat_completions',
     }
   }
   const apiKeyEnvVar = getProviderApiKeyEnvVar(providerID)
@@ -1239,6 +1270,7 @@ function buildFallbackProviderConfig(providerID: string): ModelProviderConfig {
     envVars: [apiKeyEnvVar],
     defaultModels: [],
     requiresBaseURL: true,
+    wireApi: 'chat_completions',
   }
 }
 
