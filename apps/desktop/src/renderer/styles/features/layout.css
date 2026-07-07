@@ -197,6 +197,7 @@
 }
 
 .right-dock-tab-wrap {
+  position: relative;
   min-width: 0;
   max-width: 240px;
   display: inline-flex;
@@ -283,6 +284,9 @@
 }
 
 .right-dock-tab-close {
+  position: absolute;
+  right: 2px;
+
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -290,7 +294,7 @@
   padding: 2px;
   border: 0;
   border-radius: 9px;
-  background: transparent;
+  background: var(--c-sidebar-active-bg);
   color: var(--c-text-meta);
   opacity: 0;
   pointer-events: none;
@@ -299,6 +303,7 @@
     box-shadow var(--motion-fast) var(--ease-standard),
     color var(--motion-fast) var(--ease-standard),
     opacity var(--motion-fast) var(--ease-standard);
+  z-index: 1;
 }
 
 .right-dock-tab-close svg {
@@ -308,16 +313,13 @@
   stroke-width: var(--app-icon-stroke-width);
 }
 
-.right-dock-tab-wrap:hover .right-dock-tab-close,
-.right-dock-tab-wrap:focus-within .right-dock-tab-close,
-.right-dock-tab-wrap.active .right-dock-tab-close {
+.right-dock-tab-wrap:hover .right-dock-tab-close {
   opacity: 1;
   pointer-events: auto;
 }
 
 .right-dock-tab-close:hover,
 .right-dock-tab-close:focus-visible {
-  background: color-mix(in srgb, var(--c-text-strong) 8%, transparent);
   color: var(--c-text-strong);
 }
 
