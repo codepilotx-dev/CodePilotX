@@ -9,7 +9,7 @@ import {
 import { clearPolicyLimitsCache } from '../../services/policyLimits/index.js'
 // flushTelemetry is loaded lazily to avoid pulling in ~1.1MB of OpenTelemetry at startup
 import { clearRemoteManagedSettingsCache } from '../../services/remoteManagedSettings/index.js'
-import { getClaudeAIOAuthTokens, removeApiKey } from '../../utils/auth.js'
+import { removeApiKey } from '../../utils/auth.js'
 import { clearBetasCaches } from '../../utils/betas.js'
 import { saveGlobalConfig } from '../../utils/config.js'
 import { gracefulShutdownSync } from '../../utils/gracefulShutdown.js'
@@ -53,8 +53,6 @@ export async function performLogout({
 
 // clearing anything memoized that must be invalidated when user/session/auth changes
 export async function clearAuthRelatedCaches(): Promise<void> {
-  // Clear the OAuth token cache
-  getClaudeAIOAuthTokens.cache?.clear?.()
   clearTrustedDeviceTokenCache()
   clearBetasCaches()
   clearToolSchemaCache()

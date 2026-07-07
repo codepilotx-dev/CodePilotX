@@ -2,41 +2,18 @@
 
 import {
   clearAuthRelatedCaches,
-  performLogout,
 } from '../../commands/logout/logout.js'
-import {
-  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-  logEvent,
-} from '../../services/analytics/index.js'
-import { getSSLErrorHint } from '../../services/api/errorUtils.js'
-import { fetchAndStoreCodePilotXFirstTokenDate } from '../../services/api/firstTokenDate.js'
-import {
-  createAndStoreApiKey,
-  fetchAndStoreUserRoles,
-  refreshOAuthToken,
-  shouldUseClaudeAIAuth,
-  storeOAuthAccountInfo,
-} from '../../services/oauth/client.js'
-import { getOauthProfileFromOauthToken } from '../../services/oauth/getOauthProfile.js'
-import { OAuthService } from '../../services/oauth/index.js'
 import type { OAuthTokens } from '../../services/oauth/types.js'
 import {
-  clearOAuthTokenCache,
   getAnthropicApiKeyWithSource,
   getAuthTokenSource,
   getOauthAccountInfo,
   getSubscriptionType,
-  isUsing3PServices,
-  saveOAuthTokensIfNeeded,
   validateForceLoginOrg,
 } from '../../utils/auth.js'
 import { saveGlobalConfig } from '../../utils/config.js'
-import { logForDebugging } from '../../utils/debug.js'
 import { isRunningOnHomespace } from '../../utils/envUtils.js'
-import { errorMessage } from '../../utils/errors.js'
-import { logError } from '../../utils/log.js'
 import { getAPIProvider } from '../../utils/model/providers.js'
-import { getInitialSettings } from '../../utils/settings/settings.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
 import {
   buildAccountProperties,
@@ -48,65 +25,7 @@ import {
  * and sets up the local auth state.
  */
 export async function installOAuthTokens(tokens: OAuthTokens): Promise<void> {
-  // Clear old state before saving new credentials
-  await performLogout({ clearOnboarding: false })
-
-  // Reuse pre-fetched profile if available, otherwise fetch fresh
-  const profile =
-    tokens.profile ?? (await getOauthProfileFromOauthToken(tokens.accessToken))
-  if (profile) {
-    storeOAuthAccountInfo({
-      accountUuid: profile.account.uuid,
-      emailAddress: profile.account.email,
-      organizationUuid: profile.organization.uuid,
-      displayName: profile.account.display_name || undefined,
-      hasExtraUsageEnabled:
-        profile.organization.has_extra_usage_enabled ?? undefined,
-      billingType: profile.organization.billing_type ?? undefined,
-      subscriptionCreatedAt:
-        profile.organization.subscription_created_at ?? undefined,
-      accountCreatedAt: profile.account.created_at,
-    })
-  } else if (tokens.tokenAccount) {
-    // Fallback to token exchange account data when profile endpoint fails
-    storeOAuthAccountInfo({
-      accountUuid: tokens.tokenAccount.uuid,
-      emailAddress: tokens.tokenAccount.emailAddress,
-      organizationUuid: tokens.tokenAccount.organizationUuid,
-    })
-  }
-
-  const storageResult = saveOAuthTokensIfNeeded(tokens)
-  clearOAuthTokenCache()
-
-  if (storageResult.warning) {
-    logEvent('tengu_oauth_storage_warning', {
-      warning:
-        storageResult.warning as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    })
-  }
-
-  // Roles and first-token-date may fail for limited-scope tokens (e.g.
-  // inference-only from setup-token). They're not required for core auth.
-  await fetchAndStoreUserRoles(tokens.accessToken).catch(err =>
-    logForDebugging(String(err), { level: 'error' }),
-  )
-
-  if (shouldUseClaudeAIAuth(tokens.scopes)) {
-    await fetchAndStoreCodePilotXFirstTokenDate().catch(err =>
-      logForDebugging(String(err), { level: 'error' }),
-    )
-  } else {
-    // API key creation is critical for Console users — let it throw.
-    const apiKey = await createAndStoreApiKey(tokens.accessToken)
-    if (!apiKey) {
-      throw new Error(
-        'Unable to create API key. The server accepted the request but did not return a key.',
-      )
-    }
-  }
-
-  await clearAuthRelatedCaches()
+  throw new Error('Claude OAuth login is removed from this build.')
 }
 
 export async function authStatus(opts: {
@@ -119,17 +38,12 @@ export async function authStatus(opts: {
     !!process.env.ANTHROPIC_API_KEY && !isRunningOnHomespace()
   const oauthAccount = getOauthAccountInfo()
   const subscriptionType = getSubscriptionType()
-  const using3P = isUsing3PServices()
   const loggedIn =
-    hasToken || apiKeySource !== 'none' || hasApiKeyEnvVar || using3P
+    hasToken || apiKeySource !== 'none' || hasApiKeyEnvVar
 
   // Determine auth method
   let authMethod: string = 'none'
-  if (using3P) {
-    authMethod = 'third_party'
-  } else if (authTokenSource === 'claude.ai') {
-    authMethod = 'claude.ai'
-  } else if (authTokenSource === 'apiKeyHelper') {
+  if (authTokenSource === 'apiKeyHelper') {
     authMethod = 'api_key_helper'
   } else if (authTokenSource !== 'none') {
     authMethod = 'oauth_token'

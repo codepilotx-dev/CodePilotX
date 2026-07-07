@@ -4,7 +4,7 @@
  * Both desktop and TUI use these helpers to exchange a GitHub device-flow token
  * for an application token that authenticates model/API calls. The app token
  * is stored in the shared `claudeAiOauth` secure-storage slot so existing
- * auth resolution (getClaudeAIOAuthTokens, getAuthTokenSource) works unchanged.
+ * auth resolution remains centralized.
  */
 
 import type { OAuthTokenExchangeResponse, OAuthTokens } from './types.js'

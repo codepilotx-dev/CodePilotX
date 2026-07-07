@@ -515,21 +515,9 @@ function OAuthStatusMessage({
             <Box flexDirection="column" marginTop={1}>
               <Text bold>Documentation:</Text>
               <Text>
-                · Amazon Bedrock:{' '}
-                <Link url="https://code.claude.com/docs/en/amazon-bedrock">
-                  https://code.claude.com/docs/en/amazon-bedrock
-                </Link>
-              </Text>
-              <Text>
-                · Microsoft Foundry:{' '}
-                <Link url="https://code.claude.com/docs/en/microsoft-foundry">
-                  https://code.claude.com/docs/en/microsoft-foundry
-                </Link>
-              </Text>
-              <Text>
-                · Vertex AI:{' '}
-                <Link url="https://code.claude.com/docs/en/google-vertex-ai">
-                  https://code.claude.com/docs/en/google-vertex-ai
+                · Claude API:{' '}
+                <Link url="https://docs.anthropic.com/en/docs">
+                  https://docs.anthropic.com/en/docs
                 </Link>
               </Text>
             </Box>

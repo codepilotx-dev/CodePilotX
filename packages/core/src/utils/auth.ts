@@ -8,21 +8,7 @@
 
 import { requireCoreAppRuntime } from '../runtime/appRuntime.js'
 import type { CoreAccountInfo } from '../runtime/appRuntime.js'
-import type { OAuthTokens, SubscriptionType } from '../services/oauth/types.js'
-
-export function checkAndRefreshOAuthTokenIfNeeded(
-  retryCount?: number,
-  force?: boolean,
-): Promise<boolean> {
-  return requireCoreAppRuntime().auth.checkAndRefreshOAuthTokenIfNeeded(
-    retryCount,
-    force,
-  )
-}
-
-export function getClaudeAIOAuthTokens(): OAuthTokens | null {
-  return requireCoreAppRuntime().auth.getClaudeAIOAuthTokens()
-}
+import type { SubscriptionType } from '../services/oauth/types.js'
 
 export function hasProfileScope(): boolean {
   return requireCoreAppRuntime().auth.hasProfileScope()
