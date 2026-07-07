@@ -1,3 +1,5 @@
+import { getProviderModelMetadata } from './providerConfig.js'
+
 export const MODEL_CONTEXT_WINDOW_DEFAULT = 200_000
 
 const DEEPSEEK_1M_MODELS = new Set([
@@ -23,6 +25,19 @@ export function getContextWindowForModel(
 
   if (/\[1m\]/i.test(model)) {
     return 1_000_000
+  }
+
+  // Prioritize provider catalog metadata when provider is known.
+  // The catalog cache is populated during session init / settings page.
+  if (provider) {
+    try {
+      const metadata = getProviderModelMetadata(provider, model)
+      if (metadata?.contextWindow && metadata.contextWindow > 0) {
+        return metadata.contextWindow
+      }
+    } catch {
+      // Silently fall through to hardcoded patterns
+    }
   }
 
   const knownThirdPartyWindow = getKnownThirdPartyContextWindow(model, provider)

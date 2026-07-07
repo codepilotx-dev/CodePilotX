@@ -6,20 +6,6 @@ const repoRoot = join(import.meta.dir, '..', '..', '..')
 const coreSrc = join(repoRoot, 'packages', 'core', 'src')
 const desktopSrc = join(repoRoot, 'apps', 'desktop', 'src')
 
-/**
- * Files in packages/core/src that still re-export from apps/tui (not yet migrated).
- *
- * Each entry here is a core shim that forwards its API from the TUI implementation.
- * When the implementation is moved into core, the file's re-export is replaced with
- * the real code and this entry is removed.
- */
-const coreToTuiAllowlist = new Set([
-  // Still re-exports from TUI — large dependency closures pending refactoring:
-  'packages/core/src/utils/auth.ts',
-  'packages/core/src/utils/config.ts',
-  'packages/core/src/utils/settings/settings.ts',
-])
-
 const desktopTuiImportBaseline = 9
 
 test('tui appServer protocol.ts re-exports from core rather than defining its own protocol', async () => {
@@ -59,15 +45,27 @@ test('tui appServer server.ts re-exports JsonRpcAppServer from core', async () =
   expect(text).not.toContain('class JsonRpcAppServer')
 })
 
-test('core does not add new dependencies on tui internals', async () => {
+/**
+ * Hard ban on reverse imports in packages/core.
+ *
+ * No file under packages/core/src may import/export/require from:
+ *   - @codepilotx/tui
+ *   - @codepilotx/desktop
+ *   - apps/tui
+ *   - apps/desktop
+ *
+ * Only exceptions:
+ *   - boundary.test.ts itself
+ *   - Pre-existing test string data (allowed via the ignore list)
+ */
+test('core reverse imports are zero', async () => {
   const offenders: string[] = []
 
   for (const file of await sourceFiles(coreSrc)) {
     const repoPath = toRepoPath(file)
     if (repoPath === 'packages/core/src/boundary.test.ts') continue
     const text = await readFile(file, 'utf8')
-    if (!referencesTui(text)) continue
-    if (coreToTuiAllowlist.has(repoPath)) continue
+    if (!hasRealReverseImport(text)) continue
     offenders.push(repoPath)
   }
 
@@ -89,7 +87,7 @@ test('desktop tui import count does not grow during migration', async () => {
 
 /**
  * New test: verify that core's OAuth constants file exists and is
- * self-contained (no TUI references).
+ * self-contained (no reverse imports).
  */
 test('core OAuth constants are self-contained', async () => {
   const constantsPath = join(
@@ -100,7 +98,9 @@ test('core OAuth constants are self-contained', async () => {
   )
   const text = await readFile(constantsPath, 'utf8')
   expect(text).not.toContain('@codepilotx/tui')
+  expect(text).not.toContain('@codepilotx/desktop')
   expect(text).not.toContain('apps/tui')
+  expect(text).not.toContain('apps/desktop')
 })
 
 /**
@@ -116,8 +116,12 @@ test('core OAuth types are self-contained', async () => {
   )
   const text = await readFile(typesPath, 'utf8')
   expect(text).not.toContain('@codepilotx/tui')
+  expect(text).not.toContain('@codepilotx/desktop')
   expect(text).not.toContain('apps/tui')
+  expect(text).not.toContain('apps/desktop')
 })
+
+// ─── Helpers ──────────────────────────────────────────────────────────────
 
 async function sourceFiles(root: string): Promise<string[]> {
   const entries = await readdir(root, { withFileTypes: true })
@@ -133,12 +137,34 @@ async function sourceFiles(root: string): Promise<string[]> {
   return files.flat()
 }
 
-function referencesTui(text: string): boolean {
-  return (
-    text.includes('@codepilotx/tui') ||
-    text.includes('apps/tui') ||
-    /\.\.\/(?:\.\.\/)*apps\/tui/.test(text)
-  )
+/**
+ * Detect a real reverse import/export/require statement (not test data).
+ *
+ * Matches only import/export/require expressions, not bare string literals
+ * in test data or comments.
+ */
+function hasRealReverseImport(text: string): boolean {
+  const reversePatterns = [
+    /(?:import|export)\s+.*?['"]@codepilotx\/tui/,
+    /(?:import|export)\s+.*?['"]@codepilotx\/desktop/,
+    /require\(['"](?:\.\.\/)*apps\/tui/,
+    /require\(['"](?:\.\.\/)*apps\/desktop/,
+  ]
+
+  // Check for import/export statements referencing reverse packages
+  for (const pattern of reversePatterns) {
+    if (pattern.test(text)) return true
+  }
+
+  // Also catch dynamic import()
+  if (
+    /import\(['"]@codepilotx\/tui/.test(text) ||
+    /import\(['"]@codepilotx\/desktop/.test(text)
+  ) {
+    return true
+  }
+
+  return false
 }
 
 function countMatches(text: string, pattern: RegExp): number {

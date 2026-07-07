@@ -25,6 +25,7 @@ import {
   type ProviderConfig,
   getSelectedProviderConfig,
   getSelectedProviderID,
+  validateApiKeyHeader,
 } from '../../utils/model/providerConfig.js'
 import {
   recordConversationDebugApi,
@@ -423,6 +424,10 @@ export function createAnthropicCompatibleAiSdkProvider({
   apiKey: string
   fetch?: typeof globalThis.fetch
 }) {
+  const headerError = validateApiKeyHeader(apiKey)
+  if (headerError) {
+    throw new TypeError(headerError)
+  }
   const fetchImpl = fetch ?? globalThis.fetch
   const isMiniMax = isMiniMaxProviderID(provider.providerID)
   const baseURL = isMiniMax

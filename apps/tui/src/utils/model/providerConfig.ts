@@ -42,6 +42,7 @@ export {
   resolveProviderApiKeyFromSources,
   resolveProviderApiKeySourceFromSources,
   splitProviderModel,
+  validateApiKeyHeader,
   ZHIPU_MODEL_METADATA,
 } from '@codepilotx/core/models/providerConfig.js'
 

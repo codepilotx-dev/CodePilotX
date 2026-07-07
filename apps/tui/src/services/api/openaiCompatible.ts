@@ -24,6 +24,7 @@ import {
   getProviderApiKeySource,
   getSelectedProviderConfig,
   getSelectedProviderID,
+  validateApiKeyHeader,
 } from '../../utils/model/providerConfig.js'
 import { getProxyFetchOptions, proxyFetch } from '../../utils/proxy.js'
 import { asSystemPrompt, type SystemPrompt } from '../../utils/systemPromptType.js'
@@ -339,6 +340,10 @@ export function buildOpenAICompatibleFetchInit({
   signal: AbortSignal
   userID?: string
 }): RequestInit {
+  const headerError = validateApiKeyHeader(apiKey)
+  if (headerError) {
+    throw new TypeError(headerError)
+  }
   return {
     ...(getProxyFetchOptions() as RequestInit),
     method: 'POST',

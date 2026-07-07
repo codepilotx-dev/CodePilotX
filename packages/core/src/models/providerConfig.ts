@@ -6,7 +6,10 @@ import {
   CODEPILOTX_CONFIG_DIR_NAME,
   LEGACY_CLAUDE_CONFIG_DIR_ENV,
 } from '../config/env.js'
-import { MODELS_DEV_PROVIDERS } from './modelsDevSnapshot.js'
+import {
+  MODELS_DEV_CATALOG,
+  MODELS_DEV_PROVIDERS,
+} from './modelsDevSnapshot.js'
 import {
   formatProviderModel,
   getProviderApiKeyEnvVar,
@@ -421,7 +424,7 @@ export const PROVIDER_CONFIGS: Record<string, ModelProviderConfig> = {
   const initialCatalog: Record<string, ModelProviderConfig> = {
     ...PROVIDER_CONFIGS,
   }
-  mergeModelsDevCatalog(initialCatalog, { providers: MODELS_DEV_PROVIDERS })
+  mergeModelsDevCatalog(initialCatalog, MODELS_DEV_CATALOG)
   providerCatalogCache = initialCatalog
   providerCatalogDiagnostics = {
     modelsDev: {
@@ -741,7 +744,7 @@ export function clearProviderConfigCatalogCacheForTests(): void {
   const initialCatalog: Record<string, ModelProviderConfig> = {
     ...PROVIDER_CONFIGS,
   }
-  mergeModelsDevCatalog(initialCatalog, { providers: MODELS_DEV_PROVIDERS })
+  mergeModelsDevCatalog(initialCatalog, MODELS_DEV_CATALOG)
   providerCatalogCache = initialCatalog
   providerCatalogDiagnostics = {
     modelsDev: {
@@ -908,9 +911,7 @@ async function fetchProviderConfigCatalog(): Promise<
   } else {
     // Remote fetch failed — use built-in snapshot as fallback so provider
     // list is not reduced to only the hardcoded zhipu entry.
-    const stats = mergeModelsDevCatalog(catalog, {
-      providers: MODELS_DEV_PROVIDERS,
-    })
+    const stats = mergeModelsDevCatalog(catalog, MODELS_DEV_CATALOG)
     providerCatalogDiagnostics.modelsDev = {
       status: 'builtin',
       providerCount: stats.providerCount,
@@ -1003,9 +1004,9 @@ function mergeModelsDevCatalog(
           npmPackage: fromModelsDev.npmPackage ?? existing.npmPackage,
           requiresBaseURL:
             fromModelsDev.requiresBaseURL ?? existing.requiresBaseURL,
-          defaultModels: fromModelsDev.defaultModels.length
-            ? fromModelsDev.defaultModels
-            : existing.defaultModels,
+          defaultModels: existing.defaultModels.length
+            ? existing.defaultModels
+            : fromModelsDev.defaultModels,
           modelMetadata: mergeModelMetadata(
             existing.modelMetadata,
             fromModelsDev.modelMetadata,
@@ -1163,7 +1164,7 @@ function mergeModelMetadata(
     merged[modelID] = current
       ? {
           ...current,
-          ...metadata,
+          ...definedProperties(metadata),
           catalogSources: Array.from(
             new Set([
               ...(current.catalogSources ?? []),
@@ -1175,6 +1176,12 @@ function mergeModelMetadata(
       : metadata
   }
   return merged
+}
+
+function definedProperties<T extends object>(value: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(value).filter(([, entry]) => entry !== undefined),
+  ) as Partial<T>
 }
 
 function hasModelsDevAPI(provider: ModelsDevProvider): boolean {
