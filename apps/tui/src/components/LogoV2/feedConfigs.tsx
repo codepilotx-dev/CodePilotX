@@ -78,7 +78,7 @@ export function createProjectOnboardingFeed(steps: Step[]): FeedConfig {
 
   const warningText =
     getCwd() === homedir()
-      ? 'Note: You have launched claude in your home directory. For the best experience, launch it in a project directory instead.'
+	      ? 'Note: You have launched CodePilotX in your home directory. For the best experience, launch it in a project directory instead.'
       : undefined
 
   if (warningText) {

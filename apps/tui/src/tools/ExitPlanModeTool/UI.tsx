@@ -60,7 +60,7 @@ export function renderToolResultMessage(
     <Box flexDirection="column" marginTop={1}>
       <Box flexDirection="row">
         <Text color={getModeColor('plan')}>{BLACK_CIRCLE}</Text>
-        <Text> User approved Claude&apos;s plan</Text>
+        <Text> User approved CodePilotX&apos;s plan</Text>
       </Box>
       <MessageResponse>
         <Box flexDirection="column">

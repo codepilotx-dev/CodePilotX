@@ -81,7 +81,7 @@ export async function* queryMiniMaxWithAiSdkStreaming({
   if (!apiKey) {
     yield createAssistantAPIErrorMessage({
       content:
-        `${provider.displayName} API key is not configured. Run /connect to save it, or set ${provider.apiKeyEnvVar ?? 'the provider API key environment variable'}.`,
+        `${provider.displayName} API key is not configured. Run /connect to save it.`,
       apiError: 'authentication_error',
     })
     return

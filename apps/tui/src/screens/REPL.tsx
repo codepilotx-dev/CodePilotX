@@ -5263,7 +5263,7 @@ export function REPL({
         ) {
           void sendNotification(
             {
-              message: 'Claude is waiting for your input',
+              message: 'CodePilotX is waiting for your input',
               notificationType: 'idle_prompt',
             },
             terminal,
@@ -6776,7 +6776,7 @@ export function REPL({
                           inputValue={inputValue}
                           setInputValue={setInputValue}
                           onRequestFeedback={handleSurveyRequestFeedback}
-                          message="How well did Claude use its memory? (optional)"
+                          message="How well did CodePilotX use its memory? (optional)"
                         />
                       ) : (
                         <FeedbackSurvey

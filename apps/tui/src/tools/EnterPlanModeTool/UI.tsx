@@ -24,7 +24,7 @@ export function renderToolResultMessage(
       </Box>
       <Box paddingLeft={2}>
         <Text dimColor>
-          Claude is now exploring and designing an implementation approach.
+          CodePilotX is now exploring and designing an implementation approach.
         </Text>
       </Box>
     </Box>

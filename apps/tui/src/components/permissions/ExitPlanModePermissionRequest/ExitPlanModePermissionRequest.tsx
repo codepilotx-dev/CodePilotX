@@ -898,7 +898,7 @@ export function ExitPlanModePermissionRequest({
         workerBadge={workerBadge}
       >
         <Box flexDirection="column" paddingX={1} marginTop={1}>
-          <Text>Claude wants to exit plan mode</Text>
+          <Text>CodePilotX wants to exit plan mode</Text>
           <Box marginTop={1}>
             <Select
               options={[

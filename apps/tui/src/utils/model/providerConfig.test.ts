@@ -196,7 +196,7 @@ test('models.dev providers keep catalog package and env vars', async () => {
   }
 })
 
-test('provider api keys use provider id in storage and catalog aliases from env', () => {
+test('provider api keys use provider id in storage only, not env fallback', () => {
   const provider = {
     providerID: 'minimax-cn-coding-plan',
     kind: 'anthropic-compatible' as const,
@@ -222,12 +222,14 @@ test('provider api keys use provider id in storage and catalog aliases from env'
     }),
   ).toBeUndefined()
 
+  // Environment variable fallback is intentionally disabled —
+  // env alone no longer resolves a key.
   expect(
     resolveProviderApiKeyFromSources(provider, {
       env: { MINIMAX_API_KEY: 'env-key' },
       storedKeys: {},
     }),
-  ).toBe('env-key')
+  ).toBeUndefined()
 })
 
 test('provider api keys do not fall back to a different minimax provider id', () => {

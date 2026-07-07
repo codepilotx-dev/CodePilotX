@@ -48,7 +48,7 @@ export function EnterPlanModePermissionRequest({
     >
       <Box flexDirection="column" marginTop={1} paddingX={1}>
         <Text>
-          Claude wants to enter plan mode to explore and design an
+          CodePilotX wants to enter plan mode to explore and design an
           implementation approach.
         </Text>
 
