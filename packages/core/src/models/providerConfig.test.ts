@@ -315,7 +315,7 @@ test('core provider config persists selected provider model and base URL', async
   })
 })
 
-test('core provider config resolves provider api keys from storage and env', async () => {
+test('core provider config resolves provider api keys from secure storage only', async () => {
   await withProviderConfigDir(async configDir => {
     await mkdir(configDir, { recursive: true })
     await writeFile(
@@ -336,13 +336,39 @@ test('core provider config resolves provider api keys from storage and env', asy
     expect(getProviderApiKey('zhipu')).toBe('new-zhipu-key')
 
     expect(deleteProviderApiKey('zhipu').success).toBe(true)
+    // Environment variable fallback is intentionally removed — provider API
+    // keys are read from secure storage by providerID only.
     process.env.ZAI_API_KEY = 'env-zhipu-key'
-    expect(getProviderApiKey('zhipu')).toBe('env-zhipu-key')
-    expect(getProviderApiKeySource('zhipu')).toBe('ZAI_API_KEY')
+    expect(getProviderApiKey('zhipu')).toBeNull()
+    expect(getProviderApiKeySource('zhipu')).toBeNull()
   })
 })
 
-test('core provider api key source helpers can be used without storage', () => {
+test('core provider api keys are isolated by providerID', async () => {
+  await withProviderConfigDir(async configDir => {
+    await mkdir(configDir, { recursive: true })
+    await writeFile(
+      join(configDir, '.credentials.json'),
+      JSON.stringify({
+        providerApiKeys: {
+          'minimax-cn-coding-plan': 'coding-plan-key',
+          minimax: 'generic-minimax-key',
+        },
+      }),
+      'utf8',
+    )
+
+    expect(getProviderApiKey('minimax-cn-coding-plan')).toBe('coding-plan-key')
+    expect(getProviderApiKey('minimax')).toBe('generic-minimax-key')
+
+    expect(deleteProviderApiKey('minimax').success).toBe(true)
+    expect(getProviderApiKey('minimax')).toBeNull()
+    // Deleting one providerID's key does not affect another
+    expect(getProviderApiKey('minimax-cn-coding-plan')).toBe('coding-plan-key')
+  })
+})
+
+test('core provider api key source helpers use providerID in storage only', () => {
   const provider = {
     providerID: 'minimax-cn-coding-plan',
     kind: 'anthropic-compatible' as const,
@@ -368,13 +394,15 @@ test('core provider api key source helpers can be used without storage', () => {
     }),
   ).toBeUndefined()
 
+  // Environment variable fallback is intentionally disabled —
+  // env alone no longer resolves a key.
   expect(
     resolveProviderApiKeyFromSources(provider, {
       env: { MINIMAX_API_KEY: 'env-alias-key' },
       storedKeys: {},
     }),
-	  ).toBe('env-alias-key')
-	})
+  ).toBeUndefined()
+})
 
 test('validateApiKeyHeader rejects Chinese text', () => {
 	  expect(validateApiKeyHeader('是的，执行此计划')).toBe(

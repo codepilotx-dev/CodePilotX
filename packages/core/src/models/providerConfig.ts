@@ -1292,17 +1292,11 @@ function resolveProviderApiKeyEntryFromSources(
     env?: Record<string, string | undefined>
   },
 ): { value: string; source: string } | undefined {
-  const credentialKeys = [
-    provider.providerID,
-  ]
-  for (const key of Array.from(new Set(credentialKeys))) {
-    const stored = sources.storedKeys?.[key]?.trim()
-    if (stored) return { value: stored, source: 'secureStorage' }
-  }
-  for (const envKey of getProviderEnvVars(provider)) {
-    const envValue = sources.env?.[envKey]?.trim()
-    if (envValue) return { value: envValue, source: envKey }
-  }
+  // Provider API keys are only read from secure storage by providerID.
+  // Environment variable fallback is intentionally removed — each provider
+  // must use its own isolated key in secure storage.
+  const stored = sources.storedKeys?.[provider.providerID]?.trim()
+  if (stored) return { value: stored, source: 'secureStorage' }
   return undefined
 }
 

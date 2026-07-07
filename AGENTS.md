@@ -125,6 +125,14 @@ These instructions apply to the whole `ClaudeCode` tree unless a nested
 - When reusing reference logic, mention the source repository/path in the
   handoff.
 
+## Provider API Keys
+- Provider API keys must be stored and read by providerID in secure storage only
+  (`providerApiKeys[providerID]`). Environment variable fallback
+  (`provider.envVars`, `apiKeyEnvVar`, or `process.env`) is intentionally
+  disabled — a shared env var such as `MINIMAX_API_KEY` must not serve as a
+   fallback key for multiple providers. Do not reintroduce env‑var fallback
+   when adding or modifying provider API key resolution.
+
 ## Validation
 - First look for nearby existing validation patterns or commands.
 - If no runnable test/build command is available in this checkout, do a
