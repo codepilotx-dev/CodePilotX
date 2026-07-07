@@ -41,6 +41,16 @@
 }
 
 .desktop-workspace {
+  --desktop-workspace-fixed-control-button-size: calc(
+    var(--app-icon-size) + 16px
+  );
+  --desktop-workspace-fixed-controls-gap: 2px;
+  --desktop-workspace-fixed-controls-pad-x: 12px;
+  --desktop-workspace-fixed-controls-w: calc(
+    2 * var(--desktop-workspace-fixed-control-button-size) +
+      var(--desktop-workspace-fixed-controls-gap) + 2 *
+      var(--desktop-workspace-fixed-controls-pad-x)
+  );
   width: 100%;
   height: 100%;
   min-width: 0;
@@ -70,8 +80,9 @@
   display: flex;
   align-items: center;
   gap: 2px;
-  padding: 0 12px;
-  min-height: 40px;
+  padding-right: 12px;
+  max-height: 40px;
+  height: 100%;
   pointer-events: none;
 }
 
@@ -80,10 +91,12 @@
 }
 
 .desktop-workspace-fixed-control-button {
+  width: var(--desktop-workspace-fixed-control-button-size);
+  height: var(--desktop-workspace-fixed-control-button-size);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 8px;
+  padding: 0;
   border: 0;
   border-radius: 10px;
   background: transparent;
@@ -177,7 +190,6 @@
 .right-dock-tab-list {
   flex: 1 1 auto;
   overflow: hidden;
-  min-height: 40px;
 }
 
 .right-dock-controls {
@@ -365,12 +377,10 @@
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-
   padding: 0 92px 0 10px;
+  max-height: 40px;
+  height: 100%;
 
-  border-bottom: 1px solid var(--c-border-soft);
   overflow: hidden;
 }
 

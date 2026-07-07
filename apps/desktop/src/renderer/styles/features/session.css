@@ -96,10 +96,15 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--sp-2);
-  padding: var(--sp-2) var(--sp-5);
-  border-bottom: 1px solid var(--c-border-soft);
+  padding: 0 10px;
+
   flex-shrink: 0;
   min-height: 40px;
+}
+
+.chat-session-header--dock-closed {
+  width: calc(100% - var(--desktop-workspace-fixed-controls-w));
+  padding-right: 2px;
 }
 
 .chat-session-title {
@@ -2380,6 +2385,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden; /* VList manages its own scroll */
+  border-top: 1px solid var(--c-border-soft);
 }
 
 .workflow-main-scroll-content {
@@ -2504,7 +2510,11 @@
   left: 0;
   width: 100%;
   height: 40px;
-  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.3) 10%, rgba(0, 0, 0, 0.1) 90%);
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.3) 10%,
+    rgba(0, 0, 0, 0.1) 90%
+  );
 }
 
 .workflow-plan-card__body .md-body {
