@@ -14,11 +14,7 @@
  * This follows the same pattern as `services/mcp/configRuntime.ts`.
  */
 
-import type {
-  BillingType,
-  OAuthTokens,
-  SubscriptionType,
-} from '../services/oauth/types.js'
+import type { BillingType } from '../services/oauth/types.js'
 
 // ─── Auth Runtime ─────────────────────────────────────────────────────────
 
@@ -29,13 +25,6 @@ import type {
  * Desktop implements them with its own credential-reading logic.
  */
 export type AuthRuntime = {
-  checkAndRefreshOAuthTokenIfNeeded(
-    retryCount?: number,
-    force?: boolean,
-  ): Promise<boolean>
-
-  getClaudeAIOAuthTokens(): OAuthTokens | null
-
   hasProfileScope(): boolean
 
   isClaudeAISubscriber(): boolean
