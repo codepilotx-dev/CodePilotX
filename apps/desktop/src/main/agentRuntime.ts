@@ -49,10 +49,12 @@ import {
 import { desktopDebug } from './desktopDebug.js'
 import { SidecarDesktopAgentRuntime } from './sidecarAgentRuntime.js'
 import { SidecarStartError } from './sidecarManager.js'
+import { RustSidecarDesktopAgentRuntime } from './rustSidecarRuntime.js'
 
 export type DesktopAgentRuntimePreference =
   | 'auto'
   | 'sidecar'
+  | 'rust-sidecar'
   | 'embedded-headless'
   | 'subprocess'
 
@@ -185,6 +187,13 @@ export function createDesktopAgentRuntime(
       preference,
     })
     return new InProcessDesktopAgentRuntime(context)
+  }
+  if (preference === 'rust-sidecar') {
+    desktopDebug('runtime_create_rust_sidecar', {
+      sessionId: context.sessionId,
+      preference,
+    })
+    return new RustFallbackDesktopAgentRuntime(context)
   }
   if (preference === 'auto') {
     desktopDebug('runtime_create_auto_sidecar', {
@@ -350,6 +359,96 @@ class AutoFallbackDesktopAgentRuntime implements DesktopAgentRuntime {
 
   getMcpRuntimeStatus() {
     return (this.fallback ?? this.sidecar).getMcpRuntimeStatus()
+  }
+}
+
+class RustFallbackDesktopAgentRuntime implements DesktopAgentRuntime {
+  private readonly rustSidecar: RustSidecarDesktopAgentRuntime
+  private fallback: InProcessDesktopAgentRuntime | null = null
+
+  constructor(private readonly context: DesktopAgentRuntimeContext) {
+    this.rustSidecar = new RustSidecarDesktopAgentRuntime(context)
+  }
+
+  setModel(model: string | undefined): void {
+    this.rustSidecar.setModel(model)
+    this.fallback?.setModel(model)
+  }
+
+  setModelProvider(
+    providerID: string | undefined,
+    model: string | undefined,
+    providerBaseURL: string | undefined,
+  ): void {
+    this.rustSidecar.setModelProvider(providerID, model, providerBaseURL)
+    this.fallback?.setModelProvider(providerID, model, providerBaseURL)
+  }
+
+  setPermissionMode(permissionMode: DesktopPermissionMode): void {
+    this.rustSidecar.setPermissionMode(permissionMode)
+    this.fallback?.setPermissionMode(permissionMode)
+  }
+
+  setPlanModeActive(active: boolean): void {
+    this.rustSidecar.setPlanModeActive(active)
+    this.fallback?.setPlanModeActive(active)
+  }
+
+  setDebugConversationDump(enabled: boolean): void {
+    this.rustSidecar.setDebugConversationDump(enabled)
+    this.fallback?.setDebugConversationDump(enabled)
+  }
+
+  async runUserTurn(
+    content: DesktopUserMessageContent,
+    signal: AbortSignal,
+  ): Promise<void> {
+    if (this.fallback) {
+      await this.fallback.runUserTurn(content, signal)
+      return
+    }
+    try {
+      await this.rustSidecar.runUserTurn(content, signal)
+    } catch (error) {
+      if (!(error instanceof SidecarStartError) || signal.aborted) {
+        throw error
+      }
+      desktopDebug('runtime_rust_sidecar_failed_fallback_embedded', {
+        sessionId: this.context.sessionId,
+        message: error.message,
+      })
+      await this.rustSidecar.dispose()
+      this.fallback = new InProcessDesktopAgentRuntime(this.context)
+      await this.fallback.runUserTurn(content, signal)
+    }
+  }
+
+  async runControlResponse(
+    response: Record<string, unknown>,
+    signal: AbortSignal,
+  ): Promise<void> {
+    if (this.fallback) {
+      await this.fallback.runControlResponse(response, signal)
+      return
+    }
+    try {
+      await this.rustSidecar.runControlResponse(response, signal)
+    } catch (error) {
+      if (!(error instanceof SidecarStartError) || signal.aborted) {
+        throw error
+      }
+      desktopDebug('runtime_rust_sidecar_control_failed_fallback_embedded', {
+        sessionId: this.context.sessionId,
+        message: error.message,
+      })
+      await this.rustSidecar.dispose()
+      this.fallback = new InProcessDesktopAgentRuntime(this.context)
+      await this.fallback.runControlResponse(response, signal)
+    }
+  }
+
+  getMcpRuntimeStatus() {
+    return (this.fallback ?? this.rustSidecar).getMcpRuntimeStatus()
   }
 }
 
@@ -820,7 +919,10 @@ class CliDesktopAgentRuntime implements DesktopAgentRuntime {
   private emitContextUsage(message: Record<string, unknown>): void {
     const usageRecord = getUsageFromAssistantRecord(message)
     if (!usageRecord) return
-    const usage = buildDesktopContextUsage(usageRecord)
+    const usage = buildDesktopContextUsage({
+      ...usageRecord,
+      provider: this.context.providerID,
+    })
     if (!usage) return
     this.context.emit({
       type: 'context_usage',
@@ -1348,7 +1450,10 @@ class InProcessDesktopAgentRuntime implements DesktopAgentRuntime {
   private emitContextUsage(message: Record<string, unknown>): void {
     const usageRecord = getUsageFromAssistantRecord(message)
     if (!usageRecord) return
-    const usage = buildDesktopContextUsage(usageRecord)
+    const usage = buildDesktopContextUsage({
+      ...usageRecord,
+      provider: this.context.providerID,
+    })
     if (!usage) return
     this.context.emit({
       type: 'context_usage',

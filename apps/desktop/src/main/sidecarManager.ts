@@ -63,6 +63,25 @@ export type SidecarPermissionDecision = {
 
 export const SIDECAR_RUNNER_ENV = 'CODEPILOTX_JSON_RPC_APP_SERVER' as const
 
+export type SidecarManagerOptions = {
+  /** sidecar entrypoint JS/TS path for script runtimes */
+  entrypoint?: string
+  /** Direct executable to spawn, used by the Rust app-server sidecar */
+  command?: string
+  /** Working directory */
+  cwd: string
+  /** Environment passed to the sidecar */
+  env: Record<string, string | undefined>
+  /** Runtime used to execute entrypoint (bun / node) */
+  runtime?: string
+  /** Extra runtime args before entrypoint */
+  runtimeArgs?: string[]
+  /** Direct executable args */
+  args?: string[]
+  /** Connection timeout in milliseconds */
+  startTimeoutMs?: number
+}
+
 // ── SidecarManager ────────────────────────────────────────────────────────
 
 export class SidecarManager {
@@ -74,22 +93,7 @@ export class SidecarManager {
   private startupResolve: (() => void) | null = null
   private startupReject: ((err: Error) => void) | null = null
 
-  constructor(
-    private readonly options: {
-      /** sidecar entrypoint JS/TS 路径 */
-      entrypoint: string
-      /** 工作目录 */
-      cwd: string
-      /** 传递给 sidecar 的环境变量 */
-      env: Record<string, string | undefined>
-      /** 用于执行 entrypoint 的运行时（bun / node） */
-      runtime?: string
-      /** 额外 spawn 参数 */
-      runtimeArgs?: string[]
-      /** 连接超时（毫秒） */
-      startTimeoutMs?: number
-    },
-  ) {}
+  constructor(private readonly options: SidecarManagerOptions) {}
 
   // ── Lifecycle ───────────────────────────────────────────────────────────
 
@@ -98,15 +102,20 @@ export class SidecarManager {
 
     desktopDebug('sidecar_start', {
       entrypoint: this.options.entrypoint,
+      command: this.options.command,
       cwd: this.options.cwd,
     })
 
     const timeout = this.options.startTimeoutMs ?? 15_000
     const runtime = this.options.runtime ?? 'bun'
     const runtimeArgs = this.options.runtimeArgs ?? ['run']
+    const command = this.options.command ?? runtime
+    const args = this.options.command
+      ? (this.options.args ?? [])
+      : [...runtimeArgs, requireSidecarEntrypoint(this.options)]
 
     // 1. Spawn 子进程
-    const child = spawn(runtime, [...runtimeArgs, this.options.entrypoint], {
+    const child = spawn(command, args, {
       cwd: this.options.cwd,
       windowsHide: true,
       env: {
@@ -326,6 +335,13 @@ export class SidecarManager {
       ),
     ])
   }
+}
+
+function requireSidecarEntrypoint(options: SidecarManagerOptions): string {
+  if (!options.entrypoint) {
+    throw new Error('Sidecar entrypoint is required when command is not set.')
+  }
+  return options.entrypoint
 }
 
 // ── 工具：构建 sidecar env ─────────────────────────────────────────────────

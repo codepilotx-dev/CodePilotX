@@ -3,14 +3,14 @@
  *
  * Bridges the core SQLite session index with the desktop's
  * `DesktopSessionSnapshot` format. SQLite is the authoritative source
- * for session *listing* (sort, pagination, metadata); `sessions.json`
- * overlays supply desktop-only UI state (pending permissions,
+ * for session listing (sort, pagination, metadata). Desktop SQLite overlay
+ * rows supply desktop-only UI state (pending permissions,
  * workflow events, review comments, settings overrides).
  *
  * Design:
  * - `listDesktopSessionRows()` reads all active sessions from SQLite,
  *   sorted by `recency_at_ms DESC, id DESC`.
- * - `snapshotFromSessionRow(row, overlay)` converts a SQLite row +
+ * - `snapshotFromSessionRow(row, overlay)` converts a SQLite row plus
  *   optional overlay into a `DesktopSessionSnapshot`.
  * - `syncDesktopSnapshotToSqlite(snapshot)` pushes a single session's
  *   metadata to SQLite (called after create, events, title, patch,
@@ -18,7 +18,7 @@
  * - `ensureDesktopSessionIndex()` opens SQLite, runs backfill if needed.
  *
  * Stale path handling:
- *   If a SQLite row's transcript_path (or rollout_path) no longer exists
+ *   If a SQLite row's transcript_path or rollout_path no longer exists
  *   on disk, it is removed from the index and a filesystem repair pass
  *   re-scans the project directory to restore valid rows.
  */
@@ -35,10 +35,10 @@ import { getProjectsDir, getProjectDir, loadLogFromTranscript } from '@codepilot
 import type {
   DesktopSessionListItem,
   DesktopSessionSnapshot,
-  DesktopSessionOverlay,
   DesktopWorkspace,
   DesktopSessionSettingsSnapshot,
 } from '../shared/types.js'
+import type { DesktopSessionOverlay } from './desktopSessionOverlayStore.js'
 import { isStandaloneWorkspacePath } from './standaloneWorkspace.js'
 
 // ---------------------------------------------------------------------------
@@ -49,7 +49,7 @@ import { isStandaloneWorkspacePath } from './standaloneWorkspace.js'
  * Ensure the SQLite session index is open and populated.
  *
  * Opens the database, runs migrations, and starts backfill if it hasn't
- * completed yet. The overlays map (from sessions.json) is passed through
+ * completed yet. The overlays map is passed through
  * so backfill can merge desktop-only title/status/pin fields.
  */
 export function ensureDesktopSessionIndex(
@@ -73,7 +73,7 @@ export function ensureDesktopSessionIndex(
  *
  * Returns a flat array of `DesktopSessionSnapshot` assembled from SQLite
  * rows with overlay merge. Overlay-only orphan sessions (present in
- * sessions.json but absent from SQLite) are appended at the end.
+ * desktop overlays but absent from SQLite) are appended at the end.
  *
  * Stale-path cleanup is performed inline: if a SQLite row points at a
  * transcript file that no longer exists, the row is deleted and the
@@ -120,7 +120,7 @@ export function listDesktopSessionRows(
     repairStaleProjects(staleIds)
   }
 
-  // 3. Append overlay-only orphans (sessions.json has them but SQLite
+  // 3. Append overlay-only orphans (desktop state has them but SQLite
   //    didn't, either because backfill is still running or they are
   //    ephemeral desktop overlays).
   if (overlaysById) {
@@ -144,7 +144,7 @@ export function listDesktopSessionRows(
  * settings overrides, pending permission recovery, etc.).
  *
  * If `row` is null, the snapshot is built from the overlay alone
- * (orphan path — sessions.json has it, SQLite backfill hasn't caught up).
+ * (orphan path: desktop state has it, SQLite backfill hasn't caught up).
  */
 export function snapshotFromSessionRow(
   row: SessionRow | null,

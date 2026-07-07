@@ -675,6 +675,7 @@ declare module '@codepilotx/core/models/provider.js' {
   export type ModelProviderID = string
   export type ModelProviderKind =
     | 'anthropic'
+    | 'anthropic-compatible'
     | 'openai-compatible'
     | 'minimax'
     | 'github-copilot'
@@ -790,6 +791,10 @@ declare module '@codepilotx/core/utils/auth.js' {
 }
 
 declare module '@codepilotx/core/utils/config.js' {
+  export function enableConfigs(): void
+}
+
+declare module '@codepilotx/tui/utils/config.js' {
   export function enableConfigs(): void
 }
 
@@ -1493,6 +1498,11 @@ declare module '@codepilotx/core/models/providerConfig.js' {
     ProviderTokenPlanUsageInfo,
   } from '@codepilotx/core/models/provider.js'
 
+  export type ProviderConfig = ModelProviderConfig
+  export type ProviderConfigRuntime = {
+    fetch?: typeof fetch
+    env?: Record<string, string | undefined>
+  }
   export function listProviderConfigs(): Promise<ModelProviderConfig[]>
   export function getProviderConfig(
     providerID: ModelProviderID,
@@ -1533,6 +1543,11 @@ declare module '@codepilotx/core/models/providerConfig.js' {
   export function deleteProviderApiKey(
     providerID: ModelProviderID,
   ): { success: boolean; warning?: string }
+  export function clearProviderConfigCatalogCacheForTests(): void
+  export function withProviderConfigRuntime<T>(
+    runtime: ProviderConfigRuntime,
+    run: () => T,
+  ): T
 }
 
 declare module '@codepilotx/core/memory/state.js' {

@@ -2,7 +2,6 @@ import { randomUUID } from 'node:crypto'
 import { setTimeout as delay } from 'node:timers/promises'
 import {
   mkdir,
-  readFile,
   readdir,
   rename,
   stat,
@@ -55,6 +54,13 @@ import {
   type DesktopRolloutSource,
 } from './desktopRolloutPersistence.js'
 import {
+  readDesktopSessionOverlayStoreWithLegacyImport,
+  readRawLegacyDesktopSessionOverlayStore,
+  saveDesktopSessionOverlayStoreToSqlite,
+  type DesktopSessionOverlay,
+  type PersistedDesktopSessionOverlayStore,
+} from './desktopSessionOverlayStore.js'
+import {
   normalizeDesktopApprovalPolicy,
   normalizeDesktopApprovalsReviewer,
   normalizeDesktopPermissionProfile,
@@ -76,36 +82,6 @@ import {
 type PersistedDesktopSessions = {
   activeSessionId: string | null
   sessions: DesktopSessionSnapshot[]
-}
-
-type PersistedDesktopSessionOverlayStore = {
-  activeSessionId: string | null
-  sessions: DesktopSessionOverlay[]
-}
-
-type DesktopSessionOverlay = {
-  id: string
-  workspace: DesktopWorkspace
-  settings: DesktopSessionSettingsSnapshot
-  standalone?: boolean
-  pinnedAt?: string | null
-  archivedAt?: string | null
-  sessionName?: string | null
-  aiTitle?: string | null
-  customTitle?: string | null
-  status?: DesktopSessionStatus
-  createdAt?: string
-  lastMessageAt?: string | null
-  updatedAt?: string
-  rolloutPath?: string | null
-  legacyTranscriptPath?: string | null
-  source?: DesktopRolloutSource | null
-  parentSessionId?: string | null
-  guardianRolloutPath?: string | null
-  workflowEvents?: DesktopWorkflowEvent[]
-  workflowEventModelVersion?: 1
-  reviewComments?: DesktopReviewComment[]
-  legacySnapshot?: DesktopSessionSnapshot
 }
 
 type ParsedTranscriptView = DesktopSessionViewSnapshot & {
@@ -490,7 +466,6 @@ function roleSortRank(role: DesktopSessionMessage['role']): number {
 export async function saveDesktopSessionStore(
   state: PersistedDesktopSessions,
 ): Promise<void> {
-  const filePath = getDesktopSessionIndexPath()
   const overlayStore: PersistedDesktopSessionOverlayStore = {
     activeSessionId: state.activeSessionId,
     sessions: state.sessions.map(snapshot => {
@@ -511,6 +486,7 @@ export async function saveDesktopSessionStore(
         aiTitle: overlay.aiTitle,
         customTitle: overlay.customTitle,
         status: overlay.status,
+        firstPrompt: overlay.firstPrompt,
         createdAt: overlay.createdAt,
         lastMessageAt: overlay.lastMessageAt,
         updatedAt: overlay.updatedAt,
@@ -526,8 +502,14 @@ export async function saveDesktopSessionStore(
       }
     }),
   }
-  await writeFileAtomically(filePath, JSON.stringify(overlayStore, null, 2))
-  await cleanupStaleDesktopSessionIndexTempFiles(filePath)
+
+  try {
+    saveDesktopSessionOverlayStoreToSqlite(overlayStore)
+  } catch {
+    const filePath = getDesktopSessionIndexPath()
+    await writeFileAtomically(filePath, JSON.stringify(overlayStore, null, 2))
+    await cleanupStaleDesktopSessionIndexTempFiles(filePath)
+  }
 
   // Best-effort sync to SQLite index
   try {
@@ -839,9 +821,19 @@ export function removePendingPermissionFromSnapshot(
 }
 
 async function readDesktopSessionOverlayStore(): Promise<PersistedDesktopSessionOverlayStore> {
+  return readDesktopSessionOverlayStoreWithLegacyImport(
+    getDesktopSessionIndexPath(),
+    readLegacyDesktopSessionOverlayStore,
+  )
+}
+
+async function readLegacyDesktopSessionOverlayStore(
+  filePath: string,
+): Promise<PersistedDesktopSessionOverlayStore> {
   try {
-    const raw = await readFile(getDesktopSessionIndexPath(), 'utf8')
-    return normalizePersistedOverlayStore(JSON.parse(raw))
+    return normalizePersistedOverlayStore(
+      await readRawLegacyDesktopSessionOverlayStore(filePath),
+    )
   } catch {
     return { activeSessionId: null, sessions: [] }
   }
@@ -906,6 +898,7 @@ function normalizeSessionOverlay(value: unknown): DesktopSessionOverlay[] {
       aiTitle: nullableString(raw.aiTitle),
       customTitle: nullableString(raw.customTitle),
       status: normalizeStatus(raw.status),
+      firstPrompt: nullableString(raw.firstPrompt),
       createdAt: stringOrUndefined(raw.createdAt),
       lastMessageAt: normalizeTimestampString(raw.lastMessageAt),
       updatedAt: stringOrUndefined(raw.updatedAt),
@@ -1049,7 +1042,7 @@ function snapshotFromTranscriptLog(
   )
   const settings = overlay?.settings ?? defaultSettingsSnapshot()
   const parsed = includeView
-    ? parseTranscriptLogView(sessionId, log.messages)
+    ? parseTranscriptLogView(sessionId, log.messages, settings.providerID)
     : {
         ...createEmptyViewSnapshot(),
         events: [] as DesktopSessionEvent[],
@@ -1233,6 +1226,7 @@ function overlayFromSnapshot(
     aiTitle: normalizedSnapshot.item.aiTitle ?? null,
     customTitle: normalizedSnapshot.item.customTitle ?? null,
     status: normalizedSnapshot.item.status,
+    firstPrompt: normalizedSnapshot.item.firstPrompt ?? null,
     createdAt: normalizedSnapshot.item.createdAt,
     lastMessageAt: normalizedSnapshot.item.lastMessageAt ?? null,
     updatedAt: normalizedSnapshot.updatedAt,
@@ -1329,6 +1323,7 @@ function logOptionFromSnapshot(
 function parseTranscriptLogView(
   sessionId: string,
   messages: SerializedMessage[],
+  providerID?: string,
 ): ParsedTranscriptView {
   const viewMessages: DesktopSessionMessage[] = []
   const toolLog: DesktopToolLogEntry[] = []
@@ -1364,7 +1359,7 @@ function parseTranscriptLogView(
       if (usageRecord) {
         const usage = buildDesktopContextUsage({
           ...usageRecord,
-          provider: inferProviderFromModel(usageRecord.model) ?? null,
+          provider: providerID ?? inferProviderFromModel(usageRecord.model) ?? null,
         })
         contextUsage = usage ?? contextUsage
         effectiveModel = validModelName(usageRecord.model) ?? effectiveModel

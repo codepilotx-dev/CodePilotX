@@ -120,6 +120,33 @@ test('buildDesktopContextUsage returns 200k default for unknown model', () => {
   expect(result!.contextWindow).toBe(200_000)
 })
 
+test('buildDesktopContextUsage uses provider metadata for glm-5.2 with zhipu provider', () => {
+  const result = buildDesktopContextUsage({
+    model: 'glm-5.2',
+    provider: 'zhipu',
+    usage: { input_tokens: 24_700, output_tokens: 1_500 },
+  })
+
+  expect(result).not.toBeNull()
+  expect(result!.provider).toBe('zhipu')
+  expect(result!.contextWindow).toBe(1_000_000)
+  expect(result!.remainingTokens).toBe(1_000_000 - 24_700 - 1_500)
+})
+
+test('buildDesktopContextUsage falls back to 200k for MiniMax-M3 without provider', () => {
+  // This proves the original bug: without a provider, MiniMax-M3 doesn't match
+  // any hardcoded pattern and falls to the default. The fix requires the
+  // caller to pass the real providerID (e.g. 'minimax-cn').
+  const result = buildDesktopContextUsage({
+    model: 'MiniMax-M3',
+    usage: { input_tokens: 24_700 },
+  })
+
+  expect(result).not.toBeNull()
+  expect(result!.contextWindow).toBe(200_000)
+  expect(result!.provider).toBeUndefined()
+})
+
 test('inferProviderFromModel handles deepseek model prefix', () => {
   expect(inferProviderFromModel('deepseek-v4-flash')).toBe('deepseek')
   expect(inferProviderFromModel('deepseek-chat')).toBe('deepseek')

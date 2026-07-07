@@ -1,11 +1,23 @@
 import { describe, expect, test, mock, beforeEach, afterEach } from 'bun:test'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
+import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
+import {
+  CODEPILOTX_CONFIG_DIR_ENV,
+  LEGACY_CLAUDE_CONFIG_DIR_ENV,
+} from '@codepilotx/core/config/env.js'
+import {
+  clearProviderConfigCatalogCacheForTests,
+  withProviderConfigRuntime,
+} from '@codepilotx/core/models/providerConfig.js'
 import {
   RUST_APP_SERVER_BINARY_ENV,
   RustSidecarDesktopAgentRuntime,
   createRustSidecarOptions,
   resolveRustAppServerExecutable,
+  resolveRustAppServerExecutableInfo,
 } from './rustSidecarRuntime.js'
 import type { DesktopAgentRuntimeContext } from './agentRuntime.js'
 
@@ -39,7 +51,39 @@ describe('rust sidecar runtime options', () => {
     ).toBe(resolve(envPath))
   })
 
-  test('creates stdio app-server launch options', () => {
+  test('ignores reference codex-main Rust app-server env override', () => {
+    const binaryName = process.platform === 'win32'
+      ? 'codex-app-server.exe'
+      : 'codex-app-server'
+    const referencePath = process.platform === 'win32'
+      ? 'D:\\GitHubProject\\Agent\\codex-main\\codex-rs\\target\\debug\\codex-app-server.exe'
+      : '/GitHubProject/Agent/codex-main/codex-rs/target/debug/codex-app-server'
+
+    expect(
+      resolveRustAppServerExecutableInfo({
+        [RUST_APP_SERVER_BINARY_ENV]: referencePath,
+      } as NodeJS.ProcessEnv),
+    ).toEqual({
+      path: resolve(process.cwd(), 'rust', 'codex-rs', 'target', 'debug', binaryName),
+      source: 'workspace',
+    })
+  })
+
+  test('defaults to current workspace Rust app-server executable', () => {
+    const binaryName = process.platform === 'win32'
+      ? 'codex-app-server.exe'
+      : 'codex-app-server'
+
+    expect(resolveRustAppServerExecutable({} as NodeJS.ProcessEnv)).toBe(
+      resolve(process.cwd(), 'rust', 'codex-rs', 'target', 'debug', binaryName),
+    )
+    expect(resolveRustAppServerExecutableInfo({} as NodeJS.ProcessEnv)).toEqual({
+      path: resolve(process.cwd(), 'rust', 'codex-rs', 'target', 'debug', binaryName),
+      source: 'workspace',
+    })
+  })
+
+  test('creates stdio app-server launch options', async () => {
     const context = {
       sessionId: 'session-1',
       workspacePath: process.cwd(),
@@ -48,7 +92,7 @@ describe('rust sidecar runtime options', () => {
       requestPermission: async () => ({ behavior: 'deny' }),
     } satisfies DesktopAgentRuntimeContext
 
-    const options = createRustSidecarOptions(context)
+    const options = await createRustSidecarOptions(context)
 
     expect(options.args).toEqual([
       '--listen',
@@ -61,7 +105,7 @@ describe('rust sidecar runtime options', () => {
     expect(options.env.CODEPILOTX_SIDECAR_MODEL).toBe('test-model')
   })
 
-  test('inherits process.env including CODEX_HOME', () => {
+  test('inherits process.env including CODEX_HOME', async () => {
     using _restore = withEnv('CODEX_HOME', '/custom/codex-home')
 
     const context = {
@@ -72,7 +116,7 @@ describe('rust sidecar runtime options', () => {
       requestPermission: async () => ({ behavior: 'deny' }),
     } satisfies DesktopAgentRuntimeContext
 
-    const options = createRustSidecarOptions(context)
+    const options = await createRustSidecarOptions(context)
 
     // CODEX_HOME 已透传
     expect(options.env.CODEX_HOME).toBe('/custom/codex-home')
@@ -81,7 +125,7 @@ describe('rust sidecar runtime options', () => {
     expect(options.env.CODEPILOTX_SIDECAR_MODEL).toBe('test-model')
   })
 
-  test('sidecar env overrides process.env on conflict', () => {
+  test('sidecar env overrides process.env on conflict', async () => {
     using _restore = withEnv('CODEPILOTX_SIDECAR_MODEL', 'should-be-overridden')
 
     const context = {
@@ -92,10 +136,59 @@ describe('rust sidecar runtime options', () => {
       requestPermission: async () => ({ behavior: 'deny' }),
     } satisfies DesktopAgentRuntimeContext
 
-    const options = createRustSidecarOptions(context)
+    const options = await createRustSidecarOptions(context)
 
     // sidecar 专属变量应覆盖 process.env 中的同名值
     expect(options.env.CODEPILOTX_SIDECAR_MODEL).toBe('override-model')
+  })
+
+  test('registers selected models.dev provider with Rust config overrides', async () => {
+    const configDir = await mkdtemp(join(tmpdir(), 'rust-sidecar-provider-'))
+    using _restoreCodePilotX = withEnv(CODEPILOTX_CONFIG_DIR_ENV, configDir)
+    using _restoreClaude = withEnv(LEGACY_CLAUDE_CONFIG_DIR_ENV, configDir)
+    using _restoreKey = withEnv('MINIMAX_API_KEY', 'sk-minimax-test-key')
+
+    try {
+      const context = {
+        sessionId: 'session-4',
+        workspacePath: process.cwd(),
+        providerID: 'minimax-cn',
+        providerBaseURL: 'https://api.minimaxi.com/anthropic/v1',
+        model: 'MiniMax-M3',
+        emit: () => {},
+        requestPermission: async () => ({ behavior: 'deny' }),
+      } satisfies DesktopAgentRuntimeContext
+
+      clearProviderConfigCatalogCacheForTests()
+      const options = await withProviderConfigRuntime(
+        {
+          fetch: (async () => {
+            throw new Error('network disabled in rust sidecar test')
+          }) as unknown as typeof fetch,
+        },
+        () => createRustSidecarOptions(context),
+      )
+
+      expect(options.args).toContain('-c')
+      expect(options.args).toContain('model="MiniMax-M3"')
+      expect(options.args).toContain('model_provider="minimax-cn"')
+      expect(options.args).toContain(
+        'model_providers.minimax-cn.name="MiniMax (minimaxi.com)"',
+      )
+      expect(options.args).toContain(
+        'model_providers.minimax-cn.wire_api="anthropic_messages"',
+      )
+      expect(options.args).toContain(
+        'model_providers.minimax-cn.base_url="https://api.minimaxi.com/anthropic/v1"',
+      )
+      expect(options.args).toContain(
+        'model_providers.minimax-cn.env_key="MINIMAX_API_KEY"',
+      )
+      expect(options.args).not.toContain('sk-minimax-test-key')
+      expect(options.env.MINIMAX_API_KEY).toBe('sk-minimax-test-key')
+    } finally {
+      await rm(configDir, { force: true, recursive: true })
+    }
   })
 })
 

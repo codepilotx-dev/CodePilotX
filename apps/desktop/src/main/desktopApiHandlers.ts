@@ -29,6 +29,7 @@ import {
   getGithubAuthStatus,
   getGithubProfileOverview,
   listGithubRepositories,
+  logoutAppAuth,
   logoutGithub,
   pollGithubLogin,
   clearGithubUserStatus,
@@ -378,7 +379,12 @@ export function buildDesktopApiHandlers(
 	      windowService.closeDevTools()
 	    },
     openSettings: async () => windowService.openSettings(),
-    logOut: async () => windowService.logOut(),
+    logOut: async () => {
+      // Full logout: clear exchanged app token, GitHub token, account config, and caches
+      await logoutAppAuth()
+      await logoutGithub()
+      windowService.logOut()
+    },
     exitApp: async () => windowService.exitApp(),
     getDataLocation: async (): Promise<DesktopDataLocationState> =>
       getDataLocationState(),

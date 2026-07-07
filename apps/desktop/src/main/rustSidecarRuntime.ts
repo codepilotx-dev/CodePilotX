@@ -2,7 +2,11 @@ import { spawn, type ChildProcess } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { randomUUID } from 'node:crypto'
+import {
+  getProviderApiKey,
+  getProviderConfig,
+  type ProviderConfig,
+} from '@codepilotx/core/models/providerConfig.js'
 import type {
   DesktopAgentRuntime,
   DesktopAgentRuntimeContext,
@@ -12,7 +16,11 @@ import type {
   DesktopPermissionMode,
 } from '../shared/types.js'
 import type { DesktopAgentEvent } from '../shared/types.js'
-import { buildSidecarEnv, type SidecarManagerOptions } from './sidecarManager.js'
+import {
+  SidecarStartError,
+  buildSidecarEnv,
+  type SidecarManagerOptions,
+} from './sidecarManager.js'
 import { RustLineJsonRpcClient } from './rustLineJsonRpcClient.js'
 import { RustAppServerClient } from './rustAppServerClient.js'
 import {
@@ -27,42 +35,82 @@ const __dirname = dirname(__filename)
 
 export const RUST_APP_SERVER_BINARY_ENV = 'CODEPILOTX_RUST_APP_SERVER'
 
+export type RustAppServerExecutableSource =
+  | 'env-override'
+  | 'workspace'
+  | 'bundled'
+
+export type RustAppServerExecutableInfo = {
+  path: string
+  source: RustAppServerExecutableSource
+}
+
 export function resolveRustAppServerExecutable(
   env: NodeJS.ProcessEnv = process.env,
 ): string {
-  const explicitPath = env[RUST_APP_SERVER_BINARY_ENV]?.trim()
-  if (explicitPath) {
-    return resolve(explicitPath)
-  }
+  return resolveRustAppServerExecutableInfo(env).path
+}
 
+export function resolveRustAppServerExecutableInfo(
+  env: NodeJS.ProcessEnv = process.env,
+): RustAppServerExecutableInfo {
   const binaryName = process.platform === 'win32'
     ? 'codex-app-server.exe'
     : 'codex-app-server'
-  const candidates = [
-    join(__dirname, '..', '..', 'desktop-rust-sidecar', binaryName),
-    join(
-      __dirname,
-      '..',
-      '..',
-      '..',
-      '..',
-      'rust',
-      'codex-rs',
-      'target',
-      'debug',
-      binaryName,
-    ),
-  ]
-  return candidates.find(candidate => existsSync(candidate)) ?? candidates[0]
+  const explicitPath = env[RUST_APP_SERVER_BINARY_ENV]?.trim()
+  if (explicitPath && !isReferenceCodexMainAppServerPath(explicitPath)) {
+    return { path: resolve(explicitPath), source: 'env-override' }
+  }
+
+  const workspaceCandidates = currentWorkspaceRustAppServerCandidates(binaryName)
+  const workspaceCandidate = workspaceCandidates.find(candidate =>
+    existsSync(candidate),
+  ) ?? workspaceCandidates[0]
+  if (workspaceCandidate) {
+    return { path: workspaceCandidate, source: 'workspace' }
+  }
+
+  return {
+    path: join(__dirname, '..', '..', 'desktop-rust-sidecar', binaryName),
+    source: 'bundled',
+  }
 }
 
-export function createRustSidecarOptions(
+function currentWorkspaceRustAppServerCandidates(binaryName: string): string[] {
+  return uniqueResolvedPaths([
+    process.cwd(),
+    // Built Electron main output: dist/desktop/main -> repo root.
+    join(__dirname, '..', '..', '..'),
+    // Source/test path: apps/desktop/src/main -> repo root.
+    join(__dirname, '..', '..', '..', '..'),
+  ]).map(root =>
+    join(root, 'rust', 'codex-rs', 'target', 'debug', binaryName),
+  )
+}
+
+function uniqueResolvedPaths(paths: string[]): string[] {
+  return [...new Set(paths.map(path => resolve(path)))]
+}
+
+function isReferenceCodexMainAppServerPath(path: string): boolean {
+  const normalized = resolve(path).replace(/\\/g, '/').toLowerCase()
+  return normalized.includes('/codex-main/codex-rs/target/debug/')
+}
+
+export async function createRustSidecarOptions(
   context: DesktopAgentRuntimeContext,
-): SidecarManagerOptions {
+): Promise<SidecarManagerOptions> {
   const executablePath = resolveRustAppServerExecutable()
+  const providerConfig = await createRustModelProviderOverrides(context)
   return {
     command: executablePath,
-    args: ['--listen', 'stdio://', '--session-source', 'vscode'],
+    args: [
+      '--listen',
+      'stdio://',
+      '--session-source',
+      'vscode',
+      ...providerConfig.args,
+    ],
     cwd: context.workspacePath,
     env: {
       ...process.env,
@@ -92,9 +140,99 @@ export function createRustSidecarOptions(
         deepModel: context.deepModel,
         sessionName: context.sessionName,
       }),
+      ...providerConfig.env,
     },
     startTimeoutMs: 15_000,
   }
+}
+
+type RustProviderConfigOverrides = {
+  args: string[]
+  env: Record<string, string | undefined>
+}
+
+type RustWireApi = 'responses' | 'anthropic_messages'
+
+async function createRustModelProviderOverrides(
+  context: DesktopAgentRuntimeContext,
+): Promise<RustProviderConfigOverrides> {
+  const providerID = context.providerID?.trim()
+  const model = context.model?.trim()
+  if (!providerID) return { args: [], env: {} }
+  if (!isRustConfigPathSegment(providerID)) {
+    throw new Error(`Rust sidecar provider id is not supported: ${providerID}`)
+  }
+
+  const provider = await getProviderConfig(providerID)
+  const baseURL = context.providerBaseURL?.trim() || provider.baseURL?.trim()
+  const envKey = getRustProviderEnvKey(provider)
+  const wireApi = getRustProviderWireApi(provider)
+  const apiKey = getProviderApiKey(providerID)?.trim()
+  const args = [
+    ...(model ? rustConfigOverride('model', model) : []),
+    ...rustConfigOverride('model_provider', providerID),
+    ...rustConfigOverride(
+      `model_providers.${providerID}.name`,
+      provider.displayName || providerID,
+    ),
+    ...rustConfigOverride(
+      `model_providers.${providerID}.wire_api`,
+      wireApi,
+    ),
+    ...rustConfigOverride(
+      `model_providers.${providerID}.requires_openai_auth`,
+      false,
+    ),
+    ...rustConfigOverride(
+      `model_providers.${providerID}.supports_websockets`,
+      false,
+    ),
+    ...(baseURL
+      ? rustConfigOverride(`model_providers.${providerID}.base_url`, baseURL)
+      : []),
+    ...(envKey
+      ? rustConfigOverride(`model_providers.${providerID}.env_key`, envKey)
+      : []),
+  ]
+  return {
+    args,
+    env: envKey && apiKey ? { [envKey]: apiKey } : {},
+  }
+}
+
+function getRustProviderWireApi(provider: ProviderConfig): RustWireApi {
+  if (
+    provider.npmPackage === '@ai-sdk/anthropic' ||
+    provider.kind === 'anthropic' ||
+    provider.kind === 'anthropic-compatible' ||
+    provider.kind === 'minimax'
+  ) {
+    return 'anthropic_messages'
+  }
+  return 'responses'
+}
+
+function getRustProviderEnvKey(provider: ProviderConfig): string | undefined {
+  return (
+    provider.envVars?.find(value => Boolean(value?.trim())) ??
+    provider.apiKeyEnvVar?.trim() ??
+    undefined
+  )
+}
+
+function rustConfigOverride(
+  key: string,
+  value: string | boolean,
+): string[] {
+  return ['-c', `${key}=${formatRustConfigValue(value)}`]
+}
+
+function formatRustConfigValue(value: string | boolean): string {
+  return typeof value === 'string' ? JSON.stringify(value) : String(value)
+}
+
+function isRustConfigPathSegment(value: string): boolean {
+  return /^[A-Za-z0-9_-]+$/.test(value)
 }
 
 /**
@@ -247,22 +385,25 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
   // ── Private ───────────────────────────────────────────────────────
 
   private async startAppServer(): Promise<void> {
-    const executablePath = resolveRustAppServerExecutable()
+    const executableInfo = resolveRustAppServerExecutableInfo()
+    const executablePath = executableInfo.path
     desktopDebug('rust_sidecar_start', {
       executable: executablePath,
+      executableSource: executableInfo.source,
       cwd: this.context.workspacePath,
       providerID: this.context.providerID ?? null,
       model: this.context.model ?? null,
     })
 
     if (!existsSync(executablePath)) {
-      throw new Error(
+      throw new SidecarStartError(
         `Rust app-server binary not found at: ${executablePath}. ` +
-          `Set ${RUST_APP_SERVER_BINARY_ENV} to point at codex-app-server binary.`,
+          `Build it with "cargo build -p codex-app-server" in rust/codex-rs, ` +
+          `or set ${RUST_APP_SERVER_BINARY_ENV} to a codex-app-server binary.`,
       )
     }
 
-    const options = createRustSidecarOptions(this.context)
+    const options = await createRustSidecarOptions(this.context)
 
     // 1. Spawn child process
     const child = spawn(options.command, options.args, {

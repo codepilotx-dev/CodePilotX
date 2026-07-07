@@ -262,8 +262,18 @@ export type DesktopPullRequestResult =
   | { ok: false; error: string }
 
 export type DesktopRuntimeStatus = {
-  runtimeKind: 'subprocess' | 'in-process-headless' | 'embedded-headless' | 'sidecar'
-  runtimePreference: 'auto' | 'embedded-headless' | 'subprocess' | 'sidecar'
+  runtimeKind:
+    | 'subprocess'
+    | 'in-process-headless'
+    | 'embedded-headless'
+    | 'sidecar'
+    | 'rust-sidecar'
+  runtimePreference:
+    | 'auto'
+    | 'embedded-headless'
+    | 'subprocess'
+    | 'sidecar'
+    | 'rust-sidecar'
   runtimeSelectionSource: 'default' | 'env'
   agentExecutablePath: string
   agentExecutableExists: boolean
@@ -669,8 +679,9 @@ gitBranchPrefix: string
   allowForcePush: boolean
   commitMessagePrompt: string
   pullRequestPrompt: string
-  githubOAuthClientId: string
-  sandboxMode?: DesktopSandboxMode
+	  githubOAuthClientId: string
+	  authBaseUrl: string
+	  sandboxMode?: DesktopSandboxMode
   allowNetworkAccess?: boolean
   installCodexDependencies: boolean
   personality: DesktopPersonality

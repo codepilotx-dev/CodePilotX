@@ -5,7 +5,7 @@ import { existsSync } from 'node:fs'
 import { stat } from 'node:fs/promises'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { enableConfigs } from '@codepilotx/core/utils/config.js'
+import { enableConfigs } from '@codepilotx/tui/utils/config.js'
 import {
   formatDescriptionWithSource,
   getCommandName,
@@ -277,6 +277,8 @@ const desktopToolchainService = createDesktopToolchainService({
 const { configureDesktopMcpConfigRuntime, registerMcpConfigWorkspaceAccessor } = await import('./mcpConfigRuntimeAdapter.js')
 registerMcpConfigWorkspaceAccessor(getStandaloneWorkspaceMetadata)
 configureDesktopMcpConfigRuntime()
+const { configureDesktopCoreAppRuntime } = await import('./appRuntimeAdapter.js')
+configureDesktopCoreAppRuntime()
 configureGithubService({ getWindow: windowService.getWindow })
 
 function assertTrustedIpcSender(senderUrl: string | undefined): void {
@@ -312,6 +314,7 @@ function getDesktopRuntimeSelection(): {
   if (
     value === 'auto' ||
     value === 'sidecar' ||
+    value === 'rust-sidecar' ||
     value === 'embedded-headless' ||
     value === 'subprocess'
   ) {

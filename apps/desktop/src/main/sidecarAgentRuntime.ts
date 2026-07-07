@@ -7,22 +7,29 @@
  */
 
 import { randomUUID } from 'node:crypto'
-import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages.mjs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
+import type { ThreadEvent } from '@codepilotx/core/agent/workflow.js'
 import type {
-  ThreadEvent,
-} from '@codepilotx/core/agent/workflow.js'
-import type { DesktopAgentEvent, DesktopPermissionRequest, DesktopUserMessageContent, DesktopPermissionDecision } from '../shared/types.js'
-import type { DesktopAgentRuntime, DesktopAgentRuntimeContext, DesktopCodexPermissionConfigArgs } from './agentRuntime.js'
+  DesktopPermissionRequest,
+  DesktopUserMessageContent,
+} from '../shared/types.js'
+import type {
+  DesktopAgentRuntime,
+  DesktopAgentRuntimeContext,
+} from './agentRuntime.js'
 import {
   SidecarManager,
   buildSidecarEnv,
   SidecarStartError,
+  type SidecarManagerOptions,
   type SidecarPermissionContext,
   type SidecarPermissionDecision,
 } from './sidecarManager.js'
 import { desktopDebug } from './desktopDebug.js'
+import { buildDesktopContextUsage } from './desktopContextUsage.js'
+
+type TurnCompletedEvent = Extract<ThreadEvent, { type: 'turn.completed' }>
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -43,38 +50,10 @@ export class SidecarDesktopAgentRuntime implements DesktopAgentRuntime {
   private currentSignal: AbortSignal | null = null
   private readonly toolNamesByUseId = new Map<string, string>()
 
-  constructor(private readonly context: DesktopAgentRuntimeContext) {
-    this.sidecarManager = new SidecarManager({
-      entrypoint: SIDECAR_ENTRYPOINT,
-      cwd: context.workspacePath,
-      env: buildSidecarEnv({
-        sessionId: context.sessionId,
-        workspacePath: context.workspacePath,
-        model: context.model,
-        providerID: context.providerID,
-        providerBaseURL: context.providerBaseURL,
-        sandboxMode: context.sandboxMode,
-        approvalPolicy: context.approvalPolicy,
-        approvalsReviewer: context.approvalsReviewer,
-        permissionProfile: context.permissionProfile,
-        configDirectoryPath: context.configDirectoryPath,
-        debugConversationDump: context.debugConversationDump,
-        thinkingMode: context.thinkingMode,
-        systemPrompt: context.systemPrompt,
-        appendSystemPrompt: context.appendSystemPrompt,
-        additionalDirectories: context.additionalDirectories,
-        installCodexDependencies: context.installCodexDependencies,
-        enableMemory: context.enableMemory,
-        runtimeEnvironment: context.toolchainEnvironment,
-        reviewModel: context.reviewModel,
-        smallFastModel: context.smallFastModel,
-        fastModel: context.fastModel,
-        defaultModel: context.defaultModel,
-        deepModel: context.deepModel,
-        sessionName: context.sessionName,
-      }),
-      startTimeoutMs: 15_000,
-    })
+  constructor(
+    private readonly context: DesktopAgentRuntimeContext,
+  ) {
+    this.sidecarManager = new SidecarManager(createTypescriptSidecarOptions(context))
 
     // 监听 sidecar 的 thread/event → 映射为 DesktopAgentEvent
     this.sidecarManager.on('threadEvent', event => {
@@ -370,9 +349,29 @@ export class SidecarDesktopAgentRuntime implements DesktopAgentRuntime {
         }
         break
 
-      case 'turn.completed':
-        const finalResponse = (event as Record<string, unknown>).finalResponse
-        if (finalResponse && typeof finalResponse === 'string' && finalResponse.trim()) {
+      case 'turn.completed': {
+        const turnEvent = event as TurnCompletedEvent
+        // Emit context usage if the turn carries usage data
+        if (isRecord(turnEvent.usage)) {
+          const usageRecord: Record<string, unknown> = turnEvent.usage
+          const usageModel = usageRecord.model
+          const usage = buildDesktopContextUsage({
+            model: typeof usageModel === 'string'
+              ? usageModel
+              : (this.context.model ?? 'unknown'),
+            usage: usageRecord,
+            provider: this.context.providerID,
+          })
+          if (usage) {
+            this.context.emit({
+              type: 'context_usage',
+              sessionId: this.context.sessionId,
+              usage,
+            })
+          }
+        }
+        const finalResponse = turnEvent.finalResponse
+        if (finalResponse && finalResponse.trim()) {
           this.context.emit({
             type: 'message',
             sessionId: this.context.sessionId,
@@ -381,6 +380,7 @@ export class SidecarDesktopAgentRuntime implements DesktopAgentRuntime {
           })
         }
         break
+      }
     }
   }
 
@@ -417,6 +417,42 @@ export class SidecarDesktopAgentRuntime implements DesktopAgentRuntime {
   }
 }
 
+function createTypescriptSidecarOptions(
+  context: DesktopAgentRuntimeContext,
+): SidecarManagerOptions {
+  return {
+    entrypoint: SIDECAR_ENTRYPOINT,
+    cwd: context.workspacePath,
+    env: buildSidecarEnv({
+      sessionId: context.sessionId,
+      workspacePath: context.workspacePath,
+      model: context.model,
+      providerID: context.providerID,
+      providerBaseURL: context.providerBaseURL,
+      sandboxMode: context.sandboxMode,
+      approvalPolicy: context.approvalPolicy,
+      approvalsReviewer: context.approvalsReviewer,
+      permissionProfile: context.permissionProfile,
+      configDirectoryPath: context.configDirectoryPath,
+      debugConversationDump: context.debugConversationDump,
+      thinkingMode: context.thinkingMode,
+      systemPrompt: context.systemPrompt,
+      appendSystemPrompt: context.appendSystemPrompt,
+      additionalDirectories: context.additionalDirectories,
+      installCodexDependencies: context.installCodexDependencies,
+      enableMemory: context.enableMemory,
+      runtimeEnvironment: context.toolchainEnvironment,
+      reviewModel: context.reviewModel,
+      smallFastModel: context.smallFastModel,
+      fastModel: context.fastModel,
+      defaultModel: context.defaultModel,
+      deepModel: context.deepModel,
+      sessionName: context.sessionName,
+    }),
+    startTimeoutMs: 15_000,
+  }
+}
+
 // ── 工具 ──────────────────────────────────────────────────────────
 
 function desktopUserMessageTextLength(content: DesktopUserMessageContent): number {
@@ -425,6 +461,10 @@ function desktopUserMessageTextLength(content: DesktopUserMessageContent): numbe
     if (block.type === 'text') return sum + block.text.length
     return sum
   }, 0)
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
 }
 
 export class SidecarAgentRuntimeError extends Error {
