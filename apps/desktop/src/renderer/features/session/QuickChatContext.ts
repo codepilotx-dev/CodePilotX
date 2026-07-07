@@ -88,6 +88,8 @@ export type QuickChatContextValue = {
   rightDockOpen: boolean
   rightDockTool: RightDockToolId | null
   rightDockPlanContent: string | null
+  rightDockNode: React.ReactNode | null
+  rightDockWidth: number
   debugMode: boolean
 }
 

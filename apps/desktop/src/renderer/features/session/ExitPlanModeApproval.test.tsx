@@ -58,6 +58,8 @@ const mockContextValue = {
   rightDockOpen: false,
   rightDockTool: null,
   rightDockPlanContent: null,
+  rightDockNode: null,
+  rightDockWidth: 400,
   debugMode: false,
   onArchiveSession: () => {},
   onCreateBranch: () => {},

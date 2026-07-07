@@ -13,6 +13,7 @@ let parseAskUserQuestionTimelineResult: typeof import('./ConversationPage.js').p
 let planTitleFromSummary: typeof import('./ConversationPage.js').planTitleFromSummary
 let planCardPresentation: typeof import('./ConversationPage.js').planCardPresentation
 let buildDebugAskUserQuestionRequest: typeof import('./ConversationPage.js').buildDebugAskUserQuestionRequest
+let deriveConversationTurnNavItems: typeof import('./ConversationPage.js').deriveConversationTurnNavItems
 
 beforeAll(async () => {
   Object.defineProperty(globalThis, 'window', {
@@ -33,6 +34,8 @@ beforeAll(async () => {
   planCardPresentation = conversationPage.planCardPresentation
   buildDebugAskUserQuestionRequest =
     conversationPage.buildDebugAskUserQuestionRequest
+  deriveConversationTurnNavItems =
+    conversationPage.deriveConversationTurnNavItems
 })
 
 test('marks only the final assistant message after a completed turn', () => {
@@ -284,7 +287,7 @@ test('plan card hides right dock action while streaming', () => {
 test('plan card exposes right dock action after completion', () => {
   expect(planCardPresentation({ streaming: false, isDocked: false })).toEqual({
     compact: false,
-    label: '套餐',
+    label: '计划',
     showOpenInRightDock: true,
     showFoldControls: false,
   })
@@ -293,7 +296,7 @@ test('plan card exposes right dock action after completion', () => {
 test('plan card becomes a compact summary when docked', () => {
   expect(planCardPresentation({ streaming: false, isDocked: true })).toEqual({
     compact: true,
-    label: '套餐',
+    label: '计划',
     showOpenInRightDock: true,
     showFoldControls: false,
   })
@@ -646,3 +649,147 @@ function filePatchEvent(id: string, filePath: string): DesktopSessionEvent {
     },
   }
 }
+
+function filePatchEventNonTurnScoped(id: string, filePath: string): DesktopSessionEvent {
+  return {
+    id,
+    sessionId: 'session-1',
+    type: 'file_patch',
+    content: `Edited ${filePath}`,
+    createdAt: '2026-06-26T00:00:01.000Z',
+    metadata: {
+      files: [{ path: filePath, additions: 3, deletions: 1 }],
+      additions: 3,
+      deletions: 1,
+      turnScoped: false,
+    },
+  }
+}
+
+// --- deriveConversationTurnNavItems ---
+
+test('deriveConversationTurnNavItems produces one nav item per user message', () => {
+  const items = groupTimelineToolEvents([
+    userEvent('user-1', 'Build the feature'),
+    assistantEvent('assistant-1', 'I will start coding'),
+    assistantEvent('assistant-2', 'Done with feature'),
+    checkpointEvent('done-1'),
+    userEvent('user-2', 'Add tests'),
+    assistantEvent('assistant-3', 'Tests added'),
+    checkpointEvent('done-2'),
+  ])
+  const phaseItems = groupTimelineExecutionPhases(items, idleStatus)
+  const nav = deriveConversationTurnNavItems(phaseItems)
+
+  expect(nav).toHaveLength(2)
+  expect(nav[0]!.id).toBe('user-1')
+  expect(nav[0]!.rowIndex).toBe(0)
+  expect(nav[0]!.userText).toBe('Build the feature')
+  // Last assistant text in first turn
+  expect(nav[0]!.assistantText).toBe('Done with feature')
+  expect(nav[1]!.id).toBe('user-2')
+  expect(nav[1]!.rowIndex).toBe(4)
+  expect(nav[1]!.userText).toBe('Add tests')
+  expect(nav[1]!.assistantText).toBe('Tests added')
+})
+
+test('deriveConversationTurnNavItems sets assistantText to the last assistant message in each turn', () => {
+  const items = groupTimelineToolEvents([
+    userEvent('user-1', 'Implement feature'),
+    assistantEvent('assistant-1', 'I will inspect code first'),
+    assistantEvent('assistant-2', 'Making progress'),
+    assistantEvent('assistant-3', 'Done with implementation'),
+    checkpointEvent('done-1'),
+  ])
+  const phaseItems = groupTimelineExecutionPhases(items, idleStatus)
+  const nav = deriveConversationTurnNavItems(phaseItems)
+
+  expect(nav).toHaveLength(1)
+  // Should be the last assistant message in the turn
+  expect(nav[0]!.assistantText).toBe('Done with implementation')
+})
+
+test('deriveConversationTurnNavItems sets assistantText to null when no assistant reply exists', () => {
+  const items = groupTimelineToolEvents([
+    userEvent('user-1', 'Is anyone there?'),
+    // No assistant reply
+  ])
+  const phaseItems = groupTimelineExecutionPhases(items, idleStatus)
+  const nav = deriveConversationTurnNavItems(phaseItems)
+
+  expect(nav).toHaveLength(1)
+  expect(nav[0]!.assistantText).toBeNull()
+})
+
+test('deriveConversationTurnNavItems collects only turnScoped file_patch files', () => {
+  const items = groupTimelineToolEvents([
+    userEvent('user-1', 'Refactor the code'),
+    assistantEvent('assistant-1', 'Refactored'),
+    filePatchEvent('file-1', '/src/index.ts'),
+    filePatchEventNonTurnScoped('file-2', '/src/utils.ts'),
+    filePatchEvent('file-3', '/src/main.ts'),
+    checkpointEvent('done-1'),
+  ])
+  const phaseItems = groupTimelineExecutionPhases(items, idleStatus)
+  const nav = deriveConversationTurnNavItems(phaseItems)
+
+  expect(nav).toHaveLength(1)
+  // Only turnScoped file paths are collected
+  expect(nav[0]!.files).toEqual(['/src/index.ts', '/src/main.ts'])
+})
+
+test('deriveConversationTurnNavItems returns empty files array for turns without file changes', () => {
+  const items = groupTimelineToolEvents([
+    userEvent('user-1', 'Question only'),
+    assistantEvent('assistant-1', 'Answer'),
+    checkpointEvent('done-1'),
+  ])
+  const phaseItems = groupTimelineExecutionPhases(items, idleStatus)
+  const nav = deriveConversationTurnNavItems(phaseItems)
+
+  expect(nav).toHaveLength(1)
+  expect(nav[0]!.files).toEqual([])
+})
+
+test('deriveConversationTurnNavItems handles execution phases with nested items', () => {
+  const items = groupTimelineToolEvents([
+    userEvent('user-1', 'Build feature'),
+    proposedPlanEvent('plan-1', '# Plan'),
+    assistantEvent('assistant-1', 'Starting implementation...'),
+    toolCallEvent('tool-1', 'Bash', 'npm test'),
+    toolResultEvent('result-1', 'Bash', 'passed', false),
+    filePatchEvent('file-1', '/src/feature.ts'),
+    assistantEvent('assistant-2', 'Done with feature'),
+    checkpointEvent('done-1'),
+    userEvent('user-2', 'Deploy it'),
+    assistantEvent('assistant-3', 'Deployed'),
+    checkpointEvent('done-2'),
+  ])
+  const phaseItems = groupTimelineExecutionPhases(items, idleStatus)
+  const nav = deriveConversationTurnNavItems(phaseItems)
+
+  expect(nav).toHaveLength(2)
+
+  // First turn: user-1 at index 0
+  expect(nav[0]!.id).toBe('user-1')
+  expect(nav[0]!.rowIndex).toBe(0)
+  expect(nav[0]!.assistantText).toBe('Done with feature')
+  // file_patch after execution_phase is still part of the same turn
+  expect(nav[0]!.files).toEqual(['/src/feature.ts'])
+
+  // Second turn: user-2
+  expect(nav[1]!.id).toBe('user-2')
+  expect(nav[1]!.rowIndex).toBe(6)
+  expect(nav[1]!.assistantText).toBe('Deployed')
+  expect(nav[1]!.files).toEqual([])
+})
+
+test('deriveConversationTurnNavItems returns empty array when there are no user messages', () => {
+  const items = groupTimelineToolEvents([
+    assistantEvent('assistant-1', 'Hello'),
+    checkpointEvent('done-1'),
+  ])
+  const phaseItems = groupTimelineExecutionPhases(items, idleStatus)
+  const nav = deriveConversationTurnNavItems(phaseItems)
+  expect(nav).toEqual([])
+})

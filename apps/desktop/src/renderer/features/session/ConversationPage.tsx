@@ -24,7 +24,6 @@ import {
   Maximize2,
   MessageSquarePlus,
   MoreHorizontal,
-  PanelBottom,
   PanelRight,
   Pencil,
   Pin,
@@ -91,8 +90,8 @@ import {
   loadConversationUiState,
   saveConversationUiState,
 } from "../layout/conversationUiState.js";
-import { useWorkspaceHeader } from "../layout/WorkspaceHeaderContext.js";
 import { SessionTimelineView } from "./SessionTimelineView.js";
+import { ConversationTurnNavRail } from "./ConversationTurnNavRail.js";
 
 const FALLBACK_OPEN_TARGETS: DesktopOpenTarget[] = [
   {
@@ -164,11 +163,11 @@ export function ConversationPage(): React.ReactNode {
     permissionMode,
     pendingPermissions,
     composer,
-    bottomPanelVisible,
-    onToggleBottomPanel,
     rightDockOpen,
     rightDockTool,
     rightDockPlanContent,
+    rightDockNode,
+    rightDockWidth,
     debugMode,
   } = useQuickChatContext();
   const {
@@ -203,7 +202,12 @@ export function ConversationPage(): React.ReactNode {
       workflowEvents: workflowDerivedState.events,
     });
     return foldTimelineEvents(sourceEvents);
-  }, [conversationMessages, events, sessionStatus, workflowDerivedState.events]);
+  }, [
+    conversationMessages,
+    events,
+    sessionStatus,
+    workflowDerivedState.events,
+  ]);
   const timelineItems = React.useMemo(
     () => groupTimelineToolEvents(timelineEvents),
     [timelineEvents],
@@ -211,6 +215,10 @@ export function ConversationPage(): React.ReactNode {
   const phaseItems = React.useMemo(
     () => groupTimelineExecutionPhases(timelineItems, sessionStatus),
     [timelineItems, sessionStatus],
+  );
+  const turnNavItems = React.useMemo(
+    () => deriveConversationTurnNavItems(phaseItems),
+    [phaseItems],
   );
   const assistantActionMessageIds = React.useMemo(
     () =>
@@ -248,18 +256,15 @@ export function ConversationPage(): React.ReactNode {
     };
   }, []);
   const [isRefreshingDiff, setIsRefreshingDiff] = React.useState(false);
-  const timelineListRef = React.useRef<
-    import("virtua").VListHandle | null
-  >(null);
+  const timelineListRef = React.useRef<import("virtua").VListHandle | null>(
+    null,
+  );
   const mainScrollTopRef = React.useRef(0);
   const scrollRestoredRef = React.useRef(false);
 
-  const handleTimelineScroll = React.useCallback(
-    (scrollTop: number) => {
-      mainScrollTopRef.current = scrollTop;
-    },
-    [],
-  );
+  const handleTimelineScroll = React.useCallback((scrollTop: number) => {
+    mainScrollTopRef.current = scrollTop;
+  }, []);
 
   React.useEffect(() => {
     const sessionId = activeSessionId;
@@ -873,39 +878,6 @@ export function ConversationPage(): React.ReactNode {
     ],
   );
 
-  const workspaceHeaderDockActions = React.useMemo(
-    () => (
-      <div className="chat-session-actions">
-        <Tooltip content={bottomPanelVisible ? "隐藏底部面板" : "显示底部面板"}>
-          <button
-            aria-label={bottomPanelVisible ? "隐藏底部面板" : "显示底部面板"}
-            aria-pressed={bottomPanelVisible}
-            className="message-action"
-            type="button"
-            onClick={onToggleBottomPanel}
-          >
-            <PanelBottom
-              size={APP_ICON_SIZE}
-              strokeWidth={APP_ICON_STROKE_WIDTH}
-            />
-          </button>
-        </Tooltip>
-      </div>
-    ),
-    [bottomPanelVisible, onToggleBottomPanel],
-  );
-
-  const workspaceHeaderContent = React.useMemo(
-    () => ({
-      title: workspaceHeaderTitle,
-      actions: workspaceHeaderActions,
-      dockActions: workspaceHeaderDockActions,
-    }),
-    [workspaceHeaderActions, workspaceHeaderDockActions, workspaceHeaderTitle],
-  );
-
-  useWorkspaceHeader(workspaceHeaderContent);
-
   return (
     <section
       ref={workflowPageRef}
@@ -915,8 +887,21 @@ export function ConversationPage(): React.ReactNode {
           : "conversation-page workflow-page"
       }
     >
-      <div className="workflow-page__body">
+      <div
+        className="workflow-page__body"
+        style={
+          rightDockNode
+            ? ({
+                "--right-dock-current-w": `${rightDockWidth}px`,
+              } as React.CSSProperties)
+            : undefined
+        }
+      >
         <main className="workflow-page__main">
+          <header className="chat-session-header">
+            {workspaceHeaderTitle}
+            {workspaceHeaderActions}
+          </header>
           <div className="workflow-main-scroll-area">
             <ContextMenu.Root
               onOpenChange={(open) => {
@@ -930,6 +915,14 @@ export function ConversationPage(): React.ReactNode {
                   className="session-timeline-wrapper"
                   onContextMenu={handleConversationContextMenu}
                 >
+                  <ConversationTurnNavRail
+                    items={turnNavItems}
+                    onNavigate={(rowIndex) => {
+                      timelineListRef.current?.scrollToIndex(rowIndex, {
+                        align: "center",
+                      });
+                    }}
+                  />
                   {isConversationLoading ? (
                     <div className="assistant-thinking">加载对话中</div>
                   ) : (
@@ -1054,6 +1047,7 @@ export function ConversationPage(): React.ReactNode {
             </footer>
           ) : null}
         </main>
+        {rightDockNode}
       </div>
     </section>
   );
@@ -1632,7 +1626,7 @@ export function planCardPresentation({
 } {
   return {
     compact: isDocked,
-    label: streaming ? "编写计划" : "套餐",
+    label: streaming ? "编写计划" : "计划",
     showOpenInRightDock: !streaming,
     showFoldControls: false,
   };
@@ -1668,6 +1662,136 @@ export type ExecutionPhaseGroup = {
 export type PhaseTimelineItem = TimelineItem | ExecutionPhaseGroup;
 
 export type TimelineItem = DesktopSessionEvent | TimelineToolGroup;
+
+/* ── Turn navigation model ─────────────────────────────── */
+
+export type ConversationTurnNavItem = {
+  id: string;
+  rowIndex: number;
+  userText: string;
+  assistantText: string | null;
+  files: string[];
+};
+
+/**
+ * Derive turn-navigation items from phaseItems.
+ * A "turn" starts at each user message.  For every turn we collect:
+ *   – userText: the user's message content
+ *   – assistantText: the last assistant message text in the turn (or null)
+ *   – files: paths from file_patch events with metadata.turnScoped === true
+ * The rowIndex is the index of the user message within phaseItems,
+ * which also serves as the VList row index.
+ */
+export function deriveConversationTurnNavItems(
+  items: PhaseTimelineItem[],
+): ConversationTurnNavItem[] {
+  const navItems: ConversationTurnNavItem[] = [];
+  let currentId = "";
+  let currentIndex = -1;
+  let currentUserText = "";
+  let currentAssistantText: string | null = null;
+  const currentFilesSet = new Set<string>();
+
+  function flushTurn(): void {
+    if (currentIndex < 0) return;
+    navItems.push({
+      id: currentId,
+      rowIndex: currentIndex,
+      userText: currentUserText,
+      assistantText: currentAssistantText,
+      files: [...currentFilesSet],
+    });
+    currentId = "";
+    currentIndex = -1;
+    currentUserText = "";
+    currentAssistantText = null;
+    currentFilesSet.clear();
+  }
+
+  function collectEvent(event: DesktopSessionEvent): void {
+    if (
+      (event.type === "message" || event.type === "assistant_delta") &&
+      event.role === "assistant"
+    ) {
+      if (event.content?.trim()) {
+        currentAssistantText = event.content.trim();
+      }
+      return;
+    }
+    if (event.type === "file_patch" && event.metadata?.turnScoped === true) {
+      collectFilesFromPatchEvent(event, currentFilesSet);
+    }
+  }
+
+  function collectItemsRecursive(phaseItem: TimelineItem): void {
+    if (phaseItem.type === "tool_group") {
+      // Tool groups don't contain user messages or file_patches we care about here
+      return;
+    }
+    collectEvent(phaseItem as DesktopSessionEvent);
+  }
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+
+    if (item.type === "execution_phase") {
+      // If we have an open turn, collect from inside the phase
+      if (currentIndex >= 0) {
+        for (const child of item.items) {
+          collectItemsRecursive(child);
+        }
+      }
+      continue;
+    }
+
+    const event = item as DesktopSessionEvent;
+
+    // User message → start new turn
+    if (event.type === "message" && event.role === "user") {
+      flushTurn();
+      currentId = event.id;
+      currentIndex = i;
+      currentUserText = event.content?.trim() ?? "";
+      continue;
+    }
+
+    // Everything else collected into current turn
+    if (currentIndex >= 0) {
+      collectItemsRecursive(item);
+    }
+  }
+
+  // Flush final turn
+  flushTurn();
+
+  return navItems;
+}
+
+function collectFilesFromPatchEvent(
+  event: DesktopSessionEvent,
+  fileSet: Set<string>,
+): void {
+  const meta = event.metadata ?? {};
+  const files = Array.isArray(meta.files)
+    ? (meta.files as Array<Record<string, unknown>>)
+    : [];
+
+  if (files.length > 0) {
+    for (const file of files) {
+      const path = file.path;
+      if (typeof path === "string") {
+        fileSet.add(path);
+      }
+    }
+    return;
+  }
+
+  // Fallback to single filePath
+  const filePath = meta.filePath;
+  if (typeof filePath === "string") {
+    fileSet.add(filePath);
+  }
+}
 
 function workflowComposerMode(
   request: DesktopPermissionRequest | null,
