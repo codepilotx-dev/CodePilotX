@@ -12,7 +12,7 @@ export function shouldEmitWorkspaceDiffEvent(params: {
   if (params.beforePatch !== undefined && params.beforePatch !== null) {
     return params.beforePatch !== params.afterPatch
   }
-  return true
+  return false
 }
 
 export type TurnDiffFile = {

@@ -24,6 +24,25 @@ test('does not emit unchanged dirty workspace diff for a turn', () => {
   ).toBe(false)
 })
 
+test('does not emit workspace diff when baseline is missing (beforePatch is null)', () => {
+  expect(
+    shouldEmitWorkspaceDiffEvent({
+      beforePatch: null,
+      afterPatch: 'Git status:\nM README.md',
+      standalone: false,
+    }),
+  ).toBe(false)
+})
+
+test('does not emit workspace diff when baseline is missing (beforePatch is undefined)', () => {
+  expect(
+    shouldEmitWorkspaceDiffEvent({
+      afterPatch: 'Git status:\nM README.md',
+      standalone: false,
+    }),
+  ).toBe(false)
+})
+
 test('emits workspace diff when the turn changes the dirty state', () => {
   expect(
     shouldEmitWorkspaceDiffEvent({

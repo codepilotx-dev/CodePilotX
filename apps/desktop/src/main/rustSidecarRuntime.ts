@@ -6,6 +6,7 @@ import {
   getProviderApiKey,
   getProviderConfig,
   type ProviderConfig,
+  type ProviderWireApi,
 } from '@codepilotx/core/models/providerConfig.js'
 import type {
   DesktopAgentRuntime,
@@ -152,8 +153,6 @@ type RustProviderConfigOverrides = {
   env: Record<string, string | undefined>
 }
 
-type RustWireApi = 'responses' | 'anthropic_messages' | 'chat_completions'
-
 async function createRustModelProviderOverrides(
   context: DesktopAgentRuntimeContext,
 ): Promise<RustProviderConfigOverrides> {
@@ -167,7 +166,8 @@ async function createRustModelProviderOverrides(
   const provider = await getProviderConfig(providerID)
   const baseURL = context.providerBaseURL?.trim() || provider.baseURL?.trim()
   const envKey = getRustProviderEnvKey(provider)
-  const wireApi = getRustProviderWireApi(provider)
+  // Use wireApi resolved by core provider config — no local DeepSeek check needed.
+  const wireApi: ProviderWireApi = provider.wireApi ?? 'chat_completions'
   const apiKey = getProviderApiKey(providerID)?.trim()
   desktopDebug('rust_provider_config', {
     providerID,
@@ -204,33 +204,6 @@ async function createRustModelProviderOverrides(
     args,
     env: envKey && apiKey ? { [envKey]: apiKey } : {},
   }
-}
-
-function getRustProviderWireApi(provider: ProviderConfig): RustWireApi {
-  // Anthropic Messages API for Anthropic-compatible providers
-  if (
-    provider.npmPackage === '@ai-sdk/anthropic' ||
-    provider.kind === 'anthropic' ||
-    provider.kind === 'anthropic-compatible' ||
-    provider.kind === 'minimax'
-  ) {
-    return 'anthropic_messages'
-  }
-
-  // OpenAI official supports the Responses API
-  if (provider.npmPackage === '@ai-sdk/openai') {
-    return 'responses'
-  }
-
-  // DeepSeek only supports /v1/chat/completions, not Responses API
-  if (provider.providerID === 'deepseek') {
-    return 'chat_completions'
-  }
-
-  // Other OpenAI-compatible providers: default to Responses API.
-  // Providers that only support Chat Completions should be added to
-  // the explicit providerID check above.
-  return 'responses'
 }
 
 function getRustProviderEnvKey(provider: ProviderConfig): string | undefined {

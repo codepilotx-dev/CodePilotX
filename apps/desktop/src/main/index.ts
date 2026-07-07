@@ -479,14 +479,17 @@ function attachSessionListeners(record: DesktopSessionRecord): void {
           beforePatch,
           afterPatch: diff.patch,
         })
+        const baselineCaptured =
+          beforePatch !== undefined && beforePatch !== null
         const shouldEmitDiff =
+          baselineCaptured &&
           !latestRecord.snapshot.item.standalone &&
           turnDiff.patch !== 'No file changes.' &&
           turnDiff.files.length > 0
         desktopConsoleLog('turn_diff_checked', {
           sessionId: session.sessionId,
           permissionMode: latestRecord.snapshot.settings.permissionMode,
-          baselineCaptured: beforePatch !== undefined && beforePatch !== null,
+          baselineCaptured,
           changed: shouldEmitDiff,
         })
         if (!shouldEmitDiff) {
@@ -499,6 +502,8 @@ function attachSessionListeners(record: DesktopSessionRecord): void {
           patch: turnDiff.patch,
           metadata: {
             files: turnDiff.files,
+            turnScoped: true,
+            turnBaselineCaptured: true,
             ...(turnRestoreId && turnRestoreBaseline
               ? { turnRestoreId }
               : {}),

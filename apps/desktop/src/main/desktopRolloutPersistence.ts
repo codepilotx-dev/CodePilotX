@@ -428,7 +428,12 @@ function desktopAgentEventToRolloutItem(
         payload: {
           eventType: 'file_patch',
           content: event.patch,
-          metadata: { filePath: event.filePath },
+          metadata: {
+            filePath: event.filePath,
+            ...(event.metadata?.turnScoped === true
+              ? { turnScoped: true }
+              : {}),
+          },
         },
       }
     case 'session_title':
