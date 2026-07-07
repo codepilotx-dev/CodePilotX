@@ -250,11 +250,6 @@ export function convertSDKMessage(
     case 'tool_progress':
       return { type: 'message', message: convertToolProgressMessage(msg) }
 
-    case 'auth_status':
-      // Auth status is handled separately, not converted to a display message
-      logForDebugging('[sdkMessageAdapter] Ignoring auth_status message')
-      return { type: 'ignored' }
-
     case 'tool_use_summary':
       // Tool use summaries are SDK-only events, not displayed in REPL
       logForDebugging('[sdkMessageAdapter] Ignoring tool_use_summary message')

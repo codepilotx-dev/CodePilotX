@@ -346,11 +346,9 @@ export async function showSetupScreens(
     }
 
     if (devChannels && devChannels.length > 0) {
-      const [{ isChannelsEnabled }, { getClaudeAIOAuthTokens }] =
-        await Promise.all([
-          import('./services/mcp/channelAllowlist.js'),
-          import('./utils/auth.js'),
-        ])
+      const { isChannelsEnabled } = await import(
+        './services/mcp/channelAllowlist.js'
+      )
       // Skip the dialog when channels are blocked (tengu_harbor off or no
       // OAuth) — accepting then immediately seeing "not available" in
       // ChannelsNotice is worse than no dialog. Append entries anyway so
@@ -358,7 +356,7 @@ export async function showSetupScreens(
       // named. dev:true here is for the flag label in ChannelsNotice
       // (hasNonDev check); the allowlist bypass it also grants is moot
       // since the gate blocks upstream.
-      if (!isChannelsEnabled() || !getClaudeAIOAuthTokens()?.accessToken) {
+      if (!isChannelsEnabled()) {
         setAllowedChannels([
           ...getAllowedChannels(),
           ...devChannels.map(c => ({ ...c, dev: true })),

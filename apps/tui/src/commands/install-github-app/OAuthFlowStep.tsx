@@ -11,7 +11,6 @@ import type { KeyboardEvent } from '../../ink/events/keyboard-event.js'
 import { setClipboard } from '../../ink/termio/osc.js'
 import { Box, Link, Text } from '../../ink.js'
 import { OAuthService } from '../../services/oauth/index.js'
-import { saveOAuthTokensIfNeeded } from '../../utils/auth.js'
 import { logError } from '../../utils/log.js'
 
 interface OAuthFlowStepProps {
@@ -117,11 +116,6 @@ export function OAuthFlowStep({
 
       // Show processing state
       setOAuthStatus({ state: 'processing' })
-
-      // OAuthFlowStep creates inference-only tokens for GitHub Actions, not a
-      // replacement login. Use saveOAuthTokensIfNeeded directly to avoid
-      // performLogout which would destroy the user's existing auth session.
-      saveOAuthTokensIfNeeded(result)
 
       // For OAuth flow, the access token can be used as an API key
       const timer1 = setTimeout(

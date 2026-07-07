@@ -15,10 +15,7 @@ import { Box, Text } from '../../ink.js'
 import { isChannelsEnabled } from '../../services/mcp/channelAllowlist.js'
 import { getEffectiveChannelAllowlist } from '../../services/mcp/channelNotification.js'
 import { getMcpConfigsByScope } from '../../services/mcp/config.js'
-import {
-  getClaudeAIOAuthTokens,
-  getSubscriptionType,
-} from '../../utils/auth.js'
+import { getSubscriptionType } from '../../utils/auth.js'
 import { loadInstalledPluginsV2 } from '../../utils/plugins/installedPluginsManager.js'
 import { getSettingsForSource } from '../../utils/settings/settings.js'
 
@@ -52,7 +49,7 @@ export function ChannelsNotice(): React.ReactNode {
       return {
         channels: ch,
         disabled: !isChannelsEnabled(),
-        noAuth: !getClaudeAIOAuthTokens()?.accessToken,
+        noAuth: true,
         policyBlocked: managed && policy?.channelsEnabled !== true,
         list: l,
         unmatched: findUnmatched(ch, allowlist),

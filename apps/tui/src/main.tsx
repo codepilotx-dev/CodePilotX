@@ -91,8 +91,6 @@ import { installAsciicastRecorder } from './utils/asciicast.js'
 import {
   getSubscriptionType,
   isClaudeAISubscriber,
-  prefetchAwsCredentialsAndBedRockInfoIfSafe,
-  prefetchGcpCredentialsIfSafe,
   validateForceLoginOrg,
 } from './utils/auth.js'
 import {
@@ -751,18 +749,6 @@ export function startDeferredPrefetches(): void {
   void getUserContext()
   prefetchSystemContextIfSafe()
   void getRelevantTips()
-  if (
-    isEnvTruthy(process.env.CLAUDE_CODE_USE_BEDROCK) &&
-    !isEnvTruthy(process.env.CLAUDE_CODE_SKIP_BEDROCK_AUTH)
-  ) {
-    void prefetchAwsCredentialsAndBedRockInfoIfSafe()
-  }
-  if (
-    isEnvTruthy(process.env.CLAUDE_CODE_USE_VERTEX) &&
-    !isEnvTruthy(process.env.CLAUDE_CODE_SKIP_VERTEX_AUTH)
-  ) {
-    void prefetchGcpCredentialsIfSafe()
-  }
   void countFilesRoundedRg(getCwd(), AbortSignal.timeout(3000), [])
 
   // Analytics and feature flag initialization
@@ -4600,9 +4586,6 @@ async function run(): Promise<CommanderCommand> {
 
         // Auth — call prepareApiRequest() once for orgUUID, but use a
         // getAccessToken closure for the token so reconnects get fresh tokens.
-        const { checkAndRefreshOAuthTokenIfNeeded, getClaudeAIOAuthTokens } =
-          await import('./utils/auth.js')
-        await checkAndRefreshOAuthTokenIfNeeded()
         let apiCreds
         try {
           apiCreds = await prepareApiRequest()
@@ -4613,8 +4596,7 @@ async function run(): Promise<CommanderCommand> {
             () => gracefulShutdown(1),
           )
         }
-        const getAccessToken = (): string =>
-          getClaudeAIOAuthTokens()?.accessToken ?? apiCreds.accessToken
+        const getAccessToken = (): string => apiCreds.accessToken
 
         // Brief mode activation: setKairosActive(true) satisfies BOTH opt-in
         // and entitlement for isBriefEnabled() (BriefTool.ts:124-132).
@@ -4814,11 +4796,7 @@ async function run(): Promise<CommanderCommand> {
           }
 
           // Create remote session config for the REPL
-          const { getClaudeAIOAuthTokens: getTokensForRemote } = await import(
-            './utils/auth.js'
-          )
-          const getAccessTokenForRemote = (): string =>
-            getTokensForRemote()?.accessToken ?? apiCreds.accessToken
+          const getAccessTokenForRemote = (): string => apiCreds.accessToken
           const remoteSessionConfig = createRemoteSessionConfig(
             createdSession.id,
             getAccessTokenForRemote,

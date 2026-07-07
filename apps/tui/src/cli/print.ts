@@ -192,7 +192,6 @@ import { OAuthService } from '@codepilotx/tui/services/oauth/index.js'
 import { installOAuthTokens } from '@codepilotx/tui/cli/handlers/auth.js'
 import { getAPIProvider } from '@codepilotx/tui/utils/model/providers.js'
 import type { HookCallbackMatcher } from '@codepilotx/tui/types/hooks.js'
-import { AwsAuthStatusManager } from '@codepilotx/tui/utils/awsAuthStatusManager.js'
 import type { HookEvent } from '@codepilotx/tui/entrypoints/agentSdkTypes.js'
 import {
   registerHookCallbacks,
@@ -1125,21 +1124,7 @@ function runHeadlessStreaming(
     pendingLastEmittedEntry: null,
   }
 
-  // Set up AWS auth status listener if enabled
   let unsubscribeAuthStatus: (() => void) | undefined
-  if (options.enableAuthStatus) {
-    const authStatusManager = AwsAuthStatusManager.getInstance()
-    unsubscribeAuthStatus = authStatusManager.subscribe(status => {
-      output.enqueue({
-        type: 'auth_status',
-        isAuthenticating: status.isAuthenticating,
-        output: status.output,
-        error: status.error,
-        uuid: randomUUID(),
-        session_id: getSessionId(),
-      })
-    })
-  }
 
   // Set up rate limit status listener to emit SDKRateLimitEvent for all status changes.
   // Emitting for all statuses (including 'allowed') ensures consumers can clear warnings
@@ -3577,11 +3562,8 @@ function runHeadlessStreaming(
               },
             )
             .then(async tokens => {
-              // installOAuthTokens: performLogout (clear stale state) →
-              // store profile → saveOAuthTokensIfNeeded → clearOAuthTokenCache
-              // → clearAuthRelatedCaches. After this resolves, the memoized
-              // getClaudeAIOAuthTokens in this process is invalidated; the
-              // next API call re-reads keychain/file and works. No respawn.
+              // installOAuthTokens handles credential storage and cache
+              // invalidation before the next API call. No respawn.
               await installOAuthTokens(tokens)
               logEvent('tengu_oauth_success', {
                 loginWithClaudeAi: loginWithClaudeAi ?? true,
@@ -4529,23 +4511,6 @@ async function handleInitializeRequest(
     },
   })
 
-  // After the initialize message, check the auth status-
-  // This will get notified of changes, but we also want to send the
-  // initial state.
-  if (enableAuthStatus) {
-    const authStatusManager = AwsAuthStatusManager.getInstance()
-    const status = authStatusManager.getStatus()
-    if (status) {
-      output.enqueue({
-        type: 'auth_status',
-        isAuthenticating: status.isAuthenticating,
-        output: status.output,
-        error: status.error,
-        uuid: randomUUID(),
-        session_id: getSessionId(),
-      })
-    }
-  }
 }
 
 async function handleRewindFiles(

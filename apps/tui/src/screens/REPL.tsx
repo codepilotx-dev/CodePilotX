@@ -520,7 +520,6 @@ import { usePluginInstallationStatus } from '@codepilotx/tui/hooks/notifs/usePlu
 import { usePluginAutoupdateNotification } from '@codepilotx/tui/hooks/notifs/usePluginAutoupdateNotification.js'
 import { performStartupChecks } from '@codepilotx/tui/utils/plugins/performStartupChecks.js'
 import { UserTextMessage } from '@codepilotx/tui/components/messages/UserTextMessage.js'
-import { AwsAuthStatusBox } from '../components/AwsAuthStatusBox.js'
 import { useRateLimitWarningNotification } from '@codepilotx/tui/hooks/notifs/useRateLimitWarningNotification.js'
 import { useDeprecationWarningNotification } from '@codepilotx/tui/hooks/notifs/useDeprecationWarningNotification.js'
 import { useNpmDeprecationNotification } from '@codepilotx/tui/hooks/notifs/useNpmDeprecationNotification.js'
@@ -6204,7 +6203,6 @@ export function REPL({
                 setCursor={setCursor}
                 cursorNavRef={cursorNavRef}
               />
-              <AwsAuthStatusBox />
               {/* Hide the processing placeholder while a modal is showing —
                   it would sit at the last visible transcript row right above
                   the ▔ divider, showing "❯ /config" as redundant clutter

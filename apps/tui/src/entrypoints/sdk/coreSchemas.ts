@@ -1087,11 +1087,9 @@ export const AccountInfoSchema = lazySchema(() =>
       tokenSource: z.string().optional(),
       apiKeySource: z.string().optional(),
       apiProvider: z
-        .enum(['firstParty', 'bedrock', 'vertex', 'foundry'])
+        .enum(['firstParty'])
         .optional()
-        .describe(
-          'Active API backend. Anthropic OAuth login only applies when "firstParty"; for 3P providers the other fields are absent and auth is external (AWS creds, gcloud ADC, etc.).',
-        ),
+        .describe('Active API backend.'),
     })
     .describe("Information about the logged in user's account."),
 )
@@ -1658,17 +1656,6 @@ export const SDKToolProgressMessageSchema = lazySchema(() =>
   }),
 )
 
-export const SDKAuthStatusMessageSchema = lazySchema(() =>
-  z.object({
-    type: z.literal('auth_status'),
-    isAuthenticating: z.boolean(),
-    output: z.array(z.string()),
-    error: z.string().optional(),
-    uuid: UUIDPlaceholder(),
-    session_id: z.string(),
-  }),
-)
-
 export const SDKFilesPersistedEventSchema = lazySchema(() =>
   z.object({
     type: z.literal('system'),
@@ -1867,7 +1854,6 @@ export const SDKMessageSchema = lazySchema(() =>
     SDKHookProgressMessageSchema(),
     SDKHookResponseMessageSchema(),
     SDKToolProgressMessageSchema(),
-    SDKAuthStatusMessageSchema(),
     SDKTaskNotificationMessageSchema(),
     SDKTaskStartedMessageSchema(),
     SDKTaskProgressMessageSchema(),
