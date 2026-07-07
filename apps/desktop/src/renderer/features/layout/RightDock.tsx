@@ -1,5 +1,5 @@
 import type React from "react";
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { forwardRef, Fragment, useEffect, useMemo, useState } from "react";
 import { PanelBottom, PanelRight, Plus, X } from "lucide-react";
 import type {
   DesktopBrowserState,
@@ -424,16 +424,22 @@ export type DesktopWorkspaceFixedControlsProps = {
   onCloseRightDock: () => void;
 };
 
-export function DesktopWorkspaceFixedControls({
-  rightDockState,
-  bottomPanelVisible,
-  showBottomPanel,
-  onToggleBottomPanel,
-  onOpenRightDockTool,
-  onCloseRightDock,
-}: DesktopWorkspaceFixedControlsProps): React.ReactNode {
+export const DesktopWorkspaceFixedControls = forwardRef<
+  HTMLDivElement,
+  DesktopWorkspaceFixedControlsProps
+>(function DesktopWorkspaceFixedControls(
+  {
+    rightDockState,
+    bottomPanelVisible,
+    showBottomPanel,
+    onToggleBottomPanel,
+    onOpenRightDockTool,
+    onCloseRightDock,
+  }: DesktopWorkspaceFixedControlsProps,
+  ref,
+): React.ReactNode {
   return (
-    <div className="desktop-workspace-fixed-controls">
+    <div ref={ref} className="desktop-workspace-fixed-controls">
       {showBottomPanel ? (
         <IconButton
           className="desktop-workspace-fixed-control-button"
@@ -461,4 +467,4 @@ export function DesktopWorkspaceFixedControls({
       </IconButton>
     </div>
   );
-}
+});

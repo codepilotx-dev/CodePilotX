@@ -1693,6 +1693,23 @@ export function DesktopLayout(): React.ReactNode {
     setBottomPanelVisible(current => !current)
   }, [])
 
+  const fixedControlsRef = useRef<HTMLDivElement>(null)
+  const [fixedControlsWidth, setFixedControlsWidth] = useState(0)
+  useEffect(() => {
+    const el = fixedControlsRef.current
+    if (!el) return
+    const observer = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        const width = entry.borderBoxSize?.[0]?.inlineSize ?? entry.contentBoxSize?.[0]?.inlineSize ?? entry.target.getBoundingClientRect().width
+        if (Number.isFinite(width)) {
+          setFixedControlsWidth(Math.ceil(width))
+        }
+      }
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
   const rightDockNode: React.ReactNode | null = rightDockState.open ? (
     <RightDock
       state={rightDockState}
@@ -1896,10 +1913,12 @@ export function DesktopLayout(): React.ReactNode {
                 style={
                   {
                     '--sidebar-w': sidebarCollapsed ? '0px' : `${sidebarWidth}px`,
+                    ...(fixedControlsWidth > 0 ? { '--desktop-workspace-fixed-controls-w': `${fixedControlsWidth}px` } : {}),
                   } as React.CSSProperties
                 }
               >
                 <DesktopWorkspaceFixedControls
+                  ref={fixedControlsRef}
                   rightDockState={rightDockState}
                   bottomPanelVisible={bottomPanelVisible}
                   showBottomPanel={isQuickChatPage || isConversationRoute}
