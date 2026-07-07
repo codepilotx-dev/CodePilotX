@@ -6,6 +6,7 @@ import {
   CODEPILOTX_CONFIG_DIR_NAME,
   LEGACY_CLAUDE_CONFIG_DIR_ENV,
 } from '../config/env.js'
+import { MODELS_DEV_PROVIDERS } from './modelsDevSnapshot.js'
 import {
   formatProviderModel,
   getProviderApiKeyEnvVar,
@@ -96,7 +97,7 @@ export type ProviderConfigRuntime = {
 
 export type ProviderCatalogDiagnostics = {
   modelsDev: {
-    status: 'idle' | 'fulfilled' | 'rejected'
+    status: 'idle' | 'builtin' | 'fulfilled' | 'rejected'
     providerCount?: number
     usableProviderCount?: number
     filteredMissingApiCount?: number
@@ -413,6 +414,26 @@ export const PROVIDER_CONFIGS: Record<string, ModelProviderConfig> = {
   },
 }
 
+// Initialize provider catalog from hardcoded providers + built-in models.dev snapshot.
+// This runs synchronously at module load, so listProviderConfigs() works immediately
+// without waiting for a network fetch.
+;(() => {
+  const initialCatalog: Record<string, ModelProviderConfig> = {
+    ...PROVIDER_CONFIGS,
+  }
+  mergeModelsDevCatalog(initialCatalog, { providers: MODELS_DEV_PROVIDERS })
+  providerCatalogCache = initialCatalog
+  providerCatalogDiagnostics = {
+    modelsDev: {
+      status: 'builtin',
+      providerCount: Object.keys(MODELS_DEV_PROVIDERS).length,
+    },
+    gateway: { status: 'idle' },
+    providerCount: Object.keys(initialCatalog).length,
+    providerIds: Object.keys(initialCatalog).slice(0, 20),
+  }
+})()
+
 export async function listProviderConfigs(): Promise<ModelProviderConfig[]> {
   const catalog = await getProviderConfigCatalog()
   return Object.values(catalog).sort((a, b) =>
@@ -494,6 +515,14 @@ export async function fetchProviderModels(options: {
     return {
       models: provider.defaultModels,
       error: `${provider.displayName} API key is not configured.`,
+    }
+  }
+
+  const validationError = validateApiKeyHeader(apiKey)
+  if (validationError) {
+    return {
+      models: provider.defaultModels,
+      error: validationError,
     }
   }
 
@@ -646,10 +675,34 @@ export function getProviderApiKeySource(
   )
 }
 
+/**
+ * Validates that an API key string is safe for use as an HTTP header value.
+ * HTTP headers must contain only Latin-1 (ByteString) characters (code ≤ 255).
+ * Returns null if valid, or a user-friendly error message if invalid.
+ */
+export function validateApiKeyHeader(apiKey: string): string | null {
+  if (!apiKey || apiKey.trim().length === 0) {
+    return 'API Key 不能为空'
+  }
+  for (let i = 0; i < apiKey.length; i++) {
+    if (apiKey.charCodeAt(i) > 255) {
+      return 'API Key 不能包含中文或换行，请粘贴实际密钥'
+    }
+  }
+  if (apiKey.includes('\r') || apiKey.includes('\n')) {
+    return 'API Key 不能包含中文或换行，请粘贴实际密钥'
+  }
+  return null
+}
+
 export function saveProviderApiKey(
   providerID: ModelProviderID,
   apiKey: string,
 ): ProviderApiKeySaveResult {
+  const validationError = validateApiKeyHeader(apiKey)
+  if (validationError) {
+    return { success: false, warning: validationError }
+  }
   try {
     const current = readSecureStorage() ?? {}
     const result = writeSecureStorage({
@@ -683,14 +736,21 @@ export function deleteProviderApiKey(
 }
 
 export function clearProviderConfigCatalogCacheForTests(): void {
-  providerCatalogCache = null
   providerCatalogPromise = null
   providerModelCache.clear()
+  const initialCatalog: Record<string, ModelProviderConfig> = {
+    ...PROVIDER_CONFIGS,
+  }
+  mergeModelsDevCatalog(initialCatalog, { providers: MODELS_DEV_PROVIDERS })
+  providerCatalogCache = initialCatalog
   providerCatalogDiagnostics = {
-    modelsDev: { status: 'idle' },
+    modelsDev: {
+      status: 'builtin',
+      providerCount: Object.keys(MODELS_DEV_PROVIDERS).length,
+    },
     gateway: { status: 'idle' },
-    providerCount: 0,
-    providerIds: [],
+    providerCount: Object.keys(initialCatalog).length,
+    providerIds: Object.keys(initialCatalog).slice(0, 20),
   }
 }
 
@@ -801,7 +861,10 @@ export function resolveProviderApiKeySourceFromSources(
 export async function getProviderConfigCatalog(): Promise<
   Record<string, ModelProviderConfig>
 > {
-  if (providerCatalogCache) return providerCatalogCache
+  // Cache is pre-populated from built-in snapshot at module load.
+  // If a background refresh is in progress, return the cache immediately.
+  if (providerCatalogCache && providerCatalogPromise) return providerCatalogCache
+  // First call: kick off async fetch and await it.
   providerCatalogPromise ??= fetchProviderConfigCatalog()
   providerCatalogCache = await providerCatalogPromise
   return providerCatalogCache
@@ -826,6 +889,8 @@ function getProviderConfigFromCatalog(
 async function fetchProviderConfigCatalog(): Promise<
   Record<string, ModelProviderConfig>
 > {
+  // Start with hardcoded providers only.
+  // Remote catalog is the primary source; built-in snapshot is fallback.
   const catalog: Record<string, ModelProviderConfig> = { ...PROVIDER_CONFIGS }
   const [modelsDevResult, gatewayResult] = await Promise.allSettled([
     fetchModelsDevCatalog(),
@@ -841,8 +906,16 @@ async function fetchProviderConfigCatalog(): Promise<
       filteredMissingApiCount: stats.filteredMissingApiCount,
     }
   } else {
+    // Remote fetch failed — use built-in snapshot as fallback so provider
+    // list is not reduced to only the hardcoded zhipu entry.
+    const stats = mergeModelsDevCatalog(catalog, {
+      providers: MODELS_DEV_PROVIDERS,
+    })
     providerCatalogDiagnostics.modelsDev = {
-      status: 'rejected',
+      status: 'builtin',
+      providerCount: stats.providerCount,
+      usableProviderCount: stats.usableProviderCount,
+      filteredMissingApiCount: stats.filteredMissingApiCount,
       error: errorMessageOf(modelsDevResult.reason),
     }
   }
@@ -904,19 +977,32 @@ function mergeModelsDevCatalog(
       provider,
       modelsDevModels,
     )
-    const existing = catalog[providerID]
+    // Look up by direct key first, then by normalized providerID equivalence
+    // (e.g. 'zhipuai' from models.dev merges into catalog['zhipu'] since
+    //  normalizeLegacyProviderID('zhipu') === 'zhipuai').
+    const directKey =
+      providerID in catalog
+        ? providerID
+        : Object.keys(catalog).find(
+            k => normalizeLegacyProviderID(k) === providerID,
+          )
+    const existing = directKey ? catalog[directKey] : undefined
     catalog[providerID] = existing
       ? {
           ...existing,
-          displayName: fromModelsDev.displayName || existing.displayName,
-          baseURL: fromModelsDev.baseURL ?? existing.baseURL,
-          envVars: fromModelsDev.envVars?.length
-            ? fromModelsDev.envVars
-            : existing.envVars,
-          apiKeyEnvVar: fromModelsDev.apiKeyEnvVar ?? existing.apiKeyEnvVar,
-          docURL: fromModelsDev.docURL ?? existing.docURL,
+          kind: fromModelsDev.kind ?? existing.kind,
+          displayName: existing.displayName || fromModelsDev.displayName,
+          baseURL: existing.baseURL ?? fromModelsDev.baseURL,
+          envVars: mergeEnvVars(
+            existing.envVars,
+            fromModelsDev.envVars,
+          ),
+          apiKeyEnvVar: existing.apiKeyEnvVar ?? fromModelsDev.apiKeyEnvVar,
+          docURL: existing.docURL ?? fromModelsDev.docURL,
           logoURL: fromModelsDev.logoURL ?? existing.logoURL,
           npmPackage: fromModelsDev.npmPackage ?? existing.npmPackage,
+          requiresBaseURL:
+            fromModelsDev.requiresBaseURL ?? existing.requiresBaseURL,
           defaultModels: fromModelsDev.defaultModels.length
             ? fromModelsDev.defaultModels
             : existing.defaultModels,
@@ -1421,6 +1507,58 @@ function normalizeStringArray(value: unknown): string[] {
   }
   if (typeof value === 'string' && value.trim()) return [value.trim()]
   return []
+}
+
+// ── Background refresh ─────────────────────────────────────────────
+
+const PROVIDER_REFRESH_INTERVAL_MS = 5 * 60 * 1000
+
+/**
+ * Start a background provider catalog refresh loop.
+ *
+ * Immediately triggers one fetch, then repeats every 5 minutes.
+ * Timer is unref'd so it doesn't block process exit.
+ * Failures are silently caught — the cache keeps its previous state.
+ */
+export function startProviderCatalogRefreshLoop(): { stop: () => void } {
+  let timer: ReturnType<typeof setInterval> | null = null
+  let stopped = false
+
+  async function refresh(): Promise<void> {
+    if (stopped) return
+    try {
+      const freshCatalog = await fetchProviderConfigCatalog()
+      if (!stopped) {
+        providerCatalogCache = freshCatalog
+        providerCatalogPromise = null
+      }
+    } catch {
+      // Keep existing cache on failure
+    }
+  }
+
+  // Fire immediately
+  void refresh()
+
+  timer = setInterval(refresh, PROVIDER_REFRESH_INTERVAL_MS)
+  timer.unref()
+
+  return {
+    stop: () => {
+      stopped = true
+      if (timer) clearInterval(timer)
+      timer = null
+    },
+  }
+}
+
+function mergeEnvVars(
+  existing?: string[],
+  fromDev?: string[],
+): string[] | undefined {
+  if (!existing?.length && !fromDev?.length) return undefined
+  const set = new Set([...(existing ?? []), ...(fromDev ?? [])])
+  return Array.from(set)
 }
 
 function numberOrUndefined(value: unknown): number | undefined {

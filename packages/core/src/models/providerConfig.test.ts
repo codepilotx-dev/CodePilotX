@@ -26,6 +26,7 @@ import {
   shouldUseGitHubCopilotProvider,
   shouldUseMiniMaxProvider,
   shouldUseOpenAICompatibleProvider,
+  validateApiKeyHeader,
 } from './providerConfig.js'
 
 const ZHIPU_DEFAULT_MODELS = [
@@ -322,8 +323,70 @@ test('core provider api key source helpers can be used without storage', () => {
       env: { MINIMAX_API_KEY: 'env-alias-key' },
       storedKeys: {},
     }),
-  ).toBe('env-alias-key')
-})
+	  ).toBe('env-alias-key')
+	})
+
+test('validateApiKeyHeader rejects Chinese text', () => {
+	  expect(validateApiKeyHeader('是的，执行此计划')).toBe(
+	    'API Key 不能包含中文或换行，请粘贴实际密钥',
+	  )
+	})
+
+	test('validateApiKeyHeader rejects key with newline', () => {
+	  expect(validateApiKeyHeader('sk-key\n')).toBe(
+	    'API Key 不能包含中文或换行，请粘贴实际密钥',
+	  )
+	  expect(validateApiKeyHeader('sk-key\r\n')).toBe(
+	    'API Key 不能包含中文或换行，请粘贴实际密钥',
+	  )
+	})
+
+	test('validateApiKeyHeader rejects empty key', () => {
+	  expect(validateApiKeyHeader('')).toBe('API Key 不能为空')
+	  expect(validateApiKeyHeader('   ')).toBe('API Key 不能为空')
+	})
+
+	test('validateApiKeyHeader accepts normal ASCII token', () => {
+	  expect(validateApiKeyHeader('sk-test-key-12345')).toBeNull()
+	  expect(validateApiKeyHeader('  sk-test-key  ')).toBeNull()
+	})
+
+	test('validateApiKeyHeader accepts token with Unicode surrogate pairs within Latin-1 range', () => {
+	  // Latin-1 characters (code ≤ 255) like accented letters are valid
+	  expect(validateApiKeyHeader('sk-test-key-café')).toBeNull()
+	})
+
+	test('saveProviderApiKey rejects Chinese text', async () => {
+	  await withProviderConfigDir(async () => {
+	    const result = saveProviderApiKey('minimax', '是的，执行此计划')
+	    expect(result.success).toBe(false)
+	    expect(result.warning).toBe(
+	      'API Key 不能包含中文或换行，请粘贴实际密钥',
+	    )
+	  })
+	})
+
+	test('saveProviderApiKey saves normal ASCII token', async () => {
+	  await withProviderConfigDir(async () => {
+	    const result = saveProviderApiKey('minimax', 'sk-minimax-test-key')
+	    expect(result.success).toBe(true)
+	    expect(getProviderApiKey('minimax')).toBe('sk-minimax-test-key')
+	  })
+	})
+
+	test('fetchProviderModels returns validation error for Chinese API key', async () => {
+	  await withProviderConfigDir(async () => {
+	    const result = await fetchProviderModels({
+	      providerID: 'zhipu',
+	      apiKey: '是的，执行此计划',
+	      baseURL: 'https://open.bigmodel.cn/api/paas/v4/',
+	    })
+	    expect(result.models).toEqual(ZHIPU_DEFAULT_MODELS)
+	    expect(result.error).toBe(
+	      'API Key 不能包含中文或换行，请粘贴实际密钥',
+	    )
+	  })
+	})
 
 async function withProviderConfigDir(
   run: (configDir: string) => Promise<void>,
