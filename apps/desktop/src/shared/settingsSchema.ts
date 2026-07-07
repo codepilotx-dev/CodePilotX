@@ -103,8 +103,9 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     allowForcePush: false,
     commitMessagePrompt: '',
     pullRequestPrompt: '',
-    githubOAuthClientId: '',
-    installCodexDependencies: true,
+	    githubOAuthClientId: '',
+	    authBaseUrl: '',
+	    installCodexDependencies: true,
     personality: 'pragmatic',
     customInstructions: '',
     enableMemory: true,
@@ -269,11 +270,15 @@ export function normalizeDesktopStoredSettings(
       parsed.pullRequestPrompt,
       defaults.pullRequestPrompt,
     ),
-    githubOAuthClientId: stringOrDefault(
-      parsed.githubOAuthClientId,
-      defaults.githubOAuthClientId,
-    ),
-    installCodexDependencies:
+	    githubOAuthClientId: stringOrDefault(
+	      parsed.githubOAuthClientId,
+	      defaults.githubOAuthClientId,
+	    ),
+	    authBaseUrl: stringOrDefault(
+	      parsed.authBaseUrl,
+	      defaults.authBaseUrl,
+	    ),
+	    installCodexDependencies:
       typeof parsed.installCodexDependencies === 'boolean'
         ? parsed.installCodexDependencies
         : defaults.installCodexDependencies,

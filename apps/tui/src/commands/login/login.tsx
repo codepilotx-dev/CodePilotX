@@ -7,7 +7,7 @@ import {
 } from '../../bridge/trustedDevice.js'
 import type { LocalJSXCommandContext } from '../../commands.js'
 import { ConfigurableShortcutHint } from '../../components/ConfigurableShortcutHint.js'
-import { ConsoleOAuthFlow } from '../../components/ConsoleOAuthFlow.js'
+import { GithubLoginFlow } from '../../components/GithubLoginFlow.js'
 import { Dialog } from '../../components/design-system/Dialog.js'
 import { useMainLoopModel } from '../../hooks/useMainLoopModel.js'
 import { Text } from '../../ink.js'
@@ -45,7 +45,7 @@ export async function call(
           void refreshPolicyLimits()
           // Clear user data cache BEFORE GrowthBook refresh so it picks up fresh credentials
           resetUserCache()
-          // Refresh GrowthBook after login to get updated feature flags (e.g., for claude.ai MCPs)
+          // Refresh GrowthBook after login to get updated feature flags
           refreshGrowthBookAfterAuthChange()
           // Clear any stale trusted device token from a previous account before
           // re-enrolling — prevents sending the old token on bridge calls while
@@ -88,7 +88,7 @@ export function Login(props: {
 
   return (
     <Dialog
-      title="Login"
+      title="Login（GitHub）"
       onCancel={() => props.onDone(false, mainLoopModel)}
       color="permission"
       inputGuide={exitState =>
@@ -104,7 +104,7 @@ export function Login(props: {
         )
       }
     >
-      <ConsoleOAuthFlow
+      <GithubLoginFlow
         onDone={() => props.onDone(true, mainLoopModel)}
         startingMessage={props.startingMessage}
       />

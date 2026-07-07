@@ -12,6 +12,7 @@ import {
 } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, isAbsolute, join, relative, resolve } from 'node:path'
+import { homedir } from 'node:os'
 import { promisify } from 'node:util'
 import type {
   CloneGithubRepositoryInput,
@@ -34,6 +35,11 @@ import {
   registerAllowedWorkspace,
   workspaceFromPath,
 } from './workspaceService.js'
+import {
+  exchangeGithubToken,
+  refreshCodePilotToken,
+  resolveAuthBaseUrl,
+} from '@codepilotx/core/services/oauth/githubExchange.js'
 
 const execFileAsync = promisify(execFile)
 const GITHUB_API_VERSION = '2022-11-28'
@@ -187,13 +193,22 @@ export async function pollGithubLogin(): Promise<DesktopGithubLoginStatus> {
       clientId,
       currentAttempt.deviceCode,
     )
-    if ('access_token' in tokenResponse) {
-      const user = await fetchGithubUser(tokenResponse.access_token)
-      await storeGithubAuth(tokenResponse.access_token, user)
-      currentAttempt.state = 'completed'
-      currentAttempt.auth = { configured: true, authenticated: true, user }
-      return statusFromAttempt(currentAttempt)
-    }
+	    if ('access_token' in tokenResponse) {
+	      const user = await fetchGithubUser(tokenResponse.access_token)
+	      await storeGithubAuth(tokenResponse.access_token, user)
+	      currentAttempt.state = 'completed'
+	      currentAttempt.auth = { configured: true, authenticated: true, user }
+	      // Exchange GitHub token for CodePilotX app token (non-blocking)
+	      exchangeAndStoreAppToken(tokenResponse.access_token, user).catch(
+	        (err: unknown) => {
+	          console.error(
+	            'GitHub→CodePilotX token exchange failed:',
+	            err instanceof Error ? err.message : String(err),
+	          )
+	        },
+	      )
+	      return statusFromAttempt(currentAttempt)
+	    }
 
     switch (tokenResponse.error) {
       case 'authorization_pending':
@@ -671,6 +686,103 @@ function decryptToken(token: StoredGithubToken): string | null {
 
 function authStoragePath(): string {
   return join(app.getPath('userData'), AUTH_STORAGE_FILE)
+}
+
+// ── Shared credentials (the same file TUI reads for OAuth tokens) ─────────
+
+/**
+ * Path to the shared OAuth credentials file (~/.claude/.credentials.json or
+ * ~/.codepilotx/.credentials.json) that the TUI also reads via SecureStorage.
+ */
+function sharedCredentialsPath(): string {
+  const configDir =
+    process.env.CODEPILOTX_CONFIG_DIR ??
+    process.env.CLAUDE_CONFIG_DIR ??
+    join(homedir(), '.codepilotx')
+  return join(configDir.normalize('NFC'), '.credentials.json')
+}
+
+async function writeSharedCredentials(
+  data: Record<string, unknown>,
+): Promise<void> {
+  const credPath = sharedCredentialsPath()
+  await mkdir(resolve(credPath, '..'), { recursive: true })
+  await writeFile(credPath, JSON.stringify(data, null, 2), 'utf8')
+}
+
+async function readSharedCredentials(): Promise<Record<string, unknown> | null> {
+  try {
+    const credPath = sharedCredentialsPath()
+    const raw = await readFile(credPath, 'utf8')
+    return JSON.parse(raw) as Record<string, unknown>
+  } catch {
+    return null
+  }
+}
+
+// ── GitHub exchange → CodePilotX app auth ─────────────────────────────────
+
+/**
+ * Exchange a just-acquired GitHub token for a CodePilotX application token
+ * and persist it to the shared credentials slot so the TUI picks it up.
+ */
+async function exchangeAndStoreAppToken(
+  githubAccessToken: string,
+  githubUser: DesktopGithubUser,
+): Promise<void> {
+  let authBaseUrl: string | null = null
+  try {
+    const settings = await readDesktopStoredSettings()
+    authBaseUrl = settings.authBaseUrl || null
+  } catch {
+    // ignore — fall back to env/default
+  }
+
+  const appTokens = await exchangeGithubToken(
+    {
+      githubAccessToken,
+      githubUser: {
+        login: githubUser.login,
+        id: githubUser.id,
+        name: githubUser.name,
+        avatarUrl: githubUser.avatarUrl,
+      },
+      client: 'desktop',
+    },
+    authBaseUrl,
+  )
+
+  // Persist to shared credentials in the same slot TUI reads
+  const existing = await readSharedCredentials()
+  const claudeAiOauth = {
+    accessToken: appTokens.accessToken,
+    refreshToken: appTokens.refreshToken,
+    expiresAt: appTokens.expiresAt,
+    scopes: appTokens.scopes,
+    subscriptionType: null,
+    rateLimitTier: null,
+    source: 'github_exchange' as const,
+  }
+
+  await writeSharedCredentials({
+    ...(existing || {}),
+    claudeAiOauth,
+  })
+}
+
+// ── Logout ────────────────────────────────────────────────────────────────
+
+/**
+ * Clear the exchanged CodePilotX app token from shared credentials.
+ * Called from the application-level logout (logOut IPC handler).
+ * The raw GitHub token (github-auth.json) is kept so repo features still work.
+ */
+export async function logoutAppAuth(): Promise<void> {
+  const existing = await readSharedCredentials()
+  if (!existing) return
+  const updated = { ...existing }
+  delete updated.claudeAiOauth
+  await writeSharedCredentials(updated)
 }
 
 function statusFromAttempt(
