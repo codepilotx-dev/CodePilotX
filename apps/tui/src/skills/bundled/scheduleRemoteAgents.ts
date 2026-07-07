@@ -4,7 +4,6 @@ import { isPolicyAllowed } from '../../services/policyLimits/index.js'
 import type { ToolUseContext } from '../../Tool.js'
 import { ASK_USER_QUESTION_TOOL_NAME } from '../../tools/AskUserQuestionTool/prompt.js'
 import { REMOTE_TRIGGER_TOOL_NAME } from '../../tools/RemoteTriggerTool/prompt.js'
-import { getClaudeAIOAuthTokens } from '../../utils/auth.js'
 import { checkRepoForRemoteAccess } from '../../utils/background/remote/preconditions.js'
 import { logForDebugging } from '../../utils/debug.js'
 import {
@@ -329,19 +328,15 @@ export function registerScheduleRemoteAgentsSkill(): void {
     whenToUse:
       'When the user wants to schedule a recurring remote agent, set up automated tasks, create a cron job for CodePilotX, or manage their scheduled agents/triggers.',
     userInvocable: true,
-    isEnabled: () =>
-      getFeatureValue_CACHED_MAY_BE_STALE('tengu_surreal_dali', false) &&
-      isPolicyAllowed('allow_remote_sessions'),
+    isEnabled: () => false,
     allowedTools: [REMOTE_TRIGGER_TOOL_NAME, ASK_USER_QUESTION_TOOL_NAME],
     async getPromptForCommand(args: string, context: ToolUseContext) {
-      if (!getClaudeAIOAuthTokens()?.accessToken) {
-        return [
-          {
-            type: 'text',
-            text: 'You need to authenticate with a claude.ai account first. API accounts are not supported. Configure ANTHROPIC_API_KEY',
-          },
-        ]
-      }
+      return [
+        {
+          type: 'text',
+          text: 'Scheduled remote agents require Claude OAuth and are unavailable in this build.',
+        },
+      ]
 
       let environments: EnvironmentResource[]
       try {
