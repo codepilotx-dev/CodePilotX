@@ -21,6 +21,7 @@ import type {
   DesktopThinkingMode,
   DesktopWorkspace,
   ModelProviderID,
+  SidebarSectionId,
 } from '../../../shared/types.js'
 import {
   type StoredDesktopSettings,
@@ -75,8 +76,9 @@ export type UseDesktopSettingsResult = {
   reviewView: DesktopReviewView
   diffMarkerStyle: DesktopDiffMarkerStyle
   rustSearchAndDiffKernels: boolean
-  browserAllowedSites: string[]
-  browserSitePermissions: DesktopBrowserSitePermission[]
+	  browserAllowedSites: string[]
+	  collapsedSidebarSections: SidebarSectionId[]
+	  browserSitePermissions: DesktopBrowserSitePermission[]
   settingsLoaded: boolean
   setPermissionMode: (value: DesktopPermissionMode) => void
   setEnableAutoReviewPermissionMode: (value: boolean) => void
@@ -125,6 +127,9 @@ export type UseDesktopSettingsResult = {
   setDiffMarkerStyle: (value: DesktopDiffMarkerStyle) => void
   setRustSearchAndDiffKernels: (value: boolean) => void
   setBrowserAllowedSites: (value: string[]) => void
+  setCollapsedSidebarSections: (
+    value: SidebarSectionId[] | ((current: SidebarSectionId[]) => SidebarSectionId[]),
+  ) => void
   syncExternalSettingsPatch: (
     patch: Partial<StoredDesktopSettings>,
   ) => void
@@ -379,6 +384,9 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
   const [browserAllowedSites, setBrowserAllowedSites] = useState<string[]>(
     initial.browserAllowedSites,
   )
+  const [collapsedSidebarSections, setCollapsedSidebarSections] = useState<SidebarSectionId[]>(
+    initial.collapsedSidebarSections,
+  )
   const [browserSitePermissions, setBrowserSitePermissions] = useState<
     DesktopBrowserSitePermission[]
   >(initial.browserSitePermissions)
@@ -515,12 +523,13 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       githubMemoryRepository,
       reviewView,
       diffMarkerStyle,
-      rustSearchAndDiffKernels,
-      browserAllowedSites,
-      browserSitePermissions,
-    }),
-    [
-      enableParetoCodeRouter,
+	      rustSearchAndDiffKernels,
+	      browserAllowedSites,
+	      collapsedSidebarSections,
+	      browserSitePermissions,
+	    }),
+	    [
+	      enableParetoCodeRouter,
       enableFusionRouter,
       enableAutoReviewPermissionMode,
       enableFullAccessPermissionMode,
@@ -567,10 +576,11 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       githubMemoryRepository,
       reviewView,
       diffMarkerStyle,
-      rustSearchAndDiffKernels,
-      browserAllowedSites,
-      browserSitePermissions,
-    ],
+	      rustSearchAndDiffKernels,
+	      browserAllowedSites,
+	      collapsedSidebarSections,
+	      browserSitePermissions,
+	    ],
   )
   const effectiveSettingsRef = useRef(effectiveSettings)
   effectiveSettingsRef.current = effectiveSettings
@@ -665,8 +675,9 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       setReviewView(snapshot.reviewView)
       setDiffMarkerStyle(snapshot.diffMarkerStyle)
         setRustSearchAndDiffKernels(snapshot.rustSearchAndDiffKernels)
-        setBrowserAllowedSites(snapshot.browserAllowedSites)
-        setBrowserSitePermissions(snapshot.browserSitePermissions)
+	        setBrowserAllowedSites(snapshot.browserAllowedSites)
+	        setCollapsedSidebarSections(snapshot.collapsedSidebarSections)
+	        setBrowserSitePermissions(snapshot.browserSitePermissions)
       },
     [],
   )
@@ -802,8 +813,9 @@ defaultOpenTargetId,
       reviewView,
       diffMarkerStyle,
     rustSearchAndDiffKernels,
-    browserAllowedSites,
-    browserSitePermissions,
+	    browserAllowedSites,
+	    collapsedSidebarSections,
+	    browserSitePermissions,
     settingsLoaded,
     setPermissionMode,
     setEnableAutoReviewPermissionMode,
@@ -849,8 +861,9 @@ setGithubMemoryRepository,
     setReviewView,
     setDiffMarkerStyle,
     setRustSearchAndDiffKernels,
-    setBrowserAllowedSites,
-    syncExternalSettingsPatch,
+	    setBrowserAllowedSites,
+	    setCollapsedSidebarSections,
+	    syncExternalSettingsPatch,
     draft,
     flushDesktopSettings,
   }
@@ -868,6 +881,7 @@ function cloneDesktopSettings(
       ...workspace,
     })),
     browserAllowedSites: [...settings.browserAllowedSites],
+    collapsedSidebarSections: [...settings.collapsedSidebarSections],
     browserSitePermissions: settings.browserSitePermissions.map(permission => ({
       ...permission,
     })),

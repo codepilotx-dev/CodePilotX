@@ -93,7 +93,7 @@ export function ConfirmationDialogDebug(): React.ReactNode {
 
       <ConfirmationDialog
         actionLabel="移除"
-        description="这将从 Codex 中移除该项目。磁盘上的文件不会被删除。"
+        description="这将从 CodePilotX 中移除该项目。磁盘上的文件不会被删除。"
         open={active === 'removeProject'}
         title="移除 Test?"
         tone="danger"

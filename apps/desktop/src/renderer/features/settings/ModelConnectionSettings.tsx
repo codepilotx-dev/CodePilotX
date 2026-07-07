@@ -749,7 +749,7 @@ const nextState = await desktopClient.deleteProviderApiKey(providerID)
           description={
             isGitHubCopilot
               ? 'GitHub Copilot 通过本地 Copilot CLI 完成 OAuth 登录，无需 API 密钥。'
-              : 'API 密钥保存在安全存储中，环境变量优先级更高。'
+              : 'API 密钥按供应商 ID 保存在安全存储中。'
           }
         >
           {isGitHubCopilot ? (
@@ -878,7 +878,7 @@ const nextState = await desktopClient.deleteProviderApiKey(providerID)
           ) : (
             <SettingsRow
               title="API 密钥"
-              description={apiKeySource ? `当前来源：${apiKeySource}` : providerEnvDescription(selectedProvider)}
+              description={apiKeySource ? `当前来源：${apiKeySource}` : 'API 密钥未配置，请在下方输入后点击保存。'}
               control={
                 <div className="settings-inline-actions settings-secret-actions">
                   <span className={`settings-chip ${apiKeyConfigured ? 'ok' : 'warn'}`}>
@@ -1118,11 +1118,6 @@ function baseURLDescription(
   return 'Base URL 来自 Models.dev catalog。'
 }
 
-function providerEnvDescription(provider: DesktopModelProviderSummary | undefined): string {
-  if (!provider?.envVars?.length) return '未检测到环境变量。'
-  return `环境变量：${provider.envVars.join('、')}`
-}
-
 function connectionHint(provider: DesktopModelProviderSummary | undefined, baseURL: string): string {
   if (provider?.requiresBaseURL && !baseURL.trim()) {
     return '测试或保存此可调用连接前请先填写 Base URL。'
@@ -1200,7 +1195,6 @@ function formatCompactNumber(value: number): string {
 
 function formatApiKeyState(source: string | null, configured: boolean): string {
   if (!configured) return '未配置'
-  if (source && source !== 'secureStorage') return '来自环境变量'
   return '已配置'
 }
 
