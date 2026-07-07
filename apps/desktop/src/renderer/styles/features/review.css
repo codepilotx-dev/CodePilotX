@@ -25,7 +25,8 @@
 }
 
 .review-sidebar-toolbar {
-  min-height: 48px;
+  max-height: 40px;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -104,14 +105,12 @@
 }
 
 .review-sidebar-actions {
-
   flex: 0 0 auto;
 }
 
 .review-sidebar-counts,
 .review-file-counts {
-  gap: 4px;
-  font-size: var(--fs-13);
+  gap: 6px;
   font-variant-numeric: tabular-nums;
 }
 

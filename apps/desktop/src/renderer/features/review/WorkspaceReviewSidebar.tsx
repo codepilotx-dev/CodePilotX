@@ -702,10 +702,6 @@ export function WorkspaceReviewSidebar({
                   {scopeLabel(scope)}
                 </span>
                 <ChevronDown size={APP_ICON_SIZE} />
-                <span className="review-sidebar-counts">
-                  <strong>+{formatPanelNumber(totals.additions)}</strong>
-                  <em>-{formatPanelNumber(totals.deletions)}</em>
-                </span>
               </button>
             }
             onOpenChange={setScopeMenuOpen}
@@ -752,6 +748,10 @@ export function WorkspaceReviewSidebar({
               上轮对话
             </PopoverItem>
           </PopoverMenu>
+          <span className="review-sidebar-counts">
+            <strong>+{formatPanelNumber(totals.additions)}</strong>
+            <em>-{formatPanelNumber(totals.deletions)}</em>
+          </span>
         </div>
         <div className="review-sidebar-actions">
           <PopoverMenu
