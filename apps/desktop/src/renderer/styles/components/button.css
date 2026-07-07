@@ -260,12 +260,15 @@
 
 /* --- Message Action Button --- */
 .message-action {
-  width: 22px;
-  height: 22px;
+
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-4);
+  padding: 8px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+
   color: var(--c-text-meta);
 }
 

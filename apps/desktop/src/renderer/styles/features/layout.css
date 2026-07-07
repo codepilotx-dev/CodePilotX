@@ -41,7 +41,6 @@
 }
 
 .desktop-workspace {
-  --workspace-header-h: 46px;
   width: 100%;
   height: 100%;
   min-width: 0;
@@ -49,36 +48,6 @@
   display: flex;
   flex-direction: column;
   position: relative;
-}
-
-.desktop-workspace-header {
-  height: var(--workspace-header-h);
-  min-height: var(--workspace-header-h);
-  padding: 0;
-  gap: 0;
-}
-
-.desktop-workspace-header-main {
-  min-width: 0;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-2);
-  flex: 1 1 auto;
-  padding: var(--sp-2) var(--sp-5);
-}
-
-.desktop-workspace-header-dock {
-  height: 100%;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  flex: 0 0 max(var(--right-dock-offset, 0px), 76px);
-  padding: 0 12px 0 16px;
-  border-left: 1px solid var(--c-border-soft);
 }
 
 .desktop-main-browser-layout.browser-closed {
@@ -93,23 +62,58 @@
   min-height: 0;
 }
 
-.right-dock {
-  position: fixed;
-  z-index: var(--z-right-dock);
+.desktop-workspace-fixed-controls {
+  position: absolute;
+  z-index: calc(var(--z-right-dock) + 1);
+  top: 0;
   right: 0;
-  bottom: 0;
-  top: calc(var(--menubar-h) + var(--workspace-header-h, 46px));
   display: flex;
-  flex: none;
+  align-items: center;
+  gap: 2px;
+  padding: 0 12px;
+  min-height: 40px;
+  pointer-events: none;
+}
+
+.desktop-workspace-fixed-controls > * {
+  pointer-events: auto;
+}
+
+.desktop-workspace-fixed-control-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--c-text-soft);
+  transition:
+    background var(--motion-standard) var(--ease-out),
+    color var(--motion-standard) var(--ease-out),
+    border-color var(--motion-standard) var(--ease-out),
+    box-shadow var(--motion-standard) var(--ease-out);
+}
+
+.desktop-workspace-fixed-control-button:hover {
+  background: var(--c-sidebar-hover-bg);
+  color: var(--c-text-strong);
+}
+
+.desktop-workspace-fixed-control-button:focus-visible {
+  outline: none;
+}
+
+.right-dock {
+  position: relative;
+  display: flex;
   flex-direction: column;
-  width: var(--right-dock-current-w);
-  min-width: var(--right-dock-min-w);
-  max-width: var(--right-dock-max-w);
-  height: calc(100vh - var(--menubar-h) - var(--workspace-header-h, 46px));
+  width: 100%;
+  height: 100%;
+  min-width: 0;
   min-height: 0;
   overflow: hidden;
-  border: 1px solid var(--c-border-soft);
-  border-radius: 0;
+  border-left: 1px solid var(--c-border-soft);
   background: var(--c-bg);
   color: var(--c-text-strong);
 }
@@ -151,17 +155,16 @@
   user-select: none;
 }
 
-.right-dock-tabs {
+/* .right-dock-tabs {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  min-height: 46px;
+
   padding: 0 12px 0 16px;
   flex: 0 0 auto;
   border-bottom: 1px solid var(--c-border-soft);
-
-}
+} */
 
 .right-dock-tab-list,
 .right-dock-controls {
@@ -174,6 +177,7 @@
 .right-dock-tab-list {
   flex: 1 1 auto;
   overflow: hidden;
+  min-height: 40px;
 }
 
 .right-dock-controls {
@@ -182,13 +186,14 @@
 
 .right-dock-tab-wrap {
   min-width: 0;
-  max-width: 244px;
-  height: 36px;
+  max-width: 240px;
   display: inline-flex;
   align-items: center;
+  gap: 5px;
   flex: 0 1 auto;
   overflow: hidden;
   border-radius: 12px;
+  padding: 5px 8px;
   color: var(--c-text-meta);
   transition:
     background var(--motion-standard) var(--ease-standard),
@@ -215,12 +220,13 @@
 .right-dock-tab {
   position: relative;
   min-width: 0;
-  height: 36px;
+
   display: inline-flex;
   align-items: center;
   flex: 1 1 auto;
-  gap: 8px;
-  padding: 0 11px 0 12px;
+
+  padding: 0;
+
   border: 0;
   border-radius: var(--radius-3);
   background: transparent;
@@ -265,14 +271,11 @@
 }
 
 .right-dock-tab-close {
-  width: 28px;
-  height: 28px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  margin-right: 4px;
-  padding: 0;
+  padding: 2px;
   border: 0;
   border-radius: 9px;
   background: transparent;
@@ -322,13 +325,12 @@
 
 .right-dock-add-button,
 .right-dock-control {
-  width: 38px;
-  height: 38px;
+  padding: 8px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border: 0;
-  border-radius: var(--radius-3);
+  border-radius: 10px;
   background: transparent;
   color: var(--c-text-soft);
   transition:
@@ -357,6 +359,19 @@
     --radix-dropdown-menu-content-transform-origin,
     top right
   );
+}
+
+.right-dock-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+
+  padding: 0 92px 0 10px;
+
+  border-bottom: 1px solid var(--c-border-soft);
+  overflow: hidden;
 }
 
 .right-dock-content {
@@ -887,12 +902,6 @@
 
 .desktop-main-route {
   min-width: 0;
-  padding-right: calc(var(--right-dock-offset, 0px));
-  transition: padding-right var(--motion-emphasis) var(--ease-standard);
-}
-
-.desktop-main-browser-layout.browser-closed .desktop-main-route {
-  padding-right: 0;
 }
 
 .right-dock-terminal {
@@ -955,10 +964,6 @@
     color var(--motion-standard) var(--ease-out),
     border-color var(--motion-standard) var(--ease-out),
     box-shadow var(--motion-standard) var(--ease-out);
-}
-
-:root[data-reduce-motion="on"] .desktop-main-route {
-  transition: none;
 }
 
 .right-dock-tab-wrap.active,

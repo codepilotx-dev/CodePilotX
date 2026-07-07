@@ -21,7 +21,6 @@
   gap: 32px;
   width: 100%;
   max-width: 760px;
-  flex: 1;
   min-height: 0;
   padding: 40px 20px 80px;
 }
@@ -100,6 +99,7 @@
   padding: var(--sp-2) var(--sp-5);
   border-bottom: 1px solid var(--c-border-soft);
   flex-shrink: 0;
+  min-height: 40px;
 }
 
 .chat-session-title {
@@ -121,7 +121,7 @@
 .chat-session-actions {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+
   flex-shrink: 0;
 }
 
@@ -162,7 +162,9 @@
   height: 100%;
   width: 100%;
   min-height: 0;
-  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--right-dock-current-w, 0px);
+  overflow: hidden;
 }
 
 .quick-chat-workspace.with-environment-panel {
@@ -2357,7 +2359,8 @@
 .workflow-page__body {
   flex: 1;
   min-height: 0;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--right-dock-current-w, 0px);
   width: 100%;
   overflow: hidden;
 }
@@ -2427,7 +2430,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 16px 18px;
+  padding: 15px;
   border: 1px solid var(--c-panel-border);
   border-radius: var(--radius-panel);
   background:
@@ -2569,17 +2572,12 @@
 }
 
 .workflow-page .chat-composer.workflow-page__composer {
-  position: fixed;
-  z-index: var(--z-composer);
-  left: calc(var(--sidebar-w, 280px) + var(--layout-page-pad-x));
-  right: calc(var(--right-dock-offset, 0px) + var(--layout-page-pad-x));
-  bottom: var(--layout-composer-bottom);
-  width: auto;
+  flex: 0 0 auto;
   display: flex;
   justify-content: center;
   flex-direction: column;
   align-items: center;
-  flex: 0 0 auto;
+  width: 100%;
   padding: 0;
   pointer-events: none;
 }
