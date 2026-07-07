@@ -1,5 +1,6 @@
 import React from "react";
 import { Tooltip } from "../../components/ui/Tooltip.js";
+import { MarkdownMessage } from "./MarkdownMessage.js";
 import type { ConversationTurnNavItem } from "./ConversationPage.js";
 
 type Props = {
@@ -49,7 +50,7 @@ export function ConversationTurnNavRail({
               <div className="preview-card-user-text">{item.userText}</div>
               {item.assistantText ? (
                 <div className="preview-card-assistant-text">
-                  {item.assistantText}
+                  <MarkdownMessage text={item.assistantText} />
                 </div>
               ) : null}
               {item.files.length > 0 ? (

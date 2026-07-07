@@ -20,7 +20,7 @@
   position: relative;
 
   margin: 0 auto;
-  padding: 20px 0 0;
+  padding: 18px 0 0;
 }
 
 /* ── Top-level container ──────────────────────────────── */
@@ -41,11 +41,8 @@
 .session-timeline-vlist > :first-child {
   /* VList's inner scroll container; ensure proper width */
   min-width: 0;
-  width: min(
-    var(--workflow-composer-width, var(--layout-content-w, 760px)),
-    100%
-  );
-  max-width: var(--workflow-composer-width, var(--layout-content-w, 760px));
+  width: var(--workflow-content-w, min(var(--layout-content-w, 760px), 100%));
+  max-width: var(--workflow-content-w, var(--layout-content-w, 760px));
   margin: auto;
 }
 
@@ -53,7 +50,7 @@
 
 .session-turn-row {
   /* Row spacing matches the existing conversation-stream gap */
-  padding: 0 var(--layout-page-pad-x, 20px);
+  padding: 0;
   /* Container query context for responsive adjustments */
   container-type: inline-size;
 }
