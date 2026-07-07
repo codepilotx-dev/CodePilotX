@@ -120,6 +120,33 @@ wire_api = "chat"
 }
 
 #[test]
+fn test_deserialize_chat_completions_wire_api() {
+    let provider_toml = r#"
+name = "DeepSeek"
+base_url = "https://api.deepseek.com"
+env_key = "DEEPSEEK_API_KEY"
+wire_api = "chat_completions"
+        "#;
+
+    let provider: ModelProviderInfo = toml::from_str(provider_toml).unwrap();
+    assert_eq!(provider.wire_api, WireApi::ChatCompletions);
+    assert_eq!(WireApi::ChatCompletions.to_string(), "chat_completions");
+}
+
+#[test]
+fn test_deserialize_chat_completions_wire_api_normalized_alias() {
+    let provider_toml = r#"
+name = "DeepSeek"
+base_url = "https://api.deepseek.com"
+env_key = "DEEPSEEK_API_KEY"
+wire_api = "chatcompletions"
+        "#;
+
+    let provider: ModelProviderInfo = toml::from_str(provider_toml).unwrap();
+    assert_eq!(provider.wire_api, WireApi::ChatCompletions);
+}
+
+#[test]
 fn test_deserialize_anthropic_messages_wire_api() {
     let provider_toml = r#"
 name = "MiniMax Anthropic"

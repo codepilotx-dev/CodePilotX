@@ -49,14 +49,16 @@ pub const OLLAMA_CHAT_PROVIDER_REMOVED_ERROR: &str = "`ollama-chat` is no longer
 
 /// Wire protocol that the provider speaks.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, JsonSchema)]
-#[serde(rename_all = "lowercase")]
 pub enum WireApi {
     /// The Responses API exposed by OpenAI at `/v1/responses`.
     #[default]
+    #[serde(rename = "responses")]
     Responses,
     /// The Anthropic Messages API exposed at `/v1/messages`.
+    #[serde(rename = "anthropic_messages")]
     AnthropicMessages,
     /// The Chat Completions API at `/chat/completions` (OpenAI-compatible).
+    #[serde(rename = "chat_completions")]
     ChatCompletions,
 }
 
