@@ -310,17 +310,16 @@ export async function initEnvLessBridgeCore(
 
   // ── 5. JWT refresh scheduler ────────────────────────────────────────────
   // Schedule a callback 5min before expiry (per response.expires_in). On fire,
-  // re-fetch /bridge with OAuth → rebuild transport with fresh credentials.
+  // re-fetch /bridge → rebuild transport with fresh credentials.
   // Each /bridge call bumps epoch server-side, so a JWT-only swap would leave
   // the old CCRClient heartbeating with a stale epoch → 409 within 20s.
   // JWT is opaque — do not decode.
   const refresh = createTokenRefreshScheduler({
     refreshBufferMs: cfg.token_refresh_buffer_ms,
     getAccessToken: async () => {
-      // Unconditionally refresh OAuth before calling /bridge — getAccessToken()
-      // returns expired tokens as non-null strings (doesn't check expiresAt),
-      // so truthiness doesn't mean valid. Pass the stale token to onAuth401
-      // so handleOAuth401Error's keychain-comparison can detect parallel refresh.
+      // Unconditionally refresh auth before calling /bridge — getAccessToken()
+      // may return expired tokens as non-null strings, so truthiness doesn't
+      // mean valid.
       const stale = getAccessToken()
       if (onAuth401) await onAuth401(stale ?? '')
       return getAccessToken() ?? stale
@@ -536,10 +535,8 @@ export async function initEnvLessBridgeCore(
     onStateChange?.('reconnecting', 'JWT expired — refreshing')
     logForDebugging('[remote-bridge] 401 on SSE — attempting JWT refresh')
     try {
-      // Unconditionally try OAuth refresh — getAccessToken() returns expired
+      // Unconditionally try auth refresh — getAccessToken() may return expired
       // tokens as non-null strings, so !oauthToken doesn't catch expiry.
-      // Pass the stale token so handleOAuth401Error's keychain-comparison
-      // can detect if another tab already refreshed.
       const stale = getAccessToken()
       if (onAuth401) await onAuth401(stale ?? '')
       const oauthToken = getAccessToken() ?? stale
@@ -688,10 +685,8 @@ export async function initEnvLessBridgeCore(
 
     // Token is usually fresh (refresh scheduler runs 5min before expiry) but
     // laptop-wake past the refresh window leaves getAccessToken() returning a
-    // stale string. Retry once on 401 — onAuth401 (= handleOAuth401Error)
-    // clears keychain cache + force-refreshes. No proactive refresh on the
-    // happy path: handleOAuth401Error force-refreshes even valid tokens,
-    // which would waste budget 99% of the time. try/catch mirrors
+    // stale string. Retry once on 401 through onAuth401. No proactive refresh
+    // on the happy path. try/catch mirrors
     // recoverFromAuthFailure: keychain reads can throw (macOS locked after
     // wake); an uncaught throw here would skip transport.close + telemetry.
     if (status === 401 && onAuth401) {

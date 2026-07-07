@@ -25,11 +25,6 @@ import {
   waitForPolicyLimitsToLoad,
 } from '../services/policyLimits/index.js'
 import type { Message } from '../types/message.js'
-import {
-  checkAndRefreshOAuthTokenIfNeeded,
-  getClaudeAIOAuthTokens,
-  handleOAuth401Error,
-} from '../utils/auth.js'
 import { getGlobalConfig, saveGlobalConfig } from '../utils/config.js'
 import { logForDebugging } from '../utils/debug.js'
 import { stripDisplayTagsAllowEmpty } from '../utils/displayTags.js'
@@ -159,85 +154,6 @@ export async function initReplBridge(
     )
     onStateChange?.('failed', "disabled by your organization's policy")
     return null
-  }
-
-  // When CLAUDE_BRIDGE_OAUTH_TOKEN is set (ant-only local dev), the bridge
-  // uses that token directly via getBridgeAccessToken() — keychain state is
-  // irrelevant. Skip 2b/2c to preserve that decoupling: an expired keychain
-  // token shouldn't block a bridge connection that doesn't use it.
-  if (!getBridgeTokenOverride()) {
-    // 2a. Cross-process backoff. If N prior processes already saw this exact
-    // dead token (matched by expiresAt), skip silently — no event, no refresh
-    // attempt. The count threshold tolerates transient refresh failures (auth
-    // server 5xx, lockfile errors per auth.ts:1437/1444/1485): each process
-    // independently retries until 3 consecutive failures prove the token dead.
-    // Mirrors useReplBridge's MAX_CONSECUTIVE_INIT_FAILURES for in-process.
-    // The expiresAt key is content-addressed: /login → new token → new expiresAt
-    // → this stops matching without any explicit clear.
-    const cfg = getGlobalConfig()
-    if (
-      cfg.bridgeOauthDeadExpiresAt != null &&
-      (cfg.bridgeOauthDeadFailCount ?? 0) >= 3 &&
-      getClaudeAIOAuthTokens()?.expiresAt === cfg.bridgeOauthDeadExpiresAt
-    ) {
-      logForDebugging(
-        `[bridge:repl] Skipping: cross-process backoff (dead token seen ${cfg.bridgeOauthDeadFailCount} times)`,
-      )
-      return null
-    }
-
-    // 2b. Proactively refresh if expired. Mirrors bridgeMain.ts:2096 — the REPL
-    // bridge fires at useEffect mount BEFORE any v1/messages call, making this
-    // usually the first OAuth request of the session. Without this, ~9% of
-    // registrations hit the server with a >8h-expired token → 401 → withOAuthRetry
-    // recovers, but the server logs a 401 we can avoid. VPN egress IPs observed
-    // at 30:1 401:200 when many unrelated users cluster at the 8h TTL boundary.
-    //
-    // Fresh-token cost: one memoized read + one Date.now() comparison (~µs).
-    // checkAndRefreshOAuthTokenIfNeeded clears its own cache in every path that
-    // touches the keychain (refresh success, lockfile race, throw), so no
-    // explicit clearOAuthTokenCache() here — that would force a blocking
-    // keychain spawn on the 91%+ fresh-token path.
-    await checkAndRefreshOAuthTokenIfNeeded()
-
-    // 2c. Skip if token is still expired post-refresh-attempt. Env-var / FD
-    // tokens (auth.ts:894-917) have expiresAt=null → never trip this. But a
-    // keychain token whose refresh token is dead (password change, org left,
-    // token GC'd) has expiresAt<now AND refresh just failed — the client would
-    // otherwise loop 401 forever: withOAuthRetry → handleOAuth401Error →
-    // refresh fails again → retry with same stale token → 401 again.
-    // Datadog 2026-03-08: single IPs generating 2,879 such 401s/day. Skip the
-    // guaranteed-fail API call; useReplBridge surfaces the failure.
-    //
-    // Intentionally NOT using isOAuthTokenExpired here — that has a 5-minute
-    // proactive-refresh buffer, which is the right heuristic for "should
-    // refresh soon" but wrong for "provably unusable". A token with 3min left
-    // + transient refresh endpoint blip (5xx/timeout/wifi-reconnect) would
-    // falsely trip a buffered check; the still-valid token would connect fine.
-    // Check actual expiry instead: past-expiry AND refresh-failed → truly dead.
-    const tokens = getClaudeAIOAuthTokens()
-    if (tokens && tokens.expiresAt !== null && tokens.expiresAt <= Date.now()) {
-      logBridgeSkip(
-        'oauth_expired_unrefreshable',
-        '[bridge:repl] Skipping: OAuth token expired and refresh failed (re-login required)',
-      )
-      onStateChange?.('failed', '/login')
-      // Persist for the next process. Increments failCount when re-discovering
-      // the same dead token (matched by expiresAt); resets to 1 for a different
-      // token. Once count reaches 3, step 2a's early-return fires and this path
-      // is never reached again — writes are capped at 3 per dead token.
-      // Local const captures the narrowed type (closure loses !==null narrowing).
-      const deadExpiresAt = tokens.expiresAt
-      saveGlobalConfig(c => ({
-        ...c,
-        bridgeOauthDeadExpiresAt: deadExpiresAt,
-        bridgeOauthDeadFailCount:
-          c.bridgeOauthDeadExpiresAt === deadExpiresAt
-            ? (c.bridgeOauthDeadFailCount ?? 0) + 1
-            : 1,
-      }))
-      return null
-    }
   }
 
   // 4. Compute baseUrl — needed by both v1 (env-based) and v2 (env-less)
@@ -427,7 +343,6 @@ export async function initReplBridge(
       orgUUID,
       title,
       getAccessToken: getBridgeAccessToken,
-      onAuth401: handleOAuth401Error,
       toSDKMessages,
       initialHistoryCap,
       initialMessages,
@@ -528,7 +443,6 @@ export async function initReplBridge(
     getCurrentTitle: () => getCurrentSessionTitle(getSessionId()) ?? title,
     onUserMessage,
     toSDKMessages,
-    onAuth401: handleOAuth401Error,
     getPollIntervalConfig,
     initialHistoryCap,
     initialMessages,

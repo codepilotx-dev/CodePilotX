@@ -2093,8 +2093,6 @@ export async function bridgeMain(args: string[]): Promise<void> {
   }
 
   // Resolve auth
-  const { clearOAuthTokenCache, checkAndRefreshOAuthTokenIfNeeded } =
-    await import('../utils/auth.js')
   const { getBridgeAccessToken, getBridgeBaseUrl } = await import(
     './bridgeConfig.js'
   )
@@ -2342,13 +2340,11 @@ export async function bridgeMain(args: string[]): Promise<void> {
   const machineName = hostname()
   const bridgeId = randomUUID()
 
-  const { handleOAuth401Error } = await import('../utils/auth.js')
   const api = createBridgeApiClient({
     baseUrl,
     getAccessToken: getBridgeAccessToken,
     runnerVersion: MACRO.VERSION,
     onDebug: logForDebugging,
-    onAuth401: handleOAuth401Error,
     getTrustedDeviceToken,
   })
 
@@ -2371,11 +2367,6 @@ export async function bridgeMain(args: string[]): Promise<void> {
       // eslint-disable-next-line custom-rules/no-process-exit
       process.exit(1)
     }
-    // Proactively refresh the OAuth token — getBridgeSession uses raw axios
-    // without the withOAuthRetry 401-refresh logic. An expired-but-present
-    // token would otherwise produce a misleading "not found" error.
-    await checkAndRefreshOAuthTokenIfNeeded()
-    clearOAuthTokenCache()
     const { getBridgeSession } = await import('./createSession.js')
     const session = await getBridgeSession(resumeSessionId, {
       baseUrl,
@@ -2740,11 +2731,6 @@ export async function bridgeMain(args: string[]): Promise<void> {
       undefined,
       initialSessionId ?? undefined,
       async () => {
-        // Clear the memoized OAuth token cache so we re-read from secure
-        // storage, picking up tokens refreshed by child processes.
-        clearOAuthTokenCache()
-        // Proactively refresh the token if it's expired on disk too.
-        await checkAndRefreshOAuthTokenIfNeeded()
         return getBridgeAccessToken()
       },
     )

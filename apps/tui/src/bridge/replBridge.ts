@@ -148,7 +148,7 @@ export type BridgeCoreParams = {
   toSDKMessages?: (messages: Message[]) => SDKMessage[]
   /**
    * OAuth 401 refresh handler passed to createBridgeApiClient. REPL wrapper
-   * passes handleOAuth401Error; daemon passes its AuthManager's handler.
+   * passes an auth refresh handler; daemon passes its AuthManager's handler.
    * Injected because utils/auth.ts transitively pulls in the command
    * registry via config.ts → file.ts → permissions/filesystem.ts →
    * sessionStorage.ts → commands.ts.
