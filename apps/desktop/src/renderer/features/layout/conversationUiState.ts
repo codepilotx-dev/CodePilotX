@@ -2,14 +2,12 @@ import type { RightDockPlan, RightDockToolId } from './rightDockTools.js'
 import type { DesktopComposerAttachment } from '../../../shared/types.js'
 
 const STORAGE_PREFIX = 'conversation.ui-state.'
-const DEFAULT_RIGHT_DOCK_WIDTH = 680
 
 export type ConversationUiState = {
   rightDock: {
     open: boolean
     activeTool: RightDockToolId | null
     openTools: RightDockToolId[]
-    width: number
   }
   plan: RightDockPlan | null
   mainScrollTop: number
@@ -17,15 +15,12 @@ export type ConversationUiState = {
   sideChatAttachments: DesktopComposerAttachment[]
 }
 
-export function createDefaultConversationUiState(
-  width: number = DEFAULT_RIGHT_DOCK_WIDTH,
-): ConversationUiState {
+export function createDefaultConversationUiState(): ConversationUiState {
   return {
     rightDock: {
       open: false,
       activeTool: null,
       openTools: [],
-      width,
     },
     plan: null,
     mainScrollTop: 0,
@@ -87,7 +82,6 @@ export function validateConversationUiState(
       open,
       activeTool,
       openTools,
-      width: state.rightDock.width,
     },
     plan: state.plan,
     mainScrollTop: state.mainScrollTop,

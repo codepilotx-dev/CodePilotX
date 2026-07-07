@@ -5,6 +5,7 @@ import type {
   DesktopRemovedWorkspace,
   DesktopSessionMetadataPatch,
   DesktopWorkspace,
+  SidebarSectionId,
 } from "../../../shared/types.js";
 import type { AppView, SessionListItem } from "../../uiTypes.js";
 import { SidebarBody } from "./sidebar/SidebarBody.js";
@@ -21,12 +22,16 @@ type Props = {
   onChooseWorkspace: () => void;
   onCreateSession: (workspace?: DesktopWorkspace | null) => void;
   onOpenWorkspace: (workspace: DesktopWorkspace) => void;
+  onPinWorkspace: (workspace: DesktopWorkspace) => void;
+  onUnpinWorkspace: (workspace: DesktopWorkspace) => void;
   onRemoveWorkspace: (workspace: DesktopWorkspace) => void;
   onSelectSession: (session: SessionListItem) => void;
   onUpdateSessionMetadata: (
     sessionId: string,
     patch: DesktopSessionMetadataPatch,
   ) => void;
+  collapsedSidebarSections: SidebarSectionId[];
+  onToggleSidebarSection: (section: SidebarSectionId) => void;
 };
 
 export function DesktopSidebar({
@@ -39,9 +44,13 @@ export function DesktopSidebar({
   onChooseWorkspace,
   onCreateSession,
   onOpenWorkspace,
+  onPinWorkspace,
+  onUnpinWorkspace,
   onRemoveWorkspace,
   onSelectSession,
   onUpdateSessionMetadata,
+  collapsedSidebarSections,
+  onToggleSidebarSection,
 }: Props): React.ReactNode {
   const location = useLocation();
   const [relativeNow, setRelativeNow] = useState(() => Date.now());
@@ -76,6 +85,17 @@ export function DesktopSidebar({
   const projectWorkspaces = useMemo(
     () => mergeProjectWorkspaces(recentWorkspaces, unpinnedSessions, removedWorkspaces),
     [recentWorkspaces, unpinnedSessions, removedWorkspaces],
+  );
+  const pinnedWorkspaces = useMemo(
+    () =>
+      projectWorkspaces
+        .filter(w => w.pinnedAt)
+        .sort((a, b) => compareTimestamp(b.pinnedAt, a.pinnedAt)),
+    [projectWorkspaces],
+  );
+  const unpinnedWorkspaces = useMemo(
+    () => projectWorkspaces.filter(w => !w.pinnedAt),
+    [projectWorkspaces],
   );
 
   function isActiveView(view: AppView): boolean {
@@ -117,7 +137,8 @@ export function DesktopSidebar({
         collapsedProjectPaths={collapsedProjectPaths}
         now={relativeNow}
         pinnedSessions={pinnedSessions}
-        projectWorkspaces={projectWorkspaces}
+        pinnedWorkspaces={pinnedWorkspaces}
+        projectWorkspaces={unpinnedWorkspaces}
         standaloneSessions={standaloneSessions}
         unavailableWorkspacePaths={unavailableWorkspacePaths}
         unpinnedSessions={unpinnedSessions}
@@ -127,6 +148,10 @@ export function DesktopSidebar({
         onCreateSession={onCreateSession}
         onOpenWorkspace={onOpenWorkspace}
         onPinSession={pinSession}
+        onPinWorkspace={onPinWorkspace}
+        onUnpinWorkspace={onUnpinWorkspace}
+        collapsedSidebarSections={collapsedSidebarSections}
+        onToggleSidebarSection={onToggleSidebarSection}
         onRemoveWorkspace={onRemoveWorkspace}
         onSelectSession={onSelectSession}
         onToggleProjectCollapsed={toggleProjectCollapsed}

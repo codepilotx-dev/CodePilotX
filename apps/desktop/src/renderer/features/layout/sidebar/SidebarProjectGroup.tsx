@@ -10,6 +10,7 @@ import {
   MoreHorizontal,
   Pencil,
   Pin,
+  PinOff,
   SquarePen,
   X,
 } from "lucide-react";
@@ -40,10 +41,12 @@ type Props = {
   onCreateSession: (workspace?: DesktopWorkspace | null) => void;
   onOpenWorkspace: (workspace: DesktopWorkspace) => void;
   onPinSession: (session: SessionListItem) => void;
+  onPinWorkspace: (workspace: DesktopWorkspace) => void;
   onRemoveWorkspace: (workspace: DesktopWorkspace) => void;
   onSelectSession: (session: SessionListItem) => void;
   onToggleProjectCollapsed: (projectPath: string) => void;
   onUnpinSession: (session: SessionListItem) => void;
+  onUnpinWorkspace: (workspace: DesktopWorkspace) => void;
 };
 
 export function SidebarProjectGroup({
@@ -58,10 +61,12 @@ export function SidebarProjectGroup({
   onCreateSession,
   onOpenWorkspace,
   onPinSession,
+  onPinWorkspace,
   onRemoveWorkspace,
   onSelectSession,
   onToggleProjectCollapsed,
   onUnpinSession,
+  onUnpinWorkspace,
 }: Props): React.ReactNode {
   const [hovered, setHovered] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -73,9 +78,23 @@ export function SidebarProjectGroup({
   const actionsVisible = hovered || menuOpen;
   const isExpanded = !collapsedProjectPaths.has(project.path);
   const isCurrent = workspace?.path === project.path;
+  const isPinned = !!project.pinnedAt;
 
   function getProjectContextMenuActions(): ContextMenuAction[] {
+    const isPinned = !!project.pinnedAt;
     return [
+      {
+        kind: 'item',
+        label: isPinned ? '取消置顶' : '置顶项目',
+        icon: isPinned ? <PinOff size={APP_ICON_SIZE} /> : <Pin size={APP_ICON_SIZE} />,
+        onSelect: () => {
+          if (isPinned) {
+            onUnpinWorkspace(project);
+          } else {
+            onPinWorkspace(project);
+          }
+        },
+      },
       {
         kind: 'item',
         label: '在资源管理器中打开',
@@ -192,8 +211,23 @@ export function SidebarProjectGroup({
                     >
                       打开项目
                     </PopoverItem>
-                    <PopoverItem icon={<Pin size={APP_ICON_SIZE} />} onClick={() => {}}>
-                      置顶项目
+                    <PopoverItem
+                      icon={
+                        isPinned ? (
+                          <PinOff size={APP_ICON_SIZE} />
+                        ) : (
+                          <Pin size={APP_ICON_SIZE} />
+                        )
+                      }
+                      onClick={() => {
+                        if (isPinned) {
+                          onUnpinWorkspace(project);
+                        } else {
+                          onPinWorkspace(project);
+                        }
+                      }}
+                    >
+                      {isPinned ? '取消置顶' : '置顶项目'}
                     </PopoverItem>
                     <PopoverItem
                       icon={<FolderOpen size={APP_ICON_SIZE} />}
@@ -237,7 +271,7 @@ export function SidebarProjectGroup({
                   <ConfirmationDialog
                     actionLabel="移除"
                     cancelLabel="取消"
-                    description="该项目将从 Codex 中移除，其下的对话将一并归档。磁盘上的文件不会被删除。"
+                    description="该项目将从 CodePilotX 中移除，其下的对话将一并归档。磁盘上的文件不会被删除。"
                     open={confirmRemoveOpen}
                     title={`移除 ${project.name}?`}
                     tone="danger"

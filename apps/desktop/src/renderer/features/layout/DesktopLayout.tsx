@@ -10,7 +10,7 @@ import {
   getDesktopComposerBranchName,
 } from '../session/DesktopComposer.js'
 import { DesktopAppShell } from './DesktopAppShell.js'
-import { RightDock, RightDockHeader } from './RightDock.js'
+import { RightDock, DesktopWorkspaceFixedControls } from './RightDock.js'
 import {
   applyRightDockAction,
   type RightDockState,
@@ -42,10 +42,6 @@ import type {
   WindowMenuAction,
 } from './MenuBar.js'
 import { QuickChatContext } from '../session/QuickChatContext.js'
-import {
-  WorkspaceHeaderContext,
-  type WorkspaceHeaderContent,
-} from './WorkspaceHeaderContext.js'
 import { SearchContext } from '../search/SearchContext.js'
 import type { SessionListItem } from '../../uiTypes.js'
 import { useDesktopSettings } from '../settings/useDesktopSettings.js'
@@ -81,8 +77,10 @@ import type {
   DesktopWorkspace,
   LocalRouterMode,
   ModelProviderID,
+  SidebarSectionId,
 } from '../../../shared/types.js'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { upsertRecentWorkspace } from '../../../shared/settings.js'
 
 const RUNTIME_WARNING_MESSAGE =
   '桌面端 agent 运行时缺失，发送消息前请先执行 `bun run desktop:agent:build`。'
@@ -133,11 +131,13 @@ export function DesktopLayout(): React.ReactNode {
     setProviderBaseURL,
     setProviderID,
     setThinkingMode,
-    setRecentWorkspaces,
-    setDrawerTab,
-    setSelectedModelPreset,
-    setReviewView,
-    syncExternalSettingsPatch,
+	    setRecentWorkspaces,
+	    setDrawerTab,
+	    setSelectedModelPreset,
+	    setReviewView,
+	    collapsedSidebarSections,
+	    setCollapsedSidebarSections,
+	    syncExternalSettingsPatch,
   } = settings
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [runtimeWarningDismissed, setRuntimeWarningDismissed] = useState(false)
@@ -171,8 +171,6 @@ export function DesktopLayout(): React.ReactNode {
   const [sideChatAttachments, setSideChatAttachments] = useState<
     DesktopComposerAttachment[]
   >([])
-  const [workspaceHeaderContent, setWorkspaceHeaderContent] =
-    useState<WorkspaceHeaderContent | null>(null)
   const [menubarDebugMode, setMenubarDebugMode] = useState(() =>
     readDesktopBrowserDebugMode(),
   )
@@ -829,14 +827,13 @@ export function DesktopLayout(): React.ReactNode {
 
   const prevSessionIdRef = useRef<string | null>(null)
   const uiSnapshotRef = useRef<ConversationUiState>(
-    createDefaultConversationUiState(rightDockWidth),
+    createDefaultConversationUiState(),
   )
   uiSnapshotRef.current = {
     rightDock: {
       open: rightDockState.open,
       activeTool: rightDockState.activeTool,
       openTools: rightDockState.openTools,
-      width: rightDockWidth,
     },
     plan: rightDockPlan,
     mainScrollTop: 0,
@@ -868,7 +865,6 @@ export function DesktopLayout(): React.ReactNode {
           activeTool: validated.rightDock.activeTool,
           openTools: validated.rightDock.openTools,
         })
-        setRightDockWidth(clampRightDockWidth(validated.rightDock.width))
         setRightDockPlan(validated.plan)
         setSideChatInput(validated.sideChatInput)
         setSideChatAttachments(validated.sideChatAttachments)
@@ -1451,14 +1447,45 @@ export function DesktopLayout(): React.ReactNode {
       setSelectedFile,
       setWorkspaceState,
       settings,
-    ],
+	    ],
+	  )
+
+	  const handlePinWorkspace = useCallback(
+	    (target: DesktopWorkspace): void => {
+	      setRecentWorkspaces(current =>
+	        upsertRecentWorkspace(current, { ...target, pinnedAt: new Date().toISOString() }),
+	      )
+	    },
+	    [setRecentWorkspaces],
+	  )
+
+	  const handleUnpinWorkspace = useCallback(
+	    (target: DesktopWorkspace): void => {
+	      setRecentWorkspaces(current =>
+	        upsertRecentWorkspace(current, { ...target, pinnedAt: null }),
+	      )
+	    },
+    [setRecentWorkspaces],
+  )
+
+  const handleToggleSidebarSection = useCallback(
+    (section: SidebarSectionId): void => {
+      setCollapsedSidebarSections(current => {
+        const next = current.includes(section)
+          ? current.filter(s => s !== section)
+          : [...current, section]
+        syncExternalSettingsPatch({ collapsedSidebarSections: next })
+        return next
+      })
+    },
+    [setCollapsedSidebarSections, syncExternalSettingsPatch],
   )
 
   useEffect(() => {
     if (!runtimeMissing) {
-      setRuntimeWarningDismissed(false)
-    }
-  }, [runtimeMissing])
+	      setRuntimeWarningDismissed(false)
+	    }
+	  }, [runtimeMissing])
 
   useEffect(() => {
     let mounted = true
@@ -1529,6 +1556,10 @@ export function DesktopLayout(): React.ReactNode {
       onCreateSession={workspaceItem => void handleCreateSession(workspaceItem)}
       onOpenWorkspace={workspaceItem => void handleOpenRecentWorkspace(workspaceItem)}
       onRemoveWorkspace={handleRemoveWorkspace}
+      onPinWorkspace={handlePinWorkspace}
+      onUnpinWorkspace={handleUnpinWorkspace}
+      collapsedSidebarSections={collapsedSidebarSections}
+      onToggleSidebarSection={handleToggleSidebarSection}
       onSelectSession={handleSelectSession}
       onUpdateSessionMetadata={(targetSessionId, patch) =>
         void handleUpdateSessionMetadata(targetSessionId, patch)
@@ -1661,10 +1692,48 @@ export function DesktopLayout(): React.ReactNode {
   const toggleBottomPanelVisible = useCallback((): void => {
     setBottomPanelVisible(current => !current)
   }, [])
-  const workspaceHeaderContextValue = useMemo(
-    () => ({ setHeaderContent: setWorkspaceHeaderContent }),
-    [],
-  )
+
+  const rightDockNode: React.ReactNode | null = rightDockState.open ? (
+    <RightDock
+      state={rightDockState}
+      browserState={browserState}
+      debugMode={menubarDebugMode}
+      defaultBranch={derivedDefaultBranch}
+      files={workspaceFiles}
+      gitStatus={gitStatus}
+      isRefreshingReview={false}
+      diffMarkerStyle={diffMarkerStyle}
+      maxWidth={RIGHT_DOCK_MAX_WIDTH}
+      minWidth={RIGHT_DOCK_MIN_WIDTH}
+      reviewView={reviewView}
+      plan={rightDockPlan}
+      selectedFile={selectedFile}
+      sessionId={sessionId}
+      sessionStatus={sessionStatus}
+      width={rightDockWidth}
+      workspace={currentWorkspace}
+      quickChatOnly={isQuickChatPage}
+      onAppendBrowserAnnotation={handleBrowserAnnotation}
+      onAppendComposerText={handleAppendComposerText}
+      onAddComposerFiles={handleAddComposerFiles}
+      onBrowserStateChange={setBrowserState}
+      onClose={closeRightDock}
+      onCloseTool={closeRightDockTool}
+      onCreateBranch={() => setGitWorkflowMode('branch')}
+      onOpenTool={handleRightDockToolSelect}
+      onOpenWorkspacePath={handleOpenWorkspacePath}
+      onPreviewFile={file => void previewFile(file)}
+      onRefreshReview={handleRefreshDiff}
+      onResetWidth={handleResetRightDockWidth}
+      onSelectTool={selectRightDockTool}
+      onSetWidth={handleSetRightDockWidth}
+      onToggleReviewView={() =>
+        setReviewView(reviewView === 'inline' ? 'split' : 'inline')
+      }
+      sideChatComposer={sideChatComposer}
+      sideChatFocusVersion={sideChatFocusVersion}
+    />
+  ) : null
 
   return (
     <div className="desktop-frame">
@@ -1716,8 +1785,7 @@ export function DesktopLayout(): React.ReactNode {
         sidebar={sidebar}
         menubarDebugMode={menubarDebugMode}
       >
-        <WorkspaceHeaderContext.Provider value={workspaceHeaderContextValue}>
-          <QuickChatContext.Provider
+        <QuickChatContext.Provider
             value={{
             isConversationRoute,
             isConversationLoading,
@@ -1808,6 +1876,8 @@ export function DesktopLayout(): React.ReactNode {
             rightDockOpen: rightDockState.open,
             rightDockTool: rightDockState.activeTool,
             rightDockPlanContent: rightDockPlan?.content ?? null,
+            rightDockNode,
+            rightDockWidth,
             debugMode: menubarDebugMode,
             }}
           >
@@ -1825,36 +1895,18 @@ export function DesktopLayout(): React.ReactNode {
                 className="desktop-workspace"
                 style={
                   {
-                    '--right-dock-offset': rightDockState.open
-                      ? `${rightDockWidth}px`
-                      : '0px',
                     '--sidebar-w': sidebarCollapsed ? '0px' : `${sidebarWidth}px`,
                   } as React.CSSProperties
                 }
               >
-                <header className="chat-session-header desktop-workspace-header">
-                  <div className="desktop-workspace-header-main">
-                    {workspaceHeaderContent?.title ?? (
-                      <div className="chat-session-title" aria-hidden="true" />
-                    )}
-                    {workspaceHeaderContent?.actions ?? (
-                      <div className="chat-session-actions" aria-hidden="true" />
-                    )}
-                  </div>
-                  <div className="desktop-workspace-header-dock">
-                    {workspaceHeaderContent?.dockActions ?? null}
-                    <RightDockHeader
-                      state={rightDockState}
-                      debugMode={menubarDebugMode}
-                      quickChatOnly={isQuickChatPage}
-                      plan={rightDockPlan}
-                      onClose={closeRightDock}
-                      onCloseTool={closeRightDockTool}
-                      onOpenTool={handleRightDockToolSelect}
-                      onSelectTool={selectRightDockTool}
-                    />
-                  </div>
-                </header>
+                <DesktopWorkspaceFixedControls
+                  rightDockState={rightDockState}
+                  bottomPanelVisible={bottomPanelVisible}
+                  showBottomPanel={isQuickChatPage || isConversationRoute}
+                  onToggleBottomPanel={toggleBottomPanelVisible}
+                  onOpenRightDockTool={handleRightDockToolSelect}
+                  onCloseRightDock={closeRightDock}
+                />
                 <div
                   className={
                     rightDockState.open
@@ -1865,52 +1917,10 @@ export function DesktopLayout(): React.ReactNode {
                   <div className="desktop-main-route">
                     <Outlet />
                   </div>
-                  {rightDockState.open ? (
-                    <RightDock
-                      state={rightDockState}
-                      browserState={browserState}
-                      debugMode={menubarDebugMode}
-                      defaultBranch={derivedDefaultBranch}
-                      files={workspaceFiles}
-                      gitStatus={gitStatus}
-                      isRefreshingReview={false}
-                      diffMarkerStyle={diffMarkerStyle}
-                      maxWidth={RIGHT_DOCK_MAX_WIDTH}
-                      minWidth={RIGHT_DOCK_MIN_WIDTH}
-                      reviewView={reviewView}
-                      plan={rightDockPlan}
-                      selectedFile={selectedFile}
-                      sessionId={sessionId}
-                      sessionStatus={sessionStatus}
-                      width={rightDockWidth}
-                      workspace={currentWorkspace}
-                      quickChatOnly={isQuickChatPage}
-                      onAppendBrowserAnnotation={handleBrowserAnnotation}
-                      onAppendComposerText={handleAppendComposerText}
-                      onAddComposerFiles={handleAddComposerFiles}
-                      onBrowserStateChange={setBrowserState}
-                      onClose={closeRightDock}
-                      onCloseTool={closeRightDockTool}
-                      onCreateBranch={() => setGitWorkflowMode('branch')}
-                      onOpenTool={handleRightDockToolSelect}
-                      onOpenWorkspacePath={handleOpenWorkspacePath}
-                      onPreviewFile={file => void previewFile(file)}
-                      onRefreshReview={handleRefreshDiff}
-                      onResetWidth={handleResetRightDockWidth}
-                      onSelectTool={selectRightDockTool}
-                      onSetWidth={handleSetRightDockWidth}
-                      onToggleReviewView={() =>
-                        setReviewView(reviewView === 'inline' ? 'split' : 'inline')
-                      }
-                      sideChatComposer={sideChatComposer}
-                      sideChatFocusVersion={sideChatFocusVersion}
-                    />
-                  ) : null}
                 </div>
               </div>
             </SearchContext.Provider>
           </QuickChatContext.Provider>
-        </WorkspaceHeaderContext.Provider>
       </DesktopAppShell>
     </div>
   )

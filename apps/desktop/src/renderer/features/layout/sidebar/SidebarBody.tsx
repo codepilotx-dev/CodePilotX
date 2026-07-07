@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   Archive,
   ArrowDown,
+  ChevronDown,
   ChevronRight,
   Clock3,
   CirclePlus,
@@ -14,7 +15,7 @@ import {
   SquarePen,
 } from "lucide-react";
 import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
-import type { DesktopWorkspace } from "../../../../shared/types.js";
+import type { DesktopWorkspace, SidebarSectionId } from "../../../../shared/types.js";
 import type { SessionListItem } from "../../../uiTypes.js";
 import { IconButton } from "../../../components/ui/IconButton.js";
 import { PopoverItem } from "../../../components/ui/PopoverItem.js";
@@ -28,6 +29,7 @@ type Props = {
   collapsedProjectPaths: Set<string>;
   now: number;
   pinnedSessions: SessionListItem[];
+  pinnedWorkspaces: DesktopWorkspace[];
   projectWorkspaces: DesktopWorkspace[];
   standaloneSessions: SessionListItem[];
   unavailableWorkspacePaths: Set<string>;
@@ -38,10 +40,14 @@ type Props = {
   onCreateSession: (workspace?: DesktopWorkspace | null) => void;
   onOpenWorkspace: (workspace: DesktopWorkspace) => void;
   onPinSession: (session: SessionListItem) => void;
+  onPinWorkspace: (workspace: DesktopWorkspace) => void;
   onRemoveWorkspace: (workspace: DesktopWorkspace) => void;
   onSelectSession: (session: SessionListItem) => void;
   onToggleProjectCollapsed: (projectPath: string) => void;
   onUnpinSession: (session: SessionListItem) => void;
+  onUnpinWorkspace: (workspace: DesktopWorkspace) => void;
+  collapsedSidebarSections: SidebarSectionId[];
+  onToggleSidebarSection: (section: SidebarSectionId) => void;
 };
 
 export function SidebarBody({
@@ -49,6 +55,7 @@ export function SidebarBody({
   collapsedProjectPaths,
   now,
   pinnedSessions,
+  pinnedWorkspaces,
   projectWorkspaces,
   standaloneSessions,
   unavailableWorkspacePaths,
@@ -59,10 +66,14 @@ export function SidebarBody({
   onCreateSession,
   onOpenWorkspace,
   onPinSession,
+  onPinWorkspace,
   onRemoveWorkspace,
   onSelectSession,
   onToggleProjectCollapsed,
   onUnpinSession,
+  onUnpinWorkspace,
+  collapsedSidebarSections,
+  onToggleSidebarSection,
 }: Props): React.ReactNode {
   return (
     <ScrollArea
@@ -70,19 +81,53 @@ export function SidebarBody({
       contentClassName="sidebar-scroll-content"
     >
       <div className="sidebar-section-group">
-        {pinnedSessions.length > 0 ? (
+        {pinnedSessions.length > 0 || pinnedWorkspaces.length > 0 ? (
           <section className="sidebar-section">
-            <h2 className="sidebar-section-title">置顶</h2>
-            <SidebarSessionGroup
-              activeSessionId={activeSessionId}
-              groupKey="pinned"
-              now={now}
-              sessions={pinnedSessions}
-              onArchiveSession={onArchiveSession}
-              onPinSession={onPinSession}
-              onSelectSession={onSelectSession}
-              onUnpinSession={onUnpinSession}
+            <SidebarSectionHeader
+              title="置顶"
+              sectionId="pinned"
+              isCollapsed={collapsedSidebarSections.includes('pinned')}
+              onAction={() => {}}
+              onToggle={onToggleSidebarSection}
             />
+            {!collapsedSidebarSections.includes('pinned') ? (
+              <>
+                {pinnedSessions.length > 0 ? (
+                  <SidebarSessionGroup
+                    activeSessionId={activeSessionId}
+                    groupKey="pinned"
+                    now={now}
+                    sessions={pinnedSessions}
+                    onArchiveSession={onArchiveSession}
+                    onPinSession={onPinSession}
+                    onSelectSession={onSelectSession}
+                    onUnpinSession={onUnpinSession}
+                  />
+                ) : null}
+                {pinnedWorkspaces.map((project) => (
+                  <SidebarProjectGroup
+                    activeSessionId={activeSessionId}
+                    collapsedProjectPaths={collapsedProjectPaths}
+                    key={project.path}
+                    isUnavailable={unavailableWorkspacePaths.has(project.path)}
+                    now={now}
+                    project={project}
+                    sessions={unpinnedSessions}
+                    workspace={workspace}
+                    onArchiveSession={onArchiveSession}
+                    onCreateSession={onCreateSession}
+                    onOpenWorkspace={onOpenWorkspace}
+                    onPinSession={onPinSession}
+                    onPinWorkspace={onPinWorkspace}
+                    onUnpinWorkspace={onUnpinWorkspace}
+                    onRemoveWorkspace={onRemoveWorkspace}
+                    onSelectSession={onSelectSession}
+                    onToggleProjectCollapsed={onToggleProjectCollapsed}
+                    onUnpinSession={onUnpinSession}
+                  />
+                ))}
+              </>
+            ) : null}
           </section>
         ) : null}
 
@@ -91,53 +136,65 @@ export function SidebarBody({
             actionIcon={<FolderOpen size={APP_ICON_SIZE} />}
             actionTitle="选择项目"
             title="项目"
+            sectionId="projects"
+            isCollapsed={collapsedSidebarSections.includes('projects')}
             onAction={onChooseWorkspace}
+            onToggle={onToggleSidebarSection}
           />
-          {projectWorkspaces.length === 0 ? (
-            <p className="sidebar-empty">暂无最近项目</p>
-          ) : (
-            projectWorkspaces.map((project) => (
-              <SidebarProjectGroup
-                activeSessionId={activeSessionId}
-                collapsedProjectPaths={collapsedProjectPaths}
-                key={project.path}
-                isUnavailable={unavailableWorkspacePaths.has(project.path)}
-                now={now}
-                project={project}
-                sessions={unpinnedSessions}
-                workspace={workspace}
-                onArchiveSession={onArchiveSession}
-                onCreateSession={onCreateSession}
-                onOpenWorkspace={onOpenWorkspace}
-                onPinSession={onPinSession}
-                onRemoveWorkspace={onRemoveWorkspace}
-                onSelectSession={onSelectSession}
-                onToggleProjectCollapsed={onToggleProjectCollapsed}
-                onUnpinSession={onUnpinSession}
-              />
-            ))
-          )}
+          {!collapsedSidebarSections.includes('projects') ? (
+            projectWorkspaces.length === 0 ? (
+              <p className="sidebar-empty">暂无最近项目</p>
+            ) : (
+              projectWorkspaces.map((project) => (
+                <SidebarProjectGroup
+                  activeSessionId={activeSessionId}
+                  collapsedProjectPaths={collapsedProjectPaths}
+                  key={project.path}
+                  isUnavailable={unavailableWorkspacePaths.has(project.path)}
+                  now={now}
+                  project={project}
+                  sessions={unpinnedSessions}
+                  workspace={workspace}
+                  onArchiveSession={onArchiveSession}
+                  onCreateSession={onCreateSession}
+                  onOpenWorkspace={onOpenWorkspace}
+                  onPinSession={onPinSession}
+                  onPinWorkspace={onPinWorkspace}
+                  onUnpinWorkspace={onUnpinWorkspace}
+                  onRemoveWorkspace={onRemoveWorkspace}
+                  onSelectSession={onSelectSession}
+                  onToggleProjectCollapsed={onToggleProjectCollapsed}
+                  onUnpinSession={onUnpinSession}
+                />
+              ))
+            )
+          ) : null}
         </section>
 
         <section className="sidebar-section">
           <SidebarSectionHeader
             title="对话"
+            sectionId="conversations"
+            isCollapsed={collapsedSidebarSections.includes('conversations')}
             onAction={() => onCreateSession(null)}
+            onToggle={onToggleSidebarSection}
           />
-          {standaloneSessions.length === 0 ? (
-            <p className="sidebar-empty">暂无对话</p>
-          ) : (
-            <SidebarSessionGroup
-              activeSessionId={activeSessionId}
-              groupKey="standalone"
-              now={now}
-              sessions={standaloneSessions}
-              onArchiveSession={onArchiveSession}
-              onPinSession={onPinSession}
-              onSelectSession={onSelectSession}
-              onUnpinSession={onUnpinSession}
-            />
-          )}
+          {!collapsedSidebarSections.includes('conversations') ? (
+            standaloneSessions.length === 0 ? (
+              <p className="sidebar-empty">暂无对话</p>
+            ) : (
+              <SidebarSessionGroup
+                activeSessionId={activeSessionId}
+                groupKey="standalone"
+                now={now}
+                sessions={standaloneSessions}
+                onArchiveSession={onArchiveSession}
+                onPinSession={onPinSession}
+                onSelectSession={onSelectSession}
+                onUnpinSession={onUnpinSession}
+              />
+            )
+          ) : null}
         </section>
       </div>
     </ScrollArea>
@@ -148,58 +205,91 @@ function SidebarSectionHeader({
   actionIcon,
   actionTitle = "新建对话",
   title,
+  sectionId,
+  isCollapsed,
   onAction,
+  onToggle,
 }: {
   actionIcon?: React.ReactNode;
   actionTitle?: string;
   title: string;
+  sectionId: SidebarSectionId;
+  isCollapsed: boolean;
   onAction: () => void;
+  onToggle: (sectionId: SidebarSectionId) => void;
 }): React.ReactNode {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const actionsVisible = hovered || menuOpen;
   return (
-    <div className="sidebar-section-header">
-      <h2 className="sidebar-section-title">{title}</h2>
-      <div
-        className={
-          menuOpen
-            ? "sidebar-section-actions is-visible"
-            : "sidebar-section-actions"
+    <div
+      className="sidebar-section-header"
+      role="button"
+      tabIndex={0}
+      aria-expanded={!isCollapsed}
+      onClick={() => onToggle(sectionId)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onToggle(sectionId);
         }
-      >
-        <PopoverMenu
-          autoWidth
-          className="popover-sidebar-section"
-          open={menuOpen}
-          side="top"
-          trigger={
-            <button aria-label="更多" className="icon-button" type="button">
-              <MoreHorizontal size={APP_ICON_SIZE} />
-            </button>
+      }}
+    >
+      <h2 className="sidebar-section-title">{title}</h2>
+      <div className="sidebar-section-trailing">
+        <ChevronDown
+          className={
+            "sidebar-section-chevron" +
+            (isCollapsed ? "" : " is-expanded") +
+            (actionsVisible ? " section-chevron-hidden" : "")
           }
-          onOpenChange={setMenuOpen}
+          size={APP_ICON_SIZE}
+        />
+        <div
+          className={
+            "sidebar-section-actions" +
+            (actionsVisible ? " is-visible" : "")
+          }
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
         >
-          <PopoverItem icon={<Archive size={APP_ICON_SIZE} />} onClick={() => {}}>
-            归档所有聊天
-          </PopoverItem>
-          <div className="popover-divider" />
-          <SidebarSubmenu icon={<Folder size={APP_ICON_SIZE} />} label="整理侧边栏">
-            <PopoverItem icon={<Folder size={APP_ICON_SIZE} />} selected withCheck>
-              按项目
+          <PopoverMenu
+            autoWidth
+            className="popover-sidebar-section"
+            open={menuOpen}
+            side="top"
+            trigger={
+              <button aria-label="更多" className="icon-button" type="button">
+                <MoreHorizontal size={APP_ICON_SIZE} />
+              </button>
+            }
+            onOpenChange={setMenuOpen}
+          >
+            <PopoverItem icon={<Archive size={APP_ICON_SIZE} />} onClick={() => {}}>
+              归档所有聊天
             </PopoverItem>
-            <PopoverItem icon={<Folder size={APP_ICON_SIZE} />}>近期项目</PopoverItem>
-            <PopoverItem icon={<Clock3 size={APP_ICON_SIZE} />}>按时间顺序</PopoverItem>
-            <PopoverItem icon={<ArrowDown size={APP_ICON_SIZE} />}>下移</PopoverItem>
-          </SidebarSubmenu>
-          <SidebarSubmenu icon={<Clock3 size={APP_ICON_SIZE} />} label="排序条件">
-            <PopoverItem icon={<CirclePlus size={APP_ICON_SIZE} />}>创建时间</PopoverItem>
-            <PopoverItem icon={<PenLine size={APP_ICON_SIZE} />} selected withCheck>
-              更新时间
-            </PopoverItem>
-          </SidebarSubmenu>
-        </PopoverMenu>
-        <IconButton onClick={onAction} title={actionTitle}>
-          {actionIcon ?? <SquarePen size={APP_ICON_SIZE} />}
-        </IconButton>
+            <div className="popover-divider" />
+            <SidebarSubmenu icon={<Folder size={APP_ICON_SIZE} />} label="整理侧边栏">
+              <PopoverItem icon={<Folder size={APP_ICON_SIZE} />} selected withCheck>
+                按项目
+              </PopoverItem>
+              <PopoverItem icon={<Folder size={APP_ICON_SIZE} />}>近期项目</PopoverItem>
+              <PopoverItem icon={<Clock3 size={APP_ICON_SIZE} />}>按时间顺序</PopoverItem>
+              <PopoverItem icon={<ArrowDown size={APP_ICON_SIZE} />}>下移</PopoverItem>
+            </SidebarSubmenu>
+            <SidebarSubmenu icon={<Clock3 size={APP_ICON_SIZE} />} label="排序条件">
+              <PopoverItem icon={<CirclePlus size={APP_ICON_SIZE} />}>创建时间</PopoverItem>
+              <PopoverItem icon={<PenLine size={APP_ICON_SIZE} />} selected withCheck>
+                更新时间
+              </PopoverItem>
+            </SidebarSubmenu>
+          </PopoverMenu>
+          <IconButton onClick={onAction} title={actionTitle}>
+            {actionIcon ?? <SquarePen size={APP_ICON_SIZE} />}
+          </IconButton>
+        </div>
       </div>
     </div>
   );

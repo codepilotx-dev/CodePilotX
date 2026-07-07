@@ -1,6 +1,6 @@
-import type React from 'react'
-import { Fragment, useEffect, useMemo, useState } from 'react'
-import { Minus, PanelRight, Plus, X } from 'lucide-react'
+import type React from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
+import { PanelBottom, PanelRight, Plus, X } from "lucide-react";
 import type {
   DesktopBrowserState,
   DesktopDiffMarkerStyle,
@@ -10,79 +10,81 @@ import type {
   DesktopReviewView,
   DesktopSessionStatus,
   DesktopWorkspace,
-} from '../../../shared/types.js'
-import { desktopClient } from '../../services/desktopClient.js'
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
-import { IconButton } from '../../components/ui/IconButton.js'
-import { PopoverItem } from '../../components/ui/PopoverItem.js'
-import { PopoverMenu } from '../../components/ui/PopoverMenu.js'
+} from "../../../shared/types.js";
+import { desktopClient } from "../../services/desktopClient.js";
+import {
+  APP_ICON_SIZE,
+  APP_ICON_STROKE_WIDTH,
+} from "../../components/ui/iconTokens.js";
+import { IconButton } from "../../components/ui/IconButton.js";
+import { PopoverItem } from "../../components/ui/PopoverItem.js";
+import { PopoverMenu } from "../../components/ui/PopoverMenu.js";
 import type {
   RightDockPanelContext,
   RightDockPlan,
   RightDockToolId,
-} from './rightDockTools.js'
+} from "./rightDockTools.js";
 import {
   getRightDockTool,
   getVisibleRightDockTools,
   isRightDockToolEnabled,
-} from './rightDockTools.js'
-import { rightDockPanelRenderers } from './rightDockPanelRenderers.js'
-import type { RightDockState } from './rightDockState.js'
+} from "./rightDockTools.js";
+import { rightDockPanelRenderers } from "./rightDockPanelRenderers.js";
+import type { RightDockState } from "./rightDockState.js";
 import {
   SIDEBAR_COLLAPSE_HOLD_MS,
   SIDEBAR_COLLAPSE_TARGET_SIZE,
   useSidebarResizeCollapseConfirm,
-} from './useSidebarResizeCollapseConfirm.js'
+} from "./useSidebarResizeCollapseConfirm.js";
 
 type Props = {
-  state: RightDockState
-  browserState: DesktopBrowserState | null
-  debugMode?: boolean
-  defaultBranch: string | null
-  files: DesktopFileEntry[]
-  gitStatus: DesktopGitStatus | null
-  isRefreshingReview: boolean
-  diffMarkerStyle: DesktopDiffMarkerStyle
-  maxWidth: number
-  minWidth: number
-  reviewView: DesktopReviewView
-  selectedFile: DesktopFilePreview | null
-  sessionId: string | null
-  sessionStatus: DesktopSessionStatus
-  plan: RightDockPlan | null
-  width: number
-  workspace: DesktopWorkspace | null
-  quickChatOnly?: boolean
-  onAppendBrowserAnnotation: (text: string) => void
-  onBrowserStateChange: (state: DesktopBrowserState) => void
-  onClose: () => void
-  onCloseTool: (tool: RightDockToolId) => void
-  onCreateBranch: () => void
-  onOpenTool: (tool: RightDockToolId) => void
-  onOpenWorkspacePath: () => void
-  onPreviewFile: (file: DesktopFileEntry) => void
-  onAppendComposerText: (text: string) => void
-  onAddComposerFiles: (filePaths: string[]) => void
-  onRefreshReview: () => void
-  onResetWidth: () => void
-  onSelectTool: (tool: RightDockToolId) => void
-  onSetWidth: (width: number) => void
-  onToggleReviewView: () => void
+  state: RightDockState;
+  browserState: DesktopBrowserState | null;
+  debugMode?: boolean;
+  defaultBranch: string | null;
+  files: DesktopFileEntry[];
+  gitStatus: DesktopGitStatus | null;
+  isRefreshingReview: boolean;
+  diffMarkerStyle: DesktopDiffMarkerStyle;
+  maxWidth: number;
+  minWidth: number;
+  reviewView: DesktopReviewView;
+  selectedFile: DesktopFilePreview | null;
+  sessionId: string | null;
+  sessionStatus: DesktopSessionStatus;
+  plan: RightDockPlan | null;
+  width: number;
+  workspace: DesktopWorkspace | null;
+  quickChatOnly?: boolean;
+  onAppendBrowserAnnotation: (text: string) => void;
+  onBrowserStateChange: (state: DesktopBrowserState) => void;
+  onClose: () => void;
+  onCloseTool: (tool: RightDockToolId) => void;
+  onCreateBranch: () => void;
+  onOpenTool: (tool: RightDockToolId) => void;
+  onOpenWorkspacePath: () => void;
+  onPreviewFile: (file: DesktopFileEntry) => void;
+  onAppendComposerText: (text: string) => void;
+  onAddComposerFiles: (filePaths: string[]) => void;
+  onRefreshReview: () => void;
+  onResetWidth: () => void;
+  onSelectTool: (tool: RightDockToolId) => void;
+  onSetWidth: (width: number) => void;
+  onToggleReviewView: () => void;
   // side chat
-  sideChatComposer: React.ReactNode
-  sideChatFocusVersion: number
-}
+  sideChatComposer: React.ReactNode;
+  sideChatFocusVersion: number;
+};
 
-type RightDockHeaderProps = {
-  state: RightDockState
-  debugMode?: boolean
-  quickChatOnly?: boolean
-  plan: RightDockPlan | null
-  onClose: () => void
-  onCloseTool: (tool: RightDockToolId) => void
-  onOpenTool: (tool: RightDockToolId) => void
-  onSelectTool: (tool: RightDockToolId) => void
-}
+type RightDockTabsHeaderProps = {
+  state: RightDockState;
+  debugMode?: boolean;
+  quickChatOnly?: boolean;
+  plan: RightDockPlan | null;
+  onCloseTool: (tool: RightDockToolId) => void;
+  onOpenTool: (tool: RightDockToolId) => void;
+  onSelectTool: (tool: RightDockToolId) => void;
+};
 
 export function RightDock({
   state,
@@ -121,10 +123,10 @@ export function RightDock({
   sideChatComposer,
   sideChatFocusVersion,
 }: Props): React.ReactNode {
-  const flags = useMemo<RightDockPanelContext['flags']>(
+  const flags = useMemo<RightDockPanelContext["flags"]>(
     () => ({ debugMode, quickChatOnly }),
     [debugMode, quickChatOnly],
-  )
+  );
 
   const {
     collapseConfirmKey,
@@ -139,8 +141,8 @@ export function RightDock({
     width,
     onCollapse: onClose,
     onSetWidth,
-    direction: 'right',
-  })
+    direction: "right",
+  });
 
   const panelContext = useMemo<RightDockPanelContext>(
     () => ({
@@ -207,33 +209,26 @@ export function RightDock({
       sideChatFocusVersion,
       workspace,
     ],
-  )
+  );
 
   useEffect(() => {
-    if (!state.open || state.activeTool !== 'browser') {
+    if (!state.open || state.activeTool !== "browser") {
       void desktopClient
         .setBrowserBounds({ x: 0, y: 0, width: 0, height: 0 })
         .then(onBrowserStateChange)
-        .catch(() => undefined)
+        .catch(() => undefined);
     }
-  }, [onBrowserStateChange, state.activeTool, state.open])
+  }, [onBrowserStateChange, state.activeTool, state.open]);
 
   const activePanelRenderer = state.activeTool
     ? rightDockPanelRenderers[state.activeTool]
-    : null
+    : null;
 
   return (
     <>
       <aside
-        className={resizing ? 'right-dock resizing' : 'right-dock'}
+        className={resizing ? "right-dock resizing" : "right-dock"}
         aria-label="右侧工具栏"
-        style={
-          {
-            '--right-dock-current-w': `${width}px`,
-            '--right-dock-max-w': `${maxWidth}px`,
-            '--right-dock-min-w': `${minWidth}px`,
-          } as React.CSSProperties
-        }
       >
         <div
           aria-label="调整右侧栏宽度"
@@ -249,55 +244,69 @@ export function RightDock({
           onKeyDown={handleResizeKey}
           onPointerDown={startResize}
         />
-      <div className="right-dock-content">
-        {state.open && activePanelRenderer ? activePanelRenderer(panelContext) : (
-          <div className="right-dock-empty-state">
-            <strong>右侧工具栏</strong>
-            <span>使用 + 选择要打开的工具</span>
-          </div>
-        )}
-      </div>
-    </aside>
+        <div className="right-dock-header">
+          <RightDockTabsHeader
+            state={state}
+            debugMode={debugMode}
+            quickChatOnly={quickChatOnly}
+            plan={plan}
+            onCloseTool={onCloseTool}
+            onOpenTool={onOpenTool}
+            onSelectTool={onSelectTool}
+          />
+        </div>
+        <div className="right-dock-content">
+          {state.open && activePanelRenderer ? (
+            activePanelRenderer(panelContext)
+          ) : (
+            <div className="right-dock-empty-state">
+              <strong>右侧工具栏</strong>
+              <span>使用 + 选择要打开的工具</span>
+            </div>
+          )}
+        </div>
+      </aside>
       {collapseConfirmTarget ? (
         <div
           key={collapseConfirmKey}
           aria-hidden="true"
           className="sidebar-collapse-confirm-target"
-          style={{
-            '--sidebar-collapse-target-ms': `${SIDEBAR_COLLAPSE_HOLD_MS}ms`,
-            '--sidebar-collapse-target-size': `${SIDEBAR_COLLAPSE_TARGET_SIZE}px`,
-            left: `${collapseConfirmTarget.x}px`,
-            top: `${collapseConfirmTarget.y}px`,
-          } as React.CSSProperties}
+          style={
+            {
+              "--sidebar-collapse-target-ms": `${SIDEBAR_COLLAPSE_HOLD_MS}ms`,
+              "--sidebar-collapse-target-size": `${SIDEBAR_COLLAPSE_TARGET_SIZE}px`,
+              left: `${collapseConfirmTarget.x}px`,
+              top: `${collapseConfirmTarget.y}px`,
+            } as React.CSSProperties
+          }
         />
       ) : null}
     </>
-  )
+  );
 }
 
-export function RightDockHeader({
+function RightDockTabsHeader({
   state,
   debugMode = false,
   quickChatOnly = false,
   plan,
-  onClose,
   onCloseTool,
   onOpenTool,
   onSelectTool,
-}: RightDockHeaderProps): React.ReactNode {
-  const flags = useMemo<RightDockPanelContext['flags']>(
+}: RightDockTabsHeaderProps): React.ReactNode {
+  const flags = useMemo<RightDockPanelContext["flags"]>(
     () => ({ debugMode, quickChatOnly }),
     [debugMode, quickChatOnly],
-  )
-  const visibleTools = useMemo(() => getVisibleRightDockTools(flags), [flags])
+  );
+  const visibleTools = useMemo(() => getVisibleRightDockTools(flags), [flags]);
   const visibleToolIds = useMemo(
-    () => new Set(visibleTools.map(tool => tool.id)),
+    () => new Set(visibleTools.map((tool) => tool.id)),
     [visibleTools],
-  )
+  );
   const openedTools = useMemo(
     () =>
       state.openTools
-        .map(id => getRightDockTool(id))
+        .map((id) => getRightDockTool(id))
         .filter(
           (tool): tool is NonNullable<ReturnType<typeof getRightDockTool>> =>
             Boolean(tool) &&
@@ -305,62 +314,55 @@ export function RightDockHeader({
             isRightDockToolEnabled(tool.id, flags),
         ),
     [flags, state.openTools, visibleToolIds],
-  )
-  const [menuOpen, setMenuOpen] = useState(false)
-
-  if (!state.open) {
-    return (
-      <div className="right-dock-controls">
-        <IconButton
-          className="right-dock-control"
-          title="显示右侧面板"
-          onClick={() => onOpenTool(state.activeTool ?? 'review')}
-        >
-          <PanelRight size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-        </IconButton>
-      </div>
-    )
-  }
+  );
+  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
     <>
       <div className="right-dock-tab-list" role="tablist">
         {openedTools.length > 0 ? (
           openedTools.map((tool, index) => {
-            const isActive = state.activeTool === tool.id
-            const label = rightDockDisplayLabel(tool.id, tool.label, plan)
+            const isActive = state.activeTool === tool.id;
+            const label = tool.label;
             return (
               <Fragment key={tool.id}>
                 {index > 0 ? <span className="right-dock-tab-divider" /> : null}
                 <div
                   className={
-                    isActive ? 'right-dock-tab-wrap active' : 'right-dock-tab-wrap'
+                    isActive
+                      ? "right-dock-tab-wrap active"
+                      : "right-dock-tab-wrap"
                   }
                   role="tab"
                   aria-selected={isActive}
                 >
+                       <span className="right-dock-tab-icon">{tool.icon}</span>
                   <button
-                    className={isActive ? 'right-dock-tab active' : 'right-dock-tab'}
+                    className={
+                      isActive ? "right-dock-tab active" : "right-dock-tab"
+                    }
                     title={label}
                     type="button"
                     onClick={() => onSelectTool(tool.id)}
                   >
-                    <span className="right-dock-tab-icon">{tool.icon}</span>
                     <span>{label}</span>
                   </button>
                   <IconButton
                     className="right-dock-tab-close"
                     title={`关闭 ${label}`}
-                    onClick={event => {
-                      event.stopPropagation()
-                      onCloseTool(tool.id)
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onCloseTool(tool.id);
                     }}
                   >
-                    <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                    <X
+                      size={APP_ICON_SIZE}
+                      strokeWidth={APP_ICON_STROKE_WIDTH}
+                    />
                   </IconButton>
                 </div>
               </Fragment>
-            )
+            );
           })
         ) : (
           <span className="right-dock-tab-empty">使用 + 添加工具</span>
@@ -384,9 +386,9 @@ export function RightDockHeader({
           }
           onOpenChange={setMenuOpen}
         >
-          {visibleTools.map(tool => {
-            const opened = state.openTools.includes(tool.id)
-            const isActive = state.activeTool === tool.id
+          {visibleTools.map((tool) => {
+            const opened = state.openTools.includes(tool.id);
+            const isActive = state.activeTool === tool.id;
             return (
               <PopoverItem
                 key={tool.id}
@@ -396,38 +398,67 @@ export function RightDockHeader({
                 shortcut={tool.shortcut}
                 onClick={() => {
                   if (opened) {
-                    onSelectTool(tool.id)
+                    onSelectTool(tool.id);
                   } else {
-                    onOpenTool(tool.id)
+                    onOpenTool(tool.id);
                   }
-                  setMenuOpen(false)
+                  setMenuOpen(false);
                 }}
               >
                 {tool.label}
               </PopoverItem>
-            )
+            );
           })}
         </PopoverMenu>
       </div>
-      <div className="right-dock-controls">
-        <IconButton className="right-dock-control" title="隐藏右侧面板" onClick={onClose}>
-          <Minus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-        </IconButton>
-        <IconButton className="right-dock-control active" title="关闭右侧面板" onClick={onClose}>
-          <PanelRight size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-        </IconButton>
-      </div>
     </>
-  )
+  );
 }
 
-function rightDockDisplayLabel(
-  toolId: RightDockToolId,
-  fallback: string,
-  plan: RightDockPlan | null,
-): string {
-  if (toolId === 'plan') {
-    return plan?.title || fallback
-  }
-  return fallback
+export type DesktopWorkspaceFixedControlsProps = {
+  rightDockState: RightDockState;
+  bottomPanelVisible: boolean;
+  showBottomPanel: boolean;
+  onToggleBottomPanel: () => void;
+  onOpenRightDockTool: (tool: RightDockToolId) => void;
+  onCloseRightDock: () => void;
+};
+
+export function DesktopWorkspaceFixedControls({
+  rightDockState,
+  bottomPanelVisible,
+  showBottomPanel,
+  onToggleBottomPanel,
+  onOpenRightDockTool,
+  onCloseRightDock,
+}: DesktopWorkspaceFixedControlsProps): React.ReactNode {
+  return (
+    <div className="desktop-workspace-fixed-controls">
+      {showBottomPanel ? (
+        <IconButton
+          className="desktop-workspace-fixed-control-button"
+          title={bottomPanelVisible ? "隐藏底部面板" : "显示底部面板"}
+          onClick={onToggleBottomPanel}
+        >
+          <PanelBottom
+            size={APP_ICON_SIZE}
+            strokeWidth={APP_ICON_STROKE_WIDTH}
+          />
+        </IconButton>
+      ) : null}
+      <IconButton
+        className="desktop-workspace-fixed-control-button"
+        title={rightDockState.open ? "关闭右侧面板" : "显示右侧面板"}
+        onClick={() => {
+          if (rightDockState.open) {
+            onCloseRightDock();
+          } else {
+            onOpenRightDockTool(rightDockState.activeTool ?? "review");
+          }
+        }}
+      >
+        <PanelRight size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+      </IconButton>
+    </div>
+  );
 }

@@ -28,7 +28,7 @@ const VALID_TOOLS = ['review', 'browser', 'plan', 'files'] as const
 
 function makeState(overrides?: Partial<ConversationUiState>): ConversationUiState {
   return {
-    rightDock: { open: true, activeTool: 'plan', openTools: ['review', 'plan'], width: 680 },
+    rightDock: { open: true, activeTool: 'plan', openTools: ['review', 'plan'] },
     plan: { title: '计划书', content: '## 计划\n\n实施步骤...' },
     mainScrollTop: 1200,
     sideChatInput: '',
@@ -120,7 +120,6 @@ describe('validateConversationUiState', () => {
         open: true,
         activeTool: 'browser',
         openTools: ['review', 'unknown-tool', 'browser'] as any,
-        width: 680,
       },
     })
     const validated = validateConversationUiState(state, VALID_TOOLS)
@@ -134,7 +133,6 @@ describe('validateConversationUiState', () => {
         open: true,
         activeTool: 'unknown-tool' as any,
         openTools: ['review', 'plan'] as any,
-        width: 680,
       },
     })
     const validated = validateConversationUiState(state, VALID_TOOLS)
@@ -148,7 +146,6 @@ describe('validateConversationUiState', () => {
         open: true,
         activeTool: 'unknown-tool-1' as any,
         openTools: ['unknown-tool-1', 'unknown-tool-2'] as any,
-        width: 680,
       },
     })
     const validated = validateConversationUiState(state, VALID_TOOLS)
@@ -163,7 +160,6 @@ describe('validateConversationUiState', () => {
         open: true,
         activeTool: null,
         openTools: [],
-        width: 680,
       },
     })
     const validated = validateConversationUiState(state, VALID_TOOLS)
@@ -176,7 +172,6 @@ describe('validateConversationUiState', () => {
         open: true,
         activeTool: 'bad-tool' as any,
         openTools: ['bad-tool'] as any,
-        width: 680,
       },
       plan: { title: '留存计划', content: '# 留存计划' },
     })
@@ -198,7 +193,6 @@ describe('validateConversationUiState', () => {
         open: true,
         activeTool: 'bad-tool' as any,
         openTools: ['bad-tool'] as any,
-        width: 680,
       },
     })
     const validated = validateConversationUiState(state, VALID_TOOLS)
@@ -222,7 +216,6 @@ describe('validateConversationUiState', () => {
         open: true,
         activeTool: 'bad-tool' as any,
         openTools: ['bad-tool'] as any,
-        width: 680,
       },
     })
     const validated = validateConversationUiState(state, VALID_TOOLS)
@@ -259,8 +252,21 @@ describe('createDefaultConversationUiState', () => {
     expect(state.sideChatInput).toBe('')
     expect(state.sideChatAttachments).toEqual([])
   })
+})
 
-  test('accepts a custom width', () => {
-    expect(createDefaultConversationUiState(520).rightDock.width).toBe(520)
+describe('backward compatibility', () => {
+  test('ignores legacy rightDock.width from saved state', () => {
+    const legacyState: any = {
+      rightDock: { open: true, activeTool: 'plan', openTools: ['review', 'plan'], width: 720 },
+      plan: null,
+      mainScrollTop: 0,
+      sideChatInput: '',
+      sideChatAttachments: [],
+    }
+    const validated = validateConversationUiState(legacyState, VALID_TOOLS)
+    expect(validated.rightDock).not.toHaveProperty('width')
+    expect(validated.rightDock.open).toBe(true)
+    expect(validated.rightDock.activeTool).toBe('plan')
+    expect(validated.rightDock.openTools).toEqual(['review', 'plan'])
   })
 })
