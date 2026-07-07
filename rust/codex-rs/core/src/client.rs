@@ -83,6 +83,7 @@ use codex_protocol::protocol::W3cTraceContext;
 use codex_rollout_trace::CompactionTraceContext;
 use codex_rollout_trace::InferenceTraceAttempt;
 use codex_rollout_trace::InferenceTraceContext;
+use codex_tools::ToolSpec;
 use codex_tools::create_tools_json_for_responses_api;
 use eventsource_stream::Event;
 use eventsource_stream::EventStreamError;
@@ -212,6 +213,17 @@ struct AnthropicMessagesRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     system: Option<String>,
     messages: Vec<AnthropicMessage>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tools: Option<Vec<AnthropicTool>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tool_choice: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Serialize)]
+struct AnthropicTool {
+    name: String,
+    description: String,
+    input_schema: serde_json::Value,
 }
 
 #[derive(Debug, Serialize)]
@@ -224,6 +236,8 @@ struct AnthropicMessage {
 #[serde(tag = "type", rename_all = "snake_case")]
 enum AnthropicRequestContentBlock {
     Text { text: String },
+    ToolUse { id: String, name: String, input: serde_json::Value },
+    ToolResult { tool_use_id: String, content: String },
 }
 
 #[derive(Debug, Deserialize)]
@@ -250,6 +264,12 @@ struct AnthropicStreamContentBlock {
     #[serde(rename = "type")]
     kind: Option<String>,
     text: Option<String>,
+    #[serde(default)]
+    id: Option<String>,
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default)]
+    input: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -257,6 +277,8 @@ struct AnthropicStreamDelta {
     #[serde(rename = "type")]
     kind: Option<String>,
     text: Option<String>,
+    #[serde(default)]
+    partial_json: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -282,10 +304,16 @@ impl RequestRouteTelemetry {
 #[derive(Debug, Serialize)]
 struct ChatCompletionsRequest {
     model: String,
-    messages: Vec<ChatCompletionMessage>,
+    messages: Vec<ChatCompletionRequestMessage>,
     stream: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     stream_options: Option<ChatCompletionStreamOptions>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tools: Option<Vec<ChatCompletionTool>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tool_choice: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    max_tokens: Option<u32>,
 }
 
 #[derive(Debug, Serialize)]
@@ -294,10 +322,64 @@ struct ChatCompletionStreamOptions {
 }
 
 #[derive(Debug, Serialize)]
-struct ChatCompletionMessage {
-    role: String,
-    content: String,
+#[serde(untagged)]
+enum ChatCompletionRequestMessage {
+    System { role: String, content: String },
+    User { role: String, content: Vec<ChatCompletionUserContentPart> },
+    Assistant {
+        role: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        content: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        tool_calls: Option<Vec<ChatCompletionRequestToolCall>>,
+    },
+    Tool { role: String, tool_call_id: String, content: String },
 }
+
+#[derive(Debug, Serialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+enum ChatCompletionUserContentPart {
+    Text { text: String },
+    #[allow(dead_code)]
+    ImageUrl { image_url: ChatCompletionImageUrl },
+}
+
+#[derive(Debug, Serialize)]
+struct ChatCompletionImageUrl {
+    url: String,
+}
+
+#[derive(Debug, Serialize)]
+struct ChatCompletionRequestToolCall {
+    id: String,
+    #[serde(rename = "type")]
+    kind: String,
+    function: ChatCompletionRequestFunctionCall,
+}
+
+#[derive(Debug, Serialize)]
+struct ChatCompletionRequestFunctionCall {
+    name: String,
+    arguments: String,
+}
+
+#[derive(Debug, Serialize)]
+struct ChatCompletionTool {
+    #[serde(rename = "type")]
+    kind: String,
+    function: ChatCompletionToolFunction,
+}
+
+#[derive(Debug, Serialize)]
+struct ChatCompletionToolFunction {
+    name: String,
+    description: String,
+    parameters: serde_json::Value,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    strict: Option<bool>,
+}
+
+// ── Chat Completions streaming types ─────────────────────────────────
 
 #[derive(Debug, Deserialize)]
 struct ChatCompletionChunk {
@@ -317,6 +399,32 @@ struct ChatCompletionChoice {
 struct ChatCompletionDelta {
     #[serde(default)]
     content: Option<String>,
+    #[serde(default)]
+    #[allow(dead_code)]
+    role: Option<String>,
+    #[serde(default)]
+    tool_calls: Option<Vec<ChatCompletionDeltaToolCall>>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct ChatCompletionDeltaToolCall {
+    #[serde(default)]
+    index: i64,
+    #[serde(default)]
+    id: Option<String>,
+    #[serde(rename = "type")]
+    #[allow(dead_code)]
+    kind: Option<String>,
+    #[serde(default)]
+    function: Option<ChatCompletionDeltaFunction>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct ChatCompletionDeltaFunction {
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default)]
+    arguments: Option<String>,
 }
 
 /// A session-scoped client for model-provider API calls.
@@ -951,27 +1059,122 @@ impl ModelClient {
         } else {
             Some(prompt.base_instructions.text.clone())
         };
-        let mut messages = Vec::new();
+        let mut messages: Vec<AnthropicMessage> = Vec::new();
+        // Buffer tool results that precede the next user message
+        let mut tool_results_buffer: Vec<(String, String)> = Vec::new();
 
         for item in prompt.get_formatted_input_for_request(/*use_responses_lite*/ false) {
-            let ResponseItem::Message { role, content, .. } = item else {
-                continue;
-            };
-            let text = anthropic_text_from_content_items(&content);
-            if text.trim().is_empty() {
-                continue;
+            match item {
+                ResponseItem::Message { role, content, .. } => {
+                    if role == "user" {
+                        let text = anthropic_text_from_content_items(&content);
+                        if text.trim().is_empty() && tool_results_buffer.is_empty() {
+                            continue;
+                        }
+                        let mut content_blocks = Vec::new();
+                        // Flush buffered tool results first (Anthropic requires tool_result before text)
+                        for (tool_use_id, result_text) in tool_results_buffer.drain(..) {
+                            content_blocks.push(AnthropicRequestContentBlock::ToolResult {
+                                tool_use_id,
+                                content: result_text,
+                            });
+                        }
+                        if !text.trim().is_empty() {
+                            content_blocks.push(AnthropicRequestContentBlock::Text { text });
+                        }
+                        if !content_blocks.is_empty() {
+                            messages.push(AnthropicMessage {
+                                role: "user".to_string(),
+                                content: content_blocks,
+                            });
+                        }
+                    } else if role == "assistant" {
+                        let text = anthropic_text_from_content_items(&content);
+                        let mut content_blocks = Vec::new();
+                        if !text.trim().is_empty() {
+                            content_blocks.push(AnthropicRequestContentBlock::Text { text });
+                        }
+                        messages.push(AnthropicMessage {
+                            role: "assistant".to_string(),
+                            content: content_blocks,
+                        });
+                    }
+                }
+                ResponseItem::FunctionCall { name, arguments, call_id, .. } => {
+                    let input: serde_json::Value =
+                        serde_json::from_str(&arguments).unwrap_or(serde_json::Value::String(arguments));
+                    if let Some(last) = messages.last_mut() {
+                        if last.role == "assistant" {
+                            last.content.push(AnthropicRequestContentBlock::ToolUse {
+                                id: call_id,
+                                name,
+                                input,
+                            });
+                        }
+                    }
+                }
+                ResponseItem::CustomToolCall { name, input, call_id, .. } => {
+                    let input_value: serde_json::Value =
+                        serde_json::from_str(&input).unwrap_or(serde_json::Value::String(input));
+                    if let Some(last) = messages.last_mut() {
+                        if last.role == "assistant" {
+                            last.content.push(AnthropicRequestContentBlock::ToolUse {
+                                id: call_id,
+                                name,
+                                input: input_value,
+                            });
+                        }
+                    }
+                }
+                ResponseItem::FunctionCallOutput { call_id, output, .. } => {
+                    let text = chat_completions_output_text(&output);
+                    if !text.trim().is_empty() {
+                        tool_results_buffer.push((call_id, text));
+                    }
+                }
+                ResponseItem::CustomToolCallOutput { call_id, output, .. } => {
+                    let text = chat_completions_output_text(&output);
+                    if !text.trim().is_empty() {
+                        tool_results_buffer.push((call_id, text));
+                    }
+                }
+                _ => {}
             }
-            let role = if role == "assistant" {
-                "assistant"
-            } else {
-                "user"
-            };
-            push_anthropic_text_message(&mut messages, role, text);
+        }
+
+        // Flush remaining tool results as a standalone user message
+        if !tool_results_buffer.is_empty() {
+            let mut content_blocks = Vec::new();
+            for (tool_use_id, result_text) in tool_results_buffer.drain(..) {
+                content_blocks.push(AnthropicRequestContentBlock::ToolResult {
+                    tool_use_id,
+                    content: result_text,
+                });
+            }
+            messages.push(AnthropicMessage {
+                role: "user".to_string(),
+                content: content_blocks,
+            });
         }
 
         if messages.is_empty() {
-            push_anthropic_text_message(&mut messages, "user", "Continue.".to_string());
+            messages.push(AnthropicMessage {
+                role: "user".to_string(),
+                content: vec![AnthropicRequestContentBlock::Text {
+                    text: "Continue.".to_string(),
+                }],
+            });
         }
+
+        // Build tools array
+        let tools = if prompt.tools.is_empty() {
+            None
+        } else {
+            Some(build_anthropic_tools(&prompt.tools))
+        };
+
+        // Tool choice: auto when tools are present
+        let tool_choice = tools.as_ref().map(|_| serde_json::json!({"type": "auto"}));
 
         AnthropicMessagesRequest {
             model: model_info.slug.clone(),
@@ -979,6 +1182,8 @@ impl ModelClient {
             stream: true,
             system,
             messages,
+            tools,
+            tool_choice,
         }
     }
 
@@ -987,29 +1192,124 @@ impl ModelClient {
         prompt: &Prompt,
         model_info: &ModelInfo,
     ) -> ChatCompletionsRequest {
-        let mut messages = Vec::new();
+        let mut messages: Vec<ChatCompletionRequestMessage> = Vec::new();
+
+        // System instructions
+        let system_text = prompt.base_instructions.text.trim();
+        if !system_text.is_empty() {
+            messages.push(ChatCompletionRequestMessage::System {
+                role: "system".to_string(),
+                content: system_text.to_string(),
+            });
+        }
+
+        // Pending tool calls for the most recent assistant message
+        let mut pending_tool_calls: Vec<ChatCompletionRequestToolCall> = Vec::new();
 
         for item in prompt.get_formatted_input_for_request(/*use_responses_lite*/ false) {
-            let ResponseItem::Message { role, content, .. } = item else {
-                continue;
-            };
-            let text = chat_completions_text_from_content_items(&content);
-            if text.trim().is_empty() {
-                continue;
+            match item {
+                ResponseItem::Message { role, content, .. } => {
+                    // Flush any pending tool calls onto the previous assistant message
+                    if !pending_tool_calls.is_empty() {
+                        if let Some(last) = messages.last_mut() {
+                            if let ChatCompletionRequestMessage::Assistant { tool_calls, .. } = last {
+                                *tool_calls = Some(std::mem::take(&mut pending_tool_calls));
+                            }
+                        }
+                    }
+
+                    if role == "user" {
+                        let text = chat_completions_text_from_content_items(&content);
+                        if text.trim().is_empty() {
+                            continue;
+                        }
+                        messages.push(ChatCompletionRequestMessage::User {
+                            role: "user".to_string(),
+                            content: vec![ChatCompletionUserContentPart::Text { text }],
+                        });
+                    } else if role == "assistant" {
+                        let text = chat_completions_text_from_content_items(&content);
+                        let content = if text.trim().is_empty() { None } else { Some(text) };
+                        messages.push(ChatCompletionRequestMessage::Assistant {
+                            role: "assistant".to_string(),
+                            content,
+                            tool_calls: None,
+                        });
+                    }
+                }
+                ResponseItem::FunctionCall { name, arguments, call_id, .. } => {
+                    pending_tool_calls.push(ChatCompletionRequestToolCall {
+                        id: call_id,
+                        kind: "function".to_string(),
+                        function: ChatCompletionRequestFunctionCall {
+                            name,
+                            arguments,
+                        },
+                    });
+                }
+                ResponseItem::CustomToolCall { name, input, call_id, .. } => {
+                    pending_tool_calls.push(ChatCompletionRequestToolCall {
+                        id: call_id,
+                        kind: "function".to_string(),
+                        function: ChatCompletionRequestFunctionCall {
+                            name,
+                            arguments: input,
+                        },
+                    });
+                }
+                ResponseItem::FunctionCallOutput { call_id, output, .. } => {
+                    let text = chat_completions_output_text(&output);
+                    if text.trim().is_empty() {
+                        continue;
+                    }
+                    messages.push(ChatCompletionRequestMessage::Tool {
+                        role: "tool".to_string(),
+                        tool_call_id: call_id,
+                        content: text,
+                    });
+                }
+                ResponseItem::CustomToolCallOutput { call_id, output, .. } => {
+                    let text = chat_completions_output_text(&output);
+                    if text.trim().is_empty() {
+                        continue;
+                    }
+                    messages.push(ChatCompletionRequestMessage::Tool {
+                        role: "tool".to_string(),
+                        tool_call_id: call_id,
+                        content: text,
+                    });
+                }
+                _ => {}
             }
-            let role = if role == "assistant" { "assistant" } else { "user" };
-            messages.push(ChatCompletionMessage {
-                role: role.to_string(),
-                content: text,
-            });
+        }
+
+        // Flush remaining pending tool calls
+        if !pending_tool_calls.is_empty() {
+            if let Some(last) = messages.last_mut() {
+                if let ChatCompletionRequestMessage::Assistant { tool_calls, .. } = last {
+                    *tool_calls = Some(pending_tool_calls);
+                }
+            }
         }
 
         if messages.is_empty() {
-            messages.push(ChatCompletionMessage {
+            messages.push(ChatCompletionRequestMessage::User {
                 role: "user".to_string(),
-                content: "Continue.".to_string(),
+                content: vec![ChatCompletionUserContentPart::Text {
+                    text: "Continue.".to_string(),
+                }],
             });
         }
+
+        // Build tools array
+        let tools = if prompt.tools.is_empty() {
+            None
+        } else {
+            Some(build_chat_completions_tools(&prompt.tools))
+        };
+
+        // Tool choice: default "auto" when tools are present
+        let tool_choice = tools.as_ref().map(|_| serde_json::json!("auto"));
 
         ChatCompletionsRequest {
             model: model_info.slug.clone(),
@@ -1018,6 +1318,9 @@ impl ModelClient {
             stream_options: Some(ChatCompletionStreamOptions {
                 include_usage: false,
             }),
+            tools,
+            tool_choice,
+            max_tokens: Some(4096),
         }
     }
 
@@ -2183,19 +2486,42 @@ fn anthropic_text_from_content_items(content: &[ContentItem]) -> String {
         .join("\n")
 }
 
-fn push_anthropic_text_message(messages: &mut Vec<AnthropicMessage>, role: &str, text: String) {
-    let block = AnthropicRequestContentBlock::Text { text };
-    if let Some(last) = messages.last_mut()
-        && last.role == role
-    {
-        last.content.push(block);
-        return;
-    }
+fn chat_completions_output_text(output: &codex_protocol::models::FunctionCallOutputPayload) -> String {
+    output.body.to_text().unwrap_or_default()
+}
 
-    messages.push(AnthropicMessage {
-        role: role.to_string(),
-        content: vec![block],
-    });
+fn build_chat_completions_tools(tools: &[ToolSpec]) -> Vec<ChatCompletionTool> {
+    tools.iter().filter_map(|tool| {
+        match tool {
+            ToolSpec::Function(api_tool) => {
+                Some(ChatCompletionTool {
+                    kind: "function".to_string(),
+                    function: ChatCompletionToolFunction {
+                        name: api_tool.name.clone(),
+                        description: api_tool.description.clone(),
+                        parameters: serde_json::to_value(&api_tool.parameters).unwrap_or_default(),
+                        strict: Some(api_tool.strict),
+                    },
+                })
+            }
+            _ => None,
+        }
+    }).collect()
+}
+
+fn build_anthropic_tools(tools: &[ToolSpec]) -> Vec<AnthropicTool> {
+    tools.iter().filter_map(|tool| {
+        match tool {
+            ToolSpec::Function(api_tool) => {
+                Some(AnthropicTool {
+                    name: api_tool.name.clone(),
+                    description: api_tool.description.clone(),
+                    input_schema: serde_json::to_value(&api_tool.parameters).unwrap_or_default(),
+                })
+            }
+            _ => None,
+        }
+    }).collect()
 }
 
 fn chat_completions_text_from_content_items(content: &[ContentItem]) -> String {
@@ -2222,12 +2548,96 @@ where
     let (tx_event, rx_event) = mpsc::channel::<std::result::Result<ResponseEvent, ApiError>>(
         RESPONSE_STREAM_CHANNEL_CAPACITY,
     );
+    let upstream_req_id = upstream_request_id.clone();
     tokio::spawn(async move {
         let mut event_stream = Box::pin(event_stream);
-        let mut response_id = "anthropic-messages".to_string();
+        let mut response_id = upstream_req_id.unwrap_or_else(|| "anthropic-messages".to_string());
         let mut item_id = "anthropic-messages-item".to_string();
         let mut assistant_text = String::new();
+        #[allow(unused_assignments)]
         let mut started = false;
+
+        // Tool use accumulation during stream
+        #[allow(dead_code)]
+        struct PendingToolCall {
+            id: String,
+            name: String,
+            arguments: String,
+        }
+        let mut pending_tool_calls: Vec<PendingToolCall> = Vec::new();
+        // Index within the current content block (0-based sequential)
+        let mut current_block_index: i64 = -1;
+
+        // Macro helper for sending events
+        macro_rules! send_ev {
+            ($event:expr) => {
+                if tx_event.send(Ok($event)).await.is_err() { return; }
+            };
+        }
+
+        // Ensure started + output item added
+        macro_rules! ensure_started {
+            () => {
+                if !started {
+                    started = true;
+                    send_ev!(ResponseEvent::Created);
+                    send_ev!(ResponseEvent::OutputItemAdded(ResponseItem::Message {
+                        id: Some(item_id.clone()),
+                        role: "assistant".to_string(),
+                        content: Vec::new(),
+                        phase: None,
+                        metadata: None,
+                    }));
+                }
+            };
+        }
+
+        // Emit final events: text item + accumulated tool calls + completed
+        macro_rules! emit_final {
+            () => {
+                // Emit final text message
+                send_ev!(ResponseEvent::OutputItemDone(ResponseItem::Message {
+                    id: Some(item_id.clone()),
+                    role: "assistant".to_string(),
+                    content: if assistant_text.is_empty() {
+                        Vec::new()
+                    } else {
+                        vec![ContentItem::OutputText {
+                            text: std::mem::take(&mut assistant_text),
+                        }]
+                    },
+                    phase: None,
+                    metadata: None,
+                }));
+                // Emit each tool call item
+                for tc in &pending_tool_calls {
+                    let fc_id = Some(tc.id.clone());
+                    send_ev!(ResponseEvent::OutputItemAdded(ResponseItem::FunctionCall {
+                        id: fc_id.clone(),
+                        name: tc.name.clone(),
+                        arguments: tc.arguments.clone(),
+                        call_id: tc.id.clone(),
+                        namespace: None,
+                        metadata: None,
+                    }));
+                    send_ev!(ResponseEvent::OutputItemDone(ResponseItem::FunctionCall {
+                        id: fc_id,
+                        name: tc.name.clone(),
+                        arguments: tc.arguments.clone(),
+                        call_id: tc.id.clone(),
+                        namespace: None,
+                        metadata: None,
+                    }));
+                }
+                pending_tool_calls.clear();
+                // Completed
+                send_ev!(ResponseEvent::Completed {
+                    response_id: response_id.to_string(),
+                    token_usage: None,
+                    end_turn: Some(true),
+                });
+            };
+        }
 
         loop {
             let poll = tokio::time::timeout(idle_timeout, event_stream.next()).await;
@@ -2275,77 +2685,66 @@ where
                         response_id = id;
                         item_id = format!("{response_id}-message");
                     }
-                    if !started {
-                        started = send_anthropic_output_started(&tx_event, &item_id).await;
-                        if !started {
-                            return;
-                        }
-                    }
+                    ensure_started!();
                 }
                 "content_block_start" => {
+                    current_block_index += 1;
                     let Some(content_block) = parsed.content_block else {
                         continue;
                     };
-                    if content_block.kind.as_deref() != Some("text") {
-                        continue;
-                    }
-                    let Some(text) = content_block.text else {
-                        continue;
-                    };
-                    if !started {
-                        started = send_anthropic_output_started(&tx_event, &item_id).await;
-                        if !started {
-                            return;
+                    match content_block.kind.as_deref() {
+                        Some("text") => {
+                            if let Some(text) = content_block.text {
+                                ensure_started!();
+                                assistant_text.push_str(&text);
+                                send_ev!(ResponseEvent::OutputTextDelta(text));
+                            }
                         }
-                    }
-                    assistant_text.push_str(&text);
-                    if tx_event
-                        .send(Ok(ResponseEvent::OutputTextDelta(text)))
-                        .await
-                        .is_err()
-                    {
-                        return;
+                        Some("tool_use") => {
+                            let call_id = content_block.id.unwrap_or_else(|| {
+                                format!("{}-tool-{}", response_id, current_block_index)
+                            });
+                            let name = content_block.name.unwrap_or_default();
+                            let initial_input = content_block.input
+                                .map(|v| v.to_string())
+                                .unwrap_or_default();
+                            pending_tool_calls.push(PendingToolCall {
+                                id: call_id,
+                                name,
+                                arguments: initial_input,
+                            });
+                        }
+                        _ => {}
                     }
                 }
                 "content_block_delta" => {
                     let Some(delta) = parsed.delta else {
                         continue;
                     };
-                    if delta.kind.as_deref() != Some("text_delta") {
-                        continue;
-                    }
-                    let Some(text) = delta.text else {
-                        continue;
-                    };
-                    if !started {
-                        started = send_anthropic_output_started(&tx_event, &item_id).await;
-                        if !started {
-                            return;
+                    match delta.kind.as_deref() {
+                        Some("text_delta") => {
+                            if let Some(text) = delta.text {
+                                ensure_started!();
+                                assistant_text.push_str(&text);
+                                send_ev!(ResponseEvent::OutputTextDelta(text));
+                            }
                         }
-                    }
-                    assistant_text.push_str(&text);
-                    if tx_event
-                        .send(Ok(ResponseEvent::OutputTextDelta(text)))
-                        .await
-                        .is_err()
-                    {
-                        return;
+                        Some("input_json_delta") => {
+                            if let Some(partial) = delta.partial_json {
+                                if let Some(tc) = pending_tool_calls.last_mut() {
+                                    tc.arguments.push_str(&partial);
+                                }
+                            }
+                        }
+                        _ => {}
                     }
                 }
+                "content_block_stop" => {
+                    // Content block finished — tool call aggregation completes on message_stop
+                }
                 "message_stop" => {
-                    if !started {
-                        started = send_anthropic_output_started(&tx_event, &item_id).await;
-                        if !started {
-                            return;
-                        }
-                    }
-                    let _ = send_anthropic_output_final(
-                        &tx_event,
-                        &response_id,
-                        &item_id,
-                        &assistant_text,
-                    )
-                    .await;
+                    ensure_started!();
+                    emit_final!();
                     return;
                 }
                 "error" => {
@@ -2361,15 +2760,14 @@ where
                     let _ = tx_event.send(Err(ApiError::Stream(message))).await;
                     return;
                 }
-                "ping" | "content_block_stop" | "message_delta" => {}
+                "ping" | "message_delta" => {}
                 _ => {}
             }
         }
 
         if started {
-            let _ = send_anthropic_output_final(&tx_event, &response_id, &item_id, &assistant_text)
-                .await;
-        } else if !started {
+            emit_final!();
+        } else {
             let _ = tx_event
                 .send(Err(ApiError::Stream(
                     "anthropic messages stream closed before message_start".to_string(),
@@ -2382,57 +2780,6 @@ where
         rx_event,
         upstream_request_id,
     }
-}
-
-async fn send_anthropic_output_started(
-    tx_event: &mpsc::Sender<std::result::Result<ResponseEvent, ApiError>>,
-    item_id: &str,
-) -> bool {
-    if tx_event.send(Ok(ResponseEvent::Created)).await.is_err() {
-        return false;
-    }
-    tx_event
-        .send(Ok(ResponseEvent::OutputItemAdded(ResponseItem::Message {
-            id: Some(item_id.to_string()),
-            role: "assistant".to_string(),
-            content: Vec::new(),
-            phase: None,
-            metadata: None,
-        })))
-        .await
-        .is_ok()
-}
-
-async fn send_anthropic_output_final(
-    tx_event: &mpsc::Sender<std::result::Result<ResponseEvent, ApiError>>,
-    response_id: &str,
-    item_id: &str,
-    assistant_text: &str,
-) -> bool {
-    if tx_event
-        .send(Ok(ResponseEvent::OutputItemDone(ResponseItem::Message {
-            id: Some(item_id.to_string()),
-            role: "assistant".to_string(),
-            content: vec![ContentItem::OutputText {
-                text: assistant_text.to_string(),
-            }],
-            phase: None,
-            metadata: None,
-        })))
-        .await
-        .is_err()
-    {
-        return false;
-    }
-
-    tx_event
-        .send(Ok(ResponseEvent::Completed {
-            response_id: response_id.to_string(),
-            token_usage: None,
-            end_turn: Some(true),
-        }))
-        .await
-        .is_ok()
 }
 
 /// Spawns a background task that parses a Chat Completions SSE stream and emits `ResponseEvent`s.
@@ -2452,11 +2799,29 @@ where
     let (tx_event, rx_event) = mpsc::channel::<std::result::Result<ResponseEvent, ApiError>>(
         RESPONSE_STREAM_CHANNEL_CAPACITY,
     );
+    let upstream_request_id_val = upstream_request_id.clone();
     tokio::spawn(async move {
         let mut event_stream = Box::pin(event_stream);
-        let response_id = upstream_request_id.unwrap_or_else(|| "chat-completions".to_string());
-        let item_id = "chat-completions-item".to_string();
+        let response_id = upstream_request_id_val.unwrap_or_else(|| "chat-completions".to_string());
+        let assistant_item_id = format!("{}-assistant", &response_id);
         let mut assistant_text = String::new();
+        let mut started = false;
+
+        // Tool call accumulation: keyed by delta index
+        struct PendingToolCall {
+            index: i64,
+            id: String,
+            name: String,
+            arguments: String,
+        }
+        let mut pending_tool_calls: Vec<PendingToolCall> = Vec::new();
+
+        // Macro helper to send events
+        macro_rules! send_ev {
+            ($event:expr) => {
+                if tx_event.send(Ok($event)).await.is_err() { return; }
+            };
+        }
 
         loop {
             let poll = tokio::time::timeout(idle_timeout, event_stream.next()).await;
@@ -2491,91 +2856,147 @@ where
             };
 
             for choice in &chunk.choices {
-                if let Some(ref text) = choice.delta.content {
-                    assistant_text.push_str(text);
-                    let _ = tx_event
-                        .send(Ok(ResponseEvent::OutputTextDelta(text.clone())))
-                        .await;
+                // Ensure output item started before first content
+                if !started {
+                    started = true;
+                    send_ev!(ResponseEvent::Created);
+                    send_ev!(ResponseEvent::OutputItemAdded(ResponseItem::Message {
+                        id: Some(assistant_item_id.clone()),
+                        role: "assistant".to_string(),
+                        content: Vec::new(),
+                        phase: None,
+                        metadata: None,
+                    }));
                 }
 
+                // Handle text content delta
+                if let Some(ref text) = choice.delta.content {
+                    assistant_text.push_str(text);
+                    send_ev!(ResponseEvent::OutputTextDelta(text.clone()));
+                }
+
+                // Handle tool call deltas (accumulate by index)
+                if let Some(ref tool_calls_delta) = choice.delta.tool_calls {
+                    for tc in tool_calls_delta {
+                        let existing = pending_tool_calls.iter_mut().find(|p| p.index == tc.index);
+                        if let Some(pending) = existing {
+                            // Update existing pending tool call
+                            if let Some(ref id) = tc.id {
+                                pending.id = id.clone();
+                            }
+                            if let Some(ref func) = tc.function {
+                                if let Some(ref name) = func.name {
+                                    pending.name.push_str(name);
+                                }
+                                if let Some(ref args) = func.arguments {
+                                    pending.arguments.push_str(args);
+                                }
+                            }
+                        } else {
+                            // New tool call index
+                            let call_id = tc.id.clone().unwrap_or_else(|| {
+                                format!("call-{}-{}", response_id, tc.index)
+                            });
+                            let (name, args) = tc.function.as_ref().map_or(
+                                (String::new(), String::new()),
+                                |func| {
+                                    let n = func.name.clone().unwrap_or_default();
+                                    let a = func.arguments.clone().unwrap_or_default();
+                                    (n, a)
+                                },
+                            );
+                            pending_tool_calls.push(PendingToolCall {
+                                index: tc.index,
+                                id: call_id,
+                                name,
+                                arguments: args,
+                            });
+                        }
+                    }
+                }
+
+                // Handle finish reason
                 if let Some(ref finish_reason) = choice.finish_reason {
                     match finish_reason.as_str() {
                         "stop" | "length" => {
-                            // Emit final message with accumulated text
+                            // Flush text
                             if !assistant_text.is_empty() {
-                                let _ = tx_event
-                                    .send(Ok(ResponseEvent::OutputItemDone(
-                                        ResponseItem::Message {
-                                            id: Some(item_id.clone()),
-                                            role: "assistant".to_string(),
-                                            content: vec![ContentItem::OutputText {
-                                                text: std::mem::take(&mut assistant_text),
-                                            }],
-                                            phase: None,
-                                            metadata: None,
-                                        },
-                                    )))
-                                    .await;
+                                send_ev!(ResponseEvent::OutputItemDone(ResponseItem::Message {
+                                    id: Some(assistant_item_id.clone()),
+                                    role: "assistant".to_string(),
+                                    content: vec![ContentItem::OutputText {
+                                        text: std::mem::take(&mut assistant_text),
+                                    }],
+                                    phase: None,
+                                    metadata: None,
+                                }));
                             }
-                            let _ = tx_event
-                                .send(Ok(ResponseEvent::Completed {
-                                    response_id: response_id.clone(),
-                                    token_usage: None,
-                                    end_turn: Some(true),
-                                }))
-                                .await;
+                            send_ev!(ResponseEvent::Completed {
+                                response_id: response_id.clone(),
+                                token_usage: None,
+                                end_turn: Some(true),
+                            });
                             return;
                         }
                         "tool_calls" => {
-                            // Tool calls not yet supported — emit text as message for now
+                            // Emit text item first (if any)
                             if !assistant_text.is_empty() {
-                                let _ = tx_event
-                                    .send(Ok(ResponseEvent::OutputItemDone(
-                                        ResponseItem::Message {
-                                            id: Some(item_id.clone()),
-                                            role: "assistant".to_string(),
-                                            content: vec![ContentItem::OutputText {
-                                                text: std::mem::take(&mut assistant_text),
-                                            }],
-                                            phase: None,
-                                            metadata: None,
-                                        },
-                                    )))
-                                    .await;
+                                send_ev!(ResponseEvent::OutputItemDone(ResponseItem::Message {
+                                    id: Some(assistant_item_id.clone()),
+                                    role: "assistant".to_string(),
+                                    content: vec![ContentItem::OutputText {
+                                        text: std::mem::take(&mut assistant_text),
+                                    }],
+                                    phase: None,
+                                    metadata: None,
+                                }));
                             }
-                            let _ = tx_event
-                                .send(Ok(ResponseEvent::Completed {
-                                    response_id: response_id.clone(),
-                                    token_usage: None,
-                                    end_turn: Some(true),
-                                }))
-                                .await;
+                            // Emit accumulated tool calls
+                            for tc in &pending_tool_calls {
+                                let fc_id = Some(tc.id.clone());
+                                send_ev!(ResponseEvent::OutputItemAdded(ResponseItem::FunctionCall {
+                                    id: fc_id.clone(),
+                                    name: tc.name.clone(),
+                                    arguments: tc.arguments.clone(),
+                                    call_id: tc.id.clone(),
+                                    namespace: None,
+                                    metadata: None,
+                                }));
+                                send_ev!(ResponseEvent::OutputItemDone(ResponseItem::FunctionCall {
+                                    id: fc_id,
+                                    name: tc.name.clone(),
+                                    arguments: tc.arguments.clone(),
+                                    call_id: tc.id.clone(),
+                                    namespace: None,
+                                    metadata: None,
+                                }));
+                            }
+                            pending_tool_calls.clear();
+                            send_ev!(ResponseEvent::Completed {
+                                response_id: response_id.clone(),
+                                token_usage: None,
+                                end_turn: Some(true),
+                            });
                             return;
                         }
                         _ => {
                             // Unknown finish reason — treat as stop
                             if !assistant_text.is_empty() {
-                                let _ = tx_event
-                                    .send(Ok(ResponseEvent::OutputItemDone(
-                                        ResponseItem::Message {
-                                            id: Some(item_id.clone()),
-                                            role: "assistant".to_string(),
-                                            content: vec![ContentItem::OutputText {
-                                                text: std::mem::take(&mut assistant_text),
-                                            }],
-                                            phase: None,
-                                            metadata: None,
-                                        },
-                                    )))
-                                    .await;
+                                send_ev!(ResponseEvent::OutputItemDone(ResponseItem::Message {
+                                    id: Some(assistant_item_id.clone()),
+                                    role: "assistant".to_string(),
+                                    content: vec![ContentItem::OutputText {
+                                        text: std::mem::take(&mut assistant_text),
+                                    }],
+                                    phase: None,
+                                    metadata: None,
+                                }));
                             }
-                            let _ = tx_event
-                                .send(Ok(ResponseEvent::Completed {
-                                    response_id: response_id.clone(),
-                                    token_usage: None,
-                                    end_turn: Some(true),
-                                }))
-                                .await;
+                            send_ev!(ResponseEvent::Completed {
+                                response_id: response_id.clone(),
+                                token_usage: None,
+                                end_turn: Some(true),
+                            });
                             return;
                         }
                     }
@@ -2583,32 +3004,30 @@ where
             }
         }
 
-        // Stream ended without explicit completion — emit accumulated text if any
-        if !assistant_text.is_empty() {
-            let _ = tx_event
-                .send(Ok(ResponseEvent::OutputItemDone(ResponseItem::Message {
-                    id: Some(item_id),
+        // Stream ended without explicit completion
+        if started {
+            if !assistant_text.is_empty() {
+                send_ev!(ResponseEvent::OutputItemDone(ResponseItem::Message {
+                    id: Some(assistant_item_id),
                     role: "assistant".to_string(),
                     content: vec![ContentItem::OutputText {
                         text: assistant_text,
                     }],
                     phase: None,
                     metadata: None,
-                })))
-                .await;
-        }
-        let _ = tx_event
-            .send(Ok(ResponseEvent::Completed {
-                response_id,
+                }));
+            }
+            send_ev!(ResponseEvent::Completed {
+                response_id: response_id.clone(),
                 token_usage: None,
                 end_turn: Some(true),
-            }))
-            .await;
+            });
+        }
     });
 
     codex_api::ResponseStream {
         rx_event,
-        upstream_request_id: None,
+        upstream_request_id,
     }
 }
 
