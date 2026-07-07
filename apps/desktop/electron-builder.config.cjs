@@ -5,10 +5,18 @@ module.exports = {
     'dist/desktop/**/*',
     'dist/desktop-agent/**/*',
     'dist/desktop-runtime/**/*',
+    'dist/desktop-rust-sidecar/**/*',
     'package.json',
   ],
-  extraResources: [{ from: 'apps/desktop/build/icon.ico', to: 'icon.ico' }],
-  asarUnpack: ['dist/desktop-agent/**/*', 'dist/desktop-runtime/**/*'],
+  extraResources: [
+    { from: 'apps/desktop/build/icon.ico', to: 'icon.ico' },
+    { from: 'dist/desktop-rust-sidecar', to: 'desktop-rust-sidecar' },
+  ],
+  asarUnpack: [
+    'dist/desktop-agent/**/*',
+    'dist/desktop-runtime/**/*',
+    'dist/desktop-rust-sidecar/**/*',
+  ],
   directories: {
     output: 'release/desktop',
   },

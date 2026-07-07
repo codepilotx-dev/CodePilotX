@@ -69,12 +69,23 @@ Response: `{"jsonrpc":"2.0","id":"4","result":{}}` (empty object).
 ## 2. App-Server Notification → Desktop Event
 
 | Notification | Desktop event(s) | State effect |
-|---|---|---|
+|---|---|---|---|
 | `thread/started` | (none emitted) | Stores `threadId` |
 | `turn/started` | (none emitted) | Stores `activeTurnId`, clears delta buffer |
 | `item/delta` | `partial_message` | Appends text to `assistantDeltaBuffer`; emitted text includes full buffer |
+| `item/agentMessage/delta` | `partial_message` | Same as `item/delta` |
 | `item/completed` (agentMessage) | `message(role=assistant)` | Emits final item text (not buffer); clears delta buffer |
+| `item/completed` (dynamicToolCall) | `tool_result` | Emits result with success/error status |
+| `item/completed` (commandExecution) | `tool_result` | Emits exit code, output, command metadata |
+| `item/completed` (fileChange) | `tool_result` | Emits file change summary and status |
 | `turn/completed` | `done` | Clears `activeTurnId`; clears delta buffer; resolves turn promise |
+| `turn/plan/updated` | `proposed_plan` | Emits formatted plan steps with explanation |
+| `item/plan/delta` | `proposed_plan` | Emits streaming plan delta |
+| `reasoning/textDelta` | `partial_message` | Appends to buffer; emits reasoning prefix |
+| `reasoning/summaryTextDelta` | `partial_message` | Appends to buffer; emits summary prefix |
+| `item/commandExecution/outputDelta` | `partial_message` | Emits formatted command output for live display |
+| `item/fileChange/patchUpdated` | `diff` (per file) | Emits diff events for each changed file with patch |
+| `turn/diff/updated` | `diff` (aggregated) | Emits turn-level aggregated diff |
 | `error` | `error` | Clears `activeTurnId`; clears delta buffer; resolves + rejects turn promise |
 | Others | (debug-logged via `rust_adapter_unhandled_notification`) | Ignored |
 
@@ -175,19 +186,100 @@ CLI args.
 
 ---
 
-## 4. Unsupported Items (First Text-Only Version)
+## 3b. Server Requests (Permissions, Tool Calls, MCP Elicitation)
 
-| Feature | Status | Error/behavior |
+The Rust app-server can initiate JSON-RPC requests that the desktop client must
+handle. These are registered via `setupServerRequestHandlers()` and use the
+desktop permission system for user approval.
+
+### Permission Requests
+
+| Request | Permission tool_name | User interaction | Protocol response |
+|---|---|---|---|
+| `item/permissions/requestApproval` | `Permissions` | Shows permission dialog | `{ permissions: GrantedPermissionProfile, scope: 'turn' }` |
+| `item/commandExecution/requestApproval` | `Bash` | Shows command execution dialog | `{ decision: 'accept' | 'decline' }` |
+| `item/fileChange/requestApproval` | `ApplyPatch` | Shows file change dialog | `{ decision: 'accept' | 'decline' }` |
+
+Permission requests are handled by `handlePermissionRequest()` which:
+1. Builds a `DesktopPermissionRequest` using `buildDesktopPermissionRequestFromControlRequest()`
+2. Calls `context.requestPermission()` and awaits the user decision
+3. Maps the decision back to the Rust protocol response type
+
+The handler **blocks** the JSON-RPC response until the user decides. The event
+loop continues processing other messages during the wait.
+
+### Tool Calls (`item/tool/call`)
+
+The server requests tool execution on the desktop client. The handler:
+1. Emits `tool_start` event for UI
+2. Returns `{ status: 'pending' }` as JSON-RPC acknowledgment
+3. Executes the tool asynchronously
+4. Sends the result via `notifyToolResult` notification
+5. Emits `tool_result` event for UI
+
+**Current limitation**: The desktop client does not yet have a standalone tool
+executor. The Rust server handles most common tools (Bash, Read, Write, Edit,
+etc.) internally. If `item/tool/call` is received, the handler returns a "not
+available" error.
+
+In the future, the desktop can import and use TUI tool implementations for
+client-side tool execution.
+
+### MCP Elicitation (`mcpServer/elicitation/request`)
+
+| Request | Permission tool_name | User interaction | Response |
+|---|---|---|---|
+| `mcpServer/elicitation/request` | `McpElicitation` | Shows permission dialog | `{ cancelled: true }` (form rendering not yet supported) |
+
+**Current limitation**: MCP elicitation requests are acknowledged with
+`{ cancelled: true }`. Full form rendering support requires desktop-side
+form UI which is not yet implemented.
+
+### Data flow
+
+```mermaid
+sequenceDiagram
+    participant Server as Rust App-Server
+    participant Client as Desktop Runtime
+    participant User as Desktop UI
+
+    Note over Server,User: Permission request flow
+    Server->>Client: item/permissions/requestApproval (request)
+    Client->>User: Show permission dialog (context.requestPermission)
+    User->>Client: Allow / Deny
+    Client->>Server: { permissions: ..., scope: 'turn' } (response)
+
+    Note over Server,User: Tool call flow
+    Server->>Client: item/tool/call (request)
+    Client->>User: Emit tool_start event
+    Client->>Server: { status: 'pending' } (response)
+    Client->>Client: executeToolAsync()
+    Client->>Server: notifyToolResult({ toolUseId, result }) (notification)
+    Client->>User: Emit tool_result event
+```
+
+---
+
+## 4. Supported & Unsupported Items
+
+| Feature | Status | Notes |
 |---|---|---|
+| Text input | ✅ | Single string input |
 | Non-text input (`ContentBlockParam[]`) | ❌ | Throws: `Rust sidecar currently supports text-only turns.` |
-| Control responses (permissions/tools) | ❌ | Throws: `Rust sidecar control responses (permissions/tools) are not supported in the first text-only version.` |
-| Tool calls (`tool_use` / `tool_result`) | ❌ | Notification ignored (debug-logged) |
-| Permission requests | ❌ | Notification ignored |
-| MCP server integration | ❌ | Returns empty status |
-| File change events | ❌ | Notification ignored |
-| Plan/reasoning events | ❌ | Notification ignored |
+| Permission requests (commandExecution) | ✅ | Wired via `context.requestPermission()` |
+| Permission requests (fileChange) | ✅ | Wired via `context.requestPermission()` |
+| Permission requests (permissions/requestApproval) | ✅ | Wired via `context.requestPermission()` |
+| Tool calls (`item/tool/call`) | ⚠️ | Acknowledged via `{ status: 'pending' }`, result via `notifyToolResult`. Tool execution returns "not available" for now. |
+| Plan notifications | ✅ | `turn/plan/updated` and `item/plan/delta` → `proposed_plan` |
+| Reasoning notifications | ✅ | `reasoning/textDelta` and `reasoning/summaryTextDelta` → `partial_message` |
+| Command output deltas | ✅ | `item/commandExecution/outputDelta` → `partial_message` |
+| File change patch updates | ✅ | `item/fileChange/patchUpdated` → `diff` events |
+| Turn diff | ✅ | `turn/diff/updated` → `diff` (aggregated) |
+| MCP elicitation | ⚠️ | Acknowledged but returns `{ cancelled: true }` (form rendering not supported) |
+| MCP runtime status | ❌ | Returns empty array (no background query yet) |
 | Concurrent turns | ❌ | Throws: `Rust sidecar does not support concurrent turns.` |
-| `/v1/chat/completions` provider API | ❌ | Future: not wired in `getRustProviderWireApi()` |
+| Control responses (`runControlResponse`) | ❌ | Throws error (permissions handled directly in handler) |
+| `/v1/chat/completions` provider API | ❌ | Future: see wire_api matrix |
 | Websocket transport | ❌ | Overridden to `supports_websockets=false` |
 | OpenAI auth header | ❌ | Overridden to `requires_openai_auth=false` |
 
