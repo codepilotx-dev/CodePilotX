@@ -762,65 +762,6 @@ export type DesktopThemeFontEntry = {
   fallback: string
 }
 
-export type DesktopThemeRadixAccentColor =
-  | 'gray'
-  | 'gold'
-  | 'bronze'
-  | 'brown'
-  | 'yellow'
-  | 'amber'
-  | 'orange'
-  | 'tomato'
-  | 'red'
-  | 'ruby'
-  | 'crimson'
-  | 'pink'
-  | 'plum'
-  | 'purple'
-  | 'violet'
-  | 'iris'
-  | 'indigo'
-  | 'blue'
-  | 'cyan'
-  | 'teal'
-  | 'jade'
-  | 'green'
-  | 'grass'
-  | 'lime'
-  | 'mint'
-  | 'sky'
-
-export type DesktopThemeRadixGrayColor =
-  | 'auto'
-  | 'gray'
-  | 'mauve'
-  | 'slate'
-  | 'sage'
-  | 'olive'
-  | 'sand'
-
-export type DesktopThemeRadixPanelBackground = 'solid' | 'translucent'
-export type DesktopThemeRadixRadius =
-  | 'none'
-  | 'small'
-  | 'medium'
-  | 'large'
-  | 'full'
-export type DesktopThemeRadixScaling =
-  | '90%'
-  | '95%'
-  | '100%'
-  | '105%'
-  | '110%'
-
-export type DesktopThemeRadixConfig = {
-  accentColor: DesktopThemeRadixAccentColor
-  grayColor: DesktopThemeRadixGrayColor
-  panelBackground: DesktopThemeRadixPanelBackground
-  radius: DesktopThemeRadixRadius
-  scaling: DesktopThemeRadixScaling
-}
-
 export type DesktopThemeConfigV1 = {
   codeThemeId: string
   theme: {
@@ -837,7 +778,6 @@ export type DesktopThemeConfigV1 = {
       diffRemoved: string
       skill: string
     }
-    radix: DesktopThemeRadixConfig
     surface: string
   }
   variant: DesktopThemeVariant
