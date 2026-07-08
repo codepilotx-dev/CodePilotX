@@ -122,12 +122,12 @@
   },
   "devDependencies": {
     "@types/better-sqlite3": "latest",
-    "@types/react-dom": "latest",
     "@types/bun": "latest",
     "@types/lodash-es": "latest",
     "@types/node": "latest",
     "@types/qrcode": "latest",
     "@types/react": "latest",
+    "@types/react-dom": "latest",
     "@types/react-reconciler": "latest",
     "@types/semver": "latest",
     "@types/shell-quote": "latest",
@@ -135,8 +135,9 @@
     "@types/ws": "latest",
     "electron": "latest",
     "electron-builder": "latest",
-    "vite": "latest",
-    "typescript": "latest"
+    "sass": "^1.101.0",
+    "typescript": "latest",
+    "vite": "latest"
   },
   "optionalDependencies": {
     "@ant/claude-for-chrome-mcp": "latest",
