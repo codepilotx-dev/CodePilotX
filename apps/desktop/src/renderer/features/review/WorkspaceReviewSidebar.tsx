@@ -7,20 +7,24 @@ import {
   ChevronDown,
   ChevronRight,
   ChevronsUpDown,
+  Clipboard,
+  Code2,
   Columns2,
   Ellipsis,
+  Eye,
+  File,
   FileDiff,
-  Filter,
-  FolderOpen,
   GitFork,
   MessageSquarePlus,
-  PanelRight,
+  Plus,
   RotateCcw,
   Search,
   Sliders,
   Trash2,
+  Type,
   Undo2,
   Upload,
+  WrapText,
 } from 'lucide-react'
 import type {
   DesktopDiffMarkerStyle,
@@ -207,6 +211,10 @@ export function WorkspaceReviewSidebar({
   const [commitPopoverOpen, setCommitPopoverOpen] = React.useState(false)
   const [prPopoverOpen, setPrPopoverOpen] = React.useState(false)
   const [moreMenuOpen, setMoreMenuOpen] = React.useState(false)
+  const [wordWrap, setWordWrap] = React.useState(true)
+  const [richDiffPreview, setRichDiffPreview] = React.useState(true)
+  const [textDiff, setTextDiff] = React.useState(true)
+  const [showWhitespace, setShowWhitespace] = React.useState(true)
 
   const commitButtonRef = React.useRef<HTMLButtonElement | null>(null)
   const prButtonRef = React.useRef<HTMLButtonElement | null>(null)
@@ -784,59 +792,79 @@ export function WorkspaceReviewSidebar({
               刷新变更
             </PopoverItem>
             <PopoverItem
-              icon={<FolderOpen size={APP_ICON_SIZE} />}
-              disabled={!workspacePath}
+              icon={<WrapText size={APP_ICON_SIZE} />}
+              withCheck
+              selected={wordWrap}
               onClick={() => {
-                onOpenWorkspacePath()
+                setWordWrap(value => !value)
                 setMoreMenuOpen(false)
               }}
             >
-              打开工作区
+              {wordWrap ? '禁用自动换行' : '启用自动换行'}
             </PopoverItem>
             <PopoverItem
-              icon={<PanelRight size={APP_ICON_SIZE} />}
+              icon={<File size={APP_ICON_SIZE} />}
               onClick={() => {
-                onClose()
                 setMoreMenuOpen(false)
               }}
             >
-              关闭右侧边栏
+              加载完整文件
+            </PopoverItem>
+            <PopoverItem
+              icon={<Eye size={APP_ICON_SIZE} />}
+              withCheck
+              selected={richDiffPreview}
+              onClick={() => {
+                setRichDiffPreview(value => !value)
+                setMoreMenuOpen(false)
+              }}
+            >
+              {richDiffPreview ? '禁用富文本预览' : '启用富文本预览'}
+            </PopoverItem>
+            <PopoverItem
+              icon={<Type size={APP_ICON_SIZE} />}
+              withCheck
+              selected={textDiff}
+              onClick={() => {
+                setTextDiff(value => !value)
+                setMoreMenuOpen(false)
+              }}
+            >
+              {textDiff ? '禁用文字差异' : '启用文字差异'}
+            </PopoverItem>
+            <PopoverItem
+              icon={<Code2 size={APP_ICON_SIZE} />}
+              withCheck
+              selected={showWhitespace}
+              onClick={() => {
+                setShowWhitespace(value => !value)
+                setMoreMenuOpen(false)
+              }}
+            >
+              {showWhitespace ? '隐藏空白字符' : '显示空白字符'}
+            </PopoverItem>
+            <PopoverItem
+              icon={<Clipboard size={APP_ICON_SIZE} />}
+              onClick={() => {
+                void copyGitApplyCommand(reviewDiff?.files ?? [], scope)
+                setMoreMenuOpen(false)
+              }}
+            >
+              复制 git apply 命令
             </PopoverItem>
           </PopoverMenu>
-          <PopoverMenu
-            align="end"
-            className="popover-review-filter"
-            disableOutsideDismiss={debugMode}
-            open={filterMenuOpen}
-            sideOffset={4}
-            trigger={
-              <Tooltip content="筛选">
-                <button
-                  aria-label="筛选"
-                  aria-pressed={filter !== 'all'}
-                  className="message-action"
-                  type="button"
-                >
-                  <Filter size={APP_ICON_SIZE} />
-                </button>
-              </Tooltip>
-            }
-            onOpenChange={setFilterMenuOpen}
+          <Tooltip
+            content={allCollapsed ? '展开全部差异' : '折叠全部差异'}
           >
-            {(['all', 'added', 'modified', 'removed'] as const).map(value => (
-              <PopoverItem
-                key={value}
-                selected={filter === value}
-                withCheck
-                onClick={() => {
-                  setFilter(value)
-                  setFilterMenuOpen(false)
-                }}
-              >
-                {reviewFilterLabel(value)}
-              </PopoverItem>
-            ))}
-          </PopoverMenu>
+            <button
+              aria-label={allCollapsed ? '展开全部差异' : '折叠全部差异'}
+              className="message-action"
+              type="button"
+              onClick={allCollapsed ? expandAllDiffs : collapseAllDiffs}
+            >
+              <ChevronsUpDown size={APP_ICON_SIZE} />
+            </button>
+          </Tooltip>
           <Tooltip content="搜索文件">
             <button
               aria-label="搜索文件"
@@ -845,28 +873,6 @@ export function WorkspaceReviewSidebar({
               onClick={() => fileSearchInputRef.current?.focus()}
             >
               <Search size={APP_ICON_SIZE} />
-            </button>
-          </Tooltip>
-          <Tooltip content="提交或推送">
-            <button
-              aria-label="提交或推送"
-              className="message-action"
-              ref={commitButtonRef}
-              type="button"
-              onClick={() => setCommitPopoverOpen(value => !value)}
-            >
-              <ArrowUpToLine size={APP_ICON_SIZE} />
-            </button>
-          </Tooltip>
-          <Tooltip content="创建拉取请求">
-            <button
-              aria-label="创建拉取请求"
-              className="message-action"
-              ref={prButtonRef}
-              type="button"
-              onClick={() => setPrPopoverOpen(value => !value)}
-            >
-              <GitFork size={APP_ICON_SIZE} />
             </button>
           </Tooltip>
           <Tooltip
@@ -898,7 +904,7 @@ export function WorkspaceReviewSidebar({
           <Tooltip content={hideFileList ? '显示文件' : '隐藏文件'}>
             <button
               aria-label={hideFileList ? '显示文件' : '隐藏文件'}
-              aria-pressed={hideFileList}
+              aria-pressed={!hideFileList}
               className="message-action"
               type="button"
               onClick={() => setHideFileList(value => !value)}
@@ -906,37 +912,28 @@ export function WorkspaceReviewSidebar({
               <Briefcase size={APP_ICON_SIZE} />
             </button>
           </Tooltip>
-          <Tooltip
-            content={allCollapsed ? '展开全部差异' : '折叠全部差异'}
-          >
+          <Tooltip content="提交或推送">
             <button
-              aria-label={allCollapsed ? '展开全部差异' : '折叠全部差异'}
-              className="message-action"
+              aria-label="提交或推送"
+              className="message-action review-sidebar-primary-action"
+              ref={commitButtonRef}
               type="button"
-              onClick={allCollapsed ? expandAllDiffs : collapseAllDiffs}
+              onClick={() => setCommitPopoverOpen(value => !value)}
             >
-              <ChevronsUpDown size={APP_ICON_SIZE} />
+              <ArrowUpToLine size={APP_ICON_SIZE} />
+              <span className="review-sidebar-action-label">提交</span>
             </button>
           </Tooltip>
-          <Tooltip content="关闭右侧边栏">
+          <Tooltip content="创建拉取请求">
             <button
-              aria-label="关闭右侧边栏"
-              className="message-action"
+              aria-label="创建拉取请求"
+              className="message-action review-sidebar-primary-action"
+              ref={prButtonRef}
               type="button"
-              onClick={onClose}
+              onClick={() => setPrPopoverOpen(value => !value)}
             >
-              <PanelRight size={APP_ICON_SIZE} />
-            </button>
-          </Tooltip>
-          <Tooltip content="发送审查到对话框">
-            <button
-              aria-label="发送审查到对话框"
-              className="message-action"
-              disabled={!onAppendComposerText}
-              type="button"
-              onClick={sendReviewPromptToComposer}
-            >
-              <MessageSquarePlus size={APP_ICON_SIZE} />
+              <GitFork size={APP_ICON_SIZE} />
+              <span className="review-sidebar-action-label">PR</span>
             </button>
           </Tooltip>
         </div>
@@ -1057,38 +1054,6 @@ export function WorkspaceReviewSidebar({
                 )}
               </ScrollArea>
 
-              {visibleFiles.length > 0 ? (
-                <footer className="review-footer">
-                  {scope === 'unstaged' ? (
-                    <>
-                      <Tooltip content="还原所有未暂存变更">
-                        <button type="button" onClick={revertAll}>
-                          还原全部
-                        </button>
-                      </Tooltip>
-                      <Tooltip content="暂存所有未暂存文件">
-                        <button type="button" onClick={stageAll}>
-                          暂存全部
-                        </button>
-                      </Tooltip>
-                    </>
-                  ) : (
-                    <>
-                      <Tooltip content="取消暂存所有已暂存文件">
-                        <button type="button" onClick={unstageAll}>
-                          取消暂存全部
-                        </button>
-                      </Tooltip>
-                      <Tooltip content="还原已暂存变更">
-                        <button type="button" onClick={revertAll}>
-                          还原全部
-                        </button>
-                      </Tooltip>
-                    </>
-                  )}
-                </footer>
-              ) : null}
-
               {staleComments.length > 0 ? (
                 <ScrollArea
                   className="review-stale-comments-scroll"
@@ -1111,6 +1076,42 @@ export function WorkspaceReviewSidebar({
           </>
         ) : null}
       </div>
+
+      {!hideFileList && visibleFiles.length > 0 ? (
+        <footer className="review-footer">
+          {scope === 'unstaged' ? (
+            <>
+              <Tooltip content="还原所有未暂存变更">
+                <button type="button" onClick={revertAll}>
+                  <Undo2 size={APP_ICON_SIZE} />
+                  还原全部
+                </button>
+              </Tooltip>
+              <Tooltip content="暂存所有未暂存文件">
+                <button type="button" onClick={stageAll}>
+                  <Plus size={APP_ICON_SIZE} />
+                  暂存全部
+                </button>
+              </Tooltip>
+            </>
+          ) : (
+            <>
+              <Tooltip content="取消暂存所有已暂存文件">
+                <button type="button" onClick={unstageAll}>
+                  <Undo2 size={APP_ICON_SIZE} />
+                  取消暂存全部
+                </button>
+              </Tooltip>
+              <Tooltip content="还原已暂存变更">
+                <button type="button" onClick={revertAll}>
+                  <Undo2 size={APP_ICON_SIZE} />
+                  还原全部
+                </button>
+              </Tooltip>
+            </>
+          )}
+        </footer>
+      ) : null}
 
       <CommitPopover
         additions={totals.additions}
@@ -2429,4 +2430,25 @@ function buildReviewComposerPrompt(
 
 function errorMessageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
+}
+
+async function copyGitApplyCommand(
+  files: DesktopReviewDiffFile[],
+  scope: DesktopReviewScope,
+): Promise<void> {
+  const patches: string[] = []
+  for (const file of files) {
+    for (const hunk of file.hunks) {
+      if (hunk.lines.length === 0) continue
+      patches.push(hunk.patch)
+    }
+  }
+  if (patches.length === 0) return
+  const cmd = scope === 'staged' ? 'git apply --cached' : 'git apply'
+  const text = `${cmd} << 'EOF'\n${patches.join('\n')}\nEOF`
+  try {
+    await navigator.clipboard.writeText(text)
+  } catch {
+    // clipboard write may fail in some contexts; silently ignore
+  }
 }
