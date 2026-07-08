@@ -1,7 +1,6 @@
-import React from 'react'
-import { VList } from 'virtua'
+import React from "react";
+import { VList } from "virtua";
 import {
-  ArrowUpToLine,
   Briefcase,
   CheckCircle2,
   ChevronDown,
@@ -14,7 +13,9 @@ import {
   Eye,
   File,
   FileDiff,
+  GitCommitHorizontal,
   GitFork,
+  GitPullRequestArrow,
   MessageSquarePlus,
   Plus,
   RotateCcw,
@@ -25,7 +26,7 @@ import {
   Undo2,
   Upload,
   WrapText,
-} from 'lucide-react'
+} from "lucide-react";
 import type {
   DesktopDiffMarkerStyle,
   DesktopGitStatus,
@@ -37,116 +38,119 @@ import type {
   DesktopReviewSide,
   DesktopReviewView,
   DesktopSessionStatus,
-} from '../../../shared/types.js'
-import { desktopClient } from '../../services/desktopClient.js'
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
-import { PopoverItem } from '../../components/ui/PopoverItem.js'
-import { PopoverMenu } from '../../components/ui/PopoverMenu.js'
-import { ScrollArea } from '../../components/ui/ScrollArea.js'
-import { Tooltip } from '../../components/ui/Tooltip.js'
-import { buildReviewFileTree } from './buildReviewFileTree.js'
-import { buildCommentCountsByPath } from './reviewCommentUtils.js'
-import { CommitPopover } from './CommitPopover.js'
-import { PullRequestPopover } from './PullRequestPopover.js'
-import { ReviewFileTreeNode } from './ReviewFileTree.js'
+} from "../../../shared/types.js";
+import { desktopClient } from "../../services/desktopClient.js";
+import {
+  APP_ICON_SIZE,
+  APP_ICON_STROKE_WIDTH,
+} from "../../components/ui/iconTokens.js";
+import { PopoverItem } from "../../components/ui/PopoverItem.js";
+import { PopoverMenu } from "../../components/ui/PopoverMenu.js";
+import { ScrollArea } from "../../components/ui/ScrollArea.js";
+import { Tooltip } from "../../components/ui/Tooltip.js";
+import { buildReviewFileTree } from "./buildReviewFileTree.js";
+import { buildCommentCountsByPath } from "./reviewCommentUtils.js";
+import { CommitPopover } from "./CommitPopover.js";
+import { PullRequestPopover } from "./PullRequestPopover.js";
+import { ReviewFileTreeNode } from "./ReviewFileTree.js";
 
-type ReviewFilter = 'all' | 'added' | 'modified' | 'removed'
+type ReviewFilter = "all" | "added" | "modified" | "removed";
 
 type CommentAnchor = {
-  filePath: string
-  side: DesktopReviewSide
-  lineNumber: number
-  lineContent: string
-}
+  filePath: string;
+  side: DesktopReviewSide;
+  lineNumber: number;
+  lineContent: string;
+};
 
 type CommentDraft = CommentAnchor & {
-  body: string
-}
+  body: string;
+};
 
 type ReviewSplitRow = {
-  id: string
-  left: ReviewCell
-  right: ReviewCell
-  paired: boolean
-}
+  id: string;
+  left: ReviewCell;
+  right: ReviewCell;
+  paired: boolean;
+};
 
 type ReviewCell = {
-  line: DesktopReviewDiffLine | null
-  side: DesktopReviewSide
-  number: number | null
-  content: string
-  tone: 'removed' | 'added' | 'context' | 'empty'
-}
+  line: DesktopReviewDiffLine | null;
+  side: DesktopReviewSide;
+  number: number | null;
+  content: string;
+  tone: "removed" | "added" | "context" | "empty";
+};
 
-const REVIEW_FILE_TREE_PANEL_DEFAULT_WIDTH = 340
-const REVIEW_FILE_TREE_PANEL_MIN_WIDTH = 240
-const REVIEW_FILE_TREE_PANEL_MAX_WIDTH = 520
-const REVIEW_FILE_TREE_PANEL_KEYBOARD_STEP = 24
-const REVIEW_DIFF_PREVIEW_MIN_WIDTH = 260
-const REVIEW_DIFF_LAZY_ROOT_MARGIN = '900px 0px'
-const FILE_HEADER_HEIGHT = 44
-const HUNK_HEADER_HEIGHT = 28
-const DIFF_LINE_HEIGHT = 22
-const EMPTY_FILE_MIN_HEIGHT = 64
+const REVIEW_FILE_TREE_PANEL_DEFAULT_WIDTH = 340;
+const REVIEW_FILE_TREE_PANEL_MIN_WIDTH = 240;
+const REVIEW_FILE_TREE_PANEL_MAX_WIDTH = 520;
+const REVIEW_FILE_TREE_PANEL_KEYBOARD_STEP = 24;
+const REVIEW_DIFF_PREVIEW_MIN_WIDTH = 260;
+const REVIEW_DIFF_LAZY_ROOT_MARGIN = "900px 0px";
+const FILE_HEADER_HEIGHT = 44;
+const HUNK_HEADER_HEIGHT = 28;
+const DIFF_LINE_HEIGHT = 22;
+const EMPTY_FILE_MIN_HEIGHT = 64;
 
 function estimateFilePreviewHeight(file: DesktopReviewDiffFile): number {
-  let totalLines = 0
-  let hunksWithContent = 0
+  let totalLines = 0;
+  let hunksWithContent = 0;
   for (const hunk of file.hunks) {
     if (hunk.lines.length > 0) {
-      hunksWithContent++
-      totalLines += hunk.lines.length
+      hunksWithContent++;
+      totalLines += hunk.lines.length;
     }
   }
-  if (hunksWithContent === 0) return EMPTY_FILE_MIN_HEIGHT
+  if (hunksWithContent === 0) return EMPTY_FILE_MIN_HEIGHT;
   return (
     FILE_HEADER_HEIGHT +
     hunksWithContent * HUNK_HEADER_HEIGHT +
     totalLines * DIFF_LINE_HEIGHT
-  )
+  );
 }
 
 function countReviewDiffLines(files: DesktopReviewDiffFile[]): number {
-  let total = 0
+  let total = 0;
   for (const file of files) {
     for (const hunk of file.hunks) {
-      total += hunk.lines.length
+      total += hunk.lines.length;
     }
   }
-  return total
+  return total;
 }
 
 /* ── Virtual-scroll flatten helpers ─────────────────────────── */
 
 type DiffVirtualRow =
-  | { kind: 'hunk-header'; hunk: DesktopReviewDiffHunk }
-  | { kind: 'inline-line'; line: DesktopReviewDiffLine }
-  | { kind: 'split-row'; left: ReviewCell; right: ReviewCell; rowId: string }
+  | { kind: "hunk-header"; hunk: DesktopReviewDiffHunk }
+  | { kind: "inline-line"; line: DesktopReviewDiffLine }
+  | { kind: "split-row"; left: ReviewCell; right: ReviewCell; rowId: string };
 
 function flattenDiffRows(
   file: DesktopReviewDiffFile,
   view: DesktopReviewView,
 ): DiffVirtualRow[] {
-  const rows: DiffVirtualRow[] = []
+  const rows: DiffVirtualRow[] = [];
   for (const hunk of file.hunks) {
-    rows.push({ kind: 'hunk-header', hunk })
-    if (view === 'split') {
-      const splitRows = splitDiffLines(hunk.lines)
+    rows.push({ kind: "hunk-header", hunk });
+    if (view === "split") {
+      const splitRows = splitDiffLines(hunk.lines);
       for (const sr of splitRows) {
         rows.push({
-          kind: 'split-row',
+          kind: "split-row",
           left: sr.left,
           right: sr.right,
           rowId: sr.id,
-        })
+        });
       }
     } else {
       for (const line of hunk.lines) {
-        rows.push({ kind: 'inline-line', line })
+        rows.push({ kind: "inline-line", line });
       }
     }
   }
-  return rows
+  return rows;
 }
 
 export function WorkspaceReviewSidebar({
@@ -166,183 +170,186 @@ export function WorkspaceReviewSidebar({
   onRefreshDiff,
   onToggleReviewView,
 }: {
-  activeSessionId: string | null
-  defaultBranch: string | null
-  gitStatus: DesktopGitStatus | null
-  debugMode?: boolean
-  diffMarkerStyle: DesktopDiffMarkerStyle
-  isRefreshing: boolean
-  reviewView: DesktopReviewView
-  sessionStatus: DesktopSessionStatus
-  workspacePath: string | null
-  onAppendComposerText?: (text: string) => void
-  onClose: () => void
-  onCreateBranch: () => void
-  onOpenWorkspacePath: () => void
-  onRefreshDiff: () => void
-  onToggleReviewView: () => void
+  activeSessionId: string | null;
+  defaultBranch: string | null;
+  gitStatus: DesktopGitStatus | null;
+  debugMode?: boolean;
+  diffMarkerStyle: DesktopDiffMarkerStyle;
+  isRefreshing: boolean;
+  reviewView: DesktopReviewView;
+  sessionStatus: DesktopSessionStatus;
+  workspacePath: string | null;
+  onAppendComposerText?: (text: string) => void;
+  onClose: () => void;
+  onCreateBranch: () => void;
+  onOpenWorkspacePath: () => void;
+  onRefreshDiff: () => void;
+  onToggleReviewView: () => void;
 }): React.ReactNode {
-  const [scope, setScope] = React.useState<DesktopReviewScope>('unstaged')
+  const [scope, setScope] = React.useState<DesktopReviewScope>("unstaged");
   const [reviewDiff, setReviewDiff] = React.useState<Awaited<
     ReturnType<typeof desktopClient.getWorkspaceReviewDiff>
-  > | null>(null)
-  const [comments, setComments] = React.useState<DesktopReviewComment[]>([])
-  const [selectedPath, setSelectedPath] = React.useState<string | null>(null)
-  const [search, setSearch] = React.useState('')
-  const [filter, setFilter] = React.useState<ReviewFilter>('all')
-  const [filterMenuOpen, setFilterMenuOpen] = React.useState(false)
-  const [pending, setPending] = React.useState(false)
-  const [error, setError] = React.useState<string | null>(null)
-  const [draft, setDraft] = React.useState<CommentDraft | null>(null)
+  > | null>(null);
+  const [comments, setComments] = React.useState<DesktopReviewComment[]>([]);
+  const [selectedPath, setSelectedPath] = React.useState<string | null>(null);
+  const [search, setSearch] = React.useState("");
+  const [filter, setFilter] = React.useState<ReviewFilter>("all");
+  const [filterMenuOpen, setFilterMenuOpen] = React.useState(false);
+  const [pending, setPending] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const [draft, setDraft] = React.useState<CommentDraft | null>(null);
 
-  const [hideFileList, setHideFileList] = React.useState(false)
+  const [hideFileList, setHideFileList] = React.useState(false);
   const [fileTreePanelWidth, setFileTreePanelWidth] = React.useState(
     REVIEW_FILE_TREE_PANEL_DEFAULT_WIDTH,
-  )
+  );
   const [fileTreePanelResizing, setFileTreePanelResizing] =
-    React.useState(false)
+    React.useState(false);
   const [collapsedDirs, setCollapsedDirs] = React.useState<Set<string>>(
     () => new Set(),
-  )
+  );
   const [collapsedDiffPaths, setCollapsedDiffPaths] = React.useState<
     Set<string>
-  >(() => new Set())
-  const [scopeMenuOpen, setScopeMenuOpen] = React.useState(false)
-  const [commitPopoverOpen, setCommitPopoverOpen] = React.useState(false)
-  const [prPopoverOpen, setPrPopoverOpen] = React.useState(false)
-  const [moreMenuOpen, setMoreMenuOpen] = React.useState(false)
-  const [wordWrap, setWordWrap] = React.useState(true)
-  const [richDiffPreview, setRichDiffPreview] = React.useState(true)
-  const [textDiff, setTextDiff] = React.useState(true)
-  const [showWhitespace, setShowWhitespace] = React.useState(true)
+  >(() => new Set());
+  const [scopeMenuOpen, setScopeMenuOpen] = React.useState(false);
+  const [commitPopoverOpen, setCommitPopoverOpen] = React.useState(false);
+  const [prPopoverOpen, setPrPopoverOpen] = React.useState(false);
+  const [moreMenuOpen, setMoreMenuOpen] = React.useState(false);
+  const [wordWrap, setWordWrap] = React.useState(true);
+  const [richDiffPreview, setRichDiffPreview] = React.useState(true);
+  const [textDiff, setTextDiff] = React.useState(true);
+  const [showWhitespace, setShowWhitespace] = React.useState(true);
 
-  const commitButtonRef = React.useRef<HTMLButtonElement | null>(null)
-  const prButtonRef = React.useRef<HTMLButtonElement | null>(null)
-  const reviewMainRef = React.useRef<HTMLDivElement | null>(null)
-  const diffScrollViewportRef = React.useRef<HTMLDivElement | null>(null)
-  const diffFileSectionRefs = React.useRef(new Map<string, HTMLElement>())
-  const fileSearchInputRef = React.useRef<HTMLInputElement | null>(null)
-  const errorTimerRef = React.useRef<number | null>(null)
-  const fileTreePanelResizeCleanupRef = React.useRef<(() => void) | null>(null)
-  const resizeFrameRef = React.useRef<number | null>(null)
-  const fileTreeResizePreviewRef = React.useRef<HTMLDivElement | null>(null)
+  const commitButtonRef = React.useRef<HTMLButtonElement | null>(null);
+  const prButtonRef = React.useRef<HTMLButtonElement | null>(null);
+  const reviewMainRef = React.useRef<HTMLDivElement | null>(null);
+  const diffScrollViewportRef = React.useRef<HTMLDivElement | null>(null);
+  const diffFileSectionRefs = React.useRef(new Map<string, HTMLElement>());
+  const fileSearchInputRef = React.useRef<HTMLInputElement | null>(null);
+  const errorTimerRef = React.useRef<number | null>(null);
+  const fileTreePanelResizeCleanupRef = React.useRef<(() => void) | null>(null);
+  const resizeFrameRef = React.useRef<number | null>(null);
+  const fileTreeResizePreviewRef = React.useRef<HTMLDivElement | null>(null);
 
   const refreshReviewDiff = React.useCallback(async () => {
     if (!workspacePath) {
-      setReviewDiff(null)
-      return
+      setReviewDiff(null);
+      return;
     }
     try {
-      setError(null)
+      setError(null);
       const result = await desktopClient.getWorkspaceReviewDiff({
         workspacePath,
         scope,
-      })
-      setReviewDiff(result)
+      });
+      setReviewDiff(result);
     } catch (refreshError) {
-      setError(errorMessageOf(refreshError))
+      setError(errorMessageOf(refreshError));
     }
-  }, [scope, workspacePath])
+  }, [scope, workspacePath]);
 
   const refreshComments = React.useCallback(async () => {
     if (!activeSessionId) {
-      setComments([])
-      return
+      setComments([]);
+      return;
     }
     try {
-      const snapshot = await desktopClient.getSession(activeSessionId)
-      setComments(snapshot.reviewComments ?? [])
+      const snapshot = await desktopClient.getSession(activeSessionId);
+      setComments(snapshot.reviewComments ?? []);
     } catch (refreshError) {
-      setError(errorMessageOf(refreshError))
+      setError(errorMessageOf(refreshError));
     }
-  }, [activeSessionId])
+  }, [activeSessionId]);
 
   React.useEffect(() => {
-    void refreshReviewDiff()
-  }, [refreshReviewDiff, isRefreshing])
+    void refreshReviewDiff();
+  }, [refreshReviewDiff, isRefreshing]);
 
   React.useEffect(() => {
-    void refreshComments()
-  }, [refreshComments])
+    void refreshComments();
+  }, [refreshComments]);
 
   React.useEffect(() => {
-    const files = reviewDiff?.files ?? []
+    const files = reviewDiff?.files ?? [];
     if (files.length === 0) {
-      setSelectedPath(null)
-      return
+      setSelectedPath(null);
+      return;
     }
-    setSelectedPath(current =>
-      current && files.some(file => file.path === current)
+    setSelectedPath((current) =>
+      current && files.some((file) => file.path === current)
         ? current
-        : files[0]?.path ?? null,
-    )
-  }, [reviewDiff])
+        : (files[0]?.path ?? null),
+    );
+  }, [reviewDiff]);
 
   React.useEffect(() => {
     return () => {
       if (errorTimerRef.current !== null) {
-        window.clearTimeout(errorTimerRef.current)
-        errorTimerRef.current = null
+        window.clearTimeout(errorTimerRef.current);
+        errorTimerRef.current = null;
       }
-      fileTreePanelResizeCleanupRef.current?.()
-    }
-  }, [])
+      fileTreePanelResizeCleanupRef.current?.();
+    };
+  }, []);
 
   function flashError(message: string): void {
-    setError(message)
+    setError(message);
     if (errorTimerRef.current !== null) {
-      window.clearTimeout(errorTimerRef.current)
+      window.clearTimeout(errorTimerRef.current);
     }
     errorTimerRef.current = window.setTimeout(() => {
-      setError(null)
-      errorTimerRef.current = null
-    }, 3000)
+      setError(null);
+      errorTimerRef.current = null;
+    }, 3000);
   }
 
-  const files = reviewDiff?.files ?? []
+  const files = reviewDiff?.files ?? [];
   const visibleFiles = React.useMemo(() => {
-    const query = search.trim().toLowerCase()
-    return files.filter(file => {
-      if (query && !file.path.toLowerCase().includes(query)) return false
-      if (filter === 'all') return true
-      return filterStatusForFile(file) === filter
-    })
-  }, [files, filter, search])
+    const query = search.trim().toLowerCase();
+    return files.filter((file) => {
+      if (query && !file.path.toLowerCase().includes(query)) return false;
+      if (filter === "all") return true;
+      return filterStatusForFile(file) === filter;
+    });
+  }, [files, filter, search]);
 
   React.useEffect(() => {
-    if (!selectedPath || visibleFiles.some(file => file.path === selectedPath)) {
-      return
+    if (
+      !selectedPath ||
+      visibleFiles.some((file) => file.path === selectedPath)
+    ) {
+      return;
     }
-    setSelectedPath(visibleFiles[0]?.path ?? null)
-  }, [selectedPath, visibleFiles])
+    setSelectedPath(visibleFiles[0]?.path ?? null);
+  }, [selectedPath, visibleFiles]);
 
   const reviewTree = React.useMemo(
     () => buildReviewFileTree(visibleFiles),
     [visibleFiles],
-  )
+  );
 
   React.useEffect(() => {
-    if (!selectedPath) return
-    const segments = selectedPath.split('/').slice(0, -1)
-    if (segments.length === 0) return
-    setCollapsedDirs(prev => {
-      let next: Set<string> | null = null
-      let path = ''
+    if (!selectedPath) return;
+    const segments = selectedPath.split("/").slice(0, -1);
+    if (segments.length === 0) return;
+    setCollapsedDirs((prev) => {
+      let next: Set<string> | null = null;
+      let path = "";
       for (const segment of segments) {
-        path = path ? `${path}/${segment}` : segment
+        path = path ? `${path}/${segment}` : segment;
         if (prev.has(path)) {
-          if (!next) next = new Set(prev)
-          next.delete(path)
+          if (!next) next = new Set(prev);
+          next.delete(path);
         }
       }
-      return next ?? prev
-    })
-  }, [selectedPath])
+      return next ?? prev;
+    });
+  }, [selectedPath]);
 
   const selectedFile =
-    visibleFiles.find(file => file.path === selectedPath) ??
+    visibleFiles.find((file) => file.path === selectedPath) ??
     visibleFiles[0] ??
-    null
+    null;
   const totals = React.useMemo(
     () =>
       files.reduce(
@@ -353,84 +360,84 @@ export function WorkspaceReviewSidebar({
         { additions: 0, deletions: 0 },
       ),
     [files],
-  )
+  );
   const largeDiffMode = React.useMemo(
     () => countReviewDiffLines(visibleFiles) > 800,
     [visibleFiles],
-  )
+  );
   const allCollapsed =
     visibleFiles.length > 0 &&
-    visibleFiles.every(f => collapsedDiffPaths.has(f.path))
+    visibleFiles.every((f) => collapsedDiffPaths.has(f.path));
   const { attachedComments, staleComments } = React.useMemo(
     () => attachComments(files, comments),
     [comments, files],
-  )
-  const openComments = comments.filter(comment => comment.status === 'open')
+  );
+  const openComments = comments.filter((comment) => comment.status === "open");
   const commentCountsByPath = React.useMemo(
     () => buildCommentCountsByPath(openComments),
     [openComments],
-  )
+  );
   const sessionBusy =
-    sessionStatus === 'running' || sessionStatus === 'waiting'
+    sessionStatus === "running" || sessionStatus === "waiting";
 
   function toggleDir(dirPath: string): void {
-    setCollapsedDirs(prev => {
-      const next = new Set(prev)
-      if (next.has(dirPath)) next.delete(dirPath)
-      else next.add(dirPath)
-      return next
-    })
+    setCollapsedDirs((prev) => {
+      const next = new Set(prev);
+      if (next.has(dirPath)) next.delete(dirPath);
+      else next.add(dirPath);
+      return next;
+    });
   }
 
   function toggleCollapseDiff(path: string): void {
-    setCollapsedDiffPaths(prev => {
-      const next = new Set(prev)
-      if (next.has(path)) next.delete(path)
-      else next.add(path)
-      return next
-    })
+    setCollapsedDiffPaths((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      return next;
+    });
   }
 
   function collapseAllDiffs(): void {
-    setCollapsedDiffPaths(new Set(visibleFiles.map(f => f.path)))
+    setCollapsedDiffPaths(new Set(visibleFiles.map((f) => f.path)));
   }
 
   function expandAllDiffs(): void {
-    setCollapsedDiffPaths(new Set())
+    setCollapsedDiffPaths(new Set());
   }
 
   async function applyOperation(
-    action: 'stage' | 'unstage' | 'revert',
+    action: "stage" | "unstage" | "revert",
     target:
-      | { type: 'file'; path: string }
-      | { type: 'hunk'; path: string; hunkId: string },
+      | { type: "file"; path: string }
+      | { type: "hunk"; path: string; hunkId: string },
   ): Promise<void> {
-    if (!workspacePath || pending) return
-    setPending(true)
+    if (!workspacePath || pending) return;
+    setPending(true);
     try {
       const result = await desktopClient.applyWorkspaceReviewOperation({
         workspacePath,
         scope,
         action,
         target,
-      })
+      });
       if (result.ok === false) {
-        setError(result.error)
-        return
+        setError(result.error);
+        return;
       }
-      setError(null)
-      setReviewDiff(result.reviewDiff)
-      onRefreshDiff()
+      setError(null);
+      setReviewDiff(result.reviewDiff);
+      onRefreshDiff();
     } catch (operationError) {
-      setError(errorMessageOf(operationError))
+      setError(errorMessageOf(operationError));
     } finally {
-      setPending(false)
+      setPending(false);
     }
   }
 
   async function saveDraft(): Promise<void> {
-    if (!activeSessionId || !draft || !draft.body.trim()) return
-    setPending(true)
+    if (!activeSessionId || !draft || !draft.body.trim()) return;
+    setPending(true);
     try {
       const snapshot = await desktopClient.saveSessionReviewComment({
         sessionId: activeSessionId,
@@ -441,75 +448,75 @@ export function WorkspaceReviewSidebar({
           lineContent: draft.lineContent,
           body: draft.body.trim(),
         },
-      })
-      setComments(snapshot.reviewComments ?? [])
-      setDraft(null)
+      });
+      setComments(snapshot.reviewComments ?? []);
+      setDraft(null);
     } catch (commentError) {
-      setError(errorMessageOf(commentError))
+      setError(errorMessageOf(commentError));
     } finally {
-      setPending(false)
+      setPending(false);
     }
   }
 
   async function resolveComment(commentId: string): Promise<void> {
-    if (!activeSessionId) return
+    if (!activeSessionId) return;
     const snapshot = await desktopClient.resolveSessionReviewComment({
       sessionId: activeSessionId,
       commentId,
-    })
-    setComments(snapshot.reviewComments ?? [])
+    });
+    setComments(snapshot.reviewComments ?? []);
   }
 
   async function deleteComment(commentId: string): Promise<void> {
-    if (!activeSessionId) return
+    if (!activeSessionId) return;
     const snapshot = await desktopClient.deleteSessionReviewComment({
       sessionId: activeSessionId,
       commentId,
-    })
-    setComments(snapshot.reviewComments ?? [])
+    });
+    setComments(snapshot.reviewComments ?? []);
   }
 
   async function sendCommentsToAgent(): Promise<void> {
-    if (!activeSessionId || sessionBusy || openComments.length === 0) return
+    if (!activeSessionId || sessionBusy || openComments.length === 0) return;
     const body = [
-      '请按这些本地行内审查评论修改代码：',
-      '',
+      "请按这些本地行内审查评论修改代码：",
+      "",
       ...openComments.map(
         (comment, index) =>
           `${index + 1}. ${comment.filePath}:${comment.lineNumber} (${comment.side})\n` +
-          `   行内容：${comment.lineContent || '(空行)'}\n` +
+          `   行内容：${comment.lineContent || "(空行)"}\n` +
           `   评论：${comment.body}`,
       ),
-    ].join('\n')
-    await desktopClient.sendUserMessage(activeSessionId, { text: body })
+    ].join("\n");
+    await desktopClient.sendUserMessage(activeSessionId, { text: body });
   }
 
   function sendReviewPromptToComposer(): void {
-    if (!onAppendComposerText) return
+    if (!onAppendComposerText) return;
     onAppendComposerText(
       buildReviewComposerPrompt(
         reviewDiff?.status ?? gitStatus,
         reviewDiff?.files ?? [],
       ),
-    )
+    );
   }
 
   function handleCommit(_message: string, _includeUnstaged: boolean): void {
-    setCommitPopoverOpen(false)
-    flashError('批量操作即将上线')
+    setCommitPopoverOpen(false);
+    flashError("批量操作即将上线");
   }
 
   function handleCommitAndPush(
     _message: string,
     _includeUnstaged: boolean,
   ): void {
-    setCommitPopoverOpen(false)
-    flashError('批量操作即将上线')
+    setCommitPopoverOpen(false);
+    flashError("批量操作即将上线");
   }
 
   function handlePush(): void {
-    setCommitPopoverOpen(false)
-    flashError('批量操作即将上线')
+    setCommitPopoverOpen(false);
+    flashError("批量操作即将上线");
   }
 
   function handleCreateDraftPR(
@@ -517,8 +524,8 @@ export function WorkspaceReviewSidebar({
     _body: string,
     _pushFirst: boolean,
   ): void {
-    setPrPopoverOpen(false)
-    flashError('批量操作即将上线')
+    setPrPopoverOpen(false);
+    flashError("批量操作即将上线");
   }
 
   function handleCreatePR(
@@ -526,170 +533,168 @@ export function WorkspaceReviewSidebar({
     _body: string,
     _pushFirst: boolean,
   ): void {
-    setPrPopoverOpen(false)
-    flashError('批量操作即将上线')
+    setPrPopoverOpen(false);
+    flashError("批量操作即将上线");
   }
 
   function handleOpenPR(): void {
-    setPrPopoverOpen(false)
-    flashError('批量操作即将上线')
+    setPrPopoverOpen(false);
+    flashError("批量操作即将上线");
   }
 
   function handleLastTurnScope(): void {
-    setScopeMenuOpen(false)
-    flashError('批量操作即将上线')
+    setScopeMenuOpen(false);
+    flashError("批量操作即将上线");
   }
 
   function revertAll(): void {
-    flashError('批量操作即将上线')
+    flashError("批量操作即将上线");
   }
 
   function stageAll(): void {
-    flashError('批量操作即将上线')
+    flashError("批量操作即将上线");
   }
 
   function unstageAll(): void {
-    flashError('批量操作即将上线')
+    flashError("批量操作即将上线");
   }
 
   const setDiffFileSectionElement = React.useCallback(
     (path: string, element: HTMLElement | null) => {
       if (element) {
-        diffFileSectionRefs.current.set(path, element)
-        return
+        diffFileSectionRefs.current.set(path, element);
+        return;
       }
-      diffFileSectionRefs.current.delete(path)
+      diffFileSectionRefs.current.delete(path);
     },
     [],
-  )
+  );
 
   function scrollToDiffFile(path: string): void {
-    const viewport = diffScrollViewportRef.current
-    const section = diffFileSectionRefs.current.get(path)
-    if (!viewport || !section) return
-    const viewportRect = viewport.getBoundingClientRect()
-    const sectionRect = section.getBoundingClientRect()
+    const viewport = diffScrollViewportRef.current;
+    const section = diffFileSectionRefs.current.get(path);
+    if (!viewport || !section) return;
+    const viewportRect = viewport.getBoundingClientRect();
+    const sectionRect = section.getBoundingClientRect();
     viewport.scrollTo({
       top: viewport.scrollTop + sectionRect.top - viewportRect.top,
-      behavior: 'smooth',
-    })
+      behavior: "smooth",
+    });
   }
 
   function handleSelectFile(path: string): void {
-    setSelectedPath(path)
+    setSelectedPath(path);
     if (!largeDiffMode) {
-      window.requestAnimationFrame(() => scrollToDiffFile(path))
+      window.requestAnimationFrame(() => scrollToDiffFile(path));
     }
   }
 
   const setClampedFileTreePanelWidth = React.useCallback((next: number) => {
-    const containerWidth = reviewMainRef.current?.getBoundingClientRect().width
-    setFileTreePanelWidth(
-      clampReviewFileTreePanelWidth(next, containerWidth),
-    )
-  }, [])
+    const containerWidth = reviewMainRef.current?.getBoundingClientRect().width;
+    setFileTreePanelWidth(clampReviewFileTreePanelWidth(next, containerWidth));
+  }, []);
 
   function handleFileTreePanelResizeKey(
     event: React.KeyboardEvent<HTMLDivElement>,
   ): void {
-    if (event.key === 'Home') {
-      event.preventDefault()
-      setClampedFileTreePanelWidth(REVIEW_FILE_TREE_PANEL_MIN_WIDTH)
-      return
+    if (event.key === "Home") {
+      event.preventDefault();
+      setClampedFileTreePanelWidth(REVIEW_FILE_TREE_PANEL_MIN_WIDTH);
+      return;
     }
-    if (event.key === 'End') {
-      event.preventDefault()
-      setClampedFileTreePanelWidth(REVIEW_FILE_TREE_PANEL_MAX_WIDTH)
-      return
+    if (event.key === "End") {
+      event.preventDefault();
+      setClampedFileTreePanelWidth(REVIEW_FILE_TREE_PANEL_MAX_WIDTH);
+      return;
     }
-    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
-    event.preventDefault()
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    event.preventDefault();
     const step = event.shiftKey
       ? REVIEW_FILE_TREE_PANEL_KEYBOARD_STEP * 3
-      : REVIEW_FILE_TREE_PANEL_KEYBOARD_STEP
+      : REVIEW_FILE_TREE_PANEL_KEYBOARD_STEP;
     setClampedFileTreePanelWidth(
-      fileTreePanelWidth + (event.key === 'ArrowLeft' ? step : -step),
-    )
+      fileTreePanelWidth + (event.key === "ArrowLeft" ? step : -step),
+    );
   }
 
   function startFileTreePanelResize(
     event: React.PointerEvent<HTMLDivElement>,
   ): void {
-    if (event.button !== 0) return
-    event.preventDefault()
+    if (event.button !== 0) return;
+    event.preventDefault();
 
-    fileTreePanelResizeCleanupRef.current?.()
+    fileTreePanelResizeCleanupRef.current?.();
 
-    const startX = event.clientX
-    const startWidth = fileTreePanelWidth
-    const containerRect = reviewMainRef.current?.getBoundingClientRect()
-    const containerLeft = containerRect?.left ?? 0
-    const containerWidth = containerRect?.width
-    const previousCursor = document.body.style.cursor
-    const previousUserSelect = document.body.style.userSelect
-    let active = true
-    let lastComputedWidth = startWidth
+    const startX = event.clientX;
+    const startWidth = fileTreePanelWidth;
+    const containerRect = reviewMainRef.current?.getBoundingClientRect();
+    const containerLeft = containerRect?.left ?? 0;
+    const containerWidth = containerRect?.width;
+    const previousCursor = document.body.style.cursor;
+    const previousUserSelect = document.body.style.userSelect;
+    let active = true;
+    let lastComputedWidth = startWidth;
 
     const handlePointerMove = (moveEvent: PointerEvent): void => {
-      const nextWidth = startWidth + startX - moveEvent.clientX
-      const clamped = clampReviewFileTreePanelWidth(nextWidth, containerWidth)
-      lastComputedWidth = clamped
+      const nextWidth = startWidth + startX - moveEvent.clientX;
+      const clamped = clampReviewFileTreePanelWidth(nextWidth, containerWidth);
+      lastComputedWidth = clamped;
 
       // Cancel pending frame, then move the preview line via transform (no layout)
       if (resizeFrameRef.current !== null) {
-        window.cancelAnimationFrame(resizeFrameRef.current)
+        window.cancelAnimationFrame(resizeFrameRef.current);
       }
       resizeFrameRef.current = window.requestAnimationFrame(() => {
-        resizeFrameRef.current = null
-        const previewLeft = moveEvent.clientX - containerLeft
-        const previewLine = fileTreeResizePreviewRef.current
+        resizeFrameRef.current = null;
+        const previewLeft = moveEvent.clientX - containerLeft;
+        const previewLine = fileTreeResizePreviewRef.current;
         if (previewLine) {
-          previewLine.style.transform = `translateX(${previewLeft}px)`
+          previewLine.style.transform = `translateX(${previewLeft}px)`;
         }
-      })
-    }
+      });
+    };
 
     const stopResize = (): void => {
-      if (!active) return
-      active = false
+      if (!active) return;
+      active = false;
 
       // Cancel any pending rAF
       if (resizeFrameRef.current !== null) {
-        window.cancelAnimationFrame(resizeFrameRef.current)
-        resizeFrameRef.current = null
+        window.cancelAnimationFrame(resizeFrameRef.current);
+        resizeFrameRef.current = null;
       }
 
       // Hide preview line
-      const previewLine = fileTreeResizePreviewRef.current
+      const previewLine = fileTreeResizePreviewRef.current;
       if (previewLine) {
-        previewLine.style.transform = ''
+        previewLine.style.transform = "";
       }
 
-      setFileTreePanelResizing(false)
-      document.removeEventListener('pointermove', handlePointerMove)
-      document.removeEventListener('pointerup', stopResize)
-      document.removeEventListener('pointercancel', stopResize)
-      document.body.classList.remove('review-file-tree-is-resizing')
-      document.body.style.cursor = previousCursor
-      document.body.style.userSelect = previousUserSelect
-      fileTreePanelResizeCleanupRef.current = null
+      setFileTreePanelResizing(false);
+      document.removeEventListener("pointermove", handlePointerMove);
+      document.removeEventListener("pointerup", stopResize);
+      document.removeEventListener("pointercancel", stopResize);
+      document.body.classList.remove("review-file-tree-is-resizing");
+      document.body.style.cursor = previousCursor;
+      document.body.style.userSelect = previousUserSelect;
+      fileTreePanelResizeCleanupRef.current = null;
       // Commit final width to React state once — expensive layout happens here
-      setFileTreePanelWidth(lastComputedWidth)
-    }
+      setFileTreePanelWidth(lastComputedWidth);
+    };
 
-    setFileTreePanelResizing(true)
-    document.body.classList.add('review-file-tree-is-resizing')
-    document.body.style.cursor = 'col-resize'
-    document.body.style.userSelect = 'none'
-    document.addEventListener('pointermove', handlePointerMove)
-    document.addEventListener('pointerup', stopResize)
-    document.addEventListener('pointercancel', stopResize)
-    fileTreePanelResizeCleanupRef.current = stopResize
+    setFileTreePanelResizing(true);
+    document.body.classList.add("review-file-tree-is-resizing");
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    document.addEventListener("pointermove", handlePointerMove);
+    document.addEventListener("pointerup", stopResize);
+    document.addEventListener("pointercancel", stopResize);
+    fileTreePanelResizeCleanupRef.current = stopResize;
   }
 
   return (
     <aside
-      className={hideFileList ? 'review-sidebar hide-files' : 'review-sidebar'}
+      className={hideFileList ? "review-sidebar hide-files" : "review-sidebar"}
       aria-label="本地代码审查"
     >
       <div className="review-sidebar-toolbar">
@@ -715,30 +720,30 @@ export function WorkspaceReviewSidebar({
             onOpenChange={setScopeMenuOpen}
           >
             <PopoverItem
-              selected={scope === 'unstaged'}
+              selected={scope === "unstaged"}
               withCheck
               onClick={() => {
-                setScope('unstaged')
-                setScopeMenuOpen(false)
+                setScope("unstaged");
+                setScopeMenuOpen(false);
               }}
             >
               未暂存
             </PopoverItem>
             <PopoverItem
-              selected={scope === 'staged'}
+              selected={scope === "staged"}
               withCheck
               onClick={() => {
-                setScope('staged')
-                setScopeMenuOpen(false)
+                setScope("staged");
+                setScopeMenuOpen(false);
               }}
             >
               已暂存
             </PopoverItem>
             <PopoverItem
-              icon={<ArrowUpToLine size={APP_ICON_SIZE} />}
+              icon={<GitCommitHorizontal size={APP_ICON_SIZE} />}
               onClick={() => {
-                setScopeMenuOpen(false)
-                setCommitPopoverOpen(true)
+                setScopeMenuOpen(false);
+                setCommitPopoverOpen(true);
               }}
             >
               提交
@@ -746,8 +751,8 @@ export function WorkspaceReviewSidebar({
             <PopoverItem
               icon={<GitFork size={APP_ICON_SIZE} />}
               onClick={() => {
-                setScopeMenuOpen(false)
-                onCreateBranch()
+                setScopeMenuOpen(false);
+                onCreateBranch();
               }}
             >
               分支
@@ -784,9 +789,9 @@ export function WorkspaceReviewSidebar({
             <PopoverItem
               icon={<RotateCcw size={APP_ICON_SIZE} />}
               onClick={() => {
-                onRefreshDiff()
-                void refreshReviewDiff()
-                setMoreMenuOpen(false)
+                onRefreshDiff();
+                void refreshReviewDiff();
+                setMoreMenuOpen(false);
               }}
             >
               刷新变更
@@ -796,16 +801,16 @@ export function WorkspaceReviewSidebar({
               withCheck
               selected={wordWrap}
               onClick={() => {
-                setWordWrap(value => !value)
-                setMoreMenuOpen(false)
+                setWordWrap((value) => !value);
+                setMoreMenuOpen(false);
               }}
             >
-              {wordWrap ? '禁用自动换行' : '启用自动换行'}
+              {wordWrap ? "禁用自动换行" : "启用自动换行"}
             </PopoverItem>
             <PopoverItem
               icon={<File size={APP_ICON_SIZE} />}
               onClick={() => {
-                setMoreMenuOpen(false)
+                setMoreMenuOpen(false);
               }}
             >
               加载完整文件
@@ -815,49 +820,47 @@ export function WorkspaceReviewSidebar({
               withCheck
               selected={richDiffPreview}
               onClick={() => {
-                setRichDiffPreview(value => !value)
-                setMoreMenuOpen(false)
+                setRichDiffPreview((value) => !value);
+                setMoreMenuOpen(false);
               }}
             >
-              {richDiffPreview ? '禁用富文本预览' : '启用富文本预览'}
+              {richDiffPreview ? "禁用富文本预览" : "启用富文本预览"}
             </PopoverItem>
             <PopoverItem
               icon={<Type size={APP_ICON_SIZE} />}
               withCheck
               selected={textDiff}
               onClick={() => {
-                setTextDiff(value => !value)
-                setMoreMenuOpen(false)
+                setTextDiff((value) => !value);
+                setMoreMenuOpen(false);
               }}
             >
-              {textDiff ? '禁用文字差异' : '启用文字差异'}
+              {textDiff ? "禁用文字差异" : "启用文字差异"}
             </PopoverItem>
             <PopoverItem
               icon={<Code2 size={APP_ICON_SIZE} />}
               withCheck
               selected={showWhitespace}
               onClick={() => {
-                setShowWhitespace(value => !value)
-                setMoreMenuOpen(false)
+                setShowWhitespace((value) => !value);
+                setMoreMenuOpen(false);
               }}
             >
-              {showWhitespace ? '隐藏空白字符' : '显示空白字符'}
+              {showWhitespace ? "隐藏空白字符" : "显示空白字符"}
             </PopoverItem>
             <PopoverItem
               icon={<Clipboard size={APP_ICON_SIZE} />}
               onClick={() => {
-                void copyGitApplyCommand(reviewDiff?.files ?? [], scope)
-                setMoreMenuOpen(false)
+                void copyGitApplyCommand(reviewDiff?.files ?? [], scope);
+                setMoreMenuOpen(false);
               }}
             >
               复制 git apply 命令
             </PopoverItem>
           </PopoverMenu>
-          <Tooltip
-            content={allCollapsed ? '展开全部差异' : '折叠全部差异'}
-          >
+          <Tooltip content={allCollapsed ? "展开全部差异" : "折叠全部差异"}>
             <button
-              aria-label={allCollapsed ? '展开全部差异' : '折叠全部差异'}
+              aria-label={allCollapsed ? "展开全部差异" : "折叠全部差异"}
               className="message-action"
               type="button"
               onClick={allCollapsed ? expandAllDiffs : collapseAllDiffs}
@@ -877,9 +880,7 @@ export function WorkspaceReviewSidebar({
           </Tooltip>
           <Tooltip
             content={
-              reviewView === 'inline'
-                ? '切换到分离视图'
-                : '切换到统一差异视图'
+              reviewView === "inline" ? "切换到分离视图" : "切换到统一差异视图"
             }
           >
             <button
@@ -888,7 +889,7 @@ export function WorkspaceReviewSidebar({
               type="button"
               onClick={onToggleReviewView}
             >
-              {reviewView === 'inline' ? (
+              {reviewView === "inline" ? (
                 <Sliders
                   size={APP_ICON_SIZE}
                   strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -901,13 +902,13 @@ export function WorkspaceReviewSidebar({
               )}
             </button>
           </Tooltip>
-          <Tooltip content={hideFileList ? '显示文件' : '隐藏文件'}>
+          <Tooltip content={hideFileList ? "显示文件" : "隐藏文件"}>
             <button
-              aria-label={hideFileList ? '显示文件' : '隐藏文件'}
+              aria-label={hideFileList ? "显示文件" : "隐藏文件"}
               aria-pressed={!hideFileList}
               className="message-action"
               type="button"
-              onClick={() => setHideFileList(value => !value)}
+              onClick={() => setHideFileList((value) => !value)}
             >
               <Briefcase size={APP_ICON_SIZE} />
             </button>
@@ -918,10 +919,10 @@ export function WorkspaceReviewSidebar({
               className="message-action review-sidebar-primary-action"
               ref={commitButtonRef}
               type="button"
-              onClick={() => setCommitPopoverOpen(value => !value)}
+              onClick={() => setCommitPopoverOpen((value) => !value)}
             >
-              <ArrowUpToLine size={APP_ICON_SIZE} />
-              <span className="review-sidebar-action-label">提交</span>
+              <GitCommitHorizontal size={APP_ICON_SIZE} />
+              <span className="review-sidebar-action-label">提交或推送</span>
             </button>
           </Tooltip>
           <Tooltip content="创建拉取请求">
@@ -930,10 +931,10 @@ export function WorkspaceReviewSidebar({
               className="message-action review-sidebar-primary-action"
               ref={prButtonRef}
               type="button"
-              onClick={() => setPrPopoverOpen(value => !value)}
+              onClick={() => setPrPopoverOpen((value) => !value)}
             >
-              <GitFork size={APP_ICON_SIZE} />
-              <span className="review-sidebar-action-label">PR</span>
+              <GitPullRequestArrow size={APP_ICON_SIZE} />
+              <span className="review-sidebar-action-label">创建拉取请求</span>
             </button>
           </Tooltip>
         </div>
@@ -944,13 +945,13 @@ export function WorkspaceReviewSidebar({
       <div
         className={
           fileTreePanelResizing
-            ? 'review-sidebar-main resizing-file-tree'
-            : 'review-sidebar-main'
+            ? "review-sidebar-main resizing-file-tree"
+            : "review-sidebar-main"
         }
         ref={reviewMainRef}
         style={
           {
-            '--review-file-tree-panel-w': `${fileTreePanelWidth}px`,
+            "--review-file-tree-panel-w": `${fileTreePanelWidth}px`,
           } as React.CSSProperties
         }
       >
@@ -960,7 +961,9 @@ export function WorkspaceReviewSidebar({
             collapsedDiffPaths={collapsedDiffPaths}
             diffMarkerStyle={diffMarkerStyle}
             draft={draft}
-            files={largeDiffMode && selectedFile ? [selectedFile] : visibleFiles}
+            files={
+              largeDiffMode && selectedFile ? [selectedFile] : visibleFiles
+            }
             largeDiffMode={largeDiffMode}
             pending={pending}
             scope={scope}
@@ -969,13 +972,15 @@ export function WorkspaceReviewSidebar({
             viewportRef={diffScrollViewportRef}
             view={reviewView}
             workspacePath={workspacePath}
-            onApplyOperation={(action, target) => void applyOperation(action, target)}
-            onCreateDraft={setDraft}
-            onDeleteComment={commentId => void deleteComment(commentId)}
-            onDraftBodyChange={body =>
-              setDraft(current => (current ? { ...current, body } : current))
+            onApplyOperation={(action, target) =>
+              void applyOperation(action, target)
             }
-            onResolveComment={commentId => void resolveComment(commentId)}
+            onCreateDraft={setDraft}
+            onDeleteComment={(commentId) => void deleteComment(commentId)}
+            onDraftBodyChange={(body) =>
+              setDraft((current) => (current ? { ...current, body } : current))
+            }
+            onResolveComment={(commentId) => void resolveComment(commentId)}
             onSaveDraft={() => void saveDraft()}
             onCancelDraft={() => setDraft(null)}
             onFileSectionMount={setDiffFileSectionElement}
@@ -1022,7 +1027,7 @@ export function WorkspaceReviewSidebar({
                   placeholder="筛选文件..."
                   type="text"
                   value={search}
-                  onChange={event => setSearch(event.target.value)}
+                  onChange={(event) => setSearch(event.target.value)}
                 />
               </label>
 
@@ -1032,11 +1037,11 @@ export function WorkspaceReviewSidebar({
                 role="tree"
               >
                 {reviewTree.length > 0 ? (
-                  reviewTree.map(node => (
+                  reviewTree.map((node) => (
                     <ReviewFileTreeNode
                       collapsedDirs={collapsedDirs}
                       commentCountsByPath={commentCountsByPath}
-                      key={node.dirPath || '__root__'}
+                      key={node.dirPath || "__root__"}
                       node={node}
                       onSelectFile={handleSelectFile}
                       onToggleDir={toggleDir}
@@ -1046,10 +1051,10 @@ export function WorkspaceReviewSidebar({
                 ) : (
                   <div className="review-empty-state">
                     {files.length === 0
-                      ? scope === 'staged'
-                        ? '暂无已暂存变更。'
-                        : '暂无未暂存变更。'
-                      : '当前筛选下没有匹配的文件。'}
+                      ? scope === "staged"
+                        ? "暂无已暂存变更。"
+                        : "暂无未暂存变更。"
+                      : "当前筛选下没有匹配的文件。"}
                   </div>
                 )}
               </ScrollArea>
@@ -1061,7 +1066,7 @@ export function WorkspaceReviewSidebar({
                   aria-label="过期评论"
                 >
                   <div className="review-stale-title">过期评论</div>
-                  {staleComments.map(comment => (
+                  {staleComments.map((comment) => (
                     <ReviewComment
                       comment={comment}
                       key={comment.id}
@@ -1079,7 +1084,7 @@ export function WorkspaceReviewSidebar({
 
       {!hideFileList && visibleFiles.length > 0 ? (
         <footer className="review-footer">
-          {scope === 'unstaged' ? (
+          {scope === "unstaged" ? (
             <>
               <Tooltip content="还原所有未暂存变更">
                 <button type="button" onClick={revertAll}>
@@ -1116,7 +1121,7 @@ export function WorkspaceReviewSidebar({
       <CommitPopover
         additions={totals.additions}
         anchorRef={commitButtonRef}
-        branchName={gitStatus?.branchName ?? 'HEAD'}
+        branchName={gitStatus?.branchName ?? "HEAD"}
         deletions={totals.deletions}
         disableOutsideDismiss={debugMode}
         open={commitPopoverOpen}
@@ -1140,7 +1145,7 @@ export function WorkspaceReviewSidebar({
         onOpenPR={handleOpenPR}
       />
     </aside>
-  )
+  );
 }
 
 function ReviewDiffPreview({
@@ -1166,121 +1171,122 @@ function ReviewDiffPreview({
   onResolveComment,
   onSaveDraft,
 }: {
-  attachedComments: Map<string, DesktopReviewComment[]>
-  collapsedDiffPaths: Set<string>
-  diffMarkerStyle: DesktopDiffMarkerStyle
-  draft: CommentDraft | null
-  files: DesktopReviewDiffFile[]
-  largeDiffMode: boolean
-  pending: boolean
-  scope: DesktopReviewScope
-  selectedPath: string | null
-  toggleCollapseDiff: (path: string) => void
-  viewportRef: React.RefObject<HTMLDivElement | null>
-  view: DesktopReviewView
-  workspacePath: string | null
+  attachedComments: Map<string, DesktopReviewComment[]>;
+  collapsedDiffPaths: Set<string>;
+  diffMarkerStyle: DesktopDiffMarkerStyle;
+  draft: CommentDraft | null;
+  files: DesktopReviewDiffFile[];
+  largeDiffMode: boolean;
+  pending: boolean;
+  scope: DesktopReviewScope;
+  selectedPath: string | null;
+  toggleCollapseDiff: (path: string) => void;
+  viewportRef: React.RefObject<HTMLDivElement | null>;
+  view: DesktopReviewView;
+  workspacePath: string | null;
   onApplyOperation: (
-    action: 'stage' | 'unstage' | 'revert',
+    action: "stage" | "unstage" | "revert",
     target:
-      | { type: 'file'; path: string }
-      | { type: 'hunk'; path: string; hunkId: string },
-  ) => void
-  onCancelDraft: () => void
-  onCreateDraft: (draft: CommentDraft) => void
-  onDeleteComment: (commentId: string) => void
-  onDraftBodyChange: (body: string) => void
-  onFileSectionMount: (path: string, element: HTMLElement | null) => void
-  onResolveComment: (commentId: string) => void
-  onSaveDraft: () => void
+      | { type: "file"; path: string }
+      | { type: "hunk"; path: string; hunkId: string },
+  ) => void;
+  onCancelDraft: () => void;
+  onCreateDraft: (draft: CommentDraft) => void;
+  onDeleteComment: (commentId: string) => void;
+  onDraftBodyChange: (body: string) => void;
+  onFileSectionMount: (path: string, element: HTMLElement | null) => void;
+  onResolveComment: (commentId: string) => void;
+  onSaveDraft: () => void;
 }): React.ReactNode {
-  const filePaths = React.useMemo(() => files.map(file => file.path), [files])
-  const filePathSet = React.useMemo(() => new Set(filePaths), [filePaths])
-  const [windowedPaths, setWindowedPaths] = React.useState<Set<string>>(
-    () => {
-      const initialPath = selectedPath ?? filePaths[0]
-      return initialPath ? new Set([initialPath]) : new Set()
-    },
-  )
-  const fileSectionElementsRef = React.useRef(new Map<string, HTMLElement>())
+  const filePaths = React.useMemo(
+    () => files.map((file) => file.path),
+    [files],
+  );
+  const filePathSet = React.useMemo(() => new Set(filePaths), [filePaths]);
+  const [windowedPaths, setWindowedPaths] = React.useState<Set<string>>(() => {
+    const initialPath = selectedPath ?? filePaths[0];
+    return initialPath ? new Set([initialPath]) : new Set();
+  });
+  const fileSectionElementsRef = React.useRef(new Map<string, HTMLElement>());
 
   // Refs so the IntersectionObserver callback always sees latest values
-  const selectedPathRef = React.useRef(selectedPath)
-  selectedPathRef.current = selectedPath
-  const draftFilePathRef = React.useRef(draft?.filePath ?? null)
-  draftFilePathRef.current = draft?.filePath ?? null
+  const selectedPathRef = React.useRef(selectedPath);
+  selectedPathRef.current = selectedPath;
+  const draftFilePathRef = React.useRef(draft?.filePath ?? null);
+  draftFilePathRef.current = draft?.filePath ?? null;
 
   // Sync windowedPaths when files change, or when selectedPath / draft file changes
   React.useEffect(() => {
-    setWindowedPaths(current => {
-      const next = new Set<string>()
+    setWindowedPaths((current) => {
+      const next = new Set<string>();
       for (const path of current) {
-        if (filePathSet.has(path)) next.add(path)
+        if (filePathSet.has(path)) next.add(path);
       }
-      if (selectedPath && filePathSet.has(selectedPath)) next.add(selectedPath)
+      if (selectedPath && filePathSet.has(selectedPath)) next.add(selectedPath);
       if (draft?.filePath && filePathSet.has(draft.filePath))
-        next.add(draft.filePath)
-      if (next.size === 0 && filePaths[0]) next.add(filePaths[0])
-      return next
-    })
-  }, [filePathSet, filePaths, selectedPath, draft?.filePath])
+        next.add(draft.filePath);
+      if (next.size === 0 && filePaths[0]) next.add(filePaths[0]);
+      return next;
+    });
+  }, [filePathSet, filePaths, selectedPath, draft?.filePath]);
 
   // IntersectionObserver for windowing: add near viewport, remove when far out
   React.useEffect(() => {
-    if (typeof IntersectionObserver === 'undefined') return
-    const root = viewportRef.current
-    if (!root) return
+    if (typeof IntersectionObserver === "undefined") return;
+    const root = viewportRef.current;
+    if (!root) return;
 
     const observer = new IntersectionObserver(
-      entries => {
-        setWindowedPaths(current => {
-          let changed = false
-          const next = new Set(current)
+      (entries) => {
+        setWindowedPaths((current) => {
+          let changed = false;
+          const next = new Set(current);
           for (const entry of entries) {
-            const path = (entry.target as HTMLElement).dataset.reviewDiffPath
-            if (!path) continue
+            const path = (entry.target as HTMLElement).dataset.reviewDiffPath;
+            if (!path) continue;
 
             if (entry.isIntersecting) {
               if (!next.has(path)) {
-                next.add(path)
-                changed = true
+                next.add(path);
+                changed = true;
               }
             } else if (
               path !== selectedPathRef.current &&
               path !== draftFilePathRef.current
             ) {
               if (next.has(path)) {
-                next.delete(path)
-                changed = true
+                next.delete(path);
+                changed = true;
               }
             }
           }
-          return changed ? next : current
-        })
+          return changed ? next : current;
+        });
       },
       {
         root,
         rootMargin: REVIEW_DIFF_LAZY_ROOT_MARGIN,
       },
-    )
+    );
 
     for (const element of fileSectionElementsRef.current.values()) {
-      observer.observe(element)
+      observer.observe(element);
     }
 
-    return () => observer.disconnect()
-  }, [filePaths, viewportRef])
+    return () => observer.disconnect();
+  }, [filePaths, viewportRef]);
 
   const setFileSectionElement = React.useCallback(
     (path: string) => (element: HTMLElement | null) => {
-      onFileSectionMount(path, element)
+      onFileSectionMount(path, element);
       if (element) {
-        fileSectionElementsRef.current.set(path, element)
-        return
+        fileSectionElementsRef.current.set(path, element);
+        return;
       }
-      fileSectionElementsRef.current.delete(path)
+      fileSectionElementsRef.current.delete(path);
     },
     [onFileSectionMount],
-  )
+  );
 
   return (
     <section
@@ -1293,7 +1299,7 @@ function ReviewDiffPreview({
         contentClassName="review-diff-scroll-content"
         viewportRef={viewportRef}
       >
-        {files.map(file => (
+        {files.map((file) => (
           <ReviewDiffFilePreview
             active={file.path === selectedPath}
             attachedComments={attachedComments}
@@ -1324,7 +1330,7 @@ function ReviewDiffPreview({
         ))}
       </ScrollArea>
     </section>
-  )
+  );
 }
 
 function ReviewDiffFilePreview({
@@ -1351,51 +1357,51 @@ function ReviewDiffFilePreview({
   onResolveComment,
   onSaveDraft,
 }: {
-  active: boolean
-  attachedComments: Map<string, DesktopReviewComment[]>
-  collapsedDiffPaths: Set<string>
-  diffMarkerStyle: DesktopDiffMarkerStyle
-  draft: CommentDraft | null
-  file: DesktopReviewDiffFile
-  largeDiffMode: boolean
-  pending: boolean
-  previewHeight: number
-  renderBody: boolean
-  scope: DesktopReviewScope
-  sectionRef: (element: HTMLElement | null) => void
-  toggleCollapseDiff: (path: string) => void
-  view: DesktopReviewView
-  workspacePath: string | null
+  active: boolean;
+  attachedComments: Map<string, DesktopReviewComment[]>;
+  collapsedDiffPaths: Set<string>;
+  diffMarkerStyle: DesktopDiffMarkerStyle;
+  draft: CommentDraft | null;
+  file: DesktopReviewDiffFile;
+  largeDiffMode: boolean;
+  pending: boolean;
+  previewHeight: number;
+  renderBody: boolean;
+  scope: DesktopReviewScope;
+  sectionRef: (element: HTMLElement | null) => void;
+  toggleCollapseDiff: (path: string) => void;
+  view: DesktopReviewView;
+  workspacePath: string | null;
   onApplyOperation: (
-    action: 'stage' | 'unstage' | 'revert',
+    action: "stage" | "unstage" | "revert",
     target:
-      | { type: 'file'; path: string }
-      | { type: 'hunk'; path: string; hunkId: string },
-  ) => void
-  onCancelDraft: () => void
-  onCreateDraft: (draft: CommentDraft) => void
-  onDeleteComment: (commentId: string) => void
-  onDraftBodyChange: (body: string) => void
-  onResolveComment: (commentId: string) => void
-  onSaveDraft: () => void
+      | { type: "file"; path: string }
+      | { type: "hunk"; path: string; hunkId: string },
+  ) => void;
+  onCancelDraft: () => void;
+  onCreateDraft: (draft: CommentDraft) => void;
+  onDeleteComment: (commentId: string) => void;
+  onDraftBodyChange: (body: string) => void;
+  onResolveComment: (commentId: string) => void;
+  onSaveDraft: () => void;
 }): React.ReactNode {
-  const hasContent = file.hunks.some(hunk => hunk.lines.length > 0)
-  const isCollapsed = collapsedDiffPaths.has(file.path)
+  const hasContent = file.hunks.some((hunk) => hunk.lines.length > 0);
+  const isCollapsed = collapsedDiffPaths.has(file.path);
 
   const virtualize = React.useMemo(() => {
-    if (!renderBody || isCollapsed || !hasContent) return false
-    const totalLines = file.hunks.reduce((sum, h) => sum + h.lines.length, 0)
-    return largeDiffMode || totalLines > 500
-  }, [renderBody, isCollapsed, hasContent, file.hunks, largeDiffMode])
+    if (!renderBody || isCollapsed || !hasContent) return false;
+    const totalLines = file.hunks.reduce((sum, h) => sum + h.lines.length, 0);
+    return largeDiffMode || totalLines > 500;
+  }, [renderBody, isCollapsed, hasContent, file.hunks, largeDiffMode]);
 
   const flattenedRows = React.useMemo(
     () => (virtualize ? flattenDiffRows(file, view) : []),
     [virtualize, file, view],
-  )
+  );
 
-  let diffBody: React.ReactNode
+  let diffBody: React.ReactNode;
   if (isCollapsed) {
-    diffBody = null
+    diffBody = null;
   } else if (!renderBody) {
     diffBody = (
       <div
@@ -1403,14 +1409,14 @@ function ReviewDiffFilePreview({
         aria-hidden="true"
         style={{ height: previewHeight }}
       />
-    )
+    );
   } else if (virtualize) {
     diffBody = (
       <div
         className={
           largeDiffMode
-            ? 'review-diff-virtual-body fill-space'
-            : 'review-diff-virtual-body'
+            ? "review-diff-virtual-body fill-space"
+            : "review-diff-virtual-body"
         }
         style={
           !largeDiffMode
@@ -1420,10 +1426,10 @@ function ReviewDiffFilePreview({
       >
         <VList
           className="review-diff-vlist"
-          style={{ width: '100%', height: '100%' }}
+          style={{ width: "100%", height: "100%" }}
         >
-          {flattenedRows.map(row =>
-            row.kind === 'hunk-header' ? (
+          {flattenedRows.map((row) =>
+            row.kind === "hunk-header" ? (
               <div
                 className="review-diff-vlist-row"
                 key={`hunk-${row.hunk.id}`}
@@ -1436,7 +1442,7 @@ function ReviewDiffFilePreview({
                   onApplyOperation={onApplyOperation}
                 />
               </div>
-            ) : view === 'split' && row.kind === 'split-row' ? (
+            ) : view === "split" && row.kind === "split-row" ? (
               <VirtualDiffSplitRow
                 key={row.rowId}
                 attachedComments={attachedComments}
@@ -1452,7 +1458,7 @@ function ReviewDiffFilePreview({
                 onResolveComment={onResolveComment}
                 onSaveDraft={onSaveDraft}
               />
-            ) : row.kind === 'inline-line' ? (
+            ) : row.kind === "inline-line" ? (
               <VirtualDiffInlineRow
                 key={row.line.id}
                 attachedComments={attachedComments}
@@ -1471,16 +1477,16 @@ function ReviewDiffFilePreview({
           )}
         </VList>
       </div>
-    )
+    );
   } else if (!hasContent) {
     diffBody = (
       <div className="review-empty-state">
         {file.isUntracked
-          ? '未跟踪文件暂不展示 hunk 预览，可直接暂存或删除。'
-          : '此文件没有可用的 hunk 预览。'}
+          ? "未跟踪文件暂不展示 hunk 预览，可直接暂存或删除。"
+          : "此文件没有可用的 hunk 预览。"}
       </div>
-    )
-  } else if (view === 'split') {
+    );
+  } else if (view === "split") {
     diffBody = (
       <ReviewDiffSplit
         attachedComments={attachedComments}
@@ -1497,7 +1503,7 @@ function ReviewDiffFilePreview({
         onResolveComment={onResolveComment}
         onSaveDraft={onSaveDraft}
       />
-    )
+    );
   } else {
     diffBody = (
       <ReviewDiffInline
@@ -1515,13 +1521,13 @@ function ReviewDiffFilePreview({
         onResolveComment={onResolveComment}
         onSaveDraft={onSaveDraft}
       />
-    )
+    );
   }
 
   function handleKeyDown(e: React.KeyboardEvent): void {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault()
-      toggleCollapseDiff(file.path)
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      toggleCollapseDiff(file.path);
     }
   }
 
@@ -1529,10 +1535,10 @@ function ReviewDiffFilePreview({
     <section
       className={
         virtualize && largeDiffMode
-          ? 'review-diff-file-preview virtualized fill-space'
+          ? "review-diff-file-preview virtualized fill-space"
           : virtualize
-            ? 'review-diff-file-preview virtualized'
-            : 'review-diff-file-preview'
+            ? "review-diff-file-preview virtualized"
+            : "review-diff-file-preview"
       }
       ref={sectionRef}
       aria-label={`${file.path} diff`}
@@ -1542,8 +1548,8 @@ function ReviewDiffFilePreview({
       <div
         className={
           active
-            ? 'review-file-row active preview-header'
-            : 'review-file-row preview-header'
+            ? "review-file-row active preview-header"
+            : "review-file-row preview-header"
         }
         role="button"
         tabIndex={0}
@@ -1566,12 +1572,12 @@ function ReviewDiffFilePreview({
         </span>
         <div
           className="review-file-actions"
-          onClick={e => e.stopPropagation()}
-          onKeyDown={e => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
           role="toolbar"
           aria-label="文件操作"
         >
-          {scope === 'unstaged' ? (
+          {scope === "unstaged" ? (
             <Tooltip content="暂存文件">
               <button
                 aria-label="暂存文件"
@@ -1579,7 +1585,7 @@ function ReviewDiffFilePreview({
                 disabled={pending}
                 type="button"
                 onClick={() =>
-                  onApplyOperation('stage', { type: 'file', path: file.path })
+                  onApplyOperation("stage", { type: "file", path: file.path })
                 }
               >
                 <Upload size={APP_ICON_SIZE} />
@@ -1593,22 +1599,22 @@ function ReviewDiffFilePreview({
                 disabled={pending}
                 type="button"
                 onClick={() =>
-                  onApplyOperation('unstage', { type: 'file', path: file.path })
+                  onApplyOperation("unstage", { type: "file", path: file.path })
                 }
               >
                 <Undo2 size={APP_ICON_SIZE} />
               </button>
             </Tooltip>
           )}
-          {scope === 'unstaged' ? (
-            <Tooltip content={file.isUntracked ? '删除未跟踪文件' : '还原文件'}>
+          {scope === "unstaged" ? (
+            <Tooltip content={file.isUntracked ? "删除未跟踪文件" : "还原文件"}>
               <button
-                aria-label={file.isUntracked ? '删除未跟踪文件' : '还原文件'}
+                aria-label={file.isUntracked ? "删除未跟踪文件" : "还原文件"}
                 className="message-action"
                 disabled={pending}
                 type="button"
                 onClick={() =>
-                  onApplyOperation('revert', { type: 'file', path: file.path })
+                  onApplyOperation("revert", { type: "file", path: file.path })
                 }
               >
                 <Trash2 size={APP_ICON_SIZE} />
@@ -1622,10 +1628,10 @@ function ReviewDiffFilePreview({
               disabled={!workspacePath}
               type="button"
               onClick={() => {
-                if (!workspacePath) return
+                if (!workspacePath) return;
                 void desktopClient.openPathWithDefaultTarget(
-                  `${workspacePath.replace(/[\\/]$/, '')}/${file.path}`,
-                )
+                  `${workspacePath.replace(/[\\/]$/, "")}/${file.path}`,
+                );
               }}
             >
               <FileDiff size={APP_ICON_SIZE} />
@@ -1635,7 +1641,7 @@ function ReviewDiffFilePreview({
       </div>
       {diffBody}
     </section>
-  )
+  );
 }
 
 /* ── Virtual-scroll row renderers ──────────────────────────── */
@@ -1653,25 +1659,24 @@ function VirtualDiffInlineRow({
   onResolveComment,
   onSaveDraft,
 }: {
-  attachedComments: Map<string, DesktopReviewComment[]>
-  diffMarkerStyle: DesktopDiffMarkerStyle
-  draft: CommentDraft | null
-  file: DesktopReviewDiffFile
-  line: DesktopReviewDiffLine
-  onCancelDraft: () => void
-  onCreateDraft: (draft: CommentDraft) => void
-  onDeleteComment: (commentId: string) => void
-  onDraftBodyChange: (body: string) => void
-  onResolveComment: (commentId: string) => void
-  onSaveDraft: () => void
+  attachedComments: Map<string, DesktopReviewComment[]>;
+  diffMarkerStyle: DesktopDiffMarkerStyle;
+  draft: CommentDraft | null;
+  file: DesktopReviewDiffFile;
+  line: DesktopReviewDiffLine;
+  onCancelDraft: () => void;
+  onCreateDraft: (draft: CommentDraft) => void;
+  onDeleteComment: (commentId: string) => void;
+  onDraftBodyChange: (body: string) => void;
+  onResolveComment: (commentId: string) => void;
+  onSaveDraft: () => void;
 }): React.ReactNode {
-  const side = line.type === 'removed' ? 'left' : 'right'
-  const lineNumber =
-    line.type === 'removed' ? line.oldLine : line.newLine
-  const anchor = buildAnchor(file.path, side, lineNumber, line.content)
+  const side = line.type === "removed" ? "left" : "right";
+  const lineNumber = line.type === "removed" ? line.oldLine : line.newLine;
+  const anchor = buildAnchor(file.path, side, lineNumber, line.content);
   const comments = anchor
-    ? attachedComments.get(commentKey(anchor)) ?? []
-    : []
+    ? (attachedComments.get(commentKey(anchor)) ?? [])
+    : [];
 
   return (
     <div className="review-diff-vlist-row">
@@ -1683,19 +1688,17 @@ function VirtualDiffInlineRow({
         />
         <span
           className={`review-diff-line-number ${
-            line.type === 'added'
-              ? 'added'
-              : line.type === 'removed'
-                ? 'removed'
-                : ''
+            line.type === "added"
+              ? "added"
+              : line.type === "removed"
+                ? "removed"
+                : ""
           }`}
         >
-          {lineNumber ?? ''}
+          {lineNumber ?? ""}
         </span>
         <DiffMarker tone={line.type} />
-        <code className="review-diff-line-content">
-          {line.content || ' '}
-        </code>
+        <code className="review-diff-line-content">{line.content || " "}</code>
         <LineComments
           comments={comments}
           draft={draft}
@@ -1708,7 +1711,7 @@ function VirtualDiffInlineRow({
         />
       </div>
     </div>
-  )
+  );
 }
 
 function VirtualDiffSplitRow({
@@ -1725,32 +1728,32 @@ function VirtualDiffSplitRow({
   onResolveComment,
   onSaveDraft,
 }: {
-  attachedComments: Map<string, DesktopReviewComment[]>
-  diffMarkerStyle: DesktopDiffMarkerStyle
-  draft: CommentDraft | null
-  file: DesktopReviewDiffFile
-  left: ReviewCell
-  right: ReviewCell
-  onCancelDraft: () => void
-  onCreateDraft: (draft: CommentDraft) => void
-  onDeleteComment: (commentId: string) => void
-  onDraftBodyChange: (body: string) => void
-  onResolveComment: (commentId: string) => void
-  onSaveDraft: () => void
+  attachedComments: Map<string, DesktopReviewComment[]>;
+  diffMarkerStyle: DesktopDiffMarkerStyle;
+  draft: CommentDraft | null;
+  file: DesktopReviewDiffFile;
+  left: ReviewCell;
+  right: ReviewCell;
+  onCancelDraft: () => void;
+  onCreateDraft: (draft: CommentDraft) => void;
+  onDeleteComment: (commentId: string) => void;
+  onDraftBodyChange: (body: string) => void;
+  onResolveComment: (commentId: string) => void;
+  onSaveDraft: () => void;
 }): React.ReactNode {
   return (
     <div className="review-diff-vlist-row">
       <div className="review-diff-split-row paired">
-        {[left, right].map(cell => {
+        {[left, right].map((cell) => {
           const anchor = buildAnchor(
             file.path,
             cell.side,
             cell.number,
             cell.content,
-          )
+          );
           const comments = anchor
-            ? attachedComments.get(commentKey(anchor)) ?? []
-            : []
+            ? (attachedComments.get(commentKey(anchor)) ?? [])
+            : [];
           return (
             <div
               className={`review-diff-side ${cell.tone}`}
@@ -1764,18 +1767,18 @@ function VirtualDiffSplitRow({
               />
               <span
                 className={`review-diff-line-number ${
-                  cell.tone === 'added'
-                    ? 'added'
-                    : cell.tone === 'removed'
-                      ? 'removed'
-                      : ''
+                  cell.tone === "added"
+                    ? "added"
+                    : cell.tone === "removed"
+                      ? "removed"
+                      : ""
                 }`}
               >
-                {cell.number ?? ''}
+                {cell.number ?? ""}
               </span>
               <DiffMarker tone={cell.tone} />
               <code className="review-diff-line-content">
-                {cell.tone === 'empty' ? ' ' : cell.content || ' '}
+                {cell.tone === "empty" ? " " : cell.content || " "}
               </code>
               <LineComments
                 comments={comments}
@@ -1788,11 +1791,11 @@ function VirtualDiffSplitRow({
                 onSaveDraft={onSaveDraft}
               />
             </div>
-          )
+          );
         })}
       </div>
     </div>
-  )
+  );
 }
 
 function ReviewDiffInline({
@@ -1815,7 +1818,7 @@ function ReviewDiffInline({
       className={`review-diff-lines-scroll-x review-diff-inline marker-${diffMarkerStyle}`}
     >
       <div className="review-diff-lines">
-        {file.hunks.map(hunk => (
+        {file.hunks.map((hunk) => (
           <React.Fragment key={hunk.id}>
             <ReviewHunkHeader
               file={file}
@@ -1824,19 +1827,19 @@ function ReviewDiffInline({
               scope={scope}
               onApplyOperation={onApplyOperation}
             />
-            {hunk.lines.map(line => {
-              const side = line.type === 'removed' ? 'left' : 'right'
+            {hunk.lines.map((line) => {
+              const side = line.type === "removed" ? "left" : "right";
               const lineNumber =
-                line.type === 'removed' ? line.oldLine : line.newLine
+                line.type === "removed" ? line.oldLine : line.newLine;
               const anchor = buildAnchor(
                 file.path,
                 side,
                 lineNumber,
                 line.content,
-              )
+              );
               const comments = anchor
-                ? attachedComments.get(commentKey(anchor)) ?? []
-                : []
+                ? (attachedComments.get(commentKey(anchor)) ?? [])
+                : [];
               return (
                 <div className={`review-diff-row ${line.type}`} key={line.id}>
                   <LineCommentButton
@@ -1846,18 +1849,18 @@ function ReviewDiffInline({
                   />
                   <span
                     className={`review-diff-line-number ${
-                      line.type === 'added'
-                        ? 'added'
-                        : line.type === 'removed'
-                          ? 'removed'
-                          : ''
+                      line.type === "added"
+                        ? "added"
+                        : line.type === "removed"
+                          ? "removed"
+                          : ""
                     }`}
                   >
-                    {lineNumber ?? ''}
+                    {lineNumber ?? ""}
                   </span>
                   <DiffMarker tone={line.type} />
                   <code className="review-diff-line-content">
-                    {line.content || ' '}
+                    {line.content || " "}
                   </code>
                   <LineComments
                     comments={comments}
@@ -1870,13 +1873,13 @@ function ReviewDiffInline({
                     onSaveDraft={onSaveDraft}
                   />
                 </div>
-              )
+              );
             })}
           </React.Fragment>
         ))}
       </div>
     </div>
-  )
+  );
 }
 
 function ReviewDiffSplit({
@@ -1899,7 +1902,7 @@ function ReviewDiffSplit({
       className={`review-diff-lines-scroll-x review-diff-split marker-${diffMarkerStyle}`}
     >
       <div className="review-diff-lines">
-        {file.hunks.map(hunk => (
+        {file.hunks.map((hunk) => (
           <React.Fragment key={hunk.id}>
             <ReviewHunkHeader
               file={file}
@@ -1908,23 +1911,23 @@ function ReviewDiffSplit({
               scope={scope}
               onApplyOperation={onApplyOperation}
             />
-            {splitDiffLines(hunk.lines).map(row => (
+            {splitDiffLines(hunk.lines).map((row) => (
               <div
                 className={`review-diff-split-row ${
-                  row.paired ? 'paired' : 'single'
+                  row.paired ? "paired" : "single"
                 }`}
                 key={row.id}
               >
-                {[row.left, row.right].map(cell => {
+                {[row.left, row.right].map((cell) => {
                   const anchor = buildAnchor(
                     file.path,
                     cell.side,
                     cell.number,
                     cell.content,
-                  )
+                  );
                   const comments = anchor
-                    ? attachedComments.get(commentKey(anchor)) ?? []
-                    : []
+                    ? (attachedComments.get(commentKey(anchor)) ?? [])
+                    : [];
                   return (
                     <div
                       className={`review-diff-side ${cell.tone}`}
@@ -1938,18 +1941,18 @@ function ReviewDiffSplit({
                       />
                       <span
                         className={`review-diff-line-number ${
-                          cell.tone === 'added'
-                            ? 'added'
-                            : cell.tone === 'removed'
-                              ? 'removed'
-                              : ''
+                          cell.tone === "added"
+                            ? "added"
+                            : cell.tone === "removed"
+                              ? "removed"
+                              : ""
                         }`}
                       >
-                        {cell.number ?? ''}
+                        {cell.number ?? ""}
                       </span>
                       <DiffMarker tone={cell.tone} />
                       <code className="review-diff-line-content">
-                        {cell.tone === 'empty' ? ' ' : cell.content || ' '}
+                        {cell.tone === "empty" ? " " : cell.content || " "}
                       </code>
                       <LineComments
                         comments={comments}
@@ -1962,7 +1965,7 @@ function ReviewDiffSplit({
                         onSaveDraft={onSaveDraft}
                       />
                     </div>
-                  )
+                  );
                 })}
               </div>
             ))}
@@ -1970,40 +1973,40 @@ function ReviewDiffSplit({
         ))}
       </div>
     </div>
-  )
+  );
 }
 
 type ReviewDiffBodyProps = {
-  attachedComments: Map<string, DesktopReviewComment[]>
-  diffMarkerStyle: DesktopDiffMarkerStyle
-  draft: CommentDraft | null
-  file: DesktopReviewDiffFile
-  pending: boolean
-  scope: DesktopReviewScope
+  attachedComments: Map<string, DesktopReviewComment[]>;
+  diffMarkerStyle: DesktopDiffMarkerStyle;
+  draft: CommentDraft | null;
+  file: DesktopReviewDiffFile;
+  pending: boolean;
+  scope: DesktopReviewScope;
   onApplyOperation: (
-    action: 'stage' | 'unstage' | 'revert',
+    action: "stage" | "unstage" | "revert",
     target:
-      | { type: 'file'; path: string }
-      | { type: 'hunk'; path: string; hunkId: string },
-  ) => void
-  onCancelDraft: () => void
-  onCreateDraft: (draft: CommentDraft) => void
-  onDeleteComment: (commentId: string) => void
-  onDraftBodyChange: (body: string) => void
-  onResolveComment: (commentId: string) => void
-  onSaveDraft: () => void
-}
+      | { type: "file"; path: string }
+      | { type: "hunk"; path: string; hunkId: string },
+  ) => void;
+  onCancelDraft: () => void;
+  onCreateDraft: (draft: CommentDraft) => void;
+  onDeleteComment: (commentId: string) => void;
+  onDraftBodyChange: (body: string) => void;
+  onResolveComment: (commentId: string) => void;
+  onSaveDraft: () => void;
+};
 
 function DiffMarker({
   tone,
 }: {
-  tone: DesktopReviewDiffLine['type'] | ReviewCell['tone']
+  tone: DesktopReviewDiffLine["type"] | ReviewCell["tone"];
 }): React.ReactNode {
   return (
     <span className={`review-diff-marker ${tone}`} aria-hidden="true">
-      {tone === 'added' ? '+' : tone === 'removed' ? '-' : ''}
+      {tone === "added" ? "+" : tone === "removed" ? "-" : ""}
     </span>
-  )
+  );
 }
 
 function ReviewHunkHeader({
@@ -2013,27 +2016,27 @@ function ReviewHunkHeader({
   scope,
   onApplyOperation,
 }: {
-  file: DesktopReviewDiffFile
-  hunk: DesktopReviewDiffHunk
-  pending: boolean
-  scope: DesktopReviewScope
+  file: DesktopReviewDiffFile;
+  hunk: DesktopReviewDiffHunk;
+  pending: boolean;
+  scope: DesktopReviewScope;
   onApplyOperation: (
-    action: 'stage' | 'unstage' | 'revert',
-    target: { type: 'hunk'; path: string; hunkId: string },
-  ) => void
+    action: "stage" | "unstage" | "revert",
+    target: { type: "hunk"; path: string; hunkId: string },
+  ) => void;
 }): React.ReactNode {
   return (
     <div className="review-diff-row hunk">
       <span className="review-diff-line-content">{hunk.header}</span>
       <div className="review-hunk-actions">
-        {scope === 'unstaged' ? (
+        {scope === "unstaged" ? (
           <>
             <button
               disabled={pending}
               type="button"
               onClick={() =>
-                onApplyOperation('stage', {
-                  type: 'hunk',
+                onApplyOperation("stage", {
+                  type: "hunk",
                   path: file.path,
                   hunkId: hunk.id,
                 })
@@ -2045,8 +2048,8 @@ function ReviewHunkHeader({
               disabled={pending}
               type="button"
               onClick={() =>
-                onApplyOperation('revert', {
-                  type: 'hunk',
+                onApplyOperation("revert", {
+                  type: "hunk",
                   path: file.path,
                   hunkId: hunk.id,
                 })
@@ -2060,8 +2063,8 @@ function ReviewHunkHeader({
             disabled={pending}
             type="button"
             onClick={() =>
-              onApplyOperation('unstage', {
-                type: 'hunk',
+              onApplyOperation("unstage", {
+                type: "hunk",
                 path: file.path,
                 hunkId: hunk.id,
               })
@@ -2072,7 +2075,7 @@ function ReviewHunkHeader({
         )}
       </div>
     </div>
-  )
+  );
 }
 
 function LineCommentButton({
@@ -2080,9 +2083,9 @@ function LineCommentButton({
   disabled,
   onCreateDraft,
 }: {
-  anchor: CommentAnchor | null
-  disabled: boolean
-  onCreateDraft: (draft: CommentDraft) => void
+  anchor: CommentAnchor | null;
+  disabled: boolean;
+  onCreateDraft: (draft: CommentDraft) => void;
 }): React.ReactNode {
   return (
     <button
@@ -2091,13 +2094,13 @@ function LineCommentButton({
       disabled={disabled || !anchor}
       type="button"
       onClick={() => {
-        if (!anchor) return
-        onCreateDraft({ ...anchor, body: '' })
+        if (!anchor) return;
+        onCreateDraft({ ...anchor, body: "" });
       }}
     >
       <MessageSquarePlus size={12} />
     </button>
-  )
+  );
 }
 
 function LineComments({
@@ -2110,21 +2113,21 @@ function LineComments({
   onResolveComment,
   onSaveDraft,
 }: {
-  anchor: CommentAnchor | null
-  comments: DesktopReviewComment[]
-  draft: CommentDraft | null
-  onCancelDraft: () => void
-  onDeleteComment: (commentId: string) => void
-  onDraftBodyChange: (body: string) => void
-  onResolveComment: (commentId: string) => void
-  onSaveDraft: () => void
+  anchor: CommentAnchor | null;
+  comments: DesktopReviewComment[];
+  draft: CommentDraft | null;
+  onCancelDraft: () => void;
+  onDeleteComment: (commentId: string) => void;
+  onDraftBodyChange: (body: string) => void;
+  onResolveComment: (commentId: string) => void;
+  onSaveDraft: () => void;
 }): React.ReactNode {
   const draftMatches =
-    anchor && draft ? commentKey(anchor) === commentKey(draft) : false
-  if (comments.length === 0 && !draftMatches) return null
+    anchor && draft ? commentKey(anchor) === commentKey(draft) : false;
+  if (comments.length === 0 && !draftMatches) return null;
   return (
     <div className="review-line-comments">
-      {comments.map(comment => (
+      {comments.map((comment) => (
         <ReviewComment
           comment={comment}
           key={comment.id}
@@ -2137,8 +2140,8 @@ function LineComments({
           <textarea
             autoFocus
             placeholder="写下这行的问题或修改建议"
-            value={draft?.body ?? ''}
-            onChange={event => onDraftBodyChange(event.target.value)}
+            value={draft?.body ?? ""}
+            onChange={(event) => onDraftBodyChange(event.target.value)}
           />
           <div className="review-comment-actions">
             <button type="button" onClick={onCancelDraft}>
@@ -2155,7 +2158,7 @@ function LineComments({
         </div>
       ) : null}
     </div>
-  )
+  );
 }
 
 function ReviewComment({
@@ -2164,22 +2167,22 @@ function ReviewComment({
   onDelete,
   onResolve,
 }: {
-  comment: DesktopReviewComment
-  stale?: boolean
-  onDelete: () => void
-  onResolve: () => void
+  comment: DesktopReviewComment;
+  stale?: boolean;
+  onDelete: () => void;
+  onResolve: () => void;
 }): React.ReactNode {
   return (
-    <div className={`review-comment ${comment.status} ${stale ? 'stale' : ''}`}>
+    <div className={`review-comment ${comment.status} ${stale ? "stale" : ""}`}>
       <div className="review-comment-meta">
         <span>
           {comment.filePath}:{comment.lineNumber}
         </span>
-        <span>{comment.side === 'left' ? '旧行' : '新行'}</span>
+        <span>{comment.side === "left" ? "旧行" : "新行"}</span>
       </div>
       <div className="review-comment-body">{comment.body}</div>
       <div className="review-comment-actions">
-        {comment.status === 'open' ? (
+        {comment.status === "open" ? (
           <button type="button" onClick={onResolve}>
             <CheckCircle2 size={12} />
             解决
@@ -2191,87 +2194,87 @@ function ReviewComment({
         </button>
       </div>
     </div>
-  )
+  );
 }
 
 function splitDiffLines(lines: DesktopReviewDiffLine[]): ReviewSplitRow[] {
-  const rows: ReviewSplitRow[] = []
+  const rows: ReviewSplitRow[] = [];
   for (let index = 0; index < lines.length; index += 1) {
-    const line = lines[index]
-    if (!line) continue
-    if (line.type === 'removed' && lines[index + 1]?.type === 'added') {
-      const next = lines[index + 1]!
+    const line = lines[index];
+    if (!line) continue;
+    if (line.type === "removed" && lines[index + 1]?.type === "added") {
+      const next = lines[index + 1]!;
       rows.push({
         id: `${line.id}-${next.id}`,
         left: {
           line,
-          side: 'left',
+          side: "left",
           number: line.oldLine,
           content: line.content,
-          tone: 'removed',
+          tone: "removed",
         },
         right: {
           line: next,
-          side: 'right',
+          side: "right",
           number: next.newLine,
           content: next.content,
-          tone: 'added',
+          tone: "added",
         },
         paired: true,
-      })
-      index += 1
-      continue
+      });
+      index += 1;
+      continue;
     }
-    if (line.type === 'removed') {
+    if (line.type === "removed") {
       rows.push({
         id: line.id,
         left: {
           line,
-          side: 'left',
+          side: "left",
           number: line.oldLine,
           content: line.content,
-          tone: 'removed',
+          tone: "removed",
         },
-        right: emptyCell('right'),
+        right: emptyCell("right"),
         paired: false,
-      })
-      continue
+      });
+      continue;
     }
-    if (line.type === 'added') {
+    if (line.type === "added") {
       rows.push({
         id: line.id,
-        left: emptyCell('left'),
+        left: emptyCell("left"),
         right: {
           line,
-          side: 'right',
+          side: "right",
           number: line.newLine,
           content: line.content,
-          tone: 'added',
+          tone: "added",
         },
         paired: false,
-      })
-      continue
+      });
+      continue;
     }
     rows.push({
       id: line.id,
       left: {
         line,
-        side: 'left',
+        side: "left",
         number: line.oldLine,
         content: line.content,
-        tone: 'context',
+        tone: "context",
       },
       right: {
         line,
-        side: 'right',
+        side: "right",
         number: line.newLine,
         content: line.content,
-        tone: 'context',
+        tone: "context",
       },
       paired: true,
-    })
+    });
   }
-  return rows
+  return rows;
 }
 
 function emptyCell(side: DesktopReviewSide): ReviewCell {
@@ -2279,9 +2282,9 @@ function emptyCell(side: DesktopReviewSide): ReviewCell {
     line: null,
     side,
     number: null,
-    content: '',
-    tone: 'empty',
-  }
+    content: "",
+    tone: "empty",
+  };
 }
 
 function clampReviewFileTreePanelWidth(
@@ -2289,26 +2292,26 @@ function clampReviewFileTreePanelWidth(
   containerWidth?: number,
 ): number {
   const containerMax =
-    typeof containerWidth === 'number' && Number.isFinite(containerWidth)
+    typeof containerWidth === "number" && Number.isFinite(containerWidth)
       ? Math.max(
           REVIEW_FILE_TREE_PANEL_MIN_WIDTH,
           containerWidth - REVIEW_DIFF_PREVIEW_MIN_WIDTH,
         )
-      : REVIEW_FILE_TREE_PANEL_MAX_WIDTH
-  const maxWidth = Math.min(REVIEW_FILE_TREE_PANEL_MAX_WIDTH, containerMax)
+      : REVIEW_FILE_TREE_PANEL_MAX_WIDTH;
+  const maxWidth = Math.min(REVIEW_FILE_TREE_PANEL_MAX_WIDTH, containerMax);
   return Math.round(
     Math.min(Math.max(width, REVIEW_FILE_TREE_PANEL_MIN_WIDTH), maxWidth),
-  )
+  );
 }
 
 function attachComments(
   files: DesktopReviewDiffFile[],
   comments: DesktopReviewComment[],
 ): {
-  attachedComments: Map<string, DesktopReviewComment[]>
-  staleComments: DesktopReviewComment[]
+  attachedComments: Map<string, DesktopReviewComment[]>;
+  staleComments: DesktopReviewComment[];
 } {
-  const anchors = new Set<string>()
+  const anchors = new Set<string>();
   for (const file of files) {
     for (const hunk of file.hunks) {
       for (const line of hunk.lines) {
@@ -2316,37 +2319,37 @@ function attachComments(
           anchors.add(
             commentKey({
               filePath: file.path,
-              side: 'left',
+              side: "left",
               lineNumber: line.oldLine,
               lineContent: line.content,
             }),
-          )
+          );
         }
         if (line.newLine !== null) {
           anchors.add(
             commentKey({
               filePath: file.path,
-              side: 'right',
+              side: "right",
               lineNumber: line.newLine,
               lineContent: line.content,
             }),
-          )
+          );
         }
       }
     }
   }
-  const attachedComments = new Map<string, DesktopReviewComment[]>()
-  const staleComments: DesktopReviewComment[] = []
+  const attachedComments = new Map<string, DesktopReviewComment[]>();
+  const staleComments: DesktopReviewComment[] = [];
   for (const comment of comments) {
-    if (comment.status === 'resolved') continue
-    const key = commentKey(comment)
+    if (comment.status === "resolved") continue;
+    const key = commentKey(comment);
     if (!anchors.has(key)) {
-      staleComments.push(comment)
-      continue
+      staleComments.push(comment);
+      continue;
     }
-    attachedComments.set(key, [...(attachedComments.get(key) ?? []), comment])
+    attachedComments.set(key, [...(attachedComments.get(key) ?? []), comment]);
   }
-  return { attachedComments, staleComments }
+  return { attachedComments, staleComments };
 }
 
 function buildAnchor(
@@ -2355,99 +2358,101 @@ function buildAnchor(
   lineNumber: number | null,
   lineContent: string,
 ): CommentAnchor | null {
-  if (lineNumber === null) return null
-  return { filePath, side, lineNumber, lineContent }
+  if (lineNumber === null) return null;
+  return { filePath, side, lineNumber, lineContent };
 }
 
 function commentKey(anchor: CommentAnchor): string {
-  return `${anchor.filePath}\u0000${anchor.side}\u0000${anchor.lineNumber}\u0000${anchor.lineContent}`
+  return `${anchor.filePath}\u0000${anchor.side}\u0000${anchor.lineNumber}\u0000${anchor.lineContent}`;
 }
 
 function filterStatusForFile(file: DesktopReviewDiffFile): ReviewFilter {
-  if (file.isUntracked) return 'added'
-  const trimmed = file.status.trim()
-  if (trimmed.startsWith('A') || trimmed.startsWith('??')) return 'added'
-  if (trimmed.startsWith('D')) return 'removed'
-  return 'modified'
+  if (file.isUntracked) return "added";
+  const trimmed = file.status.trim();
+  if (trimmed.startsWith("A") || trimmed.startsWith("??")) return "added";
+  if (trimmed.startsWith("D")) return "removed";
+  return "modified";
 }
 
 function reviewFilterLabel(filter: ReviewFilter): string {
   switch (filter) {
-    case 'added':
-      return '新增'
-    case 'modified':
-      return '修改'
-    case 'removed':
-      return '删除'
+    case "added":
+      return "新增";
+    case "modified":
+      return "修改";
+    case "removed":
+      return "删除";
     default:
-      return '全部'
+      return "全部";
   }
 }
 
 function scopeLabel(scope: DesktopReviewScope): string {
   switch (scope) {
-    case 'staged':
-      return '已暂存'
+    case "staged":
+      return "已暂存";
     default:
-      return '未暂存'
+      return "未暂存";
   }
 }
 
 function fileBadge(path: string): React.ReactNode {
-  const ext = path.split('.').pop()?.slice(0, 4).toUpperCase()
-  return ext || <FileDiff size={APP_ICON_SIZE} />
+  const ext = path.split(".").pop()?.slice(0, 4).toUpperCase();
+  return ext || <FileDiff size={APP_ICON_SIZE} />;
 }
 
 function formatPanelNumber(value: number): string {
-  if (value > 999) return '999+'
-  return String(value)
+  if (value > 999) return "999+";
+  return String(value);
 }
 
 function buildReviewComposerPrompt(
   gitStatus: DesktopGitStatus | null,
   files: DesktopReviewDiffFile[],
 ): string {
-  const changedFiles = files.length > 0 ? files : []
+  const changedFiles = files.length > 0 ? files : [];
   const fileList =
     changedFiles.length > 0
       ? changedFiles
           .slice(0, 50)
-          .map(file => `- ${file.path} (+${file.additions}/-${file.deletions})`)
-          .join('\n')
+          .map(
+            (file) => `- ${file.path} (+${file.additions}/-${file.deletions})`,
+          )
+          .join("\n")
       : gitStatus?.files.length
         ? gitStatus.files
             .slice(0, 50)
-            .map(file => `- ${file.path} (${file.status.trim() || '已修改'})`)
-            .join('\n')
-        : '- 当前没有可用变更'
+            .map((file) => `- ${file.path} (${file.status.trim() || "已修改"})`)
+            .join("\n")
+        : "- 当前没有可用变更";
   return [
-    '请对当前工作区变更发起一次代码审查。',
-    '',
-    '变更文件：',
+    "请对当前工作区变更发起一次代码审查。",
+    "",
+    "变更文件：",
     fileList,
-  ].join('\n')
+  ].join("\n");
 }
 
 function errorMessageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
+  return error instanceof Error ? error.message : String(error);
 }
 
 async function copyGitApplyCommand(
   files: DesktopReviewDiffFile[],
   scope: DesktopReviewScope,
 ): Promise<void> {
-  const patches: string[] = []
+  const patches: string[] = [];
   for (const file of files) {
     for (const hunk of file.hunks) {
-      if (hunk.lines.length === 0) continue
-      patches.push(hunk.patch)
+      if (hunk.lines.length === 0) continue;
+      patches.push(hunk.patch);
     }
   }
-  if (patches.length === 0) return
-  const cmd = scope === 'staged' ? 'git apply --cached' : 'git apply'
-  const text = `${cmd} << 'EOF'\n${patches.join('\n')}\nEOF`
+  if (patches.length === 0) return;
+  const cmd = scope === "staged" ? "git apply --cached" : "git apply";
+  const text = `${cmd} << 'EOF'\n${patches.join("\n")}\nEOF`;
   try {
-    await navigator.clipboard.writeText(text)
+    await navigator.clipboard.writeText(text);
   } catch {
     // clipboard write may fail in some contexts; silently ignore
   }
