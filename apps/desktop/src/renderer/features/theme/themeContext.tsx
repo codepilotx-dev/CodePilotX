@@ -46,16 +46,16 @@ type DesktopThemeDraft = {
 
 const THEME_VARIABLES = [
   '--contrast',
-  '--c-bg',
-  '--c-bg-soft',
-  '--c-bg-mask',
-  '--c-bg-hover',
-  '--c-bg-row-hover',
-  '--c-bg-chip-hover',
-  '--c-bg-card',
-  '--c-popover-bg',
-  '--c-popover-border',
-  '--c-popover-divider',
+  '--color-bg',
+  '--color-bg-soft',
+  '--color-bg-mask',
+  '--color-bg-hover',
+  '--color-bg-row-hover',
+  '--color-bg-chip-hover',
+  '--color-bg-card',
+  '--color-popover-bg',
+  '--color-popover-border',
+  '--color-popover-divider',
   '--glass-surface-bg',
   '--glass-surface-border',
   '--glass-surface-highlight',
@@ -63,36 +63,36 @@ const THEME_VARIABLES = [
   '--glass-surface-text-meta',
   '--glass-surface-text-disabled',
   '--glass-surface-blur',
-  '--c-surface',
-  '--c-ink',
-  '--c-border',
-  '--c-border-soft',
-  '--c-border-faint',
-  '--c-border-row',
-  '--c-danger',
-  '--c-warning',
-  '--c-success',
-  '--c-text',
-  '--c-text-strong',
-  '--c-text-meta',
-  '--c-text-soft',
-  '--c-text-mute',
-  '--c-text-placeholder',
-  '--c-text-disabled',
-  '--c-text-on-accent',
-  '--c-icon',
-  '--c-icon-soft',
-  '--c-icon-arrow',
-  '--c-accent',
-  '--c-send-bg',
-  '--c-send-bg-hover',
-  '--c-send-bg-disabled',
-  '--c-user-bubble-bg',
-  '--c-scrollbar',
-  '--c-scrollbar-hover',
-  '--c-diff-added',
-  '--c-diff-removed',
-  '--c-skill',
+  '--color-surface',
+  '--color-ink',
+  '--color-border',
+  '--color-border-soft',
+  '--color-border-faint',
+  '--color-border-row',
+  '--color-danger',
+  '--color-warning',
+  '--color-success',
+  '--color-text',
+  '--color-text-strong',
+  '--color-text-meta',
+  '--color-text-soft',
+  '--color-text-mute',
+  '--color-text-placeholder',
+  '--color-text-disabled',
+  '--color-text-on-accent',
+  '--color-icon',
+  '--color-icon-soft',
+  '--color-icon-arrow',
+  '--color-accent',
+  '--color-send-bg',
+  '--color-send-bg-hover',
+  '--color-send-bg-disabled',
+  '--color-user-bubble-bg',
+  '--color-scrollbar',
+  '--color-scrollbar-hover',
+  '--color-diff-added',
+  '--color-diff-removed',
+  '--color-skill',
   '--surface-base',
   '--surface-canvas',
   '--surface-panel',
@@ -103,31 +103,31 @@ const THEME_VARIABLES = [
   '--shadow-float',
   '--shadow-raised',
   '--shadow-resting',
-  '--c-chrome-bg',
-  '--c-sidebar-bg',
-  '--c-sidebar-active-bg',
-  '--c-sidebar-hover-bg',
-  '--c-workbench-bg',
-  '--c-panel-bg',
-  '--c-panel-elevated-bg',
-  '--c-panel-border',
-  '--c-panel-shadow',
-  '--c-panel-shadow-raised',
-  '--c-panel-shadow-soft',
+  '--color-chrome-bg',
+  '--color-sidebar-bg',
+  '--color-sidebar-active-bg',
+  '--color-sidebar-hover-bg',
+  '--color-workbench-bg',
+  '--color-panel-bg',
+  '--color-panel-elevated-bg',
+  '--color-panel-border',
+  '--color-panel-shadow',
+  '--color-panel-shadow-raised',
+  '--color-panel-shadow-soft',
   '--state-hover-bg',
   '--state-active-bg',
-  '--ff-sans',
-  '--ff-mono',
-  '--fs-ui',
-  '--fs-code',
-  '--fs-11',
-  '--fs-12',
-  '--fs-13',
-  '--fs-14',
-  '--fs-15',
-  '--fs-16',
-  '--fs-18',
-  '--fs-26',
+  '--font-family-sans',
+  '--font-family-mono',
+  '--font-size-ui',
+  '--font-size-code',
+  '--font-size-11',
+  '--font-size-12',
+  '--font-size-13',
+  '--font-size-14',
+  '--font-size-15',
+  '--font-size-16',
+  '--font-size-18',
+  '--font-size-26',
 ]
 
 export function DesktopThemeProvider({
@@ -341,18 +341,18 @@ function applyDesktopTheme(
   const stateActiveMix = variant === 'dark' ? 22 : 15
   const layoutTokens = deriveLayoutThemeTokens(theme, variant, contrast)
   const sidebarHoverBg =
-    layoutTokens['--c-sidebar-hover-bg'] ?? colorMix(theme.accent, stateHoverMix, 'transparent')
+    layoutTokens['--color-sidebar-hover-bg'] ?? colorMix(theme.accent, stateHoverMix, 'transparent')
   root.style.setProperty('--contrast', String(contrast))
-  root.style.setProperty('--c-bg', theme.surface)
-  root.style.setProperty('--c-bg-soft', surfaceInkMix(theme, bgSoftMix))
-  root.style.setProperty('--c-bg-mask', surfaceInkMix(theme, bgSoftMix))
-  root.style.setProperty('--c-bg-hover', sidebarHoverBg)
-  root.style.setProperty('--c-bg-row-hover', sidebarHoverBg)
-  root.style.setProperty('--c-bg-chip-hover', sidebarHoverBg)
-  root.style.setProperty('--c-bg-card', surfaceInkMix(theme, contrastMix(contrast, 1, 4)))
-  root.style.setProperty('--c-popover-bg', theme.surface)
-  root.style.setProperty('--c-popover-border', surfaceInkMix(theme, contrastMix(contrast, 4, 8)))
-  root.style.setProperty('--c-popover-divider', surfaceInkMix(theme, contrastMix(contrast, 3, 6)))
+  root.style.setProperty('--color-bg', theme.surface)
+  root.style.setProperty('--color-bg-soft', surfaceInkMix(theme, bgSoftMix))
+  root.style.setProperty('--color-bg-mask', surfaceInkMix(theme, bgSoftMix))
+  root.style.setProperty('--color-bg-hover', sidebarHoverBg)
+  root.style.setProperty('--color-bg-row-hover', sidebarHoverBg)
+  root.style.setProperty('--color-bg-chip-hover', sidebarHoverBg)
+  root.style.setProperty('--color-bg-card', surfaceInkMix(theme, contrastMix(contrast, 1, 4)))
+  root.style.setProperty('--color-popover-bg', theme.surface)
+  root.style.setProperty('--color-popover-border', surfaceInkMix(theme, contrastMix(contrast, 4, 8)))
+  root.style.setProperty('--color-popover-divider', surfaceInkMix(theme, contrastMix(contrast, 3, 6)))
   root.style.setProperty(
     '--glass-surface-bg',
     variant === 'dark'
@@ -388,67 +388,67 @@ function applyDesktopTheme(
       : colorMix(theme.ink, 52, theme.surface),
   )
   root.style.setProperty('--glass-surface-blur', '14px')
-  root.style.setProperty('--c-surface', theme.surface)
-  root.style.setProperty('--c-ink', theme.ink)
-  root.style.setProperty('--c-border', surfaceInkMix(theme, contrastMix(contrast, 6, 12)))
-  root.style.setProperty('--c-border-soft', surfaceInkMix(theme, contrastMix(contrast, 4, 8)))
-  root.style.setProperty('--c-border-faint', surfaceInkMix(theme, contrastMix(contrast, 2, 5)))
-  root.style.setProperty('--c-border-row', surfaceInkMix(theme, contrastMix(contrast, 2, 5)))
-  root.style.setProperty('--c-danger', theme.semanticColors.diffRemoved)
-  root.style.setProperty('--c-warning', '#d4a017')
-  root.style.setProperty('--c-success', theme.semanticColors.diffAdded)
-  root.style.setProperty('--c-text', theme.ink)
-  root.style.setProperty('--c-text-strong', theme.ink)
-  root.style.setProperty('--c-text-meta', surfaceInkMix(theme, contrastMix(contrast, 55, 70)))
-  root.style.setProperty('--c-text-soft', surfaceInkMix(theme, contrastMix(contrast, 45, 60)))
-  root.style.setProperty('--c-text-mute', surfaceInkMix(theme, contrastMix(contrast, 35, 50)))
-  root.style.setProperty('--c-text-placeholder', surfaceInkMix(theme, contrastMix(contrast, 25, 40)))
-  root.style.setProperty('--c-text-disabled', surfaceInkMix(theme, contrastMix(contrast, 15, 25)))
-  root.style.setProperty('--c-text-on-accent', '#ffffff')
-  root.style.setProperty('--c-icon', surfaceInkMix(theme, contrastMix(contrast, 50, 65)))
-  root.style.setProperty('--c-icon-soft', surfaceInkMix(theme, contrastMix(contrast, 40, 55)))
-  root.style.setProperty('--c-icon-arrow', surfaceInkMix(theme, contrastMix(contrast, 30, 45)))
-  root.style.setProperty('--c-accent', theme.accent)
-  root.style.setProperty('--c-send-bg', theme.accent)
+  root.style.setProperty('--color-surface', theme.surface)
+  root.style.setProperty('--color-ink', theme.ink)
+  root.style.setProperty('--color-border', surfaceInkMix(theme, contrastMix(contrast, 6, 12)))
+  root.style.setProperty('--color-border-soft', surfaceInkMix(theme, contrastMix(contrast, 4, 8)))
+  root.style.setProperty('--color-border-faint', surfaceInkMix(theme, contrastMix(contrast, 2, 5)))
+  root.style.setProperty('--color-border-row', surfaceInkMix(theme, contrastMix(contrast, 2, 5)))
+  root.style.setProperty('--color-danger', theme.semanticColors.diffRemoved)
+  root.style.setProperty('--color-warning', '#d4a017')
+  root.style.setProperty('--color-success', theme.semanticColors.diffAdded)
+  root.style.setProperty('--color-text', theme.ink)
+  root.style.setProperty('--color-text-strong', theme.ink)
+  root.style.setProperty('--color-text-meta', surfaceInkMix(theme, contrastMix(contrast, 55, 70)))
+  root.style.setProperty('--color-text-soft', surfaceInkMix(theme, contrastMix(contrast, 45, 60)))
+  root.style.setProperty('--color-text-mute', surfaceInkMix(theme, contrastMix(contrast, 35, 50)))
+  root.style.setProperty('--color-text-placeholder', surfaceInkMix(theme, contrastMix(contrast, 25, 40)))
+  root.style.setProperty('--color-text-disabled', surfaceInkMix(theme, contrastMix(contrast, 15, 25)))
+  root.style.setProperty('--color-text-on-accent', '#ffffff')
+  root.style.setProperty('--color-icon', surfaceInkMix(theme, contrastMix(contrast, 50, 65)))
+  root.style.setProperty('--color-icon-soft', surfaceInkMix(theme, contrastMix(contrast, 40, 55)))
+  root.style.setProperty('--color-icon-arrow', surfaceInkMix(theme, contrastMix(contrast, 30, 45)))
+  root.style.setProperty('--color-accent', theme.accent)
+  root.style.setProperty('--color-send-bg', theme.accent)
   root.style.setProperty(
-    '--c-send-bg-hover',
+    '--color-send-bg-hover',
     isClaudePrimaryAccent(theme.accent) ? '#a9583e' : accentMix(theme, variant === 'dark' ? 12 : 18),
   )
   root.style.setProperty(
-    '--c-send-bg-disabled',
+    '--color-send-bg-disabled',
     isClaudePrimaryAccent(theme.accent) ? '#e6dfd8' : accentMix(theme, 50),
   )
-  root.style.setProperty('--c-user-bubble-bg', surfaceInkMix(theme, bgRowHoverMix))
-  root.style.setProperty('--c-scrollbar', surfaceInkMix(theme, contrastMix(contrast, 8, 14)))
-  root.style.setProperty('--c-scrollbar-hover', surfaceInkMix(theme, contrastMix(contrast, 15, 25)))
-  root.style.setProperty('--c-diff-added', theme.semanticColors.diffAdded)
-  root.style.setProperty('--c-diff-removed', theme.semanticColors.diffRemoved)
-  root.style.setProperty('--c-skill', theme.semanticColors.skill)
+  root.style.setProperty('--color-user-bubble-bg', surfaceInkMix(theme, bgRowHoverMix))
+  root.style.setProperty('--color-scrollbar', surfaceInkMix(theme, contrastMix(contrast, 8, 14)))
+  root.style.setProperty('--color-scrollbar-hover', surfaceInkMix(theme, contrastMix(contrast, 15, 25)))
+  root.style.setProperty('--color-diff-added', theme.semanticColors.diffAdded)
+  root.style.setProperty('--color-diff-removed', theme.semanticColors.diffRemoved)
+  root.style.setProperty('--color-skill', theme.semanticColors.skill)
   root.style.setProperty('--state-hover-bg', sidebarHoverBg)
   root.style.setProperty('--state-active-bg', colorMix(theme.accent, stateActiveMix, 'transparent'))
   for (const [name, value] of Object.entries(layoutTokens)) {
     root.style.setProperty(name, value)
   }
   root.style.setProperty(
-    '--ff-sans',
+    '--font-family-sans',
     buildFontFamilyStack(theme.fonts.ui),
   )
   root.style.setProperty(
-    '--ff-mono',
+    '--font-family-mono',
     buildFontFamilyStack(theme.fonts.code),
   )
   const uiFontSize = clamp(settings.fontSizes.ui, 11, 20)
   const codeFontSize = clamp(settings.fontSizes.code, 10, 20)
-  root.style.setProperty('--fs-ui', `${uiFontSize}px`)
-  root.style.setProperty('--fs-code', `${codeFontSize}px`)
-  root.style.setProperty('--fs-11', `${uiFontSize - 3}px`)
-  root.style.setProperty('--fs-12', `${uiFontSize - 2}px`)
-  root.style.setProperty('--fs-13', `${uiFontSize - 1}px`)
-  root.style.setProperty('--fs-14', `${uiFontSize}px`)
-  root.style.setProperty('--fs-15', `${uiFontSize + 1}px`)
-  root.style.setProperty('--fs-16', `${uiFontSize + 2}px`)
-  root.style.setProperty('--fs-18', `${uiFontSize + 4}px`)
-  root.style.setProperty('--fs-26', `${uiFontSize + 12}px`)
+  root.style.setProperty('--font-size-ui', `${uiFontSize}px`)
+  root.style.setProperty('--font-size-code', `${codeFontSize}px`)
+  root.style.setProperty('--font-size-11', `${uiFontSize - 3}px`)
+  root.style.setProperty('--font-size-12', `${uiFontSize - 2}px`)
+  root.style.setProperty('--font-size-13', `${uiFontSize - 1}px`)
+  root.style.setProperty('--font-size-14', `${uiFontSize}px`)
+  root.style.setProperty('--font-size-15', `${uiFontSize + 1}px`)
+  root.style.setProperty('--font-size-16', `${uiFontSize + 2}px`)
+  root.style.setProperty('--font-size-18', `${uiFontSize + 4}px`)
+  root.style.setProperty('--font-size-26', `${uiFontSize + 12}px`)
 }
 
 function getSystemThemeVariant(): DesktopThemeVariant {
@@ -487,17 +487,17 @@ function deriveLayoutThemeTokens(
       '--shadow-resting': '0 1px 2px rgba(0, 0, 0, 0.24), 0 1px 0 rgba(255, 255, 255, 0.03) inset',
       '--shadow-raised': '0 12px 34px rgba(0, 0, 0, 0.28), 0 1px 2px rgba(0, 0, 0, 0.22)',
       '--shadow-float': '0 24px 64px rgba(0, 0, 0, 0.38), 0 8px 24px rgba(0, 0, 0, 0.28)',
-      '--c-chrome-bg': surfaceInkMix(theme, chromeMix),
-      '--c-sidebar-bg': surfaceInkMix(theme, sidebarMix),
-      '--c-sidebar-active-bg': colorMix(theme.accent, 22, surfaceInkMix(theme, panelMix)),
-      '--c-sidebar-hover-bg': 'rgba(250, 249, 245, 0.06)',
-      '--c-workbench-bg': surfaceInkMix(theme, workbenchMix),
-      '--c-panel-bg': surfaceInkMix(theme, panelMix),
-      '--c-panel-elevated-bg': surfaceInkMix(theme, raisedMix),
-      '--c-panel-border': surfaceInkMix(theme, contrastMix(contrast, 28, 42)),
-      '--c-panel-shadow': 'var(--shadow-float)',
-      '--c-panel-shadow-raised': 'var(--shadow-raised)',
-      '--c-panel-shadow-soft': 'var(--shadow-resting)',
+      '--color-chrome-bg': surfaceInkMix(theme, chromeMix),
+      '--color-sidebar-bg': surfaceInkMix(theme, sidebarMix),
+      '--color-sidebar-active-bg': colorMix(theme.accent, 22, surfaceInkMix(theme, panelMix)),
+      '--color-sidebar-hover-bg': 'rgba(250, 249, 245, 0.06)',
+      '--color-workbench-bg': surfaceInkMix(theme, workbenchMix),
+      '--color-panel-bg': surfaceInkMix(theme, panelMix),
+      '--color-panel-elevated-bg': surfaceInkMix(theme, raisedMix),
+      '--color-panel-border': surfaceInkMix(theme, contrastMix(contrast, 28, 42)),
+      '--color-panel-shadow': 'var(--shadow-float)',
+      '--color-panel-shadow-raised': 'var(--shadow-raised)',
+      '--color-panel-shadow-soft': 'var(--shadow-resting)',
     }
   }
 
@@ -517,17 +517,17 @@ function deriveLayoutThemeTokens(
     '--shadow-resting': `0 1px 2px ${colorMix(theme.ink, 5, 'transparent')}, 0 1px 0 ${colorMix(theme.surface, 70, 'transparent')} inset`,
     '--shadow-raised': `0 10px 28px ${colorMix(theme.ink, 8, 'transparent')}, 0 1px 2px ${colorMix(theme.ink, 5, 'transparent')}`,
     '--shadow-float': `0 22px 60px ${colorMix(theme.ink, 12, 'transparent')}, 0 8px 24px ${colorMix(theme.ink, 8, 'transparent')}`,
-    '--c-chrome-bg': surfaceInkMix(theme, contrastMix(contrast, 1, 4)),
-    '--c-sidebar-bg': surfaceInkMix(theme, subtleMix),
-    '--c-sidebar-active-bg': colorMix(theme.accent, 18, surfaceInkMix(theme, raisedMix)),
-    '--c-sidebar-hover-bg': colorMix(theme.ink, 6, 'transparent'),
-    '--c-workbench-bg': surfaceInkMix(theme, workbenchMix),
-    '--c-panel-bg': theme.surface,
-    '--c-panel-elevated-bg': surfaceInkMix(theme, raisedMix),
-    '--c-panel-border': surfaceInkMix(theme, contrastMix(contrast, 7, 13)),
-    '--c-panel-shadow': 'var(--shadow-float)',
-    '--c-panel-shadow-raised': 'var(--shadow-raised)',
-    '--c-panel-shadow-soft': 'var(--shadow-resting)',
+    '--color-chrome-bg': surfaceInkMix(theme, contrastMix(contrast, 1, 4)),
+    '--color-sidebar-bg': surfaceInkMix(theme, subtleMix),
+    '--color-sidebar-active-bg': colorMix(theme.accent, 18, surfaceInkMix(theme, raisedMix)),
+    '--color-sidebar-hover-bg': colorMix(theme.ink, 6, 'transparent'),
+    '--color-workbench-bg': surfaceInkMix(theme, workbenchMix),
+    '--color-panel-bg': theme.surface,
+    '--color-panel-elevated-bg': surfaceInkMix(theme, raisedMix),
+    '--color-panel-border': surfaceInkMix(theme, contrastMix(contrast, 7, 13)),
+    '--color-panel-shadow': 'var(--shadow-float)',
+    '--color-panel-shadow-raised': 'var(--shadow-raised)',
+    '--color-panel-shadow-soft': 'var(--shadow-resting)',
   }
 }
 

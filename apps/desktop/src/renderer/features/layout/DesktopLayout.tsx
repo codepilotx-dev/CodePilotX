@@ -1913,7 +1913,7 @@ export function DesktopLayout(): React.ReactNode {
                 style={
                   {
                     '--sidebar-w': sidebarCollapsed ? '0px' : `${sidebarWidth}px`,
-                    ...(fixedControlsWidth > 0 ? { '--desktop-workspace-fixed-controls-w': `${fixedControlsWidth}px` } : {}),
+                    ...(fixedControlsWidth > 0 ? { '--workspace-fixed-controls-width': `${fixedControlsWidth}px` } : {}),
                   } as React.CSSProperties
                 }
               >

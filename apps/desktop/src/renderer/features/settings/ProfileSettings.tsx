@@ -427,7 +427,7 @@ function ProfileRepositoryRow({
         className="profile-repository-dot"
         style={{
           backgroundColor:
-            repository.primaryLanguage?.color ?? 'var(--c-text-soft)',
+            repository.primaryLanguage?.color ?? 'var(--color-text-soft)',
         }}
       />
       <span className="profile-repository-name">{repository.fullName}</span>

@@ -81,7 +81,7 @@ export function SidebarFrame({
           collapsed ? "is-collapsed" : "",
           resizing ? "is-resizing" : "",
         ].join(" ")}
-        style={{ "--sidebar-current-w": `${width}px` } as React.CSSProperties}
+        style={{ "--sidebar-current-width": `${width}px` } as React.CSSProperties}
       >
         {collapsed && hoverOpen ? null : children}
 
@@ -133,7 +133,7 @@ export function SidebarFrame({
           onPointerEnter={openHoverSidebar}
           onPointerLeave={closeHoverSidebar}
           style={
-            { "--sidebar-current-w": `${width}px` } as React.CSSProperties
+            { "--sidebar-current-width": `${width}px` } as React.CSSProperties
           }
           transition={motionTransition(reducedMotion, standardTween)}
         >
