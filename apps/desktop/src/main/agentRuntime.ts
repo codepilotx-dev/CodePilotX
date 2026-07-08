@@ -188,36 +188,31 @@ export function createDesktopAgentRuntime(
     })
     return new InProcessDesktopAgentRuntime(context)
   }
-  if (preference === 'rust-sidecar') {
+  if (preference === 'auto' || preference === 'rust-sidecar') {
     desktopDebug('runtime_create_rust_sidecar', {
       sessionId: context.sessionId,
       preference,
     })
     return new RustFallbackDesktopAgentRuntime(context)
   }
-  if (preference === 'auto') {
-    desktopDebug('runtime_create_auto_sidecar', {
-      sessionId: context.sessionId,
-      preference,
-    })
-    return new AutoFallbackDesktopAgentRuntime(context)
-  }
-  try {
-    desktopDebug('runtime_create_sidecar', {
-      sessionId: context.sessionId,
-      preference,
-    })
-    return new SidecarDesktopAgentRuntime(context)
-  } catch (error) {
-    desktopDebug('runtime_create_sidecar_failed', {
-      sessionId: context.sessionId,
-      preference,
-      message: error instanceof Error ? error.message : String(error),
-    })
-    throw new SidecarStartError(
-      `Sidecar runtime creation failed: ${error instanceof Error ? error.message : String(error)}`,
-      error instanceof Error ? error : undefined,
-    )
+  if (preference === 'sidecar') {
+    try {
+      desktopDebug('runtime_create_sidecar', {
+        sessionId: context.sessionId,
+        preference,
+      })
+      return new SidecarDesktopAgentRuntime(context)
+    } catch (error) {
+      desktopDebug('runtime_create_sidecar_failed', {
+        sessionId: context.sessionId,
+        preference,
+        message: error instanceof Error ? error.message : String(error),
+      })
+      throw new SidecarStartError(
+        `Sidecar runtime creation failed: ${error instanceof Error ? error.message : String(error)}`,
+        error instanceof Error ? error : undefined,
+      )
+    }
   }
 }
 

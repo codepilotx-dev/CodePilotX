@@ -105,8 +105,8 @@ export function handleServerNotification(
         emit({
           type: 'tool_start',
           sessionId,
-          toolName: String(toolCall.tool_name ?? toolCall.toolName ?? 'Tool'),
-          summary: toolCall.input ? JSON.stringify(toolCall.input).slice(0, 500) : '',
+          toolName: String(toolCall.tool ?? 'Tool'),
+          summary: toolCall.arguments ? JSON.stringify(toolCall.arguments).slice(0, 500) : '',
           toolUseId: String(toolCall.id ?? ''),
         })
       } else if (item.type === 'commandExecution') {
@@ -185,18 +185,23 @@ export function handleServerNotification(
         case 'dynamicToolCall': {
           const toolCall = item as Record<string, unknown>
           const status = toolCall.status as string | undefined
-          const result = toolCall.result as Record<string, unknown> | undefined
-          const isError = status === 'failed' || status === 'error'
+          const contentItems = toolCall.contentItems
+          const success = toolCall.success as boolean | undefined
+          const isError = status === 'failed' || status === 'error' || success === false
           emit({
             type: 'tool_result',
             sessionId,
-            toolName: String(toolCall.tool_name ?? toolCall.toolName ?? 'Tool'),
-            summary: result
-              ? JSON.stringify(result).slice(0, 500)
+            toolName: String(toolCall.tool ?? 'Tool'),
+            summary: contentItems
+              ? JSON.stringify(contentItems).slice(0, 500)
               : status ?? 'completed',
             toolUseId: String(toolCall.id ?? ''),
             isError,
-            metadata: result,
+            metadata: {
+              contentItems,
+              success,
+              durationMs: toolCall.durationMs,
+            },
           })
           break
         }

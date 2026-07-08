@@ -61,9 +61,9 @@ describe('RustFallbackDesktopAgentRuntime', () => {
     mockCreateDesktopHeadlessRuntime.mockReturnValue(new MockHeadlessRuntime())
   })
 
-  function createFallbackRuntime() {
+  function createFallbackRuntime(preference: string = 'rust-sidecar') {
     return createDesktopAgentRuntime({
-      runtimePreference: 'rust-sidecar',
+      runtimePreference: preference as any,
       sessionId: 'test-session',
       workspacePath: '/tmp',
       emit: () => {},
@@ -163,6 +163,27 @@ describe('RustFallbackDesktopAgentRuntime', () => {
         totalResources: 0,
         totalPrompts: 0,
       })
+    })
+  })
+
+  test('auto preference creates RustFallbackDesktopAgentRuntime with same fallback behavior', async () => {
+    await withMockedRustRunUserTurn(async () => {
+      throw new SidecarStartError('binary not found')
+    }, async () => {
+      mockRunDesktopHeadlessTurn.mockImplementation(async () => {})
+
+      const runtime = createFallbackRuntime('auto')
+
+      await expect(
+        runtime.runUserTurn('hello', new AbortController().signal),
+      ).resolves.toBeUndefined()
+
+      // The embedded headless turn was dispatched (same fallback as rust-sidecar)
+      expect(mockRunDesktopHeadlessTurn).toHaveBeenCalledWith(
+        expect.anything(),
+        'hello',
+        expect.anything(),
+      )
     })
   })
 })

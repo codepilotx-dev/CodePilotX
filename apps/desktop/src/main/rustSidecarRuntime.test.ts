@@ -339,6 +339,230 @@ describe('rust sidecar runtime options', () => {
   })
 })
 
+// ── requestUserInput handler ───────────────────────────────────────
+
+describe('RustSidecarDesktopAgentRuntime requestUserInput', () => {
+  test('returns answers for single question with user input', async () => {
+    const requestPermission = mock(async () => ({
+      behavior: 'allow' as const,
+      updatedInput: { answer: 'Tokyo' },
+    }))
+
+    const runtime = new RustSidecarDesktopAgentRuntime({
+      sessionId: 'test-session',
+      workspacePath: process.cwd(),
+      emit: () => {},
+      requestPermission,
+    })
+
+    const handler = (
+      runtime as unknown as {
+        handleRequestUserInputRequest: (
+          params: unknown,
+          id: unknown,
+        ) => Promise<unknown>
+      }
+    ).handleRequestUserInputRequest.bind(runtime)
+
+    const result = await handler(
+      {
+        itemId: 'item-1',
+        questions: [
+          { id: 'q1', header: 'City', question: 'What city?', options: null },
+        ],
+        threadId: 'thread-1',
+        turnId: 'turn-1',
+      },
+      1,
+    )
+
+    expect(result).toEqual({
+      answers: {
+        q1: { answers: ['Tokyo'] },
+      },
+    })
+    expect(requestPermission).toHaveBeenCalledTimes(1)
+  })
+
+  test('returns declined answer when user denies', async () => {
+    const requestPermission = mock(async () => ({
+      behavior: 'deny' as const,
+    }))
+
+    const runtime = new RustSidecarDesktopAgentRuntime({
+      sessionId: 'test-session',
+      workspacePath: process.cwd(),
+      emit: () => {},
+      requestPermission,
+    })
+
+    const handler = (
+      runtime as unknown as {
+        handleRequestUserInputRequest: (
+          params: unknown,
+          id: unknown,
+        ) => Promise<unknown>
+      }
+    ).handleRequestUserInputRequest.bind(runtime)
+
+    const result = await handler(
+      {
+        itemId: 'item-1',
+        questions: [
+          { id: 'q1', header: 'City', question: 'What city?', options: null },
+        ],
+        threadId: 'thread-1',
+        turnId: 'turn-1',
+      },
+      1,
+    )
+
+    expect(result).toEqual({
+      answers: {
+        q1: { answers: ['[User declined to answer]'] },
+      },
+    })
+  })
+
+  test('handles multiple questions', async () => {
+    const requestPermission = mock(async () => ({
+      behavior: 'allow' as const,
+    }))
+
+    const runtime = new RustSidecarDesktopAgentRuntime({
+      sessionId: 'test-session',
+      workspacePath: process.cwd(),
+      emit: () => {},
+      requestPermission,
+    })
+
+    const handler = (
+      runtime as unknown as {
+        handleRequestUserInputRequest: (
+          params: unknown,
+          id: unknown,
+        ) => Promise<unknown>
+      }
+    ).handleRequestUserInputRequest.bind(runtime)
+
+    const result = await handler(
+      {
+        itemId: 'item-1',
+        questions: [
+          { id: 'q1', header: 'Name', question: 'Your name?' },
+          { id: 'q2', header: 'Age', question: 'Your age?' },
+        ],
+        threadId: 'thread-1',
+        turnId: 'turn-1',
+      },
+      1,
+    )
+
+    expect(result).toEqual({
+      answers: {
+        q1: { answers: [''] },
+        q2: { answers: [''] },
+      },
+    })
+    expect(requestPermission).toHaveBeenCalledTimes(2)
+  })
+})
+
+// ── Dynamic tool call handler ──────────────────────────────────────
+
+describe('RustSidecarDesktopAgentRuntime dynamicToolCall', () => {
+  test('returns DynamicToolCallResponse with success=false for unregistered tool', async () => {
+    const emit = mock(() => {})
+    const runtime = new RustSidecarDesktopAgentRuntime({
+      sessionId: 'test-session',
+      workspacePath: process.cwd(),
+      emit,
+      requestPermission: async () => ({ behavior: 'deny' }),
+    })
+
+    const handler = (
+      runtime as unknown as {
+        handleToolCallRequest: (
+          params: unknown,
+          id: unknown,
+        ) => Promise<unknown>
+      }
+    ).handleToolCallRequest.bind(runtime)
+
+    const result = await handler(
+      {
+        tool: 'Bash',
+        callId: 'call-1',
+        arguments: { command: 'ls' },
+        threadId: 'thread-1',
+        turnId: 'turn-1',
+      },
+      1,
+    )
+
+    // Must be a DynamicToolCallResponse with success=false
+    expect(result).toMatchObject({
+      success: false,
+      contentItems: [
+        { type: 'inputText' },
+      ],
+    })
+    // Should NOT have old fields
+    expect(result).not.toHaveProperty('status')
+    // Should have emitted tool_start
+    expect(emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'tool_start',
+        toolName: 'Bash',
+      }),
+    )
+  })
+
+  test('uses v2 fields only (no old field fallback)', async () => {
+    const emit = mock(() => {})
+    const runtime = new RustSidecarDesktopAgentRuntime({
+      sessionId: 'test-session',
+      workspacePath: process.cwd(),
+      emit,
+      requestPermission: async () => ({ behavior: 'deny' }),
+    })
+
+    const handler = (
+      runtime as unknown as {
+        handleToolCallRequest: (
+          params: unknown,
+          id: unknown,
+        ) => Promise<unknown>
+      }
+    ).handleToolCallRequest.bind(runtime)
+
+    // Send params with ONLY old fields — should NOT be picked up
+    const result = await handler(
+      {
+        name: 'OldTool',
+        tool_name: 'OldToolName',
+        id: 'old-id',
+        tool_use_id: 'old-use-id',
+        input: { oldField: true },
+        threadId: 'thread-1',
+        turnId: 'turn-1',
+      },
+      1,
+    )
+
+    // With v2-only parsing, old field values should NOT be used.
+    // tool defaults to 'Tool' when 'tool' is missing
+    expect(result).toMatchObject({
+      success: false,
+    })
+    expect(emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toolName: 'Tool',
+      }),
+    )
+  })
+})
+
 // ── Non-text input rejection ────────────────────────────────────────
 
 describe('RustSidecarDesktopAgentRuntime input validation', () => {

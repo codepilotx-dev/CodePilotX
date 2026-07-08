@@ -344,7 +344,7 @@ describe('rustAppServerWorkflowAdapter', () => {
 
   // ── New: item/started ──────────────────────────────────────────────
 
-  test('item/started with dynamicToolCall emits tool_start', () => {
+  test('item/started with dynamicToolCall emits tool_start (v2 fields)', () => {
     const state = createRustAppServerWorkflowState()
     const events: DesktopAgentEvent[] = []
 
@@ -354,8 +354,8 @@ describe('rustAppServerWorkflowAdapter', () => {
         item: {
           type: 'dynamicToolCall',
           id: 'tool-item-1',
-          tool_name: 'Bash',
-          input: { command: 'ls' },
+          tool: 'Bash',
+          arguments: { command: 'ls' },
         },
       },
       e => events.push(e),
@@ -424,7 +424,7 @@ describe('rustAppServerWorkflowAdapter', () => {
 
   // ── New: item/completed with tool/permission types ────────────────
 
-  test('item/completed with dynamicToolCall emits tool_result', () => {
+  test('item/completed with dynamicToolCall emits tool_result (v2 fields)', () => {
     const state = createRustAppServerWorkflowState()
     const events: DesktopAgentEvent[] = []
 
@@ -434,9 +434,11 @@ describe('rustAppServerWorkflowAdapter', () => {
         item: {
           type: 'dynamicToolCall',
           id: 'tool-item-2',
-          tool_name: 'Read',
+          tool: 'Read',
           status: 'completed',
-          result: { content: 'file contents' },
+          success: true,
+          contentItems: [{ type: 'inputText', text: 'file contents' }],
+          durationMs: 150,
         },
       },
       e => events.push(e),
@@ -450,6 +452,45 @@ describe('rustAppServerWorkflowAdapter', () => {
       toolName: 'Read',
       toolUseId: 'tool-item-2',
       isError: false,
+      metadata: {
+        contentItems: [{ type: 'inputText', text: 'file contents' }],
+        success: true,
+        durationMs: 150,
+      },
+    })
+  })
+
+  test('item/completed with dynamicToolCall marks isError when success=false', () => {
+    const state = createRustAppServerWorkflowState()
+    const events: DesktopAgentEvent[] = []
+
+    handleServerNotification(
+      'item/completed',
+      {
+        item: {
+          type: 'dynamicToolCall',
+          id: 'tool-item-3',
+          tool: 'Bash',
+          status: 'completed',
+          success: false,
+          contentItems: [{ type: 'inputText', text: 'Tool not available on desktop client' }],
+          durationMs: 5,
+        },
+      },
+      e => events.push(e),
+      state,
+      SESSION_ID,
+    )
+
+    expect(events).toHaveLength(1)
+    expect(events[0].type).toBe('tool_result')
+    expect(events[0]).toMatchObject({
+      toolName: 'Bash',
+      isError: true,
+      metadata: {
+        success: false,
+        durationMs: 5,
+      },
     })
   })
 

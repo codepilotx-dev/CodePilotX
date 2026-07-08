@@ -36,6 +36,34 @@ import {
 import type { JsonRpcId } from './rustLineJsonRpcClient.js'
 import { desktopDebug } from './desktopDebug.js'
 
+// ── Inline protocol types (v2, not yet generated in rustAppServerProtocol) ──
+
+type ToolRequestUserInputQuestion = {
+  id: string
+  header: string
+  question: string
+  options?: Array<{ label: string; description: string }> | null
+  isOther?: boolean
+  isSecret?: boolean
+}
+
+type ToolRequestUserInputAnswer = {
+  answers: string[]
+}
+
+type ToolRequestUserInputResponse = {
+  answers: Record<string, ToolRequestUserInputAnswer>
+}
+
+type DynamicToolCallOutputContentItem =
+  | { type: 'inputText'; text: string }
+  | { type: 'inputImage'; imageUrl: string }
+
+type DynamicToolCallResponse = {
+  success: boolean
+  contentItems: DynamicToolCallOutputContentItem[]
+}
+
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
@@ -613,7 +641,64 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
       ),
     )
 
+    // User input request — server asks client to ask the user questions
+    disposers.push(
+      this.appServerClient.onServerRequest(
+        'item/tool/requestUserInput',
+        async (params, id) => this.handleRequestUserInputRequest(params, id),
+      ),
+    )
+
     this.disposeServerRequestHandlers = disposers
+  }
+
+  /**
+   * Handle item/tool/requestUserInput — server asks client to prompt the user.
+   * Maps to the desktop AskUserQuestion flow via requestPermission.
+   */
+  private async handleRequestUserInputRequest(
+    params: unknown,
+    _requestId: JsonRpcId,
+  ): Promise<unknown> {
+    const p = params as Record<string, unknown> | null
+    const itemId = String(p?.itemId ?? '')
+    const questions = (p?.questions as ToolRequestUserInputQuestion[]) ?? []
+
+    desktopDebug('rust_request_user_input', {
+      questionCount: questions.length,
+      itemId,
+    })
+
+    const answers: Record<string, ToolRequestUserInputAnswer> = {}
+
+    for (const question of questions) {
+      const permissionRequest: DesktopPermissionRequest = {
+        requestId: `rust-ask-${randomUUID()}`,
+        toolName: 'AskUserQuestion',
+        toolUseId: itemId,
+        input: {
+          question: question.question,
+          header: question.header,
+          options: question.options,
+          isOther: question.isOther,
+          isSecret: question.isSecret,
+        },
+        description: question.question?.slice(0, 200) ?? '用户输入请求',
+      }
+
+      const decision = await this.context.requestPermission(permissionRequest)
+
+      if (decision.behavior === 'deny') {
+        answers[question.id] = { answers: ['[User declined to answer]'] }
+      } else {
+        const userAnswer =
+          (decision.updatedInput?.answer as string | undefined) ?? ''
+        answers[question.id] = { answers: [userAnswer] }
+      }
+    }
+
+    const response: ToolRequestUserInputResponse = { answers }
+    return response
   }
 
   private async handleToolCallRequest(
@@ -621,9 +706,10 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
     _requestId: JsonRpcId,
   ): Promise<unknown> {
     const p = params as Record<string, unknown> | null
-    const toolName = String(p?.tool ?? p?.name ?? p?.tool_name ?? 'Tool')
-    const toolUseId = String(p?.callId ?? p?.id ?? p?.tool_use_id ?? '')
-    const toolArgs = p?.arguments ?? p?.input ?? {}
+    // v2 protocol fields only — no old fallback names
+    const toolName = String(p?.tool ?? 'Tool')
+    const toolUseId = String(p?.callId ?? '')
+    const toolArgs = p?.arguments ?? {}
 
     desktopDebug('rust_tool_call_request', {
       toolName,
@@ -632,6 +718,7 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
     })
 
     // Emit tool_start event so desktop UI renders a tool card
+    // (item/started notification also emits tool_start via adapter)
     this.context.emit({
       type: 'tool_start',
       sessionId: this.context.sessionId,
@@ -640,24 +727,20 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
       toolUseId,
     })
 
-    // Execute tool asynchronously and send result via notifyToolResult.
-    // The handler returns { status: 'pending' } immediately so the JSON-RPC
-    // response acknowledges the request. The actual result is delivered
-    // as a separate item/tool/result notification.
-    this.executeToolAndNotify(
-      toolName,
-      toolUseId,
-      toolArgs,
-      p?.namespace as string | null | undefined,
-    ).catch((err: Error) => {
-      desktopDebug('rust_tool_call_exec_error', {
-        toolName,
-        error: err.message,
-      })
-    })
-
-    // Return acknowledgment — real result comes via notifyToolResult
-    return { status: 'pending' }
+    // Return DynamicToolCallResponse directly.
+    // The Rust server handles built-in tools internally.
+    // Client-side registered tools would be executed here;
+    // for now, all tools return success: false since there
+    // are no desktop-exclusive tool handlers yet.
+    return {
+      success: false,
+      contentItems: [
+        {
+          type: 'inputText' as const,
+          text: `Tool "${toolName}" is not available on the desktop client. The Rust app-server should handle this tool internally.`,
+        },
+      ],
+    }
   }
 
   private async handlePermissionRequest(
@@ -802,78 +885,16 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
   }
 
   /**
-   * Execute a tool asynchronously and send the result to the Rust server
-   * via notifyToolResult notification. Also emits tool_result event for UI.
-   */
-  private async executeToolAndNotify(
-    toolName: string,
-    toolUseId: string,
-    args: unknown,
-    _namespace: string | null | undefined,
-  ): Promise<void> {
-    try {
-      // Attempt tool execution on the desktop side
-      const result = await this.executeDesktopTool(toolName, args)
-
-      // Send result to Rust server so the turn can continue
-      this.appServerClient?.notifyToolResult({
-        toolUseId,
-        result: result.contentItems,
-        isError: !result.success,
-      })
-
-      // Emit tool_result event for desktop UI timeline
-      this.context.emit({
-        type: 'tool_result',
-        sessionId: this.context.sessionId,
-        toolName,
-        summary: result.success ? 'Tool executed successfully' : 'Tool execution failed',
-        toolUseId,
-        isError: !result.success,
-        metadata: { contentItems: result.contentItems },
-      })
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err)
-      desktopDebug('rust_tool_call_exec_failed', { toolName, error: errorMsg })
-
-      this.appServerClient?.notifyToolResult({
-        toolUseId,
-        result: [{ type: 'inputText' as const, text: `Error: ${errorMsg}` }],
-        isError: true,
-      })
-
-      this.context.emit({
-        type: 'tool_result',
-        sessionId: this.context.sessionId,
-        toolName,
-        summary: `Error: ${errorMsg}`,
-        toolUseId,
-        isError: true,
-      })
-    }
-  }
-
-  /**
-   * Execute a tool that the Rust server delegated to the desktop client.
+   * Execute a client-side tool delegated by the Rust app-server.
    *
-   * Most tools (Bash, Read, Write, Edit, etc.) are handled by the Rust
-   * server internally. This handler processes tools that require client-side
-   * execution (e.g., VS Code extension tools, plugin tools, MCP tools).
-   *
-   * For the MVP, all tool calls return "not available" since the desktop
-   * client doesn't yet have a standalone tool executor. The Rust server
-   * handles the common tools internally.
+   * The Rust server handles built-in tools (Bash, Read, Write, Edit, etc.)
+   * internally. This method is a stub for future client-side tool handlers
+   * (e.g., desktop-exclusive extension tools).
    */
   private async executeDesktopTool(
     toolName: string,
     _args: unknown,
-  ): Promise<{
-    contentItems: Array<
-      | { type: 'inputText'; text: string }
-      | { type: 'inputImage'; imageUrl: string }
-    >
-    success: boolean
-  }> {
+  ): Promise<DynamicToolCallResponse> {
     return {
       contentItems: [
         {
