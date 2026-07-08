@@ -4,17 +4,11 @@ import type {
   DesktopThemeConfigV1,
   DesktopThemeFontEntry,
   DesktopThemeMode,
-  DesktopThemeRadixAccentColor,
-  DesktopThemeRadixConfig,
-  DesktopThemeRadixGrayColor,
-  DesktopThemeRadixPanelBackground,
-  DesktopThemeRadixRadius,
-  DesktopThemeRadixScaling,
   DesktopThemeSettings,
   DesktopThemeVariant,
 } from './types.js'
 
-export const CODEX_THEME_PREFIX = 'codex-theme-v1:'
+export const CODEX_THEME_PREFIX = 'codepilotx-theme-v1:'
 export const DEFAULT_LIGHT_THEME_ID = 'light-codex'
 export const DEFAULT_DARK_THEME_ID = 'dark-codex'
 
@@ -57,94 +51,23 @@ type RadixScale =
   | 'sand'
   | 'slate'
 
-type RadixAccentScale = Extract<RadixScale, DesktopThemeRadixAccentColor>
-
 type RadixStep = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12
 
 type RadixThemePresetOptions = {
-  accentScale: RadixAccentScale
+  accentScale: RadixScale
   accentStep?: RadixStep
   codeThemeId: string
   contrast?: number
   fonts?: DesktopThemeConfigV1['theme']['fonts']
-  grayScale?: Exclude<DesktopThemeRadixGrayColor, 'auto'>
+  grayScale?: RadixScale
   inkScale?: RadixScale
   inkStep?: RadixStep
   opaqueWindows?: boolean
-  skillScale?: RadixAccentScale
+  skillScale?: RadixScale
   skillStep?: RadixStep
   surfaceScale?: RadixScale
   surfaceStep?: RadixStep
-  radix?: Partial<DesktopThemeRadixConfig>
   variant: DesktopThemeVariant
-}
-
-const RADIX_ACCENT_COLORS: readonly DesktopThemeRadixAccentColor[] = [
-  'gray',
-  'gold',
-  'bronze',
-  'brown',
-  'yellow',
-  'amber',
-  'orange',
-  'tomato',
-  'red',
-  'ruby',
-  'crimson',
-  'pink',
-  'plum',
-  'purple',
-  'violet',
-  'iris',
-  'indigo',
-  'blue',
-  'cyan',
-  'teal',
-  'jade',
-  'green',
-  'grass',
-  'lime',
-  'mint',
-  'sky',
-]
-
-const RADIX_GRAY_COLORS: readonly DesktopThemeRadixGrayColor[] = [
-  'auto',
-  'gray',
-  'mauve',
-  'slate',
-  'sage',
-  'olive',
-  'sand',
-]
-
-const RADIX_PANEL_BACKGROUNDS: readonly DesktopThemeRadixPanelBackground[] = [
-  'solid',
-  'translucent',
-]
-
-const RADIX_RADII: readonly DesktopThemeRadixRadius[] = [
-  'none',
-  'small',
-  'medium',
-  'large',
-  'full',
-]
-
-const RADIX_SCALINGS: readonly DesktopThemeRadixScaling[] = [
-  '90%',
-  '95%',
-  '100%',
-  '105%',
-  '110%',
-]
-
-const DEFAULT_RADIX_THEME: DesktopThemeRadixConfig = {
-  accentColor: 'blue',
-  grayColor: 'slate',
-  panelBackground: 'solid',
-  radius: 'medium',
-  scaling: '100%',
 }
 
 const RADIX_LIGHT: Record<RadixScale, Record<string, string>> = {
@@ -181,44 +104,20 @@ const RADIX_DARK: Record<RadixScale, Record<string, string>> = {
   slate: radixColors.slateDark,
 }
 
-const RADIX_ACCENT_SCALES: readonly RadixAccentScale[] = [
-  'blue',
-  'cyan',
-  'gray',
-  'green',
-  'iris',
-  'orange',
-  'pink',
-  'purple',
-  'red',
-]
-
-const DRACULA_PINK = {
-  9: '#ff79c6',
-  10: '#f36ebb',
-  11: '#ffb0e1',
-  12: '#fdd1e7',
-}
-
 export const DEFAULT_LIGHT_THEME: DesktopThemeConfigV1 = {
-  codeThemeId: 'codex',
+  codeThemeId: 'codepilotx',
   theme: {
-    accent: '#cc785c',
-    contrast: 40,
+    accent: '#0169cc',
+    contrast: 0,
     fonts: DEFAULT_FONTS,
-    ink: '#141413',
+    ink: '#0d0d0d',
     opaqueWindows: true,
     semanticColors: {
-      diffAdded: '#5db872',
-      diffRemoved: '#c64545',
-      skill: '#cc785c',
+      diffAdded: '#00a240',
+      diffRemoved: '#e02e2a',
+      skill: '#751ed9',
     },
-    radix: {
-      ...DEFAULT_RADIX_THEME,
-      accentColor: 'orange',
-      grayColor: 'sand',
-    },
-    surface: '#faf9f5',
+    surface: '#ffffff',
   },
   variant: 'light',
 }
@@ -235,11 +134,6 @@ export const DEFAULT_DARK_THEME: DesktopThemeConfigV1 = {
       diffAdded: '#73c987',
       diffRemoved: '#d96a65',
       skill: '#cc785c',
-    },
-    radix: {
-      ...DEFAULT_RADIX_THEME,
-      accentColor: 'orange',
-      grayColor: 'sand',
     },
     surface: '#181715',
   },
@@ -500,7 +394,6 @@ function createRadixThemePreset(
     skillStep = options.variant === 'dark' ? 11 : 9,
     surfaceScale = grayScale,
     surfaceStep = 1,
-    radix,
     variant,
   } = options
 
@@ -516,12 +409,6 @@ function createRadixThemePreset(
         diffAdded: radixColor(variant, 'green', variant === 'dark' ? 11 : 9),
         diffRemoved: radixColor(variant, 'red', variant === 'dark' ? 11 : 9),
         skill: radixColor(variant, skillScale, skillStep),
-      },
-      radix: {
-        ...DEFAULT_RADIX_THEME,
-        accentColor: accentScale,
-        grayColor: grayScale,
-        ...radix,
       },
       surface: radixColor(variant, surfaceScale, surfaceStep),
     },
@@ -692,12 +579,6 @@ export function normalizeDesktopThemeConfig(
           fallback.theme.semanticColors.skill,
         ),
       },
-      radix: normalizeDesktopThemeRadixConfig(
-        theme.radix,
-        fallback.theme.radix,
-        variant,
-        accent,
-      ),
       surface: normalizeHexColor(theme.surface, fallback.theme.surface),
     },
     variant,
@@ -901,11 +782,10 @@ function normalizeDesktopThemeFontEntry(
 
 export function exportDesktopThemeConfig(
   config: DesktopThemeConfigV1,
-): { codeThemeId: string; theme: Record<string, unknown>; variant: string } {
-  const { radix: _radix, ...themeWithoutRadix } = config.theme
+): { codeThemeId: string; theme: DesktopThemeConfigV1['theme']; variant: string } {
   return {
     codeThemeId: config.codeThemeId,
-    theme: themeWithoutRadix,
+    theme: config.theme,
     variant: config.variant,
   }
 }
@@ -918,135 +798,6 @@ function normalizeDesktopThemeFontSizes(
     code: normalizeFontSize(fontSizes.code, 12, 10, 20),
     ui: normalizeFontSize(fontSizes.ui, 14, 11, 20),
   }
-}
-
-function normalizeDesktopThemeRadixConfig(
-  value: unknown,
-  fallback: DesktopThemeRadixConfig,
-  variant: DesktopThemeVariant,
-  accent: string,
-): DesktopThemeRadixConfig {
-  const radix = isRecord(value) ? value : {}
-  const fallbackAccent = fallback.accentColor ?? defaultRadixAccentColor(variant)
-  return {
-    accentColor: isRadixAccentColor(radix.accentColor)
-      ? radix.accentColor
-      : inferRadixAccentColor(accent, variant, fallbackAccent),
-    grayColor: isRadixGrayColor(radix.grayColor)
-      ? radix.grayColor
-      : fallback.grayColor,
-    panelBackground: isRadixPanelBackground(radix.panelBackground)
-      ? radix.panelBackground
-      : fallback.panelBackground,
-    radius: isRadixRadius(radix.radius) ? radix.radius : fallback.radius,
-    scaling: isRadixScaling(radix.scaling)
-      ? radix.scaling
-      : fallback.scaling,
-  }
-}
-
-function inferRadixAccentColor(
-  accent: string,
-  variant: DesktopThemeVariant,
-  fallback: DesktopThemeRadixAccentColor,
-): DesktopThemeRadixAccentColor {
-  const normalizedAccent = accent.toLowerCase()
-  if (normalizedAccent === '#0169cc') return 'blue'
-  if (normalizedAccent === '#00a240') return 'green'
-  if (normalizedAccent === '#e02e2a') return 'red'
-  if (normalizedAccent === '#751ed9' || normalizedAccent === '#b06dff') return 'purple'
-  if (normalizedAccent === DRACULA_PINK[9].toLowerCase()) return 'pink'
-  for (const scale of RADIX_ACCENT_SCALES) {
-    if (normalizedAccent === radixColor(variant, scale, 9).toLowerCase()) {
-      return scale
-    }
-  }
-  const parsedAccent = parseHexColor(normalizedAccent)
-  if (!parsedAccent) return fallback || defaultRadixAccentColor(variant)
-
-  let bestScale: RadixAccentScale | null = null
-  let bestDistance = Number.POSITIVE_INFINITY
-  for (const scale of RADIX_ACCENT_SCALES) {
-    const parsedScale = parseHexColor(radixColor(variant, scale, 9))
-    if (!parsedScale) continue
-    const distance = colorDistance(parsedAccent, parsedScale)
-    if (distance < bestDistance) {
-      bestDistance = distance
-      bestScale = scale
-    }
-  }
-  return bestScale ?? fallback ?? defaultRadixAccentColor(variant)
-}
-
-function defaultRadixAccentColor(
-  variant: DesktopThemeVariant,
-): DesktopThemeRadixAccentColor {
-  return variant === 'dark' ? 'pink' : 'blue'
-}
-
-function isRadixAccentColor(
-  value: unknown,
-): value is DesktopThemeRadixAccentColor {
-  return (
-    typeof value === 'string' &&
-    (RADIX_ACCENT_COLORS as readonly string[]).includes(value)
-  )
-}
-
-function isRadixGrayColor(
-  value: unknown,
-): value is DesktopThemeRadixGrayColor {
-  return (
-    typeof value === 'string' &&
-    (RADIX_GRAY_COLORS as readonly string[]).includes(value)
-  )
-}
-
-function isRadixPanelBackground(
-  value: unknown,
-): value is DesktopThemeRadixPanelBackground {
-  return (
-    typeof value === 'string' &&
-    (RADIX_PANEL_BACKGROUNDS as readonly string[]).includes(value)
-  )
-}
-
-function isRadixRadius(value: unknown): value is DesktopThemeRadixRadius {
-  return (
-    typeof value === 'string' &&
-    (RADIX_RADII as readonly string[]).includes(value)
-  )
-}
-
-function isRadixScaling(value: unknown): value is DesktopThemeRadixScaling {
-  return (
-    typeof value === 'string' &&
-    (RADIX_SCALINGS as readonly string[]).includes(value)
-  )
-}
-
-function parseHexColor(
-  value: string,
-): { red: number; green: number; blue: number } | null {
-  const match = /^#?([0-9a-f]{6})$/i.exec(value)
-  if (!match) return null
-  const hex = match[1]
-  return {
-    red: Number.parseInt(hex.slice(0, 2), 16),
-    green: Number.parseInt(hex.slice(2, 4), 16),
-    blue: Number.parseInt(hex.slice(4, 6), 16),
-  }
-}
-
-function colorDistance(
-  left: { red: number; green: number; blue: number },
-  right: { red: number; green: number; blue: number },
-): number {
-  return (
-    (left.red - right.red) ** 2 +
-    (left.green - right.green) ** 2 +
-    (left.blue - right.blue) ** 2
-  )
 }
 
 function normalizeFontSize(
