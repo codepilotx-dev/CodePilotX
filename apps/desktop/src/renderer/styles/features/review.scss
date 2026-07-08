@@ -367,11 +367,11 @@
   white-space: pre;
 
   &.added {
-    background: color-mix(in srgb, var(--color-diff-added) 18%, transparent);
+    background: color-mix(in srgb, var(--color-diff-added) 20%, transparent);
   }
 
   &.removed {
-    background: color-mix(in srgb, var(--color-diff-removed) 20%, transparent);
+    background: color-mix(in srgb, var(--color-diff-removed) 22%, transparent);
   }
 
   &.hunk {
@@ -511,11 +511,11 @@
   white-space: pre;
 
   &.added {
-    background: color-mix(in srgb, var(--color-diff-added) 18%, transparent);
+    background: color-mix(in srgb, var(--color-diff-added) 20%, transparent);
   }
 
   &.removed {
-    background: color-mix(in srgb, var(--color-diff-removed) 20%, transparent);
+    background: color-mix(in srgb, var(--color-diff-removed) 22%, transparent);
   }
 
   &.hunk {
@@ -656,11 +656,11 @@
 }
 
 .review-diff-split .review-diff-side.removed {
-  background: color-mix(in srgb, var(--color-diff-removed) 20%, transparent);
+  background: color-mix(in srgb, var(--color-diff-removed) 22%, transparent);
 }
 
 .review-diff-split .review-diff-side.added {
-  background: color-mix(in srgb, var(--color-diff-added) 18%, transparent);
+  background: color-mix(in srgb, var(--color-diff-added) 20%, transparent);
 }
 
 .review-diff-split .review-diff-side.context {

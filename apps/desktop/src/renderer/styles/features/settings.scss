@@ -1274,23 +1274,6 @@
   user-select: none;
 }
 
-.appearance-diff-preview.marker-symbol .appearance-preview-marker {
-  display: inline-block;
-  width: 20px;
-}
-
-.appearance-diff-preview.marker-symbol
-.appearance-preview-line-added
-.appearance-preview-marker {
-  color: var(--color-diff-added);
-}
-
-.appearance-diff-preview.marker-symbol
-.appearance-preview-line-removed
-.appearance-preview-marker {
-  color: var(--color-diff-removed);
-}
-
 .appearance-preview-code {
   flex: 1;
   padding-left: 13px;
@@ -2583,8 +2566,8 @@
   cursor: pointer;
 
   &.is-active .appearance-mode-visual {
-    border-color: var(--color-text-strong);
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-ink) 18%, transparent);
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-accent) 25%, transparent);
   }
 
   &.is-active .appearance-mode-label {
@@ -2599,25 +2582,29 @@
   overflow: hidden;
   border: 2px solid transparent;
   border-radius: 12px;
-  background: var(--color-panel-elevated-bg);
+  background: #f3f4f6;
   transition:
     border-color 0.16s ease,
     box-shadow 0.16s ease;
+}
+
+.appearance-mode-card-dark .appearance-mode-visual {
+  background: #1f2937;
 }
 
 .appearance-mode-window {
   position: absolute;
   inset: 0;
   display: block;
-  background: var(--color-bg);
-}
-
-.appearance-mode-card-system .appearance-mode-window {
-  background: color-mix(in srgb, var(--color-bg) 86%, var(--color-ink));
+  background: #ffffff;
 }
 
 .appearance-mode-card-dark .appearance-mode-window {
-  background: color-mix(in srgb, var(--color-bg) 72%, var(--color-ink));
+  background: #111827;
+}
+
+.appearance-mode-card-system .appearance-mode-window {
+  background: linear-gradient(to right, #ffffff 50%, #111827 50%);
 }
 
 .appearance-mode-lines,
@@ -2632,20 +2619,27 @@
   left: 70px;
   right: 70px;
   height: 8px;
-  background: color-mix(in srgb, var(--color-bg) 84%, var(--color-ink));
+  background: #d1d5db;
   box-shadow:
-    0 14px 0 color-mix(in srgb, var(--color-bg) 88%, var(--color-ink)),
-    -32px 40px 0 -1px color-mix(in srgb, var(--color-bg) 86%, var(--color-ink)),
-    34px 40px 0 -1px color-mix(in srgb, var(--color-bg) 82%, var(--color-ink));
+    0 14px 0 #e5e7eb,
+    -32px 40px 0 -1px #cbd5e1,
+    34px 40px 0 -1px #cbd5e1;
 }
 
-.appearance-mode-card-dark .appearance-mode-lines,
-.appearance-mode-card-system .appearance-mode-lines {
-  background: color-mix(in srgb, var(--color-bg) 70%, var(--color-ink));
+.appearance-mode-card-dark .appearance-mode-lines {
+  background: #4b5563;
   box-shadow:
-    0 14px 0 color-mix(in srgb, var(--color-bg) 66%, var(--color-ink)),
-    -32px 40px 0 -1px color-mix(in srgb, var(--color-bg) 74%, var(--color-ink)),
-    34px 40px 0 -1px color-mix(in srgb, var(--color-bg) 62%, var(--color-ink));
+    0 14px 0 #374151,
+    -32px 40px 0 -1px #4b5563,
+    34px 40px 0 -1px #4b5563;
+}
+
+.appearance-mode-card-system .appearance-mode-lines {
+  background: linear-gradient(to right, #d1d5db 50%, #4b5563 50%);
+  box-shadow:
+    0 14px 0 rgba(0, 0, 0, 0.07),
+    -32px 40px 0 -1px rgba(0, 0, 0, 0.09),
+    34px 40px 0 -1px rgba(0, 0, 0, 0.08);
 }
 
 .appearance-mode-sheet {
@@ -2653,20 +2647,22 @@
   right: 22px;
   bottom: -18px;
   height: 72px;
-  box-shadow: inset 0 -1px 0 var(--color-border-soft);
+  background: #ffffff;
+  box-shadow: inset 0 -1px 0 #e5e7eb;
 }
 
-.appearance-mode-sheet,
 .appearance-mode-card-dark .appearance-mode-sheet {
-  background: var(--color-panel-bg);
+  background: #1f2937;
+  box-shadow: inset 0 -1px 0 #374151;
 }
 
 .appearance-mode-card-system .appearance-mode-sheet {
-  background: color-mix(in srgb, var(--color-panel-bg) 88%, var(--color-ink));
+  background: linear-gradient(to right, #ffffff 50%, #1f2937 50%);
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.08);
 }
 
 .appearance-mode-label {
-  color: var(--color-text-soft);
+  color: var(--color-text-meta);
   font-size: var(--font-size-14);
   font-weight: var(--font-weight-label);
 }
@@ -2697,12 +2693,98 @@
   padding: 0;
 }
 
+.appearance-diff-preview.marker-symbol .appearance-preview-marker {
+  display: inline-block;
+  width: 20px;
+}
+
+.appearance-diff-preview.marker-symbol
+.appearance-preview-line-added
+.appearance-preview-marker {
+  color: var(--color-diff-added);
+}
+
+.appearance-diff-preview.marker-symbol
+.appearance-preview-line-removed
+.appearance-preview-marker {
+  color: var(--color-diff-removed);
+}
+
+.appearance-diff-preview.theme-dark {
+  background: #0d0f10;
+  color: #d6d8dc;
+}
+
+.appearance-diff-preview.theme-dark .appearance-preview-line {
+  align-items: center;
+}
+
+.appearance-diff-preview.theme-dark .appearance-preview-lineno {
+  color: #9ca3af;
+}
+
+.appearance-diff-preview.theme-dark .appearance-preview-marker {
+  display: inline-block;
+  width: 20px;
+}
+
+.appearance-diff-preview.theme-dark .appearance-syntax-key,
+.appearance-diff-preview.theme-dark .appearance-syntax-keyword,
+.appearance-diff-preview.theme-dark .appearance-syntax-type {
+  color: #b06dff;
+}
+
+.appearance-diff-preview.theme-dark .appearance-syntax-name,
+.appearance-diff-preview.theme-dark .appearance-syntax-prop {
+  color: #ff9f43;
+}
+
+.appearance-diff-preview.theme-dark .appearance-syntax-string {
+  color: #7ee787;
+}
+
+.appearance-diff-preview.theme-dark .appearance-syntax-value,
+.appearance-diff-preview.theme-dark .appearance-syntax-number,
+.appearance-diff-preview.theme-dark .appearance-syntax-operator {
+  color: #58c7f3;
+}
+
+.appearance-diff-preview.theme-dark .appearance-syntax-punct {
+  color: #a6adb8;
+}
+
 .appearance-preview-line-removed {
   background: color-mix(in srgb, var(--color-diff-removed) 13%, transparent);
 }
 
+.appearance-diff-preview.theme-dark .appearance-preview-line-removed {
+  background: color-mix(in srgb, var(--color-diff-removed) 20%, #0d0f10);
+}
+
+.appearance-diff-preview.theme-dark
+.appearance-preview-line-removed
+.appearance-preview-lineno,
+.appearance-diff-preview.theme-dark
+.appearance-preview-line-removed
+.appearance-preview-marker {
+  color: var(--color-diff-removed);
+}
+
 .appearance-preview-line-added {
   background: color-mix(in srgb, var(--color-diff-added) 13%, transparent);
+}
+
+.appearance-diff-preview.theme-dark .appearance-preview-line-added {
+  background: color-mix(in srgb, var(--color-diff-added) 18%, #0d0f10);
+}
+
+.appearance-diff-preview.theme-dark
+.appearance-preview-line-added
+.appearance-preview-lineno,
+.appearance-diff-preview.theme-dark
+.appearance-preview-line-added
+.appearance-preview-marker {
+  color: var(--color-diff-added);
 }
 
 .appearance-table-card {
