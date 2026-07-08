@@ -2,14 +2,14 @@
   position: relative;
   overflow-x: hidden;
   overflow-y: auto;
-}
 
-.scroll-area[data-scroll-direction="x"] {
-  overflow-x: auto;
-  overflow-y: hidden;
-}
+  &[data-scroll-direction="x"] {
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
 
-.scroll-area__content {
-  width: 100%;
-  min-width: 0;
+  &__content {
+    width: 100%;
+    min-width: 0;
+  }
 }

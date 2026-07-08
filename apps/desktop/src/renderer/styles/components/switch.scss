@@ -3,32 +3,39 @@
 .toggle-switch,
 .chat-input__dropdown-switch,
 .context-menu-switch {
-  background: color-mix(in srgb, var(--c-text-strong) 16%, var(--c-panel-elevated-bg));
-}
+  background: color-mix(
+    in srgb,
+    var(--color-text-strong) 16%,
+    var(--color-panel-elevated-bg)
+  );
 
-.toggle-switch.on,
-.chat-input__dropdown-switch[aria-checked="true"],
-.context-menu-switch[aria-checked="true"] {
-  background: var(--c-accent);
+  &.on,
+  &[aria-checked="true"] {
+    background: var(--color-accent);
+  }
 }
 
 .toggle-knob,
 .chat-input__dropdown-switch-thumb,
 .context-menu-switch-thumb {
-  background: var(--c-bg);
+  background: var(--color-bg);
 }
 
 /* --- Settings Page Toggle Switch --- */
 .toggle-switch {
   width: 32px;
   height: 18px;
-  border-radius: var(--border-r);
+  border-radius: var(--radius-base);
   position: relative;
   cursor: pointer;
   transition: background-color 0.15s ease;
   border: none;
   padding: 0;
   flex-shrink: 0;
+
+  &.on .toggle-knob {
+    transform: translateX(14px);
+  }
 }
 
 .toggle-knob {
@@ -40,10 +47,6 @@
   left: 2px;
   transition: transform 0.15s ease;
   box-shadow: 0 1px 2px var(--black-a4);
-}
-
-.toggle-switch.on .toggle-knob {
-  transform: translateX(14px);
 }
 
 /* --- Chat Input Dropdown Switch --- */
@@ -72,10 +75,16 @@
   transform: translateX(14px);
 }
 
-:root[data-theme="dark"] .chat-input__dropdown-switch {
-  background: color-mix(in srgb, var(--c-text-strong) 16%, var(--c-panel-bg));
-}
+:root[data-theme="dark"] {
+  .chat-input__dropdown-switch {
+    background: color-mix(
+      in srgb,
+      var(--color-text-strong) 16%,
+      var(--color-panel-bg)
+    );
+  }
 
-:root[data-theme="dark"] .chat-input__dropdown-switch-thumb {
-  background: var(--c-bg);
+  .chat-input__dropdown-switch-thumb {
+    background: var(--color-bg);
+  }
 }

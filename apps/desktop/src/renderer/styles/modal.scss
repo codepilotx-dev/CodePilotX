@@ -5,40 +5,42 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--sp-6);
+  padding: var(--space-6);
   background: var(--black-a5);
 }
 
 .permission-modal {
   width: min(620px, 100%);
   display: grid;
-  gap: var(--sp-3);
-  padding: var(--sp-5);
-  border: 1px solid var(--c-border);
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-5);
-  background: var(--c-bg);
+  background: var(--color-bg);
   box-shadow: 0 24px 60px var(--black-a4);
 }
 
 .permission-modal,
 .github-repository-modal,
 .git-workflow-modal {
-  border-color: var(--c-panel-border);
+  border-color: var(--color-panel-border);
   border-radius: var(--radius-panel);
-  background: var(--c-panel-bg);
-  box-shadow: var(--c-panel-shadow);
+  background: var(--color-panel-bg);
+  box-shadow: var(--color-panel-shadow);
 }
 
-:root[data-glass-surfaces="on"] .permission-modal,
-:root[data-glass-surfaces="on"] .github-repository-modal,
-:root[data-glass-surfaces="on"] .git-workflow-modal {
-  border-color: var(--glass-surface-border);
-  background: var(--glass-surface-bg);
-  -webkit-backdrop-filter: blur(var(--glass-surface-blur)) saturate(1.18);
-  backdrop-filter: blur(var(--glass-surface-blur)) saturate(1.18);
-  box-shadow:
-    0 1px 0 var(--glass-surface-highlight) inset,
-    var(--c-panel-shadow);
+:root[data-glass-surfaces="on"] {
+  .permission-modal,
+  .github-repository-modal,
+  .git-workflow-modal {
+    border-color: var(--glass-surface-border);
+    background: var(--glass-surface-bg);
+    -webkit-backdrop-filter: blur(var(--glass-surface-blur)) saturate(1.18);
+    backdrop-filter: blur(var(--glass-surface-blur)) saturate(1.18);
+    box-shadow:
+      0 1px 0 var(--glass-surface-highlight) inset,
+      var(--color-panel-shadow);
+  }
 }
 
 .permission-modal header,
@@ -46,25 +48,35 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--sp-3);
+  gap: var(--space-3);
 }
 
-.permission-modal-actions button {
-  min-height: 30px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--sp-2);
-  padding: 0 10px;
-  border: 1px solid var(--c-border-soft);
-  border-radius: var(--radius-4);
-  background: var(--c-bg);
+.permission-modal header span {
+  padding: 5px 10px;
+  border-radius: var(--radius-full);
+  background: var(--color-bg-soft);
+  color: var(--color-text-soft);
 }
 
-.permission-modal-actions button:hover {
-  background: var(--c-bg-hover);
+.permission-modal-actions {
+  button {
+    min-height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    padding: 0 10px;
+    border: 1px solid var(--color-border-soft);
+    border-radius: var(--radius-4);
+    background: var(--color-bg);
+
+    &:hover {
+      background: var(--color-bg-hover);
+    }
+  }
 }
 
+/* --- Global Error Toast --- */
 .global-error-toast {
   position: fixed;
   top: 20px;
@@ -75,24 +87,24 @@
   min-height: 34px;
   display: flex;
   align-items: flex-start;
-  gap: var(--sp-2);
+  gap: var(--space-2);
   padding: 7px 10px 7px 13px;
   border: 1px solid var(--black-a2);
   border-radius: var(--radius-4);
-  background: var(--c-bg);
+  background: var(--color-bg);
   box-shadow: 0 8px 28px var(--black-a3);
-  color: var(--c-text-strong);
-  font-size: var(--fs-14);
+  color: var(--color-text-strong);
+  font-size: var(--font-size-14);
   line-height: 1.4;
   transform: translateX(-50%);
 }
 
 .global-error-toast,
 .archive-session-toast {
-  border-color: var(--c-panel-border);
+  border-color: var(--color-panel-border);
   border-radius: var(--radius-card);
-  background: var(--c-panel-bg);
-  box-shadow: var(--c-panel-shadow);
+  background: var(--color-panel-bg);
+  box-shadow: var(--color-panel-shadow);
 }
 
 .global-error-toast-scroll-area {
@@ -110,29 +122,32 @@
 .global-error-toast.status {
   align-items: center;
   max-height: none;
-  font-size: var(--fs-13);
+  font-size: var(--font-size-13);
 }
 
-.global-error-toast button {
-  width: 22px;
-  height: 22px;
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border: 0;
-  border-radius: var(--radius-full);
-  background: transparent;
-  color: var(--c-text-soft);
-  font-size: calc(var(--fs-14) + 4px);
-  line-height: 1;
+.global-error-toast {
+  button {
+    width: 22px;
+    height: 22px;
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-full);
+    background: transparent;
+    color: var(--color-text-soft);
+    font-size: calc(var(--font-size-14) + 4px);
+    line-height: 1;
+
+    &:hover {
+      color: var(--color-text-strong);
+    }
+  }
 }
 
-.global-error-toast button:hover {
-  color: var(--c-text-strong);
-}
-
+// --- Archive Session Toast ---
 .archive-session-toast {
   position: fixed;
   top: 14px;
@@ -143,9 +158,8 @@
   align-items: center;
   gap: 2px;
   padding: 7px 8px 7px 13px;
-  color: var(--c-text-strong);
-  font-size: var(--fs-13);
-
+  color: var(--color-text-strong);
+  font-size: var(--font-size-13);
   transform: translateX(-50%);
   -webkit-app-region: no-drag;
 }
@@ -161,12 +175,12 @@
 
 .archive-session-toast-link {
   padding: 0 3px;
-  color: var(--c-accent);
+  color: var(--color-accent);
   font-weight: 500;
-}
 
-.archive-session-toast-link:hover {
-  text-decoration: underline;
+  &:hover {
+    text-decoration: underline;
+  }
 }
 
 .archive-session-toast-close {
@@ -178,22 +192,16 @@
   margin-left: 2px;
   padding: 0;
   border-radius: var(--radius-full);
-  color: var(--c-text-soft);
+  color: var(--color-text-soft);
   line-height: 1;
+
+  &:hover {
+    color: var(--color-text-strong);
+    background: var(--color-bg-hover);
+  }
 }
 
-.archive-session-toast-close:hover {
-  color: var(--c-text-strong);
-  background: var(--c-bg-hover);
-}
-
-.permission-modal header span {
-  padding: 5px 10px;
-  border-radius: var(--radius-full);
-  background: var(--c-bg-soft);
-  color: var(--c-text-soft);
-}
-
+/* --- Permission code scroll --- */
 .permission-code-scroll-area {
   overflow-x: hidden;
   overflow-y: auto;
@@ -202,53 +210,54 @@
 .permission-code-scroll-content {
   overflow-x: auto;
   overflow-y: hidden;
-}
 
-.permission-code-scroll-content code {
-  display: block;
-  min-width: max-content;
-  padding: var(--sp-3);
-  border-radius: var(--radius-4);
-  background: var(--c-bg-soft);
-  font-family: var(--ff-mono);
-  white-space: pre;
+  code {
+    display: block;
+    min-width: max-content;
+    padding: var(--space-3);
+    border-radius: var(--radius-4);
+    background: var(--color-bg-soft);
+    font-family: var(--font-family-mono);
+    white-space: pre;
+  }
 }
 
 .primary-button {
-  background: var(--c-accent);
-  color: var(--c-text-on-accent);
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
 }
 
+/* --- Git Workflow Modal --- */
 .git-workflow-modal {
   width: min(720px, 100%);
 }
 
 .git-workflow-form {
   display: grid;
-  gap: var(--sp-3);
-}
+  gap: var(--space-3);
 
-.git-workflow-form label {
-  display: grid;
-  gap: 6px;
-  color: var(--c-text);
-  font-size: var(--fs-13);
-}
+  label {
+    display: grid;
+    gap: 6px;
+    color: var(--color-text);
+    font-size: var(--font-size-13);
+  }
 
-.git-workflow-form input,
-.git-workflow-form textarea {
-  width: 100%;
-  min-height: 34px;
-  padding: 8px 10px;
-  border: 1px solid var(--c-border);
-  border-radius: var(--radius-4);
-  background: var(--c-bg);
-  color: var(--c-text);
-  font: inherit;
-}
+  input,
+  textarea {
+    width: 100%;
+    min-height: 34px;
+    padding: 8px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-4);
+    background: var(--color-bg);
+    color: var(--color-text);
+    font: inherit;
+  }
 
-.git-workflow-form textarea {
-  resize: vertical;
+  textarea {
+    resize: vertical;
+  }
 }
 
 .git-workflow-files-scroll-area {
@@ -256,55 +265,55 @@
   max-height: 260px;
   overflow-x: hidden;
   overflow-y: auto;
-  border: 1px solid var(--c-border-soft);
+  border: 1px solid var(--color-border-soft);
   border-radius: var(--radius-4);
-  background: var(--c-bg-soft);
+  background: var(--color-bg-soft);
 }
 
 .git-workflow-files-scroll-content {
   min-width: 0;
   display: grid;
   gap: 6px;
-  padding: var(--sp-3);
-}
+  padding: var(--space-3);
 
-.git-workflow-files-scroll-content > div,
-.git-workflow-check {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-}
+  > div,
+  .git-workflow-check {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
 
-.git-workflow-files-scroll-content > div {
-  justify-content: space-between;
-}
+  > div {
+    justify-content: space-between;
+  }
 
-.git-workflow-files-scroll-content button {
-  min-height: 26px;
-  padding: 0 8px;
-  border: 1px solid var(--c-border-soft);
-  border-radius: var(--radius-4);
-  background: var(--c-bg);
-}
+  button {
+    min-height: 26px;
+    padding: 0 8px;
+    border: 1px solid var(--color-border-soft);
+    border-radius: var(--radius-4);
+    background: var(--color-bg);
+  }
 
-.git-workflow-files-scroll-content label {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--sp-2);
-}
+  label {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-2);
 
-.git-workflow-files-scroll-content label span {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--c-text);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+    span {
+      min-width: 0;
+      overflow: hidden;
+      color: var(--color-text);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
 
-.git-workflow-files-scroll-content small {
-  color: var(--c-text-meta);
-  font-family: var(--ff-mono);
+  small {
+    color: var(--color-text-meta);
+    font-family: var(--font-family-mono);
+  }
 }
 
 .git-workflow-check {
@@ -317,9 +326,10 @@
   border-radius: var(--radius-4);
   background: var(--red-a2);
   color: var(--red-11);
-  font-size: var(--fs-13);
+  font-size: var(--font-size-13);
 }
 
+/* --- GitHub Repository Modal --- */
 .github-repository-modal {
   width: min(760px, 100%);
 }
@@ -328,11 +338,11 @@
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: var(--sp-3);
-  padding: var(--sp-4);
-  border: 1px solid var(--c-border-soft);
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border-soft);
   border-radius: var(--radius-4);
-  background: var(--c-bg-soft);
+  background: var(--color-bg-soft);
 }
 
 .github-login-panel h3,
@@ -341,36 +351,36 @@
 }
 
 .github-login-panel h3 {
-  color: var(--c-text-strong);
-  font-size: var(--fs-14);
+  color: var(--color-text-strong);
+  font-size: var(--font-size-14);
 }
 
 .github-login-panel p {
   margin-top: 3px;
-  color: var(--c-text-soft);
-  font-size: var(--fs-13);
+  color: var(--color-text-soft);
+  font-size: var(--font-size-13);
   line-height: 1.45;
 }
 
 .github-repository-search {
   display: flex;
   align-items: center;
-  gap: var(--sp-2);
+  gap: var(--space-2);
   min-height: 36px;
   padding: 0 10px;
-  border: 1px solid var(--c-border-soft);
+  border: 1px solid var(--color-border-soft);
   border-radius: var(--radius-4);
-  background: var(--c-bg);
-}
+  background: var(--color-bg);
 
-.github-repository-search input {
-  min-width: 0;
-  flex: 1;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--c-text);
-  font: inherit;
+  input {
+    min-width: 0;
+    flex: 1;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--color-text);
+    font: inherit;
+  }
 }
 
 .github-repository-list-scroll-area {
@@ -378,9 +388,9 @@
   max-height: min(52vh, 440px);
   overflow-x: hidden;
   overflow-y: auto;
-  border: 1px solid var(--c-border-soft);
+  border: 1px solid var(--color-border-soft);
   border-radius: var(--radius-4);
-  background: var(--c-bg);
+  background: var(--color-bg);
 }
 
 .github-repository-list-scroll-content {
@@ -391,12 +401,12 @@
 .github-repository-row {
   display: flex;
   align-items: center;
-  gap: var(--sp-3);
+  gap: var(--space-3);
   padding: 12px;
-}
 
-.github-repository-row + .github-repository-row {
-  border-top: 1px solid var(--c-border-soft);
+  + .github-repository-row {
+    border-top: 1px solid var(--color-border-soft);
+  }
 }
 
 .github-repository-main {
@@ -406,41 +416,12 @@
   gap: 4px;
 }
 
-.github-repository-title {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-}
-
-.github-repository-title strong {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--c-text-strong);
-  font-size: var(--fs-14);
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.github-repository-title span {
-  height: 20px;
-  display: inline-flex;
-  align-items: center;
-  padding: 0 7px;
-  border: 1px solid var(--c-border-soft);
-  border-radius: var(--radius-6);
-  color: var(--c-text-soft);
-  font-size: var(--fs-12);
-  flex-shrink: 0;
-}
-
 .github-repository-main p,
 .github-repository-main small,
 .github-repository-empty {
   margin: 0;
-  color: var(--c-text-soft);
-  font-size: var(--fs-13);
+  color: var(--color-text-soft);
+  font-size: var(--font-size-13);
 }
 
 .github-repository-main p {
@@ -450,38 +431,68 @@
 }
 
 .github-repository-main small {
-  font-size: var(--fs-12);
+  font-size: var(--font-size-12);
+}
+
+.github-repository-title {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+
+  strong {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--color-text-strong);
+    font-size: var(--font-size-14);
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  span {
+    height: 20px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 7px;
+    border: 1px solid var(--color-border-soft);
+    border-radius: var(--radius-6);
+    color: var(--color-text-soft);
+    font-size: var(--font-size-12);
+    flex-shrink: 0;
+  }
 }
 
 .github-repository-empty {
-  padding: var(--sp-5);
+  padding: var(--space-5);
   text-align: center;
 }
 
+/* --- Confirmation Dialog --- */
 .confirmation-dialog {
   width: min(440px, 100%);
   display: grid;
-  gap: var(--sp-3);
-  padding: var(--sp-5);
+  gap: var(--space-3);
+  padding: var(--space-5);
 }
 
 .confirmation-dialog-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: var(--sp-3);
-}
+  gap: var(--space-3);
 
-.confirmation-dialog-header h2 {
-  min-width: 0;
-  flex: 1 1 auto;
-  margin: 0;
-  color: var(--c-text-strong);
-  font-size: var(--fs-18);
-  font-weight: 700;
-  line-height: 1.4;
-  text-decoration: none;
-  word-break: break-word;
+  h2 {
+    min-width: 0;
+    flex: 1 1 auto;
+    margin: 0;
+    color: var(--color-text-strong);
+    font-size: var(--font-size-18);
+    font-weight: 700;
+    line-height: 1.4;
+    text-decoration: none;
+    word-break: break-word;
+  }
 }
 
 .confirmation-dialog-close {
@@ -492,18 +503,18 @@
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-full);
-  color: var(--c-text-soft);
-}
+  color: var(--color-text-soft);
 
-.confirmation-dialog-close:hover {
-  background: var(--c-bg-hover);
-  color: var(--c-text-strong);
+  &:hover {
+    background: var(--color-bg-hover);
+    color: var(--color-text-strong);
+  }
 }
 
 .confirmation-dialog-description {
   margin: 0;
-  color: var(--c-text-soft);
-  font-size: var(--fs-13);
+  color: var(--color-text-soft);
+  font-size: var(--font-size-13);
   line-height: 1.5;
 }
 
@@ -511,64 +522,66 @@
   width: 100%;
   min-height: 38px;
   padding: 8px 12px;
-  border: 1px solid var(--c-border);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-4);
-  background: var(--c-bg);
-  color: var(--c-text);
+  background: var(--color-bg);
+  color: var(--color-text);
   font: inherit;
-}
 
-.confirmation-dialog-input:focus {
-  outline: none;
-  border-color: var(--c-accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-accent) 20%, transparent);
+  &:focus {
+    outline: none;
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 20%, transparent);
+  }
 }
 
 .confirmation-dialog-actions {
-  margin-top: var(--sp-2);
+  margin-top: var(--space-2);
+
+  button {
+    min-height: 32px;
+    min-width: 76px;
+    padding: 0 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-4);
+    font-size: var(--font-size-13);
+    font-weight: 500;
+  }
+
+  button.confirmation-cancel {
+    border: 1px solid var(--color-border-soft);
+    background: var(--color-bg);
+    color: var(--color-text);
+
+    &:hover {
+      background: var(--state-hover-bg);
+    }
+  }
 }
 
-.confirmation-dialog-actions button {
-  min-height: 32px;
-  min-width: 76px;
-  padding: 0 14px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-4);
-  font-size: var(--fs-13);
-  font-weight: 500;
-}
+.confirmation-dialog-action {
+  &.primary {
+    background: var(--color-send-bg);
+    color: var(--color-text-on-accent);
 
-.confirmation-dialog-actions button.confirmation-cancel {
-  border: 1px solid var(--c-border-soft);
-  background: var(--c-bg);
-  color: var(--c-text);
-}
+    &:hover {
+      background: var(--color-send-bg-hover);
+    }
+  }
 
-.confirmation-dialog-actions button.confirmation-cancel:hover {
-  background: var(--state-hover-bg);
-}
+  &.danger {
+    background: var(--red-3);
+    color: var(--color-danger);
 
-.confirmation-dialog-action.primary {
-  background: var(--c-send-bg);
-  color: var(--c-text-on-accent);
-}
+    &:hover {
+      background: var(--red-4);
+    }
+  }
 
-.confirmation-dialog-action.primary:hover {
-  background: var(--c-send-bg-hover);
-}
-
-.confirmation-dialog-action.danger {
-  background: var(--red-3);
-  color: var(--c-danger);
-}
-
-.confirmation-dialog-action.danger:hover {
-  background: var(--red-4);
-}
-
-.confirmation-dialog-action:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
 }

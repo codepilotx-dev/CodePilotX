@@ -1,14 +1,12 @@
 /**
- * timeline.css — Session timeline (virtual-scroll view) styles.
+ * Timeline — Session timeline (virtual-scroll view) styles.
  *
  * Visual conventions follow opencode's turn/part DOM structure
  * (data-component / data-slot), but all colors, radii, shadows,
  * and typography use existing desktop tokens.
- *
- * This file is imported via index.css alongside session.css.
  */
 
-/* ── Main wrapper (replaces old ScrollArea + conversation-stream) ── */
+/* ── Main wrapper ── */
 
 .session-timeline-wrapper {
   flex: 1;
@@ -18,7 +16,6 @@
   display: flex;
   flex-direction: column;
   position: relative;
-
   margin: 0 auto;
   padding: 18px 0 0;
 }
@@ -30,27 +27,25 @@
   min-height: 0;
   width: 100%;
   position: relative;
-  overflow: hidden; /* VList manages its own scroll */
+  overflow: hidden;
 }
 
 /* Keep the VList from causing layout shifts */
 .session-timeline-vlist {
   outline: none !important;
-}
 
-.session-timeline-vlist > :first-child {
-  /* VList's inner scroll container; ensure proper width */
-  min-width: 0;
-  width: var(--workflow-content-w, min(var(--layout-content-w, 760px), 100%));
-  max-width: var(--workflow-content-w, var(--layout-content-w, 760px));
-  margin: auto;
+  > :first-child {
+    min-width: 0;
+    width: var(--workflow-content-width, min(var(--layout-content-w, 760px), 100%));
+    max-width: var(--workflow-content-width, var(--layout-content-w, 760px));
+    margin: auto;
+  }
 }
 
 /* ── Individual row wrapper ───────────────────────────── */
 
 .session-turn-row {
   padding: 7px 0;
-  /* Container query context for responsive adjustments */
   container-type: inline-size;
 }
 
@@ -62,27 +57,78 @@
   margin-top: 8px;
 }
 
+/* ── Data-attribute turn slot styles ──────────────────── */
+
+[data-component="session-turn"] {
+  &[data-slot="user-message"] {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+
+  &[data-slot="assistant-message"] {
+    padding-top: 14px;
+    padding-bottom: 14px;
+  }
+
+  &[data-slot="error"],
+  &[data-slot="permission_request"],
+  &[data-slot="file_patch"],
+  &[data-slot="tool_group"],
+  &[data-slot="execution_phase"],
+  &[data-slot="proposed_plan"] {
+    padding-top: 16px;
+    padding-bottom: 16px;
+  }
+}
+
 [data-component="session-turn"][data-slot="user-message"] {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  padding-top: 12px;
-  padding-bottom: 12px;
+  .chat-message-row.user {
+    max-width: 100%;
+  }
+
+  .user-message-bubble {
+    max-width: min(520px, 70%);
+  }
+
+  .user-message-meta {
+    margin-top: 10px;
+  }
 }
 
 [data-component="session-turn"][data-slot="assistant-message"] {
-  padding-top: 14px;
-  padding-bottom: 14px;
+  .chat-message-row.assistant {
+    max-width: 100%;
+  }
+
+  .assistant-message-body {
+    max-width: min(780px, 100%);
+  }
 }
 
-[data-component="session-turn"][data-slot="error"],
-[data-component="session-turn"][data-slot="permission_request"],
-[data-component="session-turn"][data-slot="file_patch"],
-[data-component="session-turn"][data-slot="tool_group"],
-[data-component="session-turn"][data-slot="execution_phase"],
-[data-component="session-turn"][data-slot="proposed_plan"] {
-  padding-top: 16px;
-  padding-bottom: 16px;
+[data-component="session-turn"][data-slot="plan"] {
+  .chat-message-row.assistant {
+    max-width: 100%;
+  }
+
+  .workflow-plan-card {
+    width: 100%;
+    max-width: min(760px, 100%);
+  }
+}
+
+[data-component="session-turn"][data-slot="thinking"] {
+  display: flex;
+  justify-content: flex-start;
+}
+
+[data-component="session-turn"][data-slot="error"] .timeline-system-event,
+[data-component="session-turn"][data-slot="permission_request"] .timeline-system-event {
+  max-width: min(680px, 100%);
+  margin-top: 0;
+  margin-bottom: 0;
 }
 
 /* ── Bottom spacer ────────────────────────────────────── */
@@ -106,124 +152,63 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: var(--c-text-meta, #999);
-  font-size: var(--fs-12, 12px);
+  color: var(--color-text-meta, #999);
+  font-size: var(--font-size-12, 12px);
   font-weight: var(--font-weight-label, 500);
   user-select: none;
-}
 
-.turn-divider-label::before,
-.turn-divider-label::after {
-  content: "";
-  display: block;
-  height: 1px;
-  width: 24px;
-  background: var(--c-border-soft, #eee);
-}
+  &::before,
+  &::after {
+    content: "";
+    display: block;
+    height: 1px;
+    width: 24px;
+    background: var(--color-border-soft, #eee);
+  }
 
-.turn-divider-label::after {
-  width: 100%;
-  flex: 1;
-}
-
-/* ── Data-attribute based contextual styling ──────────── */
-
-[data-component="session-turn"][data-slot="user-message"]
-  .chat-message-row.user {
-  max-width: 100%;
-}
-
-[data-component="session-turn"][data-slot="user-message"]
-  .user-message-bubble {
-  max-width: min(520px, 70%);
-}
-
-[data-component="session-turn"][data-slot="user-message"]
-  .user-message-meta {
-  margin-top: 10px;
-}
-
-/* Assistant messages: full width */
-[data-component="session-turn"][data-slot="assistant-message"]
-  .chat-message-row.assistant {
-  max-width: 100%;
-}
-
-[data-component="session-turn"][data-slot="assistant-message"]
-  .assistant-message-body {
-  max-width: min(780px, 100%);
-}
-
-/* Plan cards: full width in timeline */
-[data-component="session-turn"][data-slot="plan"] .chat-message-row.assistant {
-  max-width: 100%;
-}
-
-[data-component="session-turn"][data-slot="plan"] .workflow-plan-card {
-  width: 100%;
-  max-width: min(760px, 100%);
-}
-
-/* Thinking pill: left-aligned, compact */
-[data-component="session-turn"][data-slot="thinking"] {
-  display: flex;
-  justify-content: flex-start;
-}
-
-/* Error rows */
-[data-component="session-turn"][data-slot="error"] .timeline-system-event {
-  max-width: min(680px, 100%);
-  margin-top: 0;
-  margin-bottom: 0;
-}
-
-/* System event rows */
-[data-component="session-turn"][data-slot="permission_request"]
-  .timeline-system-event {
-  max-width: min(680px, 100%);
-  margin-top: 0;
-  margin-bottom: 0;
+  &::after {
+    width: 100%;
+    flex: 1;
+  }
 }
 
 /* ── Adapt existing classes to timeline layout ────────── */
 
-/* Existing conversation-stream children inside the virtual list
-   need their auto-margin removed since VList handles positioning. */
-.session-timeline-container .conversation-stream {
-  margin: 0;
-  gap: 0;
-}
+.session-timeline-container {
+  .conversation-stream {
+    margin: 0;
+    gap: 0;
+  }
 
-/* Ensure existing tool-group and execution-phase fit */
-.session-timeline-container .timeline-command-group,
-.session-timeline-container .execution-phase,
-.session-timeline-container .timeline-file-event {
-  margin: 0;
-  max-width: 100%;
-}
+  .timeline-command-group,
+  .execution-phase,
+  .timeline-file-event {
+    margin: 0;
+    max-width: 100%;
+  }
 
-.session-timeline-container .timeline-system-event,
-.session-timeline-container .workflow-plan-card {
-  margin: 0;
-}
+  .timeline-system-event,
+  .workflow-plan-card {
+    margin: 0;
+  }
 
-.session-timeline-container .timeline-command-group-summary:hover,
-.session-timeline-container .execution-phase-summary:hover {
-  background: transparent;
-}
+  .timeline-command-group-summary:hover,
+  .execution-phase-summary:hover {
+    background: transparent;
+  }
 
-/* Assistant message action buttons need to stay visible in virtual context */
-.session-timeline-container .assistant-message-actions {
-  opacity: 0;
-}
-
-.session-timeline-container
-  .chat-message-row.assistant:hover
-  .assistant-message-actions,
-.session-timeline-container
-  .chat-message-row.assistant:focus-within
   .assistant-message-actions {
-  opacity: 1;
+    opacity: 0;
+  }
+
+  .chat-message-row.assistant:hover .assistant-message-actions,
+  .chat-message-row.assistant:focus-within .assistant-message-actions {
+    opacity: 1;
+  }
+
+  .chat-thinking-pill {
+    margin: 0;
+  }
 }
 
 /* ── Workflow debug timeline stays visible above virtual list ── */
@@ -231,13 +216,7 @@
 .session-timeline-wrapper .workflow-debug-timeline {
   flex-shrink: 0;
   margin: 0 auto;
-  width: var(--workflow-content-w, min(760px, calc(100% - 40px)));
-}
-
-/* ── Thinking pill in virtual list ────────────────────── */
-
-.session-timeline-container .chat-thinking-pill {
-  margin: 0;
+  width: var(--workflow-content-width, min(760px, calc(100% - 40px)));
 }
 
 /* ── Responsive: narrower viewports ───────────────────── */
@@ -256,7 +235,7 @@
 
 .conversation-turn-nav-rail {
   position: absolute;
-  left: max(8px, calc((100% - var(--workflow-content-w, 760px)) / 2 - 34px));
+  left: max(8px, calc((100% - var(--workflow-content-width, 760px)) / 2 - 34px));
   top: 0;
   bottom: 0;
   z-index: 5;
@@ -266,17 +245,17 @@
   align-items: center;
   justify-content: center;
   gap: var(--layout-section-gap, 6px);
-  pointer-events: none; /* let mouse events pass through the container */
+  pointer-events: none;
 }
 
 .conversation-turn-nav-item {
-  pointer-events: auto; /* capture clicks on the nav items themselves */
+  pointer-events: auto;
   display: block;
   padding: 0;
   border: none;
   border-radius: 1px;
   cursor: pointer;
-  background: var(--c-border-faint, var(--c-border-soft));
+  background: var(--color-border-faint, var(--color-border-soft));
   width: 8px;
   height: 2px;
   min-width: 0;
@@ -285,19 +264,19 @@
   transition:
     width var(--motion-fast, 150ms) var(--ease-out, ease-out),
     background var(--motion-fast, 150ms) var(--ease-out, ease-out);
-}
 
-.conversation-turn-nav-item:hover,
-.conversation-turn-nav-item:focus-visible {
-  outline: none;
-  width: 22px;
-  height: 2px;
-  background: var(--c-text-strong);
-}
+  &:hover,
+  &:focus-visible {
+    outline: none;
+    width: 22px;
+    height: 2px;
+    background: var(--color-text-strong);
+  }
 
-.conversation-turn-nav-item:focus-visible {
-  outline: 1px solid var(--c-accent);
-  outline-offset: 2px;
+  &:focus-visible {
+    outline: 1px solid var(--color-accent);
+    outline-offset: 2px;
+  }
 }
 
 /* ── Turn preview card (inside tooltip) ──────────────────── */
@@ -306,14 +285,14 @@
   min-width: 200px;
   max-width: 280px;
   padding: 10px;
-  color: var(--c-text);
+  color: var(--color-text);
 }
 
 .preview-card-user-text {
   font-weight: 500;
-  font-size: var(--fs-13, 13px);
+  font-size: var(--font-size-13, 13px);
   line-height: 1.4;
-  color: var(--c-text-strong);
+  color: var(--color-text-strong);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -321,53 +300,51 @@
 
 .preview-card-assistant-text {
   margin-top: 6px;
-  /* line-clamp lives on the inner .md-body so Markdown renders don't break the clamp */
 }
 
 .preview-card-assistant-text .md-body {
-  font-size: var(--fs-12, 12px);
+  font-size: var(--font-size-12, 12px);
   line-height: 1.45;
-  color: var(--c-text-meta);
+  color: var(--color-text-meta);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-}
 
-/* Compact markdown inside the preview card — tighten spacing */
-.preview-card-assistant-text .md-body p,
-.preview-card-assistant-text .md-body li {
-  margin: 0;
-}
+  p,
+  li {
+    margin: 0;
+  }
 
-.preview-card-assistant-text .md-body p + p {
-  margin-top: 4px;
-}
+  p + p {
+    margin-top: 4px;
+  }
 
-.preview-card-assistant-text .md-body ul,
-.preview-card-assistant-text .md-body ol {
-  margin: 2px 0;
-  padding-left: 16px;
-}
+  ul,
+  ol {
+    margin: 2px 0;
+    padding-left: 16px;
+  }
 
-.preview-card-assistant-text .md-body code {
-  font-size: calc(var(--fs-12, 12px) * 0.92);
-  padding: 0 4px;
-  border-radius: 3px;
-  background: color-mix(in srgb, var(--c-text-meta) 10%, transparent);
-}
+  code {
+    font-size: calc(var(--font-size-12, 12px) * 0.92);
+    padding: 0 4px;
+    border-radius: 3px;
+    background: color-mix(in srgb, var(--color-text-meta) 10%, transparent);
+  }
 
-.preview-card-assistant-text .md-body a {
-  color: inherit;
-  text-decoration: underline;
-  text-underline-offset: 1px;
+  a {
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 1px;
+  }
 }
 
 .preview-card-files {
   margin-top: 6px;
-  font-size: var(--fs-11, 11px);
+  font-size: var(--font-size-11, 11px);
   line-height: 1.3;
-  color: var(--c-text-mute, var(--c-text-meta));
+  color: var(--color-text-mute, var(--color-text-meta));
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -379,18 +356,20 @@
 
 /* ── Glass surfaces override for the preview card ────────── */
 
-:root[data-glass-surfaces="on"] .conversation-turn-preview-card {
-  color: var(--glass-surface-text, var(--c-text));
-}
+:root[data-glass-surfaces="on"] {
+  .conversation-turn-preview-card {
+    color: var(--glass-surface-text, var(--color-text));
+  }
 
-:root[data-glass-surfaces="on"] .preview-card-user-text {
-  color: var(--glass-surface-text, var(--c-text-strong));
-}
+  .preview-card-user-text {
+    color: var(--glass-surface-text, var(--color-text-strong));
+  }
 
-:root[data-glass-surfaces="on"] .preview-card-assistant-text {
-  color: var(--glass-surface-text-meta, var(--c-text-meta));
-}
+  .preview-card-assistant-text {
+    color: var(--glass-surface-text-meta, var(--color-text-meta));
+  }
 
-:root[data-glass-surfaces="on"] .preview-card-files {
-  color: var(--glass-surface-text-meta, var(--c-text-meta));
+  .preview-card-files {
+    color: var(--glass-surface-text-meta, var(--color-text-meta));
+  }
 }

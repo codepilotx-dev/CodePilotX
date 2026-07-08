@@ -8,13 +8,13 @@
 .desktop-frame {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  background: var(--c-bg);
+  background: var(--color-bg);
 }
 
 .app-shell {
   display: flex;
   flex-direction: column;
-  background: var(--c-bg-mask);
+  background: var(--color-bg-mask);
 }
 
 .app-body {
@@ -23,6 +23,6 @@
   min-height: 0;
   display: flex;
   overflow: hidden;
-  background: var(--c-workbench-bg);
+  background: var(--color-workbench-bg);
 }
 

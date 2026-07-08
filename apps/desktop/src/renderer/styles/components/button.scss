@@ -9,22 +9,20 @@
   flex: 0 0 auto;
   padding: 0;
   border-radius: var(--radius-4);
-  color: var(--c-icon);
+  color: var(--color-icon);
   transition:
     background var(--motion-standard) var(--ease-standard),
     box-shadow var(--motion-standard) var(--ease-standard),
     color var(--motion-standard) var(--ease-standard);
   -webkit-app-region: no-drag;
-}
 
-.icon-button:hover,
-.ghost-icon-button:hover {
-  color: var(--c-text);
-}
+  &:hover {
+    color: var(--color-text);
+  }
 
-.icon-button:focus-visible,
-.ghost-icon-button:focus-visible {
-  outline: none;
+  &:focus-visible {
+    outline: none;
+  }
 }
 
 .icon-button svg,
@@ -53,29 +51,29 @@
   align-items: center;
   justify-content: center;
   padding: 0;
-  border: 1px solid var(--c-send-bg);
+  border: 1px solid var(--color-send-bg);
   border-radius: var(--radius-full);
-  background: var(--c-send-bg);
-  color: var(--c-text-on-accent);
+  background: var(--color-send-bg);
+  color: var(--color-text-on-accent);
   transition:
     background var(--motion-standard) var(--ease-standard),
     opacity var(--motion-standard) var(--ease-standard);
-}
 
-.send-button:hover:not(:disabled) {
-  border-color: var(--c-send-bg-hover);
-  background: var(--c-send-bg-hover);
-  color: var(--c-text-on-accent);
-}
+  &:hover:not(:disabled) {
+    border-color: var(--color-send-bg-hover);
+    background: var(--color-send-bg-hover);
+    color: var(--color-text-on-accent);
+  }
 
-.send-button:active:not(:disabled) {
-  opacity: 0.92;
-}
+  &:active:not(:disabled) {
+    opacity: 0.92;
+  }
 
-.send-button:disabled {
-  border-color: var(--c-send-bg-disabled);
-  background: var(--c-send-bg-disabled);
-  color: var(--c-text-meta);
+  &:disabled {
+    border-color: var(--color-send-bg-disabled);
+    background: var(--color-send-bg-disabled);
+    color: var(--color-text-meta);
+  }
 }
 
 /* --- Primary Action Buttons --- */
@@ -90,10 +88,10 @@
   min-height: 34px;
 
   padding: 0 20px;
-  border: 1px solid var(--c-send-bg);
+  border: 1px solid var(--color-send-bg);
   border-radius: var(--radius-button);
-  background: var(--c-send-bg);
-  color: var(--c-text-on-accent);
+  background: var(--color-send-bg);
+  color: var(--color-text-on-accent);
   font-size: 14px;
   font-weight: var(--font-weight-label);
 }
@@ -106,9 +104,9 @@
 .workflow-composer-card-question .inline-approval-submit:hover,
 .workflow-composer-card-permission .inline-approval-submit:hover,
 .workflow-composer-card-plan .exit-plan-mode-submit:hover {
-  border-color: var(--c-send-bg-hover);
-  background: var(--c-send-bg-hover);
-  color: var(--c-text-on-accent);
+  border-color: var(--color-send-bg-hover);
+  background: var(--color-send-bg-hover);
+  color: var(--color-text-on-accent);
 }
 
 /* --- Secondary/Default Buttons --- */
@@ -168,17 +166,17 @@
   min-height: 40px;
   height: 40px;
   padding: 0 20px;
-  border: 1px solid var(--c-border-soft);
+  border: 1px solid var(--color-border-soft);
   border-radius: var(--radius-button);
-  background: var(--c-bg);
-  color: var(--c-text-strong);
+  background: var(--color-bg);
+  color: var(--color-text-strong);
   font-size: 14px;
   font-weight: var(--font-weight-label);
   line-height: 1;
 }
 
 .settings-button:hover {
-  background-color: var(--c-bg-chip-hover);
+  background-color: var(--color-bg-chip-hover);
 }
 
 .settings-button svg {
@@ -203,9 +201,9 @@
 .right-dock-search,
 .right-dock-terminal-composer input {
   min-height: 40px;
-  border-color: var(--c-border-soft);
-  background: var(--c-bg);
-  color: var(--c-text-strong);
+  border-color: var(--color-border-soft);
+  background: var(--color-bg);
+  color: var(--color-text-strong);
 }
 
 /* --- Button / Control Border Radius --- */
@@ -245,14 +243,13 @@
 .automation-button.is-ghost:hover,
 .utility-card:hover,
 .message-card:hover {
-  border-color: color-mix(in srgb, var(--c-accent) 26%, var(--c-panel-border));
-  background: color-mix(in srgb, var(--c-accent) 5%, var(--c-panel-bg));
-  box-shadow: var(--c-panel-shadow-soft);
+  border-color: color-mix(in srgb, var(--color-accent) 26%, var(--color-panel-border));
+  background: color-mix(in srgb, var(--color-accent) 5%, var(--color-panel-bg));
+  box-shadow: var(--color-panel-shadow-soft);
 }
 
 /* --- Message Action Button --- */
 .message-action {
-
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -260,29 +257,28 @@
   border: 0;
   border-radius: 10px;
   background: transparent;
+  color: var(--color-text-meta);
 
-  color: var(--c-text-meta);
-}
+  &:hover {
+    background: var(--color-bg-hover);
+    color: var(--color-text);
+  }
 
-.message-action:hover {
-  background: var(--c-bg-hover);
-  color: var(--c-text);
-}
+  &[aria-pressed="true"],
+  &[data-state="open"] {
+    background: var(--color-bg-hover);
+    color: var(--color-text);
+  }
 
-.message-action[aria-pressed="true"],
-.message-action[data-state="open"] {
-  background: var(--c-bg-hover);
-  color: var(--c-text);
-}
+  &:disabled {
+    color: var(--color-text-disabled);
+    cursor: default;
+    opacity: 0.6;
+  }
 
-.message-action:disabled {
-  color: var(--c-text-disabled);
-  cursor: default;
-  opacity: 0.6;
-}
-
-.message-action:disabled:hover {
-  background: transparent;
+  &:disabled:hover {
+    background: transparent;
+  }
 }
 
 /* --- Window Toolbar Icon --- */
@@ -294,12 +290,12 @@
   justify-content: center;
   flex: 0 0 auto;
   border-radius: var(--radius-4);
-  color: var(--c-icon);
+  color: var(--color-icon);
   -webkit-app-region: no-drag;
-}
 
-.window-toolbar-icon:hover {
-  background: var(--c-bg-hover);
+  &:hover {
+    background: var(--color-bg-hover);
+  }
 }
 
 /* --- Dark theme overrides --- */
@@ -307,5 +303,5 @@
 :root[data-theme="dark"] .utility-card:hover,
 :root[data-theme="dark"] .automation-quick-button:hover,
 :root[data-theme="dark"] .search-result-row:hover {
-  background: color-mix(in srgb, var(--c-accent) 10%, var(--c-panel-bg));
+  background: color-mix(in srgb, var(--color-accent) 10%, var(--color-panel-bg));
 }

@@ -24,8 +24,8 @@
   gap: 10px;
   padding: 6px 10px;
   border-radius: 8px;
-  color: var(--c-text);
-  font-size: var(--fs-14);
+  color: var(--color-text);
+  font-size: var(--font-size-14);
   text-align: left;
   cursor: pointer;
   outline: none;
@@ -46,7 +46,7 @@
 .chat-input__dropdown-item:disabled,
 .sidebar-context-menu-item[data-disabled],
 .rm-model-menu .rm-menu-item[data-disabled] {
-  color: var(--c-text-disabled);
+  color: var(--color-text-disabled);
   pointer-events: none;
 }
 
@@ -70,7 +70,7 @@
 .sidebar-context-menu-item[data-highlighted],
 .sidebar-context-menu-sub-trigger[data-highlighted],
 .sidebar-context-menu-sub-trigger[data-state="open"] {
-  background: var(--c-sidebar-hover-bg);
+  background: var(--color-sidebar-hover-bg);
 }
 
 .popover-item.active,
@@ -87,5 +87,5 @@
 .sidebar-context-menu-item[data-highlighted],
 .sidebar-context-menu-sub-trigger[data-highlighted],
 .sidebar-context-menu-sub-trigger[data-state="open"] {
-  background: var(--c-sidebar-hover-bg);
+  background: var(--color-sidebar-hover-bg);
 }

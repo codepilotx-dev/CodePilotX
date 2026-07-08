@@ -5,20 +5,24 @@
   display: inline-flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--sp-2);
+  gap: var(--space-2);
   padding: 6px 10px;
-  border: 1px solid var(--c-border-soft);
+  border: 1px solid var(--color-border-soft);
   border-radius: var(--radius-4);
-  background-color: var(--c-bg-row-hover);
+  background-color: var(--color-bg-row-hover);
   cursor: pointer;
   transition:
     border-color 0.15s ease,
     background-color 0.15s ease;
-  font-size: var(--fs-13);
-  color: var(--c-text);
+  font-size: var(--font-size-13);
+  color: var(--color-text);
   outline: none !important;
   user-select: none;
   -webkit-user-select: none;
+
+  &:hover {
+    background-color: var(--color-bg-hover);
+  }
 }
 
 .settings-dropdown *,
@@ -29,35 +33,31 @@
   -webkit-user-select: none;
 }
 
-.settings-dropdown:hover {
-  background-color: var(--c-bg-hover);
-}
-
 .settings-dropdown-value {
   display: flex;
   align-items: center;
   padding-right: 30px;
-  gap: var(--sp-2);
+  gap: var(--space-2);
   min-width: 0;
-  font-size: var(--fs-13);
+  font-size: var(--font-size-13);
   white-space: nowrap;
 }
 
 .settings-dropdown-icon {
   width: var(--app-icon-size);
   height: var(--app-icon-size);
-  color: var(--c-icon);
+  color: var(--color-icon);
   flex-shrink: 0;
 }
 
 /* --- Text Inputs --- */
 .settings-input {
-  border: 1px solid var(--c-border);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-5);
-  background: var(--c-bg-card);
-  color: var(--c-text);
+  background: var(--color-bg-card);
+  color: var(--color-text);
   padding: 8px 10px;
-  font-size: var(--fs-13);
+  font-size: var(--font-size-13);
 }
 
 .settings-input-narrow {
@@ -70,7 +70,7 @@
 .settings-input-compact {
   display: inline-flex;
   align-items: center;
-  gap: var(--sp-2);
+  gap: var(--space-2);
   min-width: 0;
   width: auto;
   padding: 4px 8px;
@@ -82,49 +82,49 @@
   background: transparent;
   text-align: right;
   padding: 0;
-  font-size: var(--fs-13);
+  font-size: var(--font-size-13);
   color: inherit;
-}
 
-.settings-input-number:focus {
-  outline: none;
-}
+  &:focus {
+    outline: none;
+  }
 
-.settings-input-number::-webkit-inner-spin-button,
-.settings-input-number::-webkit-outer-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
+  &::-webkit-inner-spin-button,
+  &::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
 }
 
 .settings-textarea {
   width: min(360px, 48vw);
   resize: vertical;
-  border: 1px solid var(--c-border);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-5);
-  background: var(--c-bg-card);
-  color: var(--c-text);
+  background: var(--color-bg-card);
+  color: var(--color-text);
   padding: 8px 10px;
-  font-size: var(--fs-13);
+  font-size: var(--font-size-13);
   line-height: 1.45;
 }
 
 .settings-code-textarea {
-  font-family: var(--ff-mono);
+  font-family: var(--font-family-mono);
 }
 
 .settings-input-unit {
-  font-size: var(--fs-13);
-  color: var(--c-text-soft);
+  font-size: var(--font-size-13);
+  color: var(--color-text-soft);
 }
 
 /* --- Input Focus --- */
 .settings-input:focus,
 .settings-textarea:focus,
 .settings-input-number:focus {
-  border-color: color-mix(in srgb, var(--c-accent) 42%, var(--border-subtle));
+  border-color: color-mix(in srgb, var(--color-accent) 42%, var(--border-subtle));
 }
 
 /* --- Dark theme overrides --- */
 :root[data-theme="dark"] .chip-button.permission-chip {
-  color: var(--permission-chip-color, var(--c-text-strong));
+  color: var(--composer-permission-chip-color, var(--color-text-strong));
 }

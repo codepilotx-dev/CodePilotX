@@ -10,23 +10,23 @@
   border: 0;
   border-radius: var(--radius-6);
   background: transparent;
-  color: var(--c-accent);
-  font-size: var(--fs-12);
+  color: var(--color-accent);
+  font-size: var(--font-size-12);
   transition:
     background var(--motion-standard) var(--ease-standard),
     box-shadow var(--motion-standard) var(--ease-standard),
     color var(--motion-standard) var(--ease-standard),
     transform var(--motion-fast) var(--ease-standard);
-}
 
-.chip-button.subtle {
-  color: var(--c-text-strong);
-}
+  &.subtle {
+    color: var(--color-text-strong);
 
-.chip-button.subtle:hover,
-.chip-button.subtle.active {
-  background: var(--c-sidebar-hover-bg);
-  color: var(--c-text-strong);
+    &:hover,
+    &.active {
+      background: var(--color-sidebar-hover-bg);
+      color: var(--color-text-strong);
+    }
+  }
 }
 
 /* --- Meta Chip --- */
@@ -37,21 +37,21 @@
   max-width: 220px;
   padding: 6px 10px;
   border-radius: var(--radius-4);
-  color: var(--c-text-meta);
-  font-size: var(--fs-12);
+  color: var(--color-text-meta);
+  font-size: var(--font-size-12);
   line-height: 16px;
   transition:
     background var(--motion-standard) var(--ease-standard),
     box-shadow var(--motion-standard) var(--ease-standard),
     color var(--motion-standard) var(--ease-standard);
-}
 
-.meta-chip span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
+  span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
 }
 
 /* --- Chip & Meta-chip Hover / Active --- */
@@ -64,8 +64,8 @@
 .menubar-trigger:hover,
 .menubar-trigger[data-state="open"],
 .menubar-trigger[data-highlighted] {
-  background: var(--c-sidebar-hover-bg);
-  color: var(--c-text-strong);
+  background: var(--color-sidebar-hover-bg);
+  color: var(--color-text-strong);
 }
 
 .chip-button.active,
@@ -77,13 +77,13 @@
 .message-action[data-state="open"],
 .menubar-trigger[data-state="open"],
 .menubar-trigger[data-highlighted] {
-  background: var(--c-sidebar-hover-bg);
-  color: var(--c-text-strong);
+  background: var(--color-sidebar-hover-bg);
+  color: var(--color-text-strong);
 }
 
 .chip-button:hover,
 .meta-chip:hover {
-  background: var(--c-sidebar-hover-bg);
+  background: var(--color-sidebar-hover-bg);
 }
 
 /* --- Accent-colored chips --- */
@@ -95,7 +95,7 @@
 .profile-repository-row:hover .profile-repository-name,
 .plugins-hero-command,
 .chat-input__dropdown-check {
-  color: var(--c-accent);
+  color: var(--color-accent);
 }
 
 /* --- Rounded chip controls --- */
@@ -106,8 +106,8 @@
 
 .chip-button:hover,
 .meta-chip:hover {
-  background: var(--c-sidebar-hover-bg);
-  color: var(--c-text-strong);
+  background: var(--color-sidebar-hover-bg);
+  color: var(--color-text-strong);
 }
 
 .chip-button.active,
@@ -116,8 +116,8 @@
 .meta-chip.active,
 .meta-chip[aria-expanded="true"],
 .meta-chip[data-state="open"] {
-  background: var(--c-sidebar-hover-bg);
-  color: var(--c-text-strong);
+  background: var(--color-sidebar-hover-bg);
+  color: var(--color-text-strong);
 }
 
 .chip-button:active,
@@ -126,25 +126,27 @@
 }
 
 /* --- Dark theme chip overrides --- */
-:root[data-theme="dark"] .chip-button.subtle,
-:root[data-theme="dark"] .composer-plan-mode-chip,
-:root[data-theme="dark"] .composer-model-chip-thinking,
-:root[data-theme="dark"] .meta-chip,
-:root[data-theme="dark"] .composer-mic-button {
-  color: var(--c-text-soft);
-}
+:root[data-theme="dark"] {
+  .chip-button.subtle,
+  .composer-plan-mode-chip,
+  .composer-model-chip-thinking,
+  .meta-chip,
+  .composer-mic-button {
+    color: var(--color-text-soft);
+  }
 
-:root[data-theme="dark"] .chip-button:hover,
-:root[data-theme="dark"] .meta-chip:hover {
-  background: var(--c-sidebar-hover-bg);
-  color: var(--c-text-strong);
-}
+  .chip-button:hover,
+  .meta-chip:hover {
+    background: var(--color-sidebar-hover-bg);
+    color: var(--color-text-strong);
+  }
 
-:root[data-theme="dark"] .chip-button.active,
-:root[data-theme="dark"] .chip-button[aria-expanded="true"],
-:root[data-theme="dark"] .chip-button[data-state="open"],
-:root[data-theme="dark"] .meta-chip.active,
-:root[data-theme="dark"] .meta-chip[aria-expanded="true"],
-:root[data-theme="dark"] .meta-chip[data-state="open"] {
-  background: var(--c-sidebar-hover-bg);
+  .chip-button.active,
+  .chip-button[aria-expanded="true"],
+  .chip-button[data-state="open"],
+  .meta-chip.active,
+  .meta-chip[aria-expanded="true"],
+  .meta-chip[data-state="open"] {
+    background: var(--color-sidebar-hover-bg);
+  }
 }

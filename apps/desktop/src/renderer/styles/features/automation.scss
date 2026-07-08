@@ -9,10 +9,8 @@
   margin: 0 auto;
   padding: var(--layout-page-pad-y) var(--layout-page-pad-x)
     var(--layout-page-pad-bottom);
-  color: var(--c-text-strong);
+  color: var(--color-text-strong);
 }
-
-
 
 .automation-header {
   display: flex;
@@ -22,45 +20,33 @@
   flex-wrap: wrap;
 }
 
-
-
 .automation-header-meta {
   display: grid;
   gap: 6px;
+
+  h1 {
+    margin: 0;
+    font-size: var(--type-page-title);
+    font-weight: var(--font-weight-heading);
+    color: var(--color-text-strong);
+  }
+
+  p {
+    margin: 0;
+    font-size: var(--font-size-13);
+    color: var(--color-text-soft);
+  }
+
+  a {
+    color: var(--color-accent);
+    text-decoration: none;
+    margin-left: 4px;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
 }
-
-
-
-.automation-header-meta h1 {
-  margin: 0;
-  font-size: var(--type-page-title);
-  font-weight: var(--font-weight-heading);
-  color: var(--c-text-strong);
-}
-
-
-
-.automation-header-meta p {
-  margin: 0;
-  font-size: var(--fs-13);
-  color: var(--c-text-soft);
-}
-
-
-
-.automation-header-meta a {
-  color: var(--c-accent);
-  text-decoration: none;
-  margin-left: 4px;
-}
-
-
-
-.automation-header-meta a:hover {
-  text-decoration: underline;
-}
-
-
 
 .automation-header-actions {
   display: inline-flex;
@@ -68,13 +54,9 @@
   gap: var(--layout-toolbar-gap);
 }
 
-
-
 .automation-button.is-ghost {
   background: transparent;
 }
-
-
 
 .automation-canvas {
   display: grid;
@@ -87,20 +69,16 @@
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-panel);
   background:
-    linear-gradient(180deg, var(--c-panel-bg), var(--c-panel-elevated-bg)),
-    var(--c-panel-bg);
-  box-shadow: var(--c-panel-shadow-raised);
+    linear-gradient(180deg, var(--color-panel-bg), var(--color-panel-elevated-bg)),
+    var(--color-panel-bg);
+  box-shadow: var(--color-panel-shadow-raised);
 }
-
-
 
 .automation-empty-state {
   display: grid;
   place-items: center;
-  gap: var(--sp-4);
+  gap: var(--space-4);
 }
-
-
 
 .automation-cloud {
   position: relative;
@@ -109,10 +87,8 @@
   justify-content: center;
   width: 120px;
   height: 84px;
-  color: var(--c-text-mute);
+  color: var(--color-text-mute);
 }
-
-
 
 .automation-cloud-prompt {
   position: absolute;
@@ -122,19 +98,15 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--c-text-meta);
+  color: var(--color-text-meta);
 }
-
-
 
 .automation-empty-title {
   margin: 0;
   font-size: var(--type-section-title);
   font-weight: var(--font-weight-label);
-  color: var(--c-text-strong);
+  color: var(--color-text-strong);
 }
-
-
 
 .automation-quick-starts {
   list-style: none;
@@ -147,8 +119,6 @@
   justify-content: center;
 }
 
-
-
 .automation-quick-button {
   display: inline-flex;
   align-items: center;
@@ -157,51 +127,45 @@
   padding: 0 16px;
   border-radius: 14px;
   border: 1px solid var(--border-subtle);
-  background: var(--c-panel-bg);
+  background: var(--color-panel-bg);
   box-shadow: none;
-  color: var(--c-text-strong);
-  font-size: var(--fs-13);
+  color: var(--color-text-strong);
+  font-size: var(--font-size-13);
   cursor: pointer;
   transition:
     background var(--motion-standard) var(--ease-standard),
     border-color var(--motion-standard) var(--ease-standard),
     box-shadow var(--motion-standard) var(--ease-standard),
     color var(--motion-standard) var(--ease-standard);
+
+  &:hover {
+    border-color: var(--color-panel-border);
+    background: var(--color-bg-chip-hover);
+  }
 }
 
 .automation-button {
   border-color: var(--border-subtle);
   border-radius: 14px;
   box-shadow: none;
+
+  &:hover {
+    border-color: var(--color-panel-border);
+    background: var(--color-bg-chip-hover);
+  }
 }
-
-
-
-.automation-quick-button:hover {
-  border-color: var(--c-panel-border);
-  background: var(--c-bg-chip-hover);
-}
-
-.automation-button:hover {
-  border-color: var(--c-panel-border);
-  background: var(--c-bg-chip-hover);
-}
-
-
 
 .automation-quick-icon {
   display: inline-flex;
   align-items: center;
-  color: var(--c-text-strong);
-}
+  color: var(--color-text-strong);
 
-
-
-.automation-quick-icon svg {
-  width: var(--app-icon-size-md);
-  height: var(--app-icon-size-md);
-  display: block;
-  stroke-width: var(--app-icon-stroke-width);
+  svg {
+    width: var(--app-icon-size-md);
+    height: var(--app-icon-size-md);
+    display: block;
+    stroke-width: var(--app-icon-stroke-width);
+  }
 }
 
 .automation-button:focus-visible,
