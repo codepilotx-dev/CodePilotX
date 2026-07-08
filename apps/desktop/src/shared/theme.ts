@@ -125,17 +125,26 @@ export const DEFAULT_LIGHT_THEME: DesktopThemeConfigV1 = {
 export const DEFAULT_DARK_THEME: DesktopThemeConfigV1 = {
   codeThemeId: 'codex',
   theme: {
-    accent: '#cc785c',
-    contrast: 60,
-    fonts: DEFAULT_FONTS,
-    ink: '#faf9f5',
+    accent: '#0169cc',
+    contrast: 40,
+    fonts: {
+      ui: {
+        preset: 'MiSans VF Regular',
+        fallback: DEFAULT_UI_FONT.fallback,
+      },
+      code: {
+        preset: 'JetBrains Mono SemiBold',
+        fallback: DEFAULT_CODE_FONT.fallback,
+      },
+    },
+    ink: '#fcfcfc',
     opaqueWindows: true,
     semanticColors: {
-      diffAdded: '#73c987',
-      diffRemoved: '#d96a65',
-      skill: '#cc785c',
+      diffAdded: '#00a240',
+      diffRemoved: '#e02e2a',
+      skill: '#b06dff',
     },
-    surface: '#181715',
+    surface: '#111111',
   },
   variant: 'dark',
 }

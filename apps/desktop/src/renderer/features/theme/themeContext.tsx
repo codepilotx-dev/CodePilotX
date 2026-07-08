@@ -337,7 +337,6 @@ function applyDesktopTheme(
   root.classList.toggle('dracula-theme', dracula)
   const bgSoftMix = contrastMix(contrast, 1, 6)
   const bgRowHoverMix = variant === 'dark' ? 12 : 7
-  const stateActiveMix = variant === 'dark' ? 22 : 15
   const layoutTokens = deriveLayoutThemeTokens(theme, variant, contrast)
   const sidebarHoverBg =
     layoutTokens['--color-sidebar-hover-bg'] ?? surfaceInkMix(theme, 3 + contrast * 0.19)
@@ -411,11 +410,11 @@ function applyDesktopTheme(
   root.style.setProperty('--color-send-bg', theme.accent)
   root.style.setProperty(
     '--color-send-bg-hover',
-    isClaudePrimaryAccent(theme.accent) ? '#a9583e' : accentMix(theme, variant === 'dark' ? 12 : 18),
+    isDefaultDarkAccent(theme.accent) ? '#a9583e' : accentMix(theme, variant === 'dark' ? 12 : 18),
   )
   root.style.setProperty(
     '--color-send-bg-disabled',
-    isClaudePrimaryAccent(theme.accent) ? '#e6dfd8' : accentMix(theme, 50),
+    isDefaultDarkAccent(theme.accent) ? '#e6dfd8' : accentMix(theme, 50),
   )
   root.style.setProperty('--color-user-bubble-bg', surfaceInkMix(theme, bgRowHoverMix))
   root.style.setProperty('--color-scrollbar', surfaceInkMix(theme, contrastMix(contrast, 8, 14)))
@@ -424,7 +423,10 @@ function applyDesktopTheme(
   root.style.setProperty('--color-diff-removed', theme.semanticColors.diffRemoved)
   root.style.setProperty('--color-skill', theme.semanticColors.skill)
   root.style.setProperty('--state-hover-bg', sidebarHoverBg)
-  root.style.setProperty('--state-active-bg', colorMix(theme.accent, stateActiveMix, 'transparent'))
+  root.style.setProperty('--state-active-bg', surfaceInkMix(theme, 5 + contrast * 0.22))
+  root.style.setProperty('--color-bg-subtle', surfaceInkMix(theme, contrast * 0.08))
+  root.style.setProperty('--color-accent-a3', colorMix(theme.accent, 30, 'transparent'))
+  root.style.setProperty('--color-accent-11', colorMix(theme.accent, 85, theme.surface))
   for (const [name, value] of Object.entries(layoutTokens)) {
     root.style.setProperty(name, value)
   }
@@ -541,7 +543,7 @@ function colorMix(first: string, firstPercent: number, second: string): string {
   return `color-mix(in srgb, ${first} ${firstPercent}%, ${second})`
 }
 
-function isClaudePrimaryAccent(accent: string): boolean {
+function isDefaultDarkAccent(accent: string): boolean {
   return accent.toLowerCase() === '#cc785c'
 }
 
