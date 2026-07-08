@@ -41,8 +41,8 @@ function withEnv(key: string, value: string): Disposable {
 describe('rust sidecar runtime options', () => {
   test('resolves explicit Rust app-server executable from env', () => {
     const envPath = process.platform === 'win32'
-      ? 'C:\\tools\\codex-app-server.exe'
-      : '/tools/codex-app-server'
+      ? 'C:\\tools\\codepilotx-app-server.exe'
+      : '/tools/codepilotx-app-server'
 
     expect(
       resolveRustAppServerExecutable({
@@ -53,11 +53,11 @@ describe('rust sidecar runtime options', () => {
 
   test('ignores reference codex-main Rust app-server env override', () => {
     const binaryName = process.platform === 'win32'
-      ? 'codex-app-server.exe'
-      : 'codex-app-server'
+      ? 'codepilotx-app-server.exe'
+      : 'codepilotx-app-server'
     const referencePath = process.platform === 'win32'
-      ? 'D:\\GitHubProject\\Agent\\codex-main\\codex-rs\\target\\debug\\codex-app-server.exe'
-      : '/GitHubProject/Agent/codex-main/codex-rs/target/debug/codex-app-server'
+      ? 'D:\\GitHubProject\\Agent\\codex-main\\codex-rs\\target\\debug\\codepilotx-app-server.exe'
+      : '/GitHubProject/Agent/codex-main/codex-rs/target/debug/codepilotx-app-server'
 
     expect(
       resolveRustAppServerExecutableInfo({
@@ -71,8 +71,8 @@ describe('rust sidecar runtime options', () => {
 
   test('defaults to current workspace Rust app-server executable', () => {
     const binaryName = process.platform === 'win32'
-      ? 'codex-app-server.exe'
-      : 'codex-app-server'
+      ? 'codepilotx-app-server.exe'
+      : 'codepilotx-app-server'
 
     expect(resolveRustAppServerExecutable({} as NodeJS.ProcessEnv)).toBe(
       resolve(process.cwd(), 'rust', 'codex-rs', 'target', 'debug', binaryName),
@@ -105,24 +105,43 @@ describe('rust sidecar runtime options', () => {
     expect(options.env.CODEPILOTX_SIDECAR_MODEL).toBe('test-model')
   })
 
-  test('inherits process.env including CODEX_HOME', async () => {
-    using _restore = withEnv('CODEX_HOME', '/custom/codex-home')
+  test('sets CODEPILOTX_CONFIG_DIR and CODEPILOTX_SQLITE_HOME from configDirectoryPath, overriding process.env', async () => {
+    using _restore = withEnv('CODEPILOTX_CONFIG_DIR', '/should-be-overridden')
 
     const context = {
       sessionId: 'session-2',
       workspacePath: process.cwd(),
       model: 'test-model',
+      configDirectoryPath: 'C:\\Users\\TestUser\\.codepilotx',
       emit: () => {},
       requestPermission: async () => ({ behavior: 'deny' }),
     } satisfies DesktopAgentRuntimeContext
 
     const options = await createRustSidecarOptions(context)
 
-    // CODEX_HOME 已透传
-    expect(options.env.CODEX_HOME).toBe('/custom/codex-home')
+    // CODEPILOTX_CONFIG_DIR must be the explicit configDirectoryPath, NOT inherited from process.env
+    expect(options.env.CODEPILOTX_CONFIG_DIR).toBe('C:\\Users\\TestUser\\.codepilotx')
+    // CODEPILOTX_SQLITE_HOME must point to the same directory
+    expect(options.env.CODEPILOTX_SQLITE_HOME).toBe('C:\\Users\\TestUser\\.codepilotx')
     // sidecar 专属变量仍正常生成
     expect(options.env.CODEPILOTX_SIDECAR_SESSION_ID).toBe('session-2')
     expect(options.env.CODEPILOTX_SIDECAR_MODEL).toBe('test-model')
+  })
+
+  test('sets CODEPILOTX_CONFIG_DIR and CODEPILOTX_SQLITE_HOME from configDirectoryPath even without env override', async () => {
+    const context = {
+      sessionId: 'session-2b',
+      workspacePath: process.cwd(),
+      model: 'test-model',
+      configDirectoryPath: '/home/test/.codepilotx',
+      emit: () => {},
+      requestPermission: async () => ({ behavior: 'deny' }),
+    } satisfies DesktopAgentRuntimeContext
+
+    const options = await createRustSidecarOptions(context)
+
+    expect(options.env.CODEPILOTX_CONFIG_DIR).toBe('/home/test/.codepilotx')
+    expect(options.env.CODEPILOTX_SQLITE_HOME).toBe('/home/test/.codepilotx')
   })
 
   test('sidecar env overrides process.env on conflict', async () => {

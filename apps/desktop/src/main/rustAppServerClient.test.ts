@@ -50,7 +50,7 @@ describe('RustAppServerClient', () => {
         jsonrpc: '2.0',
         id: sent.id,
         result: {
-          userAgent: 'codex-app-server/0.1.0',
+          userAgent: 'codepilotx-app-server/0.1.0',
           codexHome: '/home/user/.codex',
           platformFamily: 'unix',
           platformOs: 'linux',
@@ -59,7 +59,7 @@ describe('RustAppServerClient', () => {
     )
 
     const result = await resultPromise
-    expect(result.userAgent).toBe('codex-app-server/0.1.0')
+    expect(result.userAgent).toBe('codepilotx-app-server/0.1.0')
     expect(result.codexHome).toBe('/home/user/.codex')
   })
 

@@ -89,8 +89,8 @@ export function resolveRustAppServerExecutableInfo(
   env: NodeJS.ProcessEnv = process.env,
 ): RustAppServerExecutableInfo {
   const binaryName = process.platform === 'win32'
-    ? 'codex-app-server.exe'
-    : 'codex-app-server'
+    ? 'codepilotx-app-server.exe'
+    : 'codepilotx-app-server'
   const explicitPath = env[RUST_APP_SERVER_BINARY_ENV]?.trim()
   if (explicitPath && !isReferenceCodexMainAppServerPath(explicitPath)) {
     return { path: resolve(explicitPath), source: 'env-override' }
@@ -176,6 +176,14 @@ export async function createRustSidecarOptions(
         sessionName: context.sessionName,
       }),
       ...providerConfig.env,
+      // Explicitly override Rust state directories to use desktop config dir,
+      // so Rust sidecar never inherits a stale path from env.
+      ...(context.configDirectoryPath
+        ? {
+            CODEPILOTX_CONFIG_DIR: context.configDirectoryPath,
+            CODEPILOTX_SQLITE_HOME: context.configDirectoryPath,
+          }
+        : {}),
     },
     startTimeoutMs: 15_000,
   }
@@ -481,8 +489,8 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
     if (!existsSync(executablePath)) {
       throw new SidecarStartError(
         `Rust app-server binary not found at: ${executablePath}. ` +
-          `Build it with "cargo build -p codex-app-server" in rust/codex-rs, ` +
-          `or set ${RUST_APP_SERVER_BINARY_ENV} to a codex-app-server binary.`,
+          `Build it with "cargo build -p codex-app-server --bin codepilotx-app-server" in rust/codex-rs, ` +
+          `or set ${RUST_APP_SERVER_BINARY_ENV} to a codepilotx-app-server binary.`,
       )
     }
 

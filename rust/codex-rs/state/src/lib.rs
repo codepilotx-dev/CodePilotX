@@ -91,7 +91,7 @@ pub use telemetry::record_backfill_gate;
 pub use telemetry::record_fallback;
 
 /// Environment variable for overriding the SQLite state database home directory.
-pub const SQLITE_HOME_ENV: &str = "CODEX_SQLITE_HOME";
+pub const SQLITE_HOME_ENV: &str = "CODEPILOTX_SQLITE_HOME";
 
 pub const LOGS_DB_FILENAME: &str = "logs_2.sqlite";
 pub const GOALS_DB_FILENAME: &str = "goals_1.sqlite";
