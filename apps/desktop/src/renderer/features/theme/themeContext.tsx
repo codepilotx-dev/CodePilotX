@@ -337,11 +337,10 @@ function applyDesktopTheme(
   root.classList.toggle('dracula-theme', dracula)
   const bgSoftMix = contrastMix(contrast, 1, 6)
   const bgRowHoverMix = variant === 'dark' ? 12 : 7
-  const stateHoverMix = variant === 'dark' ? 14 : 9
   const stateActiveMix = variant === 'dark' ? 22 : 15
   const layoutTokens = deriveLayoutThemeTokens(theme, variant, contrast)
   const sidebarHoverBg =
-    layoutTokens['--color-sidebar-hover-bg'] ?? colorMix(theme.accent, stateHoverMix, 'transparent')
+    layoutTokens['--color-sidebar-hover-bg'] ?? surfaceInkMix(theme, 3 + contrast * 0.19)
   root.style.setProperty('--contrast', String(contrast))
   root.style.setProperty('--color-bg', theme.surface)
   root.style.setProperty('--color-bg-soft', surfaceInkMix(theme, bgSoftMix))
@@ -405,7 +404,7 @@ function applyDesktopTheme(
   root.style.setProperty('--color-text-placeholder', surfaceInkMix(theme, contrastMix(contrast, 25, 40)))
   root.style.setProperty('--color-text-disabled', surfaceInkMix(theme, contrastMix(contrast, 15, 25)))
   root.style.setProperty('--color-text-on-accent', '#ffffff')
-  root.style.setProperty('--color-icon', surfaceInkMix(theme, contrastMix(contrast, 50, 65)))
+  root.style.setProperty('--color-icon', theme.ink)
   root.style.setProperty('--color-icon-soft', surfaceInkMix(theme, contrastMix(contrast, 40, 55)))
   root.style.setProperty('--color-icon-arrow', surfaceInkMix(theme, contrastMix(contrast, 30, 45)))
   root.style.setProperty('--color-accent', theme.accent)
@@ -469,7 +468,6 @@ function deriveLayoutThemeTokens(
   contrast: number,
 ): Record<string, string> {
   if (variant === 'dark') {
-    const chromeMix = contrastMix(contrast, 4, 12)
     const sidebarMix = contrastMix(contrast, 6, 15)
     const workbenchMix = contrastMix(contrast, 10, 22)
     const panelMix = contrastMix(contrast, 15, 28)
@@ -487,10 +485,10 @@ function deriveLayoutThemeTokens(
       '--shadow-resting': '0 1px 2px rgba(0, 0, 0, 0.24), 0 1px 0 rgba(255, 255, 255, 0.03) inset',
       '--shadow-raised': '0 12px 34px rgba(0, 0, 0, 0.28), 0 1px 2px rgba(0, 0, 0, 0.22)',
       '--shadow-float': '0 24px 64px rgba(0, 0, 0, 0.38), 0 8px 24px rgba(0, 0, 0, 0.28)',
-      '--color-chrome-bg': surfaceInkMix(theme, chromeMix),
-      '--color-sidebar-bg': surfaceInkMix(theme, sidebarMix),
-      '--color-sidebar-active-bg': colorMix(theme.accent, 22, surfaceInkMix(theme, panelMix)),
-      '--color-sidebar-hover-bg': 'rgba(250, 249, 245, 0.06)',
+      '--color-chrome-bg': surfaceInkMix(theme, contrast * 0.15),
+      '--color-sidebar-bg': surfaceInkMix(theme, contrast * 0.15),
+      '--color-sidebar-active-bg': surfaceInkMix(theme, 3 + contrast * 0.19),
+      '--color-sidebar-hover-bg': surfaceInkMix(theme, 3 + contrast * 0.19),
       '--color-workbench-bg': surfaceInkMix(theme, workbenchMix),
       '--color-panel-bg': surfaceInkMix(theme, panelMix),
       '--color-panel-elevated-bg': surfaceInkMix(theme, raisedMix),
@@ -517,10 +515,10 @@ function deriveLayoutThemeTokens(
     '--shadow-resting': `0 1px 2px ${colorMix(theme.ink, 5, 'transparent')}, 0 1px 0 ${colorMix(theme.surface, 70, 'transparent')} inset`,
     '--shadow-raised': `0 10px 28px ${colorMix(theme.ink, 8, 'transparent')}, 0 1px 2px ${colorMix(theme.ink, 5, 'transparent')}`,
     '--shadow-float': `0 22px 60px ${colorMix(theme.ink, 12, 'transparent')}, 0 8px 24px ${colorMix(theme.ink, 8, 'transparent')}`,
-    '--color-chrome-bg': surfaceInkMix(theme, contrastMix(contrast, 1, 4)),
-    '--color-sidebar-bg': surfaceInkMix(theme, subtleMix),
-    '--color-sidebar-active-bg': colorMix(theme.accent, 18, surfaceInkMix(theme, raisedMix)),
-    '--color-sidebar-hover-bg': colorMix(theme.ink, 6, 'transparent'),
+    '--color-chrome-bg': surfaceInkMix(theme, contrast * 0.15),
+    '--color-sidebar-bg': surfaceInkMix(theme, contrast * 0.15),
+    '--color-sidebar-active-bg': surfaceInkMix(theme, 3 + contrast * 0.19),
+    '--color-sidebar-hover-bg': surfaceInkMix(theme, 3 + contrast * 0.19),
     '--color-workbench-bg': surfaceInkMix(theme, workbenchMix),
     '--color-panel-bg': theme.surface,
     '--color-panel-elevated-bg': surfaceInkMix(theme, raisedMix),
