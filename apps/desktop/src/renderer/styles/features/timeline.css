@@ -63,6 +63,9 @@
 }
 
 [data-component="session-turn"][data-slot="user-message"] {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
   padding-top: 12px;
   padding-bottom: 12px;
 }
@@ -124,13 +127,6 @@
 }
 
 /* ── Data-attribute based contextual styling ──────────── */
-
-/* User messages: override for virtual-list context */
-[data-component="session-turn"][data-slot="user-message"] {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-}
 
 [data-component="session-turn"][data-slot="user-message"]
   .chat-message-row.user {

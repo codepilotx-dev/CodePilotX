@@ -12,8 +12,8 @@
   max-width: var(--composer-w);
   display: flex;
   flex-direction: column;
-  border-radius: calc(var(--border-r) + 8px);
-  background: #f7f7f7;
+  border-radius: var(--radius-panel);
+  background: transparent;
   overflow: visible;
 }
 
@@ -46,12 +46,19 @@
 
 .composer-top {
   position: relative;
-  padding: calc(var(--layout-toolbar-gap) - 2px)
-    calc(var(--layout-card-pad) - 8px) calc(var(--layout-toolbar-gap) - 4px);
-  border: 1px solid var(--c-border);
-  background: #fffeff;
-  border-radius: calc(var(--border-r) + 8px);
-  min-height: 100px;
+  padding: var(
+    --composer-top-padding,
+    calc(var(--layout-toolbar-gap) - 2px) calc(var(--layout-card-pad) - 8px)
+      calc(var(--layout-toolbar-gap) - 4px)
+  );
+  border: var(
+    --composer-top-border,
+    1px solid var(--composer-top-border-color, var(--c-panel-border))
+  );
+  border-radius: var(--composer-top-radius, var(--radius-panel));
+  background: var(--composer-top-bg, var(--c-panel-bg));
+  box-shadow: var(--composer-top-shadow, none);
+  min-height: var(--composer-top-min-height, 98px);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -204,7 +211,8 @@
   border: 0;
   background: transparent;
   color: var(--c-text);
-  font-size: var(--fs-14);
+  font-size: var(--fs-15);
+  line-height: 1.6;
   overflow-y: auto;
   transition: height 0.18s ease-out;
 }
@@ -216,13 +224,12 @@
 }
 
 .composer-input textarea::placeholder {
-  color: var(--c-text-mute);
+  color: var(--c-text-soft);
 }
 
 .composer-toolbar,
 .toolbar-left,
-.toolbar-right,
-.composer-bottom {
+.toolbar-right {
   display: flex;
   align-items: center;
 }
@@ -264,6 +271,7 @@
 
 .composer .icon-button:hover {
   background: var(--c-sidebar-hover-bg);
+  color: var(--c-text-strong);
 }
 
 .composer .icon-button.active {
@@ -271,9 +279,30 @@
   color: var(--c-text);
 }
 
+.composer .icon-button:active {
+  transform: translateY(1px);
+}
+
 .composer-bottom {
-  gap: 10px;
-  padding: 6px;
+  display: var(--composer-bottom-display, flex);
+  align-items: center;
+  gap: var(--composer-bottom-gap, 10px);
+  width: var(--composer-bottom-width, auto);
+  max-width: var(--composer-bottom-max-width, none);
+  margin-top: var(
+    --composer-bottom-margin-top,
+    calc(var(--layout-toolbar-gap) - 4px)
+  );
+  padding: var(
+    --composer-bottom-padding,
+    calc(var(--layout-toolbar-gap) - 4px)
+      calc(var(--layout-toolbar-gap) - 8px)
+      calc(var(--layout-toolbar-gap) - 10px)
+  );
+  border-top: var(
+    --composer-bottom-border-top,
+    1px solid var(--composer-bottom-border-color, var(--border-muted))
+  );
 }
 
 .composer-model-chip {
@@ -518,7 +547,7 @@
   background: conic-gradient(
     var(--c-text-soft) calc(var(--context-usage-progress, 0) * 1%),
     color-mix(in srgb, var(--c-text-soft) 20%, transparent)
-      calc(var(--context-usage-progress, 0) * 1%),
+    calc(var(--context-usage-progress, 0) * 1%),
     color-mix(in srgb, var(--c-text-soft) 20%, transparent) 360deg
   );
 }
@@ -793,85 +822,14 @@
   font-size: 16px;
 }
 
-.chat-input__dropdown-switch {
-  width: 36px;
-  height: 22px;
-  margin-left: auto;
-  flex: 0 0 auto;
-  border-radius: var(--radius-full);
-  background: color-mix(in srgb, var(--c-text-strong) 12%, var(--c-panel-bg));
-  transition: background 0.15s ease-out;
-  cursor: pointer;
-}
-
-.chat-input__dropdown-switch[aria-checked="true"] {
-  background: var(--c-accent);
-}
-
-.chat-input__dropdown-switch-thumb {
-  display: block;
-  width: 16px;
-  height: 16px;
-  margin: 3px;
-  border-radius: 50%;
-  background: var(--c-bg);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
-  transition: transform 0.15s ease-out;
-}
-
-.chat-input__dropdown-switch[aria-checked="true"]
-  .chat-input__dropdown-switch-thumb {
-  transform: translateX(14px);
-}
-
-:root[data-theme="dark"] .chat-input__dropdown-switch {
-  background: color-mix(in srgb, var(--c-text-strong) 16%, var(--c-panel-bg));
-}
-
-:root[data-theme="dark"] .chat-input__dropdown-switch-thumb {
-  background: var(--c-bg);
-}
-
-/* Desktop composer surface overrides. */
-.composer {
-  border-radius: var(--radius-panel);
-  background: transparent;
-}
-
-.composer-top {
-  min-height: 98px;
-  border-color: var(--c-panel-border);
-  border-radius: var(--radius-panel);
-  background: var(--c-panel-bg);
-}
-
-.composer-input textarea {
-  font-size: var(--fs-15);
-  line-height: 1.6;
-}
-
-.composer-input textarea::placeholder {
-  color: var(--c-text-soft);
-}
-
-.composer-bottom {
-  margin-top: calc(var(--layout-toolbar-gap) - 4px);
-  padding: calc(var(--layout-toolbar-gap) - 4px)
-    calc(var(--layout-toolbar-gap) - 8px) calc(var(--layout-toolbar-gap) - 10px);
-  border-top: 1px solid var(--border-muted);
-}
-
 :root[data-theme="dark"] .composer-input textarea::placeholder {
   color: var(--c-text-meta);
 }
 
-:root[data-theme="dark"] .composer-top {
-  border-color: rgba(255, 255, 255, 0.075);
-  background: color-mix(in srgb, var(--c-bg) 78%, var(--surface-panel));
-}
-
-:root[data-theme="dark"] .composer-bottom {
-  border-top-color: rgba(255, 255, 255, 0.055);
+:root[data-theme="dark"] {
+  --composer-top-border-color: rgba(255, 255, 255, 0.075);
+  --composer-top-bg: color-mix(in srgb, var(--c-bg) 78%, var(--surface-panel));
+  --composer-bottom-border-color: rgba(255, 255, 255, 0.055);
 }
 
 :root[data-theme="dark"] .composer-model-chip-label {
@@ -887,6 +845,18 @@
 
 /* Shared composer visual shell — used by main composer and side chat composer. */
 .composer-surface {
+  --composer-top-min-height: 0;
+  --composer-top-padding: 0;
+  --composer-top-border: 0;
+  --composer-top-bg: transparent;
+  --composer-top-shadow: none;
+  --composer-bottom-display: none;
+  --composer-bottom-width: 100%;
+  --composer-bottom-max-width: none;
+  --composer-bottom-margin-top: 8px;
+  --composer-bottom-padding: 8px 0 0;
+  --composer-bottom-border-top: 1px solid var(--c-border-faint);
+
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -908,25 +878,8 @@
   padding-bottom: 0;
 }
 
-.composer-surface .composer-top {
-  min-height: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-}
-
-.composer-surface .composer-bottom {
-  display: none;
-  width: 100%;
-  max-width: none;
-  margin-top: 8px;
-  padding: 8px 0 0;
-  border-top: 1px solid var(--c-border-faint);
-}
-
-.composer-surface--display-bottom .composer-bottom {
-  display: flex;
+.composer-surface--display-bottom {
+  --composer-bottom-display: flex;
 }
 
 .composer-surface .inline-approval-card,

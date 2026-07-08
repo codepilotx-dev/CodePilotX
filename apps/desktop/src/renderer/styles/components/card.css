@@ -14,7 +14,6 @@
 }
 
 /* --- Elevated Surface (popover / raised card level) --- */
-.ds-surface-raised,
 .ds-surface-raised {
   border-color: var(--c-panel-border);
   background: var(--c-panel-bg);

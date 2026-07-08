@@ -98,16 +98,14 @@
   color: var(--c-accent);
 }
 
-/* --- Composer Desktop Override (from composer.css bottom section) --- */
-.composer .icon-button,
+/* --- Rounded chip controls --- */
 .chip-button,
 .meta-chip {
   border-radius: 999px;
 }
 
 .chip-button:hover,
-.meta-chip:hover,
-.composer .icon-button:hover {
+.meta-chip:hover {
   background: var(--c-sidebar-hover-bg);
   color: var(--c-text-strong);
 }
@@ -123,8 +121,7 @@
 }
 
 .chip-button:active,
-.meta-chip:active,
-.composer .icon-button:active {
+.meta-chip:active {
   transform: translateY(1px);
 }
 
@@ -138,8 +135,7 @@
 }
 
 :root[data-theme="dark"] .chip-button:hover,
-:root[data-theme="dark"] .meta-chip:hover,
-:root[data-theme="dark"] .composer .icon-button:hover {
+:root[data-theme="dark"] .meta-chip:hover {
   background: var(--c-sidebar-hover-bg);
   color: var(--c-text-strong);
 }

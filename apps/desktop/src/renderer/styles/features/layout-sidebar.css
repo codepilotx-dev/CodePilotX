@@ -18,19 +18,7 @@
 .desktop-sidebar,
 .desktop-sidebar-hover-overlay {
   --sidebar-pad-x: var(--layout-sidebar-row-pad-x);
-}
-
-.sidebar-layout {
-  padding: 14px 10px;
-}
-
-.sidebar-row,
-.sidebar-section-header,
-.sidebar-show-more-button,
-.sidebar-empty,
-.settings-nav-item,
-.settings-back-btn {
-  border-radius: 10px;
+  --sidebar-item-gap: 8px;
 }
 
 .sidebar-nav-link.active,
@@ -45,12 +33,6 @@
   color: color-mix(in srgb, var(--c-text-meta) 82%, transparent);
   font-size: var(--fs-12);
   letter-spacing: 0.02em;
-}
-
-.desktop-sidebar,
-.desktop-sidebar-hover-overlay {
-  --sidebar-pad-x: var(--layout-sidebar-row-pad-x);
-  --sidebar-item-gap: 8px;
 }
 
 .desktop-sidebar.is-resizing {
@@ -742,14 +724,14 @@
   pointer-events: none;
   background:
     radial-gradient(
-      circle,
-      color-mix(in srgb, var(--c-accent) 10%, transparent) 0 54%,
-      transparent 55%
-    ),
+    circle,
+    color-mix(in srgb, var(--c-accent) 10%, transparent) 0 54%,
+    transparent 55%
+  ),
     conic-gradient(
-      var(--c-accent) var(--sidebar-collapse-progress),
-      transparent 0turn
-    );
+    var(--c-accent) var(--sidebar-collapse-progress),
+    transparent 0turn
+  );
   box-shadow:
     0 0 0 1px color-mix(in srgb, var(--c-accent) 42%, transparent),
     var(--shadow-2);
@@ -757,7 +739,7 @@
   transform: scale(1);
   animation:
     sidebar-collapse-confirm-fill var(--sidebar-collapse-target-ms) linear
-      forwards,
+    forwards,
     sidebar-collapse-confirm-pulse var(--motion-standard) var(--ease-standard);
 }
 

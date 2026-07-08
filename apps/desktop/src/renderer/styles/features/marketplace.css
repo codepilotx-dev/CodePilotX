@@ -5,7 +5,7 @@
   grid-template-rows: auto auto auto auto 1fr;
   gap: var(--layout-section-gap);
   width: 100%;
-  max-width: 1080px;
+  max-width: var(--layout-bento-w);
   margin: 0 auto;
   padding: var(--layout-page-pad-y) var(--layout-page-pad-x)
     var(--layout-page-pad-bottom);
@@ -74,7 +74,7 @@
 }
 
 .plugins-hero-header {
-  text-align: center;
+  text-align: left;
   margin-top: var(--sp-3);
 }
 
@@ -99,10 +99,18 @@
   gap: 10px;
   height: 38px;
   padding: 0 14px;
-  border-radius: var(--radius-4);
-  border: 1px solid var(--c-border-soft);
-  background: var(--c-bg);
+  border-radius: var(--radius-card);
+  border: 1px solid var(--border-subtle);
+  background: var(--c-panel-bg);
+  box-shadow: none;
   color: var(--c-icon);
+  transition:
+    border-color var(--motion-standard) var(--ease-standard),
+    box-shadow var(--motion-standard) var(--ease-standard);
+}
+
+.plugins-search:focus-within {
+  border-color: color-mix(in srgb, var(--c-accent) 42%, var(--border-subtle));
 }
 
 .plugins-search input {
@@ -124,13 +132,17 @@
   gap: 6px;
   height: 38px;
   padding: 0 12px;
-  border-radius: var(--radius-4);
-  border: 1px solid var(--c-border-soft);
-  background: var(--c-bg);
+  border-radius: var(--radius-card);
+  border: 1px solid var(--border-subtle);
+  background: var(--c-panel-bg);
+  box-shadow: none;
   color: var(--c-text-strong);
   font-size: var(--fs-13);
   cursor: pointer;
   white-space: nowrap;
+  transition:
+    border-color var(--motion-standard) var(--ease-standard),
+    box-shadow var(--motion-standard) var(--ease-standard);
 }
 
 .plugins-filter:hover {
@@ -251,7 +263,7 @@
   margin: 0;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: var(--layout-card-gap);
 }
 
 .plugins-card {
@@ -260,14 +272,20 @@
   align-items: center;
   gap: var(--sp-4);
   padding: 14px 16px;
-  border-radius: var(--radius-5);
-  border: 1px solid var(--c-border-soft);
-  background: var(--c-bg);
-  transition: border-color 120ms ease;
+  min-height: 88px;
+  border-radius: var(--radius-panel);
+  border: 1px solid var(--border-subtle);
+  background: var(--c-panel-bg);
+  box-shadow: var(--c-panel-shadow-soft);
+  transition:
+    background var(--motion-standard) var(--ease-standard),
+    border-color var(--motion-standard) var(--ease-standard),
+    box-shadow var(--motion-standard) var(--ease-standard);
 }
 
 .plugins-card:hover {
-  border-color: var(--c-border);
+  background: var(--c-bg-chip-hover);
+  box-shadow: var(--c-panel-shadow-raised);
 }
 
 .plugins-card-icon {
@@ -442,8 +460,10 @@
   gap: var(--sp-2);
   padding: var(--sp-7);
   color: var(--c-text-meta);
-  border: 1px dashed var(--c-border-soft);
-  border-radius: var(--radius-5);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-panel);
+  background: var(--c-panel-bg);
+  box-shadow: var(--c-panel-shadow-soft);
 }
 
 .plugins-empty p {
@@ -467,43 +487,6 @@
   gap: var(--sp-2);
 }
 
-/* Bento plugin marketplace */
-.plugins-view {
-  max-width: var(--layout-bento-w);
-  padding: var(--layout-page-pad-y) var(--layout-page-pad-x)
-    var(--layout-page-pad-bottom);
-}
-
-.plugins-hero-header {
-  text-align: left;
-}
-
-.plugins-hero-header h1 {
-  font-size: var(--type-page-title);
-  font-weight: var(--font-weight-heading);
-}
-
-.plugins-card,
-.plugins-empty {
-  border-color: var(--border-subtle);
-  border-radius: var(--radius-panel);
-  background: var(--c-panel-bg);
-  box-shadow: var(--c-panel-shadow-soft);
-}
-
-.plugins-search,
-.plugins-filter {
-  border-color: var(--border-subtle);
-  border-radius: var(--radius-card);
-  background: var(--c-panel-bg);
-  box-shadow: none;
-  transition:
-    border-color var(--motion-standard) var(--ease-standard),
-    box-shadow var(--motion-standard) var(--ease-standard);
-}
-
-.plugins-search:focus-within,
-.plugins-filter:focus-visible,
 .plugins-button:focus-visible,
 .plugins-tab:focus-visible,
 .plugins-hero-cta:focus-visible,
@@ -511,24 +494,6 @@
   outline: none;
 }
 
-.plugins-search:focus-within {
-  border-color: color-mix(in srgb, var(--c-accent) 42%, var(--border-subtle));
-}
-
-.plugins-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--layout-card-gap);
-}
-
-.plugins-card {
-  min-height: 88px;
-  transition:
-    background var(--motion-standard) var(--ease-standard),
-    border-color var(--motion-standard) var(--ease-standard),
-    box-shadow var(--motion-standard) var(--ease-standard);
-}
-
-.plugins-card:hover {
-  background: var(--c-bg-chip-hover);
-  box-shadow: var(--c-panel-shadow-raised);
+.plugins-filter:focus-visible {
+  outline: none;
 }

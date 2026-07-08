@@ -86,9 +86,7 @@
 .automation-button.is-primary,
 .workflow-composer-card-question .inline-approval-submit,
 .workflow-composer-card-permission .inline-approval-submit,
-.workflow-composer-card-plan .exit-plan-mode-submit,
-.exit-plan-mode-submit,
-.inline-approval-submit {
+.workflow-composer-card-plan .exit-plan-mode-submit {
   min-height: 34px;
 
   padding: 0 20px;
@@ -107,9 +105,7 @@
 .automation-button.is-primary:hover,
 .workflow-composer-card-question .inline-approval-submit:hover,
 .workflow-composer-card-permission .inline-approval-submit:hover,
-.workflow-composer-card-plan .exit-plan-mode-submit:hover,
-.exit-plan-mode-submit:hover,
-.inline-approval-submit:hover {
+.workflow-composer-card-plan .exit-plan-mode-submit:hover {
   border-color: var(--c-send-bg-hover);
   background: var(--c-send-bg-hover);
   color: var(--c-text-on-accent);
@@ -247,12 +243,8 @@
 .settings-button:hover,
 .plugins-button.is-ghost:hover,
 .automation-button.is-ghost:hover,
-.automation-quick-button:hover,
-.plugins-filter:hover,
-.plugins-card:hover,
 .utility-card:hover,
-.message-card:hover,
-.search-result-row:hover {
+.message-card:hover {
   border-color: color-mix(in srgb, var(--c-accent) 26%, var(--c-panel-border));
   background: color-mix(in srgb, var(--c-accent) 5%, var(--c-panel-bg));
   box-shadow: var(--c-panel-shadow-soft);

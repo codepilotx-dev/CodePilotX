@@ -143,10 +143,6 @@
   align-items: center;
   gap: 2px;
   padding: 7px 8px 7px 13px;
-  border: 1px solid var(--black-a2);
-  border-radius: var(--radius-4);
-  background: var(--c-bg);
-  box-shadow: 0 8px 28px var(--black-a3);
   color: var(--c-text-strong);
   font-size: var(--fs-13);
 

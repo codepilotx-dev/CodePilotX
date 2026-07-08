@@ -48,8 +48,8 @@
   --desktop-workspace-fixed-controls-pad-x: 12px;
   --desktop-workspace-fixed-controls-w: calc(
     2 * var(--desktop-workspace-fixed-control-button-size) +
-      var(--desktop-workspace-fixed-controls-gap) + 2 *
-      var(--desktop-workspace-fixed-controls-pad-x)
+    var(--desktop-workspace-fixed-controls-gap) + 2 *
+    var(--desktop-workspace-fixed-controls-pad-x)
   );
   width: 100%;
   height: 100%;
@@ -959,8 +959,7 @@
 }
 
 .right-dock-search,
-.right-dock-file-document header,
-.right-dock-terminal-composer input {
+.right-dock-file-document header {
   border-color: var(--c-border-soft);
   border-radius: var(--radius-6);
   background: var(--c-bg-soft);
