@@ -19,6 +19,8 @@ import type {
 } from '../../../shared/types.js'
 import {
   CODEX_THEME_PREFIX,
+  DEFAULT_CODE_FONT,
+  DEFAULT_UI_FONT,
   DESKTOP_THEME_PRESETS,
   createDesktopCustomTheme,
   exportDesktopThemeConfig,
@@ -285,13 +287,17 @@ export function AppearanceSettings() {
 
   const updateUiFontStack = (stack: string): void => {
     updateThemeFonts({
-      ui: fontStackToEntry(stack, activeTheme.theme.fonts.ui),
+      ui: stack.trim()
+        ? fontStackToEntry(stack, DEFAULT_UI_FONT)
+        : DEFAULT_UI_FONT,
     })
   }
 
   const updateCodeFontStack = (stack: string): void => {
     updateThemeFonts({
-      code: fontStackToEntry(stack, activeTheme.theme.fonts.code),
+      code: stack.trim()
+        ? fontStackToEntry(stack, DEFAULT_CODE_FONT)
+        : DEFAULT_CODE_FONT,
     })
   }
 
@@ -610,7 +616,7 @@ export function AppearanceSettings() {
                 <FontStackInput
                   value={fontEntryToStack(activeTheme.theme.fonts.ui)}
                   onChange={updateUiFontStack}
-                  placeholder='MiSans VF, -apple-system, "PingFang SC", sans-serif'
+                  placeholder='MiSans VF Regular, MiSans, Inter'
                 />
               }
             />
@@ -620,7 +626,7 @@ export function AppearanceSettings() {
                 <FontStackInput
                   value={fontEntryToStack(activeTheme.theme.fonts.code)}
                   onChange={updateCodeFontStack}
-                  placeholder='"JetBrains Mono VF", ui-monospace, Consolas, monospace'
+                  placeholder='JetBrains Mono, Consolas, monospace'
                 />
               }
             />

@@ -13,15 +13,13 @@ export const DEFAULT_LIGHT_THEME_ID = "light-codex";
 export const DEFAULT_DARK_THEME_ID = "dark-codex";
 
 export const DEFAULT_UI_FONT: DesktopThemeFontEntry = {
-  preset: "MiSans VF",
-  fallback:
-    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Helvetica Neue", Arial, "Microsoft YaHei", system-ui, sans-serif',
+  preset: "MiSans VF Regular",
+  fallback: "MiSans, Inter",
 };
 
 export const DEFAULT_CODE_FONT: DesktopThemeFontEntry = {
-  preset: "JetBrains Mono VF",
-  fallback:
-    'ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace',
+  preset: "JetBrains Mono",
+  fallback: "Consolas, monospace",
 };
 
 export const DEFAULT_FONTS: DesktopThemeConfigV1["theme"]["fonts"] = {
@@ -127,16 +125,7 @@ export const DEFAULT_DARK_THEME: DesktopThemeConfigV1 = {
   theme: {
     accent: "#0169cc",
     contrast: 40,
-    fonts: {
-      ui: {
-        preset: "MiSans VF Regular",
-        fallback: DEFAULT_UI_FONT.fallback,
-      },
-      code: {
-        preset: "JetBrains Mono SemiBold",
-        fallback: DEFAULT_CODE_FONT.fallback,
-      },
-    },
+    fonts: DEFAULT_FONTS,
     ink: "#fcfcfc",
     opaqueWindows: true,
     semanticColors: {
@@ -564,11 +553,17 @@ export function normalizeDesktopThemeConfig(
       accent,
       contrast: normalizeContrast(theme.contrast, fallback.theme.contrast),
       fonts: {
-        code: normalizeDesktopThemeFontEntry(
-          fonts.code,
-          fallback.theme.fonts.code,
-        ),
-        ui: normalizeDesktopThemeFontEntry(fonts.ui, fallback.theme.fonts.ui),
+        code: {
+          ...normalizeDesktopThemeFontEntry(
+            fonts.code,
+            fallback.theme.fonts.code,
+          ),
+          fallback: DEFAULT_CODE_FONT.fallback,
+        },
+        ui: {
+          ...normalizeDesktopThemeFontEntry(fonts.ui, fallback.theme.fonts.ui),
+          fallback: DEFAULT_UI_FONT.fallback,
+        },
       },
       ink: normalizeHexColor(theme.ink, fallback.theme.ink),
       opaqueWindows:

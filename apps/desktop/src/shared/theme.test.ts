@@ -152,13 +152,9 @@ test('normalizeDesktopThemeConfig accepts string fonts entries as preset', () =>
     'light',
   )
   expect(normalized.theme.fonts.ui.preset).toBe('Inter')
-  expect(normalized.theme.fonts.ui.fallback).toBe(
-    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Helvetica Neue", Arial, "Microsoft YaHei", system-ui, sans-serif',
-  )
+  expect(normalized.theme.fonts.ui.fallback).toBe('MiSans, Inter')
   expect(normalized.theme.fonts.code.preset).toBe('Fira Code')
-  expect(normalized.theme.fonts.code.fallback).toBe(
-    'ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace',
-  )
+  expect(normalized.theme.fonts.code.fallback).toBe('Consolas, monospace')
 })
 
 test('normalizeDesktopThemeSettings presets font fallback when font is a string', () => {
@@ -195,9 +191,7 @@ test('normalizeDesktopThemeSettings presets font fallback when font is a string'
     presetOverrides: {},
   })
   expect(settings.customThemes[0].config.theme.fonts.ui.preset).toBe('Inter')
-  expect(settings.customThemes[0].config.theme.fonts.ui.fallback).toBe(
-    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Helvetica Neue", Arial, "Microsoft YaHei", system-ui, sans-serif',
-  )
+  expect(settings.customThemes[0].config.theme.fonts.ui.fallback).toBe('MiSans, Inter')
 })
 
 test('normalizeDesktopThemeSettings enables glass surfaces by default', () => {
