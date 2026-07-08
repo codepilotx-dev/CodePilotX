@@ -104,7 +104,7 @@
   left: 0;
   z-index: var(--z-popover);
   display: inline-block;
-  transform-origin: var(--radix-dropdown-menu-content-transform-origin, bottom left);
+  transform-origin: bottom left;
 }
 
 [data-radix-popper-content-wrapper]:has(.popover),
@@ -282,25 +282,19 @@
   right: auto;
   bottom: auto;
   left: auto;
-  transform-origin: var(--radix-dropdown-menu-content-transform-origin);
+  transform-origin: top left;
 }
 
 .popover-model-submenu {
   width: max-content;
   max-width: calc(320px + var(--popover-width-extra));
-  max-height: min(
-    360px,
-    var(--radix-dropdown-menu-content-available-height, calc(100vh - 96px))
-  );
+  max-height: min(360px, calc(100vh - 96px));
   overflow: hidden;
   overscroll-behavior: contain;
 }
 
 .popover-model-list {
-  max-height: min(
-    300px,
-    calc(var(--radix-dropdown-menu-content-available-height, 360px) - 42px)
-  );
+  max-height: min(300px, calc(100vh - 138px));
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -337,7 +331,7 @@
     width: 20px;
     height: 20px;
     border-radius: var(--radius-full);
-    box-shadow: 0 1px 2px var(--black-a3);
+    box-shadow: var(--shadow-resting);
     transition: transform 0.15s ease-out;
   }
 
@@ -356,7 +350,7 @@
   }
 
   .context-plugin-icon-github {
-    color: var(--gray-12);
+    color: var(--color-text-strong);
   }
 }
 

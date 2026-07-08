@@ -92,11 +92,5 @@
       calc(100vw - 32px)
     )
   );
-  max-height: min(
-    360px,
-    var(
-      --radix-dropdown-menu-content-available-height,
-      calc(100vh - 96px)
-    )
-  );
+  max-height: min(360px, calc(100vh - 96px));
 }

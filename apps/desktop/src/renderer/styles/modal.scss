@@ -6,7 +6,7 @@
   align-items: center;
   justify-content: center;
   padding: var(--space-6);
-  background: var(--black-a5);
+  background: color-mix(in srgb, var(--color-ink) 28%, transparent);
 }
 
 .permission-modal {
@@ -17,7 +17,7 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-5);
   background: var(--color-bg);
-  box-shadow: 0 24px 60px var(--black-a4);
+  box-shadow: var(--shadow-float);
 }
 
 .permission-modal,
@@ -89,10 +89,10 @@
   align-items: flex-start;
   gap: var(--space-2);
   padding: 7px 10px 7px 13px;
-  border: 1px solid var(--black-a2);
+  border: 1px solid var(--color-panel-border);
   border-radius: var(--radius-4);
   background: var(--color-bg);
-  box-shadow: 0 8px 28px var(--black-a3);
+  box-shadow: var(--shadow-raised);
   color: var(--color-text-strong);
   font-size: var(--font-size-14);
   line-height: 1.4;
