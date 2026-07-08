@@ -40,5 +40,5 @@
 :root[data-theme="dark"] .appearance-preview-codeblock,
 :root[data-theme="dark"] .environment-diff-preview,
 :root[data-theme="dark"] .right-dock-file-document pre {
-  border-color: rgba(250, 249, 245, 0.08);
+  border-color: var(--color-border-soft);
 }

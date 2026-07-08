@@ -226,12 +226,8 @@
 .automation-button.is-ghost:hover,
 .utility-card:hover,
 .message-card:hover {
-  border-color: color-mix(
-    in srgb,
-    var(--color-accent) 26%,
-    var(--color-panel-border)
-  );
-  background: color-mix(in srgb, var(--color-accent) 5%, var(--color-panel-bg));
+  border-color: var(--color-panel-border);
+  background: var(--state-hover-bg);
   box-shadow: var(--color-panel-shadow-soft);
 }
 
@@ -290,9 +286,5 @@
 :root[data-theme="dark"] .utility-card:hover,
 :root[data-theme="dark"] .automation-quick-button:hover,
 :root[data-theme="dark"] .search-result-row:hover {
-  background: color-mix(
-    in srgb,
-    var(--color-accent) 10%,
-    var(--color-panel-bg)
-  );
+  background: var(--state-hover-bg);
 }
