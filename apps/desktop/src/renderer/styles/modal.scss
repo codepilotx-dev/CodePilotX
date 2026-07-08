@@ -322,10 +322,10 @@
 
 .git-workflow-error {
   padding: 8px 10px;
-  border: 1px solid var(--red-7);
+  border: 1px solid color-mix(in srgb, var(--color-danger) 40%, transparent);
   border-radius: var(--radius-4);
-  background: var(--red-a2);
-  color: var(--red-11);
+  background: color-mix(in srgb, var(--color-danger) 10%, transparent);
+  color: var(--color-danger);
   font-size: var(--font-size-13);
 }
 
@@ -572,11 +572,11 @@
   }
 
   &.danger {
-    background: var(--red-3);
+    background: color-mix(in srgb, var(--color-danger) 18%, var(--color-bg));
     color: var(--color-danger);
 
     &:hover {
-      background: var(--red-4);
+      background: color-mix(in srgb, var(--color-danger) 24%, var(--color-bg));
     }
   }
 

@@ -187,7 +187,7 @@
     }
 
     &.is-copied {
-      color: var(--green-11);
+      color: var(--color-success);
     }
   }
 
@@ -224,7 +224,7 @@
     }
   }
 
-  /* highlight.js 主题（Claude-branded colors） */
+  /* highlight.js 主题 */
   .hljs-keyword,
   .hljs-tag,
   .hljs-selector-tag,
@@ -232,18 +232,18 @@
   .hljs-name,
   .hljs-section,
   .hljs-function .hljs-title {
-    color: #d98568;
+    color: var(--color-accent);
   }
 
   .hljs-string,
   .hljs-attr {
-    color: var(--claude-accent-teal);
+    color: var(--color-skill);
   }
 
   .hljs-number,
   .hljs-built_in,
   .hljs-type {
-    color: var(--claude-accent-amber);
+    color: var(--color-warning);
   }
 
   .hljs-comment {
@@ -298,5 +298,5 @@
 
 /* Dark theme: copy-done green is same in dark */
 :root[data-theme='dark'] .md-body .md-code-copy.is-copied {
-  color: var(--green-11);
+  color: var(--color-success);
 }

@@ -309,36 +309,36 @@
 /* Brand tone palette */
 .plugins-tone-github {
   background: var(--surface-product);
-  color: var(--claude-on-dark);
+  color: var(--color-text-on-accent);
 }
 
 .plugins-tone-chrome {
   background: linear-gradient(
     135deg,
-    var(--red-9),
-    var(--claude-accent-amber) 60%,
-    var(--amber-9)
+    var(--color-danger),
+    var(--color-warning) 60%,
+    var(--color-warning)
   );
   color: var(--color-text-on-accent);
 }
 
 .plugins-tone-sheet {
-  background: var(--green-9);
+  background: var(--color-success);
   color: var(--color-text-on-accent);
 }
 
 .plugins-tone-slides {
-  background: var(--amber-9);
+  background: var(--color-warning);
   color: var(--color-text-on-accent);
 }
 
 .plugins-tone-slack {
   background: var(--surface-product-raised);
-  color: var(--claude-on-dark);
+  color: var(--color-text-on-accent);
 }
 
 .plugins-tone-data {
-  background: var(--claude-accent-teal);
+  background: var(--color-skill);
   color: var(--color-text-on-accent);
 }
 
@@ -348,17 +348,17 @@
 }
 
 .plugins-tone-creative {
-  background: var(--claude-accent-amber);
+  background: var(--color-warning);
   color: var(--color-text-on-accent);
 }
 
 .plugins-tone-sales {
-  background: var(--cyan-9);
+  background: var(--color-skill);
   color: var(--color-text-on-accent);
 }
 
 .plugins-tone-codex {
-  background: linear-gradient(135deg, var(--color-accent), var(--claude-accent-amber));
+  background: linear-gradient(135deg, var(--color-accent), var(--color-warning));
   color: var(--color-text-on-accent);
 }
 
@@ -436,21 +436,21 @@
   flex-shrink: 0;
 
   &.is-pass {
-    color: var(--green-11);
-    background: var(--green-3);
-    border-color: var(--green-6);
+    color: var(--color-success);
+    background: color-mix(in srgb, var(--color-success) 15%, var(--color-bg));
+    border-color: color-mix(in srgb, var(--color-success) 35%, var(--color-border-soft));
   }
 
   &.is-warn {
-    color: var(--amber-11);
-    background: var(--amber-3);
-    border-color: var(--amber-6);
+    color: var(--color-warning);
+    background: color-mix(in srgb, var(--color-warning) 15%, var(--color-bg));
+    border-color: color-mix(in srgb, var(--color-warning) 35%, var(--color-border-soft));
   }
 
   &.is-fail {
-    color: var(--red-11);
-    background: var(--red-3);
-    border-color: var(--red-6);
+    color: var(--color-danger);
+    background: color-mix(in srgb, var(--color-danger) 15%, var(--color-bg));
+    border-color: color-mix(in srgb, var(--color-danger) 35%, var(--color-border-soft));
   }
 }
 

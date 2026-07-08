@@ -29,9 +29,9 @@
 .appearance-preview-codeblock,
 .environment-diff-preview,
 .right-dock-file-document pre {
-  border-color: color-mix(in srgb, var(--claude-on-dark) 10%, transparent);
+  border-color: color-mix(in srgb, var(--color-text-on-accent) 10%, transparent);
   background: var(--surface-product);
-  color: var(--claude-on-dark);
+  color: var(--color-text-on-accent);
 }
 
 /* --- Dark theme product surface --- */

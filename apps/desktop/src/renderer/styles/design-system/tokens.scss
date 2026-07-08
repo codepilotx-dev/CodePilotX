@@ -1,132 +1,106 @@
 :root {
-  --claude-primary: #cc785c;
-  --claude-primary-active: #a9583e;
-  --claude-primary-disabled: #e6dfd8;
-  --claude-ink: #141413;
-  --claude-body: #3d3d3a;
-  --claude-body-strong: #252523;
-  --claude-muted: #6c6a64;
-  --claude-muted-soft: #8e8b82;
-  --claude-hairline: #e6dfd8;
-  --claude-hairline-soft: #ebe6df;
-  --claude-canvas: #faf9f5;
-  --claude-surface-soft: #f5f0e8;
-  --claude-surface-card: #efe9de;
-  --claude-surface-cream-strong: #e8e0d2;
-  --claude-surface-dark: #181715;
-  --claude-surface-dark-elevated: #252320;
-  --claude-surface-dark-soft: #1f1e1b;
-  --claude-on-primary: #ffffff;
-  --claude-on-dark: #faf9f5;
-  --claude-on-dark-soft: #a09d96;
-  --claude-accent-teal: #5db8a6;
-  --claude-accent-amber: #e8a55a;
-  --claude-success: #5db872;
-  --claude-warning: #d4a017;
-  --claude-error: #c64545;
-
-  --blue-3: color-mix(in srgb, var(--claude-primary) 12%, var(--claude-canvas));
-  --blue-9: var(--claude-primary);
-  --blue-10: var(--claude-primary-active);
-  --blue-11: var(--claude-primary-active);
-  --purple-9: var(--claude-primary);
-  --purple-11: var(--claude-primary-active);
-  --purple-12: var(--claude-ink);
-  --pink-9: var(--claude-primary);
-  --pink-11: var(--claude-primary-active);
-  --cyan-9: var(--claude-accent-teal);
-  --cyan-11: color-mix(
-    in srgb,
-    var(--claude-accent-teal) 76%,
-    var(--claude-ink)
-  );
-
-  --color-bg: var(--claude-canvas);
-  --color-bg-pure: var(--claude-canvas);
-  --color-bg-soft: var(--claude-surface-soft);
-  --color-bg-subtle: var(--claude-surface-soft);
-  --color-bg-mask: color-mix(in srgb, var(--claude-canvas) 74%, transparent);
+  --contrast: 0;
+  --color-bg: #ffffff;
+  --color-bg-pure: #ffffff;
+  --color-bg-soft: color-mix(in srgb, var(--color-bg) 99%, var(--color-ink));
+  --color-bg-subtle: var(--color-bg);
+  --color-bg-mask: color-mix(in srgb, var(--color-bg) 99%, var(--color-ink));
   --color-bg-hover: var(--color-sidebar-hover-bg);
   --color-bg-row-hover: var(--color-sidebar-hover-bg);
   --color-bg-chip-hover: var(--color-sidebar-hover-bg);
-  --color-bg-card: var(--claude-canvas);
-  --color-popover-bg: var(--claude-canvas);
+  --color-bg-card: color-mix(in srgb, var(--color-bg) 99%, var(--color-ink));
+  --color-popover-bg: var(--color-bg);
   --color-popover-border: color-mix(
     in srgb,
-    var(--claude-ink) 10%,
-    var(--claude-hairline)
+    var(--color-bg) 96%,
+    var(--color-ink)
   );
-  --color-popover-divider: var(--claude-hairline-soft);
-  --glass-surface-bg: color-mix(in srgb, var(--claude-canvas) 20%, transparent);
+  --color-popover-divider: color-mix(in srgb, var(--color-bg) 97%, var(--color-ink));
+  --glass-surface-bg: color-mix(in srgb, var(--color-bg) 20%, transparent);
   --glass-surface-border: color-mix(
     in srgb,
-    var(--claude-ink) 12%,
+    var(--color-ink) 10%,
     transparent
   );
   --glass-surface-highlight: color-mix(in srgb, #ffffff 72%, transparent);
-  --glass-surface-text: var(--claude-ink);
+  --glass-surface-text: var(--color-ink);
   --glass-surface-text-meta: color-mix(
     in srgb,
-    var(--claude-ink) 78%,
-    var(--claude-canvas)
+    var(--color-ink) 78%,
+    var(--color-bg)
   );
   --glass-surface-text-disabled: color-mix(
     in srgb,
-    var(--claude-ink) 52%,
-    var(--claude-canvas)
+    var(--color-ink) 52%,
+    var(--color-bg)
   );
-  --color-surface: var(--claude-canvas);
-  --color-ink: var(--claude-ink);
-  --color-border: var(--claude-hairline);
-  --color-border-soft: var(--claude-hairline-soft);
+  --color-surface: var(--color-bg);
+  --color-ink: #0d0d0d;
+  --color-border: color-mix(in srgb, var(--color-bg) 94%, var(--color-ink));
+  --color-border-soft: color-mix(in srgb, var(--color-bg) 96%, var(--color-ink));
   --color-border-faint: color-mix(
     in srgb,
-    var(--claude-hairline-soft) 72%,
-    transparent
+    var(--color-bg) 98%,
+    var(--color-ink)
   );
-  --color-border-row: var(--claude-hairline-soft);
-  --color-danger: var(--claude-error);
-  --color-warning: var(--claude-warning);
-  --color-success: var(--claude-success);
-  --color-text: var(--claude-body);
-  --color-text-strong: var(--claude-ink);
-  --color-text-meta: var(--claude-muted);
-  --color-text-soft: var(--claude-body);
-  --color-text-mute: var(--claude-muted-soft);
-  --color-text-placeholder: var(--claude-muted-soft);
+  --color-border-row: color-mix(in srgb, var(--color-bg) 98%, var(--color-ink));
+  --color-danger: #e02e2a;
+  --color-warning: #d4a017;
+  --color-success: #00a240;
+  --color-text: var(--color-ink);
+  --color-text-strong: var(--color-ink);
+  --color-text-meta: color-mix(in srgb, var(--color-bg) 45%, var(--color-ink));
+  --color-text-soft: color-mix(in srgb, var(--color-bg) 55%, var(--color-ink));
+  --color-text-mute: color-mix(in srgb, var(--color-bg) 65%, var(--color-ink));
+  --color-text-placeholder: color-mix(in srgb, var(--color-bg) 75%, var(--color-ink));
   --color-text-disabled: color-mix(
     in srgb,
-    var(--claude-muted-soft) 70%,
-    var(--claude-canvas)
+    var(--color-bg) 85%,
+    var(--color-ink)
   );
-  --color-text-on-accent: var(--claude-on-primary);
-  --color-icon: var(--claude-muted);
-  --color-icon-soft: var(--claude-muted-soft);
-  --color-icon-arrow: var(--claude-muted-soft);
-  --color-accent: var(--claude-primary);
-  --color-accent-11: var(--claude-primary-active);
-  --color-accent-a3: color-mix(in srgb, var(--claude-primary) 18%, transparent);
-  --color-send-bg: var(--claude-primary);
-  --color-send-bg-hover: var(--claude-primary-active);
-  --color-send-bg-disabled: var(--claude-primary-disabled);
-  --color-user-bubble-bg: var(--claude-surface-card);
+  --color-text-on-accent: #ffffff;
+  --color-icon: var(--color-ink);
+  --color-icon-soft: color-mix(in srgb, var(--color-bg) 60%, var(--color-ink));
+  --color-icon-arrow: color-mix(in srgb, var(--color-bg) 70%, var(--color-ink));
+  --color-accent: #0169cc;
+  --color-accent-11: color-mix(in srgb, var(--color-accent) 85%, var(--color-bg));
+  --color-accent-a3: color-mix(in srgb, var(--color-accent) 30%, transparent);
+  --color-send-bg: var(--color-accent);
+  --color-send-bg-hover: color-mix(in srgb, var(--color-accent) 82%, var(--color-ink));
+  --color-send-bg-disabled: color-mix(in srgb, var(--color-accent) 50%, var(--color-ink));
+  --color-user-bubble-bg: color-mix(in srgb, var(--color-bg) 93%, var(--color-ink));
 
-  --surface-base: var(--claude-surface-soft);
-  --surface-canvas: var(--claude-canvas);
-  --surface-panel: var(--claude-canvas);
-  --surface-raised: var(--claude-surface-card);
-  --surface-subtle: var(--claude-surface-soft);
-  --surface-product: var(--claude-surface-dark);
-  --surface-product-raised: var(--claude-surface-dark-elevated);
-  --border-subtle: var(--claude-hairline);
-  --border-muted: var(--claude-hairline-soft);
+  --surface-base: color-mix(in srgb, var(--color-bg) 98%, var(--color-ink));
+  --surface-canvas: var(--color-bg);
+  --surface-panel: var(--color-bg);
+  --surface-raised: var(--color-bg);
+  --surface-subtle: color-mix(in srgb, var(--color-bg) 97%, var(--color-ink));
+  --surface-product: #181715;
+  --surface-product-raised: #252320;
+  --border-subtle: color-mix(in srgb, var(--color-bg) 93%, var(--color-ink));
+  --border-muted: color-mix(in srgb, var(--color-bg) 97%, var(--color-ink));
   --shadow-resting:
-    0 1px 2px rgba(20, 20, 19, 0.04), 0 1px 0 rgba(255, 255, 255, 0.56) inset;
+    0 1px 2px color-mix(in srgb, var(--color-ink) 5%, transparent),
+    0 1px 0 color-mix(in srgb, var(--color-bg) 70%, transparent) inset;
   --shadow-raised:
-    0 8px 22px rgba(20, 20, 19, 0.075), 0 1px 2px rgba(20, 20, 19, 0.04);
+    0 10px 28px color-mix(in srgb, var(--color-ink) 8%, transparent),
+    0 1px 2px color-mix(in srgb, var(--color-ink) 5%, transparent);
   --shadow-float:
-    0 22px 58px rgba(20, 20, 19, 0.14), 0 8px 20px rgba(20, 20, 19, 0.08);
+    0 22px 60px color-mix(in srgb, var(--color-ink) 12%, transparent),
+    0 8px 24px color-mix(in srgb, var(--color-ink) 8%, transparent);
   --shadow-2: var(--shadow-raised);
+
+  --blue-3: color-mix(in srgb, var(--color-accent) 12%, var(--color-bg));
+  --blue-9: var(--color-accent);
+  --blue-10: var(--color-send-bg-hover);
+  --blue-11: var(--color-accent-11);
+  --purple-9: var(--color-skill);
+  --purple-11: var(--color-skill);
+  --purple-12: var(--color-ink);
+  --pink-9: var(--color-accent);
+  --pink-11: var(--color-accent-11);
+  --cyan-9: #5db8a6;
+  --cyan-11: color-mix(in srgb, #5db8a6 76%, var(--color-ink));
 
   --radius-button: 8px;
   --radius-input: 8px;
@@ -219,30 +193,34 @@
   --glass-surface-blur: 14px;
   --plan-md-base-size: 0.9em;
 
-  --color-chrome-bg: var(--claude-canvas);
-  --color-sidebar-bg: var(--claude-surface-soft);
+  --color-chrome-bg: var(--color-bg);
+  --color-sidebar-bg: var(--color-bg);
   --color-sidebar-active-bg: color-mix(
     in srgb,
-    var(--claude-primary) 18%,
-    var(--claude-surface-card)
+    var(--color-bg) 97%,
+    var(--color-ink)
   );
   --color-sidebar-hover-bg: color-mix(
     in srgb,
-    var(--claude-primary) 9%,
-    transparent
+    var(--color-bg) 97%,
+    var(--color-ink)
   );
-  --color-workbench-bg: var(--claude-surface-soft);
-  --color-panel-bg: var(--claude-canvas);
-  --color-panel-elevated-bg: var(--claude-surface-card);
-  --color-panel-border: var(--claude-hairline);
+  --color-workbench-bg: var(--surface-base);
+  --color-panel-bg: var(--color-bg);
+  --color-panel-elevated-bg: var(--surface-raised);
+  --color-panel-border: var(--border-subtle);
   --color-panel-shadow: var(--shadow-float);
   --color-panel-shadow-raised: var(--shadow-raised);
   --color-panel-shadow-soft: var(--shadow-resting);
-  --color-scrollbar: color-mix(in srgb, var(--claude-muted-soft) 62%, transparent);
-  --color-scrollbar-hover: var(--claude-muted);
-  --color-diff-added: var(--claude-success);
-  --color-diff-removed: var(--claude-error);
-  --color-skill: var(--claude-primary);
+  --color-scrollbar: color-mix(
+    in srgb,
+    var(--color-bg) 92%,
+    var(--color-ink)
+  );
+  --color-scrollbar-hover: color-mix(in srgb, var(--color-bg) 85%, var(--color-ink));
+  --color-diff-added: #00a240;
+  --color-diff-removed: #e02e2a;
+  --color-skill: #751ed9;
 
   --font-family-sans:
     "MiSans", Inter, -apple-system, BlinkMacSystemFont, "SF Pro Text",
@@ -259,11 +237,11 @@
   --font-weight-emphasis: 600;
 
   --focus-ring: 0 0 0 3px
-    color-mix(in srgb, var(--claude-primary) 24%, transparent);
+    color-mix(in srgb, var(--color-accent) 24%, transparent);
   --focus-ring-soft: 0 0 0 2px
-    color-mix(in srgb, var(--claude-primary) 18%, transparent);
-  --state-hover-bg: color-mix(in srgb, var(--claude-primary) 9%, transparent);
-  --state-active-bg: color-mix(in srgb, var(--claude-primary) 15%, transparent);
+    color-mix(in srgb, var(--color-accent) 18%, transparent);
+  --state-hover-bg: var(--color-sidebar-hover-bg);
+  --state-active-bg: color-mix(in srgb, var(--color-bg) 95%, var(--color-ink));
 }
 
 :root[data-theme="dark"] {
@@ -287,7 +265,7 @@
   --glass-surface-text-meta: rgba(250, 249, 245, 0.72);
   --glass-surface-text-disabled: rgba(250, 249, 245, 0.42);
   --color-surface: #181715;
-  --color-ink: var(--claude-on-dark);
+  --color-ink: #faf9f5;
   --color-border: rgba(250, 249, 245, 0.13);
   --color-border-soft: rgba(250, 249, 245, 0.09);
   --color-border-faint: rgba(250, 249, 245, 0.065);
@@ -296,13 +274,13 @@
   --color-warning: #e8a55a;
   --color-success: #73c987;
   --color-text: #dfddd7;
-  --color-text-strong: var(--claude-on-dark);
-  --color-text-meta: var(--claude-on-dark-soft);
+  --color-text-strong: #faf9f5;
+  --color-text-meta: #a09d96;
   --color-text-soft: #c4c0b8;
   --color-text-mute: #9c9890;
   --color-text-placeholder: #8e8a82;
   --color-text-disabled: #6e6960;
-  --color-text-on-accent: var(--claude-on-primary);
+  --color-text-on-accent: #ffffff;
   --color-icon: #b8b3aa;
   --color-icon-soft: #9f9a91;
   --color-icon-arrow: #918c84;
@@ -333,8 +311,16 @@
 
   --color-chrome-bg: #181715;
   --color-sidebar-bg: #1f1e1b;
-  --color-sidebar-active-bg: color-mix(in srgb, var(--color-accent) 22%, #252320);
-  --color-sidebar-hover-bg: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  --color-sidebar-active-bg: color-mix(
+    in srgb,
+    var(--color-accent) 22%,
+    #252320
+  );
+  --color-sidebar-hover-bg: color-mix(
+    in srgb,
+    var(--color-accent) 14%,
+    transparent
+  );
   --state-hover-bg: color-mix(in srgb, var(--color-accent) 14%, transparent);
   --state-active-bg: color-mix(in srgb, var(--color-accent) 22%, transparent);
   --color-workbench-bg: #1f1e1b;
@@ -359,6 +345,6 @@
   --purple-12: var(--color-text-strong);
   --pink-9: var(--color-accent);
   --pink-11: var(--color-accent-11);
-  --cyan-9: var(--claude-accent-teal);
+  --cyan-9: #5db8a6;
   --cyan-11: #8bd5c7;
 }

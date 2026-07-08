@@ -43,36 +43,19 @@
 
 /* --- Send Button --- */
 .send-button {
-  width: 36px;
-  height: 36px;
-  min-width: 36px;
-  min-height: 36px;
+  width: 28px;
+  height: 28px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 0;
-  border: 1px solid var(--color-send-bg);
   border-radius: var(--radius-full);
-  background: var(--color-send-bg);
-  color: var(--color-text-on-accent);
-  transition:
-    background var(--motion-standard) var(--ease-standard),
-    opacity var(--motion-standard) var(--ease-standard);
-
-  &:hover:not(:disabled) {
-    border-color: var(--color-send-bg-hover);
-    background: var(--color-send-bg-hover);
-    color: var(--color-text-on-accent);
-  }
-
-  &:active:not(:disabled) {
-    opacity: 0.92;
-  }
+  background: var(--color-ink);
+  color: var(--color-bg);
+  transition: all 0.3 ease-in-out;
 
   &:disabled {
-    border-color: var(--color-send-bg-disabled);
-    background: var(--color-send-bg-disabled);
-    color: var(--color-text-meta);
+    opacity: 0.5;
   }
 }
 
@@ -243,7 +226,11 @@
 .automation-button.is-ghost:hover,
 .utility-card:hover,
 .message-card:hover {
-  border-color: color-mix(in srgb, var(--color-accent) 26%, var(--color-panel-border));
+  border-color: color-mix(
+    in srgb,
+    var(--color-accent) 26%,
+    var(--color-panel-border)
+  );
   background: color-mix(in srgb, var(--color-accent) 5%, var(--color-panel-bg));
   box-shadow: var(--color-panel-shadow-soft);
 }
@@ -303,5 +290,9 @@
 :root[data-theme="dark"] .utility-card:hover,
 :root[data-theme="dark"] .automation-quick-button:hover,
 :root[data-theme="dark"] .search-result-row:hover {
-  background: color-mix(in srgb, var(--color-accent) 10%, var(--color-panel-bg));
+  background: color-mix(
+    in srgb,
+    var(--color-accent) 10%,
+    var(--color-panel-bg)
+  );
 }

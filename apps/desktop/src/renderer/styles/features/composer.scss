@@ -23,10 +23,10 @@
   gap: 6px;
   padding: 6px 12px 6px 10px;
   border-bottom: 1px solid
-    color-mix(in srgb, var(--claude-accent-amber) 50%, var(--color-border));
+    color-mix(in srgb, var(--color-warning) 50%, var(--color-border));
   background: color-mix(
     in srgb,
-    var(--claude-accent-amber) 18%,
+    var(--color-warning) 18%,
     var(--color-panel-bg)
   );
   color: var(--color-warning);
@@ -53,7 +53,8 @@
   );
   border: var(
     --composer-surface-top-border,
-    1px solid var(--composer-surface-top-border-color, var(--color-panel-border))
+    1px solid
+      var(--composer-surface-top-border-color, var(--color-panel-border))
   );
   border-radius: var(--composer-surface-top-radius, var(--radius-panel));
   background: var(--composer-surface-top-bg, var(--color-panel-bg));
@@ -88,8 +89,8 @@
   box-shadow: 0 2px 10px var(--black-a1);
 
   &.error {
-    border-color: color-mix(in srgb, var(--claude-accent-amber) 50%, transparent);
-    background: color-mix(in srgb, var(--claude-accent-amber) 15%, transparent);
+    border-color: color-mix(in srgb, var(--color-warning) 50%, transparent);
+    background: color-mix(in srgb, var(--color-warning) 15%, transparent);
 
     .composer-attachment-meta {
       color: var(--color-warning);
@@ -204,7 +205,8 @@
   padding: 0 6px 0 4px;
   margin-top: 9px;
   flex-shrink: 0;
-  border: 1px solid color-mix(in srgb, var(--color-accent) 25%, var(--color-border));
+  border: 1px solid
+    color-mix(in srgb, var(--color-accent) 25%, var(--color-border));
   border-radius: var(--radius-4);
   background: color-mix(in srgb, var(--color-accent) 8%, var(--color-bg));
   color: var(--color-accent);
@@ -251,14 +253,6 @@
   border-radius: var(--radius-full);
 }
 
-.composer .send-button {
-  width: 28px;
-  height: 28px;
-  min-width: 28px;
-  min-height: 28px;
-  margin-left: 2px;
-}
-
 .composer-mic-button {
   width: 22px;
   height: 22px;
@@ -297,8 +291,7 @@
   );
   padding: var(
     --composer-surface-footer-padding,
-    calc(var(--layout-toolbar-gap) - 4px)
-      calc(var(--layout-toolbar-gap) - 8px)
+    calc(var(--layout-toolbar-gap) - 4px) calc(var(--layout-toolbar-gap) - 8px)
       calc(var(--layout-toolbar-gap) - 10px)
   );
   border-top: var(
@@ -351,7 +344,10 @@
     --composer-permission-chip-hover-border,
     var(--composer-permission-chip-border, transparent)
   );
-  background: var(--composer-permission-chip-hover-bg, var(--color-sidebar-hover-bg));
+  background: var(
+    --composer-permission-chip-hover-bg,
+    var(--color-sidebar-hover-bg)
+  );
   color: var(
     --composer-permission-chip-hover-color,
     var(--composer-permission-chip-color, var(--color-text-strong))
@@ -364,12 +360,18 @@
   --composer-permission-chip-border: transparent;
   --composer-permission-chip-color: var(--color-text-strong);
   --composer-permission-chip-hover-bg: var(--color-sidebar-hover-bg);
-  --composer-permission-chip-hover-border: var(--composer-permission-chip-border);
+  --composer-permission-chip-hover-border: var(
+    --composer-permission-chip-border
+  );
   --composer-permission-chip-hover-color: var(--color-text-strong);
 }
 
 .permission-chip-auto {
-  --composer-permission-chip-bg: color-mix(in srgb, var(--color-accent) 10%, var(--color-bg));
+  --composer-permission-chip-bg: color-mix(
+    in srgb,
+    var(--color-accent) 10%,
+    var(--color-bg)
+  );
   --composer-permission-chip-border: color-mix(
     in srgb,
     var(--color-accent) 18%,
@@ -377,24 +379,28 @@
   );
   --composer-permission-chip-color: var(--color-text-strong);
   --composer-permission-chip-hover-bg: var(--color-sidebar-hover-bg);
-  --composer-permission-chip-hover-border: var(--composer-permission-chip-border);
+  --composer-permission-chip-hover-border: var(
+    --composer-permission-chip-border
+  );
   --composer-permission-chip-hover-color: var(--color-text-strong);
 }
 
 .permission-chip-bypassPermissions {
   --composer-permission-chip-bg: color-mix(
     in srgb,
-    var(--claude-accent-amber) 15%,
+    var(--color-warning) 15%,
     var(--color-bg)
   );
   --composer-permission-chip-border: color-mix(
     in srgb,
-    var(--claude-accent-amber) 25%,
+    var(--color-warning) 25%,
     var(--color-border-soft)
   );
   --composer-permission-chip-color: var(--color-warning);
   --composer-permission-chip-hover-bg: var(--color-sidebar-hover-bg);
-  --composer-permission-chip-hover-border: var(--composer-permission-chip-border);
+  --composer-permission-chip-hover-border: var(
+    --composer-permission-chip-border
+  );
   --composer-permission-chip-hover-color: var(--color-warning);
 }
 
@@ -552,7 +558,7 @@
   background: conic-gradient(
     var(--color-text-soft) calc(var(--context-usage-progress, 0) * 1%),
     color-mix(in srgb, var(--color-text-soft) 20%, transparent)
-    calc(var(--context-usage-progress, 0) * 1%),
+      calc(var(--context-usage-progress, 0) * 1%),
     color-mix(in srgb, var(--color-text-soft) 20%, transparent) 360deg
   );
 
@@ -836,7 +842,11 @@
   }
 
   --composer-surface-top-border-color: rgba(255, 255, 255, 0.075);
-  --composer-surface-top-bg: color-mix(in srgb, var(--color-bg) 78%, var(--surface-panel));
+  --composer-surface-top-bg: color-mix(
+    in srgb,
+    var(--color-bg) 78%,
+    var(--surface-panel)
+  );
   --composer-surface-footer-border-color: rgba(255, 255, 255, 0.055);
 
   .composer-model-chip-label {
@@ -845,9 +855,18 @@
 
   .chip-button.permission-chip:hover,
   .permission-select-trigger:hover {
-    border-color: var(--composer-permission-chip-hover-border, var(--color-border));
-    background: var(--composer-permission-chip-hover-bg, var(--color-sidebar-hover-bg));
-    color: var(--composer-permission-chip-hover-color, var(--color-text-strong));
+    border-color: var(
+      --composer-permission-chip-hover-border,
+      var(--color-border)
+    );
+    background: var(
+      --composer-permission-chip-hover-bg,
+      var(--color-sidebar-hover-bg)
+    );
+    color: var(
+      --composer-permission-chip-hover-color,
+      var(--color-text-strong)
+    );
   }
 }
 

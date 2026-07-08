@@ -1312,17 +1312,17 @@
 }
 
 .appearance-syntax-string {
-  color: var(--green-11);
+  color: var(--color-success);
 }
 
 .appearance-syntax-value,
 .appearance-syntax-number,
 .appearance-syntax-operator {
-  color: var(--blue-11);
+  color: var(--color-accent);
 }
 
 .appearance-syntax-punct {
-  color: var(--gray-11);
+  color: var(--color-text-meta);
 }
 
 /* --- Appearance color picker --- */
@@ -1593,12 +1593,12 @@
 
 .settings-status-pill.ok strong,
 .settings-chip.ok {
-  color: var(--green-11);
+  color: var(--color-success);
 }
 
 .settings-status-pill.warn strong,
 .settings-chip.warn {
-  color: var(--amber-11);
+  color: var(--color-warning);
 }
 
 .settings-status-pill.pending strong,
@@ -1873,9 +1873,9 @@
   flex-shrink: 0;
 
   &.ok {
-    border-color: color-mix(in srgb, var(--green-9) 32%, var(--color-border-soft));
-    background: color-mix(in srgb, var(--green-3) 50%, var(--color-bg));
-    color: var(--green-11);
+    border-color: color-mix(in srgb, var(--color-success) 32%, var(--color-border-soft));
+    background: color-mix(in srgb, var(--color-success) 15%, var(--color-bg));
+    color: var(--color-success);
   }
 }
 
@@ -2014,7 +2014,7 @@
     background: linear-gradient(
       90deg,
       var(--color-accent),
-      var(--claude-accent-amber)
+      var(--color-warning)
     );
   }
 }
@@ -2617,19 +2617,19 @@
   position: absolute;
   inset: 0;
   display: block;
-  background: var(--color-panel-elevated-bg);
+  background: #f4f4f4;
 }
 
 .appearance-mode-card-system .appearance-mode-window {
   background: linear-gradient(
     90deg,
-    var(--claude-surface-card) 0 50%,
-    var(--surface-product) 50% 100%
+    #a6a6a6 0 50%,
+    #5d5d5d 50% 100%
   );
 }
 
 .appearance-mode-card-dark .appearance-mode-window {
-  background: var(--surface-product-raised);
+  background: #5d5d5d;
 }
 
 .appearance-mode-lines,
@@ -2644,21 +2644,20 @@
   left: 70px;
   right: 70px;
   height: 8px;
-  background: color-mix(in srgb, var(--color-text-mute) 40%, transparent);
+  background: #d3d3d3;
   box-shadow:
-    0 14px 0 color-mix(in srgb, var(--color-text-mute) 34%, transparent),
-    -32px 40px 0 -1px color-mix(in srgb, var(--color-accent) 30%, transparent),
-    34px 40px 0 -1px color-mix(in srgb, var(--color-text-mute) 28%, transparent);
+    0 14px 0 #e0e0e0,
+    -32px 40px 0 -1px #d6d6d6,
+    34px 40px 0 -1px #d0d0d0;
 }
 
 .appearance-mode-card-dark .appearance-mode-lines,
 .appearance-mode-card-system .appearance-mode-lines {
-  background: color-mix(in srgb, var(--claude-on-dark-soft) 78%, transparent);
+  background: #bdbdbd;
   box-shadow:
-    0 14px 0 color-mix(in srgb, var(--claude-on-dark-soft) 72%, transparent),
-    -32px 40px 0 -1px color-mix(in srgb, var(--color-accent) 48%, transparent),
-    34px 40px 0 -1px
-    color-mix(in srgb, var(--claude-on-dark-soft) 58%, transparent);
+    0 14px 0 #a8a8a8,
+    -32px 40px 0 -1px #d3d3d3,
+    34px 40px 0 -1px #9f9f9f;
 }
 
 .appearance-mode-sheet {
@@ -2671,14 +2670,14 @@
 
 .appearance-mode-sheet,
 .appearance-mode-card-dark .appearance-mode-sheet {
-  background: var(--color-panel-bg);
+  background: #ffffff;
 }
 
 .appearance-mode-card-system .appearance-mode-sheet {
   background: linear-gradient(
     90deg,
-    var(--claude-canvas) 0 50%,
-    var(--claude-surface-dark-elevated) 50% 100%
+    rgba(255, 255, 255, 0.86) 0 50%,
+    rgba(255, 255, 255, 0.16) 50% 100%
   );
 }
 
@@ -3103,15 +3102,15 @@
 
 /* Appearance syntax colors */
 .appearance-syntax-keyword {
-  color: #d98568;
+  color: var(--color-accent);
 }
 
 .appearance-syntax-string {
-  color: var(--claude-accent-teal);
+  color: var(--color-skill);
 }
 
 .appearance-syntax-number {
-  color: var(--claude-accent-amber);
+  color: var(--color-warning);
 }
 
 .appearance-syntax-comment {

@@ -348,7 +348,7 @@
 
 :root[data-theme="dark"] {
   .context-menu-switch {
-    background: color-mix(in srgb, var(--claude-on-dark) 14%, var(--color-panel-elevated-bg));
+    background: color-mix(in srgb, var(--color-text-on-accent) 14%, var(--color-panel-elevated-bg));
 
     &[aria-checked="true"] {
       background: var(--color-accent);
@@ -399,15 +399,15 @@
 }
 
 .context-plugin-icon-pdf {
-  background: var(--red-9);
+  background: var(--color-danger);
 }
 
 .context-plugin-icon-sheets {
-  background: var(--green-9);
+  background: var(--color-success);
 }
 
 .context-plugin-icon-slides {
-  background: var(--amber-9);
+  background: var(--color-warning);
 }
 
 .context-plugin-icon-template {
@@ -415,12 +415,12 @@
 }
 
 .context-plugin-icon-browser {
-  background: var(--claude-accent-teal);
+  background: var(--color-skill);
 }
 
 .context-plugin-icon-github {
   background: var(--surface-product);
-  color: var(--claude-on-dark);
+  color: var(--color-text-on-accent);
 }
 
 .context-plugin-icon-openai {
