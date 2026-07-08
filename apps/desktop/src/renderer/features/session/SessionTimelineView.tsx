@@ -30,22 +30,6 @@ export type SessionTimelineViewProps = {
   count: number;
 };
 
-/* ── Styles (injected once) ─────────────────────────────── */
-
-const timelineStylesId = 'session-timeline-styles';
-
-function ensureTimelineStyles(): void {
-  if (document.getElementById(timelineStylesId)) return;
-  const link = document.createElement('link');
-  link.id = timelineStylesId;
-  link.rel = 'stylesheet';
-  link.href = new URL(
-    '../../styles/features/timeline.css',
-    import.meta.url,
-  ).href;
-  document.head.appendChild(link);
-}
-
 /* ── Constants ──────────────────────────────────────────── */
 
 const CHECK_INTERVAL_MS = 120;
@@ -64,11 +48,6 @@ export function SessionTimelineView({
   const listHandle = externalListRef ?? internalListRef;
   const prevCountRef = React.useRef(count);
   const scrollAttemptRef = React.useRef(0);
-
-  // Inject timeline CSS once
-  React.useEffect(() => {
-    ensureTimelineStyles();
-  }, []);
 
   // Auto-scroll to bottom when new items arrive and scrollToBottom is true
   React.useEffect(() => {
