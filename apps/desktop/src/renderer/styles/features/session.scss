@@ -82,9 +82,9 @@
     &:hover,
     &[data-state="open"],
     &[aria-expanded="true"] {
-      background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+      background: var(--state-hover-bg);
       color: var(--color-text-strong);
-      text-decoration-color: var(--color-accent);
+      text-decoration-color: currentColor;
     }
 
     &:focus-visible {
@@ -97,10 +97,7 @@
   position: static;
   display: block;
   translate: -50% 0;
-  transform-origin: var(
-    --radix-dropdown-menu-content-transform-origin,
-    top center
-  );
+  transform-origin: top center;
 }
 
 .quick-chat-hero p,
@@ -400,7 +397,7 @@
   height: 6px;
   flex: 0 0 auto;
   border-radius: var(--radius-full);
-  background: var(--color-accent);
+  background: var(--color-text-strong);
 }
 
 .inline-approval-options {
@@ -1686,7 +1683,7 @@
 }
 
 .exit-plan-mode-model-content {
-  min-width: var(--radix-select-trigger-width);
+  min-width: max-content;
 }
 
 .exit-plan-mode-options {
@@ -1861,13 +1858,7 @@
 .workflow-page {
   --workflow-content-width: min(820px, calc(100vw - 96px));
   --workflow-dock-width: min(980px, calc(100vw - 96px));
-  background:
-    linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--color-bg) 92%, var(--color-panel-elevated-bg)) 0%,
-    var(--color-bg) 34%
-  ),
-    var(--color-bg);
+  background: var(--color-bg);
   overflow: hidden;
 }
 
@@ -1905,8 +1896,8 @@
 }
 
 .workflow-page__composer-inner {
-  width: var(--workflow-dock-width);
-  max-width: var(--workflow-dock-width);
+  width: var(--workflow-composer-width);
+  max-width: var(--workflow-composer-width);
   pointer-events: auto;
   margin: 0 auto;
 }
@@ -1969,7 +1960,6 @@
   --composer-surface-footer-border-top: 1px solid
     color-mix(in srgb, var(--color-text-strong) 8%, transparent);
 
-  width: 100%;
   padding: 0 0 12px;
   background: transparent;
   box-shadow: none;
@@ -1978,18 +1968,18 @@
 .workflow-page__composer .composer {
   width: 100%;
   padding: 5px;
-  border: 1px solid color-mix(in srgb, var(--color-text-strong) 11%, var(--color-panel-border));
+  border: 1px solid var(--color-panel-border);
   border-radius: var(--radius-marquee);
-  background:
-    linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--color-panel-bg) 94%, var(--color-panel-elevated-bg)),
-    color-mix(in srgb, var(--color-panel-bg) 86%, var(--color-bg))
-  ),
-    var(--color-panel-bg);
+  background: var(--color-panel-bg);
   box-shadow:
     0 22px 60px color-mix(in srgb, var(--color-text-strong) 10%, transparent),
-    0 1px 0 color-mix(in srgb, #ffffff 40%, transparent) inset;
+    0 1px 0 color-mix(in srgb, var(--color-ink) 6%, transparent) inset;
+}
+
+.workflow-page__composer .composer-surface .inline-approval-card,
+.workflow-page__composer .composer-surface .workflow-composer-card {
+  width: 100%;
+  max-width: none;
 }
 
 /* --- Workflow plan card --- */
@@ -2001,9 +1991,7 @@
   padding: 15px;
   border: 1px solid var(--color-panel-border);
   border-radius: var(--radius-panel);
-  background:
-    linear-gradient(180deg, var(--color-panel-bg), var(--color-panel-elevated-bg)),
-    var(--color-panel-bg);
+  background: var(--color-panel-elevated-bg);
   color: var(--color-text-strong);
   font-size: var(--font-size-14);
   box-shadow: var(--color-panel-shadow-raised);
@@ -2071,11 +2059,7 @@
     left: 0;
     width: 100%;
     height: 40px;
-    background: linear-gradient(
-      to bottom,
-      rgba(255, 255, 255, 0.3) 10%,
-      rgba(0, 0, 0, 0.1) 90%
-    );
+    background: color-mix(in srgb, var(--color-panel-elevated-bg) 88%, transparent);
   }
 }
 
@@ -2394,7 +2378,7 @@
   }
 
   &.warning {
-    border-color: color-mix(in srgb, var(--color-accent) 45%, var(--color-border-soft));
+    border-color: color-mix(in srgb, var(--color-warning) 45%, var(--color-border-soft));
   }
 }
 
@@ -2460,14 +2444,14 @@
 .workflow-composer-card-question .inline-approval-option:not(.selected),
 .workflow-composer-card-plan .exit-plan-mode-option:not(.selected),
 .workflow-composer-card-question .inline-approval-option.custom {
-  background: color-mix(in srgb, var(--color-accent) 5%, var(--color-panel-bg));
-  border-color: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  background: var(--color-panel-bg);
+  border-color: var(--color-border-soft);
 }
 
 .workflow-composer-card-question .inline-approval-option.selected,
 .workflow-composer-card-plan .exit-plan-mode-option.selected {
   background: var(--state-active-bg);
-  border-color: color-mix(in srgb, var(--color-accent) 30%, transparent);
+  border-color: var(--color-border);
 }
 
 /* --- Timeline file event refinements --- */
@@ -2479,8 +2463,8 @@
 
 .timeline-file-event-icon {
   border-radius: var(--radius-4);
-  background: color-mix(in srgb, var(--color-accent) 10%, var(--color-panel-bg));
-  color: var(--color-accent);
+  background: var(--state-hover-bg);
+  color: var(--color-text-strong);
 }
 
 .timeline-file-event-copy strong,
@@ -2582,8 +2566,8 @@
 
 .workflow-composer-card-question .inline-approval-option.selected,
 .workflow-composer-card-plan .exit-plan-mode-option.selected {
-  background: color-mix(in srgb, var(--color-accent) 13%, var(--color-panel-bg));
-  border-color: color-mix(in srgb, var(--color-accent) 30%, var(--color-panel-border));
+  background: var(--state-active-bg);
+  border-color: var(--color-border);
 }
 
 .workflow-composer-card-question .inline-approval-option-index,
@@ -2596,8 +2580,8 @@
 
 .workflow-composer-card-question .inline-approval-option.selected .inline-approval-option-index,
 .workflow-composer-card-plan .exit-plan-mode-option.selected .exit-plan-mode-badge {
-  background: var(--color-accent);
-  color: var(--color-text-on-accent);
+  background: var(--color-bg);
+  color: var(--color-text-strong);
 }
 
 .inline-approval-option-info,
@@ -2758,49 +2742,26 @@
 
 /* --- Dark theme overrides --- */
 :root[data-theme="dark"] {
-  .workflow-page__composer-inner,
-  .workflow-page__composer .composer-surface,
   .inline-approval-card,
   .workflow-composer-card {
-    border-color: rgba(255, 255, 255, 0.075);
-    background: color-mix(in srgb, var(--color-bg) 78%, var(--surface-panel));
-  }
-
-  .workflow-page {
-    background:
-      linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--color-bg) 82%, var(--surface-raised)) 0%,
-      var(--color-bg) 36%
-    ),
-      var(--color-bg);
+    border-color: var(--color-border-soft);
+    background: var(--color-panel-bg);
   }
 
   .workflow-page .chat-session-header {
-    border-bottom-color: rgba(255, 255, 255, 0.065);
-    background: color-mix(in srgb, var(--color-bg) 84%, transparent);
+    border-bottom-color: var(--color-border-soft);
   }
 
   .workflow-page__composer .composer {
-    border-color: rgba(250, 249, 245, 0.1);
-    background:
-      linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--color-panel-bg) 88%, var(--surface-raised)),
-      color-mix(in srgb, var(--color-panel-bg) 78%, var(--surface-product))
-    ),
-      var(--color-panel-bg);
+    border-color: var(--color-border-soft);
+    background: var(--color-panel-bg);
     box-shadow:
-      0 24px 72px rgba(0, 0, 0, 0.42),
-      0 1px 0 rgba(250, 249, 245, 0.035) inset;
+      var(--color-panel-shadow),
+      0 1px 0 color-mix(in srgb, var(--color-ink) 4%, transparent) inset;
   }
 
   .workflow-page__composer .composer-surface {
-    --composer-surface-top-bg: color-mix(
-      in srgb,
-      var(--color-panel-bg) 84%,
-      var(--surface-product)
-    );
+    --composer-surface-top-bg: var(--color-panel-bg);
   }
 
   .timeline-file-event-header {
@@ -2812,38 +2773,32 @@
   }
 
   .timeline-system-event.error {
-    border-color: color-mix(in srgb, var(--color-danger) 48%, rgba(255, 255, 255, 0.08));
+    border-color: color-mix(in srgb, var(--color-danger) 48%, var(--color-border-soft));
     background: color-mix(in srgb, var(--color-danger) 13%, var(--color-panel-bg));
   }
 
   .workflow-plan-card {
-    border-color: rgba(255, 255, 255, 0.075);
-    background:
-      linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--color-bg) 76%, var(--surface-panel)),
-      color-mix(in srgb, var(--color-bg) 84%, var(--surface-raised))
-    ),
-      var(--color-bg);
+    border-color: var(--color-panel-border);
+    background: var(--color-panel-bg);
   }
 
   .workflow-composer-card-question .inline-approval-option:not(.selected),
   .workflow-composer-card-plan .exit-plan-mode-option:not(.selected),
   .workflow-composer-card-question .inline-approval-option.custom {
-    background: color-mix(in srgb, var(--color-accent) 7%, var(--color-panel-bg));
-    border-color: color-mix(in srgb, var(--color-accent) 16%, transparent);
+    background: var(--color-panel-bg);
+    border-color: var(--color-border-soft);
   }
 
   .workflow-composer-card-question .inline-approval-option.selected,
   .workflow-composer-card-plan .exit-plan-mode-option.selected {
     background: var(--state-active-bg);
-    border-color: color-mix(in srgb, var(--color-accent) 32%, transparent);
+    border-color: var(--color-border);
   }
 
   .workflow-plan-card__body .md-body code:not(pre code),
   .workflow-composer-card .md-body :not(pre) > code {
     background: color-mix(in srgb, var(--color-bg) 86%, var(--surface-raised));
-    border: 1px solid rgba(255, 255, 255, 0.07);
+    border: 1px solid var(--color-border-soft);
     color: var(--color-text-strong);
   }
 
@@ -2862,24 +2817,20 @@
 
   .workflow-composer-card-question .inline-approval-option.selected .inline-approval-option-index,
   .workflow-composer-card-plan .exit-plan-mode-option.selected .exit-plan-mode-badge {
-    background: var(--color-accent);
-    color: var(--color-text-on-accent);
+    background: var(--color-bg);
+    color: var(--color-text-strong);
   }
 
   .quick-chat-view .chat-composer > .composer {
-    border-color: rgba(250, 249, 245, 0.1);
-    background: color-mix(in srgb, var(--color-panel-bg) 88%, var(--surface-raised));
+    border-color: var(--color-panel-border);
+    background: var(--color-panel-bg);
     box-shadow:
-      0 24px 72px rgba(0, 0, 0, 0.42),
-      0 1px 0 rgba(250, 249, 245, 0.035) inset;
+      var(--color-panel-shadow),
+      0 1px 0 color-mix(in srgb, var(--color-ink) 4%, transparent) inset;
   }
 
   .quick-chat-view {
-    --composer-surface-top-bg: color-mix(
-      in srgb,
-      var(--color-panel-bg) 84%,
-      var(--surface-product)
-    );
+    --composer-surface-top-bg: var(--color-panel-bg);
   }
 }
 

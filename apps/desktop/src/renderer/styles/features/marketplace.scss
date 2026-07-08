@@ -166,9 +166,7 @@
   display: grid;
   place-items: start;
   padding: 30px 32px;
-  background:
-    linear-gradient(135deg, var(--color-panel-bg), var(--color-panel-elevated-bg)),
-    var(--color-panel-bg);
+  background: var(--color-panel-bg);
   box-shadow: var(--color-panel-shadow-soft);
 }
 
@@ -219,7 +217,7 @@
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: var(--black-a4);
+    background: var(--color-text-disabled);
     border: 0;
     padding: 0;
     cursor: pointer;
@@ -227,7 +225,7 @@
 }
 
 .plugins-hero-dot.is-active button {
-  background: var(--black-a10);
+  background: var(--color-text-strong);
   width: 8px;
   height: 8px;
 }
@@ -308,58 +306,53 @@
 
 /* Brand tone palette */
 .plugins-tone-github {
-  background: var(--surface-product);
-  color: var(--color-text-on-accent);
+  background: var(--color-panel-elevated-bg);
+  color: var(--color-text-strong);
 }
 
 .plugins-tone-chrome {
-  background: linear-gradient(
-    135deg,
-    var(--color-danger),
-    var(--color-warning) 60%,
-    var(--color-warning)
-  );
-  color: var(--color-text-on-accent);
+  background: var(--color-panel-elevated-bg);
+  color: var(--color-text-strong);
 }
 
 .plugins-tone-sheet {
-  background: var(--color-success);
-  color: var(--color-text-on-accent);
+  background: var(--color-panel-elevated-bg);
+  color: var(--color-text-strong);
 }
 
 .plugins-tone-slides {
-  background: var(--color-warning);
-  color: var(--color-text-on-accent);
+  background: var(--color-panel-elevated-bg);
+  color: var(--color-text-strong);
 }
 
 .plugins-tone-slack {
-  background: var(--surface-product-raised);
-  color: var(--color-text-on-accent);
+  background: var(--color-panel-elevated-bg);
+  color: var(--color-text-strong);
 }
 
 .plugins-tone-data {
-  background: var(--color-skill);
-  color: var(--color-text-on-accent);
+  background: var(--color-panel-elevated-bg);
+  color: var(--color-text-strong);
 }
 
 .plugins-tone-design {
-  background: var(--color-accent);
-  color: var(--color-text-on-accent);
+  background: var(--color-panel-elevated-bg);
+  color: var(--color-text-strong);
 }
 
 .plugins-tone-creative {
-  background: var(--color-warning);
-  color: var(--color-text-on-accent);
+  background: var(--color-panel-elevated-bg);
+  color: var(--color-text-strong);
 }
 
 .plugins-tone-sales {
-  background: var(--color-skill);
-  color: var(--color-text-on-accent);
+  background: var(--color-panel-elevated-bg);
+  color: var(--color-text-strong);
 }
 
 .plugins-tone-codex {
-  background: linear-gradient(135deg, var(--color-accent), var(--color-warning));
-  color: var(--color-text-on-accent);
+  background: var(--color-panel-elevated-bg);
+  color: var(--color-text-strong);
 }
 
 .plugins-card-meta {

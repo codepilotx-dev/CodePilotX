@@ -65,9 +65,9 @@
 .menubar-content {
   width: var(--popover-width, max-content);
   max-width: var(--popover-max-width, var(--popover-default-max-width));
-  max-height: var(--radix-menubar-content-available-height);
+  max-height: calc(100vh - 96px);
   padding: var(--popover-surface-padding);
-  transform-origin: var(--radix-menubar-content-transform-origin);
+  transform-origin: top left;
 }
 
 .menubar-item {

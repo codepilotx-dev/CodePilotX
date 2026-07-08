@@ -595,7 +595,7 @@
   width: 100%;
   height: 100%;
   border-radius: var(--radius-full);
-  background: var(--color-accent);
+  background: var(--color-text-strong);
   transform: scaleX(var(--usage-ratio, 0));
   transform-origin: left center;
   transition: transform var(--motion-standard) var(--ease-standard);

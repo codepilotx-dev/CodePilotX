@@ -68,9 +68,7 @@
   padding: var(--layout-card-pad);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-panel);
-  background:
-    linear-gradient(180deg, var(--color-panel-bg), var(--color-panel-elevated-bg)),
-    var(--color-panel-bg);
+  background: var(--color-panel-bg);
   box-shadow: var(--color-panel-shadow-raised);
 }
 
