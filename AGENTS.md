@@ -83,6 +83,30 @@ These instructions apply to the whole `ClaudeCode` tree unless a nested
   Use section-level cards and subtle shadows instead of giving every row a
   strong separate shadow.
 
+### Desktop CSS Ownership
+- Before adding or changing desktop CSS, search existing selectors first with
+  `rg`. Extend the owning selector block whenever possible instead of appending
+  a later patch rule for the same element.
+- Do not rely on import order, file order, or a more specific later selector to
+  override earlier desktop styles for the same target element. DevTools should
+  not show the intended final style as a chain of crossed-out earlier
+  declarations.
+- If a component needs contextual visual differences, use an explicit modifier,
+  a wrapper-owned CSS custom property, or move the declaration to the owning
+  feature block. Do not write rules such as `.feature .component-part` merely to
+  reset `.component-part` properties declared earlier.
+- Component CSS may define shared primitives only. Feature-specific sizing,
+  spacing, color, elevation, or layout belongs in the feature owner, or in
+  semantic variables consumed by the component primitive.
+- State, theme, media query, and accessibility overrides are acceptable only
+  when they are semantic (`:hover`, `:focus-visible`, `[data-state]`,
+  `:root[data-theme="dark"]`, reduced motion, or viewport constraints) and kept
+  near the owning block when practical.
+- When changing files under `apps/desktop/src/renderer/styles`, run
+  `bun run desktop:css:check` before handoff. New allowlist entries in
+  `scripts/check-desktop-css-overrides.mjs` must include a concrete reason;
+  do not use the allowlist to silence ordinary maintenance shortcuts.
+
 ### Right Dock
 - The right dock header uses `.right-dock-tabs` as a compact tool switcher.
   Keep tab wraps, add buttons, and dock controls on one visual center line.
@@ -135,6 +159,8 @@ These instructions apply to the whole `ClaudeCode` tree unless a nested
 
 ## Validation
 - First look for nearby existing validation patterns or commands.
+- For desktop CSS changes, run `bun run desktop:css:check` and treat failures as
+  blockers unless the overlap is a documented semantic exception.
 - If no runnable test/build command is available in this checkout, do a
   targeted TypeScript/style review of the files you changed and state that
   limitation in the handoff.
