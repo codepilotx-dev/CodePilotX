@@ -1,221 +1,222 @@
 import { readFileSync } from 'node:fs'
 import { dirname, join, relative } from 'node:path'
+import { compile } from 'sass'
 
 const repoRoot = join(import.meta.dirname, '..')
 const indexPath = join(
   repoRoot,
-  'apps/desktop/src/renderer/styles/index.css',
+  'apps/desktop/src/renderer/styles/index.scss',
 )
 
 const sameFileAllowlist = new Map(
   Object.entries({
-    'apps/desktop/src/renderer/styles/base.css::textarea':
+    'apps/desktop/src/renderer/styles/base.scss::textarea':
       'Base cursor reset intentionally splits textarea cursor-specific rules.',
-    'apps/desktop/src/renderer/styles/base.css:::root.dark-theme.dracula-theme':
+    'apps/desktop/src/renderer/styles/base.scss:::root.dark-theme.dracula-theme':
       'Dracula variables are grouped by token family.',
-    'apps/desktop/src/renderer/styles/components/chip.css::.menubar-trigger[data-highlighted]':
+    'apps/desktop/src/renderer/styles/components/chip.scss::.menubar-trigger[data-highlighted]':
       'Highlighted and open menubar states intentionally share the same visual token block.',
-    'apps/desktop/src/renderer/styles/components/chip.css::.message-action[data-state="open"]':
+    'apps/desktop/src/renderer/styles/components/chip.scss::.message-action[data-state="open"]':
       'Open message actions intentionally share chip active state tokens.',
-    'apps/desktop/src/renderer/styles/components/chip.css::.chip-button.active':
+    'apps/desktop/src/renderer/styles/components/chip.scss::.chip-button.active':
       'Accent chip state is a semantic variant layered on the shared active state.',
-    'apps/desktop/src/renderer/styles/components/chip.css::.chip-button[aria-expanded="true"]':
+    'apps/desktop/src/renderer/styles/components/chip.scss::.chip-button[aria-expanded="true"]':
       'Accent chip state is a semantic variant layered on the shared active state.',
-    'apps/desktop/src/renderer/styles/components/chip.css::.chip-button[data-state="open"]':
+    'apps/desktop/src/renderer/styles/components/chip.scss::.chip-button[data-state="open"]':
       'Accent chip state is a semantic variant layered on the shared active state.',
-    'apps/desktop/src/renderer/styles/components/chip.css::.meta-chip.active':
+    'apps/desktop/src/renderer/styles/components/chip.scss::.meta-chip.active':
       'Accent chip state is a semantic variant layered on the shared active state.',
-    'apps/desktop/src/renderer/styles/components/chip.css::.meta-chip[aria-expanded="true"]':
+    'apps/desktop/src/renderer/styles/components/chip.scss::.meta-chip[aria-expanded="true"]':
       'Accent chip state is a semantic variant layered on the shared active state.',
-    'apps/desktop/src/renderer/styles/components/chip.css::.meta-chip[data-state="open"]':
+    'apps/desktop/src/renderer/styles/components/chip.scss::.meta-chip[data-state="open"]':
       'Accent chip state is a semantic variant layered on the shared active state.',
-    'apps/desktop/src/renderer/styles/components/input.css::.settings-input-number:focus':
+    'apps/desktop/src/renderer/styles/components/input.scss::.settings-input-number:focus':
       'Number input focus is grouped with generic input focus and keeps spinner-specific cleanup nearby.',
-    'apps/desktop/src/renderer/styles/features/browser.css::.browser-address-error':
+    'apps/desktop/src/renderer/styles/features/browser.scss::.browser-address-error':
       'Browser address error uses a narrow viewport adjustment.',
-    'apps/desktop/src/renderer/styles/features/composer.css::.composer-bottom':
+    'apps/desktop/src/renderer/styles/features/composer.scss::.composer-bottom':
       'Composer bottom has base layout plus compact viewport adjustment.',
-    'apps/desktop/src/renderer/styles/features/composer.css::.composer-model-chip':
+    'apps/desktop/src/renderer/styles/features/composer.scss::.composer-model-chip':
       'Composer model chip has base sizing plus compact viewport adjustment.',
-    'apps/desktop/src/renderer/styles/features/composer.css::.composer-model-chip-thinking':
+    'apps/desktop/src/renderer/styles/features/composer.scss::.composer-model-chip-thinking':
       'Thinking chip has base sizing plus compact viewport adjustment.',
-    'apps/desktop/src/renderer/styles/features/composer.css::.composer-plan-mode-chip-icon-exit':
+    'apps/desktop/src/renderer/styles/features/composer.scss::.composer-plan-mode-chip-icon-exit':
       'Plan mode icon uses adjacent transition and positioned state rules.',
-    'apps/desktop/src/renderer/styles/features/composer.css::.permission-select-trigger':
+    'apps/desktop/src/renderer/styles/features/composer.scss::.permission-select-trigger':
       'Permission trigger has a compact viewport adjustment.',
-    'apps/desktop/src/renderer/styles/features/composer.css::.chat-input__dropdown-switch-thumb':
+    'apps/desktop/src/renderer/styles/features/composer.scss::.chat-input__dropdown-switch-thumb':
       'Switch thumb base and checked transform are intentionally adjacent.',
-    'apps/desktop/src/renderer/styles/features/layout-sidebar.css::.desktop-sidebar':
+    'apps/desktop/src/renderer/styles/features/layout-sidebar.scss::.desktop-sidebar':
       'Sidebar root variables are layered across collapsed and hover overlay contexts.',
-    'apps/desktop/src/renderer/styles/features/layout-sidebar.css::.desktop-sidebar-hover-overlay':
+    'apps/desktop/src/renderer/styles/features/layout-sidebar.scss::.desktop-sidebar-hover-overlay':
       'Hover overlay inherits sidebar density variables before state positioning rules.',
-    'apps/desktop/src/renderer/styles/features/layout-sidebar.css::.sidebar-layout':
+    'apps/desktop/src/renderer/styles/features/layout-sidebar.scss::.sidebar-layout':
       'Sidebar layout has expanded and collapsed variants.',
-    'apps/desktop/src/renderer/styles/features/layout-sidebar.css::.sidebar-session-list':
+    'apps/desktop/src/renderer/styles/features/layout-sidebar.scss::.sidebar-session-list':
       'Session list has base spacing and collapsed-state spacing.',
-    'apps/desktop/src/renderer/styles/features/layout-sidebar.css::.sidebar-row-trailing':
+    'apps/desktop/src/renderer/styles/features/layout-sidebar.scss::.sidebar-row-trailing':
       'Trailing controls have default and visible action variants.',
-    'apps/desktop/src/renderer/styles/features/layout-sidebar.css::.sidebar-section-title':
+    'apps/desktop/src/renderer/styles/features/layout-sidebar.scss::.sidebar-section-title':
       'Section title has base typography and compact collapsed variant.',
-    'apps/desktop/src/renderer/styles/features/layout-sidebar.css::.sidebar-nav-link.active':
+    'apps/desktop/src/renderer/styles/features/layout-sidebar.scss::.sidebar-nav-link.active':
       'Sidebar active rows share a common active-state token block.',
-    'apps/desktop/src/renderer/styles/features/layout-sidebar.css::.sidebar-session-row.active':
+    'apps/desktop/src/renderer/styles/features/layout-sidebar.scss::.sidebar-session-row.active':
       'Sidebar active rows share a common active-state token block.',
-    'apps/desktop/src/renderer/styles/features/layout-sidebar.css::.sidebar-settings-link.active':
+    'apps/desktop/src/renderer/styles/features/layout-sidebar.scss::.sidebar-settings-link.active':
       'Sidebar active rows share a common active-state token block.',
-    'apps/desktop/src/renderer/styles/features/layout-sidebar.css::.sidebar-collapse-confirm-target':
+    'apps/desktop/src/renderer/styles/features/layout-sidebar.scss::.sidebar-collapse-confirm-target':
       'Collapse confirmation has base positioning plus reduced-motion handling.',
-    'apps/desktop/src/renderer/styles/features/layout-sidebar.css::.sidebar-history-watermark':
+    'apps/desktop/src/renderer/styles/features/layout-sidebar.scss::.sidebar-history-watermark':
       'History watermark has base visibility plus collapsed-state variant.',
-    'apps/desktop/src/renderer/styles/features/layout-sidebar.css::.sidebar-update-dot':
+    'apps/desktop/src/renderer/styles/features/layout-sidebar.scss::.sidebar-update-dot':
       'Update dot has base visual and animation state.',
-    'apps/desktop/src/renderer/styles/features/layout.css::.desktop-main-stage':
+    'apps/desktop/src/renderer/styles/features/layout.scss::.desktop-main-stage':
       'Desktop main stage has base layout and dock-state width rules.',
-    'apps/desktop/src/renderer/styles/features/layout.css::.desktop-main-route':
+    'apps/desktop/src/renderer/styles/features/layout.scss::.desktop-main-route':
       'Desktop route has base minimum sizing and dock-state variants.',
-    'apps/desktop/src/renderer/styles/features/layout.css::.right-dock-controls':
+    'apps/desktop/src/renderer/styles/features/layout.scss::.right-dock-controls':
       'Right dock controls have header and terminal composer contexts.',
-    'apps/desktop/src/renderer/styles/features/layout.css::.right-dock-tab-wrap':
+    'apps/desktop/src/renderer/styles/features/layout.scss::.right-dock-tab-wrap':
       'Right dock tab wrapper has base transitions plus compact dock variants.',
-    'apps/desktop/src/renderer/styles/features/layout.css::.right-dock-add-button':
+    'apps/desktop/src/renderer/styles/features/layout.scss::.right-dock-add-button':
       'Right dock add/control buttons share base transition tokens.',
-    'apps/desktop/src/renderer/styles/features/layout.css::.right-dock-control':
+    'apps/desktop/src/renderer/styles/features/layout.scss::.right-dock-control':
       'Right dock controls share base transition tokens and header sizing.',
-    'apps/desktop/src/renderer/styles/features/layout.css::.right-dock-plan-scroll-content':
+    'apps/desktop/src/renderer/styles/features/layout.scss::.right-dock-plan-scroll-content':
       'Right dock plan scroll content has panel and dock body padding variants.',
-    'apps/desktop/src/renderer/styles/features/layout.css::.right-dock-file-tree':
+    'apps/desktop/src/renderer/styles/features/layout.scss::.right-dock-file-tree':
       'Right dock file tree has panel and dock body padding variants.',
-    'apps/desktop/src/renderer/styles/features/layout.css::.right-dock-search':
+    'apps/desktop/src/renderer/styles/features/layout.scss::.right-dock-search':
       'Right dock search inherits shared input radius then defines dock-local sizing.',
-    'apps/desktop/src/renderer/styles/features/review.css::.review-file-counts':
+    'apps/desktop/src/renderer/styles/features/review.scss::.review-file-counts':
       'Review file counts have base and expanded-state layouts.',
-    'apps/desktop/src/renderer/styles/features/review.css::.timeline-file-event-review-button':
+    'apps/desktop/src/renderer/styles/features/review.scss::.timeline-file-event-review-button':
       'Review button has base and review-sidebar context rules.',
-    'apps/desktop/src/renderer/styles/features/search.css::.utility-view':
+    'apps/desktop/src/renderer/styles/features/search.scss::.utility-view':
       'Utility view is shared with quick chat and has page-local layout.',
-    'apps/desktop/src/renderer/styles/features/search.css::.utility-view-header':
+    'apps/desktop/src/renderer/styles/features/search.scss::.utility-view-header':
       'Utility header has base and utility page-specific layout.',
-    'apps/desktop/src/renderer/styles/features/search.css::.utility-view-header h1':
+    'apps/desktop/src/renderer/styles/features/search.scss::.utility-view-header h1':
       'Utility header title has shared and page-specific typography.',
-    'apps/desktop/src/renderer/styles/features/search.css::.utility-grid':
+    'apps/desktop/src/renderer/styles/features/search.scss::.utility-grid':
       'Utility grid has base and utility page-specific layout.',
-    'apps/desktop/src/renderer/styles/features/search.css::.muted-copy':
+    'apps/desktop/src/renderer/styles/features/search.scss::.muted-copy':
       'Muted copy shares text tokens across utility and quick-chat copy.',
-    'apps/desktop/src/renderer/styles/features/settings.css::.settings-content-inner':
+    'apps/desktop/src/renderer/styles/features/settings.scss::.settings-content-inner':
       'Settings content has base and appearance-page layout variants.',
-    'apps/desktop/src/renderer/styles/features/settings.css::.settings-page-title':
+    'apps/desktop/src/renderer/styles/features/settings.scss::.settings-page-title':
       'Settings page title is reused in settings subsections.',
-    'apps/desktop/src/renderer/styles/features/settings.css::.settings-section':
+    'apps/desktop/src/renderer/styles/features/settings.scss::.settings-section':
       'Settings section has base card and page-specific elevated variants.',
-    'apps/desktop/src/renderer/styles/features/settings.css::.settings-section-header':
+    'apps/desktop/src/renderer/styles/features/settings.scss::.settings-section-header':
       'Settings section header has base and compact viewport layouts.',
-    'apps/desktop/src/renderer/styles/features/settings.css::.settings-section-header-actions':
+    'apps/desktop/src/renderer/styles/features/settings.scss::.settings-section-header-actions':
       'Settings section header actions have base and compact viewport layouts.',
-    'apps/desktop/src/renderer/styles/features/settings.css::.settings-row':
+    'apps/desktop/src/renderer/styles/features/settings.scss::.settings-row':
       'Settings row has base and compact viewport layouts.',
-    'apps/desktop/src/renderer/styles/features/settings.css::.settings-row-control':
+    'apps/desktop/src/renderer/styles/features/settings.scss::.settings-row-control':
       'Settings row controls have base and compact viewport layouts.',
-    'apps/desktop/src/renderer/styles/features/settings.css::.archived-session-row':
+    'apps/desktop/src/renderer/styles/features/settings.scss::.archived-session-row':
       'Archived session row has base and compact viewport layouts.',
-    'apps/desktop/src/renderer/styles/features/settings.css::.settings-inline-actions':
+    'apps/desktop/src/renderer/styles/features/settings.scss::.settings-inline-actions':
       'Inline actions have base and compact viewport layouts.',
-    'apps/desktop/src/renderer/styles/features/settings.css::.settings-status-grid':
+    'apps/desktop/src/renderer/styles/features/settings.scss::.settings-status-grid':
       'Status grid has base and compact viewport layouts.',
-    'apps/desktop/src/renderer/styles/features/settings.css::.settings-input-narrow':
+    'apps/desktop/src/renderer/styles/features/settings.scss::.settings-input-narrow':
       'Narrow input has base sizing and compact viewport layout.',
-    'apps/desktop/src/renderer/styles/features/settings.css::.settings-input-number:focus':
+    'apps/desktop/src/renderer/styles/features/settings.scss::.settings-input-number:focus':
       'Number input focus is grouped with generic focus and settings-local validation focus.',
-    'apps/desktop/src/renderer/styles/features/settings.css::.settings-input-number::-webkit-inner-spin-button':
+    'apps/desktop/src/renderer/styles/features/settings.scss::.settings-input-number::-webkit-inner-spin-button':
       'Spinner cleanup is repeated in settings-local numeric input context.',
-    'apps/desktop/src/renderer/styles/features/settings.css::.settings-input-number::-webkit-outer-spin-button':
+    'apps/desktop/src/renderer/styles/features/settings.scss::.settings-input-number::-webkit-outer-spin-button':
       'Spinner cleanup is repeated in settings-local numeric input context.',
-    'apps/desktop/src/renderer/styles/features/settings.css::.settings-input-unit':
+    'apps/desktop/src/renderer/styles/features/settings.scss::.settings-input-unit':
       'Input unit text is reused by settings unit controls.',
-    'apps/desktop/src/renderer/styles/features/settings.css::.profile-stat-strip':
+    'apps/desktop/src/renderer/styles/features/settings.scss::.profile-stat-strip':
       'Profile stat strip has base layout plus appearance refresh tokens.',
-    'apps/desktop/src/renderer/styles/features/settings.css::.profile-repository-row':
+    'apps/desktop/src/renderer/styles/features/settings.scss::.profile-repository-row':
       'Repository row shares profile row primitives and has row-specific spacing.',
-    'apps/desktop/src/renderer/styles/features/settings.css::.radio-card':
+    'apps/desktop/src/renderer/styles/features/settings.scss::.radio-card':
       'Radio card has base and refreshed surface variants kept in settings.',
-    'apps/desktop/src/renderer/styles/features/settings.css::.segmented-control-item':
+    'apps/desktop/src/renderer/styles/features/settings.scss::.segmented-control-item':
       'Segmented item has base interaction and refreshed motion tokens.',
-    'apps/desktop/src/renderer/styles/features/settings.css::.theme-dropdown-trigger':
+    'apps/desktop/src/renderer/styles/features/settings.scss::.theme-dropdown-trigger':
       'Theme dropdown has base and appearance-page trigger variants.',
-    'apps/desktop/src/renderer/styles/features/settings.css::.settings-dropdown-item-inner':
+    'apps/desktop/src/renderer/styles/features/settings.scss::.settings-dropdown-item-inner':
       'Dropdown item layout is reused by appearance dropdown content.',
-    'apps/desktop/src/renderer/styles/features/settings.css::.settings-dropdown-item-copy':
+    'apps/desktop/src/renderer/styles/features/settings.scss::.settings-dropdown-item-copy':
       'Dropdown item copy layout is reused by appearance dropdown content.',
-    'apps/desktop/src/renderer/styles/features/settings.css::.appearance-preview-marker':
+    'apps/desktop/src/renderer/styles/features/settings.scss::.appearance-preview-marker':
       'Preview marker uses adjacent positional variants.',
-    'apps/desktop/src/renderer/styles/features/settings.css::.appearance-theme-controls-actions':
+    'apps/desktop/src/renderer/styles/features/settings.scss::.appearance-theme-controls-actions':
       'Appearance controls have base and compact workbench layouts.',
-    'apps/desktop/src/renderer/styles/features/settings.css::.billing-expand-toggle':
+    'apps/desktop/src/renderer/styles/features/settings.scss::.billing-expand-toggle':
       'Billing toggle has base and refreshed motion tokens.',
-    'apps/desktop/src/renderer/styles/features/settings.css::.billing-usage-card':
+    'apps/desktop/src/renderer/styles/features/settings.scss::.billing-usage-card':
       'Billing card has base and page-specific surface variants.',
-    'apps/desktop/src/renderer/styles/features/settings.css::.billing-usage-card-header p':
+    'apps/desktop/src/renderer/styles/features/settings.scss::.billing-usage-card-header p':
       'Billing card header copy has base and compact viewport variants.',
-    'apps/desktop/src/renderer/styles/features/settings.css::.billing-usage-meta':
+    'apps/desktop/src/renderer/styles/features/settings.scss::.billing-usage-meta':
       'Billing metadata has base and compact viewport variants.',
-    'apps/desktop/src/renderer/styles/features/settings.css::.billing-metric-grid':
+    'apps/desktop/src/renderer/styles/features/settings.scss::.billing-metric-grid':
       'Billing metric grid has base and compact viewport variants.',
-    'apps/desktop/src/renderer/styles/features/settings.css::.billing-usage-grid':
+    'apps/desktop/src/renderer/styles/features/settings.scss::.billing-usage-grid':
       'Billing usage grid has base and compact viewport variants.',
-    'apps/desktop/src/renderer/styles/features/settings.css::.archived-session-row + .archived-session-row':
+    'apps/desktop/src/renderer/styles/features/settings.scss::.archived-session-row + .archived-session-row':
       'Adjacent row separators share settings row border tokens.',
-    'apps/desktop/src/renderer/styles/features/settings.css::.billing-balance-row + .billing-balance-row':
+    'apps/desktop/src/renderer/styles/features/settings.scss::.billing-balance-row + .billing-balance-row':
       'Adjacent row separators share settings row border tokens.',
-    'apps/desktop/src/renderer/styles/features/settings.css::.mcp-server-row + .mcp-server-row':
+    'apps/desktop/src/renderer/styles/features/settings.scss::.mcp-server-row + .mcp-server-row':
       'Adjacent row separators share settings row border tokens.',
-    'apps/desktop/src/renderer/styles/features/settings.css::.settings-hero-card':
+    'apps/desktop/src/renderer/styles/features/settings.scss::.settings-hero-card':
       'Settings hero card has base and compact viewport variants.',
-    'apps/desktop/src/renderer/styles/features/settings.css::.settings-empty-state':
+    'apps/desktop/src/renderer/styles/features/settings.scss::.settings-empty-state':
       'Settings empty state has base and memory-settings context variants.',
-    'apps/desktop/src/renderer/styles/features/settings.css::.keyboard-shortcut-unbound':
+    'apps/desktop/src/renderer/styles/features/settings.scss::.keyboard-shortcut-unbound':
       'Keyboard shortcut unbound style has adjacent typography and color variants.',
-    'apps/desktop/src/renderer/styles/features/settings.css::.keyboard-shortcuts-settings':
+    'apps/desktop/src/renderer/styles/features/settings.scss::.keyboard-shortcuts-settings':
       'Keyboard shortcut page has base and content-width variants.',
-    'apps/desktop/src/renderer/styles/features/settings.css::.memory-settings-item':
+    'apps/desktop/src/renderer/styles/features/settings.scss::.memory-settings-item':
       'Memory item has base and selectable item variants.',
-    'apps/desktop/src/renderer/styles/features/settings.css::.appearance-workbench':
+    'apps/desktop/src/renderer/styles/features/settings.scss::.appearance-workbench':
       'Appearance workbench has base and compact viewport layouts.',
-    'apps/desktop/src/renderer/styles/features/settings.css::.appearance-mode-sheet':
+    'apps/desktop/src/renderer/styles/features/settings.scss::.appearance-mode-sheet':
       'Appearance mode sheet has base and active mode variants.',
-    'apps/desktop/src/renderer/styles/features/settings.css::.appearance-syntax-keyword':
+    'apps/desktop/src/renderer/styles/features/settings.scss::.appearance-syntax-keyword':
       'Appearance preview syntax colors are repeated in the miniature workbench preview.',
-    'apps/desktop/src/renderer/styles/features/settings.css::.appearance-syntax-string':
+    'apps/desktop/src/renderer/styles/features/settings.scss::.appearance-syntax-string':
       'Appearance preview syntax colors are repeated in the miniature workbench preview.',
-    'apps/desktop/src/renderer/styles/features/settings.css::.appearance-syntax-number':
+    'apps/desktop/src/renderer/styles/features/settings.scss::.appearance-syntax-number':
       'Appearance preview syntax colors are repeated in the miniature workbench preview.',
-    'apps/desktop/src/renderer/styles/features/timeline.css::.session-turn-row':
+    'apps/desktop/src/renderer/styles/features/timeline.scss::.session-turn-row':
       'Timeline row has base and narrow viewport padding.',
-    'apps/desktop/src/renderer/styles/features/timeline.css::.user-message-bubble':
+    'apps/desktop/src/renderer/styles/features/timeline.scss::.user-message-bubble':
       'User message bubble has base and timeline-specific display variants.',
-    'apps/desktop/src/renderer/styles/markdown.css::.md-body h5':
+    'apps/desktop/src/renderer/styles/markdown.scss::.md-body h5':
       'Markdown heading levels share base typography and then specific colors.',
-    'apps/desktop/src/renderer/styles/markdown.css::.md-body h6':
+    'apps/desktop/src/renderer/styles/markdown.scss::.md-body h6':
       'Markdown heading levels share base typography and then specific colors.',
-    'apps/desktop/src/renderer/styles/modal.css::.git-workflow-modal':
+    'apps/desktop/src/renderer/styles/modal.scss::.git-workflow-modal':
       'Git workflow modal shares permission modal surface tokens before modal-specific sizing.',
-    'apps/desktop/src/renderer/styles/modal.css::.archive-session-toast':
+    'apps/desktop/src/renderer/styles/modal.scss::.archive-session-toast':
       'Archive toast shares toast surface tokens before archive-specific sizing.',
-    'apps/desktop/src/renderer/styles/modal.css::.archive-session-toast-close':
+    'apps/desktop/src/renderer/styles/modal.scss::.archive-session-toast-close':
       'Archive toast close button has base and hover/focus variants.',
-    'apps/desktop/src/renderer/styles/modal.css::.git-workflow-form textarea':
+    'apps/desktop/src/renderer/styles/modal.scss::.git-workflow-form textarea':
       'Git workflow textarea has base and focus variants.',
-    'apps/desktop/src/renderer/styles/modal.css::.git-workflow-check':
+    'apps/desktop/src/renderer/styles/modal.scss::.git-workflow-check':
       'Git workflow check row has base and state-specific variants.',
-    'apps/desktop/src/renderer/styles/modal.css::.github-login-panel p':
+    'apps/desktop/src/renderer/styles/modal.scss::.github-login-panel p':
       'GitHub login copy has base and secondary paragraph styling.',
-    'apps/desktop/src/renderer/styles/modal.css::.github-repository-empty':
+    'apps/desktop/src/renderer/styles/modal.scss::.github-repository-empty':
       'GitHub repository empty state has base and icon-specific variants.',
-    'apps/desktop/src/renderer/styles/popover.css::[data-radix-popper-content-wrapper]:has(.rm-model-menu)':
+    'apps/desktop/src/renderer/styles/popover.scss::[data-radix-popper-content-wrapper]:has(.rm-model-menu)':
       'Radix wrapper rules are split between generic and runtime positioning constraints.',
-    'apps/desktop/src/renderer/styles/popover.css::.settings-dropdown-content':
+    'apps/desktop/src/renderer/styles/popover.scss::.settings-dropdown-content':
       'Settings dropdown content shares popover surface tokens before dropdown sizing.',
-    'apps/desktop/src/renderer/styles/popover.css::.popover-item-tooltip':
+    'apps/desktop/src/renderer/styles/popover.scss::.popover-item-tooltip':
       'Popover tooltip has base and arrow-position variants.',
-    'apps/desktop/src/renderer/styles/popover.css::.popover-item-arrow':
+    'apps/desktop/src/renderer/styles/popover.scss::.popover-item-arrow':
       'Popover arrow has base and tooltip placement variants.',
   }),
 )
@@ -373,12 +374,17 @@ function normalizePath(filePath) {
   return relative(repoRoot, filePath).replaceAll('\\', '/')
 }
 
-function readImportedCssFiles() {
-  const indexCss = readFileSync(indexPath, 'utf8')
-  return [...indexCss.matchAll(/@import\s+['"](.+?)['"]/g)]
+function readImportedScssFiles() {
+  const indexScss = readFileSync(indexPath, 'utf8')
+  return [...indexScss.matchAll(/@use\s+['"](.+?)['"]/g)]
     .map(match => match[1])
-    .filter(specifier => specifier.startsWith('./'))
-    .map(specifier => join(dirname(indexPath), specifier))
+    .filter(specifier => specifier !== 'vendor')
+    .map(specifier => join(dirname(indexPath), specifier + '.scss'))
+}
+
+function compileScssFile(filePath) {
+  const result = compile(filePath, { style: 'expanded' })
+  return result.css
 }
 
 function stripCommentsKeepLines(css) {
@@ -437,8 +443,8 @@ function isIgnorableRule(selectorText) {
   )
 }
 
-function parseCssRules(filePath, orderOffset) {
-  const lines = stripCommentsKeepLines(readFileSync(filePath, 'utf8')).split(
+function parseCssFromContent(cssContent, filePath, orderOffset) {
+  const lines = stripCommentsKeepLines(cssContent).split(
     /\r?\n/,
   )
   const rules = []
@@ -496,6 +502,10 @@ function parseCssRules(filePath, orderOffset) {
   }
 
   return rules
+}
+
+function parseCssRules(filePath, orderOffset) {
+  return parseCssFromContent(readFileSync(filePath, 'utf8'), filePath, orderOffset)
 }
 
 function pushRules(rules, filePath, selectorText, body, line, orderOffset) {
@@ -622,10 +632,11 @@ function isAllowedCrossFileOverlap(rule) {
 }
 
 function main() {
-  const files = readImportedCssFiles()
+  const files = readImportedScssFiles()
   let allRules = []
   for (const filePath of files) {
-    allRules = allRules.concat(parseCssRules(filePath, allRules.length))
+    const css = compileScssFile(filePath)
+    allRules = allRules.concat(parseCssFromContent(css, filePath, allRules.length))
   }
 
   const bySelector = new Map()
