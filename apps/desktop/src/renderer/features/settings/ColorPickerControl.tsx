@@ -187,7 +187,9 @@ export function ColorPickerControl({
   const selectedHex = hsvToHex(hsv)
   const buttonTextColor = getReadableTextColor(selectedHex)
   const swatchBorderColor =
-    buttonTextColor === '#FCFCFC' ? 'var(--white-a9)' : 'var(--black-a4)'
+    buttonTextColor === '#FCFCFC'
+      ? 'color-mix(in srgb, var(--color-bg) 72%, transparent)'
+      : 'color-mix(in srgb, var(--color-ink) 26%, transparent)'
 
   function commitColor(nextHsv: Hsv): void {
     setHsv(nextHsv)

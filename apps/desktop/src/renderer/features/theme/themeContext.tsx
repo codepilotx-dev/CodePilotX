@@ -48,6 +48,7 @@ const THEME_VARIABLES = [
   '--contrast',
   '--color-bg',
   '--color-bg-soft',
+  '--color-bg-subtle',
   '--color-bg-mask',
   '--color-bg-hover',
   '--color-bg-row-hover',
@@ -84,6 +85,8 @@ const THEME_VARIABLES = [
   '--color-icon-soft',
   '--color-icon-arrow',
   '--color-accent',
+  '--color-accent-a3',
+  '--color-accent-11',
   '--color-send-bg',
   '--color-send-bg-hover',
   '--color-send-bg-disabled',
@@ -98,6 +101,8 @@ const THEME_VARIABLES = [
   '--surface-panel',
   '--surface-raised',
   '--surface-subtle',
+  '--surface-product',
+  '--surface-product-raised',
   '--border-subtle',
   '--border-muted',
   '--shadow-float',
@@ -332,9 +337,7 @@ function applyDesktopTheme(
 
   const config = getDesktopThemeForSelection(settings, variant)
   const { theme } = config
-  const dracula = variant === 'dark' && config.codeThemeId === 'dracula'
   const contrast = clamp(theme.contrast, 0, 100)
-  root.classList.toggle('dracula-theme', dracula)
   const bgSoftMix = contrastMix(contrast, 1, 6)
   const bgRowHoverMix = variant === 'dark' ? 12 : 7
   const layoutTokens = deriveLayoutThemeTokens(theme, variant, contrast)
@@ -351,39 +354,17 @@ function applyDesktopTheme(
   root.style.setProperty('--color-popover-bg', theme.surface)
   root.style.setProperty('--color-popover-border', surfaceInkMix(theme, contrastMix(contrast, 4, 8)))
   root.style.setProperty('--color-popover-divider', surfaceInkMix(theme, contrastMix(contrast, 3, 6)))
-  root.style.setProperty(
-    '--glass-surface-bg',
-    variant === 'dark'
-      ? colorMix(theme.surface, 20, 'transparent')
-      : colorMix(theme.surface, 20, 'transparent'),
-  )
-  root.style.setProperty(
-    '--glass-surface-border',
-    variant === 'dark'
-      ? 'rgba(255, 255, 255, 0.14)'
-      : colorMix(theme.ink, 10, 'transparent'),
-  )
-  root.style.setProperty(
-    '--glass-surface-highlight',
-    variant === 'dark'
-      ? 'rgba(255, 255, 255, 0.08)'
-      : 'rgba(255, 255, 255, 0.72)',
-  )
-  root.style.setProperty(
-    '--glass-surface-text',
-    variant === 'dark' ? 'rgba(255, 255, 255, 0.94)' : theme.ink,
-  )
+  root.style.setProperty('--glass-surface-bg', colorMix(theme.surface, 20, 'transparent'))
+  root.style.setProperty('--glass-surface-border', colorMix(theme.ink, 12, 'transparent'))
+  root.style.setProperty('--glass-surface-highlight', colorMix(theme.ink, 8, 'transparent'))
+  root.style.setProperty('--glass-surface-text', theme.ink)
   root.style.setProperty(
     '--glass-surface-text-meta',
-    variant === 'dark'
-      ? 'rgba(255, 255, 255, 0.72)'
-      : colorMix(theme.ink, 78, theme.surface),
+    surfaceInkMix(theme, contrastMix(contrast, 55, 70)),
   )
   root.style.setProperty(
     '--glass-surface-text-disabled',
-    variant === 'dark'
-      ? 'rgba(255, 255, 255, 0.42)'
-      : colorMix(theme.ink, 52, theme.surface),
+    surfaceInkMix(theme, contrastMix(contrast, 15, 25)),
   )
   root.style.setProperty('--glass-surface-blur', '14px')
   root.style.setProperty('--color-surface', theme.surface)
@@ -393,7 +374,7 @@ function applyDesktopTheme(
   root.style.setProperty('--color-border-faint', surfaceInkMix(theme, contrastMix(contrast, 2, 5)))
   root.style.setProperty('--color-border-row', surfaceInkMix(theme, contrastMix(contrast, 2, 5)))
   root.style.setProperty('--color-danger', theme.semanticColors.diffRemoved)
-  root.style.setProperty('--color-warning', '#d4a017')
+  root.style.setProperty('--color-warning', surfaceInkMix(theme, contrastMix(contrast, 65, 78)))
   root.style.setProperty('--color-success', theme.semanticColors.diffAdded)
   root.style.setProperty('--color-text', theme.ink)
   root.style.setProperty('--color-text-strong', theme.ink)
@@ -408,14 +389,8 @@ function applyDesktopTheme(
   root.style.setProperty('--color-icon-arrow', surfaceInkMix(theme, contrastMix(contrast, 30, 45)))
   root.style.setProperty('--color-accent', theme.accent)
   root.style.setProperty('--color-send-bg', theme.accent)
-  root.style.setProperty(
-    '--color-send-bg-hover',
-    isDefaultDarkAccent(theme.accent) ? '#a9583e' : accentMix(theme, variant === 'dark' ? 12 : 18),
-  )
-  root.style.setProperty(
-    '--color-send-bg-disabled',
-    isDefaultDarkAccent(theme.accent) ? '#e6dfd8' : accentMix(theme, 50),
-  )
+  root.style.setProperty('--color-send-bg-hover', accentMix(theme, variant === 'dark' ? 12 : 18))
+  root.style.setProperty('--color-send-bg-disabled', accentMix(theme, 50))
   root.style.setProperty('--color-user-bubble-bg', surfaceInkMix(theme, bgRowHoverMix))
   root.style.setProperty('--color-scrollbar', surfaceInkMix(theme, contrastMix(contrast, 8, 14)))
   root.style.setProperty('--color-scrollbar-hover', surfaceInkMix(theme, contrastMix(contrast, 15, 25)))
@@ -480,8 +455,8 @@ function deriveLayoutThemeTokens(
       '--surface-panel': surfaceInkMix(theme, panelMix),
       '--surface-raised': surfaceInkMix(theme, raisedMix),
       '--surface-subtle': surfaceInkMix(theme, sidebarMix),
-      '--surface-product': '#11100f',
-      '--surface-product-raised': '#252320',
+      '--surface-product': surfaceInkMix(theme, panelMix),
+      '--surface-product-raised': surfaceInkMix(theme, raisedMix),
       '--border-subtle': surfaceInkMix(theme, contrastMix(contrast, 30, 46)),
       '--border-muted': surfaceInkMix(theme, contrastMix(contrast, 20, 34)),
       '--shadow-resting': '0 1px 2px rgba(0, 0, 0, 0.24), 0 1px 0 rgba(255, 255, 255, 0.03) inset',
@@ -510,8 +485,8 @@ function deriveLayoutThemeTokens(
     '--surface-panel': theme.surface,
     '--surface-raised': surfaceInkMix(theme, raisedMix),
     '--surface-subtle': surfaceInkMix(theme, subtleMix),
-    '--surface-product': '#181715',
-    '--surface-product-raised': '#252320',
+    '--surface-product': surfaceInkMix(theme, contrastMix(contrast, 8, 16)),
+    '--surface-product-raised': surfaceInkMix(theme, contrastMix(contrast, 12, 20)),
     '--border-subtle': surfaceInkMix(theme, contrastMix(contrast, 7, 13)),
     '--border-muted': surfaceInkMix(theme, contrastMix(contrast, 3, 8)),
     '--shadow-resting': `0 1px 2px ${colorMix(theme.ink, 5, 'transparent')}, 0 1px 0 ${colorMix(theme.surface, 70, 'transparent')} inset`,
@@ -541,10 +516,6 @@ function surfaceInkMix(theme: ThemeTokens, inkPercent: number): string {
 
 function colorMix(first: string, firstPercent: number, second: string): string {
   return `color-mix(in srgb, ${first} ${firstPercent}%, ${second})`
-}
-
-function isDefaultDarkAccent(accent: string): boolean {
-  return accent.toLowerCase() === '#cc785c'
 }
 
 function accentMix(theme: ThemeTokens, inkPercent: number): string {
