@@ -429,12 +429,62 @@ export function AppearanceSettings() {
     variant: DesktopThemeVariant,
     themeId: string,
   ): void => {
+    // Look up the target theme's base config
+    const preset = DESKTOP_THEME_PRESETS.find(p => p.id === themeId)
+
+    if (preset) {
+      if (preset.config.variant !== variant) return
+
+      // Built-in theme: take color fields from preset base, keep non-color
+      // fields from the currently active theme (fonts, contrast, opaqueWindows)
+      const mergedConfig: DesktopThemeConfigV1 = {
+        ...preset.config,
+        theme: {
+          ...preset.config.theme,
+          fonts: activeTheme.theme.fonts,
+          contrast: activeTheme.theme.contrast,
+          opaqueWindows: activeTheme.theme.opaqueWindows,
+        },
+      }
+
+      void saveSettings({
+        ...settings,
+        activeThemeIds: {
+          ...settings.activeThemeIds,
+          [variant]: themeId,
+        },
+        presetOverrides: {
+          ...settings.presetOverrides,
+          [themeId]: mergedConfig,
+        },
+      })
+      theme.draft.autoSave()
+      return
+    }
+
+    // Custom theme: same merge strategy
+    const customEntry = settings.customThemes.find(t => t.id === themeId)
+    if (!customEntry || customEntry.config.variant !== variant) return
+
+    const mergedConfig: DesktopThemeConfigV1 = {
+      ...customEntry.config,
+      theme: {
+        ...customEntry.config.theme,
+        fonts: activeTheme.theme.fonts,
+        contrast: activeTheme.theme.contrast,
+        opaqueWindows: activeTheme.theme.opaqueWindows,
+      },
+    }
+
     void saveSettings({
       ...settings,
       activeThemeIds: {
         ...settings.activeThemeIds,
         [variant]: themeId,
       },
+      customThemes: settings.customThemes.map(theme =>
+        theme.id === themeId ? { ...theme, config: mergedConfig } : theme,
+      ),
     })
     theme.draft.autoSave()
   }
@@ -494,7 +544,7 @@ export function AppearanceSettings() {
               </button>
               <button
                 type="button"
-                className="settings-button ghost"
+                className="settings-button link"
                 disabled={!activeThemeIsBuiltin}
                 onClick={handleCopyPreset}
               >
@@ -502,7 +552,7 @@ export function AppearanceSettings() {
               </button>
               <button
                 type="button"
-                className="settings-button ghost"
+                className="settings-button link"
                 disabled={!activeThemeCanReset}
                 onClick={handleResetTheme}
               >
@@ -510,7 +560,7 @@ export function AppearanceSettings() {
               </button>
               <button
                 type="button"
-                className="settings-button ghost"
+                className="settings-button link"
                 onClick={handleCopyTheme}
               >
                 导出
@@ -708,7 +758,7 @@ function ThemePreviewPane({
 }) {
   return (
     <div
-      className={`appearance-diff-preview marker-${diffMarkerStyle}`}
+      className={`appearance-diff-preview theme-${activeTheme.variant} marker-${diffMarkerStyle}`}
       style={{ fontFamily: codeFontStack, fontSize: codeSize }}
     >
       <div className="appearance-diff-pane appearance-diff-pane-removed">
@@ -963,7 +1013,7 @@ function getThemeDropdownOptions(
   settings: DesktopThemeSettings,
   variant: DesktopThemeVariant,
 ): Array<{ value: string; label: string; icon: React.ReactNode }> {
-  return [
+  const options = [
     ...DESKTOP_THEME_PRESETS.filter(
       preset => preset.config.variant === variant,
     ).map(preset => ({
@@ -979,6 +1029,13 @@ function getThemeDropdownOptions(
         icon: <ThemeOptionIcon theme={theme.config} />,
       })),
   ]
+
+  return options.sort((left, right) => {
+    const labelOrder = left.label.localeCompare(right.label, undefined, {
+      sensitivity: 'base',
+    })
+    return labelOrder || left.value.localeCompare(right.value)
+  })
 }
 
 function ThemeOptionIcon({

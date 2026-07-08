@@ -26,6 +26,7 @@ test('DEFAULT_LIGHT_THEME uses CodePilotX desktop tokens', () => {
   expect(DEFAULT_LIGHT_THEME.theme.surface).toBe('#ffffff')
   expect(DEFAULT_LIGHT_THEME.theme.ink).toBe('#0d0d0d')
   expect(DEFAULT_LIGHT_THEME.theme.accent).toBe('#0169cc')
+  expect(DEFAULT_LIGHT_THEME.theme.contrast).toBe(40)
   expect(DEFAULT_LIGHT_THEME.theme.semanticColors.diffAdded).toBe('#00a240')
   expect(DEFAULT_LIGHT_THEME.theme.semanticColors.diffRemoved).toBe('#e02e2a')
   expect(DEFAULT_LIGHT_THEME.theme.semanticColors.skill).toBe('#751ed9')
@@ -33,9 +34,11 @@ test('DEFAULT_LIGHT_THEME uses CodePilotX desktop tokens', () => {
 })
 
 test('DEFAULT_DARK_THEME uses CodePilotX desktop tokens', () => {
+  expect(DEFAULT_DARK_THEME.codeThemeId).toBe('CodePilotX')
   expect(DEFAULT_DARK_THEME.theme.surface).toBe('#111111')
   expect(DEFAULT_DARK_THEME.theme.ink).toBe('#fcfcfc')
   expect(DEFAULT_DARK_THEME.theme.accent).toBe('#0169cc')
+  expect(DEFAULT_DARK_THEME.theme.contrast).toBe(40)
   expect(DEFAULT_DARK_THEME.theme.semanticColors.diffAdded).toBe('#00a240')
   expect(DEFAULT_DARK_THEME.theme.semanticColors.diffRemoved).toBe('#e02e2a')
   expect(DEFAULT_DARK_THEME.theme.semanticColors.skill).toBe('#b06dff')
@@ -55,6 +58,8 @@ test('built-in desktop themes include ten paired suites', () => {
 
     expect(lightTheme?.config.variant).toBe('light')
     expect(darkTheme?.config.variant).toBe('dark')
+    expect(lightTheme?.config.theme.contrast).toBe(40)
+    expect(darkTheme?.config.theme.contrast).toBe(40)
     expect(lightTheme?.config.theme.surface).toMatch(/^#[0-9a-f]{6}$/i)
     expect(darkTheme?.config.theme.surface).toMatch(/^#[0-9a-f]{6}$/i)
   }

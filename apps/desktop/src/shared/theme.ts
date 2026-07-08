@@ -1,4 +1,4 @@
-import * as radixColors from '@radix-ui/colors'
+import * as radixColors from "@radix-ui/colors";
 import type {
   DesktopThemeCustomTheme,
   DesktopThemeConfigV1,
@@ -6,69 +6,69 @@ import type {
   DesktopThemeMode,
   DesktopThemeSettings,
   DesktopThemeVariant,
-} from './types.js'
+} from "./types.js";
 
-export const CODEX_THEME_PREFIX = 'codepilotx-theme-v1:'
-export const DEFAULT_LIGHT_THEME_ID = 'light-codex'
-export const DEFAULT_DARK_THEME_ID = 'dark-codex'
+export const CODEX_THEME_PREFIX = "codepilotx-theme-v1:";
+export const DEFAULT_LIGHT_THEME_ID = "light-codex";
+export const DEFAULT_DARK_THEME_ID = "dark-codex";
 
 export const DEFAULT_UI_FONT: DesktopThemeFontEntry = {
-  preset: 'MiSans VF',
+  preset: "MiSans VF",
   fallback:
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Helvetica Neue", Arial, "Microsoft YaHei", system-ui, sans-serif',
-}
+};
 
 export const DEFAULT_CODE_FONT: DesktopThemeFontEntry = {
-  preset: 'JetBrains Mono VF',
+  preset: "JetBrains Mono VF",
   fallback:
     'ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace',
-}
+};
 
-export const DEFAULT_FONTS: DesktopThemeConfigV1['theme']['fonts'] = {
+export const DEFAULT_FONTS: DesktopThemeConfigV1["theme"]["fonts"] = {
   ui: DEFAULT_UI_FONT,
   code: DEFAULT_CODE_FONT,
-}
+};
 
 export type DesktopThemePreset = {
-  id: string
-  label: string
-  config: DesktopThemeConfigV1
-}
+  id: string;
+  label: string;
+  config: DesktopThemeConfigV1;
+};
 
 type RadixScale =
-  | 'blue'
-  | 'cyan'
-  | 'gray'
-  | 'green'
-  | 'iris'
-  | 'mauve'
-  | 'olive'
-  | 'orange'
-  | 'pink'
-  | 'purple'
-  | 'red'
-  | 'sage'
-  | 'sand'
-  | 'slate'
+  | "blue"
+  | "cyan"
+  | "gray"
+  | "green"
+  | "iris"
+  | "mauve"
+  | "olive"
+  | "orange"
+  | "pink"
+  | "purple"
+  | "red"
+  | "sage"
+  | "sand"
+  | "slate";
 
-type RadixStep = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12
+type RadixStep = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
 
 type RadixThemePresetOptions = {
-  accentScale: RadixScale
-  accentStep?: RadixStep
-  codeThemeId: string
-  contrast?: number
-  fonts?: DesktopThemeConfigV1['theme']['fonts']
-  grayScale?: RadixScale
-  inkScale?: RadixScale
-  inkStep?: RadixStep
-  opaqueWindows?: boolean
-  skillScale?: RadixScale
-  skillStep?: RadixStep
-  surfaceScale?: RadixScale
-  surfaceStep?: RadixStep
-  variant: DesktopThemeVariant
-}
+  accentScale: RadixScale;
+  accentStep?: RadixStep;
+  codeThemeId: string;
+  contrast?: number;
+  fonts?: DesktopThemeConfigV1["theme"]["fonts"];
+  grayScale?: RadixScale;
+  inkScale?: RadixScale;
+  inkStep?: RadixStep;
+  opaqueWindows?: boolean;
+  skillScale?: RadixScale;
+  skillStep?: RadixStep;
+  surfaceScale?: RadixScale;
+  surfaceStep?: RadixStep;
+  variant: DesktopThemeVariant;
+};
 
 const RADIX_LIGHT: Record<RadixScale, Record<string, string>> = {
   blue: radixColors.blue,
@@ -85,7 +85,7 @@ const RADIX_LIGHT: Record<RadixScale, Record<string, string>> = {
   sage: radixColors.sage,
   sand: radixColors.sand,
   slate: radixColors.slate,
-}
+};
 
 const RADIX_DARK: Record<RadixScale, Record<string, string>> = {
   blue: radixColors.blueDark,
@@ -102,289 +102,289 @@ const RADIX_DARK: Record<RadixScale, Record<string, string>> = {
   sage: radixColors.sageDark,
   sand: radixColors.sandDark,
   slate: radixColors.slateDark,
-}
+};
 
 export const DEFAULT_LIGHT_THEME: DesktopThemeConfigV1 = {
-  codeThemeId: 'codepilotx',
+  codeThemeId: "codepilotx",
   theme: {
-    accent: '#0169cc',
-    contrast: 0,
+    accent: "#0169cc",
+    contrast: 40,
     fonts: DEFAULT_FONTS,
-    ink: '#0d0d0d',
+    ink: "#0d0d0d",
     opaqueWindows: true,
     semanticColors: {
-      diffAdded: '#00a240',
-      diffRemoved: '#e02e2a',
-      skill: '#751ed9',
+      diffAdded: "#00a240",
+      diffRemoved: "#e02e2a",
+      skill: "#751ed9",
     },
-    surface: '#ffffff',
+    surface: "#ffffff",
   },
-  variant: 'light',
-}
+  variant: "light",
+};
 
 export const DEFAULT_DARK_THEME: DesktopThemeConfigV1 = {
-  codeThemeId: 'codex',
+  codeThemeId: "CodePilotX",
   theme: {
-    accent: '#0169cc',
+    accent: "#0169cc",
     contrast: 40,
     fonts: {
       ui: {
-        preset: 'MiSans VF Regular',
+        preset: "MiSans VF Regular",
         fallback: DEFAULT_UI_FONT.fallback,
       },
       code: {
-        preset: 'JetBrains Mono SemiBold',
+        preset: "JetBrains Mono SemiBold",
         fallback: DEFAULT_CODE_FONT.fallback,
       },
     },
-    ink: '#fcfcfc',
+    ink: "#fcfcfc",
     opaqueWindows: true,
     semanticColors: {
-      diffAdded: '#00a240',
-      diffRemoved: '#e02e2a',
-      skill: '#b06dff',
+      diffAdded: "#00a240",
+      diffRemoved: "#e02e2a",
+      skill: "#b06dff",
     },
-    surface: '#111111',
+    surface: "#111111",
   },
-  variant: 'dark',
-}
+  variant: "dark",
+};
 
 export const DEFAULT_DESKTOP_THEME_SETTINGS: DesktopThemeSettings = {
-  mode: 'light',
+  mode: "light",
   activeThemeIds: {
     light: DEFAULT_LIGHT_THEME_ID,
     dark: DEFAULT_DARK_THEME_ID,
   },
   glassmorphismEnabled: true,
   pointerCursorEnabled: true,
-  reduceMotion: 'system',
+  reduceMotion: "system",
   fontSizes: {
     code: 12,
     ui: 14,
   },
   customThemes: [],
   presetOverrides: {},
-}
+};
 
 export const DESKTOP_THEME_PRESETS: DesktopThemePreset[] = [
   {
     id: DEFAULT_LIGHT_THEME_ID,
-    label: 'CodePilotX',
+    label: "CodePilotX",
     config: DEFAULT_LIGHT_THEME,
   },
   {
-    id: 'light-absolutely',
-    label: 'Absolutely',
+    id: "light-absolutely",
+    label: "Absolutely",
     config: createRadixThemePreset({
-      accentScale: 'orange',
-      codeThemeId: 'absolutely',
-      grayScale: 'sand',
-      skillScale: 'orange',
-      variant: 'light',
+      accentScale: "orange",
+      codeThemeId: "absolutely",
+      grayScale: "sand",
+      skillScale: "orange",
+      variant: "light",
     }),
   },
   {
-    id: 'dark-absolutely',
-    label: 'Absolutely Dark',
+    id: "dark-absolutely",
+    label: "Absolutely",
     config: createRadixThemePreset({
-      accentScale: 'orange',
-      codeThemeId: 'absolutely',
-      grayScale: 'sand',
-      skillScale: 'orange',
-      variant: 'dark',
+      accentScale: "orange",
+      codeThemeId: "absolutely",
+      grayScale: "sand",
+      skillScale: "orange",
+      variant: "dark",
     }),
   },
   {
-    id: 'light-catppuccin',
-    label: 'Catppuccin',
+    id: "light-catppuccin",
+    label: "Catppuccin",
     config: createRadixThemePreset({
-      accentScale: 'purple',
-      codeThemeId: 'catppuccin',
-      grayScale: 'mauve',
-      skillScale: 'purple',
-      variant: 'light',
+      accentScale: "purple",
+      codeThemeId: "catppuccin",
+      grayScale: "mauve",
+      skillScale: "purple",
+      variant: "light",
     }),
   },
   {
-    id: 'dark-catppuccin',
-    label: 'Catppuccin Dark',
+    id: "dark-catppuccin",
+    label: "Catppuccin",
     config: createRadixThemePreset({
-      accentScale: 'purple',
-      codeThemeId: 'catppuccin',
-      grayScale: 'mauve',
-      skillScale: 'purple',
-      variant: 'dark',
+      accentScale: "purple",
+      codeThemeId: "catppuccin",
+      grayScale: "mauve",
+      skillScale: "purple",
+      variant: "dark",
     }),
   },
   {
-    id: 'light-raycast',
-    label: 'Raycast',
+    id: "light-raycast",
+    label: "Raycast",
     config: createRadixThemePreset({
-      accentScale: 'red',
-      codeThemeId: 'raycast',
+      accentScale: "red",
+      codeThemeId: "raycast",
       fonts: DEFAULT_FONTS,
-      grayScale: 'slate',
-      skillScale: 'pink',
-      variant: 'light',
+      grayScale: "slate",
+      skillScale: "pink",
+      variant: "light",
     }),
   },
   {
-    id: 'dark-raycast',
-    label: 'Raycast Dark',
+    id: "dark-raycast",
+    label: "Raycast",
     config: createRadixThemePreset({
-      accentScale: 'red',
-      codeThemeId: 'raycast',
+      accentScale: "red",
+      codeThemeId: "raycast",
       fonts: DEFAULT_FONTS,
-      grayScale: 'slate',
-      skillScale: 'pink',
-      variant: 'dark',
+      grayScale: "slate",
+      skillScale: "pink",
+      variant: "dark",
     }),
   },
   {
-    id: 'light-github',
-    label: 'GitHub',
+    id: "light-github",
+    label: "GitHub",
     config: createRadixThemePreset({
-      accentScale: 'blue',
-      codeThemeId: 'github',
+      accentScale: "blue",
+      codeThemeId: "github",
       fonts: DEFAULT_FONTS,
-      grayScale: 'gray',
-      skillScale: 'purple',
-      variant: 'light',
+      grayScale: "gray",
+      skillScale: "purple",
+      variant: "light",
     }),
   },
   {
-    id: 'dark-github',
-    label: 'GitHub Dark',
+    id: "dark-github",
+    label: "GitHub",
     config: createRadixThemePreset({
-      accentScale: 'blue',
-      codeThemeId: 'github',
+      accentScale: "blue",
+      codeThemeId: "github",
       fonts: DEFAULT_FONTS,
-      grayScale: 'gray',
-      skillScale: 'purple',
-      variant: 'dark',
+      grayScale: "gray",
+      skillScale: "purple",
+      variant: "dark",
     }),
   },
   {
-    id: 'light-dracula',
-    label: 'Dracula',
+    id: "light-dracula",
+    label: "Dracula",
     config: createRadixThemePreset({
-      accentScale: 'pink',
-      codeThemeId: 'dracula',
-      grayScale: 'mauve',
-      skillScale: 'pink',
-      variant: 'light',
+      accentScale: "pink",
+      codeThemeId: "dracula",
+      grayScale: "mauve",
+      skillScale: "pink",
+      variant: "light",
     }),
   },
   {
-    id: 'dark-dracula',
-    label: 'Dracula',
+    id: "dark-dracula",
+    label: "Dracula",
     config: createRadixThemePreset({
-      accentScale: 'pink',
-      codeThemeId: 'dracula',
-      grayScale: 'mauve',
-      skillScale: 'pink',
-      variant: 'dark',
+      accentScale: "pink",
+      codeThemeId: "dracula",
+      grayScale: "mauve",
+      skillScale: "pink",
+      variant: "dark",
     }),
   },
   {
     id: DEFAULT_DARK_THEME_ID,
-    label: 'CodePilotX Dark',
+    label: "CodePilotX",
     config: DEFAULT_DARK_THEME,
   },
   {
-    id: 'light-material',
-    label: 'Material',
+    id: "light-material",
+    label: "Material",
     config: createRadixThemePreset({
-      accentScale: 'cyan',
-      codeThemeId: 'material',
-      grayScale: 'sage',
-      skillScale: 'purple',
-      variant: 'light',
+      accentScale: "cyan",
+      codeThemeId: "material",
+      grayScale: "sage",
+      skillScale: "purple",
+      variant: "light",
     }),
   },
   {
-    id: 'dark-material',
-    label: 'Material',
+    id: "dark-material",
+    label: "Material",
     config: createRadixThemePreset({
-      accentScale: 'cyan',
-      codeThemeId: 'material',
-      grayScale: 'sage',
-      skillScale: 'purple',
+      accentScale: "cyan",
+      codeThemeId: "material",
+      grayScale: "sage",
+      skillScale: "purple",
       surfaceStep: 2,
-      variant: 'dark',
+      variant: "dark",
     }),
   },
   {
-    id: 'light-vscode-plus',
-    label: 'VSCode Plus',
+    id: "light-vscode-plus",
+    label: "VSCode Plus",
     config: createRadixThemePreset({
-      accentScale: 'blue',
-      codeThemeId: 'vscode-plus',
-      grayScale: 'slate',
-      skillScale: 'blue',
-      variant: 'light',
+      accentScale: "blue",
+      codeThemeId: "vscode-plus",
+      grayScale: "slate",
+      skillScale: "blue",
+      variant: "light",
     }),
   },
   {
-    id: 'dark-vscode-plus',
-    label: 'VSCode Plus',
+    id: "dark-vscode-plus",
+    label: "VSCode Plus",
     config: createRadixThemePreset({
-      accentScale: 'blue',
-      codeThemeId: 'vscode-plus',
-      grayScale: 'slate',
-      skillScale: 'blue',
+      accentScale: "blue",
+      codeThemeId: "vscode-plus",
+      grayScale: "slate",
+      skillScale: "blue",
       skillStep: 11,
       surfaceStep: 2,
-      variant: 'dark',
+      variant: "dark",
     }),
   },
   {
-    id: 'light-terminal-green',
-    label: 'Terminal Green',
+    id: "light-terminal-green",
+    label: "Terminal Green",
     config: createRadixThemePreset({
-      accentScale: 'green',
-      codeThemeId: 'codex',
-      grayScale: 'sage',
-      skillScale: 'green',
-      variant: 'light',
+      accentScale: "green",
+      codeThemeId: "codex",
+      grayScale: "sage",
+      skillScale: "green",
+      variant: "light",
     }),
   },
   {
-    id: 'dark-terminal-green',
-    label: 'Terminal Green Dark',
+    id: "dark-terminal-green",
+    label: "Terminal Green",
     config: createRadixThemePreset({
-      accentScale: 'green',
-      codeThemeId: 'codex',
-      grayScale: 'sage',
-      skillScale: 'green',
+      accentScale: "green",
+      codeThemeId: "codex",
+      grayScale: "sage",
+      skillScale: "green",
       surfaceStep: 2,
-      variant: 'dark',
+      variant: "dark",
     }),
   },
   {
-    id: 'light-iris-focus',
-    label: 'Iris Focus',
+    id: "light-iris-focus",
+    label: "Iris Focus",
     config: createRadixThemePreset({
-      accentScale: 'iris',
-      codeThemeId: 'catppuccin',
-      grayScale: 'slate',
-      skillScale: 'iris',
-      variant: 'light',
+      accentScale: "iris",
+      codeThemeId: "catppuccin",
+      grayScale: "slate",
+      skillScale: "iris",
+      variant: "light",
     }),
   },
   {
-    id: 'dark-iris-focus',
-    label: 'Iris Focus Dark',
+    id: "dark-iris-focus",
+    label: "Iris Focus",
     config: createRadixThemePreset({
-      accentScale: 'iris',
-      codeThemeId: 'catppuccin',
-      grayScale: 'slate',
-      skillScale: 'iris',
+      accentScale: "iris",
+      codeThemeId: "catppuccin",
+      grayScale: "slate",
+      skillScale: "iris",
       surfaceStep: 2,
-      variant: 'dark',
+      variant: "dark",
     }),
   },
-]
+];
 
 function createRadixThemePreset(
   options: RadixThemePresetOptions,
@@ -393,18 +393,18 @@ function createRadixThemePreset(
     accentScale,
     accentStep = 9,
     codeThemeId,
-    contrast = options.variant === 'dark' ? 60 : 40,
+    contrast = 40,
     fonts = DEFAULT_FONTS,
-    grayScale = 'slate',
+    grayScale = "slate",
     inkScale = grayScale,
     inkStep = 12,
     opaqueWindows = true,
     skillScale = accentScale,
-    skillStep = options.variant === 'dark' ? 11 : 9,
+    skillStep = options.variant === "dark" ? 11 : 9,
     surfaceScale = grayScale,
     surfaceStep = 1,
     variant,
-  } = options
+  } = options;
 
   return {
     codeThemeId,
@@ -415,14 +415,14 @@ function createRadixThemePreset(
       ink: radixColor(variant, inkScale, inkStep),
       opaqueWindows,
       semanticColors: {
-        diffAdded: radixColor(variant, 'green', variant === 'dark' ? 11 : 9),
-        diffRemoved: radixColor(variant, 'red', variant === 'dark' ? 11 : 9),
+        diffAdded: radixColor(variant, "green", variant === "dark" ? 11 : 9),
+        diffRemoved: radixColor(variant, "red", variant === "dark" ? 11 : 9),
         skill: radixColor(variant, skillScale, skillStep),
       },
       surface: radixColor(variant, surfaceScale, surfaceStep),
     },
     variant,
-  }
+  };
 }
 
 function radixColor(
@@ -430,53 +430,55 @@ function radixColor(
   scale: RadixScale,
   step: RadixStep,
 ): string {
-  const palette = variant === 'dark' ? RADIX_DARK : RADIX_LIGHT
-  return palette[scale][`${scale}${step}`]
+  const palette = variant === "dark" ? RADIX_DARK : RADIX_LIGHT;
+  return palette[scale][`${scale}${step}`];
 }
 
 export function getDesktopThemeForVariant(
   settings: DesktopThemeSettings,
   variant: DesktopThemeVariant,
 ): DesktopThemeConfigV1 {
-  return getDesktopThemeForSelection(settings, variant)
+  return getDesktopThemeForSelection(settings, variant);
 }
 
 export function getDesktopThemeForSelection(
   settings: DesktopThemeSettings,
   variant: DesktopThemeVariant,
 ): DesktopThemeConfigV1 {
-  const themeId = getDesktopThemeIdForVariant(settings, variant)
-  return getDesktopThemeEntry(settings, themeId)?.config ?? getDefaultTheme(variant)
+  const themeId = getDesktopThemeIdForVariant(settings, variant);
+  return (
+    getDesktopThemeEntry(settings, themeId)?.config ?? getDefaultTheme(variant)
+  );
 }
 
 export function getDesktopThemeIdForVariant(
   settings: DesktopThemeSettings,
   variant: DesktopThemeVariant,
 ): string {
-  const candidateId = settings.activeThemeIds[variant]
-  const candidate = getDesktopThemeEntry(settings, candidateId)
+  const candidateId = settings.activeThemeIds[variant];
+  const candidate = getDesktopThemeEntry(settings, candidateId);
   if (candidate?.config.variant === variant) {
-    return candidate.id
+    return candidate.id;
   }
-  return getDefaultThemeId(variant)
+  return getDefaultThemeId(variant);
 }
 
 export function getDesktopThemeEntry(
   settings: DesktopThemeSettings,
   themeId: string,
 ): DesktopThemePreset | DesktopThemeCustomTheme | null {
-  const preset = DESKTOP_THEME_PRESETS.find(item => item.id === themeId)
+  const preset = DESKTOP_THEME_PRESETS.find((item) => item.id === themeId);
   if (preset) {
     return {
       ...preset,
       config: settings.presetOverrides[preset.id] ?? preset.config,
-    }
+    };
   }
-  return settings.customThemes.find(item => item.id === themeId) ?? null
+  return settings.customThemes.find((item) => item.id === themeId) ?? null;
 }
 
 export function isBuiltinDesktopThemeId(themeId: string): boolean {
-  return DESKTOP_THEME_PRESETS.some(item => item.id === themeId)
+  return DESKTOP_THEME_PRESETS.some((item) => item.id === themeId);
 }
 
 export function createDesktopCustomTheme(
@@ -485,72 +487,74 @@ export function createDesktopCustomTheme(
   existingThemes: DesktopThemeCustomTheme[],
   sourcePresetId?: string,
 ): DesktopThemeCustomTheme {
-  const normalizedLabel = label.trim() || config.codeThemeId || 'Custom Theme'
-  const baseId = `custom:${config.variant}:${slugifyThemeId(normalizedLabel)}`
+  const normalizedLabel = label.trim() || config.codeThemeId || "Custom Theme";
+  const baseId = `custom:${config.variant}:${slugifyThemeId(normalizedLabel)}`;
   return {
     id: uniqueCustomThemeId(baseId, existingThemes),
     label: normalizedLabel,
     config,
     ...(sourcePresetId ? { sourcePresetId } : {}),
-  }
+  };
 }
 
 export function normalizeDesktopThemeSettings(
   value: unknown,
 ): DesktopThemeSettings {
   if (!isRecord(value)) {
-    return DEFAULT_DESKTOP_THEME_SETTINGS
+    return DEFAULT_DESKTOP_THEME_SETTINGS;
   }
 
-  const customThemes = normalizeDesktopCustomThemes(value.customThemes)
-  const presetOverrides = normalizeDesktopPresetOverrides(value.presetOverrides)
+  const customThemes = normalizeDesktopCustomThemes(value.customThemes);
+  const presetOverrides = normalizeDesktopPresetOverrides(
+    value.presetOverrides,
+  );
   const activeThemeIds = isRecord(value.activeThemeIds)
     ? normalizeActiveThemeIds(value.activeThemeIds, customThemes)
-    : migrateLegacyActiveThemeIds(value.themes, presetOverrides)
+    : migrateLegacyActiveThemeIds(value.themes, presetOverrides);
 
   return {
-    mode: isDesktopThemeMode(value.mode) ? value.mode : 'light',
+    mode: isDesktopThemeMode(value.mode) ? value.mode : "light",
     activeThemeIds,
     glassmorphismEnabled:
-      typeof value.glassmorphismEnabled === 'boolean'
+      typeof value.glassmorphismEnabled === "boolean"
         ? value.glassmorphismEnabled
         : true,
     pointerCursorEnabled:
-      typeof value.pointerCursorEnabled === 'boolean'
+      typeof value.pointerCursorEnabled === "boolean"
         ? value.pointerCursorEnabled
         : true,
     reduceMotion: normalizeDesktopReduceMotion(value.reduceMotion),
     fontSizes: normalizeDesktopThemeFontSizes(value.fontSizes),
     customThemes,
     presetOverrides,
-  }
+  };
 }
 
 function normalizeDesktopReduceMotion(
   value: unknown,
-): DesktopThemeSettings['reduceMotion'] {
-  return value === 'system' || value === 'on' || value === 'off'
+): DesktopThemeSettings["reduceMotion"] {
+  return value === "system" || value === "on" || value === "off"
     ? value
-    : DEFAULT_DESKTOP_THEME_SETTINGS.reduceMotion
+    : DEFAULT_DESKTOP_THEME_SETTINGS.reduceMotion;
 }
 
 export function normalizeDesktopThemeConfig(
   value: unknown,
   variant: DesktopThemeVariant,
-  fallback: DesktopThemeConfigV1 = variant === 'dark'
+  fallback: DesktopThemeConfigV1 = variant === "dark"
     ? DEFAULT_DARK_THEME
     : DEFAULT_LIGHT_THEME,
 ): DesktopThemeConfigV1 {
   if (!isRecord(value) || !isRecord(value.theme)) {
-    return fallback
+    return fallback;
   }
 
-  const theme = value.theme
-  const fonts = isRecord(theme.fonts) ? theme.fonts : {}
+  const theme = value.theme;
+  const fonts = isRecord(theme.fonts) ? theme.fonts : {};
   const semanticColors = isRecord(theme.semanticColors)
     ? theme.semanticColors
-    : {}
-  const accent = normalizeHexColor(theme.accent, fallback.theme.accent)
+    : {};
+  const accent = normalizeHexColor(theme.accent, fallback.theme.accent);
 
   return {
     codeThemeId: isNonEmptyString(value.codeThemeId)
@@ -564,14 +568,11 @@ export function normalizeDesktopThemeConfig(
           fonts.code,
           fallback.theme.fonts.code,
         ),
-        ui: normalizeDesktopThemeFontEntry(
-          fonts.ui,
-          fallback.theme.fonts.ui,
-        ),
+        ui: normalizeDesktopThemeFontEntry(fonts.ui, fallback.theme.fonts.ui),
       },
       ink: normalizeHexColor(theme.ink, fallback.theme.ink),
       opaqueWindows:
-        typeof theme.opaqueWindows === 'boolean'
+        typeof theme.opaqueWindows === "boolean"
           ? theme.opaqueWindows
           : fallback.theme.opaqueWindows,
       semanticColors: {
@@ -591,75 +592,77 @@ export function normalizeDesktopThemeConfig(
       surface: normalizeHexColor(theme.surface, fallback.theme.surface),
     },
     variant,
-  }
+  };
 }
 
 export function isDesktopThemeMode(value: unknown): value is DesktopThemeMode {
-  return value === 'light' || value === 'dark' || value === 'system'
+  return value === "light" || value === "dark" || value === "system";
 }
 
 export function isDesktopThemeVariant(
   value: unknown,
 ): value is DesktopThemeVariant {
-  return value === 'light' || value === 'dark'
+  return value === "light" || value === "dark";
 }
 
-function normalizeDesktopCustomThemes(value: unknown): DesktopThemeCustomTheme[] {
-  if (!Array.isArray(value)) return []
+function normalizeDesktopCustomThemes(
+  value: unknown,
+): DesktopThemeCustomTheme[] {
+  if (!Array.isArray(value)) return [];
 
-  const normalizedThemes: DesktopThemeCustomTheme[] = []
+  const normalizedThemes: DesktopThemeCustomTheme[] = [];
   for (const item of value) {
-    if (!isRecord(item) || !isRecord(item.config)) continue
-    const configValue = item.config
-    if (!isDesktopThemeVariant(configValue.variant)) continue
+    if (!isRecord(item) || !isRecord(item.config)) continue;
+    const configValue = item.config;
+    if (!isDesktopThemeVariant(configValue.variant)) continue;
 
     const config = normalizeDesktopThemeConfig(
       configValue,
       configValue.variant,
       getDefaultTheme(configValue.variant),
-    )
+    );
     const label = isNonEmptyString(item.label)
       ? item.label.trim()
-      : config.codeThemeId
+      : config.codeThemeId;
     const sourcePresetId =
       isNonEmptyString(item.sourcePresetId) &&
       isBuiltinDesktopThemeId(item.sourcePresetId)
         ? item.sourcePresetId
-        : undefined
+        : undefined;
     const rawId = isNonEmptyString(item.id)
       ? item.id.trim()
-      : `custom:${config.variant}:${slugifyThemeId(label)}`
+      : `custom:${config.variant}:${slugifyThemeId(label)}`;
     const baseId = rawId.startsWith(`custom:${config.variant}:`)
       ? rawId
-      : `custom:${config.variant}:${slugifyThemeId(rawId)}`
+      : `custom:${config.variant}:${slugifyThemeId(rawId)}`;
 
     normalizedThemes.push({
       id: uniqueCustomThemeId(baseId, normalizedThemes),
       label,
       config,
       ...(sourcePresetId ? { sourcePresetId } : {}),
-    })
+    });
   }
 
-  return normalizedThemes
+  return normalizedThemes;
 }
 
 function normalizeDesktopPresetOverrides(
   value: unknown,
 ): Record<string, DesktopThemeConfigV1> {
-  if (!isRecord(value)) return {}
+  if (!isRecord(value)) return {};
 
-  const overrides: Record<string, DesktopThemeConfigV1> = {}
+  const overrides: Record<string, DesktopThemeConfigV1> = {};
   for (const preset of DESKTOP_THEME_PRESETS) {
-    const overrideValue = value[preset.id]
-    if (!isRecord(overrideValue)) continue
+    const overrideValue = value[preset.id];
+    if (!isRecord(overrideValue)) continue;
     overrides[preset.id] = normalizeDesktopThemeConfig(
       overrideValue,
       preset.config.variant,
       preset.config,
-    )
+    );
   }
-  return overrides
+  return overrides;
 }
 
 function normalizeActiveThemeIds(
@@ -667,9 +670,9 @@ function normalizeActiveThemeIds(
   customThemes: DesktopThemeCustomTheme[],
 ): Record<DesktopThemeVariant, string> {
   return {
-    light: normalizeActiveThemeId(value.light, 'light', customThemes),
-    dark: normalizeActiveThemeId(value.dark, 'dark', customThemes),
-  }
+    light: normalizeActiveThemeId(value.light, "light", customThemes),
+    dark: normalizeActiveThemeId(value.dark, "dark", customThemes),
+  };
 }
 
 function normalizeActiveThemeId(
@@ -677,26 +680,26 @@ function normalizeActiveThemeId(
   variant: DesktopThemeVariant,
   customThemes: DesktopThemeCustomTheme[],
 ): string {
-  if (typeof value !== 'string') return getDefaultThemeId(variant)
+  if (typeof value !== "string") return getDefaultThemeId(variant);
   const preset = DESKTOP_THEME_PRESETS.find(
-    item => item.id === value && item.config.variant === variant,
-  )
-  if (preset) return preset.id
+    (item) => item.id === value && item.config.variant === variant,
+  );
+  if (preset) return preset.id;
   const customTheme = customThemes.find(
-    item => item.id === value && item.config.variant === variant,
-  )
-  return customTheme?.id ?? getDefaultThemeId(variant)
+    (item) => item.id === value && item.config.variant === variant,
+  );
+  return customTheme?.id ?? getDefaultThemeId(variant);
 }
 
 function migrateLegacyActiveThemeIds(
   value: unknown,
   presetOverrides: Record<string, DesktopThemeConfigV1>,
 ): Record<DesktopThemeVariant, string> {
-  const themes = isRecord(value) ? value : {}
+  const themes = isRecord(value) ? value : {};
   return {
-    light: migrateLegacyThemeId(themes.light, 'light', presetOverrides),
-    dark: migrateLegacyThemeId(themes.dark, 'dark', presetOverrides),
-  }
+    light: migrateLegacyThemeId(themes.light, "light", presetOverrides),
+    dark: migrateLegacyThemeId(themes.dark, "dark", presetOverrides),
+  };
 }
 
 function migrateLegacyThemeId(
@@ -704,31 +707,36 @@ function migrateLegacyThemeId(
   variant: DesktopThemeVariant,
   presetOverrides: Record<string, DesktopThemeConfigV1>,
 ): string {
-  if (!isRecord(value)) return getDefaultThemeId(variant)
-  const config = normalizeDesktopThemeConfig(value, variant, getDefaultTheme(variant))
+  if (!isRecord(value)) return getDefaultThemeId(variant);
+  const config = normalizeDesktopThemeConfig(
+    value,
+    variant,
+    getDefaultTheme(variant),
+  );
   const matchingPreset = DESKTOP_THEME_PRESETS.find(
-    preset => preset.config.variant === variant && themesEqual(preset.config, config),
-  )
-  if (matchingPreset) return matchingPreset.id
+    (preset) =>
+      preset.config.variant === variant && themesEqual(preset.config, config),
+  );
+  if (matchingPreset) return matchingPreset.id;
 
-  const themeId = getDefaultThemeId(variant)
-  presetOverrides[themeId] = config
-  return themeId
+  const themeId = getDefaultThemeId(variant);
+  presetOverrides[themeId] = config;
+  return themeId;
 }
 
 function getDefaultThemeId(variant: DesktopThemeVariant): string {
-  return variant === 'dark' ? DEFAULT_DARK_THEME_ID : DEFAULT_LIGHT_THEME_ID
+  return variant === "dark" ? DEFAULT_DARK_THEME_ID : DEFAULT_LIGHT_THEME_ID;
 }
 
 function getDefaultTheme(variant: DesktopThemeVariant): DesktopThemeConfigV1 {
-  return variant === 'dark' ? DEFAULT_DARK_THEME : DEFAULT_LIGHT_THEME
+  return variant === "dark" ? DEFAULT_DARK_THEME : DEFAULT_LIGHT_THEME;
 }
 
 function themesEqual(
   left: DesktopThemeConfigV1,
   right: DesktopThemeConfigV1,
 ): boolean {
-  return JSON.stringify(left) === JSON.stringify(right)
+  return JSON.stringify(left) === JSON.stringify(right);
 }
 
 function uniqueCustomThemeId(
@@ -736,48 +744,48 @@ function uniqueCustomThemeId(
   existingThemes: DesktopThemeCustomTheme[],
 ): string {
   const usedIds = new Set([
-    ...DESKTOP_THEME_PRESETS.map(item => item.id),
-    ...existingThemes.map(item => item.id),
-  ])
-  if (!usedIds.has(baseId)) return baseId
+    ...DESKTOP_THEME_PRESETS.map((item) => item.id),
+    ...existingThemes.map((item) => item.id),
+  ]);
+  if (!usedIds.has(baseId)) return baseId;
 
-  let index = 2
-  let candidate = `${baseId}-${index}`
+  let index = 2;
+  let candidate = `${baseId}-${index}`;
   while (usedIds.has(candidate)) {
-    index += 1
-    candidate = `${baseId}-${index}`
+    index += 1;
+    candidate = `${baseId}-${index}`;
   }
-  return candidate
+  return candidate;
 }
 
 function slugifyThemeId(value: string): string {
   const slug = value
     .trim()
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-  return slug || 'theme'
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return slug || "theme";
 }
 
 function normalizeContrast(value: unknown, fallback: number): number {
-  if (typeof value !== 'number' || !Number.isFinite(value)) {
-    return fallback
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return fallback;
   }
-  return Math.max(0, Math.min(100, Math.round(value)))
+  return Math.max(0, Math.min(100, Math.round(value)));
 }
 
 function normalizeDesktopThemeFontEntry(
   value: unknown,
   fallback: DesktopThemeFontEntry,
 ): DesktopThemeFontEntry {
-  if (typeof value === 'string') {
+  if (typeof value === "string") {
     return {
       preset: value.trim(),
       fallback: fallback.fallback,
-    }
+    };
   }
   if (!isRecord(value)) {
-    return fallback
+    return fallback;
   }
   return {
     preset: isNonEmptyString(value.preset)
@@ -786,27 +794,29 @@ function normalizeDesktopThemeFontEntry(
     fallback: isNonEmptyString(value.fallback)
       ? value.fallback.trim()
       : fallback.fallback,
-  }
+  };
 }
 
-export function exportDesktopThemeConfig(
-  config: DesktopThemeConfigV1,
-): { codeThemeId: string; theme: DesktopThemeConfigV1['theme']; variant: string } {
+export function exportDesktopThemeConfig(config: DesktopThemeConfigV1): {
+  codeThemeId: string;
+  theme: DesktopThemeConfigV1["theme"];
+  variant: string;
+} {
   return {
     codeThemeId: config.codeThemeId,
     theme: config.theme,
     variant: config.variant,
-  }
+  };
 }
 
 function normalizeDesktopThemeFontSizes(
   value: unknown,
-): DesktopThemeSettings['fontSizes'] {
-  const fontSizes = isRecord(value) ? value : {}
+): DesktopThemeSettings["fontSizes"] {
+  const fontSizes = isRecord(value) ? value : {};
   return {
     code: normalizeFontSize(fontSizes.code, 12, 10, 20),
     ui: normalizeFontSize(fontSizes.ui, 14, 11, 20),
-  }
+  };
 }
 
 function normalizeFontSize(
@@ -815,22 +825,22 @@ function normalizeFontSize(
   min: number,
   max: number,
 ): number {
-  if (typeof value !== 'number' || !Number.isFinite(value)) {
-    return fallback
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return fallback;
   }
-  return Math.max(min, Math.min(max, Math.round(value)))
+  return Math.max(min, Math.min(max, Math.round(value)));
 }
 
 function normalizeHexColor(value: unknown, fallback: string): string {
-  return typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value)
+  return typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value)
     ? value
-    : fallback
+    : fallback;
 }
 
 function isNonEmptyString(value: unknown): value is string {
-  return typeof value === 'string' && value.trim().length > 0
+  return typeof value === "string" && value.trim().length > 0;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
