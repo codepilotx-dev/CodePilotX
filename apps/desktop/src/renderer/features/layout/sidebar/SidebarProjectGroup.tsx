@@ -79,6 +79,12 @@ export function SidebarProjectGroup({
   const isExpanded = !collapsedProjectPaths.has(project.path);
   const isCurrent = workspace?.path === project.path;
   const isPinned = !!project.pinnedAt;
+  const projectHeaderClassName = [
+    "sidebar-project-header",
+    isUnavailable ? "sidebar-project-header--unavailable" : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   function getProjectContextMenuActions(): ContextMenuAction[] {
     const isPinned = !!project.pinnedAt;
@@ -142,11 +148,7 @@ export function SidebarProjectGroup({
             aria-current={isCurrent ? "page" : undefined}
             aria-disabled={isUnavailable ? true : undefined}
             aria-expanded={isExpanded}
-            className={
-              isUnavailable
-                ? "sidebar-project-header sidebar-project-header--unavailable"
-                : "sidebar-project-header"
-            }
+            className={projectHeaderClassName}
             labelClassName="sidebar-project-name"
             leading={
               project.isGitRepo === true && hovered ? (
@@ -173,17 +175,6 @@ export function SidebarProjectGroup({
                     : "sidebar-project-actions"
                 }
               >
-                {projectSessions.length > 0 ? (
-                  <ChevronDown
-                    aria-hidden="true"
-                    className={
-                      isExpanded
-                        ? "sidebar-project-chevron is-expanded"
-                        : "sidebar-project-chevron"
-                    }
-                    size={APP_ICON_SIZE}
-                  />
-                ) : null}
                 <div
                   className="sidebar-project-action-items"
                   onClick={(event) => event.stopPropagation()}
@@ -297,7 +288,18 @@ export function SidebarProjectGroup({
               </div>
             }
           >
-            {project.name}
+            <span className="sidebar-project-title-text">{project.name}</span>
+            {projectSessions.length > 0 ? (
+              <ChevronDown
+                aria-hidden="true"
+                className={
+                  isExpanded
+                    ? "sidebar-project-chevron is-expanded"
+                    : "sidebar-project-chevron"
+                }
+                size={APP_ICON_SIZE}
+              />
+            ) : null}
           </SidebarRow>
         }
       />

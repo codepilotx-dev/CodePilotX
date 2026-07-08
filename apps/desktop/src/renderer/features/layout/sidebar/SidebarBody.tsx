@@ -237,16 +237,17 @@ function SidebarSectionHeader({
         }
       }}
     >
-      <h2 className="sidebar-section-title">{title}</h2>
-      <div className="sidebar-section-trailing">
+      <h2 className="sidebar-section-title">
+        <span className="sidebar-section-label">{title}</span>
         <ChevronDown
           className={
             "sidebar-section-chevron" +
-            (isCollapsed ? "" : " is-expanded") +
-            (actionsVisible ? " section-chevron-hidden" : "")
+            (isCollapsed ? "" : " is-expanded")
           }
           size={APP_ICON_SIZE}
         />
+      </h2>
+      <div className="sidebar-section-trailing">
         <div
           className={
             "sidebar-section-actions" +
