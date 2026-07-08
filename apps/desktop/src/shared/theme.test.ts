@@ -22,13 +22,13 @@ const THEME_SUITE_IDS = [
   'iris-focus',
 ] as const
 
-test('DEFAULT_LIGHT_THEME uses Claude-inspired desktop tokens', () => {
-  expect(DEFAULT_LIGHT_THEME.theme.surface).toBe('#faf9f5')
-  expect(DEFAULT_LIGHT_THEME.theme.ink).toBe('#141413')
-  expect(DEFAULT_LIGHT_THEME.theme.accent).toBe('#cc785c')
-  expect(DEFAULT_LIGHT_THEME.theme.semanticColors.diffAdded).toBe('#5db872')
-  expect(DEFAULT_LIGHT_THEME.theme.semanticColors.diffRemoved).toBe('#c64545')
-  expect(DEFAULT_LIGHT_THEME.theme.semanticColors.skill).toBe('#cc785c')
+test('DEFAULT_LIGHT_THEME uses CodePilotX desktop tokens', () => {
+  expect(DEFAULT_LIGHT_THEME.theme.surface).toBe('#ffffff')
+  expect(DEFAULT_LIGHT_THEME.theme.ink).toBe('#0d0d0d')
+  expect(DEFAULT_LIGHT_THEME.theme.accent).toBe('#0169cc')
+  expect(DEFAULT_LIGHT_THEME.theme.semanticColors.diffAdded).toBe('#00a240')
+  expect(DEFAULT_LIGHT_THEME.theme.semanticColors.diffRemoved).toBe('#e02e2a')
+  expect(DEFAULT_LIGHT_THEME.theme.semanticColors.skill).toBe('#751ed9')
   expect(DEFAULT_LIGHT_THEME.variant).toBe('light')
 })
 
@@ -42,17 +42,7 @@ test('DEFAULT_DARK_THEME uses Claude-inspired desktop tokens', () => {
   expect(DEFAULT_DARK_THEME.variant).toBe('dark')
 })
 
-test('DEFAULT_LIGHT_THEME has radix config for internal Radix compat', () => {
-  expect(DEFAULT_LIGHT_THEME.theme.radix).toBeDefined()
-  expect(DEFAULT_LIGHT_THEME.theme.radix.accentColor).toBe('orange')
-})
-
-test('DEFAULT_DARK_THEME has radix config for internal Radix compat', () => {
-  expect(DEFAULT_DARK_THEME.theme.radix).toBeDefined()
-  expect(DEFAULT_DARK_THEME.theme.radix.accentColor).toBe('orange')
-})
-
-test('built-in desktop themes include ten paired Radix suites', () => {
+test('built-in desktop themes include ten paired suites', () => {
   expect(DESKTOP_THEME_PRESETS).toHaveLength(THEME_SUITE_IDS.length * 2)
 
   for (const suiteId of THEME_SUITE_IDS) {
@@ -65,51 +55,46 @@ test('built-in desktop themes include ten paired Radix suites', () => {
 
     expect(lightTheme?.config.variant).toBe('light')
     expect(darkTheme?.config.variant).toBe('dark')
-    expect(lightTheme?.config.theme.radix).toBeDefined()
-    expect(darkTheme?.config.theme.radix).toBeDefined()
-    expect(lightTheme?.config.theme.radix.accentColor).toBe(
-      darkTheme?.config.theme.radix.accentColor,
-    )
-    expect(lightTheme?.config.theme.radix.grayColor).toBe(
-      darkTheme?.config.theme.radix.grayColor,
-    )
+    expect(lightTheme?.config.theme.surface).toMatch(/^#[0-9a-f]{6}$/i)
+    expect(darkTheme?.config.theme.surface).toMatch(/^#[0-9a-f]{6}$/i)
   }
 })
 
-test('new built-in Radix suites carry valid Radix theme config', () => {
-  const expectedConfigs = new Map([
-    ['light-raycast', { accentColor: 'red', grayColor: 'slate' }],
-    ['dark-raycast', { accentColor: 'red', grayColor: 'slate' }],
-    ['light-dracula', { accentColor: 'pink', grayColor: 'mauve' }],
-    ['dark-dracula', { accentColor: 'pink', grayColor: 'mauve' }],
-    ['light-material', { accentColor: 'cyan', grayColor: 'sage' }],
-    ['dark-material', { accentColor: 'cyan', grayColor: 'sage' }],
-    ['light-terminal-green', { accentColor: 'green', grayColor: 'sage' }],
-    ['dark-terminal-green', { accentColor: 'green', grayColor: 'sage' }],
-    ['light-iris-focus', { accentColor: 'iris', grayColor: 'slate' }],
-    ['dark-iris-focus', { accentColor: 'iris', grayColor: 'slate' }],
-  ])
+test('built-in theme presets carry valid hex color values', () => {
+  const extraIds = [
+    'light-raycast',
+    'dark-raycast',
+    'light-dracula',
+    'dark-dracula',
+    'light-material',
+    'dark-material',
+    'light-terminal-green',
+    'dark-terminal-green',
+    'light-iris-focus',
+    'dark-iris-focus',
+  ]
 
-  for (const [themeId, radix] of expectedConfigs) {
+  for (const themeId of extraIds) {
     const preset = DESKTOP_THEME_PRESETS.find(item => item.id === themeId)
-    expect(preset?.config.theme.radix).toMatchObject(radix)
     expect(preset?.config.theme.surface).toMatch(/^#[0-9a-f]{6}$/i)
     expect(preset?.config.theme.ink).toMatch(/^#[0-9a-f]{6}$/i)
     expect(preset?.config.theme.accent).toMatch(/^#[0-9a-f]{6}$/i)
   }
 })
 
-test('exportDesktopThemeConfig strips theme.radix', () => {
+test('exportDesktopThemeConfig returns clean theme config', () => {
   const exported = exportDesktopThemeConfig(DEFAULT_LIGHT_THEME)
-  expect(exported.theme).not.toHaveProperty('radix')
-  expect(exported.codeThemeId).toBe('codex')
+  expect(exported.codeThemeId).toBe('codepilotx')
   expect(exported.variant).toBe('light')
-  expect(exported.theme).toHaveProperty('surface')
-  expect(exported.theme).toHaveProperty('ink')
-  expect(exported.theme).toHaveProperty('accent')
+  expect(exported.theme.surface).toBe('#ffffff')
+  expect(exported.theme.ink).toBe('#0d0d0d')
+  expect(exported.theme.accent).toBe('#0169cc')
+  expect(exported.theme.semanticColors.diffAdded).toBe('#00a240')
+  expect(exported.theme.semanticColors.diffRemoved).toBe('#e02e2a')
+  expect(exported.theme.semanticColors.skill).toBe('#751ed9')
 })
 
-test('normalizeDesktopThemeConfig normalizes legacy custom theme with Radix fallback', () => {
+test('normalizeDesktopThemeConfig ignores radix from legacy custom theme', () => {
   const normalized = normalizeDesktopThemeConfig(
     {
       codeThemeId: 'legacy-custom',
@@ -124,15 +109,17 @@ test('normalizeDesktopThemeConfig normalizes legacy custom theme with Radix fall
           diffRemoved: '#e02e2a',
           skill: '#751ed9',
         },
+        radix: { accentColor: 'red', grayColor: 'mauve' },
         surface: '#ffffff',
       },
       variant: 'dark',
     },
     'dark',
   )
-  expect(normalized.theme.radix).toBeDefined()
-  expect(normalized.theme.radix.accentColor).toBe('blue')
-  expect(normalized.theme.radix.panelBackground).toBe('solid')
+  expect(normalized.theme).not.toHaveProperty('radix')
+  expect(normalized.theme.accent).toBe('#0169cc')
+  expect(normalized.theme.surface).toBe('#ffffff')
+  expect(normalized.theme.semanticColors.skill).toBe('#751ed9')
 })
 
 test('normalizeDesktopThemeConfig accepts string fonts entries as preset', () => {
@@ -304,6 +291,7 @@ test('legacy custom theme without radix still renders', () => {
     },
     'light',
   )
-  expect(normalized.theme.radix).toBeDefined()
-  expect(normalized.theme.radix.accentColor).toBe('blue')
+  expect(normalized.theme).not.toHaveProperty('radix')
+  expect(normalized.theme.accent).toBe('#0169cc')
+  expect(normalized.theme.surface).toBe('#ffffff')
 })
