@@ -977,6 +977,15 @@
   min-width: max-content;
 }
 
+.settings-dropdown-search {
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.settings-dropdown-search-input {
+  width: 100%;
+}
+
 .settings-dropdown-scroll-area {
   display: grid;
   max-height: max(80px, calc(min(320px, calc(100vh - 96px)) - 12px));
@@ -1010,6 +1019,12 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+}
+
+.settings-dropdown-empty {
+  padding: var(--space-3) var(--space-2);
+  color: var(--color-text-soft);
+  font-size: var(--font-size-13);
 }
 
 /* --- Theme dropdown --- */
@@ -1669,21 +1684,6 @@
   font-size: var(--font-size-13);
   font-weight: var(--font-weight-label);
   color: var(--color-text-strong);
-}
-
-.settings-credential-source {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: var(--font-size-12);
-  color: var(--color-text-soft);
-}
-
-.settings-credential-source-icon {
-  width: 14px;
-  height: 14px;
-  color: var(--color-success);
-  stroke-width: var(--app-icon-stroke-width);
 }
 
 .settings-credential-controls {

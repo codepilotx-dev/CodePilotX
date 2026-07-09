@@ -17,7 +17,7 @@ import { SettingsContentArea } from './SettingsContentArea.js'
 import { SettingsSection } from './SettingsSection.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
 import { fullErrorMessage } from '../../utils/errors.js'
-import { Brain, Braces, Eye, Hammer, Link2, RefreshCw, Search, ShieldCheck } from 'lucide-react'
+import { Brain, Braces, Eye, Hammer, Link2, RefreshCw, Search } from 'lucide-react'
 
 const BUILT_IN_PROVIDER_IDS = new Set([
   'openai',
@@ -70,7 +70,6 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
   const [providerID, setProviderID] = useState<ModelProviderID>(
     settings.providerID,
   )
-  const [providerQuery, setProviderQuery] = useState('')
   const [modelQuery, setModelQuery] = useState('')
   const [baseURL, setBaseURL] = useState(settings.providerBaseURL)
   const [apiKey, setApiKey] = useState('')
@@ -306,27 +305,45 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
     setModelError(null)
   }
 
-  const filteredProviderOptions = useMemo(() => {
-    const query = providerQuery.trim().toLowerCase()
-    return providers
-      .filter(provider => {
-        if (!query) return true
-        return (
-          provider.displayName.toLowerCase().includes(query) ||
-          provider.providerID.toLowerCase().includes(query) ||
-          provider.npmPackage?.toLowerCase().includes(query)
-        )
-      })
-      .slice(0, 80)
-      .map(provider => ({
-        value: provider.providerID,
-        label: provider.displayName,
-        detail: providerDetail(provider),
-        icon: provider.logoURL ? (
-          <img className="settings-provider-logo" src={provider.logoURL} alt="" />
-        ) : undefined,
-      }))
-  }, [providerQuery, providers])
+  const providerOptions = useMemo(() => {
+    const mapped = providers.slice(0, 80).map(provider => ({
+      value: provider.providerID,
+      label: provider.displayName,
+      detail: providerDetail(provider),
+      icon: provider.logoURL ? (
+        <img className="settings-provider-logo" src={provider.logoURL} alt="" />
+      ) : undefined,
+    }))
+    if (!providers.length) {
+      return [
+        {
+          value: NO_MODEL_OPTION,
+          label: '未加载供应商',
+          detail: '请检查 catalog 网络连接',
+        },
+      ]
+    }
+    if (!mapped.some(option => option.value === providerID)) {
+      const selectedProviderOption = providers.find(
+        provider => provider.providerID === providerID,
+      )
+      if (selectedProviderOption) {
+        mapped.unshift({
+          value: selectedProviderOption.providerID,
+          label: selectedProviderOption.displayName,
+          detail: providerDetail(selectedProviderOption),
+          icon: selectedProviderOption.logoURL ? (
+            <img
+              className="settings-provider-logo"
+              src={selectedProviderOption.logoURL}
+              alt=""
+            />
+          ) : undefined,
+        })
+      }
+    }
+    return mapped
+  }, [providerID, providers])
 
   const filteredModelIds = useMemo(() => {
     const query = modelQuery.trim().toLowerCase()
@@ -610,15 +627,6 @@ const nextState = await desktopClient.deleteProviderApiKey(providerID)
     onError(message)
   }
 
-  const providerOptions = filteredProviderOptions.length
-    ? filteredProviderOptions
-    : [
-        {
-          value: NO_MODEL_OPTION,
-          label: providers.length ? '无匹配供应商' : '未加载供应商',
-          detail: providers.length ? '请调整搜索条件' : '请检查 catalog 网络连接',
-        },
-      ]
 	  return (
     <SettingsContentArea>
       <div className="settings-content-inner">
@@ -679,18 +687,6 @@ const nextState = await desktopClient.deleteProviderApiKey(providerID)
           description="选择新会话使用的模型供应商；DeepSeek 直连模式保留其优化路径。"
         >
           <SettingsRow
-            title="搜索"
-            description="按供应商名称、ID 或 npm 包名筛选。"
-            control={
-              <input
-                className="settings-input settings-input-wide"
-                value={providerQuery}
-                placeholder="按供应商名称、ID 或 npm 包名筛选"
-                onChange={event => setProviderQuery(event.target.value)}
-              />
-            }
-          />
-          <SettingsRow
             title="供应商"
             description={providerDescription(selectedProvider)}
             control={
@@ -698,6 +694,8 @@ const nextState = await desktopClient.deleteProviderApiKey(providerID)
                 ariaLabel="模型供应商"
                 value={providerID}
                 options={providerOptions}
+                searchable
+                searchPlaceholder="按供应商名称、ID 或 npm 包名筛选"
                 onChange={value => {
                   if (value === NO_MODEL_OPTION) return
                   const nextProviderID = value as ModelProviderID
@@ -849,12 +847,6 @@ const nextState = await desktopClient.deleteProviderApiKey(providerID)
             <div className="settings-credential-panel">
               <div className="settings-credential-header">
                 <label className="settings-credential-label">API 密钥</label>
-                {apiKeySource ? (
-                  <span className="settings-credential-source">
-                    <ShieldCheck className="settings-credential-source-icon" />
-                    当前来源: {apiKeySource}
-                  </span>
-                ) : null}
               </div>
               <div className="settings-credential-controls">
                 <input
