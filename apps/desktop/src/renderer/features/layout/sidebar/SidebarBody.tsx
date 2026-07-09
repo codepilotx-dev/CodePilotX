@@ -25,6 +25,7 @@ import { SidebarProjectGroup } from "./SidebarProjectGroup.js";
 import { SidebarSessionGroup } from "./SidebarSessionGroup.js";
 
 type Props = {
+  activePendingPermissionSessionId?: string | null;
   activeSessionId: string | null;
   collapsedProjectPaths: Set<string>;
   now: number;
@@ -51,6 +52,7 @@ type Props = {
 };
 
 export function SidebarBody({
+  activePendingPermissionSessionId,
   activeSessionId,
   collapsedProjectPaths,
   now,
@@ -95,6 +97,9 @@ export function SidebarBody({
                 {pinnedSessions.length > 0 ? (
                   <SidebarSessionGroup
                     activeSessionId={activeSessionId}
+                    activePendingPermissionSessionId={
+                      activePendingPermissionSessionId
+                    }
                     groupKey="pinned"
                     now={now}
                     sessions={pinnedSessions}
@@ -107,6 +112,9 @@ export function SidebarBody({
                 {pinnedWorkspaces.map((project) => (
                   <SidebarProjectGroup
                     activeSessionId={activeSessionId}
+                    activePendingPermissionSessionId={
+                      activePendingPermissionSessionId
+                    }
                     collapsedProjectPaths={collapsedProjectPaths}
                     key={project.path}
                     isUnavailable={unavailableWorkspacePaths.has(project.path)}
@@ -148,6 +156,9 @@ export function SidebarBody({
               projectWorkspaces.map((project) => (
                 <SidebarProjectGroup
                   activeSessionId={activeSessionId}
+                  activePendingPermissionSessionId={
+                    activePendingPermissionSessionId
+                  }
                   collapsedProjectPaths={collapsedProjectPaths}
                   key={project.path}
                   isUnavailable={unavailableWorkspacePaths.has(project.path)}
@@ -185,6 +196,9 @@ export function SidebarBody({
             ) : (
               <SidebarSessionGroup
                 activeSessionId={activeSessionId}
+                activePendingPermissionSessionId={
+                  activePendingPermissionSessionId
+                }
                 groupKey="standalone"
                 now={now}
                 sessions={standaloneSessions}

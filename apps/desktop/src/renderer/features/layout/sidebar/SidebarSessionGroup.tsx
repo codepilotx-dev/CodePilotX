@@ -1,6 +1,6 @@
 import type React from "react";
 import { useEffect, useState } from "react";
-import { Archive, Copy, Loader2, Pencil, Pin, PinOff } from "lucide-react";
+import { Archive, Copy, LoaderCircle, Pencil, Pin, PinOff } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { APP_ICON_SIZE } from "../../../components/ui/iconTokens.js";
 import { sessionDisplayTitle, type SessionListItem } from "../../../uiTypes.js";
@@ -19,6 +19,7 @@ const HOUR_MS = 60 * MINUTE_MS;
 const DAY_MS = 24 * HOUR_MS;
 
 type Props = {
+  activePendingPermissionSessionId?: string | null;
   activeSessionId: string | null;
   groupKey: string;
   now: number;
@@ -30,6 +31,7 @@ type Props = {
 };
 
 export function SidebarSessionGroup({
+  activePendingPermissionSessionId,
   activeSessionId,
   groupKey,
   now,
@@ -97,6 +99,9 @@ export function SidebarSessionGroup({
   }
 
   function renderSessionRow(session: SessionListItem): React.ReactNode {
+    const awaitingApproval =
+      session.status === "waiting" ||
+      session.id === activePendingPermissionSessionId;
     const row = (
       <SidebarRow
         active={session.id === activeSessionId}
@@ -121,8 +126,8 @@ export function SidebarSessionGroup({
                 : "sidebar-session-meta"
             }
           >
-            {session.status === "running" ? (
-              <Loader2
+            {session.status === "running" || awaitingApproval ? (
+              <LoaderCircle
                 aria-label="加载中"
                 className="sidebar-session-spinner"
                 size={APP_ICON_SIZE}
@@ -184,6 +189,11 @@ export function SidebarSessionGroup({
           <span className="sidebar-session-title">
             {sessionDisplayTitle(session)}
           </span>
+          {awaitingApproval ? (
+            <span className="sidebar-session-approval" title="等待审批">
+              等待审批
+            </span>
+          ) : null}
         </button>
       </SidebarRow>
     );

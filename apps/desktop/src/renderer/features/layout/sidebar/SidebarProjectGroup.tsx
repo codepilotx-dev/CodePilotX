@@ -30,6 +30,7 @@ import {
 } from "./SidebarContextMenu.js";
 
 type Props = {
+  activePendingPermissionSessionId?: string | null;
   activeSessionId: string | null;
   collapsedProjectPaths: Set<string>;
   isUnavailable: boolean;
@@ -50,6 +51,7 @@ type Props = {
 };
 
 export function SidebarProjectGroup({
+  activePendingPermissionSessionId,
   activeSessionId,
   collapsedProjectPaths,
   isUnavailable,
@@ -307,6 +309,7 @@ export function SidebarProjectGroup({
       {projectSessions.length > 0 && isExpanded ? (
         <SidebarSessionGroup
           activeSessionId={activeSessionId}
+          activePendingPermissionSessionId={activePendingPermissionSessionId}
           groupKey={groupKey}
           now={now}
           sessions={projectSessions}

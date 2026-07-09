@@ -1537,6 +1537,9 @@ export function DesktopLayout(): React.ReactNode {
 
   const appSidebarContent = (
     <DesktopSidebar
+      activePendingPermissionSessionId={
+        sessionId && pendingPermissions.length > 0 ? sessionId : null
+      }
       activeSessionId={sessionId}
       recentWorkspaces={recentWorkspaces}
       removedWorkspaces={removedWorkspaces}
