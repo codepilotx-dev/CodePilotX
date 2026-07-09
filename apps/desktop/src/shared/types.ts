@@ -16,7 +16,7 @@ import type {
   DesktopAgentPermissionMode,
 } from '@codepilotx/core/agent/permissions.js'
 import type { ThreadEvent } from '@codepilotx/core/agent/workflow.js'
-import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages.mjs'
+import type { Attachment, UserMessage } from '@codepilotx/core/attachments/types.js'
 import type {
   ModelMetadata,
   ModelProviderID as CoreModelProviderID,
@@ -85,7 +85,12 @@ export type DesktopUserMessageInput = {
   }
 }
 
-export type DesktopUserMessageContent = string | ContentBlockParam[]
+/**
+ * Structured user message passed to the runtime for processing.
+ * Previously `string | ContentBlockParam[]`; now uses the neutral
+ * `UserMessage` format so the runtime can handle attachments natively.
+ */
+export type DesktopUserMessageContent = UserMessage | string
 
 export type DesktopDiffSummary = {
   patch: string

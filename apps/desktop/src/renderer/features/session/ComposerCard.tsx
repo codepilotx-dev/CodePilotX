@@ -209,6 +209,7 @@ type Props = {
   modelConfigured?: boolean;
   modelCatalogLoading?: boolean;
   modelConfigurationMessage?: string;
+  submitDisabledReason?: string;
   showThinkingOptions: boolean;
   deepSeekThinkingControls: boolean;
   showContextUsage: boolean;
@@ -271,6 +272,7 @@ export function ComposerCard({
   modelConfigured = true,
   modelCatalogLoading = false,
   modelConfigurationMessage,
+  submitDisabledReason,
   showThinkingOptions,
   deepSeekThinkingControls,
   showContextUsage,
@@ -739,22 +741,25 @@ export function ComposerCard({
                 className={[
                   "composer-attachment-card",
                   `composer-attachment-${attachment.kind}`,
+                  attachment.status,
                   attachment.status === "error" ? "error" : "",
                 ].join(" ")}
                 key={attachment.id}
                 title={attachment.error ?? attachment.path}
               >
-                {attachment.kind === "image" && attachment.previewDataUrl ? (
-                  <img
-                    alt={attachment.name}
-                    className="composer-attachment-thumbnail"
-                    src={attachment.previewDataUrl}
-                  />
-                ) : (
-                  <span className="composer-attachment-file-icon">
-                    <FileText size={APP_ICON_SIZE} />
-                  </span>
-                )}
+                <span className="composer-attachment-preview">
+                  {attachment.kind === "image" && attachment.previewDataUrl ? (
+                    <img
+                      alt={attachment.name}
+                      className="composer-attachment-thumbnail"
+                      src={attachment.previewDataUrl}
+                    />
+                  ) : (
+                    <span className="composer-attachment-file-icon">
+                      <FileText size={APP_ICON_SIZE} />
+                    </span>
+                  )}
+                </span>
                 <span className="composer-attachment-body">
                   <span className="composer-attachment-name">
                     {attachment.name}
@@ -1380,7 +1385,7 @@ export function ComposerCard({
                 isRunning
                   ? "停止 Esc"
                   : modelConfigured
-                    ? "发送"
+                    ? (submitDisabledReason ?? "发送")
                     : (modelConfigurationMessage ?? "未配置模型")
               }
               type="button"

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import type {
   DesktopComposerAttachment,
   DesktopContextUsage,
+  DesktopModelMetadata,
   DesktopPermissionMode,
   DesktopSlashCommandSuggestion,
   DesktopSessionStatus,
@@ -49,6 +50,7 @@ type Props = {
   modelConfigured: boolean
   modelCatalogLoading?: boolean
   modelConfigurationMessage?: string
+  selectedModelMetadata?: DesktopModelMetadata
   showThinkingOptions: boolean
   deepSeekThinkingControls: boolean
   debugMode?: boolean
@@ -109,6 +111,7 @@ export function DesktopComposer({
   modelConfigured,
   modelCatalogLoading = false,
   modelConfigurationMessage,
+  selectedModelMetadata,
   showThinkingOptions,
   deepSeekThinkingControls,
   debugMode = false,
@@ -146,9 +149,14 @@ export function DesktopComposer({
     (DesktopSlashCommandSuggestion & { skillPath: string }) | null
   >(null)
   const hasAttachmentErrors = hasBlockingComposerAttachmentErrors(attachments)
+  const unsupportedAttachmentReason = getUnsupportedAttachmentReason(
+    attachments,
+    selectedModelMetadata,
+  )
   const canSubmit =
     (Boolean(input.trim()) || attachments.length > 0 || selectedSkillToken !== null) &&
     !hasAttachmentErrors &&
+    !unsupportedAttachmentReason &&
     modelConfigured &&
     sessionStatus !== 'running' &&
     sessionStatus !== 'waiting' &&
@@ -320,6 +328,7 @@ export function DesktopComposer({
       modelConfigured={modelConfigured}
       modelCatalogLoading={modelCatalogLoading}
       modelConfigurationMessage={modelConfigurationMessage}
+      submitDisabledReason={unsupportedAttachmentReason ?? undefined}
       showThinkingOptions={showThinkingOptions}
       deepSeekThinkingControls={deepSeekThinkingControls}
       debugMode={debugMode}
@@ -368,6 +377,38 @@ export function DesktopComposer({
       contextDropdownSide={isQuickChatPage ? 'bottom' : 'top'}
     />
   )
+}
+
+function getUnsupportedAttachmentReason(
+  attachments: DesktopComposerAttachment[],
+  metadata: DesktopModelMetadata | undefined,
+): string | null {
+  if (attachments.length === 0 || !metadata?.modalities?.input) return null
+  const supportedInputs = new Set(metadata.modalities.input)
+  const unsupported = attachments.find(attachment => {
+    if (attachment.status === 'error') return false
+    return !supportedInputs.has(attachment.kind)
+  })
+  if (!unsupported) return null
+  const modelLabel = metadata.label ?? metadata.name ?? metadata.id
+  return `${modelLabel} 不支持 ${attachmentKindLabel(unsupported.kind)} 附件`
+}
+
+function attachmentKindLabel(kind: DesktopComposerAttachment['kind']): string {
+  switch (kind) {
+    case 'image':
+      return '图片'
+    case 'document':
+      return '文档'
+    case 'text':
+      return '文本'
+    case 'audio':
+      return '音频'
+    case 'video':
+      return '视频'
+    case 'binary':
+      return '文件'
+  }
 }
 
 export function getDesktopComposerBranchName(

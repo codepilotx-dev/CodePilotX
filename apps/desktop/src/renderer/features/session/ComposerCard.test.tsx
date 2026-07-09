@@ -115,9 +115,13 @@ test('ComposerCard renders image and file attachment cards above the textarea', 
   )
 
   expect(html).toContain('composer-attachments')
+  expect(html).toContain('composer-attachment-card composer-attachment-image ready')
+  expect(html).toContain('composer-attachment-card composer-attachment-video ready')
   expect(html).toContain('screen.png')
   expect(html).toContain('demo.mp4')
   expect(html).toContain('MP4')
+  expect(html).toContain('composer-attachment-preview')
+  expect(html).toContain('composer-attachment-body')
 })
 
 test('ComposerCard exposes the migrated chat input dropdown agents', () => {

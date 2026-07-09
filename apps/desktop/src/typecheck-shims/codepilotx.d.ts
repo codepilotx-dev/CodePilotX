@@ -274,6 +274,36 @@ declare module '@codepilotx/core/agent/runtime.js' {
     | { type: 'error'; sessionId: string; message: string }
 }
 
+declare module '@codepilotx/core/attachments/types.js' {
+  export type AttachmentKind =
+    | 'image'
+    | 'document'
+    | 'text'
+    | 'audio'
+    | 'video'
+    | 'binary'
+
+  export type Attachment = {
+    kind: AttachmentKind
+    name: string
+    path: string
+    mediaType: string
+    sizeBytes: number
+    contentBase64?: string
+    textContent?: string
+  }
+
+  export type UserMessage = {
+    text: string
+    attachments?: Attachment[]
+    skillInvocation?: {
+      name: string
+      args?: string
+      skillPath?: string
+    }
+  }
+}
+
 declare module '@codepilotx/core/agent/permissions.js' {
   export type CodexApprovalsReviewer = 'user' | 'auto_review'
   export type CodexSandboxMode =

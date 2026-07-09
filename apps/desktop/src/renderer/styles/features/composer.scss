@@ -71,21 +71,20 @@
   align-items: flex-start;
   flex-wrap: wrap;
   gap: 8px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .composer-attachment-card {
   position: relative;
   min-width: 0;
-  height: 56px;
+  width: 88px;
+  height: 88px;
   display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  max-width: 260px;
-  padding: 6px 34px 6px 8px;
+  align-items: stretch;
+  justify-content: stretch;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-5);
-  background: var(--color-bg);
+  background: var(--color-bg-soft);
   box-shadow: var(--shadow-resting);
 
   &.error {
@@ -98,40 +97,58 @@
   }
 }
 
+.composer-attachment-preview {
+  width: 100%;
+  height: 100%;
+  display: inline-flex;
+  overflow: hidden;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  border-radius: inherit;
+}
+
 .composer-attachment-thumbnail {
-  width: 44px;
-  height: 44px;
-  flex: 0 0 auto;
-  border-radius: var(--radius-4);
+  width: 100%;
+  height: 100%;
   object-fit: cover;
-  border: 1px solid var(--color-border);
   background: var(--color-bg-soft);
 }
 
 .composer-attachment-file-icon {
-  width: 44px;
-  height: 44px;
+  width: 100%;
+  height: 100%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex: 0 0 auto;
-  border-radius: var(--radius-4);
-  background: var(--color-bg-soft);
-  color: var(--color-icon);
+  padding: 12px;
+  background: var(--color-bg);
+  color: var(--color-text-soft);
 }
 
 .composer-attachment-body {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
   min-width: 0;
   display: grid;
-  gap: 3px;
+  gap: 1px;
+  padding: 18px 6px 5px;
+  background: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--color-bg) 92%, transparent),
+    color-mix(in srgb, var(--color-bg) 76%, transparent),
+    transparent
+  );
 }
 
 .composer-attachment-name {
   overflow: hidden;
   color: var(--color-text-strong);
-  font-size: var(--font-size-13);
-  font-weight: 600;
-  line-height: 17px;
+  font-size: var(--font-size-11);
+  font-weight: 500;
+  line-height: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -139,8 +156,8 @@
 .composer-attachment-meta {
   overflow: hidden;
   color: var(--color-text-soft);
-  font-size: var(--font-size-12);
-  line-height: 14px;
+  font-size: var(--font-size-11);
+  line-height: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
