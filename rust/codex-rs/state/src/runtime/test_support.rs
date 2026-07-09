@@ -30,7 +30,7 @@ pub(super) fn unique_temp_dir() -> PathBuf {
         .duration_since(UNIX_EPOCH)
         .map_or(0, |duration| duration.as_nanos());
     std::env::temp_dir().join(format!(
-        "codex-state-runtime-test-{nanos}-{}",
+        "codepilotx-state-runtime-test-{nanos}-{}",
         Uuid::new_v4()
     ))
 }

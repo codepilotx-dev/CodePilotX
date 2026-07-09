@@ -99,14 +99,14 @@ pub const MEMORIES_DB_FILENAME: &str = "memories_1.sqlite";
 pub const STATE_DB_FILENAME: &str = "state_5.sqlite";
 
 /// Errors encountered during DB operations. Tags: [stage]
-pub const DB_ERROR_METRIC: &str = "codex.db.error";
+pub const DB_ERROR_METRIC: &str = "codepilotx.db.error";
 /// Metrics on backfill process. Tags: [status]
-pub const DB_METRIC_BACKFILL: &str = "codex.db.backfill";
+pub const DB_METRIC_BACKFILL: &str = "codepilotx.db.backfill";
 /// Metrics on backfill duration. Tags: [status]
-pub const DB_METRIC_BACKFILL_DURATION_MS: &str = "codex.db.backfill.duration_ms";
+pub const DB_METRIC_BACKFILL_DURATION_MS: &str = "codepilotx.db.backfill.duration_ms";
 /// SQLite initialization attempts. Tags: [status, phase, db, error]
-pub const DB_INIT_METRIC: &str = "codex.sqlite.init.count";
+pub const DB_INIT_METRIC: &str = "codepilotx.sqlite.init.count";
 /// SQLite initialization latency. Tags: [status, phase, db, error]
-pub const DB_INIT_DURATION_METRIC: &str = "codex.sqlite.init.duration_ms";
+pub const DB_INIT_DURATION_METRIC: &str = "codepilotx.sqlite.init.duration_ms";
 /// Rollout fallback attempts. Tags: [caller, reason]
-pub const DB_FALLBACK_METRIC: &str = "codex.sqlite.fallback.count";
+pub const DB_FALLBACK_METRIC: &str = "codepilotx.sqlite.fallback.count";
