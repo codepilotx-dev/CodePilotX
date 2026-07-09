@@ -17,7 +17,6 @@
   flex-direction: column;
   position: relative;
   margin: 0 auto;
-  padding: 18px var(--layout-page-pad-x) 0;
 }
 
 /* ── Top-level container ──────────────────────────────── */
@@ -89,10 +88,6 @@
     max-width: 100%;
   }
 
-  .user-message-bubble {
-    max-width: min(520px, 70%);
-  }
-
   .user-message-meta {
     margin-top: 10px;
   }
@@ -125,7 +120,8 @@
 }
 
 [data-component="session-turn"][data-slot="error"] .timeline-system-event,
-[data-component="session-turn"][data-slot="permission_request"] .timeline-system-event {
+[data-component="session-turn"][data-slot="permission_request"]
+  .timeline-system-event {
   max-width: min(680px, 100%);
   margin-top: 0;
   margin-bottom: 0;
@@ -225,17 +221,16 @@
   .session-turn-row {
     padding: 0 12px;
   }
-
-  .user-message-bubble {
-    max-width: 85%;
-  }
 }
 
 /* ── Conversation turn navigation rail ───────────────────── */
 
 .conversation-turn-nav-rail {
   position: absolute;
-  left: max(8px, calc((100% - var(--workflow-content-width, 760px)) / 2 - 34px));
+  left: max(
+    8px,
+    calc((100% - var(--workflow-content-width, 760px)) / 2 - 34px)
+  );
   top: 0;
   bottom: 0;
   z-index: 5;

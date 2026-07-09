@@ -785,13 +785,11 @@
   max-width: 100%;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
   color: var(--color-text);
   font-size: var(--font-size-14);
 
   &.user {
     align-items: flex-end;
-    gap: 10px;
 
     > .message-action {
       display: none;
@@ -834,6 +832,18 @@
   background: var(--color-surface);
   box-shadow: var(--shadow-card);
   color: var(--color-text);
+  animation: environment-panel-enter var(--motion-enter, 160ms) var(--ease-out, ease-out) both;
+}
+
+@keyframes environment-panel-enter {
+  from {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .environment-panel-header,
@@ -856,15 +866,25 @@
 }
 
 .environment-action-row {
+  width: 100%;
   gap: 10px;
   padding: 6px 10px;
+  border: 0;
   border-radius: var(--radius-4);
+  background: transparent;
   color: var(--color-text);
+  font: inherit;
   font-size: var(--font-size-14);
   text-align: left;
 
-  &:hover {
+  &:hover:not(:disabled) {
     background: var(--color-bg-hover);
+  }
+
+  &:disabled {
+    color: var(--color-text-disabled);
+    cursor: default;
+    opacity: 0.6;
   }
 
   svg {
@@ -1260,7 +1280,6 @@
 
 /* --- User message --- */
 .user-message-bubble {
-  max-width: min(620px, 72%);
   padding: 12px 16px;
   border: 1px solid color-mix(in srgb, var(--color-text-strong) 12%, transparent);
   border-radius: var(--radius-user-message);
@@ -2137,6 +2156,8 @@
 
 /* --- Workflow page composer --- */
 .workflow-page .chat-composer.workflow-page__composer {
+  position: absolute;
+  bottom: 0;
   flex: 0 0 auto;
   display: flex;
   justify-content: center;

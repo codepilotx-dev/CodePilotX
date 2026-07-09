@@ -890,9 +890,11 @@ export function ConversationPage(): React.ReactNode {
       <div
         className="workflow-page__body"
         style={
-          rightDockNode
+          rightDockNode || showEnvironmentPanel
             ? ({
-                "--right-dock-current-w": `${rightDockWidth}px`,
+                "--right-dock-current-w": rightDockNode
+                  ? `${rightDockWidth}px`
+                  : "368px",
               } as React.CSSProperties)
             : undefined
         }
@@ -1061,7 +1063,21 @@ export function ConversationPage(): React.ReactNode {
             </footer>
           ) : null}
         </main>
-        {rightDockNode}
+        {showEnvironmentPanel ? (
+          <EnvironmentPanel
+            branchName={branchName}
+            diff={diff}
+            gitStatus={gitStatus}
+            workspacePath={workspacePath}
+            onCommitOrPush={onCommitOrPush}
+            onCreateBranch={onCreateBranch}
+            onCreatePullRequest={onCreatePullRequest}
+            onOpenWorkspacePath={onOpenWorkspacePath}
+            onRefreshDiff={onRefreshDiff}
+          />
+        ) : (
+          rightDockNode
+        )}
       </div>
     </section>
   );
@@ -3699,48 +3715,70 @@ function EnvironmentPanel({
   const diffSummary = summarizeDiff(_diff);
   const gitLabel = branchName?.trim() || "未检测到 Git 分支";
   const changedFileCount = gitStatus?.files.length ?? 0;
+  const workspaceAvailable = Boolean(workspacePath);
 
   return (
-    <div className="environment-panel">
-      <DropdownMenu.Label className="popover-item-label">
-        环境信息
-      </DropdownMenu.Label>
-      <DropdownMenu.Separator />
-      <PopoverItem
-        icon={<FileDiff size={APP_ICON_SIZE} />}
-        onClick={onRefreshDiff}
-      >
-        变更{changedFileCount ? ` (${changedFileCount})` : ""}
-        <span className="environment-diff-counts">
-          <strong>+{formatPanelNumber(diffSummary.additions)}</strong>
-          <em>-{formatPanelNumber(diffSummary.deletions)}</em>
-        </span>
-      </PopoverItem>
-      <PopoverItem
-        icon={<Laptop size={APP_ICON_SIZE} />}
-        onClick={onOpenWorkspacePath}
-      >
-        本地
-      </PopoverItem>
-      <PopoverItem
-        icon={<GitBranch size={APP_ICON_SIZE} />}
-        onClick={onCreateBranch}
-      >
-        {gitLabel}
-      </PopoverItem>
-      <PopoverItem
-        icon={<Upload size={APP_ICON_SIZE} />}
-        onClick={onCommitOrPush}
-      >
-        提交或推送
-      </PopoverItem>
-      <PopoverItem
-        icon={<GitPullRequest size={APP_ICON_SIZE} />}
-        onClick={onCreatePullRequest}
-      >
-        创建拉取请求
-      </PopoverItem>
-    </div>
+    <aside className="environment-panel" aria-label="环境信息">
+      <header className="environment-panel-header">
+        <span>环境信息</span>
+      </header>
+      <div className="environment-action-list">
+        <button
+          className="environment-action-row"
+          disabled={!workspaceAvailable}
+          type="button"
+          onClick={onRefreshDiff}
+        >
+          <FileDiff size={APP_ICON_SIZE} />
+          <span>变更{changedFileCount ? ` (${changedFileCount})` : ""}</span>
+          <span className="environment-diff-counts">
+            <strong>+{formatPanelNumber(diffSummary.additions)}</strong>
+            <em>-{formatPanelNumber(diffSummary.deletions)}</em>
+          </span>
+        </button>
+        <button
+          className="environment-action-row"
+          disabled={!workspaceAvailable}
+          type="button"
+          onClick={onOpenWorkspacePath}
+        >
+          <Laptop size={APP_ICON_SIZE} />
+          <span>本地</span>
+        </button>
+        <button
+          className="environment-action-row"
+          disabled={!workspaceAvailable}
+          title={gitLabel}
+          type="button"
+          onClick={onCreateBranch}
+        >
+          <GitBranch size={APP_ICON_SIZE} />
+          <span>{gitLabel}</span>
+        </button>
+        <button
+          className="environment-action-row"
+          disabled={!workspaceAvailable}
+          type="button"
+          onClick={onCommitOrPush}
+        >
+          <Upload size={APP_ICON_SIZE} />
+          <span>提交或推送</span>
+        </button>
+        <button
+          className="environment-action-row"
+          disabled={!workspaceAvailable}
+          type="button"
+          onClick={onCreatePullRequest}
+        >
+          <GitPullRequest size={APP_ICON_SIZE} />
+          <span>创建拉取请求</span>
+        </button>
+      </div>
+      <div className="environment-source">
+        <span>来源</span>
+        <small>暂无来源</small>
+      </div>
+    </aside>
   );
 }
 
