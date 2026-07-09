@@ -29,6 +29,8 @@ export type RustAppServerWorkflowState = {
   activeTurnId: string | null
   /** Accumulated assistant text from agentMessage/item deltas */
   assistantDeltaBuffer: string
+  /** Accumulated command output keyed by item id (toolUseId) */
+  aggregatedOutputByItem: Map<string, string>
 }
 
 export function createRustAppServerWorkflowState(): RustAppServerWorkflowState {
@@ -36,6 +38,7 @@ export function createRustAppServerWorkflowState(): RustAppServerWorkflowState {
     threadId: null,
     activeTurnId: null,
     assistantDeltaBuffer: '',
+    aggregatedOutputByItem: new Map(),
   }
 }
 
@@ -76,6 +79,7 @@ export function handleServerNotification(
         state.activeTurnId = typeof t.id === 'string' ? t.id : null
       }
       state.assistantDeltaBuffer = ''
+      state.aggregatedOutputByItem.clear()
       desktopDebug('rust_adapter_turn_started', {
         turnId: state.activeTurnId,
       })
@@ -85,6 +89,7 @@ export function handleServerNotification(
     case 'turn/completed': {
       state.activeTurnId = null
       state.assistantDeltaBuffer = ''
+      state.aggregatedOutputByItem.clear()
       emit({ type: 'done', sessionId })
       desktopDebug('rust_adapter_turn_completed')
       break
@@ -210,20 +215,28 @@ export function handleServerNotification(
           const cmd = item as Record<string, unknown>
           const cmdStatus = cmd.status as string | undefined
           const output = cmd.output as string | undefined
-          const cmdResult = output ?? cmd.result
+          const itemId = String(item.id ?? '')
+          // Prefer aggregatedOutput from tracked state (built from deltas)
+          // Falls back to cmd.output, cmd.result, or cmd.aggregatedOutput
+          const aggregated =
+            state.aggregatedOutputByItem.get(itemId) ??
+            (cmd.aggregatedOutput as string | undefined) ??
+            output ??
+            (cmd.result as string | undefined)
+          state.aggregatedOutputByItem.delete(itemId)
           emit({
             type: 'tool_result',
             sessionId,
             toolName: 'Bash',
-            summary: cmdResult
-              ? String(cmdResult).slice(0, 500)
+            summary: aggregated
+              ? String(aggregated).slice(0, 500)
               : cmdStatus ?? 'completed',
-            toolUseId: String(item.id ?? ''),
+            toolUseId: itemId,
             isError: cmd.exitCode != null && cmd.exitCode !== 0,
             metadata: {
               exitCode: cmd.exitCode,
               command: cmd.command,
-              output: cmdResult,
+              output: aggregated,
             },
           })
           break
@@ -338,16 +351,24 @@ export function handleServerNotification(
       const p = params as Record<string, unknown> | null
       if (!p) break
       const delta = p.delta as string | undefined
+      const itemId = p.itemId as string | undefined
       if (delta) {
         desktopDebug('rust_adapter_command_output', {
           textPreview: delta.slice(0, 200),
+          itemId,
         })
-        // Emit as partial tool output for live display.
-        // Full output is available when item/completed fires.
+        // Accumulate in state for final output on item/completed
+        if (itemId) {
+          const prev = state.aggregatedOutputByItem.get(itemId) ?? ''
+          state.aggregatedOutputByItem.set(itemId, prev + delta)
+        }
+        // Emit tool_output_delta so live display updates the matching command card
         emit({
-          type: 'partial_message',
+          type: 'tool_output_delta',
           sessionId,
-          text: `\`\`\`bash\n${delta.slice(0, 500)}\n\`\`\``,
+          toolUseId: itemId ?? '',
+          toolName: 'Bash',
+          delta,
         })
       }
       break
@@ -397,6 +418,33 @@ export function handleServerNotification(
       break
     }
 
+    // ── Server request resolved ──────────────────────────────────
+    case 'serverRequest/resolved': {
+      const p = params as Record<string, unknown> | null
+      const requestId = p?.requestId as string | undefined
+      const method = p?.method as string | undefined
+      desktopDebug('rust_adapter_server_request_resolved', {
+        requestId,
+        method,
+      })
+      // The request was resolved by the Rust server (permission granted/denied).
+      // The matching permission_request is already handled by agentSession.
+      // Emit status to help the UI clear any stale waiting indicator.
+      if (
+        method === 'item/commandExecution/requestApproval' ||
+        method === 'item/permissions/requestApproval' ||
+        method === 'item/fileChange/requestApproval'
+      ) {
+        state.aggregatedOutputByItem.delete(String(p?.itemId ?? ''))
+        emit({
+          type: 'status',
+          sessionId,
+          status: 'running',
+        })
+      }
+      break
+    }
+
     // ── Error ────────────────────────────────────────────────────
     case 'error': {
       const p = params as Record<string, unknown> | null
@@ -407,6 +455,7 @@ export function handleServerNotification(
           : 'Rust app-server error'
       state.activeTurnId = null
       state.assistantDeltaBuffer = ''
+      state.aggregatedOutputByItem.clear()
       emit({ type: 'error', sessionId, message })
       desktopDebug('rust_adapter_error', { message })
       break

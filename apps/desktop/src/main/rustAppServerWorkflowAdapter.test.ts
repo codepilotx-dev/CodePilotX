@@ -578,7 +578,7 @@ describe('rustAppServerWorkflowAdapter', () => {
 
 	  // ── Command output delta ─────────────────────────────────────────
 
-	  test('item/commandExecution/outputDelta emits partial_message with formatted output', () => {
+	  test('item/commandExecution/outputDelta emits tool_output_delta with accumulated state', () => {
 	    const state = createRustAppServerWorkflowState()
 	    const events: DesktopAgentEvent[] = []
 
@@ -592,10 +592,145 @@ describe('rustAppServerWorkflowAdapter', () => {
 
 	    expect(events).toHaveLength(1)
 	    expect(events[0]).toEqual({
-	      type: 'partial_message',
+	      type: 'tool_output_delta',
 	      sessionId: SESSION_ID,
-	      text: '```bash\nfile1.txt\n\n```',
+	      toolUseId: 'item-1',
+	      toolName: 'Bash',
+	      delta: 'file1.txt\n',
 	    })
+	    // State should track aggregated output
+	    expect(state.aggregatedOutputByItem.get('item-1')).toBe('file1.txt\n')
+	  })
+
+	  test('item/commandExecution/outputDelta accumulates multiple deltas', () => {
+	    const state = createRustAppServerWorkflowState()
+	    const events: DesktopAgentEvent[] = []
+
+	    handleServerNotification(
+	      'item/commandExecution/outputDelta',
+	      { itemId: 'item-1', delta: 'file1.txt\n' },
+	      e => events.push(e),
+	      state,
+	      SESSION_ID,
+	    )
+	    handleServerNotification(
+	      'item/commandExecution/outputDelta',
+	      { itemId: 'item-1', delta: 'file2.txt\n' },
+	      e => events.push(e),
+	      state,
+	      SESSION_ID,
+	    )
+
+	    expect(events).toHaveLength(2)
+	    expect(events[0]).toMatchObject({ type: 'tool_output_delta', delta: 'file1.txt\n' })
+	    expect(events[1]).toMatchObject({ type: 'tool_output_delta', delta: 'file2.txt\n' })
+	    expect(state.aggregatedOutputByItem.get('item-1')).toBe('file1.txt\nfile2.txt\n')
+	  })
+
+	  test('item/commandExecution/outputDelta without itemId is safely ignored', () => {
+	    const state = createRustAppServerWorkflowState()
+	    const events: DesktopAgentEvent[] = []
+
+	    handleServerNotification(
+	      'item/commandExecution/outputDelta',
+	      { delta: 'some output' },
+	      e => events.push(e),
+	      state,
+	      SESSION_ID,
+	    )
+
+	    expect(events).toHaveLength(1)
+	    expect(events[0]).toEqual({
+	      type: 'tool_output_delta',
+	      sessionId: SESSION_ID,
+	      toolUseId: '',
+	      toolName: 'Bash',
+	      delta: 'some output',
+	    })
+	  })
+
+	  test('item/completed.commandExecution uses aggregatedOutput from state', () => {
+	    const state = createRustAppServerWorkflowState()
+	    const events: DesktopAgentEvent[] = []
+
+	    handleServerNotification(
+	      'item/commandExecution/outputDelta',
+	      { itemId: 'cmd-1', delta: 'line1\nline2\n' },
+	      e => events.push(e),
+	      state,
+	      SESSION_ID,
+	    )
+
+	    handleServerNotification(
+	      'item/completed',
+	      {
+	        item: {
+	          type: 'commandExecution',
+	          id: 'cmd-1',
+	          command: 'ls',
+	          exitCode: 0,
+	        },
+	      },
+	      e => events.push(e),
+	      state,
+	      SESSION_ID,
+	    )
+
+	    expect(events).toHaveLength(2)
+	    expect(events[1]).toMatchObject({
+	      type: 'tool_result',
+	      toolName: 'Bash',
+	      toolUseId: 'cmd-1',
+	      summary: 'line1\nline2\n',
+	      isError: false,
+	    })
+	    // aggregated state should be cleaned up
+	    expect(state.aggregatedOutputByItem.has('cmd-1')).toBe(false)
+	  })
+
+	  // ── Server request resolved ──────────────────────────────────────
+
+	  test('serverRequest/resolved for permission emits status running', () => {
+	    const state = createRustAppServerWorkflowState()
+	    const events: DesktopAgentEvent[] = []
+
+	    handleServerNotification(
+	      'serverRequest/resolved',
+	      {
+	        requestId: 'req-1',
+	        method: 'item/commandExecution/requestApproval',
+	        itemId: 'cmd-1',
+	      },
+	      e => events.push(e),
+	      state,
+	      SESSION_ID,
+	    )
+
+	    expect(events).toHaveLength(1)
+	    expect(events[0]).toEqual({
+	      type: 'status',
+	      sessionId: SESSION_ID,
+	      status: 'running',
+	    })
+	  })
+
+	  test('serverRequest/resolved for unknown method is still recognized', () => {
+	    const state = createRustAppServerWorkflowState()
+	    const events: DesktopAgentEvent[] = []
+
+	    handleServerNotification(
+	      'serverRequest/resolved',
+	      {
+	        requestId: 'req-2',
+	        method: 'item/tool/call',
+	      },
+	      e => events.push(e),
+	      state,
+	      SESSION_ID,
+	    )
+
+	    // Still recognized and logged, but no status emitted for unknown methods
+	    expect(events).toHaveLength(0)
 	  })
 
 	  // ── File change patch updated ────────────────────────────────────
