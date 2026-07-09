@@ -60,8 +60,8 @@ describe('getAuthStatus', () => {
       saveGlobalConfig: () => {},
     },
     settings: {
-      getSettings_DEPRECATED: () => undefined,
-      getInitialSettings: () => ({}),
+      getSettings_DEPRECATED: <T>() => undefined as T,
+      getInitialSettings: <T>() => ({}) as T,
       getSettingsForSource: () => undefined,
       updateSettingsForSource: () => {},
     },

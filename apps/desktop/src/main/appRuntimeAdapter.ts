@@ -167,8 +167,8 @@ export function configureDesktopCoreAppRuntime(): void {
       saveGlobalConfig: saveGlobalConfigImpl,
     },
     settings: {
-      getSettings_DEPRECATED: () => getDesktopSettingsJson(),
-      getInitialSettings: () => getDesktopSettingsJson(),
+      getSettings_DEPRECATED: <T>() => getDesktopSettingsJson() as T,
+      getInitialSettings: <T>() => getDesktopSettingsJson() as T,
       getSettingsForSource: () => undefined,
       updateSettingsForSource: () => {
         // Desktop settings are managed through desktop API
