@@ -963,3 +963,237 @@ async fn chat_completions_request_builder_flushes_tool_calls_before_result() {
         "Tool message must reference call_1",
     );
 }
+
+// ── Anthropic request builder: tool_use → tool_result pairing ─────
+
+#[tokio::test]
+async fn anthropic_request_builder_creates_assistant_anchor_for_tool_use() {
+    let client = test_model_client(SessionSource::Cli);
+    let model_info = test_model_info();
+
+    // Construct a Prompt whose input has:
+    //   user message → FunctionCall → FunctionCallOutput
+    // Without the fix, the FunctionCall tool_use was silently dropped because
+    // the last message was "user" instead of "assistant", producing:
+    //   user → user(tool_result)
+    // which triggers MiniMax "tool call result does not follow tool call (2013)".
+    let prompt = crate::client_common::Prompt {
+        input: vec![
+            serde_json::from_value(json!({
+                "type": "message",
+                "role": "user",
+                "content": [{"type": "input_text", "text": "list files"}]
+            }))
+            .unwrap(),
+            serde_json::from_value(json!({
+                "type": "function_call",
+                "name": "Bash",
+                "arguments": r#"{"cmd":"ls"}"#,
+                "call_id": "call_1"
+            }))
+            .unwrap(),
+            ResponseItem::FunctionCallOutput {
+                id: Some("fco-1".to_string()),
+                call_id: "call_1".to_string(),
+                output: codex_protocol::models::FunctionCallOutputPayload::from_text(
+                    "file1.txt\nfile2.txt".to_string(),
+                ),
+                metadata: None,
+            },
+        ],
+        ..Default::default()
+    };
+
+    let request = client.build_anthropic_messages_request(&prompt, &model_info);
+    let messages = &request.messages;
+
+    // Expected order: user, assistant(tool_use), user(tool_result)
+    assert!(
+        messages.len() >= 3,
+        "expected at least 3 messages (user, assistant, user), got {}",
+        messages.len(),
+    );
+
+    let json_msgs: Vec<serde_json::Value> = messages
+        .iter()
+        .map(|m| serde_json::to_value(m).unwrap())
+        .collect();
+
+    // First message: user
+    assert_eq!(
+        json_msgs[0].get("role").and_then(|v| v.as_str()),
+        Some("user"),
+        "first message must be user",
+    );
+
+    // Second message: assistant with tool_use anchor
+    let assistant = &json_msgs[1];
+    assert_eq!(
+        assistant.get("role").and_then(|v| v.as_str()),
+        Some("assistant"),
+        "second message must be assistant (tool_use anchor)",
+    );
+    let content = assistant
+        .get("content")
+        .and_then(|v| v.as_array())
+        .expect("assistant must have content array");
+    assert!(!content.is_empty(), "assistant content must not be empty");
+    let tool_use_block = &content[0];
+    assert_eq!(
+        tool_use_block.get("type").and_then(|v| v.as_str()),
+        Some("tool_use"),
+        "assistant content must contain tool_use block",
+    );
+    assert_eq!(
+        tool_use_block.get("id").and_then(|v| v.as_str()),
+        Some("call_1"),
+        "tool_use id must match FunctionCall call_id",
+    );
+    assert_eq!(
+        tool_use_block.get("name").and_then(|v| v.as_str()),
+        Some("Bash"),
+        "tool_use name must match FunctionCall name",
+    );
+
+    // Third message: user with tool_result
+    let user_with_result = &json_msgs[2];
+    assert_eq!(
+        user_with_result.get("role").and_then(|v| v.as_str()),
+        Some("user"),
+        "third message must be user with tool_result",
+    );
+    let user_content = user_with_result
+        .get("content")
+        .and_then(|v| v.as_array())
+        .expect("user must have content array");
+    assert!(!user_content.is_empty(), "user content must not be empty");
+    let tool_result_block = &user_content[0];
+    assert_eq!(
+        tool_result_block.get("type").and_then(|v| v.as_str()),
+        Some("tool_result"),
+        "user content must contain tool_result block",
+    );
+    assert_eq!(
+        tool_result_block.get("tool_use_id").and_then(|v| v.as_str()),
+        Some("call_1"),
+        "tool_result must reference call_1",
+    );
+}
+
+#[tokio::test]
+async fn anthropic_request_builder_appends_tool_use_to_existing_assistant() {
+    let client = test_model_client(SessionSource::Cli);
+    let model_info = test_model_info();
+
+    // Construct a Prompt whose input has:
+    //   assistant message (text) → FunctionCall → FunctionCallOutput
+    // The tool_use must be appended to the existing assistant message,
+    // not placed in a separate one.
+    let prompt = crate::client_common::Prompt {
+        input: vec![
+            serde_json::from_value(json!({
+                "type": "message",
+                "role": "assistant",
+                "content": [{"type": "output_text", "text": "Let me check that for you"}]
+            }))
+            .unwrap(),
+            serde_json::from_value(json!({
+                "type": "function_call",
+                "name": "Bash",
+                "arguments": r#"{"cmd":"ls"}"#,
+                "call_id": "call_2"
+            }))
+            .unwrap(),
+            ResponseItem::FunctionCallOutput {
+                id: Some("fco-2".to_string()),
+                call_id: "call_2".to_string(),
+                output: codex_protocol::models::FunctionCallOutputPayload::from_text(
+                    "result".to_string(),
+                ),
+                metadata: None,
+            },
+        ],
+        ..Default::default()
+    };
+
+    let request = client.build_anthropic_messages_request(&prompt, &model_info);
+    let messages = &request.messages;
+
+    // Expected: assistant(text + tool_use), user(tool_result)
+    assert!(
+        messages.len() >= 2,
+        "expected at least 2 messages (assistant, user), got {}",
+        messages.len(),
+    );
+
+    let json_msgs: Vec<serde_json::Value> = messages
+        .iter()
+        .map(|m| serde_json::to_value(m).unwrap())
+        .collect();
+
+    // First message: assistant with both text and tool_use in content
+    let assistant = &json_msgs[0];
+    assert_eq!(
+        assistant.get("role").and_then(|v| v.as_str()),
+        Some("assistant"),
+        "first message must be assistant",
+    );
+    let content = assistant
+        .get("content")
+        .and_then(|v| v.as_array())
+        .expect("assistant content must be array");
+    assert!(
+        content.len() >= 2,
+        "assistant must have at least 2 content blocks (text + tool_use), got {}",
+        content.len(),
+    );
+
+    // First content block: text
+    assert_eq!(
+        content[0].get("type").and_then(|v| v.as_str()),
+        Some("text"),
+        "first content block must be text",
+    );
+
+    // Second content block: tool_use
+    let tool_use_block = &content[1];
+    assert_eq!(
+        tool_use_block.get("type").and_then(|v| v.as_str()),
+        Some("tool_use"),
+        "second content block must be tool_use appended to assistant",
+    );
+    assert_eq!(
+        tool_use_block.get("id").and_then(|v| v.as_str()),
+        Some("call_2"),
+        "tool_use id must match",
+    );
+    assert_eq!(
+        tool_use_block.get("name").and_then(|v| v.as_str()),
+        Some("Bash"),
+        "tool_use name must match",
+    );
+
+    // Second message: user with tool_result
+    let user_msg = &json_msgs[1];
+    assert_eq!(
+        user_msg.get("role").and_then(|v| v.as_str()),
+        Some("user"),
+        "second message must be user",
+    );
+    let user_content = user_msg
+        .get("content")
+        .and_then(|v| v.as_array())
+        .expect("user must have content array");
+    assert!(!user_content.is_empty(), "user content must not be empty");
+    let tool_result_block = &user_content[0];
+    assert_eq!(
+        tool_result_block.get("type").and_then(|v| v.as_str()),
+        Some("tool_result"),
+        "first block in user must be tool_result",
+    );
+    assert_eq!(
+        tool_result_block.get("tool_use_id").and_then(|v| v.as_str()),
+        Some("call_2"),
+        "tool_result must reference call_2",
+    );
+}

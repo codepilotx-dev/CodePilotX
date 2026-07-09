@@ -1062,10 +1062,43 @@ impl ModelClient {
         let mut messages: Vec<AnthropicMessage> = Vec::new();
         // Buffer tool results that precede the next user message
         let mut tool_results_buffer: Vec<(String, String)> = Vec::new();
+        // Buffer pending tool_use blocks awaiting an assistant anchor.
+        // Mirrors the chat-completions pending_tool_calls pattern so that
+        // tool_use always appears before tool_result in the final request.
+        let mut pending_tool_uses: Vec<(String, String, serde_json::Value)> = Vec::new();
+
+        // Flush pending tool_use blocks: attach to last assistant message if
+        // present, otherwise create a new assistant anchor message.
+        fn flush_pending_tool_uses(
+            messages: &mut Vec<AnthropicMessage>,
+            pending: &mut Vec<(String, String, serde_json::Value)>,
+        ) {
+            if pending.is_empty() {
+                return;
+            }
+            let blocks: Vec<AnthropicRequestContentBlock> = pending
+                .drain(..)
+                .map(|(id, name, input)| AnthropicRequestContentBlock::ToolUse { id, name, input })
+                .collect();
+            if let Some(last) = messages.last_mut() {
+                if last.role == "assistant" {
+                    last.content.extend(blocks);
+                    return;
+                }
+            }
+            messages.push(AnthropicMessage {
+                role: "assistant".to_string(),
+                content: blocks,
+            });
+        }
 
         for item in prompt.get_formatted_input_for_request(/*use_responses_lite*/ false) {
             match item {
                 ResponseItem::Message { role, content, .. } => {
+                    // Flush pending tool uses before this message so tool_use
+                    // always has an assistant anchor.
+                    flush_pending_tool_uses(&mut messages, &mut pending_tool_uses);
+
                     if role == "user" {
                         let text = anthropic_text_from_content_items(&content);
                         if text.trim().is_empty() && tool_results_buffer.is_empty() {
@@ -1105,38 +1138,28 @@ impl ModelClient {
                         Ok(v @ serde_json::Value::Object(_)) => v,
                         _ => serde_json::Value::Object(serde_json::Map::new()),
                     };
-                    if let Some(last) = messages.last_mut() {
-                        if last.role == "assistant" {
-                            last.content.push(AnthropicRequestContentBlock::ToolUse {
-                                id: call_id,
-                                name,
-                                input,
-                            });
-                        }
-                    }
+                    pending_tool_uses.push((call_id, name, input));
                 }
                 ResponseItem::CustomToolCall { name, input, call_id, .. } => {
                     let input_value = match serde_json::from_str(&input) {
                         Ok(v @ serde_json::Value::Object(_)) => v,
                         _ => serde_json::Value::Object(serde_json::Map::new()),
                     };
-                    if let Some(last) = messages.last_mut() {
-                        if last.role == "assistant" {
-                            last.content.push(AnthropicRequestContentBlock::ToolUse {
-                                id: call_id,
-                                name,
-                                input: input_value,
-                            });
-                        }
-                    }
+                    pending_tool_uses.push((call_id, name, input_value));
                 }
                 ResponseItem::FunctionCallOutput { call_id, output, .. } => {
+                    // Flush pending tool uses before buffering tool result so
+                    // tool_use always appears before tool_result.
+                    flush_pending_tool_uses(&mut messages, &mut pending_tool_uses);
                     let text = chat_completions_output_text(&output);
                     if !text.trim().is_empty() {
                         tool_results_buffer.push((call_id, text));
                     }
                 }
                 ResponseItem::CustomToolCallOutput { call_id, output, .. } => {
+                    // Flush pending tool uses before buffering tool result so
+                    // tool_use always appears before tool_result.
+                    flush_pending_tool_uses(&mut messages, &mut pending_tool_uses);
                     let text = chat_completions_output_text(&output);
                     if !text.trim().is_empty() {
                         tool_results_buffer.push((call_id, text));
@@ -1145,6 +1168,9 @@ impl ModelClient {
                 _ => {}
             }
         }
+
+        // Flush remaining pending tool uses
+        flush_pending_tool_uses(&mut messages, &mut pending_tool_uses);
 
         // Flush remaining tool results as a standalone user message
         if !tool_results_buffer.is_empty() {
