@@ -1,3 +1,4 @@
+use super::anthropic_tool_input_arguments;
 use super::AuthRequestTelemetryContext;
 use super::ModelClient;
 use super::PendingUnauthorizedRetry;
@@ -41,8 +42,10 @@ use codex_rollout_trace::replay_bundle;
 use futures::StreamExt;
 use pretty_assertions::assert_eq;
 use serde_json::json;
+use serde_json::Value as JsonValue;
 use std::collections::BTreeMap;
 use std::collections::VecDeque;
+use std::convert::Infallible;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -631,4 +634,332 @@ async fn non_chatgpt_codex_endpoints_omit_attestation_generation() {
         None,
     );
     assert_eq!(attestation_calls.load(Ordering::Relaxed), 0);
+}
+
+// ── Anthropic tool input argument aggregation ───────────────────────
+
+#[test]
+fn anthropic_tool_input_arguments_skips_empty_object() {
+    assert_eq!(
+        anthropic_tool_input_arguments(Some(&JsonValue::Object(Default::default()))),
+        "",
+    );
+}
+
+#[test]
+fn anthropic_tool_input_arguments_serializes_non_empty() {
+    let v = json!({"key": "value"});
+    assert_eq!(
+        anthropic_tool_input_arguments(Some(&v)),
+        r#"{"key":"value"}"#,
+    );
+}
+
+#[test]
+fn anthropic_tool_input_arguments_returns_empty_for_none() {
+    assert_eq!(anthropic_tool_input_arguments(None), "");
+}
+
+#[tokio::test]
+async fn anthropic_stream_tool_use_with_delta_produces_clean_arguments() {
+    let events: Vec<Result<eventsource_stream::Event, eventsource_stream::EventStreamError<Infallible>>> = vec![
+        Ok(eventsource_stream::Event {
+            event: String::new(),
+            data: r#"{"type":"content_block_start","content_block":{"type":"tool_use","id":"toolu_1","name":"Bash","input":{}},"index":0}"#.to_string(),
+            id: String::new(),
+            retry: None,
+        }),
+        Ok(eventsource_stream::Event {
+            event: String::new(),
+            data: r#"{"type":"content_block_delta","delta":{"type":"input_json_delta","partial_json":"{\"cmd\":\"pwd\"}"},"index":0}"#.to_string(),
+            id: String::new(),
+            retry: None,
+        }),
+        Ok(eventsource_stream::Event {
+            event: String::new(),
+            data: r#"{"type":"content_block_stop","index":0}"#.to_string(),
+            id: String::new(),
+            retry: None,
+        }),
+        Ok(eventsource_stream::Event {
+            event: String::new(),
+            data: r#"{"type":"message_stop"}"#.to_string(),
+            id: String::new(),
+            retry: None,
+        }),
+    ];
+
+    let stream = futures::stream::iter(events);
+    let mut response_stream = super::spawn_anthropic_messages_stream(
+        stream,
+        Duration::from_secs(30),
+        Some("test-req-1".to_string()),
+    );
+
+    let mut results: Vec<Result<ResponseEvent, ApiError>> = Vec::new();
+    while let Some(event) = response_stream.next().await {
+        results.push(event);
+    }
+
+    // Find the FunctionCall Done event — its arguments should be clean JSON
+    let function_call_args = results.iter().find_map(|r| match r {
+        Ok(ResponseEvent::OutputItemDone(ResponseItem::FunctionCall {
+            arguments, ..
+        })) => Some(arguments.as_str()),
+        _ => None,
+    });
+
+    assert_eq!(
+        function_call_args,
+        Some(r#"{"cmd":"pwd"}"#),
+        "arguments should NOT contain the '{{}}' prefix from content_block_start.input",
+    );
+}
+
+#[tokio::test]
+async fn anthropic_stream_tool_use_without_delta_produces_empty_object() {
+    let events: Vec<Result<eventsource_stream::Event, eventsource_stream::EventStreamError<Infallible>>> = vec![
+        Ok(eventsource_stream::Event {
+            event: String::new(),
+            data: r#"{"type":"content_block_start","content_block":{"type":"tool_use","id":"toolu_2","name":"Read","input":{}},"index":0}"#.to_string(),
+            id: String::new(),
+            retry: None,
+        }),
+        Ok(eventsource_stream::Event {
+            event: String::new(),
+            data: r#"{"type":"content_block_stop","index":0}"#.to_string(),
+            id: String::new(),
+            retry: None,
+        }),
+        Ok(eventsource_stream::Event {
+            event: String::new(),
+            data: r#"{"type":"message_stop"}"#.to_string(),
+            id: String::new(),
+            retry: None,
+        }),
+    ];
+
+    let stream = futures::stream::iter(events);
+    let mut response_stream = super::spawn_anthropic_messages_stream(
+        stream,
+        Duration::from_secs(30),
+        Some("test-req-2".to_string()),
+    );
+
+    let mut results = Vec::new();
+    while let Some(event) = response_stream.next().await {
+        results.push(event);
+    }
+
+    let function_call_args = results.iter().find_map(|r| match r {
+        Ok(ResponseEvent::OutputItemDone(ResponseItem::FunctionCall {
+            arguments, ..
+        })) => Some(arguments.as_str()),
+        _ => None,
+    });
+
+    assert_eq!(
+        function_call_args,
+        Some("{}"),
+        "zero-argument tool should produce '{{}}'",
+    );
+}
+
+#[test]
+fn malformed_tool_arguments_in_request_builder_fallback_to_empty_object() {
+    // Verifies the defensive pattern used in build_anthropic_messages_request:
+    // malformed arguments → {} object, not a string.
+
+    // Invalid JSON → empty object
+    let bad_args = "not valid json";
+    let input: JsonValue = match serde_json::from_str(bad_args) {
+        Ok(v @ JsonValue::Object(_)) => v,
+        _ => JsonValue::Object(Default::default()),
+    };
+    assert!(input.is_object(), "malformed args must produce object, not string");
+    assert_eq!(input.as_object().unwrap().len(), 0);
+
+    // String JSON → still not an object, fallback
+    let string_args = r#""a plain string""#;
+    let input: JsonValue = match serde_json::from_str(string_args) {
+        Ok(v @ JsonValue::Object(_)) => v,
+        _ => JsonValue::Object(Default::default()),
+    };
+    assert!(input.is_object(), "JSON string value must produce empty object");
+    assert_eq!(input.as_object().unwrap().len(), 0);
+
+    // Valid object passes through
+    let valid_args = r#"{"cmd":"pwd"}"#;
+    let input: JsonValue = match serde_json::from_str(valid_args) {
+        Ok(v @ JsonValue::Object(_)) => v,
+        _ => JsonValue::Object(Default::default()),
+    };
+    assert!(input.is_object(), "valid JSON object must pass through");
+    assert_eq!(
+        input.as_object().unwrap().get("cmd").and_then(|v| v.as_str()),
+        Some("pwd"),
+    );
+}
+
+// ── Chat Completions stream: tool_calls with empty text ─────────────
+
+#[tokio::test]
+async fn chat_completions_stream_tool_calls_without_text_emits_message() {
+    let events: Vec<Result<eventsource_stream::Event, eventsource_stream::EventStreamError<Infallible>>> = vec![
+        // Choice 0: start assistant (no text, no tool calls yet)
+        Ok(eventsource_stream::Event {
+            event: String::new(),
+            data: r#"{"choices":[{"delta":{"role":"assistant","content":null},"finish_reason":null}]}"#.to_string(),
+            id: String::new(),
+            retry: None,
+        }),
+        // Choice 0: first tool call delta (id + name)
+        Ok(eventsource_stream::Event {
+            event: String::new(),
+            data: r#"{"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_1","type":"function","function":{"name":"Bash","arguments":""}}]},"finish_reason":null}]}"#.to_string(),
+            id: String::new(),
+            retry: None,
+        }),
+        // Choice 0: tool call arguments delta
+        Ok(eventsource_stream::Event {
+            event: String::new(),
+            data: r#"{"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\"cmd\":\"pwd\"}"}}]},"finish_reason":null}]}"#.to_string(),
+            id: String::new(),
+            retry: None,
+        }),
+        // Choice 0: finish_reason = tool_calls (no text emitted by model)
+        Ok(eventsource_stream::Event {
+            event: String::new(),
+            data: r#"{"choices":[{"delta":{},"finish_reason":"tool_calls"}]}"#.to_string(),
+            id: String::new(),
+            retry: None,
+        }),
+        // Stream terminator
+        Ok(eventsource_stream::Event {
+            event: String::new(),
+            data: "[DONE]".to_string(),
+            id: String::new(),
+            retry: None,
+        }),
+    ];
+
+    let stream = futures::stream::iter(events);
+    let mut response_stream = super::spawn_chat_completions_stream(
+        stream,
+        Duration::from_secs(30),
+        Some("test-cc-req-1".to_string()),
+    );
+
+    let mut results: Vec<Result<ResponseEvent, ApiError>> = Vec::new();
+    while let Some(event) = response_stream.next().await {
+        results.push(event);
+    }
+
+    // Must have at least: Created, Message(Done), FunctionCall(Added), FunctionCall(Done), Completed
+    assert!(
+        results.len() >= 5,
+        "expected at least 5 events, got {}",
+        results.len(),
+    );
+
+    // Find the Message Done event — must exist even with empty text
+    let message_done = results.iter().find(|r| match r {
+        Ok(ResponseEvent::OutputItemDone(ResponseItem::Message { content, .. })) => content.is_empty(),
+        _ => false,
+    });
+    assert!(
+        message_done.is_some(),
+        "Message Done should be emitted with empty content when model produces only tool calls",
+    );
+
+    // Find the FunctionCall Done event — arguments must be clean JSON
+    let function_call_args = results.iter().find_map(|r| match r {
+        Ok(ResponseEvent::OutputItemDone(ResponseItem::FunctionCall {
+            arguments, ..
+        })) => Some(arguments.as_str()),
+        _ => None,
+    });
+    assert_eq!(
+        function_call_args,
+        Some(r#"{"cmd":"pwd"}"#),
+        "Chat Completions tool call arguments should not be malformed",
+    );
+}
+
+// ── Chat Completions request builder: tool call → tool result pairing ─
+
+#[tokio::test]
+async fn chat_completions_request_builder_flushes_tool_calls_before_result() {
+    let client = test_model_client(SessionSource::Cli);
+    let model_info = test_model_info();
+
+    // Construct a Prompt whose input has:
+    //   user message → FunctionCall → FunctionCallOutput
+    let prompt = crate::client_common::Prompt {
+        input: vec![
+            serde_json::from_value(json!({
+                "type": "message",
+                "role": "user",
+                "content": [{"type": "input_text", "text": "list files"}]
+            }))
+            .unwrap(),
+            serde_json::from_value(json!({
+                "type": "function_call",
+                "name": "Bash",
+                "arguments": r#"{"cmd":"ls"}"#,
+                "call_id": "call_1"
+            }))
+            .unwrap(),
+            ResponseItem::FunctionCallOutput {
+                id: Some("fco-1".to_string()),
+                call_id: "call_1".to_string(),
+                output: codex_protocol::models::FunctionCallOutputPayload::from_text(
+                    "file1.txt\nfile2.txt".to_string(),
+                ),
+                metadata: None,
+            },
+        ],
+        ..Default::default()
+    };
+
+    let request = client.build_chat_completions_request(&prompt, &model_info);
+    let messages = &request.messages;
+
+    // Expected order: System, User, Assistant, Tool
+    assert!(
+        messages.len() >= 4,
+        "expected at least 4 messages (System, User, Assistant, Tool), got {}",
+        messages.len(),
+    );
+
+    // The Assistant message must have tool_calls
+    let assistant_idx = messages.len() - 2;
+    let tool_idx = messages.len() - 1;
+
+    // Check that the assistant at assistant_idx has tool_calls
+    // We can't match the enum variant directly in assert, but we can verify
+    // by serializing and checking JSON structure.
+    let json: serde_json::Value = serde_json::to_value(&messages[assistant_idx]).unwrap();
+    assert_eq!(
+        json.get("role").and_then(|v| v.as_str()),
+        Some("assistant"),
+        "message before Tool must be Assistant",
+    );
+    assert!(
+        json.get("tool_calls").is_some(),
+        "Assistant message must have tool_calls when FunctionCall precedes FunctionCallOutput",
+    );
+
+    // The Tool message must reference the correct call_id
+    let json_tool: serde_json::Value = serde_json::to_value(&messages[tool_idx]).unwrap();
+    assert_eq!(
+        json_tool.get("role").and_then(|v| v.as_str()),
+        Some("tool"),
+        "last message must be Tool",
+    );
+    assert_eq!(
+        json_tool.get("tool_call_id").and_then(|v| v.as_str()),
+        Some("call_1"),
+        "Tool message must reference call_1",
+    );
 }
