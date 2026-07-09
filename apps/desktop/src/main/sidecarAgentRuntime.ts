@@ -438,7 +438,7 @@ function createTypescriptSidecarOptions(
       systemPrompt: context.systemPrompt,
       appendSystemPrompt: context.appendSystemPrompt,
       additionalDirectories: context.additionalDirectories,
-      installCodexDependencies: context.installCodexDependencies,
+      installCodePilotXDependencies: context.installCodePilotXDependencies,
       enableMemory: context.enableMemory,
       runtimeEnvironment: context.toolchainEnvironment,
       reviewModel: context.reviewModel,

@@ -1,8 +1,8 @@
 import {
   planModeActiveFromCollaborationMode,
-  resolveCodexCollaborationMode,
-  type CodexCollaborationMode,
-} from '@codepilotx/core/agent/codexSessionContract.js'
+  resolveCodePilotXCollaborationMode,
+  type CodePilotXCollaborationMode,
+} from '@codepilotx/core/agent/codepilotxSessionContract.js'
 import type {
   DesktopAgentEvent,
   DesktopPermissionMode,
@@ -22,15 +22,15 @@ export type DesktopAgentRuntimePreference =
   | 'auto'
   | 'rust-sidecar'
 
-export type DesktopCodexApprovalPolicy =
+export type DesktopCodePilotXApprovalPolicy =
   | 'untrusted'
   | 'on-request'
   | 'on-failure'
   | 'never'
 
-export type DesktopCodexApprovalsReviewer = 'user' | 'auto_review'
-type LegacyDesktopCodexApprovalsReviewer = 'auto'
-export type DesktopCodexSandboxMode =
+export type DesktopCodePilotXApprovalsReviewer = 'user' | 'auto_review'
+type LegacyDesktopCodePilotXApprovalsReviewer = 'auto'
+export type DesktopCodePilotXSandboxMode =
   | 'read-only'
   | 'workspace-write'
   | 'danger-full-access'
@@ -44,11 +44,11 @@ export type DesktopAgentRuntimeContext = {
   toolchainEnvironment?: Record<string, string | undefined>
   resumeExistingSession?: boolean
   permissionProfile?: string
-  sandboxMode?: DesktopCodexSandboxMode
-  approvalPolicy?: DesktopCodexApprovalPolicy
-  approvalsReviewer?: DesktopCodexApprovalsReviewer | LegacyDesktopCodexApprovalsReviewer
+  sandboxMode?: DesktopCodePilotXSandboxMode
+  approvalPolicy?: DesktopCodePilotXApprovalPolicy
+  approvalsReviewer?: DesktopCodePilotXApprovalsReviewer | LegacyDesktopCodePilotXApprovalsReviewer
   permissionMode?: DesktopPermissionMode
-  collaborationMode?: CodexCollaborationMode
+  collaborationMode?: CodePilotXCollaborationMode
   planModeActive?: boolean
   providerID?: string
   providerBaseURL?: string
@@ -65,7 +65,7 @@ export type DesktopAgentRuntimeContext = {
   systemPrompt?: string
   appendSystemPrompt?: string
   additionalDirectories?: string[]
-  installCodexDependencies?: boolean
+  installCodePilotXDependencies?: boolean
   enableMemory?: boolean
   rustSearchAndDiffKernels?: boolean
   serializeHeadlessTurns?: boolean
@@ -128,7 +128,7 @@ export function createDesktopAgentRuntime(
 function normalizeDesktopAgentRuntimeContext(
   context: DesktopAgentRuntimeContext,
 ): DesktopAgentRuntimeContext {
-  const collaborationMode = resolveCodexCollaborationMode({
+  const collaborationMode = resolveCodePilotXCollaborationMode({
     collaborationMode: context.collaborationMode,
     planModeActive: context.planModeActive,
   })
@@ -151,33 +151,36 @@ export function permissionModeArgs(
   return ['--permission-mode', 'default']
 }
 
-export type DesktopCodexPermissionConfigArgs = {
-  sandboxMode?: DesktopCodexSandboxMode
+export type DesktopCodePilotXPermissionConfigArgs = {
+  sandboxMode?: DesktopCodePilotXSandboxMode
   permissionProfile?: string
-  approvalPolicy?: DesktopCodexApprovalPolicy
-  approvalsReviewer?: DesktopCodexApprovalsReviewer | LegacyDesktopCodexApprovalsReviewer
+  approvalPolicy?: DesktopCodePilotXApprovalPolicy
+  approvalsReviewer?: DesktopCodePilotXApprovalsReviewer | LegacyDesktopCodePilotXApprovalsReviewer
 }
 
-export function codexPermissionConfigArgs(
-  config: DesktopCodexPermissionConfigArgs,
+export function codePilotXPermissionConfigArgs(
+  config: DesktopCodePilotXPermissionConfigArgs,
 ): string[] {
   return [
-    ...codexConfigOverrideArg('sandbox_mode', config.sandboxMode),
-    ...codexConfigOverrideArg('default_permissions', config.permissionProfile),
-    ...codexConfigOverrideArg('approval_policy', config.approvalPolicy),
-    ...codexConfigOverrideArg(
+    ...codePilotXConfigOverrideArg('sandbox_mode', config.sandboxMode),
+    ...codePilotXConfigOverrideArg('default_permissions', config.permissionProfile),
+    ...codePilotXConfigOverrideArg('approval_policy', config.approvalPolicy),
+    ...codePilotXConfigOverrideArg(
       'approvals_reviewer',
       normalizeApprovalsReviewer(config.approvalsReviewer),
     ),
   ]
 }
 
-export function codexPermissionConfigForMode(
-  config: DesktopCodexPermissionConfigArgs & {
+// Transitional alias while call sites migrate.
+export const codexPermissionConfigArgs = codePilotXPermissionConfigArgs
+
+export function codePilotXPermissionConfigForMode(
+  config: DesktopCodePilotXPermissionConfigArgs & {
     permissionMode?: DesktopPermissionMode
   },
-): Omit<DesktopCodexPermissionConfigArgs, 'approvalsReviewer'> & {
-  approvalsReviewer?: DesktopCodexApprovalsReviewer
+): Omit<DesktopCodePilotXPermissionConfigArgs, 'approvalsReviewer'> & {
+  approvalsReviewer?: DesktopCodePilotXApprovalsReviewer
 } {
   switch (config.permissionMode) {
     case 'auto-review':
@@ -198,7 +201,7 @@ export function codexPermissionConfigForMode(
         permissionProfile: config.permissionProfile,
         approvalPolicy: config.approvalPolicy,
         approvalsReviewer: normalizeApprovalsReviewer(config.approvalsReviewer) as
-          | DesktopCodexApprovalsReviewer
+          | DesktopCodePilotXApprovalsReviewer
           | undefined,
       }
     case 'default':
@@ -211,14 +214,20 @@ export function codexPermissionConfigForMode(
   }
 }
 
-function codexConfigOverrideArg(key: string, value: string | undefined): string[] {
+// Transitional alias while call sites migrate.
+export const codexPermissionConfigForMode = codePilotXPermissionConfigForMode
+
+function codePilotXConfigOverrideArg(key: string, value: string | undefined): string[] {
   return value ? ['--config', `${key}=${JSON.stringify(value)}`] : []
 }
 
+// Transitional alias while call sites migrate.
+const codexConfigOverrideArg = codePilotXConfigOverrideArg
+
 function normalizeApprovalsReviewer(
   value:
-    | DesktopCodexApprovalsReviewer
-    | LegacyDesktopCodexApprovalsReviewer
+    | DesktopCodePilotXApprovalsReviewer
+    | LegacyDesktopCodePilotXApprovalsReviewer
     | undefined,
 ): string | undefined {
   if (value === 'auto') return 'auto_review'

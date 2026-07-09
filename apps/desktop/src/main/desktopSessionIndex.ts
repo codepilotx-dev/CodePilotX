@@ -181,7 +181,7 @@ export function snapshotFromSessionRow(
     thinkingMode: 'default',
     additionalDirectories: [],
     enableMemory: true,
-    installCodexDependencies: true,
+    installCodePilotXDependencies: true,
   }
 
   // Title priority: overlay sessionName > overlay customTitle > overlay aiTitle > SQLite title

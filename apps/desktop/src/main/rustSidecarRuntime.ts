@@ -134,7 +134,7 @@ export function resolveRustAppServerExecutableInfo(
     ? 'codepilotx-app-server.exe'
     : 'codepilotx-app-server'
   const explicitPath = env[RUST_APP_SERVER_BINARY_ENV]?.trim()
-  if (explicitPath && !isReferenceCodexMainAppServerPath(explicitPath)) {
+  if (explicitPath && !isReferenceCodePilotXMainAppServerPath(explicitPath)) {
     return { path: resolve(explicitPath), source: 'env-override' }
   }
 
@@ -182,7 +182,7 @@ function uniqueResolvedPaths(paths: string[]): string[] {
   return [...new Set(paths.map(path => resolve(path)))]
 }
 
-function isReferenceCodexMainAppServerPath(path: string): boolean {
+function isReferenceCodePilotXMainAppServerPath(path: string): boolean {
   const normalized = resolve(path).replace(/\\/g, '/').toLowerCase()
   return normalized.includes('/codex-main/codex-rs/target/debug/')
 }
@@ -221,7 +221,7 @@ export async function createRustSidecarOptions(
         systemPrompt: context.systemPrompt,
         appendSystemPrompt: context.appendSystemPrompt,
         additionalDirectories: context.additionalDirectories,
-        installCodexDependencies: context.installCodexDependencies,
+        installCodePilotXDependencies: context.installCodePilotXDependencies,
         enableMemory: context.enableMemory,
         runtimeEnvironment: context.toolchainEnvironment,
         reviewModel: context.reviewModel,

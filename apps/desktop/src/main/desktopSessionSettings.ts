@@ -9,8 +9,8 @@ import type {
 } from '../shared/types.js'
 import {
   planModeActiveFromCollaborationMode,
-  resolveCodexCollaborationMode,
-} from '@codepilotx/core/agent/codexSessionContract.js'
+  resolveCodePilotXCollaborationMode,
+} from '@codepilotx/core/agent/codepilotxSessionContract.js'
 
 export function createSessionSettingsSnapshot(params: {
   localRouterMode?: LocalRouterMode
@@ -34,11 +34,11 @@ export function createSessionSettingsSnapshot(params: {
   systemPrompt?: string
   appendSystemPrompt?: string
   additionalDirectories: string[]
-  installCodexDependencies?: boolean
+  installCodePilotXDependencies?: boolean
   enableMemory?: boolean
   rustSearchAndDiffKernels?: boolean
 }): DesktopSessionSettingsSnapshot {
-  const collaborationMode = resolveCodexCollaborationMode({
+  const collaborationMode = resolveCodePilotXCollaborationMode({
     collaborationMode: params.collaborationMode,
     planModeActive: params.planModeActive,
   })
@@ -52,7 +52,7 @@ export function createSessionSettingsSnapshot(params: {
     planModeActive: planModeActiveFromCollaborationMode(collaborationMode),
     thinkingMode: params.thinkingMode,
     additionalDirectories: params.additionalDirectories,
-    installCodexDependencies: params.installCodexDependencies !== false,
+    installCodePilotXDependencies: params.installCodePilotXDependencies !== false,
     enableMemory: params.enableMemory !== false,
     rustSearchAndDiffKernels: params.rustSearchAndDiffKernels === true,
   }
@@ -81,7 +81,7 @@ export function applySessionPlanModeActiveToSnapshot(
 ): DesktopSessionSnapshot {
   return applySessionCollaborationModeToSnapshot(
     snapshot,
-    resolveCodexCollaborationMode({ planModeActive }),
+    resolveCodePilotXCollaborationMode({ planModeActive }),
   )
 }
 

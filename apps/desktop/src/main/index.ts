@@ -29,8 +29,8 @@ import { generateSessionTitle } from '@codepilotx/core/session/title.js'
 import { saveAiGeneratedTitle } from '@codepilotx/core/session/storage.js'
 import {
   planModeActiveFromCollaborationMode,
-  resolveCodexCollaborationMode,
-} from '@codepilotx/core/agent/codexSessionContract.js'
+  resolveCodePilotXCollaborationMode,
+} from '@codepilotx/core/agent/codepilotxSessionContract.js'
 import {
   createDesktopAgentSession,
   type DesktopAgentSession,
@@ -320,11 +320,11 @@ function getDesktopRuntimeSelection(): {
   return { preference: 'auto', source: 'default' }
 }
 
-function getDesktopAgentRuntimeOptions(installCodexDependencies = true) {
+function getDesktopAgentRuntimeOptions(installCodePilotXDependencies = true) {
   const selection = getDesktopRuntimeSelection()
   const toolchainEnv = buildDesktopToolchainEnvPatch(
     process.env,
-    desktopToolchainService.getEnvConfigSync(installCodexDependencies),
+    desktopToolchainService.getEnvConfigSync(installCodePilotXDependencies),
   )
   return {
     agentExecutablePath: getAgentExecutablePath(),
@@ -546,7 +546,7 @@ function createRuntimeForRecord(record: DesktopSessionRecord): DesktopAgentSessi
       suppressStartupMessage: true,
     },
     getDesktopAgentRuntimeOptions(
-      record.snapshot.settings.installCodexDependencies,
+      record.snapshot.settings.installCodePilotXDependencies,
     ),
   )
   record.session = session
@@ -875,7 +875,7 @@ async function createSession(
     options.approvalsReviewer,
   )
   const permissionMode = normalizeDesktopPermissionMode(options.permissionMode)
-  const collaborationMode = resolveCodexCollaborationMode({
+  const collaborationMode = resolveCodePilotXCollaborationMode({
     collaborationMode: options.collaborationMode,
     planModeActive: options.planModeActive,
   })
@@ -909,7 +909,7 @@ async function createSession(
     existingAppendSystemPrompt: requestedAppendSystemPrompt,
     projectRoot: workspacePath,
   })
-  const installCodexDependencies = options.installCodexDependencies !== false
+  const installCodePilotXDependencies = options.installCodePilotXDependencies !== false
   const enableMemory = options.enableMemory !== false
   const rustSearchAndDiffKernels = options.rustSearchAndDiffKernels === true
   const additionalDirectories = await normalizeAdditionalDirectories(
@@ -940,7 +940,7 @@ async function createSession(
     systemPrompt,
     appendSystemPrompt,
     additionalDirectories,
-    installCodexDependencies,
+    installCodePilotXDependencies,
     enableMemory,
     rustSearchAndDiffKernels,
   })
@@ -967,11 +967,11 @@ async function createSession(
       systemPrompt,
       appendSystemPrompt,
       additionalDirectories,
-      installCodexDependencies,
+      installCodePilotXDependencies,
       enableMemory,
       rustSearchAndDiffKernels,
     },
-    getDesktopAgentRuntimeOptions(installCodexDependencies),
+    getDesktopAgentRuntimeOptions(installCodePilotXDependencies),
   )
   const record: DesktopSessionRecord = {
     session,

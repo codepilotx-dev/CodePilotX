@@ -371,7 +371,7 @@ export function buildSidecarEnv(
     CODEPILOTX_SIDECAR_SYSTEM_PROMPT: context.systemPrompt,
     CODEPILOTX_SIDECAR_APPEND_SYSTEM_PROMPT: context.appendSystemPrompt,
     CODEPILOTX_SIDECAR_ADDITIONAL_DIRS: context.additionalDirectories?.join(';'),
-    CODEPILOTX_SIDECAR_INSTALL_DEPS: context.installCodexDependencies ? '1' : '0',
+    CODEPILOTX_SIDECAR_INSTALL_DEPS: context.installCodePilotXDependencies ? '1' : '0',
     CODEPILOTX_SIDECAR_ENABLE_MEMORY: context.enableMemory ? '1' : '0',
     CODEPILOTX_SIDECAR_REVIEW_MODEL: context.reviewModel,
     CODEPILOTX_SIDECAR_SMALL_FAST_MODEL: context.smallFastModel,
@@ -399,7 +399,7 @@ export type SidecarEnvContext = {
   systemPrompt?: string
   appendSystemPrompt?: string
   additionalDirectories?: string[]
-  installCodexDependencies?: boolean
+  installCodePilotXDependencies?: boolean
   enableMemory?: boolean
   runtimeEnvironment?: Record<string, string | undefined>
   reviewModel?: string

@@ -208,21 +208,21 @@ export function buildDesktopApiHandlers(
       return getRuntimeStatus({
         ...dependencies.getRuntimeOptions(),
         toolchainStatus: await dependencies.getToolchainStatus(
-          settings.installCodexDependencies,
+          settings.installCodePilotXDependencies,
         ),
       })
     },
     diagnoseDesktopToolchain: async () => {
       const settings = await readDesktopStoredSettings()
-      return dependencies.diagnoseToolchain(settings.installCodexDependencies)
+      return dependencies.diagnoseToolchain(settings.installCodePilotXDependencies)
     },
     reinstallDesktopToolchain: async () => {
       const settings = await readDesktopStoredSettings()
-      return dependencies.reinstallToolchain(settings.installCodexDependencies)
+      return dependencies.reinstallToolchain(settings.installCodePilotXDependencies)
     },
     deleteDesktopToolchain: async () => {
       const settings = await readDesktopStoredSettings()
-      return dependencies.deleteToolchain(settings.installCodexDependencies)
+      return dependencies.deleteToolchain(settings.installCodePilotXDependencies)
     },
     getDesktopSettings: async () => {
       const settings = await readDesktopStoredSettings()

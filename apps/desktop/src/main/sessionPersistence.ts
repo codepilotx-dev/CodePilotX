@@ -16,8 +16,8 @@ import {
 import { normalizeThreadEvent } from '@codepilotx/core/agent/workflow.js'
 import {
   planModeActiveFromCollaborationMode,
-  resolveCodexCollaborationMode,
-} from '@codepilotx/core/agent/codexSessionContract.js'
+  resolveCodePilotXCollaborationMode,
+} from '@codepilotx/core/agent/codepilotxSessionContract.js'
 import {
   getProjectDir,
   loadAllProjectsMessageLogs,
@@ -1626,7 +1626,7 @@ function normalizeSettingsSnapshot(
           (directory): directory is string => typeof directory === 'string',
         )
       : [],
-    installCodexDependencies: settings.installCodexDependencies !== false,
+    installCodePilotXDependencies: settings.installCodePilotXDependencies !== false,
     enableMemory: settings.enableMemory !== false,
     rustSearchAndDiffKernels: settings.rustSearchAndDiffKernels === true,
   }
@@ -1639,11 +1639,11 @@ function defaultSettingsSnapshot(): DesktopSessionSettingsSnapshot {
     approvalPolicy: 'on-request',
     approvalsReviewer: 'user',
     permissionMode: 'default',
-    collaborationMode: resolveCodexCollaborationMode({ planModeActive: false }),
+    collaborationMode: resolveCodePilotXCollaborationMode({ planModeActive: false }),
     planModeActive: false,
     thinkingMode: 'default',
     additionalDirectories: [],
-    installCodexDependencies: true,
+    installCodePilotXDependencies: true,
     enableMemory: true,
     rustSearchAndDiffKernels: false,
   }
@@ -1653,7 +1653,7 @@ function normalizeSnapshotCollaborationMode(value: {
   collaborationMode?: unknown
   planModeActive?: boolean
 }): Pick<DesktopSessionSettingsSnapshot, 'collaborationMode' | 'planModeActive'> {
-  const collaborationMode = resolveCodexCollaborationMode(value)
+  const collaborationMode = resolveCodePilotXCollaborationMode(value)
   return {
     collaborationMode,
     planModeActive: planModeActiveFromCollaborationMode(collaborationMode),

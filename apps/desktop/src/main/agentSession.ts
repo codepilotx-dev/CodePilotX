@@ -32,9 +32,9 @@ import {
 } from '@codepilotx/core/agent/permissions.js'
 import {
   planModeActiveFromCollaborationMode,
-  resolveCodexCollaborationMode,
-  type CodexCollaborationMode,
-} from '@codepilotx/core/agent/codexSessionContract.js'
+  resolveCodePilotXCollaborationMode,
+  type CodePilotXCollaborationMode,
+} from '@codepilotx/core/agent/codepilotxSessionContract.js'
 import type { AgentGuardianReviewAction } from '@codepilotx/core/agent/runtime.js'
 
 type DesktopAgentSessionEvents = {
@@ -130,7 +130,7 @@ class LocalDesktopAgentSession
   private approvalPolicy: DesktopApprovalPolicy
   private approvalsReviewer: NonNullable<CreateDesktopSessionOptions['approvalsReviewer']>
   private permissionMode: NonNullable<CreateDesktopSessionOptions['permissionMode']>
-  private collaborationMode: CodexCollaborationMode
+  private collaborationMode: CodePilotXCollaborationMode
   private planModeActive: boolean
   private model: string | undefined
   private reviewModel: string | undefined
@@ -146,7 +146,7 @@ class LocalDesktopAgentSession
     this.approvalPolicy = options.approvalPolicy ?? 'on-request'
     this.approvalsReviewer = options.approvalsReviewer ?? 'user'
     this.permissionMode = options.permissionMode ?? 'default'
-    this.collaborationMode = resolveCodexCollaborationMode({
+    this.collaborationMode = resolveCodePilotXCollaborationMode({
       collaborationMode: options.collaborationMode,
       planModeActive: options.planModeActive,
     })
@@ -186,7 +186,7 @@ class LocalDesktopAgentSession
       systemPrompt: options.systemPrompt,
       appendSystemPrompt: options.appendSystemPrompt,
       additionalDirectories: options.additionalDirectories,
-      installCodexDependencies: options.installCodexDependencies,
+      installCodePilotXDependencies: options.installCodePilotXDependencies,
       enableMemory: options.enableMemory,
       rustSearchAndDiffKernels: options.rustSearchAndDiffKernels,
       emit: event => this.emitEvent(event),
@@ -245,7 +245,7 @@ class LocalDesktopAgentSession
   }
 
   setPlanModeActive(planModeActive: boolean): void {
-    this.collaborationMode = resolveCodexCollaborationMode({ planModeActive })
+    this.collaborationMode = resolveCodePilotXCollaborationMode({ planModeActive })
     this.planModeActive = planModeActiveFromCollaborationMode(
       this.collaborationMode,
     )
