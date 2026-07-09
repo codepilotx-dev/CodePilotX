@@ -589,103 +589,31 @@ describe('RustSidecarDesktopAgentRuntime dynamicToolCall', () => {
     )
   })
 
-  test('request_user_input returns answer when user responds', async () => {
-    const emit = mock(() => {})
-    const requestPermission = mock(async () => ({
-      behavior: 'allow' as const,
-      updatedInput: { answer: 'Paris' },
-    }))
+	})
 
-    const runtime = new RustSidecarDesktopAgentRuntime({
-      sessionId: 'test-session',
-      workspacePath: process.cwd(),
-      emit,
-      requestPermission,
-    })
+	// ── Thread start params ───────────────────────────────────────────
 
-    const handler = (
-      runtime as unknown as {
-        handleToolCallRequest: (
-          params: unknown,
-          id: unknown,
-        ) => Promise<unknown>
-      }
-    ).handleToolCallRequest.bind(runtime)
+	describe('RustSidecarDesktopAgentRuntime threadStartParams', () => {
+	  test('does not include dynamicTools field', () => {
+	    const runtime = new RustSidecarDesktopAgentRuntime({
+	      sessionId: 'test-session',
+	      workspacePath: process.cwd(),
+	      emit: () => {},
+	      requestPermission: async () => ({ behavior: 'deny' }),
+	    })
 
-    const result = await handler(
-      {
-        tool: 'request_user_input',
-        callId: 'call-user-input-1',
-        arguments: { question: 'What city?', header: 'City' },
-        threadId: 'thread-1',
-        turnId: 'turn-1',
-      },
-      1,
-    )
+	    const params = (
+	      runtime as unknown as {
+	        buildThreadStartParams: () => Record<string, unknown>
+	      }
+	    ).buildThreadStartParams()
 
-    expect(result).toMatchObject({
-      success: true,
-      contentItems: [
-        { type: 'inputText', text: 'Paris' },
-      ],
-    })
-    expect(requestPermission).toHaveBeenCalledWith(
-      expect.objectContaining({
-        toolName: 'request_user_input',
-        input: { question: 'What city?', header: 'City' },
-      }),
-    )
-    expect(emit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'tool_start',
-        toolName: 'request_user_input',
-      }),
-    )
-  })
+	    expect(params).not.toHaveProperty('dynamicTools')
+	    expect(params).toHaveProperty('ephemeral', true)
+	  })
+	})
 
-  test('request_user_input returns declined sentinel when user denies', async () => {
-    const emit = mock(() => {})
-    const requestPermission = mock(async () => ({
-      behavior: 'deny' as const,
-    }))
-
-    const runtime = new RustSidecarDesktopAgentRuntime({
-      sessionId: 'test-session',
-      workspacePath: process.cwd(),
-      emit,
-      requestPermission,
-    })
-
-    const handler = (
-      runtime as unknown as {
-        handleToolCallRequest: (
-          params: unknown,
-          id: unknown,
-        ) => Promise<unknown>
-      }
-    ).handleToolCallRequest.bind(runtime)
-
-    const result = await handler(
-      {
-        tool: 'request_user_input',
-        callId: 'call-user-input-2',
-        arguments: { question: 'Confirm action?', header: 'Confirm' },
-        threadId: 'thread-1',
-        turnId: 'turn-1',
-      },
-      1,
-    )
-
-    expect(result).toMatchObject({
-      success: true,
-      contentItems: [
-        { type: 'inputText', text: '[User declined to answer]' },
-      ],
-    })
-  })
-})
-
-// ── Attachment input conversion ─────────────────────────────────────
+	// ── Attachment input conversion ─────────────────────────────────────
 
 describe('RustSidecarDesktopAgentRuntime input validation', () => {
   test('converts structured text and attachments into v2 user input', () => {
