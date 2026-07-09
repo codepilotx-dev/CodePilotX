@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import {
   getProviderApiKey,
   getProviderConfig,
+  listProviderConfigs,
   type ProviderConfig,
   type ProviderWireApi,
 } from '@codepilotx/core/models/providerConfig.js'
@@ -221,45 +222,88 @@ async function createRustModelProviderOverrides(
     throw new Error(`Rust sidecar provider id is not supported: ${providerID}`)
   }
 
-  const provider = await getProviderConfig(providerID)
-  const baseURL = context.providerBaseURL?.trim() || provider.baseURL?.trim()
-  const envKey = getRustProviderEnvKey(provider)
-  // Use wireApi resolved by core provider config — no local DeepSeek check needed.
-  const wireApi: ProviderWireApi = provider.wireApi ?? 'chat_completions'
-  const apiKey = getProviderApiKey(providerID)?.trim()
+  const selectedProvider = await getProviderConfig(providerID)
+  const providerConfigs = await listProviderConfigs()
+  const providers = uniqueProvidersByID([selectedProvider, ...providerConfigs])
   desktopDebug('rust_provider_config', {
     providerID,
-    wireApi,
-    endpoint: baseURL || provider.baseURL || null,
+    wireApi: selectedProvider.wireApi ?? 'chat_completions',
+    endpoint:
+      context.providerBaseURL?.trim() ||
+      selectedProvider.baseURL?.trim() ||
+      null,
   })
+  const providerOverrides = providers
+    .filter(provider => {
+      if (!isRustConfigPathSegment(provider.providerID)) return false
+      return provider.providerID === providerID ||
+        Boolean(getProviderApiKey(provider.providerID)?.trim())
+    })
+    .map(provider =>
+      rustProviderConfigOverridesForProvider({
+        provider,
+        baseURL:
+          provider.providerID === providerID
+            ? context.providerBaseURL?.trim() || provider.baseURL?.trim()
+            : provider.baseURL?.trim(),
+      }),
+    )
+
   const args = [
     ...(model ? rustConfigOverride('model', model) : []),
     ...rustConfigOverride('model_provider', providerID),
-    ...rustConfigOverride(
-      `model_providers.${providerID}.name`,
-      provider.displayName || providerID,
-    ),
-    ...rustConfigOverride(
-      `model_providers.${providerID}.wire_api`,
-      wireApi,
-    ),
-    ...rustConfigOverride(
-      `model_providers.${providerID}.requires_openai_auth`,
-      false,
-    ),
-    ...rustConfigOverride(
-      `model_providers.${providerID}.supports_websockets`,
-      false,
-    ),
-    ...(baseURL
-      ? rustConfigOverride(`model_providers.${providerID}.base_url`, baseURL)
-      : []),
-    ...(envKey
-      ? rustConfigOverride(`model_providers.${providerID}.env_key`, envKey)
-      : []),
+    ...providerOverrides.flatMap(override => override.args),
   ]
   return {
     args,
+    env: Object.assign({}, ...providerOverrides.map(override => override.env)),
+  }
+}
+
+function uniqueProvidersByID(providers: ProviderConfig[]): ProviderConfig[] {
+  const result = new Map<string, ProviderConfig>()
+  for (const provider of providers) {
+    result.set(provider.providerID, provider)
+  }
+  return [...result.values()]
+}
+
+function rustProviderConfigOverridesForProvider({
+  provider,
+  baseURL,
+}: {
+  provider: ProviderConfig
+  baseURL: string | undefined
+}): RustProviderConfigOverrides {
+  const providerID = provider.providerID
+  const envKey = getRustProviderEnvKey(provider)
+  const wireApi: ProviderWireApi = provider.wireApi ?? 'chat_completions'
+  const apiKey = getProviderApiKey(providerID)?.trim()
+  return {
+    args: [
+      ...rustConfigOverride(
+        `model_providers.${providerID}.name`,
+        provider.displayName || providerID,
+      ),
+      ...rustConfigOverride(
+        `model_providers.${providerID}.wire_api`,
+        wireApi,
+      ),
+      ...rustConfigOverride(
+        `model_providers.${providerID}.requires_openai_auth`,
+        false,
+      ),
+      ...rustConfigOverride(
+        `model_providers.${providerID}.supports_websockets`,
+        false,
+      ),
+      ...(baseURL
+        ? rustConfigOverride(`model_providers.${providerID}.base_url`, baseURL)
+        : []),
+      ...(envKey
+        ? rustConfigOverride(`model_providers.${providerID}.env_key`, envKey)
+        : []),
+    ],
     env: envKey && apiKey ? { [envKey]: apiKey } : {},
   }
 }
@@ -287,6 +331,11 @@ function isRustConfigPathSegment(value: string): boolean {
   return /^[A-Za-z0-9_-]+$/.test(value)
 }
 
+function normalizeOptionalRuntimeText(value: string | undefined): string | undefined {
+  const trimmed = value?.trim()
+  return trimmed ? trimmed : undefined
+}
+
 /**
  * Lifetime-managed Rust app-server process, JSON-RPC client, and workflow state.
  */
@@ -311,6 +360,9 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
     params: unknown
   } | null = null
   private lastInitResult: InitializeResponse | null = null
+  private activeProviderID: string | undefined
+  private activeProviderBaseURL: string | undefined
+  private pendingProviderChange = false
 
   constructor(private readonly context: DesktopAgentRuntimeContext) {}
 
@@ -323,9 +375,22 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
     model: string | undefined,
     providerBaseURL: string | undefined,
   ): void {
+    const providerChanged =
+      this.threadStarted &&
+      (normalizeOptionalRuntimeText(providerID) !==
+        normalizeOptionalRuntimeText(this.activeProviderID) ||
+        normalizeOptionalRuntimeText(providerBaseURL) !==
+          normalizeOptionalRuntimeText(this.activeProviderBaseURL))
     this.context.providerID = providerID
     this.context.providerBaseURL = providerBaseURL
     this.setModel(model)
+    if (providerChanged) {
+      this.pendingProviderChange = true
+      desktopDebug('rust_provider_change_pending', {
+        providerID: providerID ?? null,
+        model: model ?? null,
+      })
+    }
   }
 
   setPermissionMode(_permissionMode: DesktopPermissionMode): void {}
@@ -397,6 +462,8 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
 
       // Build UserInput[] from structured content (text + optional attachments)
       const input = this.buildUserInputFromContent(content)
+
+      await this.applyPendingProviderChange()
 
       // Send turn/start with the converted input
       await this.appServerClient!.startTurn({
@@ -612,6 +679,9 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
     this.child = null
     this.initialized = false
     this.threadStarted = false
+    this.activeProviderID = undefined
+    this.activeProviderBaseURL = undefined
+    this.pendingProviderChange = false
   }
 
   // ── Private ───────────────────────────────────────────────────────
@@ -702,16 +772,47 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
     this.appServerClient.notifyInitialized()
     this.initialized = true
 
-      // 7. Start thread. Built-in tools (including request_user_input)
-      //    are handled natively by the Rust app-server's internal tool
-      //    registry — no client-side dynamic tools are registered here.
-      const threadResult = await this.appServerClient.startThread(
-        this.buildThreadStartParams(),
-      )
+    // 7. Start thread. Built-in tools (including request_user_input)
+    //    are handled natively by the Rust app-server's internal tool
+    //    registry — no client-side dynamic tools are registered here.
+    const threadResult = await this.appServerClient.startThread(
+      this.buildThreadStartParams(),
+    )
     this.workflowState.threadId = threadResult.thread.id
     this.threadStarted = true
+    this.activeProviderID = this.context.providerID
+    this.activeProviderBaseURL = this.context.providerBaseURL
     desktopDebug('rust_sidecar_thread_started', {
       threadId: this.workflowState.threadId,
+    })
+  }
+
+  private async applyPendingProviderChange(): Promise<void> {
+    if (!this.pendingProviderChange) return
+    if (!this.appServerClient || !this.workflowState.threadId) return
+
+    const previousThreadId = this.workflowState.threadId
+    desktopDebug('rust_provider_change_fork_start', {
+      threadId: previousThreadId,
+      providerID: this.context.providerID ?? null,
+      model: this.context.model ?? null,
+    })
+    const forkResult = await this.appServerClient.forkThread({
+      threadId: previousThreadId,
+      model: this.context.model ?? undefined,
+      modelProvider: this.context.providerID ?? undefined,
+      cwd: this.context.workspacePath,
+      ephemeral: true,
+    })
+    this.workflowState.threadId = forkResult.thread.id
+    this.activeProviderID = this.context.providerID
+    this.activeProviderBaseURL = this.context.providerBaseURL
+    this.pendingProviderChange = false
+    desktopDebug('rust_provider_change_fork_done', {
+      previousThreadId,
+      threadId: this.workflowState.threadId,
+      providerID: this.activeProviderID ?? null,
+      model: this.context.model ?? null,
     })
   }
 
@@ -838,26 +939,26 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
       }
     }
 
-	    const response: ToolRequestUserInputResponse = { answers }
-	    return response
-	  }
+    const response: ToolRequestUserInputResponse = { answers }
+    return response
+  }
 
-	  /**
-	   * Build thread start parameters without any client-side dynamic tools.
-	   * The Rust app-server handles all built-in tools (including
-	   * request_user_input) natively via its internal tool registry;
-	   * no dynamic tool registration is needed from the desktop client.
-	   */
-	  private buildThreadStartParams(): ThreadStartParams {
-	    return {
-	      model: this.context.model ?? undefined,
-	      modelProvider: this.context.providerID ?? undefined,
-	      cwd: this.context.workspacePath,
-	      ephemeral: true,
-	    }
-	  }
+  /**
+   * Build thread start parameters without any client-side dynamic tools.
+   * The Rust app-server handles all built-in tools (including
+   * request_user_input) natively via its internal tool registry;
+   * no dynamic tool registration is needed from the desktop client.
+   */
+  private buildThreadStartParams(): ThreadStartParams {
+    return {
+      model: this.context.model ?? undefined,
+      modelProvider: this.context.providerID ?? undefined,
+      cwd: this.context.workspacePath,
+      ephemeral: true,
+    }
+  }
 
-	  private async handleToolCallRequest(
+  private async handleToolCallRequest(
     params: unknown,
     _requestId: JsonRpcId,
   ): Promise<unknown> {

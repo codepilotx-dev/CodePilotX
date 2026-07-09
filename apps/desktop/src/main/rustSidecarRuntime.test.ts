@@ -613,6 +613,49 @@ describe('RustSidecarDesktopAgentRuntime dynamicToolCall', () => {
 	  })
 	})
 
+describe('RustSidecarDesktopAgentRuntime model provider switching', () => {
+  test('forks the active thread before the next turn when provider changes', async () => {
+    const forkThread = mock(async () => ({
+      thread: { id: 'thread-2' },
+      model: 'deepseek-v4-pro',
+      modelProvider: 'deepseek',
+    }))
+    const runtime = new RustSidecarDesktopAgentRuntime({
+      sessionId: 'test-session',
+      workspacePath: process.cwd(),
+      providerID: 'minimax-cn',
+      providerBaseURL: 'https://api.minimaxi.com/anthropic/v1',
+      model: 'MiniMax-M3',
+      emit: () => {},
+      requestPermission: async () => ({ behavior: 'deny' }),
+    })
+
+    const internals = runtime as unknown as {
+      appServerClient: { forkThread: typeof forkThread }
+      workflowState: { threadId: string | null }
+      initialized: boolean
+      threadStarted: boolean
+      applyPendingProviderChange: () => Promise<void>
+    }
+    internals.appServerClient = { forkThread }
+    internals.workflowState.threadId = 'thread-1'
+    internals.initialized = true
+    internals.threadStarted = true
+
+    runtime.setModelProvider('deepseek', 'deepseek-v4-pro', 'https://api.deepseek.com')
+    await internals.applyPendingProviderChange()
+
+    expect(forkThread).toHaveBeenCalledWith({
+      threadId: 'thread-1',
+      model: 'deepseek-v4-pro',
+      modelProvider: 'deepseek',
+      cwd: process.cwd(),
+      ephemeral: true,
+    })
+    expect(internals.workflowState.threadId).toBe('thread-2')
+  })
+})
+
 	// ── Attachment input conversion ─────────────────────────────────────
 
 describe('RustSidecarDesktopAgentRuntime input validation', () => {

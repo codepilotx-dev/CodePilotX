@@ -14,6 +14,22 @@ import type {
 } from './rustAppServerProtocol/index.js'
 import { desktopDebug } from './desktopDebug.js'
 
+export type ThreadForkParams = {
+  threadId: string
+  model?: string | null
+  modelProvider?: string | null
+  cwd?: string | null
+  ephemeral?: boolean | null
+}
+
+export type ThreadForkResponse = {
+  thread: {
+    id: string
+  }
+  model?: string
+  modelProvider?: string
+}
+
 /**
  * Typed JSON-RPC client for the Rust app-server protocol.
  *
@@ -51,6 +67,13 @@ export class RustAppServerClient {
       'turn/start',
       params,
     ) as Promise<TurnStartResponse>
+  }
+
+  async forkThread(params: ThreadForkParams): Promise<ThreadForkResponse> {
+    return this.transport.sendRequest(
+      'thread/fork',
+      params,
+    ) as Promise<ThreadForkResponse>
   }
 
   async interruptTurn(
