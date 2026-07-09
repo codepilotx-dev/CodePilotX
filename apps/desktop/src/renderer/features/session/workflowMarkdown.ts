@@ -1,4 +1,4 @@
-import type { CodexContextDiagnostics } from '@codepilotx/core/agent/codexContextDiagnostics.js'
+import type { CodePilotXContextDiagnostics } from '@codepilotx/core/agent/codexContextDiagnostics.js'
 import type { WorkflowReducerDiagnostics } from '../../../shared/workflowReducer.js'
 import type { DesktopWorkflowEvent } from '../../../shared/types.js'
 import type { WorkflowConsistencyDiagnostics } from './workflowConsistency.js'
@@ -12,7 +12,7 @@ export type WorkflowMarkdownLogDiagnostics = {
 
 export type WorkflowMarkdownOptions = {
   activeSessionId: string | null
-  codexContextDiagnostics?: CodexContextDiagnostics | null
+  codexContextDiagnostics?: CodePilotXContextDiagnostics | null
   consistencyDiagnostics?: WorkflowConsistencyDiagnostics | null
   diagnostics: WorkflowReducerDiagnostics
   events: DesktopWorkflowEvent[]
@@ -113,7 +113,7 @@ export function buildWorkflowMarkdownReport({
 
 function appendCodexContextDiagnostics(
   lines: string[],
-  diagnostics: CodexContextDiagnostics,
+  diagnostics: CodePilotXContextDiagnostics,
 ): void {
   lines.push('', '## CodePilotX 上下文快照', '')
 
@@ -211,7 +211,7 @@ function appendCodexContextDiagnostics(
 }
 
 function formatMcpServerDetail(
-  server: NonNullable<CodexContextDiagnostics['projectConfig']['config']['mcpServers']>[number],
+  server: NonNullable<CodePilotXContextDiagnostics['projectConfig']['config']['mcpServers']>[number],
 ): string {
   if (server.command) {
     return compactParts([

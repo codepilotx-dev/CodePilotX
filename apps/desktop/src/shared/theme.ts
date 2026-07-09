@@ -267,13 +267,32 @@ export const DESKTOP_THEME_PRESETS: DesktopThemePreset[] = [
   {
     id: "dark-dracula",
     label: "Dracula",
-    config: createRadixThemePreset({
-      accentScale: "pink",
+    config: {
       codeThemeId: "dracula",
-      grayScale: "mauve",
-      skillScale: "pink",
+      theme: {
+        accent: "#ff79c6",
+        contrast: 40,
+        fonts: {
+          code: {
+            preset: "Jetbrains Mono",
+            fallback: DEFAULT_CODE_FONT.fallback,
+          },
+          ui: {
+            preset: "MiSans VF Regular",
+            fallback: DEFAULT_UI_FONT.fallback,
+          },
+        },
+        ink: "#f8f8f2",
+        opaqueWindows: true,
+        semanticColors: {
+          diffAdded: "#50fa7b",
+          diffRemoved: "#ff5555",
+          skill: "#ff79c6",
+        },
+        surface: "#282a36",
+      },
       variant: "dark",
-    }),
+    },
   },
   {
     id: DEFAULT_DARK_THEME_ID,

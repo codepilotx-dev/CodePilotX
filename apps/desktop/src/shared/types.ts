@@ -9,7 +9,7 @@ import type {
   AgentToolLogEntry,
   AgentWorkspace,
 } from '@codepilotx/core/agent/runtime.js'
-import type { CodexCollaborationMode } from '@codepilotx/core/agent/codexSessionContract.js'
+import type { CodePilotXCollaborationMode } from '@codepilotx/core/agent/codepilotxSessionContract.js'
 import type {
   AgentPermissionDecision,
   AgentPermissionRequest,
@@ -372,7 +372,7 @@ export type DesktopApprovalPolicy =
 
 export type DesktopApprovalsReviewer = 'user' | 'auto_review'
 
-export type DesktopCollaborationMode = CodexCollaborationMode
+export type DesktopCollaborationMode = CodePilotXCollaborationMode
 
 export type DesktopThinkingMode = AgentThinkingMode
 
@@ -679,7 +679,7 @@ gitBranchPrefix: string
 	  authBaseUrl: string
 	  sandboxMode?: DesktopSandboxMode
   allowNetworkAccess?: boolean
-  installCodexDependencies: boolean
+  installCodePilotXDependencies: boolean
   personality: DesktopPersonality
   customInstructions: string
   enableMemory: boolean
@@ -887,7 +887,7 @@ export type DesktopSessionSettingsSnapshot = {
   systemPrompt?: string
   appendSystemPrompt?: string
   additionalDirectories: string[]
-  installCodexDependencies?: boolean
+  installCodePilotXDependencies?: boolean
   enableMemory?: boolean
   rustSearchAndDiffKernels?: boolean
 }
@@ -958,7 +958,7 @@ export type CreateDesktopSessionOptions = {
   systemPrompt?: string
   appendSystemPrompt?: string
   additionalDirectories?: string[]
-  installCodexDependencies?: boolean
+  installCodePilotXDependencies?: boolean
   enableMemory?: boolean
   rustSearchAndDiffKernels?: boolean
 }

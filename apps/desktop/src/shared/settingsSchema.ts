@@ -112,7 +112,7 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     pullRequestPrompt: '',
 	    githubOAuthClientId: '',
 	    authBaseUrl: '',
-	    installCodexDependencies: true,
+	    installCodePilotXDependencies: true,
     personality: 'pragmatic',
     customInstructions: '',
     enableMemory: true,
@@ -286,10 +286,10 @@ export function normalizeDesktopStoredSettings(
 	      parsed.authBaseUrl,
 	      defaults.authBaseUrl,
 	    ),
-	    installCodexDependencies:
-      typeof parsed.installCodexDependencies === 'boolean'
-        ? parsed.installCodexDependencies
-        : defaults.installCodexDependencies,
+	    installCodePilotXDependencies:
+      typeof parsed.installCodePilotXDependencies === 'boolean'
+        ? parsed.installCodePilotXDependencies
+        : defaults.installCodePilotXDependencies,
     personality: isDesktopPersonality(parsed.personality)
       ? parsed.personality
       : defaults.personality,

@@ -66,7 +66,7 @@ export type UseDesktopSettingsResult = {
   githubOAuthClientId: string
   sandboxMode: DesktopSandboxMode
   allowNetworkAccess: boolean
-  installCodexDependencies: boolean
+  installCodePilotXDependencies: boolean
   personality: DesktopPersonality
   customInstructions: string
   enableMemory: boolean
@@ -354,8 +354,8 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
   const [allowNetworkAccess, setAllowNetworkAccess] = useState(
     initial.allowNetworkAccess,
   )
-  const [installCodexDependencies, setInstallCodexDependencies] = useState(
-    initial.installCodexDependencies,
+  const [installCodePilotXDependencies, setInstallCodexDependencies] = useState(
+    initial.installCodePilotXDependencies,
   )
   const [personality, setPersonality] = useState<DesktopPersonality>(
     initial.personality,
@@ -448,7 +448,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
         setGithubOAuthClientId(settings.githubOAuthClientId)
         setSandboxMode(settings.sandboxMode)
         setAllowNetworkAccess(settings.allowNetworkAccess)
-        setInstallCodexDependencies(settings.installCodexDependencies)
+        setInstallCodexDependencies(settings.installCodePilotXDependencies)
         setPersonality(settings.personality)
         setCustomInstructions(settings.customInstructions)
         setEnableMemory(settings.enableMemory)
@@ -514,7 +514,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       githubOAuthClientId,
       sandboxMode,
       allowNetworkAccess,
-      installCodexDependencies,
+      installCodePilotXDependencies,
       personality,
       customInstructions,
       enableMemory,
@@ -567,7 +567,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       githubOAuthClientId,
       sandboxMode,
       allowNetworkAccess,
-      installCodexDependencies,
+      installCodePilotXDependencies,
       personality,
       customInstructions,
       enableMemory,
@@ -665,7 +665,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       setGithubOAuthClientId(snapshot.githubOAuthClientId)
       setSandboxMode(snapshot.sandboxMode)
       setAllowNetworkAccess(snapshot.allowNetworkAccess)
-      setInstallCodexDependencies(snapshot.installCodexDependencies)
+      setInstallCodexDependencies(snapshot.installCodePilotXDependencies)
       setPersonality(snapshot.personality)
       setCustomInstructions(snapshot.customInstructions)
       setEnableMemory(snapshot.enableMemory)
@@ -803,7 +803,7 @@ defaultOpenTargetId,
     githubOAuthClientId,
     sandboxMode,
     allowNetworkAccess,
-    installCodexDependencies,
+    installCodePilotXDependencies,
     personality,
     customInstructions,
     enableMemory,

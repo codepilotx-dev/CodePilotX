@@ -178,11 +178,11 @@ export function ConfigSettings(): React.ReactNode {
   }
 
   const handleToolchainToggle = (value: boolean): void => {
-    if (!value && draft.values.installCodexDependencies) {
+    if (!value && draft.values.installCodePilotXDependencies) {
       setDeleteDialogOpen(true)
       return
     }
-    draft.setValue('installCodexDependencies', value)
+    draft.setValue('installCodePilotXDependencies', value)
     draft.autoSave()
   }
 
@@ -196,7 +196,7 @@ export function ConfigSettings(): React.ReactNode {
         window.alert(`删除内置工具链失败：${result.error}`)
         return
       }
-      draft.setValue('installCodexDependencies', false)
+      draft.setValue('installCodePilotXDependencies', false)
       await draft.autoSave()
       setDeleteDialogOpen(false)
       await refreshRuntimeStatus()
@@ -466,7 +466,7 @@ export function ConfigSettings(): React.ReactNode {
             control={
               <ToggleSwitch
                 ariaLabel="CodePilotX 依赖项"
-                checked={draft.values.installCodexDependencies}
+                checked={draft.values.installCodePilotXDependencies}
                 onChange={handleToolchainToggle}
               />
             }

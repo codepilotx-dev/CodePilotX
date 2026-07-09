@@ -13,8 +13,8 @@ import { defaultDesktopStoredSettings } from '../../shared/settingsSchema.js'
 import {
   collaborationModeFromPlanModeActive,
   planModeActiveFromCollaborationMode,
-  resolveCodexCollaborationMode,
-} from '@codepilotx/core/agent/codexSessionContract.js'
+  resolveCodePilotXCollaborationMode,
+} from '@codepilotx/core/agent/codepilotxSessionContract.js'
 import type {
   CreateDesktopSessionOptions,
   DesktopApi,
@@ -278,7 +278,7 @@ function createBrowserMockDesktopClient(): DesktopApi {
     }),
     getRuntimeStatus: async () => runtimeStatus,
     diagnoseDesktopToolchain: async () => ({
-      enabled: settings.installCodexDependencies,
+      enabled: settings.installCodePilotXDependencies,
       root: runtimeStatus.toolchainRoot,
       managedRoot: runtimeStatus.managedToolchainRoot,
       packagedRoot: runtimeStatus.packagedToolchainRoot,
@@ -290,7 +290,7 @@ function createBrowserMockDesktopClient(): DesktopApi {
       root: runtimeStatus.managedToolchainRoot,
       copiedFrom: null,
       diagnostics: {
-        enabled: settings.installCodexDependencies,
+        enabled: settings.installCodePilotXDependencies,
         root: runtimeStatus.toolchainRoot,
         managedRoot: runtimeStatus.managedToolchainRoot,
         packagedRoot: runtimeStatus.packagedToolchainRoot,
@@ -303,7 +303,7 @@ function createBrowserMockDesktopClient(): DesktopApi {
       root: runtimeStatus.managedToolchainRoot,
       copiedFrom: null,
       diagnostics: {
-        enabled: settings.installCodexDependencies,
+        enabled: settings.installCodePilotXDependencies,
         root: null,
         managedRoot: runtimeStatus.managedToolchainRoot,
         packagedRoot: runtimeStatus.packagedToolchainRoot,
@@ -826,7 +826,7 @@ function mockSessionSnapshot(
   options: CreateDesktopSessionOptions,
 ): DesktopSessionSnapshot {
   const now = new Date().toISOString()
-  const collaborationMode = resolveCodexCollaborationMode({
+  const collaborationMode = resolveCodePilotXCollaborationMode({
     collaborationMode: options.collaborationMode,
     planModeActive: options.planModeActive,
   })

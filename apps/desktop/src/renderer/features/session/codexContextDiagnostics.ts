@@ -1,6 +1,6 @@
 import {
-  buildCodexContextDiagnosticsFromWorkspaceFiles,
-  type CodexSkillDiagnostic,
+  buildCodePilotXContextDiagnosticsFromWorkspaceFiles,
+  type CodePilotXSkillDiagnostic,
 } from '@codepilotx/core/agent/codexContextDiagnosticsShared.js'
 import type { AgentPermissionPolicy } from '@codepilotx/core/agent/permissions.js'
 import type { DesktopFilePreview } from '../../../shared/types.js'
@@ -17,7 +17,7 @@ export type WorkspaceCodexContextDiagnosticsOptions = {
     filePath: string,
   ) => Promise<DesktopFilePreview | null>
   permissionProfile?: AgentPermissionPolicy
-  skills?: CodexSkillDiagnostic[]
+  skills?: CodePilotXSkillDiagnostic[]
 }
 
 export async function buildWorkspaceCodexContextDiagnostics({
@@ -28,7 +28,7 @@ export async function buildWorkspaceCodexContextDiagnostics({
   skills = [],
   workspacePath,
 }: WorkspaceCodexContextDiagnosticsOptions) {
-  return buildCodexContextDiagnosticsFromWorkspaceFiles({
+  return buildCodePilotXContextDiagnosticsFromWorkspaceFiles({
     cwd: cwdPath ?? workspacePath,
     permissionProfile,
     projectRoot: workspacePath,

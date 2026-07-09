@@ -321,32 +321,32 @@ declare module '@codepilotx/core/agent/proposedPlan.js' {
   export function parseProposedPlanText(text: string): ProposedPlanParseResult
 }
 
-declare module '@codepilotx/core/agent/codexSessionContract.js' {
-  export type CodexCollaborationModeKind = 'default' | 'plan'
-  export type CodexCollaborationModeSettings = {
+declare module '@codepilotx/core/agent/codepilotxSessionContract.js' {
+  export type CodePilotXCollaborationModeKind = 'default' | 'plan'
+  export type CodePilotXCollaborationModeSettings = {
     reasoningEffort?: string | null
     developerInstructions?: string | null
   }
-  export type CodexCollaborationMode = {
-    mode: CodexCollaborationModeKind
-    settings?: CodexCollaborationModeSettings
+  export type CodePilotXCollaborationMode = {
+    mode: CodePilotXCollaborationModeKind
+    settings?: CodePilotXCollaborationModeSettings
   }
-  export const DEFAULT_CODEX_COLLABORATION_MODE: CodexCollaborationMode
-  export const PLAN_CODEX_COLLABORATION_MODE: CodexCollaborationMode
-  export function normalizeCodexCollaborationMode(
+  export const DEFAULT_CODEPILOTX_COLLABORATION_MODE: CodePilotXCollaborationMode
+  export const PLAN_CODEPILOTX_COLLABORATION_MODE: CodePilotXCollaborationMode
+  export function normalizeCodePilotXCollaborationMode(
     value: unknown,
-  ): CodexCollaborationMode
+  ): CodePilotXCollaborationMode
   export function isPlanCollaborationMode(
     value: unknown,
-  ): value is CodexCollaborationMode
+  ): value is CodePilotXCollaborationMode
   export function planModeActiveFromCollaborationMode(value: unknown): boolean
   export function collaborationModeFromPlanModeActive(
     planModeActive: boolean | undefined,
-  ): CodexCollaborationMode
-  export function resolveCodexCollaborationMode(params: {
+  ): CodePilotXCollaborationMode
+  export function resolveCodePilotXCollaborationMode(params: {
     collaborationMode?: unknown
     planModeActive?: boolean
-  }): CodexCollaborationMode
+  }): CodePilotXCollaborationMode
 }
 
 declare module '@codepilotx/core/agent/workflow.js' {
@@ -507,7 +507,7 @@ declare module '@codepilotx/core/agent/workflow.js' {
 declare module '@codepilotx/core/agent/codexContextDiagnostics.js' {
   import type { AgentPermissionPolicy } from '@codepilotx/core/agent/permissions.js'
 
-  export type CodexGuidanceSource = {
+  export type CodePilotXGuidanceSource = {
     path: string
     relativePath: string
     level: number
@@ -515,63 +515,63 @@ declare module '@codepilotx/core/agent/codexContextDiagnostics.js' {
     contentHash: string
     summary: string
   }
-  export type CodexMcpServerDiagnostic = {
+  export type CodePilotXMcpServerDiagnostic = {
     name: string
     source: string
     command?: string
     args?: string[]
     url?: string
   }
-  export type CodexHookDiagnostic = {
+  export type CodePilotXHookDiagnostic = {
     event: string
     matcher?: string
     commands: string[]
     source: string
   }
-  export type CodexSkillDiagnostic = {
+  export type CodePilotXSkillDiagnostic = {
     name: string
     description?: string
     path: string
   }
-  export type CodexProjectConfig = {
+  export type CodePilotXProjectConfig = {
     approval?: string
     sandbox?: string
     projectRootMarkers?: string[]
-    mcpServers?: CodexMcpServerDiagnostic[]
-    hooks?: CodexHookDiagnostic[]
+    mcpServers?: CodePilotXMcpServerDiagnostic[]
+    hooks?: CodePilotXHookDiagnostic[]
   }
-  export type CodexProjectConfigDiagnostics = {
+  export type CodePilotXProjectConfigDiagnostics = {
     path: string | null
-    config: CodexProjectConfig
+    config: CodePilotXProjectConfig
     ignoredProjectKeys: string[]
     diagnostics: string[]
   }
-  export type CodexContextDiagnostics = {
-    guidanceSources: CodexGuidanceSource[]
-    projectConfig: CodexProjectConfigDiagnostics
+  export type CodePilotXContextDiagnostics = {
+    guidanceSources: CodePilotXGuidanceSource[]
+    projectConfig: CodePilotXProjectConfigDiagnostics
     permissionProfile?: AgentPermissionPolicy
-    skills: CodexSkillDiagnostic[]
+    skills: CodePilotXSkillDiagnostic[]
   }
-  export type CodexWorkspaceTextFile = {
+  export type CodePilotXWorkspaceTextFile = {
     path?: string
     content: string
   }
-  export type CodexWorkspaceFileReader = (
+  export type CodePilotXWorkspaceFileReader = (
     relativePath: string,
-  ) => Promise<CodexWorkspaceTextFile | null>
-  export function buildCodexContextDiagnosticsFromWorkspaceFiles(options: {
+  ) => Promise<CodePilotXWorkspaceTextFile | null>
+  export function buildCodePilotXContextDiagnosticsFromWorkspaceFiles(options: {
     projectRoot: string
     cwd: string
-    readFile: CodexWorkspaceFileReader
+    readFile: CodePilotXWorkspaceFileReader
     permissionProfile?: AgentPermissionPolicy
-    skills?: CodexSkillDiagnostic[]
-  }): Promise<CodexContextDiagnostics>
+    skills?: CodePilotXSkillDiagnostic[]
+  }): Promise<CodePilotXContextDiagnostics>
 }
 
 declare module '@codepilotx/core/agent/codexContextDiagnosticsShared.js' {
   import type { AgentPermissionPolicy } from '@codepilotx/core/agent/permissions.js'
 
-  export type CodexGuidanceSource = {
+  export type CodePilotXGuidanceSource = {
     path: string
     relativePath: string
     level: number
@@ -579,57 +579,57 @@ declare module '@codepilotx/core/agent/codexContextDiagnosticsShared.js' {
     contentHash: string
     summary: string
   }
-  export type CodexMcpServerDiagnostic = {
+  export type CodePilotXMcpServerDiagnostic = {
     name: string
     source: string
     command?: string
     args?: string[]
     url?: string
   }
-  export type CodexHookDiagnostic = {
+  export type CodePilotXHookDiagnostic = {
     event: string
     matcher?: string
     commands: string[]
     source: string
   }
-  export type CodexSkillDiagnostic = {
+  export type CodePilotXSkillDiagnostic = {
     name: string
     description?: string
     path: string
   }
-  export type CodexProjectConfig = {
+  export type CodePilotXProjectConfig = {
     approval?: string
     sandbox?: string
     projectRootMarkers?: string[]
-    mcpServers?: CodexMcpServerDiagnostic[]
-    hooks?: CodexHookDiagnostic[]
+    mcpServers?: CodePilotXMcpServerDiagnostic[]
+    hooks?: CodePilotXHookDiagnostic[]
   }
-  export type CodexProjectConfigDiagnostics = {
+  export type CodePilotXProjectConfigDiagnostics = {
     path: string | null
-    config: CodexProjectConfig
+    config: CodePilotXProjectConfig
     ignoredProjectKeys: string[]
     diagnostics: string[]
   }
-  export type CodexContextDiagnostics = {
-    guidanceSources: CodexGuidanceSource[]
-    projectConfig: CodexProjectConfigDiagnostics
+  export type CodePilotXContextDiagnostics = {
+    guidanceSources: CodePilotXGuidanceSource[]
+    projectConfig: CodePilotXProjectConfigDiagnostics
     permissionProfile?: AgentPermissionPolicy
-    skills: CodexSkillDiagnostic[]
+    skills: CodePilotXSkillDiagnostic[]
   }
-  export type CodexWorkspaceTextFile = {
+  export type CodePilotXWorkspaceTextFile = {
     path?: string
     content: string
   }
-  export type CodexWorkspaceFileReader = (
+  export type CodePilotXWorkspaceFileReader = (
     relativePath: string,
-  ) => Promise<CodexWorkspaceTextFile | null>
-  export function buildCodexContextDiagnosticsFromWorkspaceFiles(options: {
+  ) => Promise<CodePilotXWorkspaceTextFile | null>
+  export function buildCodePilotXContextDiagnosticsFromWorkspaceFiles(options: {
     projectRoot: string
     cwd: string
-    readFile: CodexWorkspaceFileReader
+    readFile: CodePilotXWorkspaceFileReader
     permissionProfile?: AgentPermissionPolicy
-    skills?: CodexSkillDiagnostic[]
-  }): Promise<CodexContextDiagnostics>
+    skills?: CodePilotXSkillDiagnostic[]
+  }): Promise<CodePilotXContextDiagnostics>
 }
 
 declare module '@codepilotx/core/agent/workflowView.js' {
