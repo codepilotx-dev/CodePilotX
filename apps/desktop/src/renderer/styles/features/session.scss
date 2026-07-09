@@ -330,18 +330,24 @@
   width: 100%;
   max-width: var(--composer-width);
   display: grid;
-  gap: 10px;
-  margin-bottom: 10px;
-  padding: 24px 14px 12px;
-  border: 1px solid var(--color-panel-border);
-  border-radius: var(--radius-panel);
-  background: var(--color-panel-bg);
+  gap: var(--inline-approval-card-gap, 10px);
+  margin-bottom: var(--inline-approval-card-margin-bottom, 10px);
+  padding: var(--inline-approval-card-padding, 24px 14px 12px);
+  border: var(
+    --inline-approval-card-border,
+    1px solid var(--color-panel-border)
+  );
+  border-radius: var(--inline-approval-card-radius, var(--radius-panel));
+  background: var(--inline-approval-card-bg, var(--color-panel-bg));
   color: var(--color-text-strong);
-  box-shadow: var(--color-panel-shadow-raised);
+  box-shadow: var(
+    --inline-approval-card-shadow,
+    var(--color-panel-shadow-raised)
+  );
 }
 
 .inline-approval-header {
-  padding: 0 12px;
+  padding: var(--inline-approval-header-padding, 0 12px);
 
   h2 {
     margin: 0;
@@ -357,13 +363,57 @@
   display: flex;
   align-items: stretch;
   min-width: 0;
-  padding: 0 12px;
+  padding: var(--inline-approval-summary-padding, 0 12px);
+}
+
+.inline-approval-command-preview {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+  padding: var(--inline-approval-command-preview-padding, 0);
+  border: var(--inline-approval-command-preview-border, 0);
+  border-radius: var(--inline-approval-command-preview-radius, 0);
+  background: var(--inline-approval-command-preview-bg, transparent);
+}
+
+.inline-approval-command-preview-header {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--color-text-soft);
+  font-size: var(--font-size-13);
+  font-weight: var(--font-weight-label);
+
+  button {
+    min-height: 24px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: var(--radius-4);
+    background: transparent;
+    color: var(--color-text-meta);
+    font-size: var(--font-size-12);
+    font-weight: var(--font-weight-label);
+    cursor: pointer;
+
+    &:hover {
+      background: var(--color-bg-hover);
+      color: var(--color-text-strong);
+    }
+  }
 }
 
 .inline-approval-command {
   display: block;
   width: 100%;
   min-width: 0;
+  max-height: var(--inline-approval-command-max-height, none);
+  overflow: auto;
   padding: 0;
   color: var(--color-text-soft);
   font-family: var(--font-family-mono);
@@ -373,6 +423,10 @@
   white-space: pre-wrap;
   word-break: break-all;
   background: transparent;
+}
+
+.inline-approval-command-preview.expanded .inline-approval-command {
+  max-height: var(--inline-approval-command-expanded-max-height, none);
 }
 
 .inline-approval-target {
@@ -507,17 +561,23 @@
   gap: 8px;
   flex: 1;
   min-width: 0;
-  padding: 8px 12px;
-  background: var(--color-bg);
-  border: 1px solid var(--color-border-soft);
-  border-radius: var(--radius-5);
+  padding: var(--inline-approval-note-padding, 8px 12px);
+  background: var(--inline-approval-note-bg, var(--color-bg));
+  border: var(
+    --inline-approval-note-border,
+    1px solid var(--color-border-soft)
+  );
+  border-radius: var(--inline-approval-note-radius, var(--radius-5));
   transition:
     border-color 0.15s,
     box-shadow 0.15s;
 
   &:focus-within {
-    border-color: var(--color-accent);
-    box-shadow: 0 0 0 3px var(--color-accent-a3);
+    border-color: var(--inline-approval-note-focus-border, var(--color-accent));
+    box-shadow: var(
+      --inline-approval-note-focus-shadow,
+      0 0 0 3px var(--color-accent-a3)
+    );
   }
 
   &.filled {
@@ -535,7 +595,7 @@
 
 .inline-approval-actions {
   display: flex;
-  gap: 10px;
+  gap: var(--inline-approval-actions-gap, 10px);
   margin-left: auto;
   flex-shrink: 0;
   align-items: center;
@@ -712,23 +772,36 @@
 }
 
 .inline-approval-submit {
-  min-height: 40px;
+  min-height: var(--inline-approval-submit-min-height, 40px);
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 0 20px;
-  border: 1px solid var(--color-send-bg);
-  border-radius: var(--radius-button);
-  background: var(--color-send-bg);
-  color: var(--color-text-on-accent);
+  padding: var(--inline-approval-submit-padding, 0 20px);
+  border: var(
+    --inline-approval-submit-border,
+    1px solid var(--color-send-bg)
+  );
+  border-radius: var(--inline-approval-submit-radius, var(--radius-button));
+  background: var(--inline-approval-submit-bg, var(--color-send-bg));
+  color: var(--inline-approval-submit-color, var(--color-text-on-accent));
   font-size: 14px;
   font-weight: var(--font-weight-label);
   cursor: pointer;
   transition: background 0.15s;
 
   &:hover {
-    background: var(--color-send-bg-hover);
-    border-color: var(--color-send-bg-hover);
+    background: var(
+      --inline-approval-submit-hover-bg,
+      var(--color-send-bg-hover)
+    );
+    border-color: var(
+      --inline-approval-submit-hover-border,
+      var(--color-send-bg-hover)
+    );
+    color: var(
+      --inline-approval-submit-hover-color,
+      var(--inline-approval-submit-color, var(--color-text-on-accent))
+    );
   }
 }
 
@@ -2544,6 +2617,56 @@
   color: var(--color-text-strong);
 }
 
+.workflow-composer-card-permission {
+  --inline-approval-card-gap: 8px;
+  --inline-approval-card-padding: 16px 10px 10px;
+  --inline-approval-card-border: 1px solid var(--color-border-soft);
+  --inline-approval-card-bg: var(--color-panel-bg);
+  --inline-approval-card-shadow: var(--color-panel-shadow);
+  --inline-approval-header-padding: 0 12px 2px;
+  --inline-approval-summary-padding: 0;
+  --inline-approval-command-preview-padding: 10px 12px;
+  --inline-approval-command-preview-border: 1px solid
+    color-mix(in srgb, var(--color-border-soft) 70%, transparent);
+  --inline-approval-command-preview-radius: var(--radius-5);
+  --inline-approval-command-preview-bg: color-mix(
+    in srgb,
+    var(--color-bg-soft) 72%,
+    var(--color-panel-bg)
+  );
+  --inline-approval-command-max-height: 96px;
+  --inline-approval-command-expanded-max-height: min(34vh, 360px);
+  --inline-approval-note-padding: 7px 10px;
+  --inline-approval-note-border: 1px solid var(--color-border-soft);
+  --inline-approval-note-radius: var(--radius-5);
+  --inline-approval-note-bg: color-mix(
+    in srgb,
+    var(--color-bg) 74%,
+    transparent
+  );
+  --inline-approval-note-focus-border: var(--color-accent);
+  --inline-approval-note-focus-shadow: 0 0 0 2px var(--color-accent-a3);
+  --inline-approval-actions-gap: 6px;
+  --inline-approval-submit-min-height: 32px;
+  --inline-approval-submit-padding: 0 14px;
+  --inline-approval-submit-border: 1px solid
+    color-mix(in srgb, var(--color-text-strong) 18%, transparent);
+  --inline-approval-submit-radius: var(--radius-full);
+  --inline-approval-submit-bg: var(--color-text-strong);
+  --inline-approval-submit-color: var(--color-bg);
+  --inline-approval-submit-hover-bg: color-mix(
+    in srgb,
+    var(--color-text-strong) 88%,
+    var(--color-bg)
+  );
+  --inline-approval-submit-hover-border: color-mix(
+    in srgb,
+    var(--color-text-strong) 26%,
+    transparent
+  );
+  --inline-approval-submit-hover-color: var(--color-bg);
+}
+
 .workflow-composer-card-question .ask-user-question-progress,
 .workflow-composer-card-question .inline-approval-footer-hint,
 .workflow-composer-card-question .inline-approval-option-hint,
@@ -2751,8 +2874,7 @@
 }
 
 .inline-approval-skip,
-.workflow-composer-card-question .inline-approval-submit,
-.workflow-composer-card-permission .inline-approval-submit {
+.workflow-composer-card-question .inline-approval-submit {
   min-height: 30px;
 }
 
@@ -2764,7 +2886,6 @@
 }
 
 .workflow-composer-card-question .inline-approval-submit,
-.workflow-composer-card-permission .inline-approval-submit,
 .workflow-composer-card-plan .exit-plan-mode-submit {
   border-radius: var(--radius-button);
   background: var(--color-send-bg);
@@ -2772,7 +2893,6 @@
 }
 
 .workflow-composer-card-question .inline-approval-submit:hover,
-.workflow-composer-card-permission .inline-approval-submit:hover,
 .workflow-composer-card-plan .exit-plan-mode-submit:hover {
   background: var(--color-send-bg-hover);
 }
@@ -2781,15 +2901,77 @@
   padding: 0;
 }
 
+.workflow-composer-card-permission .inline-approval-command-preview-header {
+  color: var(--color-text-soft);
+}
+
+.workflow-composer-card-permission .inline-approval-header h2 {
+  color: var(--color-text-strong);
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-label);
+  line-height: 1.5;
+}
+
 .workflow-composer-card-permission .inline-approval-command {
   padding: 0;
   color: var(--color-text-soft);
   font-size: var(--font-size-14);
 }
 
+.workflow-composer-card-permission .inline-approval-options {
+  gap: 4px;
+}
+
+.workflow-composer-card-permission .inline-approval-option {
+  min-height: 34px;
+  padding: 4px 8px 4px 10px;
+  border-radius: var(--radius-4);
+  color: var(--color-text-strong);
+  font-size: var(--font-size-14);
+}
+
+.workflow-composer-card-permission .inline-approval-option.selected {
+  background: color-mix(
+    in srgb,
+    var(--color-text-strong) 8%,
+    transparent
+  );
+}
+
+.workflow-composer-card-permission .inline-approval-option-index {
+  width: 24px;
+  height: 24px;
+  background: color-mix(
+    in srgb,
+    var(--color-text-strong) 12%,
+    transparent
+  );
+  color: var(--color-text-soft);
+}
+
+.workflow-composer-card-permission
+  .inline-approval-option.selected
+  .inline-approval-option-index {
+  background: var(--color-text-strong);
+  color: var(--color-bg);
+}
+
 .workflow-composer-card-permission .inline-approval-fixed-option {
   margin-top: 0;
   padding-top: 4px;
+  gap: 8px;
+}
+
+.workflow-composer-card-permission .inline-approval-actions {
+  width: auto;
+  justify-content: flex-end;
+}
+
+.workflow-composer-card-permission .inline-approval-skip {
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: var(--radius-4);
+  color: var(--color-text-meta);
 }
 
 .workflow-composer-card-plan .exit-plan-mode-options {
@@ -2945,14 +3127,12 @@
   }
 
   .workflow-composer-card-question .inline-approval-submit,
-  .workflow-composer-card-permission .inline-approval-submit,
   .workflow-composer-card-plan .exit-plan-mode-submit {
     background: var(--color-send-bg);
     color: var(--color-text-on-accent);
   }
 
   .workflow-composer-card-question .inline-approval-submit:hover,
-  .workflow-composer-card-permission .inline-approval-submit:hover,
   .workflow-composer-card-plan .exit-plan-mode-submit:hover {
     background: var(--color-send-bg-hover);
   }

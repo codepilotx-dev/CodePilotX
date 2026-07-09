@@ -47,7 +47,9 @@ export function InlineApprovalCard({
   const [selectedChoice, setSelectedChoice] =
     React.useState<ApprovalChoice>('allow')
   const [feedback, setFeedback] = React.useState('')
+  const [isCommandExpanded, setIsCommandExpanded] = React.useState(false)
   const command = buildInlineApprovalCommand(request)
+  const approvalTitle = inlineApprovalTitle(request)
   const rememberOptions = request.rememberOptions ?? []
 
   if (request.toolName === 'AskUserQuestion') {
@@ -107,7 +109,7 @@ export function InlineApprovalCard({
       aria-label="等待审批"
     >
       <header className="inline-approval-header">
-        <h2>{request.description}</h2>
+        <h2>{approvalTitle}</h2>
       </header>
       {request.autoReviewFallbackReason ? (
         <p className="inline-approval-target">
@@ -116,7 +118,30 @@ export function InlineApprovalCard({
       ) : null}
 
       <div className="inline-approval-summary">
-        <code className="inline-approval-command">{command.full}</code>
+        <div
+          className={
+            isCommandExpanded
+              ? 'inline-approval-command-preview expanded'
+              : 'inline-approval-command-preview'
+          }
+        >
+          <div className="inline-approval-command-preview-header">
+            <span>Shell</span>
+            <button
+              type="button"
+              aria-expanded={isCommandExpanded}
+              onClick={() => setIsCommandExpanded(value => !value)}
+            >
+              {isCommandExpanded ? '折叠' : '展开'}
+              {isCommandExpanded ? (
+                <ArrowUp size={14} />
+              ) : (
+                <ArrowDown size={14} />
+              )}
+            </button>
+          </div>
+          <code className="inline-approval-command">{command.full}</code>
+        </div>
       </div>
 
       <div className="inline-approval-options" role="radiogroup">
@@ -184,6 +209,20 @@ export function InlineApprovalCard({
         </div>
       </div>
     </section>
+  )
+}
+
+function inlineApprovalTitle(request: DesktopPermissionRequest): string {
+  if (isCommandPermission(request)) return '需要运行命令，是否允许？'
+  return request.description
+}
+
+function isCommandPermission(request: DesktopPermissionRequest): boolean {
+  return (
+    request.toolName === 'Bash' ||
+    request.toolName === 'PowerShell' ||
+    stringValue(request.input.command) !== null ||
+    stringValue(request.input.cmd) !== null
   )
 }
 

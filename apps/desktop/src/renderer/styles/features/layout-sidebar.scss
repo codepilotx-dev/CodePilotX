@@ -477,6 +477,21 @@
   font-variant-numeric: tabular-nums;
 }
 
+.sidebar-session-approval {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--color-diff-added) 14%, transparent);
+  color: var(--color-diff-added);
+  font-size: var(--font-size-12);
+  font-weight: var(--font-weight-label);
+  line-height: 1;
+  white-space: nowrap;
+}
+
 .sidebar-session-spinner {
   color: var(--color-text-soft);
   animation: sidebar-spin 0.9s linear infinite;
