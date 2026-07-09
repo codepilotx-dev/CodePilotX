@@ -890,16 +890,21 @@ export function ConversationPage(): React.ReactNode {
       <div
         className="workflow-page__body"
         style={
-          rightDockNode || showEnvironmentPanel
+          rightDockNode
             ? ({
-                "--right-dock-current-w": rightDockNode
-                  ? `${rightDockWidth}px`
-                  : "368px",
+                "--right-dock-current-w": `${rightDockWidth}px`,
               } as React.CSSProperties)
             : undefined
         }
       >
-        <main className="workflow-page__main">
+        <main
+          className={
+            "workflow-page__main" +
+            (showEnvironmentPanel
+              ? " workflow-page__main--with-environment-panel"
+              : "")
+          }
+        >
           <header
             className={
               rightDockOpen
@@ -920,7 +925,10 @@ export function ConversationPage(): React.ReactNode {
             >
               <ContextMenu.Trigger asChild>
                 <div
-                  className="session-timeline-wrapper"
+                  className={
+                    "session-timeline-wrapper" +
+                    (showEnvironmentPanel ? " has-environment-panel" : "")
+                  }
                   onContextMenu={handleConversationContextMenu}
                 >
                   <ConversationTurnNavRail
@@ -931,76 +939,93 @@ export function ConversationPage(): React.ReactNode {
                       });
                     }}
                   />
-                  {isConversationLoading ? (
-                    <div className="assistant-thinking">加载对话中</div>
-                  ) : (
-                    <>
-                      {workflowTimelineVisible ? (
-                        <WorkflowDebugTimeline
-                          activeSessionId={activeSessionId}
-                          consistencyDiagnostics={
-                            workflowConsistencyDiagnostics
-                          }
-                          diagnostics={workflowDerivedState.diagnostics}
-                          events={workflowEvents}
-                          workspacePath={workspacePath}
-                        />
-                      ) : null}
-                      <SessionTimelineView
-                        count={phaseItems.length + (showThinking ? 1 : 0) + 1}
-                        scrollToBottom={
-                          sessionStatus === "running" ||
-                          sessionStatus === "waiting"
-                        }
-                        onScroll={handleTimelineScroll}
-                        listRef={timelineListRef}
-                      >
-                        {phaseItems.map((item) => (
-                          <div
-                            className="session-turn-row"
-                            data-component="session-turn"
-                            data-slot={timelineItemSlot(item)}
-                            key={item.id}
-                          >
-                            <TimelineItem
-                              item={item}
-                              rightDockPlanContent={rightDockPlanContent}
-                              rightDockPlanOpen={
-                                rightDockOpen && rightDockTool === "plan"
+                  <div className="session-timeline-env-lane">
+                    <div className="session-timeline-env-main">
+                      {isConversationLoading ? (
+                        <div className="assistant-thinking">加载对话中</div>
+                      ) : (
+                        <>
+                          {workflowTimelineVisible ? (
+                            <WorkflowDebugTimeline
+                              activeSessionId={activeSessionId}
+                              consistencyDiagnostics={
+                                workflowConsistencyDiagnostics
                               }
-                              showActions={
-                                item.type === "message" &&
-                                item.role === "assistant" &&
-                                assistantActionMessageIds.has(item.id)
-                              }
-                              onOpenPlanInRightDock={onOpenPlanInRightDock}
-                              onDiscardChanges={(paths, turnRestoreId) =>
-                                void handleDiscardChanges(paths, turnRestoreId)
-                              }
-                              onReviewCode={handleRunCodeReview}
-                              onReviewFiles={openReviewSidebar}
+                              diagnostics={workflowDerivedState.diagnostics}
+                              events={workflowEvents}
+                              workspacePath={workspacePath}
                             />
-                          </div>
-                        ))}
-                        {!isConversationLoading && showThinking ? (
-                          <div
-                            className="chat-thinking-pill session-turn-row"
-                            data-component="session-turn"
-                            data-slot="thinking"
-                            role="status"
-                            aria-live="polite"
+                          ) : null}
+                          <SessionTimelineView
+                            count={phaseItems.length + (showThinking ? 1 : 0) + 1}
+                            scrollToBottom={
+                              sessionStatus === "running" ||
+                              sessionStatus === "waiting"
+                            }
+                            onScroll={handleTimelineScroll}
+                            listRef={timelineListRef}
                           >
-                            <Sparkles
-                              size={APP_ICON_SIZE}
-                              strokeWidth={APP_ICON_STROKE_WIDTH}
-                            />
-                            <span>正在思考</span>
-                          </div>
-                        ) : null}
-                        <div className="session-bottom-spacer" />
-                      </SessionTimelineView>
-                    </>
-                  )}
+                            {phaseItems.map((item) => (
+                              <div
+                                className="session-turn-row"
+                                data-component="session-turn"
+                                data-slot={timelineItemSlot(item)}
+                                key={item.id}
+                              >
+                                <TimelineItem
+                                  item={item}
+                                  rightDockPlanContent={rightDockPlanContent}
+                                  rightDockPlanOpen={
+                                    rightDockOpen && rightDockTool === "plan"
+                                  }
+                                  showActions={
+                                    item.type === "message" &&
+                                    item.role === "assistant" &&
+                                    assistantActionMessageIds.has(item.id)
+                                  }
+                                  onOpenPlanInRightDock={onOpenPlanInRightDock}
+                                  onDiscardChanges={(paths, turnRestoreId) =>
+                                    void handleDiscardChanges(paths, turnRestoreId)
+                                  }
+                                  onReviewCode={handleRunCodeReview}
+                                  onReviewFiles={openReviewSidebar}
+                                />
+                              </div>
+                            ))}
+                            {!isConversationLoading && showThinking ? (
+                              <div
+                                className="chat-thinking-pill session-turn-row"
+                                data-component="session-turn"
+                                data-slot="thinking"
+                                role="status"
+                                aria-live="polite"
+                              >
+                                <Sparkles
+                                  size={APP_ICON_SIZE}
+                                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                                />
+                                <span>正在思考</span>
+                              </div>
+                            ) : null}
+                            <div className="session-bottom-spacer" />
+                          </SessionTimelineView>
+                        </>
+                      )}
+                    </div>
+                    {showEnvironmentPanel ? (
+                      <EnvironmentPanel
+                        branchName={branchName}
+                        diff={diff}
+                        gitStatus={gitStatus}
+                        workspacePath={workspacePath}
+                        onCommitOrPush={onCommitOrPush}
+                        onCreateBranch={onCreateBranch}
+                        onCreatePullRequest={onCreatePullRequest}
+                        onOpenWorkspacePath={onOpenWorkspacePath}
+                        onRefreshDiff={onRefreshDiff}
+                      />
+                    ) : null}
+                  </div>
                 </div>
               </ContextMenu.Trigger>
               {showConversationContextMenu ? (
@@ -1063,21 +1088,7 @@ export function ConversationPage(): React.ReactNode {
             </footer>
           ) : null}
         </main>
-        {showEnvironmentPanel ? (
-          <EnvironmentPanel
-            branchName={branchName}
-            diff={diff}
-            gitStatus={gitStatus}
-            workspacePath={workspacePath}
-            onCommitOrPush={onCommitOrPush}
-            onCreateBranch={onCreateBranch}
-            onCreatePullRequest={onCreatePullRequest}
-            onOpenWorkspacePath={onOpenWorkspacePath}
-            onRefreshDiff={onRefreshDiff}
-          />
-        ) : (
-          rightDockNode
-        )}
+        {rightDockNode}
       </div>
     </section>
   );

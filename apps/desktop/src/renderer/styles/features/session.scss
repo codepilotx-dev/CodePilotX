@@ -25,7 +25,11 @@
   --composer-surface-top-padding: 12px 14px 10px;
   --composer-surface-top-border: 0;
   --composer-surface-top-radius: var(--radius-card);
-  --composer-surface-top-bg: color-mix(in srgb, var(--color-panel-bg) 92%, transparent);
+  --composer-surface-top-bg: color-mix(
+    in srgb,
+    var(--color-panel-bg) 92%,
+    transparent
+  );
   --composer-surface-footer-margin-top: 2px;
   --composer-surface-footer-padding: 8px 8px 2px;
   --composer-surface-footer-border-top: 1px solid
@@ -821,18 +825,32 @@
 
 /* --- Environment panel --- */
 .environment-panel {
-  position: sticky;
-  top: 18px;
-  justify-self: end;
   width: 330px;
-  margin: 18px 18px 150px 0;
   padding: 10px 5px;
   border: 1px solid var(--color-border-soft);
   border-radius: var(--radius-6);
   background: var(--color-surface);
   box-shadow: var(--shadow-card);
   color: var(--color-text);
-  animation: environment-panel-enter var(--motion-enter, 160ms) var(--ease-out, ease-out) both;
+  animation: environment-panel-enter var(--motion-enter, 160ms)
+    var(--ease-out, ease-out) both;
+}
+
+/* Narrow: overlay inside timeline lane */
+.session-timeline-env-lane .environment-panel {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  margin: 0;
+}
+
+/* Wide: grid lane inside timeline */
+@container (min-width: 1140px) {
+  .session-timeline-env-lane .environment-panel {
+    margin: 18px 18px 150px 0;
+    align-self: start;
+  }
 }
 
 @keyframes environment-panel-enter {
@@ -1028,7 +1046,11 @@
 }
 
 .timeline-system-event.error {
-  border-color: color-mix(in srgb, var(--color-danger) 42%, var(--color-panel-border));
+  border-color: color-mix(
+    in srgb,
+    var(--color-danger) 42%,
+    var(--color-panel-border)
+  );
   background: color-mix(in srgb, var(--color-danger) 7%, var(--color-panel-bg));
   color: var(--color-text-strong);
 }
@@ -1281,7 +1303,8 @@
 /* --- User message --- */
 .user-message-bubble {
   padding: 12px 16px;
-  border: 1px solid color-mix(in srgb, var(--color-text-strong) 12%, transparent);
+  border: 1px solid
+    color-mix(in srgb, var(--color-text-strong) 12%, transparent);
   border-radius: var(--radius-user-message);
   background: var(--color-panel-bg);
   color: var(--color-text-strong);
@@ -1362,7 +1385,11 @@
 
   &.secondary {
     border: 1px solid var(--color-border-soft);
-    background: color-mix(in srgb, var(--color-panel-bg) 82%, var(--color-text-strong));
+    background: color-mix(
+      in srgb,
+      var(--color-panel-bg) 82%,
+      var(--color-text-strong)
+    );
     color: var(--color-text-strong);
   }
 
@@ -1905,6 +1932,12 @@
   display: flex;
   flex-direction: column;
   background: transparent;
+  position: relative;
+  --session-environment-panel-column-w: 0px;
+}
+
+.workflow-page__main--with-environment-panel {
+  --session-environment-panel-column-w: 348px;
 }
 
 .workflow-main-scroll-area {
@@ -1913,7 +1946,8 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-top: 1px solid color-mix(in srgb, var(--color-border-soft) 72%, transparent);
+  border-top: 1px solid
+    color-mix(in srgb, var(--color-border-soft) 72%, transparent);
 }
 
 .workflow-main-scroll-content {
@@ -1980,7 +2014,11 @@
   --composer-surface-top-padding: 12px 14px 10px;
   --composer-surface-top-border: 0;
   --composer-surface-top-radius: var(--radius-card);
-  --composer-surface-top-bg: color-mix(in srgb, var(--color-panel-bg) 90%, transparent);
+  --composer-surface-top-bg: color-mix(
+    in srgb,
+    var(--color-panel-bg) 90%,
+    transparent
+  );
   --composer-surface-footer-display: flex;
   --composer-surface-footer-margin-top: 2px;
   --composer-surface-footer-padding: 8px 8px 2px;
@@ -2086,7 +2124,11 @@
     left: 0;
     width: 100%;
     height: 40px;
-    background: color-mix(in srgb, var(--color-panel-elevated-bg) 88%, transparent);
+    background: color-mix(
+      in srgb,
+      var(--color-panel-elevated-bg) 88%,
+      transparent
+    );
   }
 }
 
@@ -2116,7 +2158,11 @@
 
   code:not(pre code) {
     border-radius: var(--radius-2);
-    background: color-mix(in srgb, var(--color-bg) 72%, var(--color-border-soft));
+    background: color-mix(
+      in srgb,
+      var(--color-bg) 72%,
+      var(--color-border-soft)
+    );
   }
 }
 
@@ -2166,6 +2212,14 @@
   width: 100%;
   padding: 0;
   pointer-events: none;
+}
+
+/* Wide layout: narrow composer to match timeline content column */
+@media (min-width: 1200px) {
+  .workflow-page__main--with-environment-panel
+    .chat-composer.workflow-page__composer {
+    width: calc(100% - var(--session-environment-panel-column-w, 0px));
+  }
 }
 
 /* --- Timeline file event --- */
@@ -2407,7 +2461,11 @@
   }
 
   &.warning {
-    border-color: color-mix(in srgb, var(--color-warning) 45%, var(--color-border-soft));
+    border-color: color-mix(
+      in srgb,
+      var(--color-warning) 45%,
+      var(--color-border-soft)
+    );
   }
 }
 
@@ -2492,7 +2550,11 @@
 .timeline-file-event-header {
   min-height: 46px;
   padding: 11px 12px;
-  background: color-mix(in srgb, var(--color-panel-elevated-bg) 42%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--color-panel-elevated-bg) 42%,
+    transparent
+  );
 }
 
 .timeline-file-event-icon {
@@ -2515,7 +2577,8 @@
 
 .timeline-file-event-list li {
   min-height: 28px;
-  border-top: 1px solid color-mix(in srgb, var(--color-border-soft) 62%, transparent);
+  border-top: 1px solid
+    color-mix(in srgb, var(--color-border-soft) 62%, transparent);
 }
 
 /* --- Ask user question --- */
@@ -2612,8 +2675,12 @@
   color: var(--color-text-meta);
 }
 
-.workflow-composer-card-question .inline-approval-option.selected .inline-approval-option-index,
-.workflow-composer-card-plan .exit-plan-mode-option.selected .exit-plan-mode-badge {
+.workflow-composer-card-question
+  .inline-approval-option.selected
+  .inline-approval-option-index,
+.workflow-composer-card-plan
+  .exit-plan-mode-option.selected
+  .exit-plan-mode-badge {
   background: var(--color-bg);
   color: var(--color-text-strong);
 }
@@ -2728,7 +2795,7 @@
 }
 
 @keyframes workflow-pulse {
-    0%,
+  0%,
   100% {
     opacity: 1;
   }
@@ -2742,12 +2809,12 @@
     transition: none;
   }
 
-    .timeline-command-details,
-    .timeline-command-group-chevron,
-    .execution-phase-details,
-    .execution-phase-chevron,
-    .timeline-command-row,
-    .timeline-command-row-chevron,
+  .timeline-command-details,
+  .timeline-command-group-chevron,
+  .execution-phase-details,
+  .execution-phase-chevron,
+  .timeline-command-row,
+  .timeline-command-row-chevron,
   .timeline-command-shell-wrap {
     transition: none;
   }
@@ -2782,7 +2849,6 @@
     background: var(--color-panel-bg);
   }
 
-
   .workflow-page__composer .composer {
     border-color: var(--color-border-soft);
     background: var(--color-panel-bg);
@@ -2804,8 +2870,16 @@
   }
 
   .timeline-system-event.error {
-    border-color: color-mix(in srgb, var(--color-danger) 48%, var(--color-border-soft));
-    background: color-mix(in srgb, var(--color-danger) 13%, var(--color-panel-bg));
+    border-color: color-mix(
+      in srgb,
+      var(--color-danger) 48%,
+      var(--color-border-soft)
+    );
+    background: color-mix(
+      in srgb,
+      var(--color-danger) 13%,
+      var(--color-panel-bg)
+    );
   }
 
   .workflow-plan-card {
@@ -2846,8 +2920,12 @@
     background: var(--color-send-bg-hover);
   }
 
-  .workflow-composer-card-question .inline-approval-option.selected .inline-approval-option-index,
-  .workflow-composer-card-plan .exit-plan-mode-option.selected .exit-plan-mode-badge {
+  .workflow-composer-card-question
+    .inline-approval-option.selected
+    .inline-approval-option-index,
+  .workflow-composer-card-plan
+    .exit-plan-mode-option.selected
+    .exit-plan-mode-badge {
     background: var(--color-bg);
     color: var(--color-text-strong);
   }

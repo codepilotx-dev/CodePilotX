@@ -19,6 +19,36 @@
   margin: 0 auto;
 }
 
+/* ── Environment panel lane ──────────────────────────── */
+
+.session-timeline-env-lane {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  container-type: inline-size;
+}
+
+.session-timeline-env-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Wide layout: side-by-side grid */
+@container (min-width: 1140px) {
+  .session-timeline-env-lane {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) var(--session-environment-panel-column-w, auto);
+  }
+
+  .session-timeline-env-main {
+    min-height: 0;
+  }
+}
+
 /* ── Top-level container ──────────────────────────────── */
 
 .session-timeline-container {
