@@ -11,16 +11,13 @@ import type {
   ModelProviderID,
 } from '../../../shared/types.js'
 import { useDesktopSettings } from './useDesktopSettings.js'
-import {
-  getModelDescription,
-  getModelDisplayLabel,
-} from '../../modelPresets.js'
 import { SettingsDropdown } from './SettingsDropdown.js'
 import { SettingsRow } from './SettingsRow.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
 import { SettingsSection } from './SettingsSection.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
 import { fullErrorMessage } from '../../utils/errors.js'
+import { Brain, Braces, Eye, Hammer } from 'lucide-react'
 
 const BUILT_IN_PROVIDER_IDS = new Set([
   'openai',
@@ -126,7 +123,11 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
   ).filter(item => item && item !== NO_MODEL_OPTION)
   const modelMetadata =
     selectedProviderState?.modelMetadata ?? selectedProvider?.modelMetadata ?? {}
-  const selectedModelMetadata = model ? modelMetadata[model] : undefined
+  const orphanModelId = useMemo<string | null>(() => {
+    if (!model) return null
+    if (!providerModels.includes(model)) return model
+    return null
+  }, [model, providerModels])
   const requiresBaseURL = Boolean(selectedProvider?.requiresBaseURL)
   const baseURLEditable = requiresBaseURL
   const apiKeySource = selectedProviderState?.apiKeySource ?? null
@@ -327,30 +328,16 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
       }))
   }, [providerQuery, providers])
 
-  const modelOptions = useMemo(() => {
+  const filteredModelIds = useMemo(() => {
     const query = modelQuery.trim().toLowerCase()
-    const filteredModels = providerModels.filter(item => {
+    return providerModels.filter(item => {
       if (!query) return true
       const metadata = modelMetadata[item]
       return modelSearchText(item, metadata).includes(query)
     })
-    return filteredModels.slice(0, 200).map(item => ({
-      value: item,
-      label: modelOptionLabel(item, modelMetadata[item], isDeepSeek),
-      detail: modelOptionDetail(modelMetadata[item]),
-      icon: modelMetadata[item]?.iconURL ? (
-        <img className="settings-provider-logo" src={modelMetadata[item]?.iconURL} alt="" />
-      ) : undefined,
-    }))
-  }, [isDeepSeek, modelMetadata, modelQuery, providerModels])
+  }, [modelMetadata, modelQuery, providerModels])
 
-  const selectedModelDescription = selectedModelMetadata
-    ? formatModelMetadata(selectedModelMetadata)
-    : isDeepSeek && model
-      ? getModelDescription(model)
-      : null
-
-function applyProviderState(
+	function applyProviderState(
   nextState: DesktopModelProviderState,
   options: { persistEffectiveSettings?: boolean } = {},
 ): void {
@@ -632,14 +619,7 @@ const nextState = await desktopClient.deleteProviderApiKey(providerID)
           detail: providers.length ? '请调整搜索条件' : '请检查 catalog 网络连接',
         },
       ]
-  const dropdownModelOptions = modelOptions.length
-    ? modelOptions
-    : [{ value: NO_MODEL_OPTION, label: '未加载模型', detail: '请先刷新目录' }]
-  const dropdownModelValue = modelOptions.some(option => option.value === model)
-    ? model
-    : dropdownModelOptions[0]?.value ?? NO_MODEL_OPTION
-
-  return (
+	  return (
     <SettingsContentArea>
       <div className="settings-content-inner">
         <h2 className="settings-page-title">模型</h2>
@@ -929,20 +909,42 @@ const nextState = await desktopClient.deleteProviderApiKey(providerID)
               />
             }
           />
-          <SettingsRow
-            title="模型"
-            description={selectedModelDescription ?? '请选择一个具体模型。'}
-            control={
-              <SettingsDropdown
-                ariaLabel="模型"
-                value={dropdownModelValue}
-                options={dropdownModelOptions}
-                onChange={value => {
-                  if (value !== NO_MODEL_OPTION) setModel(value)
-                }}
-              />
-            }
-          />
+          <div className="settings-model-cards">
+            {providerModels.length === 0 ? (
+              <div className="model-card-grid-empty">
+                暂无模型目录，请先点击「刷新目录」加载模型。
+              </div>
+            ) : filteredModelIds.length === 0 && !orphanModelId ? (
+              <div className="model-card-grid-empty">
+                {modelQuery.trim() ? (
+                  <>未搜索到匹配「{modelQuery}」的模型。</>
+                ) : (
+                  <>当前供应商暂无可用模型。</>
+                )}
+              </div>
+            ) : (
+              <div className="model-card-grid">
+                {orphanModelId && (
+                  <ModelCard
+                    modelId={orphanModelId}
+                    metadata={modelMetadata[orphanModelId]}
+                    isSelected={orphanModelId === model}
+                    onSelect={setModel}
+                    isOrphan
+                  />
+                )}
+                {filteredModelIds.map(id => (
+                  <ModelCard
+                    key={id}
+                    modelId={id}
+                    metadata={modelMetadata[id]}
+                    isSelected={id === model}
+                    onSelect={setModel}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
           <SettingsRow
             title="目录"
             description={modelError ?? status ?? `当前目录共有 ${providerModels.length} 个模型。`}
@@ -1141,41 +1143,74 @@ function modelSearchText(model: string, metadata: DesktopModelMetadata | undefin
     .toLowerCase()
 }
 
-function modelOptionLabel(
-  model: string,
-  metadata: DesktopModelMetadata | undefined,
-  isDeepSeek: boolean,
-): string {
-  if (metadata?.name && metadata.name !== model) return `${metadata.name} (${model})`
-  return isDeepSeek ? `${getModelDisplayLabel(model)} (${model})` : model
-}
+function ModelCard({
+  modelId,
+  metadata,
+  isSelected,
+  onSelect,
+  isOrphan,
+}: {
+  modelId: string
+  metadata: DesktopModelMetadata | undefined
+  isSelected: boolean
+  onSelect: (model: string) => void
+  isOrphan?: boolean
+}): React.ReactNode {
+  const displayName = metadata?.name || modelId
 
-function modelOptionDetail(metadata: DesktopModelMetadata | undefined): string | undefined {
-  if (!metadata) return undefined
-  const parts = []
-  if (metadata.modelsDevProviderId) parts.push(metadata.modelsDevProviderId)
-  if (metadata.contextWindow) parts.push(`${formatCompactNumber(metadata.contextWindow)} ctx`)
-  if (metadata.inputCost !== undefined && metadata.outputCost !== undefined) {
-    parts.push(`$${metadata.inputCost}/$${metadata.outputCost}`)
+  const metaParts: string[] = []
+  if (metadata?.contextWindow) metaParts.push(`${formatCompactNumber(metadata.contextWindow)} 上下文`)
+  if (metadata?.outputTokens) metaParts.push(`${formatCompactNumber(metadata.outputTokens)} 输出`)
+  if (metadata?.inputCost !== undefined && metadata?.outputCost !== undefined) {
+    metaParts.push(`$${metadata.inputCost}/${metadata.outputCost}/M`)
   }
-  const caps = formatCapabilities(metadata)
-  if (caps) parts.push(caps)
-  const sources = metadata.catalogSources?.join('+')
-  if (sources) parts.push(sources)
-  return parts.join(' / ')
-}
 
-function formatModelMetadata(metadata: DesktopModelMetadata): string {
-  const parts = []
-  if (metadata.contextWindow) parts.push(`上下文 ${formatCompactNumber(metadata.contextWindow)}`)
-  if (metadata.outputTokens) parts.push(`输出 ${formatCompactNumber(metadata.outputTokens)}`)
-  if (metadata.inputCost !== undefined && metadata.outputCost !== undefined) {
-    parts.push(`价格 $${metadata.inputCost}/$${metadata.outputCost} 每 1M tokens`)
-  }
-  const caps = formatCapabilities(metadata)
-  if (caps) parts.push(caps)
-  if (metadata.catalogSources?.length) parts.push(`来源 ${metadata.catalogSources.join('+')}`)
-  return parts.join(' / ')
+  const caps = ([
+    metadata?.reasoning ? { key: 'reasoning', icon: Brain, label: '推理' } : null,
+    metadata?.toolCall ? { key: 'toolCall', icon: Hammer, label: '工具' } : null,
+    metadata?.structuredOutput ? { key: 'structured', icon: Braces, label: '结构化' } : null,
+    metadata?.vision ? { key: 'vision', icon: Eye, label: '视觉' } : null,
+  ].filter(Boolean) as { key: string; icon: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean }>; label: string }[])
+
+  return (
+    <button
+      className={`model-card${isSelected ? ' selected' : ''}${isOrphan ? ' orphan' : ''}`}
+      onClick={() => onSelect(modelId)}
+      type="button"
+    >
+      <div className="model-card-header">
+        <div className="model-card-name" title={displayName || modelId}>
+          {displayName || modelId}
+        </div>
+        <div className="model-card-id" title={modelId}>
+          {modelId}
+        </div>
+      </div>
+      {metaParts.length > 0 && (
+        <div className="model-card-meta">
+          {metaParts.map((part, i) => (
+            <span key={i}>{part}</span>
+          ))}
+        </div>
+      )}
+      {caps.length > 0 && (
+        <div className="model-card-tags">
+          {caps.map(cap => {
+            const Icon = cap.icon
+            return (
+              <span key={cap.key} className="model-card-tag">
+                <Icon aria-hidden className="model-card-tag-icon" />
+                {cap.label}
+              </span>
+            )
+          })}
+        </div>
+      )}
+      {isOrphan && (
+        <div className="model-card-orphan-label">当前保存</div>
+      )}
+    </button>
+  )
 }
 
 function formatCapabilities(metadata: DesktopModelMetadata): string {
