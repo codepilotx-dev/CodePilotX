@@ -21,6 +21,8 @@ type Props = {
   onChange: (value: string) => void
   ariaLabel?: string
   variant?: 'default' | 'theme'
+  searchable?: boolean
+  searchPlaceholder?: string
   disableOutsideDismiss?: boolean
 } & PopoverSizingProps
 
@@ -32,13 +34,28 @@ export function SettingsDropdown({
   onChange,
   ariaLabel,
   variant = 'default',
+  searchable = false,
+  searchPlaceholder = '搜索...',
   disableOutsideDismiss = readDesktopBrowserDebugMode(),
   width,
   maxWidth,
 }: Props) {
+  const [searchQuery, setSearchQuery] = React.useState('')
+  const searchInputRef = React.useRef<HTMLInputElement | null>(null)
   const selectedOption = options.find(o => o.value === value) || options[0]
   const radixValue = value === '' ? EMPTY_VALUE : value
   const isThemeVariant = variant === 'theme'
+  const normalizedQuery = searchQuery.trim().toLowerCase()
+  const visibleOptions = searchable
+    ? options.filter(option => {
+        if (!normalizedQuery) return true
+        return (
+          option.label.toLowerCase().includes(normalizedQuery) ||
+          option.value.toLowerCase().includes(normalizedQuery) ||
+          option.detail?.toLowerCase().includes(normalizedQuery)
+        )
+      })
+    : options
 
   return (
     <Select.Root
@@ -80,28 +97,55 @@ export function SettingsDropdown({
                 ? 'min(calc(420px + var(--popover-width-extra)), calc(100vw - 24px))'
                 : undefined),
           })}
+          onOpenAutoFocus={event => {
+            if (!searchable) return
+            event.preventDefault()
+            requestAnimationFrame(() => {
+              searchInputRef.current?.focus()
+              searchInputRef.current?.select()
+            })
+          }}
           onPointerDownOutside={event => {
             preventOutsideDismissWhenDebug(disableOutsideDismiss, event)
           }}
+          onCloseAutoFocus={() => {
+            setSearchQuery('')
+          }}
         >
+          {searchable ? (
+            <div className="settings-dropdown-search">
+              <input
+                ref={searchInputRef}
+                className="settings-input settings-dropdown-search-input"
+                placeholder={searchPlaceholder}
+                value={searchQuery}
+                onChange={event => setSearchQuery(event.target.value)}
+                onKeyDown={event => event.stopPropagation()}
+              />
+            </div>
+          ) : null}
           <Select.Viewport className="settings-dropdown-scroll-area">
             <div className="settings-dropdown-scroll-content">
-              {options.map(opt => (
-                <Select.Item
-                  className="settings-dropdown-item"
-                  key={opt.value}
-                  tabIndex={-1}
-                  value={opt.value === '' ? EMPTY_VALUE : opt.value}
-                >
-                  <div className="settings-dropdown-item-inner">
-                    {opt.icon}
-                    <div className="settings-dropdown-item-copy">
-                      <Select.ItemText>{opt.label}</Select.ItemText>
-                      {opt.detail ? <span>{opt.detail}</span> : null}
+              {visibleOptions.length ? (
+                visibleOptions.map(opt => (
+                  <Select.Item
+                    className="settings-dropdown-item"
+                    key={opt.value}
+                    tabIndex={-1}
+                    value={opt.value === '' ? EMPTY_VALUE : opt.value}
+                  >
+                    <div className="settings-dropdown-item-inner">
+                      {opt.icon}
+                      <div className="settings-dropdown-item-copy">
+                        <Select.ItemText>{opt.label}</Select.ItemText>
+                        {opt.detail ? <span>{opt.detail}</span> : null}
+                      </div>
                     </div>
-                  </div>
-                </Select.Item>
-              ))}
+                  </Select.Item>
+                ))
+              ) : (
+                <div className="settings-dropdown-empty">未找到匹配项</div>
+              )}
             </div>
           </Select.Viewport>
         </Select.Content>
