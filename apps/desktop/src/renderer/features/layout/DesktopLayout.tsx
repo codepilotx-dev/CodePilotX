@@ -82,8 +82,6 @@ import type {
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { upsertRecentWorkspace } from '../../../shared/settings.js'
 
-const RUNTIME_WARNING_MESSAGE =
-  '桌面端 agent 运行时缺失，发送消息前请先执行 `bun run desktop:agent:build`。'
 const QUICK_CHAT_PATH = '/quick-chat'
 const RIGHT_DOCK_WIDTH_STORAGE_KEY = 'codex.desktop.rightDockWidth'
 const RIGHT_DOCK_MIN_WIDTH = 400
@@ -140,7 +138,6 @@ export function DesktopLayout(): React.ReactNode {
 	    syncExternalSettingsPatch,
   } = settings
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [runtimeWarningDismissed, setRuntimeWarningDismissed] = useState(false)
   const [archiveNoticeVisible, setArchiveNoticeVisible] = useState(false)
   const [isWindowMaximized, setIsWindowMaximized] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -1379,14 +1376,6 @@ export function DesktopLayout(): React.ReactNode {
 
   const isConversationLoading =
     isConversationRoute && (!sessionsHydrated || sessionId !== routedSessionId)
-  const runtimeMissing =
-    runtimeStatus?.runtimeKind === 'subprocess' &&
-    runtimeStatus.agentExecutableExists === false
-  const runtimeWarningMessage =
-    !currentWorkspace && runtimeMissing && !runtimeWarningDismissed
-      ? RUNTIME_WARNING_MESSAGE
-      : null
-  const visibleErrorMessage = errorMessage ?? runtimeWarningMessage
   const branchName = getDesktopComposerBranchName(currentWorkspace)
 
   const search = useDesktopSearch({
@@ -1481,11 +1470,6 @@ export function DesktopLayout(): React.ReactNode {
     [setCollapsedSidebarSections, syncExternalSettingsPatch],
   )
 
-  useEffect(() => {
-    if (!runtimeMissing) {
-	      setRuntimeWarningDismissed(false)
-	    }
-	  }, [runtimeMissing])
 
   useEffect(() => {
     let mounted = true
@@ -1755,7 +1739,7 @@ export function DesktopLayout(): React.ReactNode {
   return (
     <div className="desktop-frame">
       <GlobalErrorModal
-        message={visibleErrorMessage}
+        message={errorMessage}
         onDismiss={() => {
           if (errorMessage) {
             setErrorMessage(null)

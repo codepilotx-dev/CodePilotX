@@ -1,41 +1,27 @@
 import type React from 'react'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Play, Square, Copy, Check, X, AlertTriangle, HelpCircle, Clock } from 'lucide-react'
+import { Play, Square, Copy, Check, AlertTriangle, Clock, Cpu, Folder, Terminal, Database, FileCode } from 'lucide-react'
 import { desktopClient } from '../../services/desktopClient.js'
 import type {
-  DebugToolProbeItem,
   DebugToolProbeMode,
   DebugToolProbeReport,
+  RustSidecarProbeInfo,
 } from '../../../shared/types.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
 
 export function ToolProbePanel(): React.ReactNode {
-  const [toolNames, setToolNames] = useState<string[]>([])
   const [running, setRunning] = useState(false)
-  const [currentMode, setCurrentMode] = useState<DebugToolProbeMode | null>(null)
   const [lastReport, setLastReport] = useState<DebugToolProbeReport | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const cancelRef = useRef<string | null>(null)
 
-  useEffect(() => {
-    void desktopClient
-      .listDebugBuiltinTools()
-      .then(result => {
-        setToolNames(result.toolNames)
-      })
-      .catch(err => {
-        setError(err instanceof Error ? err.message : String(err))
-      })
-  }, [])
-
-  const startProbe = useCallback(async (mode: DebugToolProbeMode): Promise<void> => {
+  const startProbe = useCallback(async (): Promise<void> => {
     setError(null)
     setLastReport(null)
     setRunning(true)
-    setCurrentMode(mode)
     try {
-      const report = await desktopClient.runDebugToolProbe(mode)
+      const report = await desktopClient.runDebugToolProbe('safe')
       cancelRef.current = report.runId
       setLastReport(report)
     } catch (err) {
@@ -46,7 +32,6 @@ export function ToolProbePanel(): React.ReactNode {
       }
     } finally {
       setRunning(false)
-      setCurrentMode(null)
     }
   }, [])
 
@@ -72,19 +57,12 @@ export function ToolProbePanel(): React.ReactNode {
     }
   }, [lastReport])
 
-  const safeCount = toolNames.filter(n => {
-    const stableSet = new Set(['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep', 'PowerShell'])
-    return stableSet.has(n)
-  }).length
-
-  const unsafeCount = toolNames.length - safeCount
-
   return (
-    <section className="tool-probe-panel" aria-label="工具探针">
+    <section className="tool-probe-panel" aria-label="Rust Sidecar 探针">
       <div className="tool-probe-header">
-        <h3>工具探针</h3>
+        <h3>Rust Sidecar 探针</h3>
         <p className="tool-probe-summary">
-          内置工具总数：{toolNames.length}，可探针工具：{safeCount}，不可探针：{unsafeCount}
+          检测 Rust sidecar binary 状态、配置目录和协议能力
         </p>
       </div>
 
@@ -93,28 +71,10 @@ export function ToolProbePanel(): React.ReactNode {
           className="tool-probe-btn safe"
           disabled={running}
           type="button"
-          onClick={() => startProbe('safe')}
+          onClick={startProbe}
         >
           <Play size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-          一键安全探针
-        </button>
-        <button
-          className="tool-probe-btn manual"
-          disabled={running}
-          type="button"
-          onClick={() => startProbe('realManual')}
-        >
-          <Play size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-          真实调用（手动审批）
-        </button>
-        <button
-          className="tool-probe-btn auto"
-          disabled={running}
-          type="button"
-          onClick={() => startProbe('realAuto')}
-        >
-          <Play size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-          真实调用（自动放行）
+          {running ? '检测中...' : '检测 Rust Sidecar'}
         </button>
       </div>
 
@@ -122,7 +82,7 @@ export function ToolProbePanel(): React.ReactNode {
         <div className="tool-probe-running">
           <p>
             <Clock size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-            正在运行探针... 模式：{currentMode === 'safe' ? '安全' : currentMode === 'realManual' ? '手动审批' : currentMode === 'realAuto' ? '自动放行' : ''}
+            正在启动 Rust sidecar 并获取信息...
           </p>
           <button
             className="tool-probe-btn cancel"
@@ -130,7 +90,7 @@ export function ToolProbePanel(): React.ReactNode {
             onClick={cancelProbe}
           >
             <Square size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-            取消探针
+            取消
           </button>
         </div>
       ) : null}
@@ -145,7 +105,7 @@ export function ToolProbePanel(): React.ReactNode {
       {lastReport ? (
         <div className="tool-probe-report">
           <div className="tool-probe-report-header">
-            <h4>探针报告</h4>
+            <h4>检测报告</h4>
             <button
               className="tool-probe-btn copy"
               type="button"
@@ -161,57 +121,75 @@ export function ToolProbePanel(): React.ReactNode {
           </div>
 
           <div className="tool-probe-stats">
-            <span className="stat passed">通过：{lastReport.passed}</span>
-            <span className="stat failed">失败：{lastReport.failed}</span>
-            <span className="stat denied">权限拒绝：{lastReport.permissionDenied}</span>
-            <span className="stat unsupported">不支持：{lastReport.unsupportedProbe}</span>
-            <span className="stat skipped">环境跳过：{lastReport.skippedByEnvironment}</span>
+            <span className="stat passed">正常：{lastReport.passed}</span>
+            <span className="stat failed">异常：{lastReport.failed}</span>
+            <span className="stat skipped">跳过：{lastReport.skippedByEnvironment}</span>
           </div>
 
           <div className="tool-probe-items">
             {lastReport.items.map(item => (
-              <ToolProbeItemRow key={item.toolName} item={item} />
+              <RustProbeItemRow key={item.toolName} item={item} />
             ))}
           </div>
-
-          {lastReport.logPath ? (
-            <p className="tool-probe-log-path">日志路径：{lastReport.logPath}</p>
-          ) : null}
         </div>
       ) : (
         <div className="tool-probe-empty">
-          <p>点击上方按钮开始工具探针测试</p>
+          <p>点击上方按钮检测 Rust sidecar 可用状态</p>
         </div>
       )}
     </section>
   )
 }
 
-function ToolProbeItemRow({ item }: { item: DebugToolProbeItem }): React.ReactNode {
-  const statusIcon = (() => {
+function RustProbeItemRow({ item }: { item: DebugToolProbeReport['items'][number] }): React.ReactNode {
+  const icon = (() => {
+    switch (item.toolName) {
+      case 'binary-path':
+      case 'binary-source':
+        return <Terminal size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+      case 'binary-exists':
+        return <Cpu size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+      case 'config-directory':
+        return <Folder size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+      case 'sqlite-home':
+        return <Database size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+      case 'protocol-capabilities':
+        return <FileCode size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+      case 'user-agent':
+        return <Terminal size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+      default:
+        return <Terminal size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+    }
+  })()
+
+  const statusLabel = (() => {
     switch (item.status) {
-      case 'passed':
-        return <Check size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} className="icon-passed" />
-      case 'failed':
-        return <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} className="icon-failed" />
-      case 'permissionDenied':
-        return <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} className="icon-denied" />
-      case 'unsupportedProbe':
-        return <HelpCircle size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} className="icon-unsupported" />
-      case 'skippedByEnvironment':
-        return <AlertTriangle size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} className="icon-skipped" />
+      case 'passed': return '正常'
+      case 'failed': return '异常'
+      case 'skippedByEnvironment': return '跳过'
+      default: return item.status
+    }
+  })()
+
+  const nameLabel = (() => {
+    switch (item.toolName) {
+      case 'binary-path': return 'Binary 路径'
+      case 'binary-exists': return 'Binary 可用'
+      case 'binary-source': return 'Binary 来源'
+      case 'config-directory': return '配置目录'
+      case 'sqlite-home': return 'SQLite 主目录'
+      case 'protocol-capabilities': return '协议能力'
+      case 'user-agent': return 'User Agent'
+      default: return item.toolName
     }
   })()
 
   return (
     <div className={`tool-probe-item ${item.status}`}>
-      <span className="item-icon">{statusIcon}</span>
-      <span className="item-name">{item.toolName}</span>
-      <span className="item-status">{item.status}</span>
+      <span className="item-icon">{icon}</span>
+      <span className="item-name">{nameLabel}</span>
+      <span className={`item-status ${item.status}`}>{statusLabel}</span>
       {item.reason ? <span className="item-reason">{item.reason}</span> : null}
-      {item.durationMs !== undefined ? (
-        <span className="item-duration">{item.durationMs}ms</span>
-      ) : null}
       {item.error ? <span className="item-error">{item.error}</span> : null}
     </div>
   )

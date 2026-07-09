@@ -481,11 +481,11 @@ export function GeneralSettings({
 
         <SettingsSection
           title='实现性'
-          description='这些底层能力仍按灰度开关启用，TS 工具外壳和 fallback 会保留。'
+          description='这些底层能力通过 Rust sidecar 提供。Rust sidecar 已作为默认 agent 运行时。'
         >
           <SettingsRow
             title='Rust Glob / Grep / Diff 内核'
-            description='启用后，新对话会优先使用 Rust sidecar 执行文件遍历、内容搜索和 diff 计算；不支持或失败时自动回到当前 TS / ripgrep 路径。'
+            description='启用后，Rust sidecar 将执行文件遍历、内容搜索和 diff 计算，不再回退到 TS 路径。'
             autoSave
             control={
               <ToggleSwitch
