@@ -138,6 +138,7 @@ export function DesktopLayout(): React.ReactNode {
 	    syncExternalSettingsPatch,
   } = settings
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [_runtimeWarningDismissed, setRuntimeWarningDismissed] = useState(false)
   const [archiveNoticeVisible, setArchiveNoticeVisible] = useState(false)
   const [isWindowMaximized, setIsWindowMaximized] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')

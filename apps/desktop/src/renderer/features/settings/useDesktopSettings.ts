@@ -63,8 +63,9 @@ export type UseDesktopSettingsResult = {
   allowForcePush: boolean
   commitMessagePrompt: string
   pullRequestPrompt: string
-  githubOAuthClientId: string
-  sandboxMode: DesktopSandboxMode
+	  githubOAuthClientId: string
+	  authBaseUrl: string
+	  sandboxMode: DesktopSandboxMode
   allowNetworkAccess: boolean
   installCodePilotXDependencies: boolean
   personality: DesktopPersonality
@@ -113,8 +114,9 @@ export type UseDesktopSettingsResult = {
   setAllowForcePush: (value: boolean) => void
   setCommitMessagePrompt: (value: string) => void
   setPullRequestPrompt: (value: string) => void
-  setGithubOAuthClientId: (value: string) => void
-  setSandboxMode: (value: DesktopSandboxMode) => void
+	  setGithubOAuthClientId: (value: string) => void
+	  setAuthBaseUrl: (value: string) => void
+	  setSandboxMode: (value: DesktopSandboxMode) => void
   setAllowNetworkAccess: (value: boolean) => void
   setInstallCodexDependencies: (value: boolean) => void
   setPersonality: (value: DesktopPersonality) => void
@@ -348,6 +350,9 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
   const [githubOAuthClientId, setGithubOAuthClientId] = useState(
     initial.githubOAuthClientId,
   )
+  const [authBaseUrl, setAuthBaseUrl] = useState(
+    initial.authBaseUrl,
+  )
   const [sandboxMode, setSandboxMode] = useState<DesktopSandboxMode>(
     initial.sandboxMode,
   )
@@ -445,8 +450,9 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
         setAllowForcePush(settings.allowForcePush)
         setCommitMessagePrompt(settings.commitMessagePrompt)
         setPullRequestPrompt(settings.pullRequestPrompt)
-        setGithubOAuthClientId(settings.githubOAuthClientId)
-        setSandboxMode(settings.sandboxMode)
+	        setGithubOAuthClientId(settings.githubOAuthClientId)
+	        setAuthBaseUrl(settings.authBaseUrl)
+	        setSandboxMode(settings.sandboxMode)
         setAllowNetworkAccess(settings.allowNetworkAccess)
         setInstallCodexDependencies(settings.installCodePilotXDependencies)
         setPersonality(settings.personality)
@@ -512,6 +518,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       commitMessagePrompt,
       pullRequestPrompt,
       githubOAuthClientId,
+      authBaseUrl,
       sandboxMode,
       allowNetworkAccess,
       installCodePilotXDependencies,
@@ -565,6 +572,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       commitMessagePrompt,
       pullRequestPrompt,
       githubOAuthClientId,
+      authBaseUrl,
       sandboxMode,
       allowNetworkAccess,
       installCodePilotXDependencies,
@@ -801,6 +809,7 @@ defaultOpenTargetId,
     commitMessagePrompt,
     pullRequestPrompt,
     githubOAuthClientId,
+    authBaseUrl,
     sandboxMode,
     allowNetworkAccess,
     installCodePilotXDependencies,
@@ -848,8 +857,9 @@ defaultOpenTargetId,
     setAllowForcePush,
     setCommitMessagePrompt,
     setPullRequestPrompt,
-    setGithubOAuthClientId,
-    setSandboxMode,
+	    setGithubOAuthClientId,
+	    setAuthBaseUrl,
+	    setSandboxMode,
     setAllowNetworkAccess,
     setInstallCodexDependencies,
     setPersonality,

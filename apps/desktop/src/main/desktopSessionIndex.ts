@@ -31,7 +31,7 @@ import { listSessions, getSession } from '@codepilotx/core/session/sqlite/index.
 import { upsertSession, touchRecencyAt, deleteSession } from '@codepilotx/core/session/sqlite/index.js'
 import { backfillSessions, isBackfillComplete } from '@codepilotx/core/session/sqlite/index.js'
 import type { SessionRow } from '@codepilotx/core/session/sqlite/index.js'
-import { getProjectsDir, getProjectDir, loadLogFromTranscript } from '@codepilotx/core/session/storage.js'
+import { getProjectsDir, getProjectDir } from '@codepilotx/core/session/storage.js'
 import type {
   DesktopSessionListItem,
   DesktopSessionSnapshot,
