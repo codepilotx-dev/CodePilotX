@@ -1055,6 +1055,43 @@
   color: var(--color-text-strong);
 }
 
+.timeline-model-switch-event {
+  width: min(920px, 100%);
+  display: grid;
+  grid-template-columns: minmax(24px, 1fr) auto minmax(24px, 1fr);
+  align-items: center;
+  gap: 14px;
+  color: var(--color-text-soft);
+  font-size: var(--font-size-14);
+  line-height: 1.4;
+}
+
+.timeline-model-switch-line {
+  height: 1px;
+  background: var(--color-panel-border);
+}
+
+.timeline-model-switch-content {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+
+  svg {
+    width: var(--app-icon-size);
+    height: var(--app-icon-size);
+    flex: 0 0 auto;
+    color: var(--color-icon);
+    stroke-width: var(--app-icon-stroke-width);
+  }
+
+  strong {
+    min-width: 0;
+    font-weight: 560;
+    overflow-wrap: anywhere;
+  }
+}
+
 /* --- Command group --- */
 .timeline-command-group {
   max-width: min(820px, 100%);

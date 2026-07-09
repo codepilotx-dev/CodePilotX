@@ -104,6 +104,7 @@
 
   &[data-slot="error"],
   &[data-slot="permission_request"],
+  &[data-slot="system-message"],
   &[data-slot="file_patch"],
   &[data-slot="tool_group"],
   &[data-slot="execution_phase"],
@@ -150,6 +151,7 @@
 }
 
 [data-component="session-turn"][data-slot="error"] .timeline-system-event,
+[data-component="session-turn"][data-slot="system-message"] .timeline-system-event,
 [data-component="session-turn"][data-slot="permission_request"]
   .timeline-system-event {
   max-width: min(680px, 100%);
