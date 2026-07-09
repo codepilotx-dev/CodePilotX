@@ -9,12 +9,12 @@ describe('desktop browser debug bridge', () => {
     const bridge = createDesktopBrowserDebugBridge({
       handlers: {
         getRuntimeStatus: async () => ({
-          runtimeKind: 'embedded-headless',
+          runtimeKind: "rust-sidecar",
           runtimePreference: 'auto',
           runtimeSelectionSource: 'default',
           agentExecutablePath: '',
           agentExecutableExists: false,
-          subprocessFallbackAvailable: false,
+          
           configDirectoryPath: '',
           toolchainEnabled: true,
           toolchainRoot: null,
@@ -42,7 +42,7 @@ describe('desktop browser debug bridge', () => {
 
       expect(response.status).toBe(200)
       expect(await response.json()).toMatchObject({
-        runtimeKind: 'embedded-headless',
+        runtimeKind: "rust-sidecar",
         runtimePreference: 'auto',
       })
     } finally {
@@ -199,12 +199,12 @@ describe('desktop browser debug bridge', () => {
       const bridge = createDesktopBrowserDebugBridge({
         handlers: {
           getRuntimeStatus: async () => ({
-            runtimeKind: 'embedded-headless',
+            runtimeKind: "rust-sidecar",
             runtimePreference: 'auto',
             runtimeSelectionSource: 'default',
             agentExecutablePath: '',
             agentExecutableExists: false,
-            subprocessFallbackAvailable: false,
+            
             configDirectoryPath: '',
             toolchainEnabled: true,
             toolchainRoot: null,
@@ -237,7 +237,7 @@ describe('desktop browser debug bridge', () => {
 
         expect(response.status).toBe(200)
         expect(await response.json()).toMatchObject({
-          runtimeKind: 'embedded-headless',
+          runtimeKind: "rust-sidecar",
         })
       } finally {
         await server.close()

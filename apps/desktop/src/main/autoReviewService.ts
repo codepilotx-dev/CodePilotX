@@ -217,7 +217,7 @@ function createRuntimeReviewerPromptRunner(
     const runtime = createRuntime({
       sessionId: reviewerSessionId,
       workspacePath: request.workspacePath,
-      runtimePreference: 'embedded-headless',
+      runtimePreference: 'auto',
       serializeHeadlessTurns: false,
       permissionProfile: ':read-only',
       sandboxMode: 'read-only',

@@ -137,7 +137,6 @@ export async function getRuntimeStatus(options: {
       runtimeSelectionSource: options.runtimeSelectionSource,
       agentExecutablePath: options.agentExecutablePath,
       agentExecutableExists: fileStat.isFile(),
-      subprocessFallbackAvailable: fileStat.isFile(),
       configDirectoryPath: options.configDirectoryPath,
       toolchainEnabled: options.toolchainStatus.enabled,
       toolchainRoot: options.toolchainStatus.root,
@@ -153,7 +152,6 @@ export async function getRuntimeStatus(options: {
       runtimeSelectionSource: options.runtimeSelectionSource,
       agentExecutablePath: options.agentExecutablePath,
       agentExecutableExists: false,
-      subprocessFallbackAvailable: false,
       configDirectoryPath: options.configDirectoryPath,
       toolchainEnabled: options.toolchainStatus.enabled,
       toolchainRoot: options.toolchainStatus.root,
@@ -166,10 +164,7 @@ export async function getRuntimeStatus(options: {
 }
 
 function runtimeKindForPreference(
-  preference: DesktopAgentRuntimePreference,
+  _preference: DesktopAgentRuntimePreference,
 ): DesktopRuntimeStatus['runtimeKind'] {
-  if (preference === 'subprocess') return 'subprocess'
-  if (preference === 'embedded-headless') return 'embedded-headless'
-  if (preference === 'rust-sidecar') return 'rust-sidecar'
-  return 'sidecar'
+  return 'rust-sidecar'
 }

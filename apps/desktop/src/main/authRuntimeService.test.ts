@@ -13,17 +13,17 @@ const toolchainStatus = {
   binaries: [],
 }
 
-test('runtime status reports explicit sidecar preference', async () => {
+test('runtime status reports rust-sidecar runtime kind', async () => {
   const status = await getRuntimeStatus({
     agentExecutablePath: join(process.cwd(), 'package.json'),
     configDirectoryPath: process.cwd(),
-    runtimePreference: 'sidecar',
+    runtimePreference: 'rust-sidecar',
     runtimeSelectionSource: 'env',
     toolchainStatus,
   })
 
-  expect(status.runtimeKind).toBe('sidecar')
-  expect(status.runtimePreference).toBe('sidecar')
+  expect(status.runtimeKind).toBe('rust-sidecar')
+  expect(status.runtimePreference).toBe('rust-sidecar')
 })
 
 test('runtime status reports explicit rust-sidecar preference', async () => {

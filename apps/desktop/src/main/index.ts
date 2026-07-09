@@ -311,20 +311,11 @@ function getDesktopRuntimeSelection(): {
   if (!value) {
     return { preference: 'auto', source: 'default' }
   }
-  if (
-    value === 'auto' ||
-    value === 'sidecar' ||
-    value === 'rust-sidecar' ||
-    value === 'embedded-headless' ||
-    value === 'subprocess'
-  ) {
+  if (value === 'auto' || value === 'rust-sidecar') {
     return { preference: value, source: 'env' }
   }
-  if (value === 'in-process-headless') {
-    return { preference: 'embedded-headless', source: 'env' }
-  }
   console.warn(
-    `Ignoring unsupported CODEPILOTX_DESKTOP_RUNTIME value: ${value}`,
+    `Ignoring unsupported CODEPILOTX_DESKTOP_RUNTIME value: ${value}, falling back to auto/rust-sidecar`,
   )
   return { preference: 'auto', source: 'default' }
 }
