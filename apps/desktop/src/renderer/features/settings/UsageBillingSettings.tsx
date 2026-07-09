@@ -89,7 +89,9 @@ export function UsageBillingSettings(): React.ReactNode {
   return (
     <SettingsContentArea>
       <div className="settings-content-inner">
-        <h2 className="settings-page-title">使用情况和计费</h2>
+        <div className="settings-page-header">
+          <h2 className="settings-page-title">使用情况和计费</h2>
+        </div>
         {hasConfiguredProvider === false ? (
           <SettingsSection
             title="暂未连接提供商"

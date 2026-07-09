@@ -109,7 +109,9 @@ export function GitSettings(): React.ReactNode {
   return (
     <SettingsContentArea className="">
       <div className="settings-content-inner">
-        <h2 className="settings-page-title">Git</h2>
+        <div className="settings-page-header">
+          <h2 className="settings-page-title">Git</h2>
+        </div>
 
         <SettingsSection>
           <SettingsRow

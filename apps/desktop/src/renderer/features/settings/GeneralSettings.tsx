@@ -282,7 +282,9 @@ export function GeneralSettings({
   return (
     <SettingsContentArea className="">
       <div className='settings-content-inner'>
-        <h2 className='settings-page-title'>常规</h2>
+        <div className="settings-page-header">
+          <h2 className='settings-page-title'>常规</h2>
+        </div>
 
         <SettingsSection
           title='工作模式'

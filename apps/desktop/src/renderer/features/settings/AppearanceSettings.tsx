@@ -498,7 +498,9 @@ export function AppearanceSettings() {
   return (
     <SettingsContentArea>
       <div className="settings-content-inner appearance-console appearance-prototype">
-        <h2 className="settings-page-title appearance-title">外观</h2>
+        <div className="settings-page-header">
+          <h2 className="settings-page-title appearance-title">外观</h2>
+        </div>
 
         <section
           aria-label="主题模式"

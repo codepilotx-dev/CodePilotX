@@ -63,7 +63,9 @@ export function ArchivedConversationsSettings(): React.ReactNode {
   return (
     <SettingsContentArea className="">
       <div className="settings-content-inner">
-        <h2 className="settings-page-title">已归档对话</h2>
+        <div className="settings-page-header">
+          <h2 className="settings-page-title">已归档对话</h2>
+        </div>
         <SettingsSection
           title="归档列表"
           description={error ?? '归档对话不会出现在侧边栏和搜索中，恢复后会回到原来的分组。'}

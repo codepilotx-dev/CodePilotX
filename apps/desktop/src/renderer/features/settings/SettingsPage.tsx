@@ -44,7 +44,9 @@ export function SettingsPage({
   return (
     <SettingsContentArea className="">
       <div className="settings-content-inner">
-        <h2 className="settings-page-title">建设中</h2>
+        <div className="settings-page-header">
+          <h2 className="settings-page-title">建设中</h2>
+        </div>
         <SettingsSection description="此设置页面暂未实现。">
           <div />
         </SettingsSection>

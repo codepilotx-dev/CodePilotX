@@ -52,7 +52,9 @@ export function PersonalizationSettings({
   return (
     <SettingsContentArea className="">
       <div className="settings-content-inner">
-        <h2 className="settings-page-title">个性化</h2>
+        <div className="settings-page-header">
+          <h2 className="settings-page-title">个性化</h2>
+        </div>
 
         <SettingsSection>
           <SettingsRow

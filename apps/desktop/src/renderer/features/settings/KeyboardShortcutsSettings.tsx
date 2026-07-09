@@ -375,7 +375,9 @@ export function KeyboardShortcutsSettings(): React.ReactNode {
   return (
     <SettingsContentArea>
       <div className="settings-content-inner keyboard-shortcuts-settings">
-        <h2 className="settings-page-title">键盘快捷键</h2>
+        <div className="settings-page-header">
+          <h2 className="settings-page-title">键盘快捷键</h2>
+        </div>
         <label className="keyboard-shortcuts-search">
           <Search className="keyboard-shortcuts-search-icon" />
           <input
