@@ -1,4 +1,5 @@
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages.mjs'
+import type { UserMessage } from '../attachments/types.js'
 import type {
   ThreadEvent,
   ThreadId,
@@ -86,7 +87,7 @@ export type JsonRpcThreadForkParams = {
 export type JsonRpcTurnStartParams = {
   threadId: ThreadId
   turnId?: TurnId
-  input: string | ContentBlockParam[]
+  input: string | ContentBlockParam[] | UserMessage
   uuid?: string
   isMeta?: boolean
 }

@@ -4,6 +4,8 @@
   "type": "module",
   "exports": {
     "./*.js": "./src/*.js",
+    "./*/*.js": "./src/*/*.js",
+    "./attachments/types.js": "./src/attachments/types.js",
     "./package.json": "./package.json"
   }
 }
