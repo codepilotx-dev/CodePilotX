@@ -28,6 +28,7 @@ import {
 } from './sidecarManager.js'
 import { RustLineJsonRpcClient } from './rustLineJsonRpcClient.js'
 import { RustAppServerClient } from './rustAppServerClient.js'
+import type { ThreadStartParams, InitializeParams, InitializeResponse } from './rustAppServerProtocol/index.js'
 import {
   createRustAppServerWorkflowState,
   handleServerNotification,
@@ -37,6 +38,47 @@ import type { JsonRpcId } from './rustLineJsonRpcClient.js'
 import { desktopDebug } from './desktopDebug.js'
 
 // ── Inline protocol types (v2, not yet generated in rustAppServerProtocol) ──
+
+/**
+ * Dynamic tool function spec matching the Rust DynamicToolFunctionSpec type.
+ * Used to register client-side tools at thread start so the Rust server
+ * delegates their execution back to the desktop client via item/tool/call.
+ */
+type DynamicToolFunctionSpec = {
+  name: string
+  description: string
+  inputSchema: Record<string, unknown>
+  deferLoading?: boolean
+}
+
+/**
+ * Client-side dynamic tools registered at thread start. The Rust server
+ * handles built-in tools (Bash, Read, Write, Edit, etc.) internally;
+ * only desktop-interactive tools that need permission or user input
+ * infrastructure are registered here.
+ */
+const CLIENT_DYNAMIC_TOOLS: DynamicToolFunctionSpec[] = [
+  {
+    name: 'request_user_input',
+    description:
+      'Ask the user for input when you need information, clarification, ' +
+      'or a decision to proceed with the task.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        question: {
+          type: 'string',
+          description: 'The question to ask the user',
+        },
+        header: {
+          type: 'string',
+          description: 'Optional header or title for the question',
+        },
+      },
+      required: ['question'],
+    },
+  },
+]
 
 type ToolRequestUserInputQuestion = {
   id: string
@@ -107,6 +149,20 @@ export function resolveRustAppServerExecutableInfo(
   return {
     path: join(__dirname, '..', '..', 'desktop-rust-sidecar', binaryName),
     source: 'bundled',
+  }
+}
+
+export function buildRustInitializeParams(): InitializeParams {
+  return {
+    clientInfo: {
+      name: 'codepilotx-desktop',
+      title: 'CodePilotX Desktop',
+      version: '0.1.0',
+    },
+    capabilities: {
+      experimentalApi: true,
+      requestAttestation: false,
+    },
   }
 }
 
@@ -293,6 +349,7 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
     method: string
     params: unknown
   } | null = null
+  private lastInitResult: InitializeResponse | null = null
 
   constructor(private readonly context: DesktopAgentRuntimeContext) {}
 
@@ -318,6 +375,31 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
 
   setDebugConversationDump(enabled: boolean): void {
     this.context.debugConversationDump = enabled
+  }
+
+  /**
+   * Start the Rust sidecar server for probing and return available info.
+   * The caller is responsible for calling dispose() after reading the result.
+   *
+   * Used by DebugToolProbeService to test Rust sidecar availability
+   * without starting a full session turn.
+   */
+  async probeServer(): Promise<{
+    userAgent: string
+    codexHome: string
+    platformFamily: string
+    platformOs: string
+  }> {
+    await this.startAppServer()
+    if (!this.lastInitResult) {
+      throw new Error("Rust sidecar initialized without returning init result")
+    }
+    return {
+      userAgent: this.lastInitResult.userAgent,
+      codexHome: this.lastInitResult.codexHome,
+      platformFamily: this.lastInitResult.platformFamily,
+      platformOs: this.lastInitResult.platformOs,
+    }
   }
 
   async runUserTurn(
@@ -549,17 +631,10 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
     this.setupServerRequestHandlers()
 
     // 5. Initialize
-    const initResult = await this.appServerClient.initialize({
-      clientInfo: {
-        name: 'codepilotx-desktop',
-        title: 'CodePilotX Desktop',
-        version: '0.1.0',
-      },
-      capabilities: {
-        experimentalApi: false,
-        requestAttestation: false,
-      },
-    })
+    const initResult = await this.appServerClient.initialize(
+      buildRustInitializeParams(),
+    )
+    this.lastInitResult = initResult
     desktopDebug('rust_sidecar_initialized', {
       userAgent: initResult.userAgent,
     })
@@ -568,13 +643,18 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
     this.appServerClient.notifyInitialized()
     this.initialized = true
 
-    // 7. Start thread
+    // 7. Start thread — register client-side dynamic tools so the Rust
+    //    server delegates their execution back to the desktop client.
     const threadResult = await this.appServerClient.startThread({
       model: this.context.model ?? undefined,
       modelProvider: this.context.providerID ?? undefined,
       cwd: this.context.workspacePath,
       ephemeral: true,
-    })
+      dynamicTools: CLIENT_DYNAMIC_TOOLS.map(t => ({
+        type: 'function' as const,
+        ...t,
+      })),
+    } as ThreadStartParams & { dynamicTools: unknown })
     this.workflowState.threadId = threadResult.thread.id
     this.threadStarted = true
     desktopDebug('rust_sidecar_thread_started', {
@@ -735,20 +815,10 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
       toolUseId,
     })
 
-    // Return DynamicToolCallResponse directly.
-    // The Rust server handles built-in tools internally.
-    // Client-side registered tools would be executed here;
-    // for now, all tools return success: false since there
-    // are no desktop-exclusive tool handlers yet.
-    return {
-      success: false,
-      contentItems: [
-        {
-          type: 'inputText' as const,
-          text: `Tool "${toolName}" is not available on the desktop client. The Rust app-server should handle this tool internally.`,
-        },
-      ],
-    }
+    // Dispatch to client-side tool handler if registered as a dynamic tool;
+    // otherwise return success: false so the Rust server knows this tool
+    // is not handled client-side (it should handle built-in tools internally).
+    return this.executeDesktopTool(toolName, toolArgs, toolUseId)
   }
 
   private async handlePermissionRequest(
@@ -893,24 +963,86 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
   }
 
   /**
-   * Execute a client-side tool delegated by the Rust app-server.
+   * Execute a client-side dynamic tool delegated by the Rust app-server.
    *
    * The Rust server handles built-in tools (Bash, Read, Write, Edit, etc.)
-   * internally. This method is a stub for future client-side tool handlers
-   * (e.g., desktop-exclusive extension tools).
+   * internally. Only tools registered in CLIENT_DYNAMIC_TOOLS are dispatched
+   * here; unknown tools return success: false so the caller knows this tool
+   * is not handled on the desktop client.
    */
   private async executeDesktopTool(
     toolName: string,
-    _args: unknown,
+    args: unknown,
+    toolUseId: string,
   ): Promise<DynamicToolCallResponse> {
+    switch (toolName) {
+      case 'request_user_input':
+        return this.handleRequestUserInputTool(args, toolUseId)
+
+      // Future client-side tools (e.g., desktop extension tools, MCP
+      // bridging tools) can be added here as new cases.
+
+      default:
+        return {
+          contentItems: [
+            {
+              type: 'inputText' as const,
+              text: `Tool "${toolName}" is not a registered client-side dynamic tool. ` +
+                `The Rust app-server should handle this tool internally.`,
+            },
+          ],
+          success: false,
+        }
+    }
+  }
+
+  /**
+   * Handle request_user_input dynamic tool call.
+   *
+   * Shows a permission dialog via context.requestPermission() to ask the
+   * user a question and returns the user's answer. If the user declines,
+   * returns a sentinel text indicating the user declined.
+   */
+  private async handleRequestUserInputTool(
+    args: unknown,
+    toolUseId: string,
+  ): Promise<DynamicToolCallResponse> {
+    const input = args as Record<string, unknown> | null
+    const question = String(input?.question ?? '')
+    const header = String(input?.header ?? '')
+
+    const permissionRequest: DesktopPermissionRequest = {
+      requestId: `rust-dynamic-ask-${randomUUID()}`,
+      toolName: 'request_user_input',
+      toolUseId,
+      input: { question, header },
+      description: question.slice(0, 200) || '用户输入请求',
+    }
+
+    const decision = await this.context.requestPermission(permissionRequest)
+
+    if (decision.behavior === 'deny') {
+      return {
+        success: true,
+        contentItems: [
+          {
+            type: 'inputText' as const,
+            text: '[User declined to answer]',
+          },
+        ],
+      }
+    }
+
+    const userAnswer =
+      (decision.updatedInput?.answer as string | undefined) ?? ''
     return {
+      success: true,
       contentItems: [
         {
-          type: 'inputText',
-          text: `Tool "${toolName}" execution not available on the desktop client. The Rust app-server should handle this tool internally.`,
+          type: 'inputText' as const,
+          text: userAnswer,
         },
       ],
-      success: false,
     }
   }
 

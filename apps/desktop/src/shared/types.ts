@@ -265,21 +265,13 @@ export type DesktopPullRequestResult =
 
 export type DesktopRuntimeStatus = {
   runtimeKind:
-    | 'subprocess'
-    | 'in-process-headless'
-    | 'embedded-headless'
-    | 'sidecar'
     | 'rust-sidecar'
   runtimePreference:
     | 'auto'
-    | 'embedded-headless'
-    | 'subprocess'
-    | 'sidecar'
     | 'rust-sidecar'
   runtimeSelectionSource: 'default' | 'env'
   agentExecutablePath: string
   agentExecutableExists: boolean
-  subprocessFallbackAvailable: boolean
   configDirectoryPath: string
   toolchainEnabled: boolean
   toolchainRoot: string | null
@@ -1088,7 +1080,6 @@ export type DebugToolProbeItemStatus =
   | 'passed'
   | 'failed'
   | 'permissionDenied'
-  | 'unsupportedProbe'
   | 'skippedByEnvironment'
 
 export type DebugToolProbeItem = {
@@ -1112,10 +1103,21 @@ export type DebugToolProbeReport = {
   passed: number
   failed: number
   permissionDenied: number
-  unsupportedProbe: number
   skippedByEnvironment: number
   items: DebugToolProbeItem[]
   logPath?: string
+}
+
+export type RustSidecarBinarySource = 'env-override' | 'workspace' | 'bundled'
+
+export type RustSidecarProbeInfo = {
+  binaryPath: string
+  binarySource: RustSidecarBinarySource
+  binaryExists: boolean
+  configDirectoryPath: string
+  sqliteHome?: string
+  protocolCapabilities?: string[]
+  userAgent?: string
 }
 
 export type DesktopProjectMemoryType =

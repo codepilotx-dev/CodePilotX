@@ -1,9 +1,8 @@
 /**
  * SidecarDesktopAgentRuntime —— 通过 JSON-RPC stdio sidecar 实现的 DesktopAgentRuntime。
  *
- * 替代 InProcessDesktopAgentRuntime（嵌入式）和 CliDesktopAgentRuntime（子进程 CLI），
- * 是 v1 的默认运行时模式。sidecar 进程运行 `entrypoints/appServer.ts`，
- * 通过 JSON-RPC over stdio 与 Desktop 通信。
+ * 旧版 v1 sidecar 运行时，已被 RustSidecarDesktopAgentRuntime 替代。
+ * 该文件仅保留以备历史引用，不再在运行时创建路径中使用。
  */
 
 import { randomUUID } from 'node:crypto'
