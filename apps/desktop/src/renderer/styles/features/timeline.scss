@@ -17,7 +17,7 @@
   flex-direction: column;
   position: relative;
   margin: 0 auto;
-  padding: 18px 0 0;
+  padding: 18px var(--layout-page-pad-x) 0;
 }
 
 /* ── Top-level container ──────────────────────────────── */
@@ -36,8 +36,8 @@
 
   > :first-child {
     min-width: 0;
-    width: var(--workflow-content-width, min(var(--layout-content-w, 760px), 100%));
-    max-width: var(--workflow-content-width, var(--layout-content-w, 760px));
+    width: var(--session-content-w, min(var(--layout-content-w, 760px), 100%));
+    max-width: var(--session-content-w, var(--layout-content-w, 760px));
     margin: auto;
   }
 }
@@ -216,7 +216,7 @@
 .session-timeline-wrapper .workflow-debug-timeline {
   flex-shrink: 0;
   margin: 0 auto;
-  width: var(--workflow-content-width, min(760px, calc(100% - 40px)));
+  width: var(--session-content-w, min(var(--layout-content-w, 760px), 100%));
 }
 
 /* ── Responsive: narrower viewports ───────────────────── */
