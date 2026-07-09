@@ -363,6 +363,8 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
   private activeProviderID: string | undefined
   private activeProviderBaseURL: string | undefined
   private pendingProviderChange = false
+  /** Guard against duplicate tool_start emissions per toolUseId */
+  private emittedToolStartToolUseIds = new Set<string>()
 
   constructor(private readonly context: DesktopAgentRuntimeContext) {}
 
@@ -682,6 +684,7 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
     this.activeProviderID = undefined
     this.activeProviderBaseURL = undefined
     this.pendingProviderChange = false
+    this.emittedToolStartToolUseIds.clear()
   }
 
   // ── Private ───────────────────────────────────────────────────────
@@ -825,6 +828,7 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
 
         // If we received error or done, resolve the current turn promise
         if (event.type === 'done' || event.type === 'error') {
+          this.emittedToolStartToolUseIds.clear()
           if (this.currentTurnResolve) {
             this.currentTurnResolve()
           }
@@ -1031,15 +1035,18 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
       namespace: p?.namespace as string | undefined,
     })
 
-    // Emit tool_start event so desktop UI renders a tool card
-    // (item/started notification also emits tool_start via adapter)
-    this.context.emit({
-      type: 'tool_start',
-      sessionId: this.context.sessionId,
-      toolName,
-      summary: JSON.stringify(toolArgs).slice(0, 500),
-      toolUseId,
-    })
+    // Guard: item/started notification already emits tool_start via adapter.
+    // Avoid emitting a second tool_start for the same toolUseId here.
+    if (!this.emittedToolStartToolUseIds.has(toolUseId)) {
+      this.emittedToolStartToolUseIds.add(toolUseId)
+      this.context.emit({
+        type: 'tool_start',
+        sessionId: this.context.sessionId,
+        toolName,
+        summary: JSON.stringify(toolArgs).slice(0, 500),
+        toolUseId,
+      })
+    }
 
     // Dispatch to client-side tool handler if registered as a dynamic tool;
     // otherwise return success: false so the Rust server knows this tool

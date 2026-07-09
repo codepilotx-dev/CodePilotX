@@ -241,6 +241,93 @@ test('failed tool results keep readable metadata through projection', () => {
   })
 })
 
+test('tool_output_delta is a no-op in workflow projection (no thread events)', () => {
+  const p = projector()
+  p.project({ type: 'status', sessionId, status: 'running' })
+
+  const events = p.project({
+    type: 'tool_output_delta',
+    sessionId,
+    toolUseId: 'cmd-1',
+    toolName: 'Bash',
+    delta: 'some output\n',
+  })
+
+  // tool_output_delta should not produce any thread events
+  expect(events).toHaveLength(0)
+})
+
+test('tool_output_delta does not interrupt the active tool group sequence', () => {
+  const p = projector()
+  const allEvents: Array<{ type: string }> = []
+
+  const e1 = p.project({ type: 'status', sessionId, status: 'running' })
+  allEvents.push(...e1.map(e => ({ type: e.type })))
+
+  const e2 = p.project({
+    type: 'tool_start',
+    sessionId,
+    toolName: 'Bash',
+    summary: 'ls',
+    toolUseId: 'cmd-1',
+  })
+  allEvents.push(...e2.map(e => ({ type: e.type })))
+
+  const e3 = p.project({
+    type: 'tool_output_delta',
+    sessionId,
+    toolUseId: 'cmd-1',
+    toolName: 'Bash',
+    delta: 'file1\n',
+  })
+  // Must be empty — no thread events
+  expect(e3).toHaveLength(0)
+
+  const e4 = p.project({
+    type: 'tool_result',
+    sessionId,
+    toolName: 'Bash',
+    summary: 'file1\nfile2\n',
+    toolUseId: 'cmd-1',
+    isError: false,
+  })
+  allEvents.push(...e4.map(e => ({ type: e.type })))
+
+  // The sequence should be: thread.started, turn.started, item.started (tool), item.completed (tool)
+  expect(allEvents.map(e => e.type)).toEqual([
+    'thread.started',
+    'turn.started',
+    'item.started',
+    'item.completed',
+  ])
+})
+
+test('single tool_start + single tool_result for same toolUseId leaves no running run', () => {
+  const p = projector()
+  const allEvents = [
+    { type: 'status', sessionId, status: 'running' } as const,
+    { type: 'tool_start', sessionId, toolName: 'Bash', summary: 'ls', toolUseId: 'cmd-1' } as const,
+    { type: 'tool_result', sessionId, toolName: 'Bash', summary: 'file1\n', toolUseId: 'cmd-1' } as const,
+  ].flatMap(event => p.project(event))
+
+  const toolCalls = allEvents.filter(
+    event => 'item' in event && event.item.type === 'tool_call',
+  )
+  const toolResults = allEvents.filter(
+    event => 'item' in event && event.item.type === 'tool_result',
+  )
+
+  // One tool_call and one tool_result
+  expect(toolCalls).toHaveLength(1)
+  expect(toolResults).toHaveLength(1)
+
+  // The tool_call should be completed (no running runs remain)
+  expect(toolCalls[0]).toMatchObject({
+    type: 'item.started',
+    item: { status: 'in_progress' },
+  })
+})
+
 test('permission decisions project into the active workflow turn', () => {
   const p = projector()
   p.project({ type: 'status', sessionId, status: 'running' })

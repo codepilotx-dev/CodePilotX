@@ -738,7 +738,90 @@ describe('RustSidecarDesktopAgentRuntime dynamicToolCall', () => {
 
 	})
 
-	// ── Thread start params ───────────────────────────────────────────
+	// ── Duplicate tool_start guard ─────────────────────────────────────
+
+describe('RustSidecarDesktopAgentRuntime duplicate tool_start guard', () => {
+  test('same toolUseId does not emit tool_start twice', async () => {
+    const emit = mock(() => {})
+    const runtime = new RustSidecarDesktopAgentRuntime({
+      sessionId: 'test-session',
+      workspacePath: process.cwd(),
+      emit,
+      requestPermission: async () => ({ behavior: 'deny' }),
+    })
+
+    const handler = (
+      runtime as unknown as {
+        handleToolCallRequest: (
+          params: unknown,
+          id: unknown,
+        ) => Promise<unknown>
+      }
+    ).handleToolCallRequest.bind(runtime)
+
+    // First call should emit tool_start
+    await handler(
+      {
+        tool: 'Bash',
+        callId: 'call-1',
+        arguments: { command: 'ls' },
+      },
+      1,
+    )
+
+    // Second call with same callId should NOT emit tool_start
+    await handler(
+      {
+        tool: 'Bash',
+        callId: 'call-1',
+        arguments: { command: 'ls' },
+      },
+      2,
+    )
+
+    const toolStartCalls = emit.mock.calls.filter(
+      ([event]: unknown[]) =>
+        (event as { type: string }).type === 'tool_start',
+    )
+    expect(toolStartCalls).toHaveLength(1)
+  })
+
+  test('different toolUseId emits separate tool_start events', async () => {
+    const emit = mock(() => {})
+    const runtime = new RustSidecarDesktopAgentRuntime({
+      sessionId: 'test-session',
+      workspacePath: process.cwd(),
+      emit,
+      requestPermission: async () => ({ behavior: 'deny' }),
+    })
+
+    const handler = (
+      runtime as unknown as {
+        handleToolCallRequest: (
+          params: unknown,
+          id: unknown,
+        ) => Promise<unknown>
+      }
+    ).handleToolCallRequest.bind(runtime)
+
+    await handler(
+      { tool: 'Bash', callId: 'call-1', arguments: {} },
+      1,
+    )
+    await handler(
+      { tool: 'Bash', callId: 'call-2', arguments: {} },
+      2,
+    )
+
+    const toolStartCalls = emit.mock.calls.filter(
+      ([event]: unknown[]) =>
+        (event as { type: string }).type === 'tool_start',
+    )
+    expect(toolStartCalls).toHaveLength(2)
+  })
+})
+
+// ── Thread start params ───────────────────────────────────────────
 
 	describe('RustSidecarDesktopAgentRuntime threadStartParams', () => {
 	  test('does not include dynamicTools field', () => {
