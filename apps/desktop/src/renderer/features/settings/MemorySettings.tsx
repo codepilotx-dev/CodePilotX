@@ -167,10 +167,12 @@ export function MemorySettings(): React.ReactNode {
   return (
     <SettingsContentArea className="memory-settings-page">
       <div className="settings-content-inner">
-        <h2 className="settings-page-title">记忆</h2>
-        <p className="settings-page-desc">
-          管理当前工作区的自动长期记忆和召回时间线。
-        </p>
+        <div className="settings-page-header">
+          <h2 className="settings-page-title">记忆</h2>
+          <p className="settings-page-desc">
+            管理当前工作区的自动长期记忆和召回时间线。
+          </p>
+        </div>
 
         <SettingsSection title="记忆状态">
           <SettingsRow

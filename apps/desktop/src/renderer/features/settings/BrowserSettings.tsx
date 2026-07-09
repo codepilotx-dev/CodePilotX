@@ -35,10 +35,12 @@ export function BrowserSettings(): React.ReactNode {
   return (
     <SettingsContentArea className="">
       <div className="settings-content-inner">
-        <h2 className="settings-page-title">浏览器</h2>
-        <p className="settings-page-desc">
-          在桌面线程中预览本地开发页面、文件预览和无需登录的公开页面。需要登录态、扩展或已有标签页时，请使用常规浏览器。
-        </p>
+        <div className="settings-page-header">
+          <h2 className="settings-page-title">浏览器</h2>
+          <p className="settings-page-desc">
+            在桌面线程中预览本地开发页面、文件预览和无需登录的公开页面。需要登录态、扩展或已有标签页时，请使用常规浏览器。
+          </p>
+        </div>
 
         <SettingsSection
           title="内置浏览器"

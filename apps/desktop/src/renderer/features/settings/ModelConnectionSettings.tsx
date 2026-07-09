@@ -17,7 +17,7 @@ import { SettingsContentArea } from './SettingsContentArea.js'
 import { SettingsSection } from './SettingsSection.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
 import { fullErrorMessage } from '../../utils/errors.js'
-import { Brain, Braces, Eye, Hammer } from 'lucide-react'
+import { Brain, Braces, Eye, Hammer, Link2, RefreshCw, Search, ShieldCheck } from 'lucide-react'
 
 const BUILT_IN_PROVIDER_IDS = new Set([
   'openai',
@@ -622,53 +622,55 @@ const nextState = await desktopClient.deleteProviderApiKey(providerID)
 	  return (
     <SettingsContentArea>
       <div className="settings-content-inner">
-        <h2 className="settings-page-title">模型</h2>
-        <p className="settings-page-desc">
-          管理模型供应商、模型、API key、Base URL 和连接状态。已有会话会继续使用创建时保存的配置快照。
-        </p>
+        <div className="settings-page-header">
+          <h2 className="settings-page-title">模型</h2>
+          <p className="settings-page-desc">
+            管理模型供应商、模型、API key、Base URL 和连接状态。已有会话会继续使用创建时保存的配置快照。
+          </p>
+        </div>
 
-        <section className="settings-hero-card">
-          <div className="settings-hero-copy">
-            <span className="settings-eyebrow">当前连接</span>
-            <h3>{selectedProvider?.displayName ?? providerID}</h3>
-            <p>
-              {model || '未选择模型'} / {baseURL || '无需 Base URL'}
-            </p>
+        <section className="settings-connection-summary">
+          <div className="settings-connection-summary-header">
+            <h2 className="settings-connection-summary-title">
+              <Link2 className="settings-connection-summary-icon" />
+              当前连接
+            </h2>
+            {isGitHubCopilot ? (
+              <span className={`settings-connection-badge ${copilotAuth?.authenticated ? 'ok' : 'warn'}`}>
+                <span className="settings-connection-badge-dot" />
+                {copilotAuth?.authenticated ? 'GitHub 已登录' : 'GitHub 未登录'}
+              </span>
+            ) : (
+              <span className={`settings-connection-badge ${apiKeyConfigured ? 'ok' : 'warn'}`}>
+                <span className="settings-connection-badge-dot" />
+                {apiKeyConfigured ? 'API 密钥已配置' : 'API 密钥未配置'}
+              </span>
+            )}
           </div>
-          <div className="settings-status-grid">
-            <StatusPill
-              label={isGitHubCopilot ? 'GitHub 登录' : 'API 密钥'}
-              value={
-                isGitHubCopilot
-                  ? copilotAuth?.authenticated
-                    ? copilotAuth.user
-                      ? `已登录 · ${copilotAuth.user}`
-                      : '已登录'
-                    : copilotLogin?.state === 'awaiting_auth'
-                      ? '等待设备码'
-                      : copilotLogin?.state === 'starting'
-                        ? '启动中'
-                        : copilotLogin?.state === 'failed'
-                          ? '登录失败'
-                          : copilotAuth?.error
-                            ? '异常'
-                            : '未登录'
-                  : formatApiKeyState(apiKeySource, apiKeyConfigured)
-              }
-              tone={
-                isGitHubCopilot
-                  ? copilotAuth?.authenticated
-                    ? 'ok'
-                    : copilotLogin?.state === 'awaiting_auth'
-                      ? 'pending'
-                      : 'warn'
-                  : apiKeyConfigured
-                    ? 'ok'
-                    : 'warn'
-              }
-            />
-            <StatusPill label="类型" value={selectedProvider?.kind ?? 'openai-compatible'} />
-            <StatusPill label="来源" value={selectedProvider?.modelsDevSource ? 'Models.dev' : '内置'} />
+          <div className="settings-connection-summary-body">
+            <div className="settings-connection-summary-main">
+              <div className="settings-connection-summary-name">
+                {selectedProvider?.displayName ?? providerID}
+              </div>
+              <div className="settings-connection-summary-detail">
+                {model || '未选择模型'} / {baseURL || '无需 Base URL'}
+              </div>
+            </div>
+            <div className="settings-connection-summary-divider" />
+            <div className="settings-connection-summary-meta">
+              <div className="settings-connection-summary-meta-item">
+                <span className="settings-connection-summary-meta-label">类型</span>
+                <span className="settings-connection-summary-meta-value">
+                  {selectedProvider?.kind ?? 'openai-compatible'}
+                </span>
+              </div>
+              <div className="settings-connection-summary-meta-item">
+                <span className="settings-connection-summary-meta-label">来源</span>
+                <span className="settings-connection-summary-meta-value">
+                  {selectedProvider?.modelsDevSource ? 'Models.dev' : '内置'}
+                </span>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -683,7 +685,7 @@ const nextState = await desktopClient.deleteProviderApiKey(providerID)
               <input
                 className="settings-input settings-input-wide"
                 value={providerQuery}
-                placeholder="搜索供应商..."
+                placeholder="按供应商名称、ID 或 npm 包名筛选"
                 onChange={event => setProviderQuery(event.target.value)}
               />
             }
@@ -713,7 +715,7 @@ const nextState = await desktopClient.deleteProviderApiKey(providerID)
               description={baseURLDescription(selectedProvider, isMiniMax)}
               control={
                 <input
-                  className="settings-input settings-input-wide"
+                  className="settings-input settings-input-wide settings-input-mono"
                   readOnly={!baseURLEditable}
                   value={baseURL}
                   placeholder={selectedProvider?.baseURL ?? 'https://.../v1'}
@@ -733,144 +735,139 @@ const nextState = await desktopClient.deleteProviderApiKey(providerID)
           }
         >
           {isGitHubCopilot ? (
-            <SettingsRow
-              title="GitHub 账户"
-              description={
-                copilotAuth?.authenticated
-                  ? `已通过 Copilot CLI 登录（${copilotAuth.user ?? copilotAuth.method ?? '已认证'}）。新会话可直接使用 Copilot 模型。`
-                  : copilotLogin?.state === 'awaiting_auth' && copilotLogin.deviceCode
-                    ? `请在已打开的浏览器窗口中输入设备码完成登录；如未自动打开，请点击下方按钮。`
-                    : '使用 GitHub 账号登录 Copilot CLI（支持 Copilot Free / Pro / Business / Enterprise 订阅）。'
-              }
-              control={
-                <div className="settings-copilot-auth">
-                  <div className="settings-inline-actions settings-secret-actions">
-                    <span
-                      className={`settings-chip ${
-                        copilotAuth?.authenticated
-                          ? 'ok'
-                          : copilotLogin?.state === 'awaiting_auth'
-                            ? 'pending'
-                            : 'warn'
-                      }`}
-                    >
-                      {copilotAuth?.authenticated
-                        ? copilotAuth.user
-                          ? `已登录 · ${copilotAuth.user}`
-                          : '已登录'
-                        : copilotLogin?.state === 'awaiting_auth'
-                          ? '等待登录'
-                          : copilotLogin?.state === 'starting'
-                            ? '启动中'
-                            : copilotLogin?.state === 'failed'
-                              ? '登录失败'
-                              : '未登录'}
-                    </span>
-                    {copilotLogin?.state === 'awaiting_auth' && copilotLogin.deviceCode ? (
-                      <button
-                        className="settings-button"
-                        disabled={busy}
-                        type="button"
-                        onClick={() => void cancelCopilotLoginFlow()}
-                      >
-                        取消登录
-                      </button>
-                    ) : (
-                      <button
-                        className="settings-button"
-                        disabled={busy || copilotLogin?.state === 'starting'}
-                        type="button"
-                        onClick={() => void startCopilotLogin()}
-                      >
-                        {copilotAuth?.authenticated ? '重新登录' : '使用 GitHub 登录'}
-                      </button>
-                    )}
+            <div className="settings-credential-panel">
+              <div className="settings-credential-controls">
+                <span
+                  className={`settings-chip ${
+                    copilotAuth?.authenticated
+                      ? 'ok'
+                      : copilotLogin?.state === 'awaiting_auth'
+                        ? 'pending'
+                        : 'warn'
+                  }`}
+                >
+                  {copilotAuth?.authenticated
+                    ? copilotAuth.user
+                      ? `已登录 · ${copilotAuth.user}`
+                      : '已登录'
+                    : copilotLogin?.state === 'awaiting_auth'
+                      ? '等待登录'
+                      : copilotLogin?.state === 'starting'
+                        ? '启动中'
+                        : copilotLogin?.state === 'failed'
+                          ? '登录失败'
+                          : '未登录'}
+                </span>
+                {copilotLogin?.state === 'awaiting_auth' && copilotLogin.deviceCode ? (
+                  <button
+                    className="settings-button"
+                    disabled={busy}
+                    type="button"
+                    onClick={() => void cancelCopilotLoginFlow()}
+                  >
+                    取消登录
+                  </button>
+                ) : (
+                  <button
+                    className="settings-button"
+                    disabled={busy || copilotLogin?.state === 'starting'}
+                    type="button"
+                    onClick={() => void startCopilotLogin()}
+                  >
+                    {copilotAuth?.authenticated ? '重新登录' : '使用 GitHub 登录'}
+                  </button>
+                )}
+                <button
+                  className="settings-button"
+                  disabled={busy}
+                  type="button"
+                  onClick={() => void refreshCopilotAuth()}
+                >
+                  刷新状态
+                </button>
+              </div>
+              {copilotLogin?.state === 'awaiting_auth' && copilotLogin.deviceCode ? (
+                <div className="settings-copilot-device-code">
+                  <label className="settings-copilot-device-code-label">
+                    设备码
+                  </label>
+                  <div className="settings-copilot-device-code-row">
+                    <input
+                      className="settings-input settings-input-mono"
+                      readOnly
+                      value={copilotLogin.deviceCode}
+                      onFocus={event => event.currentTarget.select()}
+                    />
                     <button
                       className="settings-button"
-                      disabled={busy}
                       type="button"
-                      onClick={() => void refreshCopilotAuth()}
+                      onClick={() => {
+                        void navigator.clipboard?.writeText(
+                          copilotLogin.deviceCode ?? '',
+                        )
+                      }}
                     >
-                      刷新状态
+                      复制
                     </button>
                   </div>
-                  {copilotLogin?.state === 'awaiting_auth' && copilotLogin.deviceCode ? (
-                    <div className="settings-copilot-device-code">
-                      <label className="settings-copilot-device-code-label">
-                        设备码
-                      </label>
-                      <div className="settings-copilot-device-code-row">
-                        <input
-                          className="settings-input settings-input-mono"
-                          readOnly
-                          value={copilotLogin.deviceCode}
-                          onFocus={event => event.currentTarget.select()}
-                        />
-                        <button
-                          className="settings-button"
-                          type="button"
-                          onClick={() => {
-                            void navigator.clipboard?.writeText(
-                              copilotLogin.deviceCode ?? '',
-                            )
-                          }}
-                        >
-                          复制
-                        </button>
-                      </div>
-                      {copilotLogin.verificationUrl ? (
-                        <div className="settings-copilot-verification">
-                          <a
-                            className="settings-row-link"
-                            href={copilotLogin.verificationUrl}
-                            onClick={event => {
-                              event.preventDefault()
-                              void desktopClient.openExternalURL(
-                                copilotLogin.verificationUrl!,
-                              )
-                            }}
-                            rel="noreferrer"
-                            target="_blank"
-                          >
-                            {copilotLogin.verificationUrl}
-                          </a>
-                          <button
-                            className="settings-button"
-                            type="button"
-                            onClick={() =>
-                              void desktopClient.openExternalURL(
-                                copilotLogin.verificationUrl!,
-                              )
-                            }
-                          >
-                            打开浏览器
-                          </button>
-                        </div>
-                      ) : null}
-                      <p className="settings-copilot-hint">
-                        若浏览器未自动打开，请点击上方「打开浏览器」按钮。Copilot CLI 正在等待 GitHub 返回授权结果...
-                      </p>
+                  {copilotLogin.verificationUrl ? (
+                    <div className="settings-copilot-verification">
+                      <a
+                        className="settings-row-link"
+                        href={copilotLogin.verificationUrl}
+                        onClick={event => {
+                          event.preventDefault()
+                          void desktopClient.openExternalURL(
+                            copilotLogin.verificationUrl!,
+                          )
+                        }}
+                        rel="noreferrer"
+                        target="_blank"
+                      >
+                        {copilotLogin.verificationUrl}
+                      </a>
+                      <button
+                        className="settings-button"
+                        type="button"
+                        onClick={() =>
+                          void desktopClient.openExternalURL(
+                            copilotLogin.verificationUrl!,
+                          )
+                        }
+                      >
+                        打开浏览器
+                      </button>
                     </div>
                   ) : null}
+                  <p className="settings-copilot-hint">
+                    若浏览器未自动打开，请点击上方「打开浏览器」按钮。Copilot CLI 正在等待 GitHub 返回授权结果...
+                  </p>
                 </div>
-              }
-            />
+              ) : null}
+            </div>
           ) : (
-            <SettingsRow
-              title="API 密钥"
-              description={apiKeySource ? `当前来源：${apiKeySource}` : 'API 密钥未配置，请在下方输入后点击保存。'}
-              control={
-                <div className="settings-inline-actions settings-secret-actions">
-                  <span className={`settings-chip ${apiKeyConfigured ? 'ok' : 'warn'}`}>
-                    {formatApiKeyState(apiKeySource, apiKeyConfigured)}
+            <div className="settings-credential-panel">
+              <div className="settings-credential-header">
+                <label className="settings-credential-label">API 密钥</label>
+                {apiKeySource ? (
+                  <span className="settings-credential-source">
+                    <ShieldCheck className="settings-credential-source-icon" />
+                    当前来源: {apiKeySource}
                   </span>
-                  <input
-                    className="settings-input"
-                    value={apiKey}
-                    placeholder="输入后保存"
-                    type="password"
-                    onChange={event => setApiKey(event.target.value)}
-                  />
+                ) : null}
+              </div>
+              <div className="settings-credential-controls">
+                <input
+                  className="settings-input settings-credential-input"
+                  value={apiKey}
+                  placeholder={apiKeyConfigured ? '输入后保存 (已配置)' : '输入后保存'}
+                  type="password"
+                  onChange={event => setApiKey(event.target.value)}
+                />
+                <span className={`settings-chip ${apiKeyConfigured ? 'ok' : 'warn'}`}>
+                  {formatApiKeyState(apiKeySource, apiKeyConfigured)}
+                </span>
+                <div className="settings-credential-actions">
                   <button
                     className="settings-button"
                     disabled={busy}
@@ -888,8 +885,8 @@ const nextState = await desktopClient.deleteProviderApiKey(providerID)
                     删除
                   </button>
                 </div>
-              }
-            />
+              </div>
+            </div>
           )}
         </SettingsSection>
 
@@ -897,18 +894,33 @@ const nextState = await desktopClient.deleteProviderApiKey(providerID)
           title="模型"
           description="模型元数据来自 Models.dev、供应商实时目录以及模型图标目录（如可用）。"
         >
-          <SettingsRow
-            title="搜索模型"
-            description="按供应商、模型、能力、上下文、价格、来源或标签筛选。"
-            control={
-              <input
-                className="settings-input settings-input-wide"
-                value={modelQuery}
-                placeholder="搜索模型 / 供应商 / 能力..."
-                onChange={event => setModelQuery(event.target.value)}
-              />
-            }
-          />
+          <div className="settings-model-toolbar">
+            <div className="settings-model-toolbar-main">
+              <div className="settings-model-search">
+                <Search className="settings-model-search-icon" />
+                <input
+                  className="settings-input settings-model-search-input"
+                  value={modelQuery}
+                  placeholder="搜索模型 / 供应商 / 能力..."
+                  onChange={event => setModelQuery(event.target.value)}
+                />
+              </div>
+              <button
+                className="settings-button"
+                disabled={busy}
+                type="button"
+                onClick={() => void fetchModels()}
+              >
+                <RefreshCw className="settings-model-toolbar-icon" />
+                刷新目录
+              </button>
+            </div>
+            {modelError || status ? (
+              <p className="settings-model-toolbar-desc">
+                {modelError ?? status}
+              </p>
+            ) : null}
+          </div>
           <div className="settings-model-cards">
             {providerModels.length === 0 ? (
               <div className="model-card-grid-empty">
@@ -945,20 +957,6 @@ const nextState = await desktopClient.deleteProviderApiKey(providerID)
               </div>
             )}
           </div>
-          <SettingsRow
-            title="目录"
-            description={modelError ?? status ?? `当前目录共有 ${providerModels.length} 个模型。`}
-            control={
-              <button
-                className="settings-button"
-                disabled={busy}
-                type="button"
-                onClick={() => void fetchModels()}
-              >
-                刷新目录
-              </button>
-            }
-          />
         </SettingsSection>
 
         {isDeepSeek ? (
@@ -997,7 +995,7 @@ const nextState = await desktopClient.deleteProviderApiKey(providerID)
           description="测试当前凭据与 Base URL。保存后的连接会应用到新会话。"
         >
           <SettingsRow
-            title="操作"
+            title="连接状态"
             description={modelError ?? status ?? connectionHint(selectedProvider, baseURL)}
             control={
               <div className="settings-inline-actions">
@@ -1070,23 +1068,6 @@ const nextState = await desktopClient.deleteProviderApiKey(providerID)
         </SettingsSection>
       </div>
     </SettingsContentArea>
-  )
-}
-
-function StatusPill({
-  label,
-  value,
-  tone,
-}: {
-  label: string
-  value: string
-  tone?: 'ok' | 'warn' | 'pending'
-}): React.ReactNode {
-  return (
-    <div className={`settings-status-pill ${tone ?? ''}`}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
   )
 }
 

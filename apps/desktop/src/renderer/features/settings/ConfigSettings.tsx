@@ -213,11 +213,13 @@ export function ConfigSettings(): React.ReactNode {
   return (
     <SettingsContentArea className="">
       <div className="settings-content-inner">
-        <h2 className="settings-page-title">配置</h2>
-        <p className="settings-page-desc">
-          配置审批策略和沙盒设置。
-          <LearnMoreLink />
-        </p>
+        <div className="settings-page-header">
+          <h2 className="settings-page-title">配置</h2>
+          <p className="settings-page-desc">
+            配置审批策略和沙盒设置。
+            <LearnMoreLink />
+          </p>
+        </div>
 
         <SettingsSection
           title="自定义 config.toml 设置"

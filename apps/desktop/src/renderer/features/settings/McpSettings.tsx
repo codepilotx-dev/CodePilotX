@@ -185,10 +185,12 @@ export function McpSettings(): React.ReactNode {
   return (
     <SettingsContentArea className="">
       <div className="settings-content-inner">
-        <h2 className="settings-page-title">MCP 服务器</h2>
-        <p className="settings-page-desc">
-          管理 Model Context Protocol 连接。用户和本地 scope 可编辑；企业、项目、插件和动态来源仅展示。
-        </p>
+        <div className="settings-page-header">
+          <h2 className="settings-page-title">MCP 服务器</h2>
+          <p className="settings-page-desc">
+            管理 Model Context Protocol 连接。用户和本地 scope 可编辑；企业、项目、插件和动态来源仅展示。
+          </p>
+        </div>
 
         <SettingsSection
           title="服务器"
