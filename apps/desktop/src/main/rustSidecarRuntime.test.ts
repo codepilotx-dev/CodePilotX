@@ -685,10 +685,10 @@ describe('RustSidecarDesktopAgentRuntime dynamicToolCall', () => {
   })
 })
 
-// ── Non-text input rejection ────────────────────────────────────────
+// ── Attachment input conversion ─────────────────────────────────────
 
 describe('RustSidecarDesktopAgentRuntime input validation', () => {
-  test('rejects non-text input with clear error', async () => {
+  test('converts structured text and attachments into v2 user input', () => {
     const runtime = new RustSidecarDesktopAgentRuntime({
       sessionId: 'session-1',
       workspacePath: process.cwd(),
@@ -696,12 +696,102 @@ describe('RustSidecarDesktopAgentRuntime input validation', () => {
       requestPermission: async () => ({ behavior: 'deny' }),
     })
 
-    await expect(
-      runtime.runUserTurn(
-        [{ type: 'text', text: 'hello' }],
-        new AbortController().signal,
-      ),
-    ).rejects.toThrow('text-only')
+    const input = (
+      runtime as unknown as {
+        buildUserInputFromContent: (content: unknown) => unknown[]
+      }
+    ).buildUserInputFromContent({
+      text: 'hello',
+      attachments: [
+        {
+          kind: 'image',
+          name: 'screen.png',
+          path: 'C:/tmp/screen.png',
+          mediaType: 'image/png',
+          sizeBytes: 10,
+          contentBase64: 'aW1hZ2U=',
+        },
+        {
+          kind: 'document',
+          name: 'brief.pdf',
+          path: 'C:/tmp/brief.pdf',
+          mediaType: 'application/pdf',
+          sizeBytes: 20,
+          contentBase64: 'cGRm',
+        },
+        {
+          kind: 'text',
+          name: 'notes.txt',
+          path: 'C:/tmp/notes.txt',
+          mediaType: 'text/plain',
+          sizeBytes: 30,
+          textContent: 'notes',
+        },
+        {
+          kind: 'audio',
+          name: 'voice.mp3',
+          path: 'C:/tmp/voice.mp3',
+          mediaType: 'audio/mpeg',
+          sizeBytes: 40,
+          contentBase64: 'YXVkaW8=',
+        },
+        {
+          kind: 'video',
+          name: 'clip.mp4',
+          path: 'C:/tmp/clip.mp4',
+          mediaType: 'video/mp4',
+          sizeBytes: 50,
+          contentBase64: 'dmlkZW8=',
+        },
+        {
+          kind: 'binary',
+          name: 'archive.zip',
+          path: 'C:/tmp/archive.zip',
+          mediaType: 'application/zip',
+          sizeBytes: 60,
+          contentBase64: 'emlw',
+        },
+      ],
+    })
+
+    expect(input).toEqual([
+      { type: 'text', text: 'hello', text_elements: [] },
+      {
+        type: 'image',
+        url: 'data:image/png;base64,aW1hZ2U=',
+        detail: 'auto',
+      },
+      {
+        type: 'document',
+        data: 'cGRm',
+        mediaType: 'application/pdf',
+        name: 'brief.pdf',
+      },
+      {
+        type: 'textFile',
+        text: 'notes',
+        mediaType: 'text/plain',
+        name: 'notes.txt',
+      },
+      {
+        type: 'audio',
+        data: 'YXVkaW8=',
+        mediaType: 'audio/mpeg',
+        name: 'voice.mp3',
+      },
+      {
+        type: 'video',
+        data: 'dmlkZW8=',
+        mediaType: 'video/mp4',
+        name: 'clip.mp4',
+      },
+      {
+        type: 'file',
+        data: 'emlw',
+        mediaType: 'application/zip',
+        name: 'archive.zip',
+      },
+    ])
   })
 
   test('rejects control responses with clear error', async () => {

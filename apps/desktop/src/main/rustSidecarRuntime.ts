@@ -21,6 +21,8 @@ import type {
   DesktopPermissionMode,
 } from '../shared/types.js'
 import type { DesktopAgentEvent } from '../shared/types.js'
+import type { Attachment } from '@codepilotx/core/attachments/types.js'
+import type { UserInput } from './rustAppServerProtocol/generated/v2/UserInput.js'
 import {
   SidecarStartError,
   buildSidecarEnv,
@@ -406,11 +408,6 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
     content: DesktopUserMessageContent,
     signal: AbortSignal,
   ): Promise<void> {
-    // Reject non-text input for first version
-    if (typeof content !== 'string') {
-      throw new Error('Rust sidecar currently supports text-only turns.')
-    }
-
     // Lazy startup: spawn & initialize on first turn
     if (!this.initialized) {
       await this.startAppServer()
@@ -439,11 +436,13 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
       // Reset workflow state for new turn
       this.workflowState.assistantDeltaBuffer = ''
 
-      // Send turn/start with text input
-      const text = content
+      // Build UserInput[] from structured content (text + optional attachments)
+      const input = this.buildUserInputFromContent(content)
+
+      // Send turn/start with the converted input
       await this.appServerClient!.startTurn({
         threadId: this.workflowState.threadId!,
-        input: [{ type: 'text', text, text_elements: [] }],
+        input,
         model: this.context.model ?? undefined,
       })
 
@@ -455,6 +454,107 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
       signal.removeEventListener('abort', abortHandler)
       this.pendingTurnSignal = null
     }
+  }
+
+  /**
+   * Convert the structured UserMessage (text + optional attachments) into
+   * the Rust v2 protocol UserInput[] format.
+   *
+   * Conversion rules:
+   * - image    → { type: 'image', url: dataUrl, detail: 'auto' } or localImage
+   * - document → { type: 'document', data, mediaType, name }
+   * - text     → { type: 'textFile', text, mediaType, name }
+   * - audio    → { type: 'audio', data, mediaType, name }
+   * - video    → { type: 'video', data, mediaType, name }
+   * - binary   → { type: 'file', data, mediaType, name }
+   */
+  private buildUserInputFromContent(
+    content: DesktopUserMessageContent,
+  ): UserInput[] {
+    if (typeof content === 'string') {
+      return [{ type: 'text', text: content, text_elements: [] }]
+    }
+
+    const input: UserInput[] = []
+
+    // Add text block
+    if (content.text) {
+      input.push({ type: 'text', text: content.text, text_elements: [] })
+    }
+
+    // Convert each attachment to the appropriate UserInput variant
+    for (const attachment of content.attachments ?? []) {
+      input.push(this.attachmentToUserInput(attachment))
+    }
+
+    return input
+  }
+
+  private attachmentToUserInput(attachment: Attachment): UserInput {
+    switch (attachment.kind) {
+      case 'image': {
+        // If contentBase64 is available, construct a data URL
+        if (attachment.contentBase64 && attachment.mediaType) {
+          const dataUrl = `data:${attachment.mediaType};base64,${attachment.contentBase64}`
+          return { type: 'image', url: dataUrl, detail: 'auto' }
+        }
+        // Fall back to localImage path if no base64 content
+        return { type: 'localImage', path: attachment.path, detail: 'auto' }
+      }
+
+      case 'text': {
+        return {
+          type: 'textFile',
+          text: attachment.textContent ?? '',
+          mediaType: attachment.mediaType,
+          name: attachment.name,
+        }
+      }
+
+      case 'document':
+        return {
+          type: 'document',
+          data: this.requireAttachmentBase64(attachment),
+          mediaType: attachment.mediaType,
+          name: attachment.name,
+        }
+
+      case 'audio':
+        return {
+          type: 'audio',
+          data: this.requireAttachmentBase64(attachment),
+          mediaType: attachment.mediaType,
+          name: attachment.name,
+        }
+
+      case 'video':
+        return {
+          type: 'video',
+          data: this.requireAttachmentBase64(attachment),
+          mediaType: attachment.mediaType,
+          name: attachment.name,
+        }
+
+      case 'binary':
+        return {
+          type: 'file',
+          data: this.requireAttachmentBase64(attachment),
+          mediaType: attachment.mediaType,
+          name: attachment.name,
+        }
+
+      default:
+        throw new Error(
+          `Unknown attachment kind: ${(attachment as { kind: string }).kind}`,
+        )
+    }
+  }
+
+  private requireAttachmentBase64(attachment: Attachment): string {
+    if (attachment.contentBase64) return attachment.contentBase64
+    throw new Error(
+      `Attachment "${attachment.name}" (${attachment.mediaType}) is missing readable content.`,
+    )
   }
 
   async runControlResponse(

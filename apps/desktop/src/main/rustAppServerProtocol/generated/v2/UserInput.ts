@@ -7,3 +7,8 @@ export type UserInput =
   | { type: 'localImage'; detail?: string; path: string }
   | { type: 'skill'; name: string; path: string }
   | { type: 'mention'; name: string; path: string }
+  | { type: 'document'; data: string; mediaType: string; name: string }
+  | { type: 'audio'; data: string; mediaType: string; name: string }
+  | { type: 'video'; data: string; mediaType: string; name: string }
+  | { type: 'file'; data: string; mediaType: string; name: string }
+  | { type: 'textFile'; text: string; name: string; mediaType: string }

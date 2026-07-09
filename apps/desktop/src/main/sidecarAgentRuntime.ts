@@ -139,11 +139,13 @@ export class SidecarDesktopAgentRuntime implements DesktopAgentRuntime {
         this.threadStarted = true
       }
 
-      // 3. 发送 turn/start
+      // 3. 发送 turn/start with text content
+      // Note: This legacy runtime only supports text turns. Attachments are
+      // handled by the RustSidecarDesktopAgentRuntime.
       const turnResult = await this.sidecarManager.startTurn({
         threadId: this.currentThreadId!,
         turnId: `turn-${randomUUID()}`,
-        input: typeof content === 'string' ? content : content,
+        input: typeof content === 'string' ? content : content.text,
       })
 
       desktopDebug('sidecar_turn_completed', {
@@ -456,10 +458,7 @@ function createTypescriptSidecarOptions(
 
 function desktopUserMessageTextLength(content: DesktopUserMessageContent): number {
   if (typeof content === 'string') return content.length
-  return content.reduce((sum, block) => {
-    if (block.type === 'text') return sum + block.text.length
-    return sum
-  }, 0)
+  return content.text.length
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
