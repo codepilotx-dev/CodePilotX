@@ -12,12 +12,11 @@ import {
 } from './desktopClient.js'
 
 const runtimeStatus: DesktopRuntimeStatus = {
-  runtimeKind: 'embedded-headless',
+  runtimeKind: 'rust-sidecar',
   runtimePreference: 'auto',
   runtimeSelectionSource: 'default',
   agentExecutablePath: '',
   agentExecutableExists: false,
-  subprocessFallbackAvailable: false,
   configDirectoryPath: '',
   toolchainEnabled: true,
   toolchainRoot: null,

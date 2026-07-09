@@ -242,12 +242,11 @@ function createBrowserMockDesktopClient(): DesktopApi {
   const settingsListeners = new Set<(change: DesktopSettingsChange) => void>()
 
   const runtimeStatus: DesktopRuntimeStatus = {
-    runtimeKind: 'embedded-headless',
+    runtimeKind: 'rust-sidecar',
     runtimePreference: 'auto',
     runtimeSelectionSource: 'default',
     agentExecutablePath: '',
     agentExecutableExists: false,
-    subprocessFallbackAvailable: false,
     configDirectoryPath: '',
     toolchainEnabled: true,
     toolchainRoot: null,
@@ -676,7 +675,6 @@ function createBrowserMockDesktopClient(): DesktopApi {
       passed: 0,
       failed: 0,
       permissionDenied: 0,
-      unsupportedProbe: 0,
       skippedByEnvironment: 0,
       items: [],
     }),
