@@ -1,30 +1,30 @@
 import { expect, test } from 'bun:test'
 import {
-  BUILTIN_CODEX_PERMISSION_PROFILES,
-  createCodexRuntimePermissionState,
+  BUILTIN_CODEPILOTX_PERMISSION_PROFILES,
+  createCodePilotXRuntimePermissionState,
   DESKTOP_AGENT_PERMISSION_MODES,
   evaluateFilesystemAccess,
   evaluateNetworkDomainAccess,
   isDesktopAgentPermissionMode,
   normalizeDesktopAgentPermissionMode,
-  resolveCodexPermissions,
+  resolveCodePilotXPermissions,
   permissionPolicyForDesktopMode,
-  type CodexRuntimePermissionState,
+  type CodePilotXRuntimePermissionState,
 } from './permissions.js'
 import type {
-  CodexPermissionsConfig,
-  CodexRequirementsPolicy,
+  CodePilotXPermissionsConfig,
+  CodePilotXRequirementsPolicy,
 } from './permissions.js'
-import { parseCodexRequirements } from './codexRequirements.js'
+import { parseCodePilotXRequirements } from './codePilotXRequirements.js'
 
 test('official built-in permission profiles are available', () => {
-  expect(BUILTIN_CODEX_PERMISSION_PROFILES).toEqual([
+  expect(BUILTIN_CODEPILOTX_PERMISSION_PROFILES).toEqual([
     ':read-only',
     ':workspace',
     ':danger-full-access',
   ])
 
-  const resolved = resolveCodexPermissions({
+  const resolved = resolveCodePilotXPermissions({
     config: { defaultPermissions: ':workspace' },
     workspaceRoots: ['/repo'],
   })
@@ -36,7 +36,7 @@ test('official built-in permission profiles are available', () => {
 })
 
 test('custom profile extends workspace and can deny narrower filesystem paths', () => {
-  const resolved = resolveCodexPermissions({
+  const resolved = resolveCodePilotXPermissions({
     config: {
       defaultPermissions: 'project-edit',
       permissions: {
@@ -61,7 +61,7 @@ test('custom profile extends workspace and can deny narrower filesystem paths', 
 
 test('custom profile cannot extend danger-full-access', () => {
   expect(() =>
-    resolveCodexPermissions({
+    resolveCodePilotXPermissions({
       config: {
         defaultPermissions: 'unsafe',
         permissions: {
@@ -75,7 +75,7 @@ test('custom profile cannot extend danger-full-access', () => {
 
 test('permission resolver rejects unknown parents and inheritance cycles', () => {
   expect(() =>
-    resolveCodexPermissions({
+    resolveCodePilotXPermissions({
       config: {
         defaultPermissions: 'child',
         permissions: {
@@ -87,7 +87,7 @@ test('permission resolver rejects unknown parents and inheritance cycles', () =>
   ).toThrow('Unknown permission profile: missing')
 
   expect(() =>
-    resolveCodexPermissions({
+    resolveCodePilotXPermissions({
       config: {
         defaultPermissions: 'a',
         permissions: {
@@ -101,7 +101,7 @@ test('permission resolver rejects unknown parents and inheritance cycles', () =>
 })
 
 test('filesystem precedence uses narrower matches and deny wins ties', () => {
-  const resolved = resolveCodexPermissions({
+  const resolved = resolveCodePilotXPermissions({
     config: {
       defaultPermissions: 'files',
       permissions: {
@@ -140,7 +140,7 @@ test('filesystem precedence uses narrower matches and deny wins ties', () => {
 })
 
 test('network domain rules support exact, wildcard, global, and deny priority', () => {
-  const resolved = resolveCodexPermissions({
+  const resolved = resolveCodePilotXPermissions({
     config: {
       defaultPermissions: 'net',
       permissions: {
@@ -175,7 +175,7 @@ test('network domain rules support exact, wildcard, global, and deny priority', 
 })
 
 test('requirements can provide managed defaults and restrict selectable profiles', () => {
-  const resolved = resolveCodexPermissions({
+  const resolved = resolveCodePilotXPermissions({
     config: {
       defaultPermissions: 'local-profile',
       permissions: {
@@ -198,7 +198,7 @@ test('requirements can provide managed defaults and restrict selectable profiles
   )
 
   expect(() =>
-    resolveCodexPermissions({
+    resolveCodePilotXPermissions({
       config: {
         defaultPermissions: 'local-profile',
         permissions: {
@@ -214,7 +214,7 @@ test('requirements can provide managed defaults and restrict selectable profiles
 })
 
 test('requirements.toml parser supports official permission policy fields', () => {
-  const requirements = parseCodexRequirements(`
+  const requirements = parseCodePilotXRequirements(`
 allowed_permission_profiles = [":workspace", "managed-edit"]
 default_permissions = "managed-edit"
 allowed_approval_policies = ["on-request", "never"]
@@ -239,7 +239,7 @@ allow_unix_sockets = ["/tmp/codex.sock"]
 allow_local_network = false
 `)
 
-  const resolved = resolveCodexPermissions({
+  const resolved = resolveCodePilotXPermissions({
     workspaceRoots: ['/repo'],
     requirements,
   })
@@ -260,9 +260,9 @@ allow_local_network = false
   expect(resolved.activeProfile.network.httpProxyPort).toBe(8080)
 })
 
-// CodexRuntimePermissionState tests
-test('createCodexRuntimePermissionState: CLI overrides take precedence over .codepilotx/config.toml', () => {
-  const projectConfig: CodexPermissionsConfig = {
+// CodePilotXRuntimePermissionState tests
+test('createCodePilotXRuntimePermissionState: CLI overrides take precedence over .codepilotx/config.toml', () => {
+  const projectConfig: CodePilotXPermissionsConfig = {
     defaultPermissions: ':workspace',
     approvalPolicy: 'on-request',
   }
@@ -270,7 +270,7 @@ test('createCodexRuntimePermissionState: CLI overrides take precedence over .cod
     defaultPermissions: ':danger-full-access',
     approvalPolicy: 'never' as const,
   }
-  const state = createCodexRuntimePermissionState({
+  const state = createCodePilotXRuntimePermissionState({
     projectConfig,
     overrides,
     workspaceRoots: ['/repo'],
@@ -284,13 +284,13 @@ test('createCodexRuntimePermissionState: CLI overrides take precedence over .cod
   expect(state.derivedPolicy.actionScopes?.write).toBe('allow')
 })
 
-test('createCodexRuntimePermissionState: project config overrides built-in defaults', () => {
-  const projectConfig: CodexPermissionsConfig = {
+test('createCodePilotXRuntimePermissionState: project config overrides built-in defaults', () => {
+  const projectConfig: CodePilotXPermissionsConfig = {
     defaultPermissions: ':read-only',
     approvalPolicy: 'on-failure',
     approvalsReviewer: 'auto_review',
   }
-  const state = createCodexRuntimePermissionState({
+  const state = createCodePilotXRuntimePermissionState({
     projectConfig,
     workspaceRoots: ['/repo'],
   })
@@ -313,8 +313,8 @@ test('desktop permission modes exclude plan mode', () => {
   expect(normalizeDesktopAgentPermissionMode('plan')).toBe('default')
 })
 
-test('createCodexRuntimePermissionState: official sandbox_mode maps to builtin profiles', () => {
-  const workspace = createCodexRuntimePermissionState({
+test('createCodePilotXRuntimePermissionState: official sandbox_mode maps to builtin profiles', () => {
+  const workspace = createCodePilotXRuntimePermissionState({
     projectConfig: { sandboxMode: 'workspace-write' },
     workspaceRoots: ['/repo'],
   })
@@ -322,14 +322,14 @@ test('createCodexRuntimePermissionState: official sandbox_mode maps to builtin p
   expect(workspace.derivedPolicy.sandboxMode).toBe('workspace-write')
   expect(workspace.sandboxOverlay.filesystem.allowWrite).toContain('/repo')
 
-  const readOnly = createCodexRuntimePermissionState({
+  const readOnly = createCodePilotXRuntimePermissionState({
     projectConfig: { sandboxMode: 'read-only' },
     workspaceRoots: ['/repo'],
   })
   expect(readOnly.resolved.defaultPermissions).toBe(':read-only')
   expect(readOnly.derivedPolicy.sandboxMode).toBe('read-only')
 
-  const fullAccess = createCodexRuntimePermissionState({
+  const fullAccess = createCodePilotXRuntimePermissionState({
     projectConfig: { sandboxMode: 'danger-full-access' },
     workspaceRoots: ['/repo'],
   })
@@ -337,8 +337,8 @@ test('createCodexRuntimePermissionState: official sandbox_mode maps to builtin p
   expect(fullAccess.derivedPolicy.sandboxMode).toBe('danger-full-access')
 })
 
-test('createCodexRuntimePermissionState: workspace-write writable roots and reviewer aliases', () => {
-  const state = createCodexRuntimePermissionState({
+test('createCodePilotXRuntimePermissionState: workspace-write writable roots and reviewer aliases', () => {
+  const state = createCodePilotXRuntimePermissionState({
     projectConfig: {
       sandboxMode: 'workspace-write',
       approvalsReviewer: 'guardian_subagent',
@@ -357,17 +357,17 @@ test('createCodexRuntimePermissionState: workspace-write writable roots and revi
   expect(state.resolved.activeProfile.network.enabled).toBe(true)
 })
 
-test('createCodexRuntimePermissionState: requirements have highest constraint', () => {
-  const projectConfig: CodexPermissionsConfig = {
+test('createCodePilotXRuntimePermissionState: requirements have highest constraint', () => {
+  const projectConfig: CodePilotXPermissionsConfig = {
     defaultPermissions: ':danger-full-access',
     approvalPolicy: 'never',
   }
-  const requirements: CodexRequirementsPolicy = {
+  const requirements: CodePilotXRequirementsPolicy = {
     defaultPermissions: ':workspace',
     allowedPermissionProfiles: [':workspace'],
     allowedApprovalPolicies: ['on-request', 'never'],
   }
-  const state = createCodexRuntimePermissionState({
+  const state = createCodePilotXRuntimePermissionState({
     projectConfig,
     requirements,
     workspaceRoots: ['/repo'],
@@ -380,15 +380,15 @@ test('createCodexRuntimePermissionState: requirements have highest constraint', 
   expect(state.resolved.approvalPolicy).toBe('never')
 })
 
-test('createCodexRuntimePermissionState: requirements reject invalid profiles', () => {
-  const projectConfig: CodexPermissionsConfig = {
+test('createCodePilotXRuntimePermissionState: requirements reject invalid profiles', () => {
+  const projectConfig: CodePilotXPermissionsConfig = {
     defaultPermissions: ':danger-full-access',
   }
-  const requirements: CodexRequirementsPolicy = {
+  const requirements: CodePilotXRequirementsPolicy = {
     allowedPermissionProfiles: [':read-only'],
   }
   expect(() =>
-    createCodexRuntimePermissionState({
+    createCodePilotXRuntimePermissionState({
       projectConfig,
       requirements,
       workspaceRoots: ['/repo'],
@@ -396,11 +396,11 @@ test('createCodexRuntimePermissionState: requirements reject invalid profiles', 
   ).toThrow('not allowed by requirements')
 })
 
-test('createCodexRuntimePermissionState: sandbox overlay for :workspace profile', () => {
-  const projectConfig: CodexPermissionsConfig = {
+test('createCodePilotXRuntimePermissionState: sandbox overlay for :workspace profile', () => {
+  const projectConfig: CodePilotXPermissionsConfig = {
     defaultPermissions: ':workspace',
   }
-  const state = createCodexRuntimePermissionState({
+  const state = createCodePilotXRuntimePermissionState({
     projectConfig,
     workspaceRoots: ['/repo'],
   })
@@ -410,11 +410,11 @@ test('createCodexRuntimePermissionState: sandbox overlay for :workspace profile'
   expect(state.sandboxOverlay.network.allowedDomains).toEqual([])
 })
 
-test('createCodexRuntimePermissionState: sandbox overlay for :danger-full-access profile', () => {
-  const projectConfig: CodexPermissionsConfig = {
+test('createCodePilotXRuntimePermissionState: sandbox overlay for :danger-full-access profile', () => {
+  const projectConfig: CodePilotXPermissionsConfig = {
     defaultPermissions: ':danger-full-access',
   }
-  const state = createCodexRuntimePermissionState({
+  const state = createCodePilotXRuntimePermissionState({
     projectConfig,
     workspaceRoots: ['/repo'],
   })
@@ -426,11 +426,11 @@ test('createCodexRuntimePermissionState: sandbox overlay for :danger-full-access
   expect(state.sandboxOverlay.network.allowedDomains).toContain('*')
 })
 
-test('createCodexRuntimePermissionState: sandbox overlay for :read-only profile', () => {
-  const projectConfig: CodexPermissionsConfig = {
+test('createCodePilotXRuntimePermissionState: sandbox overlay for :read-only profile', () => {
+  const projectConfig: CodePilotXPermissionsConfig = {
     defaultPermissions: ':read-only',
   }
-  const state = createCodexRuntimePermissionState({
+  const state = createCodePilotXRuntimePermissionState({
     projectConfig,
     workspaceRoots: ['/repo'],
   })
@@ -439,8 +439,8 @@ test('createCodexRuntimePermissionState: sandbox overlay for :read-only profile'
   expect(state.sandboxOverlay.filesystem.allowWrite).toEqual([])
 })
 
-test('createCodexRuntimePermissionState: custom profile with filesystem deny rules', () => {
-  const projectConfig: CodexPermissionsConfig = {
+test('createCodePilotXRuntimePermissionState: custom profile with filesystem deny rules', () => {
+  const projectConfig: CodePilotXPermissionsConfig = {
     defaultPermissions: 'restricted',
     permissions: {
       restricted: {
@@ -452,7 +452,7 @@ test('createCodexRuntimePermissionState: custom profile with filesystem deny rul
       },
     },
   }
-  const state = createCodexRuntimePermissionState({
+  const state = createCodePilotXRuntimePermissionState({
     projectConfig,
     workspaceRoots: ['/repo'],
   })
@@ -464,8 +464,8 @@ test('createCodexRuntimePermissionState: custom profile with filesystem deny rul
   expect(state.sandboxOverlay.filesystem.denyRead).toContain('**/*.secret')
 })
 
-test('createCodexRuntimePermissionState: custom profile with network domain rules', () => {
-  const projectConfig: CodexPermissionsConfig = {
+test('createCodePilotXRuntimePermissionState: custom profile with network domain rules', () => {
+  const projectConfig: CodePilotXPermissionsConfig = {
     defaultPermissions: 'netted',
     permissions: {
       netted: {
@@ -479,7 +479,7 @@ test('createCodexRuntimePermissionState: custom profile with network domain rule
       },
     },
   }
-  const state = createCodexRuntimePermissionState({
+  const state = createCodePilotXRuntimePermissionState({
     projectConfig,
     workspaceRoots: ['/repo'],
   })
@@ -488,7 +488,7 @@ test('createCodexRuntimePermissionState: custom profile with network domain rule
   expect(state.sandboxOverlay.network.deniedDomains).toContain('evil.test')
 })
 
-test('permissionPolicyForDesktopMode exposes official Codex sandbox modes', () => {
+test('permissionPolicyForDesktopMode exposes official CodePilotX sandbox modes', () => {
   expect(permissionPolicyForDesktopMode('default')).toMatchObject({
     profile: ':workspace',
     approvalMode: 'on-request',

@@ -4,13 +4,20 @@ import { join, relative, resolve, sep } from 'node:path'
 import type { AgentPermissionPolicy } from './permissions.js'
 import {
   CODEX_PROJECT_CONFIG_SOURCE,
-  parseCodexProjectConfig,
-  type CodexHookDiagnostic,
-  type CodexMcpServerDiagnostic,
-  type CodexProjectConfig,
+  parseCodePilotXProjectConfig,
+  type CodePilotXHookDiagnostic,
+  type CodePilotXMcpServerDiagnostic,
+  type CodePilotXProjectConfig,
 } from './codexProjectConfig.js'
 
-export type CodexGuidanceSource = {
+// Re-export for backward compatibility
+export type {
+  CodePilotXHookDiagnostic,
+  CodePilotXMcpServerDiagnostic,
+  CodePilotXProjectConfig,
+}
+
+export type CodePilotXGuidanceSource = {
   path: string
   relativePath: string
   level: number
@@ -20,70 +27,70 @@ export type CodexGuidanceSource = {
 }
 
 export type {
-  CodexHookDiagnostic,
-  CodexMcpServerDiagnostic,
-  CodexProjectConfig,
+  CodePilotXHookDiagnostic,
+  CodePilotXMcpServerDiagnostic,
+  CodePilotXProjectConfig,
 }
 
-export type CodexSkillDiagnostic = {
+export type CodePilotXSkillDiagnostic = {
   name: string
   description?: string
   path: string
 }
 
-export type CodexProjectConfigDiagnostics = {
+export type CodePilotXProjectConfigDiagnostics = {
   path: string | null
-  config: CodexProjectConfig
+  config: CodePilotXProjectConfig
   ignoredProjectKeys: string[]
   diagnostics: string[]
 }
 
-export type CodexContextDiagnostics = {
-  guidanceSources: CodexGuidanceSource[]
-  projectConfig: CodexProjectConfigDiagnostics
+export type CodePilotXContextDiagnostics = {
+  guidanceSources: CodePilotXGuidanceSource[]
+  projectConfig: CodePilotXProjectConfigDiagnostics
   permissionProfile?: AgentPermissionPolicy
-  skills: CodexSkillDiagnostic[]
+  skills: CodePilotXSkillDiagnostic[]
 }
 
-export type DiscoverCodexGuidanceOptions = {
+export type DiscoverCodePilotXGuidanceOptions = {
   projectRoot: string
   cwd: string
 }
 
-export type BuildCodexContextDiagnosticsOptions =
-  DiscoverCodexGuidanceOptions & {
+export type BuildCodePilotXContextDiagnosticsOptions =
+  DiscoverCodePilotXGuidanceOptions & {
     permissionProfile?: AgentPermissionPolicy
-    skills?: CodexSkillDiagnostic[]
+    skills?: CodePilotXSkillDiagnostic[]
   }
 
-export type CodexWorkspaceTextFile = {
+export type CodePilotXWorkspaceTextFile = {
   path?: string
   content: string
 }
 
-export type CodexWorkspaceFileReader = (
+export type CodePilotXWorkspaceFileReader = (
   relativePath: string,
-) => Promise<CodexWorkspaceTextFile | null>
+) => Promise<CodePilotXWorkspaceTextFile | null>
 
-export type DiscoverCodexGuidanceFromWorkspaceOptions =
-  DiscoverCodexGuidanceOptions & {
-    readFile: CodexWorkspaceFileReader
+export type DiscoverCodePilotXGuidanceFromWorkspaceOptions =
+  DiscoverCodePilotXGuidanceOptions & {
+    readFile: CodePilotXWorkspaceFileReader
   }
 
-export type BuildCodexContextDiagnosticsFromWorkspaceOptions =
-  BuildCodexContextDiagnosticsOptions & {
-    readFile: CodexWorkspaceFileReader
+export type BuildCodePilotXContextDiagnosticsFromWorkspaceOptions =
+  BuildCodePilotXContextDiagnosticsOptions & {
+    readFile: CodePilotXWorkspaceFileReader
   }
 
-export async function buildCodexContextDiagnostics({
+export async function buildCodePilotXContextDiagnostics({
   cwd,
   permissionProfile,
   projectRoot,
   skills = [],
-}: BuildCodexContextDiagnosticsOptions): Promise<CodexContextDiagnostics> {
+}: BuildCodePilotXContextDiagnosticsOptions): Promise<CodePilotXContextDiagnostics> {
   const [guidanceSources, projectConfig] = await Promise.all([
-    discoverCodexGuidanceSources({ cwd, projectRoot }),
-    readCodexProjectConfig(projectRoot),
+    discoverCodePilotXGuidanceSources({ cwd, projectRoot }),
+    readCodePilotXProjectConfig(projectRoot),
   ])
   return {
     guidanceSources,
@@ -93,20 +100,23 @@ export async function buildCodexContextDiagnostics({
   }
 }
 
-export async function buildCodexContextDiagnosticsFromWorkspaceFiles({
+// Transitional alias while call sites migrate.
+export const buildCodexContextDiagnostics = buildCodePilotXContextDiagnostics
+
+export async function buildCodePilotXContextDiagnosticsFromWorkspaceFiles({
   cwd,
   permissionProfile,
   projectRoot,
   readFile,
   skills = [],
-}: BuildCodexContextDiagnosticsFromWorkspaceOptions): Promise<CodexContextDiagnostics> {
+}: BuildCodePilotXContextDiagnosticsFromWorkspaceOptions): Promise<CodePilotXContextDiagnostics> {
   const [guidanceSources, projectConfig] = await Promise.all([
-    discoverCodexGuidanceSourcesFromWorkspaceFiles({
+    discoverCodePilotXGuidanceSourcesFromWorkspaceFiles({
       cwd,
       projectRoot,
       readFile,
     }),
-    readCodexProjectConfigFromWorkspaceFiles(projectRoot, readFile),
+    readCodePilotXProjectConfigFromWorkspaceFiles(projectRoot, readFile),
   ])
   return {
     guidanceSources,
@@ -116,14 +126,17 @@ export async function buildCodexContextDiagnosticsFromWorkspaceFiles({
   }
 }
 
-export async function discoverCodexGuidanceSources({
+// Transitional alias while call sites migrate.
+export const buildCodexContextDiagnosticsFromWorkspaceFiles = buildCodePilotXContextDiagnosticsFromWorkspaceFiles
+
+export async function discoverCodePilotXGuidanceSources({
   cwd,
   projectRoot,
-}: DiscoverCodexGuidanceOptions): Promise<CodexGuidanceSource[]> {
+}: DiscoverCodePilotXGuidanceOptions): Promise<CodePilotXGuidanceSource[]> {
   const root = resolve(projectRoot)
   const current = resolve(cwd)
   const directories = directoriesFromRoot(root, current)
-  const sources: CodexGuidanceSource[] = []
+  const sources: CodePilotXGuidanceSource[] = []
 
   for (let level = 0; level < directories.length; level += 1) {
     const directory = directories[level]
@@ -151,15 +164,18 @@ export async function discoverCodexGuidanceSources({
   return sources
 }
 
-export async function discoverCodexGuidanceSourcesFromWorkspaceFiles({
+// Transitional alias while call sites migrate.
+export const discoverCodexGuidanceSources = discoverCodePilotXGuidanceSources
+
+export async function discoverCodePilotXGuidanceSourcesFromWorkspaceFiles({
   cwd,
   projectRoot,
   readFile,
-}: DiscoverCodexGuidanceFromWorkspaceOptions): Promise<CodexGuidanceSource[]> {
+}: DiscoverCodePilotXGuidanceFromWorkspaceOptions): Promise<CodePilotXGuidanceSource[]> {
   const root = resolve(projectRoot)
   const current = resolve(cwd)
   const directories = directoriesFromRoot(root, current)
-  const sources: CodexGuidanceSource[] = []
+  const sources: CodePilotXGuidanceSource[] = []
 
   for (let level = 0; level < directories.length; level += 1) {
     const directory = directories[level]
@@ -188,38 +204,47 @@ export async function discoverCodexGuidanceSourcesFromWorkspaceFiles({
   return sources
 }
 
-export async function readCodexProjectConfig(
+// Transitional alias while call sites migrate.
+export const discoverCodexGuidanceSourcesFromWorkspaceFiles = discoverCodePilotXGuidanceSourcesFromWorkspaceFiles
+
+export async function readCodePilotXProjectConfig(
   projectRoot: string,
-): Promise<CodexProjectConfigDiagnostics> {
+): Promise<CodePilotXProjectConfigDiagnostics> {
   const configPath = join(resolve(projectRoot), '.codepilotx', 'config.toml')
   if (!(await pathExists(configPath))) {
     return emptyProjectConfig()
   }
 
   const content = await readFile(configPath, 'utf8')
-  return readCodexProjectConfigFromContent(configPath, content)
+  return readCodePilotXProjectConfigFromContent(configPath, content)
 }
 
-export async function readCodexProjectConfigFromWorkspaceFiles(
+// Transitional alias while call sites migrate.
+export const readCodexProjectConfig = readCodePilotXProjectConfig
+
+export async function readCodePilotXProjectConfigFromWorkspaceFiles(
   projectRoot: string,
-  readFile: CodexWorkspaceFileReader,
-): Promise<CodexProjectConfigDiagnostics> {
+  readFile: CodePilotXWorkspaceFileReader,
+): Promise<CodePilotXProjectConfigDiagnostics> {
   const config = await readFile(CODEX_PROJECT_CONFIG_SOURCE)
   if (!config) return emptyProjectConfig()
-  return readCodexProjectConfigFromContent(
+  return readCodePilotXProjectConfigFromContent(
     config.path ?? join(resolve(projectRoot), CODEX_PROJECT_CONFIG_SOURCE),
     config.content,
   )
 }
 
-export function readCodexProjectConfigFromContent(
+// Transitional alias while call sites migrate.
+export const readCodexProjectConfigFromWorkspaceFiles = readCodePilotXProjectConfigFromWorkspaceFiles
+
+export function readCodePilotXProjectConfigFromContent(
   configPath: string,
   content: string,
-): CodexProjectConfigDiagnostics {
+): CodePilotXProjectConfigDiagnostics {
   try {
     return {
       path: configPath,
-      ...parseCodexProjectConfig(content),
+      ...parseCodePilotXProjectConfig(content),
     }
   } catch (error) {
     return {
@@ -235,7 +260,10 @@ export function readCodexProjectConfigFromContent(
   }
 }
 
-function emptyProjectConfig(): CodexProjectConfigDiagnostics {
+// Transitional alias while call sites migrate.
+export const readCodexProjectConfigFromContent = readCodePilotXProjectConfigFromContent
+
+function emptyProjectConfig(): CodePilotXProjectConfigDiagnostics {
   return {
     path: null,
     config: {},
@@ -281,7 +309,7 @@ function guidanceSourceFromContent({
   isOverride: boolean
   level: number
   relativePath: string
-}): CodexGuidanceSource {
+}): CodePilotXGuidanceSource {
   return {
     path: absolutePath,
     relativePath,

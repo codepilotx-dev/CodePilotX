@@ -1,36 +1,36 @@
 import picomatch from 'picomatch'
 
-export const BUILTIN_CODEX_PERMISSION_PROFILES = [
+export const BUILTIN_CODEPILOTX_PERMISSION_PROFILES = [
   ':read-only',
   ':workspace',
   ':danger-full-access',
 ] as const
 
-export type BuiltinCodexPermissionProfile =
-  (typeof BUILTIN_CODEX_PERMISSION_PROFILES)[number]
+export type BuiltinCodePilotXPermissionProfile =
+  (typeof BUILTIN_CODEPILOTX_PERMISSION_PROFILES)[number]
 
-export type CodexFilesystemAccess = 'read' | 'write' | 'deny'
-export type CodexNetworkAccess = 'allow' | 'deny'
-export type CodexApprovalPolicy =
+export type CodePilotXFilesystemAccess = 'read' | 'write' | 'deny'
+export type CodePilotXNetworkAccess = 'allow' | 'deny'
+export type CodePilotXApprovalPolicy =
   | 'untrusted'
   | 'on-request'
   | 'on-failure'
   | 'never'
-export type CodexApprovalsReviewer = 'user' | 'auto_review'
-export type LegacyCodexApprovalsReviewer = 'auto' | 'guardian_subagent'
-export type CodexSandboxMode =
+export type CodePilotXApprovalsReviewer = 'user' | 'auto_review'
+export type LegacyCodePilotXApprovalsReviewer = 'auto' | 'guardian_subagent'
+export type CodePilotXSandboxMode =
   | 'read-only'
   | 'workspace-write'
   | 'danger-full-access'
 
-export type CodexFilesystemRules = Record<
+export type CodePilotXFilesystemRules = Record<
   string,
-  CodexFilesystemAccess | CodexFilesystemAccess[]
+  CodePilotXFilesystemAccess | CodePilotXFilesystemAccess[]
 >
 
-export type CodexNetworkConfig = {
+export type CodePilotXNetworkConfig = {
   enabled?: boolean
-  domains?: Record<string, CodexNetworkAccess>
+  domains?: Record<string, CodePilotXNetworkAccess>
   allowLocalNetwork?: boolean
   allowPrivateNetwork?: boolean
   allowUnixSockets?: string[]
@@ -39,38 +39,38 @@ export type CodexNetworkConfig = {
   socksProxyPort?: number
 }
 
-export type CodexPermissionProfileConfig = {
+export type CodePilotXPermissionProfileConfig = {
   description?: string
   extends?: string
   workspaceRoots?: string[]
-  filesystem?: CodexFilesystemRules
-  network?: CodexNetworkConfig
+  filesystem?: CodePilotXFilesystemRules
+  network?: CodePilotXNetworkConfig
 }
 
-export type CodexSandboxWorkspaceWriteConfig = {
+export type CodePilotXSandboxWorkspaceWriteConfig = {
   writableRoots?: string[]
   networkAccess?: boolean
 }
 
-export type CodexPermissionsConfig = {
-  sandboxMode?: CodexSandboxMode
-  sandboxWorkspaceWrite?: CodexSandboxWorkspaceWriteConfig
+export type CodePilotXPermissionsConfig = {
+  sandboxMode?: CodePilotXSandboxMode
+  sandboxWorkspaceWrite?: CodePilotXSandboxWorkspaceWriteConfig
   defaultPermissions?: string
-  approvalPolicy?: CodexApprovalPolicy
-  approvalsReviewer?: CodexApprovalsReviewer | LegacyCodexApprovalsReviewer
-  permissions?: Record<string, CodexPermissionProfileConfig>
+  approvalPolicy?: CodePilotXApprovalPolicy
+  approvalsReviewer?: CodePilotXApprovalsReviewer | LegacyCodePilotXApprovalsReviewer
+  permissions?: Record<string, CodePilotXPermissionProfileConfig>
 }
 
-export type CodexRequirementsPolicy = {
+export type CodePilotXRequirementsPolicy = {
   defaultPermissions?: string
   allowedPermissionProfiles?: string[]
-  allowedApprovalPolicies?: CodexApprovalPolicy[]
-  allowedApprovalsReviewers?: CodexApprovalsReviewer[]
-  permissions?: Record<string, CodexPermissionProfileConfig>
+  allowedApprovalPolicies?: CodePilotXApprovalPolicy[]
+  allowedApprovalsReviewers?: CodePilotXApprovalsReviewer[]
+  permissions?: Record<string, CodePilotXPermissionProfileConfig>
   filesystem?: {
     denyRead?: string[]
   }
-  experimentalNetwork?: CodexNetworkConfig & {
+  experimentalNetwork?: CodePilotXNetworkConfig & {
     allowedDomains?: string[]
     deniedDomains?: string[]
     managedAllowedDomainsOnly?: boolean
@@ -79,44 +79,44 @@ export type CodexRequirementsPolicy = {
 
 export type ResolvedFilesystemRule = {
   path: string
-  access: CodexFilesystemAccess
+  access: CodePilotXFilesystemAccess
   source?: 'builtin' | 'config' | 'requirements'
 }
 
-export type ResolvedCodexPermissionProfile = {
+export type ResolvedCodePilotXPermissionProfile = {
   name: string
   description?: string
   dangerFullAccess: boolean
   workspaceRoots: string[]
   filesystem: ResolvedFilesystemRule[]
-  network: Required<Pick<CodexNetworkConfig, 'enabled'>> &
-    Omit<CodexNetworkConfig, 'enabled'>
+  network: Required<Pick<CodePilotXNetworkConfig, 'enabled'>> &
+    Omit<CodePilotXNetworkConfig, 'enabled'>
 }
 
-export type ResolvedCodexPermissions = {
+export type ResolvedCodePilotXPermissions = {
   defaultPermissions: string
-  approvalPolicy: CodexApprovalPolicy
-  approvalsReviewer: CodexApprovalsReviewer
-  activeProfile: ResolvedCodexPermissionProfile
-  profiles: Record<string, ResolvedCodexPermissionProfile>
+  approvalPolicy: CodePilotXApprovalPolicy
+  approvalsReviewer: CodePilotXApprovalsReviewer
+  activeProfile: ResolvedCodePilotXPermissionProfile
+  profiles: Record<string, ResolvedCodePilotXPermissionProfile>
   diagnostics: string[]
 }
 
-const ACCESS_RANK: Record<CodexFilesystemAccess, number> = {
+const ACCESS_RANK: Record<CodePilotXFilesystemAccess, number> = {
   read: 1,
   write: 2,
   deny: 3,
 }
 
-export function resolveCodexPermissions({
+export function resolveCodePilotXPermissions({
   config = {},
   requirements,
   workspaceRoots,
 }: {
-  config?: CodexPermissionsConfig
-  requirements?: CodexRequirementsPolicy
+  config?: CodePilotXPermissionsConfig
+  requirements?: CodePilotXRequirementsPolicy
   workspaceRoots: string[]
-}): ResolvedCodexPermissions {
+}): ResolvedCodePilotXPermissions {
   const diagnostics: string[] = []
   const configProfiles = config.permissions ?? {}
   const requirementProfiles = requirements?.permissions ?? {}
@@ -126,7 +126,7 @@ export function resolveCodexPermissions({
     }
   }
 
-  const rawProfiles: Record<string, CodexPermissionProfileConfig> = {
+  const rawProfiles: Record<string, CodePilotXPermissionProfileConfig> = {
     ':read-only': {
       filesystem: { ':workspace_roots': 'read' },
       network: { enabled: false },
@@ -156,7 +156,7 @@ export function resolveCodexPermissions({
   )
   assertRequirementsAllowApproval(approvalPolicy, approvalsReviewer, requirements)
 
-  const profiles: Record<string, ResolvedCodexPermissionProfile> = {}
+  const profiles: Record<string, ResolvedCodePilotXPermissionProfile> = {}
   const resolving = new Set<string>()
   for (const name of Object.keys(rawProfiles)) {
     profiles[name] = resolveProfile(
@@ -198,17 +198,20 @@ export function resolveCodexPermissions({
   }
 }
 
-export function normalizeCodexApprovalsReviewer(
-  value: CodexApprovalsReviewer | LegacyCodexApprovalsReviewer | undefined,
-): CodexApprovalsReviewer {
+export function normalizeCodePilotXApprovalsReviewer(
+  value: CodePilotXApprovalsReviewer | LegacyCodePilotXApprovalsReviewer | undefined,
+): CodePilotXApprovalsReviewer {
   return value === 'auto' || value === 'guardian_subagent'
     ? 'auto_review'
     : value ?? 'user'
 }
 
+// Transitional alias while call sites migrate.
+export const normalizeCodexApprovalsReviewer = normalizeCodePilotXApprovalsReviewer
+
 export function permissionProfileForSandboxMode(
-  sandboxMode: CodexSandboxMode | undefined,
-): BuiltinCodexPermissionProfile | undefined {
+  sandboxMode: CodePilotXSandboxMode | undefined,
+): BuiltinCodePilotXPermissionProfile | undefined {
   switch (sandboxMode) {
     case 'read-only':
       return ':read-only'
@@ -223,10 +226,10 @@ export function permissionProfileForSandboxMode(
 
 function resolveProfile(
   name: string,
-  rawProfiles: Record<string, CodexPermissionProfileConfig>,
+  rawProfiles: Record<string, CodePilotXPermissionProfileConfig>,
   resolving: Set<string>,
   runtimeWorkspaceRoots: string[],
-): ResolvedCodexPermissionProfile {
+): ResolvedCodePilotXPermissionProfile {
   const raw = rawProfiles[name]
   if (!raw) {
     throw new Error(`Unknown permission profile: ${name}`)
@@ -274,7 +277,7 @@ function resolveProfile(
 }
 
 function filesystemRulesFromConfig(
-  rules: CodexFilesystemRules,
+  rules: CodePilotXFilesystemRules,
   workspaceRoots: string[],
 ): ResolvedFilesystemRule[] {
   return Object.entries(rules).flatMap(([path, access]) => {
@@ -288,9 +291,9 @@ function filesystemRulesFromConfig(
 }
 
 export function evaluateFilesystemAccess(
-  profile: ResolvedCodexPermissionProfile,
+  profile: ResolvedCodePilotXPermissionProfile,
   inputPath: string,
-): CodexFilesystemAccess | 'none' {
+): CodePilotXFilesystemAccess | 'none' {
   if (profile.dangerFullAccess) return 'write'
   const path = normalizePath(inputPath)
   const expandedRules = profile.filesystem.flatMap(rule => {
@@ -312,9 +315,9 @@ export function evaluateFilesystemAccess(
 }
 
 export function evaluateNetworkDomainAccess(
-  profile: ResolvedCodexPermissionProfile,
+  profile: ResolvedCodePilotXPermissionProfile,
   domain: string,
-): CodexNetworkAccess {
+): CodePilotXNetworkAccess {
   if (profile.dangerFullAccess) return 'allow'
   if (!profile.network.enabled) return 'deny'
   const normalized = domain.toLowerCase()
@@ -367,8 +370,8 @@ function domainRuleSpecificity(pattern: string): number {
 }
 
 function applyRequirementsNetwork(
-  profile: ResolvedCodexPermissionProfile,
-  network: NonNullable<CodexRequirementsPolicy['experimentalNetwork']>,
+  profile: ResolvedCodePilotXPermissionProfile,
+  network: NonNullable<CodePilotXRequirementsPolicy['experimentalNetwork']>,
 ): void {
   if (network.enabled !== undefined) profile.network.enabled = network.enabled
   profile.network.domains = profile.network.domains ?? {}
@@ -405,8 +408,8 @@ function applyRequirementsNetwork(
 }
 
 function applySandboxWorkspaceWriteConfig(
-  profile: ResolvedCodexPermissionProfile,
-  config: CodexPermissionsConfig,
+  profile: ResolvedCodePilotXPermissionProfile,
+  config: CodePilotXPermissionsConfig,
 ): void {
   if (config.sandboxMode !== 'workspace-write') return
   const workspaceWrite = config.sandboxWorkspaceWrite
@@ -425,7 +428,7 @@ function applySandboxWorkspaceWriteConfig(
 
 function assertRequirementsAllowProfile(
   profile: string,
-  requirements: CodexRequirementsPolicy | undefined,
+  requirements: CodePilotXRequirementsPolicy | undefined,
 ): void {
   const allowed = requirements?.allowedPermissionProfiles
   if (allowed && !allowed.includes(profile)) {
@@ -434,9 +437,9 @@ function assertRequirementsAllowProfile(
 }
 
 function assertRequirementsAllowApproval(
-  approvalPolicy: CodexApprovalPolicy,
-  approvalsReviewer: CodexApprovalsReviewer,
-  requirements: CodexRequirementsPolicy | undefined,
+  approvalPolicy: CodePilotXApprovalPolicy,
+  approvalsReviewer: CodePilotXApprovalsReviewer,
+  requirements: CodePilotXRequirementsPolicy | undefined,
 ): void {
   if (
     requirements?.allowedApprovalPolicies &&
@@ -454,8 +457,8 @@ function assertRequirementsAllowApproval(
   }
 }
 
-function isBuiltinProfileName(name: string): name is BuiltinCodexPermissionProfile {
-  return (BUILTIN_CODEX_PERMISSION_PROFILES as readonly string[]).includes(name)
+function isBuiltinProfileName(name: string): name is BuiltinCodePilotXPermissionProfile {
+  return (BUILTIN_CODEPILOTX_PERMISSION_PROFILES as readonly string[]).includes(name)
 }
 
 function normalizeWorkspaceRoots(roots: string[]): string[] {
@@ -467,13 +470,13 @@ function normalizePath(path: string): string {
   return normalized || '/'
 }
 
-export type CodexRuntimePermissionState = {
-  resolved: ResolvedCodexPermissions
+export type CodePilotXRuntimePermissionState = {
+  resolved: ResolvedCodePilotXPermissions
   derivedPolicy: AgentPermissionPolicy
-  sandboxOverlay: CodexPermissionSandboxOverlay
+  sandboxOverlay: CodePilotXPermissionSandboxOverlay
 }
 
-export type CodexPermissionSandboxOverlay = {
+export type CodePilotXPermissionSandboxOverlay = {
   filesystem: {
     allowWrite: string[]
     denyWrite: string[]
@@ -486,23 +489,23 @@ export type CodexPermissionSandboxOverlay = {
   }
 }
 
-export function createCodexRuntimePermissionState({
+export function createCodePilotXRuntimePermissionState({
   projectConfig,
   overrides = {},
   requirements,
   workspaceRoots,
 }: {
-  projectConfig?: CodexPermissionsConfig
+  projectConfig?: CodePilotXPermissionsConfig
   overrides?: {
-    sandboxMode?: CodexSandboxMode
+    sandboxMode?: CodePilotXSandboxMode
     defaultPermissions?: string
-    approvalPolicy?: CodexApprovalPolicy
-    approvalsReviewer?: CodexApprovalsReviewer | LegacyCodexApprovalsReviewer
+    approvalPolicy?: CodePilotXApprovalPolicy
+    approvalsReviewer?: CodePilotXApprovalsReviewer | LegacyCodePilotXApprovalsReviewer
   }
-  requirements?: CodexRequirementsPolicy
+  requirements?: CodePilotXRequirementsPolicy
   workspaceRoots: string[]
-}): CodexRuntimePermissionState {
-  const config: CodexPermissionsConfig = {
+}): CodePilotXRuntimePermissionState {
+  const config: CodePilotXPermissionsConfig = {
     ...projectConfig,
     sandboxMode: overrides.sandboxMode ?? projectConfig?.sandboxMode,
     defaultPermissions:
@@ -514,15 +517,18 @@ export function createCodexRuntimePermissionState({
       overrides.approvalsReviewer ?? projectConfig?.approvalsReviewer,
   }
 
-  const resolved = resolveCodexPermissions({ config, requirements, workspaceRoots })
+  const resolved = resolveCodePilotXPermissions({ config, requirements, workspaceRoots })
   const derivedPolicy = convertResolvedPermissionsToPolicy(resolved)
   const sandboxOverlay = buildSandboxOverlayFromResolved(resolved)
 
   return { resolved, derivedPolicy, sandboxOverlay }
 }
 
+// Transitional alias while call sites migrate.
+export const createCodexRuntimePermissionState = createCodePilotXRuntimePermissionState
+
 function convertResolvedPermissionsToPolicy(
-  resolved: ResolvedCodexPermissions,
+  resolved: ResolvedCodePilotXPermissions,
 ): AgentPermissionPolicy {
   const profile = resolved.defaultPermissions
   const approvalMode = resolved.approvalPolicy
@@ -557,8 +563,8 @@ function convertResolvedPermissionsToPolicy(
 }
 
 function sandboxModeForResolvedProfile(
-  profile: ResolvedCodexPermissionProfile,
-): CodexSandboxMode {
+  profile: ResolvedCodePilotXPermissionProfile,
+): CodePilotXSandboxMode {
   if (profile.dangerFullAccess) return 'danger-full-access'
   const workspaceAccesses = profile.workspaceRoots.map(root =>
     evaluateFilesystemAccess(profile, root),
@@ -569,8 +575,8 @@ function sandboxModeForResolvedProfile(
 }
 
 function buildSandboxOverlayFromResolved(
-  resolved: ResolvedCodexPermissions,
-): CodexPermissionSandboxOverlay {
+  resolved: ResolvedCodePilotXPermissions,
+): CodePilotXPermissionSandboxOverlay {
   const profile = resolved.activeProfile
   const allowWrite: string[] = []
   const denyWrite: string[] = []
@@ -622,9 +628,9 @@ function buildSandboxOverlayFromResolved(
 }
 
 // Transitional aliases kept while Desktop/TUI call sites move to the official model.
-export type AgentPermissionProfile = BuiltinCodexPermissionProfile | string
+export type AgentPermissionProfile = BuiltinCodePilotXPermissionProfile | string
 export type AgentApprovalMode =
-  | CodexApprovalPolicy
+  | CodePilotXApprovalPolicy
   | 'prompt'
   | 'auto-review'
   | 'auto-approve-edits'
@@ -656,8 +662,8 @@ export type AgentToolPermissionOverrides = Record<
 export type AgentPermissionPolicy = {
   profile: AgentPermissionProfile
   approvalMode: AgentApprovalMode
-  approvalsReviewer?: CodexApprovalsReviewer
-  sandboxMode?: CodexSandboxMode
+  approvalsReviewer?: CodePilotXApprovalsReviewer
+  sandboxMode?: CodePilotXSandboxMode
   sandboxPolicy?: AgentSandboxPolicy
   actionScopes?: AgentPermissionActionScopes
   toolOverrides?: AgentToolPermissionOverrides
@@ -676,7 +682,7 @@ export type AgentPermissionRequest = {
   description: string
   profile?: AgentPermissionProfile
   approvalMode?: AgentApprovalMode
-  approvalsReviewer?: CodexApprovalsReviewer
+  approvalsReviewer?: CodePilotXApprovalsReviewer
   requestKind?:
     | 'shell-command'
     | 'file-write'

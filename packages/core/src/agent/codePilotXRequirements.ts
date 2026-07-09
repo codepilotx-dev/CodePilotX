@@ -1,16 +1,16 @@
 import { parse as parseToml } from 'smol-toml'
 import type {
-  CodexPermissionProfileConfig,
-  CodexRequirementsPolicy,
+  CodePilotXPermissionProfileConfig,
+  CodePilotXRequirementsPolicy,
 } from './permissions.js'
-import { normalizeCodexApprovalsReviewer } from './permissions.js'
-import type { CodexFilesystemRules, CodexNetworkConfig } from './permissions.js'
+import { normalizeCodePilotXApprovalsReviewer } from './permissions.js'
+import type { CodePilotXFilesystemRules, CodePilotXNetworkConfig } from './permissions.js'
 
 type TomlRecord = Record<string, unknown>
 
-export function parseCodexRequirements(content: string): CodexRequirementsPolicy {
+export function parseCodePilotXRequirements(content: string): CodePilotXRequirementsPolicy {
   const parsed = parseToml(content) as TomlRecord
-  const policy: CodexRequirementsPolicy = {}
+  const policy: CodePilotXRequirementsPolicy = {}
 
   if (isStringArray(parsed.allowed_permission_profiles)) {
     policy.allowedPermissionProfiles = parsed.allowed_permission_profiles
@@ -27,7 +27,7 @@ export function parseCodexRequirements(content: string): CodexRequirementsPolicy
     policy.allowedApprovalsReviewers =
       parsed.allowed_approvals_reviewers
         .filter(isApprovalsReviewer)
-        .map(normalizeCodexApprovalsReviewer)
+        .map(normalizeCodePilotXApprovalsReviewer)
   }
 
   const permissions = parseManagedPermissions(parsed.permissions)
@@ -54,15 +54,18 @@ export function parseCodexRequirements(content: string): CodexRequirementsPolicy
   return policy
 }
 
+// Transitional alias while call sites migrate.
+export const parseCodexRequirements = parseCodePilotXRequirements
+
 function parseManagedPermissions(
   value: unknown,
-): Record<string, CodexPermissionProfileConfig> | undefined {
+): Record<string, CodePilotXPermissionProfileConfig> | undefined {
   if (!isRecord(value)) return undefined
-  const result: Record<string, CodexPermissionProfileConfig> = {}
+  const result: Record<string, CodePilotXPermissionProfileConfig> = {}
   for (const [name, rawProfile] of Object.entries(value)) {
     if (!isRecord(rawProfile)) continue
     if (name === 'filesystem') continue
-    const profile: CodexPermissionProfileConfig = {}
+    const profile: CodePilotXPermissionProfileConfig = {}
     if (typeof rawProfile.description === 'string') {
       profile.description = rawProfile.description
     }
@@ -83,9 +86,9 @@ function parseManagedPermissions(
 
 function parseExperimentalNetwork(
   value: unknown,
-): CodexRequirementsPolicy['experimentalNetwork'] | undefined {
+): CodePilotXRequirementsPolicy['experimentalNetwork'] | undefined {
   if (!isRecord(value)) return undefined
-  const network: NonNullable<CodexRequirementsPolicy['experimentalNetwork']> = {}
+  const network: NonNullable<CodePilotXRequirementsPolicy['experimentalNetwork']> = {}
   if (typeof value.enabled === 'boolean') network.enabled = value.enabled
   if (isStringArray(value.domains)) network.domains = value.domains
   if (isStringArray(value.allowed_domains)) {
@@ -118,9 +121,9 @@ function parseExperimentalNetwork(
   return Object.keys(network).length > 0 ? network : undefined
 }
 
-function parseFilesystem(value: unknown): CodexFilesystemRules | undefined {
+function parseFilesystem(value: unknown): CodePilotXFilesystemRules | undefined {
   if (!isRecord(value)) return undefined
-  const filesystem: CodexFilesystemRules = {}
+  const filesystem: CodePilotXFilesystemRules = {}
   for (const [path, access] of Object.entries(value)) {
     if (access === 'read' || access === 'write' || access === 'deny') {
       filesystem[path] = access
@@ -129,9 +132,9 @@ function parseFilesystem(value: unknown): CodexFilesystemRules | undefined {
   return filesystem
 }
 
-function parseNetwork(value: unknown): CodexNetworkConfig | undefined {
+function parseNetwork(value: unknown): CodePilotXNetworkConfig | undefined {
   if (!isRecord(value)) return undefined
-  const network: CodexNetworkConfig = {}
+  const network: CodePilotXNetworkConfig = {}
   if (typeof value.enabled === 'boolean') network.enabled = value.enabled
   if (isRecord(value.domains)) {
     network.domains = {}

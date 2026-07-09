@@ -1,16 +1,16 @@
 import { parse as parseToml } from 'smol-toml'
 import type {
-  CodexApprovalPolicy,
-  CodexApprovalsReviewer,
-  CodexFilesystemRules,
-  CodexNetworkConfig,
-  CodexPermissionProfileConfig,
-  CodexSandboxMode,
-  CodexSandboxWorkspaceWriteConfig,
+  CodePilotXApprovalPolicy,
+  CodePilotXApprovalsReviewer,
+  CodePilotXFilesystemRules,
+  CodePilotXNetworkConfig,
+  CodePilotXPermissionProfileConfig,
+  CodePilotXSandboxMode,
+  CodePilotXSandboxWorkspaceWriteConfig,
 } from './permissions.js'
-import { normalizeCodexApprovalsReviewer } from './permissions.js'
+import { normalizeCodePilotXApprovalsReviewer } from './permissions.js'
 
-export type CodexMcpServerDiagnostic = {
+export type CodePilotXMcpServerDiagnostic = {
   name: string
   source: string
   command?: string
@@ -18,30 +18,30 @@ export type CodexMcpServerDiagnostic = {
   url?: string
 }
 
-export type CodexHookDiagnostic = {
+export type CodePilotXHookDiagnostic = {
   event: string
   matcher?: string
   commands: string[]
   source: string
 }
 
-export type CodexProjectConfig = {
+export type CodePilotXProjectConfig = {
   approval?: string
   sandbox?: string
-  sandboxMode?: CodexSandboxMode
-  sandboxWorkspaceWrite?: CodexSandboxWorkspaceWriteConfig
-  approvalPolicy?: CodexApprovalPolicy
-  approvalsReviewer?: CodexApprovalsReviewer
+  sandboxMode?: CodePilotXSandboxMode
+  sandboxWorkspaceWrite?: CodePilotXSandboxWorkspaceWriteConfig
+  approvalPolicy?: CodePilotXApprovalPolicy
+  approvalsReviewer?: CodePilotXApprovalsReviewer
   reviewModel?: string
   defaultPermissions?: string
   projectRootMarkers?: string[]
-  permissions?: Record<string, CodexPermissionProfileConfig>
-  mcpServers?: CodexMcpServerDiagnostic[]
-  hooks?: CodexHookDiagnostic[]
+  permissions?: Record<string, CodePilotXPermissionProfileConfig>
+  mcpServers?: CodePilotXMcpServerDiagnostic[]
+  hooks?: CodePilotXHookDiagnostic[]
 }
 
-export type CodexProjectConfigDiagnosticsData = {
-  config: CodexProjectConfig
+export type CodePilotXProjectConfigDiagnosticsData = {
+  config: CodePilotXProjectConfig
   ignoredProjectKeys: string[]
   diagnostics: string[]
 }
@@ -61,11 +61,11 @@ const PROJECT_IGNORED_KEYS = new Set([
   'otel',
 ])
 
-export function parseCodexProjectConfig(
+export function parseCodePilotXProjectConfig(
   content: string,
-): CodexProjectConfigDiagnosticsData {
+): CodePilotXProjectConfigDiagnosticsData {
   const parsed = parseToml(content) as Record<string, unknown>
-  const config: CodexProjectConfig = {}
+  const config: CodePilotXProjectConfig = {}
   const ignoredProjectKeys: string[] = []
   const diagnostics: string[] = []
 
@@ -90,7 +90,7 @@ export function parseCodexProjectConfig(
     config.approvalPolicy = parsed.approval_policy
   }
   if (isApprovalsReviewer(parsed.approvals_reviewer)) {
-    config.approvalsReviewer = normalizeCodexApprovalsReviewer(
+    config.approvalsReviewer = normalizeCodePilotXApprovalsReviewer(
       parsed.approvals_reviewer,
     )
   }
@@ -122,9 +122,9 @@ export function parseCodexProjectConfig(
 
 function parseSandboxWorkspaceWrite(
   value: unknown,
-): CodexSandboxWorkspaceWriteConfig | undefined {
+): CodePilotXSandboxWorkspaceWriteConfig | undefined {
   if (!isRecord(value)) return undefined
-  const config: CodexSandboxWorkspaceWriteConfig = {}
+  const config: CodePilotXSandboxWorkspaceWriteConfig = {}
   if (isStringArray(value.writable_roots)) {
     config.writableRoots = value.writable_roots
   }
@@ -136,12 +136,12 @@ function parseSandboxWorkspaceWrite(
 
 function parsePermissions(
   value: unknown,
-): Record<string, CodexPermissionProfileConfig> | undefined {
+): Record<string, CodePilotXPermissionProfileConfig> | undefined {
   if (!isRecord(value)) return undefined
-  const permissions: Record<string, CodexPermissionProfileConfig> = {}
+  const permissions: Record<string, CodePilotXPermissionProfileConfig> = {}
   for (const [name, rawProfile] of Object.entries(value)) {
     if (!isRecord(rawProfile)) continue
-    const profile: CodexPermissionProfileConfig = {}
+    const profile: CodePilotXPermissionProfileConfig = {}
     if (typeof rawProfile.description === 'string') {
       profile.description = rawProfile.description
     }
@@ -160,9 +160,9 @@ function parsePermissions(
   return permissions
 }
 
-function parseFilesystem(value: unknown): CodexFilesystemRules | undefined {
+function parseFilesystem(value: unknown): CodePilotXFilesystemRules | undefined {
   if (!isRecord(value)) return undefined
-  const filesystem: CodexFilesystemRules = {}
+  const filesystem: CodePilotXFilesystemRules = {}
   for (const [path, access] of Object.entries(value)) {
     if (isFilesystemAccess(access)) {
       filesystem[path] = access
@@ -173,9 +173,9 @@ function parseFilesystem(value: unknown): CodexFilesystemRules | undefined {
   return filesystem
 }
 
-function parseNetwork(value: unknown): CodexNetworkConfig | undefined {
+function parseNetwork(value: unknown): CodePilotXNetworkConfig | undefined {
   if (!isRecord(value)) return undefined
-  const network: CodexNetworkConfig = {}
+  const network: CodePilotXNetworkConfig = {}
   if (typeof value.enabled === 'boolean') network.enabled = value.enabled
   if (typeof value.allow_local_network === 'boolean') {
     network.allowLocalNetwork = value.allow_local_network
@@ -206,7 +206,7 @@ function parseNetwork(value: unknown): CodexNetworkConfig | undefined {
   return network
 }
 
-function parseMcpServers(value: unknown): CodexMcpServerDiagnostic[] {
+function parseMcpServers(value: unknown): CodePilotXMcpServerDiagnostic[] {
   if (!isRecord(value)) return []
   return Object.entries(value).flatMap(([name, rawServer]) => {
     if (!isRecord(rawServer)) return []
@@ -223,7 +223,7 @@ function parseMcpServers(value: unknown): CodexMcpServerDiagnostic[] {
   })
 }
 
-function parseHooks(value: unknown): CodexHookDiagnostic[] {
+function parseHooks(value: unknown): CodePilotXHookDiagnostic[] {
   if (!isRecord(value)) return []
   return Object.entries(value).flatMap(([event, rawHooks]) => {
     if (!Array.isArray(rawHooks)) return []
@@ -261,7 +261,7 @@ function isFilesystemAccess(value: unknown): value is 'read' | 'write' | 'deny' 
   return value === 'read' || value === 'write' || value === 'deny'
 }
 
-function isApprovalPolicy(value: unknown): value is CodexApprovalPolicy {
+function isApprovalPolicy(value: unknown): value is CodePilotXApprovalPolicy {
   return (
     value === 'untrusted' ||
     value === 'on-request' ||
@@ -272,7 +272,7 @@ function isApprovalPolicy(value: unknown): value is CodexApprovalPolicy {
 
 function isApprovalsReviewer(
   value: unknown,
-): value is CodexApprovalsReviewer | 'auto' | 'guardian_subagent' {
+): value is CodePilotXApprovalsReviewer | 'auto' | 'guardian_subagent' {
   return (
     value === 'user' ||
     value === 'auto_review' ||
@@ -281,7 +281,7 @@ function isApprovalsReviewer(
   )
 }
 
-function isSandboxMode(value: unknown): value is CodexSandboxMode {
+function isSandboxMode(value: unknown): value is CodePilotXSandboxMode {
   return (
     value === 'read-only' ||
     value === 'workspace-write' ||
