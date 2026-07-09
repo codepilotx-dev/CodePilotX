@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 export const SIDEBAR_WIDTH_STORAGE_KEY = "layout.sidebarWidth";
+export const SIDEBAR_COLLAPSED_STORAGE_KEY = "layout.sidebarCollapsed";
 export const SIDEBAR_MIN_WIDTH = 260;
 export const SIDEBAR_MAX_WIDTH = 550;
 export const DEFAULT_SIDEBAR_WIDTH = 280;
@@ -22,6 +23,14 @@ export function readStoredSidebarWidth(): number {
   return clampSidebarWidth(parsed);
 }
 
+export function readStoredSidebarCollapsed(): boolean {
+  try {
+    return window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
 export type UseDesktopLayoutResult = {
   sidebarCollapsed: boolean;
   sidebarWidth: number;
@@ -32,7 +41,9 @@ export type UseDesktopLayoutResult = {
 };
 
 export function useDesktopLayout(): UseDesktopLayoutResult {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsedState] = useState(() =>
+    readStoredSidebarCollapsed(),
+  );
   const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth);
   const [sidebarWidth, setSidebarWidthState] = useState(() =>
     readStoredSidebarWidth(),
@@ -50,11 +61,38 @@ export function useDesktopLayout(): UseDesktopLayoutResult {
   const setSidebarWidth = useCallback((nextWidth: number): void => {
     const clamped = clampSidebarWidth(nextWidth);
     setSidebarWidthState(clamped);
-    window.localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(clamped));
+    try {
+      window.localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(clamped));
+    } catch {
+      /* localStorage full or disabled; keep the in-memory width. */
+    }
+  }, []);
+
+  const setSidebarCollapsed = useCallback((collapsed: boolean): void => {
+    setSidebarCollapsedState(collapsed);
+    try {
+      window.localStorage.setItem(
+        SIDEBAR_COLLAPSED_STORAGE_KEY,
+        collapsed ? "true" : "false",
+      );
+    } catch {
+      /* localStorage full or disabled; keep the in-memory state. */
+    }
   }, []);
 
   const toggleSidebarCollapsed = useCallback((): void => {
-    setSidebarCollapsed((current) => !current);
+    setSidebarCollapsedState((current) => {
+      const next = !current;
+      try {
+        window.localStorage.setItem(
+          SIDEBAR_COLLAPSED_STORAGE_KEY,
+          next ? "true" : "false",
+        );
+      } catch {
+        /* localStorage full or disabled; keep the in-memory state. */
+      }
+      return next;
+    });
   }, []);
 
   return {

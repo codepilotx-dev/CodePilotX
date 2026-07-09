@@ -776,6 +776,15 @@
   max-width: min(calc(420px + var(--popover-width-extra)), calc(100vw - 32px));
 }
 
+.popover.popover-review-scope {
+  position: relative;
+  top: auto;
+  right: auto;
+  bottom: auto;
+  left: auto;
+  transform-origin: top left;
+}
+
 .review-empty-state {
   padding: 22px 14px;
   color: var(--color-text-placeholder);

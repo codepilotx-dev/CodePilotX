@@ -1,0 +1,43 @@
+import { expect, test } from 'bun:test'
+import { sessionDisplayTitle, sessionViewFallbackTitle } from './uiTypes.js'
+import type { SessionListItem, SessionViewState } from './uiTypes.js'
+
+test('sessionDisplayTitle uses hydrated fallback before prompt and workspace', () => {
+  const session = {
+    sessionName: null,
+    customTitle: null,
+    aiTitle: null,
+    firstPrompt: 'stored prompt',
+    workspaceName: 'ClaudeCode',
+  } as SessionListItem
+
+  expect(sessionDisplayTitle(session, 'first user message')).toBe(
+    'first user message',
+  )
+})
+
+test('sessionViewFallbackTitle matches conversation title fallback', () => {
+  const view = {
+    events: [
+      { role: 'assistant', content: 'ignored' },
+      {
+        role: 'user',
+        content: '你可以跟我说说这个项目是做什么的吗\n第二行',
+      },
+    ],
+    messages: [],
+  } as Pick<SessionViewState, 'events' | 'messages'>
+
+  expect(sessionViewFallbackTitle(view)).toBe(
+    '你可以跟我说说这个项目是做什么的吗',
+  )
+})
+
+test('sessionViewFallbackTitle falls back to user messages', () => {
+  const view = {
+    events: [],
+    messages: [{ role: 'user', text: '查看 README' }],
+  } as Pick<SessionViewState, 'events' | 'messages'>
+
+  expect(sessionViewFallbackTitle(view)).toBe('查看 README')
+})

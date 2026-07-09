@@ -53,11 +53,11 @@ import { IconButton } from "../../components/ui/IconButton.js";
 import { MetaChip } from "../../components/ui/MetaChip.js";
 import { PopoverItem } from "../../components/ui/PopoverItem.js";
 import { PopoverMenu } from "../../components/ui/PopoverMenu.js";
-import { SearchInput } from "../../components/ui/SearchInput.js";
 import { preventOutsideDismissWhenDebug } from "../../components/ui/debugDropdown.js";
 import { buildPopoverSizingStyle } from "../../components/ui/popoverSizing.js";
 import { ProjectSwitcherPopover } from "./ProjectSwitcherPopover.js";
 import { ChatInputDropdown } from "./ChatInputDropdown.js";
+import { BranchSelectPopover } from "./BranchSelectPopover.js";
 
 type Option<T extends string> = {
   value: T;
@@ -361,20 +361,6 @@ export function ComposerCard({
         ? "超高"
         : "高"
     : (selectedThinking?.label ?? "默认");
-
-  const filteredBranches = useMemo(() => {
-    const availableBranches =
-      branches.length > 0 ||
-      branchName === "无项目" ||
-      branchName === "未检测到 Git 分支"
-        ? branches
-        : [branchName];
-    const keyword = branchSearch.trim().toLowerCase();
-    if (!keyword) return availableBranches;
-    return availableBranches.filter((branch) =>
-      branch.toLowerCase().includes(keyword),
-    );
-  }, [branchName, branchSearch, branches]);
 
   const showSlashContextDropdown =
     input.startsWith("/") && input !== dismissedSlashInput;
@@ -1481,11 +1467,17 @@ export function ComposerCard({
               </div>
             </PopoverMenu>
 
-            <PopoverMenu
+            <BranchSelectPopover
+              branchSearch={branchSearch}
+              branches={branches}
               className="popover-branch"
+              currentBranchName={branchName}
               disableOutsideDismiss={debugMode}
               open={openDropdown === "branch"}
               side="top"
+              onBranchSearchChange={setBranchSearch}
+              onBranchSelect={onBranchSelect}
+              onCreateBranch={onCreateBranch}
               onOpenChange={(open) => setOpenDropdown(open ? "branch" : null)}
               trigger={
                 <MetaChip
@@ -1495,44 +1487,7 @@ export function ComposerCard({
                   title="选择分支"
                 />
               }
-            >
-              <SearchInput
-                value={branchSearch}
-                onChange={setBranchSearch}
-                placeholder="搜索分支"
-              />
-              <div className="popover-section">
-                <div className="popover-section-title">分支</div>
-                {filteredBranches.length === 0 ? (
-                  <div className="popover-empty">无匹配分支</div>
-                ) : (
-                  filteredBranches.map((branch) => (
-                    <PopoverItem
-                      icon={<GitBranch size={APP_ICON_SIZE} />}
-                      key={branch}
-                      selected={branch === branchName}
-                      withCheck={branch === branchName}
-                      onClick={() => {
-                        onBranchSelect(branch);
-                        closeDropdown();
-                      }}
-                    >
-                      {branch}
-                    </PopoverItem>
-                  ))
-                )}
-              </div>
-              <div className="popover-divider" />
-              <PopoverItem
-                icon={<Plus size={APP_ICON_SIZE} />}
-                onClick={() => {
-                  onCreateBranch();
-                  closeDropdown();
-                }}
-              >
-                创建并检出新分支...
-              </PopoverItem>
-            </PopoverMenu>
+            />
           </>
         ) : null}
       </div>

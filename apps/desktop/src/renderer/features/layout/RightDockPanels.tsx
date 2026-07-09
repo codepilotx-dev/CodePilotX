@@ -13,6 +13,11 @@ import { ComposerSurface } from '../session/ComposerSurface.js'
 import { MarkdownMessage } from '../session/MarkdownMessage.js'
 import type { RightDockPlan } from './rightDockTools.js'
 
+const FILE_TREE_PANEL_DEFAULT_WIDTH = 360
+const FILE_TREE_PANEL_MIN_WIDTH = 220
+const FILE_TREE_PANEL_MAX_WIDTH = 560
+const FILE_TREE_PANEL_KEYBOARD_STEP = 24
+
 type FilesPanelProps = {
   files: DesktopFileEntry[]
   selectedFile: DesktopFilePreview | null
@@ -69,6 +74,10 @@ export function RightDockFilesPanel({
   const [query, setQuery] = useState('')
   const [collapsedDirs, setCollapsedDirs] = useState<Set<string>>(() => new Set())
   const [selectedText, setSelectedText] = useState('')
+  const [fileTreePanelWidth, setFileTreePanelWidth] = useState(
+    FILE_TREE_PANEL_DEFAULT_WIDTH,
+  )
+  const [fileTreePanelResizing, setFileTreePanelResizing] = useState(false)
   const visibleFiles = useMemo(
     () => filterVisibleFiles(files, query, collapsedDirs),
     [collapsedDirs, files, query],
@@ -101,8 +110,79 @@ export function RightDockFilesPanel({
     setSelectedText('')
   }
 
+  function setClampedFileTreePanelWidth(width: number): void {
+    setFileTreePanelWidth(
+      Math.min(
+        FILE_TREE_PANEL_MAX_WIDTH,
+        Math.max(FILE_TREE_PANEL_MIN_WIDTH, Math.round(width)),
+      ),
+    )
+  }
+
+  function startFileTreePanelResize(
+    event: React.PointerEvent<HTMLDivElement>,
+  ): void {
+    event.preventDefault()
+    const startX = event.clientX
+    const startWidth = fileTreePanelWidth
+    const pointerId = event.pointerId
+    const target = event.currentTarget
+    target.setPointerCapture(pointerId)
+    setFileTreePanelResizing(true)
+
+    const handlePointerMove = (moveEvent: PointerEvent): void => {
+      setClampedFileTreePanelWidth(startWidth - (moveEvent.clientX - startX))
+    }
+
+    const stopResize = (): void => {
+      setFileTreePanelResizing(false)
+      target.releasePointerCapture(pointerId)
+      target.removeEventListener('pointermove', handlePointerMove)
+      target.removeEventListener('pointerup', stopResize)
+      target.removeEventListener('pointercancel', stopResize)
+    }
+
+    target.addEventListener('pointermove', handlePointerMove)
+    target.addEventListener('pointerup', stopResize)
+    target.addEventListener('pointercancel', stopResize)
+  }
+
+  function handleFileTreePanelResizeKey(
+    event: React.KeyboardEvent<HTMLDivElement>,
+  ): void {
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault()
+      setClampedFileTreePanelWidth(
+        fileTreePanelWidth + FILE_TREE_PANEL_KEYBOARD_STEP,
+      )
+    } else if (event.key === 'ArrowRight') {
+      event.preventDefault()
+      setClampedFileTreePanelWidth(
+        fileTreePanelWidth - FILE_TREE_PANEL_KEYBOARD_STEP,
+      )
+    } else if (event.key === 'Home') {
+      event.preventDefault()
+      setClampedFileTreePanelWidth(FILE_TREE_PANEL_MIN_WIDTH)
+    } else if (event.key === 'End') {
+      event.preventDefault()
+      setClampedFileTreePanelWidth(FILE_TREE_PANEL_MAX_WIDTH)
+    }
+  }
+
   return (
-    <section className="right-dock-files" aria-label="打开文件">
+    <section
+      className={
+        fileTreePanelResizing
+          ? 'right-dock-files resizing-file-tree'
+          : 'right-dock-files'
+      }
+      aria-label="打开文件"
+      style={
+        {
+          '--right-dock-file-tree-w': `${fileTreePanelWidth}px`,
+        } as React.CSSProperties
+      }
+    >
       <div className="right-dock-file-preview">
         {selectedFile ? (
           <article className="right-dock-file-document">
@@ -156,6 +236,22 @@ export function RightDockFilesPanel({
           </div>
         )}
       </div>
+      <div
+        aria-label="调整文件目录树宽度"
+        aria-orientation="vertical"
+        aria-valuemax={FILE_TREE_PANEL_MAX_WIDTH}
+        aria-valuemin={FILE_TREE_PANEL_MIN_WIDTH}
+        aria-valuenow={fileTreePanelWidth}
+        className="right-dock-file-tree-resize-handle"
+        role="separator"
+        tabIndex={0}
+        title="拖拽调整目录树宽度，双击恢复默认宽度"
+        onDoubleClick={() =>
+          setClampedFileTreePanelWidth(FILE_TREE_PANEL_DEFAULT_WIDTH)
+        }
+        onKeyDown={handleFileTreePanelResizeKey}
+        onPointerDown={startFileTreePanelResize}
+      />
       <div className="right-dock-file-tree">
         <label className="right-dock-search">
           <Search size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />

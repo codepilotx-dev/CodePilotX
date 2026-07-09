@@ -36,6 +36,7 @@ type Props = {
   isUnavailable: boolean;
   now: number;
   project: DesktopWorkspace;
+  sessionFallbackTitles: Record<string, string>;
   sessions: SessionListItem[];
   workspace: DesktopWorkspace | null;
   onArchiveSession: (session: SessionListItem) => void;
@@ -57,6 +58,7 @@ export function SidebarProjectGroup({
   isUnavailable,
   now,
   project,
+  sessionFallbackTitles,
   sessions,
   workspace,
   onArchiveSession,
@@ -312,6 +314,7 @@ export function SidebarProjectGroup({
           activePendingPermissionSessionId={activePendingPermissionSessionId}
           groupKey={groupKey}
           now={now}
+          sessionFallbackTitles={sessionFallbackTitles}
           sessions={projectSessions}
           onArchiveSession={onArchiveSession}
           onPinSession={onPinSession}

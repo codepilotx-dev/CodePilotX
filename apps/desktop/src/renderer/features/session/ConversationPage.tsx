@@ -20,9 +20,9 @@ import {
   FolderOpen,
   GitBranch,
   GitPullRequest,
-  Globe,
   Info,
   Laptop,
+  LayoutList,
   MessageSquarePlus,
   MoreHorizontal,
   PanelRight,
@@ -94,6 +94,7 @@ import {
 } from "../layout/conversationUiState.js";
 import { SessionTimelineView } from "./SessionTimelineView.js";
 import { ConversationTurnNavRail } from "./ConversationTurnNavRail.js";
+import { BranchSelectPopover } from "./BranchSelectPopover.js";
 
 const FALLBACK_OPEN_TARGETS: DesktopOpenTarget[] = [
   {
@@ -114,6 +115,22 @@ const FALLBACK_OPEN_TARGETS: DesktopOpenTarget[] = [
 ];
 
 const DEBUG_ASK_USER_QUESTION_REQUEST_ID_PREFIX = "debug-ask-user-question";
+const ENVIRONMENT_PANEL_VISIBLE_STORAGE_KEY =
+  "conversation.environment-panel.visible";
+
+function readGlobalEnvironmentPanelVisible(): boolean {
+  if (typeof window === "undefined") {
+    return true;
+  }
+  try {
+    return (
+      window.localStorage.getItem(ENVIRONMENT_PANEL_VISIBLE_STORAGE_KEY) !==
+      "false"
+    );
+  } catch {
+    return true;
+  }
+}
 
 function useElapsedSeconds(
   startTimeMs: number | undefined,
@@ -146,6 +163,7 @@ export function ConversationPage(): React.ReactNode {
     sessionStatus,
     workspacePath,
     branchName,
+    branches,
     diff,
     gitStatus,
     onArchiveSession,
@@ -154,6 +172,7 @@ export function ConversationPage(): React.ReactNode {
     onOpenWorkspacePath,
     onRefreshDiff,
     onToggleSessionPinned,
+    onBranchSelect,
     onCommitOrPush,
     onCreatePullRequest,
     onDecidePermission,
@@ -272,12 +291,22 @@ export function ConversationPage(): React.ReactNode {
   const [conversationSelectedText, setConversationSelectedText] =
     React.useState("");
   const [openTargetMenuOpen, setOpenTargetMenuOpen] = React.useState(false);
-  const [environmentPopoverOpen, setEnvironmentPopoverOpen] =
-    React.useState(false);
   const [openTargets, setOpenTargets] = React.useState<DesktopOpenTarget[]>(
     FALLBACK_OPEN_TARGETS,
   );
-  const [showPinnedSummary, setShowPinnedSummary] = React.useState(true);
+  const [showPinnedSummary, setShowPinnedSummary] = React.useState(
+    readGlobalEnvironmentPanelVisible,
+  );
+  React.useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        ENVIRONMENT_PANEL_VISIBLE_STORAGE_KEY,
+        showPinnedSummary ? "true" : "false",
+      );
+    } catch {
+      /* localStorage full or disabled; keep the in-memory state only. */
+    }
+  }, [showPinnedSummary]);
   React.useEffect(() => {
     return () => {
       clearConversationSelectionHighlight();
@@ -392,6 +421,10 @@ export function ConversationPage(): React.ReactNode {
     workspacePath && gitStatus && gitStatus.files.length > 0,
   );
   const composerDiffSummary = React.useMemo(() => summarizeDiff(diff), [diff]);
+  const sourceLinks = React.useMemo(
+    () => extractSourceLinks(timelineEvents),
+    [timelineEvents],
+  );
   const fallbackTitle = React.useMemo(
     () => getConversationTitle(timelineEvents),
     [timelineEvents],
@@ -780,7 +813,7 @@ export function ConversationPage(): React.ReactNode {
             type="button"
             onClick={() => setShowPinnedSummary((current) => !current)}
           >
-            <Columns2
+            <LayoutList
               size={APP_ICON_SIZE}
               strokeWidth={APP_ICON_STROKE_WIDTH}
             />
@@ -849,73 +882,11 @@ export function ConversationPage(): React.ReactNode {
             </Tooltip>
           </>
         ) : null}
-        <PopoverMenu
-          align="end"
-          className="popover-environment"
-          open={environmentPopoverOpen}
-          sideOffset={4}
-          trigger={
-            <button
-              aria-label="环境信息"
-              className="message-action"
-              disabled={!workspacePath}
-              title="环境信息"
-              type="button"
-            >
-              <Globe size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-            </button>
-          }
-          onOpenChange={setEnvironmentPopoverOpen}
-        >
-          <DropdownMenu.Label className="popover-item-label">
-            环境信息
-          </DropdownMenu.Label>
-          <DropdownMenu.Separator />
-          <PopoverItem
-            icon={<FileDiff size={APP_ICON_SIZE} />}
-            onClick={onRefreshDiff}
-          >
-            变更
-            <span className="environment-diff-counts">
-              <strong>
-                +{formatPanelNumber(composerDiffSummary.additions)}
-              </strong>
-              <em>-{formatPanelNumber(composerDiffSummary.deletions)}</em>
-            </span>
-          </PopoverItem>
-          <PopoverItem
-            icon={<Laptop size={APP_ICON_SIZE} />}
-            onClick={onOpenWorkspacePath}
-          >
-            本地
-          </PopoverItem>
-          <PopoverItem
-            icon={<GitBranch size={APP_ICON_SIZE} />}
-            onClick={onCreateBranch}
-          >
-            {branchName?.trim() || "未检测到 Git 分支"}
-          </PopoverItem>
-          <PopoverItem
-            icon={<Upload size={APP_ICON_SIZE} />}
-            onClick={onCommitOrPush}
-          >
-            提交或推送
-          </PopoverItem>
-          <PopoverItem
-            icon={<GitPullRequest size={APP_ICON_SIZE} />}
-            onClick={onCreatePullRequest}
-          >
-            创建拉取请求
-          </PopoverItem>
-        </PopoverMenu>
       </div>
     ),
     [
-      branchName,
-      composerDiffSummary,
       debugMode,
       defaultOpenTargetId,
-      environmentPopoverOpen,
       hasActiveSession,
       hasRealPendingPermission,
       openTargetMenuOpen,
@@ -923,7 +894,6 @@ export function ConversationPage(): React.ReactNode {
       selectedOpenTarget,
       showPinnedSummary,
       workflowTimelineVisible,
-      workspacePath,
     ],
   );
 
@@ -1064,9 +1034,12 @@ export function ConversationPage(): React.ReactNode {
                     {showEnvironmentPanel ? (
                       <EnvironmentPanel
                         branchName={branchName}
+                        branches={branches}
                         diff={diff}
                         gitStatus={gitStatus}
+                        sourceLinks={sourceLinks}
                         workspacePath={workspacePath}
+                        onBranchSelect={onBranchSelect}
                         onCommitOrPush={onCommitOrPush}
                         onCreateBranch={onCreateBranch}
                         onCreatePullRequest={onCreatePullRequest}
@@ -3819,11 +3792,135 @@ function fileBadge(path: string): string {
   return extension.slice(0, 4).toUpperCase();
 }
 
+type SourceLink = {
+  label: string;
+  url: string;
+};
+
+function extractSourceLinks(events: DesktopSessionEvent[]): SourceLink[] {
+  const byUrl = new Map<string, SourceLink>();
+  for (const event of events) {
+    if (
+      event.type !== "message" &&
+      event.type !== "proposed_plan" &&
+      event.type !== "tool_result"
+    ) {
+      continue;
+    }
+    if (event.type === "message" && event.role !== "assistant") {
+      continue;
+    }
+    for (const source of extractLinksFromText(event.content ?? "")) {
+      addSourceLink(byUrl, source);
+    }
+    for (const source of extractLinksFromUnknown(event.metadata)) {
+      addSourceLink(byUrl, source);
+    }
+  }
+  return [...byUrl.values()];
+}
+
+function addSourceLink(
+  byUrl: Map<string, SourceLink>,
+  source: SourceLink,
+): void {
+  if (isLocalURL(source.url) || byUrl.has(source.url)) return;
+  byUrl.set(source.url, {
+    label: truncateToWidth(source.label || source.url, 42),
+    url: source.url,
+  });
+}
+
+function extractLinksFromText(text: string): SourceLink[] {
+  const links: SourceLink[] = [];
+  const markdownLinkPattern = /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g;
+  for (const match of text.matchAll(markdownLinkPattern)) {
+    const label = match[1]?.trim();
+    const url = normalizeSourceURL(match[2] ?? "");
+    if (url) links.push({ label: label || sourceLabelFromURL(url), url });
+  }
+  const bareUrlPattern = /https?:\/\/[^\s<>)\]]+/g;
+  for (const match of text.matchAll(bareUrlPattern)) {
+    const url = normalizeSourceURL(match[0] ?? "");
+    if (url) links.push({ label: sourceLabelFromURL(url), url });
+  }
+  return links;
+}
+
+function extractLinksFromUnknown(value: unknown): SourceLink[] {
+  if (!value) return [];
+  if (typeof value === "string") {
+    return extractLinksFromText(value);
+  }
+  if (Array.isArray(value)) {
+    return value.flatMap(extractLinksFromUnknown);
+  }
+  if (typeof value !== "object") {
+    return [];
+  }
+  const record = value as Record<string, unknown>;
+  const directUrl =
+    typeof record.url === "string"
+      ? record.url
+      : typeof record.uri === "string"
+        ? record.uri
+        : typeof record.href === "string"
+          ? record.href
+          : null;
+  const directTitle =
+    typeof record.title === "string"
+      ? record.title
+      : typeof record.name === "string"
+        ? record.name
+        : typeof record.label === "string"
+          ? record.label
+          : null;
+  const direct = normalizeSourceURL(directUrl ?? "");
+  const nested = Object.values(record).flatMap(extractLinksFromUnknown);
+  return direct
+    ? [{ label: directTitle ?? sourceLabelFromURL(direct), url: direct }, ...nested]
+    : nested;
+}
+
+function normalizeSourceURL(value: string): string | null {
+  const normalized = value.trim().replace(/[.,;:!?]+$/, "");
+  if (!normalized.startsWith("http://") && !normalized.startsWith("https://")) {
+    return null;
+  }
+  try {
+    return new URL(normalized).toString();
+  } catch {
+    return null;
+  }
+}
+
+function sourceLabelFromURL(url: string): string {
+  try {
+    const parsed = new URL(url);
+    const path = parsed.pathname.replace(/\/$/, "");
+    return path ? `${parsed.hostname}${path}` : parsed.hostname;
+  } catch {
+    return url;
+  }
+}
+
+function isLocalURL(url: string): boolean {
+  try {
+    const host = new URL(url).hostname;
+    return host === "localhost" || host === "127.0.0.1" || host === "::1";
+  } catch {
+    return false;
+  }
+}
+
 function EnvironmentPanel({
   branchName,
+  branches,
   diff: _diff,
   gitStatus,
+  sourceLinks,
   workspacePath,
+  onBranchSelect,
   onCommitOrPush,
   onCreateBranch,
   onCreatePullRequest,
@@ -3831,9 +3928,12 @@ function EnvironmentPanel({
   onRefreshDiff,
 }: {
   branchName: string | null;
+  branches: string[];
   diff: string;
   gitStatus: DesktopGitStatus | null;
+  sourceLinks: SourceLink[];
   workspacePath: string | null;
+  onBranchSelect: (branch: string) => Promise<void>;
   onCommitOrPush: () => void;
   onCreateBranch: () => void;
   onCreatePullRequest: () => void;
@@ -3842,8 +3942,11 @@ function EnvironmentPanel({
 }): React.ReactNode {
   const diffSummary = summarizeDiff(_diff);
   const gitLabel = branchName?.trim() || "未检测到 Git 分支";
+  const currentBranchName = branchName?.trim() ?? "";
   const changedFileCount = gitStatus?.files.length ?? 0;
   const workspaceAvailable = Boolean(workspacePath);
+  const [branchPopoverOpen, setBranchPopoverOpen] = React.useState(false);
+  const [branchSearch, setBranchSearch] = React.useState("");
 
   return (
     <aside className="environment-panel" aria-label="环境信息">
@@ -3873,16 +3976,36 @@ function EnvironmentPanel({
           <Laptop size={APP_ICON_SIZE} />
           <span>本地</span>
         </button>
-        <button
-          className="environment-action-row"
-          disabled={!workspaceAvailable}
-          title={gitLabel}
-          type="button"
-          onClick={onCreateBranch}
-        >
-          <GitBranch size={APP_ICON_SIZE} />
-          <span>{gitLabel}</span>
-        </button>
+        <BranchSelectPopover
+          align="start"
+          branchSearch={branchSearch}
+          branches={branches}
+          className="popover-environment-branch"
+          currentBranchDetail={`未提交：${changedFileCount} 个文件`}
+          currentBranchName={currentBranchName}
+          open={branchPopoverOpen}
+          side="left"
+          sideOffset={8}
+          onBranchSearchChange={setBranchSearch}
+          onBranchSelect={onBranchSelect}
+          onCreateBranch={onCreateBranch}
+          trigger={
+            <button
+              className="environment-action-row"
+              disabled={!workspaceAvailable}
+              title={gitLabel}
+              type="button"
+            >
+              <GitBranch size={APP_ICON_SIZE} />
+              <span>{gitLabel}</span>
+              <ChevronDown
+                className="environment-row-chevron"
+                size={APP_ICON_SIZE}
+              />
+            </button>
+          }
+          onOpenChange={setBranchPopoverOpen}
+        />
         <button
           className="environment-action-row"
           disabled={!workspaceAvailable}
@@ -3904,7 +4027,24 @@ function EnvironmentPanel({
       </div>
       <div className="environment-source">
         <span>来源</span>
-        <small>暂无来源</small>
+        {sourceLinks.length === 0 ? (
+          <small>暂无来源</small>
+        ) : (
+          <ul className="environment-source-list">
+            {sourceLinks.slice(0, 5).map((source) => (
+              <li key={source.url}>
+                <a
+                  href={source.url}
+                  rel="noreferrer"
+                  target="_blank"
+                  title={source.url}
+                >
+                  {source.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </aside>
   );

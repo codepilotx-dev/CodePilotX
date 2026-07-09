@@ -701,9 +701,11 @@ export function WorkspaceReviewSidebar({
         <div className="review-sidebar-title">
           <PopoverMenu
             align="start"
+            avoidCollisions={false}
             className="popover-review-scope"
             disableOutsideDismiss={debugMode}
             open={scopeMenuOpen}
+            side="bottom"
             sideOffset={4}
             trigger={
               <button

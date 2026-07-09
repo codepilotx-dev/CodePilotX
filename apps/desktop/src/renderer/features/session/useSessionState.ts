@@ -22,6 +22,7 @@ import type {
   SessionViewState,
   ToolLogEntry,
 } from '../../uiTypes.js'
+import { sessionViewFallbackTitle } from '../../uiTypes.js'
 import {
   activateSession,
   closeSessionAction,
@@ -90,6 +91,7 @@ export type UseSessionStateResult = {
   sessionId: string | null
   sessionsHydrated: boolean
   sessions: SessionListItem[]
+  sessionFallbackTitles: Record<string, string>
   sessionStatus: DesktopSessionStatus
   messages: Message[]
   events: DesktopSessionEvent[]
@@ -178,6 +180,9 @@ export function useSessionState(
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [sessionsHydrated, setSessionsHydrated] = useState(false)
   const [sessions, setSessions] = useState<SessionListItem[]>([])
+  const [sessionFallbackTitles, setSessionFallbackTitles] = useState<
+    Record<string, string>
+  >({})
   const [sessionStatus, setSessionStatus] =
     useState<DesktopSessionStatus>('idle')
   const [messages, setMessages] = useState<Message[]>([])
@@ -267,6 +272,13 @@ export function useSessionState(
         targetSessionId,
         updater,
       )
+      setSessionFallbackTitles(current =>
+        updateSessionFallbackTitle(
+          current,
+          targetSessionId,
+          sessionViewsRef.current[targetSessionId],
+        ),
+      )
     },
     [viewRefs, viewSetters],
   )
@@ -318,6 +330,9 @@ export function useSessionState(
         ...sessionViewsRef.current,
         [snapshot.item.id]: nextView,
       }
+      setSessionFallbackTitles(current =>
+        updateSessionFallbackTitle(current, snapshot.item.id, nextView),
+      )
       sessionWorkspacesRef.current = {
         ...sessionWorkspacesRef.current,
         [snapshot.item.id]: snapshot.workspace,
@@ -472,6 +487,7 @@ export function useSessionState(
       sessionWorkspacesRef.current = nextWorkspaces
       sessionsRef.current = nextSessions
       setSessions(nextSessions)
+      setSessionFallbackTitles(buildSessionFallbackTitles(nextViews))
 
       const currentId = activeSessionIdRef.current
       if (!currentId) return
@@ -528,6 +544,7 @@ export function useSessionState(
         sessionWorkspacesRef.current = nextWorkspaces
         sessionsRef.current = nextSessions
         setSessions(nextSessions)
+        setSessionFallbackTitles(buildSessionFallbackTitles(nextViews))
 
         activeSessionIdRef.current = null
         setSessionId(null)
@@ -807,6 +824,7 @@ export function useSessionState(
     sessionId,
     sessionsHydrated,
     sessions,
+    sessionFallbackTitles,
     sessionStatus,
     messages,
     events,
@@ -839,4 +857,33 @@ const HOME_INPUT_KEY = '__home__'
 
 function errorMessageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
+}
+
+function buildSessionFallbackTitles(
+  views: Record<string, SessionViewState>,
+): Record<string, string> {
+  const titles: Record<string, string> = {}
+  for (const [sessionId, view] of Object.entries(views)) {
+    const title = sessionViewFallbackTitle(view)
+    if (title) {
+      titles[sessionId] = title
+    }
+  }
+  return titles
+}
+
+function updateSessionFallbackTitle(
+  current: Record<string, string>,
+  sessionId: string,
+  view: SessionViewState | undefined,
+): Record<string, string> {
+  const title = view ? sessionViewFallbackTitle(view) : null
+  if (title) {
+    if (current[sessionId] === title) return current
+    return { ...current, [sessionId]: title }
+  }
+  if (!(sessionId in current)) return current
+  const next = { ...current }
+  delete next[sessionId]
+  return next
 }

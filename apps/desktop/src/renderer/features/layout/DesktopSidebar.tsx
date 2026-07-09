@@ -17,6 +17,7 @@ type Props = {
   activeSessionId: string | null;
   recentWorkspaces: DesktopWorkspace[];
   removedWorkspaces: DesktopRemovedWorkspace[];
+  sessionFallbackTitles: Record<string, string>;
   sessions: SessionListItem[];
   unavailableWorkspacePaths: Set<string>;
   workspace: DesktopWorkspace | null;
@@ -40,6 +41,7 @@ export function DesktopSidebar({
   activeSessionId,
   recentWorkspaces,
   removedWorkspaces,
+  sessionFallbackTitles,
   sessions,
   unavailableWorkspacePaths,
   workspace,
@@ -142,6 +144,7 @@ export function DesktopSidebar({
         pinnedSessions={pinnedSessions}
         pinnedWorkspaces={pinnedWorkspaces}
         projectWorkspaces={unpinnedWorkspaces}
+        sessionFallbackTitles={sessionFallbackTitles}
         standaloneSessions={standaloneSessions}
         unavailableWorkspacePaths={unavailableWorkspacePaths}
         unpinnedSessions={unpinnedSessions}

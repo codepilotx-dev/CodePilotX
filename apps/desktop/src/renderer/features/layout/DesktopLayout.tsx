@@ -9,6 +9,7 @@ import {
   DesktopComposer,
   getDesktopComposerBranchName,
 } from '../session/DesktopComposer.js'
+import { deriveWorkflowSessionState } from '../../../shared/workflowReducer.js'
 import { DesktopAppShell } from './DesktopAppShell.js'
 import { RightDock, DesktopWorkspaceFixedControls } from './RightDock.js'
 import {
@@ -43,7 +44,7 @@ import type {
 } from './MenuBar.js'
 import { QuickChatContext } from '../session/QuickChatContext.js'
 import { SearchContext } from '../search/SearchContext.js'
-import type { SessionListItem } from '../../uiTypes.js'
+import { sessionViewFallbackTitle, type SessionListItem } from '../../uiTypes.js'
 import { useDesktopSettings } from '../settings/useDesktopSettings.js'
 import {
   SIDEBAR_MAX_WIDTH,
@@ -299,6 +300,7 @@ export function DesktopLayout(): React.ReactNode {
     sessionId,
     sessionsHydrated,
     sessions,
+    sessionFallbackTitles,
     sessionStatus,
     events,
     workflowEvents,
@@ -1395,6 +1397,33 @@ export function DesktopLayout(): React.ReactNode {
     activeSessionItem?.customTitle ??
     activeSessionItem?.aiTitle ??
     null
+  const activeSessionFallbackTitle = useMemo(
+    () => {
+      const workflowTitleEvents = deriveWorkflowSessionState(
+        workflowEvents,
+        sessionId,
+      ).events
+      const titleEvents =
+        (sessionStatus === 'running' || sessionStatus === 'waiting') &&
+        events.length > 0
+          ? events
+          : workflowTitleEvents.length > 0
+            ? workflowTitleEvents
+            : events
+      return sessionViewFallbackTitle({ events: titleEvents, messages })
+    },
+    [events, messages, sessionId, sessionStatus, workflowEvents],
+  )
+  const sidebarSessionFallbackTitles = useMemo(() => {
+    if (!sessionId || !activeSessionFallbackTitle) return sessionFallbackTitles
+    if (sessionFallbackTitles[sessionId] === activeSessionFallbackTitle) {
+      return sessionFallbackTitles
+    }
+    return {
+      ...sessionFallbackTitles,
+      [sessionId]: activeSessionFallbackTitle,
+    }
+  }, [activeSessionFallbackTitle, sessionFallbackTitles, sessionId])
   const quickChatSessionTitleSource =
     activeSessionItem?.sessionName
       ? 'sessionName'
@@ -1543,6 +1572,7 @@ export function DesktopLayout(): React.ReactNode {
       activeSessionId={sessionId}
       recentWorkspaces={recentWorkspaces}
       removedWorkspaces={removedWorkspaces}
+      sessionFallbackTitles={sidebarSessionFallbackTitles}
       sessions={sessions}
       unavailableWorkspacePaths={unavailableWorkspacePaths}
       workspace={currentWorkspace}
@@ -1814,6 +1844,7 @@ export function DesktopLayout(): React.ReactNode {
             workspaceName: currentWorkspace?.name ?? null,
             workspacePath: currentWorkspace?.path ?? null,
             branchName,
+            branches: currentWorkspace?.branches ?? [],
             diff: workspace.diff,
             gitStatus,
             recentWorkspaces,
@@ -1847,6 +1878,7 @@ export function DesktopLayout(): React.ReactNode {
             onChooseWorkspace: handleChooseWorkspace,
             onCloneGithub: () => setGithubRepositoryModalOpen(true),
             onOpenWorkspace: handleOpenRecentWorkspace,
+            onBranchSelect: handleBranchSelect,
             onClearWorkspace: handleClearWorkspace,
             onDecidePermission: (
               request,

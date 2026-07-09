@@ -1047,7 +1047,7 @@
 
 .environment-source {
   display: grid;
-  gap: 18px;
+  gap: 10px;
   margin-top: 18px;
   padding-top: 18px;
   border-top: 1px solid var(--color-border-soft);
@@ -1063,6 +1063,92 @@
     font-size: var(--font-size-14);
     font-weight: 400;
     padding: 0 10px;
+  }
+}
+
+.environment-source-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0 10px;
+  list-style: none;
+
+  li {
+    min-width: 0;
+  }
+
+  a {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--color-text);
+    font-size: var(--font-size-13);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-decoration: none;
+
+    &:hover {
+      color: var(--color-accent);
+      text-decoration: underline;
+    }
+  }
+}
+
+.popover.popover-environment-branch {
+  position: relative;
+  top: auto;
+  right: auto;
+  bottom: auto;
+  left: auto;
+  width: min(360px, calc(100vw - 32px));
+  max-height: min(320px, calc(100vh - 96px));
+}
+
+.popover.popover-branch,
+.popover.popover-environment-branch {
+  --popover-overflow-y: hidden;
+}
+
+.popover.popover-branch .popover-scroll-content,
+.popover.popover-environment-branch .popover-scroll-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.popover.popover-branch .popover-scroll-content {
+  max-height: min(420px, calc(100vh - 32px));
+}
+
+.popover.popover-environment-branch .popover-scroll-content {
+  max-height: min(320px, calc(100vh - 96px));
+}
+
+.branch-popover-list-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.environment-branch-label {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  > span,
+  small {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  small {
+    color: var(--color-text-soft);
+    font-size: var(--font-size-12);
+    font-weight: 400;
   }
 }
 

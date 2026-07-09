@@ -24,11 +24,15 @@ export type SessionListItem = DesktopSessionListItem
 
 export type ToolLogEntry = DesktopToolLogEntry
 
-export function sessionDisplayTitle(session: SessionListItem): string {
+export function sessionDisplayTitle(
+  session: SessionListItem,
+  fallbackTitle?: string | null,
+): string {
   return (
     session.sessionName ??
     session.customTitle ??
     session.aiTitle ??
+    fallbackTitle ??
     session.firstPrompt ??
     session.workspaceName
   )
@@ -43,4 +47,29 @@ export type SessionViewState = {
   pendingPermissions: DesktopPermissionRequest[]
   contextUsage: DesktopContextUsage | null
   selectedFile: DesktopFilePreview | null
+}
+
+export function sessionViewFallbackTitle(
+  view: Pick<SessionViewState, 'events' | 'messages'>,
+): string | null {
+  const eventTitle = firstUserContent(
+    view.events as Array<{ role?: string; content?: string }>,
+  )
+  const messageTitle = firstUserContent(
+    view.messages.map(message => ({
+      role: message.role,
+      content: message.text,
+    })),
+  )
+  const title = eventTitle ?? messageTitle
+  if (!title) return null
+  return title.length > 28 ? `${title.slice(0, 28)}...` : title
+}
+
+function firstUserContent(
+  items: Array<{ role?: string; content?: string }>,
+): string | null {
+  const content = items.find(item => item.role === 'user')?.content
+  const title = content?.trim().split(/\r?\n/)[0]?.trim()
+  return title || null
 }

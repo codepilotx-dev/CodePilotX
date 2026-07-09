@@ -32,6 +32,7 @@ type Props = {
   pinnedSessions: SessionListItem[];
   pinnedWorkspaces: DesktopWorkspace[];
   projectWorkspaces: DesktopWorkspace[];
+  sessionFallbackTitles: Record<string, string>;
   standaloneSessions: SessionListItem[];
   unavailableWorkspacePaths: Set<string>;
   unpinnedSessions: SessionListItem[];
@@ -59,6 +60,7 @@ export function SidebarBody({
   pinnedSessions,
   pinnedWorkspaces,
   projectWorkspaces,
+  sessionFallbackTitles,
   standaloneSessions,
   unavailableWorkspacePaths,
   unpinnedSessions,
@@ -102,6 +104,7 @@ export function SidebarBody({
                     }
                     groupKey="pinned"
                     now={now}
+                    sessionFallbackTitles={sessionFallbackTitles}
                     sessions={pinnedSessions}
                     onArchiveSession={onArchiveSession}
                     onPinSession={onPinSession}
@@ -120,6 +123,7 @@ export function SidebarBody({
                     isUnavailable={unavailableWorkspacePaths.has(project.path)}
                     now={now}
                     project={project}
+                    sessionFallbackTitles={sessionFallbackTitles}
                     sessions={unpinnedSessions}
                     workspace={workspace}
                     onArchiveSession={onArchiveSession}
@@ -164,6 +168,7 @@ export function SidebarBody({
                   isUnavailable={unavailableWorkspacePaths.has(project.path)}
                   now={now}
                   project={project}
+                  sessionFallbackTitles={sessionFallbackTitles}
                   sessions={unpinnedSessions}
                   workspace={workspace}
                   onArchiveSession={onArchiveSession}
@@ -201,6 +206,7 @@ export function SidebarBody({
                 }
                 groupKey="standalone"
                 now={now}
+                sessionFallbackTitles={sessionFallbackTitles}
                 sessions={standaloneSessions}
                 onArchiveSession={onArchiveSession}
                 onPinSession={onPinSession}

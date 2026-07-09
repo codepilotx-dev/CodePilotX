@@ -202,7 +202,7 @@
 
 .sidebar-row--session {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 60px;
+  grid-template-columns: minmax(0, 1fr) auto;
   justify-content: stretch;
 }
 
@@ -455,6 +455,11 @@
   align-items: center;
   justify-content: flex-end;
   width: 60px;
+}
+
+.sidebar-session-meta--approval {
+  width: auto;
+  gap: 8px;
 }
 
 .sidebar-session-confirm-archive-button {

@@ -23,6 +23,7 @@ type Props = {
   activeSessionId: string | null;
   groupKey: string;
   now: number;
+  sessionFallbackTitles: Record<string, string>;
   sessions: SessionListItem[];
   onArchiveSession: (session: SessionListItem) => void;
   onPinSession: (session: SessionListItem) => void;
@@ -35,6 +36,7 @@ export function SidebarSessionGroup({
   activeSessionId,
   groupKey,
   now,
+  sessionFallbackTitles,
   sessions,
   onArchiveSession,
   onPinSession,
@@ -102,6 +104,13 @@ export function SidebarSessionGroup({
     const awaitingApproval =
       session.status === "waiting" ||
       session.id === activePendingPermissionSessionId;
+    const metaClassName = [
+      "sidebar-session-meta",
+      awaitingApproval ? "sidebar-session-meta--approval" : null,
+      confirmArchiveSessionId === session.id ? "confirming-archive" : null,
+    ]
+      .filter(Boolean)
+      .join(" ");
     const row = (
       <SidebarRow
         active={session.id === activeSessionId}
@@ -119,14 +128,19 @@ export function SidebarSessionGroup({
           );
         }}
         trailing={
-          <div
-            className={
-              confirmArchiveSessionId === session.id
-                ? "sidebar-session-meta confirming-archive"
-                : "sidebar-session-meta"
-            }
-          >
-            {session.status === "running" || awaitingApproval ? (
+          <div className={metaClassName}>
+            {awaitingApproval ? (
+              <>
+                <span className="sidebar-session-approval" title="等待审批">
+                  等待审批
+                </span>
+                <LoaderCircle
+                  aria-label="加载中"
+                  className="sidebar-session-spinner"
+                  size={APP_ICON_SIZE}
+                />
+              </>
+            ) : session.status === "running" ? (
               <LoaderCircle
                 aria-label="加载中"
                 className="sidebar-session-spinner"
@@ -187,13 +201,8 @@ export function SidebarSessionGroup({
           type="button"
         >
           <span className="sidebar-session-title">
-            {sessionDisplayTitle(session)}
+            {sessionDisplayTitle(session, sessionFallbackTitles[session.id])}
           </span>
-          {awaitingApproval ? (
-            <span className="sidebar-session-approval" title="等待审批">
-              等待审批
-            </span>
-          ) : null}
         </button>
       </SidebarRow>
     );

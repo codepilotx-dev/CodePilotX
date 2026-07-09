@@ -32,6 +32,7 @@ export type QuickChatContextValue = {
   workspaceName: string | null
   workspacePath: string | null
   branchName: string | null
+  branches: string[]
   diff: string
   gitStatus: DesktopGitStatus | null
   recentWorkspaces: DesktopWorkspace[]
@@ -56,6 +57,7 @@ export type QuickChatContextValue = {
   onChooseWorkspace: () => Promise<DesktopWorkspace | null>
   onCloneGithub: () => void
   onOpenWorkspace: (workspace: DesktopWorkspace) => Promise<DesktopWorkspace | null>
+  onBranchSelect: (branch: string) => Promise<void>
   onClearWorkspace: () => void
   onDecidePermission: (
     request: DesktopPermissionRequest,
