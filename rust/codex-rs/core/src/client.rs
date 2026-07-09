@@ -1101,8 +1101,10 @@ impl ModelClient {
                     }
                 }
                 ResponseItem::FunctionCall { name, arguments, call_id, .. } => {
-                    let input: serde_json::Value =
-                        serde_json::from_str(&arguments).unwrap_or(serde_json::Value::String(arguments));
+                    let input = match serde_json::from_str(&arguments) {
+                        Ok(v @ serde_json::Value::Object(_)) => v,
+                        _ => serde_json::Value::Object(serde_json::Map::new()),
+                    };
                     if let Some(last) = messages.last_mut() {
                         if last.role == "assistant" {
                             last.content.push(AnthropicRequestContentBlock::ToolUse {
@@ -1114,8 +1116,10 @@ impl ModelClient {
                     }
                 }
                 ResponseItem::CustomToolCall { name, input, call_id, .. } => {
-                    let input_value: serde_json::Value =
-                        serde_json::from_str(&input).unwrap_or(serde_json::Value::String(input));
+                    let input_value = match serde_json::from_str(&input) {
+                        Ok(v @ serde_json::Value::Object(_)) => v,
+                        _ => serde_json::Value::Object(serde_json::Map::new()),
+                    };
                     if let Some(last) = messages.last_mut() {
                         if last.role == "assistant" {
                             last.content.push(AnthropicRequestContentBlock::ToolUse {
@@ -1209,12 +1213,20 @@ impl ModelClient {
         for item in prompt.get_formatted_input_for_request(/*use_responses_lite*/ false) {
             match item {
                 ResponseItem::Message { role, content, .. } => {
-                    // Flush any pending tool calls onto the previous assistant message
+                    // Flush any pending tool calls onto an assistant message.
+                    // If the last message is already an Assistant, attach them there;
+                    // otherwise create an Assistant message to anchor them.
                     if !pending_tool_calls.is_empty() {
-                        if let Some(last) = messages.last_mut() {
-                            if let ChatCompletionRequestMessage::Assistant { tool_calls, .. } = last {
-                                *tool_calls = Some(std::mem::take(&mut pending_tool_calls));
-                            }
+                        if let Some(ChatCompletionRequestMessage::Assistant { tool_calls, .. }) =
+                            messages.last_mut()
+                        {
+                            *tool_calls = Some(std::mem::take(&mut pending_tool_calls));
+                        } else {
+                            messages.push(ChatCompletionRequestMessage::Assistant {
+                                role: "assistant".to_string(),
+                                content: None,
+                                tool_calls: Some(std::mem::take(&mut pending_tool_calls)),
+                            });
                         }
                     }
 
@@ -1262,6 +1274,22 @@ impl ModelClient {
                     if text.trim().is_empty() {
                         continue;
                     }
+                    // Ensure pending tool calls are flushed to an Assistant message
+                    // before pushing this Tool result, so the provider sees a valid
+                    // assistant→tool sequence.
+                    if !pending_tool_calls.is_empty() {
+                        if let Some(ChatCompletionRequestMessage::Assistant { tool_calls, .. }) =
+                            messages.last_mut()
+                        {
+                            *tool_calls = Some(std::mem::take(&mut pending_tool_calls));
+                        } else {
+                            messages.push(ChatCompletionRequestMessage::Assistant {
+                                role: "assistant".to_string(),
+                                content: None,
+                                tool_calls: Some(std::mem::take(&mut pending_tool_calls)),
+                            });
+                        }
+                    }
                     messages.push(ChatCompletionRequestMessage::Tool {
                         role: "tool".to_string(),
                         tool_call_id: call_id,
@@ -1272,6 +1300,20 @@ impl ModelClient {
                     let text = chat_completions_output_text(&output);
                     if text.trim().is_empty() {
                         continue;
+                    }
+                    // Same flush logic as FunctionCallOutput above
+                    if !pending_tool_calls.is_empty() {
+                        if let Some(ChatCompletionRequestMessage::Assistant { tool_calls, .. }) =
+                            messages.last_mut()
+                        {
+                            *tool_calls = Some(std::mem::take(&mut pending_tool_calls));
+                        } else {
+                            messages.push(ChatCompletionRequestMessage::Assistant {
+                                role: "assistant".to_string(),
+                                content: None,
+                                tool_calls: Some(std::mem::take(&mut pending_tool_calls)),
+                            });
+                        }
                     }
                     messages.push(ChatCompletionRequestMessage::Tool {
                         role: "tool".to_string(),
@@ -1285,10 +1327,16 @@ impl ModelClient {
 
         // Flush remaining pending tool calls
         if !pending_tool_calls.is_empty() {
-            if let Some(last) = messages.last_mut() {
-                if let ChatCompletionRequestMessage::Assistant { tool_calls, .. } = last {
-                    *tool_calls = Some(pending_tool_calls);
-                }
+            if let Some(ChatCompletionRequestMessage::Assistant { tool_calls, .. }) =
+                messages.last_mut()
+            {
+                *tool_calls = Some(pending_tool_calls);
+            } else {
+                messages.push(ChatCompletionRequestMessage::Assistant {
+                    role: "assistant".to_string(),
+                    content: None,
+                    tool_calls: Some(pending_tool_calls),
+                });
             }
         }
 
@@ -2536,6 +2584,25 @@ fn chat_completions_text_from_content_items(content: &[ContentItem]) -> String {
     text
 }
 
+/// Extract initial tool arguments from an Anthropic `content_block_start` event.
+///
+/// Anthropic streams typically send `tool_use.input = {}` as a placeholder in
+/// `content_block_start`, with the real arguments arriving via
+/// `input_json_delta.partial_json`. We skip the empty object so that
+/// subsequent delta concatenation produces valid JSON.
+///
+/// If a provider sends a non-empty object upfront, it is serialized directly.
+/// If input is `None`, returns an empty string (no initial seed).
+fn anthropic_tool_input_arguments(input: Option<&serde_json::Value>) -> String {
+    match input {
+        Some(v) if v.is_object() && v.as_object().map_or(false, |o| o.is_empty()) => {
+            String::new()
+        }
+        Some(v) => v.to_string(),
+        None => String::new(),
+    }
+}
+
 fn spawn_anthropic_messages_stream<S, E>(
     event_stream: S,
     idle_timeout: Duration,
@@ -2612,10 +2679,16 @@ where
                 // Emit each tool call item
                 for tc in &pending_tool_calls {
                     let fc_id = Some(tc.id.clone());
+                    // If no deltas arrived (zero-argument tool), output empty object
+                    let final_args = if tc.arguments.is_empty() {
+                        "{}".to_string()
+                    } else {
+                        tc.arguments.clone()
+                    };
                     send_ev!(ResponseEvent::OutputItemAdded(ResponseItem::FunctionCall {
                         id: fc_id.clone(),
                         name: tc.name.clone(),
-                        arguments: tc.arguments.clone(),
+                        arguments: final_args.clone(),
                         call_id: tc.id.clone(),
                         namespace: None,
                         metadata: None,
@@ -2623,7 +2696,7 @@ where
                     send_ev!(ResponseEvent::OutputItemDone(ResponseItem::FunctionCall {
                         id: fc_id,
                         name: tc.name.clone(),
-                        arguments: tc.arguments.clone(),
+                        arguments: final_args,
                         call_id: tc.id.clone(),
                         namespace: None,
                         metadata: None,
@@ -2705,9 +2778,11 @@ where
                                 format!("{}-tool-{}", response_id, current_block_index)
                             });
                             let name = content_block.name.unwrap_or_default();
-                            let initial_input = content_block.input
-                                .map(|v| v.to_string())
-                                .unwrap_or_default();
+                            // Skip empty `{}` from content_block_start to avoid
+                            // producing invalid JSON when delta is appended later
+                            // (reference: opencode-dev approach).
+                            let initial_input =
+                                anthropic_tool_input_arguments(content_block.input.as_ref());
                             pending_tool_calls.push(PendingToolCall {
                                 id: call_id,
                                 name,
@@ -2939,18 +3014,21 @@ where
                             return;
                         }
                         "tool_calls" => {
-                            // Emit text item first (if any)
-                            if !assistant_text.is_empty() {
-                                send_ev!(ResponseEvent::OutputItemDone(ResponseItem::Message {
-                                    id: Some(assistant_item_id.clone()),
-                                    role: "assistant".to_string(),
-                                    content: vec![ContentItem::OutputText {
+                            // Emit assistant message (always — even with empty text,
+                            // so history has a Message to anchor tool_calls to).
+                            send_ev!(ResponseEvent::OutputItemDone(ResponseItem::Message {
+                                id: Some(assistant_item_id.clone()),
+                                role: "assistant".to_string(),
+                                content: if assistant_text.is_empty() {
+                                    Vec::new()
+                                } else {
+                                    vec![ContentItem::OutputText {
                                         text: std::mem::take(&mut assistant_text),
-                                    }],
-                                    phase: None,
-                                    metadata: None,
-                                }));
-                            }
+                                    }]
+                                },
+                                phase: None,
+                                metadata: None,
+                            }));
                             // Emit accumulated tool calls
                             for tc in &pending_tool_calls {
                                 let fc_id = Some(tc.id.clone());

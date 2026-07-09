@@ -1658,6 +1658,11 @@ impl ResponseInputItem {
                         }
                     }
                     UserInput::Skill { .. } | UserInput::Mention { .. } => Vec::new(), // Tool bodies are injected later in core
+                    UserInput::TextFile { text, .. } => vec![ContentItem::InputText { text }],
+                    UserInput::Document { .. }
+                    | UserInput::Audio { .. }
+                    | UserInput::Video { .. }
+                    | UserInput::File { .. } => Vec::new(), // Binary attachments handled at a higher level
                 })
                 .collect::<Vec<ContentItem>>(),
             phase: None,
