@@ -1594,6 +1594,7 @@ export function DesktopLayout(): React.ReactNode {
       modelConfigured={modelConfigured}
       modelCatalogLoading={modelCatalogLoading}
       modelConfigurationMessage={modelConfigurationMessage}
+      selectedModelMetadata={selectedModelMetadata}
       showThinkingOptions={showThinkingOptions}
       deepSeekThinkingControls={deepSeekThinkingControls}
       debugMode={menubarDebugMode}
@@ -1645,6 +1646,7 @@ export function DesktopLayout(): React.ReactNode {
         modelConfigured={modelConfigured}
         modelCatalogLoading={modelCatalogLoading}
         modelConfigurationMessage={modelConfigurationMessage}
+        selectedModelMetadata={selectedModelMetadata}
         showThinkingOptions={showThinkingOptions}
         deepSeekThinkingControls={deepSeekThinkingControls}
         debugMode={menubarDebugMode}

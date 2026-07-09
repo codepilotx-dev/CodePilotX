@@ -40,6 +40,7 @@ export function SettingsDropdown({
   width,
   maxWidth,
 }: Props) {
+  const [open, setOpen] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState('')
   const searchInputRef = React.useRef<HTMLInputElement | null>(null)
   const selectedOption = options.find(o => o.value === value) || options[0]
@@ -57,9 +58,19 @@ export function SettingsDropdown({
       })
     : options
 
+  React.useEffect(() => {
+    if (!open || !searchable) return
+    requestAnimationFrame(() => {
+      searchInputRef.current?.focus()
+      searchInputRef.current?.select()
+    })
+  }, [open, searchable])
+
   return (
     <Select.Root
+      open={open}
       value={radixValue}
+      onOpenChange={setOpen}
       onValueChange={nextValue =>
         onChange(nextValue === EMPTY_VALUE ? '' : nextValue)
       }
@@ -97,14 +108,6 @@ export function SettingsDropdown({
                 ? 'min(calc(420px + var(--popover-width-extra)), calc(100vw - 24px))'
                 : undefined),
           })}
-          onOpenAutoFocus={event => {
-            if (!searchable) return
-            event.preventDefault()
-            requestAnimationFrame(() => {
-              searchInputRef.current?.focus()
-              searchInputRef.current?.select()
-            })
-          }}
           onPointerDownOutside={event => {
             preventOutsideDismissWhenDebug(disableOutsideDismiss, event)
           }}
