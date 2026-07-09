@@ -57,7 +57,7 @@ test('core provider catalog matches TUI zhipu metadata coverage', async () => {
       displayName: '智谱 BigModel',
       baseURL: 'https://open.bigmodel.cn/api/paas/v4/',
       apiKeyEnvVar: 'ZAI_API_KEY',
-      envVars: ['ZAI_API_KEY'],
+	    envVars: ['ZAI_API_KEY', 'ZHIPU_API_KEY'],
       defaultModels: ZHIPU_DEFAULT_MODELS,
     })
     expect(zhipu?.modelMetadata?.['glm-5.2']).toMatchObject({
@@ -76,7 +76,28 @@ test('core provider catalog matches TUI zhipu metadata coverage', async () => {
       structuredOutput: true,
       vision: true,
     })
-  })
+	})
+})
+
+test('core provider catalog deduplicates zhipu/zhipuai via normalizeLegacyProviderID alias', async () => {
+  clearProviderConfigCatalogCacheForTests()
+  const providers = await listProviderConfigs()
+
+  // Should only have ONE core zhipu entry, not a duplicate under 'zhipuai'
+  const zhipuEntries = providers.filter(
+    p => p.providerID === 'zhipu' || p.providerID === 'zhipuai',
+  )
+  expect(zhipuEntries).toHaveLength(1)
+  expect(zhipuEntries[0].providerID).toBe('zhipu')
+  expect(zhipuEntries[0].displayName).toBe('智谱 BigModel')
+
+  // zhipuai-coding-plan is a distinct provider (different API baseURL) and
+  // should remain separate
+  const codingPlan = providers.find(
+    p => p.providerID === 'zhipuai-coding-plan',
+  )
+  expect(codingPlan).toBeDefined()
+  expect(codingPlan?.displayName).toBe('Zhipu AI Coding Plan')
 })
 
 test('core provider catalog merges models.dev and AI Gateway metadata', async () => {

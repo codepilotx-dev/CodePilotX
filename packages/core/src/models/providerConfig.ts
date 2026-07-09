@@ -1014,33 +1014,43 @@ function mergeModelsDevCatalog(
             k => normalizeLegacyProviderID(k) === providerID,
           )
     const existing = directKey ? catalog[directKey] : undefined
-    catalog[providerID] = existing
-      ? {
-          ...existing,
-          kind: fromModelsDev.kind ?? existing.kind,
-          displayName: existing.displayName || fromModelsDev.displayName,
-          baseURL: existing.baseURL ?? fromModelsDev.baseURL,
-          envVars: mergeEnvVars(
-            existing.envVars,
-            fromModelsDev.envVars,
-          ),
-          apiKeyEnvVar: existing.apiKeyEnvVar ?? fromModelsDev.apiKeyEnvVar,
-          docURL: existing.docURL ?? fromModelsDev.docURL,
-          logoURL: fromModelsDev.logoURL ?? existing.logoURL,
-          npmPackage: fromModelsDev.npmPackage ?? existing.npmPackage,
-          requiresBaseURL:
-            fromModelsDev.requiresBaseURL ?? existing.requiresBaseURL,
-          wireApi: fromModelsDev.wireApi ?? existing.wireApi,
-          defaultModels: existing.defaultModels.length
-            ? existing.defaultModels
-            : fromModelsDev.defaultModels,
-          modelMetadata: mergeModelMetadata(
-            existing.modelMetadata,
-            fromModelsDev.modelMetadata,
-          ),
-          modelsDevSource: true,
-        }
-      : fromModelsDev
+    if (existing) {
+      const merged = {
+        ...existing,
+        kind: fromModelsDev.kind ?? existing.kind,
+        displayName: existing.displayName || fromModelsDev.displayName,
+        baseURL: existing.baseURL ?? fromModelsDev.baseURL,
+        envVars: mergeEnvVars(
+          existing.envVars,
+          fromModelsDev.envVars,
+        ),
+        apiKeyEnvVar: existing.apiKeyEnvVar ?? fromModelsDev.apiKeyEnvVar,
+        docURL: existing.docURL ?? fromModelsDev.docURL,
+        logoURL: fromModelsDev.logoURL ?? existing.logoURL,
+        npmPackage: fromModelsDev.npmPackage ?? existing.npmPackage,
+        requiresBaseURL:
+          fromModelsDev.requiresBaseURL ?? existing.requiresBaseURL,
+        wireApi: fromModelsDev.wireApi ?? existing.wireApi,
+        defaultModels: existing.defaultModels.length
+          ? existing.defaultModels
+          : fromModelsDev.defaultModels,
+        modelMetadata: mergeModelMetadata(
+          existing.modelMetadata,
+          fromModelsDev.modelMetadata,
+        ),
+        modelsDevSource: true,
+      }
+      // When the models.dev providerID matches an existing catalog key
+      // via normalizeLegacyProviderID alias (e.g. 'zhipuai' → 'zhipu'),
+      // merge into the existing entry rather than creating a duplicate.
+      if (directKey === providerID) {
+        catalog[providerID] = merged
+      } else {
+        catalog[directKey] = merged
+      }
+    } else {
+      catalog[providerID] = fromModelsDev
+    }
   }
   return {
     providerCount: Object.keys(modelsDevProviders).length,
