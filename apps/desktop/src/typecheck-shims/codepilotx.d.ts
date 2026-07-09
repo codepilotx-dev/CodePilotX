@@ -1,3 +1,70 @@
+declare module '@codepilotx/core/runtime/appRuntime.js' {
+  export type AuthRuntime = {
+    hasProfileScope(): boolean
+    isClaudeAISubscriber(): boolean
+    saveApiKey(apiKey: string): Promise<void>
+    getAnthropicApiKey(): string | null
+    getAuthTokenSource(): { source: string; hasToken: boolean }
+    getOauthAccountInfo():
+      | { emailAddress?: string; organizationName?: string | null }
+      | undefined
+    hasAnthropicApiKeyAuth(): boolean
+  }
+
+  export type CoreAccountInfo = {
+    accountUuid?: string
+    emailAddress?: string
+    organizationUuid?: string
+    organizationName?: string | null
+    organizationRole?: string | null
+    workspaceRole?: string | null
+    displayName?: string
+    hasExtraUsageEnabled?: boolean
+    billingType?: string | null
+    accountCreatedAt?: string
+    subscriptionCreatedAt?: string
+  }
+
+  export type CoreGlobalConfig = {
+    oauthAccount?: CoreAccountInfo
+    [key: string]: unknown
+  }
+
+  export type ConfigRuntime = {
+    enableConfigs(): void
+    getGlobalConfig<T = CoreGlobalConfig>(): T
+    saveGlobalConfig(
+      updater: (current: CoreGlobalConfig) => CoreGlobalConfig,
+    ): void
+  }
+
+  export type SettingsJson = Record<string, unknown>
+
+  export type SettingsRuntime = {
+    getSettings_DEPRECATED<T = SettingsJson>(): T | undefined
+    getInitialSettings<T = SettingsJson>(): T
+    getSettingsForSource(source: string): SettingsJson | undefined
+    updateSettingsForSource(
+      source: string,
+      updater: (current: SettingsJson) => SettingsJson,
+    ): void
+  }
+
+  export type AppRuntime = {
+    auth: AuthRuntime
+    config: ConfigRuntime
+    settings: SettingsRuntime
+  }
+
+  export function configureCoreAppRuntime(nextRuntime: AppRuntime): void
+  export function withCoreAppRuntime<T>(
+    nextRuntime: AppRuntime,
+    run: () => T,
+  ): T
+  export function getCoreAppRuntime(): AppRuntime | null
+  export function requireCoreAppRuntime(): AppRuntime
+}
+
 declare module '@codepilotx/core/agent/runtime.js' {
   export type AgentSessionStatus =
     | 'idle'
@@ -679,6 +746,10 @@ declare module '@codepilotx/core/models/provider.js' {
     | 'openai-compatible'
     | 'minimax'
     | 'github-copilot'
+  export type ProviderWireApi =
+    | 'responses'
+    | 'chat_completions'
+    | 'anthropic_messages'
   export type ModelMetadata = {
     id: string
     name?: string
@@ -717,6 +788,7 @@ declare module '@codepilotx/core/models/provider.js' {
     modelsDevSource?: boolean
     gatewaySource?: boolean
     requiresBaseURL?: boolean
+    wireApi?: ProviderWireApi
   }
   export type ModelProviderConfig = Omit<
     ModelProviderSummary,
@@ -839,6 +911,7 @@ declare module '@codepilotx/core/session/logs.js' {
 }
 
 declare module '@codepilotx/core/session/storage.js' {
+  export function getProjectsDir(): string
   export function getProjectDir(workspacePath: string): string
   export function loadAllProjectsMessageLogs(
     limit?: number,
@@ -860,6 +933,39 @@ declare module '@codepilotx/core/session/title.js' {
     signal: AbortSignal,
     model: string,
   ): Promise<string | null>
+}
+
+declare module '@codepilotx/core/session/sqlite/index.js' {
+  export class SessionDatabase {
+    static getInstance(): SessionDatabase
+    readonly db: import('better-sqlite3').Database
+    open(): void
+  }
+  export function runMigrations(): void
+  export function listSessions(
+    params: import('./types.js').ListSessionsParams,
+  ): import('./types.js').ListSessionsResult
+  export function getSession(id: string): import('./types.js').SessionRow | undefined
+  export function countSessions(
+    params?: { archived?: boolean },
+  ): number
+  export function sessionExists(id: string): boolean
+  export function upsertSession(upsert: import('./types.js').SessionUpsert): void
+  export function touchRecencyAt(id: string, candidateMs?: number): void
+  export function deleteSession(id: string): void
+  export function backfillSessions(
+    overlaysById?: Map<string, import('./backfill.js').SessionOverlay>,
+  ): Promise<void>
+  export function isBackfillComplete(): boolean
+
+  export type SessionRow = import('./types.js').SessionRow
+  export type SessionUpsert = import('./types.js').SessionUpsert
+  export type ListSessionsParams = import('./types.js').ListSessionsParams
+  export type ListSessionsResult = import('./types.js').ListSessionsResult
+  export type Cursor = import('./types.js').Cursor
+  export type SortKey = import('./types.js').SortKey
+  export type SortDirection = import('./types.js').SortDirection
+  export type SessionOverlay = import('./backfill.js').SessionOverlay
 }
 
 declare module '@codepilotx/core/utils/plugins/cache.js' {
@@ -1482,6 +1588,47 @@ declare module '@codepilotx/core/services/mcp/config.js' {
   export function isMcpServerDisabled(name: string): boolean
 }
 
+declare module '@codepilotx/core/services/oauth/githubExchange.js' {
+  export type GithubExchangeInput = {
+    githubAccessToken: string
+    githubUser: {
+      login: string
+      id: number
+      name?: string | null
+      avatarUrl?: string | null
+    }
+    client: 'desktop' | 'tui'
+  }
+
+  export type GithubExchangeTokens = {
+    accessToken: string
+    refreshToken: string | null
+    expiresAt: number | null
+    scopes: string[]
+    subscriptionType: string | null
+    rateLimitTier: string | null
+    source: string
+    tokenAccount?: {
+      uuid?: string
+      emailAddress?: string
+      organizationUuid?: string
+    }
+  }
+
+  export function resolveAuthBaseUrl(settingUrl?: string | null): string
+  export function resolveGithubClientId(
+    preferredClientId?: string | null,
+  ): string
+  export function exchangeGithubToken(
+    input: GithubExchangeInput,
+    authBaseUrl?: string | null,
+  ): Promise<GithubExchangeTokens>
+  export function refreshCodePilotToken(
+    refreshToken: string,
+    authBaseUrl?: string | null,
+  ): Promise<GithubExchangeTokens>
+}
+
 	declare module '@codepilotx/core/models/context.js' {
 	  export const MODEL_CONTEXT_WINDOW_DEFAULT: number
 	  export function getContextWindowForModel(
@@ -1496,8 +1643,10 @@ declare module '@codepilotx/core/models/providerConfig.js' {
     ModelProviderID,
     ProviderBalanceInfo,
     ProviderTokenPlanUsageInfo,
+    ProviderWireApi,
   } from '@codepilotx/core/models/provider.js'
 
+  export type { ProviderWireApi }
   export type ProviderConfig = ModelProviderConfig
   export type ProviderConfigRuntime = {
     fetch?: typeof fetch
