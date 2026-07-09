@@ -53,6 +53,10 @@ function isUserMessage(item: TimelineItem): boolean {
   return item.type === 'message' && item.role === 'user';
 }
 
+function isSystemMessage(item: TimelineItem): boolean {
+  return item.type === 'message' && item.role === 'system';
+}
+
 function isPlan(item: TimelineItem): boolean {
   return item.type === 'proposed_plan';
 }
@@ -134,6 +138,17 @@ export function convertPhaseItemsToRows(
         type: 'assistant_message',
         message: messageFromEvent(event),
         showActions: assistantActionMessageIds.has(eventId(event)),
+        eventId: eventId(event),
+      });
+      continue;
+    }
+
+    if (isSystemMessage(event)) {
+      rows.push({
+        key: rowKey(ROW_PREFIX.SYSTEM, eventId(event)),
+        type: 'system_event',
+        content: event.content ?? '',
+        systemEventType: 'message',
         eventId: eventId(event),
       });
       continue;

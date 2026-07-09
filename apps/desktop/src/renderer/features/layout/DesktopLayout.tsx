@@ -138,6 +138,7 @@ export function DesktopLayout(): React.ReactNode {
 	    syncExternalSettingsPatch,
   } = settings
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [noticeMessage, setNoticeMessage] = useState<string | null>(null)
   const [_runtimeWarningDismissed, setRuntimeWarningDismissed] = useState(false)
   const [archiveNoticeVisible, setArchiveNoticeVisible] = useState(false)
   const [isWindowMaximized, setIsWindowMaximized] = useState(false)
@@ -1249,6 +1250,9 @@ export function DesktopLayout(): React.ReactNode {
       setProviderBaseURL(baseURL ?? '')
       setSelectedModelPreset(nextPresetId)
       setModel(preset.value)
+      if (sessionId && messages.length > 0) {
+        setNoticeMessage('在对话过程中切换模型会降低性能表现')
+      }
       void desktopClient
         .saveModelProvider({
           providerID,
@@ -1270,8 +1274,10 @@ export function DesktopLayout(): React.ReactNode {
     [
       model,
       modelProviders,
+      messages.length,
       providerModelOptions,
       providerState,
+      sessionId,
       setModel,
       setProviderBaseURL,
       setProviderID,
@@ -1750,6 +1756,11 @@ export function DesktopLayout(): React.ReactNode {
           }
           setRuntimeWarningDismissed(true)
         }}
+      />
+      <GlobalErrorModal
+        message={noticeMessage}
+        tone="status"
+        onDismiss={() => setNoticeMessage(null)}
       />
       <GitWorkflowModal
         allowForcePush={allowForcePush}

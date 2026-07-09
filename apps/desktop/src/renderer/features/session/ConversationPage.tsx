@@ -4,6 +4,7 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
   AppWindow,
   Archive,
+  Box,
   Check,
   ChevronDown,
   ChevronRight,
@@ -20,6 +21,7 @@ import {
   GitBranch,
   GitPullRequest,
   Globe,
+  Info,
   Laptop,
   MessageSquarePlus,
   MoreHorizontal,
@@ -1948,6 +1950,9 @@ function TimelineItem({
 
   const event = item;
   if (event.type === "message" || event.type === "assistant_delta") {
+    if (event.type === "message" && event.role === "system") {
+      return <TimelineSystemNotice content={event.content ?? ""} />;
+    }
     return (
       <ChatMessage
         message={{
@@ -2086,11 +2091,7 @@ function TimelineItem({
   }
 
   if (event.type === "permission_request" || event.type === "error") {
-    return (
-      <article className={`timeline-system-event ${event.type}`}>
-        {event.content}
-      </article>
-    );
+    return <TimelineSystemNotice content={event.content ?? ""} type={event.type} />;
   }
 
   if (event.type === "status" || event.type === "checkpoint") {
@@ -2098,6 +2099,38 @@ function TimelineItem({
   }
 
   return null;
+}
+
+function TimelineSystemNotice({
+  content,
+  type,
+}: {
+  content: string;
+  type?: string;
+}): React.ReactNode {
+  if (isModelSwitchNotice(content)) {
+    return (
+      <article className="timeline-model-switch-event">
+        <span className="timeline-model-switch-line" />
+        <span className="timeline-model-switch-content">
+          <Box size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+          <strong>{content}</strong>
+          <Info size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+        </span>
+        <span className="timeline-model-switch-line" />
+      </article>
+    );
+  }
+
+  return (
+    <article className={`timeline-system-event ${type ?? "message"}`}>
+      {content}
+    </article>
+  );
+}
+
+function isModelSwitchNotice(content: string): boolean {
+  return /^模型已从 .+ 更改为 .+$/.test(content.trim());
 }
 
 function TimelineToolGroupView({
