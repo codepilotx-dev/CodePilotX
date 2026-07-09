@@ -49,6 +49,41 @@ pub enum UserInput {
     /// `path` identifies the exact mention target, for example
     /// `app://<connector-id>` or `plugin://<plugin-name>@<marketplace-name>`.
     Mention { name: String, path: String },
+
+    /// PDF / document attachment (base64-encoded).
+    Document {
+        data: String,
+        media_type: String,
+        name: String,
+    },
+
+    /// Audio file attachment (base64-encoded).
+    Audio {
+        data: String,
+        media_type: String,
+        name: String,
+    },
+
+    /// Video file attachment (base64-encoded).
+    Video {
+        data: String,
+        media_type: String,
+        name: String,
+    },
+
+    /// Generic binary file attachment (base64-encoded).
+    File {
+        data: String,
+        media_type: String,
+        name: String,
+    },
+
+    /// Text file attachment (UTF-8 content).
+    TextFile {
+        text: String,
+        name: String,
+        media_type: String,
+    },
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, TS, JsonSchema)]

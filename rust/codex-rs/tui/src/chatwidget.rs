@@ -1306,7 +1306,12 @@ impl ChatWidget {
                     }
                     UserInput::Text { .. }
                     | UserInput::Image { .. }
-                    | UserInput::LocalImage { .. } => None,
+                    | UserInput::LocalImage { .. }
+                    | UserInput::Document { .. }
+                    | UserInput::Audio { .. }
+                    | UserInput::Video { .. }
+                    | UserInput::File { .. }
+                    | UserInput::TextFile { .. } => None,
                 })
                 .collect();
             mention_bindings.sort_by_key(|binding| {

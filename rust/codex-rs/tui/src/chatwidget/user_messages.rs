@@ -587,7 +587,10 @@ impl ChatWidget {
         for item in items {
             match item {
                 UserInput::Text { text, .. } => message.push_str(text),
-                UserInput::Image { .. } | UserInput::LocalImage { .. } => image_count += 1,
+                UserInput::Image { .. } | UserInput::LocalImage { .. }
+                | UserInput::Document { .. } | UserInput::Audio { .. }
+                | UserInput::Video { .. } | UserInput::File { .. }
+                | UserInput::TextFile { .. } => image_count += 1,
                 UserInput::Skill { .. } | UserInput::Mention { .. } => {}
             }
         }

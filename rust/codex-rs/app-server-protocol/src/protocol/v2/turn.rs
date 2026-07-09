@@ -314,6 +314,36 @@ pub enum UserInput {
         name: String,
         path: String,
     },
+    /// PDF/document attachment (base64-encoded payload).
+    Document {
+        data: String,
+        media_type: String,
+        name: String,
+    },
+    /// Audio file attachment (base64-encoded payload).
+    Audio {
+        data: String,
+        media_type: String,
+        name: String,
+    },
+    /// Video file attachment (base64-encoded payload).
+    Video {
+        data: String,
+        media_type: String,
+        name: String,
+    },
+    /// Generic binary file attachment (base64-encoded payload).
+    File {
+        data: String,
+        media_type: String,
+        name: String,
+    },
+    /// Text file attachment (inline UTF-8 content).
+    TextFile {
+        text: String,
+        name: String,
+        media_type: String,
+    },
 }
 
 impl UserInput {
@@ -333,6 +363,51 @@ impl UserInput {
             UserInput::LocalImage { path, detail } => CoreUserInput::LocalImage { path, detail },
             UserInput::Skill { name, path } => CoreUserInput::Skill { name, path },
             UserInput::Mention { name, path } => CoreUserInput::Mention { name, path },
+            UserInput::Document {
+                data,
+                media_type,
+                name,
+            } => CoreUserInput::Document {
+                data,
+                media_type,
+                name,
+            },
+            UserInput::Audio {
+                data,
+                media_type,
+                name,
+            } => CoreUserInput::Audio {
+                data,
+                media_type,
+                name,
+            },
+            UserInput::Video {
+                data,
+                media_type,
+                name,
+            } => CoreUserInput::Video {
+                data,
+                media_type,
+                name,
+            },
+            UserInput::File {
+                data,
+                media_type,
+                name,
+            } => CoreUserInput::File {
+                data,
+                media_type,
+                name,
+            },
+            UserInput::TextFile {
+                text,
+                name,
+                media_type,
+            } => CoreUserInput::TextFile {
+                text,
+                name,
+                media_type,
+            },
         }
     }
 }
@@ -354,6 +429,51 @@ impl From<CoreUserInput> for UserInput {
             CoreUserInput::LocalImage { path, detail } => UserInput::LocalImage { path, detail },
             CoreUserInput::Skill { name, path } => UserInput::Skill { name, path },
             CoreUserInput::Mention { name, path } => UserInput::Mention { name, path },
+            CoreUserInput::Document {
+                data,
+                media_type,
+                name,
+            } => UserInput::Document {
+                data,
+                media_type,
+                name,
+            },
+            CoreUserInput::Audio {
+                data,
+                media_type,
+                name,
+            } => UserInput::Audio {
+                data,
+                media_type,
+                name,
+            },
+            CoreUserInput::Video {
+                data,
+                media_type,
+                name,
+            } => UserInput::Video {
+                data,
+                media_type,
+                name,
+            },
+            CoreUserInput::File {
+                data,
+                media_type,
+                name,
+            } => UserInput::File {
+                data,
+                media_type,
+                name,
+            },
+            CoreUserInput::TextFile {
+                text,
+                name,
+                media_type,
+            } => UserInput::TextFile {
+                text,
+                name,
+                media_type,
+            },
             _ => unreachable!("unsupported user input variant"),
         }
     }
@@ -363,10 +483,15 @@ impl UserInput {
     pub fn text_char_count(&self) -> usize {
         match self {
             UserInput::Text { text, .. } => text.chars().count(),
+            UserInput::TextFile { text, .. } => text.chars().count(),
             UserInput::Image { .. }
             | UserInput::LocalImage { .. }
             | UserInput::Skill { .. }
-            | UserInput::Mention { .. } => 0,
+            | UserInput::Mention { .. }
+            | UserInput::Document { .. }
+            | UserInput::Audio { .. }
+            | UserInput::Video { .. }
+            | UserInput::File { .. } => 0,
         }
     }
 }
