@@ -13,6 +13,7 @@ let parseAskUserQuestionTimelineResult: typeof import('./ConversationPage.js').p
 let planTitleFromSummary: typeof import('./ConversationPage.js').planTitleFromSummary
 let planCardPresentation: typeof import('./ConversationPage.js').planCardPresentation
 let buildDebugAskUserQuestionRequest: typeof import('./ConversationPage.js').buildDebugAskUserQuestionRequest
+let buildDebugPlanCardSummary: typeof import('./ConversationPage.js').buildDebugPlanCardSummary
 let deriveConversationTurnNavItems: typeof import('./ConversationPage.js').deriveConversationTurnNavItems
 
 beforeAll(async () => {
@@ -34,6 +35,8 @@ beforeAll(async () => {
   planCardPresentation = conversationPage.planCardPresentation
   buildDebugAskUserQuestionRequest =
     conversationPage.buildDebugAskUserQuestionRequest
+  buildDebugPlanCardSummary =
+    conversationPage.buildDebugPlanCardSummary
   deriveConversationTurnNavItems =
     conversationPage.deriveConversationTurnNavItems
 })
@@ -347,6 +350,80 @@ test('buildDebugAskUserQuestionRequest creates a three-question card fixture', (
   expect(questions[1]?.multiSelect).toBe(true)
 })
 
+test('buildDebugPlanCardSummary returns a markdown summary with heading and steps', () => {
+  const summary = buildDebugPlanCardSummary()
+  expect(summary).toContain('# Model Router 实现计划')
+  expect(summary).toContain('## Summary')
+  expect(summary).toContain('### 1.')
+  expect(summary).toContain('### 2.')
+  expect(summary).toContain('### 3.')
+  expect(summary).toContain('### 4.')
+})
+
+test('parseAskUserQuestionTimelineResult reads answers by question id', () => {
+  const items = groupTimelineToolEvents([
+    toolCallEvent('tool-q', 'AskUserQuestion', 'AskUserQuestion'),
+    askUserQuestionPermissionEventWithId('permission-q'),
+    toolResultEvent('result-q', 'AskUserQuestion', 'AskUserQuestion', false, {
+      result: {
+        answers: {
+          q1: { answers: ['All modified files'] },
+          q2: { answers: ['Logic, tests'] },
+        },
+      },
+    }),
+  ])
+
+  const group = items[0]
+  expect(group?.type).toBe('tool_group')
+  if (group?.type !== 'tool_group') throw new Error('Expected tool group')
+  expect(parseAskUserQuestionTimelineResult(group.runs[0]!)).toEqual({
+    count: 2,
+    items: [
+      {
+        question: 'Which files should be reviewed?',
+        answer: 'All modified files',
+      },
+      {
+        question: 'Which checks matter?',
+        answer: 'Logic, tests',
+      },
+    ],
+  })
+})
+
+test('parseAskUserQuestionTimelineResult falls back to question text key', () => {
+  const items = groupTimelineToolEvents([
+    toolCallEvent('tool-q', 'AskUserQuestion', 'AskUserQuestion'),
+    askUserQuestionPermissionEvent('permission-q'),
+    toolResultEvent('result-q', 'AskUserQuestion', 'AskUserQuestion', false, {
+      result: {
+        answers: {
+          'Which files should be reviewed?': 'Core only',
+          'Which checks matter?': 'Style',
+        },
+      },
+    }),
+  ])
+
+  const group = items[0]
+  expect(group?.type).toBe('tool_group')
+  if (group?.type !== 'tool_group') throw new Error('Expected tool group')
+  expect(parseAskUserQuestionTimelineResult(group.runs[0]!)).toEqual({
+    count: 2,
+    items: [
+      {
+        question: 'Which files should be reviewed?',
+        answer: 'Core only',
+      },
+      {
+        question: 'Which checks matter?',
+        answer: 'Style',
+      },
+    ],
+  })
+})
+
 // --- groupTimelineExecutionPhases ---
 
 function toolGroupItem(id: string, toolName: string, isRunning = false): ReturnType<typeof import('./ConversationPage.js')['groupTimelineToolEvents']>[number] & { type: 'tool_group' } {
@@ -550,6 +627,48 @@ function permissionRequestEvent(
         description,
       },
       toolName,
+      toolUseId: 'tool-use-1',
+    },
+  }
+}
+
+function askUserQuestionPermissionEventWithId(id: string): DesktopSessionEvent {
+  return {
+    id,
+    sessionId: 'session-1',
+    type: 'permission_request',
+    content: 'Answer questions?',
+    createdAt: '2026-06-26T00:00:00.500Z',
+    metadata: {
+      request: {
+        requestId: id,
+        toolName: 'AskUserQuestion',
+        description: 'Answer questions?',
+        input: {
+          questions: [
+            {
+              id: 'q1',
+              question: 'Which files should be reviewed?',
+              header: 'Files',
+              options: [
+                { label: 'All', description: 'All modified files' },
+                { label: 'Core', description: 'Core files only' },
+              ],
+            },
+            {
+              id: 'q2',
+              question: 'Which checks matter?',
+              header: 'Checks',
+              options: [
+                { label: 'Logic', description: 'Logic and tests' },
+                { label: 'Style', description: 'Style only' },
+              ],
+              multiSelect: true,
+            },
+          ],
+        },
+      },
+      toolName: 'AskUserQuestion',
       toolUseId: 'tool-use-1',
     },
   }

@@ -17,6 +17,7 @@ type AskUserQuestionOption = {
 }
 
 type AskUserQuestion = {
+  id?: string
   question: string
   header: string
   options: AskUserQuestionOption[]
@@ -142,9 +143,15 @@ export function AskUserQuestionApproval({
       setError('请先确认所有问题后再提交。')
       return
     }
+    const answers = buildAnswers(questions, effectiveStates)
+    // Legacy single-question answer for old callers
+    const legacyAnswer = questions.length === 1
+      ? { answer: answers[questions[0]!.id ?? questions[0]!.question] ?? '' }
+      : {}
     onSubmit({
       ...request.input,
-      answers: buildAnswers(questions, effectiveStates),
+      answer: legacyAnswer.answer ?? '',
+      answers,
     })
   }
 
@@ -180,16 +187,18 @@ export function AskUserQuestionApproval({
     selectedLabel: string,
   ): void {
     if (!questions) return
+    const answers = buildAnswers(questions, questionStates, {
+      question,
+      state: {
+        selected: [selectedLabel],
+        custom: '',
+        answered: true,
+      },
+    })
     onSubmit({
       ...request.input,
-      answers: buildAnswers(questions, questionStates, {
-        question,
-        state: {
-          selected: [selectedLabel],
-          custom: '',
-          answered: true,
-        },
-      }),
+      answer: answers[question.id ?? question.question] ?? '',
+      answers,
     })
   }
 
@@ -565,7 +574,9 @@ function buildAnswers(
       ...state.selected,
       ...(state.custom.trim() ? [state.custom.trim()] : []),
     ]
-    answers[question.question] = answerParts.join(', ')
+    const answerValue = answerParts.join(', ')
+    const key = question.id ?? question.question
+    answers[key] = answerValue
   }
   return answers
 }
@@ -588,12 +599,39 @@ function isTextEntryTarget(target: EventTarget | null): boolean {
 export function parseAskUserQuestions(
   input: Record<string, unknown>,
 ): AskUserQuestion[] | null {
-  if (!Array.isArray(input.questions) || input.questions.length === 0) {
-    return null
+  const rawQuestions = Array.isArray(input.questions) && input.questions.length > 0
+    ? input.questions
+    : null
+
+  // Legacy single-question: { question, header, options } at top level
+  if (!rawQuestions) {
+    const question = stringValue(input.question)
+    const header = stringValue(input.header)
+    const rawOptions = input.options
+    if (!question || !Array.isArray(rawOptions) || rawOptions.length < 2) {
+      return null
+    }
+    const options: AskUserQuestionOption[] = []
+    for (const rawOption of rawOptions) {
+      if (!isRecord(rawOption)) return null
+      const label = normalizeRecommendedOptionLabel(stringValue(rawOption.label))
+      const description = stringValue(rawOption.description)
+      if (!label || !description) return null
+      options.push({ label, description })
+    }
+    return [
+      {
+        id: undefined,
+        question,
+        header: header ?? '',
+        options,
+        multiSelect: input.multiSelect === true,
+      },
+    ]
   }
 
   const questions: AskUserQuestion[] = []
-  for (const rawQuestion of input.questions) {
+  for (const rawQuestion of rawQuestions) {
     if (!isRecord(rawQuestion)) return null
     const question = stringValue(rawQuestion.question)
     const header = stringValue(rawQuestion.header)
@@ -612,6 +650,7 @@ export function parseAskUserQuestions(
     }
 
     questions.push({
+      id: typeof rawQuestion.id === 'string' ? rawQuestion.id : undefined,
       question,
       header: header ?? '',
       options,

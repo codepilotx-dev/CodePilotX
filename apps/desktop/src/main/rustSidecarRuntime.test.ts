@@ -451,9 +451,15 @@ describe('RustSidecarDesktopAgentRuntime requestUserInput', () => {
     })
   })
 
-  test('handles multiple questions', async () => {
+  test('batches multiple questions into a single permission request', async () => {
     const requestPermission = mock(async () => ({
       behavior: 'allow' as const,
+      updatedInput: {
+        answers: {
+          q1: 'Alice',
+          q2: '30',
+        },
+      },
     }))
 
     const runtime = new RustSidecarDesktopAgentRuntime({
@@ -487,11 +493,152 @@ describe('RustSidecarDesktopAgentRuntime requestUserInput', () => {
 
     expect(result).toEqual({
       answers: {
-        q1: { answers: [''] },
-        q2: { answers: [''] },
+        q1: { answers: ['Alice'] },
+        q2: { answers: ['30'] },
       },
     })
-    expect(requestPermission).toHaveBeenCalledTimes(2)
+    // Must be a single batch call, not one per question
+    expect(requestPermission).toHaveBeenCalledTimes(1)
+    // Verify the batch input shape
+    const callArgs = requestPermission.mock.calls[0] as unknown[]
+    const callInput = callArgs[0] as { input: Record<string, unknown> }
+    expect(Array.isArray(callInput.input.questions)).toBe(true)
+    expect((callInput.input.questions as Array<unknown>)).toHaveLength(2)
+  })
+
+  test('reads answers by question id from updatedInput.answers', async () => {
+    const requestPermission = mock(async () => ({
+      behavior: 'allow' as const,
+      updatedInput: {
+        answers: {
+          q1: 'Alice',
+          q2: '30',
+        },
+      },
+    }))
+
+    const runtime = new RustSidecarDesktopAgentRuntime({
+      sessionId: 'test-session',
+      workspacePath: process.cwd(),
+      emit: () => {},
+      requestPermission,
+    })
+
+    const handler = (
+      runtime as unknown as {
+        handleRequestUserInputRequest: (
+          params: unknown,
+          id: unknown,
+        ) => Promise<unknown>
+      }
+    ).handleRequestUserInputRequest.bind(runtime)
+
+    const result = await handler(
+      {
+        itemId: 'item-1',
+        questions: [
+          { id: 'q1', header: 'Name', question: 'Your name?' },
+          { id: 'q2', header: 'Age', question: 'Your age?' },
+        ],
+        threadId: 'thread-1',
+        turnId: 'turn-1',
+      },
+      1,
+    )
+
+    expect(result).toEqual({
+      answers: {
+        q1: { answers: ['Alice'] },
+        q2: { answers: ['30'] },
+      },
+    })
+  })
+
+  test('falls back to legacy updatedInput.answer for backward compatibility', async () => {
+    const requestPermission = mock(async () => ({
+      behavior: 'allow' as const,
+      updatedInput: { answer: 'Tokyo' },
+    }))
+
+    const runtime = new RustSidecarDesktopAgentRuntime({
+      sessionId: 'test-session',
+      workspacePath: process.cwd(),
+      emit: () => {},
+      requestPermission,
+    })
+
+    const handler = (
+      runtime as unknown as {
+        handleRequestUserInputRequest: (
+          params: unknown,
+          id: unknown,
+        ) => Promise<unknown>
+      }
+    ).handleRequestUserInputRequest.bind(runtime)
+
+    const result = await handler(
+      {
+        itemId: 'item-1',
+        questions: [
+          { id: 'q1', header: 'City', question: 'What city?', options: null },
+        ],
+        threadId: 'thread-1',
+        turnId: 'turn-1',
+      },
+      1,
+    )
+
+    expect(result).toEqual({
+      answers: {
+        q1: { answers: ['Tokyo'] },
+      },
+    })
+    expect(requestPermission).toHaveBeenCalledTimes(1)
+  })
+
+  test('reads answers by question text when id is not found', async () => {
+    const requestPermission = mock(async () => ({
+      behavior: 'allow' as const,
+      updatedInput: {
+        answers: {
+          'Your name?': 'Bob',
+        },
+      },
+    }))
+
+    const runtime = new RustSidecarDesktopAgentRuntime({
+      sessionId: 'test-session',
+      workspacePath: process.cwd(),
+      emit: () => {},
+      requestPermission,
+    })
+
+    const handler = (
+      runtime as unknown as {
+        handleRequestUserInputRequest: (
+          params: unknown,
+          id: unknown,
+        ) => Promise<unknown>
+      }
+    ).handleRequestUserInputRequest.bind(runtime)
+
+    const result = await handler(
+      {
+        itemId: 'item-1',
+        questions: [
+          { id: 'q1', header: 'Name', question: 'Your name?' },
+        ],
+        threadId: 'thread-1',
+        turnId: 'turn-1',
+      },
+      1,
+    )
+
+    expect(result).toEqual({
+      answers: {
+        q1: { answers: ['Bob'] },
+      },
+    })
   })
 })
 

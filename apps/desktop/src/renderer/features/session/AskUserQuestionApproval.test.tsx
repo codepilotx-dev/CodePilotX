@@ -12,6 +12,7 @@ import {
   initialQuestionState,
   nextOptionLabel,
   nextQuestionIndex,
+  parseAskUserQuestions,
   shouldSubmitOptionClick,
   toggleMultiSelectOption,
 } from './AskUserQuestionApproval.js'
@@ -238,6 +239,56 @@ test('canSubmitFromCurrentQuestion treats the current selection as confirmable',
       'First choice?': { selected: ['A'], custom: '', answered: true },
     }, 2),
   ).toBe(false)
+})
+
+test('parseAskUserQuestions handles legacy single-question input without questions array', () => {
+  const result = parseAskUserQuestions({
+    question: 'Legacy question?',
+    header: 'Legacy',
+    options: [
+      { label: 'Option A', description: 'Desc A' },
+      { label: 'Option B', description: 'Desc B' },
+    ],
+  })
+  expect(result).not.toBeNull()
+  expect(result).toHaveLength(1)
+  expect(result![0]!.question).toBe('Legacy question?')
+  expect(result![0]!.id).toBeUndefined()
+})
+
+test('buildAnswers uses question id as key when available', () => {
+  const input = {
+    questions: [
+      {
+        id: 'custom-q1',
+        question: 'First?',
+        header: 'Q1',
+        options: [
+          { label: 'A', description: 'Desc A' },
+          { label: 'B', description: 'Desc B' },
+        ],
+      },
+    ],
+  }
+  const questions = parseAskUserQuestions(input)
+  expect(questions).not.toBeNull()
+  expect(questions![0]!.id).toBe('custom-q1')
+})
+
+test('AskUserQuestionApproval includes legacy answer field in single-question submit', () => {
+  // Legacy single-question input (no id) should produce answer keyed by question text
+  const input = {
+    question: 'Single?',
+    header: 'S',
+    options: [
+      { label: 'A', description: 'Desc A' },
+      { label: 'B', description: 'Desc B' },
+    ],
+  }
+  const questions = parseAskUserQuestions(input)
+  expect(questions).not.toBeNull()
+  expect(questions![0]!.id).toBeUndefined()
+  expect(questions![0]!.question).toBe('Single?')
 })
 
 function requestWithQuestions(count: number): DesktopPermissionRequest {

@@ -897,6 +897,12 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
   /**
    * Handle item/tool/requestUserInput — server asks client to prompt the user.
    * Maps to the desktop AskUserQuestion flow via requestPermission.
+   *
+   * BATCH SEMANTICS: All questions are sent in a single permission request
+   * via input.questions (array). The renderer submits answers keyed by
+   * question id (preferred) or question text (fallback). A legacy single
+   * answer field (updatedInput.answer) is also checked for backward
+   * compatibility.
    */
   private async handleRequestUserInputRequest(
     params: unknown,
@@ -911,36 +917,87 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
       itemId,
     })
 
+    // Batch all questions into a single permission request
+    const permissionRequest: DesktopPermissionRequest = {
+      requestId: `rust-ask-${randomUUID()}`,
+      toolName: 'AskUserQuestion',
+      toolUseId: itemId,
+      input: {
+        questions: questions.map(q => ({
+          id: q.id,
+          question: q.question,
+          header: q.header,
+          options: q.options,
+          isOther: q.isOther,
+          isSecret: q.isSecret,
+        })),
+      },
+      description: questions.length > 0
+        ? String(questions[0]!.question ?? '').slice(0, 200)
+        : '用户输入请求',
+    }
+
+    const decision = await this.context.requestPermission(permissionRequest)
+
+    if (decision.behavior === 'deny') {
+      const answers: Record<string, ToolRequestUserInputAnswer> = {}
+      for (const question of questions) {
+        answers[question.id] = { answers: ['[User declined to answer]'] }
+      }
+      return { answers }
+    }
+
+    // Read answers — try updatedInput.answers (keyed by id or question text),
+    // then fall back to legacy updatedInput.answer (single-question field).
+    const updatedInput = (decision.updatedInput ?? {}) as Record<string, unknown>
     const answers: Record<string, ToolRequestUserInputAnswer> = {}
 
     for (const question of questions) {
-      const permissionRequest: DesktopPermissionRequest = {
-        requestId: `rust-ask-${randomUUID()}`,
-        toolName: 'AskUserQuestion',
-        toolUseId: itemId,
-        input: {
-          question: question.question,
-          header: question.header,
-          options: question.options,
-          isOther: question.isOther,
-          isSecret: question.isSecret,
-        },
-        description: question.question?.slice(0, 200) ?? '用户输入请求',
-      }
+      const answerText = this.resolveAskUserAnswer(updatedInput, question)
+      answers[question.id] = { answers: [answerText] }
+    }
 
-      const decision = await this.context.requestPermission(permissionRequest)
+    return { answers }
+  }
 
-      if (decision.behavior === 'deny') {
-        answers[question.id] = { answers: ['[User declined to answer]'] }
-      } else {
-        const userAnswer =
-          (decision.updatedInput?.answer as string | undefined) ?? ''
-        answers[question.id] = { answers: [userAnswer] }
+  // ── Private helpers ────────────────────────────────────────────
+
+  /**
+   * Resolve a single question's answer text from the renderer's
+   * updatedInput record.
+   *
+   * Priority:
+   *  1. updatedInput.answers[question.id]         (new batch format by id)
+   *  2. updatedInput.answers[question.question]    (batch format by question text)
+   *  3. updatedInput.answer                       (legacy single-question field)
+   */
+  private resolveAskUserAnswer(
+    updatedInput: Record<string, unknown>,
+    question: ToolRequestUserInputQuestion,
+  ): string {
+    // Try updatedInput.answers sub-record first
+    const answersRecord = (
+      typeof updatedInput.answers === 'object' && updatedInput.answers !== null && !Array.isArray(updatedInput.answers)
+        ? updatedInput.answers
+        : {}
+    ) as Record<string, unknown>
+
+    const candidates = [question.id, question.question]
+    for (const key of candidates) {
+      if (!key) continue
+      const value = answersRecord[key]
+      if (typeof value === 'string') return value
+      if (Array.isArray(value) && value.length > 0 && typeof value[0] === 'string') {
+        return (value as string[]).join(', ')
       }
     }
 
-    const response: ToolRequestUserInputResponse = { answers }
-    return response
+    // Legacy single-question field
+    if (typeof updatedInput.answer === 'string') {
+      return updatedInput.answer
+    }
+
+    return ''
   }
 
   /**

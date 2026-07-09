@@ -196,6 +196,18 @@ export function ConversationPage(): React.ReactNode {
       }),
     [activeSessionId, messages, workflowEvents],
   );
+  const [debugPlanCardSummary, setDebugPlanCardSummary] =
+    React.useState<string | null>(null);
+  const [debugAskUserQuestionRequest, setDebugAskUserQuestionRequest] =
+    React.useState<DesktopPermissionRequest | null>(null);
+  React.useEffect(() => {
+    if (!debugMode || pendingPermissions.length > 0) {
+      setDebugAskUserQuestionRequest(null);
+    }
+    if (!debugMode) {
+      setDebugPlanCardSummary(null);
+    }
+  }, [debugMode, pendingPermissions.length]);
   const timelineEvents = React.useMemo(() => {
     const sourceEvents = deriveTimelineSourceEvents({
       conversationMessages,
@@ -203,12 +215,33 @@ export function ConversationPage(): React.ReactNode {
       sessionStatus,
       workflowEvents: workflowDerivedState.events,
     });
-    return foldTimelineEvents(sourceEvents);
+    const folded = foldTimelineEvents(sourceEvents);
+    // Inject synthetic proposed_plan for debug PlanCard
+    if (debugPlanCardSummary) {
+      const hasRealPlan = folded.some(e => e.type === "proposed_plan");
+      if (!hasRealPlan) {
+        return [
+          ...folded,
+          {
+            id: "debug-plan-card",
+            sessionId: activeSessionId ?? "debug",
+            type: "proposed_plan" as const,
+            role: "assistant" as const,
+            content: debugPlanCardSummary,
+            createdAt: new Date().toISOString(),
+            metadata: {},
+          },
+        ];
+      }
+    }
+    return folded;
   }, [
     conversationMessages,
     events,
     sessionStatus,
     workflowDerivedState.events,
+    debugPlanCardSummary,
+    activeSessionId,
   ]);
   const timelineItems = React.useMemo(
     () => groupTimelineToolEvents(timelineEvents),
@@ -245,13 +278,6 @@ export function ConversationPage(): React.ReactNode {
     FALLBACK_OPEN_TARGETS,
   );
   const [showPinnedSummary, setShowPinnedSummary] = React.useState(true);
-  const [debugAskUserQuestionRequest, setDebugAskUserQuestionRequest] =
-    React.useState<DesktopPermissionRequest | null>(null);
-  React.useEffect(() => {
-    if (!debugMode || pendingPermissions.length > 0) {
-      setDebugAskUserQuestionRequest(null);
-    }
-  }, [debugMode, pendingPermissions.length]);
   React.useEffect(() => {
     return () => {
       clearConversationSelectionHighlight();
@@ -513,6 +539,11 @@ export function ConversationPage(): React.ReactNode {
     setDebugAskUserQuestionRequest(
       buildDebugAskUserQuestionRequest(String(Date.now())),
     );
+  }
+
+  function openDebugPlanCard(): void {
+    setDebugAskUserQuestionRequest(null);
+    setDebugPlanCardSummary(buildDebugPlanCardSummary());
   }
 
   function decideInlinePermission(
@@ -781,26 +812,42 @@ export function ConversationPage(): React.ReactNode {
           </button>
         </Tooltip>
         {debugMode ? (
-          <Tooltip
-            content={
-              hasRealPendingPermission
-                ? "已有真实审批请求，不能打开 mock 卡片"
-                : "弹出 AskUserQuestion 调试卡片"
-            }
-          >
-            <button
-              aria-label="弹出 AskUserQuestion 调试卡片"
-              className="message-action"
-              disabled={hasRealPendingPermission}
-              type="button"
-              onClick={openDebugAskUserQuestionCard}
+          <>
+            <Tooltip
+              content={
+                hasRealPendingPermission
+                  ? "已有真实审批请求，不能打开 mock 卡片"
+                  : "弹出 AskUserQuestion 调试卡片"
+              }
             >
-              <MessageSquarePlus
-                size={APP_ICON_SIZE}
-                strokeWidth={APP_ICON_STROKE_WIDTH}
-              />
-            </button>
-          </Tooltip>
+              <button
+                aria-label="弹出 AskUserQuestion 调试卡片"
+                className="message-action"
+                disabled={hasRealPendingPermission}
+                type="button"
+                onClick={openDebugAskUserQuestionCard}
+              >
+                <MessageSquarePlus
+                  size={APP_ICON_SIZE}
+                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                />
+              </button>
+            </Tooltip>
+            <Tooltip content="弹出 PlanCard 调试卡片">
+              <button
+                aria-label="弹出 PlanCard 调试卡片"
+                className="message-action"
+                disabled={hasRealPendingPermission}
+                type="button"
+                onClick={openDebugPlanCard}
+              >
+                <FileDiff
+                  size={APP_ICON_SIZE}
+                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                />
+              </button>
+            </Tooltip>
+          </>
         ) : null}
         <PopoverMenu
           align="end"
@@ -2319,7 +2366,7 @@ export function parseAskUserQuestionTimelineResult(
   if (!answers) return null;
   const items = questions
     .map((question) => {
-      const answer = answers[question.question];
+      const answer = resolveQuestionAnswer(answers, question);
       return typeof answer === "string" && answer.trim()
         ? { question: question.question, answer: answer.trim() }
         : null;
@@ -2328,6 +2375,14 @@ export function parseAskUserQuestionTimelineResult(
       Boolean(item),
     );
   return items.length > 0 ? { count: items.length, items } : null;
+}
+
+function resolveQuestionAnswer(
+  answers: Record<string, string>,
+  question: { id?: string; question: string },
+): string | undefined {
+  if (question.id && answers[question.id]) return answers[question.id];
+  return answers[question.question];
 }
 
 function answersFromAskUserQuestionResult(
@@ -2349,6 +2404,11 @@ function answersFromUnknown(value: unknown): Record<string, string> | null {
   if (isRecordValue(value) && isStringRecord(value.answers)) {
     return value.answers;
   }
+  // New sidecar format: answers values are { answers: string[] }
+  if (isRecordValue(value) && isRecordValue(value.answers)) {
+    const flattened = flattenToolRequestAnswerValues(value.answers as Record<string, unknown>);
+    if (flattened) return flattened;
+  }
   if (isStringRecord(value)) return value;
   if (typeof value !== "string") return null;
   try {
@@ -2357,6 +2417,24 @@ function answersFromUnknown(value: unknown): Record<string, string> | null {
   } catch {
     return null;
   }
+}
+
+function flattenToolRequestAnswerValues(
+  raw: Record<string, unknown>,
+): Record<string, string> | null {
+  const result: Record<string, string> = {};
+  const entries = Object.entries(raw);
+  if (entries.length === 0) return null;
+  for (const [key, value] of entries) {
+    if (isRecordValue(value) && Array.isArray(value.answers) && value.answers.length > 0) {
+      result[key] = String(value.answers[0]);
+    } else if (typeof value === "string") {
+      result[key] = value;
+    } else {
+      return null;
+    }
+  }
+  return result;
 }
 
 function isStringRecord(value: unknown): value is Record<string, string> {
@@ -4081,6 +4159,30 @@ export function buildDebugAskUserQuestionRequest(
       ],
     },
   };
+}
+
+export function buildDebugPlanCardSummary(): string {
+  return (
+    "# Model Router 实现计划\n\n" +
+    "## Summary\n" +
+    "新增 Model Router 功能，根据任务类型、上下文和成本自动将请求分派到最优模型。\n\n" +
+    "## 步骤\n\n" +
+    "### 1. 新增路由配置类型\n" +
+    "- 在 `types/index.ts` 中新增 `ModelRouterConfig` 接口\n" +
+    "- 包含 `defaultModel`、`codeModel`、`creativeModel` 等字段\n\n" +
+    "### 2. 新增路由选择逻辑\n" +
+    "- 在 `services/router.ts` 中实现 `selectModel` 函数\n" +
+    "- 根据任务类型（code/reasoning/creative/simple）自动匹配\n" +
+    "- 处理模型不可用时的降级策略\n\n" +
+    "### 3. 集成到现有发送流程\n" +
+    "- 在 `useQuickChatContext.ts` 的 `sendMessage` 中调用路由\n" +
+    "- 替换硬编码模型选择\n" +
+    "- 保留用户手动覆盖模型的优先级\n\n" +
+    "### 4. 添加设置页面\n" +
+    "- 在 Settings 页面新增 Router 配置区域\n" +
+    "- 允许用户为每种任务类型指定模型\n" +
+    "- 显示当前路由映射概览\n"
+  );
 }
 
 function isDebugAskUserQuestionRequest(

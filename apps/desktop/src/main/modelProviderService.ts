@@ -85,20 +85,10 @@ export async function fetchProviderModels(options: {
   baseURL?: string
 }): Promise<DesktopProviderModelListResult> {
   const providerID = normalizeProviderID(options.providerID)
-  desktopDebug('model_provider_fetch_models_start', {
-    providerID,
-    hasApiKey: Boolean(options.apiKey),
-    baseURL: options.baseURL,
-  })
   const result = await fetchTuiProviderModels({
     providerID,
     apiKey: normalizeOptionalText(options.apiKey),
     baseURL: normalizeOptionalText(options.baseURL),
-  })
-  desktopDebug('model_provider_fetch_models_done', {
-    providerID,
-    modelCount: result.models.length,
-    error: result.error,
   })
   return result
 }
@@ -109,22 +99,10 @@ export async function fetchProviderBalance(options: {
   baseURL?: string
 }): Promise<DesktopProviderBalanceResult> {
   const providerID = normalizeProviderID(options.providerID)
-  desktopDebug('model_provider_fetch_balance_start', {
-    providerID,
-    hasApiKey: Boolean(options.apiKey),
-    baseURL: options.baseURL,
-  })
   const result = await fetchTuiProviderBalance({
     providerID,
     apiKey: normalizeOptionalText(options.apiKey),
     baseURL: normalizeOptionalText(options.baseURL),
-  })
-  desktopDebug('model_provider_fetch_balance_done', {
-    providerID,
-    isAvailable: result.isAvailable,
-    balanceCount: result.balances.length,
-    tokenPlanUsageCount: result.tokenPlanUsages?.length ?? 0,
-    error: result.error,
   })
   return result
 }
