@@ -134,6 +134,7 @@ class LocalDesktopAgentSession
   private planModeActive: boolean
   private model: string | undefined
   private reviewModel: string | undefined
+  private hasConversationStarted: boolean
 
   constructor(
     options: ResolvedDesktopSessionOptions,
@@ -155,6 +156,7 @@ class LocalDesktopAgentSession
     )
     this.model = options.model
     this.reviewModel = options.reviewModel
+    this.hasConversationStarted = options.resumeExistingSession === true
     this.autoReviewService =
       runtimeOptions.autoReviewService ?? createDesktopAutoReviewService()
     const createRuntime = runtimeOptions.createRuntime ?? createDesktopAgentRuntime
@@ -205,8 +207,10 @@ class LocalDesktopAgentSession
   }
 
   setModel(model: string | undefined): void {
+    const previousModel = this.model
     this.model = model
     this.runtime.setModel(model)
+    this.emitModelSwitchNotice(previousModel, model)
   }
 
   setModelProvider(
@@ -214,7 +218,10 @@ class LocalDesktopAgentSession
     model: string | undefined,
     providerBaseURL: string | undefined,
   ): void {
+    const previousModel = this.model
+    this.model = model
     this.runtime.setModelProvider(providerID, model, providerBaseURL)
+    this.emitModelSwitchNotice(previousModel, model)
   }
 
   setDebugConversationDump(enabled: boolean): void {
@@ -273,6 +280,7 @@ class LocalDesktopAgentSession
       textLength: previewText.length,
     })
     this.emitMessage('user', previewText)
+    this.hasConversationStarted = true
     this.emitStatus('running')
 
     const abortController = new AbortController()
@@ -643,6 +651,17 @@ class LocalDesktopAgentSession
 
   private emitEvent(event: DesktopAgentEvent): boolean {
     return super.emit('event', event)
+  }
+
+  private emitModelSwitchNotice(
+    previousModel: string | undefined,
+    nextModel: string | undefined,
+  ): void {
+    const fromModel = previousModel?.trim()
+    const toModel = nextModel?.trim()
+    if (!this.hasConversationStarted || !fromModel || !toModel) return
+    if (fromModel === toModel) return
+    this.emitMessage('system', `模型已从 ${fromModel} 更改为 ${toModel}`)
   }
 
   private assertActive(): void {

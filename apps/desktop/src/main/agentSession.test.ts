@@ -477,6 +477,37 @@ test('recovered ExitPlanMode with provider info calls setModelProvider', async (
   expect(String(userTurns[0])).toContain('# 计划\n\n- 实施功能')
 })
 
+test('model switch during an existing conversation emits a system notice', async () => {
+  const events: DesktopAgentEvent[] = []
+  const session = createDesktopAgentSession(
+    {
+      workspacePath: resolve('tmp', 'desktop-workspace'),
+      sessionId: 'session-model-switch-notice',
+      suppressStartupMessage: true,
+      permissionMode: 'default',
+      providerID: 'deepseek',
+      model: 'deepseek-v4-flash',
+    },
+    {
+      createRuntime: () => createRecoveredPlanRuntime([], []),
+    },
+  )
+  session.on('event', event => events.push(event))
+
+  await session.sendUserMessage('hello', 'hello')
+  events.length = 0
+
+  session.setModelProvider('deepseek', 'deepseek-v4-pro', undefined)
+
+  expect(events).toContainEqual(
+    expect.objectContaining({
+      type: 'message',
+      role: 'system',
+      text: '模型已从 deepseek-v4-flash 更改为 deepseek-v4-pro',
+    }),
+  )
+})
+
 test('auto-review sub-runtime execution does not deadlock parent turn on serial queue', async () => {
   const decisions: unknown[] = []
   const events: DesktopAgentEvent[] = []
