@@ -291,6 +291,68 @@ test('toOpenAIMessages preserves real tool result content', () => {
   expect(serialized).not.toContain('missing tool result')
 })
 
+test('toOpenAIMessages maps image attachments to image_url data URLs', () => {
+  const converted = toOpenAIMessages(
+    [
+      {
+        type: 'user',
+        message: {
+          content: [
+            { type: 'text', text: 'inspect this' },
+            {
+              type: 'image',
+              source: {
+                type: 'base64',
+                media_type: 'image/png',
+                data: 'aW1hZ2U=',
+              },
+            },
+          ],
+        },
+      },
+    ] as any,
+    'deepseek',
+  )
+
+  expect(converted).toEqual([
+    {
+      role: 'user',
+      content: [
+        { type: 'text', text: 'inspect this' },
+        {
+          type: 'image_url',
+          image_url: { url: 'data:image/png;base64,aW1hZ2U=' },
+        },
+      ],
+    },
+  ])
+})
+
+test('toOpenAIMessages rejects document attachments explicitly', () => {
+  expect(() =>
+    toOpenAIMessages(
+      [
+        {
+          type: 'user',
+          message: {
+            content: [
+              {
+                type: 'document',
+                source: {
+                  type: 'base64',
+                  media_type: 'application/pdf',
+                  data: 'cGRm',
+                },
+              },
+            ],
+          },
+        },
+      ] as any,
+      'deepseek',
+    ),
+  ).toThrow('Document/PDF attachments are not supported')
+})
+
 function restoreEnv(key: string, value: string | undefined): void {
   if (value === undefined) {
     delete process.env[key]

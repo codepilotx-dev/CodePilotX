@@ -2,6 +2,7 @@ import { expect, test } from 'bun:test'
 import { streamText } from 'ai'
 import {
   createAnthropicCompatibleAiSdkProvider,
+  findUnsupportedMiniMaxInput,
   toAiSdkMessages,
 } from './minimax.js'
 
@@ -103,6 +104,48 @@ test('toAiSdkMessages mirrors successful tool results as readable user context',
   )
   expect(converted[2]!.content).toContain('Tool Glob completed successfully.')
   expect(converted[2]!.content).toContain('apps\\desktop\\package.json')
+})
+
+test('findUnsupportedMiniMaxInput rejects image and document attachments', () => {
+  expect(
+    findUnsupportedMiniMaxInput([
+      {
+        type: 'user',
+        message: {
+          content: [
+            {
+              type: 'image',
+              source: {
+                type: 'base64',
+                media_type: 'image/png',
+                data: 'aW1hZ2U=',
+              },
+            },
+          ],
+        },
+      },
+    ] as any),
+  ).toContain('does not support image input')
+
+  expect(
+    findUnsupportedMiniMaxInput([
+      {
+        type: 'user',
+        message: {
+          content: [
+            {
+              type: 'document',
+              source: {
+                type: 'base64',
+                media_type: 'application/pdf',
+                data: 'cGRm',
+              },
+            },
+          ],
+        },
+      },
+    ] as any),
+  ).toContain('does not support document input')
 })
 
 test('anthropic-compatible request embeds readable tool result in tool_result content', async () => {

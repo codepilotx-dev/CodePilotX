@@ -254,7 +254,7 @@ function toCopilotSpec(schema: BetaToolUnion): CopilotToolSpec {
   }
 }
 
-function buildCopilotPrompt(
+export function buildCopilotPrompt(
   messages: (Message & { message?: unknown })[],
   tools: CopilotToolSpec[],
 ): string {
@@ -287,9 +287,15 @@ function renderUserMessage(message: Message): string {
     else if (block?.type === 'tool_result') {
       parts.push(`[Tool result for ${block.tool_use_id}]\n${stringifyToolResult(block.content)}`)
     } else if (block?.type === 'image') {
-      parts.push('[Image attachment omitted]')
+      throw new Error(
+        'Image attachments are not supported by the GitHub Copilot provider. ' +
+        'Please remove the image and try again.',
+      )
     } else if (block?.type === 'document') {
-      parts.push('[Document attachment omitted]')
+      throw new Error(
+        'Document/PDF attachments are not supported by the GitHub Copilot provider. ' +
+        'Please remove the document and try again.',
+      )
     }
   }
   return parts.join('\n')

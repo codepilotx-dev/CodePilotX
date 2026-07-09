@@ -699,7 +699,7 @@ function createMiniMaxAssistantMessage({
   }
 }
 
-function findUnsupportedMiniMaxInput(messages: Message[]): string | null {
+export function findUnsupportedMiniMaxInput(messages: Message[]): string | null {
   for (const message of messages) {
     const content = message?.message?.content
     if (!Array.isArray(content)) continue

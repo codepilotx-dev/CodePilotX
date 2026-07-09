@@ -440,7 +440,10 @@ function userMessageToOpenAI(message: Message): ChatMessage[] {
         },
       })
     } else if (block.type === 'document') {
-      userParts.push({ type: 'text', text: '[Document attachment omitted]' })
+      throw new Error(
+        'Document/PDF attachments are not supported by OpenAI-compatible providers. ' +
+        'Only image attachments are supported. Remove the document and try again.',
+      )
     }
   }
 
