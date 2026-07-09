@@ -30,10 +30,10 @@ test('createSessionSettingsSnapshot preserves disabled bundled dependencies', ()
     permissionMode: 'default',
     thinkingMode: 'default',
     additionalDirectories: [],
-    installCodexDependencies: false,
+    installCodePilotXDependencies: false,
   })
 
-  expect(settings.installCodexDependencies).toBe(false)
+  expect(settings.installCodePilotXDependencies).toBe(false)
 })
 
 test('createSessionSettingsSnapshot defaults bundled dependencies to enabled', () => {
@@ -46,7 +46,7 @@ test('createSessionSettingsSnapshot defaults bundled dependencies to enabled', (
     additionalDirectories: [],
   })
 
-  expect(settings.installCodexDependencies).toBe(true)
+  expect(settings.installCodePilotXDependencies).toBe(true)
 })
 
 test('applySessionPermissionModeToSnapshot updates mode without treating it as profile', () => {

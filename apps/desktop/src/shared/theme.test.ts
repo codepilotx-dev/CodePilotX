@@ -87,6 +87,30 @@ test('built-in theme presets carry valid hex color values', () => {
   }
 })
 
+test('dark Dracula theme uses configured desktop tokens', () => {
+  const preset = DESKTOP_THEME_PRESETS.find(item => item.id === 'dark-dracula')
+  expect(preset?.config).toMatchObject({
+    codeThemeId: 'dracula',
+    theme: {
+      accent: '#ff79c6',
+      contrast: 40,
+      fonts: {
+        code: { preset: 'Jetbrains Mono' },
+        ui: { preset: 'MiSans VF Regular' },
+      },
+      ink: '#f8f8f2',
+      opaqueWindows: true,
+      semanticColors: {
+        diffAdded: '#50fa7b',
+        diffRemoved: '#ff5555',
+        skill: '#ff79c6',
+      },
+      surface: '#282a36',
+    },
+    variant: 'dark',
+  })
+})
+
 test('exportDesktopThemeConfig returns clean theme config', () => {
   const exported = exportDesktopThemeConfig(DEFAULT_LIGHT_THEME)
   expect(exported.codeThemeId).toBe('codepilotx')

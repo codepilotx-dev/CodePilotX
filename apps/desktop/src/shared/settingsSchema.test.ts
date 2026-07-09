@@ -34,17 +34,17 @@ test('desktop settings normalize diff marker style values', () => {
 })
 
 test('desktop settings default bundled dependencies to enabled', () => {
-  expect(defaultDesktopStoredSettings().installCodexDependencies).toBe(true)
+  expect(defaultDesktopStoredSettings().installCodePilotXDependencies).toBe(true)
 })
 
 test('desktop settings normalize bundled dependencies as a boolean', () => {
   expect(
-    normalizeDesktopStoredSettings({ installCodexDependencies: false })
-      .installCodexDependencies,
+    normalizeDesktopStoredSettings({ installCodePilotXDependencies: false })
+      .installCodePilotXDependencies,
   ).toBe(false)
   expect(
-    normalizeDesktopStoredSettings({ installCodexDependencies: 'false' })
-      .installCodexDependencies,
+    normalizeDesktopStoredSettings({ installCodePilotXDependencies: 'false' })
+      .installCodePilotXDependencies,
   ).toBe(true)
 })
 
