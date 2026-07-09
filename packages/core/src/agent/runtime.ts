@@ -102,6 +102,7 @@ export type AgentSessionEventType =
   | 'file_patch'
   | 'error'
   | 'checkpoint'
+  | 'tool_output_delta'
 
 export type AgentSessionEvent = {
   id: string
@@ -197,6 +198,13 @@ export type AgentRuntimeEvent =
     }
   | { type: 'error'; sessionId: string; message: string }
   | { type: 'done'; sessionId: string }
+  | {
+      type: 'tool_output_delta'
+      sessionId: string
+      toolUseId: string
+      toolName: string
+      delta: string
+    }
 
 export type AgentSessionSettings = {
   workspacePath?: string

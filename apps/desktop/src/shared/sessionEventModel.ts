@@ -148,6 +148,16 @@ export function desktopAgentEventToSessionEvent(
         createdAt,
         metadata: { status: 'done' },
       }
+    case 'tool_output_delta':
+      return {
+        id: randomId(),
+        sessionId: event.sessionId,
+        type: 'tool_output_delta',
+        content: event.delta,
+        createdAt,
+        metadata: toolMetadata(event.toolName, event.toolUseId),
+        ...eventSource(event),
+      }
     case 'session_title':
       return null
   }

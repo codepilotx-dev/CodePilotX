@@ -763,6 +763,7 @@ export function agentRuntimeEventToThreadEvents(
           stopReason: 'done',
         },
       ], ids)
+    case 'tool_output_delta':
     case 'context_usage':
     case 'session_title':
       return []

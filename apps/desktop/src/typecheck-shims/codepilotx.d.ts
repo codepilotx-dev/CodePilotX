@@ -177,6 +177,7 @@ declare module '@codepilotx/core/agent/runtime.js' {
     | 'file_patch'
     | 'error'
     | 'checkpoint'
+    | 'tool_output_delta'
 
   export type AgentSessionEvent = {
     id: string
@@ -272,6 +273,13 @@ declare module '@codepilotx/core/agent/runtime.js' {
       }
     | { type: 'done'; sessionId: string }
     | { type: 'error'; sessionId: string; message: string }
+    | {
+        type: 'tool_output_delta'
+        sessionId: string
+        toolUseId: string
+        toolName: string
+        delta: string
+      }
 }
 
 declare module '@codepilotx/core/attachments/types.js' {
@@ -759,6 +767,7 @@ declare module '@codepilotx/core/agent/workflowView.js' {
     events: AgentSessionEvent[]
     toolRuns: WorkflowToolRun[]
     pendingPermissions: AgentPermissionRequest[]
+    completedPermissionRequestIds: Set<string>
     turnStatus: AgentSessionStatus
     diagnostics: WorkflowSessionViewDiagnostics
   }

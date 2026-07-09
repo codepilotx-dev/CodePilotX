@@ -24,6 +24,7 @@ export type WorkflowSessionView = {
   events: AgentSessionEvent[]
   toolRuns: WorkflowToolRun[]
   pendingPermissions: AgentPermissionRequest[]
+  completedPermissionRequestIds: Set<string>
   turnStatus: AgentSessionStatus
   diagnostics: WorkflowSessionViewDiagnostics
 }
@@ -36,6 +37,7 @@ export function deriveWorkflowSessionView(
   const events: AgentSessionEvent[] = []
   const toolRunsById = new Map<string, WorkflowToolRun>()
   const pendingPermissions = new Map<string, AgentPermissionRequest>()
+  const completedPermissionRequestIds = new Set<string>()
   const seenEventIds = new Set<string>()
   const duplicateEventIds: string[] = []
   const outOfOrderSequences: Array<{ previous: number; current: number }> = []
@@ -253,6 +255,7 @@ export function deriveWorkflowSessionView(
     events,
     toolRuns: [...toolRunsById.values()],
     pendingPermissions: [...pendingPermissions.values()],
+    completedPermissionRequestIds,
     turnStatus,
     diagnostics: {
       duplicateEventIds,
