@@ -130,6 +130,7 @@ test('workflow permission events replace pending permissions and close on decisi
   )
 
   expect(pendingPatch.pendingPermissions).toEqual([request])
+
   expect(closedPatch.pendingPermissions).toEqual([])
 })
 

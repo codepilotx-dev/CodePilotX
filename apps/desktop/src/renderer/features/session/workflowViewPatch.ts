@@ -1,5 +1,5 @@
 import { deriveWorkflowSessionState } from '../../../shared/workflowReducer.js'
-import type { DesktopWorkflowEvent } from '../../../shared/types.js'
+import type { DesktopPermissionRequest, DesktopWorkflowEvent } from '../../../shared/types.js'
 import type { SessionViewState, ToolLogEntry } from '../../uiTypes.js'
 import { dedupeWorkflowEvents } from './workflowEventDedup.js'
 
@@ -28,15 +28,74 @@ export function deriveWorkflowViewPatch(
       (event.item.type === 'tool_call' || event.item.type === 'tool_result'),
   )
 
+  // Compute completed permission request IDs directly from workflow events,
+  // so this logic does not depend on the core package's return value.
+  const completedPermissionRequestIds = new Set<string>(
+    uniqueWorkflowEvents
+      .filter(
+        event =>
+          isThreadEvent(event, threadId) &&
+          'item' in event &&
+          event.item.type === 'permission_request' &&
+          event.item.status !== 'in_progress',
+      )
+      .map(event => (event.item as { request: { requestId: string } }).request.requestId),
+  )
+
+  // Merge pending permissions: prefer workflow-derived results for items that
+  // have completed permission_request events in the workflow; keep any real
+  // pending requests from currentView that are NOT yet resolved in workflow.
+  const mergedPending = hasPermissionEvents
+    ? mergePendingPermissions(
+        currentView.pendingPermissions,
+        derived.pendingPermissions,
+        completedPermissionRequestIds,
+      )
+    : currentView.pendingPermissions
+
   return {
     workflowEvents: uniqueWorkflowEvents,
-    pendingPermissions: hasPermissionEvents
-      ? derived.pendingPermissions
-      : currentView.pendingPermissions,
+    pendingPermissions: mergedPending,
     toolLog: hasToolEvents
       ? workflowToolRunsToToolLog(derived.toolRuns, currentView.toolLog)
       : currentView.toolLog,
   }
+}
+
+/**
+ * Merge real pending permissions from currentView with workflow-derived ones.
+ *
+ * - Any request that appears in `completedIds` (workflow has a completed
+ *   permission_request or decision event) is dropped.
+ * - Any request from `derived` (still in_progress in workflow) is kept.
+ * - Any request in `currentView` that is NOT in `completedIds` is kept
+ *   (it may be a real pending request not yet reflected in workflow events).
+ */
+function mergePendingPermissions(
+  currentPending: DesktopPermissionRequest[],
+  derivedPending: DesktopPermissionRequest[],
+  completedIds: Set<string>,
+): DesktopPermissionRequest[] {
+  const seen = new Set<string>()
+  const result: DesktopPermissionRequest[] = []
+
+  // First, add derived pending (in_progress in workflow)
+  for (const req of derivedPending) {
+    if (!seen.has(req.requestId)) {
+      seen.add(req.requestId)
+      result.push(req)
+    }
+  }
+
+  // Then, keep current pending requests that are not completed in workflow
+  for (const req of currentPending) {
+    if (!seen.has(req.requestId) && !completedIds.has(req.requestId)) {
+      seen.add(req.requestId)
+      result.push(req)
+    }
+  }
+
+  return result
 }
 
 function workflowToolRunsToToolLog(
