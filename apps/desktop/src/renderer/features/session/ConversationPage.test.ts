@@ -164,6 +164,97 @@ test('keeps permission requests with commands across invisible status events', (
   expect(commandRunView(group.runs[0]!).statusLabel).toBe('失败')
 })
 
+test('tool_output_delta appends output to the matching running run and clears waiting permission', () => {
+  const items = groupTimelineToolEvents([
+    toolCallEvent('tool-1', 'Bash', 'npm test'),
+    permissionRequestEvent('permission-1', 'Bash', 'Allow npm test?'),
+    toolOutputDeltaEvent('delta-1', 'tool-use-1', 'starting...'),
+    toolOutputDeltaEvent('delta-2', 'tool-use-1', 'running...'),
+    toolResultEvent('result-1', 'Bash', 'passed', false),
+  ])
+
+  expect(items).toHaveLength(1)
+  const group = items[0]
+  expect(group?.type).toBe('tool_group')
+  if (group?.type !== 'tool_group') throw new Error('Expected tool group')
+  expect(group.runs).toHaveLength(1)
+  const run = group.runs[0]!
+  expect(run.outputContent).toBe('starting...running...')
+  expect(run.isRunning).toBe(false)
+  expect(run.isWaitingForPermission).toBe(false)
+  expect(run.resultContent).toBe('passed')
+  expect(commandRunView(run).statusLabel).toBe('成功')
+})
+
+test('tool_output_delta flow without permission shows running output', () => {
+  const items = groupTimelineToolEvents([
+    toolCallEvent('tool-1', 'Bash', 'npm test'),
+    toolOutputDeltaEvent('delta-1', 'tool-use-1', 'file1.txt\n'),
+    toolOutputDeltaEvent('delta-2', 'tool-use-1', 'file2.txt\n'),
+  ])
+
+  expect(items).toHaveLength(1)
+  const group = items[0]
+  expect(group?.type).toBe('tool_group')
+  if (group?.type !== 'tool_group') throw new Error('Expected tool group')
+  expect(group.runs).toHaveLength(1)
+  const run = group.runs[0]!
+  expect(run.outputContent).toBe('file1.txt\nfile2.txt\n')
+  expect(run.isRunning).toBe(true)
+  expect(commandRunView(run).displayOutput).toBe('file1.txt\nfile2.txt\n')
+})
+
+test('multi-command parallel runs with interleaved output deltas', () => {
+  const items = groupTimelineToolEvents([
+    toolCallEventWithToolUseId('tool-a', 'Bash', 'npm build', 'tool-use-a'),
+    toolCallEventWithToolUseId('tool-b', 'Bash', 'npm test', 'tool-use-b'),
+    toolCallEventWithToolUseId('tool-c', 'Bash', 'npm lint', 'tool-use-c'),
+    toolOutputDeltaEvent('delta-a-1', 'tool-use-a', 'Building...\n'),
+    toolOutputDeltaEvent('delta-b-1', 'tool-use-b', 'Testing...\n'),
+    toolOutputDeltaEvent('delta-a-2', 'tool-use-a', 'Build done\n'),
+    toolResultEventWithToolUseId('result-a', 'Bash', 'Build done', false, 'tool-use-a'),
+    toolOutputDeltaEvent('delta-c-1', 'tool-use-c', 'Linting...\n'),
+    toolOutputDeltaEvent('delta-b-2', 'tool-use-b', 'Tests passed\n'),
+    toolResultEventWithToolUseId('result-b', 'Bash', 'Tests passed', false, 'tool-use-b'),
+    toolOutputDeltaEvent('delta-c-2', 'tool-use-c', 'Lint passed\n'),
+    toolResultEventWithToolUseId('result-c', 'Bash', 'Lint passed', false, 'tool-use-c'),
+  ])
+
+  expect(items).toHaveLength(1)
+  const group = items[0]
+  expect(group?.type).toBe('tool_group')
+  if (group?.type !== 'tool_group') throw new Error('Expected tool group')
+  expect(group.runs).toHaveLength(3)
+
+  // First command (a) — started, got output, then completed
+  expect(group.runs[0]!.outputContent).toBe('Building...\nBuild done\n')
+  expect(group.runs[0]!.isRunning).toBe(false)
+
+  // Second command (b) — started, got output interleaved, then completed
+  expect(group.runs[1]!.outputContent).toBe('Testing...\nTests passed\n')
+  expect(group.runs[1]!.isRunning).toBe(false)
+
+  // Third command (c) — started later, got output, then completed
+  expect(group.runs[2]!.outputContent).toBe('Linting...\nLint passed\n')
+  expect(group.runs[2]!.isRunning).toBe(false)
+})
+
+test('tool_output_delta clears isWaitingForPermission on first delta', () => {
+  const items = groupTimelineToolEvents([
+    toolCallEvent('tool-1', 'Bash', 'npm test'),
+    permissionRequestEvent('permission-1', 'Bash', 'Allow npm test?'),
+    toolOutputDeltaEvent('delta-1', 'tool-use-1', 'starting...'),
+  ])
+
+  expect(items).toHaveLength(1)
+  const group = items[0]
+  expect(group?.type).toBe('tool_group')
+  if (group?.type !== 'tool_group') throw new Error('Expected tool group')
+  expect(group.runs[0]!.isWaitingForPermission).toBe(false)
+  expect(group.runs[0]!.isRunning).toBe(true)
+  expect(commandRunView(group.runs[0]!).statusLabel).toBe('运行中')
+})
+
 test('updates a permission-gated command to failed when the tool result errors', () => {
   const items = groupTimelineToolEvents([
     toolCallEvent('tool-1', 'Bash', 'npm test'),
@@ -714,6 +805,40 @@ function askUserQuestionPermissionEvent(id: string): DesktopSessionEvent {
   }
 }
 
+function toolCallEventWithToolUseId(
+  id: string,
+  toolName: string,
+  content: string,
+  toolUseId: string,
+): DesktopSessionEvent {
+  return {
+    id,
+    sessionId: 'session-1',
+    type: 'tool_call',
+    content,
+    createdAt: '2026-06-26T00:00:00.000Z',
+    metadata: { toolName, toolUseId },
+  }
+}
+
+function toolResultEventWithToolUseId(
+  id: string,
+  toolName: string,
+  content: string,
+  isError: boolean,
+  toolUseId: string,
+  metadata: Record<string, unknown> = {},
+): DesktopSessionEvent {
+  return {
+    id,
+    sessionId: 'session-1',
+    type: 'tool_result',
+    content,
+    createdAt: '2026-06-26T00:00:01.000Z',
+    metadata: { ...metadata, toolName, toolUseId, isError },
+  }
+}
+
 function toolResultEvent(
   id: string,
   toolName: string,
@@ -728,6 +853,21 @@ function toolResultEvent(
     content,
     createdAt: '2026-06-26T00:00:01.000Z',
     metadata: { ...metadata, toolName, toolUseId: 'tool-use-1', isError },
+  }
+}
+
+function toolOutputDeltaEvent(
+  id: string,
+  toolUseId: string,
+  delta: string,
+): DesktopSessionEvent {
+  return {
+    id,
+    sessionId: 'session-1',
+    type: 'tool_output_delta',
+    content: delta,
+    createdAt: '2026-06-26T00:00:00.600Z',
+    metadata: { toolName: 'Bash', toolUseId },
   }
 }
 

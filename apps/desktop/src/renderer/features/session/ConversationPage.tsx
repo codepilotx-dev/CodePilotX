@@ -1637,6 +1637,8 @@ export type TimelineToolRun = {
   toolName: string;
   callContent: string;
   resultContent: string;
+  /** Live output accumulated from tool_output_delta events */
+  outputContent: string;
   permissionRequest?: DesktopPermissionRequest;
   resultMetadata?: Record<string, unknown>;
   isError: boolean;
@@ -2465,10 +2467,14 @@ export function commandRunView(run: TimelineToolRun): CommandRunView {
       : statusKind === "error"
         ? "失败"
         : "成功";
+  // While running, prefer live outputContent over the final resultContent
+  const displayOutput = run.isRunning && run.outputContent
+    ? run.outputContent
+    : run.resultContent;
   return {
     commandLabel: displayCommand,
     displayCommand,
-    displayOutput: run.resultContent,
+    displayOutput,
     shellTitle: toolLabel,
     statusKind,
     statusLabel,
@@ -3937,17 +3943,38 @@ export function groupTimelineToolEvents(
   const items: TimelineItem[] = [];
   let pendingToolEvents: DesktopSessionEvent[] = [];
 
-  function flushToolEvents(): void {
+  function flushToolEvents(options?: { forceStopRuns?: boolean }): void {
     if (pendingToolEvents.length === 0) return;
     const group = buildToolGroup(pendingToolEvents);
     if (group) {
+      // When flushing due to a non-tool event (e.g. user message), the turn
+      // has moved on — stop any remaining running runs defensively.
+      if (options?.forceStopRuns) {
+        for (const run of group.runs) {
+          if (run.isRunning) {
+            run.isRunning = false;
+            run.isError = true;
+            if (!run.resultContent) {
+              run.resultContent = '操作已停止';
+            }
+          }
+        }
+      }
       items.push(group);
     }
     pendingToolEvents = [];
   }
 
   for (const event of sourceEvents) {
+    // Turn terminal: status events like idle/done mean the session is no
+    // longer active — any remaining pending tool runs must be stopped.
     if (event.type === "status") {
+      if (
+        pendingToolEvents.length > 0 &&
+        (event.content === "idle" || event.content === "done")
+      ) {
+        pendingToolEvents.push(terminalToolResultEvent(event));
+      }
       continue;
     }
     if (
@@ -3959,15 +3986,18 @@ export function groupTimelineToolEvents(
     if (
       event.type === "tool_call" ||
       event.type === "tool_result" ||
-      event.type === "permission_request"
+      event.type === "permission_request" ||
+      event.type === "tool_output_delta"
     ) {
       pendingToolEvents.push(event);
       continue;
     }
-    flushToolEvents();
+    // Non-tool event: flush with defensive stop
+    flushToolEvents({ forceStopRuns: true });
     items.push(event);
   }
 
+  // Final flush: do NOT force-stop runs — they may still be live
   flushToolEvents();
   return items;
 }
@@ -4210,11 +4240,25 @@ function buildToolGroup(
         toolName,
         callContent: content,
         resultContent: "",
+        outputContent: "",
         isError: false,
         isRunning: true,
         isWaitingForPermission: false,
         startedAtMs: Date.parse(event.createdAt) || undefined,
       });
+      continue;
+    }
+
+    if (event.type === "tool_output_delta") {
+      const match = findPendingToolRun(runs, toolName, toolUseId) ??
+        findPendingToolRun(runs, undefined, toolUseId);
+      if (match) {
+        // Use raw event.content (not normalizedToolContent) to preserve whitespace
+        match.outputContent += event.content ?? "";
+        // First output delta implies permission was resolved and the
+        // command is now executing — clear the waiting flag.
+        match.isWaitingForPermission = false;
+      }
       continue;
     }
 
@@ -4247,6 +4291,7 @@ function buildToolGroup(
       toolName,
       callContent: "",
       resultContent: content,
+      outputContent: "",
       resultMetadata: event.metadata,
       isError: event.metadata?.isError === true,
       isRunning: false,
