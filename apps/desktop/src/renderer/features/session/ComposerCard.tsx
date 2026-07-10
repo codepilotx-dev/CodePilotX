@@ -169,6 +169,8 @@ type UnifiedMenuItem = {
   label: string;
   hint?: string;
   icon: React.ReactNode;
+  /** Optional slash command name for dedup. Local entries declare ownership. */
+  commandName?: string;
   /** Text for keyword filtering (label + keywords) */
   matchText: string;
   /** Whether the item is active/pressed */
@@ -491,6 +493,7 @@ export function ComposerCard({
       {
         group: "添加",
         key: "reasoning",
+        commandName: "effort",
         label: "推理",
         hint: selectedThinkingLabel,
         icon: <Brain size={14} />,
@@ -510,6 +513,7 @@ export function ComposerCard({
       {
         group: "添加",
         key: "model",
+        commandName: "model",
         label: "模型",
         hint: selectedModelLabel,
         icon: <Box size={14} />,
@@ -519,6 +523,7 @@ export function ComposerCard({
       {
         group: "添加",
         key: "status",
+        commandName: "status",
         label: "状态",
         hint: "显示任务 ID、上下文用量和速率限制",
         icon: <Activity size={14} />,
@@ -529,6 +534,7 @@ export function ComposerCard({
       {
         group: "添加",
         key: "memory",
+        commandName: "remember",
         label: "记忆",
         hint: "生成 · 开",
         icon: <Brain size={14} />,
@@ -542,6 +548,7 @@ export function ComposerCard({
     items.push({
       group: "添加",
       key: "goal-mode",
+      commandName: "goal",
       label: "目标",
       hint: "设置 CodePilotX 将持续努力实现的目标",
       icon: <Target size={14} />,
@@ -556,6 +563,7 @@ export function ComposerCard({
     items.push({
       group: "添加",
       key: "plan-mode",
+      commandName: "plan",
       label: "计划模式",
       hint: "开启计划模式",
       icon: <ListChecks size={14} />,
@@ -619,9 +627,16 @@ export function ComposerCard({
       });
     }
 
-    // Skills + 命令 (from slashCommands)
-    const planGoalNames = new Set(["plan", "goal"]);
+    // Skills + 命令 (from slashCommands) — skip duplicates of local entries
+    // Collect command names owned by local entries + reserved names
+    const ownedCommandNames = new Set<string>();
+    for (const item of items) {
+      if (item.commandName) ownedCommandNames.add(item.commandName);
+    }
+    ownedCommandNames.add("branch"); // reserved — exclude dynamic "派生"
+
     for (const cmd of slashCommands ?? []) {
+      if (ownedCommandNames.has(cmd.name)) continue;
       if (cmd.category === "skill") {
         items.push({
           group: "Skills",
@@ -640,7 +655,7 @@ export function ComposerCard({
             }
           },
         });
-      } else if (cmd.category === "command" && !planGoalNames.has(cmd.name)) {
+      } else if (cmd.category === "command") {
         items.push({
           group: "添加",
           key: `cmd-${cmd.name}`,
