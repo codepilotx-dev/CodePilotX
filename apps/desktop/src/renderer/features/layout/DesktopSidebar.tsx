@@ -11,6 +11,7 @@ import type {
 import type { AppView, SessionListItem } from "../../uiTypes.js";
 import { SidebarBody } from "./sidebar/SidebarBody.js";
 import { SidebarFooter } from "./sidebar/SidebarFooter.js";
+import { SidebarEmptyRow } from "./sidebar/SidebarRow.js";
 import { SidebarTopNav } from "./sidebar/SidebarTopNav.js";
 
 type Props = {
@@ -140,9 +141,9 @@ export function DesktopSidebar({
     <div className="sidebar-layout">
       <SidebarTopNav isActiveView={isActiveView} />
       {catalogStatus.state === 'unavailable' ? (
-        <p className="sidebar-empty" role="status">
+        <SidebarEmptyRow role="status">
           {catalogStatus.error ?? 'The app-server is unavailable. Please try again.'}
-        </p>
+        </SidebarEmptyRow>
       ) : null}
       <SidebarBody
         activeSessionId={activeSessionId}

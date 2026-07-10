@@ -93,23 +93,44 @@ function renderRowContent({
 }): ReactNode {
   return (
     <>
-      {leadingMode !== "none" ? (
-        <span
-          className={joinClassNames(
-            "sidebar-row-leading",
-            leadingMode === "icon"
-              ? "icon-button sidebar-item-icon"
-              : "sidebar-row-leading-spacer",
-          )}
-        >
-          {leadingMode === "icon" ? leading : null}
-        </span>
-      ) : null}
+      <span
+        aria-hidden={leadingMode === "none" ? true : undefined}
+        className={joinClassNames(
+          "sidebar-row-leading",
+          leadingMode === "icon"
+            ? "icon-button sidebar-item-icon"
+            : "sidebar-row-leading-spacer",
+        )}
+      >
+        {leadingMode === "icon" ? leading : null}
+      </span>
       <span className={joinClassNames("sidebar-row-main", labelClassName)}>
         {children}
       </span>
-      {trailing ? <span className="sidebar-row-trailing">{trailing}</span> : null}
+      <span
+        aria-hidden={trailing ? undefined : true}
+        className="sidebar-row-trailing"
+      >
+        {trailing}
+      </span>
     </>
+  );
+}
+
+export function SidebarEmptyRow({
+  children,
+  className,
+  ...props
+}: HTMLAttributes<HTMLDivElement> & { children: ReactNode }): ReactNode {
+  return (
+    <div
+      {...props}
+      className={joinClassNames("sidebar-row", "sidebar-empty-row", className)}
+    >
+      <span aria-hidden="true" className="sidebar-row-leading sidebar-row-leading-spacer" />
+      <p className="sidebar-empty">{children}</p>
+      <span aria-hidden="true" className="sidebar-row-trailing" />
+    </div>
   );
 }
 

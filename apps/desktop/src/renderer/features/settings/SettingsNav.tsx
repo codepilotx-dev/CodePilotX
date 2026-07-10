@@ -23,6 +23,7 @@ import {
   Brain,
 } from 'lucide-react'
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
+import { SidebarRow } from '../layout/sidebar/SidebarRow.js'
 
 const SETTINGS_GROUPS = [
   {
@@ -91,10 +92,15 @@ export function SettingsNav({ activeTab, onBack, onTabChange }: Props) {
       contentClassName="settings-nav-scroll-content"
     >
       <div className="settings-nav-header">
-        <button className="settings-back-btn" onClick={onBack} type="button">
-          <ArrowLeft size={APP_ICON_SIZE} />
-          <span>返回应用</span>
-        </button>
+        <SidebarRow
+          asChild
+          className="settings-back-btn"
+          leading={<ArrowLeft size={APP_ICON_SIZE} />}
+        >
+          <button onClick={onBack} type="button">
+            <span>返回应用</span>
+          </button>
+        </SidebarRow>
         <label className="settings-nav-search">
           <Search className="settings-nav-search-icon" />
           <input
@@ -109,20 +115,24 @@ export function SettingsNav({ activeTab, onBack, onTabChange }: Props) {
       <div className="settings-nav-menu">
         {visibleGroups.map(group => (
           <section className="settings-nav-group" key={group.title}>
-            <h2 className="settings-nav-group-title">{group.title}</h2>
+            <div className="settings-nav-group-title-row">
+              <h2 className="settings-nav-group-title">{group.title}</h2>
+              <span aria-hidden="true" className="sidebar-row-main" />
+              <span aria-hidden="true" className="sidebar-row-trailing" />
+            </div>
             <div className="settings-nav-group-items">
               {group.items.map(item => (
-                <button
+                <SidebarRow
+                  active={activeTab === item.id}
+                  asChild
                   key={item.id}
-                  className={`settings-nav-item ${
-                    activeTab === item.id ? 'active' : ''
-                  }`}
-                  onClick={() => onTabChange(item.id)}
-                  type="button"
+                  className="settings-nav-item"
+                  leading={<item.icon className="settings-nav-icon" />}
                 >
-                  <item.icon className="settings-nav-icon" />
-                  <span>{item.label}</span>
-                </button>
+                  <button onClick={() => onTabChange(item.id)} type="button">
+                    <span>{item.label}</span>
+                  </button>
+                </SidebarRow>
               ))}
             </div>
           </section>

@@ -298,29 +298,33 @@ export function SidebarSessionGroup({
       </AnimatePresence>
       {hasOverflow ? (
         <div className="sidebar-show-more-actions">
-          {canShowMore ? (
-            <button
-              aria-expanded={canCollapse}
-              className="sidebar-show-more-button"
-              onClick={() =>
-                setVisibleLimit((current) =>
-                  Math.min(current + GROUP_LIMIT, sessions.length),
-                )
-              }
-              type="button"
-            >
-              <span>展开显示</span>
-            </button>
-          ) : null}
-          {canCollapse ? (
-            <button
-              className="sidebar-show-more-button"
-              onClick={() => setVisibleLimit(GROUP_LIMIT)}
-              type="button"
-            >
-              <span>折叠显示</span>
-            </button>
-          ) : null}
+          <span aria-hidden="true" className="sidebar-row-leading sidebar-row-leading-spacer" />
+          <div className="sidebar-row-main">
+            {canShowMore ? (
+              <button
+                aria-expanded={canCollapse}
+                className="sidebar-show-more-button"
+                onClick={() =>
+                  setVisibleLimit((current) =>
+                    Math.min(current + GROUP_LIMIT, sessions.length),
+                  )
+                }
+                type="button"
+              >
+                <span>展开显示</span>
+              </button>
+            ) : null}
+            {canCollapse ? (
+              <button
+                className="sidebar-show-more-button"
+                onClick={() => setVisibleLimit(GROUP_LIMIT)}
+                type="button"
+              >
+                <span>折叠显示</span>
+              </button>
+            ) : null}
+          </div>
+          <span aria-hidden="true" className="sidebar-row-trailing" />
         </div>
       ) : null}
     </>

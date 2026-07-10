@@ -9,6 +9,10 @@
   overflow: hidden;
 }
 
+.settings-sidebar-layout {
+  --sidebar-trailing-width: 60px;
+}
+
 .settings-nav-scroll-area {
   flex: 1 1 auto;
   min-height: 0;
@@ -31,11 +35,6 @@
 }
 
 .settings-back-btn {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: var(--sidebar-item-gap);
-  padding: var(--layout-sidebar-row-pad-y) var(--sidebar-padding-x);
   border-radius: var(--radius-3);
   color: var(--color-text-soft);
   font-size: var(--font-size-14);
@@ -46,17 +45,16 @@
     color 0.15s ease;
 
   &:hover {
-    background-color: var(--color-bg-hover);
     color: var(--color-text-strong);
   }
 }
 
 .settings-nav-search {
   position: relative;
+  width: 100%;
   display: flex;
   align-items: center;
   min-height: 38px;
-  width: 100%;
 
   &-icon {
     position: absolute;
@@ -101,9 +99,16 @@
   display: grid;
   gap: 6px;
 
+  &-title-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) var(--sidebar-trailing-width);
+    align-items: center;
+    column-gap: var(--sidebar-item-gap);
+    padding: var(--layout-sidebar-row-pad-y) var(--sidebar-padding-x);
+  }
+
   &-title {
     margin: 0;
-    padding: 0 var(--sidebar-padding-x);
     color: var(--color-text-mute);
     font-size: var(--font-size-14);
     font-weight: var(--font-weight-label);
@@ -117,11 +122,6 @@
 }
 
 .settings-nav-item {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: var(--sidebar-item-gap);
-  padding: var(--layout-sidebar-row-pad-y) var(--sidebar-padding-x);
   border-radius: var(--radius-3);
   color: var(--color-text);
   background: none;
@@ -135,12 +135,7 @@
     color 0.15s ease;
   white-space: nowrap;
 
-  &:hover {
-    background-color: var(--color-sidebar-hover-bg);
-  }
-
   &.active {
-    background-color: var(--color-sidebar-active-bg);
     color: var(--color-text-strong);
     font-weight: var(--font-weight-label);
   }

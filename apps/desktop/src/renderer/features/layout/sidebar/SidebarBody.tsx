@@ -13,6 +13,7 @@ import { IconButton } from "../../../components/ui/IconButton.js";
 import { PopoverItem } from "../../../components/ui/PopoverItem.js";
 import { ScrollArea } from "../../../components/ui/ScrollArea.js";
 import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
+import { SidebarEmptyRow } from "./SidebarRow.js";
 import { SidebarProjectGroup } from "./SidebarProjectGroup.js";
 import { SidebarSessionGroup } from "./SidebarSessionGroup.js";
 import { useDesktopSettings } from "../../settings/useDesktopSettings.js";
@@ -161,7 +162,7 @@ export function SidebarBody({
           />
           {!collapsedSidebarSections.includes('projects') ? (
             projectWorkspaces.length === 0 ? (
-              <p className="sidebar-empty">暂无最近项目</p>
+              <SidebarEmptyRow>暂无最近项目</SidebarEmptyRow>
             ) : (
               projectWorkspaces.map((project) => (
                 <SidebarProjectGroup
@@ -206,7 +207,7 @@ export function SidebarBody({
           />
           {!collapsedSidebarSections.includes('conversations') ? (
             (isProjectOrganization ? standaloneSessions : unpinnedSessions).length === 0 ? (
-              <p className="sidebar-empty">暂无对话</p>
+              <SidebarEmptyRow>暂无对话</SidebarEmptyRow>
             ) : (
               <SidebarSessionGroup
                 activeSessionId={activeSessionId}
@@ -274,6 +275,8 @@ function SidebarSectionHeader({
     >
       <h2 className="sidebar-section-title">
         <span className="sidebar-section-label">{title}</span>
+      </h2>
+      <span className="sidebar-section-main">
         <ChevronDown
           className={
             "sidebar-section-chevron" +
@@ -281,7 +284,7 @@ function SidebarSectionHeader({
           }
           size={APP_ICON_SIZE}
         />
-      </h2>
+      </span>
       <div className="sidebar-section-trailing">
         <div
           className={
