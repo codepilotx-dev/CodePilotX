@@ -895,7 +895,7 @@ mod api {
             .unwrap_or_else(|| "<unknown>".to_string());
         let head: String = patch.lines().take(20).collect::<Vec<&str>>().join("\n");
         let head_trunc = if head.len() > 800 {
-            format!("{}â€?, &head[..800])
+            format!("{}?, &head[..800])
         } else {
             head
         };

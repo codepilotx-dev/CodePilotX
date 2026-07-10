@@ -40,11 +40,11 @@ pub use cli::Cli;
 
 /// A single match result returned from the search.
 ///
-/// * `score` – Relevance score returned by `nucleo`.
-/// * `path`  – Path to the matched entry (file or directory), relative to the
+/// * `score`  Relevance score returned by `nucleo`.
+/// * `path`   Path to the matched entry (file or directory), relative to the
 ///   search directory.
-/// * `match_type` – Whether this match is a file or directory.
-/// * `indices` – Optional list of character indices that matched the query.
+/// * `match_type`  Whether this match is a file or directory.
+/// * `indices`  Optional list of character indices that matched the query.
 ///   These are only filled when the caller of [`run`] sets
 ///   `options.compute_indices` to `true`. The indices vector follows the
 ///   guidance from `nucleo::pattern::Pattern::indices`: they are
@@ -402,8 +402,8 @@ fn get_file_path<'a>(path: &'a Path, search_directories: &[PathBuf]) -> Option<(
 /// The walker uses `require_git(true)` to match git's own ignore semantics:
 /// git never reads `.gitignore` files from directories above the repository
 /// root. Without this flag, the `ignore` crate reads `.gitignore` files from
-/// *all* ancestor directories—a deliberate divergence from git intended for
-/// non-git use cases—allowing a broad parent ignore (e.g. `~/.gitignore`
+/// *all* ancestor directoriesa deliberate divergence from git intended for
+/// non-git use casesallowing a broad parent ignore (e.g. `~/.gitignore`
 /// containing `*`) to silently suppress every file in the walk.
 ///
 /// When `respect_gitignore` is `false`, all git-related ignore processing is

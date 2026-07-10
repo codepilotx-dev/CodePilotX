@@ -764,7 +764,7 @@ impl RolloutRecorder {
         let cwd = config.cwd().to_path_buf();
 
         // A reasonably-sized bounded channel. If the buffer fills up the send
-        // future will yield, which is fine â€?we only need to ensure we do not
+        // future will yield, which is fine ?we only need to ensure we do not
         // perform *blocking* I/O on the caller's thread.
         let (tx, rx) = mpsc::channel::<RolloutCmd>(256);
         // Spawn a Tokio task that owns the file handle and performs async

@@ -456,7 +456,8 @@ impl RmcpClient {
             .peer()
             .peer_info()
             .ok_or_else(|| anyhow!("handshake succeeded but server info was missing"))?;
-        let initialize_result = initialize_result_rmcp.clone();
+        // rmcp peer_info() returns Arc; dereference to get the inner value
+        let initialize_result = rmcp::model::InitializeResult::clone(&initialize_result_rmcp);
 
         {
             let mut initialize_context = self.initialize_context.lock().await;

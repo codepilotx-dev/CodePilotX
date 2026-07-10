@@ -442,7 +442,7 @@ async fn process_request(
 /// `req.respond` never informs the client (or the library) that a keep-alive
 /// socket should be closed. That leaves the per-connection worker parked in a
 /// loop waiting for more requests, which in turn causes the next login attempt
-/// to hang on the old connection. This helper bypasses tiny_http’s response
+/// to hang on the old connection. This helper bypasses tiny_https response
 /// machinery: it extracts the raw writer, prints the HTTP response manually,
 /// and always appends `Connection: close`, ensuring the socket is closed from
 /// the server side. Ideally, tiny_http would provide an API to control

@@ -311,7 +311,7 @@ async fn device_code_login_integration_handles_error_payload() -> anyhow::Result
 
     mock_usercode_success(&mock_server).await;
 
-    // // /deviceauth/token â†?returns error payload with status 401
+    // // /deviceauth/token ?returns error payload with status 401
     mock_poll_token_single(
         &mock_server,
         "/api/accounts/deviceauth/token",

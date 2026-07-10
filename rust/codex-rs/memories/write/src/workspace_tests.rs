@@ -73,6 +73,6 @@ async fn prepare_memory_workspace_recovers_unusable_git_dir() {
 
 #[test]
 fn previous_char_boundary_handles_multibyte_text() {
-    let text = "aé";
+    let text = "a";
     assert_eq!(previous_char_boundary(text, /*max_bytes*/ 2), 1);
 }

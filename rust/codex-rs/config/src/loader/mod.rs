@@ -925,8 +925,8 @@ impl ProjectTrustContext {
 /// Check for a project config directory at `base/.codepilotx` (preferred)
 /// or fall back to `base/.codex` (legacy) using the sandbox-aware filesystem.
 /// Returns `None` if neither exists.
-async fn resolve_project_config_dir(fs: &dyn ExecutorFileSystem, base: &Path) -> Option<AbsolutePathBuf> {
-    async fn dir_is_dir(fs: &dyn ExecutorFileSystem, p: &Path) -> bool {
+async fn resolve_project_config_dir(fs: &dyn ExecutorFileSystem, base: &AbsolutePathBuf) -> Option<AbsolutePathBuf> {
+    async fn dir_is_dir(fs: &dyn ExecutorFileSystem, p: &AbsolutePathBuf) -> bool {
         let uri = PathUri::from_abs_path(p);
         fs.get_metadata(&uri, None)
             .await
@@ -937,12 +937,12 @@ async fn resolve_project_config_dir(fs: &dyn ExecutorFileSystem, base: &Path) ->
     // Prefer .codepilotx/
     let new_dir = base.join(".codepilotx");
     if dir_is_dir(fs, &new_dir).await {
-        return AbsolutePathBuf::from_absolute_path(new_dir).ok();
+        return Some(new_dir);
     }
     // Fall back to legacy .codex/
     let legacy_dir = base.join(".codex");
     if dir_is_dir(fs, &legacy_dir).await {
-        return AbsolutePathBuf::from_absolute_path(legacy_dir).ok();
+        return Some(legacy_dir);
     }
     None
 }
@@ -1253,12 +1253,10 @@ async fn load_project_layers(
     let mut startup_warnings = Vec::new();
     for dir in dirs {
         // Prefer .codepilotx/ over legacy .codex/ for project-local config.
-        let dot_codepilotx_abs = match resolve_project_config_dir(fs, dir).await {
+        let dot_codepilotx_abs = match resolve_project_config_dir(fs, &dir).await {
             Some(p) => p,
             None => continue,
         };
-        let dot_codepilotx_uri = PathUri::from_abs_path(&dot_codepilotx_abs);
-
         let decision = trust_context.decision_for_dir(&dir);
         let disabled_reason = trust_context.disabled_reason_for_decision(&decision);
         let hooks_config_folder_override = trust_context.root_checkout_hooks_folder_for_dir(&dir);

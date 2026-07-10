@@ -22,7 +22,7 @@ pub fn try_parse_shell(shell_lc_arg: &str) -> Option<Tree> {
 /// Parse a script which may contain multiple simple commands joined only by
 /// the safe logical/pipe/sequencing operators: `&&`, `||`, `;`, `|`.
 ///
-/// Returns `Some(Vec<command_words>)` if every command is a plain word‑only
+/// Returns `Some(Vec<command_words>)` if every command is a plain wordonly
 /// command and the parse tree does not contain disallowed constructs
 /// (parentheses, redirections, substitutions, control flow, etc.). Otherwise
 /// returns `None`.

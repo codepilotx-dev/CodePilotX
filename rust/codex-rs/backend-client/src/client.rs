@@ -102,8 +102,8 @@ struct SendAddCreditsNudgeEmailRequest {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PathStyle {
-    /// /api/codex/â€?    CodexApi,
-    /// /wham/â€?    ChatGptApi,
+    CodexApi,
+    ChatGptApi,
 }
 
 impl PathStyle {

@@ -40,9 +40,9 @@ impl From<LoaderOverrides> for ConfigLoadOptions {
 pub struct LoaderOverrides {
     pub user_config_path: Option<AbsolutePathBuf>,
     pub user_config_profile: Option<ProfileV2Name>,
-    pub managed_config_path: Option<PathBuf>,
-    pub system_config_path: Option<PathBuf>,
-    pub system_requirements_path: Option<PathBuf>,
+    pub managed_config_path: Option<AbsolutePathBuf>,
+    pub system_config_path: Option<AbsolutePathBuf>,
+    pub system_requirements_path: Option<AbsolutePathBuf>,
     pub ignore_managed_requirements: bool,
     pub ignore_user_config: bool,
     pub ignore_user_and_project_exec_policy_rules: bool,
@@ -58,12 +58,16 @@ impl LoaderOverrides {
     /// This is intended for tests that should load only repo-controlled config fixtures.
     pub fn without_managed_config_for_tests() -> Self {
         let base = std::env::temp_dir().join("codex-config-tests");
+        fn as_abs(p: PathBuf) -> AbsolutePathBuf {
+            AbsolutePathBuf::from_absolute_path(p)
+                .expect("temp_dir-based paths should be absolute")
+        }
         Self {
             user_config_path: None,
             user_config_profile: None,
-            managed_config_path: Some(base.join("managed_config.toml")),
-            system_config_path: Some(base.join("config.toml")),
-            system_requirements_path: Some(base.join("requirements.toml")),
+            managed_config_path: Some(as_abs(base.join("managed_config.toml"))),
+            system_config_path: Some(as_abs(base.join("config.toml"))),
+            system_requirements_path: Some(as_abs(base.join("requirements.toml"))),
             ignore_managed_requirements: false,
             ignore_user_config: false,
             ignore_user_and_project_exec_policy_rules: false,
@@ -78,12 +82,17 @@ impl LoaderOverrides {
     /// `requirements.toml` fixture.
     ///
     /// This is intended for tests that supply an explicit managed config fixture.
-    pub fn with_managed_config_path_for_tests(managed_config_path: PathBuf) -> Self {
-        let system_requirements_path = managed_config_path.with_file_name("requirements.toml");
+    pub fn with_managed_config_path_for_tests(managed_config_path: impl AsRef<Path>) -> Self {
+        let managed = AbsolutePathBuf::from_absolute_path(managed_config_path.as_ref())
+            .expect("managed_config_path must be absolute for tests");
+        // with_file_name is called via Deref<Target = Path> and returns a PathBuf
+        let req_path = managed.as_path().with_file_name("requirements.toml");
+        let system_requirements_path = AbsolutePathBuf::from_absolute_path(&req_path)
+            .expect("system_requirements_path must be absolute for tests");
         Self {
             user_config_path: None,
             user_config_profile: None,
-            managed_config_path: Some(managed_config_path),
+            managed_config_path: Some(managed),
             system_requirements_path: Some(system_requirements_path),
             ..Self::without_managed_config_for_tests()
         }

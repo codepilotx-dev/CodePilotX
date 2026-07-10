@@ -71,7 +71,7 @@ fn parse_powershell_invocation(executable: &str, args: &[String]) -> Option<Vec<
                 return None;
             }
 
-            // Unknown switch â†?bail conservatively.
+            // Unknown switch ?bail conservatively.
             _ if lower.starts_with('-') => {
                 // Examples rejected here: "pwsh -UnknownFlag" and "powershell -foo bar".
                 return None;

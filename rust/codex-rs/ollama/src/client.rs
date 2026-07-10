@@ -29,7 +29,7 @@ pub struct OllamaClient {
 }
 
 impl OllamaClient {
-    /// Construct a client for the built‑in open‑source ("oss") model provider
+    /// Construct a client for the builtin opensource ("oss") model provider
     /// and verify that a local Ollama server is reachable. If no server is
     /// detected, returns an error with helpful installation/run instructions.
     pub async fn try_from_oss_provider(config: &Config) -> io::Result<Self> {
@@ -426,7 +426,7 @@ mod tests {
 
         let server = wiremock::MockServer::start().await;
 
-        // OpenAI‑compat models endpoint responds OK.
+        // OpenAIcompat models endpoint responds OK.
         wiremock::Mock::given(wiremock::matchers::method("GET"))
             .and(wiremock::matchers::path("/v1/models"))
             .respond_with(wiremock::ResponseTemplate::new(200))

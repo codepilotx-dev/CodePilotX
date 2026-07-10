@@ -2,7 +2,7 @@
 //!
 //! The entry point is [`apply_git_patch`], which writes a diff to a temporary
 //! file, shells out to `git apply` with the right flags, and then parses the
-//! command’s output into structured details. Callers can opt into dry-run
+//! commands output into structured details. Callers can opt into dry-run
 //! mode via [`ApplyGitRequest::preflight`] and inspect the resulting paths to
 //! learn what would change before applying for real.
 
@@ -490,7 +490,7 @@ pub fn parse_git_apply_output(
             continue;
         }
 
-        // === “U <path>�?after conflicts ===
+        // === U <path>?after conflicts ===
         if let Some(c) = UNMERGED_LINE.captures(line) {
             if let Some(m) = c.name("path") {
                 add(&mut conflicted, m.as_str());

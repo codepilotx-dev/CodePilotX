@@ -34,9 +34,9 @@ pub fn is_known_safe_command(command: &[String]) -> bool {
 
     // Support `bash -lc "..."` where the script consists solely of one or
     // more "plain" commands (only bare words / quoted strings) combined with
-    // a conservative allow‑list of shell operators that themselves do not
+    // a conservative allowlist of shell operators that themselves do not
     // introduce side effects ( "&&", "||", ";", and "|" ). If every
-    // individual command in the script is itself a known‑safe command, then
+    // individual command in the script is itself a knownsafe command, then
     // the composite expression is considered safe.
     if let Some(all_commands) = parse_shell_lc_plain_commands(&command)
         && !all_commands.is_empty()
@@ -167,7 +167,7 @@ fn is_safe_to_call_with_exec(command: &[String]) -> bool {
             true
         }
 
-        // ── anything else ─────────────────────────────────────────────────
+        //  anything else 
         _ => false,
     }
 }
@@ -582,7 +582,7 @@ mod tests {
 
     #[test]
     fn ripgrep_rules() {
-        // Safe ripgrep invocations – none of the unsafe flags are present.
+        // Safe ripgrep invocations  none of the unsafe flags are present.
         assert!(is_safe_to_call_with_exec(&vec_str(&[
             "rg",
             "Cargo.toml",

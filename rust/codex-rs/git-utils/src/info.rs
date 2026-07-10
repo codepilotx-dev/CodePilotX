@@ -23,11 +23,11 @@ use crate::GitSha;
 ///
 /// The check walks up the directory hierarchy looking for a `.git` file or
 /// directory (note `.git` can be a file that contains a `gitdir` entry). This
-/// approach does **not** require the `git` binary or the `git2` crate and is
+/// approach does **not** require the `git`binary or the `git2` crate and is
 /// therefore fairly lightweight.
 ///
-/// Note that this does **not** detect *work‑trees* created with
-/// `git worktree add` where the checkout lives outside the main repository
+/// Note that this does **not** detect *worktrees* created with
+/// `gitworktreeadd` where the checkout lives outside the main repository
 /// directory. If you need Codex to work from such a checkout simply pass the
 /// `--allow-no-git-exec` CLI flag that disables the repo requirement.
 pub fn get_git_repo_root(base_dir: &Path) -> Option<PathBuf> {

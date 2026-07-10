@@ -48,7 +48,7 @@ pub use crate::patch_approval::PatchApprovalElicitRequestParams;
 pub use crate::patch_approval::PatchApprovalResponse;
 
 /// Size of the bounded channels used to communicate between tasks. The value
-/// is a balance between throughput and memory usage â€?128 messages should be
+/// is a balance between throughput and memory usage ?128 messages should be
 /// plenty for an interactive CLI.
 const CHANNEL_CAPACITY: usize = 128;
 const DEFAULT_ANALYTICS_ENABLED: bool = true;
@@ -133,7 +133,7 @@ pub async fn run_main(
                 match serde_json::from_str::<IncomingMessage>(&line) {
                     Ok(msg) => {
                         if incoming_tx.send(msg).await.is_err() {
-                            // Receiver gone â€?nothing left to do.
+                            // Receiver gone ?nothing left to do.
                             break;
                         }
                     }

@@ -108,7 +108,7 @@ struct HeadTailSummary {
     updated_at: Option<String>,
 }
 
-/// Hard cap to bound worst‑case work per request.
+/// Hard cap to bound worstcase work per request.
 const MAX_SCAN_FILES: usize = 10000;
 const HEAD_RECORD_LIMIT: usize = 10;
 const USER_EVENT_SCAN_LIMIT: usize = 200;

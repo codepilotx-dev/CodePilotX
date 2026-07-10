@@ -501,7 +501,7 @@ impl CodexAuth {
     }
 
     /// Account-facing plan classification derived from the current auth.
-    /// Returns a high-level `AccountPlanType` (e.g., Free/Plus/Pro/Team/�?
+    /// Returns a high-level `AccountPlanType` (e.g., Free/Plus/Pro/Team/?
     /// for UI or product decisions based on the user's subscription.
     pub fn account_plan_type(&self) -> Option<AccountPlanType> {
         if let Self::AgentIdentity(auth) = self {
@@ -1701,7 +1701,7 @@ impl UnauthorizedRecovery {
 ///
 /// External modifications to `auth.json` will NOT be observed until
 /// `reload()` is called explicitly. This matches the design goal of avoiding
-/// different parts of the program seeing inconsistent auth data mid‑run.
+/// different parts of the program seeing inconsistent auth data midrun.
 pub struct AuthManager {
     codepilotx_home: PathBuf,
     inner: RwLock<CachedAuth>,
@@ -2322,9 +2322,9 @@ impl AuthManager {
         result
     }
 
-    /// Log out by deleting the on‑disk auth.json (if present). Returns Ok(true)
+    /// Log out by deleting the ondisk auth.json (if present). Returns Ok(true)
     /// if a file was removed, Ok(false) if no auth file existed. On success,
-    /// reloads the in‑memory auth cache so callers immediately observe the
+    /// reloads the inmemory auth cache so callers immediately observe the
     /// unauthenticated state.
     pub async fn logout(&self) -> std::io::Result<bool> {
         let removed = logout_all_stores(

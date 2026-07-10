@@ -393,7 +393,7 @@ fn summary_line(summary: &codepilotx_cloud_tasks_client::DiffSummary, colorize: 
             .as_str()
             .if_supports_color(Stream::Stdout, |t| t.red())
             .to_string();
-        let bullet = "â€?
+        let bullet = "?
             .if_supports_color(Stream::Stdout, |t| t.dimmed())
             .to_string();
         let file_label = format!("file{}", if files == 1 { "" } else { "s" })
@@ -402,7 +402,7 @@ fn summary_line(summary: &codepilotx_cloud_tasks_client::DiffSummary, colorize: 
         format!("{adds_str}/{dels_str}  {bullet}  {files} {file_label}")
     } else {
         format!(
-            "+{adds}/-{dels} â€?{files} file{}",
+            "+{adds}/-{dels} ?{files} file{}",
             if files == 1 { "" } else { "s" }
         )
     }
@@ -464,11 +464,11 @@ fn format_task_status_lines(
         when
     });
     let sep = if colorize {
-        "  â€? "
+        "  ? "
             .if_supports_color(Stream::Stdout, |t| t.dimmed())
             .to_string()
     } else {
-        "  â€? ".to_string()
+        "  ? ".to_string()
     };
     lines.push(meta_parts.join(&sep));
     lines.push(summary_line(&task.summary, colorize));
@@ -729,7 +729,7 @@ fn spawn_apply(
 
 // logging helper lives in util module
 
-// (no standalone patch summarizer needed â€?UI displays raw diffs)
+// (no standalone patch summarizer needed ?UI displays raw diffs)
 
 /// Entry point for the `codex cloud` subcommand.
 pub async fn run_main(cli: Cli, _codepilotx_linux_sandbox_exe: Option<PathBuf>) -> anyhow::Result<()> {
@@ -806,7 +806,7 @@ pub async fn run_main(cli: Cli, _codepilotx_linux_sandbox_exe: Option<PathBuf>) 
         get_codepilotx_user_agent()
     ));
     // Non-blocking initial load so the in-box spinner can animate
-    app.status = "Loading tasksâ€?.to_string();
+    app.status = "Loading tasks?.to_string();
     app.refresh_inflight = true;
     // New list generation; reset background enrichment coordination
     app.list_generation = app.list_generation.saturating_add(1);
@@ -925,9 +925,9 @@ pub async fn run_main(cli: Cli, _codepilotx_linux_sandbox_exe: Option<PathBuf>) 
 
     let exit_code = loop {
         tokio::select! {
-            // Coalesced redraw requests: spinner animation and paste-burst microâ€‘flush.
+            // Coalesced redraw requests: spinner animation and paste-burst microflush.
             Some(()) = redraw_rx.recv() => {
-                // Microâ€‘flush pending first key held by pasteâ€‘burst.
+                // Microflush pending first key held by pasteburst.
                 if let Some(page) = app.new_task.as_mut() {
                     if page.composer.flush_paste_burst_if_due() { needs_redraw = true; }
                     if page.composer.is_in_paste_burst() {
@@ -992,7 +992,7 @@ pub async fn run_main(cli: Cli, _codepilotx_linux_sandbox_exe: Option<PathBuf>) 
                                     app.status = format!("Submitted as {}", created.id.0);
                                     app.new_task = None;
                                     // Refresh tasks in background for current filter
-                                    app.status = format!("Submitted as {} â€?refreshingâ€?, created.id.0);
+                                    app.status = format!("Submitted as {} ?refreshing?, created.id.0);
                                     app.refresh_inflight = true;
                                     app.list_generation = app.list_generation.saturating_add(1);
                                     needs_redraw = true;
@@ -1062,7 +1062,7 @@ pub async fn run_main(cli: Cli, _codepilotx_linux_sandbox_exe: Option<PathBuf>) 
                                         }
                                     }
                                     app.env_filter = Some(sel.id);
-                                    app.status = "Loading tasksâ€?.to_string();
+                                    app.status = "Loading tasks?.to_string();
                                     app.refresh_inflight = true;
                                     app.list_generation = app.list_generation.saturating_add(1);
                                     app.in_flight.clear();
@@ -1348,7 +1348,7 @@ pub async fn run_main(cli: Cli, _codepilotx_linux_sandbox_exe: Option<PathBuf>) 
                             && matches!(key.code, KeyCode::Char('c') | KeyCode::Char('C'))
                         {
                             if app.env_modal.is_some() {
-                                // Close environment selector if open (donâ€™t quit composer).
+                                // Close environment selector if open (dont quit composer).
                                 app.env_modal = None;
                                 needs_redraw = true;
                             } else if app.best_of_modal.is_some() {
@@ -1504,7 +1504,7 @@ pub async fn run_main(cli: Cli, _codepilotx_linux_sandbox_exe: Option<PathBuf>) 
                                                     text.chars().count()
                                                 ));
                                                 page.submitting = true;
-                                                app.status = "Submitting new taskâ€?.to_string();
+                                                app.status = "Submitting new task?.to_string();
                                                 let tx = tx.clone();
                                                 let backend = Arc::clone(&backend);
                                                 let best_of_n = page.best_of_n;
@@ -1523,7 +1523,7 @@ pub async fn run_main(cli: Cli, _codepilotx_linux_sandbox_exe: Option<PathBuf>) 
                                             }
                                     }
                                     needs_redraw = true;
-                                    // If pasteâ€‘burst is active, schedule a microâ€‘flush frame.
+                                    // If pasteburst is active, schedule a microflush frame.
                                     if page.composer.is_in_paste_burst() {
                                         let _ = frame_tx.send(
                                             Instant::now()
@@ -1752,7 +1752,7 @@ pub async fn run_main(cli: Cli, _codepilotx_linux_sandbox_exe: Option<PathBuf>) 
                                             if let Some(h) = &r.repo_hints { hay.push(' '); hay.push_str(&h.to_lowercase()); }
                                             hay.contains(&q)
                                         }).collect();
-                                        // Keep original order (already sorted) â€?no need to re-sort
+                                        // Keep original order (already sorted) ?no need to re-sort
                                         let idx = state.selected;
                                         if idx == 0 { app.env_filter = None; append_error_log("env.select: All"); }
                                         else {
@@ -1771,7 +1771,7 @@ pub async fn run_main(cli: Cli, _codepilotx_linux_sandbox_exe: Option<PathBuf>) 
                                             page.env_id = app.env_filter.clone();
                                         }
                                         // Trigger tasks refresh with the selected filter
-                                        app.status = "Loading tasksâ€?.to_string();
+                                        app.status = "Loading tasks?.to_string();
                                         app.refresh_inflight = true;
                                         app.list_generation = app.list_generation.saturating_add(1);
                                         app.in_flight.clear();
@@ -1809,7 +1809,7 @@ pub async fn run_main(cli: Cli, _codepilotx_linux_sandbox_exe: Option<PathBuf>) 
                                         "refresh.request: env={}",
                                         app.env_filter.clone().unwrap_or_else(|| "<all>".to_string())
                                     ));
-                                    app.status = "Refreshingâ€?.to_string();
+                                    app.status = "Refreshing?.to_string();
                                     app.refresh_inflight = true;
                                     app.list_generation = app.list_generation.saturating_add(1);
                                     app.in_flight.clear();
@@ -1848,7 +1848,7 @@ pub async fn run_main(cli: Cli, _codepilotx_linux_sandbox_exe: Option<PathBuf>) 
                                 }
                                 KeyCode::Enter => {
                                     if let Some(task) = app.tasks.get(app.selected).cloned() {
-                                        app.status = format!("Loading details for {title}â€?, title = task.title);
+                                        app.status = format!("Loading details for {title}?, title = task.title);
                                         app.details_inflight = true;
                                         // Open empty overlay immediately; content arrives via events
                                         let overlay = app::DiffOverlay::new(
@@ -2112,7 +2112,7 @@ fn pretty_lines_from_error(raw: &str) -> Vec<String> {
     if lines.len() == 1 {
         // Parsing yielded nothing; include a trimmed, short raw message tail for context.
         let tail = if raw.len() > 320 {
-            format!("{}â€?, &raw[..320])
+            format!("{}?, &raw[..320])
         } else {
             raw.to_string()
         };
@@ -2251,8 +2251,8 @@ mod tests {
             lines,
             vec![
                 "[READY] Example task".to_string(),
-                "Env  â€? 0s ago".to_string(),
-                "+5/-2 â€?3 files".to_string(),
+                "Env  ? 0s ago".to_string(),
+                "+5/-2 ?3 files".to_string(),
             ]
         );
     }
@@ -2276,7 +2276,7 @@ mod tests {
             lines,
             vec![
                 "[PENDING] No diff task".to_string(),
-                "env-2  â€? 0s ago".to_string(),
+                "env-2  ? 0s ago".to_string(),
                 "no diff".to_string(),
             ]
         );
@@ -2324,12 +2324,12 @@ mod tests {
             vec![
                 "https://chatgpt.com/codex/tasks/task_1".to_string(),
                 "  [READY] Example task".to_string(),
-                "  Env  â€? 0s ago".to_string(),
-                "  +5/-2 â€?3 files".to_string(),
+                "  Env  ? 0s ago".to_string(),
+                "  +5/-2 ?3 files".to_string(),
                 String::new(),
                 "https://chatgpt.com/codex/tasks/task_2".to_string(),
                 "  [PENDING] No diff task".to_string(),
-                "  env-2  â€? 0s ago".to_string(),
+                "  env-2  ? 0s ago".to_string(),
                 "  no diff".to_string(),
             ]
         );
@@ -2388,7 +2388,7 @@ mod tests {
         let found = buf.content().iter().any(|cell| cell.symbol() == "a");
         assert!(found, "typed character was not rendered: {buf:?}");
 
-        composer.set_hint_items(vec![("âŒƒO", "env"), ("âŒƒC", "quit")]);
+        composer.set_hint_items(vec![("O", "env"), ("C", "quit")]);
         composer.render_ref(area, &mut buf);
         let footer = buf
             .content()
@@ -2397,6 +2397,6 @@ mod tests {
             .map(ratatui::buffer::Cell::symbol)
             .collect::<Vec<_>>()
             .join("");
-        assert!(footer.contains("âŒƒO env"));
+        assert!(footer.contains("O env"));
     }
 }

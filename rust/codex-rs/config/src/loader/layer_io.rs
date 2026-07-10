@@ -58,9 +58,10 @@ pub(super) async fn load_config_layers_internal(
         ..
     } = overrides;
 
-    let managed_config_path = AbsolutePathBuf::from_absolute_path(
-        managed_config_path.unwrap_or_else(|| managed_config_default_path(codepilotx_home)),
-    )?;
+    let managed_config_path = match managed_config_path {
+        Some(path) => path,
+        None => AbsolutePathBuf::from_absolute_path(managed_config_default_path(codepilotx_home))?,
+    };
 
     let managed_config = read_config_from_path(
         fs,
