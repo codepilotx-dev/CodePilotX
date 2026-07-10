@@ -3,7 +3,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
-use codex_utils_string::take_bytes_at_char_boundary;
+use codepilotx_utils_string::take_bytes_at_char_boundary;
 use tracing_appender::rolling::RollingFileAppender;
 use tracing_appender::rolling::Rotation;
 
@@ -43,8 +43,8 @@ pub fn current_log_file_path(base_dir: &Path) -> PathBuf {
     log_file_path_for_utc_date(base_dir, chrono::Utc::now().date_naive())
 }
 
-pub fn current_log_file_path_for_codex_home(codex_home: &Path) -> PathBuf {
-    current_log_file_path(&crate::sandbox_dir(codex_home))
+pub fn current_log_file_path_for_codepilotx_home(codepilotx_home: &Path) -> PathBuf {
+    current_log_file_path(&crate::sandbox_dir(codepilotx_home))
 }
 
 pub fn log_writer(base_dir: &Path) -> Option<RollingFileAppender> {
@@ -148,12 +148,12 @@ mod tests {
     }
 
     #[test]
-    fn current_log_file_path_for_codex_home_uses_sandbox_dir() {
-        let codex_home = Path::new("codex-home");
+    fn current_log_file_path_for_codepilotx_home_uses_sandbox_dir() {
+        let codepilotx_home = Path::new("codex-home");
 
         assert_eq!(
-            current_log_file_path_for_codex_home(codex_home),
-            current_log_file_path(&codex_home.join(".sandbox"))
+            current_log_file_path_for_codepilotx_home(codepilotx_home),
+            current_log_file_path(&codepilotx_home.join(".sandbox"))
         );
     }
 }

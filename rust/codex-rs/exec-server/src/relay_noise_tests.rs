@@ -71,7 +71,7 @@ async fn pending_harness_key_validation_does_not_block_new_handshakes() -> Resul
         environment_websocket,
         ConnectionProcessor::new(ExecServerRuntimePaths::new(
             std::env::current_exe()?,
-            /*codex_linux_sandbox_exe*/ None,
+            /*codepilotx_linux_sandbox_exe*/ None,
         )?),
         ENVIRONMENT_ID.to_string(),
         EXECUTOR_REGISTRATION_ID.to_string(),
@@ -125,7 +125,7 @@ async fn duplicate_handshakes_exhaust_failure_budget() -> Result<()> {
         environment_websocket,
         ConnectionProcessor::new(ExecServerRuntimePaths::new(
             std::env::current_exe()?,
-            /*codex_linux_sandbox_exe*/ None,
+            /*codepilotx_linux_sandbox_exe*/ None,
         )?),
         ENVIRONMENT_ID.to_string(),
         EXECUTOR_REGISTRATION_ID.to_string(),
@@ -221,7 +221,7 @@ async fn oversized_harness_authorization_is_rejected_before_validation() -> Resu
         environment_websocket,
         ConnectionProcessor::new(ExecServerRuntimePaths::new(
             std::env::current_exe()?,
-            /*codex_linux_sandbox_exe*/ None,
+            /*codepilotx_linux_sandbox_exe*/ None,
         )?),
         ENVIRONMENT_ID.to_string(),
         EXECUTOR_REGISTRATION_ID.to_string(),
@@ -276,7 +276,7 @@ async fn repeated_malformed_handshakes_close_the_physical_relay() -> Result<()> 
         environment_websocket,
         ConnectionProcessor::new(ExecServerRuntimePaths::new(
             std::env::current_exe()?,
-            /*codex_linux_sandbox_exe*/ None,
+            /*codepilotx_linux_sandbox_exe*/ None,
         )?),
         ENVIRONMENT_ID.to_string(),
         EXECUTOR_REGISTRATION_ID.to_string(),
@@ -323,7 +323,7 @@ async fn repeated_early_data_during_validation_closes_the_physical_relay() -> Re
         environment_websocket,
         ConnectionProcessor::new(ExecServerRuntimePaths::new(
             std::env::current_exe()?,
-            /*codex_linux_sandbox_exe*/ None,
+            /*codepilotx_linux_sandbox_exe*/ None,
         )?),
         ENVIRONMENT_ID.to_string(),
         EXECUTOR_REGISTRATION_ID.to_string(),

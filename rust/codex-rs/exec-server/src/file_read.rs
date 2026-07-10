@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io;
 use std::sync::Arc;
 
-use codex_file_system::FILE_READ_CHUNK_SIZE;
+use codepilotx_file_system::FILE_READ_CHUNK_SIZE;
 use tokio::sync::Mutex;
 
 const MAX_OPEN_FILE_READS: usize = 128;

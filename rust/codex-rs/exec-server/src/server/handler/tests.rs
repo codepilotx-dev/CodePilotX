@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use codex_utils_path_uri::PathUri;
+use codepilotx_utils_path_uri::PathUri;
 use pretty_assertions::assert_eq;
 use tokio::sync::mpsc;
 use uuid::Uuid;
@@ -73,7 +73,7 @@ fn windows_command_processor() -> String {
 fn test_runtime_paths() -> ExecServerRuntimePaths {
     ExecServerRuntimePaths::new(
         std::env::current_exe().expect("current exe"),
-        /*codex_linux_sandbox_exe*/ None,
+        /*codepilotx_linux_sandbox_exe*/ None,
     )
     .expect("runtime paths")
 }

@@ -2,7 +2,7 @@
 
 mod common;
 
-use codex_exec_server::Environment;
+use codepilotx_exec_server::Environment;
 use common::exec_server::exec_server;
 use pretty_assertions::assert_eq;
 

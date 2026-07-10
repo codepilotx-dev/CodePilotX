@@ -18,13 +18,13 @@ use std::process::Command;
 
 use anyhow::Context;
 use anyhow::Result;
-use codex_exec_server::CopyOptions;
-use codex_exec_server::CreateDirectoryOptions;
+use codepilotx_exec_server::CopyOptions;
+use codepilotx_exec_server::CreateDirectoryOptions;
 #[cfg(target_os = "linux")]
-use codex_exec_server::Environment;
-use codex_exec_server::FileMetadata;
-use codex_exec_server::RemoveOptions;
-use codex_utils_path_uri::PathUri;
+use codepilotx_exec_server::Environment;
+use codepilotx_exec_server::FileMetadata;
+use codepilotx_exec_server::RemoveOptions;
+use codepilotx_utils_path_uri::PathUri;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
 use test_case::test_case;

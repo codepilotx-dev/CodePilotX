@@ -1,11 +1,11 @@
 #![allow(clippy::unwrap_used)]
 
 use core_test_support::responses;
-use core_test_support::test_codex_exec::test_codex_exec;
+use core_test_support::test_codepilotx_exec::test_codepilotx_exec;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn exec_includes_workspace_agents_md_in_request() -> anyhow::Result<()> {
-    let test = test_codex_exec();
+    let test = test_codepilotx_exec();
     std::fs::write(test.cwd_path().join("AGENTS.md"), "workspace instructions")?;
 
     let server = responses::start_mock_server().await;
@@ -35,7 +35,7 @@ async fn exec_includes_workspace_agents_md_in_request() -> anyhow::Result<()> {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn exec_prefers_workspace_agents_override_md() -> anyhow::Result<()> {
-    let test = test_codex_exec();
+    let test = test_codepilotx_exec();
     std::fs::write(test.cwd_path().join("AGENTS.md"), "base instructions")?;
     std::fs::write(
         test.cwd_path().join("AGENTS.override.md"),

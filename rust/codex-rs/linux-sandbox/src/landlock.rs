@@ -5,12 +5,12 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::Result;
-use codex_protocol::error::SandboxErr;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::protocol::NetworkSandboxPolicy;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_protocol::error::CodexErr;
+use codepilotx_protocol::error::Result;
+use codepilotx_protocol::error::SandboxErr;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::protocol::NetworkSandboxPolicy;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 
 use landlock::ABI;
 #[allow(unused_imports)]
@@ -249,8 +249,8 @@ fn install_network_seccomp_filter_on_current_thread(
 
     let filter = SeccompFilter::new(
         rules,
-        SeccompAction::Allow,                     // default â€“ allow
-        SeccompAction::Errno(libc::EPERM as u32), // when rule matches â€“ return EPERM
+        SeccompAction::Allow,                     // default â€?allow
+        SeccompAction::Errno(libc::EPERM as u32), // when rule matches â€?return EPERM
         if cfg!(target_arch = "x86_64") {
             TargetArch::x86_64
         } else if cfg!(target_arch = "aarch64") {
@@ -272,7 +272,7 @@ mod tests {
     use super::NetworkSeccompMode;
     use super::network_seccomp_mode;
     use super::should_install_network_seccomp;
-    use codex_protocol::protocol::NetworkSandboxPolicy;
+    use codepilotx_protocol::protocol::NetworkSandboxPolicy;
     use pretty_assertions::assert_eq;
 
     #[test]

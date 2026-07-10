@@ -13,93 +13,93 @@ pub(crate) mod exec_events;
 pub use cli::Cli;
 pub use cli::Command;
 pub use cli::ReviewArgs;
-use codex_app_server_client::DEFAULT_IN_PROCESS_CHANNEL_CAPACITY;
-use codex_app_server_client::EnvironmentManager;
-use codex_app_server_client::ExecServerRuntimePaths;
-use codex_app_server_client::InProcessAppServerClient;
-use codex_app_server_client::InProcessClientStartArgs;
-use codex_app_server_client::InProcessServerEvent;
-use codex_app_server_protocol::ClientRequest;
-use codex_app_server_protocol::ConfigWarningNotification;
-use codex_app_server_protocol::JSONRPCErrorError;
-use codex_app_server_protocol::McpServerElicitationAction;
-use codex_app_server_protocol::McpServerElicitationRequestResponse;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ReviewStartParams;
-use codex_app_server_protocol::ReviewStartResponse;
-use codex_app_server_protocol::ReviewTarget as ApiReviewTarget;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::ServerRequest;
-use codex_app_server_protocol::Thread as AppServerThread;
-use codex_app_server_protocol::ThreadItem as AppServerThreadItem;
-use codex_app_server_protocol::ThreadListParams;
-use codex_app_server_protocol::ThreadListResponse;
-use codex_app_server_protocol::ThreadReadParams;
-use codex_app_server_protocol::ThreadReadResponse;
-use codex_app_server_protocol::ThreadResumeParams;
-use codex_app_server_protocol::ThreadResumeResponse;
-use codex_app_server_protocol::ThreadSortKey;
-use codex_app_server_protocol::ThreadSource;
-use codex_app_server_protocol::ThreadSourceKind;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::ThreadUnsubscribeParams;
-use codex_app_server_protocol::ThreadUnsubscribeResponse;
-use codex_app_server_protocol::TurnInterruptParams;
-use codex_app_server_protocol::TurnInterruptResponse;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::TurnStartResponse;
-use codex_app_server_protocol::TurnStartedNotification;
-use codex_arg0::Arg0DispatchPaths;
-use codex_cloud_config::cloud_config_bundle_loader_for_storage;
-use codex_config::CloudConfigBundleLoader;
-use codex_config::ConfigLoadError;
-use codex_config::ConfigLoadOptions;
-use codex_config::LoaderOverrides;
-use codex_config::format_config_error_with_source;
-use codex_core::StateDbHandle;
-use codex_core::check_execpolicy_for_warnings;
-use codex_core::config::Config;
-use codex_core::config::ConfigBuilder;
-use codex_core::config::ConfigOverrides;
-use codex_core::config::ConfigTomlLoadResult;
-use codex_core::config::find_codex_home;
-use codex_core::config::load_config_toml_with_layer_stack;
-use codex_core::config::resolve_bootstrap_auth_keyring_backend_kind;
-use codex_core::config::resolve_oss_provider;
-use codex_core::config::resolve_profile_v2_config_path;
-use codex_core::find_thread_meta_by_name_str;
-use codex_core::format_exec_policy_error_with_source;
-use codex_core::path_utils;
-use codex_feedback::CodexFeedback;
-use codex_git_utils::get_git_repo_root;
-use codex_login::AuthConfig;
-use codex_login::default_client::set_default_client_residency_requirement;
-use codex_login::default_client::set_default_originator;
-use codex_login::enforce_login_restrictions;
-use codex_model_provider_info::LMSTUDIO_OSS_PROVIDER_ID;
-use codex_model_provider_info::OLLAMA_OSS_PROVIDER_ID;
-use codex_otel::set_parent_from_context;
-use codex_otel::traceparent_context_from_env;
-use codex_protocol::SessionId;
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::ApprovalsReviewer;
-use codex_protocol::config_types::SandboxMode;
-use codex_protocol::models::ActivePermissionProfile;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::ReviewRequest;
-use codex_protocol::protocol::ReviewTarget;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::RolloutLine;
-use codex_protocol::protocol::SessionConfiguredEvent;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::user_input::UserInput;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_absolute_path::canonicalize_existing_preserving_symlinks;
-use codex_utils_cli::SharedCliOptions;
-use codex_utils_oss::ensure_oss_provider_ready;
-use codex_utils_oss::get_default_model_for_oss_provider;
+use codepilotx_app_server_client::DEFAULT_IN_PROCESS_CHANNEL_CAPACITY;
+use codepilotx_app_server_client::EnvironmentManager;
+use codepilotx_app_server_client::ExecServerRuntimePaths;
+use codepilotx_app_server_client::InProcessAppServerClient;
+use codepilotx_app_server_client::InProcessClientStartArgs;
+use codepilotx_app_server_client::InProcessServerEvent;
+use codepilotx_app_server_protocol::ClientRequest;
+use codepilotx_app_server_protocol::ConfigWarningNotification;
+use codepilotx_app_server_protocol::JSONRPCErrorError;
+use codepilotx_app_server_protocol::McpServerElicitationAction;
+use codepilotx_app_server_protocol::McpServerElicitationRequestResponse;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_app_server_protocol::ReviewStartParams;
+use codepilotx_app_server_protocol::ReviewStartResponse;
+use codepilotx_app_server_protocol::ReviewTarget as ApiReviewTarget;
+use codepilotx_app_server_protocol::ServerNotification;
+use codepilotx_app_server_protocol::ServerRequest;
+use codepilotx_app_server_protocol::Thread as AppServerThread;
+use codepilotx_app_server_protocol::ThreadItem as AppServerThreadItem;
+use codepilotx_app_server_protocol::ThreadListParams;
+use codepilotx_app_server_protocol::ThreadListResponse;
+use codepilotx_app_server_protocol::ThreadReadParams;
+use codepilotx_app_server_protocol::ThreadReadResponse;
+use codepilotx_app_server_protocol::ThreadResumeParams;
+use codepilotx_app_server_protocol::ThreadResumeResponse;
+use codepilotx_app_server_protocol::ThreadSortKey;
+use codepilotx_app_server_protocol::ThreadSource;
+use codepilotx_app_server_protocol::ThreadSourceKind;
+use codepilotx_app_server_protocol::ThreadStartParams;
+use codepilotx_app_server_protocol::ThreadStartResponse;
+use codepilotx_app_server_protocol::ThreadUnsubscribeParams;
+use codepilotx_app_server_protocol::ThreadUnsubscribeResponse;
+use codepilotx_app_server_protocol::TurnInterruptParams;
+use codepilotx_app_server_protocol::TurnInterruptResponse;
+use codepilotx_app_server_protocol::TurnStartParams;
+use codepilotx_app_server_protocol::TurnStartResponse;
+use codepilotx_app_server_protocol::TurnStartedNotification;
+use codepilotx_arg0::Arg0DispatchPaths;
+use codepilotx_cloud_config::cloud_config_bundle_loader_for_storage;
+use codepilotx_config::CloudConfigBundleLoader;
+use codepilotx_config::ConfigLoadError;
+use codepilotx_config::ConfigLoadOptions;
+use codepilotx_config::LoaderOverrides;
+use codepilotx_config::format_config_error_with_source;
+use codepilotx_core::StateDbHandle;
+use codepilotx_core::check_execpolicy_for_warnings;
+use codepilotx_core::config::Config;
+use codepilotx_core::config::ConfigBuilder;
+use codepilotx_core::config::ConfigOverrides;
+use codepilotx_core::config::ConfigTomlLoadResult;
+use codepilotx_core::config::find_codepilotx_home;
+use codepilotx_core::config::load_config_toml_with_layer_stack;
+use codepilotx_core::config::resolve_bootstrap_auth_keyring_backend_kind;
+use codepilotx_core::config::resolve_oss_provider;
+use codepilotx_core::config::resolve_profile_v2_config_path;
+use codepilotx_core::find_thread_meta_by_name_str;
+use codepilotx_core::format_exec_policy_error_with_source;
+use codepilotx_core::path_utils;
+use codepilotx_feedback::CodexFeedback;
+use codepilotx_git_utils::get_git_repo_root;
+use codepilotx_login::AuthConfig;
+use codepilotx_login::default_client::set_default_client_residency_requirement;
+use codepilotx_login::default_client::set_default_originator;
+use codepilotx_login::enforce_login_restrictions;
+use codepilotx_model_provider_info::LMSTUDIO_OSS_PROVIDER_ID;
+use codepilotx_model_provider_info::OLLAMA_OSS_PROVIDER_ID;
+use codepilotx_otel::set_parent_from_context;
+use codepilotx_otel::traceparent_context_from_env;
+use codepilotx_protocol::SessionId;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::config_types::ApprovalsReviewer;
+use codepilotx_protocol::config_types::SandboxMode;
+use codepilotx_protocol::models::ActivePermissionProfile;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_protocol::protocol::ReviewRequest;
+use codepilotx_protocol::protocol::ReviewTarget;
+use codepilotx_protocol::protocol::RolloutItem;
+use codepilotx_protocol::protocol::RolloutLine;
+use codepilotx_protocol::protocol::SessionConfiguredEvent;
+use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_protocol::user_input::UserInput;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_absolute_path::canonicalize_existing_preserving_symlinks;
+use codepilotx_utils_cli::SharedCliOptions;
+use codepilotx_utils_oss::ensure_oss_provider_ready;
+use codepilotx_utils_oss::get_default_model_for_oss_provider;
 use event_processor_with_human_output::EventProcessorWithHumanOutput;
 pub use event_processor_with_jsonl_output::CodexStatus;
 pub use event_processor_with_jsonl_output::CollectedThreadEvents;
@@ -241,7 +241,7 @@ pub async fn run_main(cli: Cli, arg0_paths: Arg0DispatchPaths) -> anyhow::Result
         eprintln!("{message}");
     }
 
-    if let Err(err) = set_default_originator("codex_exec".to_string()) {
+    if let Err(err) = set_default_originator("codepilotx_exec".to_string()) {
         tracing::warn!(?err, "Failed to set codex exec originator override {err:?}");
     }
 
@@ -316,8 +316,8 @@ pub async fn run_main(cli: Cli, arg0_paths: Arg0DispatchPaths) -> anyhow::Result
 
     // we load config.toml here to determine project state.
     #[allow(clippy::print_stderr)]
-    let codex_home = match find_codex_home() {
-        Ok(codex_home) => codex_home,
+    let codepilotx_home = match find_codepilotx_home() {
+        Ok(codepilotx_home) => codepilotx_home,
         Err(err) => {
             eprintln!("Error finding codex home: {err}");
             std::process::exit(1);
@@ -325,7 +325,7 @@ pub async fn run_main(cli: Cli, arg0_paths: Arg0DispatchPaths) -> anyhow::Result
     };
     let user_config_path = config_profile_v2
         .as_ref()
-        .map(|profile_v2| resolve_profile_v2_config_path(&codex_home, profile_v2));
+        .map(|profile_v2| resolve_profile_v2_config_path(&codepilotx_home, profile_v2));
     let loader_overrides = LoaderOverrides {
         user_config_path,
         user_config_profile: config_profile_v2,
@@ -335,7 +335,7 @@ pub async fn run_main(cli: Cli, arg0_paths: Arg0DispatchPaths) -> anyhow::Result
     };
 
     let bootstrap_config = load_bootstrap_config_or_exit(
-        &codex_home,
+        &codepilotx_home,
         Some(&config_cwd),
         cli_kv_overrides.clone(),
         loader_overrides.clone(),
@@ -350,8 +350,8 @@ pub async fn run_main(cli: Cli, arg0_paths: Arg0DispatchPaths) -> anyhow::Result
         .clone()
         .unwrap_or_else(|| "https://chatgpt.com/backend-api/".to_string());
     let cloud_config_bundle = cloud_config_bundle_loader_for_storage(
-        codex_home.to_path_buf(),
-        /*enable_codex_api_key_env*/ false,
+        codepilotx_home.to_path_buf(),
+        /*enable_codepilotx_api_key_env*/ false,
         bootstrap_config_toml
             .cli_auth_credentials_store
             .unwrap_or_default(),
@@ -370,7 +370,7 @@ pub async fn run_main(cli: Cli, arg0_paths: Arg0DispatchPaths) -> anyhow::Result
             // auth/base-url settings needed to fetch the bundle. If OSS mode
             // needs a default provider from config, reload with the bundle.
             bootstrap_config_with_cloud_config = load_bootstrap_config_or_exit(
-                &codex_home,
+                &codepilotx_home,
                 Some(&config_cwd),
                 cli_kv_overrides.clone(),
                 loader_overrides.clone(),
@@ -422,8 +422,8 @@ pub async fn run_main(cli: Cli, arg0_paths: Arg0DispatchPaths) -> anyhow::Result
         workspace_roots: None,
         model_provider: model_provider.clone(),
         service_tier: None,
-        codex_self_exe: arg0_paths.codex_self_exe.clone(),
-        codex_linux_sandbox_exe: arg0_paths.codex_linux_sandbox_exe.clone(),
+        codepilotx_self_exe: arg0_paths.codepilotx_self_exe.clone(),
+        codepilotx_linux_sandbox_exe: arg0_paths.codepilotx_linux_sandbox_exe.clone(),
         main_execve_wrapper_exe: arg0_paths.main_execve_wrapper_exe.clone(),
         default_zsh_path: None,
         base_instructions: None,
@@ -439,7 +439,7 @@ pub async fn run_main(cli: Cli, arg0_paths: Arg0DispatchPaths) -> anyhow::Result
 
     let build_config = |overrides| {
         ConfigBuilder::default()
-            .codex_home(codex_home.to_path_buf())
+            .codepilotx_home(codepilotx_home.to_path_buf())
             .cli_overrides(cli_kv_overrides.clone())
             .harness_overrides(overrides)
             .loader_overrides(loader_overrides.clone())
@@ -469,7 +469,7 @@ pub async fn run_main(cli: Cli, arg0_paths: Arg0DispatchPaths) -> anyhow::Result
     set_default_client_residency_requirement(config.enforce_residency.value());
 
     if let Err(err) = enforce_login_restrictions(&AuthConfig {
-        codex_home: config.codex_home.to_path_buf(),
+        codepilotx_home: config.codepilotx_home.to_path_buf(),
         auth_credentials_store_mode: config.cli_auth_credentials_store_mode,
         keyring_backend_kind: config.auth_keyring_backend_kind(),
         forced_login_method: config.forced_login_method,
@@ -483,7 +483,7 @@ pub async fn run_main(cli: Cli, arg0_paths: Arg0DispatchPaths) -> anyhow::Result
     }
 
     let otel = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        codex_core::otel_init::build_provider(
+        codepilotx_core::otel_init::build_provider(
             &config,
             env!("CARGO_PKG_VERSION"),
             /*service_name_override*/ None,
@@ -500,8 +500,8 @@ pub async fn run_main(cli: Cli, arg0_paths: Arg0DispatchPaths) -> anyhow::Result
             None
         }
     };
-    codex_core::otel_init::record_process_start(otel.as_ref(), "codex_exec");
-    codex_core::otel_init::install_sqlite_telemetry(otel.as_ref(), "codex_exec");
+    codepilotx_core::otel_init::record_process_start(otel.as_ref(), "codepilotx_exec");
+    codepilotx_core::otel_init::install_sqlite_telemetry(otel.as_ref(), "codepilotx_exec");
 
     let otel_logger_layer = otel.as_ref().and_then(|o| o.logger_layer());
 
@@ -528,14 +528,14 @@ pub async fn run_main(cli: Cli, arg0_paths: Arg0DispatchPaths) -> anyhow::Result
         })
         .collect();
     let local_runtime_paths = ExecServerRuntimePaths::from_optional_paths(
-        arg0_paths.codex_self_exe.clone(),
-        arg0_paths.codex_linux_sandbox_exe.clone(),
+        arg0_paths.codepilotx_self_exe.clone(),
+        arg0_paths.codepilotx_linux_sandbox_exe.clone(),
     )?;
-    let state_db = codex_core::init_state_db(&config).await;
+    let state_db = codepilotx_core::init_state_db(&config).await;
     let environment_manager = if run_loader_overrides.ignore_user_config {
         EnvironmentManager::from_env(Some(local_runtime_paths)).await?
     } else {
-        EnvironmentManager::from_codex_home(config.codex_home.clone(), Some(local_runtime_paths))
+        EnvironmentManager::from_codepilotx_home(config.codepilotx_home.clone(), Some(local_runtime_paths))
             .await?
     };
     let in_process_start_args = InProcessClientStartArgs {
@@ -551,8 +551,8 @@ pub async fn run_main(cli: Cli, arg0_paths: Arg0DispatchPaths) -> anyhow::Result
         environment_manager: std::sync::Arc::new(environment_manager),
         config_warnings,
         session_source: SessionSource::Exec,
-        enable_codex_api_key_env: true,
-        client_name: "codex_exec".to_string(),
+        enable_codepilotx_api_key_env: true,
+        client_name: "codepilotx_exec".to_string(),
         client_version: env!("CARGO_PKG_VERSION").to_string(),
         experimental_api: true,
         mcp_server_openai_form_elicitation: false,
@@ -617,15 +617,15 @@ where
 
 #[allow(clippy::print_stderr)]
 async fn load_bootstrap_config_or_exit(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     cwd: Option<&AbsolutePathBuf>,
-    cli_kv_overrides: Vec<(String, codex_config::TomlValue)>,
+    cli_kv_overrides: Vec<(String, codepilotx_config::TomlValue)>,
     loader_overrides: LoaderOverrides,
     strict_config: bool,
     cloud_config_bundle: CloudConfigBundleLoader,
 ) -> ConfigTomlLoadResult {
     match load_config_toml_with_layer_stack(
-        codex_home,
+        codepilotx_home,
         cwd,
         cli_kv_overrides,
         ConfigLoadOptions {
@@ -706,7 +706,7 @@ async fn run_exec_session(args: ExecRunArgs) -> anyhow::Result<()> {
     let (initial_operation, prompt_summary) = match (command.as_ref(), prompt, images) {
         (Some(ExecCommand::Review(review_cli)), _, _) => {
             let review_request = build_review_request(review_cli)?;
-            let summary = codex_core::review_prompts::user_facing_hint(&review_request.target);
+            let summary = codepilotx_core::review_prompts::user_facing_hint(&review_request.target);
             (InitialOperation::Review { review_request }, summary)
         }
         (Some(ExecCommand::Resume(args)), root_prompt, imgs) => {
@@ -847,7 +847,7 @@ async fn run_exec_session(args: ExecRunArgs) -> anyhow::Result<()> {
     event_processor.print_config_summary(&config, &prompt_summary, &session_configured);
     if !json_mode
         && let Some(message) =
-            codex_core::config::system_bwrap_warning(config.permissions.permission_profile())
+            codepilotx_core::config::system_bwrap_warning(config.permissions.permission_profile())
     {
         event_processor.process_warning(message);
     }
@@ -984,8 +984,8 @@ async fn run_exec_session(args: ExecRunArgs) -> anyhow::Result<()> {
                     && payload.turn.id == task_id
                     && matches!(
                         payload.turn.status,
-                        codex_app_server_protocol::TurnStatus::Failed
-                            | codex_app_server_protocol::TurnStatus::Interrupted
+                        codepilotx_app_server_protocol::TurnStatus::Failed
+                            | codepilotx_app_server_protocol::TurnStatus::Interrupted
                     )
                 {
                     error_seen = true;
@@ -1107,10 +1107,10 @@ fn permission_profile_id_from_active_profile(active: ActivePermissionProfile) ->
 fn sandbox_mode_from_permission_profile(
     permission_profile: &PermissionProfile,
     cwd: &Path,
-) -> Option<codex_app_server_protocol::SandboxMode> {
+) -> Option<codepilotx_app_server_protocol::SandboxMode> {
     match permission_profile {
         PermissionProfile::Disabled => {
-            Some(codex_app_server_protocol::SandboxMode::DangerFullAccess)
+            Some(codepilotx_app_server_protocol::SandboxMode::DangerFullAccess)
         }
         PermissionProfile::External { .. } => None,
         PermissionProfile::Managed { .. } => {
@@ -1119,11 +1119,11 @@ fn sandbox_mode_from_permission_profile(
                 permission_profile
                     .network_sandbox_policy()
                     .is_enabled()
-                    .then_some(codex_app_server_protocol::SandboxMode::DangerFullAccess)
+                    .then_some(codepilotx_app_server_protocol::SandboxMode::DangerFullAccess)
             } else if file_system_policy.can_write_path_with_cwd(cwd, cwd) {
-                Some(codex_app_server_protocol::SandboxMode::WorkspaceWrite)
+                Some(codepilotx_app_server_protocol::SandboxMode::WorkspaceWrite)
             } else {
-                Some(codex_app_server_protocol::SandboxMode::ReadOnly)
+                Some(codepilotx_app_server_protocol::SandboxMode::ReadOnly)
             }
         }
     }
@@ -1131,7 +1131,7 @@ fn sandbox_mode_from_permission_profile(
 
 fn approvals_reviewer_override_from_config(
     config: &Config,
-) -> Option<codex_app_server_protocol::ApprovalsReviewer> {
+) -> Option<codepilotx_app_server_protocol::ApprovalsReviewer> {
     Some(config.approvals_reviewer.into())
 }
 
@@ -1215,18 +1215,18 @@ fn session_configured_from_thread_response(
     session_id: &str,
     thread_id: &str,
     parent_thread_id: Option<&str>,
-    thread_source: Option<codex_protocol::protocol::ThreadSource>,
+    thread_source: Option<codepilotx_protocol::protocol::ThreadSource>,
     thread_name: Option<String>,
     rollout_path: Option<PathBuf>,
     model: String,
     model_provider_id: String,
     service_tier: Option<String>,
     approval_policy: AskForApproval,
-    approvals_reviewer: codex_protocol::config_types::ApprovalsReviewer,
+    approvals_reviewer: codepilotx_protocol::config_types::ApprovalsReviewer,
     permission_profile: PermissionProfile,
-    active_permission_profile: Option<codex_protocol::models::ActivePermissionProfile>,
+    active_permission_profile: Option<codepilotx_protocol::models::ActivePermissionProfile>,
     cwd: AbsolutePathBuf,
-    reasoning_effort: Option<codex_protocol::openai_models::ReasoningEffort>,
+    reasoning_effort: Option<codepilotx_protocol::openai_models::ReasoningEffort>,
 ) -> Result<SessionConfiguredEvent, String> {
     let session_id = SessionId::from_string(session_id)
         .map_err(|err| format!("session id `{session_id}` is invalid: {err}"))?;
@@ -1502,7 +1502,7 @@ async fn resolve_resume_thread_id(
             return Ok(Some(thread.id.to_string()));
         }
         if let Some((_, session_meta)) =
-            find_thread_meta_by_name_str(&config.codex_home, session_id, Some(state_db.as_ref()))
+            find_thread_meta_by_name_str(&config.codepilotx_home, session_id, Some(state_db.as_ref()))
                 .await?
             && (args.all || cwds_match(config.cwd.as_path(), &session_meta.meta.cwd))
         {

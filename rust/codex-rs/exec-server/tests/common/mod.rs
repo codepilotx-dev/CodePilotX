@@ -6,12 +6,12 @@ use std::process::Command;
 use std::process::Stdio;
 use std::time::Duration;
 
-use codex_exec_server::CODEX_FS_HELPER_ARG1;
-use codex_exec_server::ExecServerRuntimePaths;
-use codex_sandboxing::landlock::CODEX_LINUX_SANDBOX_ARG0;
-use codex_test_binary_support::TestBinaryDispatchGuard;
-use codex_test_binary_support::TestBinaryDispatchMode;
-use codex_test_binary_support::configure_test_binary_dispatch;
+use codepilotx_exec_server::codepilotx_FS_HELPER_ARG1;
+use codepilotx_exec_server::ExecServerRuntimePaths;
+use codepilotx_sandboxing::landlock::codepilotx_LINUX_SANDBOX_ARG0;
+use codepilotx_test_binary_support::TestBinaryDispatchGuard;
+use codepilotx_test_binary_support::TestBinaryDispatchMode;
+use codepilotx_test_binary_support::configure_test_binary_dispatch;
 use ctor::ctor;
 
 pub(crate) mod exec_server;
@@ -19,19 +19,19 @@ pub(crate) mod exec_server;
 pub(crate) const DELAYED_OUTPUT_AFTER_EXIT_PARENT_ARG: &str =
     "--codex-test-delayed-output-after-exit-parent";
 
-const CODEX_WINDOWS_SANDBOX_ARG1: &str = "--run-as-windows-sandbox";
+const codepilotx_WINDOWS_SANDBOX_ARG1: &str = "--run-as-windows-sandbox";
 const DELAYED_OUTPUT_AFTER_EXIT_CHILD_ARG: &str = "--codex-test-delayed-output-after-exit-child";
 
 #[ctor]
 pub static TEST_BINARY_DISPATCH_GUARD: Option<TestBinaryDispatchGuard> = {
     let guard = configure_test_binary_dispatch("codex-exec-server-tests", |exe_name, argv1| {
-        if argv1 == Some(CODEX_FS_HELPER_ARG1) {
+        if argv1 == Some(codepilotx_FS_HELPER_ARG1) {
             return TestBinaryDispatchMode::DispatchArg0Only;
         }
-        if argv1 == Some(CODEX_WINDOWS_SANDBOX_ARG1) {
+        if argv1 == Some(codepilotx_WINDOWS_SANDBOX_ARG1) {
             return TestBinaryDispatchMode::DispatchArg0Only;
         }
-        if exe_name == CODEX_LINUX_SANDBOX_ARG0 {
+        if exe_name == codepilotx_LINUX_SANDBOX_ARG0 {
             return TestBinaryDispatchMode::DispatchArg0Only;
         }
         TestBinaryDispatchMode::InstallAliases
@@ -43,15 +43,15 @@ pub static TEST_BINARY_DISPATCH_GUARD: Option<TestBinaryDispatchGuard> = {
 
 pub(crate) fn current_test_binary_helper_paths() -> anyhow::Result<(PathBuf, Option<PathBuf>)> {
     let current_exe = env::current_exe()?;
-    let codex_linux_sandbox_exe = if cfg!(target_os = "linux") {
+    let codepilotx_linux_sandbox_exe = if cfg!(target_os = "linux") {
         TEST_BINARY_DISPATCH_GUARD
             .as_ref()
-            .and_then(|guard| guard.paths().codex_linux_sandbox_exe.clone())
+            .and_then(|guard| guard.paths().codepilotx_linux_sandbox_exe.clone())
             .or_else(|| Some(current_exe.clone()))
     } else {
         None
     };
-    Ok((current_exe, codex_linux_sandbox_exe))
+    Ok((current_exe, codepilotx_linux_sandbox_exe))
 }
 
 fn maybe_run_delayed_output_after_exit_from_test_binary() {
@@ -184,7 +184,7 @@ fn maybe_run_exec_server_from_test_binary(guard: Option<&TestBinaryDispatchGuard
             std::process::exit(1);
         }
     };
-    let exit_code = match runtime.block_on(codex_exec_server::run_main(&listen_url, runtime_paths))
+    let exit_code = match runtime.block_on(codepilotx_exec_server::run_main(&listen_url, runtime_paths))
     {
         Ok(()) => 0,
         Err(error) => {
@@ -202,7 +202,7 @@ fn linux_sandbox_exe(
     #[cfg(target_os = "linux")]
     {
         guard
-            .and_then(|guard| guard.paths().codex_linux_sandbox_exe.clone())
+            .and_then(|guard| guard.paths().codepilotx_linux_sandbox_exe.clone())
             .or_else(|| Some(current_exe.to_path_buf()))
     }
     #[cfg(not(target_os = "linux"))]

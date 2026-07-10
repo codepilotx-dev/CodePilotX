@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
-use codex_file_system::FileSystemSandboxContext;
-use codex_protocol::config_types::ShellEnvironmentPolicyInherit;
-use codex_utils_path_uri::PathUri;
+use codepilotx_file_system::FileSystemSandboxContext;
+use codepilotx_protocol::config_types::ShellEnvironmentPolicyInherit;
+use codepilotx_utils_path_uri::PathUri;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -503,9 +503,9 @@ mod base64_bytes {
 mod tests {
     use super::FsReadFileParams;
     use super::HttpRequestParams;
-    use codex_file_system::FileSystemSandboxContext;
-    use codex_protocol::models::PermissionProfile;
-    use codex_utils_path_uri::PathUri;
+    use codepilotx_file_system::FileSystemSandboxContext;
+    use codepilotx_protocol::models::PermissionProfile;
+    use codepilotx_utils_path_uri::PathUri;
     use pretty_assertions::assert_eq;
 
     #[test]

@@ -3,14 +3,14 @@ use std::io::Write;
 use std::path::PathBuf;
 
 use anyhow::Result;
-use codex_windows_sandbox::ensure_allow_mask_aces_with_inheritance;
-use codex_windows_sandbox::path_mask_allows;
+use codepilotx_windows_sandbox::ensure_allow_mask_aces_with_inheritance;
+use codepilotx_windows_sandbox::path_mask_allows;
 use windows_sys::Win32::Security::CONTAINER_INHERIT_ACE;
 use windows_sys::Win32::Security::OBJECT_INHERIT_ACE;
 use windows_sys::Win32::Storage::FileSystem::FILE_GENERIC_EXECUTE;
 use windows_sys::Win32::Storage::FileSystem::FILE_GENERIC_READ;
 
-pub(super) fn ensure_codex_app_runtime_paths_readable(
+pub(super) fn ensure_codepilotx_app_runtime_paths_readable(
     sandbox_group_psid: *mut c_void,
     refresh_errors: &mut Vec<String>,
     log: &mut dyn Write,
@@ -21,9 +21,9 @@ pub(super) fn ensure_codex_app_runtime_paths_readable(
     };
 
     let read_execute_mask = FILE_GENERIC_READ | FILE_GENERIC_EXECUTE;
-    let codex_root = local_app_data.join("OpenAI").join("Codex");
+    let codepilotx_root = local_app_data.join("OpenAI").join("Codex");
 
-    for runtime_path in [codex_root.join("bin"), codex_root.join("runtimes")] {
+    for runtime_path in [codepilotx_root.join("bin"), codepilotx_root.join("runtimes")] {
         if !runtime_path.is_dir() {
             continue;
         }

@@ -4,11 +4,11 @@ use std::path::PathBuf;
 
 fn main() {
     println!("cargo:rustc-check-cfg=cfg(bwrap_available)");
-    println!("cargo:rerun-if-env-changed=CODEX_BWRAP_SOURCE_DIR");
+    println!("cargo:rerun-if-env-changed=codepilotx_BWRAP_SOURCE_DIR");
     println!("cargo:rerun-if-env-changed=PKG_CONFIG_ALLOW_CROSS");
     println!("cargo:rerun-if-env-changed=PKG_CONFIG_PATH");
     println!("cargo:rerun-if-env-changed=PKG_CONFIG_SYSROOT_DIR");
-    println!("cargo:rerun-if-env-changed=CODEX_SKIP_BWRAP_BUILD");
+    println!("cargo:rerun-if-env-changed=codepilotx_SKIP_BWRAP_BUILD");
 
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap_or_default());
     let vendor_dir = manifest_dir.join("../vendor/bubblewrap");
@@ -20,7 +20,7 @@ fn main() {
     }
 
     let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
-    if target_os != "linux" || env::var_os("CODEX_SKIP_BWRAP_BUILD").is_some() {
+    if target_os != "linux" || env::var_os("codepilotx_SKIP_BWRAP_BUILD").is_some() {
         return;
     }
 
@@ -79,16 +79,16 @@ fn try_build_bwrap() -> Result<(), String> {
 /// Resolve the bubblewrap source directory used for build-time compilation.
 ///
 /// Priority:
-/// 1. `CODEX_BWRAP_SOURCE_DIR` points at an existing bubblewrap checkout.
+/// 1. `codepilotx_BWRAP_SOURCE_DIR` points at an existing bubblewrap checkout.
 /// 2. The vendored bubblewrap tree under `codex-rs/vendor/bubblewrap`.
 fn resolve_bwrap_source_dir(manifest_dir: &Path) -> Result<PathBuf, String> {
-    if let Ok(path) = env::var("CODEX_BWRAP_SOURCE_DIR") {
+    if let Ok(path) = env::var("codepilotx_BWRAP_SOURCE_DIR") {
         let src_dir = PathBuf::from(path);
         if src_dir.exists() {
             return Ok(src_dir);
         }
         return Err(format!(
-            "CODEX_BWRAP_SOURCE_DIR was set but does not exist: {}",
+            "codepilotx_BWRAP_SOURCE_DIR was set but does not exist: {}",
             src_dir.display()
         ));
     }
@@ -100,7 +100,7 @@ fn resolve_bwrap_source_dir(manifest_dir: &Path) -> Result<PathBuf, String> {
 
     Err(format!(
         "expected vendored bubblewrap at {}, but it was not found.\n\
-Set CODEX_BWRAP_SOURCE_DIR to an existing checkout or vendor bubblewrap under codex-rs/vendor.",
+Set codepilotx_BWRAP_SOURCE_DIR to an existing checkout or vendor bubblewrap under codex-rs/vendor.",
         vendor_dir.display()
     ))
 }

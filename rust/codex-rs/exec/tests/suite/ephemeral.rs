@@ -3,7 +3,7 @@
 
 use core_test_support::responses;
 use core_test_support::skip_if_no_network;
-use core_test_support::test_codex_exec::test_codex_exec;
+use core_test_support::test_codepilotx_exec::test_codepilotx_exec;
 use walkdir::WalkDir;
 use wiremock::MockServer;
 
@@ -33,7 +33,7 @@ fn session_rollout_count(home_path: &std::path::Path) -> usize {
 async fn persists_rollout_file_by_default() -> anyhow::Result<()> {
     skip_if_no_network!(Ok(()));
 
-    let test = test_codex_exec();
+    let test = test_codepilotx_exec();
     let server = MockServer::start().await;
     let _response_mock = responses::mount_sse_once(&server, exec_sse_response()).await;
 
@@ -51,7 +51,7 @@ async fn persists_rollout_file_by_default() -> anyhow::Result<()> {
 async fn does_not_persist_rollout_file_in_ephemeral_mode() -> anyhow::Result<()> {
     skip_if_no_network!(Ok(()));
 
-    let test = test_codex_exec();
+    let test = test_codepilotx_exec();
     let server = MockServer::start().await;
     let _response_mock = responses::mount_sse_once(&server, exec_sse_response()).await;
 

@@ -304,8 +304,8 @@ fn create_proxy_socket_dir() -> io::Result<PathBuf> {
 }
 
 fn proxy_socket_parent_dir() -> PathBuf {
-    if let Some(codex_home) = std::env::var_os("CODEX_HOME") {
-        let candidate = PathBuf::from(codex_home).join("tmp");
+    if let Some(codepilotx_home) = std::env::var_os("codepilotx_HOME") {
+        let candidate = PathBuf::from(codepilotx_home).join("tmp");
         if proxy_socket_paths_fit(candidate.as_path())
             && ensure_private_proxy_socket_parent_dir(candidate.as_path()).is_ok()
         {
@@ -638,7 +638,7 @@ fn set_parent_death_signal() -> io::Result<()> {
 
 fn harden_bridge_process() -> io::Result<()> {
     set_parent_death_signal()?;
-    codex_process_hardening::disable_process_dumping()
+    codepilotx_process_hardening::disable_process_dumping()
 }
 
 fn proxy_bidirectional(mut tcp_stream: TcpStream, mut unix_stream: UnixStream) -> io::Result<()> {

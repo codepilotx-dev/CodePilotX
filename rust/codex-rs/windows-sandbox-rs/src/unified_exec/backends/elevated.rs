@@ -16,10 +16,10 @@ use crate::runner_client::is_stale_sandbox_creds_error;
 use crate::runner_client::spawn_runner_transport;
 use crate::spawn_prep::prepare_elevated_spawn_context_for_permissions;
 use anyhow::Result;
-use codex_protocol::models::PermissionProfile;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_pty::ProcessDriver;
-use codex_utils_pty::SpawnedProcess;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_pty::ProcessDriver;
+use codepilotx_utils_pty::SpawnedProcess;
 use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
@@ -28,7 +28,7 @@ use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 
 async fn spawn_runner_transport_task(
-    codex_home: PathBuf,
+    codepilotx_home: PathBuf,
     cwd: PathBuf,
     sandbox_creds: SandboxCreds,
     logs_base_dir: Option<PathBuf>,
@@ -36,7 +36,7 @@ async fn spawn_runner_transport_task(
 ) -> Result<RunnerTransport> {
     tokio::task::spawn_blocking(move || -> Result<_> {
         spawn_runner_transport(
-            &codex_home,
+            &codepilotx_home,
             &cwd,
             &sandbox_creds,
             logs_base_dir.as_deref(),
@@ -51,7 +51,7 @@ async fn spawn_runner_transport_task(
 pub(crate) async fn spawn_windows_sandbox_session_elevated_for_permission_profile(
     permission_profile: &PermissionProfile,
     workspace_roots: &[AbsolutePathBuf],
-    codex_home: &Path,
+    codepilotx_home: &Path,
     command: Vec<String>,
     cwd: &Path,
     mut env_map: HashMap<String, String>,
@@ -81,7 +81,7 @@ pub(crate) async fn spawn_windows_sandbox_session_elevated_for_permission_profil
         )?;
     let elevated = prepare_elevated_spawn_context_for_permissions(
         permissions.clone(),
-        codex_home,
+        codepilotx_home,
         cwd,
         &mut env_map,
         &command,
@@ -99,20 +99,20 @@ pub(crate) async fn spawn_windows_sandbox_session_elevated_for_permission_profil
         env: env_map.clone(),
         permission_profile: permission_profile.clone(),
         workspace_roots: workspace_roots.to_vec(),
-        codex_home: elevated.sandbox_base.clone(),
-        real_codex_home: codex_home.to_path_buf(),
+        codepilotx_home: elevated.sandbox_base.clone(),
+        real_codepilotx_home: codepilotx_home.to_path_buf(),
         cap_sids: elevated.cap_sids.clone(),
         timeout_ms,
         tty,
         stdin_open,
         use_private_desktop,
     };
-    let codex_home = codex_home.to_path_buf();
+    let codepilotx_home = codepilotx_home.to_path_buf();
     let cwd = cwd.to_path_buf();
     let sandbox_creds = elevated.sandbox_creds;
     let logs_base_dir = elevated.logs_base_dir.clone();
     let transport = match spawn_runner_transport_task(
-        codex_home.clone(),
+        codepilotx_home.clone(),
         cwd.clone(),
         sandbox_creds,
         logs_base_dir.clone(),
@@ -126,7 +126,7 @@ pub(crate) async fn spawn_windows_sandbox_session_elevated_for_permission_profil
                 &permissions,
                 &cwd,
                 &env_map,
-                &codex_home,
+                &codepilotx_home,
                 read_roots_override,
                 read_roots_include_platform_defaults,
                 write_roots_override,
@@ -135,7 +135,7 @@ pub(crate) async fn spawn_windows_sandbox_session_elevated_for_permission_profil
                 /*proxy_enforced*/ false,
             )?;
             spawn_runner_transport_task(
-                codex_home,
+                codepilotx_home,
                 cwd,
                 sandbox_creds,
                 logs_base_dir,

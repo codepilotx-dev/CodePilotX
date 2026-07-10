@@ -2,7 +2,7 @@ use crate::bash::extract_bash_command;
 use crate::bash::try_parse_shell;
 use crate::bash::try_parse_word_only_commands_sequence;
 use crate::powershell::extract_powershell_command;
-use codex_protocol::parse_command::ParsedCommand;
+use codepilotx_protocol::parse_command::ParsedCommand;
 use shlex::split as shlex_split;
 use shlex::try_join as shlex_try_join;
 use std::path::PathBuf;
@@ -569,10 +569,10 @@ mod tests {
     #[test]
     fn supports_grep_recursive_current_dir() {
         assert_parsed(
-            &vec_str(&["grep", "-R", "CODEX_SANDBOX_ENV_VAR", "-n", "."]),
+            &vec_str(&["grep", "-R", "codepilotx_SANDBOX_ENV_VAR", "-n", "."]),
             vec![ParsedCommand::Search {
-                cmd: "grep -R CODEX_SANDBOX_ENV_VAR -n .".to_string(),
-                query: Some("CODEX_SANDBOX_ENV_VAR".to_string()),
+                cmd: "grep -R codepilotx_SANDBOX_ENV_VAR -n .".to_string(),
+                query: Some("codepilotx_SANDBOX_ENV_VAR".to_string()),
                 path: Some(".".to_string()),
             }],
         );
@@ -584,13 +584,13 @@ mod tests {
             &vec_str(&[
                 "grep",
                 "-R",
-                "CODEX_SANDBOX_ENV_VAR",
+                "codepilotx_SANDBOX_ENV_VAR",
                 "-n",
                 "core/src/spawn.rs",
             ]),
             vec![ParsedCommand::Search {
-                cmd: "grep -R CODEX_SANDBOX_ENV_VAR -n core/src/spawn.rs".to_string(),
-                query: Some("CODEX_SANDBOX_ENV_VAR".to_string()),
+                cmd: "grep -R codepilotx_SANDBOX_ENV_VAR -n core/src/spawn.rs".to_string(),
+                query: Some("codepilotx_SANDBOX_ENV_VAR".to_string()),
                 path: Some("spawn.rs".to_string()),
             }],
         );
@@ -691,12 +691,12 @@ mod tests {
 
     #[test]
     fn supports_single_string_script_with_cd_and_pipe() {
-        let inner = r#"cd /Users/pakrym/code/codex && rg -n "codex_api" codex-rs -S | head -n 50"#;
+        let inner = r#"cd /Users/pakrym/code/codex && rg -n "codepilotx_api" codex-rs -S | head -n 50"#;
         assert_parsed(
             &vec_str(&["bash", "-lc", inner]),
             vec![ParsedCommand::Search {
-                cmd: "rg -n codex_api codex-rs -S".to_string(),
-                query: Some("codex_api".to_string()),
+                cmd: "rg -n codepilotx_api codex-rs -S".to_string(),
+                query: Some("codepilotx_api".to_string()),
                 path: Some("codex-rs".to_string()),
             }],
         );

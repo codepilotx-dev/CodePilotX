@@ -10,8 +10,8 @@
 use anyhow::Result;
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD;
-use codex_protocol::models::PermissionProfile;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -62,8 +62,8 @@ pub struct SpawnRequest {
     pub env: HashMap<String, String>,
     pub permission_profile: PermissionProfile,
     pub workspace_roots: Vec<AbsolutePathBuf>,
-    pub codex_home: PathBuf,
-    pub real_codex_home: PathBuf,
+    pub codepilotx_home: PathBuf,
+    pub real_codepilotx_home: PathBuf,
     pub cap_sids: Vec<String>,
     pub timeout_ms: Option<u64>,
     pub tty: bool,
@@ -211,8 +211,8 @@ mod tests {
                     env: HashMap::new(),
                     permission_profile: PermissionProfile::read_only(),
                     workspace_roots: workspace_roots.clone(),
-                    codex_home: PathBuf::from(r"C:\codex"),
-                    real_codex_home: PathBuf::from(r"C:\Users\codex"),
+                    codepilotx_home: PathBuf::from(r"C:\codex"),
+                    real_codepilotx_home: PathBuf::from(r"C:\Users\codex"),
                     cap_sids: vec!["S-1-15-3-1024-1".to_string()],
                     timeout_ms: Some(1000),
                     tty: false,

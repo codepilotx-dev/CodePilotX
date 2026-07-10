@@ -10,7 +10,7 @@ use crate::rule::PrefixRule;
 use crate::rule::RuleMatch;
 use crate::rule::RuleRef;
 use crate::rule::normalize_network_rule_host;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use multimap::MultiMap;
 use serde::Deserialize;
 use serde::Serialize;

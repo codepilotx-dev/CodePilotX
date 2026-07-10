@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 
 use crate::command_safety::try_parse_powershell_ast_commands;
 use crate::shell_detect::ShellType;

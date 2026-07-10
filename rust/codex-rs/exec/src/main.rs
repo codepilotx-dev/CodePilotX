@@ -10,11 +10,11 @@
 //! This allows us to ship a completely separate set of functionality as part
 //! of the `codex-exec` binary.
 use clap::Parser;
-use codex_arg0::Arg0DispatchPaths;
-use codex_arg0::arg0_dispatch_or_else;
-use codex_exec::Cli;
-use codex_exec::run_main;
-use codex_utils_cli::CliConfigOverrides;
+use codepilotx_arg0::Arg0DispatchPaths;
+use codepilotx_arg0::arg0_dispatch_or_else;
+use codepilotx_exec::Cli;
+use codepilotx_exec::run_main;
+use codepilotx_utils_cli::CliConfigOverrides;
 
 #[derive(Parser, Debug)]
 struct TopCli {

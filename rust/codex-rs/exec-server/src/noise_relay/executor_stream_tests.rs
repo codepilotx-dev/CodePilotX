@@ -1,9 +1,9 @@
 use std::time::Duration;
 
 use anyhow::Result;
-use codex_app_server_protocol::JSONRPCMessage;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::RequestId;
+use codepilotx_app_server_protocol::JSONRPCMessage;
+use codepilotx_app_server_protocol::JSONRPCResponse;
+use codepilotx_app_server_protocol::RequestId;
 use tokio::sync::mpsc;
 use tokio::time::timeout;
 
@@ -40,7 +40,7 @@ async fn processor_exit_reports_closed_virtual_stream() -> Result<()> {
         /*instance_id*/ 7,
         ConnectionProcessor::new(ExecServerRuntimePaths::new(
             std::env::current_exe()?,
-            /*codex_linux_sandbox_exe*/ None,
+            /*codepilotx_linux_sandbox_exe*/ None,
         )?),
         physical_outgoing_tx,
         closed_stream_tx,

@@ -1,12 +1,12 @@
 #![cfg(not(target_os = "windows"))]
 
 use core_test_support::responses;
-use core_test_support::test_codex_exec::test_codex_exec;
+use core_test_support::test_codepilotx_exec::test_codepilotx_exec;
 use serde_json::json;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn exec_hook_trust_bypass_runs_session_start_hook() -> anyhow::Result<()> {
-    let test = test_codex_exec();
+    let test = test_codepilotx_exec();
     let marker_path = test.home_path().join("session-start-ran");
     let command = format!("touch {}", marker_path.display());
     std::fs::write(

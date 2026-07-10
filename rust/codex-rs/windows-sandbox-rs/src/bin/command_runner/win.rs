@@ -13,35 +13,35 @@ mod cwd_junction;
 
 use anyhow::Context;
 use anyhow::Result;
-use codex_windows_sandbox::ErrorPayload;
-use codex_windows_sandbox::ExitPayload;
-use codex_windows_sandbox::FramedMessage;
-use codex_windows_sandbox::IPC_PROTOCOL_VERSION;
-use codex_windows_sandbox::LocalSid;
-use codex_windows_sandbox::Message;
-use codex_windows_sandbox::OutputPayload;
-use codex_windows_sandbox::OutputStream;
-use codex_windows_sandbox::PipeSpawnHandles;
-use codex_windows_sandbox::ResizePayload;
-use codex_windows_sandbox::SpawnReady;
-use codex_windows_sandbox::SpawnRequest;
-use codex_windows_sandbox::StderrMode;
-use codex_windows_sandbox::StdinMode;
-use codex_windows_sandbox::WindowsSandboxTokenMode;
-use codex_windows_sandbox::allow_null_device;
-use codex_windows_sandbox::create_readonly_token_with_caps_and_user_from;
-use codex_windows_sandbox::create_workspace_write_token_with_caps_and_user_from;
-use codex_windows_sandbox::decode_bytes;
-use codex_windows_sandbox::encode_bytes;
-use codex_windows_sandbox::get_current_token_for_restriction;
-use codex_windows_sandbox::hide_current_user_profile_dir;
-use codex_windows_sandbox::log_note;
-use codex_windows_sandbox::read_frame;
-use codex_windows_sandbox::read_handle_loop;
-use codex_windows_sandbox::spawn_process_with_pipes;
-use codex_windows_sandbox::to_wide;
-use codex_windows_sandbox::token_mode_for_permission_profile;
-use codex_windows_sandbox::write_frame;
+use codepilotx_windows_sandbox::ErrorPayload;
+use codepilotx_windows_sandbox::ExitPayload;
+use codepilotx_windows_sandbox::FramedMessage;
+use codepilotx_windows_sandbox::IPC_PROTOCOL_VERSION;
+use codepilotx_windows_sandbox::LocalSid;
+use codepilotx_windows_sandbox::Message;
+use codepilotx_windows_sandbox::OutputPayload;
+use codepilotx_windows_sandbox::OutputStream;
+use codepilotx_windows_sandbox::PipeSpawnHandles;
+use codepilotx_windows_sandbox::ResizePayload;
+use codepilotx_windows_sandbox::SpawnReady;
+use codepilotx_windows_sandbox::SpawnRequest;
+use codepilotx_windows_sandbox::StderrMode;
+use codepilotx_windows_sandbox::StdinMode;
+use codepilotx_windows_sandbox::WindowsSandboxTokenMode;
+use codepilotx_windows_sandbox::allow_null_device;
+use codepilotx_windows_sandbox::create_readonly_token_with_caps_and_user_from;
+use codepilotx_windows_sandbox::create_workspace_write_token_with_caps_and_user_from;
+use codepilotx_windows_sandbox::decode_bytes;
+use codepilotx_windows_sandbox::encode_bytes;
+use codepilotx_windows_sandbox::get_current_token_for_restriction;
+use codepilotx_windows_sandbox::hide_current_user_profile_dir;
+use codepilotx_windows_sandbox::log_note;
+use codepilotx_windows_sandbox::read_frame;
+use codepilotx_windows_sandbox::read_handle_loop;
+use codepilotx_windows_sandbox::spawn_process_with_pipes;
+use codepilotx_windows_sandbox::to_wide;
+use codepilotx_windows_sandbox::token_mode_for_permission_profile;
+use codepilotx_windows_sandbox::write_frame;
 use std::ffi::OsStr;
 use std::fs::File;
 use std::os::windows::io::FromRawHandle;
@@ -85,7 +85,7 @@ struct IpcSpawnedProcess {
     stdout_handle: HANDLE,
     stderr_handle: HANDLE,
     stdin_handle: Option<HANDLE>,
-    conpty_owner: Option<codex_windows_sandbox::ConptyInstance>,
+    conpty_owner: Option<codepilotx_windows_sandbox::ConptyInstance>,
     hpc_handle: Option<HANDLE>,
     _pipe_handles: Option<PipeSpawnHandles>,
 }
@@ -234,8 +234,8 @@ fn effective_cwd(req_cwd: &Path, log_dir: Option<&Path>) -> PathBuf {
 }
 
 fn spawn_ipc_process(req: &SpawnRequest) -> Result<IpcSpawnedProcess> {
-    let log_dir = req.codex_home.clone();
-    hide_current_user_profile_dir(req.codex_home.as_path());
+    let log_dir = req.codepilotx_home.clone();
+    hide_current_user_profile_dir(req.codepilotx_home.as_path());
     let token_mode = token_mode_for_permission_profile(
         &req.permission_profile,
         &req.workspace_roots,
@@ -284,7 +284,7 @@ fn spawn_ipc_process(req: &SpawnRequest) -> Result<IpcSpawnedProcess> {
     let mut hpc_handle: Option<HANDLE> = None;
     let mut pipe_handles = None;
     let (pi, stdout_handle, stderr_handle, stdin_handle) = if req.tty {
-        let (pi, mut conpty) = codex_windows_sandbox::spawn_conpty_process_as_user(
+        let (pi, mut conpty) = codepilotx_windows_sandbox::spawn_conpty_process_as_user(
             h_token.raw(),
             &req.command,
             &effective_cwd,

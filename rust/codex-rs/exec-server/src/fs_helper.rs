@@ -1,6 +1,6 @@
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD;
-use codex_app_server_protocol::JSONRPCErrorError;
+use codepilotx_app_server_protocol::JSONRPCErrorError;
 use serde::Deserialize;
 use serde::Serialize;
 use tokio::io;
@@ -39,7 +39,7 @@ use crate::rpc::internal_error;
 use crate::rpc::invalid_request;
 use crate::rpc::not_found;
 
-pub const CODEX_FS_HELPER_ARG1: &str = "--codex-run-as-fs-helper";
+pub const codepilotx_FS_HELPER_ARG1: &str = "--codex-run-as-fs-helper";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "operation", content = "params")]
@@ -306,7 +306,7 @@ fn map_fs_error(err: io::Error) -> JSONRPCErrorError {
 
 #[cfg(test)]
 mod tests {
-    use codex_utils_path_uri::PathUri;
+    use codepilotx_utils_path_uri::PathUri;
     use pretty_assertions::assert_eq;
     use serde_json::json;
 

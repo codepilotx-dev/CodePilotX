@@ -8,11 +8,11 @@ use anyhow::Result;
 use tokio::process::Command;
 use wine_exec_server_test_support::WineExecServer;
 
-const TEST_BINARY_ENV_VAR: &str = "CODEX_WINE_EXEC_TEST_BINARY";
-const TEST_ENVIRONMENT_ENV_VAR: &str = "CODEX_TEST_ENVIRONMENT";
-const REMOTE_EXEC_SERVER_URL_ENV_VAR: &str = "CODEX_TEST_REMOTE_EXEC_SERVER_URL";
-const LEGACY_REMOTE_ENV_ENV_VAR: &str = "CODEX_TEST_REMOTE_ENV";
-const DOCKER_CONTAINER_ENV_VAR: &str = "CODEX_TEST_REMOTE_ENV_CONTAINER_NAME";
+const TEST_BINARY_ENV_VAR: &str = "codepilotx_WINE_EXEC_TEST_BINARY";
+const TEST_ENVIRONMENT_ENV_VAR: &str = "codepilotx_TEST_ENVIRONMENT";
+const REMOTE_EXEC_SERVER_URL_ENV_VAR: &str = "codepilotx_TEST_REMOTE_EXEC_SERVER_URL";
+const LEGACY_REMOTE_ENV_ENV_VAR: &str = "codepilotx_TEST_REMOTE_ENV";
+const DOCKER_CONTAINER_ENV_VAR: &str = "codepilotx_TEST_REMOTE_ENV_CONTAINER_NAME";
 
 #[tokio::main(flavor = "multi_thread", worker_threads = 2)]
 async fn main() -> Result<()> {

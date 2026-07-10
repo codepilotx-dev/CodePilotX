@@ -1,9 +1,9 @@
 #![cfg(unix)]
-use codex_core::spawn::StdioPolicy;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_absolute_path::test_support::PathBufExt;
+use codepilotx_core::spawn::StdioPolicy;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::permissions::NetworkSandboxPolicy;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_absolute_path::test_support::PathBufExt;
 use std::collections::HashMap;
 use std::future::Future;
 use std::io;
@@ -20,14 +20,14 @@ async fn spawn_command_under_sandbox(
     stdio_policy: StdioPolicy,
     env: HashMap<String, String>,
 ) -> std::io::Result<Child> {
-    use codex_core::exec::ExecCapturePolicy;
-    use codex_core::exec::ExecParams;
-    use codex_core::exec::build_exec_request;
-    use codex_core::sandboxing::SandboxPermissions;
-    use codex_protocol::config_types::WindowsSandboxLevel;
+    use codepilotx_core::exec::ExecCapturePolicy;
+    use codepilotx_core::exec::ExecParams;
+    use codepilotx_core::exec::build_exec_request;
+    use codepilotx_core::sandboxing::SandboxPermissions;
+    use codepilotx_protocol::config_types::WindowsSandboxLevel;
     use std::process::Stdio;
 
-    let codex_linux_sandbox_exe = None;
+    let codepilotx_linux_sandbox_exe = None;
     let exec_request = build_exec_request(
         ExecParams {
             command,
@@ -46,7 +46,7 @@ async fn spawn_command_under_sandbox(
         permission_profile,
         sandbox_cwd,
         std::slice::from_ref(sandbox_cwd),
-        &codex_linux_sandbox_exe,
+        &codepilotx_linux_sandbox_exe,
         /*use_legacy_landlock*/ false,
     )
     .map_err(|err| io::Error::other(err.to_string()))?;
@@ -95,12 +95,12 @@ async fn spawn_command_under_sandbox(
     stdio_policy: StdioPolicy,
     env: HashMap<String, String>,
 ) -> std::io::Result<Child> {
-    use codex_core::spawn_command_under_linux_sandbox;
+    use codepilotx_core::spawn_command_under_linux_sandbox;
 
-    let codex_linux_sandbox_exe = core_test_support::find_codex_linux_sandbox_exe()
+    let codepilotx_linux_sandbox_exe = core_test_support::find_codepilotx_linux_sandbox_exe()
         .map_err(|err| io::Error::new(io::ErrorKind::NotFound, err))?;
     spawn_command_under_linux_sandbox(
-        codex_linux_sandbox_exe,
+        codepilotx_linux_sandbox_exe,
         command,
         command_cwd,
         permission_profile,
@@ -372,7 +372,7 @@ async fn sandbox_distinguishes_command_and_policy_cwds() {
 }
 
 #[tokio::test]
-async fn sandbox_blocks_first_time_dot_codex_creation() {
+async fn sandbox_blocks_first_time_dot_codepilotx_creation() {
     core_test_support::skip_if_sandbox!();
     #[cfg(target_os = "linux")]
     let sandbox_env = match linux_sandbox_test_env().await {
@@ -415,14 +415,14 @@ async fn sandbox_blocks_first_time_dot_codex_creation() {
         !status.success(),
         "sandbox unexpectedly allowed first-time .codex creation: {status:?}"
     );
-    let dot_codex_metadata = tokio::fs::symlink_metadata(&dot_codex).await;
-    if let Ok(metadata) = dot_codex_metadata {
+    let dot_codepilotx_metadata = tokio::fs::symlink_metadata(&dot_codex).await;
+    if let Ok(metadata) = dot_codepilotx_metadata {
         assert!(
             !metadata.is_dir(),
             "{} should not be creatable as a directory",
             dot_codex.display()
         );
-    } else if let Err(err) = &dot_codex_metadata {
+    } else if let Err(err) = &dot_codepilotx_metadata {
         assert_eq!(
             err.kind(),
             io::ErrorKind::NotFound,

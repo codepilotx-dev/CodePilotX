@@ -5,32 +5,32 @@ use anyhow::Context;
 use anyhow::Result;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
-use codex_otel::StatsigMetricsSettings;
-use codex_windows_sandbox::SETUP_VERSION;
-use codex_windows_sandbox::SetupErrorCode;
-use codex_windows_sandbox::SetupErrorReport;
-use codex_windows_sandbox::SetupFailure;
-use codex_windows_sandbox::add_deny_write_ace;
-use codex_windows_sandbox::canonicalize_path;
-use codex_windows_sandbox::convert_string_sid_to_sid;
-use codex_windows_sandbox::ensure_allow_mask_aces_with_inheritance;
-use codex_windows_sandbox::ensure_allow_write_aces;
-use codex_windows_sandbox::extract_setup_failure;
-use codex_windows_sandbox::hide_newly_created_users;
-use codex_windows_sandbox::install_wfp_filters;
-use codex_windows_sandbox::is_command_cwd_root;
-use codex_windows_sandbox::log_note;
-use codex_windows_sandbox::log_writer;
-use codex_windows_sandbox::path_mask_allows;
-use codex_windows_sandbox::sandbox_bin_dir;
-use codex_windows_sandbox::sandbox_dir;
-use codex_windows_sandbox::sandbox_secrets_dir;
-use codex_windows_sandbox::string_from_sid_bytes;
-use codex_windows_sandbox::sync_persistent_deny_read_acls;
-use codex_windows_sandbox::to_wide;
-use codex_windows_sandbox::workspace_write_cap_sid_for_root;
-use codex_windows_sandbox::workspace_write_root_overlaps_path;
-use codex_windows_sandbox::write_setup_error_report;
+use codepilotx_otel::StatsigMetricsSettings;
+use codepilotx_windows_sandbox::SETUP_VERSION;
+use codepilotx_windows_sandbox::SetupErrorCode;
+use codepilotx_windows_sandbox::SetupErrorReport;
+use codepilotx_windows_sandbox::SetupFailure;
+use codepilotx_windows_sandbox::add_deny_write_ace;
+use codepilotx_windows_sandbox::canonicalize_path;
+use codepilotx_windows_sandbox::convert_string_sid_to_sid;
+use codepilotx_windows_sandbox::ensure_allow_mask_aces_with_inheritance;
+use codepilotx_windows_sandbox::ensure_allow_write_aces;
+use codepilotx_windows_sandbox::extract_setup_failure;
+use codepilotx_windows_sandbox::hide_newly_created_users;
+use codepilotx_windows_sandbox::install_wfp_filters;
+use codepilotx_windows_sandbox::is_command_cwd_root;
+use codepilotx_windows_sandbox::log_note;
+use codepilotx_windows_sandbox::log_writer;
+use codepilotx_windows_sandbox::path_mask_allows;
+use codepilotx_windows_sandbox::sandbox_bin_dir;
+use codepilotx_windows_sandbox::sandbox_dir;
+use codepilotx_windows_sandbox::sandbox_secrets_dir;
+use codepilotx_windows_sandbox::string_from_sid_bytes;
+use codepilotx_windows_sandbox::sync_persistent_deny_read_acls;
+use codepilotx_windows_sandbox::to_wide;
+use codepilotx_windows_sandbox::workspace_write_cap_sid_for_root;
+use codepilotx_windows_sandbox::workspace_write_root_overlaps_path;
+use codepilotx_windows_sandbox::write_setup_error_report;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashSet;
@@ -82,7 +82,7 @@ struct Payload {
     version: u32,
     offline_username: String,
     online_username: String,
-    codex_home: PathBuf,
+    codepilotx_home: PathBuf,
     command_cwd: PathBuf,
     read_roots: Vec<PathBuf>,
     write_roots: Vec<PathBuf>,
@@ -123,7 +123,7 @@ fn log_line(log: &mut dyn Write, msg: &str) -> Result<()> {
 }
 
 fn workspace_write_cap_sids_for_path(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     command_cwd: &Path,
     write_roots: &[PathBuf],
     path: &Path,
@@ -132,7 +132,7 @@ fn workspace_write_cap_sids_for_path(
     for root in write_roots {
         if workspace_write_root_overlaps_path(root, path) {
             sid_strs.push(workspace_write_cap_sid_for_root(
-                codex_home,
+                codepilotx_home,
                 command_cwd,
                 root,
             )?);
@@ -141,14 +141,14 @@ fn workspace_write_cap_sids_for_path(
     if sid_strs.is_empty() {
         if write_roots.is_empty() {
             sid_strs.push(workspace_write_cap_sid_for_root(
-                codex_home,
+                codepilotx_home,
                 command_cwd,
                 command_cwd,
             )?);
         } else {
             for root in write_roots {
                 sid_strs.push(workspace_write_cap_sid_for_root(
-                    codex_home,
+                    codepilotx_home,
                     command_cwd,
                     root,
                 )?);
@@ -390,8 +390,8 @@ pub fn main() -> Result<()> {
     let ret = real_main();
     if let Err(e) = &ret {
         // Best-effort: log unexpected top-level errors.
-        if let Ok(codex_home) = std::env::var("CODEX_HOME") {
-            let sbx_dir = sandbox_dir(Path::new(&codex_home));
+        if let Ok(codepilotx_home) = std::env::var("codepilotx_HOME") {
+            let sbx_dir = sandbox_dir(Path::new(&codepilotx_home));
             let _ = std::fs::create_dir_all(&sbx_dir);
             if let Some(mut f) = log_writer(&sbx_dir) {
                 let _ = writeln!(
@@ -436,7 +436,7 @@ fn real_main() -> Result<()> {
             ),
         )));
     }
-    let sbx_dir = sandbox_dir(&payload.codex_home);
+    let sbx_dir = sandbox_dir(&payload.codepilotx_home);
     std::fs::create_dir_all(&sbx_dir).map_err(|err| {
         anyhow::Error::new(SetupFailure::new(
             SetupErrorCode::HelperSandboxDirCreateFailed,
@@ -462,7 +462,7 @@ fn real_main() -> Result<()> {
             code: failure.code,
             message: failure.message,
         };
-        if let Err(write_err) = write_setup_error_report(&payload.codex_home, &report) {
+        if let Err(write_err) = write_setup_error_report(&payload.codepilotx_home, &report) {
             let _ = log_line(
                 &mut log,
                 &format!("setup error report write failed: {write_err}"),
@@ -479,7 +479,7 @@ fn real_main() -> Result<()> {
 fn run_setup(payload: &Payload, log: &mut dyn Write, sbx_dir: &Path) -> Result<()> {
     let writes_setup_marker = !payload.refresh_only && payload.mode != SetupMode::ReadAclsOnly;
     if writes_setup_marker {
-        prepare_setup_marker(&payload.codex_home, &payload.real_user)?;
+        prepare_setup_marker(&payload.codepilotx_home, &payload.real_user)?;
     }
     match payload.mode {
         SetupMode::ReadAclsOnly => run_read_acl_only(payload, log),
@@ -488,7 +488,7 @@ fn run_setup(payload: &Payload, log: &mut dyn Write, sbx_dir: &Path) -> Result<(
     }?;
     if writes_setup_marker {
         commit_setup_marker(
-            &payload.codex_home,
+            &payload.codepilotx_home,
             &payload.offline_username,
             &payload.online_username,
             &payload.proxy_ports,
@@ -567,7 +567,7 @@ fn provision_and_hide_sandbox_users(
     sbx_dir: &Path,
 ) -> Result<()> {
     let provision_result = provision_sandbox_users(
-        &payload.codex_home,
+        &payload.codepilotx_home,
         &payload.offline_username,
         &payload.online_username,
         log,
@@ -620,7 +620,7 @@ fn configure_offline_sandbox_network(
         )));
     }
     install_wfp_filters(
-        &payload.codex_home,
+        &payload.codepilotx_home,
         &payload.offline_username,
         payload.otel.as_ref(),
         |message| {
@@ -636,7 +636,7 @@ fn lock_persistent_sandbox_dirs(
     log: &mut dyn Write,
 ) -> Result<()> {
     lock_sandbox_dir(
-        &sandbox_dir(&payload.codex_home),
+        &sandbox_dir(&payload.codepilotx_home),
         &payload.real_user,
         sandbox_group_sid,
         GRANT_ACCESS,
@@ -649,12 +649,12 @@ fn lock_persistent_sandbox_dirs(
             SetupErrorCode::HelperSandboxLockFailed,
             format!(
                 "lock sandbox dir {} failed: {err}",
-                sandbox_dir(&payload.codex_home).display()
+                sandbox_dir(&payload.codepilotx_home).display()
             ),
         ))
     })?;
     lock_sandbox_dir(
-        &sandbox_secrets_dir(&payload.codex_home),
+        &sandbox_secrets_dir(&payload.codepilotx_home),
         &payload.real_user,
         sandbox_group_sid,
         DENY_ACCESS,
@@ -667,11 +667,11 @@ fn lock_persistent_sandbox_dirs(
             SetupErrorCode::HelperSandboxLockFailed,
             format!(
                 "lock sandbox secrets dir {} failed: {err}",
-                sandbox_secrets_dir(&payload.codex_home).display()
+                sandbox_secrets_dir(&payload.codepilotx_home).display()
             ),
         ))
     })?;
-    let legacy_users = sandbox_dir(&payload.codex_home).join("sandbox_users.json");
+    let legacy_users = sandbox_dir(&payload.codepilotx_home).join("sandbox_users.json");
     if legacy_users.exists() {
         let _ = std::fs::remove_file(&legacy_users);
     }
@@ -684,7 +684,7 @@ fn lock_sandbox_bin_dir(
     log: &mut dyn Write,
 ) -> Result<()> {
     lock_sandbox_dir(
-        &sandbox_bin_dir(&payload.codex_home),
+        &sandbox_bin_dir(&payload.codepilotx_home),
         &payload.real_user,
         sandbox_group_sid,
         GRANT_ACCESS,
@@ -697,7 +697,7 @@ fn lock_sandbox_bin_dir(
             SetupErrorCode::HelperSandboxLockFailed,
             format!(
                 "lock sandbox bin dir {} failed: {err}",
-                sandbox_bin_dir(&payload.codex_home).display()
+                sandbox_bin_dir(&payload.codepilotx_home).display()
             ),
         ))
     })
@@ -772,7 +772,7 @@ fn run_setup_full(payload: &Payload, log: &mut dyn Write, sbx_dir: &Path) -> Res
     // helper used for read grants.
     let applied_deny_read_paths = unsafe {
         sync_persistent_deny_read_acls(
-            &payload.codex_home,
+            &payload.codepilotx_home,
             &sandbox_group_sid_str,
             &payload.deny_read_paths,
             sandbox_group_psid,
@@ -819,7 +819,7 @@ fn run_setup_full(payload: &Payload, log: &mut dyn Write, sbx_dir: &Path) -> Res
     }
 
     if refresh_only {
-        setup_runtime_bin::ensure_codex_app_runtime_paths_readable(
+        setup_runtime_bin::ensure_codepilotx_app_runtime_paths_readable(
             sandbox_group_psid,
             &mut refresh_errors,
             log,
@@ -853,7 +853,7 @@ fn run_setup_full(payload: &Payload, log: &mut dyn Write, sbx_dir: &Path) -> Res
             "root_cap"
         };
         let root_cap_sid_str =
-            workspace_write_cap_sid_for_root(&payload.codex_home, &payload.command_cwd, root)?;
+            workspace_write_cap_sid_for_root(&payload.codepilotx_home, &payload.command_cwd, root)?;
         let root_cap_psid = unsafe {
             convert_string_sid_to_sid(&root_cap_sid_str)
                 .ok_or_else(|| anyhow::anyhow!("convert write root capability SID failed"))?
@@ -967,7 +967,7 @@ fn run_setup_full(payload: &Payload, log: &mut dyn Write, sbx_dir: &Path) -> Res
         }
 
         let deny_sid_strs = workspace_write_cap_sids_for_path(
-            &payload.codex_home,
+            &payload.codepilotx_home,
             &payload.command_cwd,
             &payload.write_roots,
             path,
@@ -1037,9 +1037,9 @@ mod tests {
     use super::Payload;
     use super::SETUP_VERSION;
     use super::workspace_write_cap_sids_for_path;
-    use codex_otel::StatsigMetricsSettings;
-    use codex_windows_sandbox::load_or_create_cap_sids;
-    use codex_windows_sandbox::workspace_write_cap_sid_for_root;
+    use codepilotx_otel::StatsigMetricsSettings;
+    use codepilotx_windows_sandbox::load_or_create_cap_sids;
+    use codepilotx_windows_sandbox::workspace_write_cap_sid_for_root;
     use pretty_assertions::assert_eq;
     use serde_json::json;
     use std::fs;
@@ -1049,7 +1049,7 @@ mod tests {
             "version": SETUP_VERSION,
             "offline_username": "CodexSandboxOffline",
             "online_username": "CodexSandboxOnline",
-            "codex_home": "C:\\codex-home",
+            "codepilotx_home": "C:\\codex-home",
             "command_cwd": "C:\\workspace",
             "read_roots": [],
             "write_roots": [],
@@ -1093,27 +1093,27 @@ mod tests {
     #[test]
     fn deny_path_under_active_root_uses_only_matching_root_sid() {
         let temp = tempfile::tempdir().expect("tempdir");
-        let codex_home = temp.path().join("codex-home");
+        let codepilotx_home = temp.path().join("codex-home");
         let workspace = temp.path().join("workspace");
         let active_root = temp.path().join("active-root");
         let stale_root = temp.path().join("stale-root");
         let deny_path = active_root.join("protected");
-        fs::create_dir_all(&codex_home).expect("create codex home");
+        fs::create_dir_all(&codepilotx_home).expect("create codex home");
         fs::create_dir_all(&workspace).expect("create workspace");
         fs::create_dir_all(&active_root).expect("create active root");
         fs::create_dir_all(&stale_root).expect("create stale root");
         fs::create_dir_all(&deny_path).expect("create deny path");
 
-        let stale_sid = workspace_write_cap_sid_for_root(&codex_home, &workspace, &stale_root)
+        let stale_sid = workspace_write_cap_sid_for_root(&codepilotx_home, &workspace, &stale_root)
             .expect("stale sid");
-        let active_sid = workspace_write_cap_sid_for_root(&codex_home, &workspace, &active_root)
+        let active_sid = workspace_write_cap_sid_for_root(&codepilotx_home, &workspace, &active_root)
             .expect("active sid");
-        let workspace_sid = workspace_write_cap_sid_for_root(&codex_home, &workspace, &workspace)
+        let workspace_sid = workspace_write_cap_sid_for_root(&codepilotx_home, &workspace, &workspace)
             .expect("workspace sid");
-        let caps = load_or_create_cap_sids(&codex_home).expect("load caps");
+        let caps = load_or_create_cap_sids(&codepilotx_home).expect("load caps");
 
         let deny_sids = workspace_write_cap_sids_for_path(
-            &codex_home,
+            &codepilotx_home,
             &workspace,
             &[workspace.clone(), active_root],
             &deny_path,
@@ -1129,27 +1129,27 @@ mod tests {
     #[test]
     fn deny_path_outside_active_roots_falls_back_to_all_active_root_sids() {
         let temp = tempfile::tempdir().expect("tempdir");
-        let codex_home = temp.path().join("codex-home");
+        let codepilotx_home = temp.path().join("codex-home");
         let workspace = temp.path().join("workspace");
         let active_root = temp.path().join("active-root");
         let stale_root = temp.path().join("stale-root");
         let deny_path = temp.path().join("outside-deny");
-        fs::create_dir_all(&codex_home).expect("create codex home");
+        fs::create_dir_all(&codepilotx_home).expect("create codex home");
         fs::create_dir_all(&workspace).expect("create workspace");
         fs::create_dir_all(&active_root).expect("create active root");
         fs::create_dir_all(&stale_root).expect("create stale root");
         fs::create_dir_all(&deny_path).expect("create deny path");
 
-        let stale_sid = workspace_write_cap_sid_for_root(&codex_home, &workspace, &stale_root)
+        let stale_sid = workspace_write_cap_sid_for_root(&codepilotx_home, &workspace, &stale_root)
             .expect("stale sid");
-        let active_sid = workspace_write_cap_sid_for_root(&codex_home, &workspace, &active_root)
+        let active_sid = workspace_write_cap_sid_for_root(&codepilotx_home, &workspace, &active_root)
             .expect("active sid");
-        let workspace_sid = workspace_write_cap_sid_for_root(&codex_home, &workspace, &workspace)
+        let workspace_sid = workspace_write_cap_sid_for_root(&codepilotx_home, &workspace, &workspace)
             .expect("workspace sid");
-        let caps = load_or_create_cap_sids(&codex_home).expect("load caps");
+        let caps = load_or_create_cap_sids(&codepilotx_home).expect("load caps");
 
         let deny_sids = workspace_write_cap_sids_for_path(
-            &codex_home,
+            &codepilotx_home,
             &workspace,
             &[workspace.clone(), active_root],
             &deny_path,
@@ -1166,21 +1166,21 @@ mod tests {
     #[test]
     fn deny_path_includes_nested_active_root_sid() {
         let temp = tempfile::tempdir().expect("tempdir");
-        let codex_home = temp.path().join("codex-home");
+        let codepilotx_home = temp.path().join("codex-home");
         let workspace = temp.path().join("workspace");
         let protected_dir = workspace.join(".codex");
         let nested_root = protected_dir.join("nested-root");
-        fs::create_dir_all(&codex_home).expect("create codex home");
+        fs::create_dir_all(&codepilotx_home).expect("create codex home");
         fs::create_dir_all(&workspace).expect("create workspace");
         fs::create_dir_all(&nested_root).expect("create nested root");
 
-        let workspace_sid = workspace_write_cap_sid_for_root(&codex_home, &workspace, &workspace)
+        let workspace_sid = workspace_write_cap_sid_for_root(&codepilotx_home, &workspace, &workspace)
             .expect("workspace sid");
-        let nested_sid = workspace_write_cap_sid_for_root(&codex_home, &workspace, &nested_root)
+        let nested_sid = workspace_write_cap_sid_for_root(&codepilotx_home, &workspace, &nested_root)
             .expect("nested sid");
 
         let deny_sids = workspace_write_cap_sids_for_path(
-            &codex_home,
+            &codepilotx_home,
             &workspace,
             &[workspace.clone(), nested_root],
             &protected_dir,

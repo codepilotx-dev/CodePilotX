@@ -10,10 +10,10 @@
 mod backends;
 
 use anyhow::Result;
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::models::PermissionProfile;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_pty::SpawnedProcess;
+use codepilotx_protocol::config_types::WindowsSandboxLevel;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_pty::SpawnedProcess;
 use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
@@ -25,7 +25,7 @@ use std::path::PathBuf;
 pub struct WindowsSandboxSessionRequest<'a> {
     pub permission_profile: &'a PermissionProfile,
     pub workspace_roots: &'a [AbsolutePathBuf],
-    pub codex_home: &'a Path,
+    pub codepilotx_home: &'a Path,
     pub command: Vec<String>,
     pub cwd: &'a Path,
     pub env_map: HashMap<String, String>,
@@ -51,7 +51,7 @@ pub async fn spawn_windows_sandbox_session_for_level(
         spawn_windows_sandbox_session_elevated_for_permission_profile(
             request.permission_profile,
             request.workspace_roots,
-            request.codex_home,
+            request.codepilotx_home,
             request.command,
             request.cwd,
             request.env_map,
@@ -71,7 +71,7 @@ pub async fn spawn_windows_sandbox_session_for_level(
         spawn_windows_sandbox_session_legacy(
             request.permission_profile,
             request.workspace_roots,
-            request.codex_home,
+            request.codepilotx_home,
             request.command,
             request.cwd,
             request.env_map,
@@ -90,7 +90,7 @@ pub async fn spawn_windows_sandbox_session_for_level(
 pub async fn spawn_windows_sandbox_session_legacy(
     permission_profile: &PermissionProfile,
     workspace_roots: &[AbsolutePathBuf],
-    codex_home: &Path,
+    codepilotx_home: &Path,
     command: Vec<String>,
     cwd: &Path,
     env_map: HashMap<String, String>,
@@ -104,7 +104,7 @@ pub async fn spawn_windows_sandbox_session_legacy(
     backends::legacy::spawn_windows_sandbox_session_legacy(
         permission_profile,
         workspace_roots,
-        codex_home,
+        codepilotx_home,
         command,
         cwd,
         env_map,
@@ -122,7 +122,7 @@ pub async fn spawn_windows_sandbox_session_legacy(
 pub async fn spawn_windows_sandbox_session_elevated_for_permission_profile(
     permission_profile: &PermissionProfile,
     workspace_roots: &[AbsolutePathBuf],
-    codex_home: &Path,
+    codepilotx_home: &Path,
     command: Vec<String>,
     cwd: &Path,
     env_map: HashMap<String, String>,
@@ -140,7 +140,7 @@ pub async fn spawn_windows_sandbox_session_elevated_for_permission_profile(
     backends::elevated::spawn_windows_sandbox_session_elevated_for_permission_profile(
         permission_profile,
         workspace_roots,
-        codex_home,
+        codepilotx_home,
         command,
         cwd,
         env_map,

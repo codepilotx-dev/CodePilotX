@@ -306,7 +306,7 @@ mod tests {
         let mut parser = PowershellParserProcess::spawn(powershell).unwrap();
 
         let parsed = parser
-            .parse("git log --% HEAD --output=codex_poc.txt")
+            .parse("git log --% HEAD --output=codepilotx_poc.txt")
             .unwrap();
         assert_eq!(parsed, PowershellParseOutcome::Unsupported);
     }

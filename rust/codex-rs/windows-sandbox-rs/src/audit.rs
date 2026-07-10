@@ -218,7 +218,7 @@ pub fn audit_everyone_writable(
 }
 
 pub fn apply_world_writable_scan_and_denies_for_permissions(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     cwd: &Path,
     env_map: &std::collections::HashMap<String, String>,
     permissions: &ResolvedWindowsSandboxPermissions,
@@ -229,7 +229,7 @@ pub fn apply_world_writable_scan_and_denies_for_permissions(
         return Ok(());
     }
     if let Err(err) = apply_capability_denies_for_world_writable_for_permissions(
-        codex_home,
+        codepilotx_home,
         &flagged,
         permissions,
         cwd,
@@ -245,7 +245,7 @@ pub fn apply_world_writable_scan_and_denies_for_permissions(
 }
 
 fn apply_capability_denies_for_world_writable_for_permissions(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     flagged: &[PathBuf],
     permissions: &ResolvedWindowsSandboxPermissions,
     cwd: &Path,
@@ -255,9 +255,9 @@ fn apply_capability_denies_for_world_writable_for_permissions(
     if flagged.is_empty() {
         return Ok(());
     }
-    std::fs::create_dir_all(codex_home)?;
-    let cap_path = cap_sid_file(codex_home);
-    let caps = load_or_create_cap_sids(codex_home)?;
+    std::fs::create_dir_all(codepilotx_home)?;
+    let cap_path = cap_sid_file(codepilotx_home);
+    let caps = load_or_create_cap_sids(codepilotx_home)?;
     std::fs::write(&cap_path, serde_json::to_string(&caps)?)?;
     if !permissions.is_enforceable_by_windows_sandbox() {
         return Ok(());
@@ -268,13 +268,13 @@ fn apply_capability_denies_for_world_writable_for_permissions(
                 permissions,
                 cwd,
                 env_map,
-                codex_home,
+                codepilotx_home,
                 /*write_roots_override*/ None,
             );
             let active_sids = roots
                 .iter()
                 .map(|root| {
-                    workspace_write_cap_sid_for_root(codex_home, cwd, root)
+                    workspace_write_cap_sid_for_root(codepilotx_home, cwd, root)
                         .and_then(|sid| LocalSid::from_string(&sid))
                 })
                 .collect::<Result<Vec<_>>>()?;

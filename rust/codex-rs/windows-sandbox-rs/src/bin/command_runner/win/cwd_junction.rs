@@ -1,4 +1,4 @@
-use codex_windows_sandbox::log_note;
+use codepilotx_windows_sandbox::log_note;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::Hash;
 use std::hash::Hasher;

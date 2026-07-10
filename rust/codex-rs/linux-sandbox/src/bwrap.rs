@@ -24,15 +24,15 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
 
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::Result;
-use codex_protocol::permissions::is_protected_metadata_name;
-use codex_protocol::protocol::FileSystemAccessMode;
-use codex_protocol::protocol::FileSystemPath;
-use codex_protocol::protocol::FileSystemSandboxPolicy;
-use codex_protocol::protocol::FileSystemSpecialPath;
-use codex_protocol::protocol::WritableRoot;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_protocol::error::CodexErr;
+use codepilotx_protocol::error::Result;
+use codepilotx_protocol::permissions::is_protected_metadata_name;
+use codepilotx_protocol::protocol::FileSystemAccessMode;
+use codepilotx_protocol::protocol::FileSystemPath;
+use codepilotx_protocol::protocol::FileSystemSandboxPolicy;
+use codepilotx_protocol::protocol::FileSystemSpecialPath;
+use codepilotx_protocol::protocol::WritableRoot;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use globset::GlobBuilder;
 use globset::GlobSet;
 use globset::GlobSetBuilder;
@@ -1328,12 +1328,12 @@ fn find_first_non_existent_component(target_path: &Path) -> Option<PathBuf> {
 mod tests {
     use super::*;
 
-    use codex_protocol::protocol::FileSystemAccessMode;
-    use codex_protocol::protocol::FileSystemPath;
-    use codex_protocol::protocol::FileSystemSandboxEntry;
-    use codex_protocol::protocol::FileSystemSandboxPolicy;
-    use codex_protocol::protocol::FileSystemSpecialPath;
-    use codex_utils_absolute_path::AbsolutePathBuf;
+    use codepilotx_protocol::protocol::FileSystemAccessMode;
+    use codepilotx_protocol::protocol::FileSystemPath;
+    use codepilotx_protocol::protocol::FileSystemSandboxEntry;
+    use codepilotx_protocol::protocol::FileSystemSandboxPolicy;
+    use codepilotx_protocol::protocol::FileSystemSpecialPath;
+    use codepilotx_utils_absolute_path::AbsolutePathBuf;
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
 

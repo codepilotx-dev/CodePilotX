@@ -10,12 +10,12 @@ use std::path::PathBuf;
 
 use anyhow::Context;
 use anyhow::Result;
-use codex_exec_server::CreateDirectoryOptions;
-use codex_exec_server::ExecutorFileSystem;
-use codex_exec_server::FileSystemSandboxContext;
-use codex_exec_server::RemoveOptions;
-use codex_utils_path_uri::PathUri;
-use codex_utils_path_uri::PathUriParseError;
+use codepilotx_exec_server::CreateDirectoryOptions;
+use codepilotx_exec_server::ExecutorFileSystem;
+use codepilotx_exec_server::FileSystemSandboxContext;
+use codepilotx_exec_server::RemoveOptions;
+use codepilotx_utils_path_uri::PathUri;
+use codepilotx_utils_path_uri::PathUriParseError;
 pub use parser::Hunk;
 pub use parser::ParseError;
 use parser::ParseError::*;
@@ -38,7 +38,7 @@ use crate::invocation::ExtractHeredocError;
 /// `codex-arg0` to depend on `codex-core`), it remains part of the "codex core"
 /// process-invocation contract for the standalone `apply_patch` command
 /// surface.
-pub const CODEX_CORE_APPLY_PATCH_ARG1: &str = "--codex-run-as-apply-patch";
+pub const codepilotx_CORE_APPLY_PATCH_ARG1: &str = "--codex-run-as-apply-patch";
 
 #[derive(Debug, Error, PartialEq)]
 pub enum ApplyPatchError {
@@ -888,7 +888,7 @@ pub fn print_summary(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_exec_server::LOCAL_FS;
+    use codepilotx_exec_server::LOCAL_FS;
     use pretty_assertions::assert_eq;
     use std::fs;
     use std::string::ToString;
@@ -1229,9 +1229,9 @@ mod tests {
         fs::write(&path, "a\nb\nc\nd\ne\nf\n").unwrap();
 
         // Patch performs:
-        //  â€¢ Replace `b` â†’ `B`
-        //  â€¢ Replace `e` â†’ `E` (using surrounding context)
-        //  â€¢ Append new line `g` at the endâ€‘ofâ€‘file
+        //  â€?Replace `b` â†?`B`
+        //  â€?Replace `e` â†?`E` (using surrounding context)
+        //  â€?Append new line `g` at the endâ€‘ofâ€‘file
         let patch = wrap_patch(&format!(
             r#"*** Update File: {}
 @@

@@ -11,24 +11,24 @@ use super::normalize_path_for_sandbox;
 use super::seatbelt_regex_for_unreadable_glob;
 use super::unix_socket_dir_params;
 use super::unix_socket_policy;
-use codex_network_proxy::ConfigReloader;
-use codex_network_proxy::ConfigReloaderFuture;
-use codex_network_proxy::ConfigState;
-use codex_network_proxy::NetworkMode;
-use codex_network_proxy::NetworkProxy;
-use codex_network_proxy::NetworkProxyConfig;
-use codex_network_proxy::NetworkProxyConstraints;
-use codex_network_proxy::NetworkProxyState;
-use codex_network_proxy::build_config_state;
-use codex_protocol::permissions::FileSystemAccessMode;
-use codex_protocol::permissions::FileSystemPath;
-use codex_protocol::permissions::FileSystemSandboxEntry;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::FileSystemSpecialPath;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::permissions::PROTECTED_METADATA_PATH_NAMES;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_network_proxy::ConfigReloader;
+use codepilotx_network_proxy::ConfigReloaderFuture;
+use codepilotx_network_proxy::ConfigState;
+use codepilotx_network_proxy::NetworkMode;
+use codepilotx_network_proxy::NetworkProxy;
+use codepilotx_network_proxy::NetworkProxyConfig;
+use codepilotx_network_proxy::NetworkProxyConstraints;
+use codepilotx_network_proxy::NetworkProxyState;
+use codepilotx_network_proxy::build_config_state;
+use codepilotx_protocol::permissions::FileSystemAccessMode;
+use codepilotx_protocol::permissions::FileSystemPath;
+use codepilotx_protocol::permissions::FileSystemSandboxEntry;
+use codepilotx_protocol::permissions::FileSystemSandboxPolicy;
+use codepilotx_protocol::permissions::FileSystemSpecialPath;
+use codepilotx_protocol::permissions::NetworkSandboxPolicy;
+use codepilotx_protocol::permissions::PROTECTED_METADATA_PATH_NAMES;
+use codepilotx_protocol::protocol::SandboxPolicy;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
 use std::fs;
 use std::path::Path;
@@ -831,7 +831,7 @@ fn create_seatbelt_args_full_network_with_proxy_is_still_proxy_only() {
 }
 
 #[test]
-fn create_seatbelt_args_with_read_only_git_and_codex_subpaths() {
+fn create_seatbelt_args_with_read_only_git_and_codepilotx_subpaths() {
     // Create a temporary workspace with two writable roots: one containing
     // top-level workspace metadata paths and one without them.
     let tmp = TempDir::new().expect("tempdir");
@@ -840,7 +840,7 @@ fn create_seatbelt_args_with_read_only_git_and_codex_subpaths() {
         vulnerable_root_canonical,
         dot_git_canonical,
         dot_agents_canonical: _,
-        dot_codex_canonical,
+        dot_codepilotx_canonical,
         empty_root,
         empty_root_canonical,
     } = populate_tmpdir(tmp.path());
@@ -866,7 +866,7 @@ fn create_seatbelt_args_with_read_only_git_and_codex_subpaths() {
         "-c",
         "echo 'sandbox_mode = \"danger-full-access\"' > \"$1\"",
         "bash",
-        dot_codex_canonical
+        dot_codepilotx_canonical
             .join("config.toml")
             .to_string_lossy()
             .as_ref(),
@@ -959,7 +959,7 @@ fn create_seatbelt_args_with_read_only_git_and_codex_subpaths() {
         ),
         format!(
             "-DWRITABLE_ROOT_1_EXCLUDED_1={}",
-            dot_codex_canonical.to_string_lossy()
+            dot_codepilotx_canonical.to_string_lossy()
         ),
         format!(
             "-DWRITABLE_ROOT_2={}",
@@ -983,7 +983,7 @@ fn create_seatbelt_args_with_read_only_git_and_codex_subpaths() {
 
     // Verify that .codex/config.toml cannot be modified under the generated
     // Seatbelt policy.
-    let config_toml = dot_codex_canonical.join("config.toml");
+    let config_toml = dot_codepilotx_canonical.join("config.toml");
     let output = Command::new(MACOS_PATH_TO_SEATBELT_EXECUTABLE)
         .args(&args)
         .current_dir(&cwd)
@@ -1084,7 +1084,7 @@ fn create_seatbelt_args_with_read_only_git_and_codex_subpaths() {
 }
 
 #[test]
-fn create_seatbelt_args_block_first_time_dot_codex_creation_with_metadata_name_regex() {
+fn create_seatbelt_args_block_first_time_dot_codepilotx_creation_with_metadata_name_regex() {
     let tmp = TempDir::new().expect("tempdir");
     let repo_root = tmp.path().join("repo");
     fs::create_dir_all(&repo_root).expect("create repo root");
@@ -1243,7 +1243,7 @@ fn create_seatbelt_args_for_cwd_as_git_repo() {
         vulnerable_root_canonical,
         dot_git_canonical,
         dot_agents_canonical,
-        dot_codex_canonical,
+        dot_codepilotx_canonical,
         ..
     } = populate_tmpdir(tmp.path());
 
@@ -1262,7 +1262,7 @@ fn create_seatbelt_args_for_cwd_as_git_repo() {
         "-c",
         "echo 'sandbox_mode = \"danger-full-access\"' > \"$1\"",
         "bash",
-        dot_codex_canonical
+        dot_codepilotx_canonical
             .join("config.toml")
             .to_string_lossy()
             .as_ref(),
@@ -1324,7 +1324,7 @@ fn create_seatbelt_args_for_cwd_as_git_repo() {
     );
     let expected_dot_codex = format!(
         "-DWRITABLE_ROOT_0_EXCLUDED_1={}",
-        dot_codex_canonical.to_string_lossy()
+        dot_codepilotx_canonical.to_string_lossy()
     );
     assert!(
         args.contains(&expected_dot_codex),
@@ -1362,7 +1362,7 @@ struct PopulatedTmp {
     vulnerable_root_canonical: PathBuf,
     dot_git_canonical: PathBuf,
     dot_agents_canonical: PathBuf,
-    dot_codex_canonical: PathBuf,
+    dot_codepilotx_canonical: PathBuf,
 
     /// Path without protected metadata subfolders.
     empty_root: PathBuf,
@@ -1399,14 +1399,14 @@ fn populate_tmpdir(tmp: &Path) -> PopulatedTmp {
         .expect("canonicalize vulnerable_root");
     let dot_git_canonical = vulnerable_root_canonical.join(".git");
     let dot_agents_canonical = vulnerable_root_canonical.join(".agents");
-    let dot_codex_canonical = vulnerable_root_canonical.join(".codex");
+    let dot_codepilotx_canonical = vulnerable_root_canonical.join(".codex");
     let empty_root_canonical = empty_root.canonicalize().expect("canonicalize empty_root");
     PopulatedTmp {
         vulnerable_root,
         vulnerable_root_canonical,
         dot_git_canonical,
         dot_agents_canonical,
-        dot_codex_canonical,
+        dot_codepilotx_canonical,
         empty_root,
         empty_root_canonical,
     }

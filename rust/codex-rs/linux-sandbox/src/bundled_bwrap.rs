@@ -12,8 +12,8 @@ use std::sync::OnceLock;
 use crate::bazel_bwrap;
 use crate::exec_util::argv_to_cstrings;
 use crate::exec_util::make_files_inheritable;
-use codex_install_context::InstallContext;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_install_context::InstallContext;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use sha2::Digest as _;
 use sha2::Sha256;
 
@@ -116,9 +116,9 @@ fn is_executable_file(path: &Path) -> bool {
 fn expected_sha256() -> Option<[u8; 32]> {
     static EXPECTED: OnceLock<Option<[u8; 32]>> = OnceLock::new();
     *EXPECTED.get_or_init(|| {
-        let raw_digest = option_env!("CODEX_BWRAP_SHA256")?;
+        let raw_digest = option_env!("codepilotx_BWRAP_SHA256")?;
         let digest = parse_sha256_hex(raw_digest)
-            .unwrap_or_else(|err| panic!("invalid CODEX_BWRAP_SHA256 value: {err}"));
+            .unwrap_or_else(|err| panic!("invalid codepilotx_BWRAP_SHA256 value: {err}"));
         (digest != NULL_SHA256_DIGEST).then_some(digest)
     })
 }
@@ -189,9 +189,9 @@ fn bytes_to_hex(bytes: &[u8; 32]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_install_context::CodexPackageLayout;
-    use codex_install_context::InstallContext;
-    use codex_install_context::InstallMethod;
+    use codepilotx_install_context::CodexPackageLayout;
+    use codepilotx_install_context::InstallContext;
+    use codepilotx_install_context::InstallMethod;
     use pretty_assertions::assert_eq;
     use std::fs;
     use tempfile::NamedTempFile;

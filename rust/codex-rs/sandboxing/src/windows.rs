@@ -2,11 +2,11 @@ use std::collections::BTreeSet;
 use std::path::Path;
 use std::path::PathBuf;
 
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::protocol::WritableRoot;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_protocol::config_types::WindowsSandboxLevel;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::permissions::FileSystemSandboxPolicy;
+use codepilotx_protocol::protocol::WritableRoot;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 
 use crate::SandboxType;
 use crate::compatibility_sandbox_policy_for_permission_profile;
@@ -118,7 +118,7 @@ pub fn resolve_windows_restricted_token_filesystem_overrides(
         );
     }
 
-    let additional_deny_read_paths = codex_windows_sandbox::resolve_windows_deny_read_paths(
+    let additional_deny_read_paths = codepilotx_windows_sandbox::resolve_windows_deny_read_paths(
         &file_system_sandbox_policy,
         sandbox_policy_cwd,
     )?;
@@ -232,7 +232,7 @@ pub fn resolve_windows_elevated_filesystem_overrides(
         ));
     }
 
-    let additional_deny_read_paths = codex_windows_sandbox::resolve_windows_deny_read_paths(
+    let additional_deny_read_paths = codepilotx_windows_sandbox::resolve_windows_deny_read_paths(
         &file_system_sandbox_policy,
         sandbox_policy_cwd,
     )?;

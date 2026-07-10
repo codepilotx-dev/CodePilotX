@@ -11,7 +11,7 @@ use tokio_tungstenite::connect_async_with_config;
 use tracing::debug;
 use tracing::warn;
 
-use codex_utils_rustls_provider::ensure_rustls_crypto_provider;
+use codepilotx_utils_rustls_provider::ensure_rustls_crypto_provider;
 
 use crate::ExecServerClient;
 use crate::ExecServerError;

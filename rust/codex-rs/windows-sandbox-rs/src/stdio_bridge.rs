@@ -3,7 +3,7 @@ use std::io::Write;
 use std::sync::Arc;
 use std::time::Duration;
 
-use codex_utils_pty::SpawnedProcess;
+use codepilotx_utils_pty::SpawnedProcess;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 

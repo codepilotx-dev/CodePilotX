@@ -2,8 +2,8 @@ use clap::Args;
 use clap::FromArgMatches;
 use clap::Parser;
 use clap::ValueEnum;
-use codex_utils_cli::CliConfigOverrides;
-use codex_utils_cli::SharedCliOptions;
+use codepilotx_utils_cli::CliConfigOverrides;
+use codepilotx_utils_cli::SharedCliOptions;
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
@@ -31,7 +31,7 @@ pub struct Cli {
     #[arg(long = "ephemeral", global = true, default_value_t = false)]
     pub ephemeral: bool,
 
-    /// Do not load `$CODEX_HOME/config.toml`; auth still uses `CODEX_HOME`.
+    /// Do not load `$codepilotx_HOME/config.toml`; auth still uses `codepilotx_HOME`.
     #[arg(long = "ignore-user-config", global = true, default_value_t = false)]
     pub ignore_user_config: bool,
 

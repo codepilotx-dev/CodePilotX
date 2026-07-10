@@ -1,7 +1,7 @@
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_utils_path_uri::PathUri;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::permissions::FileSystemSandboxPolicy;
+use codepilotx_protocol::permissions::NetworkSandboxPolicy;
+use codepilotx_utils_path_uri::PathUri;
 use pretty_assertions::assert_eq;
 use tokio::io;
 
@@ -11,7 +11,7 @@ use super::*;
 async fn sandboxed_file_system_rejects_non_native_uri_as_invalid_input() {
     let runtime_paths = ExecServerRuntimePaths::new(
         std::env::current_exe().expect("current exe"),
-        /*codex_linux_sandbox_exe*/ None,
+        /*codepilotx_linux_sandbox_exe*/ None,
     )
     .expect("runtime paths");
     let file_system = SandboxedFileSystem::new(runtime_paths);

@@ -23,7 +23,7 @@ fn top_cli_parses_resume_prompt_after_config_flag() {
         .config_overrides
         .prepend_root_overrides(cli.config_overrides);
 
-    let Some(codex_exec::Command::Resume(args)) = inner.command.as_ref() else {
+    let Some(codepilotx_exec::Command::Resume(args)) = inner.command.as_ref() else {
         panic!("expected resume command");
     };
     let effective_prompt = args.prompt.clone().or_else(|| {

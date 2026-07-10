@@ -4,7 +4,7 @@ use std::os::fd::AsRawFd;
 use std::os::fd::OwnedFd;
 
 use anyhow::Context as _;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 
 use crate::unix::escalate_protocol::ESCALATE_SOCKET_ENV_VAR;
 use crate::unix::escalate_protocol::EXEC_WRAPPER_ENV_VAR;

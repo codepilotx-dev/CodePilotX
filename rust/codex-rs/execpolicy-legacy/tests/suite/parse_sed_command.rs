@@ -1,5 +1,5 @@
-use codex_execpolicy_legacy::Error;
-use codex_execpolicy_legacy::parse_sed_command;
+use codepilotx_execpolicy_legacy::Error;
+use codepilotx_execpolicy_legacy::parse_sed_command;
 
 #[test]
 fn parses_simple_print_command() {

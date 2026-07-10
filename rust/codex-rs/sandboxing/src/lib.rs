@@ -29,11 +29,11 @@ pub use windows::resolve_windows_restricted_token_filesystem_overrides;
 pub use windows::unsupported_windows_restricted_token_sandbox_reason;
 pub use windows::windows_sandbox_uses_elevated_backend;
 
-use codex_protocol::error::CodexErr;
+use codepilotx_protocol::error::CodexErr;
 
 #[cfg(not(target_os = "linux"))]
 pub fn system_bwrap_warning(
-    _permission_profile: &codex_protocol::models::PermissionProfile,
+    _permission_profile: &codepilotx_protocol::models::PermissionProfile,
 ) -> Option<String> {
     None
 }

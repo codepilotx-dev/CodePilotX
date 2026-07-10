@@ -18,7 +18,7 @@ use crate::environment_provider::EnvironmentDefault;
 use crate::environment_provider::EnvironmentProvider;
 use crate::environment_provider::EnvironmentProviderSnapshot;
 use crate::environment_provider::normalize_exec_server_url;
-use crate::environment_toml::environment_provider_from_codex_home;
+use crate::environment_toml::environment_provider_from_codepilotx_home;
 use crate::local_file_system::LocalFileSystem;
 use crate::local_process::LocalProcess;
 use crate::process::ExecBackend;
@@ -27,25 +27,25 @@ use crate::protocol::ShellInfo;
 use crate::remote::NoiseRendezvousEnvironmentConfig;
 use crate::remote_file_system::RemoteFileSystem;
 use crate::remote_process::RemoteProcess;
-use codex_shell_command::shell_detect::DetectedShell;
+use codepilotx_shell_command::shell_detect::DetectedShell;
 use tokio_util::task::AbortOnDropHandle;
 
-pub const CODEX_EXEC_SERVER_URL_ENV_VAR: &str = "CODEX_EXEC_SERVER_URL";
-pub const CODEX_EXEC_SERVER_NOISE_REGISTRY_URL_ENV_VAR: &str =
-    "CODEX_EXEC_SERVER_NOISE_REGISTRY_URL";
-pub const CODEX_EXEC_SERVER_NOISE_ENVIRONMENT_ID_ENV_VAR: &str =
-    "CODEX_EXEC_SERVER_NOISE_ENVIRONMENT_ID";
-pub const CODEX_EXEC_SERVER_NOISE_AUTH_TOKEN_ENV_VAR: &str = "CODEX_EXEC_SERVER_NOISE_AUTH_TOKEN";
-pub const CODEX_EXEC_SERVER_NOISE_CHATGPT_ACCOUNT_ID_ENV_VAR: &str =
-    "CODEX_EXEC_SERVER_NOISE_CHATGPT_ACCOUNT_ID";
+pub const codepilotx_EXEC_SERVER_URL_ENV_VAR: &str = "codepilotx_EXEC_SERVER_URL";
+pub const codepilotx_EXEC_SERVER_NOISE_REGISTRY_URL_ENV_VAR: &str =
+    "codepilotx_EXEC_SERVER_NOISE_REGISTRY_URL";
+pub const codepilotx_EXEC_SERVER_NOISE_ENVIRONMENT_ID_ENV_VAR: &str =
+    "codepilotx_EXEC_SERVER_NOISE_ENVIRONMENT_ID";
+pub const codepilotx_EXEC_SERVER_NOISE_AUTH_TOKEN_ENV_VAR: &str = "codepilotx_EXEC_SERVER_NOISE_AUTH_TOKEN";
+pub const codepilotx_EXEC_SERVER_NOISE_CHATGPT_ACCOUNT_ID_ENV_VAR: &str =
+    "codepilotx_EXEC_SERVER_NOISE_CHATGPT_ACCOUNT_ID";
 
 /// Owns the execution/filesystem environments available to the Codex runtime.
 ///
 /// `EnvironmentManager` is a shared registry for concrete environments. Its
-/// default constructor preserves the legacy `CODEX_EXEC_SERVER_URL` behavior
+/// default constructor preserves the legacy `codepilotx_EXEC_SERVER_URL` behavior
 /// while configured construction accepts a provider-supplied snapshot.
 ///
-/// Setting `CODEX_EXEC_SERVER_URL=none` disables environment access by leaving
+/// Setting `codepilotx_EXEC_SERVER_URL=none` disables environment access by leaving
 /// the default environment unset and omitting the local environment. Callers
 /// use `default_environment().is_some()` as the signal for model-facing
 /// shell/filesystem tool availability.
@@ -96,25 +96,25 @@ impl EnvironmentManager {
         Self::from_default_provider_url(exec_server_url, local_runtime_paths).await
     }
 
-    /// Builds a manager from `CODEX_HOME` and local runtime paths used when
+    /// Builds a manager from `codepilotx_HOME` and local runtime paths used when
     /// creating local filesystem helpers.
     ///
-    /// If `CODEX_HOME/environments.toml` is present, it defines the configured
+    /// If `codepilotx_HOME/environments.toml` is present, it defines the configured
     /// environments. Otherwise this preserves the legacy
-    /// `CODEX_EXEC_SERVER_URL` behavior.
-    pub async fn from_codex_home(
-        codex_home: impl AsRef<std::path::Path>,
+    /// `codepilotx_EXEC_SERVER_URL` behavior.
+    pub async fn from_codepilotx_home(
+        codepilotx_home: impl AsRef<std::path::Path>,
         local_runtime_paths: Option<ExecServerRuntimePaths>,
     ) -> Result<Self, ExecServerError> {
         if let Some(config) = noise_environment_config_from_env()? {
             return Self::from_noise_environment_config(config, local_runtime_paths);
         }
-        let provider = environment_provider_from_codex_home(codex_home.as_ref())?;
+        let provider = environment_provider_from_codepilotx_home(codepilotx_home.as_ref())?;
         Self::from_snapshot(provider.snapshot().await?, local_runtime_paths)
     }
 
     /// Builds a manager from the legacy environment-variable provider without
-    /// reading user config files from `CODEX_HOME`.
+    /// reading user config files from `codepilotx_HOME`.
     pub async fn from_env(
         local_runtime_paths: Option<ExecServerRuntimePaths>,
     ) -> Result<Self, ExecServerError> {
@@ -364,10 +364,10 @@ impl EnvironmentManager {
 fn noise_environment_config_from_env()
 -> Result<Option<NoiseRendezvousEnvironmentConfig>, ExecServerError> {
     noise_environment_config_from_values(
-        optional_environment_value(CODEX_EXEC_SERVER_NOISE_REGISTRY_URL_ENV_VAR),
-        optional_environment_value(CODEX_EXEC_SERVER_NOISE_ENVIRONMENT_ID_ENV_VAR),
-        optional_environment_value(CODEX_EXEC_SERVER_NOISE_AUTH_TOKEN_ENV_VAR),
-        optional_environment_value(CODEX_EXEC_SERVER_NOISE_CHATGPT_ACCOUNT_ID_ENV_VAR),
+        optional_environment_value(codepilotx_EXEC_SERVER_NOISE_REGISTRY_URL_ENV_VAR),
+        optional_environment_value(codepilotx_EXEC_SERVER_NOISE_ENVIRONMENT_ID_ENV_VAR),
+        optional_environment_value(codepilotx_EXEC_SERVER_NOISE_AUTH_TOKEN_ENV_VAR),
+        optional_environment_value(codepilotx_EXEC_SERVER_NOISE_CHATGPT_ACCOUNT_ID_ENV_VAR),
     )
 }
 
@@ -385,9 +385,9 @@ fn noise_environment_config_from_values(
             }
             _ => {
                 return Err(ExecServerError::EnvironmentRegistryConfig(format!(
-                    "Noise environment requires {CODEX_EXEC_SERVER_NOISE_REGISTRY_URL_ENV_VAR}, \
-{CODEX_EXEC_SERVER_NOISE_ENVIRONMENT_ID_ENV_VAR}, and \
-{CODEX_EXEC_SERVER_NOISE_AUTH_TOKEN_ENV_VAR}"
+                    "Noise environment requires {codepilotx_EXEC_SERVER_NOISE_REGISTRY_URL_ENV_VAR}, \
+{codepilotx_EXEC_SERVER_NOISE_ENVIRONMENT_ID_ENV_VAR}, and \
+{codepilotx_EXEC_SERVER_NOISE_AUTH_TOKEN_ENV_VAR}"
                 )));
             }
         };
@@ -448,7 +448,7 @@ impl std::fmt::Debug for Environment {
 }
 
 impl Environment {
-    /// Builds an environment from the raw `CODEX_EXEC_SERVER_URL` value.
+    /// Builds an environment from the raw `codepilotx_EXEC_SERVER_URL` value.
     pub fn create(
         exec_server_url: Option<String>,
         local_runtime_paths: ExecServerRuntimePaths,
@@ -461,7 +461,7 @@ impl Environment {
         Self::create_inner(exec_server_url, /*local_runtime_paths*/ None)
     }
 
-    /// Builds an environment from the raw `CODEX_EXEC_SERVER_URL` value and
+    /// Builds an environment from the raw `codepilotx_EXEC_SERVER_URL` value and
     /// local runtime paths used when creating local filesystem helpers.
     fn create_inner(
         exec_server_url: Option<String>,
@@ -605,7 +605,7 @@ impl Environment {
 impl EnvironmentInfo {
     pub(crate) fn local() -> Self {
         Self {
-            shell: codex_shell_command::shell_detect::default_user_shell().into(),
+            shell: codepilotx_shell_command::shell_detect::default_user_shell().into(),
         }
     }
 }
@@ -636,7 +636,7 @@ mod tests {
     use crate::client_api::StdioExecServerCommand;
     use crate::environment_provider::EnvironmentDefault;
     use crate::environment_provider::EnvironmentProviderSnapshot;
-    use codex_utils_path_uri::PathUri;
+    use codepilotx_utils_path_uri::PathUri;
     use pretty_assertions::assert_eq;
     use tokio::net::TcpListener;
     use tokio::time::timeout;
@@ -644,7 +644,7 @@ mod tests {
     fn test_runtime_paths() -> ExecServerRuntimePaths {
         ExecServerRuntimePaths::new(
             std::env::current_exe().expect("current exe"),
-            /*codex_linux_sandbox_exe*/ None,
+            /*codepilotx_linux_sandbox_exe*/ None,
         )
         .expect("runtime paths")
     }
@@ -1168,15 +1168,15 @@ mod tests {
     #[tokio::test]
     async fn test_environment_rejects_sandboxed_filesystem_without_runtime_paths() {
         let environment = Environment::default_for_tests();
-        let path = codex_utils_absolute_path::AbsolutePathBuf::from_absolute_path(
+        let path = codepilotx_utils_absolute_path::AbsolutePathBuf::from_absolute_path(
             std::env::current_exe().expect("current exe").as_path(),
         )
         .expect("absolute current exe");
-        let path = codex_utils_path_uri::PathUri::from_abs_path(&path);
+        let path = codepilotx_utils_path_uri::PathUri::from_abs_path(&path);
         let sandbox = crate::FileSystemSandboxContext::from_permission_profile(
-            codex_protocol::models::PermissionProfile::from_runtime_permissions(
-                &codex_protocol::permissions::FileSystemSandboxPolicy::restricted(Vec::new()),
-                codex_protocol::permissions::NetworkSandboxPolicy::Restricted,
+            codepilotx_protocol::models::PermissionProfile::from_runtime_permissions(
+                &codepilotx_protocol::permissions::FileSystemSandboxPolicy::restricted(Vec::new()),
+                codepilotx_protocol::permissions::NetworkSandboxPolicy::Restricted,
             ),
         );
 

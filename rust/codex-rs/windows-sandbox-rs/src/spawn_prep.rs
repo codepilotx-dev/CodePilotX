@@ -18,7 +18,7 @@ use crate::identity::require_logon_sandbox_creds;
 use crate::logging::log_start;
 use crate::path_normalization::canonicalize_path;
 use crate::resolved_permissions::ResolvedWindowsSandboxPermissions;
-use crate::sandbox_utils::ensure_codex_home_exists;
+use crate::sandbox_utils::ensure_codepilotx_home_exists;
 use crate::sandbox_utils::inject_git_safe_directory;
 use crate::setup::effective_write_roots_for_permissions;
 use crate::token::LocalSid;
@@ -28,11 +28,11 @@ use crate::token::get_current_token_for_restriction;
 use crate::token::get_logon_sid_bytes;
 use crate::workspace_acl::is_command_cwd_root;
 use crate::workspace_acl::protect_workspace_agents_dir;
-use crate::workspace_acl::protect_workspace_codex_dir;
+use crate::workspace_acl::protect_workspace_codepilotx_dir;
 use anyhow::Context;
 use anyhow::Result;
-use codex_protocol::models::PermissionProfile;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::path::Path;
@@ -82,7 +82,7 @@ pub(crate) struct LegacyAclSids<'a> {
 fn prepare_spawn_context_common(
     permission_profile: &PermissionProfile,
     workspace_roots: &[AbsolutePathBuf],
-    codex_home: &Path,
+    codepilotx_home: &Path,
     cwd: &Path,
     env_map: &mut HashMap<String, String>,
     command: &[String],
@@ -103,8 +103,8 @@ fn prepare_spawn_context_common(
         inject_git_safe_directory(env_map, cwd);
     }
 
-    ensure_codex_home_exists(codex_home)?;
-    let sandbox_base = codex_home.join(".sandbox");
+    ensure_codepilotx_home_exists(codepilotx_home)?;
+    let sandbox_base = codepilotx_home.join(".sandbox");
     std::fs::create_dir_all(&sandbox_base)?;
     let logs_base_dir = Some(sandbox_base);
     log_start(command, logs_base_dir.as_deref());
@@ -122,7 +122,7 @@ fn prepare_spawn_context_common(
 pub(crate) fn prepare_legacy_spawn_context(
     permission_profile: &PermissionProfile,
     workspace_roots: &[AbsolutePathBuf],
-    codex_home: &Path,
+    codepilotx_home: &Path,
     cwd: &Path,
     env_map: &mut HashMap<String, String>,
     command: &[String],
@@ -131,7 +131,7 @@ pub(crate) fn prepare_legacy_spawn_context(
     let common = prepare_spawn_context_common(
         permission_profile,
         workspace_roots,
-        codex_home,
+        codepilotx_home,
         cwd,
         env_map,
         command,
@@ -145,14 +145,14 @@ pub(crate) fn prepare_legacy_spawn_context(
 
 pub(crate) fn prepare_legacy_session_security(
     uses_write_capabilities: bool,
-    codex_home: &Path,
+    codepilotx_home: &Path,
     cwd: &Path,
     capability_roots: impl IntoIterator<Item = PathBuf>,
 ) -> Result<LegacySessionSecurity> {
-    let caps = load_or_create_cap_sids(codex_home)?;
+    let caps = load_or_create_cap_sids(codepilotx_home)?;
     let (h_token, readonly_sid, readonly_sid_str, write_root_sids) = unsafe {
         if uses_write_capabilities {
-            let write_root_sids = root_capability_sids(codex_home, cwd, capability_roots)?;
+            let write_root_sids = root_capability_sids(codepilotx_home, cwd, capability_roots)?;
             if write_root_sids.is_empty() {
                 anyhow::bail!("workspace-write sandbox has no writable root capability SIDs");
             }
@@ -184,7 +184,7 @@ pub(crate) fn legacy_session_capability_roots(
     permissions: &ResolvedWindowsSandboxPermissions,
     current_dir: &Path,
     env_map: &HashMap<String, String>,
-    codex_home: &Path,
+    codepilotx_home: &Path,
 ) -> Vec<PathBuf> {
     let allow_paths = compute_allow_paths_for_permissions(permissions, current_dir, env_map)
         .allow
@@ -195,7 +195,7 @@ pub(crate) fn legacy_session_capability_roots(
             permissions,
             current_dir,
             env_map,
-            codex_home,
+            codepilotx_home,
             Some(allow_paths.as_slice()),
         )
     } else {
@@ -204,7 +204,7 @@ pub(crate) fn legacy_session_capability_roots(
 }
 
 pub(crate) fn root_capability_sids(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     cwd: &Path,
     allow_paths: impl IntoIterator<Item = PathBuf>,
 ) -> Result<Vec<RootCapabilitySid>> {
@@ -214,7 +214,7 @@ pub(crate) fn root_capability_sids(
 
     let mut out = Vec::with_capacity(roots.len());
     for root in roots {
-        let sid_str = workspace_write_cap_sid_for_root(codex_home, cwd, &root)?;
+        let sid_str = workspace_write_cap_sid_for_root(codepilotx_home, cwd, &root)?;
         let sid = LocalSid::from_string(&sid_str)?;
         out.push(RootCapabilitySid { root, sid, sid_str });
     }
@@ -266,7 +266,7 @@ pub(crate) fn allow_null_device_for_workspace_write(is_workspace_write: bool) {
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn apply_legacy_session_acl_rules(
     permissions: &ResolvedWindowsSandboxPermissions,
-    codex_home: &Path,
+    codepilotx_home: &Path,
     current_dir: &Path,
     env_map: &HashMap<String, String>,
     additional_deny_read_paths: &[PathBuf],
@@ -308,7 +308,7 @@ pub(crate) fn apply_legacy_session_acl_rules(
                     anyhow::bail!("readonly capability SID string missing");
                 };
                 sync_persistent_deny_read_acls(
-                    codex_home,
+                    codepilotx_home,
                     readonly_sid_str,
                     additional_deny_read_paths,
                     readonly_sid.as_ptr(),
@@ -316,7 +316,7 @@ pub(crate) fn apply_legacy_session_acl_rules(
             } else {
                 for root_sid in acl_sids.write_root_sids {
                     sync_persistent_deny_read_acls(
-                        codex_home,
+                        codepilotx_home,
                         &root_sid.sid_str,
                         additional_deny_read_paths,
                         root_sid.sid.as_ptr(),
@@ -336,7 +336,7 @@ pub(crate) fn apply_legacy_session_acl_rules(
         {
             let canonical_cwd = canonicalize_path(current_dir);
             if is_command_cwd_root(&workspace_sid.root, &canonical_cwd) {
-                let _ = protect_workspace_codex_dir(current_dir, workspace_sid.sid.as_ptr());
+                let _ = protect_workspace_codepilotx_dir(current_dir, workspace_sid.sid.as_ptr());
                 let _ = protect_workspace_agents_dir(current_dir, workspace_sid.sid.as_ptr());
             }
         }
@@ -347,7 +347,7 @@ pub(crate) fn apply_legacy_session_acl_rules(
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn prepare_elevated_spawn_context_for_permissions(
     permissions: ResolvedWindowsSandboxPermissions,
-    codex_home: &Path,
+    codepilotx_home: &Path,
     cwd: &Path,
     env_map: &mut HashMap<String, String>,
     command: &[String],
@@ -364,8 +364,8 @@ pub(crate) fn prepare_elevated_spawn_context_for_permissions(
     inject_git_safe_directory(env_map, cwd);
 
     // Use a temp-based log dir that the sandbox user can write.
-    let sandbox_base = codex_home.join(".sandbox");
-    ensure_codex_home_exists(&sandbox_base)?;
+    let sandbox_base = codepilotx_home.join(".sandbox");
+    ensure_codepilotx_home_exists(&sandbox_base)?;
     let logs_base_dir = Some(sandbox_base.clone());
     log_start(command, logs_base_dir.as_deref());
 
@@ -386,7 +386,7 @@ pub(crate) fn prepare_elevated_spawn_context_for_permissions(
             &permissions,
             cwd,
             env_map,
-            codex_home,
+            codepilotx_home,
             write_roots_for_setup,
         )
     } else {
@@ -401,7 +401,7 @@ pub(crate) fn prepare_elevated_spawn_context_for_permissions(
         &permissions,
         cwd,
         env_map,
-        codex_home,
+        codepilotx_home,
         read_roots_override,
         read_roots_include_platform_defaults,
         setup_write_roots_override,
@@ -413,9 +413,9 @@ pub(crate) fn prepare_elevated_spawn_context_for_permissions(
         },
         proxy_enforced,
     )?;
-    let caps = load_or_create_cap_sids(codex_home)?;
+    let caps = load_or_create_cap_sids(codepilotx_home)?;
     let (psid_to_use, cap_sids) = if uses_write_capabilities {
-        let cap_sids = root_capability_sids(codex_home, cwd, effective_write_roots)?
+        let cap_sids = root_capability_sids(codepilotx_home, cwd, effective_write_roots)?
             .into_iter()
             .map(|root_sid| root_sid.sid_str)
             .collect::<Vec<_>>();
@@ -453,9 +453,9 @@ mod tests {
     use crate::cap::load_or_create_cap_sids;
     use crate::cap::workspace_write_cap_sid_for_root;
     use crate::resolved_permissions::ResolvedWindowsSandboxPermissions;
-    use codex_protocol::models::PermissionProfile;
-    use codex_protocol::permissions::NetworkSandboxPolicy;
-    use codex_utils_absolute_path::AbsolutePathBuf;
+    use codepilotx_protocol::models::PermissionProfile;
+    use codepilotx_protocol::permissions::NetworkSandboxPolicy;
+    use codepilotx_utils_absolute_path::AbsolutePathBuf;
     use pretty_assertions::assert_eq;
     use std::collections::HashMap;
     use std::path::Path;
@@ -507,7 +507,7 @@ mod tests {
 
     #[test]
     fn legacy_spawn_env_applies_offline_network_rewrite() {
-        let codex_home = TempDir::new().expect("tempdir");
+        let codepilotx_home = TempDir::new().expect("tempdir");
         let cwd = TempDir::new().expect("tempdir");
         let mut env_map = HashMap::new();
         let workspace_roots = workspace_roots_for(cwd.path());
@@ -515,7 +515,7 @@ mod tests {
         let _context = prepare_legacy_spawn_context(
             &PermissionProfile::workspace_write(),
             workspace_roots.as_slice(),
-            codex_home.path(),
+            codepilotx_home.path(),
             cwd.path(),
             &mut env_map,
             &["cmd.exe".to_string()],
@@ -535,7 +535,7 @@ mod tests {
 
     #[test]
     fn common_spawn_env_keeps_network_env_unchanged() {
-        let codex_home = TempDir::new().expect("tempdir");
+        let codepilotx_home = TempDir::new().expect("tempdir");
         let cwd = TempDir::new().expect("tempdir");
         let mut env_map = HashMap::from([(
             "HTTP_PROXY".to_string(),
@@ -546,7 +546,7 @@ mod tests {
         let context = prepare_spawn_context_common(
             &PermissionProfile::workspace_write(),
             workspace_roots.as_slice(),
-            codex_home.path(),
+            codepilotx_home.path(),
             cwd.path(),
             &mut env_map,
             &["cmd.exe".to_string()],
@@ -568,10 +568,10 @@ mod tests {
     #[test]
     fn legacy_session_capability_roots_use_runtime_workspace_roots_for_workspace_root() {
         let tmp = TempDir::new().expect("tempdir");
-        let codex_home = tmp.path().join("codex-home");
+        let codepilotx_home = tmp.path().join("codex-home");
         let workspace_root = tmp.path().join("workspace");
         let command_cwd = workspace_root.join("subdir");
-        std::fs::create_dir_all(&codex_home).expect("create codex home");
+        std::fs::create_dir_all(&codepilotx_home).expect("create codex home");
         std::fs::create_dir_all(&command_cwd).expect("create command cwd");
 
         let permission_profile = workspace_profile(
@@ -592,7 +592,7 @@ mod tests {
             &permissions,
             &command_cwd,
             &HashMap::new(),
-            &codex_home,
+            &codepilotx_home,
         );
 
         assert_eq!(
@@ -604,25 +604,25 @@ mod tests {
     #[test]
     fn root_capability_sids_only_include_active_roots() {
         let temp = TempDir::new().expect("tempdir");
-        let codex_home = temp.path().join("codex-home");
+        let codepilotx_home = temp.path().join("codex-home");
         let workspace = temp.path().join("workspace");
         let active_root = temp.path().join("active-root");
         let stale_root = temp.path().join("stale-root");
-        std::fs::create_dir_all(&codex_home).expect("create codex home");
+        std::fs::create_dir_all(&codepilotx_home).expect("create codex home");
         std::fs::create_dir_all(&workspace).expect("create workspace");
         std::fs::create_dir_all(&active_root).expect("create active root");
         std::fs::create_dir_all(&stale_root).expect("create stale root");
 
-        let stale_sid = workspace_write_cap_sid_for_root(&codex_home, &workspace, &stale_root)
+        let stale_sid = workspace_write_cap_sid_for_root(&codepilotx_home, &workspace, &stale_root)
             .expect("stale sid");
-        let active_sid = workspace_write_cap_sid_for_root(&codex_home, &workspace, &active_root)
+        let active_sid = workspace_write_cap_sid_for_root(&codepilotx_home, &workspace, &active_root)
             .expect("active sid");
-        let workspace_sid = workspace_write_cap_sid_for_root(&codex_home, &workspace, &workspace)
+        let workspace_sid = workspace_write_cap_sid_for_root(&codepilotx_home, &workspace, &workspace)
             .expect("workspace sid");
-        let caps = load_or_create_cap_sids(&codex_home).expect("load caps");
+        let caps = load_or_create_cap_sids(&codepilotx_home).expect("load caps");
 
         let sid_strs = root_capability_sids(
-            &codex_home,
+            &codepilotx_home,
             &workspace,
             vec![workspace.clone(), active_root],
         )
@@ -641,25 +641,25 @@ mod tests {
     #[test]
     fn legacy_deny_path_includes_nested_active_root_sid() {
         let temp = TempDir::new().expect("tempdir");
-        let codex_home = temp.path().join("codex-home");
+        let codepilotx_home = temp.path().join("codex-home");
         let workspace = temp.path().join("workspace");
         let protected_dir = workspace.join(".codex");
         let nested_root = protected_dir.join("nested-root");
         let unrelated_root = temp.path().join("unrelated-root");
-        std::fs::create_dir_all(&codex_home).expect("create codex home");
+        std::fs::create_dir_all(&codepilotx_home).expect("create codex home");
         std::fs::create_dir_all(&workspace).expect("create workspace");
         std::fs::create_dir_all(&nested_root).expect("create nested root");
         std::fs::create_dir_all(&unrelated_root).expect("create unrelated root");
 
-        let workspace_sid = workspace_write_cap_sid_for_root(&codex_home, &workspace, &workspace)
+        let workspace_sid = workspace_write_cap_sid_for_root(&codepilotx_home, &workspace, &workspace)
             .expect("workspace sid");
-        let nested_sid = workspace_write_cap_sid_for_root(&codex_home, &workspace, &nested_root)
+        let nested_sid = workspace_write_cap_sid_for_root(&codepilotx_home, &workspace, &nested_root)
             .expect("nested sid");
         let unrelated_sid =
-            workspace_write_cap_sid_for_root(&codex_home, &workspace, &unrelated_root)
+            workspace_write_cap_sid_for_root(&codepilotx_home, &workspace, &unrelated_root)
                 .expect("unrelated sid");
         let root_sids = root_capability_sids(
-            &codex_home,
+            &codepilotx_home,
             &workspace,
             vec![workspace.clone(), nested_root, unrelated_root],
         )
@@ -677,18 +677,18 @@ mod tests {
     #[test]
     fn legacy_capability_roots_use_effective_write_roots() {
         let temp = TempDir::new().expect("tempdir");
-        let codex_home = temp.path().join("codex-home");
+        let codepilotx_home = temp.path().join("codex-home");
         let workspace = temp.path().join("workspace");
         let active_root = temp.path().join("active-root");
-        let sandbox_root = codex_home.join(".sandbox");
-        std::fs::create_dir_all(&codex_home).expect("create codex home");
+        let sandbox_root = codepilotx_home.join(".sandbox");
+        std::fs::create_dir_all(&codepilotx_home).expect("create codex home");
         std::fs::create_dir_all(&workspace).expect("create workspace");
         std::fs::create_dir_all(&active_root).expect("create active root");
         std::fs::create_dir_all(&sandbox_root).expect("create sandbox root");
 
         let writable_roots = vec![
             AbsolutePathBuf::try_from(active_root.as_path()).expect("active root"),
-            AbsolutePathBuf::try_from(codex_home.as_path()).expect("codex home"),
+            AbsolutePathBuf::try_from(codepilotx_home.as_path()).expect("codex home"),
             AbsolutePathBuf::try_from(sandbox_root.as_path()).expect("sandbox root"),
         ];
         let permission_profile = workspace_profile(
@@ -706,11 +706,11 @@ mod tests {
             .expect("managed permission profile");
 
         let roots =
-            legacy_session_capability_roots(&permissions, &workspace, &HashMap::new(), &codex_home);
+            legacy_session_capability_roots(&permissions, &workspace, &HashMap::new(), &codepilotx_home);
 
         assert!(roots.contains(&dunce::canonicalize(&workspace).expect("workspace")));
         assert!(roots.contains(&dunce::canonicalize(&active_root).expect("active root")));
-        assert!(!roots.contains(&dunce::canonicalize(&codex_home).expect("codex home")));
+        assert!(!roots.contains(&dunce::canonicalize(&codepilotx_home).expect("codex home")));
         assert!(!roots.contains(&dunce::canonicalize(&sandbox_root).expect("sandbox root")));
     }
 }

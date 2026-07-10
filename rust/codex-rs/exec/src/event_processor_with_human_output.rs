@@ -1,18 +1,18 @@
 use std::io::IsTerminal;
 use std::path::PathBuf;
 
-use codex_app_server_protocol::CommandExecutionStatus;
-use codex_app_server_protocol::McpToolCallStatus;
-use codex_app_server_protocol::PatchApplyStatus;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::ThreadItem;
-use codex_app_server_protocol::ThreadTokenUsage;
-use codex_app_server_protocol::TurnStatus;
-use codex_core::config::Config;
-use codex_model_provider_info::WireApi;
-use codex_protocol::num_format::format_with_separators;
-use codex_protocol::protocol::SessionConfiguredEvent;
-use codex_utils_sandbox_summary::summarize_permission_profile;
+use codepilotx_app_server_protocol::CommandExecutionStatus;
+use codepilotx_app_server_protocol::McpToolCallStatus;
+use codepilotx_app_server_protocol::PatchApplyStatus;
+use codepilotx_app_server_protocol::ServerNotification;
+use codepilotx_app_server_protocol::ThreadItem;
+use codepilotx_app_server_protocol::ThreadTokenUsage;
+use codepilotx_app_server_protocol::TurnStatus;
+use codepilotx_core::config::Config;
+use codepilotx_model_provider_info::WireApi;
+use codepilotx_protocol::num_format::format_with_separators;
+use codepilotx_protocol::protocol::SessionConfiguredEvent;
+use codepilotx_utils_sandbox_summary::summarize_permission_profile;
 use owo_colors::OwoColorize;
 use owo_colors::Style;
 
@@ -343,16 +343,16 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                 }
                 for step in notification.plan {
                     match step.status {
-                        codex_app_server_protocol::TurnPlanStepStatus::Completed => {
-                            eprintln!("  {} {}", "âœ“".style(self.green), step.step);
+                        codepilotx_app_server_protocol::TurnPlanStepStatus::Completed => {
+                            eprintln!("  {} {}", "âœ?.style(self.green), step.step);
                         }
-                        codex_app_server_protocol::TurnPlanStepStatus::InProgress => {
-                            eprintln!("  {} {}", "â†’".style(self.cyan), step.step);
+                        codepilotx_app_server_protocol::TurnPlanStepStatus::InProgress => {
+                            eprintln!("  {} {}", "â†?.style(self.cyan), step.step);
                         }
-                        codex_app_server_protocol::TurnPlanStepStatus::Pending => {
+                        codepilotx_app_server_protocol::TurnPlanStepStatus::Pending => {
                             eprintln!(
                                 "  {} {}",
-                                "â€¢".style(self.dimmed),
+                                "â€?.style(self.dimmed),
                                 step.step.style(self.dimmed)
                             );
                         }

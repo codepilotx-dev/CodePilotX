@@ -12,19 +12,19 @@ use anyhow::Context;
 use anyhow::Result;
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD;
-use codex_api::AuthProvider;
-use codex_exec_server::ExecParams;
-use codex_exec_server::ExecResponse;
-use codex_exec_server::ExecServerClient;
-use codex_exec_server::ExecServerRuntimePaths;
-use codex_exec_server::FsReadFileParams;
-use codex_exec_server::NoiseChannelIdentity;
-use codex_exec_server::NoiseChannelPublicKey;
-use codex_exec_server::NoiseRendezvousConnectArgs;
-use codex_exec_server::NoiseRendezvousConnectBundle;
-use codex_exec_server::ProcessId;
-use codex_exec_server::RemoteEnvironmentConfig;
-use codex_utils_path_uri::PathUri;
+use codepilotx_api::AuthProvider;
+use codepilotx_exec_server::ExecParams;
+use codepilotx_exec_server::ExecResponse;
+use codepilotx_exec_server::ExecServerClient;
+use codepilotx_exec_server::ExecServerRuntimePaths;
+use codepilotx_exec_server::FsReadFileParams;
+use codepilotx_exec_server::NoiseChannelIdentity;
+use codepilotx_exec_server::NoiseChannelPublicKey;
+use codepilotx_exec_server::NoiseRendezvousConnectArgs;
+use codepilotx_exec_server::NoiseRendezvousConnectBundle;
+use codepilotx_exec_server::ProcessId;
+use codepilotx_exec_server::RemoteEnvironmentConfig;
+use codepilotx_utils_path_uri::PathUri;
 use futures::SinkExt;
 use futures::StreamExt;
 use http::HeaderMap;
@@ -65,7 +65,7 @@ impl AuthProvider for StaticRegistryAuthProvider {
     }
 }
 
-fn static_registry_auth_provider() -> codex_api::SharedAuthProvider {
+fn static_registry_auth_provider() -> codepilotx_api::SharedAuthProvider {
     Arc::new(StaticRegistryAuthProvider)
 }
 
@@ -98,14 +98,14 @@ async fn remote_environment_routes_encrypted_exec_server_rpc() -> Result<()> {
         .mount(&registry)
         .await;
 
-    let (codex_exe, codex_linux_sandbox_exe) = common::current_test_binary_helper_paths()?;
-    let runtime_paths = ExecServerRuntimePaths::new(codex_exe, codex_linux_sandbox_exe)?;
+    let (codepilotx_exe, codepilotx_linux_sandbox_exe) = common::current_test_binary_helper_paths()?;
+    let runtime_paths = ExecServerRuntimePaths::new(codepilotx_exe, codepilotx_linux_sandbox_exe)?;
     let config = RemoteEnvironmentConfig::new(
         registry.uri(),
         ENVIRONMENT_ID.to_string(),
         static_registry_auth_provider(),
     )?;
-    let remote_environment = tokio::spawn(codex_exec_server::run_remote_environment(
+    let remote_environment = tokio::spawn(codepilotx_exec_server::run_remote_environment(
         config,
         runtime_paths,
     ));

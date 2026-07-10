@@ -1,6 +1,6 @@
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD;
-use codex_utils_path_uri::PathUri;
+use codepilotx_utils_path_uri::PathUri;
 use tokio::io;
 use tracing::trace;
 
@@ -342,15 +342,15 @@ mod path_uri_tests;
 
 #[cfg(test)]
 mod tests {
-    use codex_protocol::models::PermissionProfile;
-    use codex_protocol::permissions::FileSystemAccessMode;
-    use codex_protocol::permissions::FileSystemPath;
-    use codex_protocol::permissions::FileSystemSandboxEntry;
-    use codex_protocol::permissions::FileSystemSandboxPolicy;
-    use codex_protocol::permissions::FileSystemSpecialPath;
-    use codex_protocol::permissions::NetworkSandboxPolicy;
-    use codex_utils_absolute_path::AbsolutePathBuf;
-    use codex_utils_path_uri::PathUri;
+    use codepilotx_protocol::models::PermissionProfile;
+    use codepilotx_protocol::permissions::FileSystemAccessMode;
+    use codepilotx_protocol::permissions::FileSystemPath;
+    use codepilotx_protocol::permissions::FileSystemSandboxEntry;
+    use codepilotx_protocol::permissions::FileSystemSandboxPolicy;
+    use codepilotx_protocol::permissions::FileSystemSpecialPath;
+    use codepilotx_protocol::permissions::NetworkSandboxPolicy;
+    use codepilotx_utils_absolute_path::AbsolutePathBuf;
+    use codepilotx_utils_path_uri::PathUri;
     use pretty_assertions::assert_eq;
 
     use super::*;

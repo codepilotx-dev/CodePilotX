@@ -9,7 +9,7 @@ use std::sync::Mutex;
 use std::time::Duration;
 
 use anyhow::Context as _;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use socket2::Socket;
 use tokio::process::Command;
 use tokio::task::JoinHandle;
@@ -382,10 +382,10 @@ async fn handle_escalate_session_with_policy(
 mod tests {
     use super::*;
     use crate::unix::escalation_policy::EscalationPolicyFuture;
-    use codex_protocol::approvals::EscalationPermissions;
-    use codex_protocol::models::AdditionalPermissionProfile as PermissionProfile;
-    use codex_protocol::models::NetworkPermissions;
-    use codex_utils_absolute_path::AbsolutePathBuf;
+    use codepilotx_protocol::approvals::EscalationPermissions;
+    use codepilotx_protocol::models::AdditionalPermissionProfile as PermissionProfile;
+    use codepilotx_protocol::models::NetworkPermissions;
+    use codepilotx_utils_absolute_path::AbsolutePathBuf;
     use pretty_assertions::assert_eq;
     use std::collections::HashMap;
     use std::io::Write;
@@ -738,7 +738,7 @@ mod tests {
         let mut env = HashMap::new();
         for i in 0..10 {
             let value = "A".repeat(1024);
-            env.insert(format!("CODEX_TEST_VAR{i}"), value);
+            env.insert(format!("codepilotx_TEST_VAR{i}"), value);
         }
 
         client

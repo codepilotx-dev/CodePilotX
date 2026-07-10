@@ -1,8 +1,8 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use codex_api::AuthProvider;
-use codex_api::SharedAuthProvider;
+use codepilotx_api::AuthProvider;
+use codepilotx_api::SharedAuthProvider;
 use futures::FutureExt;
 use http::HeaderMap;
 use http::HeaderName;
@@ -15,7 +15,7 @@ use tracing::debug;
 use tracing::info;
 use tracing::warn;
 
-use codex_utils_rustls_provider::ensure_rustls_crypto_provider;
+use codepilotx_utils_rustls_provider::ensure_rustls_crypto_provider;
 
 use crate::EnvironmentRegistryConnectRequest;
 use crate::EnvironmentRegistryConnectResponse;
@@ -573,7 +573,7 @@ fn preview_error_body(body: &str) -> Option<String> {
 mod tests {
     use std::sync::Arc;
 
-    use codex_api::AuthProvider;
+    use codepilotx_api::AuthProvider;
     use http::HeaderMap;
     use http::HeaderValue;
     use pretty_assertions::assert_eq;

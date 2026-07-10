@@ -1,23 +1,23 @@
 #![cfg(target_os = "linux")]
 #![allow(clippy::unwrap_used)]
-use codex_core::exec::ExecCapturePolicy;
-use codex_core::exec::ExecParams;
-use codex_core::exec::process_exec_tool_call;
-use codex_core::exec_env::create_env;
-use codex_core::sandboxing::SandboxPermissions;
-use codex_protocol::config_types::ShellEnvironmentPolicy;
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::Result;
-use codex_protocol::error::SandboxErr;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::permissions::FileSystemAccessMode;
-use codex_protocol::permissions::FileSystemPath;
-use codex_protocol::permissions::FileSystemSandboxEntry;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::FileSystemSpecialPath;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_core::exec::ExecCapturePolicy;
+use codepilotx_core::exec::ExecParams;
+use codepilotx_core::exec::process_exec_tool_call;
+use codepilotx_core::exec_env::create_env;
+use codepilotx_core::sandboxing::SandboxPermissions;
+use codepilotx_protocol::config_types::ShellEnvironmentPolicy;
+use codepilotx_protocol::config_types::WindowsSandboxLevel;
+use codepilotx_protocol::error::CodexErr;
+use codepilotx_protocol::error::Result;
+use codepilotx_protocol::error::SandboxErr;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::permissions::FileSystemAccessMode;
+use codepilotx_protocol::permissions::FileSystemPath;
+use codepilotx_protocol::permissions::FileSystemSandboxEntry;
+use codepilotx_protocol::permissions::FileSystemSandboxPolicy;
+use codepilotx_protocol::permissions::FileSystemSpecialPath;
+use codepilotx_protocol::permissions::NetworkSandboxPolicy;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -47,7 +47,7 @@ fn create_env_from_core_vars() -> HashMap<String, String> {
     create_env(&policy, /*thread_id*/ None)
 }
 
-fn codex_linux_sandbox_exe() -> PathBuf {
+fn codepilotx_linux_sandbox_exe() -> PathBuf {
     let sandbox_program = PathBuf::from(env!("CARGO_BIN_EXE_codex-linux-sandbox"));
     match sandbox_program.canonicalize() {
         Ok(path) => path,
@@ -69,7 +69,7 @@ async fn run_cmd_output(
     cmd: &[&str],
     writable_roots: &[PathBuf],
     timeout_ms: u64,
-) -> codex_protocol::exec_output::ExecToolCallOutput {
+) -> codepilotx_protocol::exec_output::ExecToolCallOutput {
     run_cmd_result_with_writable_roots(
         cmd,
         writable_roots,
@@ -87,7 +87,7 @@ async fn run_cmd_result_with_writable_roots(
     timeout_ms: u64,
     use_legacy_landlock: bool,
     network_access: bool,
-) -> Result<codex_protocol::exec_output::ExecToolCallOutput> {
+) -> Result<codepilotx_protocol::exec_output::ExecToolCallOutput> {
     let writable_roots = writable_roots
         .iter()
         .map(|path| AbsolutePathBuf::try_from(path.as_path()).unwrap())
@@ -115,7 +115,7 @@ async fn run_cmd_result_with_permission_profile(
     permission_profile: PermissionProfile,
     timeout_ms: u64,
     use_legacy_landlock: bool,
-) -> Result<codex_protocol::exec_output::ExecToolCallOutput> {
+) -> Result<codepilotx_protocol::exec_output::ExecToolCallOutput> {
     let cwd = AbsolutePathBuf::current_dir().expect("cwd should exist");
     run_cmd_result_with_permission_profile_for_cwd(
         cmd,
@@ -134,7 +134,7 @@ async fn run_cmd_result_with_cwd_and_writable_roots(
     timeout_ms: u64,
     use_legacy_landlock: bool,
     network_access: bool,
-) -> Result<codex_protocol::exec_output::ExecToolCallOutput> {
+) -> Result<codepilotx_protocol::exec_output::ExecToolCallOutput> {
     let writable_roots = writable_roots
         .iter()
         .map(|path| AbsolutePathBuf::try_from(path.as_path()).unwrap())
@@ -166,7 +166,7 @@ async fn run_cmd_result_with_permission_profile_for_cwd(
     permission_profile: PermissionProfile,
     timeout_ms: u64,
     use_legacy_landlock: bool,
-) -> Result<codex_protocol::exec_output::ExecToolCallOutput> {
+) -> Result<codepilotx_protocol::exec_output::ExecToolCallOutput> {
     let sandbox_cwd = cwd.clone();
     let params = ExecParams {
         command: cmd.iter().copied().map(str::to_owned).collect(),
@@ -182,21 +182,21 @@ async fn run_cmd_result_with_permission_profile_for_cwd(
         justification: None,
         arg0: None,
     };
-    let codex_linux_sandbox_exe = Some(codex_linux_sandbox_exe());
+    let codepilotx_linux_sandbox_exe = Some(codepilotx_linux_sandbox_exe());
 
     process_exec_tool_call(
         params,
         &permission_profile,
         &sandbox_cwd,
         std::slice::from_ref(&sandbox_cwd),
-        &codex_linux_sandbox_exe,
+        &codepilotx_linux_sandbox_exe,
         use_legacy_landlock,
         /*stdout_stream*/ None,
     )
     .await
 }
 
-fn is_bwrap_unavailable_output(output: &codex_protocol::exec_output::ExecToolCallOutput) -> bool {
+fn is_bwrap_unavailable_output(output: &codepilotx_protocol::exec_output::ExecToolCallOutput) -> bool {
     output.stderr.text.contains(BWRAP_UNAVAILABLE_ERR)
         || (output
             .stderr
@@ -229,9 +229,9 @@ async fn should_skip_bwrap_tests() -> bool {
 }
 
 fn expect_denied(
-    result: Result<codex_protocol::exec_output::ExecToolCallOutput>,
+    result: Result<codepilotx_protocol::exec_output::ExecToolCallOutput>,
     context: &str,
-) -> codex_protocol::exec_output::ExecToolCallOutput {
+) -> codepilotx_protocol::exec_output::ExecToolCallOutput {
     match result {
         Ok(output) => {
             assert_ne!(output.exit_code, 0, "{context}: expected nonzero exit code");
@@ -441,14 +441,14 @@ async fn assert_network_blocked(cmd: &[&str]) {
         arg0: None,
     };
 
-    let codex_linux_sandbox_exe: Option<PathBuf> = Some(codex_linux_sandbox_exe());
+    let codepilotx_linux_sandbox_exe: Option<PathBuf> = Some(codepilotx_linux_sandbox_exe());
     let permission_profile = PermissionProfile::read_only();
     let result = process_exec_tool_call(
         params,
         &permission_profile,
         &sandbox_cwd,
         std::slice::from_ref(&sandbox_cwd),
-        &codex_linux_sandbox_exe,
+        &codepilotx_linux_sandbox_exe,
         /*use_legacy_landlock*/ false,
         /*stdout_stream*/ None,
     )
@@ -467,8 +467,8 @@ async fn assert_network_blocked(cmd: &[&str]) {
     dbg!(&output.exit_code);
 
     // A completely missing binary exits with 127.  Anything else should also
-    // be non‑zero (EPERM from seccomp will usually bubble up as 1, 2, 13…)
-    // If—*and only if*—the command exits 0 we consider the sandbox breached.
+    // be non‑zero (EPERM from seccomp will usually bubble up as 1, 2, 13�?
+    // If�?and only if*—the command exits 0 we consider the sandbox breached.
 
     if output.exit_code == 0 {
         panic!(
@@ -490,7 +490,7 @@ async fn sandbox_blocks_wget() {
 
 #[tokio::test]
 async fn sandbox_blocks_ping() {
-    // ICMP requires raw socket – should be denied quickly with EPERM.
+    // ICMP requires raw socket �?should be denied quickly with EPERM.
     assert_network_blocked(&["ping", "-c", "1", "8.8.8.8"]).await;
 }
 
@@ -501,7 +501,7 @@ async fn sandbox_blocks_nc() {
 }
 
 #[tokio::test]
-async fn sandbox_blocks_git_and_codex_writes_inside_writable_root() {
+async fn sandbox_blocks_git_and_codepilotx_writes_inside_writable_root() {
     if should_skip_bwrap_tests().await {
         eprintln!("skipping bwrap test: bwrap sandbox prerequisites are unavailable");
         return;
@@ -514,7 +514,7 @@ async fn sandbox_blocks_git_and_codex_writes_inside_writable_root() {
     std::fs::create_dir_all(&dot_codex).expect("create .codex");
 
     let git_target = dot_git.join("config");
-    let codex_target = dot_codex.join("config.toml");
+    let codepilotx_target = dot_codex.join("config.toml");
 
     let git_output = expect_denied(
         run_cmd_result_with_writable_roots(
@@ -532,12 +532,12 @@ async fn sandbox_blocks_git_and_codex_writes_inside_writable_root() {
         ".git write should be denied under bubblewrap",
     );
 
-    let codex_output = expect_denied(
+    let codepilotx_output = expect_denied(
         run_cmd_result_with_writable_roots(
             &[
                 "bash",
                 "-lc",
-                &format!("echo denied > {}", codex_target.to_string_lossy()),
+                &format!("echo denied > {}", codepilotx_target.to_string_lossy()),
             ],
             &[tmpdir.path().to_path_buf()],
             LONG_TIMEOUT_MS,
@@ -548,11 +548,11 @@ async fn sandbox_blocks_git_and_codex_writes_inside_writable_root() {
         ".codex write should be denied under bubblewrap",
     );
     assert_ne!(git_output.exit_code, 0);
-    assert_ne!(codex_output.exit_code, 0);
+    assert_ne!(codepilotx_output.exit_code, 0);
 }
 
 #[tokio::test]
-async fn sandbox_blocks_codex_symlink_replacement_attack() {
+async fn sandbox_blocks_codepilotx_symlink_replacement_attack() {
     if should_skip_bwrap_tests().await {
         eprintln!("skipping bwrap test: bwrap sandbox prerequisites are unavailable");
         return;
@@ -567,14 +567,14 @@ async fn sandbox_blocks_codex_symlink_replacement_attack() {
     let dot_codex = tmpdir.path().join(".codex");
     symlink(&decoy, &dot_codex).expect("create .codex symlink");
 
-    let codex_target = dot_codex.join("config.toml");
+    let codepilotx_target = dot_codex.join("config.toml");
 
-    let codex_output = expect_denied(
+    let codepilotx_output = expect_denied(
         run_cmd_result_with_writable_roots(
             &[
                 "bash",
                 "-lc",
-                &format!("echo denied > {}", codex_target.to_string_lossy()),
+                &format!("echo denied > {}", codepilotx_target.to_string_lossy()),
             ],
             &[tmpdir.path().to_path_buf()],
             LONG_TIMEOUT_MS,
@@ -584,11 +584,11 @@ async fn sandbox_blocks_codex_symlink_replacement_attack() {
         .await,
         ".codex symlink replacement should be denied",
     );
-    assert_ne!(codex_output.exit_code, 0);
+    assert_ne!(codepilotx_output.exit_code, 0);
 }
 
 #[tokio::test]
-async fn sandbox_reports_codex_symlink_build_failure_without_panicking() {
+async fn sandbox_reports_codepilotx_symlink_build_failure_without_panicking() {
     if should_skip_bwrap_tests().await {
         eprintln!("skipping bwrap test: bwrap sandbox prerequisites are unavailable");
         return;
@@ -719,7 +719,7 @@ fi
     assert_ne!(git_init_output.exit_code, 0);
     assert!(!subdir.join(".git").exists());
 
-    let mkdir_codex_output = expect_denied(
+    let mkdir_codepilotx_output = expect_denied(
         run_cmd_result_with_cwd_and_writable_roots(
             &["mkdir", ".codex"],
             &subdir,
@@ -731,7 +731,7 @@ fi
         .await,
         "child .codex directory creation should be denied",
     );
-    assert_ne!(mkdir_codex_output.exit_code, 0);
+    assert_ne!(mkdir_codepilotx_output.exit_code, 0);
     assert!(!subdir.join(".codex").exists());
 
     let script = format!(
@@ -776,7 +776,7 @@ async fn sandbox_blocks_explicit_split_policy_carveouts_under_bwrap() {
     let blocked_target = blocked.join("secret.txt");
     // These tests bypass the usual legacy-policy bridge, so explicitly keep
     // the sandbox helper binary and minimal runtime paths readable.
-    let sandbox_helper_dir = codex_linux_sandbox_exe()
+    let sandbox_helper_dir = codepilotx_linux_sandbox_exe()
         .parent()
         .expect("sandbox helper should have a parent")
         .to_path_buf();
@@ -844,7 +844,7 @@ async fn sandbox_reenables_writable_subpaths_under_unreadable_parents() {
     let allowed_target = allowed.join("note.txt");
     // These tests bypass the usual legacy-policy bridge, so explicitly keep
     // the sandbox helper binary and minimal runtime paths readable.
-    let sandbox_helper_dir = codex_linux_sandbox_exe()
+    let sandbox_helper_dir = codepilotx_linux_sandbox_exe()
         .parent()
         .expect("sandbox helper should have a parent")
         .to_path_buf();

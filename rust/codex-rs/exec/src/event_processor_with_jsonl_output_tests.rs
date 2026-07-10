@@ -12,7 +12,7 @@ fn failed_turn_does_not_overwrite_output_last_message_file() {
     let mut processor = EventProcessorWithJsonOutput::new(Some(output_path.clone()));
 
     let collected = processor.collect_thread_events(ServerNotification::ItemCompleted(
-        codex_app_server_protocol::ItemCompletedNotification {
+        codepilotx_app_server_protocol::ItemCompletedNotification {
             item: ThreadItem::AgentMessage {
                 id: "msg-1".to_string(),
                 text: "partial answer".to_string(),
@@ -29,17 +29,17 @@ fn failed_turn_does_not_overwrite_output_last_message_file() {
     assert_eq!(processor.final_message(), Some("partial answer"));
 
     let status = processor.process_server_notification(ServerNotification::TurnCompleted(
-        codex_app_server_protocol::TurnCompletedNotification {
+        codepilotx_app_server_protocol::TurnCompletedNotification {
             thread_id: "thread-1".to_string(),
-            turn: codex_app_server_protocol::Turn {
+            turn: codepilotx_app_server_protocol::Turn {
                 id: "turn-1".to_string(),
-                items_view: codex_app_server_protocol::TurnItemsView::Full,
+                items_view: codepilotx_app_server_protocol::TurnItemsView::Full,
                 items: Vec::new(),
                 status: TurnStatus::Failed,
-                error: Some(codex_app_server_protocol::TurnError {
+                error: Some(codepilotx_app_server_protocol::TurnError {
                     message: "turn failed".to_string(),
                     additional_details: None,
-                    codex_error_info: None,
+                    codepilotx_error_info: None,
                 }),
                 started_at: None,
                 completed_at: Some(0),
@@ -64,7 +64,7 @@ fn runtime_warning_emits_a_non_fatal_error_item() {
     let mut processor = EventProcessorWithJsonOutput::new(/*last_message_path*/ None);
 
     let collected = processor.collect_thread_events(ServerNotification::Warning(
-        codex_app_server_protocol::WarningNotification {
+        codepilotx_app_server_protocol::WarningNotification {
             thread_id: Some("thread-1".to_string()),
             message: "invalid global instructions".to_string(),
         },
@@ -91,7 +91,7 @@ fn mcp_tool_call_result_preserves_meta_in_jsonl_event() {
     let mut processor = EventProcessorWithJsonOutput::new(/*last_message_path*/ None);
 
     let collected = processor.collect_thread_events(ServerNotification::ItemCompleted(
-        codex_app_server_protocol::ItemCompletedNotification {
+        codepilotx_app_server_protocol::ItemCompletedNotification {
             item: ThreadItem::McpToolCall {
                 id: "mcp-1".to_string(),
                 server: "search service".to_string(),
@@ -101,7 +101,7 @@ fn mcp_tool_call_result_preserves_meta_in_jsonl_event() {
                 app_context: None,
                 mcp_app_resource_uri: None,
                 plugin_id: None,
-                result: Some(Box::new(codex_app_server_protocol::McpToolCallResult {
+                result: Some(Box::new(codepilotx_app_server_protocol::McpToolCallResult {
                     content: vec![json!({"type": "text", "text": "search result"})],
                     structured_content: None,
                     meta: Some(json!({"raw_messages": [{"ref_id": "turn0search0"}]})),

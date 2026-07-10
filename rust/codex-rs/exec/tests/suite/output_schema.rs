@@ -2,12 +2,12 @@
 #![allow(clippy::unwrap_used)]
 
 use core_test_support::responses;
-use core_test_support::test_codex_exec::test_codex_exec;
+use core_test_support::test_codepilotx_exec::test_codepilotx_exec;
 use serde_json::Value;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn exec_includes_output_schema_in_request() -> anyhow::Result<()> {
-    let test = test_codex_exec();
+    let test = test_codepilotx_exec();
 
     let schema_contents = serde_json::json!({
         "type": "object",
@@ -51,7 +51,7 @@ async fn exec_includes_output_schema_in_request() -> anyhow::Result<()> {
     assert_eq!(
         format,
         &serde_json::json!({
-            "name": "codex_output_schema",
+            "name": "codepilotx_output_schema",
             "type": "json_schema",
             "strict": true,
             "schema": expected_schema,

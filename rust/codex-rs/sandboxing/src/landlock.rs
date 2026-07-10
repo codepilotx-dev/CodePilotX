@@ -1,9 +1,9 @@
-use codex_protocol::models::PermissionProfile;
+use codepilotx_protocol::models::PermissionProfile;
 use std::path::Path;
 
 /// Basename used when the Codex executable self-invokes as the Linux sandbox
 /// helper.
-pub const CODEX_LINUX_SANDBOX_ARG0: &str = "codex-linux-sandbox";
+pub const codepilotx_LINUX_SANDBOX_ARG0: &str = "codex-linux-sandbox";
 
 pub fn allow_network_for_proxy(enforce_managed_network: bool) -> bool {
     // When managed network requirements are active, request proxy-only

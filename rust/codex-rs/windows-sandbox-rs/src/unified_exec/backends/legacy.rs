@@ -17,11 +17,11 @@ use crate::spawn_prep::legacy_session_capability_roots;
 use crate::spawn_prep::prepare_legacy_session_security;
 use crate::spawn_prep::prepare_legacy_spawn_context;
 use anyhow::Result;
-use codex_protocol::models::PermissionProfile;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_pty::ProcessDriver;
-use codex_utils_pty::SpawnedProcess;
-use codex_utils_pty::TerminalSize;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_pty::ProcessDriver;
+use codepilotx_utils_pty::SpawnedProcess;
+use codepilotx_utils_pty::TerminalSize;
 use std::collections::HashMap;
 use std::path::Path;
 use std::ptr;
@@ -272,7 +272,7 @@ fn resize_conpty_handle(hpc: &Arc<StdMutex<Option<HANDLE>>>, size: TerminalSize)
 pub(crate) async fn spawn_windows_sandbox_session_legacy(
     permission_profile: &PermissionProfile,
     workspace_roots: &[AbsolutePathBuf],
-    codex_home: &Path,
+    codepilotx_home: &Path,
     command: Vec<String>,
     cwd: &Path,
     mut env_map: HashMap<String, String>,
@@ -286,7 +286,7 @@ pub(crate) async fn spawn_windows_sandbox_session_legacy(
     let common = prepare_legacy_spawn_context(
         permission_profile,
         workspace_roots,
-        codex_home,
+        codepilotx_home,
         cwd,
         &mut env_map,
         &command,
@@ -311,11 +311,11 @@ pub(crate) async fn spawn_windows_sandbox_session_legacy(
         &common.permissions,
         &common.current_dir,
         &env_map,
-        codex_home,
+        codepilotx_home,
     );
     let security = prepare_legacy_session_security(
         common.uses_write_capabilities,
-        codex_home,
+        codepilotx_home,
         cwd,
         capability_roots,
     )?;
@@ -323,7 +323,7 @@ pub(crate) async fn spawn_windows_sandbox_session_legacy(
 
     apply_legacy_session_acl_rules(
         &common.permissions,
-        codex_home,
+        codepilotx_home,
         &common.current_dir,
         &env_map,
         &[],
