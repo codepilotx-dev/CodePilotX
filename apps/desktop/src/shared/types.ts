@@ -632,6 +632,8 @@ export type DesktopPersonality =
 
 export type DesktopReviewView = 'inline' | 'split'
 export type DesktopDiffMarkerStyle = 'color' | 'symbol'
+export type DesktopSidebarOrganization = 'projects' | 'flat'
+export type DesktopSidebarSort = 'priority' | 'recent' | 'manual'
 
 export type DesktopRemovedWorkspace = {
   path: string
@@ -694,6 +696,9 @@ gitBranchPrefix: string
   reviewView: DesktopReviewView
   diffMarkerStyle: DesktopDiffMarkerStyle
   rustSearchAndDiffKernels: boolean
+  sidebarOrganization: DesktopSidebarOrganization
+  sidebarSort: DesktopSidebarSort
+  sidebarManualOrder: Record<string, string[]>
 	  browserAllowedSites: string[]
 	  collapsedSidebarSections: SidebarSectionId[]
 	  browserSitePermissions: DesktopBrowserSitePermission[]
@@ -865,6 +870,7 @@ export type DesktopSessionListItem = {
   hasAppendSystemPrompt: boolean
   additionalDirectoryCount: number
   status: DesktopSessionStatus
+  unreadAt?: string | null
   lastMessageAt?: string | null
   createdAt: string
 }

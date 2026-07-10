@@ -12,6 +12,8 @@ import type {
   DesktopPersonality,
   DesktopReviewView,
   DesktopSandboxMode,
+  DesktopSidebarOrganization,
+  DesktopSidebarSort,
   DesktopStoredSettings,
   DesktopThinkingMode,
   DesktopWorkspace,
@@ -53,6 +55,17 @@ export const DESKTOP_REVIEW_VIEWS = new Set<DesktopReviewView>([
 export const DESKTOP_DIFF_MARKER_STYLES = new Set<DesktopDiffMarkerStyle>([
   'color',
   'symbol',
+])
+
+export const DESKTOP_SIDEBAR_ORGANIZATIONS = new Set<DesktopSidebarOrganization>([
+  'projects',
+  'flat',
+])
+
+export const DESKTOP_SIDEBAR_SORTS = new Set<DesktopSidebarSort>([
+  'priority',
+  'recent',
+  'manual',
 ])
 
 export const DESKTOP_DRAWER_TABS = new Set<DesktopDrawerTab>([
@@ -124,6 +137,9 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     reviewView: 'inline',
     diffMarkerStyle: 'color',
     rustSearchAndDiffKernels: false,
+    sidebarOrganization: 'projects',
+    sidebarSort: 'priority',
+    sidebarManualOrder: {},
 	    browserAllowedSites: [],
 	    collapsedSidebarSections: [],
 	    browserSitePermissions: [],
@@ -331,6 +347,16 @@ export function normalizeDesktopStoredSettings(
       typeof parsed.rustSearchAndDiffKernels === 'boolean'
         ? parsed.rustSearchAndDiffKernels
         : defaults.rustSearchAndDiffKernels,
+    sidebarOrganization: isDesktopSidebarOrganization(parsed.sidebarOrganization)
+      ? parsed.sidebarOrganization
+      : defaults.sidebarOrganization,
+    sidebarSort: isDesktopSidebarSort(parsed.sidebarSort)
+      ? parsed.sidebarSort
+      : defaults.sidebarSort,
+    sidebarManualOrder: normalizeSidebarManualOrder(
+      parsed.sidebarManualOrder,
+      defaults.sidebarManualOrder,
+    ),
     browserAllowedSites: normalizeStringList(
       parsed.browserAllowedSites,
       defaults.browserAllowedSites,
@@ -496,6 +522,20 @@ export function isDesktopDiffMarkerStyle(
   return DESKTOP_DIFF_MARKER_STYLES.has(value as DesktopDiffMarkerStyle)
 }
 
+export function isDesktopSidebarOrganization(
+  value: unknown,
+): value is DesktopSidebarOrganization {
+  return DESKTOP_SIDEBAR_ORGANIZATIONS.has(
+    value as DesktopSidebarOrganization,
+  )
+}
+
+export function isDesktopSidebarSort(
+  value: unknown,
+): value is DesktopSidebarSort {
+  return DESKTOP_SIDEBAR_SORTS.has(value as DesktopSidebarSort)
+}
+
 export function upsertRecentWorkspace(
   workspaces: DesktopWorkspace[],
   workspace: DesktopWorkspace,
@@ -622,6 +662,26 @@ function stringOrDefault(value: unknown, fallback: string): string {
 function normalizeStringList(value: unknown, fallback: string[]): string[] {
   if (!Array.isArray(value)) return fallback
   return value.filter(item => typeof item === 'string')
+}
+
+function normalizeSidebarManualOrder(
+  value: unknown,
+  fallback: Record<string, string[]>,
+): Record<string, string[]> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return fallback
+  }
+  const normalized: Record<string, string[]> = {}
+  for (const [scopeKey, sessionIds] of Object.entries(value)) {
+    if (!Array.isArray(sessionIds)) continue
+    const deduped = sessionIds.filter((sessionId, index, list): sessionId is string => {
+      return typeof sessionId === 'string' && list.indexOf(sessionId) === index
+    })
+    if (deduped.length > 0) {
+      normalized[scopeKey] = deduped
+    }
+  }
+  return normalized
 }
 
 function migrateModelAlias(model: string): string {

@@ -18,6 +18,8 @@ import type {
   DesktopReviewView,
   DesktopSandboxMode,
   DesktopBrowserSitePermission,
+  DesktopSidebarOrganization,
+  DesktopSidebarSort,
   DesktopThinkingMode,
   DesktopWorkspace,
   ModelProviderID,
@@ -77,6 +79,9 @@ export type UseDesktopSettingsResult = {
   reviewView: DesktopReviewView
   diffMarkerStyle: DesktopDiffMarkerStyle
   rustSearchAndDiffKernels: boolean
+  sidebarOrganization: DesktopSidebarOrganization
+  sidebarSort: DesktopSidebarSort
+  sidebarManualOrder: Record<string, string[]>
 	  browserAllowedSites: string[]
 	  collapsedSidebarSections: SidebarSectionId[]
 	  browserSitePermissions: DesktopBrowserSitePermission[]
@@ -128,6 +133,9 @@ export type UseDesktopSettingsResult = {
   setReviewView: (value: DesktopReviewView) => void
   setDiffMarkerStyle: (value: DesktopDiffMarkerStyle) => void
   setRustSearchAndDiffKernels: (value: boolean) => void
+  setSidebarOrganization: (value: DesktopSidebarOrganization) => void
+  setSidebarSort: (value: DesktopSidebarSort) => void
+  setSidebarManualOrder: (value: Record<string, string[]>) => void
   setBrowserAllowedSites: (value: string[]) => void
   setCollapsedSidebarSections: (
     value: SidebarSectionId[] | ((current: SidebarSectionId[]) => SidebarSectionId[]),
@@ -386,6 +394,14 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
   const [rustSearchAndDiffKernels, setRustSearchAndDiffKernels] = useState(
     initial.rustSearchAndDiffKernels,
   )
+  const [sidebarOrganization, setSidebarOrganization] =
+    useState<DesktopSidebarOrganization>(initial.sidebarOrganization)
+  const [sidebarSort, setSidebarSort] = useState<DesktopSidebarSort>(
+    initial.sidebarSort,
+  )
+  const [sidebarManualOrder, setSidebarManualOrder] = useState<
+    Record<string, string[]>
+  >(initial.sidebarManualOrder)
   const [browserAllowedSites, setBrowserAllowedSites] = useState<string[]>(
     initial.browserAllowedSites,
   )
@@ -464,6 +480,9 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
         setReviewView(settings.reviewView)
         setDiffMarkerStyle(settings.diffMarkerStyle)
         setRustSearchAndDiffKernels(settings.rustSearchAndDiffKernels)
+        setSidebarOrganization(settings.sidebarOrganization)
+        setSidebarSort(settings.sidebarSort)
+        setSidebarManualOrder(settings.sidebarManualOrder)
         setBrowserAllowedSites(settings.browserAllowedSites)
         setBrowserSitePermissions(settings.browserSitePermissions)
         setDraftValues(cloneDesktopSettings(settings))
@@ -530,6 +549,9 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       githubMemoryRepository,
       reviewView,
       diffMarkerStyle,
+      sidebarOrganization,
+      sidebarSort,
+      sidebarManualOrder,
 	      rustSearchAndDiffKernels,
 	      browserAllowedSites,
 	      collapsedSidebarSections,
@@ -584,6 +606,9 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       githubMemoryRepository,
       reviewView,
       diffMarkerStyle,
+      sidebarOrganization,
+      sidebarSort,
+      sidebarManualOrder,
 	      rustSearchAndDiffKernels,
 	      browserAllowedSites,
 	      collapsedSidebarSections,
@@ -682,6 +707,9 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       setGithubMemoryRepository(snapshot.githubMemoryRepository)
       setReviewView(snapshot.reviewView)
       setDiffMarkerStyle(snapshot.diffMarkerStyle)
+      setSidebarOrganization(snapshot.sidebarOrganization)
+      setSidebarSort(snapshot.sidebarSort)
+      setSidebarManualOrder(snapshot.sidebarManualOrder)
         setRustSearchAndDiffKernels(snapshot.rustSearchAndDiffKernels)
 	        setBrowserAllowedSites(snapshot.browserAllowedSites)
 	        setCollapsedSidebarSections(snapshot.collapsedSidebarSections)
@@ -818,9 +846,12 @@ defaultOpenTargetId,
     enableMemory,
     skipToolAidedChats,
       githubMemorySyncEnabled,
-      githubMemoryRepository,
+    githubMemoryRepository,
       reviewView,
       diffMarkerStyle,
+    sidebarOrganization,
+    sidebarSort,
+    sidebarManualOrder,
     rustSearchAndDiffKernels,
 	    browserAllowedSites,
 	    collapsedSidebarSections,
@@ -867,9 +898,12 @@ defaultOpenTargetId,
     setEnableMemory,
     setSkipToolAidedChats,
     setGithubMemorySyncEnabled,
-setGithubMemoryRepository,
+    setGithubMemoryRepository,
     setReviewView,
     setDiffMarkerStyle,
+    setSidebarOrganization,
+    setSidebarSort,
+    setSidebarManualOrder,
     setRustSearchAndDiffKernels,
 	    setBrowserAllowedSites,
 	    setCollapsedSidebarSections,
@@ -890,6 +924,12 @@ function cloneDesktopSettings(
     removedWorkspaces: settings.removedWorkspaces.map(workspace => ({
       ...workspace,
     })),
+    sidebarManualOrder: Object.fromEntries(
+      Object.entries(settings.sidebarManualOrder).map(([scopeKey, sessionIds]) => [
+        scopeKey,
+        [...sessionIds],
+      ]),
+    ),
     browserAllowedSites: [...settings.browserAllowedSites],
     collapsedSidebarSections: [...settings.collapsedSidebarSections],
     browserSitePermissions: settings.browserSitePermissions.map(permission => ({

@@ -1501,6 +1501,7 @@ function collectToolResults(
 function normalizeSessionItem(
   item: Partial<DesktopSessionListItem>,
 ): DesktopSessionListItem {
+  const unreadAt = normalizeTimestampString(item.unreadAt)
   return {
     id: typeof item.id === 'string' ? item.id : '',
     sessionName:
@@ -1557,6 +1558,7 @@ function normalizeSessionItem(
         ? item.additionalDirectoryCount
         : 0,
     status: normalizeStatus(item.status),
+    ...(unreadAt !== undefined ? { unreadAt } : {}),
     lastMessageAt: normalizeTimestampString(item.lastMessageAt),
     createdAt: typeof item.createdAt === 'string' ? item.createdAt : '',
   }

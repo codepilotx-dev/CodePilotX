@@ -227,9 +227,55 @@ test('desktop settings normalize permission option toggles as booleans', () => {
 	  expect(result[0].pinnedAt).toBeNull()
 	})
 
-	test('desktop settings default collapsed sidebar sections to empty', () => {
-	  expect(defaultDesktopStoredSettings().collapsedSidebarSections).toEqual([])
-	})
+test('desktop settings default collapsed sidebar sections to empty', () => {
+  expect(defaultDesktopStoredSettings().collapsedSidebarSections).toEqual([])
+})
+
+test('desktop settings default sidebar organization, sort, and manual order', () => {
+  const defaults = defaultDesktopStoredSettings()
+  expect(defaults.sidebarOrganization).toBe('projects')
+  expect(defaults.sidebarSort).toBe('priority')
+  expect(defaults.sidebarManualOrder).toEqual({})
+})
+
+test('desktop settings normalize sidebar organization and sort values', () => {
+  expect(
+    normalizeDesktopStoredSettings({
+      sidebarOrganization: 'flat',
+      sidebarSort: 'manual',
+    }),
+  ).toMatchObject({
+    sidebarOrganization: 'flat',
+    sidebarSort: 'manual',
+  })
+  expect(
+    normalizeDesktopStoredSettings({
+      sidebarOrganization: 'invalid',
+      sidebarSort: 'invalid',
+    }),
+  ).toMatchObject({
+    sidebarOrganization: 'projects',
+    sidebarSort: 'priority',
+  })
+})
+
+test('desktop settings normalize sidebar manual order as string arrays by scope', () => {
+  expect(
+    normalizeDesktopStoredSettings({
+      sidebarManualOrder: {
+        root: ['session-2', 'session-1', 'session-2', 3],
+        invalid: 'session-3',
+      },
+    }).sidebarManualOrder,
+  ).toEqual({
+    root: ['session-2', 'session-1'],
+  })
+  expect(
+    normalizeDesktopStoredSettings({
+      sidebarManualOrder: 'invalid',
+    }).sidebarManualOrder,
+  ).toEqual({})
+})
 
 	test('desktop settings normalize collapsed sidebar sections preserves valid values', () => {
 	  expect(
