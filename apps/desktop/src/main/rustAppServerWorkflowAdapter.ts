@@ -1,3 +1,4 @@
+import { buildDesktopContextUsageFromRustTokenUsage } from './desktopContextUsage.js'
 import { desktopDebug } from './desktopDebug.js'
 import type { DesktopAgentEvent } from '../shared/types.js'
 
@@ -49,10 +50,13 @@ export function createRustAppServerWorkflowState(): RustAppServerWorkflowState {
 /**
  * Process a single raw server notification.
  *
- * @param method  The notification method name (e.g. `"thread/started"`)
- * @param params  The parsed JSON params object
- * @param emit    Function to emit a DesktopAgentEvent
- * @param state   Mutable workflow state updated by side effect
+ * @param method              The notification method name (e.g. `"thread/started"`)
+ * @param params              The parsed JSON params object
+ * @param emit                Function to emit a DesktopAgentEvent
+ * @param state               Mutable workflow state updated by side effect
+ * @param sessionId           The current session id
+ * @param notificationContext Optional model/provider context for notifications
+ *                            that need them (e.g. `thread/tokenUsage/updated`).
  */
 export function handleServerNotification(
   method: string,
@@ -60,6 +64,7 @@ export function handleServerNotification(
   emit: (event: DesktopAgentEvent) => void,
   state: RustAppServerWorkflowState,
   sessionId: string,
+  notificationContext?: { model?: string; providerID?: string },
 ): void {
   switch (method) {
     // ── Thread lifecycle ─────────────────────────────────────────
@@ -495,11 +500,40 @@ export function handleServerNotification(
       break
     }
 
-    // ── Unknown ──────────────────────────────────────────────────
-    default: {
-      // Unknown notifications: reasoning, plan, MCP, skills, etc.
-      desktopDebug('rust_adapter_unhandled_notification', { method })
-      break
-    }
+	    // ── Token usage ───────────────────────────────────────────────
+	    case 'thread/tokenUsage/updated': {
+	      const p = params as Record<string, unknown> | null
+	      if (!p) break
+	      const tu = p.tokenUsage as Record<string, unknown> | null
+	      if (!tu) break
+	      const last = tu.last as Record<string, unknown> | null
+	      if (!last) break
+
+	      const model = notificationContext?.model ?? 'unknown'
+	      const providerID = notificationContext?.providerID
+
+	      const usage = buildDesktopContextUsageFromRustTokenUsage({
+	        model,
+	        provider: providerID,
+	        inputTokens: Number(last.inputTokens ?? 0),
+	        cachedInputTokens: Number(last.cachedInputTokens ?? 0),
+	        outputTokens: Number(last.outputTokens ?? 0),
+	        reasoningOutputTokens: Number(last.reasoningOutputTokens ?? 0),
+	        totalTokens: Number(last.totalTokens ?? 0),
+	      })
+
+	      if (usage) {
+	        emit({ type: 'context_usage', sessionId, usage })
+	        desktopDebug('rust_adapter_context_usage', { usage })
+	      }
+	      break
+	    }
+
+	    // ── Unknown ──────────────────────────────────────────────────
+	    default: {
+	      // Unknown notifications: reasoning, plan, MCP, skills, etc.
+	      desktopDebug('rust_adapter_unhandled_notification', { method })
+	      break
+	    }
   }
 }

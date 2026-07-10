@@ -975,4 +975,109 @@ describe('rustAppServerWorkflowAdapter', () => {
     expect((events[1] as { text: string }).text).toContain('first second')
     expect((events[3] as { text: string }).text).toContain('summary one summary two')
   })
-	})
+
+  // ── Token usage ──────────────────────────────────────────────────
+
+  test('thread/tokenUsage/updated emits context_usage with mapped fields', () => {
+    const state = createRustAppServerWorkflowState()
+    const events: DesktopAgentEvent[] = []
+
+    handleServerNotification(
+      'thread/tokenUsage/updated',
+      {
+        threadId: 'thread-abc',
+        turnId: 'turn-xyz',
+        tokenUsage: {
+          total: { totalTokens: 150, inputTokens: 100, cachedInputTokens: 30, outputTokens: 50, reasoningOutputTokens: 10 },
+          last: { totalTokens: 150, inputTokens: 100, cachedInputTokens: 30, outputTokens: 50, reasoningOutputTokens: 10 },
+          modelContextWindow: 1_000_000,
+        },
+      },
+      e => events.push(e),
+      state,
+      SESSION_ID,
+      { model: 'deepseek-v4-flash', providerID: 'deepseek' },
+    )
+
+    expect(events).toHaveLength(1)
+    expect(events[0].type).toBe('context_usage')
+
+    const usage = (events[0] as { usage: Record<string, unknown> }).usage
+    expect(usage.inputTokens).toBe(100)
+    expect(usage.outputTokens).toBe(50)
+    expect(usage.promptCacheHitTokens).toBe(30)
+    expect(usage.cacheReadInputTokens).toBe(30)
+    expect(usage.promptCacheMissTokens).toBe(70)
+    expect(usage.reasoningTokens).toBe(10)
+    expect(usage.usedTokens).toBe(150)
+    expect(usage.contextWindow).toBe(1_000_000)
+    expect(usage.model).toBe('deepseek-v4-flash')
+    expect(usage.provider).toBe('deepseek')
+  })
+
+  test('thread/tokenUsage/updated with all-zero usage does not emit', () => {
+    const state = createRustAppServerWorkflowState()
+    const events: DesktopAgentEvent[] = []
+
+    handleServerNotification(
+      'thread/tokenUsage/updated',
+      {
+        threadId: 'thread-abc',
+        turnId: 'turn-xyz',
+        tokenUsage: {
+          total: { totalTokens: 0, inputTokens: 0, cachedInputTokens: 0, outputTokens: 0, reasoningOutputTokens: 0 },
+          last: { totalTokens: 0, inputTokens: 0, cachedInputTokens: 0, outputTokens: 0, reasoningOutputTokens: 0 },
+          modelContextWindow: null,
+        },
+      },
+      e => events.push(e),
+      state,
+      SESSION_ID,
+      { model: 'deepseek-v4-flash', providerID: 'deepseek' },
+    )
+
+    expect(events).toHaveLength(0)
+  })
+
+  test('thread/tokenUsage/updated without notificationContext uses fallback model', () => {
+    const state = createRustAppServerWorkflowState()
+    const events: DesktopAgentEvent[] = []
+
+    handleServerNotification(
+      'thread/tokenUsage/updated',
+      {
+        threadId: 'thread-abc',
+        turnId: 'turn-xyz',
+        tokenUsage: {
+          total: { totalTokens: 100, inputTokens: 80, cachedInputTokens: 20, outputTokens: 20, reasoningOutputTokens: 0 },
+          last: { totalTokens: 100, inputTokens: 80, cachedInputTokens: 20, outputTokens: 20, reasoningOutputTokens: 0 },
+          modelContextWindow: null,
+        },
+      },
+      e => events.push(e),
+      state,
+      SESSION_ID,
+    )
+
+    expect(events).toHaveLength(1)
+    const usage = (events[0] as { usage: Record<string, unknown> }).usage
+    expect(usage.model).toBe('unknown')
+    expect(usage.inputTokens).toBe(80)
+    expect(usage.usedTokens).toBe(100)
+  })
+
+  test('thread/tokenUsage/updated with null params is safely ignored', () => {
+    const state = createRustAppServerWorkflowState()
+    const events: DesktopAgentEvent[] = []
+
+    handleServerNotification(
+      'thread/tokenUsage/updated',
+      null,
+      e => events.push(e),
+      state,
+      SESSION_ID,
+    )
+
+    expect(events).toHaveLength(0)
+  })
+		})

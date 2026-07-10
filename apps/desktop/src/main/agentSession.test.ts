@@ -529,6 +529,7 @@ test('auto-review sub-runtime execution does not deadlock parent turn on serial 
         setPermissionMode: () => {},
         setPlanModeActive: () => {},
         getMcpRuntimeStatus: () => ({ servers: [], totalTools: 0, totalResources: 0, totalPrompts: 0 }),
+        refreshMcpConfig: async () => 'not_loaded' as const,
         runControlResponse: async () => {},
         async runUserTurn(_content, signal) {
           const decision = await context.requestPermission({
@@ -717,6 +718,7 @@ function createRecoveredQuestionRuntime(
     setPermissionMode: () => {},
 	    setPlanModeActive: () => {},
       getMcpRuntimeStatus: () => ({ servers: [], totalTools: 0, totalResources: 0, totalPrompts: 0 }),
+        refreshMcpConfig: async () => 'not_loaded' as const,
 	    runUserTurn: async () => {},
 	    runControlResponse: async response => {
       controlResponses.push(response)
@@ -742,6 +744,7 @@ function createRecoveredPlanRuntime(
     setPermissionMode: () => {},
 	    setPlanModeActive: () => {},
       getMcpRuntimeStatus: () => ({ servers: [], totalTools: 0, totalResources: 0, totalPrompts: 0 }),
+        refreshMcpConfig: async () => 'not_loaded' as const,
 	    runControlResponse: async () => {},
 	    runUserTurn: async content => {
 	      userTurns.push(content)
@@ -757,6 +760,7 @@ function createRecoveredPlanRuntime(
 	    setPermissionMode: () => {},
 	    setPlanModeActive: () => {},
       getMcpRuntimeStatus: () => ({ servers: [], totalTools: 0, totalResources: 0, totalPrompts: 0 }),
+        refreshMcpConfig: async () => 'not_loaded' as const,
 	    runControlResponse: async () => {},
 	    async runUserTurn(_content, signal) {
       if (signal.aborted) return
@@ -778,6 +782,7 @@ function createDoubleQuestionRuntime(
     setPermissionMode: () => {},
 	    setPlanModeActive: () => {},
       getMcpRuntimeStatus: () => ({ servers: [], totalTools: 0, totalResources: 0, totalPrompts: 0 }),
+        refreshMcpConfig: async () => 'not_loaded' as const,
 	    runControlResponse: async () => {},
 	    async runUserTurn() {
 	      const firstDecision = context.requestPermission({
@@ -811,6 +816,7 @@ function createDoubleQuestionRuntime(
 	    setPermissionMode: () => {},
 	    setPlanModeActive: () => {},
       getMcpRuntimeStatus: () => ({ servers: [], totalTools: 0, totalResources: 0, totalPrompts: 0 }),
+        refreshMcpConfig: async () => 'not_loaded' as const,
 	    runControlResponse: async () => {},
 	    async runUserTurn() {
 	      const decision = await context.requestPermission({
@@ -835,6 +841,7 @@ function createDoubleQuestionRuntime(
 	    setPermissionMode: () => {},
 	    setPlanModeActive: () => {},
       getMcpRuntimeStatus: () => ({ servers: [], totalTools: 0, totalResources: 0, totalPrompts: 0 }),
+        refreshMcpConfig: async () => 'not_loaded' as const,
 	    runControlResponse: async () => {},
 	    async runUserTurn(_content, signal) {
       await new Promise<void>(resolve => {

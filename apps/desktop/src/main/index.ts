@@ -129,6 +129,7 @@ import type {
   DesktopApprovalPolicy,
   DesktopGitOperationResult,
   DesktopMcpRuntimeStatus,
+  McpReloadResult,
   DesktopModelSelection,
   LocalRouterMode,
   DesktopPermissionDecision,
@@ -682,6 +683,30 @@ async function getMcpRuntimeStatus(
     return { servers: [], totalTools: 0, totalResources: 0, totalPrompts: 0 }
   }
   return record.session.getMcpRuntimeStatus() as DesktopMcpRuntimeStatus
+}
+
+/**
+ * Tell every active session's app-server to re-read MCP server
+ * config from disk. Sessions whose sidecar has not been started
+ * are skipped — they read the config naturally when they start.
+ */
+async function reloadMcpConfiguration(): Promise<McpReloadResult> {
+  await ensureSessionStoreLoaded()
+  const result: McpReloadResult = { refreshed: 0, skipped: 0, failed: 0 }
+  for (const record of sessions.values()) {
+    if (!record.session) {
+      result.skipped++
+      continue
+    }
+    try {
+      const status = await record.session.refreshMcpConfig()
+      if (status === 'refreshed') result.refreshed++
+      else result.skipped++
+    } catch {
+      result.failed++
+    }
+  }
+  return result
 }
 
 async function getActiveSessionId(): Promise<string | null> {
@@ -1809,6 +1834,7 @@ const desktopApiHandlers = buildDesktopApiHandlers({
   setBuiltinPluginEnabled,
   listSlashCommands,
   getMcpRuntimeStatus,
+  reloadMcpConfiguration,
   createSession,
   listSessions,
   getSessionCatalogStatus,

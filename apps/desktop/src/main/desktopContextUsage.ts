@@ -82,6 +82,80 @@ export function buildDesktopContextUsage(params: {
   }
 }
 
+/**
+ * Build a DesktopContextUsage from Rust-sidecar TokenUsage fields.
+ *
+ * This is the preferred entry point for the Rust app-server notification path
+ * (`thread/tokenUsage/updated`). It accepts camelCase Rust protocol field names
+ * directly and maps them to the renderer-expected DesktopContextUsage shape.
+ *
+ * Mapping rules:
+ *   inputTokens           → inputTokens
+ *   outputTokens          → outputTokens
+ *   cachedInputTokens     → promptCacheHitTokens, cacheReadInputTokens
+ *   max(0, inputTokens - cachedInputTokens) → promptCacheMissTokens
+ *   reasoningOutputTokens → reasoningTokens
+ *   usedTokens            = inputTokens + outputTokens
+ *   contextWindow         = getContextWindowForModel(model, provider)
+ */
+export function buildDesktopContextUsageFromRustTokenUsage(params: {
+  model: string
+  provider?: string | null
+  inputTokens: number
+  cachedInputTokens: number
+  outputTokens: number
+  reasoningOutputTokens: number
+  totalTokens: number
+}): DesktopContextUsage | null {
+  const { model, provider } = params
+  const inputTokens = numberOrZero(params.inputTokens)
+  const cachedInputTokens = numberOrZero(params.cachedInputTokens)
+  const outputTokens = numberOrZero(params.outputTokens)
+  const reasoningTokens = numberOrZero(params.reasoningOutputTokens)
+  const promptCacheHitTokens = cachedInputTokens
+  const cacheReadInputTokens = cachedInputTokens
+  const promptCacheMissTokens = Math.max(0, inputTokens - cachedInputTokens)
+  const totalTokens = numberOrZero(params.totalTokens)
+
+  // Return null if there is nothing meaningful to display
+  if (
+    inputTokens === 0 &&
+    outputTokens === 0 &&
+    cachedInputTokens === 0 &&
+    reasoningTokens === 0
+  ) {
+    return null
+  }
+
+  const resolvedProvider =
+    provider === undefined
+      ? inferProviderFromModel(model)
+      : provider || undefined
+  const contextWindow = getContextWindowForModel(model, resolvedProvider)
+  const usedTokens = inputTokens + outputTokens
+  const remainingTokens = Math.max(0, contextWindow - usedTokens)
+  const usedPercent = clampPercent(
+    Math.round((usedTokens / contextWindow) * 100),
+  )
+
+  return {
+    model,
+    provider: resolvedProvider,
+    contextWindow,
+    inputTokens,
+    outputTokens,
+    cacheCreationInputTokens: 0,
+    cacheReadInputTokens,
+    reasoningTokens,
+    promptCacheHitTokens,
+    promptCacheMissTokens,
+    usedTokens,
+    remainingTokens,
+    usedPercent,
+    remainingPercent: 100 - usedPercent,
+  }
+}
+
 export function inferProviderFromModel(model: string): string | undefined {
   const normalized = model.trim().toLowerCase()
   if (!normalized || normalized === 'unknown') return undefined

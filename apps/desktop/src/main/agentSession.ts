@@ -106,6 +106,7 @@ export type DesktopAgentSession = {
     totalResources: number
     totalPrompts: number
   }
+  refreshMcpConfig(): Promise<'refreshed' | 'not_loaded'>
   on<EventName extends keyof DesktopAgentSessionEvents>(
     eventName: EventName,
     listener: (...args: DesktopAgentSessionEvents[EventName]) => void,
@@ -444,6 +445,10 @@ class LocalDesktopAgentSession
 
   getMcpRuntimeStatus() {
     return this.runtime.getMcpRuntimeStatus()
+  }
+
+  async refreshMcpConfig(): Promise<'refreshed' | 'not_loaded'> {
+    return this.runtime.refreshMcpConfig()
   }
 
   private async requestPermission(

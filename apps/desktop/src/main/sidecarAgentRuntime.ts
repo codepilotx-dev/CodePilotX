@@ -247,6 +247,11 @@ export class SidecarDesktopAgentRuntime implements DesktopAgentRuntime {
     return { servers: [], totalTools: 0, totalResources: 0, totalPrompts: 0 }
   }
 
+  async refreshMcpConfig(): Promise<'refreshed' | 'not_loaded'> {
+    // Legacy sidecar does not support MCP config reload.
+    return 'not_loaded'
+  }
+
   // ── 清理 ──────────────────────────────────────────────────────────
 
   async dispose(): Promise<void> {

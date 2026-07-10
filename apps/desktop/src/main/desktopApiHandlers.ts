@@ -109,6 +109,7 @@ import type {
   DesktopDataLocationMigrationResult,
   DesktopDataLocationState,
   DesktopMcpRuntimeStatus,
+  McpReloadResult,
   DesktopPermissionDecision,
   DesktopPermissionMode,
   DesktopSlashCommandSuggestion,
@@ -148,6 +149,7 @@ export type DesktopApiHandlerDependencies = {
   ): Promise<DesktopBuiltinPlugin>
   listSlashCommands(workspacePath?: string): Promise<DesktopSlashCommandSuggestion[]>
   getMcpRuntimeStatus(sessionId?: string): Promise<DesktopMcpRuntimeStatus>
+  reloadMcpConfiguration(): Promise<McpReloadResult>
   createSession(
     options: CreateDesktopSessionOptions,
   ): Promise<CreateDesktopSessionResult>
@@ -305,6 +307,7 @@ export function buildDesktopApiHandlers(
     saveMcpServer: saveDesktopMcpServer,
     removeMcpServer: removeDesktopMcpServer,
     setMcpServerEnabled: setDesktopMcpServerEnabled,
+    reloadMcpConfiguration: dependencies.reloadMcpConfiguration ?? (async () => ({ refreshed: 0, skipped: 0, failed: 0 })),
     listOpenTargets,
     openPathWithDefaultTarget,
     listModelProviders: async () => listModelProviders(),

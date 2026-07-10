@@ -105,6 +105,12 @@ export type DesktopAgentRuntime = {
     totalResources: number
     totalPrompts: number
   }
+  /**
+   * Tell the app-server backing this session to re-read MCP server
+   * config from disk. Returns 'refreshed' when the sidecar was running
+   * and the RPC was sent, 'not_loaded' when no sidecar process exists.
+   */
+  refreshMcpConfig(): Promise<'refreshed' | 'not_loaded'>
 }
 
 export function createDesktopAgentRuntime(

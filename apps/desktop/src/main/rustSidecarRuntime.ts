@@ -698,6 +698,19 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
   }
 
   /**
+   * Tell the app-server to re-read MCP server config from disk.
+   *
+   * Returns 'not_loaded' when the sidecar has not been started (the
+   * session has never run a user turn); the config will be read
+   * naturally on the next thread start.
+   */
+  async refreshMcpConfig(): Promise<'refreshed' | 'not_loaded'> {
+    if (!this.appServerClient) return 'not_loaded'
+    await this.appServerClient.reloadMcpConfig()
+    return 'refreshed'
+  }
+
+  /**
    * Tear down the child process and transport.
    */
   async dispose(): Promise<void> {
@@ -884,33 +897,34 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
   }
 
   private handleNotification(method: string, params: unknown): void {
-    handleServerNotification(
-      method,
-      params,
-      (event: DesktopAgentEvent) => {
-        this.context.emit(event)
+	    handleServerNotification(
+	      method,
+	      params,
+	      (event: DesktopAgentEvent) => {
+	        this.context.emit(event)
 
-        // If we received error or done, resolve the current turn promise
-        if (event.type === 'done' || event.type === 'error') {
-          this.emittedToolStartToolUseIds.clear()
-          if (this.currentTurnResolve) {
-            this.currentTurnResolve()
-          }
-          if (event.type === 'error') {
-            // For error events, also reject so caller knows it failed
-            this.currentTurnReject?.(
-              new Error(
-                typeof event.message === 'string'
-                  ? event.message
-                  : 'Rust app-server turn error',
-              ),
-            )
-          }
-        }
-      },
-      this.workflowState,
-      this.context.sessionId,
-    )
+	        // If we received error or done, resolve the current turn promise
+	        if (event.type === 'done' || event.type === 'error') {
+	          this.emittedToolStartToolUseIds.clear()
+	          if (this.currentTurnResolve) {
+	            this.currentTurnResolve()
+	          }
+	          if (event.type === 'error') {
+	            // For error events, also reject so caller knows it failed
+	            this.currentTurnReject?.(
+	              new Error(
+	                typeof event.message === 'string'
+	                  ? event.message
+	                  : 'Rust app-server turn error',
+	              ),
+	            )
+	          }
+	        }
+	      },
+	      this.workflowState,
+	      this.context.sessionId,
+	      { model: this.context.model, providerID: this.context.providerID },
+	    )
   }
 
   /**

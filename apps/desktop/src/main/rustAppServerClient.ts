@@ -170,6 +170,17 @@ export class RustAppServerClient {
     ) as Promise<TurnSteerResponse>
   }
 
+  /**
+   * Tell the app-server to re-read MCP server config from disk.
+   * Silently ignored if the server version doesn't support it.
+   */
+  async reloadMcpConfig(): Promise<Record<string, never>> {
+    return this.transport.sendRequest(
+      'config/mcpServer/reload',
+      undefined,
+    ) as Promise<Record<string, never>>
+  }
+
   // ── All-notification listener (wildcard) ──────────────────────────
 
   /**

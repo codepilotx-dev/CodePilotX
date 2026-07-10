@@ -1,6 +1,7 @@
 import { expect, test } from 'bun:test'
 import {
   buildDesktopContextUsage,
+  buildDesktopContextUsageFromRustTokenUsage,
   inferProviderFromModel,
 } from './desktopContextUsage.js'
 
@@ -146,6 +147,95 @@ test('buildDesktopContextUsage falls back to 200k for MiniMax-M3 without provide
   expect(result!.contextWindow).toBe(200_000)
   expect(result!.provider).toBeUndefined()
 })
+
+// ── buildDesktopContextUsageFromRustTokenUsage ─────────────────────
+
+test('buildDesktopContextUsageFromRustTokenUsage returns null for all-zero input', () => {
+  const result = buildDesktopContextUsageFromRustTokenUsage({
+    model: 'deepseek-v4-flash',
+    inputTokens: 0,
+    cachedInputTokens: 0,
+    outputTokens: 0,
+    reasoningOutputTokens: 0,
+    totalTokens: 0,
+  })
+  expect(result).toBeNull()
+})
+
+test('buildDesktopContextUsageFromRustTokenUsage maps fields correctly', () => {
+  const result = buildDesktopContextUsageFromRustTokenUsage({
+    model: 'deepseek-v4-flash',
+    inputTokens: 100,
+    cachedInputTokens: 30,
+    outputTokens: 50,
+    reasoningOutputTokens: 10,
+    totalTokens: 150,
+  })
+
+  expect(result).not.toBeNull()
+  expect(result!.inputTokens).toBe(100)
+  expect(result!.outputTokens).toBe(50)
+  // cachedInputTokens → promptCacheHitTokens and cacheReadInputTokens
+  expect(result!.promptCacheHitTokens).toBe(30)
+  expect(result!.cacheReadInputTokens).toBe(30)
+  // max(0, inputTokens - cachedInputTokens) → promptCacheMissTokens
+  expect(result!.promptCacheMissTokens).toBe(70)
+  // reasoningOutputTokens → reasoningTokens
+  expect(result!.reasoningTokens).toBe(10)
+  // usedTokens = inputTokens + outputTokens
+  expect(result!.usedTokens).toBe(150)
+  // cacheCreationInputTokens is always 0 (not provided by Rust protocol)
+  expect(result!.cacheCreationInputTokens).toBe(0)
+})
+
+test('buildDesktopContextUsageFromRustTokenUsage computes context window and percentages', () => {
+  const result = buildDesktopContextUsageFromRustTokenUsage({
+    model: 'deepseek-v4-flash',
+    inputTokens: 24_700,
+    cachedInputTokens: 10_000,
+    outputTokens: 1_500,
+    reasoningOutputTokens: 0,
+    totalTokens: 26_200,
+  })
+
+  expect(result).not.toBeNull()
+  expect(result!.contextWindow).toBe(1_000_000)
+  expect(result!.usedTokens).toBe(26_200)
+  expect(result!.remainingTokens).toBe(1_000_000 - 26_200)
+  expect(result!.usedPercent).toBe(Math.round((26_200 / 1_000_000) * 100))
+  expect(result!.remainingPercent).toBe(100 - result!.usedPercent)
+})
+
+test('buildDesktopContextUsageFromRustTokenUsage infers provider from model', () => {
+  const result = buildDesktopContextUsageFromRustTokenUsage({
+    model: 'deepseek-v4-pro',
+    inputTokens: 10_000,
+    cachedInputTokens: 0,
+    outputTokens: 0,
+    reasoningOutputTokens: 0,
+    totalTokens: 10_000,
+  })
+
+  expect(result).not.toBeNull()
+  expect(result!.provider).toBe('deepseek')
+})
+
+test('buildDesktopContextUsageFromRustTokenUsage uses explicit provider', () => {
+  const result = buildDesktopContextUsageFromRustTokenUsage({
+    model: 'deepseek-v4-flash',
+    provider: 'custom-provider',
+    inputTokens: 5_000,
+    cachedInputTokens: 0,
+    outputTokens: 0,
+    reasoningOutputTokens: 0,
+    totalTokens: 5_000,
+  })
+
+  expect(result).not.toBeNull()
+  expect(result!.provider).toBe('custom-provider')
+})
+
+// ── inferProviderFromModel ────────────────────────────────────────
 
 test('inferProviderFromModel handles deepseek model prefix', () => {
   expect(inferProviderFromModel('deepseek-v4-flash')).toBe('deepseek')

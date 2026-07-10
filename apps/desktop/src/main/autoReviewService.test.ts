@@ -130,6 +130,7 @@ test('reviewer runtime abort returns fail-closed deny', async () => {
 	      setPermissionMode: () => {},
 	      setPlanModeActive: () => {},
         getMcpRuntimeStatus: () => ({ servers: [], totalTools: 0, totalResources: 0, totalPrompts: 0 }),
+        refreshMcpConfig: async () => 'not_loaded' as const,
 	      runControlResponse: async () => {},
 	      async runUserTurn(_content, signal) {
 	        await new Promise<void>(resolve => {
@@ -186,6 +187,7 @@ test('createRuntimeReviewerPromptRunner passes serializeHeadlessTurns:false to s
 	        setPermissionMode: () => {},
 	        setPlanModeActive: () => {},
           getMcpRuntimeStatus: () => ({ servers: [], totalTools: 0, totalResources: 0, totalPrompts: 0 }),
+        refreshMcpConfig: async () => 'not_loaded' as const,
 	        runControlResponse: async () => {},
 	        async runUserTurn() {
 	          // Complete immediately — we only need to verify context
@@ -235,6 +237,7 @@ test('default reviewer runner writes a hidden internal guardian rollout', async 
 	        setPermissionMode: () => {},
 	        setPlanModeActive: () => {},
           getMcpRuntimeStatus: () => ({ servers: [], totalTools: 0, totalResources: 0, totalPrompts: 0 }),
+        refreshMcpConfig: async () => 'not_loaded' as const,
 	        runControlResponse: async () => {},
 	        async runUserTurn() {
 	          context.emit({
