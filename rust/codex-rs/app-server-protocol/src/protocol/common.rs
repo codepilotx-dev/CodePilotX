@@ -1208,6 +1208,24 @@ client_request_definitions! {
 	        serialization: None,
 	        response: v2::ProviderAuthLogoutResponse,
 	    },
+	    /// Read provider API key configuration from OS secure storage.
+	    ProviderApiKeyRead => "providerCredential/read" {
+	        params: v2::ProviderApiKeyReadParams,
+	        serialization: None,
+	        response: v2::ProviderApiKeyReadResponse,
+	    },
+	    /// Save one providerID-scoped API key in OS secure storage.
+	    ProviderApiKeySave => "providerCredential/save" {
+	        params: v2::ProviderApiKeySaveParams,
+	        serialization: None,
+	        response: v2::ProviderApiKeySaveResponse,
+	    },
+	    /// Delete one providerID-scoped API key from OS secure storage.
+	    ProviderApiKeyDelete => "providerCredential/delete" {
+	        params: v2::ProviderApiKeyDeleteParams,
+	        serialization: None,
+	        response: v2::ProviderApiKeyDeleteResponse,
+	    },
 	    /// List repositories for the given provider.
 	    ProviderRepoList => "providerAuth/repoList" {
 	        params: v2::ProviderRepoListParams,

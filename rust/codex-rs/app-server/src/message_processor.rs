@@ -1536,6 +1536,24 @@ impl MessageProcessor {
                     .await
                     .map(|r| Some(r.into()))
             }
+            ClientRequest::ProviderApiKeyRead { params, .. } => {
+                self.provider_auth_processor
+                    .read_provider_api_keys(params)
+                    .await
+                    .map(|r| Some(r.into()))
+            }
+            ClientRequest::ProviderApiKeySave { params, .. } => {
+                self.provider_auth_processor
+                    .save_provider_api_key(params)
+                    .await
+                    .map(|r| Some(r.into()))
+            }
+            ClientRequest::ProviderApiKeyDelete { params, .. } => {
+                self.provider_auth_processor
+                    .delete_provider_api_key(params)
+                    .await
+                    .map(|r| Some(r.into()))
+            }
             ClientRequest::ProviderRepoList { params, .. } => {
                 self.provider_auth_processor
                     .list_repos(params)

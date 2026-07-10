@@ -3,7 +3,7 @@ use serde::Deserialize;
 use serde::Serialize;
 use ts_rs::TS;
 
-//  Provider auth status 
+//  Provider auth status
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[ts(export_to = "v2/")]
@@ -27,7 +27,7 @@ pub struct ProviderUserInfo {
     pub avatar_url: Option<String>,
 }
 
-//  Device-code login 
+//  Device-code login
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[ts(export_to = "v2/")]
@@ -47,7 +47,7 @@ pub struct ProviderAuthStartLoginResponse {
     pub interval: u32,
 }
 
-//  Poll device-code login 
+//  Poll device-code login
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[ts(export_to = "v2/")]
@@ -71,7 +71,7 @@ pub enum ProviderAuthPollStatus {
     Denied,
 }
 
-//  Cancel / logout 
+//  Cancel / logout
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[ts(export_to = "v2/")]
@@ -93,7 +93,42 @@ pub struct ProviderAuthLogoutParams {
 #[ts(export_to = "v2/")]
 pub struct ProviderAuthLogoutResponse {}
 
-//  Repository listing 
+// Provider API keys (secure storage only)
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[ts(export_to = "v2/")]
+pub struct ProviderApiKeyReadParams {
+    pub provider_ids: Vec<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[ts(export_to = "v2/")]
+pub struct ProviderApiKeyReadResponse {
+    pub configured_provider_ids: Vec<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[ts(export_to = "v2/")]
+pub struct ProviderApiKeySaveParams {
+    pub provider_id: String,
+    pub api_key: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[ts(export_to = "v2/")]
+pub struct ProviderApiKeySaveResponse {}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[ts(export_to = "v2/")]
+pub struct ProviderApiKeyDeleteParams {
+    pub provider_id: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[ts(export_to = "v2/")]
+pub struct ProviderApiKeyDeleteResponse {}
+
+//  Repository listing
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[ts(export_to = "v2/")]
@@ -119,7 +154,7 @@ pub struct ProviderRepoInfo {
     pub default_branch: String,
 }
 
-//  Repository clone 
+//  Repository clone
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[ts(export_to = "v2/")]
