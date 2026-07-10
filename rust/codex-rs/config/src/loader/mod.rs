@@ -31,16 +31,16 @@ use crate::strict_config::ignored_toml_value_field;
 use crate::strict_config::unknown_feature_toml_value_field;
 use crate::thread_config::ThreadConfigContext;
 use crate::thread_config::ThreadConfigLoader;
-use codex_app_server_protocol::ConfigLayerSource;
-use codex_file_system::ExecutorFileSystem;
-use codex_git_utils::resolve_root_git_project_for_trust;
-use codex_protocol::config_types::ApprovalsReviewer;
-use codex_protocol::config_types::SandboxMode;
-use codex_protocol::config_types::TrustLevel;
-use codex_protocol::protocol::AskForApproval;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_absolute_path::AbsolutePathBufGuard;
-use codex_utils_path_uri::PathUri;
+use codepilotx_app_server_protocol::ConfigLayerSource;
+use codepilotx_file_system::ExecutorFileSystem;
+use codepilotx_git_utils::resolve_root_git_project_for_trust;
+use codepilotx_protocol::config_types::ApprovalsReviewer;
+use codepilotx_protocol::config_types::SandboxMode;
+use codepilotx_protocol::config_types::TrustLevel;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_absolute_path::AbsolutePathBufGuard;
+use codepilotx_utils_path_uri::PathUri;
 use dunce::canonicalize as normalize_path;
 use serde::Deserialize;
 use std::io;
@@ -97,11 +97,11 @@ async fn first_layer_config_error_from_entries(layers: &[ConfigLayerEntry]) -> O
 /// - system    `/etc/codex/config.toml` (Unix) or
 ///   `%ProgramData%\OpenAI\Codex\config.toml` (Windows)
 /// - cloud     enterprise-managed cloud config bundle fragments
-/// - user      `${CODEX_HOME}/config.toml`
-/// - profile   `${CODEX_HOME}/<name>.config.toml`, when selected
+/// - user      `${codepilotx_HOME}/config.toml`
+/// - profile   `${codepilotx_HOME}/<name>.config.toml`, when selected
 /// - cwd       `${PWD}/config.toml` (loaded but disabled when the directory is untrusted)
-/// - tree      parent directories up to root looking for `./.codex/config.toml` (loaded but disabled when untrusted)
-/// - repo      `$(git rev-parse --show-toplevel)/.codex/config.toml` (loaded but disabled when untrusted)
+/// - tree      parent directories up to root looking for `./.codepilotx/config.toml` (fallback to `./.codex/config.toml`) (loaded but disabled when untrusted)
+/// - repo      `$(git rev-parse --show-toplevel)/.codepilotx/config.toml` (fallback to `./.codex/config.toml`) (loaded but disabled when untrusted)
 /// - runtime   e.g., --config flags, model selector in UI
 ///
 /// (*) Only available on macOS via managed device profiles.
@@ -115,7 +115,7 @@ async fn first_layer_config_error_from_entries(layers: &[ConfigLayerEntry]) -> O
 #[allow(clippy::too_many_arguments)]
 pub async fn load_config_layers_state(
     fs: &dyn ExecutorFileSystem,
-    codex_home: &Path,
+    codepilotx_home: &Path,
     cwd: Option<AbsolutePathBuf>,
     cli_overrides: &[(String, TomlValue)],
     options: impl Into<ConfigLoadOptions>,
@@ -139,7 +139,7 @@ pub async fn load_config_layers_state(
 
     if !ignore_managed_requirements {
         if let Some(bundle) = cloud_config_bundle.get().await.map_err(io::Error::other)? {
-            let cloud_config_base_dir = AbsolutePathBuf::from_absolute_path(codex_home)?;
+            let cloud_config_base_dir = AbsolutePathBuf::from_absolute_path(codepilotx_home)?;
             let bundle_layers = if strict_config {
                 CloudConfigBundleLayers::from_bundle_strict_config(bundle, &cloud_config_base_dir)?
             } else {
@@ -175,7 +175,7 @@ pub async fn load_config_layers_state(
     }
 
     let loaded_config_layers =
-        layer_io::load_config_layers_internal(fs, codex_home, overrides.clone(), strict_config)
+        layer_io::load_config_layers_internal(fs, codepilotx_home, overrides.clone(), strict_config)
             .await?;
     if !ignore_managed_requirements {
         requirements_layers.extend(system_requirements_layer);
@@ -208,7 +208,7 @@ pub async fn load_config_layers_state(
         let base_dir = cwd
             .as_ref()
             .map(AbsolutePathBuf::as_path)
-            .unwrap_or(codex_home);
+            .unwrap_or(codepilotx_home);
         if strict_config {
             validate_cli_overrides_strictly(&cli_overrides_layer, base_dir)?;
         }
@@ -241,8 +241,8 @@ pub async fn load_config_layers_state(
     // Add the base user config layer. When profile-v2 is selected, add the
     // profile config as a second user layer on top so the profile only needs to
     // contain overrides.
-    let active_user_file = overrides.user_config_path(codex_home)?;
-    let base_user_file = AbsolutePathBuf::resolve_path_against_base(CONFIG_TOML_FILE, codex_home);
+    let active_user_file = overrides.user_config_path(codepilotx_home)?;
+    let base_user_file = AbsolutePathBuf::resolve_path_against_base(CONFIG_TOML_FILE, codepilotx_home);
     let base_user_layer = load_user_config_layer(
         fs,
         &base_user_file,
@@ -316,7 +316,7 @@ pub async fn load_config_layers_state(
             &merged_so_far,
             &cwd,
             &project_root_markers,
-            codex_home,
+            codepilotx_home,
             &active_user_file,
         )
         .await
@@ -342,7 +342,7 @@ pub async fn load_config_layers_state(
             &cwd,
             &project_trust_context.project_root,
             &project_trust_context,
-            codex_home,
+            codepilotx_home,
             strict_config,
         )
         .await?;
@@ -395,7 +395,7 @@ pub async fn load_config_layers_state(
         // relies on AbsolutePathBufGuard to resolve `~/`, we must supply a
         // value for base_dir. Preserve that same base on the layer so later
         // raw-TOML diagnostics parse with the same path semantics.
-        let raw_toml_base_dir = AbsolutePathBuf::from_absolute_path(codex_home)?;
+        let raw_toml_base_dir = AbsolutePathBuf::from_absolute_path(codepilotx_home)?;
         let managed_config = resolve_relative_paths_in_config_toml(
             config.managed_config,
             raw_toml_base_dir.as_path(),
@@ -650,7 +650,7 @@ fn system_config_toml_file_with_overrides(
 }
 
 #[cfg(windows)]
-fn windows_codex_system_dir() -> PathBuf {
+fn windows_codepilotx_system_dir() -> PathBuf {
     let program_data = windows_program_data_dir_from_known_folder().unwrap_or_else(|err| {
         tracing::warn!(
             error = %err,
@@ -663,13 +663,13 @@ fn windows_codex_system_dir() -> PathBuf {
 
 #[cfg(windows)]
 fn windows_system_requirements_toml_file() -> io::Result<AbsolutePathBuf> {
-    let requirements_toml_file = windows_codex_system_dir().join("requirements.toml");
+    let requirements_toml_file = windows_codepilotx_system_dir().join("requirements.toml");
     AbsolutePathBuf::try_from(requirements_toml_file)
 }
 
 #[cfg(windows)]
 fn windows_system_config_toml_file() -> io::Result<AbsolutePathBuf> {
-    let config_toml_file = windows_codex_system_dir().join("config.toml");
+    let config_toml_file = windows_codepilotx_system_dir().join("config.toml");
     AbsolutePathBuf::try_from(config_toml_file)
 }
 
@@ -912,18 +912,49 @@ impl ProjectTrustContext {
         }
 
         let relative_dir = dir.as_path().strip_prefix(checkout_root.as_path()).ok()?;
-        Some(repo_root.join(relative_dir).join(".codex"))
+        // Prefer .codepilotx/ over legacy .codex/ for linked worktree hooks
+        let candidate = repo_root.join(relative_dir).join(".codepilotx");
+        if candidate.is_dir() {
+            Some(candidate)
+        } else {
+            Some(repo_root.join(relative_dir).join(".codex"))
+        }
     }
 }
 
+/// Check for a project config directory at `base/.codepilotx` (preferred)
+/// or fall back to `base/.codex` (legacy) using the sandbox-aware filesystem.
+/// Returns `None` if neither exists.
+async fn resolve_project_config_dir(fs: &dyn ExecutorFileSystem, base: &Path) -> Option<AbsolutePathBuf> {
+    async fn dir_is_dir(fs: &dyn ExecutorFileSystem, p: &Path) -> bool {
+        let uri = PathUri::from_abs_path(p);
+        fs.get_metadata(&uri, None)
+            .await
+            .map(|m| m.is_directory)
+            .unwrap_or(false)
+    }
+
+    // Prefer .codepilotx/
+    let new_dir = base.join(".codepilotx");
+    if dir_is_dir(fs, &new_dir).await {
+        return AbsolutePathBuf::from_absolute_path(new_dir).ok();
+    }
+    // Fall back to legacy .codex/
+    let legacy_dir = base.join(".codex");
+    if dir_is_dir(fs, &legacy_dir).await {
+        return AbsolutePathBuf::from_absolute_path(legacy_dir).ok();
+    }
+    None
+}
+
 fn project_layer_entry(
-    dot_codex_folder: &AbsolutePathBuf,
+    dot_codepilotx_folder: &AbsolutePathBuf,
     config: TomlValue,
     disabled_reason: Option<String>,
     hooks_config_folder_override: Option<AbsolutePathBuf>,
 ) -> ConfigLayerEntry {
     let source = ConfigLayerSource::Project {
-        dot_codex_folder: dot_codex_folder.clone(),
+        dot_codepilotx_folder: dot_codepilotx_folder.clone(),
     };
 
     let entry = if let Some(reason) = disabled_reason {
@@ -955,10 +986,10 @@ fn sanitize_project_config(config: &mut TomlValue) -> Vec<String> {
 }
 
 fn project_ignored_config_keys_warning(
-    dot_codex_folder: &AbsolutePathBuf,
+    dot_codepilotx_folder: &AbsolutePathBuf,
     ignored_keys: &[String],
 ) -> String {
-    let config_path = dot_codex_folder.join(CONFIG_TOML_FILE);
+    let config_path = dot_codepilotx_folder.join(CONFIG_TOML_FILE);
     let ignored_keys = ignored_keys.join(", ");
     format!(
         concat!(
@@ -1197,12 +1228,12 @@ async fn load_project_layers(
     cwd: &AbsolutePathBuf,
     project_root: &AbsolutePathBuf,
     trust_context: &ProjectTrustContext,
-    codex_home: &Path,
+    codepilotx_home: &Path,
     strict_config: bool,
 ) -> io::Result<LoadedProjectLayers> {
-    let codex_home_abs = AbsolutePathBuf::from_absolute_path(codex_home)?;
-    let codex_home_normalized =
-        normalize_path(codex_home_abs.as_path()).unwrap_or_else(|_| codex_home_abs.to_path_buf());
+    let codepilotx_home_abs = AbsolutePathBuf::from_absolute_path(codepilotx_home)?;
+    let codepilotx_home_normalized =
+        normalize_path(codepilotx_home_abs.as_path()).unwrap_or_else(|_| codepilotx_home_abs.to_path_buf());
     let mut dirs = cwd
         .ancestors()
         .scan(false, |done, a| {
@@ -1221,26 +1252,22 @@ async fn load_project_layers(
     let mut layers = Vec::new();
     let mut startup_warnings = Vec::new();
     for dir in dirs {
-        let dot_codex_abs = dir.join(".codex");
-        let dot_codex_uri = PathUri::from_abs_path(&dot_codex_abs);
-        if !fs
-            .get_metadata(&dot_codex_uri, /*sandbox*/ None)
-            .await
-            .map(|metadata| metadata.is_directory)
-            .unwrap_or(false)
-        {
-            continue;
-        }
+        // Prefer .codepilotx/ over legacy .codex/ for project-local config.
+        let dot_codepilotx_abs = match resolve_project_config_dir(fs, dir).await {
+            Some(p) => p,
+            None => continue,
+        };
+        let dot_codepilotx_uri = PathUri::from_abs_path(&dot_codepilotx_abs);
 
         let decision = trust_context.decision_for_dir(&dir);
         let disabled_reason = trust_context.disabled_reason_for_decision(&decision);
         let hooks_config_folder_override = trust_context.root_checkout_hooks_folder_for_dir(&dir);
-        let dot_codex_normalized =
-            normalize_path(dot_codex_abs.as_path()).unwrap_or_else(|_| dot_codex_abs.to_path_buf());
-        if dot_codex_abs == codex_home_abs || dot_codex_normalized == codex_home_normalized {
+        let dot_codepilotx_normalized =
+            normalize_path(dot_codepilotx_abs.as_path()).unwrap_or_else(|_| dot_codepilotx_abs.to_path_buf());
+        if dot_codepilotx_abs == codepilotx_home_abs || dot_codepilotx_normalized == codepilotx_home_normalized {
             continue;
         }
-        let config_file = dot_codex_abs.join(CONFIG_TOML_FILE);
+        let config_file = dot_codepilotx_abs.join(CONFIG_TOML_FILE);
         let config_file_uri = PathUri::from_abs_path(&config_file);
         match fs.read_file_text(&config_file_uri, /*sandbox*/ None).await {
             Ok(contents) => {
@@ -1257,7 +1284,7 @@ async fn load_project_layers(
                             ));
                         }
                         layers.push(project_layer_entry(
-                            &dot_codex_abs,
+                            &dot_codepilotx_abs,
                             TomlValue::Table(toml::map::Map::new()),
                             disabled_reason.clone(),
                             hooks_config_folder_override.clone(),
@@ -1271,12 +1298,12 @@ async fn load_project_layers(
                         config_file.as_path(),
                         &contents,
                         &config,
-                        dot_codex_abs.as_path(),
+                        dot_codepilotx_abs.as_path(),
                     )?;
                 }
                 let ignored_project_config_keys = sanitize_project_config(&mut config);
                 let config =
-                    resolve_relative_paths_in_config_toml(config, dot_codex_abs.as_path())?;
+                    resolve_relative_paths_in_config_toml(config, dot_codepilotx_abs.as_path())?;
                 let config = merge_root_checkout_project_hooks(
                     fs,
                     config,
@@ -1286,12 +1313,12 @@ async fn load_project_layers(
                 .await?;
                 if disabled_reason.is_none() && !ignored_project_config_keys.is_empty() {
                     startup_warnings.push(project_ignored_config_keys_warning(
-                        &dot_codex_abs,
+                        &dot_codepilotx_abs,
                         &ignored_project_config_keys,
                     ));
                 }
                 let entry = project_layer_entry(
-                    &dot_codex_abs,
+                    &dot_codepilotx_abs,
                     config,
                     disabled_reason.clone(),
                     hooks_config_folder_override.clone(),
@@ -1311,7 +1338,7 @@ async fn load_project_layers(
                     )
                     .await?;
                     layers.push(project_layer_entry(
-                        &dot_codex_abs,
+                        &dot_codepilotx_abs,
                         config,
                         disabled_reason,
                         hooks_config_folder_override,
