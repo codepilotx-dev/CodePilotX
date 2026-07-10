@@ -37,6 +37,7 @@ export type DesktopCodePilotXSandboxMode =
 
 export type DesktopAgentRuntimeContext = {
   sessionId: string
+  appServerThreadId?: string | null
   workspacePath: string
   agentExecutablePath?: string
   configDirectoryPath?: string
@@ -69,6 +70,7 @@ export type DesktopAgentRuntimeContext = {
   enableMemory?: boolean
   rustSearchAndDiffKernels?: boolean
   serializeHeadlessTurns?: boolean
+  onAppServerThreadId?: (threadId: string) => void
   emit(event: DesktopAgentEvent): void
   requestPermission(request: DesktopPermissionRequest): Promise<DesktopPermissionDecision>
 }

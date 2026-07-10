@@ -110,6 +110,7 @@ import {
 } from './desktopRolloutPersistence.js'
 import { createSessionPersistScheduler } from './sessionPersistScheduler.js'
 import { createSessionStoreChangeEmitter } from './sessionStoreChangeEmitter.js'
+import { shouldMarkSessionUnread } from '../shared/sessionUnread.js'
 import type {
   CreateDesktopSessionOptions,
   CreateDesktopSessionResult,
@@ -441,6 +442,10 @@ function attachSessionListeners(record: DesktopSessionRecord): void {
       return
     }
     const timestampedEvent = withDesktopMessageTimestamp(event)
+    const shouldMarkUnread = shouldMarkSessionUnread(
+      timestampedEvent,
+      activeSessionId,
+    )
     persistAgentEventToRollout(currentRecord.snapshot, timestampedEvent)
     currentRecord.snapshot = applyDesktopAgentEventToSnapshot(
       currentRecord.snapshot,
@@ -450,6 +455,18 @@ function attachSessionListeners(record: DesktopSessionRecord): void {
       currentRecord.snapshot,
       windowService.emitAgentEvent(timestampedEvent),
     )
+    if (shouldMarkUnread) {
+      currentRecord.snapshot = {
+        ...currentRecord.snapshot,
+        item: {
+          ...currentRecord.snapshot.item,
+          unreadAt:
+            timestampedEvent.type === 'message'
+              ? timestampedEvent.createdAt ?? new Date().toISOString()
+              : new Date().toISOString(),
+        },
+      }
+    }
     persistSessionStore({ immediate: isImmediatePersistAgentEvent(timestampedEvent) })
     if (
       !currentRecord.snapshot.item.standalone &&
@@ -542,12 +559,27 @@ function createRuntimeForRecord(record: DesktopSessionRecord): DesktopAgentSessi
       ...record.snapshot.settings,
       workspacePath: record.snapshot.workspace.path,
       sessionId: record.snapshot.item.id,
+      appServerThreadId:
+        record.snapshot.appServerThreadId ??
+        record.snapshot.item.appServerThreadId ??
+        null,
       resumeExistingSession: record.resumeExistingSession,
       suppressStartupMessage: true,
     },
-    getDesktopAgentRuntimeOptions(
-      record.snapshot.settings.installCodePilotXDependencies,
-    ),
+    {
+      ...getDesktopAgentRuntimeOptions(
+        record.snapshot.settings.installCodePilotXDependencies,
+      ),
+      onAppServerThreadId: threadId => {
+        record.snapshot = {
+          ...record.snapshot,
+          appServerThreadId: threadId,
+          item: { ...record.snapshot.item, appServerThreadId: threadId },
+          updatedAt: new Date().toISOString(),
+        }
+        persistSessionStore({ immediate: true })
+      },
+    },
   )
   record.session = session
   attachSessionListeners(record)
@@ -596,10 +628,17 @@ async function setActiveSession(sessionId: string | null): Promise<void> {
   if (sessionId !== null && !sessions.has(sessionId)) {
     throw new Error(`Unknown desktop session: ${sessionId}`)
   }
-  if (activeSessionId === sessionId) {
-    return
-  }
+  const nextRecord = sessionId ? sessions.get(sessionId) : undefined
+  const shouldClearUnread = Boolean(nextRecord?.snapshot.item.unreadAt)
+  if (activeSessionId === sessionId && !shouldClearUnread) return
   activeSessionId = sessionId
+  if (nextRecord && shouldClearUnread) {
+    nextRecord.snapshot = {
+      ...nextRecord.snapshot,
+      item: { ...nextRecord.snapshot.item, unreadAt: null },
+      updatedAt: new Date().toISOString(),
+    }
+  }
   persistSessionStore({ immediate: true })
 }
 
@@ -944,6 +983,7 @@ async function createSession(
     enableMemory,
     rustSearchAndDiffKernels,
   })
+  let createdRecord: DesktopSessionRecord | null = null
   const session = createDesktopAgentSession(
     {
       workspacePath,
@@ -971,7 +1011,19 @@ async function createSession(
       enableMemory,
       rustSearchAndDiffKernels,
     },
-    getDesktopAgentRuntimeOptions(installCodePilotXDependencies),
+    {
+      ...getDesktopAgentRuntimeOptions(installCodePilotXDependencies),
+      onAppServerThreadId: threadId => {
+        if (!createdRecord) return
+        createdRecord.snapshot = {
+          ...createdRecord.snapshot,
+          appServerThreadId: threadId,
+          item: { ...createdRecord.snapshot.item, appServerThreadId: threadId },
+          updatedAt: new Date().toISOString(),
+        }
+        persistSessionStore({ immediate: true })
+      },
+    },
   )
   const record: DesktopSessionRecord = {
     session,
@@ -983,6 +1035,7 @@ async function createSession(
       settings,
     }),
   }
+  createdRecord = record
   const rolloutPath = record.snapshot.item.rolloutPath?.trim()
   if (rolloutPath) {
     void appendDesktopRolloutItems(rolloutPath, [
@@ -1131,6 +1184,13 @@ async function sendUserMessage(
     baselineCaptured: record.turnBaselineDiffPatch !== null,
   })
   activeSessionId = record.snapshot.item.id
+  if (record.snapshot.item.unreadAt) {
+    record.snapshot = {
+      ...record.snapshot,
+      item: { ...record.snapshot.item, unreadAt: null },
+      updatedAt: new Date().toISOString(),
+    }
+  }
   persistSessionStore({ immediate: true })
 	  if (shouldGenerateTitle) {
 	    scheduleAiTitleGeneration(record, trimmedContent)

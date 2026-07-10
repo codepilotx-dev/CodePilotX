@@ -30,11 +30,13 @@ export type PersistedDesktopSessionOverlayStore = {
 
 export type DesktopSessionOverlay = {
   id: string
+  appServerThreadId?: string | null
   workspace: DesktopWorkspace
   settings: DesktopSessionSettingsSnapshot
   standalone?: boolean
   pinnedAt?: string | null
   archivedAt?: string | null
+  unreadAt?: string | null
   sessionName?: string | null
   aiTitle?: string | null
   customTitle?: string | null

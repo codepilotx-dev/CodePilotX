@@ -477,11 +477,13 @@ export async function saveDesktopSessionStore(
       )
       return {
         id: overlay.id,
+        appServerThreadId: overlay.appServerThreadId,
         workspace: overlay.workspace,
         settings: overlay.settings,
         standalone: overlay.standalone,
         pinnedAt: overlay.pinnedAt,
         archivedAt: overlay.archivedAt,
+        unreadAt: overlay.unreadAt,
         sessionName: overlay.sessionName,
         aiTitle: overlay.aiTitle,
         customTitle: overlay.customTitle,
@@ -527,6 +529,7 @@ export function createDesktopSessionSnapshot(params: {
   workspace: DesktopWorkspace
   standalone: boolean
   settings: DesktopSessionSettingsSnapshot
+  appServerThreadId?: string | null
 }): DesktopSessionSnapshot {
   const now = new Date()
   const lastMessageAt = now.toISOString()
@@ -536,8 +539,10 @@ export function createDesktopSessionSnapshot(params: {
   const legacyTranscriptPath = getTranscriptPath(workspace.path, params.sessionId)
   const rolloutPath = getRolloutPath(workspace.path, params.sessionId)
   return {
+    appServerThreadId: params.appServerThreadId ?? null,
     item: {
       id: params.sessionId,
+      appServerThreadId: params.appServerThreadId ?? null,
       sessionName: params.settings.sessionName ?? null,
       aiTitle: null,
       customTitle: null,
@@ -886,6 +891,7 @@ function normalizeSessionOverlay(value: unknown): DesktopSessionOverlay[] {
   return [
     {
       id: raw.id,
+      appServerThreadId: nullableString(raw.appServerThreadId),
       workspace: normalizedWorkspace,
       settings,
       standalone: isStandaloneSession(
@@ -963,6 +969,10 @@ function normalizeSessionSnapshot(value: unknown): DesktopSessionSnapshot[] {
         : item.status
   return [
     {
+      appServerThreadId:
+        nullableString((snapshot as Record<string, unknown>).appServerThreadId) ??
+        item.appServerThreadId ??
+        null,
       item: {
         ...item,
         workspaceName: normalizedWorkspace.name,
@@ -1087,6 +1097,7 @@ function snapshotFromTranscriptLog(
     standalone,
     pinnedAt: overlay?.pinnedAt ?? null,
     archivedAt: overlay?.archivedAt ?? null,
+    unreadAt: overlay?.unreadAt ?? null,
     permissionProfile: settings.permissionProfile,
     approvalPolicy: settings.approvalPolicy,
     approvalsReviewer: settings.approvalsReviewer,
@@ -1145,6 +1156,7 @@ function snapshotFromOverlay(overlay: DesktopSessionOverlay): DesktopSessionSnap
         ...legacySnapshot.item,
         pinnedAt: overlay.pinnedAt ?? legacySnapshot.item.pinnedAt,
         archivedAt: overlay.archivedAt ?? legacySnapshot.item.archivedAt,
+        unreadAt: overlay.unreadAt ?? legacySnapshot.item.unreadAt,
       },
     }
   }
@@ -1153,8 +1165,10 @@ function snapshotFromOverlay(overlay: DesktopSessionOverlay): DesktopSessionSnap
   const workspace = normalizeStandaloneWorkspace(overlay.workspace)
   const standalone = isStandaloneSession(workspace, overlay.standalone === true)
   return {
+    appServerThreadId: overlay?.appServerThreadId ?? null,
     item: {
       id: overlay.id,
+      appServerThreadId: overlay.appServerThreadId ?? null,
       sessionName: overlay.sessionName ?? settings.sessionName ?? null,
       aiTitle: overlay.aiTitle ?? null,
       customTitle: overlay.customTitle ?? null,
@@ -1178,6 +1192,7 @@ function snapshotFromOverlay(overlay: DesktopSessionOverlay): DesktopSessionSnap
       standalone,
       pinnedAt: overlay.pinnedAt ?? null,
       archivedAt: overlay.archivedAt ?? null,
+      unreadAt: overlay.unreadAt ?? null,
       permissionProfile: settings.permissionProfile,
       approvalPolicy: settings.approvalPolicy,
       approvalsReviewer: settings.approvalsReviewer,
@@ -1217,11 +1232,16 @@ function overlayFromSnapshot(
   const normalizedSnapshot = normalizeSnapshotStandalone(snapshot)
   return {
     id: normalizedSnapshot.item.id,
+    appServerThreadId:
+      normalizedSnapshot.appServerThreadId ??
+      normalizedSnapshot.item.appServerThreadId ??
+      null,
     workspace: normalizedSnapshot.workspace,
     settings: normalizedSnapshot.settings,
     standalone: normalizedSnapshot.item.standalone === true,
     pinnedAt: normalizedSnapshot.item.pinnedAt ?? null,
     archivedAt: normalizedSnapshot.item.archivedAt ?? null,
+    unreadAt: normalizedSnapshot.item.unreadAt ?? null,
     sessionName: normalizedSnapshot.item.sessionName ?? null,
     aiTitle: normalizedSnapshot.item.aiTitle ?? null,
     customTitle: normalizedSnapshot.item.customTitle ?? null,
@@ -1504,6 +1524,7 @@ function normalizeSessionItem(
   const unreadAt = normalizeTimestampString(item.unreadAt)
   return {
     id: typeof item.id === 'string' ? item.id : '',
+    appServerThreadId: nullableString(item.appServerThreadId),
     sessionName:
       typeof item.sessionName === 'string' ? item.sessionName : null,
     aiTitle: typeof item.aiTitle === 'string' ? item.aiTitle : null,

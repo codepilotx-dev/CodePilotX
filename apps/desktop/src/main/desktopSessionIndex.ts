@@ -208,6 +208,7 @@ export function snapshotFromSessionRow(
 
   const item: DesktopSessionListItem = {
     id: row?.id ?? overlay?.id ?? '',
+    appServerThreadId: overlay?.appServerThreadId ?? null,
     sessionName,
     aiTitle,
     customTitle,
@@ -230,6 +231,7 @@ export function snapshotFromSessionRow(
     standalone,
     pinnedAt: overlay?.pinnedAt ?? null,
     archivedAt: overlay?.archivedAt ?? null,
+    unreadAt: overlay?.unreadAt ?? null,
     permissionProfile: settings.permissionProfile ?? ':workspace',
     approvalPolicy: settings.approvalPolicy ?? 'on-request',
     approvalsReviewer: settings.approvalsReviewer ?? 'user',
@@ -249,6 +251,7 @@ export function snapshotFromSessionRow(
   }
 
   return {
+    appServerThreadId: item.appServerThreadId ?? null,
     item,
     workspace,
     settings,

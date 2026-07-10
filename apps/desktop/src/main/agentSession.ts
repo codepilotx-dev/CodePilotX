@@ -60,6 +60,7 @@ export type DesktopAgentSessionRuntimeOptions = {
   toolchainEnvironment?: Record<string, string | undefined>
   createRuntime?: (context: DesktopAgentRuntimeContext) => DesktopAgentRuntime
   autoReviewService?: DesktopAutoReviewService
+  onAppServerThreadId?: (threadId: string) => void
 }
 
 export type DesktopAgentSession = {
@@ -162,6 +163,7 @@ class LocalDesktopAgentSession
     const createRuntime = runtimeOptions.createRuntime ?? createDesktopAgentRuntime
     this.runtime = createRuntime({
       sessionId: this.sessionId,
+      appServerThreadId: options.appServerThreadId,
       workspacePath: this.workspacePath,
       agentExecutablePath: runtimeOptions.agentExecutablePath,
       configDirectoryPath: runtimeOptions.configDirectoryPath,
@@ -191,6 +193,7 @@ class LocalDesktopAgentSession
       installCodePilotXDependencies: options.installCodePilotXDependencies,
       enableMemory: options.enableMemory,
       rustSearchAndDiffKernels: options.rustSearchAndDiffKernels,
+      onAppServerThreadId: runtimeOptions.onAppServerThreadId,
       emit: event => this.emitEvent(event),
       requestPermission: request => this.requestPermission(request),
     })
