@@ -1,6 +1,5 @@
 use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use dirs::home_dir;
-use std::path::Path;
 use std::path::PathBuf;
 
 /// Returns the path to the CodePilotX configuration directory, using the
@@ -16,26 +15,28 @@ use std::path::PathBuf;
 /// For env-var paths, the value will be canonicalized and this function will Err
 /// if the path does not exist or is not a directory.
 pub fn find_codepilotx_home() -> std::io::Result<AbsolutePathBuf> {
-    let home = home_dir().ok_or_else(|| {
-        std::io::Error::new(
-            std::io::ErrorKind::NotFound,
-            "Could not find home directory",
-        )
-    })?;
-    find_codepilotx_home_with(&home, |name| {
-        std::env::var(name).ok().filter(|value| !value.is_empty())
-    })
+    find_codepilotx_home_with(
+        |name| std::env::var(name).ok().filter(|value| !value.is_empty()),
+        home_dir,
+    )
 }
 
 fn find_codepilotx_home_with(
-    home: &Path,
     mut get_env: impl FnMut(&str) -> Option<String>,
+    get_home: impl FnOnce() -> Option<PathBuf>,
 ) -> std::io::Result<AbsolutePathBuf> {
     for name in ["CODEPILOTX_CONFIG_DIR", "CODEPILOTX_HOME", "CODEX_HOME"] {
         if let Some(value) = get_env(name).filter(|value| !value.is_empty()) {
             return resolve_home_env_var(&value, name);
         }
     }
+
+    let home = get_home().ok_or_else(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "Could not find home directory",
+        )
+    })?;
 
     let codepilotx_dir = home.join(".codepilotx");
     if codepilotx_dir.is_dir() {
@@ -93,6 +94,22 @@ mod tests {
     use tempfile::TempDir;
 
     #[test]
+    fn env_home_does_not_require_a_platform_home_directory() {
+        let env_home = TempDir::new().expect("env home");
+        let resolved = find_codepilotx_home_with(
+            |name| (name == "CODEPILOTX_CONFIG_DIR").then(|| env_home.path().display().to_string()),
+            || None,
+        )
+        .expect("env home should resolve without a platform home");
+        let expected = AbsolutePathBuf::from_absolute_path(
+            env_home.path().canonicalize().expect("canonical env home"),
+        )
+        .expect("absolute env home");
+
+        assert_eq!(resolved, expected);
+    }
+
+    #[test]
     fn home_resolution_follows_documented_priority() {
         let temp_home = TempDir::new().expect("temp home");
         let config_dir = temp_home.path().join("config-dir");
@@ -120,9 +137,11 @@ mod tests {
                 .iter()
                 .map(|(name, path)| ((*name).to_string(), path.display().to_string()))
                 .collect::<HashMap<_, _>>();
-            let resolved =
-                find_codepilotx_home_with(temp_home.path(), |name| env.get(name).cloned())
-                    .expect("resolve home");
+            let resolved = find_codepilotx_home_with(
+                |name| env.get(name).cloned(),
+                || Some(temp_home.path().to_path_buf()),
+            )
+            .expect("resolve home");
             let expected_path = match first_enabled {
                 0..=2 => candidates[first_enabled]
                     .1
@@ -138,7 +157,8 @@ mod tests {
         }
 
         fs::remove_dir(&dot_codepilotx).expect("remove .codepilotx");
-        let resolved = find_codepilotx_home_with(temp_home.path(), |_| None).expect("legacy home");
+        let resolved = find_codepilotx_home_with(|_| None, || Some(temp_home.path().to_path_buf()))
+            .expect("legacy home");
         let expected = AbsolutePathBuf::from_absolute_path(
             dot_codex.canonicalize().expect("canonical .codex"),
         )
@@ -146,7 +166,8 @@ mod tests {
         assert_eq!(resolved, expected);
 
         fs::remove_dir(&dot_codex).expect("remove .codex");
-        let resolved = find_codepilotx_home_with(temp_home.path(), |_| None).expect("default home");
+        let resolved = find_codepilotx_home_with(|_| None, || Some(temp_home.path().to_path_buf()))
+            .expect("default home");
         let expected = AbsolutePathBuf::from_absolute_path(temp_home.path().join(".codepilotx"))
             .expect("absolute default home");
         assert_eq!(resolved, expected);

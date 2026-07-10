@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "ProviderRepoInfo": {
+      "properties": {
+        "clone_url": {
+          "type": "string"
+        },
+        "default_branch": {
+          "type": "string"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "full_name": {
+          "type": "string"
+        },
+        "html_url": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "private": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "clone_url",
+        "default_branch",
+        "full_name",
+        "html_url",
+        "name",
+        "private"
+      ],
+      "type": "object"
+    }
+  },
+  "properties": {
+    "repos": {
+      "items": {
+        "$ref": "#/definitions/ProviderRepoInfo"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "repos"
+  ],
+  "title": "ProviderRepoListResponse",
+  "type": "object"
+}

@@ -7,13 +7,21 @@
     }
   },
   "properties": {
+    "codepilotxHome": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/AbsolutePathBuf"
+        }
+      ],
+      "description": "Canonical: absolute path to the server's CodePilotX home directory."
+    },
     "codexHome": {
       "allOf": [
         {
           "$ref": "#/definitions/AbsolutePathBuf"
         }
       ],
-      "description": "Absolute path to the server's $CODEX_HOME directory."
+      "description": "Legacy alias: absolute path to the server's CodePilotX home directory. Kept for backward compatibility with clients expecting `codexHome`."
     },
     "platformFamily": {
       "description": "Platform family for the running app-server target, for example `\"unix\"` or `\"windows\"`.",
@@ -28,6 +36,7 @@
     }
   },
   "required": [
+    "codepilotxHome",
     "codexHome",
     "platformFamily",
     "platformOs",

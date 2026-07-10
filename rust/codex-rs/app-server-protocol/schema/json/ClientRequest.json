@@ -1444,7 +1444,7 @@
         },
         {
           "properties": {
-            "codexStreamlinedLogin": {
+            "codepilotxStreamlinedLogin": {
               "type": "boolean"
             },
             "type": {
@@ -2124,6 +2124,98 @@
       "required": [
         "cols",
         "rows"
+      ],
+      "type": "object"
+    },
+    "ProviderAuthCancelLoginParams": {
+      "properties": {
+        "provider_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider_id"
+      ],
+      "type": "object"
+    },
+    "ProviderAuthLogoutParams": {
+      "properties": {
+        "provider_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider_id"
+      ],
+      "type": "object"
+    },
+    "ProviderAuthPollLoginParams": {
+      "properties": {
+        "provider_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider_id"
+      ],
+      "type": "object"
+    },
+    "ProviderAuthReadStatusParams": {
+      "properties": {
+        "provider_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider_id"
+      ],
+      "type": "object"
+    },
+    "ProviderAuthStartLoginParams": {
+      "properties": {
+        "client_id": {
+          "description": "GitHub OAuth App client ID (required for `github-repositories`).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "provider_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider_id"
+      ],
+      "type": "object"
+    },
+    "ProviderRepoCloneParams": {
+      "properties": {
+        "local_path": {
+          "type": "string"
+        },
+        "provider_id": {
+          "type": "string"
+        },
+        "repo_url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "local_path",
+        "provider_id",
+        "repo_url"
+      ],
+      "type": "object"
+    },
+    "ProviderRepoListParams": {
+      "properties": {
+        "provider_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider_id"
       ],
       "type": "object"
     },
@@ -3524,7 +3616,7 @@
     "ThreadApproveGuardianDeniedActionParams": {
       "properties": {
         "event": {
-          "description": "Serialized `codex_protocol::protocol::GuardianAssessmentEvent`."
+          "description": "Serialized `codepilotx_protocol::protocol::GuardianAssessmentEvent`."
         },
         "threadId": {
           "type": "string"
@@ -4725,6 +4817,151 @@
             "type"
           ],
           "title": "MentionUserInput",
+          "type": "object"
+        },
+        {
+          "description": "PDF/document attachment (base64-encoded payload).",
+          "properties": {
+            "data": {
+              "type": "string"
+            },
+            "media_type": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "type": {
+              "enum": [
+                "document"
+              ],
+              "title": "DocumentUserInputType",
+              "type": "string"
+            }
+          },
+          "required": [
+            "data",
+            "media_type",
+            "name",
+            "type"
+          ],
+          "title": "DocumentUserInput",
+          "type": "object"
+        },
+        {
+          "description": "Audio file attachment (base64-encoded payload).",
+          "properties": {
+            "data": {
+              "type": "string"
+            },
+            "media_type": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "type": {
+              "enum": [
+                "audio"
+              ],
+              "title": "AudioUserInputType",
+              "type": "string"
+            }
+          },
+          "required": [
+            "data",
+            "media_type",
+            "name",
+            "type"
+          ],
+          "title": "AudioUserInput",
+          "type": "object"
+        },
+        {
+          "description": "Video file attachment (base64-encoded payload).",
+          "properties": {
+            "data": {
+              "type": "string"
+            },
+            "media_type": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "type": {
+              "enum": [
+                "video"
+              ],
+              "title": "VideoUserInputType",
+              "type": "string"
+            }
+          },
+          "required": [
+            "data",
+            "media_type",
+            "name",
+            "type"
+          ],
+          "title": "VideoUserInput",
+          "type": "object"
+        },
+        {
+          "description": "Generic binary file attachment (base64-encoded payload).",
+          "properties": {
+            "data": {
+              "type": "string"
+            },
+            "media_type": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "type": {
+              "enum": [
+                "file"
+              ],
+              "title": "FileUserInputType",
+              "type": "string"
+            }
+          },
+          "required": [
+            "data",
+            "media_type",
+            "name",
+            "type"
+          ],
+          "title": "FileUserInput",
+          "type": "object"
+        },
+        {
+          "description": "Text file attachment (inline UTF-8 content).",
+          "properties": {
+            "media_type": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            },
+            "type": {
+              "enum": [
+                "textFile"
+              ],
+              "title": "TextFileUserInputType",
+              "type": "string"
+            }
+          },
+          "required": [
+            "media_type",
+            "name",
+            "text",
+            "type"
+          ],
+          "title": "TextFileUserInput",
           "type": "object"
         }
       ]
@@ -6821,6 +7058,181 @@
         "params"
       ],
       "title": "FuzzyFileSearchRequest",
+      "type": "object"
+    },
+    {
+      "description": "Read the authentication status of a provider (e.g. `github-repositories`).",
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
+            "providerAuth/readStatus"
+          ],
+          "title": "ProviderAuth/readStatusRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/ProviderAuthReadStatusParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "title": "ProviderAuth/readStatusRequest",
+      "type": "object"
+    },
+    {
+      "description": "Start a device-code login flow for the given provider.",
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
+            "providerAuth/startLogin"
+          ],
+          "title": "ProviderAuth/startLoginRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/ProviderAuthStartLoginParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "title": "ProviderAuth/startLoginRequest",
+      "type": "object"
+    },
+    {
+      "description": "Poll an in-progress device-code login.",
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
+            "providerAuth/pollLogin"
+          ],
+          "title": "ProviderAuth/pollLoginRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/ProviderAuthPollLoginParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "title": "ProviderAuth/pollLoginRequest",
+      "type": "object"
+    },
+    {
+      "description": "Cancel an in-progress device-code login.",
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
+            "providerAuth/cancelLogin"
+          ],
+          "title": "ProviderAuth/cancelLoginRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/ProviderAuthCancelLoginParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "title": "ProviderAuth/cancelLoginRequest",
+      "type": "object"
+    },
+    {
+      "description": "Log out a provider and delete stored credentials.",
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
+            "providerAuth/logout"
+          ],
+          "title": "ProviderAuth/logoutRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/ProviderAuthLogoutParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "title": "ProviderAuth/logoutRequest",
+      "type": "object"
+    },
+    {
+      "description": "List repositories for the given provider.",
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
+            "providerAuth/repoList"
+          ],
+          "title": "ProviderAuth/repoListRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/ProviderRepoListParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "title": "ProviderAuth/repoListRequest",
+      "type": "object"
+    },
+    {
+      "description": "Clone a repository via the app-server (credentials never leave the backend).",
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
+            "providerAuth/repoClone"
+          ],
+          "title": "ProviderAuth/repoCloneRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/ProviderRepoCloneParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "title": "ProviderAuth/repoCloneRequest",
       "type": "object"
     }
   ],

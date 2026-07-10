@@ -12,9 +12,18 @@ pub fn is_command_cwd_root(root: &Path, canonical_command_cwd: &Path) -> bool {
 /// # Safety
 /// Caller must ensure `psid` is a valid SID pointer.
 pub unsafe fn protect_workspace_config_dirs(cwd: &Path, psid: *mut c_void) -> Result<bool> {
+    apply_acl_rules(existing_workspace_config_dirs([cwd]).iter(), |path| {
+        add_deny_write_ace(path, psid)
+    })
+}
+
+pub(crate) fn apply_acl_rules<P: AsRef<Path>>(
+    paths: impl IntoIterator<Item = P>,
+    mut apply: impl FnMut(&Path) -> Result<bool>,
+) -> Result<bool> {
     let mut changed = false;
-    for path in existing_workspace_config_dirs([cwd]) {
-        changed |= add_deny_write_ace(&path, psid)?;
+    for path in paths {
+        changed |= apply(path.as_ref())?;
     }
     Ok(changed)
 }
@@ -46,9 +55,11 @@ pub fn existing_workspace_config_dirs<'a>(
 
 #[cfg(test)]
 mod tests {
+    use super::apply_acl_rules;
     use super::existing_workspace_config_dirs;
     use pretty_assertions::assert_eq;
     use std::fs;
+    use std::path::PathBuf;
     use tempfile::TempDir;
 
     #[test]
@@ -63,5 +74,21 @@ mod tests {
             existing_workspace_config_dirs([temp.path()]),
             vec![canonical, legacy]
         );
+    }
+
+    #[test]
+    fn apply_acl_rules_returns_the_first_error() {
+        let first = PathBuf::from("first");
+        let second = PathBuf::from("second");
+        let mut attempted = Vec::new();
+
+        let error = apply_acl_rules([first.as_path(), second.as_path()], |path| {
+            attempted.push(path.to_path_buf());
+            Err(anyhow::anyhow!("acl denied"))
+        })
+        .expect_err("first ACL failure must be returned");
+
+        assert_eq!(error.to_string(), "acl denied");
+        assert_eq!(attempted, vec![first]);
     }
 }
