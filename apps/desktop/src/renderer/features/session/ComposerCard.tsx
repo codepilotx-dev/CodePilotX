@@ -842,7 +842,11 @@ export function ComposerCard({
               <div className="chat-input__dropdown-separator" />
             ) : null}
             <div className="chat-input__dropdown-section-title">
-              {UNIFIED_GROUP_LABELS[group]}
+              <span className="chat-input__dropdown-section-leading" />
+              <span className="chat-input__dropdown-section-label">
+                {UNIFIED_GROUP_LABELS[group]}
+              </span>
+              <span className="chat-input__dropdown-section-trailing" />
             </div>
             {(grouped.get(group) ?? []).map((item) => (
               <div
@@ -864,11 +868,13 @@ export function ComposerCard({
                 <span className="chat-input__dropdown-label">
                   {item.label}
                 </span>
-                {item.hint ? (
-                  <span className="chat-input__dropdown-hint">
-                    {item.hint}
-                  </span>
-                ) : null}
+                <span className="chat-input__dropdown-trailing">
+                  {item.hint ? (
+                    <span className="chat-input__dropdown-hint">
+                      {item.hint}
+                    </span>
+                  ) : null}
+                </span>
               </div>
             ))}
           </Fragment>
