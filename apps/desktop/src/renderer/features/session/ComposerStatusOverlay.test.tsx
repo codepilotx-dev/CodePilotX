@@ -4,6 +4,11 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { ComposerStatusOverlay } from './ComposerStatusOverlay.js'
 import type { DesktopContextUsage } from '../../../shared/types.js'
 
+// NOTE: These tests use renderToStaticMarkup which does NOT run useEffect.
+// This means the async data-fetching path (loading, error, balance data)
+// cannot be tested here — only the synchronous rendering paths are covered.
+// For full async coverage, use a proper component test harness (e.g. Testing Library).
+
 describe('ComposerStatusOverlay', () => {
   it('renders nothing when closed', () => {
     const html = renderToStaticMarkup(
@@ -80,5 +85,18 @@ describe('ComposerStatusOverlay', () => {
       />,
     )
     expect(html).toContain('暂无上下文统计')
+  })
+
+  it('shows unsupported message for non-billing provider', () => {
+    const html = renderToStaticMarkup(
+      <ComposerStatusOverlay
+        open={true}
+        onClose={() => {}}
+        routedSessionId="sess-1"
+        contextUsage={null}
+        selectedProviderID="Bedrock" // non-billing provider
+      />,
+    )
+    expect(html).toContain('当前提供商不支持用量查询')
   })
 })

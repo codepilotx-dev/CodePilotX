@@ -18,6 +18,7 @@ type Props = {
   contextUsage: DesktopContextUsage | null
   selectedProviderID?: ModelProviderID
   side?: 'top' | 'bottom'
+  disableOutsideDismiss?: boolean
 }
 
 function renderQuotaRow(
@@ -61,6 +62,7 @@ export function ComposerStatusOverlay({
   contextUsage,
   selectedProviderID,
   side = 'top',
+  disableOutsideDismiss = false,
 }: Props): React.ReactNode {
   const [balance, setBalance] = useState<DesktopProviderBalanceResult | null>(null)
   const [loading, setLoading] = useState(false)
@@ -108,6 +110,7 @@ export function ComposerStatusOverlay({
       side={side}
       width="100%"
       maxWidth="100%"
+      disableOutsideDismiss={disableOutsideDismiss}
     >
       <div className="composer-status-content">
         {/* Header */}
@@ -140,7 +143,7 @@ export function ComposerStatusOverlay({
                 <div
                   className="composer-status-bar-fill"
                   style={
-                    { '--usage-ratio': contextUsage.usedPercent / 100 } as React.CSSProperties
+                    { '--usage-ratio': clampPercent(contextUsage.usedPercent) / 100 } as React.CSSProperties
                   }
                 />
               </div>
@@ -162,7 +165,9 @@ export function ComposerStatusOverlay({
         {/* Quota section */}
         {selectedProviderID ? (
           <div className="composer-status-section">
-            {loading ? (
+            {!isBillingProviderID(selectedProviderID) ? (
+              <div className="composer-status-empty">当前提供商不支持用量查询</div>
+            ) : loading ? (
               <div className="composer-status-empty">正在查询用量...</div>
             ) : error ? (
               <div className="composer-status-empty composer-status-empty-error">

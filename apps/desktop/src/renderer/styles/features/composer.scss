@@ -1003,6 +1003,10 @@
   color: var(--color-text-meta);
 }
 
+.composer-status-quota-row + .composer-status-quota-row {
+  margin-top: 8px;
+}
+
 .composer-status-empty {
   padding: 8px 0;
   color: var(--color-text-meta);

@@ -715,8 +715,14 @@ export function ComposerCard({
 
   function handleUnifiedPlusSelect(item: UnifiedMenuItem): void {
     if (item.disabled) return;
+    // Items that manage their own dropdown (status, model, reasoning) should
+    // not be followed by closeDropdown(), otherwise React batches the two
+    // setOpenDropdown calls and the sub-dropdown never opens.
+    const managesOwnDropdown = item.key === "status" || item.key === "model" || item.key === "reasoning";
     item.onSelect();
-    closeDropdown();
+    if (!managesOwnDropdown) {
+      closeDropdown();
+    }
   }
 
   function handleUnifiedSlashSelect(item: UnifiedMenuItem): void {
@@ -727,8 +733,14 @@ export function ComposerCard({
       onInputChange(input.slice(slashMatch[0].length).trimStart());
     }
     setDismissedSlashInput(input);
+    // Same logic as handleUnifiedPlusSelect: skip closeDropdown for items
+    // that open a sub-dropown, otherwise React batches both setOpenDropdown
+    // calls and the sub-dropdown never opens.
+    const managesOwnDropdown = item.key === "status" || item.key === "model" || item.key === "reasoning";
     item.onSelect();
-    closeDropdown();
+    if (!managesOwnDropdown) {
+      closeDropdown();
+    }
   }
 
   function handleUnifiedMentionSelect(item: UnifiedMenuItem): void {
@@ -1573,6 +1585,7 @@ export function ComposerCard({
           contextUsage={contextUsage}
           selectedProviderID={selectedProviderID}
           side={contextDropdownSide}
+          disableOutsideDismiss={debugMode}
         />
       </div>
 
