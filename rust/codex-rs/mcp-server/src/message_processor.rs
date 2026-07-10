@@ -1,19 +1,19 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use codex_arg0::Arg0DispatchPaths;
-use codex_core::StateDbHandle;
-use codex_core::ThreadManager;
-use codex_core::config::Config;
-use codex_exec_server::EnvironmentManager;
-use codex_extension_api::empty_extension_registry;
-use codex_home::CodexHomeUserInstructionsProvider;
-use codex_login::AuthManager;
-use codex_login::default_client::USER_AGENT_SUFFIX;
-use codex_login::default_client::get_codex_user_agent;
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::Submission;
+use codepilotx_arg0::Arg0DispatchPaths;
+use codepilotx_core::StateDbHandle;
+use codepilotx_core::ThreadManager;
+use codepilotx_core::config::Config;
+use codepilotx_exec_server::EnvironmentManager;
+use codepilotx_extension_api::empty_extension_registry;
+use codepilotx_home::CodePilotXHomeUserInstructionsProvider;
+use codepilotx_login::AuthManager;
+use codepilotx_login::default_client::USER_AGENT_SUFFIX;
+use codepilotx_login::default_client::get_codepilotx_user_agent;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_protocol::protocol::Submission;
 use rmcp::model::CallToolRequestParams;
 use rmcp::model::CallToolResult;
 use rmcp::model::ClientNotification;
@@ -32,10 +32,10 @@ use serde_json::json;
 use tokio::sync::Mutex;
 use tokio::task;
 
-use crate::codex_tool_config::CodexToolCallParam;
-use crate::codex_tool_config::CodexToolCallReplyParam;
-use crate::codex_tool_config::create_tool_for_codex_tool_call_param;
-use crate::codex_tool_config::create_tool_for_codex_tool_call_reply_param;
+use crate::codepilotx_tool_config::CodexToolCallParam;
+use crate::codepilotx_tool_config::CodexToolCallReplyParam;
+use crate::codepilotx_tool_config::create_tool_for_codepilotx_tool_call_param;
+use crate::codepilotx_tool_config::create_tool_for_codepilotx_tool_call_reply_param;
 use crate::outgoing_message::OutgoingMessageSender;
 
 pub(crate) struct MessageProcessor {
@@ -43,7 +43,7 @@ pub(crate) struct MessageProcessor {
     initialized: bool,
     arg0_paths: Arg0DispatchPaths,
     thread_manager: Arc<ThreadManager>,
-    running_requests_id_to_codex_uuid: Arc<Mutex<HashMap<RequestId, ThreadId>>>,
+    running_requests_id_to_codepilotx_uuid: Arc<Mutex<HashMap<RequestId, ThreadId>>>,
 }
 
 impl MessageProcessor {
@@ -60,11 +60,11 @@ impl MessageProcessor {
         let outgoing = Arc::new(outgoing);
         let auth_manager = AuthManager::shared_from_config(
             config.as_ref(),
-            /*enable_codex_api_key_env*/ false,
+            /*enable_codepilotx_api_key_env*/ false,
         )
         .await;
-        let user_instructions_provider = Arc::new(CodexHomeUserInstructionsProvider::new(
-            config.codex_home.clone(),
+        let user_instructions_provider = Arc::new(CodePilotXHomeUserInstructionsProvider::new(
+            config.codepilotx_home.clone(),
         ));
         let thread_manager = Arc::new(ThreadManager::new(
             config.as_ref(),
@@ -74,7 +74,7 @@ impl MessageProcessor {
             empty_extension_registry(),
             user_instructions_provider,
             /*analytics_events_client*/ None,
-            codex_core::thread_store_from_config(config.as_ref(), state_db.clone()),
+            codepilotx_core::thread_store_from_config(config.as_ref(), state_db.clone()),
             state_db.clone(),
             installation_id,
             /*attestation_provider*/ None,
@@ -85,7 +85,7 @@ impl MessageProcessor {
             initialized: false,
             arg0_paths,
             thread_manager,
-            running_requests_id_to_codex_uuid: Arc::new(Mutex::new(HashMap::new())),
+            running_requests_id_to_codepilotx_uuid: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -243,7 +243,7 @@ impl MessageProcessor {
             }
         };
         if let serde_json::Value::Object(ref mut obj) = server_info_value {
-            obj.insert("user_agent".to_string(), json!(get_codex_user_agent()));
+            obj.insert("user_agent".to_string(), json!(get_codepilotx_user_agent()));
         }
 
         let capabilities = ServerCapabilities::builder()
@@ -319,8 +319,8 @@ impl MessageProcessor {
         let result = rmcp::model::ListToolsResult {
             meta: None,
             tools: vec![
-                create_tool_for_codex_tool_call_param(),
-                create_tool_for_codex_tool_call_reply_param(),
+                create_tool_for_codepilotx_tool_call_param(),
+                create_tool_for_codepilotx_tool_call_reply_param(),
             ],
             next_cursor: None,
         };
@@ -337,7 +337,7 @@ impl MessageProcessor {
         match name.as_ref() {
             "codex" => self.handle_tool_call_codex(id, arguments).await,
             "codex-reply" => {
-                self.handle_tool_call_codex_session_reply(id, arguments)
+                self.handle_tool_call_codepilotx_session_reply(id, arguments)
                     .await
             }
             _ => {
@@ -387,25 +387,25 @@ impl MessageProcessor {
         // Clone outgoing and server to move into async task.
         let outgoing = self.outgoing.clone();
         let thread_manager = self.thread_manager.clone();
-        let running_requests_id_to_codex_uuid = self.running_requests_id_to_codex_uuid.clone();
+        let running_requests_id_to_codepilotx_uuid = self.running_requests_id_to_codepilotx_uuid.clone();
 
         // Spawn an async task to handle the Codex session so that we do not
         // block the synchronous message-processing loop.
         task::spawn(async move {
             // Run the Codex session and stream events back to the client.
-            crate::codex_tool_runner::run_codex_tool_session(
+            crate::codepilotx_tool_runner::run_codepilotx_tool_session(
                 id,
                 initial_prompt,
                 config,
                 outgoing,
                 thread_manager,
-                running_requests_id_to_codex_uuid,
+                running_requests_id_to_codepilotx_uuid,
             )
             .await;
         });
     }
 
-    async fn handle_tool_call_codex_session_reply(
+    async fn handle_tool_call_codepilotx_session_reply(
         &self,
         request_id: RequestId,
         arguments: Option<rmcp::model::JsonObject>,
@@ -414,7 +414,7 @@ impl MessageProcessor {
         tracing::info!("tools/call -> params: {:?}", arguments);
 
         // parse arguments
-        let codex_tool_call_reply_param: CodexToolCallReplyParam = match arguments {
+        let codepilotx_tool_call_reply_param: CodexToolCallReplyParam = match arguments {
             Some(json_val) => match serde_json::from_value::<CodexToolCallReplyParam>(json_val) {
                 Ok(params) => params,
                 Err(e) => {
@@ -438,7 +438,7 @@ impl MessageProcessor {
             }
         };
 
-        let thread_id = match codex_tool_call_reply_param.get_thread_id() {
+        let thread_id = match codepilotx_tool_call_reply_param.get_thread_id() {
             Ok(id) => id,
             Err(e) => {
                 tracing::error!("Failed to parse thread_id: {e}");
@@ -452,13 +452,13 @@ impl MessageProcessor {
 
         // Clone outgoing to move into async task.
         let outgoing = self.outgoing.clone();
-        let running_requests_id_to_codex_uuid = self.running_requests_id_to_codex_uuid.clone();
+        let running_requests_id_to_codepilotx_uuid = self.running_requests_id_to_codepilotx_uuid.clone();
 
         let codex = match self.thread_manager.get_thread(thread_id).await {
             Ok(c) => c,
             Err(_) => {
                 tracing::warn!("Session not found for thread_id: {thread_id}");
-                let result = crate::codex_tool_runner::create_call_tool_result_with_thread_id(
+                let result = crate::codepilotx_tool_runner::create_call_tool_result_with_thread_id(
                     thread_id,
                     format!("Session not found for thread_id: {thread_id}"),
                     Some(true),
@@ -469,19 +469,19 @@ impl MessageProcessor {
         };
 
         // Spawn the long-running reply handler.
-        let prompt = codex_tool_call_reply_param.prompt.clone();
+        let prompt = codepilotx_tool_call_reply_param.prompt.clone();
         tokio::spawn({
             let outgoing = outgoing.clone();
-            let running_requests_id_to_codex_uuid = running_requests_id_to_codex_uuid.clone();
+            let running_requests_id_to_codepilotx_uuid = running_requests_id_to_codepilotx_uuid.clone();
 
             async move {
-                crate::codex_tool_runner::run_codex_tool_session_reply(
+                crate::codepilotx_tool_runner::run_codepilotx_tool_session_reply(
                     thread_id,
                     codex,
                     outgoing,
                     request_id,
                     prompt,
-                    running_requests_id_to_codex_uuid,
+                    running_requests_id_to_codepilotx_uuid,
                 )
                 .await;
             }
@@ -520,7 +520,7 @@ impl MessageProcessor {
 
         // Obtain the thread id while holding the first lock, then release.
         let thread_id = {
-            let map_guard = self.running_requests_id_to_codex_uuid.lock().await;
+            let map_guard = self.running_requests_id_to_codepilotx_uuid.lock().await;
             match map_guard.get(&request_id) {
                 Some(id) => *id,
                 None => {
@@ -532,7 +532,7 @@ impl MessageProcessor {
         tracing::info!("thread_id: {thread_id}");
 
         // Obtain the Codex thread from the server.
-        let codex_arc = match self.thread_manager.get_thread(thread_id).await {
+        let codepilotx_arc = match self.thread_manager.get_thread(thread_id).await {
             Ok(c) => c,
             Err(_) => {
                 tracing::warn!("Session not found for thread_id: {thread_id}");
@@ -541,10 +541,10 @@ impl MessageProcessor {
         };
 
         // Submit interrupt to Codex.
-        if let Err(e) = codex_arc
+        if let Err(e) = codepilotx_arc
             .submit_with_id(Submission {
                 id: request_id_string,
-                op: codex_protocol::protocol::Op::Interrupt,
+                op: codepilotx_protocol::protocol::Op::Interrupt,
                 client_user_message_id: None,
                 trace: None,
             })
@@ -554,7 +554,7 @@ impl MessageProcessor {
             return;
         }
         // unregister the id so we don't keep it in the map
-        self.running_requests_id_to_codex_uuid
+        self.running_requests_id_to_codepilotx_uuid
             .lock()
             .await
             .remove(&request_id);

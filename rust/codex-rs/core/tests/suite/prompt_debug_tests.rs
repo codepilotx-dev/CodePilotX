@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use codex_core::build_prompt_input;
-use codex_core::config::ConfigBuilder;
-use codex_core::config::ConfigOverrides;
-use codex_home::CodexHomeUserInstructionsProvider;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::user_input::UserInput;
+use codepilotx_core::build_prompt_input;
+use codepilotx_core::config::ConfigBuilder;
+use codepilotx_core::config::ConfigOverrides;
+use codepilotx_home::CodePilotXHomeUserInstructionsProvider;
+use codepilotx_protocol::models::ContentItem;
+use codepilotx_protocol::models::ResponseItem;
+use codepilotx_protocol::user_input::UserInput;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
 
@@ -15,20 +15,20 @@ const TEST_INSTRUCTIONS: &str = "Global test instructions";
 
 #[tokio::test]
 async fn build_prompt_input_includes_context_and_user_message() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let cwd = TempDir::new()?;
-    std::fs::write(codex_home.path().join("AGENTS.md"), TEST_INSTRUCTIONS)?;
+    std::fs::write(codepilotx_home.path().join("AGENTS.md"), TEST_INSTRUCTIONS)?;
     let config = ConfigBuilder::default()
-        .codex_home(codex_home.path().to_path_buf())
+        .codepilotx_home(codepilotx_home.path().to_path_buf())
         .harness_overrides(ConfigOverrides {
             cwd: Some(cwd.path().to_path_buf()),
-            codex_self_exe: Some(std::env::current_exe()?),
+            codepilotx_self_exe: Some(std::env::current_exe()?),
             ..ConfigOverrides::default()
         })
         .build()
         .await?;
-    let user_instructions_provider = Arc::new(CodexHomeUserInstructionsProvider::new(
-        config.codex_home.clone(),
+    let user_instructions_provider = Arc::new(CodePilotXHomeUserInstructionsProvider::new(
+        config.codepilotx_home.clone(),
     ));
 
     let input = build_prompt_input(

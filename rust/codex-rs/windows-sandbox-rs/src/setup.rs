@@ -30,8 +30,8 @@ use anyhow::Result;
 use anyhow::anyhow;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
-use codex_protocol::models::PermissionProfile;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 
 use windows_sys::Win32::Foundation::CloseHandle;
 use windows_sys::Win32::Foundation::GetLastError;
@@ -68,31 +68,31 @@ const WINDOWS_PLATFORM_DEFAULT_READ_ROOTS: &[&str] = &[
     r"C:\ProgramData",
 ];
 
-pub fn sandbox_dir(codex_home: &Path) -> PathBuf {
-    codex_home.join(".sandbox")
+pub fn sandbox_dir(codepilotx_home: &Path) -> PathBuf {
+    codepilotx_home.join(".sandbox")
 }
 
-pub fn sandbox_bin_dir(codex_home: &Path) -> PathBuf {
-    codex_home.join(".sandbox-bin")
+pub fn sandbox_bin_dir(codepilotx_home: &Path) -> PathBuf {
+    codepilotx_home.join(".sandbox-bin")
 }
 
-pub fn sandbox_secrets_dir(codex_home: &Path) -> PathBuf {
-    codex_home.join(".sandbox-secrets")
+pub fn sandbox_secrets_dir(codepilotx_home: &Path) -> PathBuf {
+    codepilotx_home.join(".sandbox-secrets")
 }
 
-pub fn setup_marker_path(codex_home: &Path) -> PathBuf {
-    sandbox_dir(codex_home).join("setup_marker.json")
+pub fn setup_marker_path(codepilotx_home: &Path) -> PathBuf {
+    sandbox_dir(codepilotx_home).join("setup_marker.json")
 }
 
-pub fn sandbox_users_path(codex_home: &Path) -> PathBuf {
-    sandbox_secrets_dir(codex_home).join("sandbox_users.json")
+pub fn sandbox_users_path(codepilotx_home: &Path) -> PathBuf {
+    sandbox_secrets_dir(codepilotx_home).join("sandbox_users.json")
 }
 
 pub struct SandboxSetupRequest<'a> {
     pub permissions: &'a ResolvedWindowsSandboxPermissions,
     pub command_cwd: &'a Path,
     pub env_map: &'a HashMap<String, String>,
-    pub codex_home: &'a Path,
+    pub codepilotx_home: &'a Path,
     pub proxy_enforced: bool,
 }
 
@@ -110,7 +110,7 @@ pub fn run_setup_refresh(
     workspace_roots: &[AbsolutePathBuf],
     command_cwd: &Path,
     env_map: &HashMap<String, String>,
-    codex_home: &Path,
+    codepilotx_home: &Path,
     proxy_enforced: bool,
 ) -> Result<()> {
     let Ok(permissions) =
@@ -126,7 +126,7 @@ pub fn run_setup_refresh(
             permissions: &permissions,
             command_cwd,
             env_map,
-            codex_home,
+            codepilotx_home,
             proxy_enforced,
         },
         SetupRootOverrides::default(),
@@ -145,7 +145,7 @@ pub fn run_setup_refresh_with_extra_read_roots(
     workspace_roots: &[AbsolutePathBuf],
     command_cwd: &Path,
     env_map: &HashMap<String, String>,
-    codex_home: &Path,
+    codepilotx_home: &Path,
     extra_read_roots: Vec<PathBuf>,
     proxy_enforced: bool,
 ) -> Result<()> {
@@ -157,14 +157,14 @@ pub fn run_setup_refresh_with_extra_read_roots(
     else {
         return Ok(());
     };
-    let mut read_roots = gather_read_roots(command_cwd, &permissions, env_map, codex_home);
+    let mut read_roots = gather_read_roots(command_cwd, &permissions, env_map, codepilotx_home);
     read_roots.extend(extra_read_roots);
     run_setup_refresh_inner(
         SandboxSetupRequest {
             permissions: &permissions,
             command_cwd,
             env_map,
-            codex_home,
+            codepilotx_home,
             proxy_enforced,
         },
         SetupRootOverrides {
@@ -194,7 +194,7 @@ fn run_setup_refresh_inner(
         version: SETUP_VERSION,
         offline_username: OFFLINE_USERNAME.to_string(),
         online_username: ONLINE_USERNAME.to_string(),
-        codex_home: request.codex_home.to_path_buf(),
+        codepilotx_home: request.codepilotx_home.to_path_buf(),
         command_cwd: request.command_cwd.to_path_buf(),
         read_roots,
         write_roots,
@@ -210,9 +210,9 @@ fn run_setup_refresh_inner(
     let json = serde_json::to_vec(&payload)?;
     let b64 = BASE64_STANDARD.encode(json);
     let exe = find_setup_exe();
-    let sbx_dir = sandbox_dir(request.codex_home);
+    let sbx_dir = sandbox_dir(request.codepilotx_home);
     let log_path = current_log_file_path(&sbx_dir);
-    let cleared_report = match clear_setup_error_report(request.codex_home) {
+    let cleared_report = match clear_setup_error_report(request.codepilotx_home) {
         Ok(()) => true,
         Err(err) => {
             log_note(
@@ -225,7 +225,7 @@ fn run_setup_refresh_inner(
     // Refresh should never request elevation; ensure verb isn't set and we don't trigger UAC.
     let mut cmd = Command::new(&exe);
     cmd.arg(&b64).stdout(Stdio::null()).stderr(Stdio::null());
-    let cwd = std::env::current_dir().unwrap_or_else(|_| request.codex_home.to_path_buf());
+    let cwd = std::env::current_dir().unwrap_or_else(|_| request.codepilotx_home.to_path_buf());
     log_note(
         &format!(
             "setup refresh: spawning {} (cwd={}, payload_len={})",
@@ -251,12 +251,12 @@ fn run_setup_refresh_inner(
             Some(&sbx_dir),
         );
         return Err(report_helper_failure(
-            request.codex_home,
+            request.codepilotx_home,
             cleared_report,
             status.code(),
         ));
     }
-    if let Err(err) = clear_setup_error_report(request.codex_home) {
+    if let Err(err) = clear_setup_error_report(request.codepilotx_home) {
         log_note(
             &format!("setup refresh: failed to clear setup_error.json after success: {err}"),
             Some(&sbx_dir),
@@ -389,8 +389,8 @@ fn profile_read_roots(user_profile: &Path) -> Vec<PathBuf> {
         .collect()
 }
 
-fn gather_helper_read_roots(codex_home: &Path) -> Vec<PathBuf> {
-    let helper_dir = helper_bin_dir(codex_home);
+fn gather_helper_read_roots(codepilotx_home: &Path) -> Vec<PathBuf> {
+    let helper_dir = helper_bin_dir(codepilotx_home);
     let _ = std::fs::create_dir_all(&helper_dir);
     vec![helper_dir]
 }
@@ -399,9 +399,9 @@ fn gather_full_read_roots_for_permissions(
     command_cwd: &Path,
     permissions: &ResolvedWindowsSandboxPermissions,
     env_map: &HashMap<String, String>,
-    codex_home: &Path,
+    codepilotx_home: &Path,
 ) -> Vec<PathBuf> {
-    let mut roots = gather_helper_read_roots(codex_home);
+    let mut roots = gather_helper_read_roots(codepilotx_home);
     roots.extend(
         WINDOWS_PLATFORM_DEFAULT_READ_ROOTS
             .iter()
@@ -424,18 +424,18 @@ pub(crate) fn gather_read_roots(
     command_cwd: &Path,
     permissions: &ResolvedWindowsSandboxPermissions,
     env_map: &HashMap<String, String>,
-    codex_home: &Path,
+    codepilotx_home: &Path,
 ) -> Vec<PathBuf> {
     if permissions.has_full_disk_read_access() {
         return gather_full_read_roots_for_permissions(
             command_cwd,
             permissions,
             env_map,
-            codex_home,
+            codepilotx_home,
         );
     }
 
-    let mut roots = gather_helper_read_roots(codex_home);
+    let mut roots = gather_helper_read_roots(codepilotx_home);
     if permissions.include_platform_defaults() {
         roots.extend(
             WINDOWS_PLATFORM_DEFAULT_READ_ROOTS
@@ -471,14 +471,14 @@ pub(crate) fn effective_write_roots_for_setup(
     permissions: &ResolvedWindowsSandboxPermissions,
     command_cwd: &Path,
     env_map: &HashMap<String, String>,
-    codex_home: &Path,
+    codepilotx_home: &Path,
     write_roots_override: Option<&[PathBuf]>,
 ) -> Vec<PathBuf> {
     effective_write_roots_for_permissions(
         permissions,
         command_cwd,
         env_map,
-        codex_home,
+        codepilotx_home,
         write_roots_override,
     )
 }
@@ -487,7 +487,7 @@ pub(crate) fn effective_write_roots_for_permissions(
     permissions: &ResolvedWindowsSandboxPermissions,
     command_cwd: &Path,
     env_map: &HashMap<String, String>,
-    codex_home: &Path,
+    codepilotx_home: &Path,
     write_roots_override: Option<&[PathBuf]>,
 ) -> Vec<PathBuf> {
     let write_roots = if let Some(roots) = write_roots_override {
@@ -499,7 +499,7 @@ pub(crate) fn effective_write_roots_for_permissions(
     let write_roots = filter_user_profile_root(write_roots);
     let write_roots = filter_user_profile_root_exclusions(write_roots);
     let write_roots = filter_ssh_config_dependency_roots(write_roots);
-    filter_sensitive_write_roots(write_roots, codex_home)
+    filter_sensitive_write_roots(write_roots, codepilotx_home)
 }
 
 #[derive(Serialize)]
@@ -507,7 +507,7 @@ struct ElevationPayload {
     version: u32,
     offline_username: String,
     online_username: String,
-    codex_home: PathBuf,
+    codepilotx_home: PathBuf,
     command_cwd: PathBuf,
     read_roots: Vec<PathBuf>,
     write_roots: Vec<PathBuf>,
@@ -518,7 +518,7 @@ struct ElevationPayload {
     proxy_ports: Vec<u16>,
     #[serde(default)]
     allow_local_binding: bool,
-    otel: Option<codex_otel::StatsigMetricsSettings>,
+    otel: Option<codepilotx_otel::StatsigMetricsSettings>,
     real_user: String,
     mode: SetupMode,
     #[serde(default)]
@@ -573,7 +573,7 @@ const PROXY_ENV_KEYS: &[&str] = &[
     "ws_proxy",
     "wss_proxy",
 ];
-const ALLOW_LOCAL_BINDING_ENV_KEY: &str = "CODEX_NETWORK_ALLOW_LOCAL_BINDING";
+const ALLOW_LOCAL_BINDING_ENV_KEY: &str = "codepilotx_NETWORK_ALLOW_LOCAL_BINDING";
 
 pub(crate) fn offline_proxy_settings_from_env(
     env_map: &HashMap<String, String>,
@@ -676,7 +676,7 @@ fn find_setup_exe_for_current_exe(exe: &Path) -> Option<PathBuf> {
 }
 
 fn report_helper_failure(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     cleared_report: bool,
     exit_code: Option<i32>,
 ) -> anyhow::Error {
@@ -684,7 +684,7 @@ fn report_helper_failure(
     if !cleared_report {
         return failure(SetupErrorCode::OrchestratorHelperExitNonzero, exit_detail);
     }
-    match read_setup_error_report(codex_home) {
+    match read_setup_error_report(codepilotx_home) {
         Ok(Some(report)) => anyhow::Error::new(SetupFailure::from_report(report)),
         Ok(None) => failure(SetupErrorCode::OrchestratorHelperExitNonzero, exit_detail),
         Err(err) => failure(
@@ -694,8 +694,8 @@ fn report_helper_failure(
     }
 }
 
-fn verify_setup_completed(codex_home: &Path) -> Result<()> {
-    if sandbox_setup_is_complete(codex_home) {
+fn verify_setup_completed(codepilotx_home: &Path) -> Result<()> {
+    if sandbox_setup_is_complete(codepilotx_home) {
         Ok(())
     } else {
         Err(failure(
@@ -708,7 +708,7 @@ fn verify_setup_completed(codex_home: &Path) -> Result<()> {
 fn run_setup_exe(
     payload: &ElevationPayload,
     needs_elevation: bool,
-    codex_home: &Path,
+    codepilotx_home: &Path,
 ) -> Result<()> {
     use windows_sys::Win32::System::Threading::GetExitCodeProcess;
     use windows_sys::Win32::System::Threading::INFINITE;
@@ -724,14 +724,14 @@ fn run_setup_exe(
         )
     })?;
     let payload_b64 = BASE64_STANDARD.encode(payload_json.as_bytes());
-    let cleared_report = match clear_setup_error_report(codex_home) {
+    let cleared_report = match clear_setup_error_report(codepilotx_home) {
         Ok(()) => true,
         Err(err) => {
             log_note(
                 &format!(
                     "setup orchestrator: failed to clear setup_error.json before launch: {err}"
                 ),
-                Some(&sandbox_dir(codex_home)),
+                Some(&sandbox_dir(codepilotx_home)),
             );
             false
         }
@@ -753,18 +753,18 @@ fn run_setup_exe(
             })?;
         if !status.success() {
             return Err(report_helper_failure(
-                codex_home,
+                codepilotx_home,
                 cleared_report,
                 status.code(),
             ));
         }
-        verify_setup_completed(codex_home)?;
-        if let Err(err) = clear_setup_error_report(codex_home) {
+        verify_setup_completed(codepilotx_home)?;
+        if let Err(err) = clear_setup_error_report(codepilotx_home) {
             log_note(
                 &format!(
                     "setup orchestrator: failed to clear setup_error.json after success: {err}"
                 ),
-                Some(&sandbox_dir(codex_home)),
+                Some(&sandbox_dir(codepilotx_home)),
             );
         }
         return Ok(());
@@ -802,17 +802,17 @@ fn run_setup_exe(
         CloseHandle(sei.hProcess);
         if code != 0 {
             return Err(report_helper_failure(
-                codex_home,
+                codepilotx_home,
                 cleared_report,
                 Some(code as i32),
             ));
         }
     }
-    verify_setup_completed(codex_home)?;
-    if let Err(err) = clear_setup_error_report(codex_home) {
+    verify_setup_completed(codepilotx_home)?;
+    if let Err(err) = clear_setup_error_report(codepilotx_home) {
         log_note(
             &format!("setup orchestrator: failed to clear setup_error.json after success: {err}"),
-            Some(&sandbox_dir(codex_home)),
+            Some(&sandbox_dir(codepilotx_home)),
         );
     }
     Ok(())
@@ -826,7 +826,7 @@ pub fn run_elevated_setup(
         anyhow::bail!("unsupported filesystem permissions for Windows sandbox setup");
     }
     // Ensure the shared sandbox directory exists before we send it to the elevated helper.
-    let sbx_dir = sandbox_dir(request.codex_home);
+    let sbx_dir = sandbox_dir(request.codepilotx_home);
     std::fs::create_dir_all(&sbx_dir).map_err(|err| {
         failure(
             SetupErrorCode::OrchestratorSandboxDirCreateFailed,
@@ -843,7 +843,7 @@ pub fn run_elevated_setup(
         version: SETUP_VERSION,
         offline_username: OFFLINE_USERNAME.to_string(),
         online_username: ONLINE_USERNAME.to_string(),
-        codex_home: request.codex_home.to_path_buf(),
+        codepilotx_home: request.codepilotx_home.to_path_buf(),
         command_cwd: request.command_cwd.to_path_buf(),
         read_roots,
         write_roots,
@@ -852,7 +852,7 @@ pub fn run_elevated_setup(
         proxy_ports: offline_proxy_settings.proxy_ports,
         allow_local_binding: offline_proxy_settings.allow_local_binding,
         real_user: std::env::var("USERNAME").unwrap_or_else(|_| "Administrators".to_string()),
-        otel: codex_otel::global_statsig_metrics_settings(),
+        otel: codepilotx_otel::global_statsig_metrics_settings(),
         mode: SetupMode::Full,
         refresh_only: false,
     };
@@ -862,11 +862,11 @@ pub fn run_elevated_setup(
             format!("failed to determine elevation state: {err}"),
         )
     })?;
-    run_setup_exe(&payload, needs_elevation, request.codex_home)
+    run_setup_exe(&payload, needs_elevation, request.codepilotx_home)
 }
 
-pub fn run_elevated_provisioning_setup(codex_home: &Path, real_user: &str) -> Result<()> {
-    let sbx_dir = sandbox_dir(codex_home);
+pub fn run_elevated_provisioning_setup(codepilotx_home: &Path, real_user: &str) -> Result<()> {
+    let sbx_dir = sandbox_dir(codepilotx_home);
     std::fs::create_dir_all(&sbx_dir).map_err(|err| {
         failure(
             SetupErrorCode::OrchestratorSandboxDirCreateFailed,
@@ -888,20 +888,20 @@ pub fn run_elevated_provisioning_setup(codex_home: &Path, real_user: &str) -> Re
         version: SETUP_VERSION,
         offline_username: OFFLINE_USERNAME.to_string(),
         online_username: ONLINE_USERNAME.to_string(),
-        codex_home: codex_home.to_path_buf(),
-        command_cwd: codex_home.to_path_buf(),
+        codepilotx_home: codepilotx_home.to_path_buf(),
+        command_cwd: codepilotx_home.to_path_buf(),
         read_roots: Vec::new(),
         write_roots: Vec::new(),
         deny_read_paths: Vec::new(),
         deny_write_paths: Vec::new(),
         proxy_ports: Vec::new(),
         allow_local_binding: false,
-        otel: codex_otel::global_statsig_metrics_settings(),
+        otel: codepilotx_otel::global_statsig_metrics_settings(),
         real_user: real_user.to_string(),
         mode: SetupMode::ProvisionOnly,
         refresh_only: false,
     };
-    run_setup_exe(&payload, /*needs_elevation*/ false, codex_home)
+    run_setup_exe(&payload, /*needs_elevation*/ false, codepilotx_home)
 }
 
 fn build_payload_roots(
@@ -912,13 +912,13 @@ fn build_payload_roots(
         request.permissions,
         request.command_cwd,
         request.env_map,
-        request.codex_home,
+        request.codepilotx_home,
         overrides.write_roots.as_deref(),
     );
     let mut read_roots = if let Some(roots) = overrides.read_roots.as_deref() {
         // An explicit override is the split policy's complete readable set. Keep only the
         // helper/platform roots the elevated setup needs; do not re-add legacy cwd/full-read roots.
-        let mut read_roots = gather_helper_read_roots(request.codex_home);
+        let mut read_roots = gather_helper_read_roots(request.codepilotx_home);
         if overrides.read_roots_include_platform_defaults {
             read_roots.extend(
                 WINDOWS_PLATFORM_DEFAULT_READ_ROOTS
@@ -933,7 +933,7 @@ fn build_payload_roots(
             request.command_cwd,
             request.permissions,
             request.env_map,
-            request.codex_home,
+            request.codepilotx_home,
         )
     };
     read_roots = expand_user_profile_root(read_roots);
@@ -1067,21 +1067,21 @@ fn user_profile_child_name(path: &Path, user_profile: &Path) -> Option<String> {
         .map(str::to_string)
 }
 
-fn filter_sensitive_write_roots(mut roots: Vec<PathBuf>, codex_home: &Path) -> Vec<PathBuf> {
-    // Never grant capability write access to CODEX_HOME or anything under CODEX_HOME/.sandbox,
-    // CODEX_HOME/.sandbox-bin, or CODEX_HOME/.sandbox-secrets. These locations contain sandbox
+fn filter_sensitive_write_roots(mut roots: Vec<PathBuf>, codepilotx_home: &Path) -> Vec<PathBuf> {
+    // Never grant capability write access to codepilotx_HOME or anything under codepilotx_HOME/.sandbox,
+    // codepilotx_HOME/.sandbox-bin, or codepilotx_HOME/.sandbox-secrets. These locations contain sandbox
     // control/state and helper binaries and must remain tamper-resistant.
-    let codex_home_key = canonical_path_key(codex_home);
-    let sbx_dir_key = canonical_path_key(&sandbox_dir(codex_home));
+    let codepilotx_home_key = canonical_path_key(codepilotx_home);
+    let sbx_dir_key = canonical_path_key(&sandbox_dir(codepilotx_home));
     let sbx_dir_prefix = format!("{}/", sbx_dir_key.trim_end_matches('/'));
-    let sbx_bin_dir_key = canonical_path_key(&sandbox_bin_dir(codex_home));
+    let sbx_bin_dir_key = canonical_path_key(&sandbox_bin_dir(codepilotx_home));
     let sbx_bin_dir_prefix = format!("{}/", sbx_bin_dir_key.trim_end_matches('/'));
-    let secrets_dir_key = canonical_path_key(&sandbox_secrets_dir(codex_home));
+    let secrets_dir_key = canonical_path_key(&sandbox_secrets_dir(codepilotx_home));
     let secrets_dir_prefix = format!("{}/", secrets_dir_key.trim_end_matches('/'));
 
     roots.retain(|root| {
         let key = canonical_path_key(root);
-        key != codex_home_key
+        key != codepilotx_home_key
             && key != sbx_dir_key
             && !key.starts_with(&sbx_dir_prefix)
             && key != sbx_bin_dir_key
@@ -1112,9 +1112,9 @@ mod tests {
     use crate::setup_error::SetupErrorReport;
     use crate::setup_error::extract_failure;
     use crate::setup_error::write_setup_error_report;
-    use codex_protocol::models::PermissionProfile;
-    use codex_protocol::permissions::NetworkSandboxPolicy;
-    use codex_utils_absolute_path::AbsolutePathBuf;
+    use codepilotx_protocol::models::PermissionProfile;
+    use codepilotx_protocol::permissions::NetworkSandboxPolicy;
+    use codepilotx_utils_absolute_path::AbsolutePathBuf;
     use pretty_assertions::assert_eq;
     use std::collections::HashMap;
     use std::collections::HashSet;
@@ -1132,8 +1132,8 @@ mod tests {
 
     #[test]
     fn setup_completion_requires_ready_artifacts() {
-        let codex_home = TempDir::new().expect("tempdir");
-        let err = verify_setup_completed(codex_home.path())
+        let codepilotx_home = TempDir::new().expect("tempdir");
+        let err = verify_setup_completed(codepilotx_home.path())
             .expect_err("missing setup artifacts should fail");
 
         assert_eq!(
@@ -1173,9 +1173,9 @@ mod tests {
     #[test]
     fn report_helper_failure_uses_setup_error_report_when_clear_succeeded() {
         let tmp = TempDir::new().expect("tempdir");
-        let codex_home = tmp.path().join("codex-home");
+        let codepilotx_home = tmp.path().join("codex-home");
         write_setup_error_report(
-            codex_home.as_path(),
+            codepilotx_home.as_path(),
             &SetupErrorReport {
                 code: super::SetupErrorCode::HelperFirewallPolicyAccessFailed,
                 message: "firewall policy unavailable".to_string(),
@@ -1184,7 +1184,7 @@ mod tests {
         .expect("write setup error report");
 
         let err = super::report_helper_failure(
-            codex_home.as_path(),
+            codepilotx_home.as_path(),
             /*cleared_report*/ true,
             /*exit_code*/ Some(1),
         );
@@ -1202,9 +1202,9 @@ mod tests {
     #[test]
     fn report_helper_failure_ignores_setup_error_report_when_clear_failed() {
         let tmp = TempDir::new().expect("tempdir");
-        let codex_home = tmp.path().join("codex-home");
+        let codepilotx_home = tmp.path().join("codex-home");
         write_setup_error_report(
-            codex_home.as_path(),
+            codepilotx_home.as_path(),
             &SetupErrorReport {
                 code: super::SetupErrorCode::HelperFirewallPolicyAccessFailed,
                 message: "stale report".to_string(),
@@ -1213,7 +1213,7 @@ mod tests {
         .expect("write setup error report");
 
         let err = super::report_helper_failure(
-            codex_home.as_path(),
+            codepilotx_home.as_path(),
             /*cleared_report*/ false,
             /*exit_code*/ Some(1),
         );
@@ -1232,7 +1232,7 @@ mod tests {
     fn setup_refresh_skips_profiles_without_managed_filesystem_permissions() {
         let tmp = TempDir::new().expect("tempdir");
         let command_cwd = tmp.path().join("workspace");
-        let codex_home = tmp.path().join("codex-home");
+        let codepilotx_home = tmp.path().join("codex-home");
         fs::create_dir_all(&command_cwd).expect("create workspace");
         let workspace_roots = workspace_roots_for(command_cwd.as_path());
 
@@ -1247,7 +1247,7 @@ mod tests {
                 workspace_roots.as_slice(),
                 command_cwd.as_path(),
                 &HashMap::new(),
-                codex_home.as_path(),
+                codepilotx_home.as_path(),
                 /*proxy_enforced*/ false,
             )
             .expect("unsupported profiles do not need setup refresh");
@@ -1257,7 +1257,7 @@ mod tests {
                 workspace_roots.as_slice(),
                 command_cwd.as_path(),
                 &HashMap::new(),
-                codex_home.as_path(),
+                codepilotx_home.as_path(),
                 vec![command_cwd.clone()],
                 /*proxy_enforced*/ false,
             )
@@ -1337,7 +1337,7 @@ mod tests {
             "http://127.0.0.1:8080".to_string(),
         );
         env.insert(
-            "CODEX_NETWORK_ALLOW_LOCAL_BINDING".to_string(),
+            "codepilotx_NETWORK_ALLOW_LOCAL_BINDING".to_string(),
             "1".to_string(),
         );
 
@@ -1362,7 +1362,7 @@ mod tests {
             "socks5h://127.0.0.1:1081".to_string(),
         );
         env.insert(
-            "CODEX_NETWORK_ALLOW_LOCAL_BINDING".to_string(),
+            "codepilotx_NETWORK_ALLOW_LOCAL_BINDING".to_string(),
             "1".to_string(),
         );
 
@@ -1558,12 +1558,12 @@ mod tests {
     }
 
     #[test]
-    fn expanded_write_roots_still_drop_protected_codex_home() {
+    fn expanded_write_roots_still_drop_protected_codepilotx_home() {
         let tmp = TempDir::new().expect("tempdir");
         let user_profile = tmp.path().join("user-profile");
-        let codex_home = user_profile.join("CodexHome");
+        let codepilotx_home = user_profile.join("CodePilotXHome");
         let documents = user_profile.join("Documents");
-        fs::create_dir_all(&codex_home).expect("create codex home");
+        fs::create_dir_all(&codepilotx_home).expect("create codepilotx home");
         fs::create_dir_all(&documents).expect("create documents");
 
         let mut roots =
@@ -1571,7 +1571,7 @@ mod tests {
         let user_profile_key = super::canonical_path_key(&user_profile);
         roots.retain(|root| super::canonical_path_key(root) != user_profile_key);
         roots.retain(|root| !super::is_user_profile_root_exclusion(root, &user_profile));
-        let roots = super::filter_sensitive_write_roots(roots, &codex_home);
+        let roots = super::filter_sensitive_write_roots(roots, &codepilotx_home);
 
         assert_eq!(vec![documents], roots);
     }
@@ -1579,16 +1579,16 @@ mod tests {
     #[test]
     fn gather_read_roots_includes_helper_bin_dir() {
         let tmp = TempDir::new().expect("tempdir");
-        let codex_home = tmp.path().join("codex-home");
+        let codepilotx_home = tmp.path().join("codex-home");
         let command_cwd = tmp.path().join("workspace");
         fs::create_dir_all(&command_cwd).expect("create workspace");
         let permission_profile = PermissionProfile::read_only();
         let workspace_roots = workspace_roots_for(command_cwd.as_path());
         let permissions = permissions_for(&permission_profile, workspace_roots.as_slice());
 
-        let roots = gather_read_roots(&command_cwd, &permissions, &HashMap::new(), &codex_home);
+        let roots = gather_read_roots(&command_cwd, &permissions, &HashMap::new(), &codepilotx_home);
         let expected =
-            dunce::canonicalize(helper_bin_dir(&codex_home)).expect("canonical helper dir");
+            dunce::canonicalize(helper_bin_dir(&codepilotx_home)).expect("canonical helper dir");
 
         assert!(roots.contains(&expected));
     }
@@ -1596,7 +1596,7 @@ mod tests {
     #[test]
     fn workspace_write_roots_remain_readable() {
         let tmp = TempDir::new().expect("tempdir");
-        let codex_home = tmp.path().join("codex-home");
+        let codepilotx_home = tmp.path().join("codex-home");
         let command_cwd = tmp.path().join("workspace");
         let writable_root = tmp.path().join("extra-write-root");
         fs::create_dir_all(&command_cwd).expect("create workspace");
@@ -1612,7 +1612,7 @@ mod tests {
         let workspace_roots = workspace_roots_for(command_cwd.as_path());
         let permissions = permissions_for(&permission_profile, workspace_roots.as_slice());
 
-        let roots = gather_read_roots(&command_cwd, &permissions, &HashMap::new(), &codex_home);
+        let roots = gather_read_roots(&command_cwd, &permissions, &HashMap::new(), &codepilotx_home);
         let expected_writable =
             dunce::canonicalize(&writable_root).expect("canonical writable root");
 
@@ -1622,7 +1622,7 @@ mod tests {
     #[test]
     fn build_payload_roots_preserves_helper_roots_when_read_override_is_provided() {
         let tmp = TempDir::new().expect("tempdir");
-        let codex_home = tmp.path().join("codex-home");
+        let codepilotx_home = tmp.path().join("codex-home");
         let workspace_root = tmp.path().join("workspace-root");
         let command_cwd = tmp.path().join("workspace");
         let readable_root = tmp.path().join("docs");
@@ -1638,7 +1638,7 @@ mod tests {
                 permissions: &permissions,
                 command_cwd: &command_cwd,
                 env_map: &HashMap::new(),
-                codex_home: &codex_home,
+                codepilotx_home: &codepilotx_home,
                 proxy_enforced: false,
             },
             &super::SetupRootOverrides {
@@ -1650,7 +1650,7 @@ mod tests {
             },
         );
         let expected_helper =
-            dunce::canonicalize(helper_bin_dir(&codex_home)).expect("canonical helper dir");
+            dunce::canonicalize(helper_bin_dir(&codepilotx_home)).expect("canonical helper dir");
         let expected_cwd = dunce::canonicalize(&command_cwd).expect("canonical workspace");
         let expected_readable =
             dunce::canonicalize(&readable_root).expect("canonical readable root");
@@ -1669,7 +1669,7 @@ mod tests {
     #[test]
     fn build_payload_roots_replaces_full_read_policy_when_read_override_is_provided() {
         let tmp = TempDir::new().expect("tempdir");
-        let codex_home = tmp.path().join("codex-home");
+        let codepilotx_home = tmp.path().join("codex-home");
         let workspace_root = tmp.path().join("workspace-root");
         let command_cwd = tmp.path().join("workspace");
         let readable_root = tmp.path().join("docs");
@@ -1685,7 +1685,7 @@ mod tests {
                 permissions: &permissions,
                 command_cwd: &command_cwd,
                 env_map: &HashMap::new(),
-                codex_home: &codex_home,
+                codepilotx_home: &codepilotx_home,
                 proxy_enforced: false,
             },
             &super::SetupRootOverrides {
@@ -1697,7 +1697,7 @@ mod tests {
             },
         );
         let expected_helper =
-            dunce::canonicalize(helper_bin_dir(&codex_home)).expect("canonical helper dir");
+            dunce::canonicalize(helper_bin_dir(&codepilotx_home)).expect("canonical helper dir");
         let expected_cwd = dunce::canonicalize(&command_cwd).expect("canonical workspace");
         let expected_readable =
             dunce::canonicalize(&readable_root).expect("canonical readable root");
@@ -1716,11 +1716,11 @@ mod tests {
     #[test]
     fn effective_write_roots_match_payload_filtering_for_overrides() {
         let tmp = TempDir::new().expect("tempdir");
-        let codex_home = tmp.path().join("codex-home");
+        let codepilotx_home = tmp.path().join("codex-home");
         let command_cwd = tmp.path().join("workspace");
         let extra_root = tmp.path().join("extra-root");
-        let sandbox_root = super::sandbox_dir(&codex_home);
-        fs::create_dir_all(&codex_home).expect("create codex home");
+        let sandbox_root = super::sandbox_dir(&codepilotx_home);
+        fs::create_dir_all(&codepilotx_home).expect("create codex home");
         fs::create_dir_all(&command_cwd).expect("create workspace");
         fs::create_dir_all(&extra_root).expect("create extra root");
         fs::create_dir_all(&sandbox_root).expect("create sandbox root");
@@ -1734,14 +1734,14 @@ mod tests {
         let override_roots = vec![
             command_cwd.clone(),
             extra_root.clone(),
-            codex_home.clone(),
+            codepilotx_home.clone(),
             sandbox_root.clone(),
         ];
         let request = super::SandboxSetupRequest {
             permissions: &permissions,
             command_cwd: &command_cwd,
             env_map: &HashMap::new(),
-            codex_home: &codex_home,
+            codepilotx_home: &codepilotx_home,
             proxy_enforced: false,
         };
         let overrides = super::SetupRootOverrides {
@@ -1756,29 +1756,29 @@ mod tests {
             &permissions,
             &command_cwd,
             &HashMap::new(),
-            &codex_home,
+            &codepilotx_home,
             Some(&override_roots),
         );
         let (_read_roots, payload_write_roots) = build_payload_roots(&request, &overrides);
 
         let expected_workspace = dunce::canonicalize(&command_cwd).expect("canonical workspace");
         let expected_extra = dunce::canonicalize(&extra_root).expect("canonical extra root");
-        let forbidden_codex_home = dunce::canonicalize(&codex_home).expect("canonical codex home");
+        let forbidden_codepilotx_home = dunce::canonicalize(&codepilotx_home).expect("canonical codex home");
         let forbidden_sandbox = dunce::canonicalize(&sandbox_root).expect("canonical sandbox root");
         assert_eq!(effective_write_roots, payload_write_roots);
         assert!(effective_write_roots.contains(&expected_workspace));
         assert!(effective_write_roots.contains(&expected_extra));
-        assert!(!effective_write_roots.contains(&forbidden_codex_home));
+        assert!(!effective_write_roots.contains(&forbidden_codepilotx_home));
         assert!(!effective_write_roots.contains(&forbidden_sandbox));
     }
 
     #[test]
     fn effective_write_roots_use_runtime_workspace_roots_for_workspace_root() {
         let tmp = TempDir::new().expect("tempdir");
-        let codex_home = tmp.path().join("codex-home");
+        let codepilotx_home = tmp.path().join("codex-home");
         let workspace_root = tmp.path().join("workspace");
         let command_cwd = workspace_root.join("subdir");
-        fs::create_dir_all(&codex_home).expect("create codex home");
+        fs::create_dir_all(&codepilotx_home).expect("create codex home");
         fs::create_dir_all(&command_cwd).expect("create command cwd");
 
         let permission_profile = workspace_write_profile(
@@ -1793,7 +1793,7 @@ mod tests {
             &permissions,
             &command_cwd,
             &HashMap::new(),
-            &codex_home,
+            &codepilotx_home,
             /*write_roots_override*/ None,
         );
 
@@ -1806,7 +1806,7 @@ mod tests {
     #[test]
     fn payload_deny_write_paths_merge_explicit_and_protected_children() {
         let tmp = TempDir::new().expect("tempdir");
-        let codex_home = tmp.path().join("codex-home");
+        let codepilotx_home = tmp.path().join("codex-home");
         let command_cwd = tmp.path().join("workspace");
         let extra_write_root = tmp.path().join("extra-write-root");
         let command_git = command_cwd.join(".git");
@@ -1828,7 +1828,7 @@ mod tests {
             permissions: &permissions,
             command_cwd: &command_cwd,
             env_map: &HashMap::new(),
-            codex_home: &codex_home,
+            codepilotx_home: &codepilotx_home,
             proxy_enforced: false,
         };
 
@@ -1850,7 +1850,7 @@ mod tests {
     #[test]
     fn full_read_roots_preserve_legacy_platform_defaults() {
         let tmp = TempDir::new().expect("tempdir");
-        let codex_home = tmp.path().join("codex-home");
+        let codepilotx_home = tmp.path().join("codex-home");
         let command_cwd = tmp.path().join("workspace");
         fs::create_dir_all(&command_cwd).expect("create workspace");
         let permission_profile = PermissionProfile::read_only();
@@ -1861,7 +1861,7 @@ mod tests {
             &command_cwd,
             &permissions,
             &HashMap::new(),
-            &codex_home,
+            &codepilotx_home,
         );
 
         assert!(

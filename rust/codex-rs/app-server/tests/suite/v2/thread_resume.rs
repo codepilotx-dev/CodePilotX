@@ -14,75 +14,75 @@ use app_test_support::test_absolute_path;
 use app_test_support::to_response;
 use app_test_support::write_chatgpt_auth;
 use chrono::Utc;
-use codex_app_server_protocol::AskForApproval;
-use codex_app_server_protocol::ClientInfo;
-use codex_app_server_protocol::CommandExecutionApprovalDecision;
-use codex_app_server_protocol::CommandExecutionRequestApprovalResponse;
-use codex_app_server_protocol::FileChangeApprovalDecision;
-use codex_app_server_protocol::FileChangeRequestApprovalResponse;
-use codex_app_server_protocol::ItemStartedNotification;
-use codex_app_server_protocol::JSONRPCError;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::McpToolCallAppContext;
-use codex_app_server_protocol::PatchApplyStatus;
-use codex_app_server_protocol::PatchChangeKind;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::ServerRequest;
-use codex_app_server_protocol::SessionSource;
-use codex_app_server_protocol::ThreadGoalClearResponse;
-use codex_app_server_protocol::ThreadGoalSetResponse;
-use codex_app_server_protocol::ThreadGoalStatus;
-use codex_app_server_protocol::ThreadItem;
-use codex_app_server_protocol::ThreadListResponse;
-use codex_app_server_protocol::ThreadMetadataGitInfoUpdateParams;
-use codex_app_server_protocol::ThreadMetadataUpdateParams;
-use codex_app_server_protocol::ThreadReadParams;
-use codex_app_server_protocol::ThreadReadResponse;
-use codex_app_server_protocol::ThreadResumeInitialTurnsPageParams;
-use codex_app_server_protocol::ThreadResumeParams;
-use codex_app_server_protocol::ThreadResumeResponse;
-use codex_app_server_protocol::ThreadSource;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::ThreadStatus;
-use codex_app_server_protocol::ThreadUnsubscribeParams;
-use codex_app_server_protocol::TurnItemsView;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::TurnStartResponse;
-use codex_app_server_protocol::TurnStatus;
-use codex_app_server_protocol::UserInput;
-use codex_config::types::AuthCredentialsStoreMode;
-use codex_core::ARCHIVED_SESSIONS_SUBDIR;
-use codex_login::REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR;
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::Personality;
-use codex_protocol::mcp::CallToolResult;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::AgentMessageEvent;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ImageGenerationEndEvent;
-use codex_protocol::protocol::McpInvocation;
-use codex_protocol::protocol::McpToolCallEndEvent;
-use codex_protocol::protocol::MultiAgentVersion;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::SessionMeta;
-use codex_protocol::protocol::SessionMetaLine;
-use codex_protocol::protocol::SessionSource as RolloutSessionSource;
-use codex_protocol::protocol::TokenCountEvent;
-use codex_protocol::protocol::TokenUsage;
-use codex_protocol::protocol::TokenUsageInfo;
-use codex_protocol::protocol::TurnAbortReason;
-use codex_protocol::protocol::TurnAbortedEvent;
-use codex_protocol::protocol::TurnStartedEvent;
-use codex_protocol::user_input::ByteRange;
-use codex_protocol::user_input::TextElement;
-use codex_rollout::append_rollout_item_to_path;
-use codex_rollout::read_session_meta_line;
-use codex_state::StateRuntime;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_path_uri::LegacyAppPathString;
+use codepilotx_app_server_protocol::AskForApproval;
+use codepilotx_app_server_protocol::ClientInfo;
+use codepilotx_app_server_protocol::CommandExecutionApprovalDecision;
+use codepilotx_app_server_protocol::CommandExecutionRequestApprovalResponse;
+use codepilotx_app_server_protocol::FileChangeApprovalDecision;
+use codepilotx_app_server_protocol::FileChangeRequestApprovalResponse;
+use codepilotx_app_server_protocol::ItemStartedNotification;
+use codepilotx_app_server_protocol::JSONRPCError;
+use codepilotx_app_server_protocol::JSONRPCResponse;
+use codepilotx_app_server_protocol::McpToolCallAppContext;
+use codepilotx_app_server_protocol::PatchApplyStatus;
+use codepilotx_app_server_protocol::PatchChangeKind;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_app_server_protocol::ServerNotification;
+use codepilotx_app_server_protocol::ServerRequest;
+use codepilotx_app_server_protocol::SessionSource;
+use codepilotx_app_server_protocol::ThreadGoalClearResponse;
+use codepilotx_app_server_protocol::ThreadGoalSetResponse;
+use codepilotx_app_server_protocol::ThreadGoalStatus;
+use codepilotx_app_server_protocol::ThreadItem;
+use codepilotx_app_server_protocol::ThreadListResponse;
+use codepilotx_app_server_protocol::ThreadMetadataGitInfoUpdateParams;
+use codepilotx_app_server_protocol::ThreadMetadataUpdateParams;
+use codepilotx_app_server_protocol::ThreadReadParams;
+use codepilotx_app_server_protocol::ThreadReadResponse;
+use codepilotx_app_server_protocol::ThreadResumeInitialTurnsPageParams;
+use codepilotx_app_server_protocol::ThreadResumeParams;
+use codepilotx_app_server_protocol::ThreadResumeResponse;
+use codepilotx_app_server_protocol::ThreadSource;
+use codepilotx_app_server_protocol::ThreadStartParams;
+use codepilotx_app_server_protocol::ThreadStartResponse;
+use codepilotx_app_server_protocol::ThreadStatus;
+use codepilotx_app_server_protocol::ThreadUnsubscribeParams;
+use codepilotx_app_server_protocol::TurnItemsView;
+use codepilotx_app_server_protocol::TurnStartParams;
+use codepilotx_app_server_protocol::TurnStartResponse;
+use codepilotx_app_server_protocol::TurnStatus;
+use codepilotx_app_server_protocol::UserInput;
+use codepilotx_config::types::AuthCredentialsStoreMode;
+use codepilotx_core::ARCHIVED_SESSIONS_SUBDIR;
+use codepilotx_login::REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::config_types::Personality;
+use codepilotx_protocol::mcp::CallToolResult;
+use codepilotx_protocol::models::ContentItem;
+use codepilotx_protocol::models::ResponseItem;
+use codepilotx_protocol::protocol::AgentMessageEvent;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::ImageGenerationEndEvent;
+use codepilotx_protocol::protocol::McpInvocation;
+use codepilotx_protocol::protocol::McpToolCallEndEvent;
+use codepilotx_protocol::protocol::MultiAgentVersion;
+use codepilotx_protocol::protocol::RolloutItem;
+use codepilotx_protocol::protocol::SessionMeta;
+use codepilotx_protocol::protocol::SessionMetaLine;
+use codepilotx_protocol::protocol::SessionSource as RolloutSessionSource;
+use codepilotx_protocol::protocol::TokenCountEvent;
+use codepilotx_protocol::protocol::TokenUsage;
+use codepilotx_protocol::protocol::TokenUsageInfo;
+use codepilotx_protocol::protocol::TurnAbortReason;
+use codepilotx_protocol::protocol::TurnAbortedEvent;
+use codepilotx_protocol::protocol::TurnStartedEvent;
+use codepilotx_protocol::user_input::ByteRange;
+use codepilotx_protocol::user_input::TextElement;
+use codepilotx_rollout::append_rollout_item_to_path;
+use codepilotx_rollout::read_session_meta_line;
+use codepilotx_state::StateRuntime;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_path_uri::LegacyAppPathString;
 use core_test_support::responses;
 use core_test_support::skip_if_no_network;
 use pretty_assertions::assert_eq;
@@ -112,7 +112,7 @@ use super::analytics::wait_for_goal_event;
 const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(25);
 #[cfg(not(windows))]
 const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
-const CODEX_5_2_INSTRUCTIONS_TEMPLATE_DEFAULT: &str = "You are Codex, a coding agent based on GPT-5. You and the user share the same workspace and collaborate to achieve the user's goals.";
+	const CODEX_5_2_INSTRUCTIONS_TEMPLATE_DEFAULT: &str = "You are CodePilotX, a coding agent based on GPT-5. You and the user share the same workspace and collaborate to achieve the user's goals.";
 
 fn normalized_existing_path(path: impl AsRef<Path>) -> Result<PathBuf> {
     Ok(AbsolutePathBuf::from_absolute_path(path.as_ref().canonicalize()?)?.into_path_buf())
@@ -151,10 +151,10 @@ async fn wait_for_responses_request_count(
 #[tokio::test]
 async fn thread_resume_rejects_unmaterialized_thread() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     // Start a thread.
@@ -198,10 +198,10 @@ async fn thread_resume_rejects_unmaterialized_thread() -> Result<()> {
 #[tokio::test]
 async fn thread_resume_with_empty_path_uses_running_thread_id() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
@@ -263,13 +263,13 @@ async fn thread_resume_with_empty_path_uses_running_thread_id() -> Result<()> {
 #[tokio::test]
 async fn thread_resume_running_thread_uses_cached_instruction_sources() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
     let workspace = TempDir::new()?;
     let project_agents = workspace.path().join("AGENTS.md");
     std::fs::write(&project_agents, "project instructions")?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
@@ -340,14 +340,14 @@ async fn thread_resume_running_thread_uses_cached_instruction_sources() -> Resul
 #[tokio::test]
 async fn turn_start_updates_runtime_workspace_roots_for_loaded_thread() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
 
     let extra_root_tmp = TempDir::new()?;
     let extra_root = extra_root_tmp.path().join("extra-root");
     std::fs::create_dir_all(&extra_root)?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
@@ -417,16 +417,16 @@ async fn turn_start_updates_runtime_workspace_roots_for_loaded_thread() -> Resul
 #[tokio::test]
 async fn thread_goal_get_rejects_unmaterialized_thread() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
-    let config_path = codex_home.path().join("config.toml");
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
+    let config_path = codepilotx_home.path().join("config.toml");
     let config = std::fs::read_to_string(&config_path)?;
     std::fs::write(
         &config_path,
         config.replace("personality = true\n", "personality = true\ngoals = true\n"),
     )?;
 
-    let mut mcp = TestAppServer::new_without_managed_config(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new_without_managed_config(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
@@ -471,23 +471,23 @@ async fn thread_goal_get_rejects_unmaterialized_thread() -> Result<()> {
 #[tokio::test]
 async fn goal_first_live_thread_appears_in_state_db_thread_list() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    let codex_home_path = normalized_existing_path(codex_home.path())?;
-    create_config_toml(&codex_home_path, &server.uri())?;
-    let config_path = codex_home_path.join("config.toml");
+    let codepilotx_home = TempDir::new()?;
+    let codepilotx_home_path = normalized_existing_path(codepilotx_home.path())?;
+    create_config_toml(&codepilotx_home_path, &server.uri())?;
+    let config_path = codepilotx_home_path.join("config.toml");
     let config = std::fs::read_to_string(&config_path)?;
     std::fs::write(
         &config_path,
         config.replace("personality = true\n", "personality = true\ngoals = true\n"),
     )?;
 
-    let sqlite_home = codex_home_path
+    let sqlite_home = codepilotx_home_path
         .as_path()
         .to_str()
         .expect("test codex home should be utf-8");
     let mut mcp = TestAppServer::new_without_managed_config_with_env(
-        &codex_home_path,
-        &[("CODEX_SQLITE_HOME", Some(sqlite_home))],
+        &codepilotx_home_path,
+        &[("codepilotx_SQLITE_HOME", Some(sqlite_home))],
     )
     .await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
@@ -561,12 +561,12 @@ async fn goal_first_live_thread_appears_in_state_db_thread_list() -> Result<()> 
 async fn thread_resume_tracks_thread_initialized_analytics() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
 
-    let codex_home = TempDir::new()?;
-    create_config_toml_with_chatgpt_base_url(codex_home.path(), &server.uri(), &server.uri())?;
-    mount_analytics_capture(&server, codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml_with_chatgpt_base_url(codepilotx_home.path(), &server.uri(), &server.uri())?;
+    mount_analytics_capture(&server, codepilotx_home.path()).await?;
 
     let conversation_id = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-01-05T12-00-00",
         "2025-01-05T12:00:00Z",
         "Saved user message",
@@ -574,13 +574,13 @@ async fn thread_resume_tracks_thread_initialized_analytics() -> Result<()> {
         /*git_info*/ None,
     )?;
     set_thread_source_on_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-01-05T12-00-00",
         &conversation_id,
         "user",
     )?;
 
-    let mut mcp = TestAppServer::new_without_managed_config(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new_without_managed_config(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let resume_id = mcp
@@ -616,12 +616,12 @@ async fn thread_resume_tracks_thread_initialized_analytics() -> Result<()> {
 }
 
 fn set_thread_source_on_fake_rollout(
-    codex_home: &std::path::Path,
+    codepilotx_home: &std::path::Path,
     filename_ts: &str,
     thread_id: &str,
     thread_source: &str,
 ) -> Result<()> {
-    let path = rollout_path(codex_home, filename_ts, thread_id);
+    let path = rollout_path(codepilotx_home, filename_ts, thread_id);
     let contents = std::fs::read_to_string(&path)?;
     let mut lines = contents.lines();
     let session_meta = lines
@@ -637,8 +637,8 @@ fn set_thread_source_on_fake_rollout(
 #[tokio::test]
 async fn thread_resume_returns_rollout_history() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
 
     let preview = "Saved user message";
     let text_elements = vec![TextElement::new(
@@ -646,7 +646,7 @@ async fn thread_resume_returns_rollout_history() -> Result<()> {
         Some("<note>".into()),
     )];
     let conversation_id = create_fake_rollout_with_text_elements(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-01-05T12-00-00",
         "2025-01-05T12:00:00Z",
         preview,
@@ -658,7 +658,7 @@ async fn thread_resume_returns_rollout_history() -> Result<()> {
         /*git_info*/ None,
     )?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let resume_id = mcp
@@ -710,7 +710,7 @@ async fn thread_resume_returns_rollout_history() -> Result<()> {
 
 #[tokio::test]
 async fn thread_resume_redacts_payloads_for_chatgpt_remote_clients() -> Result<()> {
-    for client_name in ["codex_chatgpt_android_remote", "codex_chatgpt_ios_remote"] {
+    for client_name in ["codepilotx_chatgpt_android_remote", "codepilotx_chatgpt_ios_remote"] {
         let remote_resume = resume_redaction_fixture(Some(client_name)).await?;
         let remote_turn = remote_resume
             .thread
@@ -830,13 +830,13 @@ async fn thread_resume_redacts_payloads_for_chatgpt_remote_clients() -> Result<(
 
 async fn resume_redaction_fixture(client_name: Option<&str>) -> Result<ThreadResumeResponse> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
 
     let filename_ts = "2025-01-05T12-00-00";
     let meta_rfc3339 = "2025-01-05T12:00:00Z";
     let conversation_id = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         filename_ts,
         meta_rfc3339,
         "Saved user message",
@@ -844,13 +844,13 @@ async fn resume_redaction_fixture(client_name: Option<&str>) -> Result<ThreadRes
         /*git_info*/ None,
     )?;
     append_resume_redaction_history(
-        codex_home.path(),
+        codepilotx_home.path(),
         filename_ts,
         meta_rfc3339,
         &conversation_id,
     )?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     if let Some(client_name) = client_name {
         let _ = timeout(
             DEFAULT_READ_TIMEOUT,
@@ -885,12 +885,12 @@ async fn resume_redaction_fixture(client_name: Option<&str>) -> Result<ThreadRes
 }
 
 fn append_resume_redaction_history(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     filename_ts: &str,
     meta_rfc3339: &str,
     conversation_id: &str,
 ) -> Result<()> {
-    let rollout_file_path = rollout_path(codex_home, filename_ts, conversation_id);
+    let rollout_file_path = rollout_path(codepilotx_home, filename_ts, conversation_id);
     let persisted_rollout = std::fs::read_to_string(&rollout_file_path)?;
     let appended_rollout = [
         EventMsg::McpToolCallEnd(McpToolCallEndEvent {
@@ -944,11 +944,11 @@ fn append_resume_redaction_history(
 #[tokio::test]
 async fn thread_resume_can_skip_turns_for_metadata_only_resume() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
 
     let conversation_id = create_fake_rollout_with_text_elements(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-01-05T12-00-00",
         "2025-01-05T12:00:00Z",
         "Saved user message",
@@ -957,7 +957,7 @@ async fn thread_resume_can_skip_turns_for_metadata_only_resume() -> Result<()> {
         /*git_info*/ None,
     )?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let resume_id = mcp
@@ -983,12 +983,12 @@ async fn thread_resume_can_skip_turns_for_metadata_only_resume() -> Result<()> {
 #[tokio::test]
 async fn thread_resume_rejects_archived_session_by_id() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
 
     let filename_ts = "2025-01-05T12-00-00";
     let conversation_id = create_fake_rollout_with_text_elements(
-        codex_home.path(),
+        codepilotx_home.path(),
         filename_ts,
         "2025-01-05T12:00:00Z",
         "Archived saved user message",
@@ -996,15 +996,15 @@ async fn thread_resume_rejects_archived_session_by_id() -> Result<()> {
         Some("mock_provider"),
         /*git_info*/ None,
     )?;
-    let active_rollout_path = rollout_path(codex_home.path(), filename_ts, &conversation_id);
-    let archived_dir = codex_home.path().join(ARCHIVED_SESSIONS_SUBDIR);
+    let active_rollout_path = rollout_path(codepilotx_home.path(), filename_ts, &conversation_id);
+    let archived_dir = codepilotx_home.path().join(ARCHIVED_SESSIONS_SUBDIR);
     std::fs::create_dir_all(&archived_dir)?;
     std::fs::rename(
         &active_rollout_path,
         archived_dir.join(active_rollout_path.file_name().expect("rollout file name")),
     )?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let resume_id = mcp
@@ -1034,16 +1034,16 @@ async fn thread_resume_rejects_archived_session_by_id() -> Result<()> {
 #[tokio::test]
 async fn thread_resume_keeps_paused_goal_paused() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
-    let config_path = codex_home.path().join("config.toml");
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
+    let config_path = codepilotx_home.path().join("config.toml");
     let config = std::fs::read_to_string(&config_path)?;
     std::fs::write(
         &config_path,
         config.replace("personality = true\n", "personality = true\ngoals = true\n"),
     )?;
 
-    let mut mcp = TestAppServer::new_without_managed_config(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new_without_managed_config(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
@@ -1139,16 +1139,16 @@ async fn thread_resume_keeps_paused_goal_paused() -> Result<()> {
 #[tokio::test]
 async fn thread_goal_set_preserves_budget_limited_same_objective() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
-    let config_path = codex_home.path().join("config.toml");
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
+    let config_path = codepilotx_home.path().join("config.toml");
     let config = std::fs::read_to_string(&config_path)?;
     std::fs::write(
         &config_path,
         config.replace("personality = true\n", "personality = true\ngoals = true\n"),
     )?;
 
-    let mut mcp = TestAppServer::new_without_managed_config(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new_without_managed_config(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
@@ -1238,16 +1238,16 @@ async fn thread_goal_set_preserves_budget_limited_same_objective() -> Result<()>
 #[tokio::test]
 async fn thread_goal_set_persists_resumable_stopped_statuses() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
-    let config_path = codex_home.path().join("config.toml");
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
+    let config_path = codepilotx_home.path().join("config.toml");
     let config = std::fs::read_to_string(&config_path)?;
     std::fs::write(
         &config_path,
         config.replace("personality = true\n", "personality = true\ngoals = true\n"),
     )?;
 
-    let mut mcp = TestAppServer::new_without_managed_config(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new_without_managed_config(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
@@ -1325,16 +1325,16 @@ async fn thread_goal_set_persists_resumable_stopped_statuses() -> Result<()> {
 #[tokio::test]
 async fn thread_goal_set_edits_objective_without_resetting_usage() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
-    let config_path = codex_home.path().join("config.toml");
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
+    let config_path = codepilotx_home.path().join("config.toml");
     let config = std::fs::read_to_string(&config_path)?;
     std::fs::write(
         &config_path,
         config.replace("personality = true\n", "personality = true\ngoals = true\n"),
     )?;
     let thread_id = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-01-05T12-00-00",
         "2025-01-05T12:00:00Z",
         "",
@@ -1342,7 +1342,7 @@ async fn thread_goal_set_edits_objective_without_resetting_usage() -> Result<()>
         /*git_info*/ None,
     )?;
 
-    let mut mcp = TestAppServer::new_without_managed_config(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new_without_managed_config(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let goal_id = mcp
@@ -1369,7 +1369,7 @@ async fn thread_goal_set_edits_objective_without_resetting_usage() -> Result<()>
     .await??;
 
     let state_db =
-        StateRuntime::init(codex_home.path().to_path_buf(), "mock_provider".into()).await?;
+        StateRuntime::init(codepilotx_home.path().to_path_buf(), "mock_provider".into()).await?;
     let thread_id = ThreadId::from_string(&thread_id)?;
     let thread_metadata = state_db
         .get_thread(thread_id)
@@ -1387,7 +1387,7 @@ async fn thread_goal_set_edits_objective_without_resetting_usage() -> Result<()>
             thread_id,
             /*time_delta_seconds*/ 12,
             /*token_delta*/ 50,
-            codex_state::GoalAccountingMode::ActiveOnly,
+            codepilotx_state::GoalAccountingMode::ActiveOnly,
             Some(persisted_goal.goal_id.as_str()),
         )
         .await?;
@@ -1444,17 +1444,17 @@ async fn thread_goal_lifecycle_emits_analytics_and_clear_deletes_goal() -> Resul
         ]),
     ])
     .await;
-    let codex_home = TempDir::new()?;
-    create_config_toml_with_chatgpt_base_url(codex_home.path(), &server.uri(), &server.uri())?;
-    let config_path = codex_home.path().join("config.toml");
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml_with_chatgpt_base_url(codepilotx_home.path(), &server.uri(), &server.uri())?;
+    let config_path = codepilotx_home.path().join("config.toml");
     let config = std::fs::read_to_string(&config_path)?;
     std::fs::write(
         &config_path,
         config.replace("personality = true\n", "personality = true\ngoals = true\n"),
     )?;
-    mount_analytics_capture(&server, codex_home.path()).await?;
+    mount_analytics_capture(&server, codepilotx_home.path()).await?;
 
-    let mut mcp = TestAppServer::new_without_managed_config(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new_without_managed_config(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT.saturating_mul(2), mcp.initialize()).await??;
 
     let start_id = mcp
@@ -1603,7 +1603,7 @@ async fn thread_goal_lifecycle_emits_analytics_and_clear_deletes_goal() -> Resul
         mcp.read_stream_until_response_message(RequestId::Integer(get_id)),
     )
     .await??;
-    let get: codex_app_server_protocol::ThreadGoalGetResponse = to_response(get_resp)?;
+    let get: codepilotx_app_server_protocol::ThreadGoalGetResponse = to_response(get_resp)?;
     assert_eq!(None, get.goal);
 
     let clear_again_id = mcp
@@ -1628,18 +1628,18 @@ async fn thread_goal_lifecycle_emits_analytics_and_clear_deletes_goal() -> Resul
 #[tokio::test]
 async fn thread_resume_emits_restored_token_usage_before_next_turn() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
 
     let conversation_id = create_fake_rollout_with_token_usage(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-01-05T12-00-00",
         "2025-01-05T12:00:00Z",
         "Saved user message",
         Some("mock_provider"),
     )?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let resume_id = mcp
@@ -1681,18 +1681,18 @@ async fn thread_resume_emits_restored_token_usage_before_next_turn() -> Result<(
 #[tokio::test]
 async fn thread_resume_skips_restored_token_usage_when_turns_are_excluded() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
 
     let conversation_id = create_fake_rollout_with_token_usage(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-01-05T12-00-00",
         "2025-01-05T12:00:00Z",
         "Saved user message",
         Some("mock_provider"),
     )?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let first_resume_id = mcp
@@ -1755,19 +1755,19 @@ async fn thread_resume_skips_restored_token_usage_when_turns_are_excluded() -> R
 #[tokio::test]
 async fn thread_resume_token_usage_replay_ignores_stale_interrupted_tail_turn() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
 
     let filename_ts = "2025-01-05T12-00-00";
     let meta_rfc3339 = "2025-01-05T12:00:00Z";
     let conversation_id = create_fake_rollout_with_token_usage(
-        codex_home.path(),
+        codepilotx_home.path(),
         filename_ts,
         meta_rfc3339,
         "Saved user message",
         Some("mock_provider"),
     )?;
-    let rollout_file_path = rollout_path(codex_home.path(), filename_ts, &conversation_id);
+    let rollout_file_path = rollout_path(codepilotx_home.path(), filename_ts, &conversation_id);
     let persisted_rollout = std::fs::read_to_string(&rollout_file_path)?;
     let stale_turn_id = "incomplete-turn-after-token-usage";
     let appended_rollout = [
@@ -1800,7 +1800,7 @@ async fn thread_resume_token_usage_replay_ignores_stale_interrupted_tail_turn() 
         format!("{persisted_rollout}{appended_rollout}\n"),
     )?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let resume_id = mcp
@@ -1843,19 +1843,19 @@ async fn thread_resume_token_usage_replay_ignores_stale_interrupted_tail_turn() 
 #[tokio::test]
 async fn thread_resume_token_usage_replay_can_belong_to_interrupted_turn() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
 
     let filename_ts = "2025-01-05T12-00-00";
     let meta_rfc3339 = "2025-01-05T12:00:00Z";
     let conversation_id = create_fake_rollout_with_token_usage(
-        codex_home.path(),
+        codepilotx_home.path(),
         filename_ts,
         meta_rfc3339,
         "Saved user message",
         Some("mock_provider"),
     )?;
-    let rollout_file_path = rollout_path(codex_home.path(), filename_ts, &conversation_id);
+    let rollout_file_path = rollout_path(codepilotx_home.path(), filename_ts, &conversation_id);
     let persisted_rollout = std::fs::read_to_string(&rollout_file_path)?;
     let interrupted_turn_id = "interrupted-turn-with-token-usage";
     let appended_rollout = [
@@ -1924,7 +1924,7 @@ async fn thread_resume_token_usage_replay_can_belong_to_interrupted_turn() -> Re
         format!("{persisted_rollout}{appended_rollout}\n"),
     )?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let resume_id = mcp
@@ -1966,8 +1966,8 @@ async fn thread_resume_token_usage_replay_can_belong_to_interrupted_turn() -> Re
 #[tokio::test]
 async fn thread_resume_prefers_persisted_git_metadata_for_local_threads() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    let config_toml = codex_home.path().join("config.toml");
+    let codepilotx_home = TempDir::new()?;
+    let config_toml = codepilotx_home.path().join("config.toml");
     std::fs::write(
         &config_toml,
         format!(
@@ -1993,7 +1993,7 @@ stream_max_retries = 0
         ),
     )?;
 
-    let repo_path = codex_home.path().join("repo");
+    let repo_path = codepilotx_home.path().join("repo");
     std::fs::create_dir_all(&repo_path)?;
     assert!(
         Command::new("git")
@@ -2050,7 +2050,7 @@ stream_max_retries = 0
 
     let thread_id = Uuid::new_v4().to_string();
     let conversation_id = ThreadId::from_string(&thread_id)?;
-    let rollout_path = rollout_path(codex_home.path(), "2025-01-05T12-00-00", &thread_id);
+    let rollout_path = rollout_path(codepilotx_home.path(), "2025-01-05T12-00-00", &thread_id);
     let rollout_dir = rollout_path.parent().expect("rollout parent directory");
     std::fs::create_dir_all(rollout_dir)?;
     let session_meta = SessionMeta {
@@ -2109,12 +2109,12 @@ stream_max_retries = 0
             + "\n",
     )?;
     let state_db =
-        StateRuntime::init(codex_home.path().to_path_buf(), "mock_provider".into()).await?;
+        StateRuntime::init(codepilotx_home.path().to_path_buf(), "mock_provider".into()).await?;
     state_db
         .mark_backfill_complete(/*last_watermark*/ None)
         .await?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let update_id = mcp
@@ -2161,13 +2161,13 @@ stream_max_retries = 0
 async fn thread_resume_and_read_interrupt_incomplete_rollout_turn_when_thread_is_idle() -> Result<()>
 {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
 
     let filename_ts = "2025-01-05T12-00-00";
     let meta_rfc3339 = "2025-01-05T12:00:00Z";
     let conversation_id = create_fake_rollout_with_text_elements(
-        codex_home.path(),
+        codepilotx_home.path(),
         filename_ts,
         meta_rfc3339,
         "Saved user message",
@@ -2175,7 +2175,7 @@ async fn thread_resume_and_read_interrupt_incomplete_rollout_turn_when_thread_is
         Some("mock_provider"),
         /*git_info*/ None,
     )?;
-    let rollout_file_path = rollout_path(codex_home.path(), filename_ts, &conversation_id);
+    let rollout_file_path = rollout_path(codepilotx_home.path(), filename_ts, &conversation_id);
     let persisted_rollout = std::fs::read_to_string(&rollout_file_path)?;
     let turn_id = "incomplete-turn";
     let appended_rollout = [
@@ -2208,7 +2208,7 @@ async fn thread_resume_and_read_interrupt_incomplete_rollout_turn_when_thread_is
         format!("{persisted_rollout}{appended_rollout}\n"),
     )?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let resume_id = mcp
@@ -2278,11 +2278,11 @@ async fn thread_resume_and_read_interrupt_incomplete_rollout_turn_when_thread_is
 #[tokio::test]
 async fn thread_resume_defers_updated_at_until_turn_start() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    let rollout = setup_rollout_fixture(codex_home.path(), &server.uri()).await?;
+    let codepilotx_home = TempDir::new()?;
+    let rollout = setup_rollout_fixture(codepilotx_home.path(), &server.uri()).await?;
     let thread_id = rollout.conversation_id.clone();
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let read_id = mcp
@@ -2336,7 +2336,7 @@ async fn thread_resume_defers_updated_at_until_turn_start() -> Result<()> {
         .send_thread_resume_request(ThreadResumeParams {
             thread_id: "not-a-valid-thread-id".to_string(),
             path: Some(normalized_existing_path(&rollout.rollout_file_path)?),
-            cwd: Some(codex_home.path().to_string_lossy().to_string()),
+            cwd: Some(codepilotx_home.path().to_string_lossy().to_string()),
             ..Default::default()
         })
         .await?;
@@ -2346,7 +2346,7 @@ async fn thread_resume_defers_updated_at_until_turn_start() -> Result<()> {
     )
     .await??;
     let ThreadResumeResponse { cwd, .. } = to_response::<ThreadResumeResponse>(resume_resp)?;
-    assert_eq!(cwd, AbsolutePathBuf::from_absolute_path(codex_home.path())?);
+    assert_eq!(cwd, AbsolutePathBuf::from_absolute_path(codepilotx_home.path())?);
 
     let turn_id = mcp
         .send_turn_start_request(TurnStartParams {
@@ -2401,10 +2401,10 @@ async fn thread_resume_defers_updated_at_until_turn_start() -> Result<()> {
 #[tokio::test]
 async fn thread_resume_keeps_in_flight_turn_streaming() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
 
-    let mut primary = TestAppServer::new(codex_home.path()).await?;
+    let mut primary = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, primary.initialize()).await??;
 
     let start_id = primary
@@ -2443,7 +2443,7 @@ async fn thread_resume_keeps_in_flight_turn_streaming() -> Result<()> {
     .await??;
     primary.clear_message_buffer();
 
-    let mut secondary = TestAppServer::new(codex_home.path()).await?;
+    let mut secondary = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, secondary.initialize()).await??;
 
     let turn_id = primary
@@ -2510,10 +2510,10 @@ async fn thread_resume_rejects_history_when_thread_is_running() -> Result<()> {
     .set_delay(std::time::Duration::from_millis(500));
     let _first_response_mock = responses::mount_sse_once(&server, first_body).await;
     let _second_response_mock = responses::mount_response_once(&server, second_response).await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
 
-    let mut primary = TestAppServer::new(codex_home.path()).await?;
+    let mut primary = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, primary.initialize()).await??;
 
     let start_id = primary
@@ -2629,10 +2629,10 @@ async fn thread_resume_rejects_mismatched_path_for_running_thread_id() -> Result
     .set_delay(std::time::Duration::from_millis(500));
     let _first_response_mock = responses::mount_sse_once(&server, first_body).await;
     let _second_response_mock = responses::mount_response_once(&server, second_response).await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
 
-    let mut primary = TestAppServer::new(codex_home.path()).await?;
+    let mut primary = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, primary.initialize()).await??;
 
     let start_id = primary
@@ -2727,7 +2727,7 @@ async fn thread_resume_rejects_mismatched_path_for_running_thread_id() -> Result
     }
 
     let stale_thread_id = Uuid::new_v4().to_string();
-    let stale_path = rollout_path(codex_home.path(), "2025-01-01T00-00-00", &stale_thread_id);
+    let stale_path = rollout_path(codepilotx_home.path(), "2025-01-01T00-00-00", &stale_thread_id);
     std::fs::create_dir_all(stale_path.parent().expect("stale path parent"))?;
     let thread_uuid = Uuid::parse_str(&stale_thread_id)?;
     let mut stale_file = std::fs::File::create(&stale_path)?;
@@ -2737,7 +2737,7 @@ async fn thread_resume_rejects_mismatched_path_for_running_thread_id() -> Result
         "payload": {
             "id": thread_uuid,
             "timestamp": "2025-01-01T00:00:00Z",
-            "cwd": codex_home.path(),
+            "cwd": codepilotx_home.path(),
             "originator": "test_originator",
             "cli_version": "test_version",
             "source": "cli",
@@ -2797,10 +2797,10 @@ async fn thread_resume_rejoins_running_thread_even_with_override_mismatch() -> R
     .set_delay(std::time::Duration::from_millis(500));
     let _response_mock =
         responses::mount_response_sequence(&server, vec![first_response, second_response]).await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
 
-    let mut primary = TestAppServer::new(codex_home.path()).await?;
+    let mut primary = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, primary.initialize()).await??;
 
     let start_id = primary
@@ -2928,10 +2928,10 @@ async fn thread_resume_can_skip_turns_when_thread_is_running() -> Result<()> {
         ]),
     )
     .await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
 
-    let mut primary = TestAppServer::new(codex_home.path()).await?;
+    let mut primary = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, primary.initialize()).await??;
 
     let start_id = primary
@@ -2969,7 +2969,7 @@ async fn thread_resume_can_skip_turns_when_thread_is_running() -> Result<()> {
     )
     .await??;
 
-    let mut secondary = TestAppServer::new(codex_home.path()).await?;
+    let mut secondary = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, secondary.initialize()).await??;
 
     let resume_id = secondary
@@ -3012,10 +3012,10 @@ async fn thread_resume_replays_pending_command_execution_request_approval() -> R
         create_final_assistant_message_sse_response("done")?,
     ];
     let server = create_mock_responses_server_sequence_unchecked(responses).await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
 
-    let mut primary = TestAppServer::new(codex_home.path()).await?;
+    let mut primary = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, primary.initialize()).await??;
 
     let start_id = primary
@@ -3136,8 +3136,8 @@ async fn thread_resume_replays_pending_command_execution_request_approval() -> R
 #[tokio::test]
 async fn thread_resume_replays_pending_file_change_request_approval() -> Result<()> {
     let tmp = TempDir::new()?;
-    let codex_home = tmp.path().join("codex_home");
-    std::fs::create_dir(&codex_home)?;
+    let codepilotx_home = tmp.path().join("codepilotx_home");
+    std::fs::create_dir(&codepilotx_home)?;
     let workspace = tmp.path().join("workspace");
     std::fs::create_dir(&workspace)?;
 
@@ -3152,9 +3152,9 @@ async fn thread_resume_replays_pending_file_change_request_approval() -> Result<
         create_final_assistant_message_sse_response("done")?,
     ];
     let server = create_mock_responses_server_sequence_unchecked(responses).await;
-    create_config_toml(&codex_home, &server.uri())?;
+    create_config_toml(&codepilotx_home, &server.uri())?;
 
-    let mut primary = TestAppServer::new(&codex_home).await?;
+    let mut primary = TestAppServer::new(&codepilotx_home).await?;
     timeout(DEFAULT_READ_TIMEOUT, primary.initialize()).await??;
 
     let start_id = primary
@@ -3230,7 +3230,7 @@ async fn thread_resume_replays_pending_file_change_request_approval() -> Result<
     let expected_readme_path = workspace.join("README.md");
     let expected_file_change = ThreadItem::FileChange {
         id: "patch-call".to_string(),
-        changes: vec![codex_app_server_protocol::FileUpdateChange {
+        changes: vec![codepilotx_app_server_protocol::FileUpdateChange {
             path: expected_readme_path.to_string_lossy().into_owned(),
             kind: PatchChangeKind::Add,
             diff: "new line\n".to_string(),
@@ -3304,15 +3304,15 @@ async fn thread_resume_replays_pending_file_change_request_approval() -> Result<
 #[tokio::test]
 async fn thread_resume_with_overrides_defers_updated_at_until_turn_start() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
 
     let RestartedThreadFixture {
         mut mcp,
         thread_id,
         rollout_file_path,
         updated_at,
-    } = start_materialized_thread_and_restart(codex_home.path(), "materialize").await?;
+    } = start_materialized_thread_and_restart(codepilotx_home.path(), "materialize").await?;
     let expected_updated_at_rfc3339 = "2025-01-07T00:00:00Z";
     set_rollout_mtime(rollout_file_path.as_path(), expected_updated_at_rfc3339)?;
     let before_modified = std::fs::metadata(&rollout_file_path)?.modified()?;
@@ -3371,11 +3371,11 @@ async fn thread_resume_with_overrides_defers_updated_at_until_turn_start() -> Re
 #[tokio::test]
 async fn thread_resume_fails_when_required_mcp_server_fails_to_initialize() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    let rollout = setup_rollout_fixture(codex_home.path(), &server.uri()).await?;
-    create_config_toml_with_required_broken_mcp(codex_home.path(), &server.uri())?;
+    let codepilotx_home = TempDir::new()?;
+    let rollout = setup_rollout_fixture(codepilotx_home.path(), &server.uri()).await?;
+    create_config_toml_with_required_broken_mcp(codepilotx_home.path(), &server.uri())?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let resume_id = mcp
@@ -3426,16 +3426,16 @@ async fn thread_resume_surfaces_cloud_config_bundle_load_errors() -> Result<()> 
         .mount(&server)
         .await;
 
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let model_server = create_mock_responses_server_repeating_assistant("Done").await;
     let chatgpt_base_url = format!("{}/backend-api", server.uri());
     create_config_toml_with_chatgpt_base_url(
-        codex_home.path(),
+        codepilotx_home.path(),
         &model_server.uri(),
         &chatgpt_base_url,
     )?;
     write_chatgpt_auth(
-        codex_home.path(),
+        codepilotx_home.path(),
         ChatGptAuthFixture::new("chatgpt-token")
             .refresh_token("stale-refresh-token")
             .plan_type("business")
@@ -3445,7 +3445,7 @@ async fn thread_resume_surfaces_cloud_config_bundle_load_errors() -> Result<()> 
         AuthCredentialsStoreMode::File,
     )?;
     let conversation_id = create_fake_rollout_with_text_elements(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-01-05T12-00-00",
         "2025-01-05T12:00:00Z",
         "Saved user message",
@@ -3455,7 +3455,7 @@ async fn thread_resume_surfaces_cloud_config_bundle_load_errors() -> Result<()> 
     )?;
     let refresh_token_url = format!("{}/oauth/token", server.uri());
     let mut mcp = TestAppServer::new_with_env(
-        codex_home.path(),
+        codepilotx_home.path(),
         &[
             ("OPENAI_API_KEY", None),
             (
@@ -3501,15 +3501,15 @@ async fn thread_resume_surfaces_cloud_config_bundle_load_errors() -> Result<()> 
 #[tokio::test]
 async fn thread_resume_uses_path_over_non_running_thread_id() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
 
     let RestartedThreadFixture {
         mut mcp,
         thread_id,
         rollout_file_path,
         ..
-    } = start_materialized_thread_and_restart(codex_home.path(), "materialize").await?;
+    } = start_materialized_thread_and_restart(codepilotx_home.path(), "materialize").await?;
 
     let resume_id = mcp
         .send_thread_resume_request(ThreadResumeParams {
@@ -3535,9 +3535,9 @@ async fn thread_resume_uses_path_over_non_running_thread_id() -> Result<()> {
 #[tokio::test]
 async fn thread_resume_can_load_source_by_external_path() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let external_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
     let thread_id = create_fake_rollout(
         external_home.path(),
         "2025-01-05T12-00-00",
@@ -3548,7 +3548,7 @@ async fn thread_resume_can_load_source_by_external_path() -> Result<()> {
     )?;
     let thread_path = rollout_path(external_home.path(), "2025-01-05T12-00-00", &thread_id);
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
     let resume_id = mcp
         .send_thread_resume_request(ThreadResumeParams {
@@ -3581,12 +3581,12 @@ async fn thread_resume_can_load_source_by_external_path() -> Result<()> {
 #[tokio::test]
 async fn thread_resume_supports_history_and_overrides() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
 
     let RestartedThreadFixture {
         mut mcp, thread_id, ..
-    } = start_materialized_thread_and_restart(codex_home.path(), "seed history").await?;
+    } = start_materialized_thread_and_restart(codepilotx_home.path(), "seed history").await?;
 
     let history_text = "Hello from history";
     let history = vec![ResponseItem::Message {
@@ -3635,10 +3635,10 @@ struct RestartedThreadFixture {
 }
 
 async fn start_materialized_thread_and_restart(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     seed_text: &str,
 ) -> Result<RestartedThreadFixture> {
-    let mut first_mcp = TestAppServer::new(codex_home).await?;
+    let mut first_mcp = TestAppServer::new(codepilotx_home).await?;
     timeout(DEFAULT_READ_TIMEOUT, first_mcp.initialize()).await??;
 
     let start_id = first_mcp
@@ -3697,7 +3697,7 @@ async fn start_materialized_thread_and_restart(
 
     drop(first_mcp);
 
-    let mut second_mcp = TestAppServer::new(codex_home).await?;
+    let mut second_mcp = TestAppServer::new(codepilotx_home).await?;
     timeout(DEFAULT_READ_TIMEOUT, second_mcp.initialize()).await??;
 
     Ok(RestartedThreadFixture {
@@ -3725,10 +3725,10 @@ async fn thread_resume_accepts_personality_override() -> Result<()> {
     ]);
     let response_mock = responses::mount_sse_sequence(&server, vec![first_body, second_body]).await;
 
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
 
-    let mut primary = TestAppServer::new(codex_home.path()).await?;
+    let mut primary = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, primary.initialize()).await??;
 
     let start_id = primary
@@ -3766,7 +3766,7 @@ async fn thread_resume_accepts_personality_override() -> Result<()> {
     )
     .await??;
 
-    let mut secondary = TestAppServer::new(codex_home.path()).await?;
+    let mut secondary = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, secondary.initialize()).await??;
 
     let resume_id = secondary
@@ -3829,8 +3829,8 @@ async fn thread_resume_accepts_personality_override() -> Result<()> {
 }
 
 // Helper to create a config.toml pointing at the mock model server.
-fn create_config_toml(codex_home: &std::path::Path, server_uri: &str) -> std::io::Result<()> {
-    let config_toml = codex_home.join("config.toml");
+fn create_config_toml(codepilotx_home: &std::path::Path, server_uri: &str) -> std::io::Result<()> {
+    let config_toml = codepilotx_home.join("config.toml");
     std::fs::write(
         config_toml,
         format!(
@@ -3856,11 +3856,11 @@ stream_max_retries = 0
 }
 
 fn create_config_toml_with_chatgpt_base_url(
-    codex_home: &std::path::Path,
+    codepilotx_home: &std::path::Path,
     server_uri: &str,
     chatgpt_base_url: &str,
 ) -> std::io::Result<()> {
-    let config_toml = codex_home.join("config.toml");
+    let config_toml = codepilotx_home.join("config.toml");
     std::fs::write(
         config_toml,
         format!(
@@ -3887,10 +3887,10 @@ stream_max_retries = 0
 }
 
 fn create_config_toml_with_required_broken_mcp(
-    codex_home: &std::path::Path,
+    codepilotx_home: &std::path::Path,
     server_uri: &str,
 ) -> std::io::Result<()> {
-    let config_toml = codex_home.join("config.toml");
+    let config_toml = codepilotx_home.join("config.toml");
     std::fs::write(
         config_toml,
         format!(
@@ -3936,15 +3936,15 @@ struct RolloutFixture {
     before_modified: std::time::SystemTime,
 }
 
-async fn setup_rollout_fixture(codex_home: &Path, server_uri: &str) -> Result<RolloutFixture> {
-    create_config_toml(codex_home, server_uri)?;
+async fn setup_rollout_fixture(codepilotx_home: &Path, server_uri: &str) -> Result<RolloutFixture> {
+    create_config_toml(codepilotx_home, server_uri)?;
 
     let preview = "Saved user message";
     let filename_ts = "2025-01-05T12-00-00";
     let meta_rfc3339 = "2025-01-05T12:00:00Z";
     let expected_updated_at_rfc3339 = "2025-01-07T00:00:00Z";
     let conversation_id = create_fake_rollout_with_text_elements(
-        codex_home,
+        codepilotx_home,
         filename_ts,
         meta_rfc3339,
         preview,
@@ -3952,7 +3952,7 @@ async fn setup_rollout_fixture(codex_home: &Path, server_uri: &str) -> Result<Ro
         Some("mock_provider"),
         /*git_info*/ None,
     )?;
-    let rollout_file_path = rollout_path(codex_home, filename_ts, &conversation_id);
+    let rollout_file_path = rollout_path(codepilotx_home, filename_ts, &conversation_id);
     let mut session_meta = read_session_meta_line(&rollout_file_path).await?;
     session_meta.meta.multi_agent_version = Some(MultiAgentVersion::V1);
     append_rollout_item_to_path(&rollout_file_path, &RolloutItem::SessionMeta(session_meta))

@@ -14,18 +14,18 @@
 //! keystore that always encrypts secrets when they are transferred across the bus. If DBus isn't installed the keystore will fall back to the json
 //! file because we don't use the "vendored" feature.
 //!
-//! If the keyring is not available or fails, we fall back to CODEX_HOME/.credentials.json which is consistent with other coding CLI agents.
+//! If the keyring is not available or fails, we fall back to codepilotx_HOME/.credentials.json which is consistent with other coding CLI agents.
 
 use anyhow::Context;
 use anyhow::Error;
 use anyhow::Result;
-use codex_config::types::AuthKeyringBackendKind;
-use codex_config::types::OAuthCredentialsStoreMode;
-use codex_secrets::LocalSecretsNamespace;
-use codex_secrets::SecretName;
-use codex_secrets::SecretScope;
-use codex_secrets::SecretsBackendKind;
-use codex_secrets::SecretsManager;
+use codepilotx_config::types::AuthKeyringBackendKind;
+use codepilotx_config::types::OAuthCredentialsStoreMode;
+use codepilotx_secrets::LocalSecretsNamespace;
+use codepilotx_secrets::SecretName;
+use codepilotx_secrets::SecretScope;
+use codepilotx_secrets::SecretsBackendKind;
+use codepilotx_secrets::SecretsManager;
 use oauth2::AccessToken;
 use oauth2::RefreshToken;
 use oauth2::Scope;
@@ -49,12 +49,12 @@ use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
 use tracing::warn;
 
-use codex_keyring_store::DefaultKeyringStore;
-use codex_keyring_store::KeyringStore;
+use codepilotx_keyring_store::DefaultKeyringStore;
+use codepilotx_keyring_store::KeyringStore;
 use rmcp::transport::auth::AuthorizationManager;
 use tokio::sync::Mutex;
 
-use codex_utils_home_dir::find_codex_home;
+use codepilotx_utils_home_dir::find_codepilotx_home;
 
 const KEYRING_SERVICE: &str = "Codex MCP Credentials";
 const MCP_OAUTH_SECRET_PREFIX: &str = "MCP_OAUTH";
@@ -220,9 +220,9 @@ fn load_oauth_tokens_from_secrets_keyring<K: KeyringStore + Clone + 'static>(
     server_name: &str,
     url: &str,
 ) -> Result<Option<StoredOAuthTokens>> {
-    let codex_home = find_codex_home()?;
+    let codepilotx_home = find_codepilotx_home()?;
     let manager = SecretsManager::new_with_keyring_store_and_namespace(
-        codex_home.to_path_buf(),
+        codepilotx_home.to_path_buf(),
         SecretsBackendKind::Local,
         Arc::new(keyring_store.clone()),
         LocalSecretsNamespace::McpOAuth,
@@ -314,9 +314,9 @@ fn save_oauth_tokens_to_secrets_keyring<K: KeyringStore + Clone + 'static>(
     tokens: &StoredOAuthTokens,
 ) -> Result<()> {
     let serialized = serde_json::to_string(tokens).context("failed to serialize OAuth tokens")?;
-    let codex_home = find_codex_home()?;
+    let codepilotx_home = find_codepilotx_home()?;
     let manager = SecretsManager::new_with_keyring_store_and_namespace(
-        codex_home.to_path_buf(),
+        codepilotx_home.to_path_buf(),
         SecretsBackendKind::Local,
         Arc::new(keyring_store.clone()),
         LocalSecretsNamespace::McpOAuth,
@@ -430,9 +430,9 @@ fn delete_oauth_tokens_from_secrets_keyring<K: KeyringStore + Clone + 'static>(
     server_name: &str,
     url: &str,
 ) -> Result<bool> {
-    let codex_home = find_codex_home()?;
+    let codepilotx_home = find_codepilotx_home()?;
     let manager = SecretsManager::new_with_keyring_store_and_namespace(
-        codex_home.to_path_buf(),
+        codepilotx_home.to_path_buf(),
         SecretsBackendKind::Local,
         Arc::new(keyring_store.clone()),
         LocalSecretsNamespace::McpOAuth,
@@ -747,7 +747,7 @@ fn compute_secret_name(server_name: &str, server_url: &str) -> Result<SecretName
 }
 
 fn fallback_file_path() -> Result<PathBuf> {
-    Ok(find_codex_home()?.join(FALLBACK_FILENAME).to_path_buf())
+    Ok(find_codepilotx_home()?.join(FALLBACK_FILENAME).to_path_buf())
 }
 
 fn read_fallback_file() -> Result<Option<FallbackFile>> {
@@ -814,7 +814,7 @@ fn sha_256_prefix(value: &Value) -> Result<String> {
 mod tests {
     use super::*;
     use anyhow::Result;
-    use codex_secrets::compute_keyring_account;
+    use codepilotx_secrets::compute_keyring_account;
     use keyring::Error as KeyringError;
     use pretty_assertions::assert_eq;
     use std::sync::Arc;
@@ -824,23 +824,23 @@ mod tests {
     use std::sync::PoisonError;
     use tempfile::tempdir;
 
-    use codex_keyring_store::tests::MockKeyringStore;
+    use codepilotx_keyring_store::tests::MockKeyringStore;
 
-    struct TempCodexHome {
+    struct TempCodePilotXHome {
         _guard: MutexGuard<'static, ()>,
         _dir: tempfile::TempDir,
     }
 
-    impl TempCodexHome {
+    impl TempCodePilotXHome {
         fn new() -> Self {
             static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
             let guard = LOCK
                 .get_or_init(Mutex::default)
                 .lock()
                 .unwrap_or_else(PoisonError::into_inner);
-            let dir = tempdir().expect("create CODEX_HOME temp dir");
+            let dir = tempdir().expect("create codepilotx_HOME temp dir");
             unsafe {
-                std::env::set_var("CODEX_HOME", dir.path());
+                std::env::set_var("codepilotx_HOME", dir.path());
             }
             Self {
                 _guard: guard,
@@ -853,17 +853,17 @@ mod tests {
         }
     }
 
-    impl Drop for TempCodexHome {
+    impl Drop for TempCodePilotXHome {
         fn drop(&mut self) {
             unsafe {
-                std::env::remove_var("CODEX_HOME");
+                std::env::remove_var("codepilotx_HOME");
             }
         }
     }
 
     #[test]
     fn load_oauth_tokens_reads_from_keyring_when_available() -> Result<()> {
-        let _env = TempCodexHome::new();
+        let _env = TempCodePilotXHome::new();
         let store = MockKeyringStore::default();
         let tokens = sample_tokens();
         let expected = tokens.clone();
@@ -884,7 +884,7 @@ mod tests {
 
     #[test]
     fn load_oauth_tokens_falls_back_when_missing_in_keyring() -> Result<()> {
-        let _env = TempCodexHome::new();
+        let _env = TempCodePilotXHome::new();
         let store = MockKeyringStore::default();
         let tokens = sample_tokens();
         let expected = tokens.clone();
@@ -904,7 +904,7 @@ mod tests {
 
     #[test]
     fn load_oauth_tokens_falls_back_when_keyring_errors() -> Result<()> {
-        let _env = TempCodexHome::new();
+        let _env = TempCodePilotXHome::new();
         let store = MockKeyringStore::default();
         let tokens = sample_tokens();
         let expected = tokens.clone();
@@ -926,7 +926,7 @@ mod tests {
 
     #[test]
     fn save_oauth_tokens_prefers_keyring_when_available() -> Result<()> {
-        let _env = TempCodexHome::new();
+        let _env = TempCodePilotXHome::new();
         let store = MockKeyringStore::default();
         let tokens = sample_tokens();
         let key = super::compute_store_key(&tokens.server_name, &tokens.url)?;
@@ -949,7 +949,7 @@ mod tests {
 
     #[test]
     fn save_oauth_tokens_writes_fallback_when_keyring_fails() -> Result<()> {
-        let _env = TempCodexHome::new();
+        let _env = TempCodePilotXHome::new();
         let store = MockKeyringStore::default();
         let tokens = sample_tokens();
         let key = super::compute_store_key(&tokens.server_name, &tokens.url)?;
@@ -980,7 +980,7 @@ mod tests {
 
     #[test]
     fn save_oauth_tokens_with_secrets_backend_writes_encrypted_storage() -> Result<()> {
-        let env = TempCodexHome::new();
+        let env = TempCodePilotXHome::new();
         let store = MockKeyringStore::default();
         let tokens = sample_tokens();
         let key = super::compute_store_key(&tokens.server_name, &tokens.url)?;
@@ -1015,7 +1015,7 @@ mod tests {
 
     #[test]
     fn load_oauth_tokens_with_secrets_backend_reads_encrypted_storage() -> Result<()> {
-        let _env = TempCodexHome::new();
+        let _env = TempCodePilotXHome::new();
         let store = MockKeyringStore::default();
         let tokens = sample_tokens();
         let expected = tokens.clone();
@@ -1040,7 +1040,7 @@ mod tests {
 
     #[test]
     fn load_oauth_tokens_with_secrets_backend_ignores_direct_entry() -> Result<()> {
-        let _env = TempCodexHome::new();
+        let _env = TempCodePilotXHome::new();
         let store = MockKeyringStore::default();
         let tokens = sample_tokens();
         let key = super::compute_store_key(&tokens.server_name, &tokens.url)?;
@@ -1061,7 +1061,7 @@ mod tests {
     #[test]
     fn save_oauth_tokens_with_secrets_backend_falls_back_to_file_when_keyring_fails() -> Result<()>
     {
-        let env = TempCodexHome::new();
+        let env = TempCodePilotXHome::new();
         let store = MockKeyringStore::default();
         store.set_error(
             &compute_keyring_account(env.path()),
@@ -1084,7 +1084,7 @@ mod tests {
 
     #[test]
     fn delete_oauth_tokens_with_secrets_backend_removes_secrets_and_file() -> Result<()> {
-        let env = TempCodexHome::new();
+        let env = TempCodePilotXHome::new();
         let store = MockKeyringStore::default();
         let tokens = sample_tokens();
         let serialized = serde_json::to_string(&tokens)?;
@@ -1123,7 +1123,7 @@ mod tests {
 
     #[test]
     fn delete_oauth_tokens_removes_all_storage() -> Result<()> {
-        let _env = TempCodexHome::new();
+        let _env = TempCodePilotXHome::new();
         let store = MockKeyringStore::default();
         let tokens = sample_tokens();
         let serialized = serde_json::to_string(&tokens)?;
@@ -1146,7 +1146,7 @@ mod tests {
 
     #[test]
     fn delete_oauth_tokens_file_mode_removes_keyring_only_entry() -> Result<()> {
-        let _env = TempCodexHome::new();
+        let _env = TempCodePilotXHome::new();
         let store = MockKeyringStore::default();
         let tokens = sample_tokens();
         let serialized = serde_json::to_string(&tokens)?;
@@ -1169,7 +1169,7 @@ mod tests {
 
     #[test]
     fn delete_oauth_tokens_propagates_keyring_errors() -> Result<()> {
-        let _env = TempCodexHome::new();
+        let _env = TempCodePilotXHome::new();
         let store = MockKeyringStore::default();
         let tokens = sample_tokens();
         let key = super::compute_store_key(&tokens.server_name, &tokens.url)?;

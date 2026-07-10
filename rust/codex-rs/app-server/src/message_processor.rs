@@ -48,42 +48,42 @@ use crate::thread_state::ConnectionCapabilities;
 use crate::thread_state::ThreadStateManager;
 use crate::transport::AppServerTransport;
 use crate::transport::RemoteControlHandle;
-use codex_analytics::AnalyticsEventsClient;
-use codex_analytics::AppServerRpcTransport;
-use codex_app_server_protocol::AuthMode as LoginAuthMode;
-use codex_app_server_protocol::ChatgptAuthTokensRefreshParams;
-use codex_app_server_protocol::ChatgptAuthTokensRefreshReason;
-use codex_app_server_protocol::ChatgptAuthTokensRefreshResponse;
-use codex_app_server_protocol::ClientNotification;
-use codex_app_server_protocol::ClientRequest;
-use codex_app_server_protocol::ClientResponsePayload;
-use codex_app_server_protocol::ConfigWarningNotification;
-use codex_app_server_protocol::ExperimentalApi;
-use codex_app_server_protocol::JSONRPCError;
-use codex_app_server_protocol::JSONRPCErrorError;
-use codex_app_server_protocol::JSONRPCNotification;
-use codex_app_server_protocol::JSONRPCRequest;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::ServerRequestPayload;
-use codex_app_server_protocol::experimental_required_message;
-use codex_arg0::Arg0DispatchPaths;
-use codex_chatgpt::workspace_settings;
-use codex_core::ThreadManager;
-use codex_core::config::Config;
-use codex_exec_server::EnvironmentManager;
-use codex_feedback::CodexFeedback;
-use codex_goal_extension::GoalService;
-use codex_home::CodexHomeUserInstructionsProvider;
-use codex_login::AuthManager;
-use codex_login::auth::ExternalAuth;
-use codex_login::auth::ExternalAuthRefreshContext;
-use codex_login::auth::ExternalAuthRefreshReason;
-use codex_login::auth::ExternalAuthTokens;
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::W3cTraceContext;
-use codex_rollout::StateDbHandle;
-use codex_state::log_db::LogDbLayer;
+use codepilotx_analytics::AnalyticsEventsClient;
+use codepilotx_analytics::AppServerRpcTransport;
+use codepilotx_app_server_protocol::AuthMode as LoginAuthMode;
+use codepilotx_app_server_protocol::ChatgptAuthTokensRefreshParams;
+use codepilotx_app_server_protocol::ChatgptAuthTokensRefreshReason;
+use codepilotx_app_server_protocol::ChatgptAuthTokensRefreshResponse;
+use codepilotx_app_server_protocol::ClientNotification;
+use codepilotx_app_server_protocol::ClientRequest;
+use codepilotx_app_server_protocol::ClientResponsePayload;
+use codepilotx_app_server_protocol::ConfigWarningNotification;
+use codepilotx_app_server_protocol::ExperimentalApi;
+use codepilotx_app_server_protocol::JSONRPCError;
+use codepilotx_app_server_protocol::JSONRPCErrorError;
+use codepilotx_app_server_protocol::JSONRPCNotification;
+use codepilotx_app_server_protocol::JSONRPCRequest;
+use codepilotx_app_server_protocol::JSONRPCResponse;
+use codepilotx_app_server_protocol::ServerRequestPayload;
+use codepilotx_app_server_protocol::experimental_required_message;
+use codepilotx_arg0::Arg0DispatchPaths;
+use codepilotx_chatgpt::workspace_settings;
+use codepilotx_core::ThreadManager;
+use codepilotx_core::config::Config;
+use codepilotx_exec_server::EnvironmentManager;
+use codepilotx_feedback::CodexFeedback;
+use codepilotx_goal_extension::GoalService;
+use codepilotx_home::CodePilotXHomeUserInstructionsProvider;
+use codepilotx_login::AuthManager;
+use codepilotx_login::auth::ExternalAuth;
+use codepilotx_login::auth::ExternalAuthRefreshContext;
+use codepilotx_login::auth::ExternalAuthRefreshReason;
+use codepilotx_login::auth::ExternalAuthTokens;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_protocol::protocol::W3cTraceContext;
+use codepilotx_rollout::StateDbHandle;
+use codepilotx_state::log_db::LogDbLayer;
 use tokio::sync::Mutex;
 use tokio::sync::Semaphore;
 use tokio::sync::broadcast;
@@ -178,7 +178,7 @@ impl ExternalAuth for ExternalAuthRefreshBridge {
     fn refresh(
         &self,
         context: ExternalAuthRefreshContext,
-    ) -> codex_login::ExternalAuthFuture<'_, ExternalAuthTokens> {
+    ) -> codepilotx_login::ExternalAuthFuture<'_, ExternalAuthTokens> {
         Box::pin(ExternalAuthRefreshBridge::refresh(self, context))
     }
 }
@@ -334,12 +334,12 @@ impl MessageProcessor {
         // The thread store is intentionally process-scoped. Config reloads can
         // affect per-thread behavior, but they must not move newly started,
         // resumed, or forked threads to a different persistence backend/root.
-        let thread_store = codex_core::thread_store_from_config(config.as_ref(), state_db.clone());
+        let thread_store = codepilotx_core::thread_store_from_config(config.as_ref(), state_db.clone());
         let environment_manager_for_requests = Arc::clone(&environment_manager);
         let environment_manager_for_extensions = Arc::clone(&environment_manager);
         let restriction_product = session_source.restriction_product();
-        let executor_skill_provider: Arc<dyn codex_skills_extension::SkillProvider> = Arc::new(
-            codex_skills_extension::ExecutorSkillProvider::new_with_restriction_product(
+        let executor_skill_provider: Arc<dyn codepilotx_skills_extension::SkillProvider> = Arc::new(
+            codepilotx_skills_extension::ExecutorSkillProvider::new_with_restriction_product(
                 Arc::clone(&environment_manager_for_extensions),
                 restriction_product,
             ),
@@ -368,8 +368,8 @@ impl MessageProcessor {
                         thread_store: Arc::clone(&thread_store),
                     },
                 ),
-                Arc::new(CodexHomeUserInstructionsProvider::new(
-                    config.codex_home.clone(),
+                Arc::new(CodePilotXHomeUserInstructionsProvider::new(
+                    config.codepilotx_home.clone(),
                 )),
                 Some(analytics_events_client.clone()),
                 Arc::clone(&thread_store),
@@ -538,7 +538,7 @@ impl MessageProcessor {
                 state_db,
                 analytics_events_client,
                 arg0_paths,
-                codex_home: config.codex_home.to_path_buf(),
+                codepilotx_home: config.codepilotx_home.to_path_buf(),
             });
         let environment_processor =
             EnvironmentRequestProcessor::new(thread_manager.environment_manager());
@@ -616,16 +616,16 @@ impl MessageProcessor {
             Arc::clone(&self.outgoing),
             request_context.clone(),
             async {
-                let codex_request = deserialize_client_request(&request);
-                let result = match codex_request {
-                    Ok(codex_request) => {
+                let codepilotx_request = deserialize_client_request(&request);
+                let result = match codepilotx_request {
+                    Ok(codepilotx_request) => {
                         // Websocket callers finalize outbound readiness in lib.rs after mirroring
                         // session state into outbound state and sending initialize notifications to
                         // this specific connection. Passing `None` avoids marking the connection
                         // ready too early from inside the shared request handler.
                         self.handle_client_request(
                             request_id.clone(),
-                            codex_request,
+                            codepilotx_request,
                             Arc::clone(&session),
                             /*outbound_initialized*/ None,
                             request_context.clone(),
@@ -827,7 +827,7 @@ impl MessageProcessor {
     async fn handle_client_request(
         self: &Arc<Self>,
         connection_request_id: ConnectionRequestId,
-        codex_request: ClientRequest,
+        codepilotx_request: ClientRequest,
         session: Arc<ConnectionSessionState>,
         // `Some(...)` means the caller wants initialize to immediately mark the
         // connection outbound-ready. Websocket JSON-RPC calls pass `None` so
@@ -836,7 +836,7 @@ impl MessageProcessor {
         request_context: RequestContext,
     ) -> Result<(), JSONRPCErrorError> {
         let connection_id = connection_request_id.connection_id;
-        if let ClientRequest::Initialize { request_id, params } = codex_request {
+        if let ClientRequest::Initialize { request_id, params } = codepilotx_request {
             let connection_initialized = self
                 .initialize_processor
                 .initialize(
@@ -862,7 +862,7 @@ impl MessageProcessor {
 
         self.dispatch_initialized_client_request(
             connection_request_id,
-            codex_request,
+            codepilotx_request,
             session,
             request_context,
         )
@@ -872,7 +872,7 @@ impl MessageProcessor {
     async fn dispatch_initialized_client_request(
         self: &Arc<Self>,
         connection_request_id: ConnectionRequestId,
-        codex_request: ClientRequest,
+        codepilotx_request: ClientRequest,
         session: Arc<ConnectionSessionState>,
         request_context: RequestContext,
     ) -> Result<(), JSONRPCErrorError> {
@@ -880,7 +880,7 @@ impl MessageProcessor {
             return Err(invalid_request("Not initialized"));
         }
 
-        if let Some(reason) = codex_request.experimental_reason()
+        if let Some(reason) = codepilotx_request.experimental_reason()
             && !session.experimental_api_enabled()
         {
             return Err(invalid_request(experimental_required_message(reason)));
@@ -889,10 +889,10 @@ impl MessageProcessor {
         self.initialize_processor.track_initialized_request(
             connection_id,
             connection_request_id.request_id.clone(),
-            &codex_request,
+            &codepilotx_request,
         );
 
-        let serialization_scope = codex_request.serialization_scope();
+        let serialization_scope = codepilotx_request.serialization_scope();
         let app_server_client_name = session.app_server_client_name().map(str::to_string);
         let client_version = session.client_version().map(str::to_string);
         let supports_openai_form_elicitation = session.supports_openai_form_elicitation();
@@ -907,7 +907,7 @@ impl MessageProcessor {
                 let result = processor_for_request
                     .handle_initialized_client_request(
                         connection_request_id,
-                        codex_request,
+                        codepilotx_request,
                         request_context,
                         app_server_client_name,
                         client_version,
@@ -937,7 +937,7 @@ impl MessageProcessor {
     async fn handle_initialized_client_request(
         self: Arc<Self>,
         connection_request_id: ConnectionRequestId,
-        codex_request: ClientRequest,
+        codepilotx_request: ClientRequest,
         request_context: RequestContext,
         app_server_client_name: Option<String>,
         client_version: Option<String>,
@@ -946,10 +946,10 @@ impl MessageProcessor {
         let connection_id = connection_request_id.connection_id;
         let request_id = ConnectionRequestId {
             connection_id,
-            request_id: codex_request.id().clone(),
+            request_id: codepilotx_request.id().clone(),
         };
 
-        let result: Result<Option<ClientResponsePayload>, JSONRPCErrorError> = match codex_request {
+        let result: Result<Option<ClientResponsePayload>, JSONRPCErrorError> = match codepilotx_request {
             ClientRequest::Initialize { .. } => {
                 panic!("Initialize should be handled before initialized request dispatch");
             }

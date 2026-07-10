@@ -13,45 +13,45 @@ use std::time::Duration;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
-use codex_config::CloudConfigBundleLoader;
-use codex_core::CodexThread;
-use codex_core::StartThreadOptions;
-use codex_core::ThreadManager;
-use codex_core::TimeProvider;
-use codex_core::config::Config;
-use codex_core::resolve_installation_id;
-use codex_core::shell::Shell;
-use codex_core::shell::get_shell_by_model_provided_path;
-use codex_core::thread_store_from_config;
-use codex_exec_server::CreateDirectoryOptions;
-use codex_exec_server::ExecutorFileSystem;
-use codex_exec_server::RemoveOptions;
-use codex_extension_api::ExtensionRegistry;
-use codex_extension_api::LoadUserInstructionsFuture;
-use codex_extension_api::UserInstructionsProvider;
-use codex_extension_api::empty_extension_registry;
-use codex_features::Feature;
-use codex_home::CodexHomeUserInstructionsProvider;
-use codex_login::CodexAuth;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_model_provider_info::built_in_model_providers;
-use codex_models_manager::bundled_models_response;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::ModelsResponse;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::InitialHistory;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::RealtimeConversationVersion as RealtimeWsVersion;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::protocol::SessionConfiguredEvent;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::TurnEnvironmentSelection;
-use codex_protocol::protocol::TurnEnvironmentSelections;
-use codex_protocol::user_input::UserInput;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_path_uri::PathUri;
+use codepilotx_config::CloudConfigBundleLoader;
+use codepilotx_core::CodexThread;
+use codepilotx_core::StartThreadOptions;
+use codepilotx_core::ThreadManager;
+use codepilotx_core::TimeProvider;
+use codepilotx_core::config::Config;
+use codepilotx_core::resolve_installation_id;
+use codepilotx_core::shell::Shell;
+use codepilotx_core::shell::get_shell_by_model_provided_path;
+use codepilotx_core::thread_store_from_config;
+use codepilotx_exec_server::CreateDirectoryOptions;
+use codepilotx_exec_server::ExecutorFileSystem;
+use codepilotx_exec_server::RemoveOptions;
+use codepilotx_extension_api::ExtensionRegistry;
+use codepilotx_extension_api::LoadUserInstructionsFuture;
+use codepilotx_extension_api::UserInstructionsProvider;
+use codepilotx_extension_api::empty_extension_registry;
+use codepilotx_features::Feature;
+use codepilotx_home::CodePilotXHomeUserInstructionsProvider;
+use codepilotx_login::CodexAuth;
+use codepilotx_model_provider_info::ModelProviderInfo;
+use codepilotx_model_provider_info::built_in_model_providers;
+use codepilotx_models_manager::bundled_models_response;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::openai_models::ModelInfo;
+use codepilotx_protocol::openai_models::ModelsResponse;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::InitialHistory;
+use codepilotx_protocol::protocol::Op;
+use codepilotx_protocol::protocol::RealtimeConversationVersion as RealtimeWsVersion;
+use codepilotx_protocol::protocol::SandboxPolicy;
+use codepilotx_protocol::protocol::SessionConfiguredEvent;
+use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_protocol::protocol::TurnEnvironmentSelection;
+use codepilotx_protocol::protocol::TurnEnvironmentSelections;
+use codepilotx_protocol::user_input::UserInput;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_path_uri::PathUri;
 use futures::future::BoxFuture;
 use serde_json::Value;
 use tempfile::TempDir;
@@ -76,7 +76,7 @@ type PreBuildHook = dyn FnOnce(&Path) + Send + 'static;
 type WorkspaceSetup = dyn FnOnce(AbsolutePathBuf, Arc<dyn ExecutorFileSystem>) -> BoxFuture<'static, Result<()>>
     + Send;
 const TEST_MODEL_WITH_EXPERIMENTAL_TOOLS: &str = "test-gpt-5.1-codex";
-const REMOTE_EXEC_SERVER_URL_ENV_VAR: &str = "CODEX_TEST_REMOTE_EXEC_SERVER_URL";
+const REMOTE_EXEC_SERVER_URL_ENV_VAR: &str = "codepilotx_TEST_REMOTE_EXEC_SERVER_URL";
 static REMOTE_TEST_INSTANCE_COUNTER: AtomicU64 = AtomicU64::new(0);
 const SUBMIT_TURN_COMPLETE_TIMEOUT: Duration = Duration::from_secs(30);
 
@@ -107,7 +107,7 @@ impl UserInstructionsProvider for RecordingUserInstructionsProvider {
 
 pub fn local(cwd: AbsolutePathBuf) -> TurnEnvironmentSelection {
     TurnEnvironmentSelection {
-        environment_id: codex_exec_server::LOCAL_ENVIRONMENT_ID.to_string(),
+        environment_id: codepilotx_exec_server::LOCAL_ENVIRONMENT_ID.to_string(),
         cwd: PathUri::from_abs_path(&cwd),
     }
 }
@@ -118,7 +118,7 @@ pub fn local_selections(cwd: AbsolutePathBuf) -> TurnEnvironmentSelections {
 
 #[derive(Debug)]
 pub struct TestEnv {
-    environment: codex_exec_server::Environment,
+    environment: codepilotx_exec_server::Environment,
     exec_server_url: Option<String>,
     cwd: AbsolutePathBuf,
     local_cwd_temp_dir: Option<Arc<TempDir>>,
@@ -130,7 +130,7 @@ impl TestEnv {
         let local_cwd_temp_dir = Arc::new(TempDir::new()?);
         let cwd = local_cwd_temp_dir.abs();
         let environment =
-            codex_exec_server::Environment::create_for_tests(/*exec_server_url*/ None)?;
+            codepilotx_exec_server::Environment::create_for_tests(/*exec_server_url*/ None)?;
         Ok(Self {
             environment,
             exec_server_url: None,
@@ -144,7 +144,7 @@ impl TestEnv {
         &self.cwd
     }
 
-    pub fn environment(&self) -> &codex_exec_server::Environment {
+    pub fn environment(&self) -> &codepilotx_exec_server::Environment {
         &self.environment
     }
 
@@ -167,7 +167,7 @@ pub async fn test_env() -> Result<TestEnv> {
         Some(remote_env) => {
             let websocket_url = remote_exec_server_url()?;
             let environment =
-                codex_exec_server::Environment::create_for_tests(Some(websocket_url.clone()))?;
+                codepilotx_exec_server::Environment::create_for_tests(Some(websocket_url.clone()))?;
             let cwd = remote_env
                 .remote_cwd(&remote_test_instance_id())?
                 .context("remote test environment should define a cwd")?;
@@ -517,24 +517,24 @@ impl TestCodexBuilder {
             .clone()
             .or_else(|| test_env.exec_server_url.clone());
         #[cfg(target_os = "linux")]
-        let codex_linux_sandbox_exe = Some(
-            crate::find_codex_linux_sandbox_exe()
+        let codepilotx_linux_sandbox_exe = Some(
+            crate::find_codepilotx_linux_sandbox_exe()
                 .context("should find binary for codex-linux-sandbox")?,
         );
         #[cfg(not(target_os = "linux"))]
-        let codex_linux_sandbox_exe = None;
-        let local_runtime_paths = codex_exec_server::ExecServerRuntimePaths::new(
+        let codepilotx_linux_sandbox_exe = None;
+        let local_runtime_paths = codepilotx_exec_server::ExecServerRuntimePaths::new(
             std::env::current_exe()?,
-            codex_linux_sandbox_exe,
+            codepilotx_linux_sandbox_exe,
         )?;
         let environment_manager = Arc::new(if include_local_environment {
-            codex_exec_server::EnvironmentManager::create_for_tests_with_local(
+            codepilotx_exec_server::EnvironmentManager::create_for_tests_with_local(
                 exec_server_url,
                 local_runtime_paths,
             )
             .await
         } else {
-            codex_exec_server::EnvironmentManager::create_for_tests(
+            codepilotx_exec_server::EnvironmentManager::create_for_tests(
                 exec_server_url,
                 Some(local_runtime_paths),
             )
@@ -565,21 +565,21 @@ impl TestCodexBuilder {
         home: Arc<TempDir>,
         resume_from: Option<PathBuf>,
         test_env: TestEnv,
-        environment_manager: Arc<codex_exec_server::EnvironmentManager>,
+        environment_manager: Arc<codepilotx_exec_server::EnvironmentManager>,
     ) -> anyhow::Result<TestCodex> {
         let auth = self.auth.clone();
-        let state_db = codex_core::init_state_db(&config).await;
+        let state_db = codepilotx_core::init_state_db(&config).await;
         let thread_store = thread_store_from_config(&config, state_db.clone());
-        let installation_id = resolve_installation_id(&config.codex_home).await?;
+        let installation_id = resolve_installation_id(&config.codepilotx_home).await?;
         let user_instructions_provider =
             self.user_instructions_provider.clone().unwrap_or_else(|| {
-                Arc::new(CodexHomeUserInstructionsProvider::new(
-                    config.codex_home.clone(),
+                Arc::new(CodePilotXHomeUserInstructionsProvider::new(
+                    config.codepilotx_home.clone(),
                 ))
             });
         let thread_manager = ThreadManager::new(
             &config,
-            codex_core::test_support::auth_manager_from_auth(auth.clone()),
+            codepilotx_core::test_support::auth_manager_from_auth(auth.clone()),
             SessionSource::Exec,
             Arc::clone(&environment_manager),
             Arc::clone(&self.extensions),
@@ -596,9 +596,9 @@ impl TestCodexBuilder {
 
         let new_conversation = match (resume_from, user_shell_override) {
             (Some(path), Some(user_shell_override)) => {
-                let auth_manager = codex_core::test_support::auth_manager_from_auth(auth);
+                let auth_manager = codepilotx_core::test_support::auth_manager_from_auth(auth);
                 Box::pin(
-                    codex_core::test_support::resume_thread_from_rollout_with_user_shell_override(
+                    codepilotx_core::test_support::resume_thread_from_rollout_with_user_shell_override(
                         thread_manager.as_ref(),
                         config.clone(),
                         path,
@@ -610,7 +610,7 @@ impl TestCodexBuilder {
                 .await?
             }
             (Some(path), None) => {
-                let auth_manager = codex_core::test_support::auth_manager_from_auth(auth);
+                let auth_manager = codepilotx_core::test_support::auth_manager_from_auth(auth);
                 Box::pin(thread_manager.resume_thread_from_rollout(
                     config.clone(),
                     path,
@@ -622,7 +622,7 @@ impl TestCodexBuilder {
             }
             (None, Some(user_shell_override)) => {
                 Box::pin(
-                    codex_core::test_support::start_thread_with_user_shell_override(
+                    codepilotx_core::test_support::start_thread_with_user_shell_override(
                         thread_manager.as_ref(),
                         config.clone(),
                         user_shell_override,
@@ -687,21 +687,21 @@ impl TestCodexBuilder {
         };
         config.cwd = cwd_override;
         config.model_provider = model_provider;
-        if let Ok(path) = codex_utils_cargo_bin::cargo_bin("codex") {
-            config.codex_self_exe = Some(path);
-        } else if let Ok(path) = codex_utils_cargo_bin::cargo_bin("codex-exec") {
+        if let Ok(path) = codepilotx_utils_cargo_bin::cargo_bin("codex") {
+            config.codepilotx_self_exe = Some(path);
+        } else if let Ok(path) = codepilotx_utils_cargo_bin::cargo_bin("codex-exec") {
             // `codex-exec` also supports `--codex-run-as-apply-patch`, so use it
             // when the multitool binary is not available in test builds.
-            config.codex_self_exe = Some(path);
+            config.codepilotx_self_exe = Some(path);
         } else if let Ok(exe) = std::env::current_exe()
             && let Some(bin_dir) = exe.parent().and_then(|parent| parent.parent())
         {
             let codex = bin_dir.join("codex");
-            let codex_exec = bin_dir.join("codex-exec");
+            let codepilotx_exec = bin_dir.join("codex-exec");
             if codex.is_file() {
-                config.codex_self_exe = Some(codex);
-            } else if codex_exec.is_file() {
-                config.codex_self_exe = Some(codex_exec);
+                config.codepilotx_self_exe = Some(codex);
+            } else if codepilotx_exec.is_file() {
+                config.codepilotx_self_exe = Some(codepilotx_exec);
             }
         }
 
@@ -754,8 +754,8 @@ impl TestCodex {
         self.cwd.path()
     }
 
-    pub fn codex_home_path(&self) -> &Path {
-        self.config.codex_home.as_path()
+    pub fn codepilotx_home_path(&self) -> &Path {
+        self.config.codepilotx_home.as_path()
     }
 
     pub fn workspace_path(&self, rel: impl AsRef<Path>) -> PathBuf {
@@ -904,15 +904,15 @@ impl TestCodex {
                 final_output_json_schema: None,
                 responsesapi_client_metadata: None,
                 additional_context: Default::default(),
-                thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+                thread_settings: codepilotx_protocol::protocol::ThreadSettingsOverrides {
                     environments: turn_environment_selections,
                     approval_policy: Some(approval_policy),
                     sandbox_policy: Some(sandbox_policy),
                     permission_profile,
                     service_tier,
-                    collaboration_mode: Some(codex_protocol::config_types::CollaborationMode {
-                        mode: codex_protocol::config_types::ModeKind::Default,
-                        settings: codex_protocol::config_types::Settings {
+                    collaboration_mode: Some(codepilotx_protocol::config_types::CollaborationMode {
+                        mode: codepilotx_protocol::config_types::ModeKind::Default,
+                        settings: codepilotx_protocol::config_types::Settings {
                             model: session_model,
                             reasoning_effort: None,
                             developer_instructions: None,

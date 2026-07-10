@@ -1,9 +1,9 @@
 use crate::config_manager::ConfigManager;
-use codex_core::CodexThread;
-use codex_core::ThreadManager;
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::McpServerRefreshConfig;
-use codex_protocol::protocol::Op;
+use codepilotx_core::CodexThread;
+use codepilotx_core::ThreadManager;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::protocol::McpServerRefreshConfig;
+use codepilotx_protocol::protocol::Op;
 use std::io;
 use std::sync::Arc;
 use tracing::warn;
@@ -64,7 +64,7 @@ async fn build_refresh_config(
         .load_latest_config_for_thread(thread_config.as_ref())
         .await?;
     let mcp_config = thread.runtime_mcp_config(&config).await;
-    let mcp_servers = codex_mcp::configured_mcp_servers(&mcp_config);
+    let mcp_servers = codepilotx_mcp::configured_mcp_servers(&mcp_config);
     Ok(McpServerRefreshConfig {
         mcp_servers: serde_json::to_value(mcp_servers).map_err(io::Error::other)?,
         mcp_oauth_credentials_store_mode: serde_json::to_value(
@@ -98,25 +98,25 @@ mod tests {
     use crate::extensions::ThreadExtensionDependencies;
     use crate::extensions::guardian_agent_spawner;
     use crate::extensions::thread_extensions;
-    use codex_arg0::Arg0DispatchPaths;
-    use codex_config::CloudConfigBundleLoader;
-    use codex_config::LoaderOverrides;
-    use codex_config::ThreadConfigContext;
-    use codex_config::ThreadConfigLoadError;
-    use codex_config::ThreadConfigLoadErrorCode;
-    use codex_config::ThreadConfigLoader;
-    use codex_config::ThreadConfigSource;
-    use codex_config::types::AuthKeyringBackendKind;
-    use codex_core::config::ConfigOverrides;
-    use codex_core::init_state_db;
-    use codex_core::thread_store_from_config;
-    use codex_exec_server::EnvironmentManager;
-    use codex_extension_api::NoopExtensionEventSink;
-    use codex_home::CodexHomeUserInstructionsProvider;
-    use codex_login::AuthManager;
-    use codex_login::CodexAuth;
-    use codex_protocol::protocol::SessionSource;
-    use codex_utils_absolute_path::AbsolutePathBuf;
+    use codepilotx_arg0::Arg0DispatchPaths;
+    use codepilotx_config::CloudConfigBundleLoader;
+    use codepilotx_config::LoaderOverrides;
+    use codepilotx_config::ThreadConfigContext;
+    use codepilotx_config::ThreadConfigLoadError;
+    use codepilotx_config::ThreadConfigLoadErrorCode;
+    use codepilotx_config::ThreadConfigLoader;
+    use codepilotx_config::ThreadConfigSource;
+    use codepilotx_config::types::AuthKeyringBackendKind;
+    use codepilotx_core::config::ConfigOverrides;
+    use codepilotx_core::init_state_db;
+    use codepilotx_core::thread_store_from_config;
+    use codepilotx_exec_server::EnvironmentManager;
+    use codepilotx_extension_api::NoopExtensionEventSink;
+    use codepilotx_home::CodePilotXHomeUserInstructionsProvider;
+    use codepilotx_login::AuthManager;
+    use codepilotx_login::CodexAuth;
+    use codepilotx_protocol::protocol::SessionSource;
+    use codepilotx_utils_absolute_path::AbsolutePathBuf;
     use pretty_assertions::assert_eq;
     use std::sync::atomic::AtomicUsize;
     use std::sync::atomic::Ordering;
@@ -149,7 +149,7 @@ mod tests {
     async fn refresh_config_uses_latest_auth_keyring_backend() -> anyhow::Result<()> {
         let (temp_dir, thread_manager, config_manager, _loader) = refresh_test_state().await?;
         std::fs::write(
-            temp_dir.path().join(codex_config::CONFIG_TOML_FILE),
+            temp_dir.path().join(codepilotx_config::CONFIG_TOML_FILE),
             "[features]\nsecret_auth_storage = true\n",
         )?;
 
@@ -189,7 +189,7 @@ mod tests {
         std::fs::create_dir_all(&good_cwd)?;
         std::fs::create_dir_all(&bad_cwd)?;
         std::fs::write(
-            temp_dir.path().join(codex_config::CONFIG_TOML_FILE),
+            temp_dir.path().join(codepilotx_config::CONFIG_TOML_FILE),
             "[features]\nsecret_auth_storage = false\n",
         )?;
 
@@ -216,8 +216,8 @@ mod tests {
             .expect("refresh tests require state db");
         let thread_store = thread_store_from_config(&good_config, Some(state_db.clone()));
         let environment_manager = Arc::new(EnvironmentManager::default_for_tests());
-        let executor_skill_provider: Arc<dyn codex_skills_extension::SkillProvider> = Arc::new(
-            codex_skills_extension::ExecutorSkillProvider::new_with_restriction_product(
+        let executor_skill_provider: Arc<dyn codepilotx_skills_extension::SkillProvider> = Arc::new(
+            codepilotx_skills_extension::ExecutorSkillProvider::new_with_restriction_product(
                 Arc::clone(&environment_manager),
                 SessionSource::Exec.restriction_product(),
             ),
@@ -234,16 +234,16 @@ mod tests {
                         event_sink: Arc::new(NoopExtensionEventSink),
                         auth_manager: auth_manager.clone(),
                         state_db: Some(state_db.clone()),
-                        analytics_events_client: codex_analytics::AnalyticsEventsClient::disabled(),
+                        analytics_events_client: codepilotx_analytics::AnalyticsEventsClient::disabled(),
                         thread_manager: thread_manager.clone(),
-                        goal_service: Arc::new(codex_goal_extension::GoalService::new()),
+                        goal_service: Arc::new(codepilotx_goal_extension::GoalService::new()),
                         environment_manager: Arc::clone(&environment_manager),
                         executor_skill_provider: Arc::clone(&executor_skill_provider),
                         thread_store: Arc::clone(&thread_store),
                     },
                 ),
-                Arc::new(CodexHomeUserInstructionsProvider::new(
-                    good_config.codex_home.clone(),
+                Arc::new(CodePilotXHomeUserInstructionsProvider::new(
+                    good_config.codepilotx_home.clone(),
                 )),
                 /*analytics_events_client*/ None,
                 Arc::clone(&thread_store),
@@ -306,7 +306,7 @@ mod tests {
         fn load(
             &self,
             context: ThreadConfigContext,
-        ) -> codex_config::ThreadConfigLoaderFuture<'_, Vec<ThreadConfigSource>> {
+        ) -> codepilotx_config::ThreadConfigLoaderFuture<'_, Vec<ThreadConfigSource>> {
             Box::pin(CountingThreadConfigLoader::load(self, context))
         }
     }

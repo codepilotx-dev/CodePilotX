@@ -1,7 +1,7 @@
 use crate::SkillsService;
 use crate::agent::AgentControl;
 use crate::attestation::AttestationProvider;
-use crate::codex_thread::CodexThread;
+use crate::codepilotx_thread::CodexThread;
 use crate::config::Config;
 use crate::config::ThreadStoreConfig;
 use crate::current_time::TimeProvider;
@@ -16,58 +16,58 @@ use crate::session::INITIAL_SUBMIT_ID;
 use crate::session::resolve_multi_agent_version;
 use crate::tasks::InterruptedTurnHistoryMarker;
 use crate::tasks::interrupted_turn_history_marker;
-use codex_analytics::AnalyticsEventsClient;
-use codex_app_server_protocol::ThreadHistoryBuilder;
-use codex_app_server_protocol::TurnStatus;
-use codex_core_plugins::PluginsManager;
-use codex_exec_server::EnvironmentManager;
-use codex_extension_api::ExtensionDataInit;
-use codex_extension_api::ExtensionRegistry;
-use codex_extension_api::LoadedUserInstructions;
-use codex_extension_api::UserInstructionsProvider;
-use codex_extension_api::empty_extension_registry;
-use codex_features::Feature;
-use codex_login::AuthManager;
-use codex_login::CodexAuth;
-use codex_model_provider::create_model_provider;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_model_provider_info::OPENAI_PROVIDER_ID;
-use codex_models_manager::manager::RefreshStrategy;
-use codex_models_manager::manager::SharedModelsManager;
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::CollaborationModeMask;
-use codex_protocol::config_types::MultiAgentMode;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::Result as CodexResult;
-use codex_protocol::openai_models::ModelPreset;
-use codex_protocol::protocol::Event;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::InitialHistory;
-use codex_protocol::protocol::MultiAgentVersion;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::ResumedHistory;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::SessionConfiguredEvent;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SubAgentSource;
-use codex_protocol::protocol::ThreadSource;
-use codex_protocol::protocol::TurnAbortReason;
-use codex_protocol::protocol::TurnAbortedEvent;
-use codex_protocol::protocol::TurnEnvironmentSelection;
-use codex_protocol::protocol::W3cTraceContext;
-use codex_rollout::state_db::StateDbHandle;
-use codex_state::DirectionalThreadSpawnEdgeStatus;
-use codex_thread_store::InMemoryThreadStore;
-use codex_thread_store::LocalThreadStore;
-use codex_thread_store::LocalThreadStoreConfig;
-use codex_thread_store::ReadThreadByRolloutPathParams;
-use codex_thread_store::ReadThreadParams;
-use codex_thread_store::StoredThread;
-use codex_thread_store::ThreadMetadataPatch;
-use codex_thread_store::ThreadStore;
-use codex_thread_store::ThreadStoreError;
-use codex_thread_store::UpdateThreadMetadataParams;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_analytics::AnalyticsEventsClient;
+use codepilotx_app_server_protocol::ThreadHistoryBuilder;
+use codepilotx_app_server_protocol::TurnStatus;
+use codepilotx_core_plugins::PluginsManager;
+use codepilotx_exec_server::EnvironmentManager;
+use codepilotx_extension_api::ExtensionDataInit;
+use codepilotx_extension_api::ExtensionRegistry;
+use codepilotx_extension_api::LoadedUserInstructions;
+use codepilotx_extension_api::UserInstructionsProvider;
+use codepilotx_extension_api::empty_extension_registry;
+use codepilotx_features::Feature;
+use codepilotx_login::AuthManager;
+use codepilotx_login::CodexAuth;
+use codepilotx_model_provider::create_model_provider;
+use codepilotx_model_provider_info::ModelProviderInfo;
+use codepilotx_model_provider_info::OPENAI_PROVIDER_ID;
+use codepilotx_models_manager::manager::RefreshStrategy;
+use codepilotx_models_manager::manager::SharedModelsManager;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::config_types::CollaborationModeMask;
+use codepilotx_protocol::config_types::MultiAgentMode;
+use codepilotx_protocol::error::CodexErr;
+use codepilotx_protocol::error::Result as CodexResult;
+use codepilotx_protocol::openai_models::ModelPreset;
+use codepilotx_protocol::protocol::Event;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::InitialHistory;
+use codepilotx_protocol::protocol::MultiAgentVersion;
+use codepilotx_protocol::protocol::Op;
+use codepilotx_protocol::protocol::ResumedHistory;
+use codepilotx_protocol::protocol::RolloutItem;
+use codepilotx_protocol::protocol::SessionConfiguredEvent;
+use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_protocol::protocol::SubAgentSource;
+use codepilotx_protocol::protocol::ThreadSource;
+use codepilotx_protocol::protocol::TurnAbortReason;
+use codepilotx_protocol::protocol::TurnAbortedEvent;
+use codepilotx_protocol::protocol::TurnEnvironmentSelection;
+use codepilotx_protocol::protocol::W3cTraceContext;
+use codepilotx_rollout::state_db::StateDbHandle;
+use codepilotx_state::DirectionalThreadSpawnEdgeStatus;
+use codepilotx_thread_store::InMemoryThreadStore;
+use codepilotx_thread_store::LocalThreadStore;
+use codepilotx_thread_store::LocalThreadStoreConfig;
+use codepilotx_thread_store::ReadThreadByRolloutPathParams;
+use codepilotx_thread_store::ReadThreadParams;
+use codepilotx_thread_store::StoredThread;
+use codepilotx_thread_store::ThreadMetadataPatch;
+use codepilotx_thread_store::ThreadStore;
+use codepilotx_thread_store::ThreadStoreError;
+use codepilotx_thread_store::UpdateThreadMetadataParams;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use futures::StreamExt;
 use futures::stream::FuturesUnordered;
 use std::collections::HashMap;
@@ -101,11 +101,11 @@ fn should_use_test_thread_manager_behavior() -> bool {
     FORCE_TEST_THREAD_MANAGER_BEHAVIOR.load(Ordering::Relaxed)
 }
 
-struct TempCodexHomeGuard {
+struct TempCodePilotXHomeGuard {
     path: PathBuf,
 }
 
-impl Drop for TempCodexHomeGuard {
+impl Drop for TempCodePilotXHomeGuard {
     fn drop(&mut self) {
         let _ = std::fs::remove_dir_all(&self.path);
     }
@@ -175,7 +175,7 @@ enum ShutdownOutcome {
 /// them in memory.
 pub struct ThreadManager {
     state: Arc<ThreadManagerState>,
-    _test_codex_home_guard: Option<TempCodexHomeGuard>,
+    _test_codepilotx_home_guard: Option<TempCodePilotXHomeGuard>,
 }
 
 pub struct StartThreadOptions {
@@ -183,7 +183,7 @@ pub struct StartThreadOptions {
     pub initial_history: InitialHistory,
     pub session_source: Option<SessionSource>,
     pub thread_source: Option<ThreadSource>,
-    pub dynamic_tools: Vec<codex_protocol::dynamic_tools::DynamicToolSpec>,
+    pub dynamic_tools: Vec<codepilotx_protocol::dynamic_tools::DynamicToolSpec>,
     pub metrics_service_name: Option<String>,
     pub multi_agent_mode: Option<MultiAgentMode>,
     pub parent_trace: Option<W3cTraceContext>,
@@ -233,7 +233,7 @@ pub fn build_models_manager(
 ) -> SharedModelsManager {
     let provider = create_model_provider(config.model_provider.clone(), Some(auth_manager));
     provider.models_manager(
-        config.codex_home.to_path_buf(),
+        config.codepilotx_home.to_path_buf(),
         config.model_catalog.clone(),
     )
 }
@@ -248,7 +248,7 @@ pub fn thread_store_from_config(
                 .features
                 .enabled(Feature::LocalThreadStoreCompression)
             {
-                codex_rollout::spawn_rollout_compression_worker(config.codex_home.to_path_buf());
+                codepilotx_rollout::spawn_rollout_compression_worker(config.codepilotx_home.to_path_buf());
             }
             Arc::new(LocalThreadStore::new(
                 LocalThreadStoreConfig::from_config(config),
@@ -275,11 +275,11 @@ impl ThreadManager {
         attestation_provider: Option<Arc<dyn AttestationProvider>>,
         external_time_provider: Option<Arc<dyn TimeProvider>>,
     ) -> Self {
-        let codex_home = config.codex_home.clone();
+        let codepilotx_home = config.codepilotx_home.clone();
         let restriction_product = session_source.restriction_product();
         let (thread_created_tx, _) = broadcast::channel(THREAD_CREATED_CHANNEL_CAPACITY);
         let plugins_manager = Arc::new(PluginsManager::new_with_options(
-            codex_home.to_path_buf(),
+            codepilotx_home.to_path_buf(),
             restriction_product,
             auth_manager.get_api_auth_mode(),
         ));
@@ -288,7 +288,7 @@ impl ThreadManager {
             Arc::clone(&extensions),
         ));
         let skills_service = Arc::new(SkillsService::new_with_restriction_product(
-            codex_home,
+            codepilotx_home,
             config.bundled_skills_enabled(),
             restriction_product,
         ));
@@ -314,7 +314,7 @@ impl ThreadManager {
                 ops_log: should_use_test_thread_manager_behavior()
                     .then(|| Arc::new(std::sync::Mutex::new(Vec::new()))),
             }),
-            _test_codex_home_guard: None,
+            _test_codepilotx_home_guard: None,
         }
     }
 
@@ -325,19 +325,19 @@ impl ThreadManager {
         provider: ModelProviderInfo,
     ) -> Self {
         set_thread_manager_test_mode_for_tests(/*enabled*/ true);
-        let codex_home = std::env::temp_dir().join(format!(
+        let codepilotx_home = std::env::temp_dir().join(format!(
             "codex-thread-manager-test-{}",
             uuid::Uuid::new_v4()
         ));
-        std::fs::create_dir_all(&codex_home)
+        std::fs::create_dir_all(&codepilotx_home)
             .unwrap_or_else(|err| panic!("temp codex home dir create failed: {err}"));
         let mut manager = Self::with_models_provider_and_home_for_tests(
             auth,
             provider,
-            codex_home.clone(),
+            codepilotx_home.clone(),
             Arc::new(EnvironmentManager::default_for_tests()),
         );
-        manager._test_codex_home_guard = Some(TempCodexHomeGuard { path: codex_home });
+        manager._test_codepilotx_home_guard = Some(TempCodePilotXHomeGuard { path: codepilotx_home });
         manager
     }
 
@@ -346,13 +346,13 @@ impl ThreadManager {
     pub(crate) fn with_models_provider_and_home_for_tests(
         auth: CodexAuth,
         provider: ModelProviderInfo,
-        codex_home: PathBuf,
+        codepilotx_home: PathBuf,
         environment_manager: Arc<EnvironmentManager>,
     ) -> Self {
         Self::with_models_provider_home_and_state_for_tests(
             auth,
             provider,
-            codex_home,
+            codepilotx_home,
             environment_manager,
             /*state_db*/ None,
         )
@@ -361,27 +361,27 @@ impl ThreadManager {
     pub(crate) fn with_models_provider_home_and_state_for_tests(
         auth: CodexAuth,
         provider: ModelProviderInfo,
-        codex_home: PathBuf,
+        codepilotx_home: PathBuf,
         environment_manager: Arc<EnvironmentManager>,
         state_db: Option<StateDbHandle>,
     ) -> Self {
         set_thread_manager_test_mode_for_tests(/*enabled*/ true);
         let auth_manager = AuthManager::from_auth_for_testing(auth);
         let installation_id = uuid::Uuid::new_v4().to_string();
-        let skills_codex_home = match AbsolutePathBuf::from_absolute_path_checked(&codex_home) {
-            Ok(codex_home) => codex_home,
-            Err(err) => panic!("test codex_home should be absolute: {err}"),
+        let skills_codepilotx_home = match AbsolutePathBuf::from_absolute_path_checked(&codepilotx_home) {
+            Ok(codepilotx_home) => codepilotx_home,
+            Err(err) => panic!("test codepilotx_home should be absolute: {err}"),
         };
         let (thread_created_tx, _) = broadcast::channel(THREAD_CREATED_CHANNEL_CAPACITY);
         let restriction_product = SessionSource::Exec.restriction_product();
         let plugins_manager = Arc::new(PluginsManager::new_with_options(
-            codex_home.clone(),
+            codepilotx_home.clone(),
             restriction_product,
             auth_manager.get_api_auth_mode(),
         ));
         let mcp_manager = Arc::new(McpManager::new(Arc::clone(&plugins_manager)));
         let skills_service = Arc::new(SkillsService::new_with_restriction_product(
-            skills_codex_home,
+            skills_codepilotx_home,
             /*bundled_skills_enabled*/ true,
             restriction_product,
         ));
@@ -389,8 +389,8 @@ impl ThreadManager {
         // process store should construct ThreadManager::new with an explicit store.
         let thread_store: Arc<dyn ThreadStore> = Arc::new(LocalThreadStore::new(
             LocalThreadStoreConfig {
-                codex_home: codex_home.clone(),
-                sqlite_home: codex_home.clone(),
+                codepilotx_home: codepilotx_home.clone(),
+                sqlite_home: codepilotx_home.clone(),
                 default_model_provider_id: OPENAI_PROVIDER_ID.to_string(),
             },
             state_db.clone(),
@@ -400,7 +400,7 @@ impl ThreadManager {
                 threads: Arc::new(RwLock::new(HashMap::new())),
                 thread_created_tx,
                 models_manager: create_model_provider(provider, Some(auth_manager.clone()))
-                    .models_manager(codex_home, /*config_model_catalog*/ None),
+                    .models_manager(codepilotx_home, /*config_model_catalog*/ None),
                 environment_manager,
                 skills_service,
                 plugins_manager,
@@ -420,7 +420,7 @@ impl ThreadManager {
                 ops_log: should_use_test_thread_manager_behavior()
                     .then(|| Arc::new(std::sync::Mutex::new(Vec::new()))),
             }),
-            _test_codex_home_guard: None,
+            _test_codepilotx_home_guard: None,
         }
     }
 
@@ -596,7 +596,7 @@ impl ThreadManager {
     pub async fn start_thread_with_tools(
         &self,
         config: Config,
-        dynamic_tools: Vec<codex_protocol::dynamic_tools::DynamicToolSpec>,
+        dynamic_tools: Vec<codepilotx_protocol::dynamic_tools::DynamicToolSpec>,
     ) -> CodexResult<NewThread> {
         let environments = default_thread_environment_selections(
             self.state.environment_manager.as_ref(),
@@ -1375,7 +1375,7 @@ impl ThreadManagerState {
         parent_thread_id: Option<ThreadId>,
         forked_from_thread_id: Option<ThreadId>,
         thread_source: Option<ThreadSource>,
-        dynamic_tools: Vec<codex_protocol::dynamic_tools::DynamicToolSpec>,
+        dynamic_tools: Vec<codepilotx_protocol::dynamic_tools::DynamicToolSpec>,
         metrics_service_name: Option<String>,
         initial_multi_agent_mode: Option<MultiAgentMode>,
         parent_trace: Option<W3cTraceContext>,
@@ -1418,7 +1418,7 @@ impl ThreadManagerState {
         parent_thread_id: Option<ThreadId>,
         forked_from_thread_id: Option<ThreadId>,
         thread_source: Option<ThreadSource>,
-        dynamic_tools: Vec<codex_protocol::dynamic_tools::DynamicToolSpec>,
+        dynamic_tools: Vec<codepilotx_protocol::dynamic_tools::DynamicToolSpec>,
         metrics_service_name: Option<String>,
         initial_multi_agent_mode: Option<MultiAgentMode>,
         inherited_environments: Option<TurnEnvironmentSnapshot>,
@@ -1563,7 +1563,7 @@ impl ThreadManagerState {
         &self,
         session_source: &SessionSource,
         initial_history: &InitialHistory,
-    ) -> codex_rollout_trace::ThreadTraceContext {
+    ) -> codepilotx_rollout_trace::ThreadTraceContext {
         // A fresh v2 child belongs to the same rollout tree as its parent, so
         // session startup derives its child trace from the parent's thread
         // context. Resumed children already have a prior `ThreadStarted` event
@@ -1573,10 +1573,10 @@ impl ThreadManagerState {
             parent_thread_id, ..
         }) = session_source
         else {
-            return codex_rollout_trace::ThreadTraceContext::disabled();
+            return codepilotx_rollout_trace::ThreadTraceContext::disabled();
         };
         if matches!(initial_history, InitialHistory::Resumed(_)) {
-            return codex_rollout_trace::ThreadTraceContext::disabled();
+            return codepilotx_rollout_trace::ThreadTraceContext::disabled();
         }
         // Parent lookup can fail if the parent was closed or released between
         // spawn preparation and session construction. Tracing is diagnostic, so
@@ -1586,7 +1586,7 @@ impl ThreadManagerState {
             .await
             .ok()
             .map(|thread| thread.codex.session.services.rollout_thread_trace.clone())
-            .unwrap_or_else(codex_rollout_trace::ThreadTraceContext::disabled)
+            .unwrap_or_else(codepilotx_rollout_trace::ThreadTraceContext::disabled)
     }
 }
 

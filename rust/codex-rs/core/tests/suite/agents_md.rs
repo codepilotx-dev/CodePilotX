@@ -1,19 +1,19 @@
 use anyhow::Result;
 use anyhow::anyhow;
-use codex_core::ForkSnapshot;
-use codex_core::StartThreadOptions;
-use codex_exec_server::CreateDirectoryOptions;
-use codex_exec_server::LOCAL_ENVIRONMENT_ID;
-use codex_exec_server::REMOTE_ENVIRONMENT_ID;
-use codex_features::Feature;
-use codex_home::CodexHomeUserInstructionsProvider;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::InitialHistory;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::TurnEnvironmentSelection;
-use codex_protocol::user_input::UserInput;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_path_uri::PathUri;
+use codepilotx_core::ForkSnapshot;
+use codepilotx_core::StartThreadOptions;
+use codepilotx_exec_server::CreateDirectoryOptions;
+use codepilotx_exec_server::LOCAL_ENVIRONMENT_ID;
+use codepilotx_exec_server::REMOTE_ENVIRONMENT_ID;
+use codepilotx_features::Feature;
+use codepilotx_home::CodePilotXHomeUserInstructionsProvider;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::InitialHistory;
+use codepilotx_protocol::protocol::Op;
+use codepilotx_protocol::protocol::TurnEnvironmentSelection;
+use codepilotx_protocol::user_input::UserInput;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_path_uri::PathUri;
 use core_test_support::PathBufExt;
 use core_test_support::create_directory_symlink;
 use core_test_support::get_remote_test_env;
@@ -99,7 +99,7 @@ fn assert_single_instruction_fragment(request: &responses::ResponsesRequest, exp
     assert_eq!(instruction_fragments(request), vec![expected.to_string()]);
 }
 
-async fn submit_thread_turn(thread: &Arc<codex_core::CodexThread>, prompt: &str) -> Result<()> {
+async fn submit_thread_turn(thread: &Arc<codepilotx_core::CodexThread>, prompt: &str) -> Result<()> {
     thread
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
@@ -411,7 +411,7 @@ async fn loads_user_instructions_without_a_primary_environment() -> Result<()> {
     let global_source =
         write_global_file(home.as_ref(), GLOBAL_AGENTS_FILENAME, GLOBAL_INSTRUCTIONS)?;
     let provider = Arc::new(RecordingUserInstructionsProvider::new(Arc::new(
-        CodexHomeUserInstructionsProvider::new(AbsolutePathBuf::try_from(
+        CodePilotXHomeUserInstructionsProvider::new(AbsolutePathBuf::try_from(
             home.path().to_path_buf(),
         )?),
     )));
@@ -619,7 +619,7 @@ async fn multi_environment_thread_loads_every_project_and_keeps_creation_snapsho
     let global_source =
         write_global_file(home.as_ref(), GLOBAL_AGENTS_FILENAME, GLOBAL_INSTRUCTIONS)?;
     let provider = Arc::new(RecordingUserInstructionsProvider::new(Arc::new(
-        CodexHomeUserInstructionsProvider::new(AbsolutePathBuf::try_from(
+        CodePilotXHomeUserInstructionsProvider::new(AbsolutePathBuf::try_from(
             home.path().to_path_buf(),
         )?),
     )));
@@ -892,7 +892,7 @@ async fn fork_replays_rendered_instructions_from_shared_history() -> Result<()> 
     fork_config.model = parent.config.model.clone();
     fork_config.model_provider = parent.config.model_provider.clone();
     fork_config.model_catalog = parent.config.model_catalog.clone();
-    fork_config.codex_self_exe = parent.config.codex_self_exe.clone();
+    fork_config.codepilotx_self_exe = parent.config.codepilotx_self_exe.clone();
     let forked = parent
         .thread_manager
         .fork_thread(
