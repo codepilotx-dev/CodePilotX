@@ -116,7 +116,7 @@ export function PullRequestPopover({
       role="dialog"
       style={{
         ...buildPopoverSizingStyle({
-          width: width ?? DEFAULT_POPOVER_WIDTH,
+          width,
           maxWidth,
         }),
         left: position.left,

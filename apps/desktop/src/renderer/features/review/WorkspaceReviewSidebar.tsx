@@ -707,6 +707,7 @@ export function WorkspaceReviewSidebar({
             open={scopeMenuOpen}
             side="bottom"
             sideOffset={4}
+            width={220}
             trigger={
               <button
                 aria-label="切换变更范围"
@@ -775,6 +776,7 @@ export function WorkspaceReviewSidebar({
             disableOutsideDismiss={debugMode}
             open={moreMenuOpen}
             sideOffset={4}
+            width={220}
             trigger={
               <Tooltip content="更多">
                 <button
@@ -1127,6 +1129,7 @@ export function WorkspaceReviewSidebar({
         deletions={totals.deletions}
         disableOutsideDismiss={debugMode}
         open={commitPopoverOpen}
+        width={420}
         onClose={() => setCommitPopoverOpen(false)}
         onCommit={handleCommit}
         onCommitAndPush={handleCommitAndPush}
@@ -1141,6 +1144,7 @@ export function WorkspaceReviewSidebar({
         deletions={totals.deletions}
         disableOutsideDismiss={debugMode}
         open={prPopoverOpen}
+        width={420}
         onClose={() => setPrPopoverOpen(false)}
         onCreateDraftPR={handleCreateDraftPR}
         onCreatePR={handleCreatePR}
