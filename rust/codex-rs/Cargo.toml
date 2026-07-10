@@ -548,6 +548,16 @@ crossterm = { git = "https://github.com/nornagon/crossterm", rev = "87db8bfa6dc9
 ratatui = { git = "https://github.com/nornagon/ratatui", rev = "9b2ad1298408c45918ee9f8241a6f95498cdbed2" }
 tokio-tungstenite = { git = "https://github.com/openai-oss-forks/tokio-tungstenite", rev = "e5e64b86722c5453c4038131c3193faa49a648ad" }
 tungstenite = { git = "https://github.com/openai-oss-forks/tungstenite-rs", rev = "9200079d3b54a1ff51072e24d81fd354f085156f" }
+# The workspace uses rama 0.3.0-alpha.* crates (pinned in network-proxy) but
+# Cargo resolves transitive deps to stable 0.3.0 which has breaking API changes.
+# Pin all rama-* alpha crates to match the network-proxy alpha requirements.
+rama-dns = { path = "C:/Users/XiaoHi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rama-dns-0.3.0-alpha.4" }
+rama-error = { path = "C:/Users/XiaoHi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rama-error-0.3.0-alpha.4" }
+rama-http-core = { path = "C:/Users/XiaoHi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rama-http-core-0.3.0-alpha.4" }
+rama-http-headers = { path = "C:/Users/XiaoHi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rama-http-headers-0.3.0-alpha.4" }
+rama-http-types = { path = "C:/Users/XiaoHi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rama-http-types-0.3.0-alpha.4" }
+rama-macros = { path = "C:/Users/XiaoHi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rama-macros-0.3.0-alpha.4" }
+rama-utils = { path = "C:/Users/XiaoHi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rama-utils-0.3.0-alpha.4" }
 
 # Uncomment to debug local changes.
 # rmcp = { path = "../../rust-sdk/crates/rmcp" }

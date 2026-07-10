@@ -4,6 +4,17 @@
 These instructions apply to the whole `ClaudeCode` tree unless a nested
 `AGENTS.md` says otherwise.
 
+## Architecture
+- Rust `rust/codex-rs/app-server` is the business-logic backend for
+  authentication, GitHub operations (login, repo listing, clone), model
+  provider configuration, MCP management, and session protocol.
+- Desktop Electron/TypeScript (`apps/desktop/`) is a UI client: it renders
+  settings, opens browser URLs for OAuth, and displays progress. It never
+  stores tokens or makes authenticated API calls directly.
+- New features involving external API calls, credential management, or
+  platform operations should be implemented in the Rust app-server, not in
+  Electron/TypeScript.
+
 ## Project Shape
 - This is a TypeScript/TSX CLI and terminal UI codebase.
 - Many imports intentionally use `.js` extensions even from `.ts`/`.tsx` files;
