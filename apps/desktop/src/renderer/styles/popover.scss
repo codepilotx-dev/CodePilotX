@@ -1,6 +1,9 @@
 :root {
   --popover-width-extra: 30px;
-  --popover-default-max-width: min(calc(360px + var(--popover-width-extra)), calc(100vw - 32px));
+  --popover-default-max-width: min(
+    calc(360px + var(--popover-width-extra)),
+    calc(100vw - 32px)
+  );
   --popover-surface-radius: var(--radius-card);
   --popover-surface-padding: 6px;
   --popover-surface-shadow: var(--color-panel-shadow);
@@ -77,14 +80,24 @@
     --color-text-strong: var(--glass-surface-text, var(--color-text-strong));
     --color-text-meta: var(--glass-surface-text-meta, var(--color-text-meta));
     --color-text-soft: var(--glass-surface-text-meta, var(--color-text-soft));
-    --color-text-disabled: var(--glass-surface-text-disabled, var(--color-text-disabled));
-    --color-text-placeholder: var(--glass-surface-text-disabled, var(--color-text-placeholder));
+    --color-text-disabled: var(
+      --glass-surface-text-disabled,
+      var(--color-text-disabled)
+    );
+    --color-text-placeholder: var(
+      --glass-surface-text-disabled,
+      var(--color-text-placeholder)
+    );
     --color-icon: var(--glass-surface-text-meta, var(--color-icon));
     --color-icon-arrow: var(--glass-surface-text-meta, var(--color-icon-arrow));
   }
 
   .popover-surface .search-input {
-    border-color: color-mix(in srgb, var(--glass-surface-text) 10%, transparent);
+    border-color: color-mix(
+      in srgb,
+      var(--glass-surface-text) 10%,
+      transparent
+    );
     background: color-mix(in srgb, var(--glass-surface-text) 6%, transparent);
     color: var(--glass-surface-text-meta);
 
@@ -144,7 +157,10 @@
     --color-text: var(--glass-surface-text, var(--color-text));
     --color-text-strong: var(--glass-surface-text, var(--color-text-strong));
     --color-text-meta: var(--glass-surface-text-meta, var(--color-text-meta));
-    --color-text-disabled: var(--glass-surface-text-disabled, var(--color-text-disabled));
+    --color-text-disabled: var(
+      --glass-surface-text-disabled,
+      var(--color-text-disabled)
+    );
     border-color: var(--glass-surface-border);
     background-color: var(--glass-surface-bg);
     color: var(--glass-surface-text-meta, var(--color-text-meta));
@@ -192,11 +208,11 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .popover[data-state='open'] {
+  .popover[data-state="open"] {
     animation: popover-in var(--motion-enter) var(--ease-standard);
   }
 
-  .popover[data-state='closed'] {
+  .popover[data-state="closed"] {
     animation: popover-out var(--motion-exit) var(--ease-in);
   }
 }
@@ -259,11 +275,6 @@
   outline: none;
 }
 
-.popover-auto-width {
-  min-width: 0;
-  width: var(--popover-width, max-content);
-}
-
 .popover-model,
 .popover-branch {
   right: 0;
@@ -283,6 +294,17 @@
   bottom: auto;
   left: auto;
   transform-origin: top left;
+  padding: 8px;
+}
+
+.popover-menu-heading {
+  color: var(--color-text-meta);
+}
+
+.popover-menu-separator {
+  height: 1px;
+  margin: 8px 12px;
+  background: var(--color-border-subtle);
 }
 
 .popover-model-submenu {
@@ -342,7 +364,11 @@
 
 :root[data-theme="dark"] {
   .context-menu-switch {
-    background: color-mix(in srgb, var(--color-text-on-accent) 14%, var(--color-panel-elevated-bg));
+    background: color-mix(
+      in srgb,
+      var(--color-text-on-accent) 14%,
+      var(--color-panel-elevated-bg)
+    );
 
     &[aria-checked="true"] {
       background: var(--color-accent);
@@ -597,8 +623,8 @@
 }
 
 :root[data-reduce-motion="on"] {
-  .popover[data-state='open'],
-  .popover[data-state='closed'],
+  .popover[data-state="open"],
+  .popover[data-state="closed"],
   .popover-item-tooltip {
     animation: none;
   }

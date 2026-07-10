@@ -431,9 +431,20 @@
 
 .sidebar-session-title {
   flex: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   color: var(--color-text-strong);
   font-size: var(--font-size-14);
   font-weight: var(--font-weight-label);
+}
+
+.sidebar-session-unread-dot {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-accent);
 }
 
 .sidebar-session-list {

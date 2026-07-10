@@ -296,25 +296,50 @@
 
 /* --- Composer change summary --- */
 .composer-change-summary {
-  width: 100%;
-  max-width: calc(var(--composer-width) - 60px);
+  align-self: center;
+  display: inline-flex;
+  width: fit-content;
+  max-width: calc(100% - 40px);
   align-items: center;
-  justify-content: space-between;
-  gap: 15px;
-  padding: 6px 22px;
+  gap: 8px;
+  padding: 10px 18px;
   border: 1px solid var(--color-border-soft);
-  border-radius: 20px 20px 0 0;
-  background: rgba(252, 252, 252, 0.5);
+  border-radius: var(--radius-marquee);
+  background: color-mix(in srgb, var(--color-panel-bg) 82%, transparent);
   backdrop-filter: blur(10px);
   color: var(--color-text-placeholder);
   font-size: var(--font-size-14);
-  box-shadow: var(--shadow-card);
+  font-weight: var(--font-weight-label);
+  line-height: 1;
+  box-shadow: var(--shadow-resting);
   pointer-events: auto;
+
+  &__plan,
+  &__changes {
+    display: inline-flex;
+    align-items: center;
+    min-width: 0;
+    white-space: nowrap;
+  }
+
+  &__plan {
+    gap: 7px;
+
+    svg {
+      flex: 0 0 auto;
+      color: var(--color-accent);
+      animation: composer-status-summary-spin 1.2s linear infinite;
+    }
+  }
+
+  &__separator {
+    color: var(--color-text-meta);
+  }
 
   strong {
     color: var(--color-diff-added);
-    font-weight: 400;
-    margin: 0 5px;
+    font-weight: var(--font-weight-label);
+    margin-left: 5px;
   }
 
   em {
@@ -322,10 +347,11 @@
     font-style: normal;
   }
 
-  button {
-    flex: 0 0 auto;
-    color: var(--color-text-strong);
-    font-size: var(--font-size-14);
+}
+
+@keyframes composer-status-summary-spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 
@@ -3010,6 +3036,7 @@
   padding: 0;
   color: var(--color-text-soft);
   font-size: var(--font-size-14);
+  max-height: 30px;
 }
 
 .workflow-composer-card-permission .inline-approval-options {
