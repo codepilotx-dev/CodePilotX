@@ -63,6 +63,7 @@ import { buildPopoverSizingStyle } from "../../components/ui/popoverSizing.js";
 import { ProjectSwitcherPopover } from "./ProjectSwitcherPopover.js";
 import { ChatInputDropdown } from "./ChatInputDropdown.js";
 import { BranchSelectPopover } from "./BranchSelectPopover.js";
+import { ComposerStatusOverlay } from "./ComposerStatusOverlay.js";
 
 type Option<T extends string> = {
   value: T;
@@ -82,7 +83,8 @@ type ComposerDropdown =
   | "model"
   | "project"
   | "mode"
-  | "branch";
+  | "branch"
+  | "status";
 
 type ContextPluginTone =
   | "docs"
@@ -261,6 +263,7 @@ type Props = {
     skill: DesktopSlashCommandSuggestion & { skillPath: string },
   ) => void;
   onSkillDeselect?: () => void;
+  routedSessionId?: string | null;
   contextDropdownSide?: "top" | "bottom";
   debugMode?: boolean;
 };
@@ -319,6 +322,7 @@ export function ComposerCard({
   onThinkingChange,
   onSkillSelect,
   onSkillDeselect,
+  routedSessionId,
   contextDropdownSide = "top",
   debugMode = false,
 }: Props): React.ReactNode {
@@ -528,8 +532,7 @@ export function ComposerCard({
         hint: "显示任务 ID、上下文用量和速率限制",
         icon: <Activity size={14} />,
         matchText: "状态 status task id context usage rate limit",
-        disabled: true,
-        onSelect: () => {},
+        onSelect: () => setOpenDropdown("status"),
       },
       {
         group: "添加",
@@ -1563,6 +1566,14 @@ export function ComposerCard({
             onItemSelect={handleUnifiedPlusSelect}
           />
         </ChatInputDropdown>
+        <ComposerStatusOverlay
+          open={openDropdown === "status"}
+          onClose={closeDropdown}
+          routedSessionId={routedSessionId}
+          contextUsage={contextUsage}
+          selectedProviderID={selectedProviderID}
+          side={contextDropdownSide}
+        />
       </div>
 
       <div className="composer-bottom">

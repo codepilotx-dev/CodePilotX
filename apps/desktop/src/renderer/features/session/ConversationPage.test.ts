@@ -543,6 +543,7 @@ function toolGroupItem(id: string, toolName: string, isRunning = false): ReturnT
         toolName,
         callContent: toolName === 'Bash' ? 'npm test' : '',
         resultContent: isRunning ? '' : 'done',
+        outputContent: '',
         isError: false,
         isRunning,
         isWaitingForPermission: false,

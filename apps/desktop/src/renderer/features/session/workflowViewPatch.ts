@@ -17,14 +17,12 @@ export function deriveWorkflowViewPatch(
   const derived = deriveWorkflowSessionState(uniqueWorkflowEvents, threadId)
   const hasPermissionEvents = uniqueWorkflowEvents.some(
     event =>
-      isThreadEvent(event, threadId) &&
-      'item' in event &&
+      isThreadItemEvent(event, threadId) &&
       event.item.type === 'permission_request',
   )
   const hasToolEvents = uniqueWorkflowEvents.some(
     event =>
-      isThreadEvent(event, threadId) &&
-      'item' in event &&
+      isThreadItemEvent(event, threadId) &&
       (event.item.type === 'tool_call' || event.item.type === 'tool_result'),
   )
 
@@ -33,13 +31,12 @@ export function deriveWorkflowViewPatch(
   const completedPermissionRequestIds = new Set<string>(
     uniqueWorkflowEvents
       .filter(
-        event =>
-          isThreadEvent(event, threadId) &&
-          'item' in event &&
+        (event): event is ThreadItemEvent =>
+          isThreadItemEvent(event, threadId) &&
           event.item.type === 'permission_request' &&
           event.item.status !== 'in_progress',
       )
-      .map(event => (event.item as { request: { requestId: string } }).request.requestId),
+      .map(event => event.item.request!.requestId),
   )
 
   // Merge pending permissions: prefer workflow-derived results for items that
@@ -145,6 +142,23 @@ function formatToolLogTime(value: string | undefined): string {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return date.toLocaleTimeString()
+}
+
+type ThreadItemEvent = DesktopWorkflowEvent & {
+  type: 'item.started' | 'item.updated' | 'item.completed'
+  item: {
+    type: string
+    status?: string
+    request?: { requestId: string }
+    toolName?: string
+  }
+}
+
+function isThreadItemEvent(
+  event: DesktopWorkflowEvent,
+  threadId: string | null | undefined,
+): event is ThreadItemEvent {
+  return isThreadEvent(event, threadId) && 'item' in event
 }
 
 function isThreadEvent(

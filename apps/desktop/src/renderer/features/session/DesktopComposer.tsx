@@ -374,6 +374,7 @@ export function DesktopComposer({
       onThinkingChange={onThinkingChange}
       onSkillSelect={handleSkillSelect}
       onSkillDeselect={handleSkillDeselect}
+      routedSessionId={routedSessionId}
       contextDropdownSide={isQuickChatPage ? 'bottom' : 'top'}
     />
   )
