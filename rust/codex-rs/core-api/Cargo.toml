@@ -1,12 +1,12 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "codex-core-api"
+name = "codepilotx-core-api"
 version.workspace = true
 
 [lib]
 doctest = false
-name = "codex_core_api"
+name = "codepilotx_core_api"
 path = "src/lib.rs"
 test = false
 
@@ -14,17 +14,17 @@ test = false
 workspace = true
 
 [dependencies]
-codex-app-server-protocol = { workspace = true }
-codex-arg0 = { workspace = true }
-codex-analytics = { workspace = true }
-codex-config = { workspace = true }
-codex-core = { workspace = true }
-codex-extension-api = { workspace = true }
-codex-home = { workspace = true }
-codex-exec-server = { workspace = true }
-codex-features = { workspace = true }
-codex-login = { workspace = true }
-codex-model-provider-info = { workspace = true }
-codex-models-manager = { workspace = true }
-codex-protocol = { workspace = true }
-codex-utils-absolute-path = { workspace = true }
+codepilotx-app-server-protocol = { workspace = true }
+codepilotx-arg0 = { workspace = true }
+codepilotx-analytics = { workspace = true }
+codepilotx-config = { workspace = true }
+codepilotx-core = { workspace = true }
+codepilotx-extension-api = { workspace = true }
+codepilotx-home = { workspace = true }
+codepilotx-exec-server = { workspace = true }
+codepilotx-features = { workspace = true }
+codepilotx-login = { workspace = true }
+codepilotx-model-provider-info = { workspace = true }
+codepilotx-models-manager = { workspace = true }
+codepilotx-protocol = { workspace = true }
+codepilotx-utils-absolute-path = { workspace = true }

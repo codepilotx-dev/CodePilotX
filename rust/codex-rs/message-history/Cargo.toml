@@ -1,11 +1,11 @@
 [package]
-name = "codex-message-history"
+name = "codepilotx-message-history"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [lib]
-name = "codex_message_history"
+name = "codepilotx_message_history"
 path = "src/lib.rs"
 doctest = false
 
@@ -13,7 +13,7 @@ doctest = false
 workspace = true
 
 [dependencies]
-codex-config = { workspace = true }
+codepilotx-config = { workspace = true }
 memchr = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

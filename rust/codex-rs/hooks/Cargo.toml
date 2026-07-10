@@ -1,12 +1,12 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "codex-hooks"
+name = "codepilotx-hooks"
 version.workspace = true
 
 [lib]
 doctest = false
-name = "codex_hooks"
+name = "codepilotx_hooks"
 path = "src/lib.rs"
 
 [lints]
@@ -15,11 +15,11 @@ workspace = true
 [dependencies]
 anyhow = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
-codex-config = { workspace = true }
-codex-plugin = { workspace = true }
-codex-protocol = { workspace = true }
-codex-utils-absolute-path = { workspace = true }
-codex-utils-output-truncation = { workspace = true }
+codepilotx-config = { workspace = true }
+codepilotx-plugin = { workspace = true }
+codepilotx-protocol = { workspace = true }
+codepilotx-utils-absolute-path = { workspace = true }
+codepilotx-utils-output-truncation = { workspace = true }
 futures = { workspace = true, features = ["alloc"] }
 regex = { workspace = true }
 schemars = { workspace = true }

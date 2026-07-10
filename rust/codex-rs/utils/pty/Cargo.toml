@@ -1,7 +1,7 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "codex-utils-pty"
+name = "codepilotx-utils-pty"
 version.workspace = true
 
 [lints]

@@ -1,11 +1,11 @@
 [package]
-name = "codex-install-context"
+name = "codepilotx-install-context"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [lib]
-name = "codex_install_context"
+name = "codepilotx_install_context"
 path = "src/lib.rs"
 doctest = false
 
@@ -13,8 +13,8 @@ doctest = false
 workspace = true
 
 [dependencies]
-codex-utils-absolute-path = { workspace = true }
-codex-utils-home-dir = { workspace = true }
+codepilotx-utils-absolute-path = { workspace = true }
+codepilotx-utils-home-dir = { workspace = true }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }

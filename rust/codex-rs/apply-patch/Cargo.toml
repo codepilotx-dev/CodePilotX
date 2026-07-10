@@ -1,11 +1,11 @@
 [package]
-name = "codex-apply-patch"
+name = "codepilotx-apply-patch"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [lib]
-name = "codex_apply_patch"
+name = "codepilotx_apply_patch"
 path = "src/lib.rs"
 doctest = false
 
@@ -18,9 +18,9 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-codex-exec-server = { workspace = true }
-codex-utils-absolute-path = { workspace = true }
-codex-utils-path-uri = { workspace = true }
+codepilotx-exec-server = { workspace = true }
+codepilotx-utils-absolute-path = { workspace = true }
+codepilotx-utils-path-uri = { workspace = true }
 similar = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt"] }
@@ -30,6 +30,6 @@ tree-sitter-bash = { workspace = true }
 [dev-dependencies]
 assert_cmd = { workspace = true }
 assert_matches = { workspace = true }
-codex-utils-cargo-bin = { workspace = true }
+codepilotx-utils-cargo-bin = { workspace = true }
 pretty_assertions = { workspace = true }
 tempfile = { workspace = true }

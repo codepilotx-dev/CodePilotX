@@ -1,12 +1,12 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "codex-collaboration-mode-templates"
+name = "codepilotx-collaboration-mode-templates"
 version.workspace = true
 
 [lib]
 doctest = false
-name = "codex_collaboration_mode_templates"
+name = "codepilotx_collaboration_mode_templates"
 path = "src/lib.rs"
 test = false
 

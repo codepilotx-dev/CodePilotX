@@ -1,11 +1,11 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "codex-image-generation-extension"
+name = "codepilotx-image-generation-extension"
 version.workspace = true
 
 [lib]
-name = "codex_image_generation_extension"
+name = "codepilotx_image_generation_extension"
 path = "src/lib.rs"
 doctest = false
 
@@ -13,17 +13,17 @@ doctest = false
 workspace = true
 
 [dependencies]
-codex-api = { workspace = true }
-codex-core = { workspace = true }
-codex-extension-api = { workspace = true }
-codex-login = { workspace = true }
-codex-model-provider = { workspace = true }
-codex-model-provider-info = { workspace = true }
-codex-protocol = { workspace = true }
-codex-tools = { workspace = true }
-codex-utils-absolute-path = { workspace = true }
-codex-utils-image = { workspace = true }
-codex-utils-path-uri = { workspace = true }
+codepilotx-api = { workspace = true }
+codepilotx-core = { workspace = true }
+codepilotx-extension-api = { workspace = true }
+codepilotx-login = { workspace = true }
+codepilotx-model-provider = { workspace = true }
+codepilotx-model-provider-info = { workspace = true }
+codepilotx-protocol = { workspace = true }
+codepilotx-tools = { workspace = true }
+codepilotx-utils-absolute-path = { workspace = true }
+codepilotx-utils-image = { workspace = true }
+codepilotx-utils-path-uri = { workspace = true }
 http = { workspace = true }
 schemars = { workspace = true }
 serde = { workspace = true, features = ["derive"] }

@@ -1,5 +1,5 @@
 [package]
-name = "codex-rmcp-client"
+name = "codepilotx-rmcp-client"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -15,16 +15,16 @@ axum = { workspace = true, default-features = false, features = [
     "tokio",
 ] }
 base64 = { workspace = true }
-codex-api = { workspace = true }
-codex-client = { workspace = true }
-codex-config = { workspace = true }
-codex-exec-server = { workspace = true }
-codex-keyring-store = { workspace = true }
-codex-protocol = { workspace = true }
-codex-secrets = { workspace = true }
-codex-utils-path-uri = { workspace = true }
-codex-utils-pty = { workspace = true }
-codex-utils-home-dir = { workspace = true }
+codepilotx-api = { workspace = true }
+codepilotx-client = { workspace = true }
+codepilotx-config = { workspace = true }
+codepilotx-exec-server = { workspace = true }
+codepilotx-keyring-store = { workspace = true }
+codepilotx-protocol = { workspace = true }
+codepilotx-secrets = { workspace = true }
+codepilotx-utils-path-uri = { workspace = true }
+codepilotx-utils-pty = { workspace = true }
+codepilotx-utils-home-dir = { workspace = true }
 bytes = { workspace = true }
 futures = { workspace = true, default-features = false, features = ["std"] }
 keyring = { workspace = true, features = ["crypto-rust"] }
@@ -68,7 +68,7 @@ webbrowser = { workspace = true }
 which = { workspace = true }
 
 [dev-dependencies]
-codex-utils-cargo-bin = { workspace = true }
+codepilotx-utils-cargo-bin = { workspace = true }
 pretty_assertions = { workspace = true }
 serial_test = { workspace = true }
 tempfile = { workspace = true }

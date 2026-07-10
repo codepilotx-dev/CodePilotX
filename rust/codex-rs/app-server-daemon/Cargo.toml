@@ -1,11 +1,11 @@
 [package]
-name = "codex-app-server-daemon"
+name = "codepilotx-app-server-daemon"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [lib]
-name = "codex_app_server_daemon"
+name = "codepilotx_app_server_daemon"
 path = "src/lib.rs"
 doctest = false
 
@@ -14,10 +14,10 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-codex-app-server-protocol = { workspace = true }
-codex-app-server-transport = { workspace = true }
-codex-utils-home-dir = { workspace = true }
-codex-uds = { workspace = true }
+codepilotx-app-server-protocol = { workspace = true }
+codepilotx-app-server-transport = { workspace = true }
+codepilotx-utils-home-dir = { workspace = true }
+codepilotx-uds = { workspace = true }
 futures = { workspace = true }
 libc = { workspace = true }
 reqwest = { workspace = true, features = ["rustls-tls"] }

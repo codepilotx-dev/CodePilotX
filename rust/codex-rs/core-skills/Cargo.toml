@@ -1,12 +1,12 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "codex-core-skills"
+name = "codepilotx-core-skills"
 version.workspace = true
 
 [lib]
 doctest = false
-name = "codex_core_skills"
+name = "codepilotx_core_skills"
 path = "src/lib.rs"
 
 [lints]
@@ -14,21 +14,21 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-codex-analytics = { workspace = true }
-codex-app-server-protocol = { workspace = true }
-codex-config = { workspace = true }
-codex-context-fragments = { workspace = true }
-codex-exec-server = { workspace = true }
-codex-login = { workspace = true }
-codex-model-provider = { workspace = true }
-codex-otel = { workspace = true }
-codex-protocol = { workspace = true }
-codex-shell-command = { workspace = true }
-codex-skills = { workspace = true }
-codex-utils-absolute-path = { workspace = true }
-codex-utils-output-truncation = { workspace = true }
-codex-utils-path-uri = { workspace = true }
-codex-utils-plugins = { workspace = true }
+codepilotx-analytics = { workspace = true }
+codepilotx-app-server-protocol = { workspace = true }
+codepilotx-config = { workspace = true }
+codepilotx-context-fragments = { workspace = true }
+codepilotx-exec-server = { workspace = true }
+codepilotx-login = { workspace = true }
+codepilotx-model-provider = { workspace = true }
+codepilotx-otel = { workspace = true }
+codepilotx-protocol = { workspace = true }
+codepilotx-shell-command = { workspace = true }
+codepilotx-skills = { workspace = true }
+codepilotx-utils-absolute-path = { workspace = true }
+codepilotx-utils-output-truncation = { workspace = true }
+codepilotx-utils-path-uri = { workspace = true }
+codepilotx-utils-plugins = { workspace = true }
 dirs = { workspace = true }
 dunce = { workspace = true }
 futures = { workspace = true }

@@ -1,11 +1,11 @@
 [package]
-name = "codex-app-server-client"
+name = "codepilotx-app-server-client"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [lib]
-name = "codex_app_server_client"
+name = "codepilotx_app_server_client"
 path = "src/lib.rs"
 doctest = false
 
@@ -13,17 +13,17 @@ doctest = false
 workspace = true
 
 [dependencies]
-codex-app-server = { workspace = true }
-codex-app-server-protocol = { workspace = true }
-codex-arg0 = { workspace = true }
-codex-config = { workspace = true }
-codex-core = { workspace = true }
-codex-exec-server = { workspace = true }
-codex-feedback = { workspace = true }
-codex-protocol = { workspace = true }
-codex-uds = { workspace = true }
-codex-utils-absolute-path = { workspace = true }
-codex-utils-rustls-provider = { workspace = true }
+codepilotx-app-server = { workspace = true }
+codepilotx-app-server-protocol = { workspace = true }
+codepilotx-arg0 = { workspace = true }
+codepilotx-config = { workspace = true }
+codepilotx-core = { workspace = true }
+codepilotx-exec-server = { workspace = true }
+codepilotx-feedback = { workspace = true }
+codepilotx-protocol = { workspace = true }
+codepilotx-uds = { workspace = true }
+codepilotx-utils-absolute-path = { workspace = true }
+codepilotx-utils-rustls-provider = { workspace = true }
 futures = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

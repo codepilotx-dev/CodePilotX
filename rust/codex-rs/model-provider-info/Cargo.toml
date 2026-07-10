@@ -1,27 +1,27 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "codex-model-provider-info"
+name = "codepilotx-model-provider-info"
 version.workspace = true
 
 [lib]
 doctest = false
-name = "codex_model_provider_info"
+name = "codepilotx_model_provider_info"
 path = "src/lib.rs"
 
 [lints]
 workspace = true
 
 [dependencies]
-codex-api = { workspace = true }
-codex-app-server-protocol = { workspace = true }
-codex-protocol = { workspace = true }
+codepilotx-api = { workspace = true }
+codepilotx-app-server-protocol = { workspace = true }
+codepilotx-protocol = { workspace = true }
 http = { workspace = true }
 schemars = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
-codex-utils-absolute-path = { workspace = true }
+codepilotx-utils-absolute-path = { workspace = true }
 maplit = { workspace = true }
 pretty_assertions = { workspace = true }
 tempfile = { workspace = true }

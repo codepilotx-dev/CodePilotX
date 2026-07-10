@@ -1,5 +1,5 @@
 [package]
-name = "codex-utils-sleep-inhibitor"
+name = "codepilotx-utils-sleep-inhibitor"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

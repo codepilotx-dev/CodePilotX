@@ -1,20 +1,20 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "codex-features"
+name = "codepilotx-features"
 version.workspace = true
 
 [lib]
 doctest = false
-name = "codex_features"
+name = "codepilotx_features"
 path = "src/lib.rs"
 
 [lints]
 workspace = true
 
 [dependencies]
-codex-otel = { workspace = true }
-codex-protocol = { workspace = true }
+codepilotx-otel = { workspace = true }
+codepilotx-protocol = { workspace = true }
 schemars = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 toml = { workspace = true }

@@ -1,11 +1,11 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "codex-cloud-tasks"
+name = "codepilotx-cloud-tasks"
 version.workspace = true
 
 [lib]
-name = "codex_cloud_tasks"
+name = "codepilotx_cloud_tasks"
 path = "src/lib.rs"
 doctest = false
 
@@ -16,16 +16,16 @@ workspace = true
 anyhow = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
 clap = { workspace = true, features = ["derive"] }
-codex-client = { workspace = true }
-codex-cloud-tasks-client = { workspace = true }
+codepilotx-client = { workspace = true }
+codepilotx-cloud-tasks-client = { workspace = true }
 # TODO: codex-cloud-tasks-mock-client should be in dev-dependencies.
-codex-cloud-tasks-mock-client = { workspace = true }
-codex-core = { workspace = true }
-codex-git-utils = { workspace = true }
-codex-login = { path = "../login" }
-codex-model-provider = { workspace = true }
-codex-tui = { workspace = true }
-codex-utils-cli = { workspace = true }
+codepilotx-cloud-tasks-mock-client = { workspace = true }
+codepilotx-core = { workspace = true }
+codepilotx-git-utils = { workspace = true }
+codepilotx-login = { path = "../login" }
+codepilotx-model-provider = { workspace = true }
+codepilotx-tui = { workspace = true }
+codepilotx-utils-cli = { workspace = true }
 crossterm = { workspace = true, features = ["event-stream"] }
 owo-colors = { workspace = true, features = ["supports-colors"] }
 ratatui = { workspace = true }

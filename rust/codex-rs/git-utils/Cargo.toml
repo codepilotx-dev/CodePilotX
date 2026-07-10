@@ -1,5 +1,5 @@
 [package]
-name = "codex-git-utils"
+name = "codepilotx-git-utils"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -11,10 +11,10 @@ workspace = true
 [dependencies]
 anyhow = { workspace = true }
 chrono = { workspace = true }
-codex-file-system = { workspace = true }
-codex-protocol = { workspace = true }
-codex-utils-absolute-path = { workspace = true }
-codex-utils-path-uri = { workspace = true }
+codepilotx-file-system = { workspace = true }
+codepilotx-protocol = { workspace = true }
+codepilotx-utils-absolute-path = { workspace = true }
+codepilotx-utils-path-uri = { workspace = true }
 futures = { workspace = true, features = ["alloc"] }
 gix = { workspace = true }
 once_cell = { workspace = true }

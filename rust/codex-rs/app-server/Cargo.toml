@@ -1,5 +1,5 @@
 [package]
-name = "codex-app-server"
+name = "codepilotx-app-server"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -9,11 +9,11 @@ name = "codepilotx-app-server"
 path = "src/main.rs"
 
 [[bin]]
-name = "codex-app-server-test-notify-capture"
+name = "codepilotx-app-server-test-notify-capture"
 path = "src/bin/notify_capture.rs"
 
 [lib]
-name = "codex_app_server"
+name = "codepilotx_app_server"
 path = "src/lib.rs"
 doctest = false
 
@@ -29,54 +29,54 @@ axum = { workspace = true, default-features = false, features = [
     "tokio",
     "ws",
 ] }
-codex-analytics = { workspace = true }
-codex-arg0 = { workspace = true }
-codex-cloud-config = { workspace = true }
-codex-config = { workspace = true }
-codex-core = { workspace = true }
-codex-core-plugins = { workspace = true }
-codex-home = { workspace = true }
-codex-exec-server = { workspace = true }
-codex-extension-api = { workspace = true }
-codex-external-agent-migration = { workspace = true }
-codex-external-agent-sessions = { workspace = true }
-codex-features = { workspace = true }
-codex-goal-extension = { workspace = true }
-codex-guardian = { workspace = true }
-codex-git-utils = { workspace = true }
-codex-file-watcher = { workspace = true }
-codex-hooks = { workspace = true }
-codex-otel = { workspace = true }
-codex-plugin = { workspace = true }
-codex-shell-command = { workspace = true }
-codex-skills-extension = { workspace = true }
-codex-utils-cli = { workspace = true }
-codex-utils-pty = { workspace = true }
-codex-backend-client = { workspace = true }
-codex-file-search = { workspace = true }
-codex-chatgpt = { workspace = true }
-codex-login = { workspace = true }
-codex-image-generation-extension = { workspace = true }
-codex-memories-extension = { workspace = true }
-codex-web-search-extension = { workspace = true }
-codex-memories-write = { workspace = true }
-codex-mcp = { workspace = true }
-codex-mcp-extension = { workspace = true }
-codex-model-provider = { workspace = true }
-codex-models-manager = { workspace = true }
-codex-protocol = { workspace = true }
-codex-app-server-protocol = { workspace = true }
-codex-app-server-transport = { workspace = true }
-codex-feedback = { workspace = true }
-codex-rmcp-client = { workspace = true }
-codex-rollout = { workspace = true }
-codex-sandboxing = { workspace = true }
-codex-state = { workspace = true }
-codex-thread-store = { workspace = true }
-codex-tools = { workspace = true }
-codex-utils-absolute-path = { workspace = true }
-codex-utils-json-to-toml = { workspace = true }
-codex-utils-path-uri = { workspace = true }
+codepilotx-analytics = { workspace = true }
+codepilotx-arg0 = { workspace = true }
+codepilotx-cloud-config = { workspace = true }
+codepilotx-config = { workspace = true }
+codepilotx-core = { workspace = true }
+codepilotx-core-plugins = { workspace = true }
+codepilotx-home = { workspace = true }
+codepilotx-exec-server = { workspace = true }
+codepilotx-extension-api = { workspace = true }
+codepilotx-external-agent-migration = { workspace = true }
+codepilotx-external-agent-sessions = { workspace = true }
+codepilotx-features = { workspace = true }
+codepilotx-goal-extension = { workspace = true }
+codepilotx-guardian = { workspace = true }
+codepilotx-git-utils = { workspace = true }
+codepilotx-file-watcher = { workspace = true }
+codepilotx-hooks = { workspace = true }
+codepilotx-otel = { workspace = true }
+codepilotx-plugin = { workspace = true }
+codepilotx-shell-command = { workspace = true }
+codepilotx-skills-extension = { workspace = true }
+codepilotx-utils-cli = { workspace = true }
+codepilotx-utils-pty = { workspace = true }
+codepilotx-backend-client = { workspace = true }
+codepilotx-file-search = { workspace = true }
+codepilotx-chatgpt = { workspace = true }
+codepilotx-login = { workspace = true }
+codepilotx-image-generation-extension = { workspace = true }
+codepilotx-memories-extension = { workspace = true }
+codepilotx-web-search-extension = { workspace = true }
+codepilotx-memories-write = { workspace = true }
+codepilotx-mcp = { workspace = true }
+codepilotx-mcp-extension = { workspace = true }
+codepilotx-model-provider = { workspace = true }
+codepilotx-models-manager = { workspace = true }
+codepilotx-protocol = { workspace = true }
+codepilotx-app-server-protocol = { workspace = true }
+codepilotx-app-server-transport = { workspace = true }
+codepilotx-feedback = { workspace = true }
+codepilotx-rmcp-client = { workspace = true }
+codepilotx-rollout = { workspace = true }
+codepilotx-sandboxing = { workspace = true }
+codepilotx-state = { workspace = true }
+codepilotx-thread-store = { workspace = true }
+codepilotx-tools = { workspace = true }
+codepilotx-utils-absolute-path = { workspace = true }
+codepilotx-utils-json-to-toml = { workspace = true }
+codepilotx-utils-path-uri = { workspace = true }
 chrono = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 futures = { workspace = true }
@@ -100,7 +100,7 @@ tracing-subscriber = { workspace = true, features = ["env-filter", "fmt", "json"
 uuid = { workspace = true, features = ["serde", "v7"] }
 
 [target.'cfg(windows)'.dependencies]
-codex-windows-sandbox = { workspace = true }
+codepilotx-windows-sandbox = { workspace = true }
 
 [dev-dependencies]
 app_test_support = { workspace = true }
@@ -110,8 +110,8 @@ axum = { workspace = true, default-features = false, features = [
     "tokio",
 ] }
 base64 = { workspace = true }
-codex-model-provider-info = { workspace = true }
-codex-utils-cargo-bin = { workspace = true }
+codepilotx-model-provider-info = { workspace = true }
+codepilotx-utils-cargo-bin = { workspace = true }
 core_test_support = { workspace = true }
 flate2 = { workspace = true }
 hmac = { workspace = true }

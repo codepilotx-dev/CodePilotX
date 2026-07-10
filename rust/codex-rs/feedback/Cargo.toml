@@ -1,5 +1,5 @@
 [package]
-name = "codex-feedback"
+name = "codepilotx-feedback"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -9,8 +9,8 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-codex-login = { workspace = true }
-codex-protocol = { workspace = true }
+codepilotx-login = { workspace = true }
+codepilotx-protocol = { workspace = true }
 sentry = { version = "0.46" }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }

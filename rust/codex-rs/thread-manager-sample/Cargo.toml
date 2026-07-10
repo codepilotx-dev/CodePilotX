@@ -1,5 +1,5 @@
 [package]
-name = "codex-thread-manager-sample"
+name = "codepilotx-thread-manager-sample"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -14,5 +14,5 @@ serde_json = { workspace = true }
 # Keep this sample limited to a single Codex workspace dependency.
 # Add new Codex surface area to `codex-core-api` instead of depending on
 # additional `codex-*` crates here.
-codex-core-api = { workspace = true }
+codepilotx-core-api = { workspace = true }
 tracing = { workspace = true }

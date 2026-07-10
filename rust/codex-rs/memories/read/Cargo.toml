@@ -1,11 +1,11 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "codex-memories-read"
+name = "codepilotx-memories-read"
 version.workspace = true
 
 [lib]
-name = "codex_memories_read"
+name = "codepilotx_memories_read"
 path = "src/lib.rs"
 doctest = false
 
@@ -13,9 +13,9 @@ doctest = false
 workspace = true
 
 [dependencies]
-codex-protocol = { workspace = true }
-codex-shell-command = { workspace = true }
-codex-utils-absolute-path = { workspace = true }
+codepilotx-protocol = { workspace = true }
+codepilotx-shell-command = { workspace = true }
+codepilotx-utils-absolute-path = { workspace = true }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }

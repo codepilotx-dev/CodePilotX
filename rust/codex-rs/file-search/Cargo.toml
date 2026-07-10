@@ -1,15 +1,15 @@
 [package]
-name = "codex-file-search"
+name = "codepilotx-file-search"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [[bin]]
-name = "codex-file-search"
+name = "codepilotx-file-search"
 path = "src/main.rs"
 
 [lib]
-name = "codex_file_search"
+name = "codepilotx_file_search"
 path = "src/lib.rs"
 doctest = false
 

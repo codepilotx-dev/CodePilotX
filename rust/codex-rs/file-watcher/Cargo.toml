@@ -1,11 +1,11 @@
 [package]
-name = "codex-file-watcher"
+name = "codepilotx-file-watcher"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [lib]
-name = "codex_file_watcher"
+name = "codepilotx_file_watcher"
 path = "src/lib.rs"
 doctest = false
 

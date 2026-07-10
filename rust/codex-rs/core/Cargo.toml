@@ -1,15 +1,15 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "codex-core"
+name = "codepilotx-core"
 version.workspace = true
 
 [lib]
-name = "codex_core"
+name = "codepilotx_core"
 path = "src/lib.rs"
 
 [[bin]]
-name = "codex-write-config-schema"
+name = "codepilotx-write-config-schema"
 path = "src/bin/config_schema.rs"
 
 [lints]
@@ -23,59 +23,59 @@ base64 = { workspace = true }
 bm25 = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
 clap = { workspace = true, features = ["derive"] }
-codex-analytics = { workspace = true }
-codex-api = { workspace = true }
-codex-app-server-protocol = { workspace = true }
-codex-apply-patch = { workspace = true }
-codex-async-utils = { workspace = true }
-codex-code-mode = { workspace = true }
-codex-connectors = { workspace = true }
-codex-context-fragments = { workspace = true }
-codex-config = { workspace = true }
-codex-core-plugins = { workspace = true }
-codex-core-skills = { workspace = true }
-codex-exec-server = { workspace = true }
-codex-extension-api = { workspace = true }
-codex-features = { workspace = true }
-codex-feedback = { workspace = true }
-codex-file-system = { workspace = true }
-codex-login = { workspace = true }
-codex-memories-read = { workspace = true }
-codex-mcp = { workspace = true }
-codex-model-provider-info = { workspace = true }
-codex-models-manager = { workspace = true }
-codex-shell-command = { workspace = true }
-codex-execpolicy = { workspace = true }
-codex-git-utils = { workspace = true }
-codex-hooks = { workspace = true }
-codex-install-context = { workspace = true }
-codex-network-proxy = { workspace = true }
-codex-otel = { workspace = true }
-codex-plugin = { workspace = true }
-codex-model-provider = { workspace = true }
-codex-protocol = { workspace = true }
-codex-response-debug-context = { workspace = true }
-codex-prompts = { workspace = true }
-codex-rollout = { workspace = true }
-codex-rollout-trace = { workspace = true }
-codex-rmcp-client = { workspace = true }
-codex-sandboxing = { workspace = true }
-codex-state = { workspace = true }
-codex-terminal-detection = { workspace = true }
-codex-thread-store = { workspace = true }
-codex-tools = { workspace = true }
-codex-utils-absolute-path = { workspace = true }
-codex-utils-cache = { workspace = true }
-codex-utils-image = { workspace = true }
-codex-utils-home-dir = { workspace = true }
-codex-utils-output-truncation = { workspace = true }
-codex-utils-path = { workspace = true }
-codex-utils-path-uri = { workspace = true }
-codex-utils-plugins = { workspace = true }
-codex-utils-pty = { workspace = true }
-codex-utils-string = { workspace = true }
-codex-utils-stream-parser = { workspace = true }
-codex-windows-sandbox = { package = "codex-windows-sandbox", path = "../windows-sandbox-rs" }
+codepilotx-analytics = { workspace = true }
+codepilotx-api = { workspace = true }
+codepilotx-app-server-protocol = { workspace = true }
+codepilotx-apply-patch = { workspace = true }
+codepilotx-async-utils = { workspace = true }
+codepilotx-code-mode = { workspace = true }
+codepilotx-connectors = { workspace = true }
+codepilotx-context-fragments = { workspace = true }
+codepilotx-config = { workspace = true }
+codepilotx-core-plugins = { workspace = true }
+codepilotx-core-skills = { workspace = true }
+codepilotx-exec-server = { workspace = true }
+codepilotx-extension-api = { workspace = true }
+codepilotx-features = { workspace = true }
+codepilotx-feedback = { workspace = true }
+codepilotx-file-system = { workspace = true }
+codepilotx-login = { workspace = true }
+codepilotx-memories-read = { workspace = true }
+codepilotx-mcp = { workspace = true }
+codepilotx-model-provider-info = { workspace = true }
+codepilotx-models-manager = { workspace = true }
+codepilotx-shell-command = { workspace = true }
+codepilotx-execpolicy = { workspace = true }
+codepilotx-git-utils = { workspace = true }
+codepilotx-hooks = { workspace = true }
+codepilotx-install-context = { workspace = true }
+codepilotx-network-proxy = { workspace = true }
+codepilotx-otel = { workspace = true }
+codepilotx-plugin = { workspace = true }
+codepilotx-model-provider = { workspace = true }
+codepilotx-protocol = { workspace = true }
+codepilotx-response-debug-context = { workspace = true }
+codepilotx-prompts = { workspace = true }
+codepilotx-rollout = { workspace = true }
+codepilotx-rollout-trace = { workspace = true }
+codepilotx-rmcp-client = { workspace = true }
+codepilotx-sandboxing = { workspace = true }
+codepilotx-state = { workspace = true }
+codepilotx-terminal-detection = { workspace = true }
+codepilotx-thread-store = { workspace = true }
+codepilotx-tools = { workspace = true }
+codepilotx-utils-absolute-path = { workspace = true }
+codepilotx-utils-cache = { workspace = true }
+codepilotx-utils-image = { workspace = true }
+codepilotx-utils-home-dir = { workspace = true }
+codepilotx-utils-output-truncation = { workspace = true }
+codepilotx-utils-path = { workspace = true }
+codepilotx-utils-path-uri = { workspace = true }
+codepilotx-utils-plugins = { workspace = true }
+codepilotx-utils-pty = { workspace = true }
+codepilotx-utils-string = { workspace = true }
+codepilotx-utils-stream-parser = { workspace = true }
+codepilotx-windows-sandbox = { package = "codepilotx-windows-sandbox", path = "../windows-sandbox-rs" }
 csv = { workspace = true }
 dirs = { workspace = true }
 dunce = { workspace = true }
@@ -129,17 +129,17 @@ openssl-sys = { workspace = true, features = ["vendored"] }
 openssl-sys = { workspace = true, features = ["vendored"] }
 
 [target.'cfg(unix)'.dependencies]
-codex-shell-escalation = { workspace = true }
+codepilotx-shell-escalation = { workspace = true }
 
 [dev-dependencies]
 assert_cmd = { workspace = true }
 assert_matches = { workspace = true }
-codex-image-generation-extension = { workspace = true }
-codex-home = { workspace = true }
-codex-otel = { workspace = true }
-codex-test-binary-support = { workspace = true }
-codex-utils-cargo-bin = { workspace = true }
-codex-web-search-extension = { workspace = true }
+codepilotx-image-generation-extension = { workspace = true }
+codepilotx-home = { workspace = true }
+codepilotx-otel = { workspace = true }
+codepilotx-test-binary-support = { workspace = true }
+codepilotx-utils-cargo-bin = { workspace = true }
+codepilotx-web-search-extension = { workspace = true }
 core_test_support = { workspace = true }
 ctor = { workspace = true }
 insta = { workspace = true }

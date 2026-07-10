@@ -1,12 +1,12 @@
 [package]
-name = "codex-tui"
+name = "codepilotx-tui"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 autobins = false
 
 [[bin]]
-name = "codex-tui"
+name = "codepilotx-tui"
 path = "src/main.rs"
 
 [[bin]]
@@ -14,7 +14,7 @@ name = "md-events"
 path = "src/bin/md-events.rs"
 
 [lib]
-name = "codex_tui"
+name = "codepilotx_tui"
 path = "src/lib.rs"
 doctest = false
 
@@ -26,47 +26,47 @@ anyhow = { workspace = true }
 base64 = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
 clap = { workspace = true, features = ["derive"] }
-codex-ansi-escape = { workspace = true }
-codex-app-server-client = { workspace = true }
-codex-app-server-protocol = { workspace = true }
-codex-arg0 = { workspace = true }
-codex-install-context = { workspace = true }
-codex-cloud-config = { workspace = true }
-codex-config = { workspace = true }
-codex-connectors = { workspace = true }
-codex-core-plugins = { workspace = true }
-codex-core-skills = { workspace = true }
-codex-exec-server = { workspace = true }
-codex-features = { workspace = true }
-codex-feedback = { workspace = true }
-codex-file-search = { workspace = true }
-codex-git-utils = { workspace = true }
-codex-login = { workspace = true }
-codex-message-history = { workspace = true }
-codex-model-provider = { workspace = true }
-codex-model-provider-info = { workspace = true }
-codex-models-manager = { workspace = true }
-codex-otel = { workspace = true }
-codex-plugin = { workspace = true }
-codex-protocol = { workspace = true }
-codex-rollout = { workspace = true }
-codex-sandboxing = { workspace = true }
-codex-shell-command = { workspace = true }
-codex-state = { workspace = true }
-codex-terminal-detection = { workspace = true }
-codex-utils-approval-presets = { workspace = true }
-codex-utils-absolute-path = { workspace = true }
-codex-utils-cli = { workspace = true }
-codex-utils-elapsed = { workspace = true }
-codex-utils-fuzzy-match = { workspace = true }
-codex-utils-home-dir = { workspace = true }
-codex-utils-oss = { workspace = true }
-codex-utils-path = { workspace = true }
-codex-utils-path-uri = { workspace = true }
-codex-utils-plugins = { workspace = true }
-codex-utils-sandbox-summary = { workspace = true }
-codex-utils-sleep-inhibitor = { workspace = true }
-codex-utils-string = { workspace = true }
+codepilotx-ansi-escape = { workspace = true }
+codepilotx-app-server-client = { workspace = true }
+codepilotx-app-server-protocol = { workspace = true }
+codepilotx-arg0 = { workspace = true }
+codepilotx-install-context = { workspace = true }
+codepilotx-cloud-config = { workspace = true }
+codepilotx-config = { workspace = true }
+codepilotx-connectors = { workspace = true }
+codepilotx-core-plugins = { workspace = true }
+codepilotx-core-skills = { workspace = true }
+codepilotx-exec-server = { workspace = true }
+codepilotx-features = { workspace = true }
+codepilotx-feedback = { workspace = true }
+codepilotx-file-search = { workspace = true }
+codepilotx-git-utils = { workspace = true }
+codepilotx-login = { workspace = true }
+codepilotx-message-history = { workspace = true }
+codepilotx-model-provider = { workspace = true }
+codepilotx-model-provider-info = { workspace = true }
+codepilotx-models-manager = { workspace = true }
+codepilotx-otel = { workspace = true }
+codepilotx-plugin = { workspace = true }
+codepilotx-protocol = { workspace = true }
+codepilotx-rollout = { workspace = true }
+codepilotx-sandboxing = { workspace = true }
+codepilotx-shell-command = { workspace = true }
+codepilotx-state = { workspace = true }
+codepilotx-terminal-detection = { workspace = true }
+codepilotx-utils-approval-presets = { workspace = true }
+codepilotx-utils-absolute-path = { workspace = true }
+codepilotx-utils-cli = { workspace = true }
+codepilotx-utils-elapsed = { workspace = true }
+codepilotx-utils-fuzzy-match = { workspace = true }
+codepilotx-utils-home-dir = { workspace = true }
+codepilotx-utils-oss = { workspace = true }
+codepilotx-utils-path = { workspace = true }
+codepilotx-utils-path-uri = { workspace = true }
+codepilotx-utils-plugins = { workspace = true }
+codepilotx-utils-sandbox-summary = { workspace = true }
+codepilotx-utils-sleep-inhibitor = { workspace = true }
+codepilotx-utils-string = { workspace = true }
 color-eyre = { workspace = true }
 crossterm = { workspace = true, features = ["bracketed-paste", "event-stream"] }
 derive_more = { workspace = true, features = ["is_variant"] }
@@ -122,7 +122,7 @@ urlencoding = { workspace = true }
 webbrowser = { workspace = true }
 uuid = { workspace = true }
 
-codex-windows-sandbox = { workspace = true }
+codepilotx-windows-sandbox = { workspace = true }
 tokio-util = { workspace = true, features = ["time"] }
 
 [target.'cfg(unix)'.dependencies]
@@ -148,10 +148,10 @@ arboard = { workspace = true }
 
 
 [dev-dependencies]
-codex-cli = { workspace = true }
-codex-mcp = { workspace = true }
+codepilotx-cli = { workspace = true }
+codepilotx-mcp = { workspace = true }
 core_test_support = { workspace = true }
-codex-utils-cargo-bin = { workspace = true }
+codepilotx-utils-cargo-bin = { workspace = true }
 assert_matches = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
 insta = { workspace = true }

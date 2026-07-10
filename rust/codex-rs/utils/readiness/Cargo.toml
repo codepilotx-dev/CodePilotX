@@ -1,5 +1,5 @@
 [package]
-name = "codex-utils-readiness"
+name = "codepilotx-utils-readiness"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

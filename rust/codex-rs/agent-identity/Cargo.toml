@@ -1,12 +1,12 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "codex-agent-identity"
+name = "codepilotx-agent-identity"
 version.workspace = true
 
 [lib]
 doctest = false
-name = "codex_agent_identity"
+name = "codepilotx_agent_identity"
 path = "src/lib.rs"
 
 [lints]
@@ -16,7 +16,7 @@ workspace = true
 anyhow = { workspace = true }
 base64 = { workspace = true }
 chrono = { workspace = true }
-codex-protocol = { workspace = true }
+codepilotx-protocol = { workspace = true }
 crypto_box = { workspace = true }
 ed25519-dalek = { workspace = true }
 jsonwebtoken = { workspace = true }

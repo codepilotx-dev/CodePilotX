@@ -1,5 +1,5 @@
 [package]
-name = "codex-keyring-store"
+name = "codepilotx-keyring-store"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

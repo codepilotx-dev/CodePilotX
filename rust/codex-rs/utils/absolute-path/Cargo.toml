@@ -1,6 +1,6 @@
 
 [package]
-name = "codex-utils-absolute-path"
+name = "codepilotx-utils-absolute-path"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

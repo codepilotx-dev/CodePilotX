@@ -1,11 +1,11 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "codex-thread-store"
+name = "codepilotx-thread-store"
 version.workspace = true
 
 [lib]
-name = "codex_thread_store"
+name = "codepilotx_thread_store"
 path = "src/lib.rs"
 doctest = false
 
@@ -14,12 +14,12 @@ workspace = true
 
 [dependencies]
 chrono = { workspace = true, features = ["serde"] }
-codex-git-utils = { workspace = true }
-codex-install-context = { workspace = true }
-codex-protocol = { workspace = true }
-codex-rollout = { workspace = true }
-codex-state = { workspace = true }
-codex-utils-path = { workspace = true }
+codepilotx-git-utils = { workspace = true }
+codepilotx-install-context = { workspace = true }
+codepilotx-protocol = { workspace = true }
+codepilotx-rollout = { workspace = true }
+codepilotx-state = { workspace = true }
+codepilotx-utils-path = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

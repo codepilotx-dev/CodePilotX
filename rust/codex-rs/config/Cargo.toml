@@ -1,5 +1,5 @@
 [package]
-name = "codex-config"
+name = "codepilotx-config"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -14,17 +14,17 @@ workspace = true
 [dependencies]
 anyhow = { workspace = true }
 base64 = { workspace = true }
-codex-app-server-protocol = { workspace = true }
-codex-execpolicy = { workspace = true }
-codex-features = { workspace = true }
-codex-file-system = { workspace = true }
-codex-git-utils = { workspace = true }
-codex-model-provider-info = { workspace = true }
-codex-network-proxy = { workspace = true }
-codex-protocol = { workspace = true }
-codex-utils-absolute-path = { workspace = true }
-codex-utils-path = { workspace = true }
-codex-utils-path-uri = { workspace = true }
+codepilotx-app-server-protocol = { workspace = true }
+codepilotx-execpolicy = { workspace = true }
+codepilotx-features = { workspace = true }
+codepilotx-file-system = { workspace = true }
+codepilotx-git-utils = { workspace = true }
+codepilotx-model-provider-info = { workspace = true }
+codepilotx-network-proxy = { workspace = true }
+codepilotx-protocol = { workspace = true }
+codepilotx-utils-absolute-path = { workspace = true }
+codepilotx-utils-path = { workspace = true }
+codepilotx-utils-path-uri = { workspace = true }
 dunce = { workspace = true }
 futures = { workspace = true, features = ["alloc", "std"] }
 gethostname = { workspace = true }

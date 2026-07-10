@@ -1,11 +1,11 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "codex-web-search-extension"
+name = "codepilotx-web-search-extension"
 version.workspace = true
 
 [lib]
-name = "codex_web_search_extension"
+name = "codepilotx_web_search_extension"
 path = "src/lib.rs"
 doctest = false
 
@@ -13,14 +13,14 @@ doctest = false
 workspace = true
 
 [dependencies]
-codex-api = { workspace = true }
-codex-core = { workspace = true }
-codex-extension-api = { workspace = true }
-codex-login = { workspace = true }
-codex-model-provider = { workspace = true }
-codex-model-provider-info = { workspace = true }
-codex-protocol = { workspace = true }
-codex-tools = { workspace = true }
+codepilotx-api = { workspace = true }
+codepilotx-core = { workspace = true }
+codepilotx-extension-api = { workspace = true }
+codepilotx-login = { workspace = true }
+codepilotx-model-provider = { workspace = true }
+codepilotx-model-provider-info = { workspace = true }
+codepilotx-protocol = { workspace = true }
+codepilotx-tools = { workspace = true }
 http = { workspace = true }
 schemars = { workspace = true }
 serde_json = { workspace = true }

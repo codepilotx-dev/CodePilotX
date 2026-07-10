@@ -1,5 +1,5 @@
 [package]
-name = "codex-exec-server"
+name = "codepilotx-exec-server"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -16,17 +16,17 @@ axum = { workspace = true, features = ["http1", "tokio", "ws"] }
 base64 = { workspace = true }
 bytes = { workspace = true }
 clatter = { workspace = true }
-codex-app-server-protocol = { workspace = true }
-codex-api = { workspace = true }
-codex-client = { workspace = true }
-codex-file-system = { workspace = true }
-codex-protocol = { workspace = true }
-codex-sandboxing = { workspace = true }
-codex-shell-command = { workspace = true }
-codex-utils-absolute-path = { workspace = true }
-codex-utils-path-uri = { workspace = true }
-codex-utils-pty = { workspace = true }
-codex-utils-rustls-provider = { workspace = true }
+codepilotx-app-server-protocol = { workspace = true }
+codepilotx-api = { workspace = true }
+codepilotx-client = { workspace = true }
+codepilotx-file-system = { workspace = true }
+codepilotx-protocol = { workspace = true }
+codepilotx-sandboxing = { workspace = true }
+codepilotx-shell-command = { workspace = true }
+codepilotx-utils-absolute-path = { workspace = true }
+codepilotx-utils-path-uri = { workspace = true }
+codepilotx-utils-pty = { workspace = true }
+codepilotx-utils-rustls-provider = { workspace = true }
 futures = { workspace = true }
 http = { workspace = true }
 reqwest = { workspace = true, features = ["json", "rustls-tls", "stream"] }
@@ -62,7 +62,7 @@ windows-sys = { version = "0.52", features = [
 
 [dev-dependencies]
 anyhow = { workspace = true }
-codex-test-binary-support = { workspace = true }
+codepilotx-test-binary-support = { workspace = true }
 ctor = { workspace = true }
 http = { workspace = true }
 pretty_assertions = { workspace = true }

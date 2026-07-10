@@ -1,5 +1,5 @@
 [package]
-name = "codex-utils-template"
+name = "codepilotx-utils-template"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

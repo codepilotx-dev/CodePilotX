@@ -1,5 +1,5 @@
 [package]
-name = "codex-cli"
+name = "codepilotx-cli"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -9,8 +9,12 @@ build = "build.rs"
 name = "codex"
 path = "src/main.rs"
 
+[[bin]]
+name = "codepilotx"
+path = "src/main.rs"
+
 [lib]
-name = "codex_cli"
+name = "codepilotx_cli"
 path = "src/lib.rs"
 doctest = false
 
@@ -21,44 +25,44 @@ workspace = true
 anyhow = { workspace = true }
 clap = { workspace = true, features = ["derive", "env"] }
 clap_complete = { workspace = true }
-codex-app-server = { workspace = true }
-codex-app-server-daemon = { workspace = true }
-codex-app-server-protocol = { workspace = true }
-codex-app-server-test-client = { workspace = true }
-codex-arg0 = { workspace = true }
-codex-api = { workspace = true }
-codex-chatgpt = { workspace = true }
-codex-cloud-tasks = { path = "../cloud-tasks" }
-codex-utils-cli = { workspace = true }
-codex-config = { workspace = true }
-codex-core = { workspace = true }
-codex-core-plugins = { workspace = true }
-codex-home = { workspace = true }
-codex-exec = { workspace = true }
-codex-exec-server = { workspace = true }
-codex-execpolicy = { workspace = true }
-codex-features = { workspace = true }
-codex-git-utils = { workspace = true }
-codex-install-context = { workspace = true }
-codex-login = { workspace = true }
-codex-memories-write = { workspace = true }
-codex-mcp = { workspace = true }
-codex-mcp-server = { workspace = true }
-codex-model-provider = { workspace = true }
-codex-models-manager = { workspace = true }
-codex-plugin = { workspace = true }
-codex-protocol = { workspace = true }
-codex-responses-api-proxy = { workspace = true }
-codex-rmcp-client = { workspace = true }
-codex-rollout = { workspace = true }
-codex-rollout-trace = { workspace = true }
-codex-sandboxing = { workspace = true }
-codex-state = { workspace = true }
-codex-stdio-to-uds = { workspace = true }
-codex-terminal-detection = { workspace = true }
-codex-tui = { workspace = true }
-codex-utils-absolute-path = { workspace = true }
-codex-utils-path = { workspace = true }
+codepilotx-app-server = { workspace = true }
+codepilotx-app-server-daemon = { workspace = true }
+codepilotx-app-server-protocol = { workspace = true }
+codepilotx-app-server-test-client = { workspace = true }
+codepilotx-arg0 = { workspace = true }
+codepilotx-api = { workspace = true }
+codepilotx-chatgpt = { workspace = true }
+codepilotx-cloud-tasks = { path = "../cloud-tasks" }
+codepilotx-utils-cli = { workspace = true }
+codepilotx-config = { workspace = true }
+codepilotx-core = { workspace = true }
+codepilotx-core-plugins = { workspace = true }
+codepilotx-home = { workspace = true }
+codepilotx-exec = { workspace = true }
+codepilotx-exec-server = { workspace = true }
+codepilotx-execpolicy = { workspace = true }
+codepilotx-features = { workspace = true }
+codepilotx-git-utils = { workspace = true }
+codepilotx-install-context = { workspace = true }
+codepilotx-login = { workspace = true }
+codepilotx-memories-write = { workspace = true }
+codepilotx-mcp = { workspace = true }
+codepilotx-mcp-server = { workspace = true }
+codepilotx-model-provider = { workspace = true }
+codepilotx-models-manager = { workspace = true }
+codepilotx-plugin = { workspace = true }
+codepilotx-protocol = { workspace = true }
+codepilotx-responses-api-proxy = { workspace = true }
+codepilotx-rmcp-client = { workspace = true }
+codepilotx-rollout = { workspace = true }
+codepilotx-rollout-trace = { workspace = true }
+codepilotx-sandboxing = { workspace = true }
+codepilotx-state = { workspace = true }
+codepilotx-stdio-to-uds = { workspace = true }
+codepilotx-terminal-detection = { workspace = true }
+codepilotx-tui = { workspace = true }
+codepilotx-utils-absolute-path = { workspace = true }
+codepilotx-utils-path = { workspace = true }
 crossterm = { workspace = true }
 http = { workspace = true }
 libc = { workspace = true }
@@ -88,7 +92,7 @@ url = { workspace = true }
 which = { workspace = true }
 
 [target.'cfg(target_os = "windows")'.dependencies]
-codex_windows_sandbox = { package = "codex-windows-sandbox", path = "../windows-sandbox-rs" }
+codex_windows_sandbox = { package = "codepilotx-windows-sandbox", path = "../windows-sandbox-rs" }
 windows-sys = { version = "0.52", features = [
     "Win32_Foundation",
     "Win32_System_Console",
@@ -97,7 +101,7 @@ windows-sys = { version = "0.52", features = [
 [dev-dependencies]
 assert_cmd = { workspace = true }
 assert_matches = { workspace = true }
-codex-utils-cargo-bin = { workspace = true }
+codepilotx-utils-cargo-bin = { workspace = true }
 insta = { workspace = true }
 predicates = { workspace = true }
 pretty_assertions = { workspace = true }

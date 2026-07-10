@@ -1,11 +1,11 @@
 [package]
-name = "codex-ollama"
+name = "codepilotx-ollama"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [lib]
-name = "codex_ollama"
+name = "codepilotx_ollama"
 path = "src/lib.rs"
 doctest = false
 
@@ -15,8 +15,8 @@ workspace = true
 [dependencies]
 async-stream = { workspace = true }
 bytes = { workspace = true }
-codex-core = { workspace = true }
-codex-model-provider-info = { workspace = true }
+codepilotx-core = { workspace = true }
+codepilotx-model-provider-info = { workspace = true }
 futures = { workspace = true }
 memchr = { workspace = true }
 reqwest = { workspace = true, features = ["json", "stream"] }

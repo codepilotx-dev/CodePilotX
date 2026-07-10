@@ -1,15 +1,15 @@
 [package]
-name = "codex-linux-sandbox"
+name = "codepilotx-linux-sandbox"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [[bin]]
-name = "codex-linux-sandbox"
+name = "codepilotx-linux-sandbox"
 path = "src/main.rs"
 
 [lib]
-name = "codex_linux_sandbox"
+name = "codepilotx_linux_sandbox"
 path = "src/lib.rs"
 doctest = false
 
@@ -18,11 +18,11 @@ workspace = true
 
 [target.'cfg(target_os = "linux")'.dependencies]
 clap = { workspace = true, features = ["derive"] }
-codex-install-context = { workspace = true }
-codex-process-hardening = { workspace = true }
-codex-protocol = { workspace = true }
-codex-sandboxing = { workspace = true }
-codex-utils-absolute-path = { workspace = true }
+codepilotx-install-context = { workspace = true }
+codepilotx-process-hardening = { workspace = true }
+codepilotx-protocol = { workspace = true }
+codepilotx-sandboxing = { workspace = true }
+codepilotx-utils-absolute-path = { workspace = true }
 globset = { workspace = true }
 landlock = { workspace = true }
 libc = { workspace = true }
@@ -33,7 +33,7 @@ sha2 = { workspace = true }
 url = { workspace = true }
 
 [target.'cfg(target_os = "linux")'.dev-dependencies]
-codex-core = { workspace = true }
+codepilotx-core = { workspace = true }
 pretty_assertions = { workspace = true }
 tempfile = { workspace = true }
 tokio = { workspace = true, features = [

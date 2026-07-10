@@ -1,12 +1,12 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "codex-aws-auth"
+name = "codepilotx-aws-auth"
 version.workspace = true
 
 [lib]
 doctest = false
-name = "codex_aws_auth"
+name = "codepilotx_aws_auth"
 path = "src/lib.rs"
 
 [lints]

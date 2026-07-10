@@ -1,11 +1,11 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "codex-context-fragments"
+name = "codepilotx-context-fragments"
 version.workspace = true
 
 [lib]
-name = "codex_context_fragments"
+name = "codepilotx_context_fragments"
 path = "src/lib.rs"
 test = false
 doctest = false
@@ -14,5 +14,5 @@ doctest = false
 workspace = true
 
 [dependencies]
-codex-protocol = { workspace = true }
-codex-utils-string = { workspace = true }
+codepilotx-protocol = { workspace = true }
+codepilotx-utils-string = { workspace = true }

@@ -1,29 +1,29 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "codex-model-provider"
+name = "codepilotx-model-provider"
 version.workspace = true
 
 [lib]
 doctest = false
-name = "codex_model_provider"
+name = "codepilotx_model_provider"
 path = "src/lib.rs"
 
 [lints]
 workspace = true
 
 [dependencies]
-codex-api = { workspace = true }
-codex-agent-identity = { workspace = true }
-codex-aws-auth = { workspace = true }
-codex-client = { workspace = true }
-codex-feedback = { workspace = true }
-codex-login = { workspace = true }
-codex-model-provider-info = { workspace = true }
-codex-models-manager = { workspace = true }
-codex-otel = { workspace = true }
-codex-protocol = { workspace = true }
-codex-response-debug-context = { workspace = true }
+codepilotx-api = { workspace = true }
+codepilotx-agent-identity = { workspace = true }
+codepilotx-aws-auth = { workspace = true }
+codepilotx-client = { workspace = true }
+codepilotx-feedback = { workspace = true }
+codepilotx-login = { workspace = true }
+codepilotx-model-provider-info = { workspace = true }
+codepilotx-models-manager = { workspace = true }
+codepilotx-otel = { workspace = true }
+codepilotx-protocol = { workspace = true }
+codepilotx-response-debug-context = { workspace = true }
 http = { workspace = true }
 tokio = { workspace = true, features = ["sync", "time"] }
 tracing = { workspace = true, features = ["log"] }

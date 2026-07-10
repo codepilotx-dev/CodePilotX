@@ -1,12 +1,12 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "codex-rollout"
+name = "codepilotx-rollout"
 version.workspace = true
 
 [lib]
 doctest = false
-name = "codex_rollout"
+name = "codepilotx_rollout"
 path = "src/lib.rs"
 
 [lints]
@@ -15,13 +15,13 @@ workspace = true
 [dependencies]
 anyhow = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
-codex-file-search = { workspace = true }
-codex-git-utils = { workspace = true }
-codex-login = { workspace = true }
-codex-otel = { workspace = true }
-codex-protocol = { workspace = true }
-codex-state = { workspace = true }
-codex-utils-path = { workspace = true }
+codepilotx-file-search = { workspace = true }
+codepilotx-git-utils = { workspace = true }
+codepilotx-login = { workspace = true }
+codepilotx-otel = { workspace = true }
+codepilotx-protocol = { workspace = true }
+codepilotx-state = { workspace = true }
+codepilotx-utils-path = { workspace = true }
 regex = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

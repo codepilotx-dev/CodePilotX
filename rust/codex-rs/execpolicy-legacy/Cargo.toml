@@ -1,16 +1,16 @@
 [package]
-name = "codex-execpolicy-legacy"
+name = "codepilotx-execpolicy-legacy"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 description = "Legacy exec policy engine for validating proposed exec calls."
 
 [[bin]]
-name = "codex-execpolicy-legacy"
+name = "codepilotx-execpolicy-legacy"
 path = "src/main.rs"
 
 [lib]
-name = "codex_execpolicy_legacy"
+name = "codepilotx_execpolicy_legacy"
 path = "src/lib.rs"
 doctest = false
 

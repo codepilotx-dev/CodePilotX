@@ -1,5 +1,5 @@
 [package]
-name = "codex-utils-json-to-toml"
+name = "codepilotx-utils-json-to-toml"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
