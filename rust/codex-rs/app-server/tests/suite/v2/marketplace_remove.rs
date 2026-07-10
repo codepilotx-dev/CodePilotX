@@ -4,13 +4,13 @@ use anyhow::Context;
 use anyhow::Result;
 use app_test_support::TestAppServer;
 use app_test_support::to_response;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::MarketplaceRemoveParams;
-use codex_app_server_protocol::MarketplaceRemoveResponse;
-use codex_app_server_protocol::RequestId;
-use codex_config::MarketplaceConfigUpdate;
-use codex_config::record_user_marketplace;
-use codex_core_plugins::installed_marketplaces::marketplace_install_root;
+use codepilotx_app_server_protocol::JSONRPCResponse;
+use codepilotx_app_server_protocol::MarketplaceRemoveParams;
+use codepilotx_app_server_protocol::MarketplaceRemoveResponse;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_config::MarketplaceConfigUpdate;
+use codepilotx_config::record_user_marketplace;
+use codepilotx_core_plugins::installed_marketplaces::marketplace_install_root;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
 use tokio::time::timeout;
@@ -28,8 +28,8 @@ fn configured_marketplace_update() -> MarketplaceConfigUpdate<'static> {
     }
 }
 
-fn write_installed_marketplace(codex_home: &std::path::Path, marketplace_name: &str) -> Result<()> {
-    let root = marketplace_install_root(codex_home).join(marketplace_name);
+fn write_installed_marketplace(codepilotx_home: &std::path::Path, marketplace_name: &str) -> Result<()> {
+    let root = marketplace_install_root(codepilotx_home).join(marketplace_name);
     std::fs::create_dir_all(root.join(".agents/plugins"))?;
     std::fs::write(root.join(".agents/plugins/marketplace.json"), "{}")?;
     Ok(())
@@ -48,12 +48,12 @@ fn canonicalize_path_with_existing_parent(path: &std::path::Path) -> Result<std:
 
 #[tokio::test]
 async fn marketplace_remove_deletes_config_and_installed_root() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    record_user_marketplace(codex_home.path(), "debug", &configured_marketplace_update())?;
-    write_installed_marketplace(codex_home.path(), "debug")?;
-    let installed_root = marketplace_install_root(codex_home.path()).join("debug");
+    let codepilotx_home = TempDir::new()?;
+    record_user_marketplace(codepilotx_home.path(), "debug", &configured_marketplace_update())?;
+    write_installed_marketplace(codepilotx_home.path(), "debug")?;
+    let installed_root = marketplace_install_root(codepilotx_home.path()).join("debug");
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -77,10 +77,10 @@ async fn marketplace_remove_deletes_config_and_installed_root() -> Result<()> {
         canonicalize_path_with_existing_parent(&installed_root)?,
     );
 
-    let config = std::fs::read_to_string(codex_home.path().join("config.toml"))?;
+    let config = std::fs::read_to_string(codepilotx_home.path().join("config.toml"))?;
     assert!(!config.contains("[marketplaces.debug]"));
     assert!(
-        !marketplace_install_root(codex_home.path())
+        !marketplace_install_root(codepilotx_home.path())
             .join("debug")
             .exists()
     );
@@ -89,9 +89,9 @@ async fn marketplace_remove_deletes_config_and_installed_root() -> Result<()> {
 
 #[tokio::test]
 async fn marketplace_remove_rejects_unknown_marketplace() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp

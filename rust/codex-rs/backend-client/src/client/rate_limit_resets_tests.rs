@@ -62,7 +62,7 @@ fn test_client(base_url: &str, path_style: PathStyle) -> Client {
     Client {
         base_url: base_url.to_string(),
         http: reqwest::Client::new(),
-        auth_provider: codex_model_provider::unauthenticated_auth_provider(),
+        auth_provider: codepilotx_model_provider::unauthenticated_auth_provider(),
         user_agent: None,
         chatgpt_account_id: None,
         chatgpt_account_is_fedramp: false,

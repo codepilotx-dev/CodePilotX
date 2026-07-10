@@ -5,64 +5,64 @@ use app_test_support::create_mock_responses_server_repeating_assistant;
 use app_test_support::rollout_path;
 use app_test_support::test_absolute_path;
 use app_test_support::to_response;
-use codex_app_server::in_process;
-use codex_app_server::in_process::InProcessStartArgs;
-use codex_app_server_protocol::ClientInfo;
-use codex_app_server_protocol::ClientRequest;
-use codex_app_server_protocol::InitializeCapabilities;
-use codex_app_server_protocol::InitializeParams;
-use codex_app_server_protocol::JSONRPCError;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::SessionSource;
-use codex_app_server_protocol::SortDirection;
-use codex_app_server_protocol::ThreadForkParams;
-use codex_app_server_protocol::ThreadForkResponse;
-use codex_app_server_protocol::ThreadItem;
-use codex_app_server_protocol::ThreadListParams;
-use codex_app_server_protocol::ThreadListResponse;
-use codex_app_server_protocol::ThreadNameUpdatedNotification;
-use codex_app_server_protocol::ThreadReadParams;
-use codex_app_server_protocol::ThreadReadResponse;
-use codex_app_server_protocol::ThreadResumeInitialTurnsPageParams;
-use codex_app_server_protocol::ThreadResumeParams;
-use codex_app_server_protocol::ThreadResumeResponse;
-use codex_app_server_protocol::ThreadSetNameParams;
-use codex_app_server_protocol::ThreadSetNameResponse;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::ThreadStatus;
-use codex_app_server_protocol::ThreadTurnsItemsListParams;
-use codex_app_server_protocol::ThreadTurnsListParams;
-use codex_app_server_protocol::ThreadTurnsListResponse;
-use codex_app_server_protocol::TurnItemsView;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::TurnStartResponse;
-use codex_app_server_protocol::TurnStatus;
-use codex_app_server_protocol::UserInput;
-use codex_arg0::Arg0DispatchPaths;
-use codex_config::CloudConfigBundleLoader;
-use codex_config::LoaderOverrides;
-use codex_core::ARCHIVED_SESSIONS_SUBDIR;
-use codex_core::config::ConfigBuilder;
-use codex_exec_server::EnvironmentManager;
-use codex_feedback::CodexFeedback;
-use codex_protocol::models::BaseInstructions;
-use codex_protocol::protocol::AgentMessageEvent;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::SessionSource as ProtocolSessionSource;
-use codex_protocol::protocol::ThreadMemoryMode;
-use codex_protocol::protocol::UserMessageEvent;
-use codex_protocol::user_input::ByteRange;
-use codex_protocol::user_input::TextElement;
-use codex_thread_store::AppendThreadItemsParams;
-use codex_thread_store::CreateThreadParams;
-use codex_thread_store::InMemoryThreadStore;
-use codex_thread_store::ThreadMetadataPatch;
-use codex_thread_store::ThreadPersistenceMetadata;
-use codex_thread_store::ThreadStore;
-use codex_thread_store::UpdateThreadMetadataParams;
+use codepilotx_app_server::in_process;
+use codepilotx_app_server::in_process::InProcessStartArgs;
+use codepilotx_app_server_protocol::ClientInfo;
+use codepilotx_app_server_protocol::ClientRequest;
+use codepilotx_app_server_protocol::InitializeCapabilities;
+use codepilotx_app_server_protocol::InitializeParams;
+use codepilotx_app_server_protocol::JSONRPCError;
+use codepilotx_app_server_protocol::JSONRPCResponse;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_app_server_protocol::SessionSource;
+use codepilotx_app_server_protocol::SortDirection;
+use codepilotx_app_server_protocol::ThreadForkParams;
+use codepilotx_app_server_protocol::ThreadForkResponse;
+use codepilotx_app_server_protocol::ThreadItem;
+use codepilotx_app_server_protocol::ThreadListParams;
+use codepilotx_app_server_protocol::ThreadListResponse;
+use codepilotx_app_server_protocol::ThreadNameUpdatedNotification;
+use codepilotx_app_server_protocol::ThreadReadParams;
+use codepilotx_app_server_protocol::ThreadReadResponse;
+use codepilotx_app_server_protocol::ThreadResumeInitialTurnsPageParams;
+use codepilotx_app_server_protocol::ThreadResumeParams;
+use codepilotx_app_server_protocol::ThreadResumeResponse;
+use codepilotx_app_server_protocol::ThreadSetNameParams;
+use codepilotx_app_server_protocol::ThreadSetNameResponse;
+use codepilotx_app_server_protocol::ThreadStartParams;
+use codepilotx_app_server_protocol::ThreadStartResponse;
+use codepilotx_app_server_protocol::ThreadStatus;
+use codepilotx_app_server_protocol::ThreadTurnsItemsListParams;
+use codepilotx_app_server_protocol::ThreadTurnsListParams;
+use codepilotx_app_server_protocol::ThreadTurnsListResponse;
+use codepilotx_app_server_protocol::TurnItemsView;
+use codepilotx_app_server_protocol::TurnStartParams;
+use codepilotx_app_server_protocol::TurnStartResponse;
+use codepilotx_app_server_protocol::TurnStatus;
+use codepilotx_app_server_protocol::UserInput;
+use codepilotx_arg0::Arg0DispatchPaths;
+use codepilotx_config::CloudConfigBundleLoader;
+use codepilotx_config::LoaderOverrides;
+use codepilotx_core::ARCHIVED_SESSIONS_SUBDIR;
+use codepilotx_core::config::ConfigBuilder;
+use codepilotx_exec_server::EnvironmentManager;
+use codepilotx_feedback::CodexFeedback;
+use codepilotx_protocol::models::BaseInstructions;
+use codepilotx_protocol::protocol::AgentMessageEvent;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::RolloutItem;
+use codepilotx_protocol::protocol::SessionSource as ProtocolSessionSource;
+use codepilotx_protocol::protocol::ThreadMemoryMode;
+use codepilotx_protocol::protocol::UserMessageEvent;
+use codepilotx_protocol::user_input::ByteRange;
+use codepilotx_protocol::user_input::TextElement;
+use codepilotx_thread_store::AppendThreadItemsParams;
+use codepilotx_thread_store::CreateThreadParams;
+use codepilotx_thread_store::InMemoryThreadStore;
+use codepilotx_thread_store::ThreadMetadataPatch;
+use codepilotx_thread_store::ThreadPersistenceMetadata;
+use codepilotx_thread_store::ThreadStore;
+use codepilotx_thread_store::UpdateThreadMetadataParams;
 use core_test_support::responses;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
@@ -82,8 +82,8 @@ const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs
 #[tokio::test]
 async fn thread_read_returns_summary_without_turns() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
 
     let preview = "Saved user message";
     let text_elements = [TextElement::new(
@@ -91,7 +91,7 @@ async fn thread_read_returns_summary_without_turns() -> Result<()> {
         Some("<note>".into()),
     )];
     let conversation_id = create_fake_rollout_with_text_elements(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-01-05T12-00-00",
         "2025-01-05T12:00:00Z",
         preview,
@@ -103,7 +103,7 @@ async fn thread_read_returns_summary_without_turns() -> Result<()> {
         /*git_info*/ None,
     )?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let read_id = mcp
@@ -137,8 +137,8 @@ async fn thread_read_returns_summary_without_turns() -> Result<()> {
 #[tokio::test]
 async fn thread_read_can_include_turns() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
 
     let preview = "Saved user message";
     let text_elements = vec![TextElement::new(
@@ -146,7 +146,7 @@ async fn thread_read_can_include_turns() -> Result<()> {
         Some("<note>".into()),
     )];
     let conversation_id = create_fake_rollout_with_text_elements(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-01-05T12-00-00",
         "2025-01-05T12:00:00Z",
         preview,
@@ -158,7 +158,7 @@ async fn thread_read_can_include_turns() -> Result<()> {
         /*git_info*/ None,
     )?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let read_id = mcp
@@ -199,12 +199,12 @@ async fn thread_read_can_include_turns() -> Result<()> {
 #[tokio::test]
 async fn thread_turns_list_can_page_backward_and_forward() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
 
     let filename_ts = "2025-01-05T12-00-00";
     let conversation_id = create_fake_rollout_with_text_elements(
-        codex_home.path(),
+        codepilotx_home.path(),
         filename_ts,
         "2025-01-05T12:00:00Z",
         "first",
@@ -212,11 +212,11 @@ async fn thread_turns_list_can_page_backward_and_forward() -> Result<()> {
         Some("mock_provider"),
         /*git_info*/ None,
     )?;
-    let rollout_path = rollout_path(codex_home.path(), filename_ts, &conversation_id);
+    let rollout_path = rollout_path(codepilotx_home.path(), filename_ts, &conversation_id);
     append_user_message(rollout_path.as_path(), "2025-01-05T12:01:00Z", "second")?;
     append_user_message(rollout_path.as_path(), "2025-01-05T12:02:00Z", "third")?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let read_id = mcp
@@ -288,12 +288,12 @@ async fn thread_turns_list_can_page_backward_and_forward() -> Result<()> {
 #[tokio::test]
 async fn thread_turns_list_supports_requested_items_view() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
 
     let filename_ts = "2025-01-05T12-00-00";
     let conversation_id = create_fake_rollout_with_text_elements(
-        codex_home.path(),
+        codepilotx_home.path(),
         filename_ts,
         "2025-01-05T12:00:00Z",
         "first",
@@ -301,11 +301,11 @@ async fn thread_turns_list_supports_requested_items_view() -> Result<()> {
         Some("mock_provider"),
         /*git_info*/ None,
     )?;
-    let rollout_path = rollout_path(codex_home.path(), filename_ts, &conversation_id);
+    let rollout_path = rollout_path(codepilotx_home.path(), filename_ts, &conversation_id);
     append_agent_message(rollout_path.as_path(), "2025-01-05T12:01:00Z", "draft")?;
     append_agent_message(rollout_path.as_path(), "2025-01-05T12:02:00Z", "final")?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let full = read_single_turn_items_view(
@@ -355,18 +355,18 @@ async fn thread_turns_list_supports_requested_items_view() -> Result<()> {
 
 #[tokio::test]
 async fn thread_turns_list_reads_store_history_without_rollout_path() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    let thread_id = codex_protocol::ThreadId::from_string("00000000-0000-4000-8000-000000000123")?;
+    let codepilotx_home = TempDir::new()?;
+    let thread_id = codepilotx_protocol::ThreadId::from_string("00000000-0000-4000-8000-000000000123")?;
     let store_id = Uuid::new_v4().to_string();
-    create_config_toml_with_thread_store(codex_home.path(), &store_id)?;
+    create_config_toml_with_thread_store(codepilotx_home.path(), &store_id)?;
     let store = InMemoryThreadStore::for_id(store_id.clone());
     let _in_memory_store = InMemoryThreadStoreId { store_id };
     seed_pathless_store_thread(&store, thread_id).await?;
 
     let loader_overrides = LoaderOverrides::without_managed_config_for_tests();
     let config = ConfigBuilder::default()
-        .codex_home(codex_home.path().to_path_buf())
-        .fallback_cwd(Some(codex_home.path().to_path_buf()))
+        .codepilotx_home(codepilotx_home.path().to_path_buf())
+        .fallback_cwd(Some(codepilotx_home.path().to_path_buf()))
         .loader_overrides(loader_overrides.clone())
         .build()
         .await?;
@@ -377,14 +377,14 @@ async fn thread_turns_list_reads_store_history_without_rollout_path() -> Result<
         loader_overrides,
         strict_config: false,
         cloud_config_bundle: CloudConfigBundleLoader::default(),
-        thread_config_loader: Arc::new(codex_config::NoopThreadConfigLoader),
+        thread_config_loader: Arc::new(codepilotx_config::NoopThreadConfigLoader),
         feedback: CodexFeedback::new(),
         log_db: None,
         state_db: None,
         environment_manager: Arc::new(EnvironmentManager::default_for_tests()),
         config_warnings: Vec::new(),
         session_source: SessionSource::Cli.into(),
-        enable_codex_api_key_env: false,
+        enable_codepilotx_api_key_env: false,
         initialize: InitializeParams {
             client_info: ClientInfo {
                 name: "codex-app-server-tests".to_string(),
@@ -423,16 +423,16 @@ async fn thread_turns_list_reads_store_history_without_rollout_path() -> Result<
 
 #[tokio::test]
 async fn thread_read_loaded_include_turns_reads_store_history_without_rollout_path() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let store_id = Uuid::new_v4().to_string();
-    create_config_toml_with_thread_store(codex_home.path(), &store_id)?;
+    create_config_toml_with_thread_store(codepilotx_home.path(), &store_id)?;
     let store = InMemoryThreadStore::for_id(store_id.clone());
     let _in_memory_store = InMemoryThreadStoreId { store_id };
 
     let loader_overrides = LoaderOverrides::without_managed_config_for_tests();
     let config = ConfigBuilder::default()
-        .codex_home(codex_home.path().to_path_buf())
-        .fallback_cwd(Some(codex_home.path().to_path_buf()))
+        .codepilotx_home(codepilotx_home.path().to_path_buf())
+        .fallback_cwd(Some(codepilotx_home.path().to_path_buf()))
         .loader_overrides(loader_overrides.clone())
         .build()
         .await?;
@@ -443,14 +443,14 @@ async fn thread_read_loaded_include_turns_reads_store_history_without_rollout_pa
         loader_overrides,
         strict_config: false,
         cloud_config_bundle: CloudConfigBundleLoader::default(),
-        thread_config_loader: Arc::new(codex_config::NoopThreadConfigLoader),
+        thread_config_loader: Arc::new(codepilotx_config::NoopThreadConfigLoader),
         feedback: CodexFeedback::new(),
         log_db: None,
         state_db: None,
         environment_manager: Arc::new(EnvironmentManager::default_for_tests()),
         config_warnings: Vec::new(),
         session_source: SessionSource::Cli.into(),
-        enable_codex_api_key_env: false,
+        enable_codepilotx_api_key_env: false,
         initialize: InitializeParams {
             client_info: ClientInfo {
                 name: "codex-app-server-tests".to_string(),
@@ -479,7 +479,7 @@ async fn thread_read_loaded_include_turns_reads_store_history_without_rollout_pa
     let ThreadStartResponse { thread, .. } = serde_json::from_value(result)?;
     assert_eq!(thread.path, None);
 
-    let thread_id = codex_protocol::ThreadId::from_string(&thread.id)?;
+    let thread_id = codepilotx_protocol::ThreadId::from_string(&thread.id)?;
     store
         .append_items(AppendThreadItemsParams {
             thread_id,
@@ -507,18 +507,18 @@ async fn thread_read_loaded_include_turns_reads_store_history_without_rollout_pa
 
 #[tokio::test]
 async fn thread_list_includes_store_thread_without_rollout_path() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    let thread_id = codex_protocol::ThreadId::from_string("00000000-0000-4000-8000-000000000124")?;
+    let codepilotx_home = TempDir::new()?;
+    let thread_id = codepilotx_protocol::ThreadId::from_string("00000000-0000-4000-8000-000000000124")?;
     let store_id = Uuid::new_v4().to_string();
-    create_config_toml_with_thread_store(codex_home.path(), &store_id)?;
+    create_config_toml_with_thread_store(codepilotx_home.path(), &store_id)?;
     let store = InMemoryThreadStore::for_id(store_id.clone());
     let _in_memory_store = InMemoryThreadStoreId { store_id };
     seed_pathless_store_thread(&store, thread_id).await?;
 
     let loader_overrides = LoaderOverrides::without_managed_config_for_tests();
     let config = ConfigBuilder::default()
-        .codex_home(codex_home.path().to_path_buf())
-        .fallback_cwd(Some(codex_home.path().to_path_buf()))
+        .codepilotx_home(codepilotx_home.path().to_path_buf())
+        .fallback_cwd(Some(codepilotx_home.path().to_path_buf()))
         .loader_overrides(loader_overrides.clone())
         .build()
         .await?;
@@ -529,14 +529,14 @@ async fn thread_list_includes_store_thread_without_rollout_path() -> Result<()> 
         loader_overrides,
         strict_config: false,
         cloud_config_bundle: CloudConfigBundleLoader::default(),
-        thread_config_loader: Arc::new(codex_config::NoopThreadConfigLoader),
+        thread_config_loader: Arc::new(codepilotx_config::NoopThreadConfigLoader),
         feedback: CodexFeedback::new(),
         log_db: None,
         state_db: None,
         environment_manager: Arc::new(EnvironmentManager::default_for_tests()),
         config_warnings: Vec::new(),
         session_source: SessionSource::Cli.into(),
-        enable_codex_api_key_env: false,
+        enable_codepilotx_api_key_env: false,
         initialize: InitializeParams {
             client_info: ClientInfo {
                 name: "codex-app-server-tests".to_string(),
@@ -587,13 +587,13 @@ async fn thread_list_includes_store_thread_without_rollout_path() -> Result<()> 
 #[tokio::test]
 async fn thread_read_can_return_archived_threads_by_id() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
 
     let filename_ts = "2025-01-05T12-00-00";
     let preview = "Archived saved user message";
     let conversation_id = create_fake_rollout_with_text_elements(
-        codex_home.path(),
+        codepilotx_home.path(),
         filename_ts,
         "2025-01-05T12:00:00Z",
         preview,
@@ -601,14 +601,14 @@ async fn thread_read_can_return_archived_threads_by_id() -> Result<()> {
         Some("mock_provider"),
         /*git_info*/ None,
     )?;
-    let active_rollout_path = rollout_path(codex_home.path(), filename_ts, &conversation_id);
-    let archived_dir = codex_home.path().join(ARCHIVED_SESSIONS_SUBDIR);
+    let active_rollout_path = rollout_path(codepilotx_home.path(), filename_ts, &conversation_id);
+    let archived_dir = codepilotx_home.path().join(ARCHIVED_SESSIONS_SUBDIR);
     std::fs::create_dir_all(&archived_dir)?;
     let archived_rollout_path =
         archived_dir.join(active_rollout_path.file_name().expect("rollout file name"));
     std::fs::rename(&active_rollout_path, &archived_rollout_path)?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let read_id = mcp
@@ -635,12 +635,12 @@ async fn thread_read_can_return_archived_threads_by_id() -> Result<()> {
 #[tokio::test]
 async fn thread_resume_initial_turns_page_matches_requested_turns_list_page() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
 
     let filename_ts = "2025-01-05T12-00-00";
     let conversation_id = create_fake_rollout_with_text_elements(
-        codex_home.path(),
+        codepilotx_home.path(),
         filename_ts,
         "2025-01-05T12:00:00Z",
         "first",
@@ -648,11 +648,11 @@ async fn thread_resume_initial_turns_page_matches_requested_turns_list_page() ->
         Some("mock_provider"),
         /*git_info*/ None,
     )?;
-    let rollout_path = rollout_path(codex_home.path(), filename_ts, &conversation_id);
+    let rollout_path = rollout_path(codepilotx_home.path(), filename_ts, &conversation_id);
     append_user_message(rollout_path.as_path(), "2025-01-05T12:01:00Z", "second")?;
     append_user_message(rollout_path.as_path(), "2025-01-05T12:02:00Z", "third")?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let turns_list_id = mcp
@@ -697,7 +697,7 @@ async fn thread_resume_initial_turns_page_matches_requested_turns_list_page() ->
     assert!(thread.turns.is_empty());
     assert_eq!(
         initial_turns_page,
-        Some(codex_app_server_protocol::TurnsPage::from(expected_page))
+        Some(codepilotx_app_server_protocol::TurnsPage::from(expected_page))
     );
 
     Ok(())
@@ -706,12 +706,12 @@ async fn thread_resume_initial_turns_page_matches_requested_turns_list_page() ->
 #[tokio::test]
 async fn thread_turns_list_rejects_cursor_when_anchor_turn_is_rolled_back() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
 
     let filename_ts = "2025-01-05T12-00-00";
     let conversation_id = create_fake_rollout_with_text_elements(
-        codex_home.path(),
+        codepilotx_home.path(),
         filename_ts,
         "2025-01-05T12:00:00Z",
         "first",
@@ -719,11 +719,11 @@ async fn thread_turns_list_rejects_cursor_when_anchor_turn_is_rolled_back() -> R
         Some("mock_provider"),
         /*git_info*/ None,
     )?;
-    let rollout_path = rollout_path(codex_home.path(), filename_ts, &conversation_id);
+    let rollout_path = rollout_path(codepilotx_home.path(), filename_ts, &conversation_id);
     append_user_message(rollout_path.as_path(), "2025-01-05T12:01:00Z", "second")?;
     append_user_message(rollout_path.as_path(), "2025-01-05T12:02:00Z", "third")?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let read_id = mcp
@@ -777,11 +777,11 @@ async fn thread_turns_list_rejects_cursor_when_anchor_turn_is_rolled_back() -> R
 #[tokio::test]
 async fn thread_read_returns_forked_from_id_for_forked_threads() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
 
     let conversation_id = create_fake_rollout_with_text_elements(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-01-05T12-00-00",
         "2025-01-05T12:00:00Z",
         "Saved user message",
@@ -790,7 +790,7 @@ async fn thread_read_returns_forked_from_id_for_forked_threads() -> Result<()> {
         /*git_info*/ None,
     )?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let fork_id = mcp
@@ -827,10 +827,10 @@ async fn thread_read_returns_forked_from_id_for_forked_threads() -> Result<()> {
 #[tokio::test]
 async fn thread_read_loaded_thread_returns_precomputed_path_before_materialization() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
@@ -876,12 +876,12 @@ async fn thread_read_loaded_thread_returns_precomputed_path_before_materializati
 #[tokio::test]
 async fn thread_name_set_is_reflected_in_read_list_and_resume() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
 
     let preview = "Saved user message";
     let conversation_id = create_fake_rollout_with_text_elements(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-01-05T12-00-00",
         "2025-01-05T12:00:00Z",
         preview,
@@ -890,7 +890,7 @@ async fn thread_name_set_is_reflected_in_read_list_and_resume() -> Result<()> {
         /*git_info*/ None,
     )?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     // Set a user-facing thread title.
@@ -1034,10 +1034,10 @@ async fn thread_name_set_is_reflected_in_read_list_and_resume() -> Result<()> {
 #[tokio::test]
 async fn thread_read_include_turns_rejects_unmaterialized_loaded_thread() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
@@ -1085,10 +1085,10 @@ async fn thread_read_include_turns_rejects_unmaterialized_loaded_thread() -> Res
 #[tokio::test]
 async fn thread_turns_list_rejects_unmaterialized_loaded_thread() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
@@ -1139,10 +1139,10 @@ async fn thread_turns_list_rejects_unmaterialized_loaded_thread() -> Result<()> 
 #[tokio::test]
 async fn thread_turns_items_list_returns_unsupported() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let read_id = mcp
@@ -1177,10 +1177,10 @@ async fn thread_read_reports_system_error_idle_flag_after_failed_turn() -> Resul
         responses::sse_failed("resp-1", "server_error", "simulated failure"),
     )
     .await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
@@ -1293,7 +1293,7 @@ async fn read_single_turn_items_view(
     mcp: &mut TestAppServer,
     thread_id: &str,
     items_view: Option<TurnItemsView>,
-) -> anyhow::Result<codex_app_server_protocol::Turn> {
+) -> anyhow::Result<codepilotx_app_server_protocol::Turn> {
     let read_id = mcp
         .send_thread_turns_list_request(ThreadTurnsListParams {
             thread_id: thread_id.to_string(),
@@ -1314,7 +1314,7 @@ async fn read_single_turn_items_view(
     Ok(data.remove(0))
 }
 
-fn turn_user_texts(turns: &[codex_app_server_protocol::Turn]) -> Vec<&str> {
+fn turn_user_texts(turns: &[codepilotx_app_server_protocol::Turn]) -> Vec<&str> {
     turns
         .iter()
         .filter_map(|turn| match turn.items.first()? {
@@ -1330,7 +1330,7 @@ fn turn_user_texts(turns: &[codex_app_server_protocol::Turn]) -> Vec<&str> {
         .collect()
 }
 
-fn turn_agent_texts(turns: &[codex_app_server_protocol::Turn]) -> Vec<&str> {
+fn turn_agent_texts(turns: &[codepilotx_app_server_protocol::Turn]) -> Vec<&str> {
     turns
         .iter()
         .flat_map(|turn| &turn.items)
@@ -1353,7 +1353,7 @@ impl Drop for InMemoryThreadStoreId {
 
 async fn seed_pathless_store_thread(
     store: &InMemoryThreadStore,
-    thread_id: codex_protocol::ThreadId,
+    thread_id: codepilotx_protocol::ThreadId,
 ) -> Result<()> {
     store
         .create_thread(CreateThreadParams {
@@ -1405,8 +1405,8 @@ fn store_history_items() -> Vec<RolloutItem> {
     ))]
 }
 
-fn create_config_toml_with_thread_store(codex_home: &Path, store_id: &str) -> std::io::Result<()> {
-    let config_toml = codex_home.join("config.toml");
+fn create_config_toml_with_thread_store(codepilotx_home: &Path, store_id: &str) -> std::io::Result<()> {
+    let config_toml = codepilotx_home.join("config.toml");
     std::fs::write(
         config_toml,
         format!(
@@ -1430,8 +1430,8 @@ stream_max_retries = 0
 }
 
 // Helper to create a config.toml pointing at the mock model server.
-fn create_config_toml(codex_home: &Path, server_uri: &str) -> std::io::Result<()> {
-    let config_toml = codex_home.join("config.toml");
+fn create_config_toml(codepilotx_home: &Path, server_uri: &str) -> std::io::Result<()> {
+    let config_toml = codepilotx_home.join("config.toml");
     std::fs::write(
         config_toml,
         format!(

@@ -9,7 +9,7 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
 #[cfg(unix)]
-use codex_app_server_transport::REMOTE_CONTROL_DISABLED_ENV_VAR;
+use codepilotx_app_server_transport::REMOTE_CONTROL_DISABLED_ENV_VAR;
 use serde::Deserialize;
 use serde::Serialize;
 use tokio::fs;
@@ -28,7 +28,7 @@ const STDERR_LOG_TAIL_BYTES: u64 = 4096;
 #[derive(Debug)]
 #[cfg_attr(not(unix), allow(dead_code))]
 pub(crate) struct PidBackend {
-    codex_bin: PathBuf,
+    codepilotx_bin: PathBuf,
     pid_file: PathBuf,
     lock_file: PathBuf,
     command_kind: PidCommandKind,
@@ -75,10 +75,10 @@ enum PidCommandKind {
 }
 
 impl PidBackend {
-    pub(crate) fn new(codex_bin: PathBuf, pid_file: PathBuf, remote_control_enabled: bool) -> Self {
+    pub(crate) fn new(codepilotx_bin: PathBuf, pid_file: PathBuf, remote_control_enabled: bool) -> Self {
         let lock_file = pid_file.with_extension("pid.lock");
         Self {
-            codex_bin,
+            codepilotx_bin,
             pid_file,
             lock_file,
             command_kind: PidCommandKind::AppServer {
@@ -87,10 +87,10 @@ impl PidBackend {
         }
     }
 
-    pub(crate) fn new_update_loop(codex_bin: PathBuf, pid_file: PathBuf) -> Self {
+    pub(crate) fn new_update_loop(codepilotx_bin: PathBuf, pid_file: PathBuf) -> Self {
         let lock_file = pid_file.with_extension("pid.lock");
         Self {
-            codex_bin,
+            codepilotx_bin,
             pid_file,
             lock_file,
             command_kind: PidCommandKind::UpdateLoop,
@@ -153,7 +153,7 @@ impl PidBackend {
                 }
             }
         };
-        let mut command = Command::new(&self.codex_bin);
+        let mut command = Command::new(&self.codepilotx_bin);
         let stderr_log = match self.open_stderr_log().await {
             Ok(stderr_log) => stderr_log,
             Err(err) => {
@@ -189,7 +189,7 @@ impl PidBackend {
                 return Err(err).with_context(|| {
                     format!(
                         "failed to spawn detached app-server process using {}",
-                        self.codex_bin.display()
+                        self.codepilotx_bin.display()
                     )
                 });
             }

@@ -1,18 +1,18 @@
 #![recursion_limit = "256"]
 #![deny(clippy::print_stdout, clippy::print_stderr)]
 
-use codex_arg0::Arg0DispatchPaths;
-use codex_config::ConfigLayerStackOrdering;
-use codex_config::LoaderOverrides;
-use codex_config::NoopThreadConfigLoader;
-use codex_config::RemoteThreadConfigLoader;
-use codex_config::ThreadConfigLoader;
-use codex_core::config::Config;
-use codex_core::resolve_installation_id;
-use codex_login::AuthManager;
+use codepilotx_arg0::Arg0DispatchPaths;
+use codepilotx_config::ConfigLayerStackOrdering;
+use codepilotx_config::LoaderOverrides;
+use codepilotx_config::NoopThreadConfigLoader;
+use codepilotx_config::RemoteThreadConfigLoader;
+use codepilotx_config::ThreadConfigLoader;
+use codepilotx_core::config::Config;
+use codepilotx_core::resolve_installation_id;
+use codepilotx_login::AuthManager;
 #[cfg(debug_assertions)]
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_cli::CliConfigOverrides;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_cli::CliConfigOverrides;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::io::ErrorKind;
@@ -46,24 +46,24 @@ use crate::transport::start_control_socket_acceptor;
 use crate::transport::start_remote_control;
 use crate::transport::start_stdio_connection;
 use crate::transport::start_websocket_acceptor;
-use codex_analytics::AppServerRpcTransport;
-use codex_app_server_protocol::ConfigLayerSource;
-use codex_app_server_protocol::ConfigWarningNotification;
-use codex_app_server_protocol::JSONRPCMessage;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::TextPosition as AppTextPosition;
-use codex_app_server_protocol::TextRange as AppTextRange;
-use codex_config::ConfigLoadError;
-use codex_config::TextRange as CoreTextRange;
-use codex_core::ExecPolicyError;
-use codex_core::check_execpolicy_for_warnings;
-use codex_core::config::find_codex_home;
-use codex_exec_server::EnvironmentManager;
-use codex_exec_server::ExecServerRuntimePaths;
-use codex_feedback::CodexFeedback;
-use codex_protocol::protocol::SessionSource;
-use codex_rollout::state_db as rollout_state_db;
-use codex_state::log_db;
+use codepilotx_analytics::AppServerRpcTransport;
+use codepilotx_app_server_protocol::ConfigLayerSource;
+use codepilotx_app_server_protocol::ConfigWarningNotification;
+use codepilotx_app_server_protocol::JSONRPCMessage;
+use codepilotx_app_server_protocol::ServerNotification;
+use codepilotx_app_server_protocol::TextPosition as AppTextPosition;
+use codepilotx_app_server_protocol::TextRange as AppTextRange;
+use codepilotx_config::ConfigLoadError;
+use codepilotx_config::TextRange as CoreTextRange;
+use codepilotx_core::ExecPolicyError;
+use codepilotx_core::check_execpolicy_for_warnings;
+use codepilotx_core::config::find_codepilotx_home;
+use codepilotx_exec_server::EnvironmentManager;
+use codepilotx_exec_server::ExecServerRuntimePaths;
+use codepilotx_feedback::CodexFeedback;
+use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_rollout::state_db as rollout_state_db;
+use codepilotx_state::log_db;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
@@ -79,7 +79,7 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::registry::Registry;
 use tracing_subscriber::util::SubscriberInitExt;
 
-const SQLITE_RECOVERY_CONFIG_WARNING_SUMMARY: &str = "Codex rebuilt its local database.";
+const SQLITE_RECOVERY_CONFIG_WARNING_SUMMARY: &str = "CodePilotX rebuilt its local database.";
 
 mod analytics_utils;
 mod app_server_tracing;
@@ -125,7 +125,7 @@ pub use crate::transport::take_remote_control_disabled_env;
 const LOG_FORMAT_ENV_VAR: &str = "LOG_FORMAT";
 const OTEL_SERVICE_NAME: &str = "codepilotx-app-server";
 #[cfg(debug_assertions)]
-const TEST_USER_CONFIG_FILE_ENV_VAR: &str = "CODEX_APP_SERVER_TEST_USER_CONFIG_FILE";
+const TEST_USER_CONFIG_FILE_ENV_VAR: &str = "codepilotx_APP_SERVER_TEST_USER_CONFIG_FILE";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum LogFormat {
@@ -338,14 +338,14 @@ fn project_config_warning(config: &Config) -> Option<ConfigWarningNotification> 
         ConfigLayerStackOrdering::LowestPrecedenceFirst,
         /*include_disabled*/ true,
     ) {
-        let ConfigLayerSource::Project { dot_codex_folder } = &layer.name else {
+        let ConfigLayerSource::Project { dot_codepilotx_folder } = &layer.name else {
             continue;
         };
         let Some(disabled_reason) = &layer.disabled_reason else {
             continue;
         };
         disabled_folders.push((
-            dot_codex_folder.as_path().display().to_string(),
+            dot_codepilotx_folder.as_path().display().to_string(),
             disabled_reason.clone(),
         ));
     }
@@ -461,20 +461,20 @@ pub async fn run_main_with_transport_options(
             format!("error parsing -c overrides: {e}"),
         )
     })?;
-    let codex_home = find_codex_home()?;
+    let codepilotx_home = find_codepilotx_home()?;
     let local_runtime_paths = ExecServerRuntimePaths::from_optional_paths(
-        arg0_paths.codex_self_exe.clone(),
-        arg0_paths.codex_linux_sandbox_exe.clone(),
+        arg0_paths.codepilotx_self_exe.clone(),
+        arg0_paths.codepilotx_linux_sandbox_exe.clone(),
     )?;
     let environment_manager = if loader_overrides.ignore_user_config {
         EnvironmentManager::from_env(Some(local_runtime_paths)).await
     } else {
-        EnvironmentManager::from_codex_home(codex_home.clone(), Some(local_runtime_paths)).await
+        EnvironmentManager::from_codepilotx_home(codepilotx_home.clone(), Some(local_runtime_paths)).await
     }
     .map(Arc::new)
     .map_err(std::io::Error::other)?;
     let config_manager = ConfigManager::new(
-        codex_home.to_path_buf(),
+        codepilotx_home.to_path_buf(),
         cli_kv_overrides.clone(),
         loader_overrides,
         strict_config,
@@ -491,7 +491,7 @@ pub async fn run_main_with_transport_options(
             config_manager
                 .replace_thread_config_loader(Arc::clone(&discovered_thread_config_loader));
             let auth_manager =
-                AuthManager::shared_from_config(&config, /*enable_codex_api_key_env*/ false).await;
+                AuthManager::shared_from_config(&config, /*enable_codepilotx_api_key_env*/ false).await;
             config_manager
                 .replace_cloud_config_bundle_loader(auth_manager, config.chatgpt_base_url);
         }
@@ -527,7 +527,7 @@ pub async fn run_main_with_transport_options(
         }
     };
 
-    let otel = codex_core::otel_init::build_provider(
+    let otel = codepilotx_core::otel_init::build_provider(
         &config,
         env!("CARGO_PKG_VERSION"),
         Some(OTEL_SERVICE_NAME),
@@ -539,11 +539,11 @@ pub async fn run_main_with_transport_options(
             format!("error loading otel config: {e}"),
         )
     })?;
-    codex_core::otel_init::record_process_start(otel.as_ref(), OTEL_SERVICE_NAME);
-    codex_core::otel_init::install_sqlite_telemetry(otel.as_ref(), OTEL_SERVICE_NAME);
+    codepilotx_core::otel_init::record_process_start(otel.as_ref(), OTEL_SERVICE_NAME);
+    codepilotx_core::otel_init::install_sqlite_telemetry(otel.as_ref(), OTEL_SERVICE_NAME);
     let unix_socket_startup_lock = match &transport {
         AppServerTransport::UnixSocket { socket_path } => {
-            let startup_lock_path = app_server_startup_lock_path(&codex_home)?;
+            let startup_lock_path = app_server_startup_lock_path(&codepilotx_home)?;
             let startup_lock = acquire_app_server_startup_lock(startup_lock_path).await?;
             prepare_control_socket_path(socket_path.as_path()).await?;
             Some(startup_lock)
@@ -573,14 +573,14 @@ pub async fn run_main_with_transport_options(
         let effective_toml = config.config_layer_stack.effective_config();
         match effective_toml.try_into() {
             Ok(config_toml) => {
-                match codex_core::personality_migration::maybe_migrate_personality(
-                    &config.codex_home,
+                match codepilotx_core::personality_migration::maybe_migrate_personality(
+                    &config.codepilotx_home,
                     &config_toml,
                     state_db.clone(),
                 )
                 .await
                 {
-                    Ok(codex_core::personality_migration::PersonalityMigrationStatus::Applied) => {
+                    Ok(codepilotx_core::personality_migration::PersonalityMigrationStatus::Applied) => {
                         config = config_manager
                             .load_latest_config(/*fallback_cwd*/ None)
                             .await
@@ -594,9 +594,9 @@ pub async fn run_main_with_transport_options(
                             })?;
                     }
                     Ok(
-                        codex_core::personality_migration::PersonalityMigrationStatus::SkippedMarker
-                        | codex_core::personality_migration::PersonalityMigrationStatus::SkippedExplicitPersonality
-                        | codex_core::personality_migration::PersonalityMigrationStatus::SkippedNoSessions,
+                        codepilotx_core::personality_migration::PersonalityMigrationStatus::SkippedMarker
+                        | codepilotx_core::personality_migration::PersonalityMigrationStatus::SkippedExplicitPersonality
+                        | codepilotx_core::personality_migration::PersonalityMigrationStatus::SkippedNoSessions,
                     ) => {}
                     Err(err) => {
                         warn!(error = %err, "Failed to run personality migration");
@@ -632,7 +632,7 @@ pub async fn run_main_with_transport_options(
         });
     }
     if let Some(warning) =
-        codex_core::config::system_bwrap_warning(config.permissions.permission_profile())
+        codepilotx_core::config::system_bwrap_warning(config.permissions.permission_profile())
     {
         config_warnings.push(ConfigWarningNotification {
             summary: warning,
@@ -705,7 +705,7 @@ pub async fn run_main_with_transport_options(
             "remote control is disabled by managed requirements",
         ));
     }
-    let installation_id = resolve_installation_id(&config.codex_home).await?;
+    let installation_id = resolve_installation_id(&config.codepilotx_home).await?;
     let transport_shutdown_token = CancellationToken::new();
     let mut transport_accept_handles = Vec::<JoinHandle<()>>::new();
 
@@ -750,7 +750,7 @@ pub async fn run_main_with_transport_options(
     drop(unix_socket_startup_lock);
 
     let auth_manager =
-        AuthManager::shared_from_config(&config, /*enable_codex_api_key_env*/ false).await;
+        AuthManager::shared_from_config(&config, /*enable_codepilotx_api_key_env*/ false).await;
 
     let remote_control_enabled = remote_control_policy == RemoteControlPolicy::Allowed
         && remote_control_explicitly_requested
@@ -1224,9 +1224,9 @@ async fn init_sqlite_state_db_with_fresh_start_on_corruption(
             }
             Err(err) => err,
         };
-        let database_path = codex_state::runtime_db_path_for_corruption_error(&err)
-            .unwrap_or_else(|| codex_state::state_db_path(config.sqlite_home.as_path()));
-        if !codex_state::is_sqlite_corruption_error(&err)
+        let database_path = codepilotx_state::runtime_db_path_for_corruption_error(&err)
+            .unwrap_or_else(|| codepilotx_state::state_db_path(config.sqlite_home.as_path()));
+        if !codepilotx_state::is_sqlite_corruption_error(&err)
             && !sqlite_home_is_blocking_file(database_path.as_path())
         {
             return Err(err);
@@ -1240,10 +1240,10 @@ async fn init_sqlite_state_db_with_fresh_start_on_corruption(
 
         let original_error = err.to_string();
         emit_state_db_backup_warning(&format!(
-            "Codex local database at {} appears damaged. Moving it into a backup folder so the app server can rebuild it from saved data.",
+            "CodePilotX local database at {} appears damaged. Moving it into a backup folder so the app server can rebuild it from saved data.",
             database_path.display()
         ));
-        let backups = codex_state::backup_runtime_db_for_fresh_start(database_path.as_path())
+        let backups = codepilotx_state::backup_runtime_db_for_fresh_start(database_path.as_path())
             .await
             .map_err(|backup_err| {
                 anyhow::anyhow!(
@@ -1252,7 +1252,7 @@ async fn init_sqlite_state_db_with_fresh_start_on_corruption(
             })?;
         for backup in &backups {
             emit_state_db_backup_warning(&format!(
-                "Moved damaged Codex local database file {} to {}",
+                "Moved damaged CodePilotX local database file {} to {}",
                 backup.original_path.display(),
                 backup.backup_path.display()
             ));
@@ -1357,9 +1357,9 @@ mod tests {
     #[cfg(debug_assertions)]
     use super::loader_overrides_with_test_user_config_file;
     #[cfg(debug_assertions)]
-    use codex_config::LoaderOverrides;
+    use codepilotx_config::LoaderOverrides;
     #[cfg(debug_assertions)]
-    use codex_utils_absolute_path::AbsolutePathBuf;
+    use codepilotx_utils_absolute_path::AbsolutePathBuf;
     use pretty_assertions::assert_eq;
 
     #[test]

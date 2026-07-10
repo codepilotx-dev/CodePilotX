@@ -3,20 +3,20 @@ use app_test_support::TestAppServer;
 use app_test_support::create_final_assistant_message_sse_response;
 use app_test_support::create_mock_responses_server_sequence;
 use app_test_support::to_response;
-use codex_app_server_protocol::JSONRPCMessage;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ServerRequest;
-use codex_app_server_protocol::ServerRequestResolvedNotification;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::TurnStartResponse;
-use codex_app_server_protocol::UserInput as V2UserInput;
-use codex_protocol::config_types::CollaborationMode;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::config_types::Settings;
-use codex_protocol::openai_models::ReasoningEffort;
+use codepilotx_app_server_protocol::JSONRPCMessage;
+use codepilotx_app_server_protocol::JSONRPCResponse;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_app_server_protocol::ServerRequest;
+use codepilotx_app_server_protocol::ServerRequestResolvedNotification;
+use codepilotx_app_server_protocol::ThreadStartParams;
+use codepilotx_app_server_protocol::ThreadStartResponse;
+use codepilotx_app_server_protocol::TurnStartParams;
+use codepilotx_app_server_protocol::TurnStartResponse;
+use codepilotx_app_server_protocol::UserInput as V2UserInput;
+use codepilotx_protocol::config_types::CollaborationMode;
+use codepilotx_protocol::config_types::ModeKind;
+use codepilotx_protocol::config_types::Settings;
+use codepilotx_protocol::openai_models::ReasoningEffort;
 use core_test_support::responses;
 use serde_json::json;
 use tokio::time::timeout;
@@ -52,7 +52,7 @@ fn create_request_user_input_sse_response_with_auto_resolution(
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn request_user_input_round_trip() -> Result<()> {
-    let codex_home = tempfile::TempDir::new()?;
+    let codepilotx_home = tempfile::TempDir::new()?;
     let responses = vec![
         create_request_user_input_sse_response_with_auto_resolution(
             "call1", /*auto_resolution_ms*/ 60_000,
@@ -60,9 +60,9 @@ async fn request_user_input_round_trip() -> Result<()> {
         create_final_assistant_message_sse_response("done")?,
     ];
     let server = create_mock_responses_server_sequence(responses).await;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_start_id = mcp
@@ -159,8 +159,8 @@ async fn request_user_input_round_trip() -> Result<()> {
 
     Ok(())
 }
-fn create_config_toml(codex_home: &std::path::Path, server_uri: &str) -> std::io::Result<()> {
-    let config_toml = codex_home.join("config.toml");
+fn create_config_toml(codepilotx_home: &std::path::Path, server_uri: &str) -> std::io::Result<()> {
+    let config_toml = codepilotx_home.join("config.toml");
     std::fs::write(
         config_toml,
         format!(

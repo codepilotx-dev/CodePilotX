@@ -6,13 +6,13 @@ use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use chrono::DateTime;
 use chrono::Utc;
-use codex_app_server_protocol::AuthMode;
-use codex_config::types::AuthCredentialsStoreMode;
-use codex_login::AuthDotJson;
-use codex_login::AuthKeyringBackendKind;
-use codex_login::save_auth;
-use codex_login::token_data::TokenData;
-use codex_login::token_data::parse_chatgpt_jwt_claims;
+use codepilotx_app_server_protocol::AuthMode;
+use codepilotx_config::types::AuthCredentialsStoreMode;
+use codepilotx_login::AuthDotJson;
+use codepilotx_login::AuthKeyringBackendKind;
+use codepilotx_login::save_auth;
+use codepilotx_login::token_data::TokenData;
+use codepilotx_login::token_data::parse_chatgpt_jwt_claims;
 use serde_json::json;
 
 /// Builder for writing a fake ChatGPT auth.json in tests.
@@ -144,7 +144,7 @@ pub fn encode_id_token(claims: &ChatGptIdTokenClaims) -> Result<String> {
 }
 
 pub fn write_chatgpt_auth(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     fixture: ChatGptAuthFixture,
     cli_auth_credentials_store_mode: AuthCredentialsStoreMode,
 ) -> Result<()> {
@@ -170,7 +170,7 @@ pub fn write_chatgpt_auth(
     };
 
     save_auth(
-        codex_home,
+        codepilotx_home,
         &auth,
         cli_auth_credentials_store_mode,
         AuthKeyringBackendKind::default(),

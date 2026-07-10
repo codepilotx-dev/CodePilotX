@@ -7,7 +7,7 @@ const LOGIN_CHATGPT_TIMEOUT: Duration = Duration::from_secs(10 * 60);
 const ACCOUNT_TOKEN_USAGE_FETCH_TIMEOUT: Duration = Duration::from_secs(/*secs*/ 10);
 // The override is intentionally available only in debug builds, matching the login path below.
 #[cfg(debug_assertions)]
-const LOGIN_ISSUER_OVERRIDE_ENV_VAR: &str = "CODEX_APP_SERVER_LOGIN_ISSUER";
+const LOGIN_ISSUER_OVERRIDE_ENV_VAR: &str = "codepilotx_APP_SERVER_LOGIN_ISSUER";
 
 enum ActiveLogin {
     Browser {
@@ -238,9 +238,9 @@ impl AccountRequestProcessor {
                     .await;
             }
             LoginAccountParams::Chatgpt {
-                codex_streamlined_login,
+                codepilotx_streamlined_login,
             } => {
-                self.login_chatgpt_v2(request_id, codex_streamlined_login)
+                self.login_chatgpt_v2(request_id, codepilotx_streamlined_login)
                     .await;
             }
             LoginAccountParams::ChatgptDeviceCode => {
@@ -295,7 +295,7 @@ impl AccountRequestProcessor {
         }
 
         match login_with_api_key(
-            &self.config.codex_home,
+            &self.config.codepilotx_home,
             &params.api_key,
             self.config.cli_auth_credentials_store_mode,
             self.config.auth_keyring_backend_kind(),
@@ -325,7 +325,7 @@ impl AccountRequestProcessor {
     // Build options for a ChatGPT login attempt; performs validation.
     async fn login_chatgpt_common(
         &self,
-        codex_streamlined_login: bool,
+        codepilotx_streamlined_login: bool,
     ) -> std::result::Result<LoginServerOptions, JSONRPCErrorError> {
         let config = self.config.as_ref();
 
@@ -341,9 +341,9 @@ impl AccountRequestProcessor {
 
         let opts = LoginServerOptions {
             open_browser: false,
-            codex_streamlined_login,
+            codepilotx_streamlined_login,
             ..LoginServerOptions::new(
-                config.codex_home.to_path_buf(),
+                config.codepilotx_home.to_path_buf(),
                 oauth_client_id(),
                 config.forced_chatgpt_workspace_id.clone(),
                 config.cli_auth_credentials_store_mode,
@@ -376,17 +376,17 @@ impl AccountRequestProcessor {
     async fn login_chatgpt_v2(
         &self,
         request_id: ConnectionRequestId,
-        codex_streamlined_login: bool,
+        codepilotx_streamlined_login: bool,
     ) {
-        let result = self.login_chatgpt_response(codex_streamlined_login).await;
+        let result = self.login_chatgpt_response(codepilotx_streamlined_login).await;
         self.outgoing.send_result(request_id, result).await;
     }
 
     async fn login_chatgpt_response(
         &self,
-        codex_streamlined_login: bool,
+        codepilotx_streamlined_login: bool,
     ) -> Result<LoginAccountResponse, JSONRPCErrorError> {
-        let opts = self.login_chatgpt_common(codex_streamlined_login).await?;
+        let opts = self.login_chatgpt_common(codepilotx_streamlined_login).await?;
         let server = run_login_server(opts)
             .map_err(|err| internal_error(format!("failed to start login server: {err}")))?;
         let login_id = Uuid::new_v4();
@@ -458,7 +458,7 @@ impl AccountRequestProcessor {
         &self,
     ) -> Result<LoginAccountResponse, JSONRPCErrorError> {
         let opts = self
-            .login_chatgpt_common(/*codex_streamlined_login*/ false)
+            .login_chatgpt_common(/*codepilotx_streamlined_login*/ false)
             .await?;
         let device_code = request_device_code(&opts)
             .await
@@ -602,7 +602,7 @@ impl AccountRequestProcessor {
         }
 
         login_with_chatgpt_auth_tokens(
-            &self.config.codex_home,
+            &self.config.codepilotx_home,
             &access_token,
             &chatgpt_account_id,
             chatgpt_plan_type.as_deref(),
@@ -862,7 +862,7 @@ impl AccountRequestProcessor {
             ));
         };
 
-        if !auth.uses_codex_backend() {
+        if !auth.uses_codepilotx_backend() {
             return Err(invalid_request(
                 "chatgpt authentication required to read rate limits",
             ));
@@ -925,7 +925,7 @@ impl AccountRequestProcessor {
             ));
         };
 
-        if !auth.uses_codex_backend() {
+        if !auth.uses_codepilotx_backend() {
             return Err(invalid_request(
                 "chatgpt authentication required to read token usage",
             ));
@@ -984,7 +984,7 @@ impl AccountRequestProcessor {
             ));
         };
 
-        if !auth.uses_codex_backend() {
+        if !auth.uses_codepilotx_backend() {
             return Err(invalid_request(
                 "chatgpt authentication required to notify workspace owner",
             ));
@@ -1018,8 +1018,8 @@ impl AccountRequestProcessor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_backend_client::TokenUsageProfileDailyBucket;
-    use codex_backend_client::TokenUsageProfileStats;
+    use codepilotx_backend_client::TokenUsageProfileDailyBucket;
+    use codepilotx_backend_client::TokenUsageProfileStats;
     use pretty_assertions::assert_eq;
 
     #[test]

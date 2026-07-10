@@ -5,27 +5,27 @@ use app_test_support::create_mock_responses_server_repeating_assistant;
 use app_test_support::create_mock_responses_server_sequence;
 use app_test_support::create_shell_command_sse_response;
 use app_test_support::to_response;
-use codex_app_server_protocol::ItemCompletedNotification;
-use codex_app_server_protocol::ItemStartedNotification;
-use codex_app_server_protocol::JSONRPCError;
-use codex_app_server_protocol::JSONRPCMessage;
-use codex_app_server_protocol::JSONRPCNotification;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ReviewDelivery;
-use codex_app_server_protocol::ReviewStartParams;
-use codex_app_server_protocol::ReviewStartResponse;
-use codex_app_server_protocol::ReviewTarget;
-use codex_app_server_protocol::ServerRequest;
-use codex_app_server_protocol::ThreadItem;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::ThreadStartedNotification;
-use codex_app_server_protocol::ThreadStatusChangedNotification;
-use codex_app_server_protocol::TurnItemsView;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::TurnStatus;
-use codex_app_server_protocol::UserInput as V2UserInput;
+use codepilotx_app_server_protocol::ItemCompletedNotification;
+use codepilotx_app_server_protocol::ItemStartedNotification;
+use codepilotx_app_server_protocol::JSONRPCError;
+use codepilotx_app_server_protocol::JSONRPCMessage;
+use codepilotx_app_server_protocol::JSONRPCNotification;
+use codepilotx_app_server_protocol::JSONRPCResponse;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_app_server_protocol::ReviewDelivery;
+use codepilotx_app_server_protocol::ReviewStartParams;
+use codepilotx_app_server_protocol::ReviewStartResponse;
+use codepilotx_app_server_protocol::ReviewTarget;
+use codepilotx_app_server_protocol::ServerRequest;
+use codepilotx_app_server_protocol::ThreadItem;
+use codepilotx_app_server_protocol::ThreadStartParams;
+use codepilotx_app_server_protocol::ThreadStartResponse;
+use codepilotx_app_server_protocol::ThreadStartedNotification;
+use codepilotx_app_server_protocol::ThreadStatusChangedNotification;
+use codepilotx_app_server_protocol::TurnItemsView;
+use codepilotx_app_server_protocol::TurnStartParams;
+use codepilotx_app_server_protocol::TurnStatus;
+use codepilotx_app_server_protocol::UserInput as V2UserInput;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use tempfile::TempDir;
@@ -56,10 +56,10 @@ async fn review_start_runs_review_turn_and_emits_code_review_item() -> Result<()
     .to_string();
     let server = create_mock_responses_server_repeating_assistant(&review_payload).await;
 
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_id = start_default_thread(&mut mcp).await?;
@@ -170,10 +170,10 @@ async fn review_start_exec_approval_item_id_matches_command_execution_item() -> 
     ];
     let server = create_mock_responses_server_sequence(responses).await;
 
-    let codex_home = TempDir::new()?;
-    create_config_toml_with_approval_policy(codex_home.path(), &server.uri(), "untrusted")?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml_with_approval_policy(codepilotx_home.path(), &server.uri(), "untrusted")?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_id = start_default_thread(&mut mcp).await?;
@@ -238,7 +238,7 @@ async fn review_start_exec_approval_item_id_matches_command_execution_item() -> 
 
     mcp.send_response(
         request_id,
-        serde_json::json!({ "decision": codex_protocol::protocol::ReviewDecision::Approved }),
+        serde_json::json!({ "decision": codepilotx_protocol::protocol::ReviewDecision::Approved }),
     )
     .await?;
     timeout(
@@ -253,10 +253,10 @@ async fn review_start_exec_approval_item_id_matches_command_execution_item() -> 
 #[tokio::test]
 async fn review_start_rejects_empty_base_branch() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
     let thread_id = start_default_thread(&mut mcp).await?;
 
@@ -296,10 +296,10 @@ async fn review_start_with_detached_delivery_returns_new_thread_id() -> Result<(
     .to_string();
     let server = create_mock_responses_server_repeating_assistant(&review_payload).await;
 
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_id = start_default_thread(&mut mcp).await?;
@@ -374,10 +374,10 @@ async fn review_start_with_detached_delivery_returns_new_thread_id() -> Result<(
 #[tokio::test]
 async fn review_start_rejects_empty_commit_sha() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
     let thread_id = start_default_thread(&mut mcp).await?;
 
@@ -409,10 +409,10 @@ async fn review_start_rejects_empty_commit_sha() -> Result<()> {
 #[tokio::test]
 async fn review_start_rejects_empty_custom_instructions() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
     let thread_id = start_default_thread(&mut mcp).await?;
 
@@ -489,16 +489,16 @@ async fn materialize_thread_rollout(mcp: &mut TestAppServer, thread_id: &str) ->
     Ok(())
 }
 
-fn create_config_toml(codex_home: &std::path::Path, server_uri: &str) -> std::io::Result<()> {
-    create_config_toml_with_approval_policy(codex_home, server_uri, "never")
+fn create_config_toml(codepilotx_home: &std::path::Path, server_uri: &str) -> std::io::Result<()> {
+    create_config_toml_with_approval_policy(codepilotx_home, server_uri, "never")
 }
 
 fn create_config_toml_with_approval_policy(
-    codex_home: &std::path::Path,
+    codepilotx_home: &std::path::Path,
     server_uri: &str,
     approval_policy: &str,
 ) -> std::io::Result<()> {
-    let config_toml = codex_home.join("config.toml");
+    let config_toml = codepilotx_home.join("config.toml");
     std::fs::write(
         config_toml,
         format!(

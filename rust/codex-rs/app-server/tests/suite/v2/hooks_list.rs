@@ -5,26 +5,26 @@ use app_test_support::TestAppServer;
 use app_test_support::create_final_assistant_message_sse_response;
 use app_test_support::create_mock_responses_server_sequence_unchecked;
 use app_test_support::to_response;
-use codex_app_server_protocol::ConfigBatchWriteParams;
-use codex_app_server_protocol::ConfigEdit;
-use codex_app_server_protocol::HookEventName;
-use codex_app_server_protocol::HookHandlerType;
-use codex_app_server_protocol::HookMetadata;
-use codex_app_server_protocol::HookSource;
-use codex_app_server_protocol::HookTrustStatus;
-use codex_app_server_protocol::HooksListEntry;
-use codex_app_server_protocol::HooksListParams;
-use codex_app_server_protocol::HooksListResponse;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::MergeStrategy;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::UserInput as V2UserInput;
-use codex_core::config::set_project_trust_level;
-use codex_protocol::config_types::TrustLevel;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_app_server_protocol::ConfigBatchWriteParams;
+use codepilotx_app_server_protocol::ConfigEdit;
+use codepilotx_app_server_protocol::HookEventName;
+use codepilotx_app_server_protocol::HookHandlerType;
+use codepilotx_app_server_protocol::HookMetadata;
+use codepilotx_app_server_protocol::HookSource;
+use codepilotx_app_server_protocol::HookTrustStatus;
+use codepilotx_app_server_protocol::HooksListEntry;
+use codepilotx_app_server_protocol::HooksListParams;
+use codepilotx_app_server_protocol::HooksListResponse;
+use codepilotx_app_server_protocol::JSONRPCResponse;
+use codepilotx_app_server_protocol::MergeStrategy;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_app_server_protocol::ThreadStartParams;
+use codepilotx_app_server_protocol::ThreadStartResponse;
+use codepilotx_app_server_protocol::TurnStartParams;
+use codepilotx_app_server_protocol::UserInput as V2UserInput;
+use codepilotx_core::config::set_project_trust_level;
+use codepilotx_protocol::config_types::TrustLevel;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use core_test_support::skip_if_windows;
 use pretty_assertions::assert_eq;
 use serde::Serialize;
@@ -37,7 +37,7 @@ const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 struct NormalizedHookIdentity {
     event_name: &'static str,
     #[serde(flatten)]
-    group: codex_config::MatcherGroup,
+    group: codepilotx_config::MatcherGroup,
 }
 
 fn command_hook_hash(
@@ -49,9 +49,9 @@ fn command_hook_hash(
 ) -> String {
     let identity = NormalizedHookIdentity {
         event_name,
-        group: codex_config::MatcherGroup {
+        group: codepilotx_config::MatcherGroup {
             matcher: matcher.map(ToOwned::to_owned),
-            hooks: vec![codex_config::HookHandlerConfig::Command {
+            hooks: vec![codepilotx_config::HookHandlerConfig::Command {
                 command: command.to_string(),
                 command_windows: None,
                 timeout_sec: Some(timeout_sec),
@@ -60,15 +60,15 @@ fn command_hook_hash(
             }],
         },
     };
-    let Ok(value) = codex_config::TomlValue::try_from(identity) else {
+    let Ok(value) = codepilotx_config::TomlValue::try_from(identity) else {
         unreachable!("normalized hook identity should serialize to TOML");
     };
-    codex_config::version_for_toml(&value)
+    codepilotx_config::version_for_toml(&value)
 }
 
-fn write_user_hook_config(codex_home: &std::path::Path) -> Result<()> {
+fn write_user_hook_config(codepilotx_home: &std::path::Path) -> Result<()> {
     std::fs::write(
-        codex_home.join("config.toml"),
+        codepilotx_home.join("config.toml"),
         r#"[hooks]
 
 [[hooks.PreToolUse]]
@@ -84,8 +84,8 @@ statusMessage = "running listed hook"
     Ok(())
 }
 
-fn write_plugin_hook_config(codex_home: &std::path::Path, hooks_json: &str) -> Result<()> {
-    let plugin_root = codex_home.join("plugins/cache/test/demo/local");
+fn write_plugin_hook_config(codepilotx_home: &std::path::Path, hooks_json: &str) -> Result<()> {
+    let plugin_root = codepilotx_home.join("plugins/cache/test/demo/local");
     std::fs::create_dir_all(plugin_root.join(".codex-plugin"))?;
     std::fs::create_dir_all(plugin_root.join("hooks"))?;
     std::fs::write(
@@ -94,7 +94,7 @@ fn write_plugin_hook_config(codex_home: &std::path::Path, hooks_json: &str) -> R
     )?;
     std::fs::write(plugin_root.join("hooks/hooks.json"), hooks_json)?;
     std::fs::write(
-        codex_home.join("config.toml"),
+        codepilotx_home.join("config.toml"),
         r#"[features]
 plugins = true
 hooks = true
@@ -106,10 +106,10 @@ enabled = true
     Ok(())
 }
 
-fn write_project_hook_config(dot_codex_folder: &std::path::Path, command: &str) -> Result<()> {
-    std::fs::create_dir_all(dot_codex_folder)?;
+fn write_project_hook_config(dot_codepilotx_folder: &std::path::Path, command: &str) -> Result<()> {
+    std::fs::create_dir_all(dot_codepilotx_folder)?;
     std::fs::write(
-        dot_codex_folder.join("config.toml"),
+        dot_codepilotx_folder.join("config.toml"),
         format!(
             r#"[features]
 hooks = true
@@ -131,11 +131,11 @@ timeout = 5
 
 #[tokio::test]
 async fn hooks_list_shows_discovered_hook() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let cwd = TempDir::new()?;
-    write_user_hook_config(codex_home.path())?;
+    write_user_hook_config(codepilotx_home.path())?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -150,7 +150,7 @@ async fn hooks_list_shows_discovered_hook() -> Result<()> {
     .await??;
     let HooksListResponse { data } = to_response(response)?;
     let config_path = AbsolutePathBuf::from_absolute_path(std::fs::canonicalize(
-        codex_home.path().join("config.toml"),
+        codepilotx_home.path().join("config.toml"),
     )?)?;
     assert_eq!(
         data,
@@ -188,10 +188,10 @@ async fn hooks_list_shows_discovered_hook() -> Result<()> {
 
 #[tokio::test]
 async fn hooks_list_shows_discovered_plugin_hook() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let cwd = TempDir::new()?;
     write_plugin_hook_config(
-        codex_home.path(),
+        codepilotx_home.path(),
         r#"{
   "hooks": {
     "PreToolUse": [
@@ -211,7 +211,7 @@ async fn hooks_list_shows_discovered_plugin_hook() -> Result<()> {
 }"#,
     )?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -226,7 +226,7 @@ async fn hooks_list_shows_discovered_plugin_hook() -> Result<()> {
     .await??;
     let HooksListResponse { data } = to_response(response)?;
     let plugin_hooks_path = AbsolutePathBuf::from_absolute_path(std::fs::canonicalize(
-        codex_home
+        codepilotx_home
             .path()
             .join("plugins/cache/test/demo/local/hooks/hooks.json"),
     )?)?;
@@ -266,10 +266,10 @@ async fn hooks_list_shows_discovered_plugin_hook() -> Result<()> {
 
 #[tokio::test]
 async fn hooks_list_warms_plugin_capabilities_for_thread_start() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let cwd = TempDir::new()?;
     write_plugin_hook_config(
-        codex_home.path(),
+        codepilotx_home.path(),
         r#"{
   "hooks": {
     "PreToolUse": [
@@ -285,7 +285,7 @@ async fn hooks_list_warms_plugin_capabilities_for_thread_start() -> Result<()> {
   }
 }"#,
     )?;
-    let plugin_mcp_path = codex_home
+    let plugin_mcp_path = codepilotx_home
         .path()
         .join("plugins/cache/test/demo/local/.mcp.json");
     std::fs::write(
@@ -299,7 +299,7 @@ async fn hooks_list_warms_plugin_capabilities_for_thread_start() -> Result<()> {
 }"#,
     )?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let hooks_list_id = mcp
@@ -344,11 +344,11 @@ async fn hooks_list_warms_plugin_capabilities_for_thread_start() -> Result<()> {
 
 #[tokio::test]
 async fn hooks_list_shows_plugin_hook_load_warnings() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let cwd = TempDir::new()?;
-    write_plugin_hook_config(codex_home.path(), "{ not-json")?;
+    write_plugin_hook_config(codepilotx_home.path(), "{ not-json")?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -376,10 +376,10 @@ async fn hooks_list_shows_plugin_hook_load_warnings() -> Result<()> {
 
 #[tokio::test]
 async fn hooks_list_uses_each_cwds_effective_feature_enablement() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let workspace = TempDir::new()?;
     std::fs::write(
-        codex_home.path().join("config.toml"),
+        codepilotx_home.path().join("config.toml"),
         r#"[features]
 hooks = false
 "#,
@@ -402,15 +402,15 @@ command = "echo project hook"
 timeout = 5
 "#,
     )?;
-    set_project_trust_level(codex_home.path(), workspace.path(), TrustLevel::Trusted)?;
+    set_project_trust_level(codepilotx_home.path(), workspace.path(), TrustLevel::Trusted)?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
         .send_hooks_list_request(HooksListParams {
             cwds: vec![
-                codex_home.path().to_path_buf(),
+                codepilotx_home.path().to_path_buf(),
                 workspace.path().to_path_buf(),
             ],
         })
@@ -427,7 +427,7 @@ timeout = 5
         data,
         vec![
             HooksListEntry {
-                cwd: codex_home.path().to_path_buf(),
+                cwd: codepilotx_home.path().to_path_buf(),
                 hooks: Vec::new(),
                 warnings: Vec::new(),
                 errors: Vec::new(),
@@ -470,7 +470,7 @@ timeout = 5
 
 #[tokio::test]
 async fn hooks_list_uses_root_repo_hooks_for_linked_worktrees() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let workspace = TempDir::new()?;
     let repo_root = workspace.path().join("repo");
     let worktree_root = workspace.path().join("worktree");
@@ -484,9 +484,9 @@ async fn hooks_list_uses_root_repo_hooks_for_linked_worktrees() -> Result<()> {
     )?;
     write_project_hook_config(&repo_root.join(".codex"), "echo root hook")?;
     write_project_hook_config(&worktree_root.join(".codex"), "echo worktree hook")?;
-    set_project_trust_level(codex_home.path(), &repo_root, TrustLevel::Trusted)?;
+    set_project_trust_level(codepilotx_home.path(), &repo_root, TrustLevel::Trusted)?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let list_id = mcp
@@ -532,7 +532,7 @@ async fn hooks_list_uses_root_repo_hooks_for_linked_worktrees() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(write_id)),
     )
     .await??;
-    let _: codex_app_server_protocol::ConfigWriteResponse = to_response(response)?;
+    let _: codepilotx_app_server_protocol::ConfigWriteResponse = to_response(response)?;
 
     let list_id = mcp
         .send_hooks_list_request(HooksListParams {
@@ -552,11 +552,11 @@ async fn hooks_list_uses_root_repo_hooks_for_linked_worktrees() -> Result<()> {
 
 #[tokio::test]
 async fn config_batch_write_toggles_user_hook() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let cwd = TempDir::new()?;
-    write_user_hook_config(codex_home.path())?;
+    write_user_hook_config(codepilotx_home.path())?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -594,7 +594,7 @@ async fn config_batch_write_toggles_user_hook() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(write_id)),
     )
     .await??;
-    let _: codex_app_server_protocol::ConfigWriteResponse = to_response(response)?;
+    let _: codepilotx_app_server_protocol::ConfigWriteResponse = to_response(response)?;
 
     let request_id = mcp
         .send_hooks_list_request(HooksListParams {
@@ -632,7 +632,7 @@ async fn config_batch_write_toggles_user_hook() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(write_id)),
     )
     .await??;
-    let _: codex_app_server_protocol::ConfigWriteResponse = to_response(response)?;
+    let _: codepilotx_app_server_protocol::ConfigWriteResponse = to_response(response)?;
 
     let request_id = mcp
         .send_hooks_list_request(HooksListParams {
@@ -660,9 +660,9 @@ async fn config_batch_write_updates_hook_trust_for_loaded_session() -> Result<()
         create_final_assistant_message_sse_response("Modified turn")?,
     ];
     let server = create_mock_responses_server_sequence_unchecked(responses).await;
-    let codex_home = TempDir::new()?;
-    let hook_script_path = codex_home.path().join("user_prompt_submit_hook.py");
-    let hook_log_path = codex_home.path().join("user_prompt_submit_hook_log.jsonl");
+    let codepilotx_home = TempDir::new()?;
+    let hook_script_path = codepilotx_home.path().join("user_prompt_submit_hook.py");
+    let hook_log_path = codepilotx_home.path().join("user_prompt_submit_hook_log.jsonl");
     std::fs::write(
         &hook_script_path,
         format!(
@@ -678,7 +678,7 @@ with Path(r"{hook_log_path}").open("a", encoding="utf-8") as handle:
         ),
     )?;
     std::fs::write(
-        codex_home.path().join("config.toml"),
+        codepilotx_home.path().join("config.toml"),
         format!(
             r#"
 model = "mock-model"
@@ -707,12 +707,12 @@ command = "python3 {hook_script_path}"
         ),
     )?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let hook_list_id = mcp
         .send_hooks_list_request(HooksListParams {
-            cwds: vec![codex_home.path().to_path_buf()],
+            cwds: vec![codepilotx_home.path().to_path_buf()],
         })
         .await?;
     let response: JSONRPCResponse = timeout(
@@ -781,11 +781,11 @@ command = "python3 {hook_script_path}"
         mcp.read_stream_until_response_message(RequestId::Integer(write_id)),
     )
     .await??;
-    let _: codex_app_server_protocol::ConfigWriteResponse = to_response(response)?;
+    let _: codepilotx_app_server_protocol::ConfigWriteResponse = to_response(response)?;
 
     let hook_list_id = mcp
         .send_hooks_list_request(HooksListParams {
-            cwds: vec![codex_home.path().to_path_buf()],
+            cwds: vec![codepilotx_home.path().to_path_buf()],
         })
         .await?;
     let response: JSONRPCResponse = timeout(
@@ -851,11 +851,11 @@ command = "python3 {hook_script_path}"
         mcp.read_stream_until_response_message(RequestId::Integer(write_id)),
     )
     .await??;
-    let _: codex_app_server_protocol::ConfigWriteResponse = to_response(response)?;
+    let _: codepilotx_app_server_protocol::ConfigWriteResponse = to_response(response)?;
 
     let hook_list_id = mcp
         .send_hooks_list_request(HooksListParams {
-            cwds: vec![codex_home.path().to_path_buf()],
+            cwds: vec![codepilotx_home.path().to_path_buf()],
         })
         .await?;
     let response: JSONRPCResponse = timeout(
@@ -910,9 +910,9 @@ async fn config_batch_write_disables_hook_for_loaded_session() -> Result<()> {
         create_final_assistant_message_sse_response("Second turn")?,
     ];
     let server = create_mock_responses_server_sequence_unchecked(responses).await;
-    let codex_home = TempDir::new()?;
-    let hook_script_path = codex_home.path().join("user_prompt_submit_hook.py");
-    let hook_log_path = codex_home.path().join("user_prompt_submit_hook_log.jsonl");
+    let codepilotx_home = TempDir::new()?;
+    let hook_script_path = codepilotx_home.path().join("user_prompt_submit_hook.py");
+    let hook_log_path = codepilotx_home.path().join("user_prompt_submit_hook_log.jsonl");
     std::fs::write(
         &hook_script_path,
         format!(
@@ -928,7 +928,7 @@ with Path(r"{hook_log_path}").open("a", encoding="utf-8") as handle:
         ),
     )?;
     std::fs::write(
-        codex_home.path().join("config.toml"),
+        codepilotx_home.path().join("config.toml"),
         format!(
             r#"
 model = "mock-model"
@@ -957,12 +957,12 @@ command = "python3 {hook_script_path}"
         ),
     )?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let hook_list_id = mcp
         .send_hooks_list_request(HooksListParams {
-            cwds: vec![codex_home.path().to_path_buf()],
+            cwds: vec![codepilotx_home.path().to_path_buf()],
         })
         .await?;
     let response: JSONRPCResponse = timeout(
@@ -995,7 +995,7 @@ command = "python3 {hook_script_path}"
         mcp.read_stream_until_response_message(RequestId::Integer(write_id)),
     )
     .await??;
-    let _: codex_app_server_protocol::ConfigWriteResponse = to_response(response)?;
+    let _: codepilotx_app_server_protocol::ConfigWriteResponse = to_response(response)?;
 
     let thread_start_id = mcp
         .send_thread_start_request(ThreadStartParams {
@@ -1060,7 +1060,7 @@ command = "python3 {hook_script_path}"
         mcp.read_stream_until_response_message(RequestId::Integer(write_id)),
     )
     .await??;
-    let _: codex_app_server_protocol::ConfigWriteResponse = to_response(response)?;
+    let _: codepilotx_app_server_protocol::ConfigWriteResponse = to_response(response)?;
 
     let second_turn_id = mcp
         .send_turn_start_request(TurnStartParams {

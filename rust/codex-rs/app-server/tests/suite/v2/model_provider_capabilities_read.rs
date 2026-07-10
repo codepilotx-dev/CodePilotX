@@ -3,10 +3,10 @@ use std::time::Duration;
 use anyhow::Result;
 use app_test_support::TestAppServer;
 use app_test_support::to_response;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::ModelProviderCapabilitiesReadParams;
-use codex_app_server_protocol::ModelProviderCapabilitiesReadResponse;
-use codex_app_server_protocol::RequestId;
+use codepilotx_app_server_protocol::JSONRPCResponse;
+use codepilotx_app_server_protocol::ModelProviderCapabilitiesReadParams;
+use codepilotx_app_server_protocol::ModelProviderCapabilitiesReadResponse;
+use codepilotx_app_server_protocol::RequestId;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
 use tokio::time::timeout;
@@ -15,8 +15,8 @@ const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 
 #[tokio::test]
 async fn read_default_provider_capabilities() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -40,13 +40,13 @@ async fn read_default_provider_capabilities() -> Result<()> {
 
 #[tokio::test]
 async fn read_amazon_bedrock_provider_capabilities() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     std::fs::write(
-        codex_home.path().join("config.toml"),
+        codepilotx_home.path().join("config.toml"),
         r#"model_provider = "amazon-bedrock"
 "#,
     )?;
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp

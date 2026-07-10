@@ -1,18 +1,18 @@
-use codex_arg0::Arg0DispatchPaths;
-use codex_cloud_config::cloud_config_bundle_loader;
-use codex_config::CloudConfigBundleLoader;
-use codex_config::ConfigLayerStack;
-use codex_config::LoaderOverrides;
-use codex_config::ThreadConfigLoader;
-use codex_config::loader::load_config_layers_state;
-use codex_core::config::Config;
-use codex_core::config::ConfigOverrides;
-use codex_exec_server::LOCAL_FS;
-use codex_features::feature_for_key;
-use codex_login::AuthManager;
-use codex_login::default_client::set_default_client_residency_requirement;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_json_to_toml::json_to_toml;
+use codepilotx_arg0::Arg0DispatchPaths;
+use codepilotx_cloud_config::cloud_config_bundle_loader;
+use codepilotx_config::CloudConfigBundleLoader;
+use codepilotx_config::ConfigLayerStack;
+use codepilotx_config::LoaderOverrides;
+use codepilotx_config::ThreadConfigLoader;
+use codepilotx_config::loader::load_config_layers_state;
+use codepilotx_core::config::Config;
+use codepilotx_core::config::ConfigOverrides;
+use codepilotx_exec_server::LOCAL_FS;
+use codepilotx_features::feature_for_key;
+use codepilotx_login::AuthManager;
+use codepilotx_login::default_client::set_default_client_residency_requirement;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_json_to_toml::json_to_toml;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::collections::HashMap;
@@ -27,7 +27,7 @@ use tracing::warn;
 /// Shared app-server entry point for loading effective Codex configuration.
 #[derive(Clone)]
 pub(crate) struct ConfigManager {
-    codex_home: PathBuf,
+    codepilotx_home: PathBuf,
     cli_overrides: Arc<RwLock<Vec<(String, TomlValue)>>>,
     runtime_feature_enablement: Arc<RwLock<BTreeMap<String, bool>>>,
     loader_overrides: LoaderOverrides,
@@ -39,7 +39,7 @@ pub(crate) struct ConfigManager {
 
 impl ConfigManager {
     pub(crate) fn new(
-        codex_home: PathBuf,
+        codepilotx_home: PathBuf,
         cli_overrides: Vec<(String, TomlValue)>,
         loader_overrides: LoaderOverrides,
         strict_config: bool,
@@ -48,7 +48,7 @@ impl ConfigManager {
         thread_config_loader: Arc<dyn ThreadConfigLoader>,
     ) -> Self {
         Self {
-            codex_home,
+            codepilotx_home,
             cli_overrides: Arc::new(RwLock::new(cli_overrides)),
             runtime_feature_enablement: Arc::new(RwLock::new(BTreeMap::new())),
             loader_overrides,
@@ -59,12 +59,12 @@ impl ConfigManager {
         }
     }
 
-    pub(crate) fn codex_home(&self) -> &Path {
-        self.codex_home.as_path()
+    pub(crate) fn codepilotx_home(&self) -> &Path {
+        self.codepilotx_home.as_path()
     }
 
     pub(crate) fn user_config_path(&self) -> std::io::Result<AbsolutePathBuf> {
-        self.loader_overrides.user_config_path(self.codex_home())
+        self.loader_overrides.user_config_path(self.codepilotx_home())
     }
 
     pub(crate) fn current_cli_overrides(&self) -> Vec<(String, TomlValue)> {
@@ -97,7 +97,7 @@ impl ConfigManager {
         chatgpt_base_url: String,
     ) {
         let loader =
-            cloud_config_bundle_loader(auth_manager, chatgpt_base_url, self.codex_home.clone());
+            cloud_config_bundle_loader(auth_manager, chatgpt_base_url, self.codepilotx_home.clone());
         if let Ok(mut guard) = self.cloud_config_bundle.write() {
             *guard = loader;
         } else {
@@ -120,7 +120,7 @@ impl ConfigManager {
         self.thread_config_loader
             .read()
             .map(|guard| Arc::clone(&*guard))
-            .unwrap_or_else(|_| Arc::new(codex_config::NoopThreadConfigLoader))
+            .unwrap_or_else(|_| Arc::new(codepilotx_config::NoopThreadConfigLoader))
     }
 
     pub(crate) async fn sync_default_client_residency_requirement(&self) {
@@ -164,15 +164,15 @@ impl ConfigManager {
     }
 
     pub(crate) async fn load_default_config(&self) -> std::io::Result<Config> {
-        let mut config = Config::load_default_with_cli_overrides_for_codex_home(
-            self.codex_home.clone(),
+        let mut config = Config::load_default_with_cli_overrides_for_codepilotx_home(
+            self.codepilotx_home.clone(),
             self.current_cli_overrides(),
         )
         .await?;
         if self.loader_overrides.user_config_path.is_some()
             || self.loader_overrides.user_config_profile.is_some()
         {
-            let user_config_path = self.loader_overrides.user_config_path(self.codex_home())?;
+            let user_config_path = self.loader_overrides.user_config_path(self.codepilotx_home())?;
             config.config_layer_stack = config.config_layer_stack.with_user_config_profile(
                 &user_config_path,
                 self.loader_overrides.user_config_profile.as_ref(),
@@ -240,8 +240,8 @@ impl ConfigManager {
             )
             .collect::<Vec<_>>();
 
-        let mut config = codex_core::config::ConfigBuilder::default()
-            .codex_home(self.codex_home.clone())
+        let mut config = codepilotx_core::config::ConfigBuilder::default()
+            .codepilotx_home(self.codepilotx_home.clone())
             .cli_overrides(merged_cli_overrides)
             .loader_overrides(self.loader_overrides.clone())
             .strict_config(self.strict_config)
@@ -270,10 +270,10 @@ impl ConfigManager {
         let thread_config_loader = self.current_thread_config_loader();
         load_config_layers_state(
             LOCAL_FS.as_ref(),
-            &self.codex_home,
+            &self.codepilotx_home,
             cwd,
             &self.current_cli_overrides(),
-            codex_config::ConfigLoadOptions {
+            codepilotx_config::ConfigLoadOptions {
                 loader_overrides: self.loader_overrides.clone(),
                 strict_config: self.strict_config,
                 cloud_config_bundle: self.current_cloud_config_bundle(),
@@ -295,33 +295,33 @@ impl ConfigManager {
     }
 
     fn apply_arg0_paths(&self, config: &mut Config) {
-        config.codex_self_exe = self.arg0_paths.codex_self_exe.clone();
-        config.codex_linux_sandbox_exe = self.arg0_paths.codex_linux_sandbox_exe.clone();
+        config.codepilotx_self_exe = self.arg0_paths.codepilotx_self_exe.clone();
+        config.codepilotx_linux_sandbox_exe = self.arg0_paths.codepilotx_linux_sandbox_exe.clone();
         config.main_execve_wrapper_exe = self.arg0_paths.main_execve_wrapper_exe.clone();
     }
 
     #[cfg(test)]
     pub(crate) fn new_for_tests(
-        codex_home: PathBuf,
+        codepilotx_home: PathBuf,
         cli_overrides: Vec<(String, TomlValue)>,
         loader_overrides: LoaderOverrides,
         cloud_config_bundle: CloudConfigBundleLoader,
     ) -> Self {
         Self::new(
-            codex_home,
+            codepilotx_home,
             cli_overrides,
             loader_overrides,
             /*strict_config*/ false,
             cloud_config_bundle,
             Arg0DispatchPaths::default(),
-            Arc::new(codex_config::NoopThreadConfigLoader),
+            Arc::new(codepilotx_config::NoopThreadConfigLoader),
         )
     }
 
     #[cfg(test)]
-    pub(crate) fn without_managed_config_for_tests(codex_home: PathBuf) -> Self {
+    pub(crate) fn without_managed_config_for_tests(codepilotx_home: PathBuf) -> Self {
         Self::new_for_tests(
-            codex_home,
+            codepilotx_home,
             Vec::new(),
             LoaderOverrides::without_managed_config_for_tests(),
             CloudConfigBundleLoader::default(),

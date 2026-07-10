@@ -2,17 +2,17 @@ use anyhow::Result;
 use app_test_support::TestAppServer;
 use app_test_support::to_response;
 use app_test_support::write_mock_responses_config_toml;
-use codex_app_server_protocol::CapabilityRootLocation;
-use codex_app_server_protocol::ListMcpServerStatusParams;
-use codex_app_server_protocol::ListMcpServerStatusResponse;
-use codex_app_server_protocol::McpServerToolCallParams;
-use codex_app_server_protocol::McpServerToolCallResponse;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::SelectedCapabilityRoot;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::UserInput;
+use codepilotx_app_server_protocol::CapabilityRootLocation;
+use codepilotx_app_server_protocol::ListMcpServerStatusParams;
+use codepilotx_app_server_protocol::ListMcpServerStatusResponse;
+use codepilotx_app_server_protocol::McpServerToolCallParams;
+use codepilotx_app_server_protocol::McpServerToolCallResponse;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_app_server_protocol::SelectedCapabilityRoot;
+use codepilotx_app_server_protocol::ThreadStartParams;
+use codepilotx_app_server_protocol::ThreadStartResponse;
+use codepilotx_app_server_protocol::TurnStartParams;
+use codepilotx_app_server_protocol::UserInput;
 use core_test_support::responses;
 use core_test_support::stdio_server_bin;
 use pretty_assertions::assert_eq;
@@ -33,9 +33,9 @@ const TOOL_CALL_ID: &str = "executor-mcp-call";
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn selected_executor_plugin_exposes_its_stdio_mcp_only_to_that_thread() -> Result<()> {
     let responses_server = responses::start_mock_server().await;
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     write_mock_responses_config_toml(
-        codex_home.path(),
+        codepilotx_home.path(),
         &responses_server.uri(),
         &BTreeMap::new(),
         /*auto_compact_limit*/ 1024,
@@ -44,7 +44,7 @@ async fn selected_executor_plugin_exposes_its_stdio_mcp_only_to_that_thread() ->
         "compact",
     )?;
     std::fs::write(
-        codex_home.path().join("environments.toml"),
+        codepilotx_home.path().join("environments.toml"),
         format!(
             r#"
 include_local = true
@@ -57,7 +57,7 @@ args = ["exec-server", "--listen", "stdio"]
 {EXECUTOR_ENV_NAME} = "{EXECUTOR_ENV_VALUE}"
 "#,
             toml::Value::String(
-                codex_utils_cargo_bin::cargo_bin("codex")?
+                codepilotx_utils_cargo_bin::cargo_bin("codex")?
                     .to_string_lossy()
                     .into_owned()
             )
@@ -83,7 +83,7 @@ args = ["exec-server", "--listen", "stdio"]
         }))?,
     )?;
 
-    let mut app_server = TestAppServer::new(codex_home.path()).await?;
+    let mut app_server = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, app_server.initialize()).await??;
 
     let selected_thread = start_thread(
@@ -99,7 +99,7 @@ args = ["exec-server", "--listen", "stdio"]
     .await?;
 
     std::fs::write(plugin.path().join(".mcp.json"), r#"{"mcpServers":{}}"#)?;
-    let config_path = codex_home.path().join("config.toml");
+    let config_path = codepilotx_home.path().join("config.toml");
     let mut config = std::fs::read_to_string(&config_path)?;
     config.push_str(&format!(
         r#"

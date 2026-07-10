@@ -1,13 +1,13 @@
 use crate::protocol::common::AuthMode;
-use codex_experimental_api_macros::ExperimentalApi;
-use codex_protocol::account::AmazonBedrockCredentialSource;
-use codex_protocol::account::PlanType;
-use codex_protocol::account::ProviderAccount;
-use codex_protocol::protocol::CreditsSnapshot as CoreCreditsSnapshot;
-use codex_protocol::protocol::RateLimitReachedType as CoreRateLimitReachedType;
-use codex_protocol::protocol::RateLimitSnapshot as CoreRateLimitSnapshot;
-use codex_protocol::protocol::RateLimitWindow as CoreRateLimitWindow;
-use codex_protocol::protocol::SpendControlLimitSnapshot as CoreSpendControlLimitSnapshot;
+use codepilotx_experimental_api_macros::ExperimentalApi;
+use codepilotx_protocol::account::AmazonBedrockCredentialSource;
+use codepilotx_protocol::account::PlanType;
+use codepilotx_protocol::account::ProviderAccount;
+use codepilotx_protocol::protocol::CreditsSnapshot as CoreCreditsSnapshot;
+use codepilotx_protocol::protocol::RateLimitReachedType as CoreRateLimitReachedType;
+use codepilotx_protocol::protocol::RateLimitSnapshot as CoreRateLimitSnapshot;
+use codepilotx_protocol::protocol::RateLimitWindow as CoreRateLimitWindow;
+use codepilotx_protocol::protocol::SpendControlLimitSnapshot as CoreSpendControlLimitSnapshot;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
@@ -67,7 +67,7 @@ pub enum LoginAccountParams {
     #[ts(rename = "chatgpt", rename_all = "camelCase")]
     Chatgpt {
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-        codex_streamlined_login: bool,
+        codepilotx_streamlined_login: bool,
     },
     #[serde(rename = "chatgptDeviceCode")]
     #[ts(rename = "chatgptDeviceCode")]

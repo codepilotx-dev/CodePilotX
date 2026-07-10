@@ -4,12 +4,12 @@ use app_test_support::TestAppServer;
 use app_test_support::create_mock_responses_server_sequence_unchecked;
 use app_test_support::to_response;
 use app_test_support::write_mock_responses_config_toml;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::WindowsSandboxSetupCompletedNotification;
-use codex_app_server_protocol::WindowsSandboxSetupMode;
-use codex_app_server_protocol::WindowsSandboxSetupStartParams;
-use codex_app_server_protocol::WindowsSandboxSetupStartResponse;
+use codepilotx_app_server_protocol::JSONRPCResponse;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_app_server_protocol::WindowsSandboxSetupCompletedNotification;
+use codepilotx_app_server_protocol::WindowsSandboxSetupMode;
+use codepilotx_app_server_protocol::WindowsSandboxSetupStartParams;
+use codepilotx_app_server_protocol::WindowsSandboxSetupStartResponse;
 use pretty_assertions::assert_eq;
 use std::collections::BTreeMap;
 use tempfile::TempDir;
@@ -21,9 +21,9 @@ const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs
 async fn windows_sandbox_setup_start_emits_completion_notification() -> Result<()> {
     let responses = Vec::new();
     let server = create_mock_responses_server_sequence_unchecked(responses).await;
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     write_mock_responses_config_toml(
-        codex_home.path(),
+        codepilotx_home.path(),
         &server.uri(),
         &BTreeMap::new(),
         /*auto_compact_limit*/ 500_000,
@@ -31,7 +31,7 @@ async fn windows_sandbox_setup_start_emits_completion_notification() -> Result<(
         "mock_provider",
         "compact prompt",
     )?;
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -65,8 +65,8 @@ async fn windows_sandbox_setup_start_emits_completion_notification() -> Result<(
 
 #[tokio::test]
 async fn windows_sandbox_setup_start_rejects_relative_cwd() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp

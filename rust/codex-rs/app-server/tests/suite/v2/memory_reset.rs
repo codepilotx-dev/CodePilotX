@@ -2,14 +2,14 @@ use anyhow::Result;
 use app_test_support::TestAppServer;
 use app_test_support::to_response;
 use chrono::Utc;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::MemoryResetResponse;
-use codex_app_server_protocol::RequestId;
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::SessionSource;
-use codex_state::Stage1JobClaimOutcome;
-use codex_state::StateRuntime;
-use codex_state::ThreadMetadataBuilder;
+use codepilotx_app_server_protocol::JSONRPCResponse;
+use codepilotx_app_server_protocol::MemoryResetResponse;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_state::Stage1JobClaimOutcome;
+use codepilotx_state::StateRuntime;
+use codepilotx_state::ThreadMetadataBuilder;
 use pretty_assertions::assert_eq;
 use std::path::Path;
 use std::sync::Arc;
@@ -21,11 +21,11 @@ const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs
 
 #[tokio::test]
 async fn memory_reset_clears_memory_files_and_rows_preserves_threads() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path())?;
-    let state_db = init_state_db(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path())?;
+    let state_db = init_state_db(codepilotx_home.path()).await?;
 
-    let memory_root = codex_home.path().join("memories");
+    let memory_root = codepilotx_home.path().join("memories");
     tokio::fs::create_dir_all(memory_root.join("rollout_summaries")).await?;
     tokio::fs::write(memory_root.join("MEMORY.md"), "stale memory\n").await?;
     tokio::fs::write(
@@ -34,9 +34,9 @@ async fn memory_reset_clears_memory_files_and_rows_preserves_threads() -> Result
     )
     .await?;
 
-    let thread_id = seed_stage1_output(&state_db, codex_home.path()).await?;
+    let thread_id = seed_stage1_output(&state_db, codepilotx_home.path()).await?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -68,18 +68,18 @@ async fn memory_reset_clears_memory_files_and_rows_preserves_threads() -> Result
     Ok(())
 }
 
-async fn seed_stage1_output(state_db: &Arc<StateRuntime>, codex_home: &Path) -> Result<ThreadId> {
+async fn seed_stage1_output(state_db: &Arc<StateRuntime>, codepilotx_home: &Path) -> Result<ThreadId> {
     let now = Utc::now();
     let thread_id = ThreadId::from_string(&Uuid::new_v4().to_string())?;
     let worker_id = ThreadId::from_string(&Uuid::new_v4().to_string())?;
     let mut builder = ThreadMetadataBuilder::new(
         thread_id,
-        codex_home.join("sessions").join("test.jsonl"),
+        codepilotx_home.join("sessions").join("test.jsonl"),
         now,
         SessionSource::Cli,
     );
     builder.updated_at = Some(now);
-    builder.cwd = codex_home.to_path_buf();
+    builder.cwd = codepilotx_home.to_path_buf();
     let metadata = builder.build("mock_provider");
     state_db.upsert_thread(&metadata).await?;
 
@@ -118,16 +118,16 @@ async fn seed_stage1_output(state_db: &Arc<StateRuntime>, codex_home: &Path) -> 
     Ok(thread_id)
 }
 
-async fn init_state_db(codex_home: &Path) -> Result<Arc<StateRuntime>> {
-    let state_db = StateRuntime::init(codex_home.to_path_buf(), "mock_provider".into()).await?;
+async fn init_state_db(codepilotx_home: &Path) -> Result<Arc<StateRuntime>> {
+    let state_db = StateRuntime::init(codepilotx_home.to_path_buf(), "mock_provider".into()).await?;
     state_db
         .mark_backfill_complete(/*last_watermark*/ None)
         .await?;
     Ok(state_db)
 }
 
-fn create_config_toml(codex_home: &Path) -> std::io::Result<()> {
-    let config_toml = codex_home.join("config.toml");
+fn create_config_toml(codepilotx_home: &Path) -> std::io::Result<()> {
+    let config_toml = codepilotx_home.join("config.toml");
     std::fs::write(
         config_toml,
         r#"

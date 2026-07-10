@@ -5,19 +5,19 @@ use app_test_support::TestAppServer;
 use app_test_support::to_response;
 use app_test_support::write_chatgpt_auth;
 use app_test_support::write_models_cache;
-use codex_app_server_protocol::AttestationGenerateResponse;
-use codex_app_server_protocol::ClientInfo;
-use codex_app_server_protocol::InitializeCapabilities;
-use codex_app_server_protocol::JSONRPCMessage;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ServerRequest;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::TurnStartResponse;
-use codex_app_server_protocol::UserInput as V2UserInput;
-use codex_config::types::AuthCredentialsStoreMode;
+use codepilotx_app_server_protocol::AttestationGenerateResponse;
+use codepilotx_app_server_protocol::ClientInfo;
+use codepilotx_app_server_protocol::InitializeCapabilities;
+use codepilotx_app_server_protocol::JSONRPCMessage;
+use codepilotx_app_server_protocol::JSONRPCResponse;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_app_server_protocol::ServerRequest;
+use codepilotx_app_server_protocol::ThreadStartParams;
+use codepilotx_app_server_protocol::ThreadStartResponse;
+use codepilotx_app_server_protocol::TurnStartParams;
+use codepilotx_app_server_protocol::TurnStartResponse;
+use codepilotx_app_server_protocol::UserInput as V2UserInput;
+use codepilotx_config::types::AuthCredentialsStoreMode;
 use core_test_support::responses;
 use core_test_support::responses::WebSocketConnectionConfig;
 use core_test_support::responses::start_websocket_server_with_headers;
@@ -55,25 +55,25 @@ async fn attestation_generate_round_trip_adds_header_to_responses_websocket_hand
     }])
     .await;
 
-    let codex_home = TempDir::new()?;
-    write_models_cache(codex_home.path())?;
+    let codepilotx_home = TempDir::new()?;
+    write_models_cache(codepilotx_home.path())?;
     create_chatgpt_websocket_config(
-        codex_home.path(),
+        codepilotx_home.path(),
         &websocket_server.uri().replacen("ws://", "http://", 1),
     )?;
     write_chatgpt_auth(
-        codex_home.path(),
+        codepilotx_home.path(),
         ChatGptAuthFixture::new("access-chatgpt").plan_type("pro"),
         AuthCredentialsStoreMode::File,
     )?;
 
     let mut mcp =
-        TestAppServer::new_with_env(codex_home.path(), &[("OPENAI_API_KEY", None)]).await?;
+        TestAppServer::new_with_env(codepilotx_home.path(), &[("OPENAI_API_KEY", None)]).await?;
     let initialized = timeout(
         DEFAULT_READ_TIMEOUT,
         mcp.initialize_with_capabilities(
             ClientInfo {
-                name: "codex_desktop".to_string(),
+                name: "codepilotx_desktop".to_string(),
                 title: Some("Codex Desktop".to_string()),
                 version: "0.1.0".to_string(),
             },
@@ -163,9 +163,9 @@ async fn attestation_generate_round_trip_adds_header_to_responses_websocket_hand
     Ok(())
 }
 
-fn create_chatgpt_websocket_config(codex_home: &Path, server_uri: &str) -> std::io::Result<()> {
+fn create_chatgpt_websocket_config(codepilotx_home: &Path, server_uri: &str) -> std::io::Result<()> {
     std::fs::write(
-        codex_home.join("config.toml"),
+        codepilotx_home.join("config.toml"),
         format!(
             r#"
 model = "mock-model"

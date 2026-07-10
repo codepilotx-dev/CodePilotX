@@ -1,5 +1,5 @@
 use super::SandboxPolicy;
-use codex_experimental_api_macros::ExperimentalApi;
+use codepilotx_experimental_api_macros::ExperimentalApi;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;

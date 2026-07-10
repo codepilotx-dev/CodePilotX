@@ -2,43 +2,43 @@ use anyhow::Result;
 use app_test_support::TestAppServer;
 use app_test_support::create_mock_responses_server_repeating_assistant;
 use app_test_support::to_response;
-use codex_app_server::in_process;
-use codex_app_server::in_process::InProcessStartArgs;
-use codex_app_server_protocol::ClientInfo;
-use codex_app_server_protocol::ClientRequest;
-use codex_app_server_protocol::InitializeCapabilities;
-use codex_app_server_protocol::InitializeParams;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ThreadArchiveParams;
-use codex_app_server_protocol::ThreadArchiveResponse;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::ThreadStatus;
-use codex_app_server_protocol::ThreadUnarchiveParams;
-use codex_app_server_protocol::ThreadUnarchiveResponse;
-use codex_app_server_protocol::ThreadUnarchivedNotification;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::TurnStartResponse;
-use codex_app_server_protocol::UserInput;
-use codex_arg0::Arg0DispatchPaths;
-use codex_config::CloudConfigBundleLoader;
-use codex_config::LoaderOverrides;
-use codex_core::config::ConfigBuilder;
-use codex_core::find_archived_thread_path_by_id_str;
-use codex_core::find_thread_path_by_id_str;
-use codex_exec_server::EnvironmentManager;
-use codex_feedback::CodexFeedback;
-use codex_protocol::ThreadId;
-use codex_protocol::models::BaseInstructions;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::ThreadMemoryMode;
-use codex_thread_store::CreateThreadParams;
-use codex_thread_store::InMemoryThreadStore;
-use codex_thread_store::ThreadMetadataPatch;
-use codex_thread_store::ThreadPersistenceMetadata;
-use codex_thread_store::ThreadStore;
-use codex_thread_store::UpdateThreadMetadataParams;
+use codepilotx_app_server::in_process;
+use codepilotx_app_server::in_process::InProcessStartArgs;
+use codepilotx_app_server_protocol::ClientInfo;
+use codepilotx_app_server_protocol::ClientRequest;
+use codepilotx_app_server_protocol::InitializeCapabilities;
+use codepilotx_app_server_protocol::InitializeParams;
+use codepilotx_app_server_protocol::JSONRPCResponse;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_app_server_protocol::ThreadArchiveParams;
+use codepilotx_app_server_protocol::ThreadArchiveResponse;
+use codepilotx_app_server_protocol::ThreadStartParams;
+use codepilotx_app_server_protocol::ThreadStartResponse;
+use codepilotx_app_server_protocol::ThreadStatus;
+use codepilotx_app_server_protocol::ThreadUnarchiveParams;
+use codepilotx_app_server_protocol::ThreadUnarchiveResponse;
+use codepilotx_app_server_protocol::ThreadUnarchivedNotification;
+use codepilotx_app_server_protocol::TurnStartParams;
+use codepilotx_app_server_protocol::TurnStartResponse;
+use codepilotx_app_server_protocol::UserInput;
+use codepilotx_arg0::Arg0DispatchPaths;
+use codepilotx_config::CloudConfigBundleLoader;
+use codepilotx_config::LoaderOverrides;
+use codepilotx_core::config::ConfigBuilder;
+use codepilotx_core::find_archived_thread_path_by_id_str;
+use codepilotx_core::find_thread_path_by_id_str;
+use codepilotx_exec_server::EnvironmentManager;
+use codepilotx_feedback::CodexFeedback;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::models::BaseInstructions;
+use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_protocol::protocol::ThreadMemoryMode;
+use codepilotx_thread_store::CreateThreadParams;
+use codepilotx_thread_store::InMemoryThreadStore;
+use codepilotx_thread_store::ThreadMetadataPatch;
+use codepilotx_thread_store::ThreadPersistenceMetadata;
+use codepilotx_thread_store::ThreadStore;
+use codepilotx_thread_store::UpdateThreadMetadataParams;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 use std::fs::FileTimes;
@@ -56,10 +56,10 @@ const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs
 #[tokio::test]
 async fn thread_unarchive_moves_rollout_back_into_sessions_directory() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
@@ -101,7 +101,7 @@ async fn thread_unarchive_moves_rollout_back_into_sessions_directory() -> Result
     .await??;
 
     let found_rollout_path =
-        find_thread_path_by_id_str(codex_home.path(), &thread.id, /*state_db_ctx*/ None)
+        find_thread_path_by_id_str(codepilotx_home.path(), &thread.id, /*state_db_ctx*/ None)
             .await?
             .expect("expected rollout path for thread id to exist");
     assert_paths_match_on_disk(&found_rollout_path, &rollout_path)?;
@@ -119,7 +119,7 @@ async fn thread_unarchive_moves_rollout_back_into_sessions_directory() -> Result
     let _: ThreadArchiveResponse = to_response::<ThreadArchiveResponse>(archive_resp)?;
 
     let archived_path = find_archived_thread_path_by_id_str(
-        codex_home.path(),
+        codepilotx_home.path(),
         &thread.id,
         /*state_db_ctx*/ None,
     )
@@ -199,9 +199,9 @@ async fn thread_unarchive_moves_rollout_back_into_sessions_directory() -> Result
 
 #[tokio::test]
 async fn thread_unarchive_preserves_pathless_store_metadata() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let store_id = Uuid::new_v4().to_string();
-    create_config_toml_with_in_memory_thread_store(codex_home.path(), &store_id)?;
+    create_config_toml_with_in_memory_thread_store(codepilotx_home.path(), &store_id)?;
     let store = InMemoryThreadStore::for_id(store_id.clone());
     let _in_memory_store = InMemoryThreadStoreId { store_id };
     let thread_id = ThreadId::from_string("00000000-0000-4000-8000-000000000126")?;
@@ -237,8 +237,8 @@ async fn thread_unarchive_preserves_pathless_store_metadata() -> Result<()> {
 
     let loader_overrides = LoaderOverrides::without_managed_config_for_tests();
     let config = ConfigBuilder::default()
-        .codex_home(codex_home.path().to_path_buf())
-        .fallback_cwd(Some(codex_home.path().to_path_buf()))
+        .codepilotx_home(codepilotx_home.path().to_path_buf())
+        .fallback_cwd(Some(codepilotx_home.path().to_path_buf()))
         .loader_overrides(loader_overrides.clone())
         .build()
         .await?;
@@ -249,14 +249,14 @@ async fn thread_unarchive_preserves_pathless_store_metadata() -> Result<()> {
         loader_overrides,
         strict_config: false,
         cloud_config_bundle: CloudConfigBundleLoader::default(),
-        thread_config_loader: Arc::new(codex_config::NoopThreadConfigLoader),
+        thread_config_loader: Arc::new(codepilotx_config::NoopThreadConfigLoader),
         feedback: CodexFeedback::new(),
         log_db: None,
         state_db: None,
         environment_manager: Arc::new(EnvironmentManager::default_for_tests()),
         config_warnings: Vec::new(),
         session_source: SessionSource::Cli,
-        enable_codex_api_key_env: false,
+        enable_codepilotx_api_key_env: false,
         initialize: InitializeParams {
             client_info: ClientInfo {
                 name: "codex-app-server-tests".to_string(),
@@ -292,8 +292,8 @@ async fn thread_unarchive_preserves_pathless_store_metadata() -> Result<()> {
     Ok(())
 }
 
-fn create_config_toml(codex_home: &Path, server_uri: &str) -> std::io::Result<()> {
-    let config_toml = codex_home.join("config.toml");
+fn create_config_toml(codepilotx_home: &Path, server_uri: &str) -> std::io::Result<()> {
+    let config_toml = codepilotx_home.join("config.toml");
     std::fs::write(config_toml, config_contents(server_uri))
 }
 
@@ -308,11 +308,11 @@ impl Drop for InMemoryThreadStoreId {
 }
 
 fn create_config_toml_with_in_memory_thread_store(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     store_id: &str,
 ) -> std::io::Result<()> {
     std::fs::write(
-        codex_home.join("config.toml"),
+        codepilotx_home.join("config.toml"),
         format!(
             r#"
 model = "mock-model"

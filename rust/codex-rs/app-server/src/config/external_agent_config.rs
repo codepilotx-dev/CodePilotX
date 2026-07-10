@@ -1,26 +1,26 @@
-use codex_config::types::PluginConfig;
-use codex_core::config::Config;
-use codex_core::config::ConfigBuilder;
-use codex_core_plugins::PluginInstallRequest;
-use codex_core_plugins::PluginsManager;
-use codex_core_plugins::marketplace::MarketplacePluginInstallPolicy;
-use codex_core_plugins::marketplace::find_marketplace_manifest_path;
-use codex_core_plugins::marketplace_add::MarketplaceAddRequest;
-use codex_core_plugins::marketplace_add::add_marketplace;
-use codex_core_plugins::marketplace_add::is_local_marketplace_source;
-use codex_external_agent_migration::build_mcp_config_from_external;
-use codex_external_agent_migration::count_missing_commands;
-use codex_external_agent_migration::count_missing_subagents;
-use codex_external_agent_migration::hook_migration_event_names;
-use codex_external_agent_migration::import_commands;
-use codex_external_agent_migration::import_hooks;
-use codex_external_agent_migration::import_subagents;
-use codex_external_agent_migration::missing_command_names;
-use codex_external_agent_migration::missing_subagent_names;
-use codex_external_agent_sessions::ExternalAgentSessionMigration;
-use codex_external_agent_sessions::detect_recent_sessions;
-use codex_plugin::PluginId;
-use codex_protocol::protocol::Product;
+use codepilotx_config::types::PluginConfig;
+use codepilotx_core::config::Config;
+use codepilotx_core::config::ConfigBuilder;
+use codepilotx_core_plugins::PluginInstallRequest;
+use codepilotx_core_plugins::PluginsManager;
+use codepilotx_core_plugins::marketplace::MarketplacePluginInstallPolicy;
+use codepilotx_core_plugins::marketplace::find_marketplace_manifest_path;
+use codepilotx_core_plugins::marketplace_add::MarketplaceAddRequest;
+use codepilotx_core_plugins::marketplace_add::add_marketplace;
+use codepilotx_core_plugins::marketplace_add::is_local_marketplace_source;
+use codepilotx_external_agent_migration::build_mcp_config_from_external;
+use codepilotx_external_agent_migration::count_missing_commands;
+use codepilotx_external_agent_migration::count_missing_subagents;
+use codepilotx_external_agent_migration::hook_migration_event_names;
+use codepilotx_external_agent_migration::import_commands;
+use codepilotx_external_agent_migration::import_hooks;
+use codepilotx_external_agent_migration::import_subagents;
+use codepilotx_external_agent_migration::missing_command_names;
+use codepilotx_external_agent_migration::missing_subagent_names;
+use codepilotx_external_agent_sessions::ExternalAgentSessionMigration;
+use codepilotx_external_agent_sessions::detect_recent_sessions;
+use codepilotx_plugin::PluginId;
+use codepilotx_protocol::protocol::Product;
 use serde_json::Value as JsonValue;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
@@ -173,23 +173,23 @@ pub(crate) struct ExternalAgentConfigMigrationItem {
 
 #[derive(Clone)]
 pub(crate) struct ExternalAgentConfigService {
-    codex_home: PathBuf,
+    codepilotx_home: PathBuf,
     external_agent_home: PathBuf,
 }
 
 impl ExternalAgentConfigService {
-    pub(crate) fn new(codex_home: PathBuf) -> Self {
+    pub(crate) fn new(codepilotx_home: PathBuf) -> Self {
         let external_agent_home = default_external_agent_home();
         Self {
-            codex_home,
+            codepilotx_home,
             external_agent_home,
         }
     }
 
     #[cfg(test)]
-    fn new_for_test(codex_home: PathBuf, external_agent_home: PathBuf) -> Self {
+    fn new_for_test(codepilotx_home: PathBuf, external_agent_home: PathBuf) -> Self {
         Self {
-            codex_home,
+            codepilotx_home,
             external_agent_home,
         }
     }
@@ -449,7 +449,7 @@ impl ExternalAgentConfigService {
         );
         let settings = effective_external_settings(&source_settings)?;
         let target_config = repo_root.map_or_else(
-            || self.codex_home.join("config.toml"),
+            || self.codepilotx_home.join("config.toml"),
             |repo_root| repo_root.join(".codex").join("config.toml"),
         );
         if let Some(settings) = settings.as_ref() {
@@ -536,7 +536,7 @@ impl ExternalAgentConfigService {
             |repo_root| repo_root.join(EXTERNAL_AGENT_DIR),
         );
         let target_hooks = repo_root.map_or_else(
-            || self.codex_home.join("hooks.json"),
+            || self.codepilotx_home.join("hooks.json"),
             |repo_root| repo_root.join(".codex").join("hooks.json"),
         );
         let hook_event_names =
@@ -619,7 +619,7 @@ impl ExternalAgentConfigService {
 
         let source_subagents = source_external_agent_dir.join("agents");
         let target_subagents = repo_root.map_or_else(
-            || self.codex_home.join("agents"),
+            || self.codepilotx_home.join("agents"),
             |repo_root| repo_root.join(".codex").join("agents"),
         );
         let subagents_count = count_missing_subagents(&source_subagents, &target_subagents)?;
@@ -652,7 +652,7 @@ impl ExternalAgentConfigService {
             is_non_empty_text_file(&path)?.then_some(path)
         };
         let target_agents_md = repo_root.map_or_else(
-            || self.codex_home.join("AGENTS.md"),
+            || self.codepilotx_home.join("AGENTS.md"),
             |repo_root| repo_root.join("AGENTS.md"),
         );
         if let Some(source_agents_md) = source_agents_md
@@ -677,8 +677,8 @@ impl ExternalAgentConfigService {
 
         if let Some(settings) = settings.as_ref() {
             match ConfigBuilder::default()
-                .codex_home(self.codex_home.clone())
-                .fallback_cwd(Some(self.codex_home.clone()))
+                .codepilotx_home(self.codepilotx_home.clone())
+                .fallback_cwd(Some(self.codepilotx_home.clone()))
                 .build()
                 .await
             {
@@ -700,7 +700,7 @@ impl ExternalAgentConfigService {
                         .unwrap_or_default();
                     let configured_marketplace_plugins = configured_marketplace_plugins(
                         &config,
-                        &PluginsManager::new(self.codex_home.clone()),
+                        &PluginsManager::new(self.codepilotx_home.clone()),
                     )?;
                     if let Some(item) = self.detect_plugin_migration(
                         source_settings.as_path(),
@@ -724,7 +724,7 @@ impl ExternalAgentConfigService {
         }
 
         if repo_root.is_none() {
-            let sessions = detect_recent_sessions(&self.external_agent_home, &self.codex_home)?;
+            let sessions = detect_recent_sessions(&self.external_agent_home, &self.codepilotx_home)?;
             if !sessions.is_empty() {
                 items.push(ExternalAgentConfigMigrationItem {
                     item_type: ExternalAgentConfigMigrationItemType::Sessions,
@@ -750,7 +750,7 @@ impl ExternalAgentConfigService {
     }
 
     fn home_target_skills_dir(&self) -> PathBuf {
-        self.codex_home
+        self.codepilotx_home
             .parent()
             .map(|parent| parent.join(".agents").join("skills"))
             .unwrap_or_else(|| PathBuf::from(".agents").join("skills"))
@@ -878,7 +878,7 @@ impl ExternalAgentConfigService {
             ));
         };
         let mut outcome = PluginImportOutcome::default();
-        let plugins_manager = PluginsManager::new(self.codex_home.clone());
+        let plugins_manager = PluginsManager::new(self.codepilotx_home.clone());
         for plugin_group in plugins {
             let marketplace_name = plugin_group.marketplace_name.clone();
             let plugin_names = plugin_group.plugin_names;
@@ -916,7 +916,7 @@ impl ExternalAgentConfigService {
                 ref_name: import_source.ref_name,
                 sparse_paths: Vec::new(),
             };
-            let add_marketplace_outcome = add_marketplace(self.codex_home.clone(), request).await;
+            let add_marketplace_outcome = add_marketplace(self.codepilotx_home.clone(), request).await;
             let marketplace_path = match add_marketplace_outcome {
                 Ok(add_marketplace_outcome) => {
                     let Some(marketplace_path) = find_marketplace_manifest_path(
@@ -994,7 +994,7 @@ impl ExternalAgentConfigService {
         } else {
             (
                 self.external_agent_home.join("settings.json"),
-                self.codex_home.join("config.toml"),
+                self.codepilotx_home.join("config.toml"),
             )
         };
         let Some(settings) = effective_external_settings(&source_settings)? else {
@@ -1049,7 +1049,7 @@ impl ExternalAgentConfigService {
         } else {
             (
                 self.external_agent_home.join("settings.json"),
-                self.codex_home.join("config.toml"),
+                self.codepilotx_home.join("config.toml"),
             )
         };
         let settings = self.mcp_settings(
@@ -1100,7 +1100,7 @@ impl ExternalAgentConfigService {
         } else {
             (
                 self.external_agent_home.join("agents"),
-                self.codex_home.join("agents"),
+                self.codepilotx_home.join("agents"),
             )
         };
 
@@ -1119,7 +1119,7 @@ impl ExternalAgentConfigService {
             } else {
                 (
                     self.external_agent_home.clone(),
-                    self.codex_home.join("hooks.json"),
+                    self.codepilotx_home.join("hooks.json"),
                 )
             };
 
@@ -1200,7 +1200,7 @@ impl ExternalAgentConfigService {
         } else {
             (
                 self.external_agent_home.join(EXTERNAL_AGENT_CONFIG_MD),
-                self.codex_home.join("AGENTS.md"),
+                self.codepilotx_home.join("AGENTS.md"),
             )
         };
         if !is_non_empty_text_file(&source_agents_md)?
@@ -1627,7 +1627,7 @@ fn rewrite_external_agent_terms(content: &str) -> String {
         "claudecode",
         "claude",
     ] {
-        rewritten = replace_case_insensitive_with_boundaries(&rewritten, from, "Codex");
+        rewritten = replace_case_insensitive_with_boundaries(&rewritten, from, "CodePilotX");
     }
     rewritten
 }
@@ -1925,7 +1925,7 @@ fn emit_migration_metric(
     item_type: ExternalAgentConfigMigrationItemType,
     skills_count: Option<usize>,
 ) {
-    let Some(metrics) = codex_otel::global() else {
+    let Some(metrics) = codepilotx_otel::global() else {
         return;
     };
     let tags = migration_metric_tags(item_type, skills_count);

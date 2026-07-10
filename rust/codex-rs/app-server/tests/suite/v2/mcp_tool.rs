@@ -10,26 +10,26 @@ use app_test_support::create_mock_responses_server_sequence;
 use app_test_support::to_response;
 use app_test_support::write_mock_responses_config_toml;
 use axum::Router;
-use codex_app_server_protocol::ItemCompletedNotification;
-use codex_app_server_protocol::JSONRPCError;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::McpElicitationSchema;
-use codex_app_server_protocol::McpServerElicitationAction;
-use codex_app_server_protocol::McpServerElicitationRequest;
-use codex_app_server_protocol::McpServerElicitationRequestParams;
-use codex_app_server_protocol::McpServerElicitationRequestResponse;
-use codex_app_server_protocol::McpServerToolCallParams;
-use codex_app_server_protocol::McpServerToolCallResponse;
-use codex_app_server_protocol::McpToolCallStatus;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ServerRequest;
-use codex_app_server_protocol::ThreadItem;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::TurnStartResponse;
-use codex_app_server_protocol::UserInput as V2UserInput;
-use codex_utils_pty::DEFAULT_OUTPUT_BYTES_CAP;
+use codepilotx_app_server_protocol::ItemCompletedNotification;
+use codepilotx_app_server_protocol::JSONRPCError;
+use codepilotx_app_server_protocol::JSONRPCResponse;
+use codepilotx_app_server_protocol::McpElicitationSchema;
+use codepilotx_app_server_protocol::McpServerElicitationAction;
+use codepilotx_app_server_protocol::McpServerElicitationRequest;
+use codepilotx_app_server_protocol::McpServerElicitationRequestParams;
+use codepilotx_app_server_protocol::McpServerElicitationRequestResponse;
+use codepilotx_app_server_protocol::McpServerToolCallParams;
+use codepilotx_app_server_protocol::McpServerToolCallResponse;
+use codepilotx_app_server_protocol::McpToolCallStatus;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_app_server_protocol::ServerRequest;
+use codepilotx_app_server_protocol::ThreadItem;
+use codepilotx_app_server_protocol::ThreadStartParams;
+use codepilotx_app_server_protocol::ThreadStartResponse;
+use codepilotx_app_server_protocol::TurnStartParams;
+use codepilotx_app_server_protocol::TurnStartResponse;
+use codepilotx_app_server_protocol::UserInput as V2UserInput;
+use codepilotx_utils_pty::DEFAULT_OUTPUT_BYTES_CAP;
 use core_test_support::responses;
 use pretty_assertions::assert_eq;
 use rmcp::handler::server::ServerHandler;
@@ -73,9 +73,9 @@ const URL_ELICITATION_URL: &str = "https://github.example/login/device";
 async fn mcp_server_tool_call_returns_tool_result() -> Result<()> {
     let responses_server = responses::start_mock_server().await;
     let (mcp_server_url, mcp_server_handle) = start_mcp_server().await?;
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     write_mock_responses_config_toml(
-        codex_home.path(),
+        codepilotx_home.path(),
         &responses_server.uri(),
         &BTreeMap::new(),
         /*auto_compact_limit*/ 1024,
@@ -84,7 +84,7 @@ async fn mcp_server_tool_call_returns_tool_result() -> Result<()> {
         "compact",
     )?;
 
-    let config_path = codex_home.path().join("config.toml");
+    let config_path = codepilotx_home.path().join("config.toml");
     let mut config_toml = std::fs::read_to_string(&config_path)?;
     config_toml.push_str(&format!(
         r#"
@@ -94,7 +94,7 @@ url = "{mcp_server_url}/mcp"
     ));
     std::fs::write(config_path, config_toml)?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_start_id = mcp
@@ -160,8 +160,8 @@ url = "{mcp_server_url}/mcp"
 
 #[tokio::test]
 async fn mcp_server_tool_call_returns_error_for_unknown_thread() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -191,9 +191,9 @@ async fn mcp_server_tool_call_returns_error_for_unknown_thread() -> Result<()> {
 async fn mcp_server_tool_call_round_trips_elicitation() -> Result<()> {
     let responses_server = responses::start_mock_server().await;
     let (mcp_server_url, mcp_server_handle) = start_mcp_server().await?;
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     write_mock_responses_config_toml(
-        codex_home.path(),
+        codepilotx_home.path(),
         &responses_server.uri(),
         &BTreeMap::new(),
         /*auto_compact_limit*/ 1024,
@@ -202,7 +202,7 @@ async fn mcp_server_tool_call_round_trips_elicitation() -> Result<()> {
         "compact",
     )?;
 
-    let config_path = codex_home.path().join("config.toml");
+    let config_path = codepilotx_home.path().join("config.toml");
     let mut config_toml = std::fs::read_to_string(&config_path)?;
     config_toml.push_str(&format!(
         r#"
@@ -212,13 +212,13 @@ url = "{mcp_server_url}/mcp"
     ));
     std::fs::write(config_path, config_toml)?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_start_id = mcp
         .send_thread_start_request(ThreadStartParams {
             model: Some("mock-model".to_string()),
-            approval_policy: Some(codex_app_server_protocol::AskForApproval::UnlessTrusted),
+            approval_policy: Some(codepilotx_app_server_protocol::AskForApproval::UnlessTrusted),
             ..Default::default()
         })
         .await?;
@@ -301,9 +301,9 @@ url = "{mcp_server_url}/mcp"
 async fn mcp_server_tool_call_forwards_url_elicitation() -> Result<()> {
     let responses_server = responses::start_mock_server().await;
     let (mcp_server_url, mcp_server_handle) = start_mcp_server().await?;
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     write_mock_responses_config_toml(
-        codex_home.path(),
+        codepilotx_home.path(),
         &responses_server.uri(),
         &BTreeMap::new(),
         /*auto_compact_limit*/ 1024,
@@ -312,7 +312,7 @@ async fn mcp_server_tool_call_forwards_url_elicitation() -> Result<()> {
         "compact",
     )?;
 
-    let config_path = codex_home.path().join("config.toml");
+    let config_path = codepilotx_home.path().join("config.toml");
     let mut config_toml = std::fs::read_to_string(&config_path)?;
     config_toml.push_str(&format!(
         r#"
@@ -322,13 +322,13 @@ url = "{mcp_server_url}/mcp"
     ));
     std::fs::write(config_path, config_toml)?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_start_id = mcp
         .send_thread_start_request(ThreadStartParams {
             model: Some("mock-model".to_string()),
-            approval_policy: Some(codex_app_server_protocol::AskForApproval::UnlessTrusted),
+            approval_policy: Some(codepilotx_app_server_protocol::AskForApproval::UnlessTrusted),
             ..Default::default()
         })
         .await?;
@@ -421,9 +421,9 @@ async fn mcp_tool_call_completion_notification_contains_truncated_large_result()
     ];
     let responses_server = create_mock_responses_server_sequence(responses).await;
     let (mcp_server_url, mcp_server_handle) = start_mcp_server().await?;
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     write_mock_responses_config_toml(
-        codex_home.path(),
+        codepilotx_home.path(),
         &responses_server.uri(),
         &BTreeMap::new(),
         /*auto_compact_limit*/ 1_000_000,
@@ -432,7 +432,7 @@ async fn mcp_tool_call_completion_notification_contains_truncated_large_result()
         "compact",
     )?;
 
-    let config_path = codex_home.path().join("config.toml");
+    let config_path = codepilotx_home.path().join("config.toml");
     let mut config_toml = std::fs::read_to_string(&config_path)?;
     config_toml.push_str(&format!(
         r#"
@@ -442,7 +442,7 @@ url = "{mcp_server_url}/mcp"
     ));
     std::fs::write(config_path, config_toml)?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_start_id = mcp

@@ -3,15 +3,15 @@ use app_test_support::TestAppServer;
 use app_test_support::create_fake_rollout;
 use app_test_support::create_mock_responses_server_repeating_assistant;
 use app_test_support::to_response;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ThreadMemoryMode;
-use codex_app_server_protocol::ThreadMemoryModeSetParams;
-use codex_app_server_protocol::ThreadMemoryModeSetResponse;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_protocol::ThreadId;
-use codex_state::StateRuntime;
+use codepilotx_app_server_protocol::JSONRPCResponse;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_app_server_protocol::ThreadMemoryMode;
+use codepilotx_app_server_protocol::ThreadMemoryModeSetParams;
+use codepilotx_app_server_protocol::ThreadMemoryModeSetResponse;
+use codepilotx_app_server_protocol::ThreadStartParams;
+use codepilotx_app_server_protocol::ThreadStartResponse;
+use codepilotx_protocol::ThreadId;
+use codepilotx_state::StateRuntime;
 use pretty_assertions::assert_eq;
 use std::path::Path;
 use std::sync::Arc;
@@ -23,11 +23,11 @@ const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs
 #[tokio::test]
 async fn thread_memory_mode_set_updates_loaded_thread_state() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
-    let state_db = init_state_db(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
+    let state_db = init_state_db(codepilotx_home.path()).await?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
@@ -65,12 +65,12 @@ async fn thread_memory_mode_set_updates_loaded_thread_state() -> Result<()> {
 #[tokio::test]
 async fn thread_memory_mode_set_updates_stored_thread_state() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
-    let state_db = init_state_db(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
+    let state_db = init_state_db(codepilotx_home.path()).await?;
 
     let thread_id = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-01-06T08-30-00",
         "2025-01-06T08:30:00Z",
         "Stored thread preview",
@@ -79,7 +79,7 @@ async fn thread_memory_mode_set_updates_stored_thread_state() -> Result<()> {
     )?;
     let thread_uuid = ThreadId::from_string(&thread_id)?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     for mode in [ThreadMemoryMode::Disabled, ThreadMemoryMode::Enabled] {
@@ -102,16 +102,16 @@ async fn thread_memory_mode_set_updates_stored_thread_state() -> Result<()> {
     Ok(())
 }
 
-async fn init_state_db(codex_home: &Path) -> Result<Arc<StateRuntime>> {
-    let state_db = StateRuntime::init(codex_home.to_path_buf(), "mock_provider".into()).await?;
+async fn init_state_db(codepilotx_home: &Path) -> Result<Arc<StateRuntime>> {
+    let state_db = StateRuntime::init(codepilotx_home.to_path_buf(), "mock_provider".into()).await?;
     state_db
         .mark_backfill_complete(/*last_watermark*/ None)
         .await?;
     Ok(state_db)
 }
 
-fn create_config_toml(codex_home: &Path, server_uri: &str) -> std::io::Result<()> {
-    let config_toml = codex_home.join("config.toml");
+fn create_config_toml(codepilotx_home: &Path, server_uri: &str) -> std::io::Result<()> {
+    let config_toml = codepilotx_home.join("config.toml");
     std::fs::write(
         config_toml,
         format!(

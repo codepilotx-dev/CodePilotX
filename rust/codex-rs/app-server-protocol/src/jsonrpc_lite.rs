@@ -1,7 +1,7 @@
 //! We do not do true JSON-RPC 2.0, as we neither send nor expect the
 //! "jsonrpc": "2.0" field.
 
-use codex_protocol::protocol::W3cTraceContext;
+use codepilotx_protocol::protocol::W3cTraceContext;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;

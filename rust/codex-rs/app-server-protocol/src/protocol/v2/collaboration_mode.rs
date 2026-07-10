@@ -1,6 +1,6 @@
-use codex_protocol::config_types::CollaborationModeMask as CoreCollaborationModeMask;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::openai_models::ReasoningEffort;
+use codepilotx_protocol::config_types::CollaborationModeMask as CoreCollaborationModeMask;
+use codepilotx_protocol::config_types::ModeKind;
+use codepilotx_protocol::openai_models::ReasoningEffort;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;

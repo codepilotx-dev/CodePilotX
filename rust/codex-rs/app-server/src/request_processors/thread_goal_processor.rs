@@ -1,9 +1,9 @@
 use super::*;
-use codex_goal_extension::GoalObjectiveUpdate;
-use codex_goal_extension::GoalService;
-use codex_goal_extension::GoalServiceError;
-use codex_goal_extension::GoalSetRequest;
-use codex_goal_extension::GoalTokenBudgetUpdate;
+use codepilotx_goal_extension::GoalObjectiveUpdate;
+use codepilotx_goal_extension::GoalService;
+use codepilotx_goal_extension::GoalServiceError;
+use codepilotx_goal_extension::GoalSetRequest;
+use codepilotx_goal_extension::GoalTokenBudgetUpdate;
 
 #[derive(Clone)]
 pub(crate) struct ThreadGoalRequestProcessor {
@@ -230,8 +230,8 @@ impl ThreadGoalRequestProcessor {
                 return Ok(state_db);
             }
         } else {
-            codex_rollout::find_thread_path_by_id_str(
-                &self.config.codex_home,
+            codepilotx_rollout::find_thread_path_by_id_str(
+                &self.config.codepilotx_home,
                 &thread_id.to_string(),
                 self.state_db.as_deref(),
             )
@@ -259,8 +259,8 @@ impl ThreadGoalRequestProcessor {
                     "ephemeral thread does not support goals: {thread_id}"
                 ))
             })?,
-            None => codex_rollout::find_thread_path_by_id_str(
-                &self.config.codex_home,
+            None => codepilotx_rollout::find_thread_path_by_id_str(
+                &self.config.codepilotx_home,
                 &thread_id.to_string(),
                 self.state_db.as_deref(),
             )
@@ -366,7 +366,7 @@ impl ThreadGoalRequestProcessor {
     }
 }
 
-pub(super) fn api_thread_goal_from_state(goal: codex_state::ThreadGoal) -> ThreadGoal {
+pub(super) fn api_thread_goal_from_state(goal: codepilotx_state::ThreadGoal) -> ThreadGoal {
     ThreadGoal {
         thread_id: goal.thread_id.to_string(),
         objective: goal.objective,
@@ -379,14 +379,14 @@ pub(super) fn api_thread_goal_from_state(goal: codex_state::ThreadGoal) -> Threa
     }
 }
 
-fn api_thread_goal_status_from_state(status: codex_state::ThreadGoalStatus) -> ThreadGoalStatus {
+fn api_thread_goal_status_from_state(status: codepilotx_state::ThreadGoalStatus) -> ThreadGoalStatus {
     match status {
-        codex_state::ThreadGoalStatus::Active => ThreadGoalStatus::Active,
-        codex_state::ThreadGoalStatus::Paused => ThreadGoalStatus::Paused,
-        codex_state::ThreadGoalStatus::Blocked => ThreadGoalStatus::Blocked,
-        codex_state::ThreadGoalStatus::UsageLimited => ThreadGoalStatus::UsageLimited,
-        codex_state::ThreadGoalStatus::BudgetLimited => ThreadGoalStatus::BudgetLimited,
-        codex_state::ThreadGoalStatus::Complete => ThreadGoalStatus::Complete,
+        codepilotx_state::ThreadGoalStatus::Active => ThreadGoalStatus::Active,
+        codepilotx_state::ThreadGoalStatus::Paused => ThreadGoalStatus::Paused,
+        codepilotx_state::ThreadGoalStatus::Blocked => ThreadGoalStatus::Blocked,
+        codepilotx_state::ThreadGoalStatus::UsageLimited => ThreadGoalStatus::UsageLimited,
+        codepilotx_state::ThreadGoalStatus::BudgetLimited => ThreadGoalStatus::BudgetLimited,
+        codepilotx_state::ThreadGoalStatus::Complete => ThreadGoalStatus::Complete,
     }
 }
 

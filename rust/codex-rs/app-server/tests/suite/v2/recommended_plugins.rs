@@ -4,13 +4,13 @@ use app_test_support::TestAppServer;
 use app_test_support::encode_id_token;
 use app_test_support::to_response;
 use app_test_support::write_mock_responses_config_toml_with_chatgpt_base_url;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::LoginAccountResponse;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::UserInput;
+use codepilotx_app_server_protocol::JSONRPCResponse;
+use codepilotx_app_server_protocol::LoginAccountResponse;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_app_server_protocol::ThreadStartParams;
+use codepilotx_app_server_protocol::ThreadStartResponse;
+use codepilotx_app_server_protocol::TurnStartParams;
+use codepilotx_app_server_protocol::UserInput;
 use core_test_support::apps_test_server::AppsTestServer;
 use core_test_support::responses;
 use serde_json::Value;
@@ -58,13 +58,13 @@ async fn first_turn_after_external_login_waits_for_recommended_plugins() -> Resu
     ]);
     let responses_mock = responses::mount_sse_once(&server, response).await;
 
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     write_mock_responses_config_toml_with_chatgpt_base_url(
-        codex_home.path(),
+        codepilotx_home.path(),
         &server.uri(),
         &apps_server.chatgpt_base_url,
     )?;
-    let config_path = codex_home.path().join("config.toml");
+    let config_path = codepilotx_home.path().join("config.toml");
     let config = std::fs::read_to_string(&config_path)?;
     std::fs::write(
         config_path,
@@ -73,10 +73,10 @@ async fn first_turn_after_external_login_waits_for_recommended_plugins() -> Resu
         ),
     )?;
 
-    let sqlite_home = codex_home.path().to_string_lossy();
+    let sqlite_home = codepilotx_home.path().to_string_lossy();
     let mut app_server = TestAppServer::new_without_managed_config_with_env(
-        codex_home.path(),
-        &[("CODEX_SQLITE_HOME", Some(sqlite_home.as_ref()))],
+        codepilotx_home.path(),
+        &[("codepilotx_SQLITE_HOME", Some(sqlite_home.as_ref()))],
     )
     .await?;
     timeout(DEFAULT_READ_TIMEOUT, app_server.initialize()).await??;

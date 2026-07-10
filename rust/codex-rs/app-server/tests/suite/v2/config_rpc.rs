@@ -3,35 +3,35 @@ use app_test_support::TestAppServer;
 use app_test_support::test_path_buf_with_windows;
 use app_test_support::test_tmp_path_buf;
 use app_test_support::to_response;
-use codex_app_server_protocol::AppConfig;
-use codex_app_server_protocol::AppToolApproval;
-use codex_app_server_protocol::ApprovalsReviewer;
-use codex_app_server_protocol::AppsConfig;
-use codex_app_server_protocol::AppsDefaultConfig;
-use codex_app_server_protocol::AskForApproval;
-use codex_app_server_protocol::ConfigBatchWriteParams;
-use codex_app_server_protocol::ConfigEdit;
-use codex_app_server_protocol::ConfigLayerSource;
-use codex_app_server_protocol::ConfigReadParams;
-use codex_app_server_protocol::ConfigReadResponse;
-use codex_app_server_protocol::ConfigRequirementsReadResponse;
-use codex_app_server_protocol::ConfigValueWriteParams;
-use codex_app_server_protocol::ConfigWriteResponse;
-use codex_app_server_protocol::ForcedChatgptWorkspaceIds;
-use codex_app_server_protocol::JSONRPCError;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::MergeStrategy;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::SandboxMode;
-use codex_app_server_protocol::ToolsV2;
-use codex_app_server_protocol::WriteStatus;
-use codex_core::config::set_project_trust_level;
-use codex_protocol::config_types::TrustLevel;
-use codex_protocol::config_types::WebSearchContextSize;
-use codex_protocol::config_types::WebSearchLocation;
-use codex_protocol::config_types::WebSearchToolConfig;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_app_server_protocol::AppConfig;
+use codepilotx_app_server_protocol::AppToolApproval;
+use codepilotx_app_server_protocol::ApprovalsReviewer;
+use codepilotx_app_server_protocol::AppsConfig;
+use codepilotx_app_server_protocol::AppsDefaultConfig;
+use codepilotx_app_server_protocol::AskForApproval;
+use codepilotx_app_server_protocol::ConfigBatchWriteParams;
+use codepilotx_app_server_protocol::ConfigEdit;
+use codepilotx_app_server_protocol::ConfigLayerSource;
+use codepilotx_app_server_protocol::ConfigReadParams;
+use codepilotx_app_server_protocol::ConfigReadResponse;
+use codepilotx_app_server_protocol::ConfigRequirementsReadResponse;
+use codepilotx_app_server_protocol::ConfigValueWriteParams;
+use codepilotx_app_server_protocol::ConfigWriteResponse;
+use codepilotx_app_server_protocol::ForcedChatgptWorkspaceIds;
+use codepilotx_app_server_protocol::JSONRPCError;
+use codepilotx_app_server_protocol::JSONRPCResponse;
+use codepilotx_app_server_protocol::MergeStrategy;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_app_server_protocol::SandboxMode;
+use codepilotx_app_server_protocol::ToolsV2;
+use codepilotx_app_server_protocol::WriteStatus;
+use codepilotx_core::config::set_project_trust_level;
+use codepilotx_protocol::config_types::TrustLevel;
+use codepilotx_protocol::config_types::WebSearchContextSize;
+use codepilotx_protocol::config_types::WebSearchLocation;
+use codepilotx_protocol::config_types::WebSearchToolConfig;
+use codepilotx_protocol::openai_models::ReasoningEffort;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use tempfile::TempDir;
@@ -41,21 +41,21 @@ use tokio::time::timeout;
 // processing config RPCs under load.
 const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
 
-fn write_config(codex_home: &TempDir, contents: &str) -> Result<()> {
+fn write_config(codepilotx_home: &TempDir, contents: &str) -> Result<()> {
     Ok(std::fs::write(
-        codex_home.path().join("config.toml"),
+        codepilotx_home.path().join("config.toml"),
         contents,
     )?)
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn config_requirements_read_includes_allow_remote_control() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     std::fs::write(
-        codex_home.path().join("requirements.toml"),
+        codepilotx_home.path().join("requirements.toml"),
         "allow_remote_control = false\n",
     )?;
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp.send_config_requirements_read_request().await?;
@@ -77,18 +77,18 @@ async fn config_requirements_read_includes_allow_remote_control() -> Result<()> 
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn config_read_returns_effective_and_layers() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     write_config(
-        &codex_home,
+        &codepilotx_home,
         r#"
 model = "gpt-user"
 sandbox_mode = "workspace-write"
 "#,
     )?;
-    let codex_home_path = codex_home.path().canonicalize()?;
-    let user_file = AbsolutePathBuf::try_from(codex_home_path.join("config.toml"))?;
+    let codepilotx_home_path = codepilotx_home.path().canonicalize()?;
+    let user_file = AbsolutePathBuf::try_from(codepilotx_home_path.join("config.toml"))?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -124,9 +124,9 @@ sandbox_mode = "workspace-write"
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn config_read_includes_tools() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     write_config(
-        &codex_home,
+        &codepilotx_home,
         r#"
 model = "gpt-user"
 
@@ -135,10 +135,10 @@ context_size = "low"
 allowed_domains = ["example.com"]
 "#,
     )?;
-    let codex_home_path = codex_home.path().canonicalize()?;
-    let user_file = AbsolutePathBuf::try_from(codex_home_path.join("config.toml"))?;
+    let codepilotx_home_path = codepilotx_home.path().canonicalize()?;
+    let user_file = AbsolutePathBuf::try_from(codepilotx_home_path.join("config.toml"))?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -199,9 +199,9 @@ allowed_domains = ["example.com"]
 async fn config_read_accepts_legacy_forced_chatgpt_workspace_id() -> Result<()> {
     const WORKSPACE_ID: &str = "123e4567-e89b-42d3-a456-426614174000";
 
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     write_config(
-        &codex_home,
+        &codepilotx_home,
         &format!(
             r#"
 forced_chatgpt_workspace_id = "{WORKSPACE_ID}"
@@ -209,7 +209,7 @@ forced_chatgpt_workspace_id = "{WORKSPACE_ID}"
         ),
     )?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -238,9 +238,9 @@ async fn config_read_accepts_forced_chatgpt_workspace_id_list() -> Result<()> {
     const WORKSPACE_ID_A: &str = "123e4567-e89b-42d3-a456-426614174000";
     const WORKSPACE_ID_B: &str = "123e4567-e89b-42d3-a456-426614174001";
 
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     write_config(
-        &codex_home,
+        &codepilotx_home,
         &format!(
             r#"
 forced_chatgpt_workspace_id = ["{WORKSPACE_ID_A}", "{WORKSPACE_ID_B}"]
@@ -248,7 +248,7 @@ forced_chatgpt_workspace_id = ["{WORKSPACE_ID_A}", "{WORKSPACE_ID_B}"]
         ),
     )?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -277,9 +277,9 @@ forced_chatgpt_workspace_id = ["{WORKSPACE_ID_A}", "{WORKSPACE_ID_B}"]
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn config_read_includes_nested_web_search_tool_config() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     write_config(
-        &codex_home,
+        &codepilotx_home,
         r#"
 web_search = "live"
 
@@ -290,7 +290,7 @@ location = { country = "US", city = "New York", timezone = "America/New_York" }
 "#,
     )?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -325,16 +325,16 @@ location = { country = "US", city = "New York", timezone = "America/New_York" }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn config_read_ignores_bool_web_search_tool_config() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     write_config(
-        &codex_home,
+        &codepilotx_home,
         r#"
 [tools]
 web_search = true
 "#,
     )?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -357,9 +357,9 @@ web_search = true
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn config_read_includes_apps() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     write_config(
-        &codex_home,
+        &codepilotx_home,
         r#"
 [apps._default]
 approvals_reviewer = "auto_review"
@@ -372,10 +372,10 @@ destructive_enabled = false
 default_tools_approval_mode = "prompt"
 "#,
     )?;
-    let codex_home_path = codex_home.path().canonicalize()?;
-    let user_file = AbsolutePathBuf::try_from(codex_home_path.join("config.toml"))?;
+    let codepilotx_home_path = codepilotx_home.path().canonicalize()?;
+    let user_file = AbsolutePathBuf::try_from(codepilotx_home_path.join("config.toml"))?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -485,9 +485,9 @@ default_tools_approval_mode = "prompt"
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn config_read_includes_desktop_settings() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     write_config(
-        &codex_home,
+        &codepilotx_home,
         r#"
 [desktop]
 appearanceTheme = "dark"
@@ -499,7 +499,7 @@ width = 320
 "#,
     )?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -531,8 +531,8 @@ width = 320
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn config_read_includes_project_layers_for_cwd() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    write_config(&codex_home, r#"model = "gpt-user""#)?;
+    let codepilotx_home = TempDir::new()?;
+    write_config(&codepilotx_home, r#"model = "gpt-user""#)?;
 
     let workspace = TempDir::new()?;
     let project_config_dir = workspace.path().join(".codex");
@@ -543,10 +543,10 @@ async fn config_read_includes_project_layers_for_cwd() -> Result<()> {
 model_reasoning_effort = "high"
 "#,
     )?;
-    set_project_trust_level(codex_home.path(), workspace.path(), TrustLevel::Trusted)?;
+    set_project_trust_level(codepilotx_home.path(), workspace.path(), TrustLevel::Trusted)?;
     let project_config = AbsolutePathBuf::try_from(project_config_dir)?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -568,7 +568,7 @@ model_reasoning_effort = "high"
     assert_eq!(
         origins.get("model_reasoning_effort").expect("origin").name,
         ConfigLayerSource::Project {
-            dot_codex_folder: project_config
+            dot_codepilotx_folder: project_config
         }
     );
 
@@ -577,11 +577,11 @@ model_reasoning_effort = "high"
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn config_read_includes_system_layer_and_overrides() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let user_dir = test_path_buf_with_windows("/user", Some(r"C:\Users\user"));
     let system_dir = test_path_buf_with_windows("/system", Some(r"C:\System"));
     write_config(
-        &codex_home,
+        &codepilotx_home,
         &format!(
             r#"
 model = "gpt-user"
@@ -595,10 +595,10 @@ network_access = true
             serde_json::json!(user_dir)
         ),
     )?;
-    let codex_home_path = codex_home.path().canonicalize()?;
-    let user_file = AbsolutePathBuf::try_from(codex_home_path.join("config.toml"))?;
+    let codepilotx_home_path = codepilotx_home.path().canonicalize()?;
+    let user_file = AbsolutePathBuf::try_from(codepilotx_home_path.join("config.toml"))?;
 
-    let managed_path = codex_home.path().join("managed_config.toml");
+    let managed_path = codepilotx_home.path().join("managed_config.toml");
     let managed_file = AbsolutePathBuf::try_from(managed_path.clone())?;
     std::fs::write(
         &managed_path,
@@ -617,9 +617,9 @@ writable_roots = [{}]
     let managed_path_str = managed_path.display().to_string();
 
     let mut mcp = TestAppServer::new_with_env(
-        codex_home.path(),
+        codepilotx_home.path(),
         &[(
-            "CODEX_APP_SERVER_MANAGED_CONFIG_PATH",
+            "codepilotx_APP_SERVER_MANAGED_CONFIG_PATH",
             Some(&managed_path_str),
         )],
     )
@@ -704,7 +704,7 @@ writable_roots = [{}]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn config_value_write_replaces_value() -> Result<()> {
     let temp_dir = TempDir::new()?;
-    let codex_home = temp_dir.path().canonicalize()?;
+    let codepilotx_home = temp_dir.path().canonicalize()?;
     write_config(
         &temp_dir,
         r#"
@@ -712,7 +712,7 @@ model = "gpt-old"
 "#,
     )?;
 
-    let mut mcp = TestAppServer::new(&codex_home).await?;
+    let mut mcp = TestAppServer::new(&codepilotx_home).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let read_id = mcp
@@ -744,7 +744,7 @@ model = "gpt-old"
     )
     .await??;
     let write: ConfigWriteResponse = to_response(write_resp)?;
-    let expected_file_path = AbsolutePathBuf::resolve_path_against_base("config.toml", codex_home);
+    let expected_file_path = AbsolutePathBuf::resolve_path_against_base("config.toml", codepilotx_home);
 
     assert_eq!(write.status, WriteStatus::Ok);
     assert_eq!(write.file_path, expected_file_path);
@@ -770,10 +770,10 @@ model = "gpt-old"
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn config_value_write_updates_desktop_settings() -> Result<()> {
     let temp_dir = TempDir::new()?;
-    let codex_home = temp_dir.path().canonicalize()?;
+    let codepilotx_home = temp_dir.path().canonicalize()?;
     write_config(&temp_dir, "")?;
 
-    let mut mcp = TestAppServer::new(&codex_home).await?;
+    let mut mcp = TestAppServer::new(&codepilotx_home).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let write_id = mcp
@@ -814,7 +814,7 @@ async fn config_value_write_updates_desktop_settings() -> Result<()> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn config_read_after_pipelined_write_sees_written_value() -> Result<()> {
     let temp_dir = TempDir::new()?;
-    let codex_home = temp_dir.path().canonicalize()?;
+    let codepilotx_home = temp_dir.path().canonicalize()?;
     write_config(
         &temp_dir,
         r#"
@@ -822,7 +822,7 @@ model = "gpt-old"
 "#,
     )?;
 
-    let mut mcp = TestAppServer::new(&codex_home).await?;
+    let mut mcp = TestAppServer::new(&codepilotx_home).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let write_id = mcp
@@ -862,20 +862,20 @@ model = "gpt-old"
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn config_value_write_rejects_version_conflict() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     write_config(
-        &codex_home,
+        &codepilotx_home,
         r#"
 model = "gpt-old"
 "#,
     )?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let write_id = mcp
         .send_config_value_write_request(ConfigValueWriteParams {
-            file_path: Some(codex_home.path().join("config.toml").display().to_string()),
+            file_path: Some(codepilotx_home.path().join("config.toml").display().to_string()),
             key_path: "model".to_string(),
             value: json!("gpt-new"),
             merge_strategy: MergeStrategy::Replace,
@@ -902,16 +902,16 @@ model = "gpt-old"
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn config_batch_write_applies_multiple_edits() -> Result<()> {
     let tmp_dir = TempDir::new()?;
-    let codex_home = tmp_dir.path().canonicalize()?;
+    let codepilotx_home = tmp_dir.path().canonicalize()?;
     write_config(&tmp_dir, "")?;
 
-    let mut mcp = TestAppServer::new(&codex_home).await?;
+    let mut mcp = TestAppServer::new(&codepilotx_home).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let writable_root = test_tmp_path_buf();
     let batch_id = mcp
         .send_config_batch_write_request(ConfigBatchWriteParams {
-            file_path: Some(codex_home.join("config.toml").display().to_string()),
+            file_path: Some(codepilotx_home.join("config.toml").display().to_string()),
             edits: vec![
                 ConfigEdit {
                     key_path: "sandbox_mode".to_string(),
@@ -938,7 +938,7 @@ async fn config_batch_write_applies_multiple_edits() -> Result<()> {
     .await??;
     let batch_write: ConfigWriteResponse = to_response(batch_resp)?;
     assert_eq!(batch_write.status, WriteStatus::Ok);
-    let expected_file_path = AbsolutePathBuf::resolve_path_against_base("config.toml", codex_home);
+    let expected_file_path = AbsolutePathBuf::resolve_path_against_base("config.toml", codepilotx_home);
     assert_eq!(batch_write.file_path, expected_file_path);
 
     let read_id = mcp
@@ -968,7 +968,7 @@ async fn config_batch_write_applies_multiple_edits() -> Result<()> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn config_batch_write_rejects_legacy_profile_tables() -> Result<()> {
     let tmp_dir = TempDir::new()?;
-    let codex_home = tmp_dir.path().canonicalize()?;
+    let codepilotx_home = tmp_dir.path().canonicalize()?;
     write_config(
         &tmp_dir,
         r#"
@@ -977,12 +977,12 @@ model = "gpt-5.3-spark"
 "#,
     )?;
 
-    let mut mcp = TestAppServer::new(&codex_home).await?;
+    let mut mcp = TestAppServer::new(&codepilotx_home).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let batch_id = mcp
         .send_config_batch_write_request(ConfigBatchWriteParams {
-            file_path: Some(codex_home.join("config.toml").display().to_string()),
+            file_path: Some(codepilotx_home.join("config.toml").display().to_string()),
             edits: vec![
                 ConfigEdit {
                     key_path: "profiles.\"team.prod\".model".to_string(),
@@ -1017,7 +1017,7 @@ model = "gpt-5.3-spark"
     );
 
     let config: toml::Value =
-        toml::from_str(&std::fs::read_to_string(codex_home.join("config.toml"))?)?;
+        toml::from_str(&std::fs::read_to_string(codepilotx_home.join("config.toml"))?)?;
     assert_eq!(
         config["profiles"]["team.prod"]["model"].as_str(),
         Some("gpt-5.3-spark")
@@ -1030,15 +1030,15 @@ model = "gpt-5.3-spark"
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn config_batch_write_updates_multiple_desktop_settings() -> Result<()> {
     let tmp_dir = TempDir::new()?;
-    let codex_home = tmp_dir.path().canonicalize()?;
+    let codepilotx_home = tmp_dir.path().canonicalize()?;
     write_config(&tmp_dir, "")?;
 
-    let mut mcp = TestAppServer::new(&codex_home).await?;
+    let mut mcp = TestAppServer::new(&codepilotx_home).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let batch_id = mcp
         .send_config_batch_write_request(ConfigBatchWriteParams {
-            file_path: Some(codex_home.join("config.toml").display().to_string()),
+            file_path: Some(codepilotx_home.join("config.toml").display().to_string()),
             edits: vec![
                 ConfigEdit {
                     key_path: "desktop.selected-avatar-id".to_string(),
@@ -1092,7 +1092,7 @@ async fn config_batch_write_updates_multiple_desktop_settings() -> Result<()> {
 }
 
 fn assert_layers_user_then_optional_system(
-    layers: &[codex_app_server_protocol::ConfigLayer],
+    layers: &[codepilotx_app_server_protocol::ConfigLayer],
     user_file: AbsolutePathBuf,
 ) -> Result<()> {
     let mut first_index = 0;
@@ -1118,7 +1118,7 @@ fn assert_layers_user_then_optional_system(
 }
 
 fn assert_layers_managed_user_then_optional_system(
-    layers: &[codex_app_server_protocol::ConfigLayer],
+    layers: &[codepilotx_app_server_protocol::ConfigLayer],
     managed_file: AbsolutePathBuf,
     user_file: AbsolutePathBuf,
 ) -> Result<()> {

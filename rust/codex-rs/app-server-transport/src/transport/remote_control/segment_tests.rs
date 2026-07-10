@@ -10,10 +10,10 @@ use super::segment::REMOTE_CONTROL_SEGMENT_MAX_BYTES;
 use super::segment::split_server_envelope_for_transport;
 use crate::outgoing_message::OutgoingMessage;
 use base64::Engine;
-use codex_app_server_protocol::ConfigWarningNotification;
-use codex_app_server_protocol::JSONRPCMessage;
-use codex_app_server_protocol::JSONRPCNotification;
-use codex_app_server_protocol::ServerNotification;
+use codepilotx_app_server_protocol::ConfigWarningNotification;
+use codepilotx_app_server_protocol::JSONRPCMessage;
+use codepilotx_app_server_protocol::JSONRPCNotification;
+use codepilotx_app_server_protocol::ServerNotification;
 use pretty_assertions::assert_eq;
 
 #[test]

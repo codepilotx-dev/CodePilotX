@@ -4,16 +4,16 @@ use std::time::Duration;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
-use codex_app_server_protocol::JSONRPCMessage;
-use codex_app_server_protocol::JSONRPCNotification;
-use codex_app_server_protocol::JSONRPCRequest;
-use codex_app_server_protocol::RemoteControlConnectionStatus;
-use codex_app_server_protocol::RemoteControlDisableParams;
-use codex_app_server_protocol::RemoteControlDisableResponse;
-use codex_app_server_protocol::RemoteControlEnableParams;
-use codex_app_server_protocol::RemoteControlEnableResponse;
-use codex_app_server_protocol::RemoteControlStatusChangedNotification;
-use codex_app_server_protocol::RequestId;
+use codepilotx_app_server_protocol::JSONRPCMessage;
+use codepilotx_app_server_protocol::JSONRPCNotification;
+use codepilotx_app_server_protocol::JSONRPCRequest;
+use codepilotx_app_server_protocol::RemoteControlConnectionStatus;
+use codepilotx_app_server_protocol::RemoteControlDisableParams;
+use codepilotx_app_server_protocol::RemoteControlDisableResponse;
+use codepilotx_app_server_protocol::RemoteControlEnableParams;
+use codepilotx_app_server_protocol::RemoteControlEnableResponse;
+use codepilotx_app_server_protocol::RemoteControlStatusChangedNotification;
+use codepilotx_app_server_protocol::RequestId;
 use serde::de::DeserializeOwned;
 use tokio::io::AsyncRead;
 use tokio::io::AsyncWrite;
@@ -162,7 +162,7 @@ async fn connect_with_retry(
     socket_path: &Path,
     connect_timeout: Duration,
     connect_retry_delay: Duration,
-) -> Result<WebSocketStream<codex_uds::UnixStream>> {
+) -> Result<WebSocketStream<codepilotx_uds::UnixStream>> {
     let deadline = Instant::now() + connect_timeout;
     loop {
         match client::connect(socket_path).await {
@@ -320,10 +320,10 @@ impl From<RemoteControlStatusChangedNotification> for RemoteControlReadyStatus {
 #[cfg(all(test, unix))]
 mod tests {
     use anyhow::Result;
-    use codex_app_server_protocol::JSONRPCError;
-    use codex_app_server_protocol::JSONRPCErrorError;
-    use codex_app_server_protocol::JSONRPCResponse;
-    use codex_uds::UnixListener;
+    use codepilotx_app_server_protocol::JSONRPCError;
+    use codepilotx_app_server_protocol::JSONRPCErrorError;
+    use codepilotx_app_server_protocol::JSONRPCResponse;
+    use codepilotx_uds::UnixListener;
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
     use tokio_tungstenite::accept_async;
@@ -333,7 +333,7 @@ mod tests {
     const INITIALIZE_REQUEST_ID: RequestId = RequestId::Integer(1);
     const TEST_INSTALLATION_ID: &str = "11111111-1111-4111-8111-111111111111";
     const TEST_SERVER_NAME: &str = "owen-mbp";
-    const TEST_CODEX_HOME: &str = "/tmp/codex-home";
+    const TEST_codepilotx_HOME: &str = "/tmp/codex-home";
 
     #[tokio::test]
     async fn enable_remote_control_uses_connected_enable_response_without_later_notification()
@@ -623,7 +623,7 @@ mod tests {
 
     async fn accept_initialized_client(
         mut listener: UnixListener,
-    ) -> Result<WebSocketStream<codex_uds::UnixStream>> {
+    ) -> Result<WebSocketStream<codepilotx_uds::UnixStream>> {
         let stream = listener.accept().await?;
         let mut websocket = accept_async(stream).await?;
         let initialize = client::read_message(&mut websocket).await?;
@@ -644,8 +644,8 @@ mod tests {
             &JSONRPCMessage::Response(JSONRPCResponse {
                 id: INITIALIZE_REQUEST_ID,
                 result: serde_json::json!({
-                    "userAgent": "codex_app_server/1.2.3",
-                    "codexHome": TEST_CODEX_HOME,
+                    "userAgent": "codepilotx_app_server/1.2.3",
+                    "codexHome": TEST_codepilotx_HOME,
                     "platformFamily": "unix",
                     "platformOs": "macos",
                 }),

@@ -14,9 +14,9 @@ use chrono::DateTime;
 use chrono::Datelike;
 use chrono::Local;
 use chrono::Utc;
-use codex_async_utils::CancelErr;
-use codex_utils_string::truncate_middle_chars;
-use codex_utils_string::truncate_middle_with_token_budget;
+use codepilotx_async_utils::CancelErr;
+use codepilotx_utils_string::truncate_middle_chars;
+use codepilotx_utils_string::truncate_middle_with_token_budget;
 use reqwest::StatusCode;
 use serde_json;
 use std::io;
@@ -217,7 +217,7 @@ impl CodexErr {
     }
 
     /// Translate core error to client-facing protocol error.
-    pub fn to_codex_protocol_error(&self) -> CodexErrorInfo {
+    pub fn to_codepilotx_protocol_error(&self) -> CodexErrorInfo {
         match self {
             CodexErr::ContextWindowExceeded => CodexErrorInfo::ContextWindowExceeded,
             CodexErr::UsageLimitReached(_)
@@ -254,7 +254,7 @@ impl CodexErr {
         };
         ErrorEvent {
             message,
-            codex_error_info: Some(self.to_codex_protocol_error()),
+            codepilotx_error_info: Some(self.to_codepilotx_protocol_error()),
         }
     }
 

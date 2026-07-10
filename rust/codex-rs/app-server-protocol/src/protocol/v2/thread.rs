@@ -10,25 +10,25 @@ use super::Turn;
 use super::TurnEnvironmentParams;
 use super::TurnItemsView;
 use super::shared::v2_enum_from_core;
-use codex_experimental_api_macros::ExperimentalApi;
-pub use codex_protocol::capabilities::CapabilityRootLocation;
-pub use codex_protocol::capabilities::SelectedCapabilityRoot;
-use codex_protocol::config_types::CollaborationMode;
-use codex_protocol::config_types::MultiAgentMode;
-use codex_protocol::config_types::Personality;
-use codex_protocol::config_types::ReasoningSummary;
-pub use codex_protocol::dynamic_tools::DynamicToolFunctionSpec;
-pub use codex_protocol::dynamic_tools::DynamicToolNamespaceSpec;
-pub use codex_protocol::dynamic_tools::DynamicToolNamespaceTool;
-pub use codex_protocol::dynamic_tools::DynamicToolSpec;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::protocol::ThreadGoalStatus as CoreThreadGoalStatus;
-use codex_protocol::protocol::TokenUsage as CoreTokenUsage;
-use codex_protocol::protocol::TokenUsageInfo as CoreTokenUsageInfo;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_path_uri::LegacyAppPathString;
-use codex_utils_path_uri::PathUri;
+use codepilotx_experimental_api_macros::ExperimentalApi;
+pub use codepilotx_protocol::capabilities::CapabilityRootLocation;
+pub use codepilotx_protocol::capabilities::SelectedCapabilityRoot;
+use codepilotx_protocol::config_types::CollaborationMode;
+use codepilotx_protocol::config_types::MultiAgentMode;
+use codepilotx_protocol::config_types::Personality;
+use codepilotx_protocol::config_types::ReasoningSummary;
+pub use codepilotx_protocol::dynamic_tools::DynamicToolFunctionSpec;
+pub use codepilotx_protocol::dynamic_tools::DynamicToolNamespaceSpec;
+pub use codepilotx_protocol::dynamic_tools::DynamicToolNamespaceTool;
+pub use codepilotx_protocol::dynamic_tools::DynamicToolSpec;
+use codepilotx_protocol::models::ResponseItem;
+use codepilotx_protocol::openai_models::ReasoningEffort;
+use codepilotx_protocol::protocol::ThreadGoalStatus as CoreThreadGoalStatus;
+use codepilotx_protocol::protocol::TokenUsage as CoreTokenUsage;
+use codepilotx_protocol::protocol::TokenUsageInfo as CoreTokenUsageInfo;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_path_uri::LegacyAppPathString;
+use codepilotx_utils_path_uri::PathUri;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
@@ -119,7 +119,7 @@ pub struct ThreadStartParams {
     #[experimental("thread/start.dynamicTools")]
     #[serde(
         default,
-        deserialize_with = "codex_protocol::dynamic_tools::deserialize_dynamic_tool_specs"
+        deserialize_with = "codepilotx_protocol::dynamic_tools::deserialize_dynamic_tool_specs"
     )]
     #[ts(optional = nullable)]
     pub dynamic_tools: Option<Vec<DynamicToolSpec>>,
@@ -745,8 +745,8 @@ pub struct ThreadGoal {
     pub updated_at: i64,
 }
 
-impl From<codex_protocol::protocol::ThreadGoal> for ThreadGoal {
-    fn from(value: codex_protocol::protocol::ThreadGoal) -> Self {
+impl From<codepilotx_protocol::protocol::ThreadGoal> for ThreadGoal {
+    fn from(value: codepilotx_protocol::protocol::ThreadGoal) -> Self {
         Self {
             thread_id: value.thread_id.to_string(),
             objective: value.objective,
@@ -885,10 +885,10 @@ impl ThreadMemoryMode {
         }
     }
 
-    pub fn to_core(self) -> codex_protocol::protocol::ThreadMemoryMode {
+    pub fn to_core(self) -> codepilotx_protocol::protocol::ThreadMemoryMode {
         match self {
-            Self::Enabled => codex_protocol::protocol::ThreadMemoryMode::Enabled,
-            Self::Disabled => codex_protocol::protocol::ThreadMemoryMode::Disabled,
+            Self::Enabled => codepilotx_protocol::protocol::ThreadMemoryMode::Enabled,
+            Self::Disabled => codepilotx_protocol::protocol::ThreadMemoryMode::Disabled,
         }
     }
 }
@@ -952,7 +952,7 @@ pub struct ThreadShellCommandResponse {}
 #[ts(export_to = "v2/")]
 pub struct ThreadApproveGuardianDeniedActionParams {
     pub thread_id: String,
-    /// Serialized `codex_protocol::protocol::GuardianAssessmentEvent`.
+    /// Serialized `codepilotx_protocol::protocol::GuardianAssessmentEvent`.
     pub event: JsonValue,
 }
 

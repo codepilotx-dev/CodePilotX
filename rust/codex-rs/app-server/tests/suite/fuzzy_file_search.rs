@@ -1,10 +1,10 @@
 use anyhow::Result;
 use anyhow::anyhow;
 use app_test_support::TestAppServer;
-use codex_app_server_protocol::FuzzyFileSearchSessionCompletedNotification;
-use codex_app_server_protocol::FuzzyFileSearchSessionUpdatedNotification;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::RequestId;
+use codepilotx_app_server_protocol::FuzzyFileSearchSessionCompletedNotification;
+use codepilotx_app_server_protocol::FuzzyFileSearchSessionUpdatedNotification;
+use codepilotx_app_server_protocol::JSONRPCResponse;
+use codepilotx_app_server_protocol::RequestId;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use std::path::Path;
@@ -29,8 +29,8 @@ enum FileExpectation {
     NonEmpty,
 }
 
-fn create_config_toml(codex_home: &Path) -> std::io::Result<()> {
-    let config_toml = codex_home.join("config.toml");
+fn create_config_toml(codepilotx_home: &Path) -> std::io::Result<()> {
+    let config_toml = codepilotx_home.join("config.toml");
     std::fs::write(
         config_toml,
         r#"
@@ -44,9 +44,9 @@ shell_snapshot = false
     )
 }
 
-async fn initialized_mcp(codex_home: &TempDir) -> Result<TestAppServer> {
-    create_config_toml(codex_home.path())?;
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+async fn initialized_mcp(codepilotx_home: &TempDir) -> Result<TestAppServer> {
+    create_config_toml(codepilotx_home.path())?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
     Ok(mcp)
 }
@@ -217,8 +217,8 @@ async fn assert_no_session_updates_for(
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_fuzzy_file_search_sorts_and_includes_indices() -> Result<()> {
     // Prepare a temporary Codex home and a separate root with test files.
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path())?;
     let root = TempDir::new()?;
 
     // Create files designed to have deterministic ordering for query "abe".
@@ -236,7 +236,7 @@ async fn test_fuzzy_file_search_sorts_and_includes_indices() -> Result<()> {
         .to_string();
 
     // Start MCP server and initialize.
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let root_path = root.path().to_string_lossy().to_string();
@@ -296,13 +296,13 @@ async fn test_fuzzy_file_search_sorts_and_includes_indices() -> Result<()> {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_fuzzy_file_search_accepts_cancellation_token() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path())?;
     let root = TempDir::new()?;
 
     std::fs::write(root.path().join("alpha.txt"), "contents")?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let root_path = root.path().to_string_lossy().to_string();
@@ -345,10 +345,10 @@ async fn test_fuzzy_file_search_accepts_cancellation_token() -> Result<()> {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_fuzzy_file_search_session_streams_updates() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let root = TempDir::new()?;
     std::fs::write(root.path().join("alpha.txt"), "contents")?;
-    let mut mcp = initialized_mcp(&codex_home).await?;
+    let mut mcp = initialized_mcp(&codepilotx_home).await?;
 
     let root_path = root.path().to_string_lossy().to_string();
     let session_id = "session-1";
@@ -373,10 +373,10 @@ async fn test_fuzzy_file_search_session_streams_updates() -> Result<()> {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_fuzzy_file_search_session_update_is_case_insensitive() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let root = TempDir::new()?;
     std::fs::write(root.path().join("alpha.txt"), "contents")?;
-    let mut mcp = initialized_mcp(&codex_home).await?;
+    let mut mcp = initialized_mcp(&codepilotx_home).await?;
 
     let root_path = root.path().to_string_lossy().to_string();
     let session_id = "session-case-insensitive";
@@ -398,10 +398,10 @@ async fn test_fuzzy_file_search_session_update_is_case_insensitive() -> Result<(
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_fuzzy_file_search_session_no_updates_after_complete_until_query_edited() -> Result<()>
 {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let root = TempDir::new()?;
     std::fs::write(root.path().join("alpha.txt"), "contents")?;
-    let mut mcp = initialized_mcp(&codex_home).await?;
+    let mut mcp = initialized_mcp(&codepilotx_home).await?;
 
     let root_path = root.path().to_string_lossy().to_string();
     let session_id = "session-complete-invariant";
@@ -424,8 +424,8 @@ async fn test_fuzzy_file_search_session_no_updates_after_complete_until_query_ed
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_fuzzy_file_search_session_update_before_start_errors() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    let mut mcp = initialized_mcp(&codex_home).await?;
+    let codepilotx_home = TempDir::new()?;
+    let mut mcp = initialized_mcp(&codepilotx_home).await?;
     assert_update_request_fails_for_missing_session(&mut mcp, "missing", "alp").await?;
 
     Ok(())
@@ -434,10 +434,10 @@ async fn test_fuzzy_file_search_session_update_before_start_errors() -> Result<(
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_fuzzy_file_search_session_update_works_without_waiting_for_start_response()
 -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let root = TempDir::new()?;
     std::fs::write(root.path().join("alpha.txt"), "contents")?;
-    let mut mcp = initialized_mcp(&codex_home).await?;
+    let mut mcp = initialized_mcp(&codepilotx_home).await?;
 
     let root_path = root.path().to_string_lossy().to_string();
     let session_id = "session-no-wait";
@@ -471,11 +471,11 @@ async fn test_fuzzy_file_search_session_update_works_without_waiting_for_start_r
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_fuzzy_file_search_session_multiple_query_updates_work() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let root = TempDir::new()?;
     std::fs::write(root.path().join("alpha.txt"), "contents")?;
     std::fs::write(root.path().join("alphabet.txt"), "contents")?;
-    let mut mcp = initialized_mcp(&codex_home).await?;
+    let mut mcp = initialized_mcp(&codepilotx_home).await?;
 
     let root_path = root.path().to_string_lossy().to_string();
     let session_id = "session-multi-update";
@@ -505,10 +505,10 @@ async fn test_fuzzy_file_search_session_multiple_query_updates_work() -> Result<
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_fuzzy_file_search_session_update_after_stop_fails() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let root = TempDir::new()?;
     std::fs::write(root.path().join("alpha.txt"), "contents")?;
-    let mut mcp = initialized_mcp(&codex_home).await?;
+    let mut mcp = initialized_mcp(&codepilotx_home).await?;
 
     let session_id = "session-stop-fail";
     let root_path = root.path().to_string_lossy().to_string();
@@ -523,13 +523,13 @@ async fn test_fuzzy_file_search_session_update_after_stop_fails() -> Result<()> 
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_fuzzy_file_search_session_stops_sending_updates_after_stop() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let root = TempDir::new()?;
     for i in 0..512 {
         let file_path = root.path().join(format!("file-{i:04}.txt"));
         std::fs::write(file_path, "contents")?;
     }
-    let mut mcp = initialized_mcp(&codex_home).await?;
+    let mut mcp = initialized_mcp(&codepilotx_home).await?;
 
     let root_path = root.path().to_string_lossy().to_string();
     let session_id = "session-stop-no-updates";
@@ -549,12 +549,12 @@ async fn test_fuzzy_file_search_session_stops_sending_updates_after_stop() -> Re
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_fuzzy_file_search_two_sessions_are_independent() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let root_a = TempDir::new()?;
     let root_b = TempDir::new()?;
     std::fs::write(root_a.path().join("alpha.txt"), "contents")?;
     std::fs::write(root_b.path().join("beta.txt"), "contents")?;
-    let mut mcp = initialized_mcp(&codex_home).await?;
+    let mut mcp = initialized_mcp(&codepilotx_home).await?;
 
     let root_a_path = root_a.path().to_string_lossy().to_string();
     let root_b_path = root_b.path().to_string_lossy().to_string();
@@ -588,10 +588,10 @@ async fn test_fuzzy_file_search_two_sessions_are_independent() -> Result<()> {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_fuzzy_file_search_query_cleared_sends_blank_snapshot() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let root = TempDir::new()?;
     std::fs::write(root.path().join("alpha.txt"), "contents")?;
-    let mut mcp = initialized_mcp(&codex_home).await?;
+    let mut mcp = initialized_mcp(&codepilotx_home).await?;
 
     let root_path = root.path().to_string_lossy().to_string();
     let session_id = "session-clear-query";

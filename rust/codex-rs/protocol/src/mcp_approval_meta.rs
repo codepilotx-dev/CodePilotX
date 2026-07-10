@@ -1,7 +1,7 @@
-pub const APPROVAL_KIND_KEY: &str = "codex_approval_kind";
+pub const APPROVAL_KIND_KEY: &str = "codepilotx_approval_kind";
 pub const APPROVAL_KIND_MCP_TOOL_CALL: &str = "mcp_tool_call";
 pub const APPROVAL_KIND_TOOL_SUGGESTION: &str = "tool_suggestion";
-pub const REQUEST_TYPE_KEY: &str = "codex_request_type";
+pub const REQUEST_TYPE_KEY: &str = "codepilotx_request_type";
 pub const REQUEST_TYPE_APPROVAL_REQUEST: &str = "approval_request";
 pub const APPROVALS_REVIEWER_KEY: &str = "approvals_reviewer";
 pub const PERSIST_KEY: &str = "persist";

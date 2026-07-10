@@ -53,8 +53,8 @@ use crate::request_permissions::RequestPermissionsEvent;
 use crate::request_permissions::RequestPermissionsResponse;
 use crate::request_user_input::RequestUserInputResponse;
 use crate::user_input::UserInput;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_path_uri::PathUri;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_path_uri::PathUri;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
@@ -186,13 +186,13 @@ pub struct ConversationStartParams {
     /// Whether Codex response handoffs are managed through explicit client append calls.
     pub client_managed_handoffs: bool,
     /// Sends automatic Codex responses as realtime conversation items instead of handoff appends.
-    pub codex_responses_as_items: bool,
-    /// Optional prefix added to automatic Codex response items when `codex_responses_as_items` is set.
-    pub codex_response_item_prefix: Option<String>,
+    pub codepilotx_responses_as_items: bool,
+    /// Optional prefix added to automatic Codex response items when `codepilotx_responses_as_items` is set.
+    pub codepilotx_response_item_prefix: Option<String>,
     /// Optional prefix added to automatic V1 Codex commentary sent with
-    /// `conversation.handoff.append` when `codex_responses_as_items` is not set. Final answers are
+    /// `conversation.handoff.append` when `codepilotx_responses_as_items` is not set. Final answers are
     /// sent without the prefix.
-    pub codex_response_handoff_prefix: Option<String>,
+    pub codepilotx_response_handoff_prefix: Option<String>,
     /// Overrides the configured realtime model for this session only.
     pub model: Option<String>,
     /// Selects whether the realtime session should produce text or audio output.
@@ -1272,7 +1272,7 @@ pub enum EventMsg {
     TurnComplete(TurnCompleteEvent),
 
     /// Usage update for the current session, including totals and last turn.
-    /// Optional means unknown â€” UIs should not display when `None`.
+    /// Optional means unknown â€?UIs should not display when `None`.
     TokenCount(TokenCountEvent),
 
     /// Agent text output message
@@ -1881,13 +1881,13 @@ pub struct ExitedReviewModeEvent {
 pub struct ErrorEvent {
     pub message: String,
     #[serde(default)]
-    pub codex_error_info: Option<CodexErrorInfo>,
+    pub codepilotx_error_info: Option<CodexErrorInfo>,
 }
 
 impl ErrorEvent {
     /// Whether this error should mark the current turn as failed when replaying history.
     pub fn affects_turn_status(&self) -> bool {
-        self.codex_error_info
+        self.codepilotx_error_info
             .as_ref()
             .is_none_or(CodexErrorInfo::affects_turn_status)
     }
@@ -3114,7 +3114,7 @@ impl TruncationPolicy {
     pub fn token_budget(&self) -> usize {
         match self {
             TruncationPolicy::Bytes(bytes) => {
-                usize::try_from(codex_utils_string::approx_tokens_from_byte_count(*bytes))
+                usize::try_from(codepilotx_utils_string::approx_tokens_from_byte_count(*bytes))
                     .unwrap_or(usize::MAX)
             }
             TruncationPolicy::Tokens(tokens) => *tokens,
@@ -3125,7 +3125,7 @@ impl TruncationPolicy {
         match self {
             TruncationPolicy::Bytes(bytes) => *bytes,
             TruncationPolicy::Tokens(tokens) => {
-                codex_utils_string::approx_bytes_for_tokens(*tokens)
+                codepilotx_utils_string::approx_bytes_for_tokens(*tokens)
             }
         }
     }
@@ -3401,7 +3401,7 @@ pub struct ThreadRolledBackEvent {
 pub struct StreamErrorEvent {
     pub message: String,
     #[serde(default)]
-    pub codex_error_info: Option<CodexErrorInfo>,
+    pub codepilotx_error_info: Option<CodexErrorInfo>,
     /// Optional details about the underlying stream failure (often the same
     /// human-readable message that is surfaced as the terminal error if retries
     /// are exhausted).
@@ -4179,9 +4179,9 @@ mod tests {
     use crate::permissions::FileSystemSpecialPath;
     use crate::permissions::NetworkSandboxPolicy;
     use anyhow::Result;
-    use codex_utils_absolute_path::AbsolutePathBuf;
-    use codex_utils_absolute_path::test_support::PathBufExt;
-    use codex_utils_absolute_path::test_support::test_path_buf;
+    use codepilotx_utils_absolute_path::AbsolutePathBuf;
+    use codepilotx_utils_absolute_path::test_support::PathBufExt;
+    use codepilotx_utils_absolute_path::test_support::test_path_buf;
     use pretty_assertions::assert_eq;
     use serde_json::json;
     use std::path::PathBuf;
@@ -4635,7 +4635,7 @@ mod tests {
     #[test]
     fn restricted_file_system_policy_treats_root_with_carveouts_as_scoped_access() {
         let cwd = TempDir::new().expect("tempdir");
-        let canonical_cwd = codex_utils_absolute_path::canonicalize_preserving_symlinks(cwd.path())
+        let canonical_cwd = codepilotx_utils_absolute_path::canonicalize_preserving_symlinks(cwd.path())
             .expect("canonicalize cwd");
         let root = AbsolutePathBuf::from_absolute_path(&canonical_cwd)
             .expect("absolute canonical tempdir")
@@ -4646,7 +4646,7 @@ mod tests {
             .expect("filesystem root");
         let blocked = AbsolutePathBuf::resolve_path_against_base("blocked", cwd.path());
         let expected_blocked = AbsolutePathBuf::from_absolute_path(
-            codex_utils_absolute_path::canonicalize_preserving_symlinks(cwd.path())
+            codepilotx_utils_absolute_path::canonicalize_preserving_symlinks(cwd.path())
                 .expect("canonicalize cwd")
                 .join("blocked"),
         )
@@ -4691,7 +4691,7 @@ mod tests {
         let cwd = TempDir::new().expect("tempdir");
         std::fs::create_dir_all(cwd.path().join(".agents")).expect("create .agents");
         std::fs::create_dir_all(cwd.path().join(".codex")).expect("create .codex");
-        let canonical_cwd = codex_utils_absolute_path::canonicalize_preserving_symlinks(cwd.path())
+        let canonical_cwd = codepilotx_utils_absolute_path::canonicalize_preserving_symlinks(cwd.path())
             .expect("canonicalize cwd");
         let cwd_absolute =
             AbsolutePathBuf::from_absolute_path(&canonical_cwd).expect("absolute tempdir");
@@ -4759,7 +4759,7 @@ mod tests {
     #[test]
     fn restricted_file_system_policy_treats_read_entries_as_read_only_subpaths() {
         let cwd = TempDir::new().expect("tempdir");
-        let canonical_cwd = codex_utils_absolute_path::canonicalize_preserving_symlinks(cwd.path())
+        let canonical_cwd = codepilotx_utils_absolute_path::canonicalize_preserving_symlinks(cwd.path())
             .expect("canonicalize cwd");
         let docs = AbsolutePathBuf::resolve_path_against_base("docs", cwd.path());
         let docs_public = AbsolutePathBuf::resolve_path_against_base("docs/public", cwd.path());
@@ -5162,7 +5162,7 @@ mod tests {
     fn rollback_failed_error_does_not_affect_turn_status() {
         let event = ErrorEvent {
             message: "rollback failed".into(),
-            codex_error_info: Some(CodexErrorInfo::ThreadRollbackFailed),
+            codepilotx_error_info: Some(CodexErrorInfo::ThreadRollbackFailed),
         };
         assert!(!event.affects_turn_status());
     }
@@ -5171,7 +5171,7 @@ mod tests {
     fn active_turn_not_steerable_error_does_not_affect_turn_status() {
         let event = ErrorEvent {
             message: "cannot steer a review turn".into(),
-            codex_error_info: Some(CodexErrorInfo::ActiveTurnNotSteerable {
+            codepilotx_error_info: Some(CodexErrorInfo::ActiveTurnNotSteerable {
                 turn_kind: NonSteerableTurnKind::Review,
             }),
         };
@@ -5182,7 +5182,7 @@ mod tests {
     fn generic_error_affects_turn_status() {
         let event = ErrorEvent {
             message: "generic".into(),
-            codex_error_info: Some(CodexErrorInfo::Other),
+            codepilotx_error_info: Some(CodexErrorInfo::Other),
         };
         assert!(event.affects_turn_status());
     }

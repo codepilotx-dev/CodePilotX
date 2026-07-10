@@ -12,106 +12,106 @@ use tokio::process::ChildStdin;
 use tokio::process::ChildStdout;
 
 use anyhow::Context;
-use codex_app_server_protocol::AppsListParams;
-use codex_app_server_protocol::CancelLoginAccountParams;
-use codex_app_server_protocol::ClientInfo;
-use codex_app_server_protocol::ClientNotification;
-use codex_app_server_protocol::CollaborationModeListParams;
-use codex_app_server_protocol::CommandExecParams;
-use codex_app_server_protocol::CommandExecResizeParams;
-use codex_app_server_protocol::CommandExecTerminateParams;
-use codex_app_server_protocol::CommandExecWriteParams;
-use codex_app_server_protocol::ConfigBatchWriteParams;
-use codex_app_server_protocol::ConfigReadParams;
-use codex_app_server_protocol::ConfigValueWriteParams;
-use codex_app_server_protocol::ConsumeAccountRateLimitResetCreditParams;
-use codex_app_server_protocol::ExperimentalFeatureListParams;
-use codex_app_server_protocol::FeedbackUploadParams;
-use codex_app_server_protocol::FsCopyParams;
-use codex_app_server_protocol::FsCreateDirectoryParams;
-use codex_app_server_protocol::FsGetMetadataParams;
-use codex_app_server_protocol::FsReadDirectoryParams;
-use codex_app_server_protocol::FsReadFileParams;
-use codex_app_server_protocol::FsRemoveParams;
-use codex_app_server_protocol::FsUnwatchParams;
-use codex_app_server_protocol::FsWatchParams;
-use codex_app_server_protocol::FsWriteFileParams;
-use codex_app_server_protocol::GetAccountParams;
-use codex_app_server_protocol::GetAuthStatusParams;
-use codex_app_server_protocol::GetConversationSummaryParams;
-use codex_app_server_protocol::HooksListParams;
-use codex_app_server_protocol::InitializeCapabilities;
-use codex_app_server_protocol::InitializeParams;
-use codex_app_server_protocol::JSONRPCError;
-use codex_app_server_protocol::JSONRPCErrorError;
-use codex_app_server_protocol::JSONRPCMessage;
-use codex_app_server_protocol::JSONRPCNotification;
-use codex_app_server_protocol::JSONRPCRequest;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::ListMcpServerStatusParams;
-use codex_app_server_protocol::LoginAccountParams;
-use codex_app_server_protocol::MarketplaceAddParams;
-use codex_app_server_protocol::MarketplaceRemoveParams;
-use codex_app_server_protocol::MarketplaceUpgradeParams;
-use codex_app_server_protocol::McpResourceReadParams;
-use codex_app_server_protocol::McpServerToolCallParams;
-use codex_app_server_protocol::MockExperimentalMethodParams;
-use codex_app_server_protocol::ModelListParams;
-use codex_app_server_protocol::ModelProviderCapabilitiesReadParams;
-use codex_app_server_protocol::PermissionProfileListParams;
-use codex_app_server_protocol::PluginInstallParams;
-use codex_app_server_protocol::PluginInstalledParams;
-use codex_app_server_protocol::PluginListParams;
-use codex_app_server_protocol::PluginReadParams;
-use codex_app_server_protocol::PluginSkillReadParams;
-use codex_app_server_protocol::PluginUninstallParams;
-use codex_app_server_protocol::ProcessKillParams;
-use codex_app_server_protocol::ProcessResizePtyParams;
-use codex_app_server_protocol::ProcessSpawnParams;
-use codex_app_server_protocol::ProcessWriteStdinParams;
-use codex_app_server_protocol::RemoteControlClientsListParams;
-use codex_app_server_protocol::RemoteControlClientsRevokeParams;
-use codex_app_server_protocol::RemoteControlPairingStartParams;
-use codex_app_server_protocol::RemoteControlPairingStatusParams;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ReviewStartParams;
-use codex_app_server_protocol::SendAddCreditsNudgeEmailParams;
-use codex_app_server_protocol::ServerRequest;
-use codex_app_server_protocol::SkillsExtraRootsSetParams;
-use codex_app_server_protocol::SkillsListParams;
-use codex_app_server_protocol::ThreadArchiveParams;
-use codex_app_server_protocol::ThreadCompactStartParams;
-use codex_app_server_protocol::ThreadDeleteParams;
-use codex_app_server_protocol::ThreadForkParams;
-use codex_app_server_protocol::ThreadInjectItemsParams;
-use codex_app_server_protocol::ThreadListParams;
-use codex_app_server_protocol::ThreadLoadedListParams;
-use codex_app_server_protocol::ThreadMemoryModeSetParams;
-use codex_app_server_protocol::ThreadMetadataUpdateParams;
-use codex_app_server_protocol::ThreadReadParams;
-use codex_app_server_protocol::ThreadRealtimeAppendAudioParams;
-use codex_app_server_protocol::ThreadRealtimeAppendSpeechParams;
-use codex_app_server_protocol::ThreadRealtimeAppendTextParams;
-use codex_app_server_protocol::ThreadRealtimeListVoicesParams;
-use codex_app_server_protocol::ThreadRealtimeStartParams;
-use codex_app_server_protocol::ThreadRealtimeStopParams;
-use codex_app_server_protocol::ThreadResumeParams;
-use codex_app_server_protocol::ThreadRollbackParams;
-use codex_app_server_protocol::ThreadSearchParams;
-use codex_app_server_protocol::ThreadSetNameParams;
-use codex_app_server_protocol::ThreadSettingsUpdateParams;
-use codex_app_server_protocol::ThreadShellCommandParams;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadTurnsItemsListParams;
-use codex_app_server_protocol::ThreadTurnsListParams;
-use codex_app_server_protocol::ThreadUnarchiveParams;
-use codex_app_server_protocol::ThreadUnsubscribeParams;
-use codex_app_server_protocol::TurnCompletedNotification;
-use codex_app_server_protocol::TurnInterruptParams;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::TurnSteerParams;
-use codex_app_server_protocol::WindowsSandboxSetupStartParams;
-use codex_login::default_client::CODEX_INTERNAL_ORIGINATOR_OVERRIDE_ENV_VAR;
+use codepilotx_app_server_protocol::AppsListParams;
+use codepilotx_app_server_protocol::CancelLoginAccountParams;
+use codepilotx_app_server_protocol::ClientInfo;
+use codepilotx_app_server_protocol::ClientNotification;
+use codepilotx_app_server_protocol::CollaborationModeListParams;
+use codepilotx_app_server_protocol::CommandExecParams;
+use codepilotx_app_server_protocol::CommandExecResizeParams;
+use codepilotx_app_server_protocol::CommandExecTerminateParams;
+use codepilotx_app_server_protocol::CommandExecWriteParams;
+use codepilotx_app_server_protocol::ConfigBatchWriteParams;
+use codepilotx_app_server_protocol::ConfigReadParams;
+use codepilotx_app_server_protocol::ConfigValueWriteParams;
+use codepilotx_app_server_protocol::ConsumeAccountRateLimitResetCreditParams;
+use codepilotx_app_server_protocol::ExperimentalFeatureListParams;
+use codepilotx_app_server_protocol::FeedbackUploadParams;
+use codepilotx_app_server_protocol::FsCopyParams;
+use codepilotx_app_server_protocol::FsCreateDirectoryParams;
+use codepilotx_app_server_protocol::FsGetMetadataParams;
+use codepilotx_app_server_protocol::FsReadDirectoryParams;
+use codepilotx_app_server_protocol::FsReadFileParams;
+use codepilotx_app_server_protocol::FsRemoveParams;
+use codepilotx_app_server_protocol::FsUnwatchParams;
+use codepilotx_app_server_protocol::FsWatchParams;
+use codepilotx_app_server_protocol::FsWriteFileParams;
+use codepilotx_app_server_protocol::GetAccountParams;
+use codepilotx_app_server_protocol::GetAuthStatusParams;
+use codepilotx_app_server_protocol::GetConversationSummaryParams;
+use codepilotx_app_server_protocol::HooksListParams;
+use codepilotx_app_server_protocol::InitializeCapabilities;
+use codepilotx_app_server_protocol::InitializeParams;
+use codepilotx_app_server_protocol::JSONRPCError;
+use codepilotx_app_server_protocol::JSONRPCErrorError;
+use codepilotx_app_server_protocol::JSONRPCMessage;
+use codepilotx_app_server_protocol::JSONRPCNotification;
+use codepilotx_app_server_protocol::JSONRPCRequest;
+use codepilotx_app_server_protocol::JSONRPCResponse;
+use codepilotx_app_server_protocol::ListMcpServerStatusParams;
+use codepilotx_app_server_protocol::LoginAccountParams;
+use codepilotx_app_server_protocol::MarketplaceAddParams;
+use codepilotx_app_server_protocol::MarketplaceRemoveParams;
+use codepilotx_app_server_protocol::MarketplaceUpgradeParams;
+use codepilotx_app_server_protocol::McpResourceReadParams;
+use codepilotx_app_server_protocol::McpServerToolCallParams;
+use codepilotx_app_server_protocol::MockExperimentalMethodParams;
+use codepilotx_app_server_protocol::ModelListParams;
+use codepilotx_app_server_protocol::ModelProviderCapabilitiesReadParams;
+use codepilotx_app_server_protocol::PermissionProfileListParams;
+use codepilotx_app_server_protocol::PluginInstallParams;
+use codepilotx_app_server_protocol::PluginInstalledParams;
+use codepilotx_app_server_protocol::PluginListParams;
+use codepilotx_app_server_protocol::PluginReadParams;
+use codepilotx_app_server_protocol::PluginSkillReadParams;
+use codepilotx_app_server_protocol::PluginUninstallParams;
+use codepilotx_app_server_protocol::ProcessKillParams;
+use codepilotx_app_server_protocol::ProcessResizePtyParams;
+use codepilotx_app_server_protocol::ProcessSpawnParams;
+use codepilotx_app_server_protocol::ProcessWriteStdinParams;
+use codepilotx_app_server_protocol::RemoteControlClientsListParams;
+use codepilotx_app_server_protocol::RemoteControlClientsRevokeParams;
+use codepilotx_app_server_protocol::RemoteControlPairingStartParams;
+use codepilotx_app_server_protocol::RemoteControlPairingStatusParams;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_app_server_protocol::ReviewStartParams;
+use codepilotx_app_server_protocol::SendAddCreditsNudgeEmailParams;
+use codepilotx_app_server_protocol::ServerRequest;
+use codepilotx_app_server_protocol::SkillsExtraRootsSetParams;
+use codepilotx_app_server_protocol::SkillsListParams;
+use codepilotx_app_server_protocol::ThreadArchiveParams;
+use codepilotx_app_server_protocol::ThreadCompactStartParams;
+use codepilotx_app_server_protocol::ThreadDeleteParams;
+use codepilotx_app_server_protocol::ThreadForkParams;
+use codepilotx_app_server_protocol::ThreadInjectItemsParams;
+use codepilotx_app_server_protocol::ThreadListParams;
+use codepilotx_app_server_protocol::ThreadLoadedListParams;
+use codepilotx_app_server_protocol::ThreadMemoryModeSetParams;
+use codepilotx_app_server_protocol::ThreadMetadataUpdateParams;
+use codepilotx_app_server_protocol::ThreadReadParams;
+use codepilotx_app_server_protocol::ThreadRealtimeAppendAudioParams;
+use codepilotx_app_server_protocol::ThreadRealtimeAppendSpeechParams;
+use codepilotx_app_server_protocol::ThreadRealtimeAppendTextParams;
+use codepilotx_app_server_protocol::ThreadRealtimeListVoicesParams;
+use codepilotx_app_server_protocol::ThreadRealtimeStartParams;
+use codepilotx_app_server_protocol::ThreadRealtimeStopParams;
+use codepilotx_app_server_protocol::ThreadResumeParams;
+use codepilotx_app_server_protocol::ThreadRollbackParams;
+use codepilotx_app_server_protocol::ThreadSearchParams;
+use codepilotx_app_server_protocol::ThreadSetNameParams;
+use codepilotx_app_server_protocol::ThreadSettingsUpdateParams;
+use codepilotx_app_server_protocol::ThreadShellCommandParams;
+use codepilotx_app_server_protocol::ThreadStartParams;
+use codepilotx_app_server_protocol::ThreadTurnsItemsListParams;
+use codepilotx_app_server_protocol::ThreadTurnsListParams;
+use codepilotx_app_server_protocol::ThreadUnarchiveParams;
+use codepilotx_app_server_protocol::ThreadUnsubscribeParams;
+use codepilotx_app_server_protocol::TurnCompletedNotification;
+use codepilotx_app_server_protocol::TurnInterruptParams;
+use codepilotx_app_server_protocol::TurnStartParams;
+use codepilotx_app_server_protocol::TurnSteerParams;
+use codepilotx_app_server_protocol::WindowsSandboxSetupStartParams;
+use codepilotx_login::default_client::codepilotx_INTERNAL_ORIGINATOR_OVERRIDE_ENV_VAR;
 use tokio::process::Command;
 
 pub struct TestAppServer {
@@ -128,45 +128,45 @@ pub struct TestAppServer {
 
 pub const DEFAULT_CLIENT_NAME: &str = "codex-app-server-tests";
 pub const DISABLE_PLUGIN_STARTUP_TASKS_ARG: &str = "--disable-plugin-startup-tasks-for-tests";
-const DISABLE_MANAGED_CONFIG_ENV_VAR: &str = "CODEX_APP_SERVER_DISABLE_MANAGED_CONFIG";
+const DISABLE_MANAGED_CONFIG_ENV_VAR: &str = "codepilotx_APP_SERVER_DISABLE_MANAGED_CONFIG";
 
 impl TestAppServer {
     pub async fn wait_for_exit(&mut self) -> std::io::Result<ExitStatus> {
         self.process.wait().await
     }
 
-    pub async fn new(codex_home: &Path) -> anyhow::Result<Self> {
-        Self::new_with_env_and_args(codex_home, &[], &[DISABLE_PLUGIN_STARTUP_TASKS_ARG]).await
+    pub async fn new(codepilotx_home: &Path) -> anyhow::Result<Self> {
+        Self::new_with_env_and_args(codepilotx_home, &[], &[DISABLE_PLUGIN_STARTUP_TASKS_ARG]).await
     }
 
-    pub async fn new_without_managed_config(codex_home: &Path) -> anyhow::Result<Self> {
-        Self::new_with_env(codex_home, &[(DISABLE_MANAGED_CONFIG_ENV_VAR, Some("1"))]).await
+    pub async fn new_without_managed_config(codepilotx_home: &Path) -> anyhow::Result<Self> {
+        Self::new_with_env(codepilotx_home, &[(DISABLE_MANAGED_CONFIG_ENV_VAR, Some("1"))]).await
     }
 
     pub async fn new_without_managed_config_with_env(
-        codex_home: &Path,
+        codepilotx_home: &Path,
         env_overrides: &[(&str, Option<&str>)],
     ) -> anyhow::Result<Self> {
         let mut all_env_overrides = vec![(DISABLE_MANAGED_CONFIG_ENV_VAR, Some("1"))];
         all_env_overrides.extend_from_slice(env_overrides);
-        Self::new_with_env(codex_home, &all_env_overrides).await
+        Self::new_with_env(codepilotx_home, &all_env_overrides).await
     }
 
-    pub async fn new_with_plugin_startup_tasks(codex_home: &Path) -> anyhow::Result<Self> {
-        Self::new_with_env_and_args(codex_home, &[], &[]).await
+    pub async fn new_with_plugin_startup_tasks(codepilotx_home: &Path) -> anyhow::Result<Self> {
+        Self::new_with_env_and_args(codepilotx_home, &[], &[]).await
     }
 
     pub async fn new_with_env_and_plugin_startup_tasks(
-        codex_home: &Path,
+        codepilotx_home: &Path,
         env_overrides: &[(&str, Option<&str>)],
     ) -> anyhow::Result<Self> {
-        Self::new_with_env_and_args(codex_home, env_overrides, &[]).await
+        Self::new_with_env_and_args(codepilotx_home, env_overrides, &[]).await
     }
 
-    pub async fn new_with_args(codex_home: &Path, args: &[&str]) -> anyhow::Result<Self> {
+    pub async fn new_with_args(codepilotx_home: &Path, args: &[&str]) -> anyhow::Result<Self> {
         let mut all_args = vec![DISABLE_PLUGIN_STARTUP_TASKS_ARG];
         all_args.extend_from_slice(args);
-        Self::new_with_env_and_args(codex_home, &[], &all_args).await
+        Self::new_with_env_and_args(codepilotx_home, &[], &all_args).await
     }
 
     /// Creates a new MCP process, allowing tests to override or remove
@@ -175,11 +175,11 @@ impl TestAppServer {
     /// Pass a tuple of (key, Some(value)) to set/override, or (key, None) to
     /// remove a variable from the child's environment.
     pub async fn new_with_env(
-        codex_home: &Path,
+        codepilotx_home: &Path,
         env_overrides: &[(&str, Option<&str>)],
     ) -> anyhow::Result<Self> {
         Self::new_with_env_and_args(
-            codex_home,
+            codepilotx_home,
             env_overrides,
             &[DISABLE_PLUGIN_STARTUP_TASKS_ARG],
         )
@@ -187,12 +187,12 @@ impl TestAppServer {
     }
 
     pub async fn new_with_program_and_env(
-        codex_home: &Path,
+        codepilotx_home: &Path,
         program: &Path,
         env_overrides: &[(&str, Option<&str>)],
     ) -> anyhow::Result<Self> {
         Self::new_with_program_env_and_args(
-            codex_home,
+            codepilotx_home,
             program,
             env_overrides,
             &[DISABLE_PLUGIN_STARTUP_TASKS_ARG],
@@ -201,17 +201,17 @@ impl TestAppServer {
     }
 
     async fn new_with_env_and_args(
-        codex_home: &Path,
+        codepilotx_home: &Path,
         env_overrides: &[(&str, Option<&str>)],
         args: &[&str],
     ) -> anyhow::Result<Self> {
-        let program = codex_utils_cargo_bin::cargo_bin("codex-app-server")
+        let program = codepilotx_utils_cargo_bin::cargo_bin("codex-app-server")
             .context("should find binary for codex-app-server")?;
-        Self::new_with_program_env_and_args(codex_home, &program, env_overrides, args).await
+        Self::new_with_program_env_and_args(codepilotx_home, &program, env_overrides, args).await
     }
 
     async fn new_with_program_env_and_args(
-        codex_home: &Path,
+        codepilotx_home: &Path,
         program: &Path,
         env_overrides: &[(&str, Option<&str>)],
         args: &[&str],
@@ -221,15 +221,15 @@ impl TestAppServer {
         cmd.stdin(Stdio::piped());
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
-        cmd.current_dir(codex_home);
-        cmd.env("CODEX_HOME", codex_home);
+        cmd.current_dir(codepilotx_home);
+        cmd.env("codepilotx_HOME", codepilotx_home);
         cmd.env("RUST_LOG", "warn");
         // Keep integration tests isolated from host managed configuration.
         cmd.env(
-            "CODEX_APP_SERVER_MANAGED_CONFIG_PATH",
-            codex_home.join("managed_config.toml"),
+            "codepilotx_APP_SERVER_MANAGED_CONFIG_PATH",
+            codepilotx_home.join("managed_config.toml"),
         );
-        cmd.env_remove(CODEX_INTERNAL_ORIGINATOR_OVERRIDE_ENV_VAR);
+        cmd.env_remove(codepilotx_INTERNAL_ORIGINATOR_OVERRIDE_ENV_VAR);
         cmd.args(args);
 
         for (k, v) in env_overrides {
@@ -651,7 +651,7 @@ impl TestAppServer {
     /// Send an `experimentalFeature/enablement/set` JSON-RPC request.
     pub async fn send_experimental_feature_enablement_set_request(
         &mut self,
-        params: codex_app_server_protocol::ExperimentalFeatureEnablementSetParams,
+        params: codepilotx_app_server_protocol::ExperimentalFeatureEnablementSetParams,
     ) -> anyhow::Result<i64> {
         let params = Some(serde_json::to_value(params)?);
         self.send_request("experimentalFeature/enablement/set", params)

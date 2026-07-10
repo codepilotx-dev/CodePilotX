@@ -11,7 +11,7 @@ pub(super) struct ListenerTaskContext {
     pub(super) thread_watch_manager: ThreadWatchManager,
     pub(super) thread_list_state_permit: Arc<Semaphore>,
     pub(super) fallback_model_provider: String,
-    pub(super) codex_home: PathBuf,
+    pub(super) codepilotx_home: PathBuf,
     pub(super) skills_watcher: Arc<SkillsWatcher>,
 }
 
@@ -269,7 +269,7 @@ pub(super) async fn ensure_listener_task_running(
         thread_watch_manager,
         thread_list_state_permit,
         fallback_model_provider,
-        codex_home,
+        codepilotx_home,
         ..
     } = listener_task_context;
     let outgoing_for_task = Arc::clone(&outgoing);
@@ -288,7 +288,7 @@ pub(super) async fn ensure_listener_task_running(
                     handle_thread_listener_command(
                         conversation_id,
                         &conversation,
-                        codex_home.as_path(),
+                        codepilotx_home.as_path(),
                         &thread_state_manager,
                         &thread_state,
                         &thread_watch_manager,
@@ -459,7 +459,7 @@ pub(super) async fn unload_thread_without_subscribers(
 pub(super) async fn handle_thread_listener_command(
     conversation_id: ThreadId,
     conversation: &Arc<CodexThread>,
-    codex_home: &Path,
+    codepilotx_home: &Path,
     thread_state_manager: &ThreadStateManager,
     thread_state: &Arc<Mutex<ThreadState>>,
     thread_watch_manager: &ThreadWatchManager,
@@ -472,7 +472,7 @@ pub(super) async fn handle_thread_listener_command(
             handle_pending_thread_resume_request(
                 conversation_id,
                 conversation,
-                codex_home,
+                codepilotx_home,
                 thread_state_manager,
                 thread_state,
                 thread_watch_manager,
@@ -529,7 +529,7 @@ pub(super) async fn handle_thread_listener_command(
 pub(super) async fn handle_pending_thread_resume_request(
     conversation_id: ThreadId,
     conversation: &Arc<CodexThread>,
-    _codex_home: &Path,
+    _codepilotx_home: &Path,
     thread_state_manager: &ThreadStateManager,
     thread_state: &Arc<Mutex<ThreadState>>,
     thread_watch_manager: &ThreadWatchManager,

@@ -2,20 +2,20 @@ use anyhow::Result;
 use app_test_support::TestAppServer;
 use app_test_support::create_fake_rollout;
 use app_test_support::to_response;
-use codex_app_server_protocol::JSONRPCError;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ThreadDeleteParams;
-use codex_app_server_protocol::ThreadDeleteResponse;
-use codex_app_server_protocol::ThreadDeletedNotification;
-use codex_app_server_protocol::ThreadLoadedListParams;
-use codex_app_server_protocol::ThreadLoadedListResponse;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_core::find_thread_path_by_id_str;
-use codex_protocol::ThreadId;
-use codex_state::DirectionalThreadSpawnEdgeStatus;
-use codex_state::StateRuntime;
+use codepilotx_app_server_protocol::JSONRPCError;
+use codepilotx_app_server_protocol::JSONRPCResponse;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_app_server_protocol::ThreadDeleteParams;
+use codepilotx_app_server_protocol::ThreadDeleteResponse;
+use codepilotx_app_server_protocol::ThreadDeletedNotification;
+use codepilotx_app_server_protocol::ThreadLoadedListParams;
+use codepilotx_app_server_protocol::ThreadLoadedListResponse;
+use codepilotx_app_server_protocol::ThreadStartParams;
+use codepilotx_app_server_protocol::ThreadStartResponse;
+use codepilotx_core::find_thread_path_by_id_str;
+use codepilotx_protocol::ThreadId;
+use codepilotx_state::DirectionalThreadSpawnEdgeStatus;
+use codepilotx_state::StateRuntime;
 use pretty_assertions::assert_eq;
 use std::path::Path;
 use tempfile::TempDir;
@@ -25,15 +25,15 @@ const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs
 
 #[tokio::test]
 async fn thread_delete_deletes_spawned_descendants() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
 
-    let parent_id = create_delete_test_rollout(codex_home.path(), /*minute*/ 0, "parent")?;
-    let child_id = create_delete_test_rollout(codex_home.path(), /*minute*/ 1, "child")?;
+    let parent_id = create_delete_test_rollout(codepilotx_home.path(), /*minute*/ 0, "parent")?;
+    let child_id = create_delete_test_rollout(codepilotx_home.path(), /*minute*/ 1, "child")?;
     let grandchild_id =
-        create_delete_test_rollout(codex_home.path(), /*minute*/ 2, "grandchild")?;
+        create_delete_test_rollout(codepilotx_home.path(), /*minute*/ 2, "grandchild")?;
 
     let state_db =
-        StateRuntime::init(codex_home.path().to_path_buf(), "mock_provider".into()).await?;
+        StateRuntime::init(codepilotx_home.path().to_path_buf(), "mock_provider".into()).await?;
     let parent_thread_id = ThreadId::from_string(&parent_id)?;
     let child_thread_id = ThreadId::from_string(&child_id)?;
     let grandchild_thread_id = ThreadId::from_string(&grandchild_id)?;
@@ -55,7 +55,7 @@ async fn thread_delete_deletes_spawned_descendants() -> Result<()> {
             .await?;
     }
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let delete_id = mcp
@@ -88,7 +88,7 @@ async fn thread_delete_deletes_spawned_descendants() -> Result<()> {
 
     for thread_id in [parent_thread_id, child_thread_id, grandchild_thread_id] {
         let rollout_path = find_thread_path_by_id_str(
-            codex_home.path(),
+            codepilotx_home.path(),
             &thread_id.to_string(),
             /*state_db_ctx*/ None,
         )
@@ -107,9 +107,9 @@ async fn thread_delete_deletes_spawned_descendants() -> Result<()> {
     Ok(())
 }
 
-fn create_delete_test_rollout(codex_home: &Path, minute: u8, preview: &str) -> Result<String> {
+fn create_delete_test_rollout(codepilotx_home: &Path, minute: u8, preview: &str) -> Result<String> {
     create_fake_rollout(
-        codex_home,
+        codepilotx_home,
         &format!("2025-01-01T00-{minute:02}-00"),
         &format!("2025-01-01T00:{minute:02}:00Z"),
         preview,
@@ -120,9 +120,9 @@ fn create_delete_test_rollout(codex_home: &Path, minute: u8, preview: &str) -> R
 
 #[tokio::test]
 async fn thread_delete_handles_live_threads_before_rollout_exists() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
@@ -135,7 +135,7 @@ async fn thread_delete_handles_live_threads_before_rollout_exists() -> Result<()
     .await??;
     let persisted_thread = to_response::<ThreadStartResponse>(start_resp)?.thread;
     let rollout_path = find_thread_path_by_id_str(
-        codex_home.path(),
+        codepilotx_home.path(),
         &persisted_thread.id,
         /*state_db_ctx*/ None,
     )

@@ -3,7 +3,7 @@ use super::*;
 const RATE_LIMIT_RESET_REQUEST_TIMEOUT: Duration = Duration::from_secs(/*secs*/ 10);
 #[cfg(debug_assertions)]
 const RATE_LIMIT_RESET_REQUEST_TIMEOUT_ENV_VAR: &str =
-    "CODEX_TEST_RATE_LIMIT_RESET_REQUEST_TIMEOUT_MS";
+    "codepilotx_TEST_RATE_LIMIT_RESET_REQUEST_TIMEOUT_MS";
 
 impl AccountRequestProcessor {
     pub(crate) async fn consume_account_rate_limit_reset_credit(
@@ -54,7 +54,7 @@ impl AccountRequestProcessor {
                 "codex account authentication required for rate limit reset credits",
             ));
         };
-        if !auth.uses_codex_backend() {
+        if !auth.uses_codepilotx_backend() {
             return Err(invalid_request(
                 "chatgpt authentication required for rate limit reset credits",
             ));

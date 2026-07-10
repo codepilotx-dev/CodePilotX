@@ -1,28 +1,28 @@
 use std::sync::Arc;
 use std::sync::Weak;
 
-use codex_analytics::AnalyticsEventsClient;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::ThreadGoal;
-use codex_app_server_protocol::ThreadGoalUpdatedNotification;
-use codex_core::NewThread;
-use codex_core::StartThreadOptions;
-use codex_core::ThreadManager;
-use codex_core::config::Config;
-use codex_exec_server::EnvironmentManager;
-use codex_extension_api::AgentSpawnFuture;
-use codex_extension_api::AgentSpawner;
-use codex_extension_api::ExtensionEventSink;
-use codex_extension_api::ExtensionRegistry;
-use codex_extension_api::ExtensionRegistryBuilder;
-use codex_goal_extension::GoalService;
-use codex_login::AuthManager;
-use codex_protocol::ThreadId;
-use codex_protocol::error::CodexErr;
-use codex_protocol::protocol::Event;
-use codex_protocol::protocol::EventMsg;
-use codex_rollout::state_db::StateDbHandle;
-use codex_thread_store::ThreadStore;
+use codepilotx_analytics::AnalyticsEventsClient;
+use codepilotx_app_server_protocol::ServerNotification;
+use codepilotx_app_server_protocol::ThreadGoal;
+use codepilotx_app_server_protocol::ThreadGoalUpdatedNotification;
+use codepilotx_core::NewThread;
+use codepilotx_core::StartThreadOptions;
+use codepilotx_core::ThreadManager;
+use codepilotx_core::config::Config;
+use codepilotx_exec_server::EnvironmentManager;
+use codepilotx_extension_api::AgentSpawnFuture;
+use codepilotx_extension_api::AgentSpawner;
+use codepilotx_extension_api::ExtensionEventSink;
+use codepilotx_extension_api::ExtensionRegistry;
+use codepilotx_extension_api::ExtensionRegistryBuilder;
+use codepilotx_goal_extension::GoalService;
+use codepilotx_login::AuthManager;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::error::CodexErr;
+use codepilotx_protocol::protocol::Event;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_rollout::state_db::StateDbHandle;
+use codepilotx_thread_store::ThreadStore;
 
 use crate::outgoing_message::OutgoingMessageSender;
 use crate::thread_state::ThreadListenerCommand;
@@ -36,7 +36,7 @@ pub(crate) struct ThreadExtensionDependencies {
     pub(crate) thread_manager: Weak<ThreadManager>,
     pub(crate) goal_service: Arc<GoalService>,
     pub(crate) environment_manager: Arc<EnvironmentManager>,
-    pub(crate) executor_skill_provider: Arc<dyn codex_skills_extension::SkillProvider>,
+    pub(crate) executor_skill_provider: Arc<dyn codepilotx_skills_extension::SkillProvider>,
     /// Process-scoped persistence backend for extensions that need stored thread history.
     pub(crate) thread_store: Arc<dyn ThreadStore>,
 }
@@ -61,31 +61,31 @@ where
     } = dependencies;
     let mut builder = ExtensionRegistryBuilder::<Config>::with_event_sink(event_sink);
     if let Some(state_db) = state_db {
-        codex_goal_extension::install_with_backend(
+        codepilotx_goal_extension::install_with_backend(
             &mut builder,
             state_db,
             analytics_events_client,
-            codex_otel::global(),
+            codepilotx_otel::global(),
             thread_manager,
             goal_service,
-            |config: &Config| config.features.enabled(codex_features::Feature::Goals),
+            |config: &Config| config.features.enabled(codepilotx_features::Feature::Goals),
         );
     }
-    codex_guardian::install(&mut builder, guardian_agent_spawner);
-    codex_memories_extension::install(&mut builder, codex_otel::global());
-    codex_mcp_extension::install(&mut builder);
-    codex_mcp_extension::install_executor_plugins(&mut builder, environment_manager);
-    codex_web_search_extension::install(&mut builder, auth_manager.clone());
-    codex_image_generation_extension::install(&mut builder, auth_manager);
-    let skill_providers = codex_skills_extension::SkillProviders::new()
+    codepilotx_guardian::install(&mut builder, guardian_agent_spawner);
+    codepilotx_memories_extension::install(&mut builder, codepilotx_otel::global());
+    codepilotx_mcp_extension::install(&mut builder);
+    codepilotx_mcp_extension::install_executor_plugins(&mut builder, environment_manager);
+    codepilotx_web_search_extension::install(&mut builder, auth_manager.clone());
+    codepilotx_image_generation_extension::install(&mut builder, auth_manager);
+    let skill_providers = codepilotx_skills_extension::SkillProviders::new()
         .with_executor_provider(executor_skill_provider)
         .with_orchestrator_provider(Arc::new(
-            codex_skills_extension::OrchestratorSkillProvider::new(),
+            codepilotx_skills_extension::OrchestratorSkillProvider::new(),
         ));
-    codex_skills_extension::install_with_providers(
+    codepilotx_skills_extension::install_with_providers(
         &mut builder,
         skill_providers,
-        |config: &Config| codex_skills_extension::SkillsExtensionConfig {
+        |config: &Config| codepilotx_skills_extension::SkillsExtensionConfig {
             include_instructions: config.include_skill_instructions,
             bundled_skills_enabled: config.bundled_skills_enabled(),
             orchestrator_skills_enabled: config.orchestrator_skills_enabled,
@@ -173,9 +173,9 @@ pub(crate) fn guardian_agent_spawner(
 mod tests {
     use std::time::Duration;
 
-    use codex_protocol::protocol::ThreadGoal as CoreThreadGoal;
-    use codex_protocol::protocol::ThreadGoalStatus;
-    use codex_protocol::protocol::ThreadGoalUpdatedEvent;
+    use codepilotx_protocol::protocol::ThreadGoal as CoreThreadGoal;
+    use codepilotx_protocol::protocol::ThreadGoalStatus;
+    use codepilotx_protocol::protocol::ThreadGoalUpdatedEvent;
     use pretty_assertions::assert_eq;
     use tokio::sync::mpsc;
     use tokio::time::timeout;

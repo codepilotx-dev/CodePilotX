@@ -9,28 +9,28 @@ use app_test_support::TestAppServer;
 use app_test_support::to_response;
 use app_test_support::write_chatgpt_auth;
 use axum::Router;
-use codex_app_server::in_process;
-use codex_app_server::in_process::InProcessStartArgs;
-use codex_app_server_protocol::ClientInfo;
-use codex_app_server_protocol::ClientRequest;
-use codex_app_server_protocol::InitializeParams;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::McpResourceContent;
-use codex_app_server_protocol::McpResourceReadParams;
-use codex_app_server_protocol::McpResourceReadResponse;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::UserInput;
-use codex_arg0::Arg0DispatchPaths;
-use codex_config::CloudConfigBundleLoader;
-use codex_config::LoaderOverrides;
-use codex_config::types::AuthCredentialsStoreMode;
-use codex_core::config::ConfigBuilder;
-use codex_exec_server::EnvironmentManager;
-use codex_feedback::CodexFeedback;
-use codex_protocol::protocol::SessionSource;
+use codepilotx_app_server::in_process;
+use codepilotx_app_server::in_process::InProcessStartArgs;
+use codepilotx_app_server_protocol::ClientInfo;
+use codepilotx_app_server_protocol::ClientRequest;
+use codepilotx_app_server_protocol::InitializeParams;
+use codepilotx_app_server_protocol::JSONRPCResponse;
+use codepilotx_app_server_protocol::McpResourceContent;
+use codepilotx_app_server_protocol::McpResourceReadParams;
+use codepilotx_app_server_protocol::McpResourceReadResponse;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_app_server_protocol::ThreadStartParams;
+use codepilotx_app_server_protocol::ThreadStartResponse;
+use codepilotx_app_server_protocol::TurnStartParams;
+use codepilotx_app_server_protocol::UserInput;
+use codepilotx_arg0::Arg0DispatchPaths;
+use codepilotx_config::CloudConfigBundleLoader;
+use codepilotx_config::LoaderOverrides;
+use codepilotx_config::types::AuthCredentialsStoreMode;
+use codepilotx_core::config::ConfigBuilder;
+use codepilotx_exec_server::EnvironmentManager;
+use codepilotx_feedback::CodexFeedback;
+use codepilotx_protocol::protocol::SessionSource;
 use core_test_support::responses;
 use pretty_assertions::assert_eq;
 use rmcp::handler::server::ServerHandler;
@@ -89,7 +89,7 @@ async fn mcp_resource_read_returns_resource_contents() -> Result<()> {
     let (apps_server_url, _apps_server_calls, apps_server_handle) =
         start_resource_apps_mcp_server().await?;
     let responses_server_uri = responses_server.uri();
-    let (_codex_home, mut mcp) =
+    let (_codepilotx_home, mut mcp) =
         start_resource_test_app_server(&apps_server_url, &responses_server_uri).await?;
 
     let thread_start_id = mcp
@@ -108,7 +108,7 @@ async fn mcp_resource_read_returns_resource_contents() -> Result<()> {
     let read_request_id = mcp
         .send_mcp_resource_read_request(McpResourceReadParams {
             thread_id: Some(thread.id),
-            server: "codex_apps".to_string(),
+            server: "codepilotx_apps".to_string(),
             uri: TEST_RESOURCE_URI.to_string(),
         })
         .await?;
@@ -133,7 +133,7 @@ async fn orchestrator_skill_can_read_referenced_resource_without_an_executor() -
     let (apps_server_url, apps_server_calls, apps_server_handle) =
         start_resource_apps_mcp_server().await?;
     let responses_server_uri = responses_server.uri();
-    let (_codex_home, mut mcp) =
+    let (_codepilotx_home, mut mcp) =
         start_resource_test_app_server(&apps_server_url, &responses_server_uri).await?;
 
     let thread_start_id = mcp
@@ -289,7 +289,7 @@ async fn orchestrator_skill_can_read_referenced_resource_without_an_executor() -
                 "description": SKILL_DESCRIPTION,
                 "main_resource": SKILL_MAIN_PROMPT_URI,
             }],
-            "warnings": ["Orchestrator skill discovery stopped after 2 resource pages: failed to list orchestrator skill resources: resources/list failed for `codex_apps`: Mcp error: -32603: simulated later-page failure"],
+            "warnings": ["Orchestrator skill discovery stopped after 2 resource pages: failed to list orchestrator skill resources: resources/list failed for `codepilotx_apps`: Mcp error: -32603: simulated later-page failure"],
         })
     );
 
@@ -369,7 +369,7 @@ async fn local_executor_does_not_expose_orchestrator_skills() -> Result<()> {
     let (apps_server_url, _apps_server_calls, apps_server_handle) =
         start_resource_apps_mcp_server().await?;
     let responses_server_uri = responses_server.uri();
-    let (_codex_home, mut mcp) =
+    let (_codepilotx_home, mut mcp) =
         start_resource_test_app_server(&apps_server_url, &responses_server_uri).await?;
 
     let thread_start_id = mcp
@@ -442,7 +442,7 @@ async fn disabled_orchestrator_skills_do_not_expose_skills_namespace() -> Result
     let (apps_server_url, apps_server_calls, apps_server_handle) =
         start_resource_apps_mcp_server().await?;
     let responses_server_uri = responses_server.uri();
-    let (_codex_home, mut mcp) = start_resource_test_app_server_with_extra_config(
+    let (_codepilotx_home, mut mcp) = start_resource_test_app_server_with_extra_config(
         &apps_server_url,
         &responses_server_uri,
         r#"
@@ -530,9 +530,9 @@ async fn mcp_resource_read_returns_resource_contents_without_thread() -> Result<
     let (apps_server_url, _apps_server_calls, apps_server_handle) =
         start_resource_apps_mcp_server().await?;
 
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     std::fs::write(
-        codex_home.path().join("config.toml"),
+        codepilotx_home.path().join("config.toml"),
         format!(
             r#"
 chatgpt_base_url = "{apps_server_url}"
@@ -544,7 +544,7 @@ apps = true
         ),
     )?;
     write_chatgpt_auth(
-        codex_home.path(),
+        codepilotx_home.path(),
         ChatGptAuthFixture::new("chatgpt-token")
             .account_id("account-123")
             .chatgpt_user_id("user-123")
@@ -552,13 +552,13 @@ apps = true
         AuthCredentialsStoreMode::File,
     )?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let read_request_id = mcp
         .send_mcp_resource_read_request(McpResourceReadParams {
             thread_id: None,
-            server: "codex_apps".to_string(),
+            server: "codepilotx_apps".to_string(),
             uri: TEST_RESOURCE_URI.to_string(),
         })
         .await?;
@@ -580,11 +580,11 @@ apps = true
 
 #[tokio::test]
 async fn mcp_resource_read_returns_error_for_unknown_thread() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let loader_overrides = LoaderOverrides::without_managed_config_for_tests();
     let config = ConfigBuilder::default()
-        .codex_home(codex_home.path().to_path_buf())
-        .fallback_cwd(Some(codex_home.path().to_path_buf()))
+        .codepilotx_home(codepilotx_home.path().to_path_buf())
+        .fallback_cwd(Some(codepilotx_home.path().to_path_buf()))
         .loader_overrides(loader_overrides.clone())
         .build()
         .await?;
@@ -597,14 +597,14 @@ async fn mcp_resource_read_returns_error_for_unknown_thread() -> Result<()> {
         loader_overrides,
         strict_config: false,
         cloud_config_bundle: CloudConfigBundleLoader::default(),
-        thread_config_loader: Arc::new(codex_config::NoopThreadConfigLoader),
+        thread_config_loader: Arc::new(codepilotx_config::NoopThreadConfigLoader),
         feedback: CodexFeedback::new(),
         log_db: None,
         state_db: None,
         environment_manager: Arc::new(EnvironmentManager::default_for_tests()),
         config_warnings: Vec::new(),
         session_source: SessionSource::Cli,
-        enable_codex_api_key_env: false,
+        enable_codepilotx_api_key_env: false,
         initialize: InitializeParams {
             client_info: ClientInfo {
                 name: "codex-app-server-tests".to_string(),
@@ -622,7 +622,7 @@ async fn mcp_resource_read_returns_error_for_unknown_thread() -> Result<()> {
             request_id: RequestId::Integer(1),
             params: McpResourceReadParams {
                 thread_id: Some("00000000-0000-4000-8000-000000000000".to_string()),
-                server: "codex_apps".to_string(),
+                server: "codepilotx_apps".to_string(),
                 uri: TEST_RESOURCE_URI.to_string(),
             },
         })
@@ -654,9 +654,9 @@ async fn start_resource_test_app_server_with_extra_config(
     responses_server_uri: &str,
     extra_config: &str,
 ) -> Result<(TempDir, TestAppServer)> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     std::fs::write(
-        codex_home.path().join("config.toml"),
+        codepilotx_home.path().join("config.toml"),
         format!(
             r#"
 model = "mock-model"
@@ -684,7 +684,7 @@ stream_max_retries = 0
         ),
     )?;
     write_chatgpt_auth(
-        codex_home.path(),
+        codepilotx_home.path(),
         ChatGptAuthFixture::new("chatgpt-token")
             .account_id("account-123")
             .chatgpt_user_id("user-123")
@@ -692,9 +692,9 @@ stream_max_retries = 0
         AuthCredentialsStoreMode::File,
     )?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
-    Ok((codex_home, mcp))
+    Ok((codepilotx_home, mcp))
 }
 
 async fn start_resource_apps_mcp_server()

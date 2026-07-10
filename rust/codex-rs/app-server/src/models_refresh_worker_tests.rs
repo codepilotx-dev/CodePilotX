@@ -3,13 +3,13 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
-use codex_models_manager::manager::ModelsEndpointClient;
-use codex_models_manager::manager::ModelsEndpointFuture;
-use codex_models_manager::manager::OpenAiModelsManager;
-use codex_models_manager::manager::SharedModelsManager;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::Result as CoreResult;
-use codex_protocol::openai_models::ModelInfo;
+use codepilotx_models_manager::manager::ModelsEndpointClient;
+use codepilotx_models_manager::manager::ModelsEndpointFuture;
+use codepilotx_models_manager::manager::OpenAiModelsManager;
+use codepilotx_models_manager::manager::SharedModelsManager;
+use codepilotx_protocol::error::CodexErr;
+use codepilotx_protocol::error::Result as CoreResult;
+use codepilotx_protocol::openai_models::ModelInfo;
 use pretty_assertions::assert_eq;
 use tempfile::tempdir;
 use tokio::sync::Notify;
@@ -48,7 +48,7 @@ impl ModelsEndpointClient for TestModelsEndpoint {
         true
     }
 
-    fn uses_codex_backend(&self) -> ModelsEndpointFuture<'_, bool> {
+    fn uses_codepilotx_backend(&self) -> ModelsEndpointFuture<'_, bool> {
         Box::pin(async { false })
     }
 
@@ -72,10 +72,10 @@ impl ModelsEndpointClient for TestModelsEndpoint {
 
 #[tokio::test]
 async fn refreshes_immediately_periodically_and_stops_when_dropped() {
-    let codex_home = tempdir().expect("temp dir");
+    let codepilotx_home = tempdir().expect("temp dir");
     let endpoint = TestModelsEndpoint::new();
     let models_manager: SharedModelsManager = Arc::new(OpenAiModelsManager::new(
-        codex_home.path().to_path_buf(),
+        codepilotx_home.path().to_path_buf(),
         endpoint.clone(),
         /*auth_manager*/ None,
     ));

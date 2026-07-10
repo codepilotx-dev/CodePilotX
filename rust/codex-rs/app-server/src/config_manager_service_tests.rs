@@ -1,13 +1,13 @@
 use super::*;
 use anyhow::Result;
-use codex_app_server_protocol::AppConfig;
-use codex_app_server_protocol::AppToolApproval;
-use codex_app_server_protocol::AppsConfig;
-use codex_app_server_protocol::AskForApproval;
-use codex_config::CloudConfigBundleLoader;
-use codex_config::LoaderOverrides;
-use codex_config::test_support::CloudConfigBundleFixture;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_app_server_protocol::AppConfig;
+use codepilotx_app_server_protocol::AppToolApproval;
+use codepilotx_app_server_protocol::AppsConfig;
+use codepilotx_app_server_protocol::AskForApproval;
+use codepilotx_config::CloudConfigBundleLoader;
+use codepilotx_config::LoaderOverrides;
+use codepilotx_config::test_support::CloudConfigBundleFixture;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
 use tempfile::tempdir;
 
@@ -63,7 +63,7 @@ X-Doc = "42"
 #[tokio::test]
 async fn write_value_preserves_comments_and_order() -> Result<()> {
     let tmp = tempdir().expect("tempdir");
-    let original = r#"# Codex user configuration
+    let original = r#"# CodePilotX user configuration
 model = "gpt-5.2"
 approval_policy = "on-request"
 
@@ -89,7 +89,7 @@ unified_exec = true
         .expect("write succeeds");
 
     let updated = std::fs::read_to_string(tmp.path().join(CONFIG_TOML_FILE)).expect("read config");
-    let expected = r#"# Codex user configuration
+    let expected = r#"# CodePilotX user configuration
 model = "gpt-5.2"
 approval_policy = "on-request"
 
@@ -203,12 +203,12 @@ async fn batch_write_rejects_legacy_profile_selector() -> Result<()> {
     let error = service
         .batch_write(ConfigBatchWriteParams {
             edits: vec![
-                codex_app_server_protocol::ConfigEdit {
+                codepilotx_app_server_protocol::ConfigEdit {
                     key_path: "model".to_string(),
                     value: serde_json::json!("gpt-work"),
                     merge_strategy: MergeStrategy::Replace,
                 },
-                codex_app_server_protocol::ConfigEdit {
+                codepilotx_app_server_protocol::ConfigEdit {
                     key_path: "profile".to_string(),
                     value: serde_json::json!("work"),
                     merge_strategy: MergeStrategy::Replace,

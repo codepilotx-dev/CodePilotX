@@ -10,32 +10,32 @@ use app_test_support::test_absolute_path;
 use app_test_support::to_response;
 use chrono::DateTime;
 use chrono::Utc;
-use codex_app_server_protocol::GitInfo as ApiGitInfo;
-use codex_app_server_protocol::JSONRPCError;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::SessionSource;
-use codex_app_server_protocol::SortDirection;
-use codex_app_server_protocol::ThreadListCwdFilter;
-use codex_app_server_protocol::ThreadListResponse;
-use codex_app_server_protocol::ThreadSearchResponse;
-use codex_app_server_protocol::ThreadSortKey;
-use codex_app_server_protocol::ThreadSourceKind;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::ThreadStatus;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::TurnStartResponse;
-use codex_app_server_protocol::UserInput;
-use codex_core::ARCHIVED_SESSIONS_SUBDIR;
-use codex_git_utils::GitSha;
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::GitInfo as CoreGitInfo;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::RolloutLine;
-use codex_protocol::protocol::SessionSource as CoreSessionSource;
-use codex_protocol::protocol::SubAgentSource;
-use codex_state::DirectionalThreadSpawnEdgeStatus;
+use codepilotx_app_server_protocol::GitInfo as ApiGitInfo;
+use codepilotx_app_server_protocol::JSONRPCError;
+use codepilotx_app_server_protocol::JSONRPCResponse;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_app_server_protocol::SessionSource;
+use codepilotx_app_server_protocol::SortDirection;
+use codepilotx_app_server_protocol::ThreadListCwdFilter;
+use codepilotx_app_server_protocol::ThreadListResponse;
+use codepilotx_app_server_protocol::ThreadSearchResponse;
+use codepilotx_app_server_protocol::ThreadSortKey;
+use codepilotx_app_server_protocol::ThreadSourceKind;
+use codepilotx_app_server_protocol::ThreadStartParams;
+use codepilotx_app_server_protocol::ThreadStartResponse;
+use codepilotx_app_server_protocol::ThreadStatus;
+use codepilotx_app_server_protocol::TurnStartParams;
+use codepilotx_app_server_protocol::TurnStartResponse;
+use codepilotx_app_server_protocol::UserInput;
+use codepilotx_core::ARCHIVED_SESSIONS_SUBDIR;
+use codepilotx_git_utils::GitSha;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::protocol::GitInfo as CoreGitInfo;
+use codepilotx_protocol::protocol::RolloutItem;
+use codepilotx_protocol::protocol::RolloutLine;
+use codepilotx_protocol::protocol::SessionSource as CoreSessionSource;
+use codepilotx_protocol::protocol::SubAgentSource;
+use codepilotx_state::DirectionalThreadSpawnEdgeStatus;
 use core_test_support::responses;
 use pretty_assertions::assert_eq;
 use std::cmp::Reverse;
@@ -49,8 +49,8 @@ use uuid::Uuid;
 
 const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 
-async fn init_mcp(codex_home: &Path) -> Result<TestAppServer> {
-    let mut mcp = TestAppServer::new(codex_home).await?;
+async fn init_mcp(codepilotx_home: &Path) -> Result<TestAppServer> {
+    let mut mcp = TestAppServer::new(codepilotx_home).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
     Ok(mcp)
 }
@@ -85,7 +85,7 @@ async fn list_threads_with_sort(
     archived: Option<bool>,
 ) -> Result<ThreadListResponse> {
     let request_id = mcp
-        .send_thread_list_request(codex_app_server_protocol::ThreadListParams {
+        .send_thread_list_request(codepilotx_app_server_protocol::ThreadListParams {
             cursor,
             limit,
             sort_key,
@@ -116,7 +116,7 @@ async fn list_threads_for_parent(
     source_kinds: Option<Vec<ThreadSourceKind>>,
 ) -> Result<ThreadListResponse> {
     let request_id = mcp
-        .send_thread_list_request(codex_app_server_protocol::ThreadListParams {
+        .send_thread_list_request(codepilotx_app_server_protocol::ThreadListParams {
             cursor,
             limit: Some(limit),
             sort_key: None,
@@ -139,7 +139,7 @@ async fn list_threads_for_parent(
 }
 
 fn create_fake_rollouts<F, G>(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     count: usize,
     provider_for_index: F,
     timestamp_for_index: G,
@@ -153,7 +153,7 @@ where
     for i in 0..count {
         let (ts_file, ts_rfc) = timestamp_for_index(i);
         ids.push(create_fake_rollout(
-            codex_home,
+            codepilotx_home,
             &ts_file,
             &ts_rfc,
             preview,
@@ -211,10 +211,10 @@ fn set_rollout_cwd(path: &Path, cwd: &Path) -> Result<()> {
 
 #[tokio::test]
 async fn thread_list_basic_empty() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    create_minimal_config(codex_home.path())?;
+    let codepilotx_home = TempDir::new()?;
+    create_minimal_config(codepilotx_home.path())?;
 
-    let mut mcp = init_mcp(codex_home.path()).await?;
+    let mut mcp = init_mcp(codepilotx_home.path()).await?;
 
     let ThreadListResponse {
         data, next_cursor, ..
@@ -241,9 +241,9 @@ async fn thread_list_reports_system_error_idle_flag_after_failed_turn() -> Resul
     ];
     let server = create_mock_responses_server_sequence(responses).await;
 
-    let codex_home = TempDir::new()?;
-    create_runtime_config(codex_home.path(), &server.uri())?;
-    let mut mcp = init_mcp(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    create_runtime_config(codepilotx_home.path(), &server.uri())?;
+    let mut mcp = init_mcp(codepilotx_home.path()).await?;
 
     let start_id = mcp
         .send_thread_start_request(ThreadStartParams {
@@ -327,8 +327,8 @@ async fn thread_list_reports_system_error_idle_flag_after_failed_turn() -> Resul
 }
 
 // Minimal config.toml for listing.
-fn create_minimal_config(codex_home: &std::path::Path) -> std::io::Result<()> {
-    let config_toml = codex_home.join("config.toml");
+fn create_minimal_config(codepilotx_home: &std::path::Path) -> std::io::Result<()> {
+    let config_toml = codepilotx_home.join("config.toml");
     std::fs::write(
         config_toml,
         r#"
@@ -338,8 +338,8 @@ approval_policy = "never"
     )
 }
 
-fn create_runtime_config(codex_home: &std::path::Path, server_uri: &str) -> std::io::Result<()> {
-    let config_toml = codex_home.join("config.toml");
+fn create_runtime_config(codepilotx_home: &std::path::Path, server_uri: &str) -> std::io::Result<()> {
+    let config_toml = codepilotx_home.join("config.toml");
     std::fs::write(
         config_toml,
         format!(
@@ -363,12 +363,12 @@ stream_max_retries = 0
 
 #[tokio::test]
 async fn thread_list_pagination_next_cursor_none_on_last_page() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    create_minimal_config(codex_home.path())?;
+    let codepilotx_home = TempDir::new()?;
+    create_minimal_config(codepilotx_home.path())?;
 
     // Create three rollouts so we can paginate with limit=2.
     let _a = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-01-02T12-00-00",
         "2025-01-02T12:00:00Z",
         "Hello",
@@ -376,7 +376,7 @@ async fn thread_list_pagination_next_cursor_none_on_last_page() -> Result<()> {
         /*git_info*/ None,
     )?;
     let _b = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-01-01T13-00-00",
         "2025-01-01T13:00:00Z",
         "Hello",
@@ -384,7 +384,7 @@ async fn thread_list_pagination_next_cursor_none_on_last_page() -> Result<()> {
         /*git_info*/ None,
     )?;
     let _c = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-01-01T12-00-00",
         "2025-01-01T12:00:00Z",
         "Hello",
@@ -392,9 +392,9 @@ async fn thread_list_pagination_next_cursor_none_on_last_page() -> Result<()> {
         /*git_info*/ None,
     )?;
 
-    let mut mcp = init_mcp(codex_home.path()).await?;
+    let mut mcp = init_mcp(codepilotx_home.path()).await?;
 
-    // Page 1: limit 2 â†’ expect next_cursor Some.
+    // Page 1: limit 2 â†?expect next_cursor Some.
     let ThreadListResponse {
         data: data1,
         next_cursor: cursor1,
@@ -422,7 +422,7 @@ async fn thread_list_pagination_next_cursor_none_on_last_page() -> Result<()> {
     }
     let cursor1 = cursor1.expect("expected nextCursor on first page");
 
-    // Page 2: with cursor â†’ expect next_cursor None when no more results.
+    // Page 2: with cursor â†?expect next_cursor None when no more results.
     let ThreadListResponse {
         data: data2,
         next_cursor: cursor2,
@@ -455,12 +455,12 @@ async fn thread_list_pagination_next_cursor_none_on_last_page() -> Result<()> {
 
 #[tokio::test]
 async fn thread_list_respects_provider_filter() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    create_minimal_config(codex_home.path())?;
+    let codepilotx_home = TempDir::new()?;
+    create_minimal_config(codepilotx_home.path())?;
 
     // Create rollouts under two providers.
     let _a = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-01-02T10-00-00",
         "2025-01-02T10:00:00Z",
         "X",
@@ -468,7 +468,7 @@ async fn thread_list_respects_provider_filter() -> Result<()> {
         /*git_info*/ None,
     )?; // mock_provider
     let _b = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-01-02T11-00-00",
         "2025-01-02T11:00:00Z",
         "X",
@@ -476,7 +476,7 @@ async fn thread_list_respects_provider_filter() -> Result<()> {
         /*git_info*/ None,
     )?;
 
-    let mut mcp = init_mcp(codex_home.path()).await?;
+    let mut mcp = init_mcp(codepilotx_home.path()).await?;
 
     // Filter to only other_provider; expect 1 item, nextCursor None.
     let ThreadListResponse {
@@ -508,11 +508,11 @@ async fn thread_list_respects_provider_filter() -> Result<()> {
 
 #[tokio::test]
 async fn thread_list_respects_cwd_filters() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    create_minimal_config(codex_home.path())?;
+    let codepilotx_home = TempDir::new()?;
+    create_minimal_config(codepilotx_home.path())?;
 
     let first_filtered_id = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-01-02T10-00-00",
         "2025-01-02T10:00:00Z",
         "first filtered",
@@ -520,7 +520,7 @@ async fn thread_list_respects_cwd_filters() -> Result<()> {
         /*git_info*/ None,
     )?;
     let second_filtered_id = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-01-02T12-00-00",
         "2025-01-02T12:00:00Z",
         "second filtered",
@@ -528,7 +528,7 @@ async fn thread_list_respects_cwd_filters() -> Result<()> {
         /*git_info*/ None,
     )?;
     let unfiltered_id = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-01-02T11-00-00",
         "2025-01-02T11:00:00Z",
         "unfiltered",
@@ -536,17 +536,17 @@ async fn thread_list_respects_cwd_filters() -> Result<()> {
         /*git_info*/ None,
     )?;
 
-    let first_target_cwd = codex_home.path().join("first-target-cwd");
-    let second_target_cwd = codex_home.path().join("second-target-cwd");
+    let first_target_cwd = codepilotx_home.path().join("first-target-cwd");
+    let second_target_cwd = codepilotx_home.path().join("second-target-cwd");
     fs::create_dir_all(&first_target_cwd)?;
     fs::create_dir_all(&second_target_cwd)?;
     set_rollout_cwd(
-        rollout_path(codex_home.path(), "2025-01-02T10-00-00", &first_filtered_id).as_path(),
+        rollout_path(codepilotx_home.path(), "2025-01-02T10-00-00", &first_filtered_id).as_path(),
         &first_target_cwd,
     )?;
     set_rollout_cwd(
         rollout_path(
-            codex_home.path(),
+            codepilotx_home.path(),
             "2025-01-02T12-00-00",
             &second_filtered_id,
         )
@@ -554,9 +554,9 @@ async fn thread_list_respects_cwd_filters() -> Result<()> {
         &second_target_cwd,
     )?;
 
-    let mut mcp = init_mcp(codex_home.path()).await?;
+    let mut mcp = init_mcp(codepilotx_home.path()).await?;
     let request_id = mcp
-        .send_thread_list_request(codex_app_server_protocol::ThreadListParams {
+        .send_thread_list_request(codepilotx_app_server_protocol::ThreadListParams {
             cursor: None,
             limit: Some(10),
             sort_key: None,
@@ -597,9 +597,9 @@ async fn thread_list_respects_cwd_filters() -> Result<()> {
 
 #[tokio::test]
 async fn thread_list_respects_search_term_filter() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     std::fs::write(
-        codex_home.path().join("config.toml"),
+        codepilotx_home.path().join("config.toml"),
         r#"
 model = "mock-model"
 approval_policy = "never"
@@ -611,7 +611,7 @@ sqlite = true
     )?;
 
     let older_match = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-01-02T10-00-00",
         "2025-01-02T10:00:00Z",
         "match: needle",
@@ -619,7 +619,7 @@ sqlite = true
         /*git_info*/ None,
     )?;
     let _non_match = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-01-02T11-00-00",
         "2025-01-02T11:00:00Z",
         "no hit here",
@@ -627,7 +627,7 @@ sqlite = true
         /*git_info*/ None,
     )?;
     let newer_match = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-01-02T12-00-00",
         "2025-01-02T12:00:00Z",
         "needle suffix",
@@ -639,25 +639,25 @@ sqlite = true
     // rollouts manually, so mark the DB backfill complete and then run an unsearched
     // list large enough to repair every rollout the searched list should find.
     let state_db =
-        codex_state::StateRuntime::init(codex_home.path().to_path_buf(), "mock_provider".into())
+        codepilotx_state::StateRuntime::init(codepilotx_home.path().to_path_buf(), "mock_provider".into())
             .await?;
     state_db
         .mark_backfill_complete(/*last_watermark*/ None)
         .await?;
-    let rollout_config = codex_rollout::RolloutConfig {
-        codex_home: codex_home.path().to_path_buf(),
-        sqlite_home: codex_home.path().to_path_buf(),
-        cwd: codex_home.path().to_path_buf(),
+    let rollout_config = codepilotx_rollout::RolloutConfig {
+        codepilotx_home: codepilotx_home.path().to_path_buf(),
+        sqlite_home: codepilotx_home.path().to_path_buf(),
+        cwd: codepilotx_home.path().to_path_buf(),
         model_provider_id: "mock_provider".to_string(),
         generate_memories: false,
     };
-    let repaired_page = codex_core::RolloutRecorder::list_threads(
+    let repaired_page = codepilotx_core::RolloutRecorder::list_threads(
         Some(state_db.clone()),
         &rollout_config,
         /*page_size*/ 10,
         /*cursor*/ None,
-        codex_core::ThreadSortKey::CreatedAt,
-        codex_core::SortDirection::Desc,
+        codepilotx_core::ThreadSortKey::CreatedAt,
+        codepilotx_core::SortDirection::Desc,
         &[],
         /*model_providers*/ None,
         /*cwd_filters*/ None,
@@ -667,9 +667,9 @@ sqlite = true
     .await?;
     assert_eq!(repaired_page.items.len(), 3);
 
-    let mut mcp = init_mcp(codex_home.path()).await?;
+    let mut mcp = init_mcp(codepilotx_home.path()).await?;
     let request_id = mcp
-        .send_thread_list_request(codex_app_server_protocol::ThreadListParams {
+        .send_thread_list_request(codepilotx_app_server_protocol::ThreadListParams {
             cursor: None,
             limit: Some(10),
             sort_key: None,
@@ -701,11 +701,11 @@ sqlite = true
 
 #[tokio::test]
 async fn thread_search_returns_content_matches() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    create_minimal_config(codex_home.path())?;
+    let codepilotx_home = TempDir::new()?;
+    create_minimal_config(codepilotx_home.path())?;
 
     let older_match = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-01-02T10-00-00",
         "2025-01-02T10:00:00Z",
         "match: needle",
@@ -713,7 +713,7 @@ async fn thread_search_returns_content_matches() -> Result<()> {
         /*git_info*/ None,
     )?;
     let _non_match = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-01-02T11-00-00",
         "2025-01-02T11:00:00Z",
         "no hit here",
@@ -721,7 +721,7 @@ async fn thread_search_returns_content_matches() -> Result<()> {
         /*git_info*/ None,
     )?;
     let newer_match = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-01-02T12-00-00",
         "2025-01-02T12:00:00Z",
         "mixed NEEDLE suffix",
@@ -729,9 +729,9 @@ async fn thread_search_returns_content_matches() -> Result<()> {
         /*git_info*/ None,
     )?;
 
-    let mut mcp = init_mcp(codex_home.path()).await?;
+    let mut mcp = init_mcp(codepilotx_home.path()).await?;
     let request_id = mcp
-        .send_thread_search_request(codex_app_server_protocol::ThreadSearchParams {
+        .send_thread_search_request(codepilotx_app_server_protocol::ThreadSearchParams {
             cursor: None,
             limit: Some(10),
             sort_key: None,
@@ -763,12 +763,12 @@ async fn thread_search_returns_content_matches() -> Result<()> {
 
 #[tokio::test]
 async fn thread_search_matches_json_escaped_content() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    create_minimal_config(codex_home.path())?;
+    let codepilotx_home = TempDir::new()?;
+    create_minimal_config(codepilotx_home.path())?;
 
     let search_term = r#"quoted "needle" \ path"#;
     let thread_id = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-01-02T10-00-00",
         "2025-01-02T10:00:00Z",
         search_term,
@@ -776,9 +776,9 @@ async fn thread_search_matches_json_escaped_content() -> Result<()> {
         /*git_info*/ None,
     )?;
 
-    let mut mcp = init_mcp(codex_home.path()).await?;
+    let mut mcp = init_mcp(codepilotx_home.path()).await?;
     let request_id = mcp
-        .send_thread_search_request(codex_app_server_protocol::ThreadSearchParams {
+        .send_thread_search_request(codepilotx_app_server_protocol::ThreadSearchParams {
             cursor: None,
             limit: Some(10),
             sort_key: None,
@@ -804,11 +804,11 @@ async fn thread_search_matches_json_escaped_content() -> Result<()> {
 
 #[tokio::test]
 async fn thread_search_filters_by_source_kind() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    create_minimal_config(codex_home.path())?;
+    let codepilotx_home = TempDir::new()?;
+    create_minimal_config(codepilotx_home.path())?;
 
     let cli_id = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-02-01T10-00-00",
         "2025-02-01T10:00:00Z",
         "shared needle",
@@ -816,7 +816,7 @@ async fn thread_search_filters_by_source_kind() -> Result<()> {
         /*git_info*/ None,
     )?;
     let exec_id = create_fake_rollout_with_source(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-02-01T11-00-00",
         "2025-02-01T11:00:00Z",
         "shared needle",
@@ -825,9 +825,9 @@ async fn thread_search_filters_by_source_kind() -> Result<()> {
         CoreSessionSource::Exec,
     )?;
 
-    let mut mcp = init_mcp(codex_home.path()).await?;
+    let mut mcp = init_mcp(codepilotx_home.path()).await?;
     let request_id = mcp
-        .send_thread_search_request(codex_app_server_protocol::ThreadSearchParams {
+        .send_thread_search_request(codepilotx_app_server_protocol::ThreadSearchParams {
             cursor: None,
             limit: Some(10),
             sort_key: None,
@@ -856,9 +856,9 @@ async fn thread_search_filters_by_source_kind() -> Result<()> {
 
 #[tokio::test]
 async fn thread_list_state_db_only_returns_sqlite_without_jsonl_repair() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     std::fs::write(
-        codex_home.path().join("config.toml"),
+        codepilotx_home.path().join("config.toml"),
         r#"
 model = "mock-model"
 approval_policy = "never"
@@ -870,7 +870,7 @@ sqlite = true
     )?;
 
     let thread_id = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-01-02T10-00-00",
         "2025-01-02T10:00:00Z",
         "state db only should not see this before repair",
@@ -878,15 +878,15 @@ sqlite = true
         /*git_info*/ None,
     )?;
     let state_db =
-        codex_state::StateRuntime::init(codex_home.path().to_path_buf(), "mock_provider".into())
+        codepilotx_state::StateRuntime::init(codepilotx_home.path().to_path_buf(), "mock_provider".into())
             .await?;
     state_db
         .mark_backfill_complete(/*last_watermark*/ None)
         .await?;
-    let mut mcp = init_mcp(codex_home.path()).await?;
+    let mut mcp = init_mcp(codepilotx_home.path()).await?;
 
     let request_id = mcp
-        .send_thread_list_request(codex_app_server_protocol::ThreadListParams {
+        .send_thread_list_request(codepilotx_app_server_protocol::ThreadListParams {
             cursor: None,
             limit: Some(10),
             sort_key: None,
@@ -914,7 +914,7 @@ sqlite = true
     assert_eq!(ids, vec![thread_id.as_str()]);
 
     let thread_uuid = ThreadId::from_string(&thread_id)?;
-    let stale_cwd = codex_home.path().join("stale-cwd");
+    let stale_cwd = codepilotx_home.path().join("stale-cwd");
     let mut metadata = state_db
         .get_thread(thread_uuid)
         .await?
@@ -923,7 +923,7 @@ sqlite = true
     state_db.upsert_thread(&metadata).await?;
 
     let request_id = mcp
-        .send_thread_list_request(codex_app_server_protocol::ThreadListParams {
+        .send_thread_list_request(codepilotx_app_server_protocol::ThreadListParams {
             cursor: None,
             limit: Some(10),
             sort_key: None,
@@ -953,7 +953,7 @@ sqlite = true
     assert_eq!(ids, vec![thread_id.as_str()]);
 
     let request_id = mcp
-        .send_thread_list_request(codex_app_server_protocol::ThreadListParams {
+        .send_thread_list_request(codepilotx_app_server_protocol::ThreadListParams {
             cursor: None,
             limit: Some(10),
             sort_key: None,
@@ -982,14 +982,14 @@ sqlite = true
 
 #[tokio::test]
 async fn thread_list_parent_filter_reads_direct_children_from_state_db() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    create_minimal_config(codex_home.path())?;
+    let codepilotx_home = TempDir::new()?;
+    create_minimal_config(codepilotx_home.path())?;
     let parent_id = ThreadId::new();
     let older_child_id = ThreadId::new();
     let newer_child_id = ThreadId::new();
     let grandchild_id = ThreadId::new();
-    let state_db = codex_state::StateRuntime::init(
-        codex_home.path().to_path_buf(),
+    let state_db = codepilotx_state::StateRuntime::init(
+        codepilotx_home.path().to_path_buf(),
         "mock_provider".to_string(),
     )
     .await?;
@@ -1014,14 +1014,14 @@ async fn thread_list_parent_filter_reads_direct_children_from_state_db() -> Resu
         ),
     ] {
         let created_at = DateTime::parse_from_rfc3339(created_at)?.with_timezone(&Utc);
-        let mut builder = codex_state::ThreadMetadataBuilder::new(
+        let mut builder = codepilotx_state::ThreadMetadataBuilder::new(
             thread_id,
-            codex_home.path().join(format!("{thread_id}.jsonl")),
+            codepilotx_home.path().join(format!("{thread_id}.jsonl")),
             created_at,
             source,
         );
         builder.model_provider = Some(model_provider.to_string());
-        builder.cwd = codex_home.path().to_path_buf();
+        builder.cwd = codepilotx_home.path().to_path_buf();
         builder.cli_version = Some("0.0.0".to_string());
         let mut metadata = builder.build(model_provider);
         metadata.preview = Some("child thread".to_string());
@@ -1044,7 +1044,7 @@ async fn thread_list_parent_filter_reads_direct_children_from_state_db() -> Resu
     state_db
         .mark_backfill_complete(/*last_watermark*/ None)
         .await?;
-    let mut mcp = init_mcp(codex_home.path()).await?;
+    let mut mcp = init_mcp(codepilotx_home.path()).await?;
 
     let first_page = list_threads_for_parent(
         &mut mcp, parent_id, /*cursor*/ None, /*limit*/ 1, /*model_providers*/ None,
@@ -1108,11 +1108,11 @@ async fn thread_list_parent_filter_reads_direct_children_from_state_db() -> Resu
 
 #[tokio::test]
 async fn thread_list_parent_filter_rejects_malformed_thread_id() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    create_minimal_config(codex_home.path())?;
-    let mut mcp = init_mcp(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    create_minimal_config(codepilotx_home.path())?;
+    let mut mcp = init_mcp(codepilotx_home.path()).await?;
     let request_id = mcp
-        .send_thread_list_request(codex_app_server_protocol::ThreadListParams {
+        .send_thread_list_request(codepilotx_app_server_protocol::ThreadListParams {
             cursor: None,
             limit: Some(10),
             sort_key: None,
@@ -1138,11 +1138,11 @@ async fn thread_list_parent_filter_rejects_malformed_thread_id() -> Result<()> {
 
 #[tokio::test]
 async fn thread_list_empty_source_kinds_defaults_to_interactive_only() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    create_minimal_config(codex_home.path())?;
+    let codepilotx_home = TempDir::new()?;
+    create_minimal_config(codepilotx_home.path())?;
 
     let cli_id = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-02-01T10-00-00",
         "2025-02-01T10:00:00Z",
         "CLI",
@@ -1150,7 +1150,7 @@ async fn thread_list_empty_source_kinds_defaults_to_interactive_only() -> Result
         /*git_info*/ None,
     )?;
     let exec_id = create_fake_rollout_with_source(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-02-01T11-00-00",
         "2025-02-01T11:00:00Z",
         "Exec",
@@ -1159,7 +1159,7 @@ async fn thread_list_empty_source_kinds_defaults_to_interactive_only() -> Result
         CoreSessionSource::Exec,
     )?;
 
-    let mut mcp = init_mcp(codex_home.path()).await?;
+    let mut mcp = init_mcp(codepilotx_home.path()).await?;
 
     let ThreadListResponse {
         data, next_cursor, ..
@@ -1184,11 +1184,11 @@ async fn thread_list_empty_source_kinds_defaults_to_interactive_only() -> Result
 
 #[tokio::test]
 async fn thread_list_filters_by_source_kind_subagent_thread_spawn() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    create_minimal_config(codex_home.path())?;
+    let codepilotx_home = TempDir::new()?;
+    create_minimal_config(codepilotx_home.path())?;
 
     let cli_id = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-02-01T10-00-00",
         "2025-02-01T10:00:00Z",
         "CLI",
@@ -1198,7 +1198,7 @@ async fn thread_list_filters_by_source_kind_subagent_thread_spawn() -> Result<()
 
     let parent_thread_id = ThreadId::from_string(&Uuid::new_v4().to_string())?;
     let subagent_id = create_fake_rollout_with_source(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-02-01T11-00-00",
         "2025-02-01T11:00:00Z",
         "SubAgent",
@@ -1213,7 +1213,7 @@ async fn thread_list_filters_by_source_kind_subagent_thread_spawn() -> Result<()
         }),
     )?;
 
-    let mut mcp = init_mcp(codex_home.path()).await?;
+    let mut mcp = init_mcp(codepilotx_home.path()).await?;
 
     let ThreadListResponse {
         data, next_cursor, ..
@@ -1239,13 +1239,13 @@ async fn thread_list_filters_by_source_kind_subagent_thread_spawn() -> Result<()
 
 #[tokio::test]
 async fn thread_list_filters_by_subagent_variant() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    create_minimal_config(codex_home.path())?;
+    let codepilotx_home = TempDir::new()?;
+    create_minimal_config(codepilotx_home.path())?;
 
     let parent_thread_id = ThreadId::from_string(&Uuid::new_v4().to_string())?;
 
     let review_id = create_fake_parented_rollout_with_source(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-02-02T09-00-00",
         "2025-02-02T09:00:00Z",
         "Review",
@@ -1255,7 +1255,7 @@ async fn thread_list_filters_by_subagent_variant() -> Result<()> {
         parent_thread_id,
     )?;
     let compact_id = create_fake_rollout_with_source(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-02-02T10-00-00",
         "2025-02-02T10:00:00Z",
         "Compact",
@@ -1264,7 +1264,7 @@ async fn thread_list_filters_by_subagent_variant() -> Result<()> {
         CoreSessionSource::SubAgent(SubAgentSource::Compact),
     )?;
     let spawn_id = create_fake_rollout_with_source(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-02-02T11-00-00",
         "2025-02-02T11:00:00Z",
         "Spawn",
@@ -1279,7 +1279,7 @@ async fn thread_list_filters_by_subagent_variant() -> Result<()> {
         }),
     )?;
     let other_id = create_fake_rollout_with_source(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-02-02T12-00-00",
         "2025-02-02T12:00:00Z",
         "Other",
@@ -1288,7 +1288,7 @@ async fn thread_list_filters_by_subagent_variant() -> Result<()> {
         CoreSessionSource::SubAgent(SubAgentSource::Other("custom".to_string())),
     )?;
 
-    let mut mcp = init_mcp(codex_home.path()).await?;
+    let mut mcp = init_mcp(codepilotx_home.path()).await?;
 
     let review = list_threads(
         &mut mcp,
@@ -1355,14 +1355,14 @@ async fn thread_list_filters_by_subagent_variant() -> Result<()> {
 
 #[tokio::test]
 async fn thread_list_fetches_until_limit_or_exhausted() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    create_minimal_config(codex_home.path())?;
+    let codepilotx_home = TempDir::new()?;
+    create_minimal_config(codepilotx_home.path())?;
 
     // Newest 16 conversations belong to a different provider; the older 8 are the
     // only ones that match the filter. We request 8 so the server must keep
     // paging past the first two pages to reach the desired count.
     create_fake_rollouts(
-        codex_home.path(),
+        codepilotx_home.path(),
         /*count*/ 24,
         |i| {
             if i < 16 {
@@ -1384,7 +1384,7 @@ async fn thread_list_fetches_until_limit_or_exhausted() -> Result<()> {
         "Hello",
     )?;
 
-    let mut mcp = init_mcp(codex_home.path()).await?;
+    let mut mcp = init_mcp(codepilotx_home.path()).await?;
 
     // Request 8 threads for the target provider; the matches only start on the
     // third page so we rely on pagination to reach the limit.
@@ -1419,11 +1419,11 @@ async fn thread_list_fetches_until_limit_or_exhausted() -> Result<()> {
 
 #[tokio::test]
 async fn thread_list_enforces_max_limit() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    create_minimal_config(codex_home.path())?;
+    let codepilotx_home = TempDir::new()?;
+    create_minimal_config(codepilotx_home.path())?;
 
     create_fake_rollouts(
-        codex_home.path(),
+        codepilotx_home.path(),
         /*count*/ 105,
         |_| "mock_provider",
         |i| {
@@ -1441,7 +1441,7 @@ async fn thread_list_enforces_max_limit() -> Result<()> {
         "Hello",
     )?;
 
-    let mut mcp = init_mcp(codex_home.path()).await?;
+    let mut mcp = init_mcp(codepilotx_home.path()).await?;
 
     let ThreadListResponse {
         data, next_cursor, ..
@@ -1469,13 +1469,13 @@ async fn thread_list_enforces_max_limit() -> Result<()> {
 
 #[tokio::test]
 async fn thread_list_stops_when_not_enough_filtered_results_exist() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    create_minimal_config(codex_home.path())?;
+    let codepilotx_home = TempDir::new()?;
+    create_minimal_config(codepilotx_home.path())?;
 
     // Only the last 7 conversations match the provider filter; we ask for 10 to
     // ensure the server exhausts pagination without looping forever.
     create_fake_rollouts(
-        codex_home.path(),
+        codepilotx_home.path(),
         /*count*/ 22,
         |i| {
             if i < 15 {
@@ -1497,7 +1497,7 @@ async fn thread_list_stops_when_not_enough_filtered_results_exist() -> Result<()
         "Hello",
     )?;
 
-    let mut mcp = init_mcp(codex_home.path()).await?;
+    let mut mcp = init_mcp(codepilotx_home.path()).await?;
 
     // Request more threads than exist after filtering; expect all matches to be
     // returned with nextCursor None.
@@ -1532,8 +1532,8 @@ async fn thread_list_stops_when_not_enough_filtered_results_exist() -> Result<()
 
 #[tokio::test]
 async fn thread_list_includes_git_info() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    create_minimal_config(codex_home.path())?;
+    let codepilotx_home = TempDir::new()?;
+    create_minimal_config(codepilotx_home.path())?;
 
     let git_info = CoreGitInfo {
         commit_hash: Some(GitSha::new("abc123")),
@@ -1541,7 +1541,7 @@ async fn thread_list_includes_git_info() -> Result<()> {
         repository_url: Some("https://example.com/repo.git".to_string()),
     };
     let conversation_id = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-02-01T09-00-00",
         "2025-02-01T09:00:00Z",
         "Git info preview",
@@ -1549,7 +1549,7 @@ async fn thread_list_includes_git_info() -> Result<()> {
         Some(git_info),
     )?;
 
-    let mut mcp = init_mcp(codex_home.path()).await?;
+    let mut mcp = init_mcp(codepilotx_home.path()).await?;
 
     let ThreadListResponse { data, .. } = list_threads(
         &mut mcp,
@@ -1580,11 +1580,11 @@ async fn thread_list_includes_git_info() -> Result<()> {
 
 #[tokio::test]
 async fn thread_list_default_sorts_by_created_at() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    create_minimal_config(codex_home.path())?;
+    let codepilotx_home = TempDir::new()?;
+    create_minimal_config(codepilotx_home.path())?;
 
     let id_a = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-01-02T12-00-00",
         "2025-01-02T12:00:00Z",
         "Hello",
@@ -1592,7 +1592,7 @@ async fn thread_list_default_sorts_by_created_at() -> Result<()> {
         /*git_info*/ None,
     )?;
     let id_b = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-01-01T13-00-00",
         "2025-01-01T13:00:00Z",
         "Hello",
@@ -1600,7 +1600,7 @@ async fn thread_list_default_sorts_by_created_at() -> Result<()> {
         /*git_info*/ None,
     )?;
     let id_c = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-01-01T12-00-00",
         "2025-01-01T12:00:00Z",
         "Hello",
@@ -1608,7 +1608,7 @@ async fn thread_list_default_sorts_by_created_at() -> Result<()> {
         /*git_info*/ None,
     )?;
 
-    let mut mcp = init_mcp(codex_home.path()).await?;
+    let mut mcp = init_mcp(codepilotx_home.path()).await?;
 
     let ThreadListResponse { data, .. } = list_threads_with_sort(
         &mut mcp,
@@ -1629,11 +1629,11 @@ async fn thread_list_default_sorts_by_created_at() -> Result<()> {
 
 #[tokio::test]
 async fn thread_list_sort_updated_at_orders_by_mtime() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    create_minimal_config(codex_home.path())?;
+    let codepilotx_home = TempDir::new()?;
+    create_minimal_config(codepilotx_home.path())?;
 
     let id_old = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-01-01T10-00-00",
         "2025-01-01T10:00:00Z",
         "Hello",
@@ -1641,7 +1641,7 @@ async fn thread_list_sort_updated_at_orders_by_mtime() -> Result<()> {
         /*git_info*/ None,
     )?;
     let id_mid = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-01-01T11-00-00",
         "2025-01-01T11:00:00Z",
         "Hello",
@@ -1649,7 +1649,7 @@ async fn thread_list_sort_updated_at_orders_by_mtime() -> Result<()> {
         /*git_info*/ None,
     )?;
     let id_new = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-01-01T12-00-00",
         "2025-01-01T12:00:00Z",
         "Hello",
@@ -1658,19 +1658,19 @@ async fn thread_list_sort_updated_at_orders_by_mtime() -> Result<()> {
     )?;
 
     set_rollout_mtime(
-        rollout_path(codex_home.path(), "2025-01-01T10-00-00", &id_old).as_path(),
+        rollout_path(codepilotx_home.path(), "2025-01-01T10-00-00", &id_old).as_path(),
         "2025-01-03T00:00:00Z",
     )?;
     set_rollout_mtime(
-        rollout_path(codex_home.path(), "2025-01-01T11-00-00", &id_mid).as_path(),
+        rollout_path(codepilotx_home.path(), "2025-01-01T11-00-00", &id_mid).as_path(),
         "2025-01-02T00:00:00Z",
     )?;
     set_rollout_mtime(
-        rollout_path(codex_home.path(), "2025-01-01T12-00-00", &id_new).as_path(),
+        rollout_path(codepilotx_home.path(), "2025-01-01T12-00-00", &id_new).as_path(),
         "2025-01-01T00:00:00Z",
     )?;
 
-    let mut mcp = init_mcp(codex_home.path()).await?;
+    let mut mcp = init_mcp(codepilotx_home.path()).await?;
 
     let ThreadListResponse { data, .. } = list_threads_with_sort(
         &mut mcp,
@@ -1691,11 +1691,11 @@ async fn thread_list_sort_updated_at_orders_by_mtime() -> Result<()> {
 
 #[tokio::test]
 async fn thread_list_sort_recency_at_uses_state_db_order_with_provider_filter() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    create_minimal_config(codex_home.path())?;
+    let codepilotx_home = TempDir::new()?;
+    create_minimal_config(codepilotx_home.path())?;
 
     let id_old = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-01-01T10-00-00",
         "2025-01-01T10:00:00Z",
         "Hello",
@@ -1703,7 +1703,7 @@ async fn thread_list_sort_recency_at_uses_state_db_order_with_provider_filter() 
         /*git_info*/ None,
     )?;
     let id_new = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-01-01T11-00-00",
         "2025-01-01T11:00:00Z",
         "Hello",
@@ -1711,31 +1711,31 @@ async fn thread_list_sort_recency_at_uses_state_db_order_with_provider_filter() 
         /*git_info*/ None,
     )?;
     set_rollout_mtime(
-        rollout_path(codex_home.path(), "2025-01-01T10-00-00", &id_old).as_path(),
+        rollout_path(codepilotx_home.path(), "2025-01-01T10-00-00", &id_old).as_path(),
         "2025-01-03T00:00:00Z",
     )?;
 
     let state_db =
-        codex_state::StateRuntime::init(codex_home.path().to_path_buf(), "mock_provider".into())
+        codepilotx_state::StateRuntime::init(codepilotx_home.path().to_path_buf(), "mock_provider".into())
             .await?;
     state_db
         .mark_backfill_complete(/*last_watermark*/ None)
         .await?;
-    let rollout_config = codex_rollout::RolloutConfig {
-        codex_home: codex_home.path().to_path_buf(),
-        sqlite_home: codex_home.path().to_path_buf(),
-        cwd: codex_home.path().to_path_buf(),
+    let rollout_config = codepilotx_rollout::RolloutConfig {
+        codepilotx_home: codepilotx_home.path().to_path_buf(),
+        sqlite_home: codepilotx_home.path().to_path_buf(),
+        cwd: codepilotx_home.path().to_path_buf(),
         model_provider_id: "mock_provider".to_string(),
         generate_memories: false,
     };
-    codex_core::RolloutRecorder::list_threads(
+    codepilotx_core::RolloutRecorder::list_threads(
         Some(state_db.clone()),
         &rollout_config,
         /*page_size*/ 10,
         /*cursor*/ None,
-        codex_core::ThreadSortKey::CreatedAt,
-        codex_core::SortDirection::Desc,
-        codex_core::INTERACTIVE_SESSION_SOURCES.as_slice(),
+        codepilotx_core::ThreadSortKey::CreatedAt,
+        codepilotx_core::SortDirection::Desc,
+        codepilotx_core::INTERACTIVE_SESSION_SOURCES.as_slice(),
         /*model_providers*/ None,
         /*cwd_filters*/ None,
         "mock_provider",
@@ -1749,7 +1749,7 @@ async fn thread_list_sort_recency_at_uses_state_db_order_with_provider_filter() 
         )
         .await?;
 
-    let mut mcp = init_mcp(codex_home.path()).await?;
+    let mut mcp = init_mcp(codepilotx_home.path()).await?;
     let ThreadListResponse { data, .. } = list_threads_with_sort(
         &mut mcp,
         /*cursor*/ None,
@@ -1774,11 +1774,11 @@ async fn thread_list_sort_recency_at_uses_state_db_order_with_provider_filter() 
 
 #[tokio::test]
 async fn thread_list_updated_at_paginates_with_cursor() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    create_minimal_config(codex_home.path())?;
+    let codepilotx_home = TempDir::new()?;
+    create_minimal_config(codepilotx_home.path())?;
 
     let id_a = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-02-01T10-00-00",
         "2025-02-01T10:00:00Z",
         "Hello",
@@ -1786,7 +1786,7 @@ async fn thread_list_updated_at_paginates_with_cursor() -> Result<()> {
         /*git_info*/ None,
     )?;
     let id_b = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-02-01T11-00-00",
         "2025-02-01T11:00:00Z",
         "Hello",
@@ -1794,7 +1794,7 @@ async fn thread_list_updated_at_paginates_with_cursor() -> Result<()> {
         /*git_info*/ None,
     )?;
     let id_c = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-02-01T12-00-00",
         "2025-02-01T12:00:00Z",
         "Hello",
@@ -1803,19 +1803,19 @@ async fn thread_list_updated_at_paginates_with_cursor() -> Result<()> {
     )?;
 
     set_rollout_mtime(
-        rollout_path(codex_home.path(), "2025-02-01T10-00-00", &id_a).as_path(),
+        rollout_path(codepilotx_home.path(), "2025-02-01T10-00-00", &id_a).as_path(),
         "2025-02-03T00:00:00Z",
     )?;
     set_rollout_mtime(
-        rollout_path(codex_home.path(), "2025-02-01T11-00-00", &id_b).as_path(),
+        rollout_path(codepilotx_home.path(), "2025-02-01T11-00-00", &id_b).as_path(),
         "2025-02-02T00:00:00Z",
     )?;
     set_rollout_mtime(
-        rollout_path(codex_home.path(), "2025-02-01T12-00-00", &id_c).as_path(),
+        rollout_path(codepilotx_home.path(), "2025-02-01T12-00-00", &id_c).as_path(),
         "2025-02-01T00:00:00Z",
     )?;
 
-    let mut mcp = init_mcp(codex_home.path()).await?;
+    let mut mcp = init_mcp(codepilotx_home.path()).await?;
 
     let ThreadListResponse {
         data: page1,
@@ -1858,11 +1858,11 @@ async fn thread_list_updated_at_paginates_with_cursor() -> Result<()> {
 
 #[tokio::test]
 async fn thread_list_backwards_cursor_can_seed_forward_delta_sync() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    create_minimal_config(codex_home.path())?;
+    let codepilotx_home = TempDir::new()?;
+    create_minimal_config(codepilotx_home.path())?;
 
     let id_old = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-02-01T10-00-00",
         "2025-02-01T10:00:00Z",
         "Hello",
@@ -1870,7 +1870,7 @@ async fn thread_list_backwards_cursor_can_seed_forward_delta_sync() -> Result<()
         /*git_info*/ None,
     )?;
     let id_watermark = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-02-01T11-00-00",
         "2025-02-01T11:00:00Z",
         "Hello",
@@ -1879,15 +1879,15 @@ async fn thread_list_backwards_cursor_can_seed_forward_delta_sync() -> Result<()
     )?;
 
     set_rollout_mtime(
-        rollout_path(codex_home.path(), "2025-02-01T10-00-00", &id_old).as_path(),
+        rollout_path(codepilotx_home.path(), "2025-02-01T10-00-00", &id_old).as_path(),
         "2025-02-02T00:00:00Z",
     )?;
     set_rollout_mtime(
-        rollout_path(codex_home.path(), "2025-02-01T11-00-00", &id_watermark).as_path(),
+        rollout_path(codepilotx_home.path(), "2025-02-01T11-00-00", &id_watermark).as_path(),
         "2025-02-03T00:00:00Z",
     )?;
 
-    let mut mcp = init_mcp(codex_home.path()).await?;
+    let mut mcp = init_mcp(codepilotx_home.path()).await?;
 
     let ThreadListResponse {
         data: page1,
@@ -1895,7 +1895,7 @@ async fn thread_list_backwards_cursor_can_seed_forward_delta_sync() -> Result<()
         ..
     } = {
         let request_id = mcp
-            .send_thread_list_request(codex_app_server_protocol::ThreadListParams {
+            .send_thread_list_request(codepilotx_app_server_protocol::ThreadListParams {
                 cursor: None,
                 limit: Some(1),
                 sort_key: Some(ThreadSortKey::UpdatedAt),
@@ -1922,7 +1922,7 @@ async fn thread_list_backwards_cursor_can_seed_forward_delta_sync() -> Result<()
     assert_eq!(backwards_cursor, "2025-02-02T23:59:59.999Z");
 
     let id_new = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-02-01T12-00-00",
         "2025-02-01T12:00:00Z",
         "Hello",
@@ -1930,7 +1930,7 @@ async fn thread_list_backwards_cursor_can_seed_forward_delta_sync() -> Result<()
         /*git_info*/ None,
     )?;
     set_rollout_mtime(
-        rollout_path(codex_home.path(), "2025-02-01T12-00-00", &id_new).as_path(),
+        rollout_path(codepilotx_home.path(), "2025-02-01T12-00-00", &id_new).as_path(),
         "2025-02-04T00:00:00Z",
     )?;
 
@@ -1938,7 +1938,7 @@ async fn thread_list_backwards_cursor_can_seed_forward_delta_sync() -> Result<()
         data: delta_page, ..
     } = {
         let request_id = mcp
-            .send_thread_list_request(codex_app_server_protocol::ThreadListParams {
+            .send_thread_list_request(codepilotx_app_server_protocol::ThreadListParams {
                 cursor: Some(backwards_cursor),
                 limit: Some(10),
                 sort_key: Some(ThreadSortKey::UpdatedAt),
@@ -1967,11 +1967,11 @@ async fn thread_list_backwards_cursor_can_seed_forward_delta_sync() -> Result<()
 
 #[tokio::test]
 async fn thread_list_created_at_tie_breaks_by_uuid() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    create_minimal_config(codex_home.path())?;
+    let codepilotx_home = TempDir::new()?;
+    create_minimal_config(codepilotx_home.path())?;
 
     let id_a = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-02-01T10-00-00",
         "2025-02-01T10:00:00Z",
         "Hello",
@@ -1979,7 +1979,7 @@ async fn thread_list_created_at_tie_breaks_by_uuid() -> Result<()> {
         /*git_info*/ None,
     )?;
     let id_b = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-02-01T10-00-00",
         "2025-02-01T10:00:00Z",
         "Hello",
@@ -1987,7 +1987,7 @@ async fn thread_list_created_at_tie_breaks_by_uuid() -> Result<()> {
         /*git_info*/ None,
     )?;
 
-    let mut mcp = init_mcp(codex_home.path()).await?;
+    let mut mcp = init_mcp(codepilotx_home.path()).await?;
 
     let ThreadListResponse { data, .. } = list_threads(
         &mut mcp,
@@ -2010,11 +2010,11 @@ async fn thread_list_created_at_tie_breaks_by_uuid() -> Result<()> {
 
 #[tokio::test]
 async fn thread_list_updated_at_tie_breaks_by_uuid() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    create_minimal_config(codex_home.path())?;
+    let codepilotx_home = TempDir::new()?;
+    create_minimal_config(codepilotx_home.path())?;
 
     let id_a = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-02-01T10-00-00",
         "2025-02-01T10:00:00Z",
         "Hello",
@@ -2022,7 +2022,7 @@ async fn thread_list_updated_at_tie_breaks_by_uuid() -> Result<()> {
         /*git_info*/ None,
     )?;
     let id_b = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-02-01T11-00-00",
         "2025-02-01T11:00:00Z",
         "Hello",
@@ -2032,15 +2032,15 @@ async fn thread_list_updated_at_tie_breaks_by_uuid() -> Result<()> {
 
     let updated_at = "2025-02-03T00:00:00Z";
     set_rollout_mtime(
-        rollout_path(codex_home.path(), "2025-02-01T10-00-00", &id_a).as_path(),
+        rollout_path(codepilotx_home.path(), "2025-02-01T10-00-00", &id_a).as_path(),
         updated_at,
     )?;
     set_rollout_mtime(
-        rollout_path(codex_home.path(), "2025-02-01T11-00-00", &id_b).as_path(),
+        rollout_path(codepilotx_home.path(), "2025-02-01T11-00-00", &id_b).as_path(),
         updated_at,
     )?;
 
-    let mut mcp = init_mcp(codex_home.path()).await?;
+    let mut mcp = init_mcp(codepilotx_home.path()).await?;
 
     let ThreadListResponse { data, .. } = list_threads_with_sort(
         &mut mcp,
@@ -2064,11 +2064,11 @@ async fn thread_list_updated_at_tie_breaks_by_uuid() -> Result<()> {
 
 #[tokio::test]
 async fn thread_list_updated_at_uses_mtime() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    create_minimal_config(codex_home.path())?;
+    let codepilotx_home = TempDir::new()?;
+    create_minimal_config(codepilotx_home.path())?;
 
     let thread_id = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-02-01T10-00-00",
         "2025-02-01T10:00:00Z",
         "Hello",
@@ -2077,11 +2077,11 @@ async fn thread_list_updated_at_uses_mtime() -> Result<()> {
     )?;
 
     set_rollout_mtime(
-        rollout_path(codex_home.path(), "2025-02-01T10-00-00", &thread_id).as_path(),
+        rollout_path(codepilotx_home.path(), "2025-02-01T10-00-00", &thread_id).as_path(),
         "2025-02-05T00:00:00Z",
     )?;
 
-    let mut mcp = init_mcp(codex_home.path()).await?;
+    let mut mcp = init_mcp(codepilotx_home.path()).await?;
 
     let ThreadListResponse { data, .. } = list_threads_with_sort(
         &mut mcp,
@@ -2110,11 +2110,11 @@ async fn thread_list_updated_at_uses_mtime() -> Result<()> {
 
 #[tokio::test]
 async fn thread_list_archived_filter() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    create_minimal_config(codex_home.path())?;
+    let codepilotx_home = TempDir::new()?;
+    create_minimal_config(codepilotx_home.path())?;
 
     let active_id = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-03-01T10-00-00",
         "2025-03-01T10:00:00Z",
         "Active",
@@ -2122,7 +2122,7 @@ async fn thread_list_archived_filter() -> Result<()> {
         /*git_info*/ None,
     )?;
     let archived_id = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-03-01T09-00-00",
         "2025-03-01T09:00:00Z",
         "Archived",
@@ -2130,9 +2130,9 @@ async fn thread_list_archived_filter() -> Result<()> {
         /*git_info*/ None,
     )?;
 
-    let archived_dir = codex_home.path().join(ARCHIVED_SESSIONS_SUBDIR);
+    let archived_dir = codepilotx_home.path().join(ARCHIVED_SESSIONS_SUBDIR);
     fs::create_dir_all(&archived_dir)?;
-    let archived_source = rollout_path(codex_home.path(), "2025-03-01T09-00-00", &archived_id);
+    let archived_source = rollout_path(codepilotx_home.path(), "2025-03-01T09-00-00", &archived_id);
     let archived_dest = archived_dir.join(
         archived_source
             .file_name()
@@ -2140,7 +2140,7 @@ async fn thread_list_archived_filter() -> Result<()> {
     );
     fs::rename(&archived_source, &archived_dest)?;
 
-    let mut mcp = init_mcp(codex_home.path()).await?;
+    let mut mcp = init_mcp(codepilotx_home.path()).await?;
 
     let ThreadListResponse { data, .. } = list_threads(
         &mut mcp,
@@ -2171,13 +2171,13 @@ async fn thread_list_archived_filter() -> Result<()> {
 
 #[tokio::test]
 async fn thread_list_invalid_cursor_returns_error() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    create_minimal_config(codex_home.path())?;
+    let codepilotx_home = TempDir::new()?;
+    create_minimal_config(codepilotx_home.path())?;
 
-    let mut mcp = init_mcp(codex_home.path()).await?;
+    let mut mcp = init_mcp(codepilotx_home.path()).await?;
 
     let request_id = mcp
-        .send_thread_list_request(codex_app_server_protocol::ThreadListParams {
+        .send_thread_list_request(codepilotx_app_server_protocol::ThreadListParams {
             cursor: Some("not-a-cursor".to_string()),
             limit: Some(2),
             sort_key: None,

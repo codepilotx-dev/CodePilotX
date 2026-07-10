@@ -9,15 +9,15 @@ use crate::fuzzy_file_search::FuzzyFileSearchSession;
 use crate::fuzzy_file_search::run_fuzzy_file_search;
 use crate::fuzzy_file_search::start_fuzzy_file_search_session;
 use crate::outgoing_message::OutgoingMessageSender;
-use codex_app_server_protocol::FuzzyFileSearchParams;
-use codex_app_server_protocol::FuzzyFileSearchResponse;
-use codex_app_server_protocol::FuzzyFileSearchSessionStartParams;
-use codex_app_server_protocol::FuzzyFileSearchSessionStartResponse;
-use codex_app_server_protocol::FuzzyFileSearchSessionStopParams;
-use codex_app_server_protocol::FuzzyFileSearchSessionStopResponse;
-use codex_app_server_protocol::FuzzyFileSearchSessionUpdateParams;
-use codex_app_server_protocol::FuzzyFileSearchSessionUpdateResponse;
-use codex_app_server_protocol::JSONRPCErrorError;
+use codepilotx_app_server_protocol::FuzzyFileSearchParams;
+use codepilotx_app_server_protocol::FuzzyFileSearchResponse;
+use codepilotx_app_server_protocol::FuzzyFileSearchSessionStartParams;
+use codepilotx_app_server_protocol::FuzzyFileSearchSessionStartResponse;
+use codepilotx_app_server_protocol::FuzzyFileSearchSessionStopParams;
+use codepilotx_app_server_protocol::FuzzyFileSearchSessionStopResponse;
+use codepilotx_app_server_protocol::FuzzyFileSearchSessionUpdateParams;
+use codepilotx_app_server_protocol::FuzzyFileSearchSessionUpdateResponse;
+use codepilotx_app_server_protocol::JSONRPCErrorError;
 use tokio::sync::Mutex;
 
 #[derive(Clone)]

@@ -11,37 +11,37 @@ use app_test_support::TestAppServer;
 use app_test_support::to_response;
 use app_test_support::write_chatgpt_auth;
 use app_test_support::write_mock_responses_config_toml_with_chatgpt_base_url;
-use codex_app_server::AppServerRuntimeOptions;
-use codex_app_server::AppServerTransport;
-use codex_app_server::AppServerWebsocketAuthSettings;
-use codex_app_server::PluginStartupTasks;
-use codex_app_server::RemoteControlStartupMode;
-use codex_app_server::run_main_with_transport_options;
-use codex_app_server_protocol::JSONRPCError;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::RemoteControlClient;
-use codex_app_server_protocol::RemoteControlClientsListOrder;
-use codex_app_server_protocol::RemoteControlClientsListParams;
-use codex_app_server_protocol::RemoteControlClientsListResponse;
-use codex_app_server_protocol::RemoteControlClientsRevokeParams;
-use codex_app_server_protocol::RemoteControlClientsRevokeResponse;
-use codex_app_server_protocol::RemoteControlConnectionStatus;
-use codex_app_server_protocol::RemoteControlDisableResponse;
-use codex_app_server_protocol::RemoteControlEnableResponse;
-use codex_app_server_protocol::RemoteControlPairingStartParams;
-use codex_app_server_protocol::RemoteControlPairingStartResponse;
-use codex_app_server_protocol::RemoteControlPairingStatusParams;
-use codex_app_server_protocol::RemoteControlPairingStatusResponse;
-use codex_app_server_protocol::RemoteControlStatusChangedNotification;
-use codex_app_server_protocol::RemoteControlStatusReadResponse;
-use codex_app_server_protocol::RequestId;
-use codex_arg0::Arg0DispatchPaths;
-use codex_config::LoaderOverrides;
-use codex_config::types::AuthCredentialsStoreMode;
-use codex_protocol::protocol::SessionSource;
-use codex_state::RemoteControlEnrollmentRecord;
-use codex_state::StateRuntime;
-use codex_utils_cli::CliConfigOverrides;
+use codepilotx_app_server::AppServerRuntimeOptions;
+use codepilotx_app_server::AppServerTransport;
+use codepilotx_app_server::AppServerWebsocketAuthSettings;
+use codepilotx_app_server::PluginStartupTasks;
+use codepilotx_app_server::RemoteControlStartupMode;
+use codepilotx_app_server::run_main_with_transport_options;
+use codepilotx_app_server_protocol::JSONRPCError;
+use codepilotx_app_server_protocol::JSONRPCResponse;
+use codepilotx_app_server_protocol::RemoteControlClient;
+use codepilotx_app_server_protocol::RemoteControlClientsListOrder;
+use codepilotx_app_server_protocol::RemoteControlClientsListParams;
+use codepilotx_app_server_protocol::RemoteControlClientsListResponse;
+use codepilotx_app_server_protocol::RemoteControlClientsRevokeParams;
+use codepilotx_app_server_protocol::RemoteControlClientsRevokeResponse;
+use codepilotx_app_server_protocol::RemoteControlConnectionStatus;
+use codepilotx_app_server_protocol::RemoteControlDisableResponse;
+use codepilotx_app_server_protocol::RemoteControlEnableResponse;
+use codepilotx_app_server_protocol::RemoteControlPairingStartParams;
+use codepilotx_app_server_protocol::RemoteControlPairingStartResponse;
+use codepilotx_app_server_protocol::RemoteControlPairingStatusParams;
+use codepilotx_app_server_protocol::RemoteControlPairingStatusResponse;
+use codepilotx_app_server_protocol::RemoteControlStatusChangedNotification;
+use codepilotx_app_server_protocol::RemoteControlStatusReadResponse;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_arg0::Arg0DispatchPaths;
+use codepilotx_config::LoaderOverrides;
+use codepilotx_config::types::AuthCredentialsStoreMode;
+use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_state::RemoteControlEnrollmentRecord;
+use codepilotx_state::StateRuntime;
+use codepilotx_utils_cli::CliConfigOverrides;
 use pretty_assertions::assert_eq;
 use serial_test::serial;
 use tempfile::TempDir;
@@ -124,12 +124,12 @@ async fn assert_remote_control_disabled_by_requirements(
 
 #[tokio::test]
 async fn managed_requirements_reject_all_remote_control_rpcs() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     std::fs::write(
-        codex_home.path().join("requirements.toml"),
+        codepilotx_home.path().join("requirements.toml"),
         "allow_remote_control = false\n",
     )?;
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let notification = timeout(
@@ -182,12 +182,12 @@ async fn managed_requirements_reject_all_remote_control_rpcs() -> Result<()> {
 #[tokio::test]
 async fn managed_requirements_allow_remote_control_true_does_not_enable_or_block_it() -> Result<()>
 {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     std::fs::write(
-        codex_home.path().join("requirements.toml"),
+        codepilotx_home.path().join("requirements.toml"),
         "allow_remote_control = true\n",
     )?;
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp.send_remote_control_status_read_request().await?;
@@ -204,23 +204,23 @@ async fn managed_requirements_allow_remote_control_true_does_not_enable_or_block
 #[tokio::test]
 #[serial]
 async fn explicit_remote_control_startup_fails_when_disabled_by_requirements() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     std::fs::write(
-        codex_home.path().join("requirements.toml"),
+        codepilotx_home.path().join("requirements.toml"),
         "allow_remote_control = false\n",
     )?;
-    let managed_config_path = codex_home.path().join("managed_config.toml");
-    let socket_path = codex_home.path().join("app-server.sock");
+    let managed_config_path = codepilotx_home.path().join("managed_config.toml");
+    let socket_path = codepilotx_home.path().join("app-server.sock");
     let transport =
         AppServerTransport::from_listen_url(&format!("unix://{}", socket_path.display()))?;
-    let _codex_home_guard = EnvVarGuard::set("CODEX_HOME", codex_home.path().as_os_str());
+    let _codepilotx_home_guard = EnvVarGuard::set("codepilotx_HOME", codepilotx_home.path().as_os_str());
 
     let result = timeout(
         STARTUP_TIMEOUT,
         run_main_with_transport_options(
             Arg0DispatchPaths {
-                codex_self_exe: Some(std::env::current_exe()?),
-                codex_linux_sandbox_exe: None,
+                codepilotx_self_exe: Some(std::env::current_exe()?),
+                codepilotx_linux_sandbox_exe: None,
                 main_execve_wrapper_exe: None,
             },
             CliConfigOverrides::default(),
@@ -250,14 +250,14 @@ async fn explicit_remote_control_startup_fails_when_disabled_by_requirements() -
 
 #[tokio::test]
 async fn listen_off_honors_persisted_remote_control_enable() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    let listener = configured_remote_control_listener(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    let listener = configured_remote_control_listener(codepilotx_home.path()).await?;
     let websocket_url = format!(
         "ws://{}/backend-api/wham/remote/control/server",
         listener.local_addr()?
     );
     let state_db =
-        StateRuntime::init(codex_home.path().to_path_buf(), "test-provider".to_string()).await?;
+        StateRuntime::init(codepilotx_home.path().to_path_buf(), "test-provider".to_string()).await?;
     state_db
         .upsert_remote_control_enrollment(&RemoteControlEnrollmentRecord {
             websocket_url,
@@ -270,7 +270,7 @@ async fn listen_off_honors_persisted_remote_control_enable() -> Result<()> {
         })
         .await?;
 
-    let _app_server = TestAppServer::new_with_args(codex_home.path(), &["--listen", "off"]).await?;
+    let _app_server = TestAppServer::new_with_args(codepilotx_home.path(), &["--listen", "off"]).await?;
     let request = timeout(STARTUP_TIMEOUT, read_http_request(&listener)).await??;
     assert!(
         request
@@ -285,10 +285,10 @@ async fn listen_off_honors_persisted_remote_control_enable() -> Result<()> {
 
 #[tokio::test]
 async fn listen_off_ignores_persisted_enable_when_disabled_by_requirements() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    let listener = configured_remote_control_listener(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    let listener = configured_remote_control_listener(codepilotx_home.path()).await?;
     std::fs::write(
-        codex_home.path().join("requirements.toml"),
+        codepilotx_home.path().join("requirements.toml"),
         "allow_remote_control = false\n",
     )?;
     let websocket_url = format!(
@@ -296,7 +296,7 @@ async fn listen_off_ignores_persisted_enable_when_disabled_by_requirements() -> 
         listener.local_addr()?
     );
     let state_db =
-        StateRuntime::init(codex_home.path().to_path_buf(), "test-provider".to_string()).await?;
+        StateRuntime::init(codepilotx_home.path().to_path_buf(), "test-provider".to_string()).await?;
     state_db
         .upsert_remote_control_enrollment(&RemoteControlEnrollmentRecord {
             websocket_url: websocket_url.clone(),
@@ -310,7 +310,7 @@ async fn listen_off_ignores_persisted_enable_when_disabled_by_requirements() -> 
         .await?;
 
     let mut app_server =
-        TestAppServer::new_with_args(codex_home.path(), &["--listen", "off"]).await?;
+        TestAppServer::new_with_args(codepilotx_home.path(), &["--listen", "off"]).await?;
     let status = timeout(STARTUP_TIMEOUT, app_server.wait_for_exit()).await??;
     assert!(!status.success());
     timeout(Duration::from_millis(100), listener.accept())
@@ -334,15 +334,15 @@ async fn listen_off_ignores_persisted_enable_when_disabled_by_requirements() -> 
 #[tokio::test]
 async fn listen_off_exits_without_persisted_remote_control_enable() -> Result<()> {
     for persisted_preference in [None, Some(false)] {
-        let codex_home = TempDir::new()?;
-        let listener = configured_remote_control_listener(codex_home.path()).await?;
+        let codepilotx_home = TempDir::new()?;
+        let listener = configured_remote_control_listener(codepilotx_home.path()).await?;
         if let Some(remote_control_enabled) = persisted_preference {
             let websocket_url = format!(
                 "ws://{}/backend-api/wham/remote/control/server",
                 listener.local_addr()?
             );
             let state_db =
-                StateRuntime::init(codex_home.path().to_path_buf(), "test-provider".to_string())
+                StateRuntime::init(codepilotx_home.path().to_path_buf(), "test-provider".to_string())
                     .await?;
             state_db
                 .upsert_remote_control_enrollment(&RemoteControlEnrollmentRecord {
@@ -358,7 +358,7 @@ async fn listen_off_exits_without_persisted_remote_control_enable() -> Result<()
         }
 
         let mut app_server =
-            TestAppServer::new_with_args(codex_home.path(), &["--listen", "off"]).await?;
+            TestAppServer::new_with_args(codepilotx_home.path(), &["--listen", "off"]).await?;
         let status = timeout(STARTUP_TIMEOUT, app_server.wait_for_exit()).await??;
         assert!(!status.success());
     }
@@ -367,9 +367,9 @@ async fn listen_off_exits_without_persisted_remote_control_enable() -> Result<()
 
 #[tokio::test]
 async fn remote_control_disable_returns_disabled_status() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    let _listener = configured_remote_control_listener(codex_home.path()).await?;
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    let _listener = configured_remote_control_listener(codepilotx_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp.send_remote_control_disable_request().await?;
@@ -389,8 +389,8 @@ async fn remote_control_disable_returns_disabled_status() -> Result<()> {
 
 #[tokio::test]
 async fn remote_control_status_read_returns_disabled_status() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp.send_remote_control_status_read_request().await?;
@@ -410,9 +410,9 @@ async fn remote_control_status_read_returns_disabled_status() -> Result<()> {
 
 #[tokio::test]
 async fn remote_control_enable_returns_connecting_status() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    let mut backend = BlockingRemoteControlBackend::start(codex_home.path()).await?;
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    let mut backend = BlockingRemoteControlBackend::start(codepilotx_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp.send_remote_control_enable_request().await?;
@@ -443,12 +443,12 @@ async fn remote_control_enable_returns_connecting_status() -> Result<()> {
 
 #[tokio::test]
 async fn disable_waits_for_in_flight_durable_enable() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    let mut backend = BlockingRemoteControlBackend::start(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    let mut backend = BlockingRemoteControlBackend::start(codepilotx_home.path()).await?;
     let websocket_url = backend.websocket_url().to_string();
     let state_db =
-        StateRuntime::init(codex_home.path().to_path_buf(), "test-provider".to_string()).await?;
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+        StateRuntime::init(codepilotx_home.path().to_path_buf(), "test-provider".to_string()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     mcp.send_remote_control_enable_request().await?;
@@ -474,13 +474,13 @@ async fn disable_waits_for_in_flight_durable_enable() -> Result<()> {
 
 #[tokio::test]
 async fn rpc_updates_durable_preference_but_ephemeral_does_not() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    let mut backend = BlockingRemoteControlBackend::start(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    let mut backend = BlockingRemoteControlBackend::start(codepilotx_home.path()).await?;
     let websocket_url = backend.websocket_url().to_string();
     let state_db =
-        StateRuntime::init(codex_home.path().to_path_buf(), "test-provider".to_string()).await?;
+        StateRuntime::init(codepilotx_home.path().to_path_buf(), "test-provider".to_string()).await?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp.send_remote_control_enable_request().await?;
@@ -535,9 +535,9 @@ async fn rpc_updates_durable_preference_but_ephemeral_does_not() -> Result<()> {
 
 #[tokio::test]
 async fn remote_control_status_read_returns_connecting_status_after_enable() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    let mut backend = BlockingRemoteControlBackend::start(codex_home.path()).await?;
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    let mut backend = BlockingRemoteControlBackend::start(codepilotx_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp.send_remote_control_enable_request().await?;
@@ -570,9 +570,9 @@ async fn remote_control_status_read_returns_connecting_status_after_enable() -> 
 
 #[tokio::test]
 async fn remote_control_pairing_start_returns_pairing_artifacts() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    let mut backend = PairingRemoteControlBackend::start(codex_home.path()).await?;
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    let mut backend = PairingRemoteControlBackend::start(codepilotx_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp.send_remote_control_enable_request().await?;
@@ -667,9 +667,9 @@ async fn remote_control_pairing_start_returns_pairing_artifacts() -> Result<()> 
 
 #[tokio::test]
 async fn pairing_start_works_after_ephemeral_enable() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    let mut backend = PairingRemoteControlBackend::start(codex_home.path()).await?;
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    let mut backend = PairingRemoteControlBackend::start(codepilotx_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
     let request_id = mcp.send_remote_control_ephemeral_enable_request().await?;
     wait_for_response(&mut mcp, request_id).await?;
@@ -705,9 +705,9 @@ async fn pairing_start_works_after_ephemeral_enable() -> Result<()> {
 
 #[tokio::test]
 async fn remote_control_client_management_works_while_disabled() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    let mut backend = ClientManagementRemoteControlBackend::start(codex_home.path()).await?;
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    let mut backend = ClientManagementRemoteControlBackend::start(codepilotx_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -777,8 +777,8 @@ struct ClientManagementRemoteControlBackend {
 }
 
 impl ClientManagementRemoteControlBackend {
-    async fn start(codex_home: &std::path::Path) -> Result<Self> {
-        let listener = configured_remote_control_listener(codex_home).await?;
+    async fn start(codepilotx_home: &std::path::Path) -> Result<Self> {
+        let listener = configured_remote_control_listener(codepilotx_home).await?;
         let (requests_tx, requests_rx) = oneshot::channel();
         let server_task = tokio::spawn(async move {
             let result = async {
@@ -830,8 +830,8 @@ impl ClientManagementRemoteControlBackend {
 }
 
 impl BlockingRemoteControlBackend {
-    async fn start(codex_home: &std::path::Path) -> Result<Self> {
-        let listener = configured_remote_control_listener(codex_home).await?;
+    async fn start(codepilotx_home: &std::path::Path) -> Result<Self> {
+        let listener = configured_remote_control_listener(codepilotx_home).await?;
         let websocket_url = format!(
             "ws://{}/backend-api/wham/remote/control/server",
             listener.local_addr()?
@@ -912,8 +912,8 @@ struct PairingRemoteControlBackend {
 }
 
 impl PairingRemoteControlBackend {
-    async fn start(codex_home: &std::path::Path) -> Result<Self> {
-        let listener = configured_remote_control_listener(codex_home).await?;
+    async fn start(codepilotx_home: &std::path::Path) -> Result<Self> {
+        let listener = configured_remote_control_listener(codepilotx_home).await?;
         let (enroll_request_tx, enroll_request_rx) = oneshot::channel();
         let server_task = tokio::spawn(async move {
             let mut enroll_request_tx = Some(enroll_request_tx);
@@ -1020,16 +1020,16 @@ struct HttpRequest {
     reader: BufReader<TcpStream>,
 }
 
-async fn configured_remote_control_listener(codex_home: &std::path::Path) -> Result<TcpListener> {
+async fn configured_remote_control_listener(codepilotx_home: &std::path::Path) -> Result<TcpListener> {
     let listener = TcpListener::bind("127.0.0.1:0").await?;
     let remote_control_url = format!("http://{}/backend-api/", listener.local_addr()?);
     write_mock_responses_config_toml_with_chatgpt_base_url(
-        codex_home,
+        codepilotx_home,
         &remote_control_url,
         &remote_control_url,
     )?;
     write_chatgpt_auth(
-        codex_home,
+        codepilotx_home,
         ChatGptAuthFixture::new("chatgpt-token")
             .account_id("account_id")
             .chatgpt_account_id("account_id"),

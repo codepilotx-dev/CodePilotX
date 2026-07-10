@@ -3,7 +3,7 @@ use std::time::Duration;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
 
-use codex_app_server_transport::REMOTE_CONTROL_DISABLED_ENV_VAR;
+use codepilotx_app_server_transport::REMOTE_CONTROL_DISABLED_ENV_VAR;
 
 use super::PidBackend;
 use super::PidCommandKind;
@@ -150,7 +150,7 @@ async fn stale_record_cleanup_preserves_replacement_record() {
 #[test]
 fn update_loop_uses_hidden_app_server_subcommand() {
     let backend = PidBackend {
-        codex_bin: "codex".into(),
+        codepilotx_bin: "codex".into(),
         pid_file: "updater.pid".into(),
         lock_file: "updater.pid.lock".into(),
         command_kind: PidCommandKind::UpdateLoop,

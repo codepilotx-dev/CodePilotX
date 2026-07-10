@@ -5,20 +5,20 @@ use app_test_support::create_mock_responses_server_sequence_unchecked;
 use app_test_support::to_response;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
-use codex_app_server_protocol::CommandExecOutputDeltaNotification;
-use codex_app_server_protocol::CommandExecOutputStream;
-use codex_app_server_protocol::CommandExecParams;
-use codex_app_server_protocol::CommandExecResizeParams;
-use codex_app_server_protocol::CommandExecResponse;
-use codex_app_server_protocol::CommandExecTerminalSize;
-use codex_app_server_protocol::CommandExecTerminateParams;
-use codex_app_server_protocol::CommandExecWriteParams;
-use codex_app_server_protocol::JSONRPCMessage;
-use codex_app_server_protocol::JSONRPCNotification;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::SandboxPolicy;
-use codex_exec_server::CODEX_EXEC_SERVER_URL_ENV_VAR;
-use codex_protocol::models::BUILT_IN_PERMISSION_PROFILE_READ_ONLY;
+use codepilotx_app_server_protocol::CommandExecOutputDeltaNotification;
+use codepilotx_app_server_protocol::CommandExecOutputStream;
+use codepilotx_app_server_protocol::CommandExecParams;
+use codepilotx_app_server_protocol::CommandExecResizeParams;
+use codepilotx_app_server_protocol::CommandExecResponse;
+use codepilotx_app_server_protocol::CommandExecTerminalSize;
+use codepilotx_app_server_protocol::CommandExecTerminateParams;
+use codepilotx_app_server_protocol::CommandExecWriteParams;
+use codepilotx_app_server_protocol::JSONRPCMessage;
+use codepilotx_app_server_protocol::JSONRPCNotification;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_app_server_protocol::SandboxPolicy;
+use codepilotx_exec_server::codepilotx_EXEC_SERVER_URL_ENV_VAR;
+use codepilotx_protocol::models::BUILT_IN_PERMISSION_PROFILE_READ_ONLY;
 use pretty_assertions::assert_eq;
 use std::collections::HashMap;
 use std::path::Path;
@@ -40,9 +40,9 @@ use super::connection_handling_websocket::spawn_websocket_server;
 #[tokio::test]
 async fn command_exec_without_streams_can_be_terminated() -> Result<()> {
     let server = create_mock_responses_server_sequence_unchecked(Vec::new()).await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri(), "never")?;
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri(), "never")?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let process_id = "sleep-1".to_string();
@@ -90,9 +90,9 @@ async fn command_exec_without_streams_can_be_terminated() -> Result<()> {
 #[tokio::test]
 async fn command_exec_without_process_id_keeps_buffered_compatibility() -> Result<()> {
     let server = create_mock_responses_server_sequence_unchecked(Vec::new()).await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri(), "never")?;
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri(), "never")?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let command_request_id = mcp
@@ -138,10 +138,10 @@ async fn command_exec_without_process_id_keeps_buffered_compatibility() -> Resul
 async fn command_exec_env_overrides_merge_with_server_environment_and_support_unset() -> Result<()>
 {
     let server = create_mock_responses_server_sequence_unchecked(Vec::new()).await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri(), "never")?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri(), "never")?;
     let mut mcp = TestAppServer::new_with_env(
-        codex_home.path(),
+        codepilotx_home.path(),
         &[("COMMAND_EXEC_BASELINE", Some("server"))],
     )
     .await?;
@@ -152,7 +152,7 @@ async fn command_exec_env_overrides_merge_with_server_environment_and_support_un
             command: vec![
                 "/bin/sh".to_string(),
                 "-lc".to_string(),
-                "printf '%s|%s|%s|%s' \"$COMMAND_EXEC_BASELINE\" \"$COMMAND_EXEC_EXTRA\" \"${RUST_LOG-unset}\" \"$CODEX_HOME\"".to_string(),
+                "printf '%s|%s|%s|%s' \"$COMMAND_EXEC_BASELINE\" \"$COMMAND_EXEC_EXTRA\" \"${RUST_LOG-unset}\" \"$codepilotx_HOME\"".to_string(),
             ],
             process_id: None,
             tty: false,
@@ -185,7 +185,7 @@ async fn command_exec_env_overrides_merge_with_server_environment_and_support_un
         response,
         CommandExecResponse {
             exit_code: 0,
-            stdout: format!("request|added|unset|{}", codex_home.path().display()),
+            stdout: format!("request|added|unset|{}", codepilotx_home.path().display()),
             stderr: String::new(),
         }
     );
@@ -196,9 +196,9 @@ async fn command_exec_env_overrides_merge_with_server_environment_and_support_un
 #[tokio::test]
 async fn command_exec_accepts_permission_profile() -> Result<()> {
     let server = create_mock_responses_server_sequence_unchecked(Vec::new()).await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri(), "never")?;
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri(), "never")?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let command_request_id = mcp
@@ -243,13 +243,13 @@ async fn command_exec_accepts_permission_profile() -> Result<()> {
 #[tokio::test]
 async fn command_exec_permission_profile_starts_selected_network_proxy() -> Result<()> {
     let server = create_mock_responses_server_sequence_unchecked(Vec::new()).await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri(), "never")?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri(), "never")?;
     insert_networked_permission_profile_config(
-        codex_home.path(),
+        codepilotx_home.path(),
         /*default_permissions*/ None,
     )?;
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let command_request_id = mcp
@@ -257,7 +257,7 @@ async fn command_exec_permission_profile_starts_selected_network_proxy() -> Resu
             command: vec![
                 "sh".to_string(),
                 "-lc".to_string(),
-                "printf '%s' \"${CODEX_NETWORK_PROXY_ACTIVE-unset}\"".to_string(),
+                "printf '%s' \"${codepilotx_NETWORK_PROXY_ACTIVE-unset}\"".to_string(),
             ],
             process_id: None,
             tty: false,
@@ -294,10 +294,10 @@ async fn command_exec_permission_profile_starts_selected_network_proxy() -> Resu
 #[tokio::test]
 async fn command_exec_permission_profile_does_not_reuse_default_network_proxy() -> Result<()> {
     let server = create_mock_responses_server_sequence_unchecked(Vec::new()).await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri(), "never")?;
-    insert_networked_permission_profile_config(codex_home.path(), Some("networked"))?;
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri(), "never")?;
+    insert_networked_permission_profile_config(codepilotx_home.path(), Some("networked"))?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let command_request_id = mcp
@@ -305,7 +305,7 @@ async fn command_exec_permission_profile_does_not_reuse_default_network_proxy() 
             command: vec![
                 "sh".to_string(),
                 "-lc".to_string(),
-                "printf '%s' \"${CODEX_NETWORK_PROXY_ACTIVE-unset}\"".to_string(),
+                "printf '%s' \"${codepilotx_NETWORK_PROXY_ACTIVE-unset}\"".to_string(),
             ],
             process_id: None,
             tty: false,
@@ -343,19 +343,19 @@ async fn command_exec_permission_profile_does_not_reuse_default_network_proxy() 
 #[tokio::test]
 async fn command_exec_permission_profile_project_roots_use_command_cwd() -> Result<()> {
     let server = create_mock_responses_server_sequence_unchecked(Vec::new()).await;
-    let codex_home = TempDir::new()?;
-    let command_dir = codex_home.path().join("command-cwd");
+    let codepilotx_home = TempDir::new()?;
+    let command_dir = codepilotx_home.path().join("command-cwd");
     std::fs::create_dir(&command_dir)?;
-    create_config_toml(codex_home.path(), &server.uri(), "never")?;
+    create_config_toml(codepilotx_home.path(), &server.uri(), "never")?;
     insert_command_exec_config(
-        codex_home.path(),
+        codepilotx_home.path(),
         r#"
 [permissions.command-cwd.filesystem]
 ":root" = "read"
 ":workspace_roots" = "write"
 "#,
     )?;
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let command_request_id = mcp
@@ -394,7 +394,7 @@ async fn command_exec_permission_profile_project_roots_use_command_cwd() -> Resu
         "child"
     );
     assert!(
-        !codex_home.path().join("parent.txt").exists(),
+        !codepilotx_home.path().join("parent.txt").exists(),
         "permissionProfile :workspace_roots write should not grant the server cwd when command cwd differs"
     );
 
@@ -404,11 +404,11 @@ async fn command_exec_permission_profile_project_roots_use_command_cwd() -> Resu
 #[tokio::test]
 async fn command_exec_returns_error_when_local_environment_is_disabled() -> Result<()> {
     let server = create_mock_responses_server_sequence_unchecked(Vec::new()).await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri(), "never")?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri(), "never")?;
     let mut mcp = TestAppServer::new_with_env(
-        codex_home.path(),
-        &[(CODEX_EXEC_SERVER_URL_ENV_VAR, Some("none"))],
+        codepilotx_home.path(),
+        &[(codepilotx_EXEC_SERVER_URL_ENV_VAR, Some("none"))],
     )
     .await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
@@ -443,9 +443,9 @@ async fn command_exec_returns_error_when_local_environment_is_disabled() -> Resu
 #[tokio::test]
 async fn command_exec_rejects_sandbox_policy_with_permission_profile() -> Result<()> {
     let server = create_mock_responses_server_sequence_unchecked(Vec::new()).await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri(), "never")?;
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri(), "never")?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let command_request_id = mcp
@@ -481,9 +481,9 @@ async fn command_exec_rejects_sandbox_policy_with_permission_profile() -> Result
 #[tokio::test]
 async fn command_exec_rejects_disable_timeout_with_timeout_ms() -> Result<()> {
     let server = create_mock_responses_server_sequence_unchecked(Vec::new()).await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri(), "never")?;
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri(), "never")?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let command_request_id = mcp
@@ -519,9 +519,9 @@ async fn command_exec_rejects_disable_timeout_with_timeout_ms() -> Result<()> {
 #[tokio::test]
 async fn command_exec_rejects_disable_output_cap_with_output_bytes_cap() -> Result<()> {
     let server = create_mock_responses_server_sequence_unchecked(Vec::new()).await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri(), "never")?;
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri(), "never")?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let command_request_id = mcp
@@ -557,9 +557,9 @@ async fn command_exec_rejects_disable_output_cap_with_output_bytes_cap() -> Resu
 #[tokio::test]
 async fn command_exec_rejects_negative_timeout_ms() -> Result<()> {
     let server = create_mock_responses_server_sequence_unchecked(Vec::new()).await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri(), "never")?;
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri(), "never")?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let command_request_id = mcp
@@ -595,9 +595,9 @@ async fn command_exec_rejects_negative_timeout_ms() -> Result<()> {
 #[tokio::test]
 async fn command_exec_without_process_id_rejects_streaming() -> Result<()> {
     let server = create_mock_responses_server_sequence_unchecked(Vec::new()).await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri(), "never")?;
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri(), "never")?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let command_request_id = mcp
@@ -633,9 +633,9 @@ async fn command_exec_without_process_id_rejects_streaming() -> Result<()> {
 #[tokio::test]
 async fn command_exec_non_streaming_respects_output_cap() -> Result<()> {
     let server = create_mock_responses_server_sequence_unchecked(Vec::new()).await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri(), "never")?;
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri(), "never")?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let command_request_id = mcp
@@ -680,9 +680,9 @@ async fn command_exec_non_streaming_respects_output_cap() -> Result<()> {
 #[tokio::test]
 async fn command_exec_streaming_does_not_buffer_output() -> Result<()> {
     let server = create_mock_responses_server_sequence_unchecked(Vec::new()).await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri(), "never")?;
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri(), "never")?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let process_id = "stream-cap-1".to_string();
@@ -744,9 +744,9 @@ async fn command_exec_streaming_does_not_buffer_output() -> Result<()> {
 #[tokio::test]
 async fn command_exec_pipe_streams_output_and_accepts_write() -> Result<()> {
     let server = create_mock_responses_server_sequence_unchecked(Vec::new()).await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri(), "never")?;
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri(), "never")?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let process_id = "pipe-1".to_string();
@@ -820,9 +820,9 @@ async fn command_exec_pipe_streams_output_and_accepts_write() -> Result<()> {
 #[tokio::test]
 async fn command_exec_tty_implies_streaming_and_reports_pty_output() -> Result<()> {
     let server = create_mock_responses_server_sequence_unchecked(Vec::new()).await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri(), "never")?;
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri(), "never")?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let process_id = "tty-1".to_string();
@@ -891,9 +891,9 @@ async fn command_exec_tty_implies_streaming_and_reports_pty_output() -> Result<(
 #[tokio::test]
 async fn command_exec_tty_supports_initial_size_and_resize() -> Result<()> {
     let server = create_mock_responses_server_sequence_unchecked(Vec::new()).await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri(), "never")?;
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri(), "never")?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let process_id = "tty-size-1".to_string();
@@ -980,8 +980,8 @@ async fn command_exec_tty_supports_initial_size_and_resize() -> Result<()> {
 async fn command_exec_process_ids_are_connection_scoped_and_disconnect_terminates_process()
 -> Result<()> {
     let server = create_mock_responses_server_sequence_unchecked(Vec::new()).await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri(), "never")?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri(), "never")?;
     let marker = format!(
         "codex-command-exec-marker-{}",
         std::time::SystemTime::now()
@@ -989,7 +989,7 @@ async fn command_exec_process_ids_are_connection_scoped_and_disconnect_terminate
             .as_nanos()
     );
 
-    let (mut process, bind_addr) = spawn_websocket_server(codex_home.path()).await?;
+    let (mut process, bind_addr) = spawn_websocket_server(codepilotx_home.path()).await?;
 
     let mut ws1 = connect_websocket(bind_addr).await?;
     let mut ws2 = connect_websocket(bind_addr).await?;
@@ -1190,7 +1190,7 @@ fn decode_delta_notification(
 }
 
 fn insert_networked_permission_profile_config(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     default_permissions: Option<&str>,
 ) -> Result<()> {
     let default_permissions = default_permissions
@@ -1210,12 +1210,12 @@ enable_socks5 = false
 
 "#
     );
-    insert_command_exec_config(codex_home, &inserted_config)?;
+    insert_command_exec_config(codepilotx_home, &inserted_config)?;
     Ok(())
 }
 
-fn insert_command_exec_config(codex_home: &Path, inserted_config: &str) -> Result<()> {
-    let config_path = codex_home.join("config.toml");
+fn insert_command_exec_config(codepilotx_home: &Path, inserted_config: &str) -> Result<()> {
+    let config_path = codepilotx_home.join("config.toml");
     let config = std::fs::read_to_string(&config_path)?;
     let marker = "\n[model_providers.mock_provider]\n";
     let (prefix, suffix) = config

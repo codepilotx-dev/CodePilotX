@@ -1,20 +1,20 @@
 use clap::Parser;
-use codex_app_server::AppServerRuntimeOptions;
-use codex_app_server::AppServerTransport;
-use codex_app_server::AppServerWebsocketAuthArgs;
-use codex_app_server::PluginStartupTasks;
-use codex_app_server::run_main_with_transport_options;
-use codex_arg0::Arg0DispatchPaths;
-use codex_arg0::arg0_dispatch_or_else;
-use codex_config::LoaderOverrides;
-use codex_protocol::protocol::SessionSource;
-use codex_utils_cli::CliConfigOverrides;
+use codepilotx_app_server::AppServerRuntimeOptions;
+use codepilotx_app_server::AppServerTransport;
+use codepilotx_app_server::AppServerWebsocketAuthArgs;
+use codepilotx_app_server::PluginStartupTasks;
+use codepilotx_app_server::run_main_with_transport_options;
+use codepilotx_arg0::Arg0DispatchPaths;
+use codepilotx_arg0::arg0_dispatch_or_else;
+use codepilotx_config::LoaderOverrides;
+use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_utils_cli::CliConfigOverrides;
 use std::path::PathBuf;
 
 // Debug-only test hook: lets integration tests point the server at a temporary
 // managed config file without writing to /etc.
-const MANAGED_CONFIG_PATH_ENV_VAR: &str = "CODEX_APP_SERVER_MANAGED_CONFIG_PATH";
-const DISABLE_MANAGED_CONFIG_ENV_VAR: &str = "CODEX_APP_SERVER_DISABLE_MANAGED_CONFIG";
+const MANAGED_CONFIG_PATH_ENV_VAR: &str = "codepilotx_APP_SERVER_MANAGED_CONFIG_PATH";
+const DISABLE_MANAGED_CONFIG_ENV_VAR: &str = "codepilotx_APP_SERVER_DISABLE_MANAGED_CONFIG";
 
 #[derive(Debug, Parser)]
 #[command(version)]
@@ -59,7 +59,7 @@ struct AppServerArgs {
 }
 
 fn main() -> anyhow::Result<()> {
-    let remote_control_disabled = codex_app_server::take_remote_control_disabled_env();
+    let remote_control_disabled = codepilotx_app_server::take_remote_control_disabled_env();
     arg0_dispatch_or_else(move |arg0_paths: Arg0DispatchPaths| async move {
         let AppServerArgs {
             config_overrides,
@@ -87,9 +87,9 @@ fn main() -> anyhow::Result<()> {
         }
         runtime_options.remote_control_startup_mode =
             match (remote_control, remote_control_disabled) {
-                (true, _) => codex_app_server::RemoteControlStartupMode::EnabledEphemeral,
-                (false, true) => codex_app_server::RemoteControlStartupMode::DisabledEphemeral,
-                (false, false) => codex_app_server::RemoteControlStartupMode::ResolvePersisted,
+                (true, _) => codepilotx_app_server::RemoteControlStartupMode::EnabledEphemeral,
+                (false, true) => codepilotx_app_server::RemoteControlStartupMode::DisabledEphemeral,
+                (false, false) => codepilotx_app_server::RemoteControlStartupMode::ResolvePersisted,
             };
 
         run_main_with_transport_options(

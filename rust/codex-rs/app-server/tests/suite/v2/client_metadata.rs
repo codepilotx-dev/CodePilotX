@@ -3,28 +3,28 @@ use app_test_support::TestAppServer;
 use app_test_support::create_fake_parented_rollout_with_source;
 use app_test_support::create_fake_rollout;
 use app_test_support::to_response;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ReviewDelivery;
-use codex_app_server_protocol::ReviewStartParams;
-use codex_app_server_protocol::ReviewStartResponse;
-use codex_app_server_protocol::ReviewTarget;
-use codex_app_server_protocol::SessionSource as ApiSessionSource;
-use codex_app_server_protocol::ThreadForkParams;
-use codex_app_server_protocol::ThreadForkResponse;
-use codex_app_server_protocol::ThreadResumeParams;
-use codex_app_server_protocol::ThreadResumeResponse;
-use codex_app_server_protocol::ThreadSource;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::TurnStartResponse;
-use codex_app_server_protocol::TurnSteerParams;
-use codex_app_server_protocol::TurnSteerResponse;
-use codex_app_server_protocol::UserInput as V2UserInput;
-use codex_protocol::ThreadId as CoreThreadId;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SubAgentSource;
+use codepilotx_app_server_protocol::JSONRPCResponse;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_app_server_protocol::ReviewDelivery;
+use codepilotx_app_server_protocol::ReviewStartParams;
+use codepilotx_app_server_protocol::ReviewStartResponse;
+use codepilotx_app_server_protocol::ReviewTarget;
+use codepilotx_app_server_protocol::SessionSource as ApiSessionSource;
+use codepilotx_app_server_protocol::ThreadForkParams;
+use codepilotx_app_server_protocol::ThreadForkResponse;
+use codepilotx_app_server_protocol::ThreadResumeParams;
+use codepilotx_app_server_protocol::ThreadResumeResponse;
+use codepilotx_app_server_protocol::ThreadSource;
+use codepilotx_app_server_protocol::ThreadStartParams;
+use codepilotx_app_server_protocol::ThreadStartResponse;
+use codepilotx_app_server_protocol::TurnStartParams;
+use codepilotx_app_server_protocol::TurnStartResponse;
+use codepilotx_app_server_protocol::TurnSteerParams;
+use codepilotx_app_server_protocol::TurnSteerResponse;
+use codepilotx_app_server_protocol::UserInput as V2UserInput;
+use codepilotx_protocol::ThreadId as CoreThreadId;
+use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_protocol::protocol::SubAgentSource;
 use core_test_support::responses;
 use core_test_support::skip_if_no_network;
 use pretty_assertions::assert_eq;
@@ -52,14 +52,14 @@ async fn turn_start_forwards_client_metadata_to_responses_request_v2() -> Result
     )
     .await;
 
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     create_config_toml(
-        codex_home.path(),
+        codepilotx_home.path(),
         &server.uri(),
         /*supports_websockets*/ false,
     )?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
@@ -137,15 +137,15 @@ async fn turn_start_sends_fork_lineage_in_turn_metadata_for_thread_fork_v2() -> 
     )
     .await;
 
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     create_config_toml(
-        codex_home.path(),
+        codepilotx_home.path(),
         &server.uri(),
         /*supports_websockets*/ false,
     )?;
 
     let source_thread_id = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-01-05T12-00-00",
         "2025-01-05T12:00:00Z",
         "Saved user message",
@@ -153,7 +153,7 @@ async fn turn_start_sends_fork_lineage_in_turn_metadata_for_thread_fork_v2() -> 
         /*git_info*/ None,
     )?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let ThreadForkResponse { thread, .. } =
@@ -221,15 +221,15 @@ async fn review_start_sends_parent_lineage_in_turn_metadata_for_thread_fork_v2()
     )
     .await;
 
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     create_config_toml(
-        codex_home.path(),
+        codepilotx_home.path(),
         &server.uri(),
         /*supports_websockets*/ false,
     )?;
 
     let source_thread_id = create_fake_rollout(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-01-05T12-00-00",
         "2025-01-05T12:00:00Z",
         "Saved user message",
@@ -237,7 +237,7 @@ async fn review_start_sends_parent_lineage_in_turn_metadata_for_thread_fork_v2()
         /*git_info*/ None,
     )?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let ThreadForkResponse { thread, .. } =
@@ -314,9 +314,9 @@ async fn turn_start_sends_other_subagent_lineage_after_cold_thread_resume_v2() -
     )
     .await;
 
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     create_config_toml(
-        codex_home.path(),
+        codepilotx_home.path(),
         &server.uri(),
         /*supports_websockets*/ false,
     )?;
@@ -324,7 +324,7 @@ async fn turn_start_sends_other_subagent_lineage_after_cold_thread_resume_v2() -
     let parent_thread_id = CoreThreadId::new();
     let parent_thread_id_str = parent_thread_id.to_string();
     let subagent_thread_id = create_fake_parented_rollout_with_source(
-        codex_home.path(),
+        codepilotx_home.path(),
         "2025-01-05T12-00-00",
         "2025-01-05T12:00:00Z",
         "Saved subagent message",
@@ -334,7 +334,7 @@ async fn turn_start_sends_other_subagent_lineage_after_cold_thread_resume_v2() -
         parent_thread_id,
     )?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let resume_req = mcp
@@ -401,7 +401,7 @@ async fn turn_start_sends_other_subagent_lineage_after_cold_thread_resume_v2() -
 async fn turn_steer_updates_client_metadata_on_follow_up_responses_request_v2() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
 
     let server = responses::start_mock_server().await;
     let first_response = responses::sse_response(responses::sse(vec![
@@ -419,12 +419,12 @@ async fn turn_steer_updates_client_metadata_on_follow_up_responses_request_v2() 
         responses::mount_response_sequence(&server, vec![first_response, second_response]).await;
 
     create_config_toml(
-        codex_home.path(),
+        codepilotx_home.path(),
         &server.uri(),
         /*supports_websockets*/ false,
     )?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
@@ -542,14 +542,14 @@ async fn turn_start_forwards_client_metadata_to_responses_websocket_request_body
     ]])
     .await;
 
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     create_config_toml(
-        codex_home.path(),
+        codepilotx_home.path(),
         &websocket_server.uri().replacen("ws://", "http://", 1),
         /*supports_websockets*/ true,
     )?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
@@ -623,11 +623,11 @@ async fn turn_start_forwards_client_metadata_to_responses_websocket_request_body
 }
 
 fn create_config_toml(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     server_uri: &str,
     supports_websockets: bool,
 ) -> std::io::Result<()> {
-    let config_toml = codex_home.join("config.toml");
+    let config_toml = codepilotx_home.join("config.toml");
     std::fs::write(
         config_toml,
         format!(

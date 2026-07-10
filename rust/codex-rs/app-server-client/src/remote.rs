@@ -22,24 +22,24 @@ use crate::RequestResult;
 use crate::SHUTDOWN_TIMEOUT;
 use crate::TypedRequestError;
 use crate::request_method_name;
-use codex_app_server_protocol::ClientInfo;
-use codex_app_server_protocol::ClientNotification;
-use codex_app_server_protocol::ClientRequest;
-use codex_app_server_protocol::InitializeCapabilities;
-use codex_app_server_protocol::InitializeParams;
-use codex_app_server_protocol::JSONRPCError;
-use codex_app_server_protocol::JSONRPCErrorError;
-use codex_app_server_protocol::JSONRPCMessage;
-use codex_app_server_protocol::JSONRPCNotification;
-use codex_app_server_protocol::JSONRPCRequest;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::Result as JsonRpcResult;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::ServerRequest;
-use codex_uds::UnixStream;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_rustls_provider::ensure_rustls_crypto_provider;
+use codepilotx_app_server_protocol::ClientInfo;
+use codepilotx_app_server_protocol::ClientNotification;
+use codepilotx_app_server_protocol::ClientRequest;
+use codepilotx_app_server_protocol::InitializeCapabilities;
+use codepilotx_app_server_protocol::InitializeParams;
+use codepilotx_app_server_protocol::JSONRPCError;
+use codepilotx_app_server_protocol::JSONRPCErrorError;
+use codepilotx_app_server_protocol::JSONRPCMessage;
+use codepilotx_app_server_protocol::JSONRPCNotification;
+use codepilotx_app_server_protocol::JSONRPCRequest;
+use codepilotx_app_server_protocol::JSONRPCResponse;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_app_server_protocol::Result as JsonRpcResult;
+use codepilotx_app_server_protocol::ServerNotification;
+use codepilotx_app_server_protocol::ServerRequest;
+use codepilotx_uds::UnixStream;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_rustls_provider::ensure_rustls_crypto_provider;
 use futures::SinkExt;
 use futures::StreamExt;
 use serde::de::DeserializeOwned;
@@ -153,7 +153,7 @@ pub struct RemoteAppServerClient {
     event_rx: mpsc::UnboundedReceiver<AppServerEvent>,
     pending_events: VecDeque<AppServerEvent>,
     server_version: Option<String>,
-    codex_home: Option<String>,
+    codepilotx_home: Option<String>,
     worker_handle: tokio::task::JoinHandle<()>,
 }
 
@@ -188,8 +188,8 @@ impl RemoteAppServerClient {
         self.server_version.as_deref()
     }
 
-    pub fn codex_home(&self) -> Option<&str> {
-        self.codex_home.as_deref()
+    pub fn codepilotx_home(&self) -> Option<&str> {
+        self.codepilotx_home.as_deref()
     }
 
     async fn connect_with_stream<S>(
@@ -202,7 +202,7 @@ impl RemoteAppServerClient {
         S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
         let mut stream = stream;
-        let (pending_events, server_version, codex_home) = initialize_remote_connection(
+        let (pending_events, server_version, codepilotx_home) = initialize_remote_connection(
             &mut stream,
             &endpoint,
             initialize_params,
@@ -479,7 +479,7 @@ impl RemoteAppServerClient {
             event_rx,
             pending_events: pending_events.into(),
             server_version,
-            codex_home,
+            codepilotx_home,
             worker_handle,
         })
     }
@@ -603,7 +603,7 @@ impl RemoteAppServerClient {
             event_rx,
             pending_events: _pending_events,
             server_version: _server_version,
-            codex_home: _codex_home,
+            codepilotx_home: _codepilotx_home,
             worker_handle,
         } = self;
         let mut worker_handle = worker_handle;
@@ -803,7 +803,7 @@ where
     let initialize_request_id = RequestId::String("initialize".to_string());
     let mut pending_events = Vec::new();
     let mut server_version = None;
-    let mut codex_home = None;
+    let mut codepilotx_home = None;
     write_jsonrpc_message(
         stream,
         JSONRPCMessage::Request(jsonrpc_request_from_client_request(
@@ -835,11 +835,11 @@ where
                                     let (_, rest) = user_agent.split_once('/')?;
                                     rest.split_whitespace().next().map(str::to_string)
                                 });
-                            codex_home = response
+                            codepilotx_home = response
                                 .result
                                 .get("codexHome")
                                 .and_then(serde_json::Value::as_str)
-                                .filter(|codex_home| !codex_home.is_empty())
+                                .filter(|codepilotx_home| !codepilotx_home.is_empty())
                                 .map(str::to_string);
                             break Ok(());
                         }
@@ -932,7 +932,7 @@ where
     )
     .await?;
 
-    Ok((pending_events, server_version, codex_home))
+    Ok((pending_events, server_version, codepilotx_home))
 }
 
 fn app_server_event_from_notification(notification: JSONRPCNotification) -> Option<AppServerEvent> {
@@ -1023,7 +1023,7 @@ mod tests {
             event_rx,
             pending_events: VecDeque::new(),
             server_version: None,
-            codex_home: None,
+            codepilotx_home: None,
             worker_handle,
         };
 

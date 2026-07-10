@@ -1,10 +1,10 @@
-use codex_features::FEATURES;
-use codex_features::Feature;
+use codepilotx_features::FEATURES;
+use codepilotx_features::Feature;
 use std::collections::BTreeMap;
 use std::path::Path;
 
 pub fn write_mock_responses_config_toml(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     server_uri: &str,
     feature_flags: &BTreeMap<Feature, bool>,
     auto_compact_limit: i64,
@@ -57,7 +57,7 @@ supports_websockets = false
         String::new()
     };
     // Phase 3: write the final config file.
-    let config_toml = codex_home.join("config.toml");
+    let config_toml = codepilotx_home.join("config.toml");
     std::fs::write(
         config_toml,
         format!(
@@ -80,11 +80,11 @@ model_provider = "{model_provider_id}"
 }
 
 pub fn write_mock_responses_config_toml_with_chatgpt_base_url(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     server_uri: &str,
     chatgpt_base_url: &str,
 ) -> std::io::Result<()> {
-    let config_toml = codex_home.join("config.toml");
+    let config_toml = codepilotx_home.join("config.toml");
     std::fs::write(
         config_toml,
         format!(

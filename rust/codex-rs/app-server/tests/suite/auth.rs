@@ -5,15 +5,15 @@ use app_test_support::to_response;
 use app_test_support::write_chatgpt_auth;
 use chrono::Duration;
 use chrono::Utc;
-use codex_app_server_protocol::AuthMode;
-use codex_app_server_protocol::GetAuthStatusParams;
-use codex_app_server_protocol::GetAuthStatusResponse;
-use codex_app_server_protocol::JSONRPCError;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::LoginAccountResponse;
-use codex_app_server_protocol::RequestId;
-use codex_config::types::AuthCredentialsStoreMode;
-use codex_login::REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR;
+use codepilotx_app_server_protocol::AuthMode;
+use codepilotx_app_server_protocol::GetAuthStatusParams;
+use codepilotx_app_server_protocol::GetAuthStatusResponse;
+use codepilotx_app_server_protocol::JSONRPCError;
+use codepilotx_app_server_protocol::JSONRPCResponse;
+use codepilotx_app_server_protocol::LoginAccountResponse;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_config::types::AuthCredentialsStoreMode;
+use codepilotx_login::REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR;
 use pretty_assertions::assert_eq;
 use std::path::Path;
 use tempfile::TempDir;
@@ -30,10 +30,10 @@ use wiremock::matchers::path;
 const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
 
 fn create_config_toml_custom_provider(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     requires_openai_auth: bool,
 ) -> std::io::Result<()> {
-    let config_toml = codex_home.join("config.toml");
+    let config_toml = codepilotx_home.join("config.toml");
     let requires_line = if requires_openai_auth {
         "requires_openai_auth = true\n"
     } else {
@@ -62,8 +62,8 @@ stream_max_retries = 0
     std::fs::write(config_toml, contents)
 }
 
-fn create_config_toml(codex_home: &Path) -> std::io::Result<()> {
-    let config_toml = codex_home.join("config.toml");
+fn create_config_toml(codepilotx_home: &Path) -> std::io::Result<()> {
+    let config_toml = codepilotx_home.join("config.toml");
     std::fs::write(
         config_toml,
         r#"
@@ -77,8 +77,8 @@ shell_snapshot = false
     )
 }
 
-fn create_config_toml_forced_login(codex_home: &Path, forced_method: &str) -> std::io::Result<()> {
-    let config_toml = codex_home.join("config.toml");
+fn create_config_toml_forced_login(codepilotx_home: &Path, forced_method: &str) -> std::io::Result<()> {
+    let config_toml = codepilotx_home.join("config.toml");
     let contents = format!(
         r#"
 model = "mock-model"
@@ -108,11 +108,11 @@ async fn login_with_api_key_via_request(mcp: &mut TestAppServer, api_key: &str) 
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn get_auth_status_no_auth() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path())?;
 
     let mut mcp =
-        TestAppServer::new_with_env(codex_home.path(), &[("OPENAI_API_KEY", None)]).await?;
+        TestAppServer::new_with_env(codepilotx_home.path(), &[("OPENAI_API_KEY", None)]).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -135,10 +135,10 @@ async fn get_auth_status_no_auth() -> Result<()> {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn get_auth_status_with_api_key() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path())?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     login_with_api_key_via_request(&mut mcp, "sk-test-key").await?;
@@ -163,8 +163,8 @@ async fn get_auth_status_with_api_key() -> Result<()> {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn get_auth_status_with_personal_access_token_omits_token() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path())?;
 
     let server = MockServer::start().await;
     Mock::given(method("GET"))
@@ -183,11 +183,11 @@ async fn get_auth_status_with_personal_access_token_omits_token() -> Result<()> 
 
     let authapi_base_url = server.uri();
     let mut mcp = TestAppServer::new_with_env(
-        codex_home.path(),
+        codepilotx_home.path(),
         &[
             ("OPENAI_API_KEY", None),
-            ("CODEX_ACCESS_TOKEN", Some("at-test-token")),
-            ("CODEX_AUTHAPI_BASE_URL", Some(authapi_base_url.as_str())),
+            ("codepilotx_ACCESS_TOKEN", Some("at-test-token")),
+            ("codepilotx_AUTHAPI_BASE_URL", Some(authapi_base_url.as_str())),
         ],
     )
     .await?;
@@ -221,10 +221,10 @@ async fn get_auth_status_with_personal_access_token_omits_token() -> Result<()> 
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn get_auth_status_with_api_key_when_auth_not_required() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    create_config_toml_custom_provider(codex_home.path(), /*requires_openai_auth*/ false)?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml_custom_provider(codepilotx_home.path(), /*requires_openai_auth*/ false)?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     login_with_api_key_via_request(&mut mcp, "sk-test-key").await?;
@@ -254,10 +254,10 @@ async fn get_auth_status_with_api_key_when_auth_not_required() -> Result<()> {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn get_auth_status_with_api_key_no_include_token() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path())?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     login_with_api_key_via_request(&mut mcp, "sk-test-key").await?;
@@ -282,10 +282,10 @@ async fn get_auth_status_with_api_key_no_include_token() -> Result<()> {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn get_auth_status_with_api_key_refresh_requested() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path())?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     login_with_api_key_via_request(&mut mcp, "sk-test-key").await?;
@@ -316,10 +316,10 @@ async fn get_auth_status_with_api_key_refresh_requested() -> Result<()> {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn get_auth_status_omits_token_after_permanent_refresh_failure() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path())?;
     write_chatgpt_auth(
-        codex_home.path(),
+        codepilotx_home.path(),
         ChatGptAuthFixture::new("stale-access-token")
             .refresh_token("stale-refresh-token")
             .account_id("acct_123")
@@ -342,7 +342,7 @@ async fn get_auth_status_omits_token_after_permanent_refresh_failure() -> Result
 
     let refresh_url = format!("{}/oauth/token", server.uri());
     let mut mcp = TestAppServer::new_with_env(
-        codex_home.path(),
+        codepilotx_home.path(),
         &[
             ("OPENAI_API_KEY", None),
             (
@@ -397,10 +397,10 @@ async fn get_auth_status_omits_token_after_permanent_refresh_failure() -> Result
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn get_auth_status_omits_token_after_proactive_refresh_failure() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path())?;
     write_chatgpt_auth(
-        codex_home.path(),
+        codepilotx_home.path(),
         ChatGptAuthFixture::new("stale-access-token")
             .refresh_token("stale-refresh-token")
             .account_id("acct_123")
@@ -424,7 +424,7 @@ async fn get_auth_status_omits_token_after_proactive_refresh_failure() -> Result
 
     let refresh_url = format!("{}/oauth/token", server.uri());
     let mut mcp = TestAppServer::new_with_env(
-        codex_home.path(),
+        codepilotx_home.path(),
         &[
             ("OPENAI_API_KEY", None),
             (
@@ -464,10 +464,10 @@ async fn get_auth_status_omits_token_after_proactive_refresh_failure() -> Result
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn get_auth_status_returns_token_after_proactive_refresh_recovery() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path())?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path())?;
     write_chatgpt_auth(
-        codex_home.path(),
+        codepilotx_home.path(),
         ChatGptAuthFixture::new("stale-access-token")
             .refresh_token("stale-refresh-token")
             .account_id("acct_123")
@@ -491,7 +491,7 @@ async fn get_auth_status_returns_token_after_proactive_refresh_recovery() -> Res
 
     let refresh_url = format!("{}/oauth/token", server.uri());
     let mut mcp = TestAppServer::new_with_env(
-        codex_home.path(),
+        codepilotx_home.path(),
         &[
             ("OPENAI_API_KEY", None),
             (
@@ -526,7 +526,7 @@ async fn get_auth_status_returns_token_after_proactive_refresh_recovery() -> Res
     );
 
     write_chatgpt_auth(
-        codex_home.path(),
+        codepilotx_home.path(),
         ChatGptAuthFixture::new("recovered-access-token")
             .refresh_token("recovered-refresh-token")
             .account_id("acct_123")
@@ -564,10 +564,10 @@ async fn get_auth_status_returns_token_after_proactive_refresh_recovery() -> Res
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn login_api_key_rejected_when_forced_chatgpt() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    create_config_toml_forced_login(codex_home.path(), "chatgpt")?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml_forced_login(codepilotx_home.path(), "chatgpt")?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp

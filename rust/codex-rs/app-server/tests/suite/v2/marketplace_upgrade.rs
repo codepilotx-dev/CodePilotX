@@ -6,13 +6,13 @@ use anyhow::Context;
 use anyhow::Result;
 use app_test_support::TestAppServer;
 use app_test_support::to_response;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::MarketplaceUpgradeParams;
-use codex_app_server_protocol::MarketplaceUpgradeResponse;
-use codex_app_server_protocol::RequestId;
-use codex_config::MarketplaceConfigUpdate;
-use codex_config::record_user_marketplace;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_app_server_protocol::JSONRPCResponse;
+use codepilotx_app_server_protocol::MarketplaceUpgradeParams;
+use codepilotx_app_server_protocol::MarketplaceUpgradeResponse;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_config::MarketplaceConfigUpdate;
+use codepilotx_config::record_user_marketplace;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
 use tokio::time::timeout;
@@ -90,7 +90,7 @@ fn configured_local_marketplace_update(source: &str) -> MarketplaceConfigUpdate<
 }
 
 fn record_git_marketplace(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     marketplace_name: &str,
     source: &Path,
     last_revision: &str,
@@ -98,15 +98,15 @@ fn record_git_marketplace(
 ) -> Result<()> {
     let source = source.display().to_string();
     record_user_marketplace(
-        codex_home,
+        codepilotx_home,
         marketplace_name,
         &configured_git_marketplace_update(&source, Some(last_revision), ref_name),
     )?;
     Ok(())
 }
 
-fn disable_plugin_startup_tasks(codex_home: &Path) -> Result<()> {
-    let config_path = codex_home.join("config.toml");
+fn disable_plugin_startup_tasks(codepilotx_home: &Path) -> Result<()> {
+    let config_path = codepilotx_home.join("config.toml");
     let config = std::fs::read_to_string(&config_path)?;
     std::fs::write(
         config_path,
@@ -115,13 +115,13 @@ fn disable_plugin_startup_tasks(codex_home: &Path) -> Result<()> {
     Ok(())
 }
 
-fn marketplace_install_root(codex_home: &Path) -> std::path::PathBuf {
-    codex_home.join(INSTALLED_MARKETPLACES_DIR)
+fn marketplace_install_root(codepilotx_home: &Path) -> std::path::PathBuf {
+    codepilotx_home.join(INSTALLED_MARKETPLACES_DIR)
 }
 
-fn expected_installed_root(codex_home: &Path, marketplace_name: &str) -> Result<AbsolutePathBuf> {
+fn expected_installed_root(codepilotx_home: &Path, marketplace_name: &str) -> Result<AbsolutePathBuf> {
     AbsolutePathBuf::try_from(
-        marketplace_install_root(&codex_home.canonicalize()?).join(marketplace_name),
+        marketplace_install_root(&codepilotx_home.canonicalize()?).join(marketplace_name),
     )
     .context("expected installed root should be absolute")
 }
@@ -146,7 +146,7 @@ async fn send_marketplace_upgrade(
 
 #[tokio::test]
 async fn marketplace_upgrade_all_configured_git_marketplaces() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let debug_source = TempDir::new()?;
     let tools_source = TempDir::new()?;
     let debug_old_revision = init_marketplace_repo(debug_source.path(), "debug", "debug old")?;
@@ -154,26 +154,26 @@ async fn marketplace_upgrade_all_configured_git_marketplaces() -> Result<()> {
     let debug_new_revision = commit_marketplace_marker(debug_source.path(), "debug new")?;
     let tools_new_revision = commit_marketplace_marker(tools_source.path(), "tools new")?;
     record_git_marketplace(
-        codex_home.path(),
+        codepilotx_home.path(),
         "debug",
         debug_source.path(),
         &debug_old_revision,
         Some(&debug_new_revision),
     )?;
     record_git_marketplace(
-        codex_home.path(),
+        codepilotx_home.path(),
         "tools",
         tools_source.path(),
         &tools_old_revision,
         Some(&tools_new_revision),
     )?;
-    disable_plugin_startup_tasks(codex_home.path())?;
+    disable_plugin_startup_tasks(codepilotx_home.path())?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
-    let debug_root = expected_installed_root(codex_home.path(), "debug")?;
-    let tools_root = expected_installed_root(codex_home.path(), "tools")?;
+    let debug_root = expected_installed_root(codepilotx_home.path(), "debug")?;
+    let tools_root = expected_installed_root(codepilotx_home.path(), "tools")?;
     let response = send_marketplace_upgrade(&mut mcp, /*marketplace_name*/ None).await?;
 
     assert_eq!(
@@ -192,7 +192,7 @@ async fn marketplace_upgrade_all_configured_git_marketplaces() -> Result<()> {
         std::fs::read_to_string(tools_root.as_path().join("marker.txt"))?,
         "tools new"
     );
-    let config = std::fs::read_to_string(codex_home.path().join("config.toml"))?;
+    let config = std::fs::read_to_string(codepilotx_home.path().join("config.toml"))?;
     assert!(config.contains(&debug_new_revision));
     assert!(config.contains(&tools_new_revision));
     Ok(())
@@ -200,7 +200,7 @@ async fn marketplace_upgrade_all_configured_git_marketplaces() -> Result<()> {
 
 #[tokio::test]
 async fn marketplace_upgrade_named_marketplace_only() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let debug_source = TempDir::new()?;
     let tools_source = TempDir::new()?;
     let debug_old_revision = init_marketplace_repo(debug_source.path(), "debug", "debug old")?;
@@ -208,25 +208,25 @@ async fn marketplace_upgrade_named_marketplace_only() -> Result<()> {
     commit_marketplace_marker(debug_source.path(), "debug new")?;
     commit_marketplace_marker(tools_source.path(), "tools new")?;
     record_git_marketplace(
-        codex_home.path(),
+        codepilotx_home.path(),
         "debug",
         debug_source.path(),
         &debug_old_revision,
         /*ref_name*/ None,
     )?;
     record_git_marketplace(
-        codex_home.path(),
+        codepilotx_home.path(),
         "tools",
         tools_source.path(),
         &tools_old_revision,
         /*ref_name*/ None,
     )?;
-    disable_plugin_startup_tasks(codex_home.path())?;
+    disable_plugin_startup_tasks(codepilotx_home.path())?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
-    let tools_root = expected_installed_root(codex_home.path(), "tools")?;
+    let tools_root = expected_installed_root(codepilotx_home.path(), "tools")?;
     let response = send_marketplace_upgrade(&mut mcp, Some("tools")).await?;
 
     assert_eq!(
@@ -242,7 +242,7 @@ async fn marketplace_upgrade_named_marketplace_only() -> Result<()> {
         "tools new"
     );
     assert!(
-        !marketplace_install_root(codex_home.path())
+        !marketplace_install_root(codepilotx_home.path())
             .join("debug")
             .exists()
     );
@@ -251,20 +251,20 @@ async fn marketplace_upgrade_named_marketplace_only() -> Result<()> {
 
 #[tokio::test]
 async fn marketplace_upgrade_returns_empty_roots_when_already_up_to_date() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let source = TempDir::new()?;
     let old_revision = init_marketplace_repo(source.path(), "debug", "debug old")?;
     commit_marketplace_marker(source.path(), "debug new")?;
     record_git_marketplace(
-        codex_home.path(),
+        codepilotx_home.path(),
         "debug",
         source.path(),
         &old_revision,
         /*ref_name*/ None,
     )?;
-    disable_plugin_startup_tasks(codex_home.path())?;
+    disable_plugin_startup_tasks(codepilotx_home.path())?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
     let first_response = send_marketplace_upgrade(&mut mcp, Some("debug")).await?;
     assert!(first_response.errors.is_empty());
@@ -284,15 +284,15 @@ async fn marketplace_upgrade_returns_empty_roots_when_already_up_to_date() -> Re
 
 #[tokio::test]
 async fn marketplace_upgrade_rejects_unknown_or_non_git_marketplace() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let local_source = TempDir::new()?;
     record_user_marketplace(
-        codex_home.path(),
+        codepilotx_home.path(),
         "local-only",
         &configured_local_marketplace_update(&local_source.path().display().to_string()),
     )?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     for marketplace_name in ["missing", "local-only"] {

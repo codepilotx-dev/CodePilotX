@@ -3,18 +3,18 @@ use super::loopback_responses_server::LoopbackResponsesServer;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
-use codex_app_server_protocol::ClientRequest;
-use codex_app_server_protocol::ConfigValueWriteParams;
-use codex_app_server_protocol::ConfigWriteResponse;
-use codex_app_server_protocol::MergeStrategy;
-use codex_app_server_protocol::PluginAvailability;
-use codex_app_server_protocol::PluginInstalledParams;
-use codex_app_server_protocol::PluginInstalledResponse;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::TurnStatus;
-use codex_app_server_protocol::UserInput;
-use codex_app_server_protocol::WriteStatus;
+use codepilotx_app_server_protocol::ClientRequest;
+use codepilotx_app_server_protocol::ConfigValueWriteParams;
+use codepilotx_app_server_protocol::ConfigWriteResponse;
+use codepilotx_app_server_protocol::MergeStrategy;
+use codepilotx_app_server_protocol::PluginAvailability;
+use codepilotx_app_server_protocol::PluginInstalledParams;
+use codepilotx_app_server_protocol::PluginInstalledResponse;
+use codepilotx_app_server_protocol::ThreadStartParams;
+use codepilotx_app_server_protocol::TurnStartParams;
+use codepilotx_app_server_protocol::TurnStatus;
+use codepilotx_app_server_protocol::UserInput;
+use codepilotx_app_server_protocol::WriteStatus;
 use serde_json::Value;
 use serde_json::json;
 use std::ffi::OsString;
@@ -27,8 +27,8 @@ use std::thread;
 use std::time::Duration;
 use std::time::Instant;
 
-pub(super) const ANALYTICS_CAPTURE_ENV_VAR: &str = "CODEX_ANALYTICS_EVENTS_CAPTURE_FILE";
-const TEST_USER_CONFIG_ENV_VAR: &str = "CODEX_APP_SERVER_TEST_USER_CONFIG_FILE";
+pub(super) const ANALYTICS_CAPTURE_ENV_VAR: &str = "codepilotx_ANALYTICS_EVENTS_CAPTURE_FILE";
+const TEST_USER_CONFIG_ENV_VAR: &str = "codepilotx_APP_SERVER_TEST_USER_CONFIG_FILE";
 const CAPTURE_READY_TIMEOUT: Duration = Duration::from_secs(5);
 const CAPTURE_TIMEOUT: Duration = Duration::from_secs(10);
 const CAPTURE_POLL_INTERVAL: Duration = Duration::from_millis(50);
@@ -38,7 +38,7 @@ const MOCK_MODEL_SLUG: &str = "plugin-analytics-smoke";
 const MOCK_PROVIDER_ID: &str = "plugin_analytics_smoke";
 
 pub(super) fn run(
-    codex_bin: &Path,
+    codepilotx_bin: &Path,
     config_overrides: &[String],
     plugin_id: &str,
     capture_file: Option<PathBuf>,
@@ -63,7 +63,7 @@ pub(super) fn run(
             temporary_config.path().as_os_str().to_os_string(),
         ),
     ];
-    let mut client = CodexClient::spawn_stdio_with_env(codex_bin, &overrides, &child_environment)?;
+    let mut client = CodexClient::spawn_stdio_with_env(codepilotx_bin, &overrides, &child_environment)?;
     wait_until_capture_is_ready(&capture_path)?;
     client.initialize()?;
 
@@ -137,7 +137,7 @@ fn wait_for_plugin_usage(
         // barrier that tells us whether this attempt resolved the plugin.
         let events = wait_for_turn_analytics(capture_path, &turn_id)?;
         if events.iter().any(|event| {
-            event["event_type"] == "codex_plugin_used"
+            event["event_type"] == "codepilotx_plugin_used"
                 && event["event_params"]["turn_id"].as_str() == Some(turn_id.as_str())
                 && event["event_params"]["plugin_id"].as_str() == Some(expected.plugin_id.as_str())
         }) {
@@ -353,7 +353,7 @@ fn wait_for_turn_analytics(path: &Path, turn_id: &str) -> Result<Vec<Value>> {
     loop {
         let events = read_capture_events(path)?;
         if events.iter().any(|event| {
-            event["event_type"] == "codex_turn_event"
+            event["event_type"] == "codepilotx_turn_event"
                 && event["event_params"]["turn_id"].as_str() == Some(turn_id)
         }) {
             return Ok(events);
@@ -418,7 +418,7 @@ fn validate_plugin_events(events: Vec<Value>, expected: &ExpectedPlugin) -> Resu
             );
         };
         validate_identity(event, expected)?;
-        if event_type == "codex_plugin_used" {
+        if event_type == "codepilotx_plugin_used" {
             validate_used_metadata(event)?;
         }
         validated.push((*event).clone());
@@ -428,9 +428,9 @@ fn validate_plugin_events(events: Vec<Value>, expected: &ExpectedPlugin) -> Resu
 
 fn required_event_types() -> [&'static str; 3] {
     [
-        "codex_plugin_disabled",
-        "codex_plugin_enabled",
-        "codex_plugin_used",
+        "codepilotx_plugin_disabled",
+        "codepilotx_plugin_enabled",
+        "codepilotx_plugin_used",
     ]
 }
 
@@ -460,7 +460,7 @@ fn validate_used_metadata(event: &Value) -> Result<()> {
         "model_slug",
     ] {
         if params.get(field).is_none_or(Value::is_null) {
-            bail!("codex_plugin_used event has null or missing `{field}`");
+            bail!("codepilotx_plugin_used event has null or missing `{field}`");
         }
     }
     require_string(params, "model_slug", MOCK_MODEL_SLUG)

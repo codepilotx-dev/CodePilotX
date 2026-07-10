@@ -128,7 +128,7 @@ impl McpRequestProcessor {
             .await;
         let Some(server) = effective_servers
             .get(&name)
-            .and_then(codex_mcp::EffectiveMcpServer::configured_config)
+            .and_then(codepilotx_mcp::EffectiveMcpServer::configured_config)
         else {
             return Err(invalid_request(format!(
                 "No MCP server named '{name}' found."
@@ -252,7 +252,7 @@ impl McpRequestProcessor {
         outgoing: Arc<OutgoingMessageSender>,
         request_id: ConnectionRequestId,
         params: ListMcpServerStatusParams,
-        mcp_config: codex_mcp::McpConfig,
+        mcp_config: codepilotx_mcp::McpConfig,
         auth: Option<CodexAuth>,
         runtime_context: McpRuntimeContext,
     ) {
@@ -270,7 +270,7 @@ impl McpRequestProcessor {
     async fn list_mcp_server_status_response(
         request_id: String,
         params: ListMcpServerStatusParams,
-        mcp_config: codex_mcp::McpConfig,
+        mcp_config: codepilotx_mcp::McpConfig,
         auth: Option<CodexAuth>,
         runtime_context: McpRuntimeContext,
     ) -> Result<ListMcpServerStatusResponse, JSONRPCErrorError> {

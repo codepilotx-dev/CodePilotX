@@ -52,7 +52,7 @@ pub(super) fn validate_mutation_events(
     events: Vec<Value>,
     expected: PluginEventIdentity<'_>,
 ) -> Result<Vec<Value>> {
-    let event_type = "codex_plugin_installed";
+    let event_type = "codepilotx_plugin_installed";
     let matching = events
         .iter()
         .filter(|event| event["event_type"] == event_type)

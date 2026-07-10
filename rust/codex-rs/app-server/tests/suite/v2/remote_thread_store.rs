@@ -8,7 +8,7 @@
 //!
 //! The important failure mode is accidentally materializing local persistence
 //! while a non-local store is configured. After `thread/start` and a simple turn,
-//! the temporary `codex_home` must not contain rollout session files or sqlite
+//! the temporary `codepilotx_home` must not contain rollout session files or sqlite
 //! state files. This does not observe read-only probes that leave no artifact; it
 //! is a stop-gap that prevents additional local persistence writes from slipping
 //! in unnoticed.
@@ -19,40 +19,40 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use app_test_support::create_mock_responses_server_repeating_assistant;
-use codex_app_server::in_process;
-use codex_app_server::in_process::InProcessClientHandle;
-use codex_app_server::in_process::InProcessServerEvent;
-use codex_app_server::in_process::InProcessStartArgs;
-use codex_app_server_protocol::ClientInfo;
-use codex_app_server_protocol::ClientRequest;
-use codex_app_server_protocol::InitializeParams;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::ThreadDeleteParams;
-use codex_app_server_protocol::ThreadDeleteResponse;
-use codex_app_server_protocol::ThreadListParams;
-use codex_app_server_protocol::ThreadListResponse;
-use codex_app_server_protocol::ThreadResumeParams;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::UserInput as V2UserInput;
-use codex_arg0::Arg0DispatchPaths;
-use codex_config::CloudConfigBundleLoader;
-use codex_config::LoaderOverrides;
-use codex_config::NoopThreadConfigLoader;
-use codex_core::config::Config;
-use codex_core::config::ConfigBuilder;
-use codex_exec_server::EnvironmentManager;
-use codex_feedback::CodexFeedback;
-use codex_protocol::ThreadId;
-use codex_protocol::models::BaseInstructions;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::ThreadMemoryMode;
-use codex_thread_store::CreateThreadParams as StoreCreateThreadParams;
-use codex_thread_store::InMemoryThreadStore;
-use codex_thread_store::ThreadPersistenceMetadata;
-use codex_thread_store::ThreadStore;
+use codepilotx_app_server::in_process;
+use codepilotx_app_server::in_process::InProcessClientHandle;
+use codepilotx_app_server::in_process::InProcessServerEvent;
+use codepilotx_app_server::in_process::InProcessStartArgs;
+use codepilotx_app_server_protocol::ClientInfo;
+use codepilotx_app_server_protocol::ClientRequest;
+use codepilotx_app_server_protocol::InitializeParams;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_app_server_protocol::ServerNotification;
+use codepilotx_app_server_protocol::ThreadDeleteParams;
+use codepilotx_app_server_protocol::ThreadDeleteResponse;
+use codepilotx_app_server_protocol::ThreadListParams;
+use codepilotx_app_server_protocol::ThreadListResponse;
+use codepilotx_app_server_protocol::ThreadResumeParams;
+use codepilotx_app_server_protocol::ThreadStartParams;
+use codepilotx_app_server_protocol::ThreadStartResponse;
+use codepilotx_app_server_protocol::TurnStartParams;
+use codepilotx_app_server_protocol::UserInput as V2UserInput;
+use codepilotx_arg0::Arg0DispatchPaths;
+use codepilotx_config::CloudConfigBundleLoader;
+use codepilotx_config::LoaderOverrides;
+use codepilotx_config::NoopThreadConfigLoader;
+use codepilotx_core::config::Config;
+use codepilotx_core::config::ConfigBuilder;
+use codepilotx_exec_server::EnvironmentManager;
+use codepilotx_feedback::CodexFeedback;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::models::BaseInstructions;
+use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_protocol::protocol::ThreadMemoryMode;
+use codepilotx_thread_store::CreateThreadParams as StoreCreateThreadParams;
+use codepilotx_thread_store::InMemoryThreadStore;
+use codepilotx_thread_store::ThreadPersistenceMetadata;
+use codepilotx_thread_store::ThreadStore;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
 use tokio::time::timeout;
@@ -64,16 +64,16 @@ const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs
 async fn thread_delete_with_non_local_thread_store_does_not_create_local_persistence() -> Result<()>
 {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let store_id = Uuid::new_v4().to_string();
-    // Plugin startup warmups may create `.tmp` under codex_home. Disable them
+    // Plugin startup warmups may create `.tmp` under codepilotx_home. Disable them
     // here so this regression stays focused on thread persistence artifacts.
-    create_config_toml_with_thread_store(codex_home.path(), &server.uri(), &store_id)?;
+    create_config_toml_with_thread_store(codepilotx_home.path(), &server.uri(), &store_id)?;
 
     let thread_store = InMemoryThreadStore::for_id(store_id.clone());
     let _in_memory_store = InMemoryThreadStoreId { store_id };
 
-    let mut client = start_in_process_server(codex_home.path()).await?;
+    let mut client = start_in_process_server(codepilotx_home.path()).await?;
 
     let response = client
         .request(ClientRequest::ThreadStart {
@@ -157,7 +157,7 @@ async fn thread_delete_with_non_local_thread_store_does_not_create_local_persist
             dynamic_tools: Vec::new(),
             multi_agent_version: None,
             metadata: ThreadPersistenceMetadata {
-                cwd: Some(codex_home.path().to_path_buf()),
+                cwd: Some(codepilotx_home.path().to_path_buf()),
                 model_provider: "mock_provider".to_string(),
                 memory_mode: ThreadMemoryMode::Enabled,
             },
@@ -185,7 +185,7 @@ async fn thread_delete_with_non_local_thread_store_does_not_create_local_persist
         "turn completion should flush through the injected store"
     );
 
-    assert_no_local_persistence_artifacts(codex_home.path())?;
+    assert_no_local_persistence_artifacts(codepilotx_home.path())?;
 
     Ok(())
 }
@@ -193,15 +193,15 @@ async fn thread_delete_with_non_local_thread_store_does_not_create_local_persist
 #[tokio::test]
 async fn cold_thread_resume_reuses_non_local_history_probe() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let store_id = Uuid::new_v4().to_string();
-    create_config_toml_with_thread_store(codex_home.path(), &server.uri(), &store_id)?;
+    create_config_toml_with_thread_store(codepilotx_home.path(), &server.uri(), &store_id)?;
 
     let loader_overrides = LoaderOverrides::without_managed_config_for_tests();
     let config = Arc::new(
         ConfigBuilder::default()
-            .codex_home(codex_home.path().to_path_buf())
-            .fallback_cwd(Some(codex_home.path().to_path_buf()))
+            .codepilotx_home(codepilotx_home.path().to_path_buf())
+            .fallback_cwd(Some(codepilotx_home.path().to_path_buf()))
             .loader_overrides(loader_overrides.clone())
             .build()
             .await?,
@@ -274,12 +274,12 @@ async fn cold_thread_resume_reuses_non_local_history_probe() -> Result<()> {
     Ok(())
 }
 
-async fn start_in_process_server(codex_home: &Path) -> Result<InProcessClientHandle> {
+async fn start_in_process_server(codepilotx_home: &Path) -> Result<InProcessClientHandle> {
     let loader_overrides = LoaderOverrides::without_managed_config_for_tests();
     let config = Arc::new(
         ConfigBuilder::default()
-            .codex_home(codex_home.to_path_buf())
-            .fallback_cwd(Some(codex_home.to_path_buf()))
+            .codepilotx_home(codepilotx_home.to_path_buf())
+            .fallback_cwd(Some(codepilotx_home.to_path_buf()))
             .loader_overrides(loader_overrides.clone())
             .build()
             .await?,
@@ -306,7 +306,7 @@ async fn start_in_process_client(
         environment_manager: Arc::new(EnvironmentManager::default_for_tests()),
         config_warnings: Vec::new(),
         session_source: SessionSource::Cli,
-        enable_codex_api_key_env: false,
+        enable_codepilotx_api_key_env: false,
         initialize: InitializeParams {
             client_info: ClientInfo {
                 name: "codex-app-server-tests".to_string(),
@@ -336,25 +336,25 @@ async fn delete_thread(
     Ok(())
 }
 
-fn assert_no_local_persistence_artifacts(codex_home: &Path) -> Result<()> {
+fn assert_no_local_persistence_artifacts(codepilotx_home: &Path) -> Result<()> {
     // These are the observable tripwires for accidental local persistence. If a
     // future code path constructs a local rollout/session store or opens the
     // local thread sqlite database, it should leave one of these artifacts in
-    // the isolated test codex_home.
+    // the isolated test codepilotx_home.
     assert!(
-        !codex_home.join("sessions").exists(),
+        !codepilotx_home.join("sessions").exists(),
         "non-local thread persistence should not create local rollout sessions"
     );
     assert!(
-        !codex_home.join("archived_sessions").exists(),
+        !codepilotx_home.join("archived_sessions").exists(),
         "non-local thread persistence should not create archived rollout sessions"
     );
     assert!(
-        !codex_state::state_db_path(codex_home).exists(),
+        !codepilotx_state::state_db_path(codepilotx_home).exists(),
         "non-local thread persistence should not create local thread sqlite"
     );
 
-    let sqlite_artifacts = std::fs::read_dir(codex_home)?
+    let sqlite_artifacts = std::fs::read_dir(codepilotx_home)?
         .filter_map(std::result::Result::ok)
         .map(|entry| entry.path())
         .filter(|path| {
@@ -372,8 +372,8 @@ fn assert_no_local_persistence_artifacts(codex_home: &Path) -> Result<()> {
         sqlite_artifacts.is_empty(),
         "non-local thread persistence should not create sqlite artifacts: {sqlite_artifacts:?}"
     );
-    let mut entries = codex_home_entries(codex_home)?;
-    // Bazel test runs may initialize shell snapshot storage under codex_home.
+    let mut entries = codepilotx_home_entries(codepilotx_home)?;
+    // Bazel test runs may initialize shell snapshot storage under codepilotx_home.
     // That is not thread persistence; keep the assertion focused on rollout,
     // session, sqlite, and other unexpected thread-store artifacts.
     entries.remove("shell_snapshots");
@@ -384,14 +384,14 @@ fn assert_no_local_persistence_artifacts(codex_home: &Path) -> Result<()> {
             "installation_id".to_string(),
             "skills".to_string(),
         ]),
-        "non-local thread persistence should not create unexpected files in codex_home"
+        "non-local thread persistence should not create unexpected files in codepilotx_home"
     );
 
     Ok(())
 }
 
-fn codex_home_entries(codex_home: &Path) -> Result<BTreeSet<String>> {
-    Ok(std::fs::read_dir(codex_home)?
+fn codepilotx_home_entries(codepilotx_home: &Path) -> Result<BTreeSet<String>> {
+    Ok(std::fs::read_dir(codepilotx_home)?
         .filter_map(|entry| {
             let entry = entry.ok()?;
             Some(entry.file_name().to_string_lossy().into_owned())
@@ -410,12 +410,12 @@ impl Drop for InMemoryThreadStoreId {
 }
 
 fn create_config_toml_with_thread_store(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     server_uri: &str,
     store_id: &str,
 ) -> std::io::Result<()> {
     std::fs::write(
-        codex_home.join("config.toml"),
+        codepilotx_home.join("config.toml"),
         format!(
             r#"
 model = "mock-model"

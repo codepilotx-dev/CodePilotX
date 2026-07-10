@@ -1,10 +1,10 @@
 use super::*;
-use codex_protocol::config_types::MultiAgentMode;
-use codex_protocol::protocol::AdditionalContextEntry as CoreAdditionalContextEntry;
-use codex_protocol::protocol::AdditionalContextKind as CoreAdditionalContextKind;
-use codex_protocol::protocol::MultiAgentVersion;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SubAgentSource;
+use codepilotx_protocol::config_types::MultiAgentMode;
+use codepilotx_protocol::protocol::AdditionalContextEntry as CoreAdditionalContextEntry;
+use codepilotx_protocol::protocol::AdditionalContextKind as CoreAdditionalContextKind;
+use codepilotx_protocol::protocol::MultiAgentVersion;
+use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_protocol::protocol::SubAgentSource;
 
 const DIRECT_INPUT_TO_MULTI_AGENT_V2_SUBAGENT_ERROR: &str =
     "direct app-server input is not allowed for multi-agent v2 sub-agents";
@@ -52,9 +52,9 @@ struct ThreadSettingsBuildParams {
     method: &'static str,
     environments: Option<TurnEnvironmentSelections>,
     runtime_workspace_roots: Option<Vec<AbsolutePathBuf>>,
-    approval_policy: Option<codex_app_server_protocol::AskForApproval>,
-    approvals_reviewer: Option<codex_app_server_protocol::ApprovalsReviewer>,
-    sandbox_policy: Option<codex_app_server_protocol::SandboxPolicy>,
+    approval_policy: Option<codepilotx_app_server_protocol::AskForApproval>,
+    approvals_reviewer: Option<codepilotx_app_server_protocol::ApprovalsReviewer>,
+    sandbox_policy: Option<codepilotx_app_server_protocol::SandboxPolicy>,
     permissions: Option<String>,
     model: Option<String>,
     service_tier: Option<Option<String>>,
@@ -335,7 +335,7 @@ impl TurnRequestProcessor {
             ApiReviewTarget::Custom { instructions } => CoreReviewTarget::Custom { instructions },
         };
 
-        let hint = codex_core::review_prompts::user_facing_hint(&core_target);
+        let hint = codepilotx_core::review_prompts::user_facing_hint(&core_target);
         let review_request = ReviewRequest {
             target: core_target,
             user_facing_hint: Some(hint.clone()),
@@ -347,7 +347,7 @@ impl TurnRequestProcessor {
     async fn request_trace_context(
         &self,
         request_id: &ConnectionRequestId,
-    ) -> Option<codex_protocol::protocol::W3cTraceContext> {
+    ) -> Option<codepilotx_protocol::protocol::W3cTraceContext> {
         self.outgoing.request_trace_context(request_id).await
     }
 
@@ -485,7 +485,7 @@ impl TurnRequestProcessor {
 
         if turn_has_input {
             let config_snapshot = thread.config_snapshot().await;
-            codex_memories_write::start_memories_startup_task(
+            codepilotx_memories_write::start_memories_startup_task(
                 Arc::clone(&self.thread_manager),
                 Arc::clone(&self.auth_manager),
                 thread_id,
@@ -549,7 +549,7 @@ impl TurnRequestProcessor {
         &self,
         thread: &CodexThread,
         params: ThreadSettingsBuildParams,
-    ) -> Result<codex_protocol::protocol::ThreadSettingsOverrides, JSONRPCErrorError> {
+    ) -> Result<codepilotx_protocol::protocol::ThreadSettingsOverrides, JSONRPCErrorError> {
         let ThreadSettingsBuildParams {
             method,
             environments,
@@ -603,9 +603,9 @@ impl TurnRequestProcessor {
         let runtime_workspace_roots =
             runtime_workspace_roots_request.map(resolve_runtime_workspace_roots);
         let approval_policy =
-            approval_policy.map(codex_app_server_protocol::AskForApproval::to_core);
+            approval_policy.map(codepilotx_app_server_protocol::AskForApproval::to_core);
         let approvals_reviewer =
-            approvals_reviewer.map(codex_app_server_protocol::ApprovalsReviewer::to_core);
+            approvals_reviewer.map(codepilotx_app_server_protocol::ApprovalsReviewer::to_core);
         let sandbox_policy = sandbox_policy.map(|policy| policy.to_core());
         let (permission_profile, active_permission_profile, profile_workspace_roots) =
             if let Some(permissions) = permissions {
@@ -624,7 +624,7 @@ impl TurnRequestProcessor {
                             .unwrap_or_else(|| snapshot.workspace_roots.clone()),
                     ),
                     default_permissions: Some(permissions),
-                    codex_linux_sandbox_exe: self.arg0_paths.codex_linux_sandbox_exe.clone(),
+                    codepilotx_linux_sandbox_exe: self.arg0_paths.codepilotx_linux_sandbox_exe.clone(),
                     main_execve_wrapper_exe: self.arg0_paths.main_execve_wrapper_exe.clone(),
                     ..Default::default()
                 };
@@ -683,7 +683,7 @@ impl TurnRequestProcessor {
                 })?;
         }
 
-        Ok(codex_protocol::protocol::ThreadSettingsOverrides {
+        Ok(codepilotx_protocol::protocol::ThreadSettingsOverrides {
             environments,
             workspace_roots: runtime_workspace_roots,
             profile_workspace_roots,
@@ -735,7 +735,7 @@ impl TurnRequestProcessor {
             )
             .await?;
 
-        if thread_settings != codex_protocol::protocol::ThreadSettingsOverrides::default() {
+        if thread_settings != codepilotx_protocol::protocol::ThreadSettingsOverrides::default() {
             self.submit_core_op(
                 request_id,
                 thread.as_ref(),
@@ -857,18 +857,18 @@ impl TurnRequestProcessor {
                     ),
                     SteerInputError::ActiveTurnNotSteerable { turn_kind } => {
                         let (message, turn_steer_error) = match turn_kind {
-                            codex_protocol::protocol::NonSteerableTurnKind::Review => (
+                            codepilotx_protocol::protocol::NonSteerableTurnKind::Review => (
                                 "cannot steer a review turn".to_string(),
                                 TurnSteerRequestError::NonSteerableReview,
                             ),
-                            codex_protocol::protocol::NonSteerableTurnKind::Compact => (
+                            codepilotx_protocol::protocol::NonSteerableTurnKind::Compact => (
                                 "cannot steer a compact turn".to_string(),
                                 TurnSteerRequestError::NonSteerableCompact,
                             ),
                         };
                         let error = TurnError {
                             message: message.clone(),
-                            codex_error_info: Some(CodexErrorInfo::ActiveTurnNotSteerable {
+                            codepilotx_error_info: Some(CodexErrorInfo::ActiveTurnNotSteerable {
                                 turn_kind: turn_kind.into(),
                             }),
                             additional_details: None,
@@ -950,9 +950,9 @@ impl TurnRequestProcessor {
             thread.as_ref(),
             Op::RealtimeConversationStart(ConversationStartParams {
                 client_managed_handoffs: params.client_managed_handoffs.unwrap_or(false),
-                codex_responses_as_items: params.codex_responses_as_items.unwrap_or(false),
-                codex_response_item_prefix: params.codex_response_item_prefix,
-                codex_response_handoff_prefix: params.codex_response_handoff_prefix,
+                codepilotx_responses_as_items: params.codepilotx_responses_as_items.unwrap_or(false),
+                codepilotx_response_item_prefix: params.codepilotx_response_item_prefix,
+                codepilotx_response_handoff_prefix: params.codepilotx_response_handoff_prefix,
                 model: params.model,
                 output_modality: params.output_modality,
                 include_startup_context: params.include_startup_context.unwrap_or(true),
@@ -1362,7 +1362,7 @@ impl TurnRequestProcessor {
             thread_watch_manager: self.thread_watch_manager.clone(),
             thread_list_state_permit: self.thread_list_state_permit.clone(),
             fallback_model_provider: self.config.model_provider_id.clone(),
-            codex_home: self.config.codex_home.to_path_buf(),
+            codepilotx_home: self.config.codepilotx_home.to_path_buf(),
             skills_watcher: Arc::clone(&self.skills_watcher),
         }
     }

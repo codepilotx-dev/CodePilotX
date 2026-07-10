@@ -91,7 +91,7 @@ fn extract_conversation_summary(
     let preview = head
         .iter()
         .filter_map(|value| serde_json::from_value::<ResponseItem>(value.clone()).ok())
-        .find_map(|item| match codex_core::parse_turn_item(&item) {
+        .find_map(|item| match codepilotx_core::parse_turn_item(&item) {
             Some(TurnItem::UserMessage(user)) => Some(user.message()),
             _ => None,
         })?;
@@ -138,25 +138,25 @@ fn map_git_info(git_info: &CoreGitInfo) -> ConversationGitInfo {
 }
 
 pub(super) fn with_thread_spawn_agent_metadata(
-    source: codex_protocol::protocol::SessionSource,
+    source: codepilotx_protocol::protocol::SessionSource,
     agent_nickname: Option<String>,
     agent_role: Option<String>,
-) -> codex_protocol::protocol::SessionSource {
+) -> codepilotx_protocol::protocol::SessionSource {
     if agent_nickname.is_none() && agent_role.is_none() {
         return source;
     }
 
     match source {
-        codex_protocol::protocol::SessionSource::SubAgent(
-            codex_protocol::protocol::SubAgentSource::ThreadSpawn {
+        codepilotx_protocol::protocol::SessionSource::SubAgent(
+            codepilotx_protocol::protocol::SubAgentSource::ThreadSpawn {
                 parent_thread_id,
                 depth,
                 agent_path,
                 agent_nickname: existing_agent_nickname,
                 agent_role: existing_agent_role,
             },
-        ) => codex_protocol::protocol::SessionSource::SubAgent(
-            codex_protocol::protocol::SubAgentSource::ThreadSpawn {
+        ) => codepilotx_protocol::protocol::SessionSource::SubAgent(
+            codepilotx_protocol::protocol::SubAgentSource::ThreadSpawn {
                 parent_thread_id,
                 depth,
                 agent_path,
@@ -169,16 +169,16 @@ pub(super) fn with_thread_spawn_agent_metadata(
 }
 
 pub(crate) fn thread_response_active_permission_profile(
-    active_permission_profile: Option<codex_protocol::models::ActivePermissionProfile>,
-) -> Option<codex_app_server_protocol::ActivePermissionProfile> {
+    active_permission_profile: Option<codepilotx_protocol::models::ActivePermissionProfile>,
+) -> Option<codepilotx_app_server_protocol::ActivePermissionProfile> {
     active_permission_profile.map(Into::into)
 }
 
 pub(crate) fn thread_response_sandbox_policy(
-    permission_profile: &codex_protocol::models::PermissionProfile,
+    permission_profile: &codepilotx_protocol::models::PermissionProfile,
     cwd: &Path,
-) -> codex_app_server_protocol::SandboxPolicy {
-    let sandbox_policy = codex_sandboxing::compatibility_sandbox_policy_for_permission_profile(
+) -> codepilotx_app_server_protocol::SandboxPolicy {
+    let sandbox_policy = codepilotx_sandboxing::compatibility_sandbox_policy_for_permission_profile(
         permission_profile,
         cwd,
     );
@@ -211,9 +211,9 @@ pub(crate) fn thread_settings_from_config_snapshot(
 }
 
 pub(crate) fn thread_settings_from_core_snapshot(
-    snapshot: codex_protocol::protocol::ThreadSettingsSnapshot,
+    snapshot: codepilotx_protocol::protocol::ThreadSettingsSnapshot,
 ) -> ThreadSettings {
-    let codex_protocol::protocol::ThreadSettingsSnapshot {
+    let codepilotx_protocol::protocol::ThreadSettingsSnapshot {
         model,
         model_provider_id,
         service_tier,

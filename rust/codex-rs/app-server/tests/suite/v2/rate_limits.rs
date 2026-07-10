@@ -3,22 +3,22 @@ use app_test_support::ChatGptAuthFixture;
 use app_test_support::TestAppServer;
 use app_test_support::to_response;
 use app_test_support::write_chatgpt_auth;
-use codex_app_server_protocol::AddCreditsNudgeCreditType;
-use codex_app_server_protocol::AddCreditsNudgeEmailStatus;
-use codex_app_server_protocol::GetAccountRateLimitsResponse;
-use codex_app_server_protocol::JSONRPCError;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::LoginAccountResponse;
-use codex_app_server_protocol::RateLimitReachedType;
-use codex_app_server_protocol::RateLimitResetCreditsSummary;
-use codex_app_server_protocol::RateLimitSnapshot;
-use codex_app_server_protocol::RateLimitWindow;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::SendAddCreditsNudgeEmailParams;
-use codex_app_server_protocol::SendAddCreditsNudgeEmailResponse;
-use codex_app_server_protocol::SpendControlLimitSnapshot;
-use codex_config::types::AuthCredentialsStoreMode;
-use codex_protocol::account::PlanType as AccountPlanType;
+use codepilotx_app_server_protocol::AddCreditsNudgeCreditType;
+use codepilotx_app_server_protocol::AddCreditsNudgeEmailStatus;
+use codepilotx_app_server_protocol::GetAccountRateLimitsResponse;
+use codepilotx_app_server_protocol::JSONRPCError;
+use codepilotx_app_server_protocol::JSONRPCResponse;
+use codepilotx_app_server_protocol::LoginAccountResponse;
+use codepilotx_app_server_protocol::RateLimitReachedType;
+use codepilotx_app_server_protocol::RateLimitResetCreditsSummary;
+use codepilotx_app_server_protocol::RateLimitSnapshot;
+use codepilotx_app_server_protocol::RateLimitWindow;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_app_server_protocol::SendAddCreditsNudgeEmailParams;
+use codepilotx_app_server_protocol::SendAddCreditsNudgeEmailResponse;
+use codepilotx_app_server_protocol::SpendControlLimitSnapshot;
+use codepilotx_config::types::AuthCredentialsStoreMode;
+use codepilotx_protocol::account::PlanType as AccountPlanType;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use std::path::Path;
@@ -37,10 +37,10 @@ const INTERNAL_ERROR_CODE: i64 = -32603;
 
 #[tokio::test]
 async fn get_account_rate_limits_requires_auth() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
 
     let mut mcp =
-        TestAppServer::new_with_env(codex_home.path(), &[("OPENAI_API_KEY", None)]).await?;
+        TestAppServer::new_with_env(codepilotx_home.path(), &[("OPENAI_API_KEY", None)]).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp.send_get_account_rate_limits_request().await?;
@@ -63,9 +63,9 @@ async fn get_account_rate_limits_requires_auth() -> Result<()> {
 
 #[tokio::test]
 async fn get_account_rate_limits_requires_chatgpt_auth() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     login_with_api_key(&mut mcp, "sk-test-key").await?;
@@ -90,9 +90,9 @@ async fn get_account_rate_limits_requires_chatgpt_auth() -> Result<()> {
 
 #[tokio::test]
 async fn get_account_rate_limits_returns_snapshot() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     write_chatgpt_auth(
-        codex_home.path(),
+        codepilotx_home.path(),
         ChatGptAuthFixture::new("chatgpt-token")
             .account_id("account-123")
             .plan_type("pro"),
@@ -101,7 +101,7 @@ async fn get_account_rate_limits_returns_snapshot() -> Result<()> {
 
     let server = MockServer::start().await;
     let server_url = server.uri();
-    write_chatgpt_base_url(codex_home.path(), &server_url)?;
+    write_chatgpt_base_url(codepilotx_home.path(), &server_url)?;
 
     let primary_reset_timestamp = chrono::DateTime::parse_from_rfc3339("2025-01-01T00:02:00Z")
         .expect("parse primary reset timestamp")
@@ -145,8 +145,8 @@ async fn get_account_rate_limits_returns_snapshot() -> Result<()> {
         },
         "additional_rate_limits": [
             {
-                "limit_name": "codex_other",
-                "metered_feature": "codex_other",
+                "limit_name": "codepilotx_other",
+                "metered_feature": "codepilotx_other",
                 "rate_limit": {
                     "allowed": true,
                     "limit_reached": false,
@@ -172,7 +172,7 @@ async fn get_account_rate_limits_returns_snapshot() -> Result<()> {
         .await;
 
     let mut mcp =
-        TestAppServer::new_with_env(codex_home.path(), &[("OPENAI_API_KEY", None)]).await?;
+        TestAppServer::new_with_env(codepilotx_home.path(), &[("OPENAI_API_KEY", None)]).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp.send_get_account_rate_limits_request().await?;
@@ -240,10 +240,10 @@ async fn get_account_rate_limits_returns_snapshot() -> Result<()> {
                     },
                 ),
                 (
-                    "codex_other".to_string(),
+                    "codepilotx_other".to_string(),
                     RateLimitSnapshot {
-                        limit_id: Some("codex_other".to_string()),
-                        limit_name: Some("codex_other".to_string()),
+                        limit_id: Some("codepilotx_other".to_string()),
+                        limit_name: Some("codepilotx_other".to_string()),
                         primary: Some(RateLimitWindow {
                             used_percent: 88,
                             window_duration_mins: Some(30),
@@ -269,10 +269,10 @@ async fn get_account_rate_limits_returns_snapshot() -> Result<()> {
 
 #[tokio::test]
 async fn send_add_credits_nudge_email_requires_auth() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
 
     let mut mcp =
-        TestAppServer::new_with_env(codex_home.path(), &[("OPENAI_API_KEY", None)]).await?;
+        TestAppServer::new_with_env(codepilotx_home.path(), &[("OPENAI_API_KEY", None)]).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -299,9 +299,9 @@ async fn send_add_credits_nudge_email_requires_auth() -> Result<()> {
 
 #[tokio::test]
 async fn send_add_credits_nudge_email_requires_chatgpt_auth() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     login_with_api_key(&mut mcp, "sk-test-key").await?;
@@ -331,9 +331,9 @@ async fn send_add_credits_nudge_email_requires_chatgpt_auth() -> Result<()> {
 #[cfg_attr(target_os = "windows", ignore = "covered by Linux and macOS CI")]
 #[tokio::test]
 async fn send_add_credits_nudge_email_posts_expected_body() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     write_chatgpt_auth(
-        codex_home.path(),
+        codepilotx_home.path(),
         ChatGptAuthFixture::new("chatgpt-token")
             .account_id("account-123")
             .plan_type("pro"),
@@ -342,7 +342,7 @@ async fn send_add_credits_nudge_email_posts_expected_body() -> Result<()> {
 
     let server = MockServer::start().await;
     let server_url = server.uri();
-    write_chatgpt_base_url(codex_home.path(), &server_url)?;
+    write_chatgpt_base_url(codepilotx_home.path(), &server_url)?;
 
     Mock::given(method("POST"))
         .and(path("/api/codex/accounts/send_add_credits_nudge_email"))
@@ -356,7 +356,7 @@ async fn send_add_credits_nudge_email_posts_expected_body() -> Result<()> {
         .await;
 
     let mut mcp =
-        TestAppServer::new_with_env(codex_home.path(), &[("OPENAI_API_KEY", None)]).await?;
+        TestAppServer::new_with_env(codepilotx_home.path(), &[("OPENAI_API_KEY", None)]).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -380,9 +380,9 @@ async fn send_add_credits_nudge_email_posts_expected_body() -> Result<()> {
 #[cfg_attr(target_os = "windows", ignore = "covered by Linux and macOS CI")]
 #[tokio::test]
 async fn send_add_credits_nudge_email_maps_cooldown() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     write_chatgpt_auth(
-        codex_home.path(),
+        codepilotx_home.path(),
         ChatGptAuthFixture::new("chatgpt-token")
             .account_id("account-123")
             .plan_type("pro"),
@@ -391,7 +391,7 @@ async fn send_add_credits_nudge_email_maps_cooldown() -> Result<()> {
 
     let server = MockServer::start().await;
     let server_url = server.uri();
-    write_chatgpt_base_url(codex_home.path(), &server_url)?;
+    write_chatgpt_base_url(codepilotx_home.path(), &server_url)?;
 
     Mock::given(method("POST"))
         .and(path("/api/codex/accounts/send_add_credits_nudge_email"))
@@ -400,7 +400,7 @@ async fn send_add_credits_nudge_email_maps_cooldown() -> Result<()> {
         .await;
 
     let mut mcp =
-        TestAppServer::new_with_env(codex_home.path(), &[("OPENAI_API_KEY", None)]).await?;
+        TestAppServer::new_with_env(codepilotx_home.path(), &[("OPENAI_API_KEY", None)]).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -424,9 +424,9 @@ async fn send_add_credits_nudge_email_maps_cooldown() -> Result<()> {
 #[cfg_attr(target_os = "windows", ignore = "covered by Linux and macOS CI")]
 #[tokio::test]
 async fn send_add_credits_nudge_email_surfaces_backend_failure() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     write_chatgpt_auth(
-        codex_home.path(),
+        codepilotx_home.path(),
         ChatGptAuthFixture::new("chatgpt-token")
             .account_id("account-123")
             .plan_type("pro"),
@@ -435,7 +435,7 @@ async fn send_add_credits_nudge_email_surfaces_backend_failure() -> Result<()> {
 
     let server = MockServer::start().await;
     let server_url = server.uri();
-    write_chatgpt_base_url(codex_home.path(), &server_url)?;
+    write_chatgpt_base_url(codepilotx_home.path(), &server_url)?;
 
     Mock::given(method("POST"))
         .and(path("/api/codex/accounts/send_add_credits_nudge_email"))
@@ -444,7 +444,7 @@ async fn send_add_credits_nudge_email_surfaces_backend_failure() -> Result<()> {
         .await;
 
     let mut mcp =
-        TestAppServer::new_with_env(codex_home.path(), &[("OPENAI_API_KEY", None)]).await?;
+        TestAppServer::new_with_env(codepilotx_home.path(), &[("OPENAI_API_KEY", None)]).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -487,7 +487,7 @@ async fn login_with_api_key(mcp: &mut TestAppServer, api_key: &str) -> Result<()
     Ok(())
 }
 
-fn write_chatgpt_base_url(codex_home: &Path, base_url: &str) -> std::io::Result<()> {
-    let config_toml = codex_home.join("config.toml");
+fn write_chatgpt_base_url(codepilotx_home: &Path, base_url: &str) -> std::io::Result<()> {
+    let config_toml = codepilotx_home.join("config.toml");
     std::fs::write(config_toml, format!("chatgpt_base_url = \"{base_url}\"\n"))
 }

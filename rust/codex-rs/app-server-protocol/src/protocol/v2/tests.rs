@@ -1,42 +1,42 @@
 use super::*;
-use codex_protocol::approvals::ElicitationRequest as CoreElicitationRequest;
-use codex_protocol::items::AgentMessageContent;
-use codex_protocol::items::AgentMessageItem;
-use codex_protocol::items::FileChangeItem;
-use codex_protocol::items::ImageViewItem;
-use codex_protocol::items::McpToolCallItem;
-use codex_protocol::items::McpToolCallStatus as CoreMcpToolCallStatus;
-use codex_protocol::items::ReasoningItem;
-use codex_protocol::items::TurnItem;
-use codex_protocol::items::UserMessageItem;
-use codex_protocol::items::WebSearchItem;
-use codex_protocol::mcp::CallToolResult;
-use codex_protocol::mcp::McpServerInfo;
-use codex_protocol::memory_citation::MemoryCitation as CoreMemoryCitation;
-use codex_protocol::memory_citation::MemoryCitationEntry as CoreMemoryCitationEntry;
-use codex_protocol::models::AdditionalPermissionProfile as CoreAdditionalPermissionProfile;
-use codex_protocol::models::BUILT_IN_PERMISSION_PROFILE_WORKSPACE;
-use codex_protocol::models::FileSystemPermissions as CoreFileSystemPermissions;
-use codex_protocol::models::ImageDetail;
-use codex_protocol::models::MessagePhase;
-use codex_protocol::models::NetworkPermissions as CoreNetworkPermissions;
-use codex_protocol::models::WebSearchAction as CoreWebSearchAction;
-use codex_protocol::permissions::FileSystemAccessMode as CoreFileSystemAccessMode;
-use codex_protocol::permissions::FileSystemPath as CoreFileSystemPath;
-use codex_protocol::permissions::FileSystemSandboxEntry as CoreFileSystemSandboxEntry;
-use codex_protocol::permissions::FileSystemSpecialPath as CoreFileSystemSpecialPath;
-use codex_protocol::protocol::AgentStatus as CoreAgentStatus;
-use codex_protocol::protocol::AskForApproval as CoreAskForApproval;
-use codex_protocol::protocol::ConversationTextRole;
-use codex_protocol::protocol::GranularApprovalConfig as CoreGranularApprovalConfig;
-use codex_protocol::protocol::NetworkAccess as CoreNetworkAccess;
-use codex_protocol::request_permissions::RequestPermissionProfile as CoreRequestPermissionProfile;
-use codex_protocol::user_input::UserInput as CoreUserInput;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_absolute_path::test_support::PathBufExt;
-use codex_utils_absolute_path::test_support::test_path_buf;
-use codex_utils_path_uri::LegacyAppPathString;
-use codex_utils_path_uri::PathUri;
+use codepilotx_protocol::approvals::ElicitationRequest as CoreElicitationRequest;
+use codepilotx_protocol::items::AgentMessageContent;
+use codepilotx_protocol::items::AgentMessageItem;
+use codepilotx_protocol::items::FileChangeItem;
+use codepilotx_protocol::items::ImageViewItem;
+use codepilotx_protocol::items::McpToolCallItem;
+use codepilotx_protocol::items::McpToolCallStatus as CoreMcpToolCallStatus;
+use codepilotx_protocol::items::ReasoningItem;
+use codepilotx_protocol::items::TurnItem;
+use codepilotx_protocol::items::UserMessageItem;
+use codepilotx_protocol::items::WebSearchItem;
+use codepilotx_protocol::mcp::CallToolResult;
+use codepilotx_protocol::mcp::McpServerInfo;
+use codepilotx_protocol::memory_citation::MemoryCitation as CoreMemoryCitation;
+use codepilotx_protocol::memory_citation::MemoryCitationEntry as CoreMemoryCitationEntry;
+use codepilotx_protocol::models::AdditionalPermissionProfile as CoreAdditionalPermissionProfile;
+use codepilotx_protocol::models::BUILT_IN_PERMISSION_PROFILE_WORKSPACE;
+use codepilotx_protocol::models::FileSystemPermissions as CoreFileSystemPermissions;
+use codepilotx_protocol::models::ImageDetail;
+use codepilotx_protocol::models::MessagePhase;
+use codepilotx_protocol::models::NetworkPermissions as CoreNetworkPermissions;
+use codepilotx_protocol::models::WebSearchAction as CoreWebSearchAction;
+use codepilotx_protocol::permissions::FileSystemAccessMode as CoreFileSystemAccessMode;
+use codepilotx_protocol::permissions::FileSystemPath as CoreFileSystemPath;
+use codepilotx_protocol::permissions::FileSystemSandboxEntry as CoreFileSystemSandboxEntry;
+use codepilotx_protocol::permissions::FileSystemSpecialPath as CoreFileSystemSpecialPath;
+use codepilotx_protocol::protocol::AgentStatus as CoreAgentStatus;
+use codepilotx_protocol::protocol::AskForApproval as CoreAskForApproval;
+use codepilotx_protocol::protocol::ConversationTextRole;
+use codepilotx_protocol::protocol::GranularApprovalConfig as CoreGranularApprovalConfig;
+use codepilotx_protocol::protocol::NetworkAccess as CoreNetworkAccess;
+use codepilotx_protocol::request_permissions::RequestPermissionProfile as CoreRequestPermissionProfile;
+use codepilotx_protocol::user_input::UserInput as CoreUserInput;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_absolute_path::test_support::PathBufExt;
+use codepilotx_utils_absolute_path::test_support::test_path_buf;
+use codepilotx_utils_path_uri::LegacyAppPathString;
+use codepilotx_utils_path_uri::PathUri;
 use pretty_assertions::assert_eq;
 use serde_json::Value as JsonValue;
 use serde_json::json;
@@ -79,7 +79,7 @@ fn thread_sources_round_trip_as_scalar_labels() {
             source
         );
 
-        let core_source: codex_protocol::protocol::ThreadSource = source.clone().into();
+        let core_source: codepilotx_protocol::protocol::ThreadSource = source.clone().into();
         assert_eq!(ThreadSource::from(core_source), source);
     }
 }
@@ -1532,7 +1532,7 @@ fn sandbox_policy_round_trips_external_sandbox_network_access() {
     let core_policy = v2_policy.to_core();
     assert_eq!(
         core_policy,
-        codex_protocol::protocol::SandboxPolicy::ExternalSandbox {
+        codepilotx_protocol::protocol::SandboxPolicy::ExternalSandbox {
             network_access: CoreNetworkAccess::Enabled,
         }
     );
@@ -1550,7 +1550,7 @@ fn sandbox_policy_round_trips_read_only_network_access() {
     let core_policy = v2_policy.to_core();
     assert_eq!(
         core_policy,
-        codex_protocol::protocol::SandboxPolicy::ReadOnly {
+        codepilotx_protocol::protocol::SandboxPolicy::ReadOnly {
             network_access: true,
         }
     );
@@ -2196,7 +2196,7 @@ fn sandbox_policy_round_trips_workspace_write_access() {
     let core_policy = v2_policy.to_core();
     assert_eq!(
         core_policy,
-        codex_protocol::protocol::SandboxPolicy::WorkspaceWrite {
+        codepilotx_protocol::protocol::SandboxPolicy::WorkspaceWrite {
             writable_roots: vec![],
             network_access: true,
             exclude_tmpdir_env_var: false,
@@ -2587,13 +2587,13 @@ fn core_turn_item_into_thread_item_converts_supported_variants() {
         id: "patch-1".to_string(),
         changes: [(
             PathBuf::from("README.md"),
-            codex_protocol::protocol::FileChange::Add {
+            codepilotx_protocol::protocol::FileChange::Add {
                 content: "hello\n".to_string(),
             },
         )]
         .into_iter()
         .collect(),
-        status: Some(codex_protocol::protocol::PatchApplyStatus::Completed),
+        status: Some(codepilotx_protocol::protocol::PatchApplyStatus::Completed),
         auto_approved: None,
         stdout: Some("Done!".to_string()),
         stderr: Some(String::new()),
@@ -2694,7 +2694,7 @@ fn core_turn_item_into_thread_item_converts_supported_variants() {
 fn mcp_tool_call_app_context_serializes_connector_id() {
     let item = ThreadItem::McpToolCall {
         id: "mcp-1".to_string(),
-        server: "codex_apps".to_string(),
+        server: "codepilotx_apps".to_string(),
         tool: "calendar.create_event".to_string(),
         status: McpToolCallStatus::InProgress,
         arguments: json!({}),
@@ -2715,7 +2715,7 @@ fn mcp_tool_call_app_context_serializes_connector_id() {
         json!({
             "type": "mcpToolCall",
             "id": "mcp-1",
-            "server": "codex_apps",
+            "server": "codepilotx_apps",
             "tool": "calendar.create_event",
             "status": "inProgress",
             "arguments": {},
@@ -3537,7 +3537,7 @@ fn marketplace_upgrade_response_serializes_camel_case_fields() {
 }
 
 #[test]
-fn codex_error_info_serializes_http_status_code_in_camel_case() {
+fn codepilotx_error_info_serializes_http_status_code_in_camel_case() {
     let value = CodexErrorInfo::ResponseTooManyFailedAttempts {
         http_status_code: Some(401),
     };
@@ -3553,7 +3553,7 @@ fn codex_error_info_serializes_http_status_code_in_camel_case() {
 }
 
 #[test]
-fn codex_error_info_serializes_cyber_policy_in_camel_case() {
+fn codepilotx_error_info_serializes_cyber_policy_in_camel_case() {
     assert_eq!(
         serde_json::to_value(CodexErrorInfo::CyberPolicy).unwrap(),
         json!("cyberPolicy")
@@ -3561,7 +3561,7 @@ fn codex_error_info_serializes_cyber_policy_in_camel_case() {
 }
 
 #[test]
-fn codex_error_info_serializes_active_turn_not_steerable_turn_kind_in_camel_case() {
+fn codepilotx_error_info_serializes_active_turn_not_steerable_turn_kind_in_camel_case() {
     let value = CodexErrorInfo::ActiveTurnNotSteerable {
         turn_kind: NonSteerableTurnKind::Review,
     };
@@ -3802,7 +3802,7 @@ fn turn_start_params_round_trip_multi_agent_mode() {
 
     assert_eq!(
         params.multi_agent_mode,
-        Some(codex_protocol::config_types::MultiAgentMode::Proactive)
+        Some(codepilotx_protocol::config_types::MultiAgentMode::Proactive)
     );
     assert_eq!(
         crate::experimental_api::ExperimentalApi::experimental_reason(&params),
@@ -3823,7 +3823,7 @@ fn thread_start_params_round_trip_multi_agent_mode() {
 
     assert_eq!(
         params.multi_agent_mode,
-        Some(codex_protocol::config_types::MultiAgentMode::Proactive)
+        Some(codepilotx_protocol::config_types::MultiAgentMode::Proactive)
     );
     assert_eq!(
         crate::experimental_api::ExperimentalApi::experimental_reason(&params),
@@ -3890,9 +3890,9 @@ fn thread_settings_update_params_preserve_field_level_experimental_gates() {
 
     let collaboration_mode = ThreadSettingsUpdateParams {
         thread_id: "thread_123".to_string(),
-        collaboration_mode: Some(codex_protocol::config_types::CollaborationMode {
-            mode: codex_protocol::config_types::ModeKind::Plan,
-            settings: codex_protocol::config_types::Settings {
+        collaboration_mode: Some(codepilotx_protocol::config_types::CollaborationMode {
+            mode: codepilotx_protocol::config_types::ModeKind::Plan,
+            settings: codepilotx_protocol::config_types::Settings {
                 model: "mock-model".to_string(),
                 reasoning_effort: None,
                 developer_instructions: None,

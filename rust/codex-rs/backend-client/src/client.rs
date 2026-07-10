@@ -7,17 +7,17 @@ use crate::types::RateLimitStatusPayload;
 use crate::types::TokenUsageProfile;
 use crate::types::TurnAttemptsSiblingTurnsResponse;
 use anyhow::Result;
-use codex_api::SharedAuthProvider;
-use codex_client::build_reqwest_client_with_custom_ca;
-use codex_client::with_chatgpt_cloudflare_cookie_store;
-use codex_login::CodexAuth;
-use codex_login::default_client::get_codex_user_agent;
-use codex_protocol::account::PlanType as AccountPlanType;
-use codex_protocol::protocol::CreditsSnapshot;
-use codex_protocol::protocol::RateLimitReachedType;
-use codex_protocol::protocol::RateLimitSnapshot;
-use codex_protocol::protocol::RateLimitWindow;
-use codex_protocol::protocol::SpendControlLimitSnapshot;
+use codepilotx_api::SharedAuthProvider;
+use codepilotx_client::build_reqwest_client_with_custom_ca;
+use codepilotx_client::with_chatgpt_cloudflare_cookie_store;
+use codepilotx_login::CodexAuth;
+use codepilotx_login::default_client::get_codepilotx_user_agent;
+use codepilotx_protocol::account::PlanType as AccountPlanType;
+use codepilotx_protocol::protocol::CreditsSnapshot;
+use codepilotx_protocol::protocol::RateLimitReachedType;
+use codepilotx_protocol::protocol::RateLimitSnapshot;
+use codepilotx_protocol::protocol::RateLimitWindow;
+use codepilotx_protocol::protocol::SpendControlLimitSnapshot;
 use reqwest::StatusCode;
 use reqwest::header::CONTENT_TYPE;
 use reqwest::header::HeaderMap;
@@ -102,10 +102,8 @@ struct SendAddCreditsNudgeEmailRequest {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PathStyle {
-    /// /api/codex/â€¦
-    CodexApi,
-    /// /wham/â€¦
-    ChatGptApi,
+    /// /api/codex/â€?    CodexApi,
+    /// /wham/â€?    ChatGptApi,
 }
 
 impl PathStyle {
@@ -166,7 +164,7 @@ impl Client {
         Ok(Self {
             base_url,
             http,
-            auth_provider: codex_model_provider::unauthenticated_auth_provider(),
+            auth_provider: codepilotx_model_provider::unauthenticated_auth_provider(),
             user_agent: None,
             chatgpt_account_id: None,
             chatgpt_account_is_fedramp: false,
@@ -176,8 +174,8 @@ impl Client {
 
     pub fn from_auth(base_url: impl Into<String>, auth: &CodexAuth) -> Result<Self> {
         Ok(Self::new(base_url)?
-            .with_user_agent(get_codex_user_agent())
-            .with_auth_provider(codex_model_provider::auth_provider_from_auth(auth)))
+            .with_user_agent(get_codepilotx_user_agent())
+            .with_auth_provider(codepilotx_model_provider::auth_provider_from_auth(auth)))
     }
 
     pub fn with_auth_provider(mut self, auth: SharedAuthProvider) -> Self {
@@ -644,9 +642,9 @@ impl Client {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_backend_openapi_models::models::AdditionalRateLimitDetails;
-    use codex_backend_openapi_models::models::RateLimitReachedKind;
-    use codex_backend_openapi_models::models::RateLimitReachedType as BackendRateLimitReachedType;
+    use codepilotx_backend_openapi_models::models::AdditionalRateLimitDetails;
+    use codepilotx_backend_openapi_models::models::RateLimitReachedKind;
+    use codepilotx_backend_openapi_models::models::RateLimitReachedType as BackendRateLimitReachedType;
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -681,8 +679,8 @@ mod tests {
                 ..Default::default()
             }))),
             additional_rate_limits: Some(Some(vec![AdditionalRateLimitDetails {
-                limit_name: "codex_other".to_string(),
-                metered_feature: "codex_other".to_string(),
+                limit_name: "codepilotx_other".to_string(),
+                metered_feature: "codepilotx_other".to_string(),
                 rate_limit: Some(Some(Box::new(crate::types::RateLimitStatusDetails {
                     primary_window: Some(Some(Box::new(crate::types::RateLimitWindowSnapshot {
                         used_percent: 70,
@@ -701,7 +699,7 @@ mod tests {
                 ..Default::default()
             }))),
             spend_control: Some(Some(Box::new(
-                codex_backend_openapi_models::models::SpendControlStatusDetails {
+                codepilotx_backend_openapi_models::models::SpendControlStatusDetails {
                     reached: false,
                     individual_limit: Some(Some(Box::new(
                         crate::types::SpendControlLimitDetails {
@@ -758,8 +756,8 @@ mod tests {
             })
         );
 
-        assert_eq!(snapshots[1].limit_id.as_deref(), Some("codex_other"));
-        assert_eq!(snapshots[1].limit_name.as_deref(), Some("codex_other"));
+        assert_eq!(snapshots[1].limit_id.as_deref(), Some("codepilotx_other"));
+        assert_eq!(snapshots[1].limit_name.as_deref(), Some("codepilotx_other"));
         assert_eq!(
             snapshots[1].primary.as_ref().map(|w| w.used_percent),
             Some(70.0)
@@ -776,8 +774,8 @@ mod tests {
             plan_type: crate::types::PlanType::Plus,
             rate_limit: None,
             additional_rate_limits: Some(Some(vec![AdditionalRateLimitDetails {
-                limit_name: "codex_other".to_string(),
-                metered_feature: "codex_other".to_string(),
+                limit_name: "codepilotx_other".to_string(),
+                metered_feature: "codepilotx_other".to_string(),
                 rate_limit: None,
             }])),
             credits: None,
@@ -790,16 +788,16 @@ mod tests {
         assert_eq!(snapshots[0].limit_id.as_deref(), Some("codex"));
         assert_eq!(snapshots[0].limit_name, None);
         assert_eq!(snapshots[0].primary, None);
-        assert_eq!(snapshots[1].limit_id.as_deref(), Some("codex_other"));
-        assert_eq!(snapshots[1].limit_name.as_deref(), Some("codex_other"));
+        assert_eq!(snapshots[1].limit_id.as_deref(), Some("codepilotx_other"));
+        assert_eq!(snapshots[1].limit_name.as_deref(), Some("codepilotx_other"));
     }
 
     #[test]
     fn preferred_snapshot_selection_matches_get_rate_limits_behavior() {
         let snapshots = [
             RateLimitSnapshot {
-                limit_id: Some("codex_other".to_string()),
-                limit_name: Some("codex_other".to_string()),
+                limit_id: Some("codepilotx_other".to_string()),
+                limit_name: Some("codepilotx_other".to_string()),
                 primary: Some(RateLimitWindow {
                     used_percent: 90.0,
                     window_minutes: Some(60),
@@ -893,9 +891,9 @@ mod tests {
 
     #[test]
     fn add_credits_nudge_email_uses_expected_paths_and_bodies() {
-        let codex_client = test_client("https://example.test", PathStyle::CodexApi);
+        let codepilotx_client = test_client("https://example.test", PathStyle::CodexApi);
         assert_eq!(
-            codex_client.send_add_credits_nudge_email_url(),
+            codepilotx_client.send_add_credits_nudge_email_url(),
             "https://example.test/api/codex/accounts/send_add_credits_nudge_email"
         );
 
@@ -923,9 +921,9 @@ mod tests {
 
     #[test]
     fn token_usage_profile_uses_expected_paths() {
-        let codex_client = test_client("https://example.test", PathStyle::CodexApi);
+        let codepilotx_client = test_client("https://example.test", PathStyle::CodexApi);
         assert_eq!(
-            codex_client.token_usage_profile_url(),
+            codepilotx_client.token_usage_profile_url(),
             "https://example.test/api/codex/profiles/me"
         );
 
@@ -940,7 +938,7 @@ mod tests {
         Client {
             base_url: base_url.to_string(),
             http: reqwest::Client::new(),
-            auth_provider: codex_model_provider::unauthenticated_auth_provider(),
+            auth_provider: codepilotx_model_provider::unauthenticated_auth_provider(),
             user_agent: None,
             chatgpt_account_id: None,
             chatgpt_account_is_fedramp: false,

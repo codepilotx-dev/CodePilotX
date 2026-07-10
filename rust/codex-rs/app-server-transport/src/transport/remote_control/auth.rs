@@ -1,6 +1,6 @@
-use codex_api::SharedAuthProvider;
-use codex_login::AuthManager;
-use codex_login::UnauthorizedRecovery;
+use codepilotx_api::SharedAuthProvider;
+use codepilotx_login::AuthManager;
+use codepilotx_login::UnauthorizedRecovery;
 use std::io;
 use std::io::ErrorKind;
 use std::sync::Arc;
@@ -29,7 +29,7 @@ pub(super) async fn load_remote_control_auth(
             reloaded = true;
             continue;
         };
-        if !auth.uses_codex_backend() {
+        if !auth.uses_codepilotx_backend() {
             break auth;
         }
         if auth.get_account_id().is_none() && !reloaded {
@@ -40,7 +40,7 @@ pub(super) async fn load_remote_control_auth(
         break auth;
     };
 
-    if !auth.uses_codex_backend() {
+    if !auth.uses_codepilotx_backend() {
         return Err(io::Error::new(
             ErrorKind::PermissionDenied,
             "remote control requires ChatGPT authentication; API key auth is not supported",
@@ -48,7 +48,7 @@ pub(super) async fn load_remote_control_auth(
     }
 
     Ok(RemoteControlConnectionAuth {
-        auth_provider: codex_model_provider::auth_provider_from_auth(&auth),
+        auth_provider: codepilotx_model_provider::auth_provider_from_auth(&auth),
         account_id: auth.get_account_id().ok_or_else(|| {
             io::Error::new(
                 ErrorKind::WouldBlock,

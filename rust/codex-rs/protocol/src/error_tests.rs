@@ -107,7 +107,7 @@ fn usage_limit_reached_error_formats_rate_limit_reached_types() {
 fn server_overloaded_maps_to_protocol() {
     let err = CodexErr::ServerOverloaded;
     assert_eq!(
-        err.to_codex_protocol_error(),
+        err.to_codepilotx_protocol_error(),
         CodexErrorInfo::ServerOverloaded
     );
 }
@@ -183,7 +183,7 @@ fn to_error_event_handles_response_stream_failed() {
         "prefix: Error while reading the server response: HTTP status client error (429 Too Many Requests) for url (http://example.com/), request id: req-123"
     );
     assert_eq!(
-        event.codex_error_info,
+        event.codepilotx_error_info,
         Some(CodexErrorInfo::ResponseStreamConnectionFailed {
             http_status_code: Some(429)
         })
@@ -356,7 +356,7 @@ fn usage_limit_reached_error_formats_pro_plan_with_reset() {
 }
 
 #[test]
-fn usage_limit_reached_error_hides_upsell_for_non_codex_limit_name() {
+fn usage_limit_reached_error_hides_upsell_for_non_codepilotx_limit_name() {
     let base = Utc.with_ymd_and_hms(2024, 1, 1, 0, 0, 0).unwrap();
     let resets_at = base + ChronoDuration::hours(1);
     with_now_override(base, move || {
@@ -365,8 +365,8 @@ fn usage_limit_reached_error_hides_upsell_for_non_codex_limit_name() {
             plan_type: Some(PlanType::Known(KnownPlan::Plus)),
             resets_at: Some(resets_at),
             rate_limits: Some(Box::new(RateLimitSnapshot {
-                limit_id: Some("codex_other".to_string()),
-                limit_name: Some("codex_other".to_string()),
+                limit_id: Some("codepilotx_other".to_string()),
+                limit_name: Some("codepilotx_other".to_string()),
                 ..rate_limit_snapshot()
             })),
             promo_message: Some(
@@ -376,7 +376,7 @@ fn usage_limit_reached_error_hides_upsell_for_non_codex_limit_name() {
             rate_limit_reached_type: None,
         };
         let expected = format!(
-            "You've hit your usage limit for codex_other. Switch to another model now, or try again at {expected_time}."
+            "You've hit your usage limit for codepilotx_other. Switch to another model now, or try again at {expected_time}."
         );
         assert_eq!(err.to_string(), expected);
     });

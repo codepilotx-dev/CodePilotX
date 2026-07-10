@@ -7,19 +7,19 @@ use app_test_support::TestAppServer;
 use app_test_support::to_response;
 use app_test_support::write_chatgpt_auth;
 use app_test_support::write_models_cache;
-use codex_app_server_protocol::JSONRPCError;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::Model;
-use codex_app_server_protocol::ModelListParams;
-use codex_app_server_protocol::ModelListResponse;
-use codex_app_server_protocol::ModelServiceTier;
-use codex_app_server_protocol::ModelUpgradeInfo;
-use codex_app_server_protocol::ReasoningEffortOption;
-use codex_app_server_protocol::RequestId;
-use codex_config::types::AuthCredentialsStoreMode;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::ModelPreset;
-use codex_protocol::openai_models::ModelsResponse;
+use codepilotx_app_server_protocol::JSONRPCError;
+use codepilotx_app_server_protocol::JSONRPCResponse;
+use codepilotx_app_server_protocol::Model;
+use codepilotx_app_server_protocol::ModelListParams;
+use codepilotx_app_server_protocol::ModelListResponse;
+use codepilotx_app_server_protocol::ModelServiceTier;
+use codepilotx_app_server_protocol::ModelUpgradeInfo;
+use codepilotx_app_server_protocol::ReasoningEffortOption;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_config::types::AuthCredentialsStoreMode;
+use codepilotx_protocol::openai_models::ModelInfo;
+use codepilotx_protocol::openai_models::ModelPreset;
+use codepilotx_protocol::openai_models::ModelsResponse;
 use core_test_support::responses::mount_models_once;
 use pretty_assertions::assert_eq;
 use serde_json::json;
@@ -78,7 +78,7 @@ fn model_from_preset(preset: &ModelPreset) -> Model {
 fn expected_visible_models() -> Vec<Model> {
     // Filter by supported_in_api to support testing with both ChatGPT and non-ChatGPT auth modes.
     let mut presets = ModelPreset::filter_by_auth(
-        codex_core::test_support::all_model_presets().clone(),
+        codepilotx_core::test_support::all_model_presets().clone(),
         /*chatgpt_mode*/ false,
     );
 
@@ -94,9 +94,9 @@ fn expected_visible_models() -> Vec<Model> {
 
 #[tokio::test]
 async fn list_models_returns_all_models_with_large_limit() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    write_models_cache(codex_home.path())?;
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    write_models_cache(codepilotx_home.path())?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
 
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
@@ -128,9 +128,9 @@ async fn list_models_returns_all_models_with_large_limit() -> Result<()> {
 
 #[tokio::test]
 async fn list_models_includes_hidden_models() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    write_models_cache(codex_home.path())?;
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    write_models_cache(codepilotx_home.path())?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
 
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
@@ -197,10 +197,10 @@ async fn list_models_uses_chatgpt_remote_catalog_as_source_of_truth() -> Result<
     )
     .await;
 
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let server_uri = server.uri();
     std::fs::write(
-        codex_home.path().join("config.toml"),
+        codepilotx_home.path().join("config.toml"),
         format!(
             r#"
 model = "mock-model"
@@ -211,13 +211,13 @@ openai_base_url = "{server_uri}/v1"
         ),
     )?;
     write_chatgpt_auth(
-        codex_home.path(),
+        codepilotx_home.path(),
         ChatGptAuthFixture::new("chatgpt-access-token").plan_type("pro"),
         AuthCredentialsStoreMode::File,
     )?;
 
     let mut mcp =
-        TestAppServer::new_with_env(codex_home.path(), &[("OPENAI_API_KEY", None)]).await?;
+        TestAppServer::new_with_env(codepilotx_home.path(), &[("OPENAI_API_KEY", None)]).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -271,9 +271,9 @@ openai_base_url = "{server_uri}/v1"
 
 #[tokio::test]
 async fn list_models_pagination_works() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    write_models_cache(codex_home.path())?;
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    write_models_cache(codepilotx_home.path())?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
 
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
@@ -320,9 +320,9 @@ async fn list_models_pagination_works() -> Result<()> {
 
 #[tokio::test]
 async fn list_models_rejects_invalid_cursor() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    write_models_cache(codex_home.path())?;
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    write_models_cache(codepilotx_home.path())?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
 
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 

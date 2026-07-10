@@ -1,10 +1,10 @@
 use super::*;
 use crate::error_code::method_not_found;
-use codex_app_server_protocol::SelectedCapabilityRoot;
-use codex_extension_api::ExtensionDataInit;
-use codex_protocol::config_types::MultiAgentMode;
-use codex_protocol::models::BUILT_IN_PERMISSION_PROFILE_DANGER_FULL_ACCESS;
-use codex_protocol::models::BUILT_IN_PERMISSION_PROFILE_WORKSPACE;
+use codepilotx_app_server_protocol::SelectedCapabilityRoot;
+use codepilotx_extension_api::ExtensionDataInit;
+use codepilotx_protocol::config_types::MultiAgentMode;
+use codepilotx_protocol::models::BUILT_IN_PERMISSION_PROFILE_DANGER_FULL_ACCESS;
+use codepilotx_protocol::models::BUILT_IN_PERMISSION_PROFILE_WORKSPACE;
 
 const THREAD_LIST_DEFAULT_LIMIT: usize = 25;
 const THREAD_LIST_MAX_LIMIT: usize = 100;
@@ -77,7 +77,7 @@ fn collect_resume_override_mismatches(
         }
     }
     if let Some(requested_review_policy) = request.approvals_reviewer.as_ref() {
-        let active_review_policy: codex_app_server_protocol::ApprovalsReviewer =
+        let active_review_policy: codepilotx_app_server_protocol::ApprovalsReviewer =
             config_snapshot.approvals_reviewer.into();
         if requested_review_policy != &active_review_policy {
             mismatch_details.push(format!(
@@ -91,16 +91,16 @@ fn collect_resume_override_mismatches(
             (requested_sandbox, &active_sandbox),
             (
                 SandboxMode::ReadOnly,
-                codex_protocol::protocol::SandboxPolicy::ReadOnly { .. }
+                codepilotx_protocol::protocol::SandboxPolicy::ReadOnly { .. }
             ) | (
                 SandboxMode::WorkspaceWrite,
-                codex_protocol::protocol::SandboxPolicy::WorkspaceWrite { .. }
+                codepilotx_protocol::protocol::SandboxPolicy::WorkspaceWrite { .. }
             ) | (
                 SandboxMode::DangerFullAccess,
-                codex_protocol::protocol::SandboxPolicy::DangerFullAccess
+                codepilotx_protocol::protocol::SandboxPolicy::DangerFullAccess
             ) | (
                 SandboxMode::DangerFullAccess,
-                codex_protocol::protocol::SandboxPolicy::ExternalSandbox { .. }
+                codepilotx_protocol::protocol::SandboxPolicy::ExternalSandbox { .. }
             )
         );
         if !sandbox_matches {
@@ -277,7 +277,7 @@ fn validate_dynamic_tools(tools: &[DynamicToolSpec]) -> Result<(), String> {
             ));
         }
 
-        if let Err(err) = codex_tools::parse_tool_input_schema(&tool.input_schema) {
+        if let Err(err) = codepilotx_tools::parse_tool_input_schema(&tool.input_schema) {
             return Err(format!(
                 "dynamic tool input schema is not supported for {name}: {err}"
             ));
@@ -840,7 +840,7 @@ impl ThreadRequestProcessor {
             thread_watch_manager: self.thread_watch_manager.clone(),
             thread_list_state_permit: self.thread_list_state_permit.clone(),
             fallback_model_provider: self.config.model_provider_id.clone(),
-            codex_home: self.config.codex_home.to_path_buf(),
+            codepilotx_home: self.config.codepilotx_home.to_path_buf(),
             skills_watcher: Arc::clone(&self.skills_watcher),
         }
     }
@@ -940,7 +940,7 @@ impl ThreadRequestProcessor {
             thread_watch_manager: self.thread_watch_manager.clone(),
             thread_list_state_permit: self.thread_list_state_permit.clone(),
             fallback_model_provider: self.config.model_provider_id.clone(),
-            codex_home: self.config.codex_home.to_path_buf(),
+            codepilotx_home: self.config.codepilotx_home.to_path_buf(),
             skills_watcher: Arc::clone(&self.skills_watcher),
         };
         let request_trace = request_context.request_trace();
@@ -1007,7 +1007,7 @@ impl ThreadRequestProcessor {
     async fn request_trace_context(
         &self,
         request_id: &ConnectionRequestId,
-    ) -> Option<codex_protocol::protocol::W3cTraceContext> {
+    ) -> Option<codepilotx_protocol::protocol::W3cTraceContext> {
         self.outgoing.request_trace_context(request_id).await
     }
 
@@ -1035,8 +1035,8 @@ impl ThreadRequestProcessor {
         multi_agent_mode: Option<MultiAgentMode>,
         dynamic_tools: Option<Vec<DynamicToolSpec>>,
         selected_capability_roots: Vec<SelectedCapabilityRoot>,
-        session_start_source: Option<codex_app_server_protocol::ThreadStartSource>,
-        thread_source: Option<codex_protocol::protocol::ThreadSource>,
+        session_start_source: Option<codepilotx_app_server_protocol::ThreadStartSource>,
+        thread_source: Option<codepilotx_protocol::protocol::ThreadSource>,
         environments: Option<Vec<TurnEnvironmentSelection>>,
         service_name: Option<String>,
         experimental_raw_events: bool,
@@ -1071,8 +1071,8 @@ impl ThreadRequestProcessor {
             let current_cli_overrides = config_manager.current_cli_overrides();
             let cli_overrides_with_trust;
             let cli_overrides_for_reload = if let Err(err) =
-                codex_core::config::set_project_trust_level(
-                    &listener_task_context.codex_home,
+                codepilotx_core::config::set_project_trust_level(
+                    &listener_task_context.codepilotx_home,
                     trust_target.as_path(),
                     TrustLevel::Trusted,
                 ) {
@@ -1134,7 +1134,7 @@ impl ThreadRequestProcessor {
         let mut thread_extension_init = ExtensionDataInit::new();
         if !selected_capability_roots.is_empty() {
             thread_extension_init.insert(selected_capability_roots);
-            codex_mcp_extension::initialize_executor_plugin_thread_data(&mut thread_extension_init);
+            codepilotx_mcp_extension::initialize_executor_plugin_thread_data(&mut thread_extension_init);
         }
         let create_thread_started_at = std::time::Instant::now();
         let NewThread {
@@ -1147,10 +1147,10 @@ impl ThreadRequestProcessor {
             .start_thread_with_options(StartThreadOptions {
                 config,
                 initial_history: match session_start_source
-                    .unwrap_or(codex_app_server_protocol::ThreadStartSource::Startup)
+                    .unwrap_or(codepilotx_app_server_protocol::ThreadStartSource::Startup)
                 {
-                    codex_app_server_protocol::ThreadStartSource::Startup => InitialHistory::New,
-                    codex_app_server_protocol::ThreadStartSource::Clear => InitialHistory::Cleared,
+                    codepilotx_app_server_protocol::ThreadStartSource::Startup => InitialHistory::New,
+                    codepilotx_app_server_protocol::ThreadStartSource::Clear => InitialHistory::Cleared,
                 },
                 session_source: None,
                 thread_source,
@@ -1298,8 +1298,8 @@ impl ThreadRequestProcessor {
         service_tier: Option<Option<String>>,
         cwd: Option<String>,
         runtime_workspace_roots: Option<Vec<AbsolutePathBuf>>,
-        approval_policy: Option<codex_app_server_protocol::AskForApproval>,
-        approvals_reviewer: Option<codex_app_server_protocol::ApprovalsReviewer>,
+        approval_policy: Option<codepilotx_app_server_protocol::AskForApproval>,
+        approvals_reviewer: Option<codepilotx_app_server_protocol::ApprovalsReviewer>,
         sandbox: Option<SandboxMode>,
         permissions: Option<String>,
         base_instructions: Option<String>,
@@ -1314,11 +1314,11 @@ impl ThreadRequestProcessor {
             workspace_roots: runtime_workspace_roots,
             default_permissions: permissions,
             approval_policy: approval_policy
-                .map(codex_app_server_protocol::AskForApproval::to_core),
+                .map(codepilotx_app_server_protocol::AskForApproval::to_core),
             approvals_reviewer: approvals_reviewer
-                .map(codex_app_server_protocol::ApprovalsReviewer::to_core),
+                .map(codepilotx_app_server_protocol::ApprovalsReviewer::to_core),
             sandbox_mode: sandbox.map(SandboxMode::to_core),
-            codex_linux_sandbox_exe: self.arg0_paths.codex_linux_sandbox_exe.clone(),
+            codepilotx_linux_sandbox_exe: self.arg0_paths.codepilotx_linux_sandbox_exe.clone(),
             main_execve_wrapper_exe: self.arg0_paths.main_execve_wrapper_exe.clone(),
             base_instructions,
             developer_instructions,
@@ -1499,7 +1499,7 @@ impl ThreadRequestProcessor {
         let ThreadSetNameParams { thread_id, name } = params;
         let thread_id = ThreadId::from_string(&thread_id)
             .map_err(|err| invalid_request(format!("invalid thread id: {err}")))?;
-        let Some(name) = codex_core::util::normalize_thread_name(&name) else {
+        let Some(name) = codepilotx_core::util::normalize_thread_name(&name) else {
             return Err(invalid_request("thread name must not be empty"));
         };
 
@@ -1562,12 +1562,12 @@ impl ThreadRequestProcessor {
                 internal_error(format!("failed to clear memory rows in memories db: {err}"))
             })?;
 
-        clear_memory_roots_contents(&self.config.codex_home)
+        clear_memory_roots_contents(&self.config.codepilotx_home)
             .await
             .map_err(|err| {
                 internal_error(format!(
                     "failed to clear memory directories under {}: {err}",
-                    self.config.codex_home.display()
+                    self.config.codepilotx_home.display()
                 ))
             })?;
 
@@ -2673,12 +2673,12 @@ impl ThreadRequestProcessor {
         {
             Ok(NewThread {
                 thread_id,
-                thread: codex_thread,
+                thread: codepilotx_thread,
                 session_configured,
                 ..
             }) => {
                 if let Err(err) = Self::set_app_server_client_info(
-                    codex_thread.as_ref(),
+                    codepilotx_thread.as_ref(),
                     app_server_client_name,
                     app_server_client_version,
                 )
@@ -2687,7 +2687,7 @@ impl ThreadRequestProcessor {
                     self.outgoing.send_error(request_id, err).await;
                     return Ok(());
                 }
-                let instruction_sources = codex_thread.legacy_instruction_sources().await;
+                let instruction_sources = codepilotx_thread.legacy_instruction_sources().await;
                 let SessionConfiguredEvent { rollout_path, .. } = session_configured;
                 let Some(rollout_path) = rollout_path else {
                     let error =
@@ -2711,7 +2711,7 @@ impl ThreadRequestProcessor {
                 let mut thread = match self
                     .load_thread_from_resume_source_or_send_internal(
                         thread_id,
-                        codex_thread.as_ref(),
+                        codepilotx_thread.as_ref(),
                         &response_history,
                         rollout_path.as_path(),
                         resume_source_thread,
@@ -2727,7 +2727,7 @@ impl ThreadRequestProcessor {
                         return Ok(());
                     }
                 };
-                thread.thread_source = codex_thread
+                thread.thread_source = codepilotx_thread
                     .config_snapshot()
                     .await
                     .thread_source
@@ -2747,7 +2747,7 @@ impl ThreadRequestProcessor {
                     thread_status,
                     /*has_live_in_progress_turn*/ false,
                 );
-                let config_snapshot = codex_thread.config_snapshot().await;
+                let config_snapshot = codepilotx_thread.config_snapshot().await;
                 let sandbox = thread_response_sandbox_policy(
                     &config_snapshot.permission_profile,
                     config_snapshot.cwd().as_path(),
@@ -2814,13 +2814,13 @@ impl ThreadRequestProcessor {
                         connection_id,
                         thread_id,
                         &token_usage_thread,
-                        codex_thread.as_ref(),
+                        codepilotx_thread.as_ref(),
                         token_usage_turn_id,
                     )
                     .await;
                 }
                 self.thread_goal_processor
-                    .emit_resume_goal_snapshot_and_continue(thread_id, codex_thread.as_ref())
+                    .emit_resume_goal_snapshot_and_continue(thread_id, codepilotx_thread.as_ref())
                     .await;
             }
             Err(err) => {
@@ -3320,7 +3320,7 @@ impl ThreadRequestProcessor {
         let source_thread_name = source_thread
             .name
             .as_deref()
-            .and_then(codex_core::util::normalize_thread_name);
+            .and_then(codepilotx_core::util::normalize_thread_name);
         let history_items = source_thread
             .history
             .as_ref()
@@ -3878,7 +3878,7 @@ pub(super) fn build_thread_resume_initial_turns_page(
     has_live_running_thread: bool,
     active_turn: Option<Turn>,
     params: &ThreadResumeInitialTurnsPageParams,
-) -> Result<codex_app_server_protocol::TurnsPage, JSONRPCErrorError> {
+) -> Result<codepilotx_app_server_protocol::TurnsPage, JSONRPCErrorError> {
     build_thread_turns_page_response(
         items,
         loaded_status,
@@ -4135,7 +4135,7 @@ pub(crate) fn thread_from_stored_thread(
     thread: StoredThread,
     fallback_provider: &str,
     fallback_cwd: &AbsolutePathBuf,
-) -> (Thread, Option<codex_thread_store::StoredThreadHistory>) {
+) -> (Thread, Option<codepilotx_thread_store::StoredThreadHistory>) {
     let path = thread.rollout_path;
     let git_info = thread.git_info.map(|info| ApiGitInfo {
         sha: info.commit_hash.map(|sha| sha.0),
@@ -4242,7 +4242,7 @@ fn summary_from_state_db_metadata(
     cwd: PathBuf,
     cli_version: String,
     source: String,
-    _thread_source: Option<codex_protocol::protocol::ThreadSource>,
+    _thread_source: Option<codepilotx_protocol::protocol::ThreadSource>,
     agent_nickname: Option<String>,
     agent_role: Option<String>,
     git_sha: Option<String>,
@@ -4252,7 +4252,7 @@ fn summary_from_state_db_metadata(
     let preview = preview.or(first_user_message).unwrap_or_default();
     let source = serde_json::from_str(&source)
         .or_else(|_| serde_json::from_value(serde_json::Value::String(source.clone())))
-        .unwrap_or(codex_protocol::protocol::SessionSource::Unknown);
+        .unwrap_or(codepilotx_protocol::protocol::SessionSource::Unknown);
     let source = with_thread_spawn_agent_metadata(source, agent_nickname, agent_role);
     let git_info = if git_sha.is_none() && git_branch.is_none() && git_origin_url.is_none() {
         None
@@ -4307,8 +4307,8 @@ fn preview_from_rollout_items(items: &[RolloutItem]) -> String {
     items
         .iter()
         .find_map(|item| match item {
-            RolloutItem::ResponseItem(item) => match codex_core::parse_turn_item(item) {
-                Some(codex_protocol::items::TurnItem::UserMessage(user)) => Some(user.message()),
+            RolloutItem::ResponseItem(item) => match codepilotx_core::parse_turn_item(item) {
+                Some(codepilotx_protocol::items::TurnItem::UserMessage(user)) => Some(user.message()),
                 _ => None,
             },
             _ => None,
@@ -4324,8 +4324,8 @@ fn requested_permissions_trust_project(overrides: &ConfigOverrides, cwd: &Path) 
     if matches!(
         overrides.sandbox_mode,
         Some(
-            codex_protocol::config_types::SandboxMode::WorkspaceWrite
-                | codex_protocol::config_types::SandboxMode::DangerFullAccess
+            codepilotx_protocol::config_types::SandboxMode::WorkspaceWrite
+                | codepilotx_protocol::config_types::SandboxMode::DangerFullAccess
         )
     ) {
         return true;
@@ -4347,13 +4347,13 @@ fn requested_permissions_trust_project(overrides: &ConfigOverrides, cwd: &Path) 
 }
 
 fn permission_profile_trusts_project(
-    profile: &codex_protocol::models::PermissionProfile,
+    profile: &codepilotx_protocol::models::PermissionProfile,
     cwd: &Path,
 ) -> bool {
     match profile {
-        codex_protocol::models::PermissionProfile::Disabled
-        | codex_protocol::models::PermissionProfile::External { .. } => true,
-        codex_protocol::models::PermissionProfile::Managed { .. } => profile
+        codepilotx_protocol::models::PermissionProfile::Disabled
+        | codepilotx_protocol::models::PermissionProfile::External { .. } => true,
+        codepilotx_protocol::models::PermissionProfile::Managed { .. } => profile
             .file_system_sandbox_policy()
             .can_write_path_with_cwd(cwd, cwd),
     }

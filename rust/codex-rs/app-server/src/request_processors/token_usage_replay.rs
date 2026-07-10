@@ -11,17 +11,17 @@
 
 use std::sync::Arc;
 
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::Thread;
-use codex_app_server_protocol::ThreadHistoryBuilder;
-use codex_app_server_protocol::ThreadTokenUsage;
-use codex_app_server_protocol::ThreadTokenUsageUpdatedNotification;
-use codex_app_server_protocol::Turn;
-use codex_app_server_protocol::TurnStatus;
-use codex_core::CodexThread;
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::RolloutItem;
+use codepilotx_app_server_protocol::ServerNotification;
+use codepilotx_app_server_protocol::Thread;
+use codepilotx_app_server_protocol::ThreadHistoryBuilder;
+use codepilotx_app_server_protocol::ThreadTokenUsage;
+use codepilotx_app_server_protocol::ThreadTokenUsageUpdatedNotification;
+use codepilotx_app_server_protocol::Turn;
+use codepilotx_app_server_protocol::TurnStatus;
+use codepilotx_core::CodexThread;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::RolloutItem;
 
 use crate::outgoing_message::ConnectionId;
 use crate::outgoing_message::OutgoingMessageSender;
@@ -116,10 +116,10 @@ fn latest_token_usage_turn_id(thread: &Thread) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_app_server_protocol::build_turns_from_rollout_items;
-    use codex_protocol::protocol::AgentMessageEvent;
-    use codex_protocol::protocol::TokenCountEvent;
-    use codex_protocol::protocol::UserMessageEvent;
+    use codepilotx_app_server_protocol::build_turns_from_rollout_items;
+    use codepilotx_protocol::protocol::AgentMessageEvent;
+    use codepilotx_protocol::protocol::TokenCountEvent;
+    use codepilotx_protocol::protocol::UserMessageEvent;
     use pretty_assertions::assert_eq;
 
     #[test]

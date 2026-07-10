@@ -13,9 +13,9 @@ const REMOTE_PLUGIN_ID: &str = "plugins~Plugin_test";
 #[test]
 fn reads_and_validates_remote_plugin_mutation_events() {
     let path = unique_capture_path("valid");
-    let installed = mutation_event("codex_plugin_installed");
+    let installed = mutation_event("codepilotx_plugin_installed");
     let unrelated = json!({
-        "event_type": "codex_plugin_installed",
+        "event_type": "codepilotx_plugin_installed",
         "event_params": {
             "plugin_id": "plugins~Plugin_other"
         }
@@ -41,7 +41,7 @@ fn reads_and_validates_remote_plugin_mutation_events() {
 
 #[test]
 fn rejects_duplicate_mutation_events() {
-    let installed = mutation_event("codex_plugin_installed");
+    let installed = mutation_event("codepilotx_plugin_installed");
     let error = validate_mutation_events(vec![installed.clone(), installed], expected_identity())
         .expect_err("duplicate install events should fail validation");
 
@@ -50,7 +50,7 @@ fn rejects_duplicate_mutation_events() {
 
 #[test]
 fn rejects_missing_capability_metadata() {
-    let mut installed = mutation_event("codex_plugin_installed");
+    let mut installed = mutation_event("codepilotx_plugin_installed");
     installed["event_params"]["has_skills"] = Value::Null;
     let error = validate_mutation_events(vec![installed], expected_identity())
         .expect_err("missing capability metadata should fail validation");

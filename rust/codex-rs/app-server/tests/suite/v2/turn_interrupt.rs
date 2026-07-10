@@ -7,21 +7,21 @@ use app_test_support::create_mock_responses_server_sequence;
 use app_test_support::create_mock_responses_server_sequence_unchecked;
 use app_test_support::create_shell_command_sse_response;
 use app_test_support::to_response;
-use codex_app_server_protocol::JSONRPCError;
-use codex_app_server_protocol::JSONRPCNotification;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ServerRequest;
-use codex_app_server_protocol::ServerRequestResolvedNotification;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::TurnCompletedNotification;
-use codex_app_server_protocol::TurnInterruptParams;
-use codex_app_server_protocol::TurnInterruptResponse;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::TurnStartResponse;
-use codex_app_server_protocol::TurnStatus;
-use codex_app_server_protocol::UserInput as V2UserInput;
+use codepilotx_app_server_protocol::JSONRPCError;
+use codepilotx_app_server_protocol::JSONRPCNotification;
+use codepilotx_app_server_protocol::JSONRPCResponse;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_app_server_protocol::ServerRequest;
+use codepilotx_app_server_protocol::ServerRequestResolvedNotification;
+use codepilotx_app_server_protocol::ThreadStartParams;
+use codepilotx_app_server_protocol::ThreadStartResponse;
+use codepilotx_app_server_protocol::TurnCompletedNotification;
+use codepilotx_app_server_protocol::TurnInterruptParams;
+use codepilotx_app_server_protocol::TurnInterruptResponse;
+use codepilotx_app_server_protocol::TurnStartParams;
+use codepilotx_app_server_protocol::TurnStartResponse;
+use codepilotx_app_server_protocol::TurnStatus;
+use codepilotx_app_server_protocol::UserInput as V2UserInput;
 use tempfile::TempDir;
 use tokio::time::timeout;
 
@@ -41,8 +41,8 @@ async fn turn_interrupt_aborts_running_turn() -> Result<()> {
     let shell_command = vec!["sleep".to_string(), "10".to_string()];
 
     let tmp = TempDir::new()?;
-    let codex_home = tmp.path().join("codex_home");
-    std::fs::create_dir(&codex_home)?;
+    let codepilotx_home = tmp.path().join("codepilotx_home");
+    std::fs::create_dir(&codepilotx_home)?;
     let working_directory = tmp.path().join("workdir");
     std::fs::create_dir(&working_directory)?;
 
@@ -55,9 +55,9 @@ async fn turn_interrupt_aborts_running_turn() -> Result<()> {
             "call_sleep",
         )?])
         .await;
-    create_config_toml(&codex_home, &server.uri(), "never", "workspace-write")?;
+    create_config_toml(&codepilotx_home, &server.uri(), "never", "workspace-write")?;
 
-    let mut mcp = TestAppServer::new(&codex_home).await?;
+    let mut mcp = TestAppServer::new(&codepilotx_home).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     // Start a v2 thread and capture its id.
@@ -132,16 +132,16 @@ async fn turn_interrupt_aborts_running_turn() -> Result<()> {
 #[tokio::test]
 async fn turn_interrupt_rejects_completed_turn() -> Result<()> {
     let tmp = TempDir::new()?;
-    let codex_home = tmp.path().join("codex_home");
-    std::fs::create_dir(&codex_home)?;
+    let codepilotx_home = tmp.path().join("codepilotx_home");
+    std::fs::create_dir(&codepilotx_home)?;
 
     let server = create_mock_responses_server_sequence_unchecked(vec![
         create_final_assistant_message_sse_response("done")?,
     ])
     .await;
-    create_config_toml(&codex_home, &server.uri(), "never", "workspace-write")?;
+    create_config_toml(&codepilotx_home, &server.uri(), "never", "workspace-write")?;
 
-    let mut mcp = TestAppServer::new(&codex_home).await?;
+    let mut mcp = TestAppServer::new(&codepilotx_home).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
@@ -222,8 +222,8 @@ async fn turn_interrupt_resolves_pending_command_approval_request() -> Result<()
     ];
 
     let tmp = TempDir::new()?;
-    let codex_home = tmp.path().join("codex_home");
-    std::fs::create_dir(&codex_home)?;
+    let codepilotx_home = tmp.path().join("codepilotx_home");
+    std::fs::create_dir(&codepilotx_home)?;
     let working_directory = tmp.path().join("workdir");
     std::fs::create_dir(&working_directory)?;
 
@@ -234,9 +234,9 @@ async fn turn_interrupt_resolves_pending_command_approval_request() -> Result<()
         "call_sleep_approval",
     )?])
     .await;
-    create_config_toml(&codex_home, &server.uri(), "untrusted", "read-only")?;
+    create_config_toml(&codepilotx_home, &server.uri(), "untrusted", "read-only")?;
 
-    let mut mcp = TestAppServer::new(&codex_home).await?;
+    let mut mcp = TestAppServer::new(&codepilotx_home).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
@@ -261,7 +261,7 @@ async fn turn_interrupt_resolves_pending_command_approval_request() -> Result<()
                 text_elements: Vec::new(),
             }],
             cwd: Some(working_directory),
-            approval_policy: Some(codex_app_server_protocol::AskForApproval::UnlessTrusted),
+            approval_policy: Some(codepilotx_app_server_protocol::AskForApproval::UnlessTrusted),
             ..Default::default()
         })
         .await?;
@@ -329,12 +329,12 @@ async fn turn_interrupt_resolves_pending_command_approval_request() -> Result<()
 
 // Helper to create a config.toml pointing at the mock model server.
 fn create_config_toml(
-    codex_home: &std::path::Path,
+    codepilotx_home: &std::path::Path,
     server_uri: &str,
     approval_policy: &str,
     sandbox_mode: &str,
 ) -> std::io::Result<()> {
-    let config_toml = codex_home.join("config.toml");
+    let config_toml = codepilotx_home.join("config.toml");
     std::fs::write(
         config_toml,
         format!(

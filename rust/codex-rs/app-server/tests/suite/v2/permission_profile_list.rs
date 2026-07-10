@@ -3,16 +3,16 @@ use std::time::Duration;
 use anyhow::Result;
 use app_test_support::TestAppServer;
 use app_test_support::to_response;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::PermissionProfileListParams;
-use codex_app_server_protocol::PermissionProfileListResponse;
-use codex_app_server_protocol::PermissionProfileSummary;
-use codex_app_server_protocol::RequestId;
-use codex_core::config::set_project_trust_level;
-use codex_protocol::config_types::TrustLevel;
-use codex_protocol::models::BUILT_IN_PERMISSION_PROFILE_DANGER_FULL_ACCESS;
-use codex_protocol::models::BUILT_IN_PERMISSION_PROFILE_READ_ONLY;
-use codex_protocol::models::BUILT_IN_PERMISSION_PROFILE_WORKSPACE;
+use codepilotx_app_server_protocol::JSONRPCResponse;
+use codepilotx_app_server_protocol::PermissionProfileListParams;
+use codepilotx_app_server_protocol::PermissionProfileListResponse;
+use codepilotx_app_server_protocol::PermissionProfileSummary;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_core::config::set_project_trust_level;
+use codepilotx_protocol::config_types::TrustLevel;
+use codepilotx_protocol::models::BUILT_IN_PERMISSION_PROFILE_DANGER_FULL_ACCESS;
+use codepilotx_protocol::models::BUILT_IN_PERMISSION_PROFILE_READ_ONLY;
+use codepilotx_protocol::models::BUILT_IN_PERMISSION_PROFILE_WORKSPACE;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
 use tokio::time::timeout;
@@ -21,9 +21,9 @@ const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 
 #[tokio::test]
 async fn permission_profile_list_returns_builtin_and_configured_profiles() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     std::fs::write(
-        codex_home.path().join("config.toml"),
+        codepilotx_home.path().join("config.toml"),
         r#"
 default_permissions = "dev"
 
@@ -41,7 +41,7 @@ description = "Inspect without writes."
 "#,
     )?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -86,12 +86,12 @@ description = "Inspect without writes."
 
 #[tokio::test]
 async fn permission_profile_list_resolves_project_profiles_and_paginates() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let workspace = TempDir::new()?;
     let project_config_dir = workspace.path().join(".codex");
     std::fs::create_dir_all(&project_config_dir)?;
     std::fs::write(
-        codex_home.path().join("config.toml"),
+        codepilotx_home.path().join("config.toml"),
         r#"
 default_permissions = ":workspace"
 "#,
@@ -106,9 +106,9 @@ description = "Project-scoped profile."
 ":workspace_roots" = "write"
 "#,
     )?;
-    set_project_trust_level(codex_home.path(), workspace.path(), TrustLevel::Trusted)?;
+    set_project_trust_level(codepilotx_home.path(), workspace.path(), TrustLevel::Trusted)?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let first_request_id = mcp
@@ -165,7 +165,7 @@ description = "Project-scoped profile."
 #[tokio::test]
 async fn permission_profile_list_discovers_project_profiles_without_default_selection() -> Result<()>
 {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let workspace = TempDir::new()?;
     let project_config_dir = workspace.path().join(".codex");
     std::fs::create_dir_all(&project_config_dir)?;
@@ -179,9 +179,9 @@ description = "Project-scoped profile."
 ":workspace_roots" = "write"
 "#,
     )?;
-    set_project_trust_level(codex_home.path(), workspace.path(), TrustLevel::Trusted)?;
+    set_project_trust_level(codepilotx_home.path(), workspace.path(), TrustLevel::Trusted)?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp

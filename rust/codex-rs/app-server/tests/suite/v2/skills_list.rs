@@ -8,19 +8,19 @@ use app_test_support::create_mock_responses_server_repeating_assistant;
 use app_test_support::to_response;
 use app_test_support::write_chatgpt_auth;
 use app_test_support::write_mock_responses_config_toml_with_chatgpt_base_url;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::PluginListParams;
-use codex_app_server_protocol::PluginListResponse;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::SkillsChangedNotification;
-use codex_app_server_protocol::SkillsExtraRootsSetParams;
-use codex_app_server_protocol::SkillsExtraRootsSetResponse;
-use codex_app_server_protocol::SkillsListParams;
-use codex_app_server_protocol::SkillsListResponse;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_config::types::AuthCredentialsStoreMode;
-use codex_exec_server::CODEX_EXEC_SERVER_URL_ENV_VAR;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_app_server_protocol::JSONRPCResponse;
+use codepilotx_app_server_protocol::PluginListParams;
+use codepilotx_app_server_protocol::PluginListResponse;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_app_server_protocol::SkillsChangedNotification;
+use codepilotx_app_server_protocol::SkillsExtraRootsSetParams;
+use codepilotx_app_server_protocol::SkillsExtraRootsSetResponse;
+use codepilotx_app_server_protocol::SkillsListParams;
+use codepilotx_app_server_protocol::SkillsListResponse;
+use codepilotx_app_server_protocol::ThreadStartParams;
+use codepilotx_config::types::AuthCredentialsStoreMode;
+use codepilotx_exec_server::codepilotx_EXEC_SERVER_URL_ENV_VAR;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
 use tokio::time::timeout;
@@ -61,11 +61,11 @@ async fn expect_skills_changed_notification(
 }
 
 fn write_plugins_enabled_config_with_base_url(
-    codex_home: &std::path::Path,
+    codepilotx_home: &std::path::Path,
     base_url: &str,
 ) -> std::io::Result<()> {
     std::fs::write(
-        codex_home.join("config.toml"),
+        codepilotx_home.join("config.toml"),
         format!(
             r#"chatgpt_base_url = "{base_url}"
 
@@ -77,11 +77,11 @@ plugins = true
 }
 
 fn write_remote_plugins_enabled_config_with_base_url(
-    codex_home: &std::path::Path,
+    codepilotx_home: &std::path::Path,
     base_url: &str,
 ) -> std::io::Result<()> {
     std::fs::write(
-        codex_home.join("config.toml"),
+        codepilotx_home.join("config.toml"),
         format!(
             r#"chatgpt_base_url = "{base_url}"
 
@@ -135,9 +135,9 @@ fn write_plugin_with_skill(
 }
 
 fn write_cached_remote_plugin_with_skill(
-    codex_home: &std::path::Path,
+    codepilotx_home: &std::path::Path,
 ) -> Result<std::path::PathBuf> {
-    let plugin_root = codex_home.join("plugins/cache/openai-curated-remote/linear/local");
+    let plugin_root = codepilotx_home.join("plugins/cache/openai-curated-remote/linear/local");
     std::fs::create_dir_all(plugin_root.join(".codex-plugin"))?;
     std::fs::write(
         plugin_root.join(".codex-plugin/plugin.json"),
@@ -156,17 +156,17 @@ fn write_cached_remote_plugin_with_skill(
 
 #[tokio::test]
 async fn skills_list_loads_remote_installed_plugin_skills_from_cache() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let cwd = TempDir::new()?;
     let server = MockServer::start().await;
     let expected_skill_path =
-        std::fs::canonicalize(write_cached_remote_plugin_with_skill(codex_home.path())?)?;
+        std::fs::canonicalize(write_cached_remote_plugin_with_skill(codepilotx_home.path())?)?;
     write_remote_plugins_enabled_config_with_base_url(
-        codex_home.path(),
+        codepilotx_home.path(),
         &format!("{}/backend-api/", server.uri()),
     )?;
     write_chatgpt_auth(
-        codex_home.path(),
+        codepilotx_home.path(),
         ChatGptAuthFixture::new("chatgpt-token")
             .account_id("account-123")
             .chatgpt_user_id("user-123")
@@ -242,7 +242,7 @@ async fn skills_list_loads_remote_installed_plugin_skills_from_cache() -> Result
             .mount(&server)
             .await;
     }
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let stale_skills_list_request_id = mcp
@@ -337,18 +337,18 @@ async fn skills_list_loads_remote_installed_plugin_skills_from_cache() -> Result
 }
 
 #[tokio::test]
-async fn skills_list_excludes_plugin_skills_when_workspace_codex_plugins_disabled() -> Result<()> {
-    let codex_home = TempDir::new()?;
+async fn skills_list_excludes_plugin_skills_when_workspace_codepilotx_plugins_disabled() -> Result<()> {
+    let codepilotx_home = TempDir::new()?;
     let repo_root = TempDir::new()?;
     let server = MockServer::start().await;
-    write_skill(&codex_home, "home-skill")?;
+    write_skill(&codepilotx_home, "home-skill")?;
     write_plugin_with_skill(repo_root.path(), "demo-plugin", "plugin-skill")?;
     write_plugins_enabled_config_with_base_url(
-        codex_home.path(),
+        codepilotx_home.path(),
         &format!("{}/backend-api/", server.uri()),
     )?;
     write_chatgpt_auth(
-        codex_home.path(),
+        codepilotx_home.path(),
         ChatGptAuthFixture::new("chatgpt-token")
             .account_id("account-123")
             .chatgpt_user_id("user-123")
@@ -367,7 +367,7 @@ async fn skills_list_excludes_plugin_skills_when_workspace_codex_plugins_disable
         .mount(&server)
         .await;
 
-    let mut mcp = TestAppServer::new_without_managed_config(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new_without_managed_config(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -403,9 +403,9 @@ async fn skills_list_excludes_plugin_skills_when_workspace_codex_plugins_disable
 
 #[tokio::test]
 async fn skills_list_skips_cwd_roots_when_environment_disabled() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let cwd = TempDir::new()?;
-    write_skill(&codex_home, "home-skill")?;
+    write_skill(&codepilotx_home, "home-skill")?;
     let repo_skill_dir = cwd.path().join(".codex/skills/repo-skill");
     std::fs::create_dir_all(&repo_skill_dir)?;
     std::fs::write(
@@ -414,8 +414,8 @@ async fn skills_list_skips_cwd_roots_when_environment_disabled() -> Result<()> {
     )?;
 
     let mut mcp = TestAppServer::new_with_env(
-        codex_home.path(),
-        &[(CODEX_EXEC_SERVER_URL_ENV_VAR, Some("none"))],
+        codepilotx_home.path(),
+        &[(codepilotx_EXEC_SERVER_URL_ENV_VAR, Some("none"))],
     )
     .await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
@@ -453,11 +453,11 @@ async fn skills_list_skips_cwd_roots_when_environment_disabled() -> Result<()> {
 
 #[tokio::test]
 async fn skills_list_accepts_relative_cwds() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let relative_cwd = std::path::PathBuf::from("relative-cwd");
-    std::fs::create_dir_all(codex_home.path().join(&relative_cwd))?;
+    std::fs::create_dir_all(codepilotx_home.path().join(&relative_cwd))?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -481,11 +481,11 @@ async fn skills_list_accepts_relative_cwds() -> Result<()> {
 
 #[tokio::test]
 async fn skills_list_preserves_requested_cwd_order() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let first_cwd = TempDir::new()?;
     let second_cwd = TempDir::new()?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -518,10 +518,10 @@ async fn skills_list_preserves_requested_cwd_order() -> Result<()> {
 
 #[tokio::test]
 async fn skills_list_uses_cached_result_until_force_reload() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let cwd = TempDir::new()?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     // Seed the cwd cache before the cwd-local skill exists.
@@ -596,7 +596,7 @@ async fn skills_list_uses_cached_result_until_force_reload() -> Result<()> {
 
 #[tokio::test]
 async fn skills_extra_roots_set_updates_process_runtime_roots() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let cwd = TempDir::new()?;
     let extra_root = TempDir::new()?;
     let extra_skills_root = extra_root.path().join("skills");
@@ -607,7 +607,7 @@ async fn skills_extra_roots_set_updates_process_runtime_roots() -> Result<()> {
         "---\nname: runtime-skill\ndescription: runtime skill\n---\n\n# Body\n",
     )?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let set_request_id = mcp
@@ -713,7 +713,7 @@ async fn skills_extra_roots_set_updates_process_runtime_roots() -> Result<()> {
     );
 
     drop(mcp);
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
     let skills_request_id = mcp
         .send_skills_list_request(SkillsListParams {
@@ -741,21 +741,21 @@ async fn skills_extra_roots_set_updates_process_runtime_roots() -> Result<()> {
 #[tokio::test]
 async fn skills_changed_notification_is_emitted_after_skill_change() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     write_mock_responses_config_toml_with_chatgpt_base_url(
-        codex_home.path(),
+        codepilotx_home.path(),
         &server.uri(),
         &server.uri(),
     )?;
-    write_skill(&codex_home, "demo")?;
+    write_skill(&codepilotx_home, "demo")?;
 
     let mut mcp =
-        TestAppServer::new_with_env(codex_home.path(), &[(CODEX_EXEC_SERVER_URL_ENV_VAR, None)])
+        TestAppServer::new_with_env(codepilotx_home.path(), &[(codepilotx_EXEC_SERVER_URL_ENV_VAR, None)])
             .await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
     let initial_skills_request_id = mcp
         .send_skills_list_request(SkillsListParams {
-            cwds: vec![codex_home.path().to_path_buf()],
+            cwds: vec![codepilotx_home.path().to_path_buf()],
             force_reload: true,
         })
         .await?;
@@ -806,7 +806,7 @@ async fn skills_changed_notification_is_emitted_after_skill_change() -> Result<(
     )
     .await??;
 
-    let skill_path = codex_home
+    let skill_path = codepilotx_home
         .path()
         .join("skills")
         .join("demo")
@@ -829,7 +829,7 @@ async fn skills_changed_notification_is_emitted_after_skill_change() -> Result<(
     assert_eq!(notification, SkillsChangedNotification {});
     let updated_skills_request_id = mcp
         .send_skills_list_request(SkillsListParams {
-            cwds: vec![codex_home.path().to_path_buf()],
+            cwds: vec![codepilotx_home.path().to_path_buf()],
             force_reload: false,
         })
         .await?;

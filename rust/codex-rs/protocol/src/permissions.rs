@@ -4,9 +4,9 @@ use std::io;
 use std::path::Path;
 use std::path::PathBuf;
 
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_absolute_path::canonicalize_preserving_symlinks;
-use codex_utils_path_uri::PathUri;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_absolute_path::canonicalize_preserving_symlinks;
+use codepilotx_utils_path_uri::PathUri;
 use globset::GlobBuilder;
 use globset::GlobMatcher;
 use schemars::JsonSchema;
@@ -22,13 +22,13 @@ use crate::protocol::WritableRoot;
 
 const PROTECTED_METADATA_GIT_PATH_NAME: &str = ".git";
 const PROTECTED_METADATA_AGENTS_PATH_NAME: &str = ".agents";
-const PROTECTED_METADATA_CODEX_PATH_NAME: &str = ".codex";
+const PROTECTED_METADATA_codepilotx_PATH_NAME: &str = ".codex";
 
 /// Top-level workspace metadata paths that stay protected under writable roots.
 pub const PROTECTED_METADATA_PATH_NAMES: &[&str] = &[
     PROTECTED_METADATA_GIT_PATH_NAME,
     PROTECTED_METADATA_AGENTS_PATH_NAME,
-    PROTECTED_METADATA_CODEX_PATH_NAME,
+    PROTECTED_METADATA_codepilotx_PATH_NAME,
 ];
 
 /// Returns true when a path basename is one of the protected workspace metadata names.
@@ -40,7 +40,7 @@ pub fn is_protected_metadata_name(name: &OsStr) -> bool {
 
 pub fn is_protected_metadata_directory_name(name: &OsStr) -> bool {
     name == OsStr::new(PROTECTED_METADATA_AGENTS_PATH_NAME)
-        || name == OsStr::new(PROTECTED_METADATA_CODEX_PATH_NAME)
+        || name == OsStr::new(PROTECTED_METADATA_codepilotx_PATH_NAME)
 }
 
 /// Returns the protected workspace metadata name when an agent write to `path`
@@ -1621,7 +1621,7 @@ pub(crate) fn default_read_only_subpaths_for_writable_root(
     // default. For the workspace root itself, protect it even before the
     // directory exists so first-time creation still goes through the
     // protected-path approval flow.
-    let top_level_codex = writable_root.join(PROTECTED_METADATA_CODEX_PATH_NAME);
+    let top_level_codex = writable_root.join(PROTECTED_METADATA_codepilotx_PATH_NAME);
     if protect_missing_dot_codex || top_level_codex.as_path().is_dir() {
         subpaths.push(top_level_codex);
     }
@@ -1923,7 +1923,7 @@ mod tests {
     use tempfile::TempDir;
 
     #[cfg(unix)]
-    const SYMLINKED_TMPDIR_TEST_ENV: &str = "CODEX_PROTOCOL_TEST_SYMLINKED_TMPDIR";
+    const SYMLINKED_TMPDIR_TEST_ENV: &str = "codepilotx_PROTOCOL_TEST_SYMLINKED_TMPDIR";
 
     #[cfg(unix)]
     fn symlink_dir(original: &Path, link: &Path) -> std::io::Result<()> {
@@ -2060,7 +2060,7 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn writable_roots_skip_default_dot_codex_when_explicit_user_rule_exists() {
+    fn writable_roots_skip_default_dot_codepilotx_when_explicit_user_rule_exists() {
         let cwd = TempDir::new().expect("tempdir");
         let expected_root = AbsolutePathBuf::from_absolute_path(
             cwd.path().canonicalize().expect("canonicalize cwd"),
@@ -2113,7 +2113,7 @@ mod tests {
         let cwd = TempDir::new().expect("tempdir");
         let dot_git_config = cwd.path().join(".git").join("config");
         let dot_agents_config = cwd.path().join(".agents").join("config");
-        let dot_codex_config = cwd.path().join(".codex").join("config.toml");
+        let dot_codepilotx_config = cwd.path().join(".codex").join("config.toml");
         let root = AbsolutePathBuf::from_absolute_path(cwd.path()).expect("absolute cwd");
         let file_system_policy =
             FileSystemSandboxPolicy::restricted(vec![FileSystemSandboxEntry {
@@ -2123,7 +2123,7 @@ mod tests {
 
         assert!(!file_system_policy.can_write_path_with_cwd(&dot_git_config, cwd.path()));
         assert!(!file_system_policy.can_write_path_with_cwd(&dot_agents_config, cwd.path()));
-        assert!(!file_system_policy.can_write_path_with_cwd(&dot_codex_config, cwd.path()));
+        assert!(!file_system_policy.can_write_path_with_cwd(&dot_codepilotx_config, cwd.path()));
 
         let writable_roots = file_system_policy.get_writable_roots_with_cwd(cwd.path());
         assert_eq!(writable_roots.len(), 1);
@@ -2137,7 +2137,7 @@ mod tests {
         );
         assert!(!writable_roots[0].is_path_writable(&dot_git_config));
         assert!(!writable_roots[0].is_path_writable(&dot_agents_config));
-        assert!(!writable_roots[0].is_path_writable(&dot_codex_config));
+        assert!(!writable_roots[0].is_path_writable(&dot_codepilotx_config));
     }
 
     #[test]
@@ -2224,10 +2224,10 @@ mod tests {
         let real_root = cwd.path().join("real");
         let link_root = cwd.path().join("link");
         let blocked = real_root.join("blocked");
-        let codex_dir = real_root.join(".codex");
+        let codepilotx_dir = real_root.join(".codex");
 
         fs::create_dir_all(&blocked).expect("create blocked");
-        fs::create_dir_all(&codex_dir).expect("create .codex");
+        fs::create_dir_all(&codepilotx_dir).expect("create .codex");
         symlink_dir(&real_root, &link_root).expect("create symlinked root");
 
         let link_root =
@@ -2276,11 +2276,11 @@ mod tests {
         let link_root = cwd.path().join("link");
         let blocked = real_root.join("blocked");
         let agents_dir = real_root.join(".agents");
-        let codex_dir = real_root.join(".codex");
+        let codepilotx_dir = real_root.join(".codex");
 
         fs::create_dir_all(&blocked).expect("create blocked");
         fs::create_dir_all(&agents_dir).expect("create .agents");
-        fs::create_dir_all(&codex_dir).expect("create .codex");
+        fs::create_dir_all(&codepilotx_dir).expect("create .codex");
         symlink_dir(&real_root, &link_root).expect("create symlinked cwd");
 
         let link_blocked =
@@ -2530,10 +2530,10 @@ mod tests {
         let real_tmpdir = cwd.path().join("real-tmpdir");
         let link_tmpdir = cwd.path().join("link-tmpdir");
         let blocked = real_tmpdir.join("blocked");
-        let codex_dir = real_tmpdir.join(".codex");
+        let codepilotx_dir = real_tmpdir.join(".codex");
 
         fs::create_dir_all(&blocked).expect("create blocked");
-        fs::create_dir_all(&codex_dir).expect("create .codex");
+        fs::create_dir_all(&codepilotx_dir).expect("create .codex");
         symlink_dir(&real_tmpdir, &link_tmpdir).expect("create symlinked tmpdir");
 
         let link_blocked =

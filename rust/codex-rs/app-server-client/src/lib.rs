@@ -1,6 +1,6 @@
 //! Shared in-process app-server client facade for CLI surfaces.
 //!
-//! This crate wraps [`codex_app_server::in_process`] behind a single async API
+//! This crate wraps [`codepilotx_app_server::in_process`] behind a single async API
 //! used by surfaces like TUI and exec. It centralizes:
 //!
 //! - Runtime startup and initialize-capabilities handshake.
@@ -11,7 +11,7 @@
 //! - Bounded graceful shutdown with abort fallback.
 //!
 //! The facade interposes a worker task between the caller and the underlying
-//! [`InProcessClientHandle`](codex_app_server::in_process::InProcessClientHandle),
+//! [`InProcessClientHandle`](codepilotx_app_server::in_process::InProcessClientHandle),
 //! bridging async `mpsc` channels on both sides. Queues are bounded so overload
 //! surfaces as channel-full errors rather than unbounded memory growth.
 
@@ -27,39 +27,39 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
-pub use codex_app_server::app_server_control_socket_path;
-pub use codex_app_server::in_process::DEFAULT_IN_PROCESS_CHANNEL_CAPACITY;
-pub use codex_app_server::in_process::InProcessServerEvent;
-use codex_app_server::in_process::InProcessStartArgs;
-use codex_app_server::in_process::LogDbLayer;
-pub use codex_app_server::in_process::StateDbHandle;
-use codex_app_server_protocol::ClientInfo;
-use codex_app_server_protocol::ClientNotification;
-use codex_app_server_protocol::ClientRequest;
-use codex_app_server_protocol::ConfigWarningNotification;
-use codex_app_server_protocol::InitializeCapabilities;
-use codex_app_server_protocol::InitializeParams;
-use codex_app_server_protocol::JSONRPCErrorError;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::Result as JsonRpcResult;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::ServerRequest;
-use codex_arg0::Arg0DispatchPaths;
-use codex_config::CloudConfigBundleLoader;
-use codex_config::LoaderOverrides;
-use codex_config::NoopThreadConfigLoader;
-use codex_config::RemoteThreadConfigLoader;
-use codex_config::ThreadConfigLoader;
-use codex_config::config_toml::ConfigToml;
-use codex_core::config::Config;
-pub use codex_core::otel_init::build_provider as build_otel_provider;
-use codex_core::personality_migration::PersonalityMigrationStatus;
-use codex_core::personality_migration::maybe_migrate_personality;
-pub use codex_exec_server::EnvironmentManager;
-pub use codex_exec_server::ExecServerRuntimePaths;
-use codex_feedback::CodexFeedback;
-use codex_protocol::protocol::SessionSource;
-use codex_utils_absolute_path::AbsolutePathBuf;
+pub use codepilotx_app_server::app_server_control_socket_path;
+pub use codepilotx_app_server::in_process::DEFAULT_IN_PROCESS_CHANNEL_CAPACITY;
+pub use codepilotx_app_server::in_process::InProcessServerEvent;
+use codepilotx_app_server::in_process::InProcessStartArgs;
+use codepilotx_app_server::in_process::LogDbLayer;
+pub use codepilotx_app_server::in_process::StateDbHandle;
+use codepilotx_app_server_protocol::ClientInfo;
+use codepilotx_app_server_protocol::ClientNotification;
+use codepilotx_app_server_protocol::ClientRequest;
+use codepilotx_app_server_protocol::ConfigWarningNotification;
+use codepilotx_app_server_protocol::InitializeCapabilities;
+use codepilotx_app_server_protocol::InitializeParams;
+use codepilotx_app_server_protocol::JSONRPCErrorError;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_app_server_protocol::Result as JsonRpcResult;
+use codepilotx_app_server_protocol::ServerNotification;
+use codepilotx_app_server_protocol::ServerRequest;
+use codepilotx_arg0::Arg0DispatchPaths;
+use codepilotx_config::CloudConfigBundleLoader;
+use codepilotx_config::LoaderOverrides;
+use codepilotx_config::NoopThreadConfigLoader;
+use codepilotx_config::RemoteThreadConfigLoader;
+use codepilotx_config::ThreadConfigLoader;
+use codepilotx_config::config_toml::ConfigToml;
+use codepilotx_core::config::Config;
+pub use codepilotx_core::otel_init::build_provider as build_otel_provider;
+use codepilotx_core::personality_migration::PersonalityMigrationStatus;
+use codepilotx_core::personality_migration::maybe_migrate_personality;
+pub use codepilotx_exec_server::EnvironmentManager;
+pub use codepilotx_exec_server::ExecServerRuntimePaths;
+use codepilotx_feedback::CodexFeedback;
+use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use serde::de::DeserializeOwned;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
@@ -78,14 +78,14 @@ pub use crate::remote::RemoteAppServerEndpoint;
 /// module exists so clients can remove a direct `codex-core` dependency
 /// while legacy startup/config paths are migrated to RPCs.
 pub mod legacy_core {
-    pub use codex_core::check_execpolicy_for_warnings;
-    pub use codex_core::format_exec_policy_error_with_source;
+    pub use codepilotx_core::check_execpolicy_for_warnings;
+    pub use codepilotx_core::format_exec_policy_error_with_source;
 
     pub mod config {
-        pub use codex_core::config::*;
+        pub use codepilotx_core::config::*;
 
         pub mod edit {
-            pub use codex_core::config::edit::*;
+            pub use codepilotx_core::config::edit::*;
         }
     }
 }
@@ -96,11 +96,11 @@ const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
 ///
 /// Returns `true` when the migration changed config and the caller should reload it.
 pub async fn migrate_personality_if_needed(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     config_toml: &ConfigToml,
     state_db: Option<StateDbHandle>,
 ) -> IoResult<bool> {
-    let status = maybe_migrate_personality(codex_home, config_toml, state_db).await?;
+    let status = maybe_migrate_personality(codepilotx_home, config_toml, state_db).await?;
     match status {
         PersonalityMigrationStatus::Applied => Ok(true),
         PersonalityMigrationStatus::SkippedMarker
@@ -342,8 +342,8 @@ pub struct InProcessClientStartArgs {
     pub config_warnings: Vec<ConfigWarningNotification>,
     /// Session source recorded in app-server thread metadata.
     pub session_source: SessionSource,
-    /// Whether auth loading should honor the `CODEX_API_KEY` environment variable.
-    pub enable_codex_api_key_env: bool,
+    /// Whether auth loading should honor the `codepilotx_API_KEY` environment variable.
+    pub enable_codepilotx_api_key_env: bool,
     /// Client name reported during initialize.
     pub client_name: String,
     /// Client version reported during initialize.
@@ -406,7 +406,7 @@ impl InProcessClientStartArgs {
             environment_manager: self.environment_manager,
             config_warnings: self.config_warnings,
             session_source: self.session_source,
-            enable_codex_api_key_env: self.enable_codex_api_key_env,
+            enable_codepilotx_api_key_env: self.enable_codepilotx_api_key_env,
             initialize,
             channel_capacity: self.channel_capacity,
         }
@@ -445,7 +445,7 @@ enum ClientCommand {
 ///
 /// This type owns a worker task that bridges between:
 /// - caller-facing async `mpsc` channels used by TUI/exec
-/// - [`codex_app_server::in_process::InProcessClientHandle`], which speaks to
+/// - [`codepilotx_app_server::in_process::InProcessClientHandle`], which speaks to
 ///   the embedded `MessageProcessor`
 ///
 /// The facade intentionally preserves the server's request/notification/event
@@ -483,7 +483,7 @@ impl InProcessAppServerClient {
     pub async fn start(args: InProcessClientStartArgs) -> IoResult<Self> {
         let channel_capacity = args.channel_capacity.max(1);
         let mut handle =
-            codex_app_server::in_process::start(args.into_runtime_start_args()).await?;
+            codepilotx_app_server::in_process::start(args.into_runtime_start_args()).await?;
         let request_sender = handle.sender();
         let (command_tx, mut command_rx) = mpsc::channel::<ClientCommand>(channel_capacity);
         let (event_tx, event_rx) = mpsc::channel::<InProcessServerEvent>(channel_capacity);
@@ -851,12 +851,12 @@ impl AppServerRequestHandle {
 }
 
 impl AppServerClient {
-    pub fn codex_home(&self, local_codex_home: &AbsolutePathBuf) -> Option<AppServerPath> {
+    pub fn codepilotx_home(&self, local_codepilotx_home: &AbsolutePathBuf) -> Option<AppServerPath> {
         match self {
             Self::InProcess(_) => Some(AppServerPath::from_app_server(
-                local_codex_home.display().to_string(),
+                local_codepilotx_home.display().to_string(),
             )),
-            Self::Remote(client) => client.codex_home().map(AppServerPath::from_app_server),
+            Self::Remote(client) => client.codepilotx_home().map(AppServerPath::from_app_server),
         }
     }
 
@@ -945,22 +945,22 @@ pub(crate) fn request_method_name(request: &ClientRequest) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_app_server_protocol::AccountUpdatedNotification;
-    use codex_app_server_protocol::ConfigRequirementsReadResponse;
-    use codex_app_server_protocol::GetAccountResponse;
-    use codex_app_server_protocol::JSONRPCMessage;
-    use codex_app_server_protocol::JSONRPCRequest;
-    use codex_app_server_protocol::JSONRPCResponse;
-    use codex_app_server_protocol::ServerNotification;
-    use codex_app_server_protocol::SessionSource as ApiSessionSource;
-    use codex_app_server_protocol::ThreadStartParams;
-    use codex_app_server_protocol::ThreadStartResponse;
-    use codex_app_server_protocol::ToolRequestUserInputParams;
-    use codex_app_server_protocol::ToolRequestUserInputQuestion;
-    use codex_core::config::ConfigBuilder;
-    use codex_core::init_state_db;
-    use codex_uds::UnixListener;
-    use codex_utils_absolute_path::AbsolutePathBuf;
+    use codepilotx_app_server_protocol::AccountUpdatedNotification;
+    use codepilotx_app_server_protocol::ConfigRequirementsReadResponse;
+    use codepilotx_app_server_protocol::GetAccountResponse;
+    use codepilotx_app_server_protocol::JSONRPCMessage;
+    use codepilotx_app_server_protocol::JSONRPCRequest;
+    use codepilotx_app_server_protocol::JSONRPCResponse;
+    use codepilotx_app_server_protocol::ServerNotification;
+    use codepilotx_app_server_protocol::SessionSource as ApiSessionSource;
+    use codepilotx_app_server_protocol::ThreadStartParams;
+    use codepilotx_app_server_protocol::ThreadStartResponse;
+    use codepilotx_app_server_protocol::ToolRequestUserInputParams;
+    use codepilotx_app_server_protocol::ToolRequestUserInputQuestion;
+    use codepilotx_core::config::ConfigBuilder;
+    use codepilotx_core::init_state_db;
+    use codepilotx_uds::UnixListener;
+    use codepilotx_utils_absolute_path::AbsolutePathBuf;
     use futures::SinkExt;
     use futures::StreamExt;
     use pretty_assertions::assert_eq;
@@ -986,15 +986,15 @@ mod tests {
         }
     }
 
-    async fn build_test_config_for_codex_home(codex_home: &Path) -> Config {
+    async fn build_test_config_for_codepilotx_home(codepilotx_home: &Path) -> Config {
         match ConfigBuilder::default()
-            .codex_home(codex_home.to_path_buf())
+            .codepilotx_home(codepilotx_home.to_path_buf())
             .build()
             .await
         {
             Ok(config) => config,
-            Err(_) => Config::load_default_with_cli_overrides_for_codex_home(
-                codex_home.to_path_buf(),
+            Err(_) => Config::load_default_with_cli_overrides_for_codepilotx_home(
+                codepilotx_home.to_path_buf(),
                 Vec::new(),
             )
             .await
@@ -1003,7 +1003,7 @@ mod tests {
     }
 
     struct TestClient {
-        _codex_home: TempDir,
+        _codepilotx_home: TempDir,
         client: InProcessAppServerClient,
     }
 
@@ -1025,8 +1025,8 @@ mod tests {
         session_source: SessionSource,
         channel_capacity: usize,
     ) -> TestClient {
-        let codex_home = TempDir::new().expect("temp dir");
-        let config = Arc::new(build_test_config_for_codex_home(codex_home.path()).await);
+        let codepilotx_home = TempDir::new().expect("temp dir");
+        let config = Arc::new(build_test_config_for_codepilotx_home(codepilotx_home.path()).await);
         let state_db = init_state_db(config.as_ref())
             .await
             .expect("state db should initialize for in-process test");
@@ -1043,7 +1043,7 @@ mod tests {
             environment_manager: Arc::new(EnvironmentManager::default_for_tests()),
             config_warnings: Vec::new(),
             session_source,
-            enable_codex_api_key_env: false,
+            enable_codepilotx_api_key_env: false,
             client_name: "codex-app-server-client-test".to_string(),
             client_version: "0.0.0-test".to_string(),
             experimental_api: true,
@@ -1055,7 +1055,7 @@ mod tests {
         .expect("in-process app-server client should start");
 
         TestClient {
-            _codex_home: codex_home,
+            _codepilotx_home: codepilotx_home,
             client,
         }
     }
@@ -1125,7 +1125,7 @@ mod tests {
             JSONRPCMessage::Response(JSONRPCResponse {
                 id: request.id,
                 result: serde_json::json!({
-                    "userAgent": "codex_cli_rs/9.8.7-test (Test OS; x86_64) rust",
+                    "userAgent": "codepilotx_cli_rs/9.8.7-test (Test OS; x86_64) rust",
                     "codexHome": "/server/.codex",
                 }),
             }),
@@ -1182,7 +1182,7 @@ mod tests {
 
     fn command_execution_output_delta_notification(delta: &str) -> ServerNotification {
         ServerNotification::CommandExecutionOutputDelta(
-            codex_app_server_protocol::CommandExecutionOutputDeltaNotification {
+            codepilotx_app_server_protocol::CommandExecutionOutputDeltaNotification {
                 thread_id: "thread".to_string(),
                 turn_id: "turn".to_string(),
                 item_id: "item".to_string(),
@@ -1193,7 +1193,7 @@ mod tests {
 
     fn agent_message_delta_notification(delta: &str) -> ServerNotification {
         ServerNotification::AgentMessageDelta(
-            codex_app_server_protocol::AgentMessageDeltaNotification {
+            codepilotx_app_server_protocol::AgentMessageDeltaNotification {
                 thread_id: "thread".to_string(),
                 turn_id: "turn".to_string(),
                 item_id: "item".to_string(),
@@ -1203,11 +1203,11 @@ mod tests {
     }
 
     fn item_completed_notification(text: &str) -> ServerNotification {
-        ServerNotification::ItemCompleted(codex_app_server_protocol::ItemCompletedNotification {
+        ServerNotification::ItemCompleted(codepilotx_app_server_protocol::ItemCompletedNotification {
             thread_id: "thread".to_string(),
             turn_id: "turn".to_string(),
             completed_at_ms: 0,
-            item: codex_app_server_protocol::ThreadItem::AgentMessage {
+            item: codepilotx_app_server_protocol::ThreadItem::AgentMessage {
                 id: "item".to_string(),
                 text: text.to_string(),
                 phase: None,
@@ -1217,13 +1217,13 @@ mod tests {
     }
 
     fn turn_completed_notification() -> ServerNotification {
-        ServerNotification::TurnCompleted(codex_app_server_protocol::TurnCompletedNotification {
+        ServerNotification::TurnCompleted(codepilotx_app_server_protocol::TurnCompletedNotification {
             thread_id: "thread".to_string(),
-            turn: codex_app_server_protocol::Turn {
+            turn: codepilotx_app_server_protocol::Turn {
                 id: "turn".to_string(),
-                items_view: codex_app_server_protocol::TurnItemsView::Full,
+                items_view: codepilotx_app_server_protocol::TurnItemsView::Full,
                 items: Vec::new(),
-                status: codex_app_server_protocol::TurnStatus::Completed,
+                status: codepilotx_app_server_protocol::TurnStatus::Completed,
                 error: None,
                 started_at: None,
                 completed_at: Some(0),
@@ -1279,7 +1279,7 @@ mod tests {
         let err = client
             .request_typed::<ConfigRequirementsReadResponse>(ClientRequest::ThreadRead {
                 request_id: RequestId::Integer(99),
-                params: codex_app_server_protocol::ThreadReadParams {
+                params: codepilotx_app_server_protocol::ThreadReadParams {
                     thread_id: "missing-thread".to_string(),
                     include_turns: false,
                 },
@@ -1330,10 +1330,10 @@ mod tests {
             .await
             .expect("thread/start should succeed");
         let read = client
-            .request_typed::<codex_app_server_protocol::ThreadReadResponse>(
+            .request_typed::<codepilotx_app_server_protocol::ThreadReadResponse>(
                 ClientRequest::ThreadRead {
                     request_id: RequestId::Integer(4),
-                    params: codex_app_server_protocol::ThreadReadParams {
+                    params: codepilotx_app_server_protocol::ThreadReadParams {
                         thread_id: response.thread.id.clone(),
                         include_turns: false,
                     },
@@ -1437,14 +1437,14 @@ mod tests {
                 notification
             )) if matches!(
                 &notification.item,
-                codex_app_server_protocol::ThreadItem::AgentMessage { text, .. } if text == "hello"
+                codepilotx_app_server_protocol::ThreadItem::AgentMessage { text, .. } if text == "hello"
             )
         ));
         assert!(matches!(
             &events[4],
             InProcessServerEvent::ServerNotification(ServerNotification::TurnCompleted(
                 notification
-            )) if notification.turn.status == codex_app_server_protocol::TurnStatus::Completed
+            )) if notification.turn.status == codepilotx_app_server_protocol::TurnStatus::Completed
         ));
     }
 
@@ -1477,11 +1477,11 @@ mod tests {
             .expect("remote client should connect");
 
         assert_eq!(client.server_version(), Some("9.8.7-test"));
-        assert_eq!(client.codex_home(), Some("/server/.codex"));
+        assert_eq!(client.codepilotx_home(), Some("/server/.codex"));
         let response: GetAccountResponse = client
             .request_typed(ClientRequest::GetAccount {
                 request_id: RequestId::Integer(1),
-                params: codex_app_server_protocol::GetAccountParams {
+                params: codepilotx_app_server_protocol::GetAccountParams {
                     refresh_token: false,
                 },
             })
@@ -1540,7 +1540,7 @@ mod tests {
         let response: GetAccountResponse = client
             .request_typed(ClientRequest::GetAccount {
                 request_id: RequestId::Integer(1),
-                params: codex_app_server_protocol::GetAccountParams {
+                params: codepilotx_app_server_protocol::GetAccountParams {
                     refresh_token: false,
                 },
             })
@@ -1583,7 +1583,7 @@ mod tests {
         let response: GetAccountResponse = client
             .request_typed(ClientRequest::GetAccount {
                 request_id: RequestId::Integer(1),
-                params: codex_app_server_protocol::GetAccountParams {
+                params: codepilotx_app_server_protocol::GetAccountParams {
                     refresh_token: false,
                 },
             })
@@ -1715,7 +1715,7 @@ mod tests {
             first_request_handle
                 .request_typed::<GetAccountResponse>(ClientRequest::GetAccount {
                     request_id: RequestId::Integer(1),
-                    params: codex_app_server_protocol::GetAccountParams {
+                    params: codepilotx_app_server_protocol::GetAccountParams {
                         refresh_token: false,
                     },
                 })
@@ -1730,7 +1730,7 @@ mod tests {
         let second_err = second_request_handle
             .request_typed::<GetAccountResponse>(ClientRequest::GetAccount {
                 request_id: RequestId::Integer(1),
-                params: codex_app_server_protocol::GetAccountParams {
+                params: codepilotx_app_server_protocol::GetAccountParams {
                     refresh_token: false,
                 },
             })
@@ -1862,7 +1862,7 @@ mod tests {
                     notification,
                 )) if matches!(
                     &notification.item,
-                    codex_app_server_protocol::ThreadItem::AgentMessage { text, .. } if text == "hello"
+                    codepilotx_app_server_protocol::ThreadItem::AgentMessage { text, .. } if text == "hello"
                 ) =>
                 {
                     transcript_event_names.push("item_completed");
@@ -1870,7 +1870,7 @@ mod tests {
                 AppServerEvent::ServerNotification(ServerNotification::TurnCompleted(
                     notification,
                 )) if notification.turn.status
-                    == codex_app_server_protocol::TurnStatus::Completed =>
+                    == codepilotx_app_server_protocol::TurnStatus::Completed =>
                 {
                     transcript_event_names.push("turn_completed");
                 }
@@ -2136,14 +2136,14 @@ mod tests {
     fn event_requires_delivery_marks_transcript_and_terminal_events() {
         assert!(event_requires_delivery(
             &InProcessServerEvent::ServerNotification(
-                codex_app_server_protocol::ServerNotification::TurnCompleted(
-                    codex_app_server_protocol::TurnCompletedNotification {
+                codepilotx_app_server_protocol::ServerNotification::TurnCompleted(
+                    codepilotx_app_server_protocol::TurnCompletedNotification {
                         thread_id: "thread".to_string(),
-                        turn: codex_app_server_protocol::Turn {
+                        turn: codepilotx_app_server_protocol::Turn {
                             id: "turn".to_string(),
-                            items_view: codex_app_server_protocol::TurnItemsView::Full,
+                            items_view: codepilotx_app_server_protocol::TurnItemsView::Full,
                             items: Vec::new(),
-                            status: codex_app_server_protocol::TurnStatus::Completed,
+                            status: codepilotx_app_server_protocol::TurnStatus::Completed,
                             error: None,
                             started_at: None,
                             completed_at: Some(0),
@@ -2155,8 +2155,8 @@ mod tests {
         ));
         assert!(event_requires_delivery(
             &InProcessServerEvent::ServerNotification(
-                codex_app_server_protocol::ServerNotification::AgentMessageDelta(
-                    codex_app_server_protocol::AgentMessageDeltaNotification {
+                codepilotx_app_server_protocol::ServerNotification::AgentMessageDelta(
+                    codepilotx_app_server_protocol::AgentMessageDeltaNotification {
                         thread_id: "thread".to_string(),
                         turn_id: "turn".to_string(),
                         item_id: "item".to_string(),
@@ -2167,12 +2167,12 @@ mod tests {
         ));
         assert!(event_requires_delivery(
             &InProcessServerEvent::ServerNotification(
-                codex_app_server_protocol::ServerNotification::ItemCompleted(
-                    codex_app_server_protocol::ItemCompletedNotification {
+                codepilotx_app_server_protocol::ServerNotification::ItemCompleted(
+                    codepilotx_app_server_protocol::ItemCompletedNotification {
                         thread_id: "thread".to_string(),
                         turn_id: "turn".to_string(),
                         completed_at_ms: 0,
-                        item: codex_app_server_protocol::ThreadItem::AgentMessage {
+                        item: codepilotx_app_server_protocol::ThreadItem::AgentMessage {
                             id: "item".to_string(),
                             text: "hello".to_string(),
                             phase: None,
@@ -2184,8 +2184,8 @@ mod tests {
         ));
         assert!(event_requires_delivery(
             &InProcessServerEvent::ServerNotification(
-                codex_app_server_protocol::ServerNotification::ExternalAgentConfigImportCompleted(
-                    codex_app_server_protocol::ExternalAgentConfigImportCompletedNotification {
+                codepilotx_app_server_protocol::ServerNotification::ExternalAgentConfigImportCompleted(
+                    codepilotx_app_server_protocol::ExternalAgentConfigImportCompletedNotification {
                         import_id: "import".to_string(),
                         item_type_results: Vec::new(),
                     },
@@ -2197,8 +2197,8 @@ mod tests {
         }));
         assert!(!event_requires_delivery(
             &InProcessServerEvent::ServerNotification(
-                codex_app_server_protocol::ServerNotification::CommandExecutionOutputDelta(
-                    codex_app_server_protocol::CommandExecutionOutputDeltaNotification {
+                codepilotx_app_server_protocol::ServerNotification::CommandExecutionOutputDelta(
+                    codepilotx_app_server_protocol::CommandExecutionOutputDeltaNotification {
                         thread_id: "thread".to_string(),
                         turn_id: "turn".to_string(),
                         item_id: "item".to_string(),
@@ -2218,7 +2218,7 @@ mod tests {
                 Some(
                     ExecServerRuntimePaths::new(
                         std::env::current_exe().expect("current exe"),
-                        /*codex_linux_sandbox_exe*/ None,
+                        /*codepilotx_linux_sandbox_exe*/ None,
                     )
                     .expect("runtime paths"),
                 ),
@@ -2239,7 +2239,7 @@ mod tests {
             environment_manager: environment_manager.clone(),
             config_warnings: Vec::new(),
             session_source: SessionSource::Exec,
-            enable_codex_api_key_env: false,
+            enable_codepilotx_api_key_env: false,
             client_name: "codex-app-server-client-test".to_string(),
             client_version: "0.0.0-test".to_string(),
             experimental_api: true,
@@ -2288,7 +2288,7 @@ mod tests {
             environment_manager: Arc::new(EnvironmentManager::default_for_tests()),
             config_warnings: Vec::new(),
             session_source: SessionSource::Exec,
-            enable_codex_api_key_env: false,
+            enable_codepilotx_api_key_env: false,
             client_name: "codex-app-server-client-test".to_string(),
             client_version: "0.0.0-test".to_string(),
             experimental_api: true,
@@ -2305,7 +2305,7 @@ mod tests {
             .expect_err("configured remote loader should try to connect");
         assert_eq!(
             err.code(),
-            codex_config::ThreadConfigLoadErrorCode::RequestFailed
+            codepilotx_config::ThreadConfigLoadErrorCode::RequestFailed
         );
     }
 

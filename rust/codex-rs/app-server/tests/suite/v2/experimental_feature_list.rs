@@ -6,24 +6,24 @@ use app_test_support::TestAppServer;
 use app_test_support::create_mock_responses_server_repeating_assistant;
 use app_test_support::to_response;
 use app_test_support::write_chatgpt_auth;
-use codex_app_server_protocol::ConfigReadParams;
-use codex_app_server_protocol::ConfigReadResponse;
-use codex_app_server_protocol::ExperimentalFeature;
-use codex_app_server_protocol::ExperimentalFeatureEnablementSetParams;
-use codex_app_server_protocol::ExperimentalFeatureEnablementSetResponse;
-use codex_app_server_protocol::ExperimentalFeatureListParams;
-use codex_app_server_protocol::ExperimentalFeatureListResponse;
-use codex_app_server_protocol::ExperimentalFeatureStage;
-use codex_app_server_protocol::JSONRPCError;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_config::LoaderOverrides;
-use codex_config::types::AuthCredentialsStoreMode;
-use codex_core::config::ConfigBuilder;
-use codex_features::FEATURES;
-use codex_features::Stage;
+use codepilotx_app_server_protocol::ConfigReadParams;
+use codepilotx_app_server_protocol::ConfigReadResponse;
+use codepilotx_app_server_protocol::ExperimentalFeature;
+use codepilotx_app_server_protocol::ExperimentalFeatureEnablementSetParams;
+use codepilotx_app_server_protocol::ExperimentalFeatureEnablementSetResponse;
+use codepilotx_app_server_protocol::ExperimentalFeatureListParams;
+use codepilotx_app_server_protocol::ExperimentalFeatureListResponse;
+use codepilotx_app_server_protocol::ExperimentalFeatureStage;
+use codepilotx_app_server_protocol::JSONRPCError;
+use codepilotx_app_server_protocol::JSONRPCResponse;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_app_server_protocol::ThreadStartParams;
+use codepilotx_app_server_protocol::ThreadStartResponse;
+use codepilotx_config::LoaderOverrides;
+use codepilotx_config::types::AuthCredentialsStoreMode;
+use codepilotx_core::config::ConfigBuilder;
+use codepilotx_features::FEATURES;
+use codepilotx_features::Stage;
 use pretty_assertions::assert_eq;
 use serde::de::DeserializeOwned;
 use serde_json::json;
@@ -41,16 +41,16 @@ const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 
 #[tokio::test]
 async fn experimental_feature_list_returns_feature_metadata_with_stage() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let config = ConfigBuilder::default()
-        .codex_home(codex_home.path().to_path_buf())
-        .fallback_cwd(Some(codex_home.path().to_path_buf()))
+        .codepilotx_home(codepilotx_home.path().to_path_buf())
+        .fallback_cwd(Some(codepilotx_home.path().to_path_buf()))
         .loader_overrides(LoaderOverrides::with_managed_config_path_for_tests(
-            codex_home.path().join("managed_config.toml"),
+            codepilotx_home.path().join("managed_config.toml"),
         ))
         .build()
         .await?;
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
 
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
@@ -104,10 +104,10 @@ async fn experimental_feature_list_returns_feature_metadata_with_stage() -> Resu
 #[tokio::test]
 async fn experimental_feature_list_marks_apps_and_plugins_disabled_by_workspace_policy()
 -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let server = MockServer::start().await;
     std::fs::write(
-        codex_home.path().join("config.toml"),
+        codepilotx_home.path().join("config.toml"),
         format!(
             r#"chatgpt_base_url = "{}/backend-api/"
 "#,
@@ -115,7 +115,7 @@ async fn experimental_feature_list_marks_apps_and_plugins_disabled_by_workspace_
         ),
     )?;
     write_chatgpt_auth(
-        codex_home.path(),
+        codepilotx_home.path(),
         ChatGptAuthFixture::new("chatgpt-token")
             .account_id("account-123")
             .chatgpt_user_id("user-123")
@@ -134,7 +134,7 @@ async fn experimental_feature_list_marks_apps_and_plugins_disabled_by_workspace_
         .mount(&server)
         .await;
 
-    let mut mcp = TestAppServer::new_without_managed_config(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new_without_managed_config(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -162,12 +162,12 @@ async fn experimental_feature_list_marks_apps_and_plugins_disabled_by_workspace_
 #[tokio::test]
 async fn experimental_feature_list_resolves_thread_project_config() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let workspace = TempDir::new()?;
     let server_uri = server.uri();
     let workspace_key = workspace.path().to_string_lossy().replace('\\', "\\\\");
     std::fs::write(
-        codex_home.path().join("config.toml"),
+        codepilotx_home.path().join("config.toml"),
         format!(
             r#"model = "mock-model"
 approval_policy = "never"
@@ -195,7 +195,7 @@ memories = true
 "#,
     )?;
 
-    let mut mcp = TestAppServer::new_without_managed_config(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new_without_managed_config(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let thread_start_id = mcp
@@ -228,8 +228,8 @@ memories = true
 
 #[tokio::test]
 async fn experimental_feature_list_rejects_unknown_thread_id() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -260,11 +260,11 @@ async fn experimental_feature_list_rejects_unknown_thread_id() -> Result<()> {
 #[tokio::test]
 async fn experimental_feature_enablement_set_applies_to_global_and_thread_config_reads()
 -> Result<()> {
-    let codex_home = TempDir::new()?;
-    let project_cwd = codex_home.path().join("project");
+    let codepilotx_home = TempDir::new()?;
+    let project_cwd = codepilotx_home.path().join("project");
     std::fs::create_dir_all(&project_cwd)?;
 
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let actual = set_experimental_feature_enablement(
@@ -296,12 +296,12 @@ async fn experimental_feature_enablement_set_applies_to_global_and_thread_config
 
 #[tokio::test]
 async fn experimental_feature_enablement_set_does_not_override_user_config() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     std::fs::write(
-        codex_home.path().join("config.toml"),
+        codepilotx_home.path().join("config.toml"),
         "[features]\nmemories = false\n",
     )?;
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let actual = set_experimental_feature_enablement(
@@ -331,8 +331,8 @@ async fn experimental_feature_enablement_set_does_not_override_user_config() -> 
 
 #[tokio::test]
 async fn experimental_feature_enablement_set_only_updates_named_features() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     set_experimental_feature_enablement(
@@ -406,8 +406,8 @@ async fn experimental_feature_enablement_set_only_updates_named_features() -> Re
 
 #[tokio::test]
 async fn experimental_feature_enablement_set_allows_remote_control() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
     let remote_control_enabled = false;
     let enablement = BTreeMap::from([("remote_control".to_string(), remote_control_enabled)]);
@@ -424,8 +424,8 @@ async fn experimental_feature_enablement_set_allows_remote_control() -> Result<(
 
 #[tokio::test]
 async fn experimental_feature_enablement_set_empty_map_is_no_op() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     set_experimental_feature_enablement(
@@ -457,8 +457,8 @@ async fn experimental_feature_enablement_set_empty_map_is_no_op() -> Result<()> 
 
 #[tokio::test]
 async fn experimental_feature_enablement_set_ignores_invalid_features() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let actual = set_experimental_feature_enablement(

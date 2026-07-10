@@ -1,12 +1,12 @@
 use super::shared::v2_enum_from_core;
-use codex_protocol::approvals::ElicitationRequest as CoreElicitationRequest;
-use codex_protocol::items::McpToolCallError as CoreMcpToolCallError;
-use codex_protocol::mcp::CallToolResult as CoreMcpCallToolResult;
-use codex_protocol::mcp::McpServerInfo;
-use codex_protocol::mcp::Resource as McpResource;
-pub use codex_protocol::mcp::ResourceContent as McpResourceContent;
-use codex_protocol::mcp::ResourceTemplate as McpResourceTemplate;
-use codex_protocol::mcp::Tool as McpTool;
+use codepilotx_protocol::approvals::ElicitationRequest as CoreElicitationRequest;
+use codepilotx_protocol::items::McpToolCallError as CoreMcpToolCallError;
+use codepilotx_protocol::mcp::CallToolResult as CoreMcpCallToolResult;
+use codepilotx_protocol::mcp::McpServerInfo;
+use codepilotx_protocol::mcp::Resource as McpResource;
+pub use codepilotx_protocol::mcp::ResourceContent as McpResourceContent;
+use codepilotx_protocol::mcp::ResourceTemplate as McpResourceTemplate;
+use codepilotx_protocol::mcp::Tool as McpTool;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
@@ -15,7 +15,7 @@ use std::collections::BTreeMap;
 use ts_rs::TS;
 
 v2_enum_from_core!(
-    pub enum McpAuthStatus from codex_protocol::protocol::McpAuthStatus {
+    pub enum McpAuthStatus from codepilotx_protocol::protocol::McpAuthStatus {
         Unsupported,
         NotLoggedIn,
         BearerToken,
@@ -252,11 +252,11 @@ pub enum McpServerElicitationAction {
 }
 
 impl McpServerElicitationAction {
-    pub fn to_core(self) -> codex_protocol::approvals::ElicitationAction {
+    pub fn to_core(self) -> codepilotx_protocol::approvals::ElicitationAction {
         match self {
-            Self::Accept => codex_protocol::approvals::ElicitationAction::Accept,
-            Self::Decline => codex_protocol::approvals::ElicitationAction::Decline,
-            Self::Cancel => codex_protocol::approvals::ElicitationAction::Cancel,
+            Self::Accept => codepilotx_protocol::approvals::ElicitationAction::Accept,
+            Self::Decline => codepilotx_protocol::approvals::ElicitationAction::Decline,
+            Self::Cancel => codepilotx_protocol::approvals::ElicitationAction::Cancel,
         }
     }
 }

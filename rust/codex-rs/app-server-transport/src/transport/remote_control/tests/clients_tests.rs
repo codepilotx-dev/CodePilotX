@@ -1,13 +1,13 @@
 use super::super::clients::list_remote_control_clients;
 use super::super::clients::revoke_remote_control_client;
 use super::*;
-use codex_app_server_protocol::RemoteControlClient;
-use codex_app_server_protocol::RemoteControlClientsListOrder;
-use codex_app_server_protocol::RemoteControlClientsListParams;
-use codex_app_server_protocol::RemoteControlClientsListResponse;
-use codex_app_server_protocol::RemoteControlClientsRevokeParams;
-use codex_app_server_protocol::RemoteControlClientsRevokeResponse;
-use codex_login::AuthKeyringBackendKind;
+use codepilotx_app_server_protocol::RemoteControlClient;
+use codepilotx_app_server_protocol::RemoteControlClientsListOrder;
+use codepilotx_app_server_protocol::RemoteControlClientsListParams;
+use codepilotx_app_server_protocol::RemoteControlClientsListResponse;
+use codepilotx_app_server_protocol::RemoteControlClientsRevokeParams;
+use codepilotx_app_server_protocol::RemoteControlClientsRevokeResponse;
+use codepilotx_login::AuthKeyringBackendKind;
 use pretty_assertions::assert_eq;
 
 fn client_management_handle(
@@ -164,7 +164,7 @@ async fn list_remote_control_clients_recovers_auth_after_unauthorized() {
         );
         respond_with_json(recovered_request.stream, empty_client_list()).await;
     });
-    let codex_home = TempDir::new().expect("temp dir should create");
+    let codepilotx_home = TempDir::new().expect("temp dir should create");
     let mut stale_auth = remote_control_auth_dot_json(Some("account_id"));
     stale_auth
         .tokens
@@ -172,15 +172,15 @@ async fn list_remote_control_clients_recovers_auth_after_unauthorized() {
         .expect("stale auth should include tokens")
         .access_token = "stale-token".to_string();
     save_auth(
-        codex_home.path(),
+        codepilotx_home.path(),
         &stale_auth,
         AuthCredentialsStoreMode::File,
         AuthKeyringBackendKind::default(),
     )
     .expect("stale auth should save");
     let auth_manager = AuthManager::shared(
-        codex_home.path().to_path_buf(),
-        /*enable_codex_api_key_env*/ false,
+        codepilotx_home.path().to_path_buf(),
+        /*enable_codepilotx_api_key_env*/ false,
         AuthCredentialsStoreMode::File,
         /*forced_chatgpt_workspace_id*/ None,
         /*chatgpt_base_url*/ None,
@@ -194,7 +194,7 @@ async fn list_remote_control_clients_recovers_auth_after_unauthorized() {
         .expect("fresh auth should include tokens")
         .access_token = "fresh-token".to_string();
     save_auth(
-        codex_home.path(),
+        codepilotx_home.path(),
         &fresh_auth,
         AuthCredentialsStoreMode::File,
         AuthKeyringBackendKind::default(),
@@ -249,7 +249,7 @@ async fn list_remote_control_clients_retries_unauthorized_only_once() {
                 .is_err()
         );
     });
-    let codex_home = TempDir::new().expect("temp dir should create");
+    let codepilotx_home = TempDir::new().expect("temp dir should create");
     let mut stale_auth = remote_control_auth_dot_json(Some("account_id"));
     stale_auth
         .tokens
@@ -257,15 +257,15 @@ async fn list_remote_control_clients_retries_unauthorized_only_once() {
         .expect("stale auth should include tokens")
         .access_token = "stale-token".to_string();
     save_auth(
-        codex_home.path(),
+        codepilotx_home.path(),
         &stale_auth,
         AuthCredentialsStoreMode::File,
         AuthKeyringBackendKind::default(),
     )
     .expect("stale auth should save");
     let auth_manager = AuthManager::shared(
-        codex_home.path().to_path_buf(),
-        /*enable_codex_api_key_env*/ false,
+        codepilotx_home.path().to_path_buf(),
+        /*enable_codepilotx_api_key_env*/ false,
         AuthCredentialsStoreMode::File,
         /*forced_chatgpt_workspace_id*/ None,
         /*chatgpt_base_url*/ None,
@@ -279,7 +279,7 @@ async fn list_remote_control_clients_retries_unauthorized_only_once() {
         .expect("fresh auth should include tokens")
         .access_token = "fresh-token".to_string();
     save_auth(
-        codex_home.path(),
+        codepilotx_home.path(),
         &fresh_auth,
         AuthCredentialsStoreMode::File,
         AuthKeyringBackendKind::default(),

@@ -1,9 +1,9 @@
-use codex_protocol::protocol::ConversationTextRole;
-use codex_protocol::protocol::RealtimeAudioFrame as CoreRealtimeAudioFrame;
-use codex_protocol::protocol::RealtimeConversationVersion;
-use codex_protocol::protocol::RealtimeOutputModality;
-use codex_protocol::protocol::RealtimeVoice;
-use codex_protocol::protocol::RealtimeVoicesList;
+use codepilotx_protocol::protocol::ConversationTextRole;
+use codepilotx_protocol::protocol::RealtimeAudioFrame as CoreRealtimeAudioFrame;
+use codepilotx_protocol::protocol::RealtimeConversationVersion;
+use codepilotx_protocol::protocol::RealtimeOutputModality;
+use codepilotx_protocol::protocol::RealtimeVoice;
+use codepilotx_protocol::protocol::RealtimeVoicesList;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
@@ -72,15 +72,15 @@ pub struct ThreadRealtimeStartParams {
     pub client_managed_handoffs: Option<bool>,
     /// Sends automatic Codex responses as realtime conversation items instead of handoff appends.
     #[ts(optional = nullable)]
-    pub codex_responses_as_items: Option<bool>,
+    pub codepilotx_responses_as_items: Option<bool>,
     /// Optional prefix added to automatic Codex response items when `codexResponsesAsItems` is true.
     #[ts(optional = nullable)]
-    pub codex_response_item_prefix: Option<String>,
+    pub codepilotx_response_item_prefix: Option<String>,
     /// Optional prefix added to automatic V1 Codex commentary sent with
     /// `conversation.handoff.append` when `codexResponsesAsItems` is not true. Final answers are
     /// sent without the prefix.
     #[ts(optional = nullable)]
-    pub codex_response_handoff_prefix: Option<String>,
+    pub codepilotx_response_handoff_prefix: Option<String>,
     /// Overrides the configured realtime model for this session only.
     #[ts(optional = nullable)]
     pub model: Option<String>,

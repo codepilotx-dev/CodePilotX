@@ -2,12 +2,12 @@ use anyhow::Context;
 use anyhow::Result;
 use app_test_support::TestAppServer;
 use app_test_support::create_mock_responses_server_sequence_unchecked;
-use codex_app_server_protocol::ProcessExitedNotification;
-use codex_app_server_protocol::ProcessKillParams;
-use codex_app_server_protocol::ProcessSpawnParams;
-use codex_app_server_protocol::RequestId;
-use codex_exec_server::CODEX_EXEC_SERVER_URL_ENV_VAR;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_app_server_protocol::ProcessExitedNotification;
+use codepilotx_app_server_protocol::ProcessKillParams;
+use codepilotx_app_server_protocol::ProcessSpawnParams;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_exec_server::codepilotx_EXEC_SERVER_URL_ENV_VAR;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
 use std::collections::HashMap;
 use std::path::Path;
@@ -22,12 +22,12 @@ use super::connection_handling_websocket::create_config_toml;
 
 #[tokio::test]
 async fn process_spawn_returns_before_exit_and_emits_exit_notification() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    let (_server, mut mcp) = initialized_mcp(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    let (_server, mut mcp) = initialized_mcp(codepilotx_home.path()).await?;
 
     let process_handle = "one-shot-1".to_string();
-    let probe_file = codex_home.path().join("process-created");
-    let release_file = codex_home.path().join("process-release");
+    let probe_file = codepilotx_home.path().join("process-created");
+    let release_file = codepilotx_home.path().join("process-release");
     // Use a probe/release handshake instead of asserting on wall-clock timing:
     // the child proves it started by writing the probe file, then waits for the
     // test to create the release file before it can emit output and exit.
@@ -38,8 +38,8 @@ async fn process_spawn_returns_before_exit_and_emits_exit_notification() -> Resu
             "-NonInteractive".to_string(),
             "-Command".to_string(),
             concat!(
-                "[IO.File]::WriteAllText($env:CODEX_PROCESS_EXEC_PROBE_FILE, 'process'); ",
-                "while (!(Test-Path -LiteralPath $env:CODEX_PROCESS_EXEC_RELEASE_FILE)) { ",
+                "[IO.File]::WriteAllText($env:codepilotx_PROCESS_EXEC_PROBE_FILE, 'process'); ",
+                "while (!(Test-Path -LiteralPath $env:codepilotx_PROCESS_EXEC_RELEASE_FILE)) { ",
                 "Start-Sleep -Milliseconds 20 ",
                 "}; ",
                 "[Console]::Out.Write('process-out'); ",
@@ -52,8 +52,8 @@ async fn process_spawn_returns_before_exit_and_emits_exit_notification() -> Resu
             "sh".to_string(),
             "-c".to_string(),
             concat!(
-                "printf process > \"$CODEX_PROCESS_EXEC_PROBE_FILE\"; ",
-                "while [ ! -e \"$CODEX_PROCESS_EXEC_RELEASE_FILE\" ]; do sleep 0.05; done; ",
+                "printf process > \"$codepilotx_PROCESS_EXEC_PROBE_FILE\"; ",
+                "while [ ! -e \"$codepilotx_PROCESS_EXEC_RELEASE_FILE\" ]; do sleep 0.05; done; ",
                 "printf process-out; ",
                 "printf process-err >&2",
             )
@@ -62,11 +62,11 @@ async fn process_spawn_returns_before_exit_and_emits_exit_notification() -> Resu
     };
     let env = HashMap::from([
         (
-            "CODEX_PROCESS_EXEC_PROBE_FILE".to_string(),
+            "codepilotx_PROCESS_EXEC_PROBE_FILE".to_string(),
             Some(probe_file.display().to_string()),
         ),
         (
-            "CODEX_PROCESS_EXEC_RELEASE_FILE".to_string(),
+            "codepilotx_PROCESS_EXEC_RELEASE_FILE".to_string(),
             Some(release_file.display().to_string()),
         ),
     ]);
@@ -75,7 +75,7 @@ async fn process_spawn_returns_before_exit_and_emits_exit_notification() -> Resu
             env: Some(env),
             output_bytes_cap: Some(None),
             timeout_ms: Some(None),
-            ..process_spawn_params(process_handle.clone(), codex_home.path(), command)?
+            ..process_spawn_params(process_handle.clone(), codepilotx_home.path(), command)?
         })
         .await?;
 
@@ -105,12 +105,12 @@ async fn process_spawn_returns_before_exit_and_emits_exit_notification() -> Resu
 
 #[tokio::test]
 async fn process_spawn_returns_error_when_local_environment_is_disabled() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let server = create_mock_responses_server_sequence_unchecked(Vec::new()).await;
-    create_config_toml(codex_home.path(), &server.uri(), "never")?;
+    create_config_toml(codepilotx_home.path(), &server.uri(), "never")?;
     let mut mcp = TestAppServer::new_with_env(
-        codex_home.path(),
-        &[(CODEX_EXEC_SERVER_URL_ENV_VAR, Some("none"))],
+        codepilotx_home.path(),
+        &[(codepilotx_EXEC_SERVER_URL_ENV_VAR, Some("none"))],
     )
     .await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
@@ -118,7 +118,7 @@ async fn process_spawn_returns_error_when_local_environment_is_disabled() -> Res
     let process_request_id = mcp
         .send_process_spawn_request(process_spawn_params(
             "disabled-process".to_string(),
-            codex_home.path(),
+            codepilotx_home.path(),
             vec!["sh".to_string(), "-lc".to_string(), "true".to_string()],
         )?)
         .await?;
@@ -132,8 +132,8 @@ async fn process_spawn_returns_error_when_local_environment_is_disabled() -> Res
 
 #[tokio::test]
 async fn process_spawn_reports_buffered_output_cap_reached() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    let (_server, mut mcp) = initialized_mcp(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    let (_server, mut mcp) = initialized_mcp(codepilotx_home.path()).await?;
 
     let process_handle = "capped-one-shot-1".to_string();
     let command = if cfg!(windows) {
@@ -154,7 +154,7 @@ async fn process_spawn_reports_buffered_output_cap_reached() -> Result<()> {
     let spawn_request_id = mcp
         .send_process_spawn_request(ProcessSpawnParams {
             output_bytes_cap: Some(Some(3)),
-            ..process_spawn_params(process_handle.clone(), codex_home.path(), command)?
+            ..process_spawn_params(process_handle.clone(), codepilotx_home.path(), command)?
         })
         .await?;
 
@@ -181,8 +181,8 @@ async fn process_spawn_reports_buffered_output_cap_reached() -> Result<()> {
 
 #[tokio::test]
 async fn process_kill_terminates_running_process() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    let (_server, mut mcp) = initialized_mcp(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    let (_server, mut mcp) = initialized_mcp(codepilotx_home.path()).await?;
 
     let process_handle = "sleep-process-1".to_string();
     let command = if cfg!(windows) {
@@ -199,7 +199,7 @@ async fn process_kill_terminates_running_process() -> Result<()> {
     let spawn_request_id = mcp
         .send_process_spawn_request(process_spawn_params(
             process_handle.clone(),
-            codex_home.path(),
+            codepilotx_home.path(),
             command,
         )?)
         .await?;
@@ -230,10 +230,10 @@ async fn process_kill_terminates_running_process() -> Result<()> {
     Ok(())
 }
 
-async fn initialized_mcp(codex_home: &Path) -> Result<(MockServer, TestAppServer)> {
+async fn initialized_mcp(codepilotx_home: &Path) -> Result<(MockServer, TestAppServer)> {
     let server = create_mock_responses_server_sequence_unchecked(Vec::new()).await;
-    create_config_toml(codex_home, &server.uri(), "never")?;
-    let mut mcp = TestAppServer::new(codex_home).await?;
+    create_config_toml(codepilotx_home, &server.uri(), "never")?;
+    let mut mcp = TestAppServer::new(codepilotx_home).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
     Ok((server, mcp))
 }

@@ -14,28 +14,28 @@ use axum::http::StatusCode;
 use axum::http::Uri;
 use axum::http::header::AUTHORIZATION;
 use axum::routing::get;
-use codex_app_server_protocol::ClientInfo;
-use codex_app_server_protocol::InitializeCapabilities;
-use codex_app_server_protocol::InitializeParams;
-use codex_app_server_protocol::JSONRPCMessage;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::McpElicitationSchema;
-use codex_app_server_protocol::McpServerElicitationAction;
-use codex_app_server_protocol::McpServerElicitationRequest;
-use codex_app_server_protocol::McpServerElicitationRequestParams;
-use codex_app_server_protocol::McpServerElicitationRequestResponse;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ServerRequest;
-use codex_app_server_protocol::ServerRequestResolvedNotification;
-use codex_app_server_protocol::ThreadResumeParams;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::TurnCompletedNotification;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::TurnStartResponse;
-use codex_app_server_protocol::TurnStatus;
-use codex_app_server_protocol::UserInput as V2UserInput;
-use codex_config::types::AuthCredentialsStoreMode;
+use codepilotx_app_server_protocol::ClientInfo;
+use codepilotx_app_server_protocol::InitializeCapabilities;
+use codepilotx_app_server_protocol::InitializeParams;
+use codepilotx_app_server_protocol::JSONRPCMessage;
+use codepilotx_app_server_protocol::JSONRPCResponse;
+use codepilotx_app_server_protocol::McpElicitationSchema;
+use codepilotx_app_server_protocol::McpServerElicitationAction;
+use codepilotx_app_server_protocol::McpServerElicitationRequest;
+use codepilotx_app_server_protocol::McpServerElicitationRequestParams;
+use codepilotx_app_server_protocol::McpServerElicitationRequestResponse;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_app_server_protocol::ServerRequest;
+use codepilotx_app_server_protocol::ServerRequestResolvedNotification;
+use codepilotx_app_server_protocol::ThreadResumeParams;
+use codepilotx_app_server_protocol::ThreadStartParams;
+use codepilotx_app_server_protocol::ThreadStartResponse;
+use codepilotx_app_server_protocol::TurnCompletedNotification;
+use codepilotx_app_server_protocol::TurnStartParams;
+use codepilotx_app_server_protocol::TurnStartResponse;
+use codepilotx_app_server_protocol::TurnStatus;
+use codepilotx_app_server_protocol::UserInput as V2UserInput;
+use codepilotx_config::types::AuthCredentialsStoreMode;
 use core_test_support::assert_regex_match;
 use core_test_support::responses;
 use core_test_support::responses::ResponseMock;
@@ -84,7 +84,7 @@ use super::connection_handling_websocket::spawn_websocket_server;
 const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 const CONNECTOR_ID: &str = "calendar";
 const CONNECTOR_NAME: &str = "Calendar";
-const TOOL_NAMESPACE: &str = "mcp__codex_apps__calendar";
+const TOOL_NAMESPACE: &str = "mcp__codepilotx_apps__calendar";
 const CALLABLE_TOOL_NAME: &str = "_confirm_action";
 const TOOL_NAME: &str = "calendar_confirm_action";
 const TOOL_CALL_ID: &str = "call-calendar-confirm";
@@ -114,7 +114,7 @@ async fn mcp_server_form_elicitation_round_trip() -> Result<()> {
         McpServerElicitationRequestParams {
             thread_id: fixture.thread_id.clone(),
             turn_id: Some(fixture.turn_id.clone()),
-            server_name: "codex_apps".to_string(),
+            server_name: "codepilotx_apps".to_string(),
             request: McpServerElicitationRequest::Form {
                 meta: None,
                 message: ELICITATION_MESSAGE.to_string(),
@@ -138,7 +138,7 @@ async fn mcp_server_openai_form_elicitation_round_trip() -> Result<()> {
         McpServerElicitationRequestParams {
             thread_id: fixture.thread_id.clone(),
             turn_id: Some(fixture.turn_id.clone()),
-            server_name: "codex_apps".to_string(),
+            server_name: "codepilotx_apps".to_string(),
             request: McpServerElicitationRequest::OpenAiForm {
                 meta: None,
                 message: OPENAI_FORM_MESSAGE.to_string(),
@@ -171,10 +171,10 @@ async fn mcp_server_openai_form_elicitation_round_trip() -> Result<()> {
 async fn openai_form_capability_follows_the_turn_starting_connection() -> Result<()> {
     let (responses_server, response_mock, apps_server_url, apps_server_handle) =
         start_elicitation_services(ElicitationScenario::OpenAiForm).await?;
-    let codex_home = TempDir::new()?;
-    write_config_toml(codex_home.path(), &responses_server.uri(), &apps_server_url)?;
+    let codepilotx_home = TempDir::new()?;
+    write_config_toml(codepilotx_home.path(), &responses_server.uri(), &apps_server_url)?;
     write_chatgpt_auth(
-        codex_home.path(),
+        codepilotx_home.path(),
         ChatGptAuthFixture::new("chatgpt-token")
             .account_id("account-123")
             .chatgpt_user_id("user-123")
@@ -182,7 +182,7 @@ async fn openai_form_capability_follows_the_turn_starting_connection() -> Result
         AuthCredentialsStoreMode::File,
     )?;
 
-    let (mut process, bind_addr) = spawn_websocket_server(codex_home.path()).await?;
+    let (mut process, bind_addr) = spawn_websocket_server(codepilotx_home.path()).await?;
     let mut supported_client = connect_websocket(bind_addr).await?;
     initialize_websocket_client(
         &mut supported_client,
@@ -411,10 +411,10 @@ impl ElicitationRoundTripFixture {
     async fn start(scenario: ElicitationScenario) -> Result<Self> {
         let (responses_server, response_mock, apps_server_url, apps_server_handle) =
             start_elicitation_services(scenario).await?;
-        let codex_home = TempDir::new()?;
-        write_config_toml(codex_home.path(), &responses_server.uri(), &apps_server_url)?;
+        let codepilotx_home = TempDir::new()?;
+        write_config_toml(codepilotx_home.path(), &responses_server.uri(), &apps_server_url)?;
         write_chatgpt_auth(
-            codex_home.path(),
+            codepilotx_home.path(),
             ChatGptAuthFixture::new("chatgpt-token")
                 .account_id("account-123")
                 .chatgpt_user_id("user-123")
@@ -422,7 +422,7 @@ impl ElicitationRoundTripFixture {
             AuthCredentialsStoreMode::File,
         )?;
 
-        let mut mcp = TestAppServer::new(codex_home.path()).await?;
+        let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
         timeout(
             DEFAULT_READ_TIMEOUT,
             mcp.initialize_with_capabilities(
@@ -841,12 +841,12 @@ async fn list_directory_connectors(
 }
 
 fn write_config_toml(
-    codex_home: &std::path::Path,
+    codepilotx_home: &std::path::Path,
     responses_server_uri: &str,
     apps_server_url: &str,
 ) -> std::io::Result<()> {
     std::fs::write(
-        codex_home.join("config.toml"),
+        codepilotx_home.join("config.toml"),
         format!(
             r#"
 model = "mock-model"

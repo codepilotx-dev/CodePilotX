@@ -1,5 +1,5 @@
 use super::*;
-use codex_config::config_toml::ConfigToml;
+use codepilotx_config::config_toml::ConfigToml;
 use futures::StreamExt;
 
 #[derive(Clone)]
@@ -16,19 +16,19 @@ pub(crate) struct CatalogRequestProcessor {
 const SKILLS_LIST_CWD_CONCURRENCY: usize = 5;
 
 fn skills_to_info(
-    skills: &[codex_core::skills::SkillMetadata],
+    skills: &[codepilotx_core::skills::SkillMetadata],
     disabled_paths: &HashSet<AbsolutePathBuf>,
-) -> Vec<codex_app_server_protocol::SkillMetadata> {
+) -> Vec<codepilotx_app_server_protocol::SkillMetadata> {
     skills
         .iter()
         .map(|skill| {
             let enabled = !disabled_paths.contains(&skill.path_to_skills_md);
-            codex_app_server_protocol::SkillMetadata {
+            codepilotx_app_server_protocol::SkillMetadata {
                 name: skill.name.clone(),
                 description: skill.description.clone(),
                 short_description: skill.short_description.clone(),
                 interface: skill.interface.clone().map(|interface| {
-                    codex_app_server_protocol::SkillInterface {
+                    codepilotx_app_server_protocol::SkillInterface {
                         display_name: interface.display_name,
                         short_description: interface.short_description,
                         icon_small: interface.icon_small,
@@ -38,11 +38,11 @@ fn skills_to_info(
                     }
                 }),
                 dependencies: skill.dependencies.clone().map(|dependencies| {
-                    codex_app_server_protocol::SkillDependencies {
+                    codepilotx_app_server_protocol::SkillDependencies {
                         tools: dependencies
                             .tools
                             .into_iter()
-                            .map(|tool| codex_app_server_protocol::SkillToolDependency {
+                            .map(|tool| codepilotx_app_server_protocol::SkillToolDependency {
                                 r#type: tool.r#type,
                                 value: tool.value,
                                 description: tool.description,
@@ -61,7 +61,7 @@ fn skills_to_info(
         .collect()
 }
 
-fn hooks_to_info(hooks: &[codex_hooks::HookListEntry]) -> Vec<HookMetadata> {
+fn hooks_to_info(hooks: &[codepilotx_hooks::HookListEntry]) -> Vec<HookMetadata> {
     hooks
         .iter()
         .map(|hook| HookMetadata {
@@ -85,11 +85,11 @@ fn hooks_to_info(hooks: &[codex_hooks::HookListEntry]) -> Vec<HookMetadata> {
 }
 
 fn errors_to_info(
-    errors: &[codex_core::skills::SkillError],
-) -> Vec<codex_app_server_protocol::SkillErrorInfo> {
+    errors: &[codepilotx_core::skills::SkillError],
+) -> Vec<codepilotx_app_server_protocol::SkillErrorInfo> {
     errors
         .iter()
-        .map(|err| codex_app_server_protocol::SkillErrorInfo {
+        .map(|err| codepilotx_app_server_protocol::SkillErrorInfo {
             path: err.path.to_path_buf(),
             message: err.message.clone(),
         })
@@ -223,12 +223,12 @@ impl CatalogRequestProcessor {
             .map_err(|err| internal_error(format!("failed to reload config: {err}")))
     }
 
-    async fn workspace_codex_plugins_enabled(
+    async fn workspace_codepilotx_plugins_enabled(
         &self,
         config: &Config,
         auth: Option<&CodexAuth>,
     ) -> bool {
-        match workspace_settings::codex_plugins_enabled_for_workspace(
+        match workspace_settings::codepilotx_plugins_enabled_for_workspace(
             config,
             auth,
             Some(&self.workspace_settings_cache),
@@ -333,8 +333,8 @@ impl CatalogRequestProcessor {
             None => self.load_latest_config(/*fallback_cwd*/ None).await?,
         };
         let auth = self.auth_manager.auth().await;
-        let workspace_codex_plugins_enabled = self
-            .workspace_codex_plugins_enabled(&config, auth.as_ref())
+        let workspace_codepilotx_plugins_enabled = self
+            .workspace_codepilotx_plugins_enabled(&config, auth.as_ref())
             .await;
 
         let data = FEATURES
@@ -371,7 +371,7 @@ impl CatalogRequestProcessor {
                     description,
                     announcement,
                     enabled: config.features.enabled(spec.id)
-                        && (workspace_codex_plugins_enabled
+                        && (workspace_codepilotx_plugins_enabled
                             || !matches!(spec.id, Feature::Apps | Feature::Plugins)),
                     default_enabled: spec.default_enabled,
                 }
@@ -508,8 +508,8 @@ impl CatalogRequestProcessor {
 
         let config = self.load_latest_config(/*fallback_cwd*/ None).await?;
         let auth = self.auth_manager.auth().await;
-        let workspace_codex_plugins_enabled = self
-            .workspace_codex_plugins_enabled(&config, auth.as_ref())
+        let workspace_codepilotx_plugins_enabled = self
+            .workspace_codepilotx_plugins_enabled(&config, auth.as_ref())
             .await;
         let skills_service = self.thread_manager.skills_service();
         let plugins_manager = self.thread_manager.plugins_manager();
@@ -531,10 +531,10 @@ impl CatalogRequestProcessor {
                             let error_path = cwd.clone();
                             return (
                                 index,
-                                codex_app_server_protocol::SkillsListEntry {
+                                codepilotx_app_server_protocol::SkillsListEntry {
                                     cwd,
                                     skills: Vec::new(),
-                                    errors: vec![codex_app_server_protocol::SkillErrorInfo {
+                                    errors: vec![codepilotx_app_server_protocol::SkillErrorInfo {
                                         path: error_path,
                                         message,
                                     }],
@@ -542,7 +542,7 @@ impl CatalogRequestProcessor {
                             );
                         }
                     };
-                    let effective_skill_roots = if workspace_codex_plugins_enabled {
+                    let effective_skill_roots = if workspace_codepilotx_plugins_enabled {
                         let plugins_input = config.plugins_config_input();
                         plugins_manager
                             .effective_skill_roots_for_layer_stack(
@@ -553,7 +553,7 @@ impl CatalogRequestProcessor {
                     } else {
                         Vec::new()
                     };
-                    let skills_input = codex_core::skills::SkillsLoadInput::new(
+                    let skills_input = codepilotx_core::skills::SkillsLoadInput::new(
                         cwd_abs.clone(),
                         effective_skill_roots,
                         config_layer_stack,
@@ -567,7 +567,7 @@ impl CatalogRequestProcessor {
                     let skills = skills_to_info(&outcome.skills, &outcome.disabled_paths);
                     (
                         index,
-                        codex_app_server_protocol::SkillsListEntry {
+                        codepilotx_app_server_protocol::SkillsListEntry {
                             cwd,
                             skills,
                             errors,
@@ -595,7 +595,7 @@ impl CatalogRequestProcessor {
             .set_extra_roots(extra_roots);
         self.outgoing
             .send_server_notification(ServerNotification::SkillsChanged(
-                codex_app_server_protocol::SkillsChangedNotification {},
+                codepilotx_app_server_protocol::SkillsChangedNotification {},
             ))
             .await;
         Ok(SkillsExtraRootsSetResponse {})
@@ -629,11 +629,11 @@ impl CatalogRequestProcessor {
                 Ok(config) => config,
                 Err(err) => {
                     let error_path = cwd.clone();
-                    data.push(codex_app_server_protocol::HooksListEntry {
+                    data.push(codepilotx_app_server_protocol::HooksListEntry {
                         cwd,
                         hooks: Vec::new(),
                         warnings: Vec::new(),
-                        errors: vec![codex_app_server_protocol::HookErrorInfo {
+                        errors: vec![codepilotx_app_server_protocol::HookErrorInfo {
                             path: error_path,
                             message: err.to_string(),
                         }],
@@ -641,22 +641,22 @@ impl CatalogRequestProcessor {
                     continue;
                 }
             };
-            let workspace_codex_plugins_enabled = self
-                .workspace_codex_plugins_enabled(&config, auth.as_ref())
+            let workspace_codepilotx_plugins_enabled = self
+                .workspace_codepilotx_plugins_enabled(&config, auth.as_ref())
                 .await;
             let plugins_enabled =
-                config.features.enabled(Feature::Plugins) && workspace_codex_plugins_enabled;
+                config.features.enabled(Feature::Plugins) && workspace_codepilotx_plugins_enabled;
             let plugin_hooks = if plugins_enabled {
                 let plugins_input = config.plugins_config_input();
                 let plugin_outcome = plugins_manager.plugins_for_config(&plugins_input).await;
-                codex_core_plugins::PluginHookLoadOutcome {
+                codepilotx_core_plugins::PluginHookLoadOutcome {
                     hook_sources: plugin_outcome.effective_plugin_hook_sources(),
                     hook_load_warnings: plugin_outcome.effective_plugin_hook_warnings(),
                 }
             } else {
-                codex_core_plugins::PluginHookLoadOutcome::default()
+                codepilotx_core_plugins::PluginHookLoadOutcome::default()
             };
-            let hooks = codex_hooks::list_hooks(codex_hooks::HooksConfig {
+            let hooks = codepilotx_hooks::list_hooks(codepilotx_hooks::HooksConfig {
                 feature_enabled: config.features.enabled(Feature::CodexHooks),
                 bypass_hook_trust: config.bypass_hook_trust,
                 config_layer_stack: Some(config.config_layer_stack),
@@ -664,7 +664,7 @@ impl CatalogRequestProcessor {
                 plugin_hook_load_warnings: plugin_hooks.hook_load_warnings,
                 ..Default::default()
             });
-            data.push(codex_app_server_protocol::HooksListEntry {
+            data.push(codepilotx_app_server_protocol::HooksListEntry {
                 cwd,
                 hooks: hooks_to_info(&hooks.hooks),
                 warnings: hooks.warnings,
@@ -698,7 +698,7 @@ impl CatalogRequestProcessor {
             }
         };
         let edits = vec![edit];
-        ConfigEditsBuilder::new(&self.config.codex_home)
+        ConfigEditsBuilder::new(&self.config.codepilotx_home)
             .with_edits(edits)
             .apply()
             .await

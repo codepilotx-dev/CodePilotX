@@ -2,10 +2,10 @@ use anyhow::Result;
 use app_test_support::ChatGptAuthFixture;
 use app_test_support::DEFAULT_CLIENT_NAME;
 use app_test_support::write_chatgpt_auth;
-use codex_config::types::AuthCredentialsStoreMode;
-use codex_config::types::OtelExporterKind;
-use codex_config::types::OtelHttpProtocol;
-use codex_core::config::ConfigBuilder;
+use codepilotx_config::types::AuthCredentialsStoreMode;
+use codepilotx_config::types::OtelExporterKind;
+use codepilotx_config::types::OtelHttpProtocol;
+use codepilotx_core::config::ConfigBuilder;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -21,7 +21,7 @@ use wiremock::matchers::path;
 
 const SERVICE_VERSION: &str = "0.0.0-test";
 
-fn set_metrics_exporter(config: &mut codex_core::config::Config) {
+fn set_metrics_exporter(config: &mut codepilotx_core::config::Config) {
     config.otel.metrics_exporter = OtelExporterKind::OtlpHttp {
         endpoint: "http://localhost:4318".to_string(),
         headers: HashMap::new(),
@@ -32,15 +32,15 @@ fn set_metrics_exporter(config: &mut codex_core::config::Config) {
 
 #[tokio::test]
 async fn app_server_default_analytics_disabled_without_flag() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let mut config = ConfigBuilder::default()
-        .codex_home(codex_home.path().to_path_buf())
+        .codepilotx_home(codepilotx_home.path().to_path_buf())
         .build()
         .await?;
     set_metrics_exporter(&mut config);
     config.analytics_enabled = None;
 
-    let provider = codex_core::otel_init::build_provider(
+    let provider = codepilotx_core::otel_init::build_provider(
         &config,
         SERVICE_VERSION,
         Some("codex-app-server"),
@@ -57,15 +57,15 @@ async fn app_server_default_analytics_disabled_without_flag() -> Result<()> {
 
 #[tokio::test]
 async fn app_server_default_analytics_enabled_with_flag() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let mut config = ConfigBuilder::default()
-        .codex_home(codex_home.path().to_path_buf())
+        .codepilotx_home(codepilotx_home.path().to_path_buf())
         .build()
         .await?;
     set_metrics_exporter(&mut config);
     config.analytics_enabled = None;
 
-    let provider = codex_core::otel_init::build_provider(
+    let provider = codepilotx_core::otel_init::build_provider(
         &config,
         SERVICE_VERSION,
         Some("codex-app-server"),
@@ -79,7 +79,7 @@ async fn app_server_default_analytics_enabled_with_flag() -> Result<()> {
     Ok(())
 }
 
-pub(crate) async fn mount_analytics_capture(server: &MockServer, codex_home: &Path) -> Result<()> {
+pub(crate) async fn mount_analytics_capture(server: &MockServer, codepilotx_home: &Path) -> Result<()> {
     Mock::given(method("POST"))
         .and(path("/codex/analytics-events/events"))
         .respond_with(ResponseTemplate::new(200))
@@ -87,7 +87,7 @@ pub(crate) async fn mount_analytics_capture(server: &MockServer, codex_home: &Pa
         .await;
 
     write_chatgpt_auth(
-        codex_home,
+        codepilotx_home,
         ChatGptAuthFixture::new("chatgpt-token")
             .account_id("account-123")
             .chatgpt_user_id("user-123")
@@ -138,7 +138,7 @@ pub(crate) async fn wait_for_goal_event(
     goal_status: &str,
 ) -> Result<Value> {
     wait_for_matching_analytics_event(server, read_timeout, |event| {
-        event["event_type"] == "codex_goal_event"
+        event["event_type"] == "codepilotx_goal_event"
             && event["event_params"]["event_kind"] == event_kind
             && event["event_params"]["goal_status"] == goal_status
     })
@@ -183,8 +183,8 @@ pub(crate) fn thread_initialized_event(payload: &Value) -> Result<&Value> {
         .ok_or_else(|| anyhow::anyhow!("analytics payload missing events array"))?;
     events
         .iter()
-        .find(|event| event["event_type"] == "codex_thread_initialized")
-        .ok_or_else(|| anyhow::anyhow!("codex_thread_initialized event should be present"))
+        .find(|event| event["event_type"] == "codepilotx_thread_initialized")
+        .ok_or_else(|| anyhow::anyhow!("codepilotx_thread_initialized event should be present"))
 }
 
 pub(crate) fn assert_basic_thread_initialized_event(

@@ -1,10 +1,10 @@
 use super::*;
-use codex_app_server_protocol::ConfigWarningNotification;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::ThreadRealtimeStartedNotification;
-use codex_protocol::protocol::RealtimeConversationVersion;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_app_server_protocol::ConfigWarningNotification;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_app_server_protocol::ServerNotification;
+use codepilotx_app_server_protocol::ThreadRealtimeStartedNotification;
+use codepilotx_protocol::protocol::RealtimeConversationVersion;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use tokio::time::Duration;
@@ -244,7 +244,7 @@ async fn command_execution_request_approval_strips_additional_permissions_withou
             connection_id,
             message: OutgoingMessage::Request(ServerRequest::CommandExecutionRequestApproval {
                 request_id: RequestId::Integer(1),
-                params: codex_app_server_protocol::CommandExecutionRequestApprovalParams {
+                params: codepilotx_app_server_protocol::CommandExecutionRequestApprovalParams {
                     thread_id: "thr_123".to_string(),
                     turn_id: "turn_123".to_string(),
                     item_id: "call_123".to_string(),
@@ -257,10 +257,10 @@ async fn command_execution_request_approval_strips_additional_permissions_withou
                     cwd: Some(absolute_path("/tmp").into()),
                     command_actions: None,
                     additional_permissions: Some(
-                        codex_app_server_protocol::AdditionalPermissionProfile {
+                        codepilotx_app_server_protocol::AdditionalPermissionProfile {
                             network: None,
                             file_system: Some(
-                                codex_app_server_protocol::AdditionalFileSystemPermissions {
+                                codepilotx_app_server_protocol::AdditionalFileSystemPermissions {
                                     read: Some(vec![absolute_path("/tmp/allowed").into()]),
                                     write: None,
                                     glob_scan_max_depth: None,
@@ -310,7 +310,7 @@ async fn command_execution_request_approval_keeps_additional_permissions_with_ca
             connection_id,
             message: OutgoingMessage::Request(ServerRequest::CommandExecutionRequestApproval {
                 request_id: RequestId::Integer(1),
-                params: codex_app_server_protocol::CommandExecutionRequestApprovalParams {
+                params: codepilotx_app_server_protocol::CommandExecutionRequestApprovalParams {
                     thread_id: "thr_123".to_string(),
                     turn_id: "turn_123".to_string(),
                     item_id: "call_123".to_string(),
@@ -323,10 +323,10 @@ async fn command_execution_request_approval_keeps_additional_permissions_with_ca
                     cwd: Some(absolute_path("/tmp").into()),
                     command_actions: None,
                     additional_permissions: Some(
-                        codex_app_server_protocol::AdditionalPermissionProfile {
+                        codepilotx_app_server_protocol::AdditionalPermissionProfile {
                             network: None,
                             file_system: Some(
-                                codex_app_server_protocol::AdditionalFileSystemPermissions {
+                                codepilotx_app_server_protocol::AdditionalFileSystemPermissions {
                                     read: Some(vec![absolute_path("/tmp/allowed").into()]),
                                     write: None,
                                     glob_scan_max_depth: None,

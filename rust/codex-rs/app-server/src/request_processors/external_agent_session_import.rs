@@ -2,27 +2,27 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use chrono::Utc;
-use codex_arg0::Arg0DispatchPaths;
-use codex_core::ThreadManager;
-use codex_core::config::ConfigOverrides;
-use codex_external_agent_sessions::CompletedExternalAgentSessionImport;
-use codex_external_agent_sessions::ExternalAgentSessionMigration;
-use codex_external_agent_sessions::ImportedExternalAgentSession;
-use codex_external_agent_sessions::PendingSessionImport;
-use codex_external_agent_sessions::prepare_validated_session_import;
-use codex_external_agent_sessions::record_completed_session_imports;
-use codex_models_manager::manager::RefreshStrategy;
-use codex_protocol::ThreadId;
-use codex_protocol::models::BaseInstructions;
-use codex_protocol::protocol::MultiAgentVersion;
-use codex_protocol::protocol::ThreadMemoryMode;
-use codex_rollout::is_persisted_rollout_item;
-use codex_thread_store::AppendThreadItemsParams;
-use codex_thread_store::CreateThreadParams;
-use codex_thread_store::ThreadMetadataPatch;
-use codex_thread_store::ThreadPersistenceMetadata;
-use codex_thread_store::ThreadStore;
-use codex_thread_store::UpdateThreadMetadataParams;
+use codepilotx_arg0::Arg0DispatchPaths;
+use codepilotx_core::ThreadManager;
+use codepilotx_core::config::ConfigOverrides;
+use codepilotx_external_agent_sessions::CompletedExternalAgentSessionImport;
+use codepilotx_external_agent_sessions::ExternalAgentSessionMigration;
+use codepilotx_external_agent_sessions::ImportedExternalAgentSession;
+use codepilotx_external_agent_sessions::PendingSessionImport;
+use codepilotx_external_agent_sessions::prepare_validated_session_import;
+use codepilotx_external_agent_sessions::record_completed_session_imports;
+use codepilotx_models_manager::manager::RefreshStrategy;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::models::BaseInstructions;
+use codepilotx_protocol::protocol::MultiAgentVersion;
+use codepilotx_protocol::protocol::ThreadMemoryMode;
+use codepilotx_rollout::is_persisted_rollout_item;
+use codepilotx_thread_store::AppendThreadItemsParams;
+use codepilotx_thread_store::CreateThreadParams;
+use codepilotx_thread_store::ThreadMetadataPatch;
+use codepilotx_thread_store::ThreadPersistenceMetadata;
+use codepilotx_thread_store::ThreadStore;
+use codepilotx_thread_store::UpdateThreadMetadataParams;
 use futures::StreamExt;
 use tokio::sync::Semaphore;
 
@@ -34,7 +34,7 @@ const SESSION_IMPORT_CONCURRENCY: usize = 5;
 
 #[derive(Clone)]
 pub(super) struct ExternalAgentSessionImporter {
-    codex_home: PathBuf,
+    codepilotx_home: PathBuf,
     permits: Arc<Semaphore>,
     thread_manager: Arc<ThreadManager>,
     thread_store: Arc<dyn ThreadStore>,
@@ -44,14 +44,14 @@ pub(super) struct ExternalAgentSessionImporter {
 
 impl ExternalAgentSessionImporter {
     pub(super) fn new(
-        codex_home: PathBuf,
+        codepilotx_home: PathBuf,
         thread_manager: Arc<ThreadManager>,
         thread_store: Arc<dyn ThreadStore>,
         config_manager: ConfigManager,
         arg0_paths: Arg0DispatchPaths,
     ) -> Self {
         Self {
-            codex_home,
+            codepilotx_home,
             permits: Arc::new(Semaphore::new(1)),
             thread_manager,
             thread_store,
@@ -106,7 +106,7 @@ impl ExternalAgentSessionImporter {
                 }
             }
         }
-        if let Err(err) = record_completed_session_imports(&self.codex_home, completed_imports) {
+        if let Err(err) = record_completed_session_imports(&self.codepilotx_home, completed_imports) {
             record_import_error(
                 &mut item_result,
                 "session_ledger_update",
@@ -152,8 +152,8 @@ impl ExternalAgentSessionImporter {
         &self,
         session: ExternalAgentSessionMigration,
     ) -> Result<Option<PendingSessionImport>, String> {
-        let codex_home = self.codex_home.clone();
-        tokio::task::spawn_blocking(move || prepare_validated_session_import(&codex_home, session))
+        let codepilotx_home = self.codepilotx_home.clone();
+        tokio::task::spawn_blocking(move || prepare_validated_session_import(&codepilotx_home, session))
             .await
             .map_err(|err| format!("external agent session preparation task failed: {err}"))?
             .map_err(|err| format!("failed to prepare external agent session: {err}"))
@@ -175,7 +175,7 @@ impl ExternalAgentSessionImporter {
                 /*request_overrides*/ None,
                 ConfigOverrides {
                     cwd: Some(cwd),
-                    codex_linux_sandbox_exe: self.arg0_paths.codex_linux_sandbox_exe.clone(),
+                    codepilotx_linux_sandbox_exe: self.arg0_paths.codepilotx_linux_sandbox_exe.clone(),
                     main_execve_wrapper_exe: self.arg0_paths.main_execve_wrapper_exe.clone(),
                     ..Default::default()
                 },
@@ -223,7 +223,7 @@ impl ExternalAgentSessionImporter {
         rollout_items.retain(is_persisted_rollout_item);
         let title = title
             .as_deref()
-            .and_then(codex_core::util::normalize_thread_name);
+            .and_then(codepilotx_core::util::normalize_thread_name);
         let metadata = ThreadMetadataPatch {
             title,
             preview: first_user_message.clone(),

@@ -22,21 +22,21 @@ use crate::protocol::v2::ItemGuardianApprovalReviewStartedNotification;
 use crate::protocol::v2::PatchApplyStatus;
 use crate::protocol::v2::PatchChangeKind;
 use crate::protocol::v2::ThreadItem;
-use codex_protocol::ThreadId;
-use codex_protocol::parse_command::ParsedCommand;
-use codex_protocol::protocol::ApplyPatchApprovalRequestEvent;
-use codex_protocol::protocol::ExecApprovalRequestEvent;
-use codex_protocol::protocol::ExecCommandBeginEvent;
-use codex_protocol::protocol::ExecCommandEndEvent;
-use codex_protocol::protocol::FileChange;
-use codex_protocol::protocol::GuardianAssessmentAction;
-use codex_protocol::protocol::GuardianAssessmentEvent;
-use codex_protocol::protocol::PatchApplyBeginEvent;
-use codex_protocol::protocol::PatchApplyEndEvent;
-use codex_shell_command::parse_command::parse_command;
-use codex_shell_command::parse_command::shlex_join;
-use codex_utils_path_uri::PathConvention;
-use codex_utils_path_uri::PathUri;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::parse_command::ParsedCommand;
+use codepilotx_protocol::protocol::ApplyPatchApprovalRequestEvent;
+use codepilotx_protocol::protocol::ExecApprovalRequestEvent;
+use codepilotx_protocol::protocol::ExecCommandBeginEvent;
+use codepilotx_protocol::protocol::ExecCommandEndEvent;
+use codepilotx_protocol::protocol::FileChange;
+use codepilotx_protocol::protocol::GuardianAssessmentAction;
+use codepilotx_protocol::protocol::GuardianAssessmentEvent;
+use codepilotx_protocol::protocol::PatchApplyBeginEvent;
+use codepilotx_protocol::protocol::PatchApplyEndEvent;
+use codepilotx_shell_command::parse_command::parse_command;
+use codepilotx_shell_command::parse_command::shlex_join;
+use codepilotx_utils_path_uri::PathConvention;
+use codepilotx_utils_path_uri::PathUri;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use tracing::warn;
@@ -252,19 +252,19 @@ pub fn guardian_auto_approval_review_notification(
     };
     let review = GuardianApprovalReview {
         status: match assessment.status {
-            codex_protocol::protocol::GuardianAssessmentStatus::InProgress => {
+            codepilotx_protocol::protocol::GuardianAssessmentStatus::InProgress => {
                 GuardianApprovalReviewStatus::InProgress
             }
-            codex_protocol::protocol::GuardianAssessmentStatus::Approved => {
+            codepilotx_protocol::protocol::GuardianAssessmentStatus::Approved => {
                 GuardianApprovalReviewStatus::Approved
             }
-            codex_protocol::protocol::GuardianAssessmentStatus::Denied => {
+            codepilotx_protocol::protocol::GuardianAssessmentStatus::Denied => {
                 GuardianApprovalReviewStatus::Denied
             }
-            codex_protocol::protocol::GuardianAssessmentStatus::TimedOut => {
+            codepilotx_protocol::protocol::GuardianAssessmentStatus::TimedOut => {
                 GuardianApprovalReviewStatus::TimedOut
             }
-            codex_protocol::protocol::GuardianAssessmentStatus::Aborted => {
+            codepilotx_protocol::protocol::GuardianAssessmentStatus::Aborted => {
                 GuardianApprovalReviewStatus::Aborted
             }
         },
@@ -274,7 +274,7 @@ pub fn guardian_auto_approval_review_notification(
     };
     let action = assessment.action.clone().into();
     match assessment.status {
-        codex_protocol::protocol::GuardianAssessmentStatus::InProgress => {
+        codepilotx_protocol::protocol::GuardianAssessmentStatus::InProgress => {
             ServerNotification::ItemGuardianApprovalReviewStarted(
                 ItemGuardianApprovalReviewStartedNotification {
                     thread_id: conversation_id.to_string(),
@@ -287,10 +287,10 @@ pub fn guardian_auto_approval_review_notification(
                 },
             )
         }
-        codex_protocol::protocol::GuardianAssessmentStatus::Approved
-        | codex_protocol::protocol::GuardianAssessmentStatus::Denied
-        | codex_protocol::protocol::GuardianAssessmentStatus::TimedOut
-        | codex_protocol::protocol::GuardianAssessmentStatus::Aborted => {
+        codepilotx_protocol::protocol::GuardianAssessmentStatus::Approved
+        | codepilotx_protocol::protocol::GuardianAssessmentStatus::Denied
+        | codepilotx_protocol::protocol::GuardianAssessmentStatus::TimedOut
+        | codepilotx_protocol::protocol::GuardianAssessmentStatus::Aborted => {
             ServerNotification::ItemGuardianApprovalReviewCompleted(
                 ItemGuardianApprovalReviewCompletedNotification {
                     thread_id: conversation_id.to_string(),

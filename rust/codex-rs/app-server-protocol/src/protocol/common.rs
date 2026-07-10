@@ -8,7 +8,7 @@ use crate::export::GeneratedSchema;
 use crate::export::write_json_schema;
 use crate::protocol::v1;
 use crate::protocol::v2;
-use codex_experimental_api_macros::ExperimentalApi;
+use codepilotx_experimental_api_macros::ExperimentalApi;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
@@ -58,7 +58,7 @@ impl AuthMode {
     }
 
     /// Returns whether this mode is backed by Codex services rather than a direct model API.
-    pub fn uses_codex_backend(self) -> bool {
+    pub fn uses_codepilotx_backend(self) -> bool {
         match self {
             Self::Chatgpt
             | Self::ChatgptAuthTokens
@@ -1519,7 +1519,7 @@ pub struct FuzzyFileSearchParams {
     pub cancellation_token: Option<String>,
 }
 
-/// Superset of [`codex_file_search::FileMatch`]
+/// Superset of [`codepilotx_file_search::FileMatch`]
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 pub struct FuzzyFileSearchResult {
     pub root: String,
@@ -1697,17 +1697,17 @@ client_notification_definitions! {
 mod tests {
     use super::*;
     use anyhow::Result;
-    use codex_protocol::ThreadId;
-    use codex_protocol::account::AmazonBedrockCredentialSource;
-    use codex_protocol::account::PlanType;
-    use codex_protocol::models::BUILT_IN_PERMISSION_PROFILE_READ_ONLY;
-    use codex_protocol::parse_command::ParsedCommand;
-    use codex_protocol::protocol::RealtimeConversationVersion;
-    use codex_protocol::protocol::RealtimeOutputModality;
-    use codex_protocol::protocol::RealtimeVoice;
-    use codex_utils_absolute_path::AbsolutePathBuf;
-    use codex_utils_absolute_path::test_support::PathBufExt;
-    use codex_utils_absolute_path::test_support::test_path_buf;
+    use codepilotx_protocol::ThreadId;
+    use codepilotx_protocol::account::AmazonBedrockCredentialSource;
+    use codepilotx_protocol::account::PlanType;
+    use codepilotx_protocol::models::BUILT_IN_PERMISSION_PROFILE_READ_ONLY;
+    use codepilotx_protocol::parse_command::ParsedCommand;
+    use codepilotx_protocol::protocol::RealtimeConversationVersion;
+    use codepilotx_protocol::protocol::RealtimeOutputModality;
+    use codepilotx_protocol::protocol::RealtimeVoice;
+    use codepilotx_utils_absolute_path::AbsolutePathBuf;
+    use codepilotx_utils_absolute_path::test_support::PathBufExt;
+    use codepilotx_utils_absolute_path::test_support::test_path_buf;
     use pretty_assertions::assert_eq;
     use serde_json::json;
     use std::path::PathBuf;
@@ -2179,7 +2179,7 @@ mod tests {
             request_id: RequestId::Integer(42),
             params: v1::InitializeParams {
                 client_info: v1::ClientInfo {
-                    name: "codex_vscode".to_string(),
+                    name: "codepilotx_vscode".to_string(),
                     title: Some("Codex VS Code Extension".to_string()),
                     version: "0.1.0".to_string(),
                 },
@@ -2201,7 +2201,7 @@ mod tests {
                 "id": 42,
                 "params": {
                     "clientInfo": {
-                        "name": "codex_vscode",
+                        "name": "codepilotx_vscode",
                         "title": "Codex VS Code Extension",
                         "version": "0.1.0"
                     },
@@ -2228,7 +2228,7 @@ mod tests {
             "id": 42,
             "params": {
                 "clientInfo": {
-                    "name": "codex_vscode",
+                    "name": "codepilotx_vscode",
                     "title": "Codex VS Code Extension",
                     "version": "0.1.0"
                 },
@@ -2250,7 +2250,7 @@ mod tests {
                 request_id: RequestId::Integer(42),
                 params: v1::InitializeParams {
                     client_info: v1::ClientInfo {
-                        name: "codex_vscode".to_string(),
+                        name: "codepilotx_vscode".to_string(),
                         title: Some("Codex VS Code Extension".to_string()),
                         version: "0.1.0".to_string(),
                     },
@@ -2460,7 +2460,7 @@ mod tests {
         let params = v2::McpServerElicitationRequestParams {
             thread_id: "thr_123".to_string(),
             turn_id: Some("turn_123".to_string()),
-            server_name: "codex_apps".to_string(),
+            server_name: "codepilotx_apps".to_string(),
             request: v2::McpServerElicitationRequest::Form {
                 meta: None,
                 message: "Allow this request?".to_string(),
@@ -2479,7 +2479,7 @@ mod tests {
                 "params": {
                     "threadId": "thr_123",
                     "turnId": "turn_123",
-                    "serverName": "codex_apps",
+                    "serverName": "codepilotx_apps",
                     "mode": "form",
                     "_meta": null,
                     "message": "Allow this request?",
@@ -2574,7 +2574,7 @@ mod tests {
                 cwd,
                 runtime_workspace_roots: Vec::new(),
                 instruction_sources: vec![
-                    codex_utils_path_uri::LegacyAppPathString::from_abs_path(&absolute_path(
+                    codepilotx_utils_path_uri::LegacyAppPathString::from_abs_path(&absolute_path(
                         "/tmp/AGENTS.md",
                     )),
                 ],
@@ -2683,7 +2683,7 @@ mod tests {
         let request = ClientRequest::LoginAccount {
             request_id: RequestId::Integer(3),
             params: v2::LoginAccountParams::Chatgpt {
-                codex_streamlined_login: false,
+                codepilotx_streamlined_login: false,
             },
         };
         assert_eq!(
@@ -2704,7 +2704,7 @@ mod tests {
         let request = ClientRequest::LoginAccount {
             request_id: RequestId::Integer(3),
             params: v2::LoginAccountParams::Chatgpt {
-                codex_streamlined_login: true,
+                codepilotx_streamlined_login: true,
             },
         };
         assert_eq!(
@@ -2840,7 +2840,7 @@ mod tests {
             serde_json::to_value(&chatgpt)?,
         );
 
-        let codex_managed_bedrock = v2::Account::AmazonBedrock {
+        let codepilotx_managed_bedrock = v2::Account::AmazonBedrock {
             credential_source: AmazonBedrockCredentialSource::CodexManaged,
         };
         assert_eq!(
@@ -2848,7 +2848,7 @@ mod tests {
                 "type": "amazonBedrock",
                 "credentialSource": "codexManaged",
             }),
-            serde_json::to_value(&codex_managed_bedrock)?,
+            serde_json::to_value(&codepilotx_managed_bedrock)?,
         );
 
         let aws_managed_bedrock = v2::Account::AmazonBedrock {
@@ -3144,9 +3144,9 @@ mod tests {
             request_id: RequestId::Integer(9),
             params: v2::ThreadRealtimeStartParams {
                 client_managed_handoffs: Some(true),
-                codex_responses_as_items: None,
-                codex_response_item_prefix: None,
-                codex_response_handoff_prefix: Some("silent context".to_string()),
+                codepilotx_responses_as_items: None,
+                codepilotx_response_item_prefix: None,
+                codepilotx_response_handoff_prefix: Some("silent context".to_string()),
                 thread_id: "thr_123".to_string(),
                 model: Some("realtime-treatment-model".to_string()),
                 output_modality: RealtimeOutputModality::Audio,
@@ -3189,9 +3189,9 @@ mod tests {
             request_id: RequestId::Integer(9),
             params: v2::ThreadRealtimeStartParams {
                 client_managed_handoffs: None,
-                codex_responses_as_items: None,
-                codex_response_item_prefix: None,
-                codex_response_handoff_prefix: None,
+                codepilotx_responses_as_items: None,
+                codepilotx_response_item_prefix: None,
+                codepilotx_response_handoff_prefix: None,
                 thread_id: "thr_123".to_string(),
                 model: None,
                 output_modality: RealtimeOutputModality::Audio,
@@ -3229,9 +3229,9 @@ mod tests {
             request_id: RequestId::Integer(9),
             params: v2::ThreadRealtimeStartParams {
                 client_managed_handoffs: None,
-                codex_responses_as_items: None,
-                codex_response_item_prefix: None,
-                codex_response_handoff_prefix: None,
+                codepilotx_responses_as_items: None,
+                codepilotx_response_item_prefix: None,
+                codepilotx_response_handoff_prefix: None,
                 thread_id: "thr_123".to_string(),
                 model: None,
                 output_modality: RealtimeOutputModality::Audio,
@@ -3436,9 +3436,9 @@ mod tests {
             request_id: RequestId::Integer(1),
             params: v2::ThreadRealtimeStartParams {
                 client_managed_handoffs: None,
-                codex_responses_as_items: None,
-                codex_response_item_prefix: None,
-                codex_response_handoff_prefix: None,
+                codepilotx_responses_as_items: None,
+                codepilotx_response_item_prefix: None,
+                codepilotx_response_handoff_prefix: None,
                 thread_id: "thr_123".to_string(),
                 model: None,
                 output_modality: RealtimeOutputModality::Audio,
@@ -3539,9 +3539,9 @@ mod tests {
                     service_tier: None,
                     effort: None,
                     summary: None,
-                    collaboration_mode: codex_protocol::config_types::CollaborationMode {
-                        mode: codex_protocol::config_types::ModeKind::Default,
-                        settings: codex_protocol::config_types::Settings {
+                    collaboration_mode: codepilotx_protocol::config_types::CollaborationMode {
+                        mode: codepilotx_protocol::config_types::ModeKind::Default,
+                        settings: codepilotx_protocol::config_types::Settings {
                             model: "gpt-5.4".to_string(),
                             reasoning_effort: None,
                             developer_instructions: None,

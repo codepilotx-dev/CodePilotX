@@ -52,7 +52,7 @@ impl MarketplaceRequestProcessor {
         params: MarketplaceRemoveParams,
     ) -> Result<MarketplaceRemoveResponse, JSONRPCErrorError> {
         remove_marketplace(
-            self.config.codex_home.to_path_buf(),
+            self.config.codepilotx_home.to_path_buf(),
             CoreMarketplaceRemoveRequest {
                 marketplace_name: params.marketplace_name,
             },
@@ -105,8 +105,8 @@ impl MarketplaceRequestProcessor {
         &self,
         params: MarketplaceAddParams,
     ) -> Result<MarketplaceAddResponse, JSONRPCErrorError> {
-        add_marketplace_to_codex_home(
-            self.config.codex_home.to_path_buf(),
+        add_marketplace_to_codepilotx_home(
+            self.config.codepilotx_home.to_path_buf(),
             MarketplaceAddRequest {
                 source: params.source,
                 ref_name: params.ref_name,

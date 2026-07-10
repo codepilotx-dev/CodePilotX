@@ -11,11 +11,11 @@ use anyhow::Result;
 use anyhow::bail;
 use app_test_support::create_final_assistant_message_sse_response;
 use app_test_support::to_response;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::UserInput as V2UserInput;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_app_server_protocol::ThreadStartParams;
+use codepilotx_app_server_protocol::ThreadStartResponse;
+use codepilotx_app_server_protocol::TurnStartParams;
+use codepilotx_app_server_protocol::UserInput as V2UserInput;
 use core_test_support::responses;
 use futures::SinkExt;
 use futures::StreamExt;
@@ -34,7 +34,7 @@ use wiremock::matchers::path_regex;
 #[tokio::test]
 async fn websocket_transport_ctrl_c_waits_for_running_turn_before_exit() -> Result<()> {
     let GracefulCtrlCFixture {
-        _codex_home,
+        _codepilotx_home,
         _server,
         mut process,
         mut ws,
@@ -59,7 +59,7 @@ async fn websocket_transport_ctrl_c_waits_for_running_turn_before_exit() -> Resu
 #[tokio::test]
 async fn websocket_transport_second_ctrl_c_forces_exit_while_turn_running() -> Result<()> {
     let GracefulCtrlCFixture {
-        _codex_home,
+        _codepilotx_home,
         _server,
         mut process,
         mut ws,
@@ -85,7 +85,7 @@ async fn websocket_transport_second_ctrl_c_forces_exit_while_turn_running() -> R
 #[tokio::test]
 async fn websocket_transport_sigterm_waits_for_running_turn_before_exit() -> Result<()> {
     let GracefulCtrlCFixture {
-        _codex_home,
+        _codepilotx_home,
         _server,
         mut process,
         mut ws,
@@ -110,7 +110,7 @@ async fn websocket_transport_sigterm_waits_for_running_turn_before_exit() -> Res
 #[tokio::test]
 async fn websocket_transport_second_sigterm_forces_exit_while_turn_running() -> Result<()> {
     let GracefulCtrlCFixture {
-        _codex_home,
+        _codepilotx_home,
         _server,
         mut process,
         mut ws,
@@ -136,7 +136,7 @@ async fn websocket_transport_second_sigterm_forces_exit_while_turn_running() -> 
 #[tokio::test]
 async fn websocket_transport_repeated_sighup_keeps_waiting_for_running_turn() -> Result<()> {
     let GracefulCtrlCFixture {
-        _codex_home,
+        _codepilotx_home,
         _server,
         mut process,
         mut ws,
@@ -162,7 +162,7 @@ async fn websocket_transport_repeated_sighup_keeps_waiting_for_running_turn() ->
 }
 
 struct GracefulCtrlCFixture {
-    _codex_home: TempDir,
+    _codepilotx_home: TempDir,
     _server: wiremock::MockServer,
     process: Child,
     ws: WsClient,
@@ -178,10 +178,10 @@ async fn start_ctrl_c_restart_fixture(turn_delay: Duration) -> Result<GracefulCt
         .mount(&server)
         .await;
 
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri(), "never")?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri(), "never")?;
 
-    let (process, bind_addr) = spawn_websocket_server(codex_home.path()).await?;
+    let (process, bind_addr) = spawn_websocket_server(codepilotx_home.path()).await?;
     let mut ws = connect_websocket(bind_addr).await?;
 
     send_initialize_request(&mut ws, /*id*/ 1, "ws_graceful_shutdown").await?;
@@ -199,7 +199,7 @@ async fn start_ctrl_c_restart_fixture(turn_delay: Duration) -> Result<GracefulCt
     wait_for_responses_post(&server, Duration::from_secs(5)).await?;
 
     Ok(GracefulCtrlCFixture {
-        _codex_home: codex_home,
+        _codepilotx_home: codepilotx_home,
         _server: server,
         process,
         ws,

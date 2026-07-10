@@ -3,9 +3,9 @@ use std::time::Duration;
 use anyhow::Result;
 use app_test_support::TestAppServer;
 use app_test_support::to_response;
-use codex_app_server_protocol::EnvironmentAddResponse;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::RequestId;
+use codepilotx_app_server_protocol::EnvironmentAddResponse;
+use codepilotx_app_server_protocol::JSONRPCResponse;
+use codepilotx_app_server_protocol::RequestId;
 use serde_json::json;
 use tempfile::TempDir;
 use tokio::io::AsyncReadExt;
@@ -26,8 +26,8 @@ async fn environment_add_applies_connect_timeout() -> Result<()> {
         anyhow::ensure!(!request.is_empty(), "expected a WebSocket handshake");
         Ok::<_, anyhow::Error>(())
     });
-    let codex_home = TempDir::new()?;
-    let mut app_server = TestAppServer::new(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    let mut app_server = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(RPC_TIMEOUT, app_server.initialize()).await??;
 
     let request_id = app_server

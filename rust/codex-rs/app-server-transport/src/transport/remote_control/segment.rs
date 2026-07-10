@@ -6,7 +6,7 @@ use super::protocol::ServerEvent;
 use super::protocol::StreamId;
 use base64::DecodeSliceError;
 use base64::Engine;
-use codex_app_server_protocol::JSONRPCMessage;
+use codepilotx_app_server_protocol::JSONRPCMessage;
 use std::collections::HashMap;
 use std::io;
 use std::io::ErrorKind;

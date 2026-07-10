@@ -31,13 +31,13 @@ use crate::transport::remote_control::enroll::refresh_remote_control_server;
 use crate::transport::remote_control::enroll::update_persisted_remote_control_enrollment;
 use axum::http::HeaderValue;
 use base64::Engine;
-use codex_app_server_protocol::RemoteControlConnectionStatus;
-use codex_app_server_protocol::RemoteControlStatusChangedNotification;
-use codex_core::util::backoff;
-use codex_login::AuthManager;
-use codex_login::UnauthorizedRecovery;
-use codex_state::StateRuntime;
-use codex_utils_rustls_provider::ensure_rustls_crypto_provider;
+use codepilotx_app_server_protocol::RemoteControlConnectionStatus;
+use codepilotx_app_server_protocol::RemoteControlStatusChangedNotification;
+use codepilotx_core::util::backoff;
+use codepilotx_login::AuthManager;
+use codepilotx_login::UnauthorizedRecovery;
+use codepilotx_state::StateRuntime;
+use codepilotx_utils_rustls_provider::ensure_rustls_crypto_provider;
 use futures::SinkExt;
 use futures::StreamExt;
 use futures::stream::SplitSink;
@@ -1813,20 +1813,20 @@ mod tests {
     use crate::transport::remote_control::protocol::StreamId;
     use crate::transport::remote_control::protocol::normalize_remote_control_url;
     use chrono::Utc;
-    use codex_app_server_protocol::AuthMode;
-    use codex_app_server_protocol::ConfigWarningNotification;
-    use codex_app_server_protocol::JSONRPCMessage;
-    use codex_app_server_protocol::JSONRPCNotification;
-    use codex_app_server_protocol::ServerNotification;
-    use codex_config::types::AuthCredentialsStoreMode;
-    use codex_core::test_support::auth_manager_from_auth;
-    use codex_login::AuthDotJson;
-    use codex_login::AuthKeyringBackendKind;
-    use codex_login::CodexAuth;
-    use codex_login::save_auth;
-    use codex_login::token_data::TokenData;
-    use codex_login::token_data::parse_chatgpt_jwt_claims;
-    use codex_state::StateRuntime;
+    use codepilotx_app_server_protocol::AuthMode;
+    use codepilotx_app_server_protocol::ConfigWarningNotification;
+    use codepilotx_app_server_protocol::JSONRPCMessage;
+    use codepilotx_app_server_protocol::JSONRPCNotification;
+    use codepilotx_app_server_protocol::ServerNotification;
+    use codepilotx_config::types::AuthCredentialsStoreMode;
+    use codepilotx_core::test_support::auth_manager_from_auth;
+    use codepilotx_login::AuthDotJson;
+    use codepilotx_login::AuthKeyringBackendKind;
+    use codepilotx_login::CodexAuth;
+    use codepilotx_login::save_auth;
+    use codepilotx_login::token_data::TokenData;
+    use codepilotx_login::token_data::parse_chatgpt_jwt_claims;
+    use codepilotx_state::StateRuntime;
     use futures::StreamExt;
     use pretty_assertions::assert_eq;
     use std::sync::Arc;
@@ -1981,8 +1981,8 @@ mod tests {
         );
     }
 
-    async fn remote_control_state_runtime(codex_home: &TempDir) -> Arc<StateRuntime> {
-        StateRuntime::init(codex_home.path().to_path_buf(), "test-provider".to_string())
+    async fn remote_control_state_runtime(codepilotx_home: &TempDir) -> Arc<StateRuntime> {
+        StateRuntime::init(codepilotx_home.path().to_path_buf(), "test-provider".to_string())
             .await
             .expect("state runtime should initialize")
     }
@@ -2064,8 +2064,8 @@ mod tests {
             )
             .await;
         });
-        let codex_home = TempDir::new().expect("temp dir should create");
-        let state_db = remote_control_state_runtime(&codex_home).await;
+        let codepilotx_home = TempDir::new().expect("temp dir should create");
+        let state_db = remote_control_state_runtime(&codepilotx_home).await;
         let auth_manager = remote_control_auth_manager();
         let mut auth_recovery = auth_manager.unauthorized_recovery();
         let mut auth_change_rx = auth_manager.auth_change_receiver();
@@ -2121,8 +2121,8 @@ mod tests {
         let remote_control_url = remote_control_url_for_listener(&listener);
         let remote_control_target =
             normalize_remote_control_url(&remote_control_url).expect("target should parse");
-        let codex_home = TempDir::new().expect("temp dir should create");
-        let state_db = remote_control_state_runtime(&codex_home).await;
+        let codepilotx_home = TempDir::new().expect("temp dir should create");
+        let state_db = remote_control_state_runtime(&codepilotx_home).await;
         let auth_manager = remote_control_auth_manager();
         let mut auth_recovery = auth_manager.unauthorized_recovery();
         let mut auth_change_rx = auth_manager.auth_change_receiver();
@@ -2198,18 +2198,18 @@ mod tests {
             );
             respond_with_status_and_headers(stream, "401 Unauthorized", &[], "unauthorized").await;
         });
-        let codex_home = TempDir::new().expect("temp dir should create");
+        let codepilotx_home = TempDir::new().expect("temp dir should create");
         save_auth(
-            codex_home.path(),
+            codepilotx_home.path(),
             &remote_control_auth_dot_json("stale-token"),
             AuthCredentialsStoreMode::File,
             AuthKeyringBackendKind::default(),
         )
         .expect("stale auth should save");
-        let state_db = remote_control_state_runtime(&codex_home).await;
+        let state_db = remote_control_state_runtime(&codepilotx_home).await;
         let auth_manager = AuthManager::shared(
-            codex_home.path().to_path_buf(),
-            /*enable_codex_api_key_env*/ false,
+            codepilotx_home.path().to_path_buf(),
+            /*enable_codepilotx_api_key_env*/ false,
             AuthCredentialsStoreMode::File,
             /*forced_chatgpt_workspace_id*/ None,
             /*chatgpt_base_url*/ None,
@@ -2221,7 +2221,7 @@ mod tests {
         let current_enrollment = test_current_enrollment(/*enrollment*/ None);
         let (status_publisher, status_rx) = remote_control_status_channel();
         save_auth(
-            codex_home.path(),
+            codepilotx_home.path(),
             &remote_control_auth_dot_json("fresh-token"),
             AuthCredentialsStoreMode::File,
             AuthKeyringBackendKind::default(),
@@ -2296,18 +2296,18 @@ mod tests {
             );
             respond_with_status_and_headers(stream, "401 Unauthorized", &[], "unauthorized").await;
         });
-        let codex_home = TempDir::new().expect("temp dir should create");
+        let codepilotx_home = TempDir::new().expect("temp dir should create");
         save_auth(
-            codex_home.path(),
+            codepilotx_home.path(),
             &remote_control_auth_dot_json("stale-token"),
             AuthCredentialsStoreMode::File,
             AuthKeyringBackendKind::default(),
         )
         .expect("stale auth should save");
-        let state_db = remote_control_state_runtime(&codex_home).await;
+        let state_db = remote_control_state_runtime(&codepilotx_home).await;
         let auth_manager = AuthManager::shared(
-            codex_home.path().to_path_buf(),
-            /*enable_codex_api_key_env*/ false,
+            codepilotx_home.path().to_path_buf(),
+            /*enable_codepilotx_api_key_env*/ false,
             AuthCredentialsStoreMode::File,
             /*forced_chatgpt_workspace_id*/ None,
             /*chatgpt_base_url*/ None,
@@ -2321,7 +2321,7 @@ mod tests {
         )));
         let (status_publisher, status_rx) = remote_control_status_channel();
         save_auth(
-            codex_home.path(),
+            codepilotx_home.path(),
             &remote_control_auth_dot_json("fresh-token"),
             AuthCredentialsStoreMode::File,
             AuthKeyringBackendKind::default(),
@@ -2426,11 +2426,11 @@ mod tests {
     async fn connect_remote_control_websocket_requires_chatgpt_auth() {
         let remote_control_target = normalize_remote_control_url("http://127.0.0.1:9/backend-api/")
             .expect("target should parse");
-        let codex_home = TempDir::new().expect("temp dir should create");
-        let state_db = remote_control_state_runtime(&codex_home).await;
+        let codepilotx_home = TempDir::new().expect("temp dir should create");
+        let state_db = remote_control_state_runtime(&codepilotx_home).await;
         let auth_manager = AuthManager::shared(
-            codex_home.path().to_path_buf(),
-            /*enable_codex_api_key_env*/ false,
+            codepilotx_home.path().to_path_buf(),
+            /*enable_codepilotx_api_key_env*/ false,
             AuthCredentialsStoreMode::File,
             /*forced_chatgpt_workspace_id*/ None,
             /*chatgpt_base_url*/ None,

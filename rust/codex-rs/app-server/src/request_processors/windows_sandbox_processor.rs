@@ -81,10 +81,10 @@ impl WindowsSandboxRequestProcessor {
                 workspace_roots: config.effective_workspace_roots(),
                 command_cwd,
                 env_map: std::env::vars().collect(),
-                codex_home: config.codex_home.to_path_buf(),
+                codepilotx_home: config.codepilotx_home.to_path_buf(),
             };
             let setup_result =
-                codex_core::windows_sandbox::run_windows_sandbox_setup(setup_request).await;
+                codepilotx_core::windows_sandbox::run_windows_sandbox_setup(setup_request).await;
             let notification = WindowsSandboxSetupCompletedNotification {
                 mode: match setup_mode {
                     CoreWindowsSandboxSetupMode::Elevated => WindowsSandboxSetupMode::Elevated,
@@ -106,17 +106,17 @@ impl WindowsSandboxRequestProcessor {
 
 /// Resolves the requested API mode after checking that managed requirements allow it.
 fn resolve_allowed_windows_sandbox_setup_mode(
-    requirements: &codex_config::ConfigRequirements,
+    requirements: &codepilotx_config::ConfigRequirements,
     requested_mode: WindowsSandboxSetupMode,
 ) -> Result<CoreWindowsSandboxSetupMode, JSONRPCErrorError> {
     let (setup_mode, config_mode) = match requested_mode {
         WindowsSandboxSetupMode::Elevated => (
             CoreWindowsSandboxSetupMode::Elevated,
-            codex_config::types::WindowsSandboxModeToml::Elevated,
+            codepilotx_config::types::WindowsSandboxModeToml::Elevated,
         ),
         WindowsSandboxSetupMode::Unelevated => (
             CoreWindowsSandboxSetupMode::Unelevated,
-            codex_config::types::WindowsSandboxModeToml::Unelevated,
+            codepilotx_config::types::WindowsSandboxModeToml::Unelevated,
         ),
     };
     requirements
@@ -135,7 +135,7 @@ fn determine_windows_sandbox_readiness(config: &Config) -> WindowsSandboxReadine
 
     determine_windows_sandbox_readiness_from_state(
         WindowsSandboxLevel::from_config(config),
-        sandbox_setup_is_complete(config.codex_home.as_path()),
+        sandbox_setup_is_complete(config.codepilotx_home.as_path()),
     )
 }
 
@@ -162,10 +162,10 @@ fn determine_windows_sandbox_readiness_from_state(
 mod tests {
     use super::*;
     use crate::error_code::INVALID_REQUEST_ERROR_CODE;
-    use codex_config::ConfigRequirements;
-    use codex_config::Constrained;
-    use codex_config::ConstrainedWithSource;
-    use codex_config::types::WindowsSandboxModeToml;
+    use codepilotx_config::ConfigRequirements;
+    use codepilotx_config::Constrained;
+    use codepilotx_config::ConstrainedWithSource;
+    use codepilotx_config::types::WindowsSandboxModeToml;
 
     #[test]
     fn resolve_allowed_windows_sandbox_setup_mode_rejects_disallowed_mode() {

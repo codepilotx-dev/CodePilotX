@@ -3,9 +3,9 @@ use std::io;
 use std::num::NonZeroUsize;
 use std::path::Path;
 
-use codex_utils_image::PromptImageMode;
-use codex_utils_image::data_url_from_bytes;
-use codex_utils_image::load_for_prompt_bytes;
+use codepilotx_utils_image::PromptImageMode;
+use codepilotx_utils_image::data_url_from_bytes;
+use codepilotx_utils_image::load_for_prompt_bytes;
 use serde::Deserialize;
 use serde::Deserializer;
 use serde::Serialize;
@@ -21,9 +21,9 @@ use crate::permissions::FileSystemSpecialPath;
 use crate::permissions::NetworkSandboxPolicy;
 use crate::protocol::SandboxPolicy;
 use crate::user_input::UserInput;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_image::ImageProcessingError;
-use codex_utils_path_uri::PathUri;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_image::ImageProcessingError;
+use codepilotx_utils_path_uri::PathUri;
 use schemars::JsonSchema;
 
 use crate::mcp::CallToolResult;
@@ -1960,7 +1960,7 @@ impl CallToolResult {
 fn convert_mcp_content_to_items(
     contents: &[serde_json::Value],
 ) -> Option<Vec<FunctionCallOutputContentItem>> {
-    const CODEX_IMAGE_DETAIL_META_KEY: &str = "codex/imageDetail";
+    const codepilotx_IMAGE_DETAIL_META_KEY: &str = "codex/imageDetail";
 
     #[derive(serde::Deserialize)]
     #[serde(tag = "type")]
@@ -2002,7 +2002,7 @@ fn convert_mcp_content_to_items(
                     detail: meta
                         .as_ref()
                         .and_then(serde_json::Value::as_object)
-                        .and_then(|meta| meta.get(CODEX_IMAGE_DETAIL_META_KEY))
+                        .and_then(|meta| meta.get(codepilotx_IMAGE_DETAIL_META_KEY))
                         .and_then(serde_json::Value::as_str)
                         .and_then(|detail| match detail {
                             "auto" => Some(ImageDetail::Auto),
@@ -2046,7 +2046,7 @@ impl std::fmt::Display for FunctionCallOutputPayload {
 mod tests {
     use super::*;
     use anyhow::Result;
-    use codex_execpolicy::Policy;
+    use codepilotx_execpolicy::Policy;
     use pretty_assertions::assert_eq;
     use std::path::PathBuf;
     use tempfile::tempdir;
@@ -2625,8 +2625,8 @@ mod tests {
     fn function_call_deserializes_optional_namespace() {
         let item: ResponseItem = serde_json::from_value(serde_json::json!({
             "type": "function_call",
-            "name": "mcp__codex_apps__gmail_get_recent_emails",
-            "namespace": "mcp__codex_apps__gmail",
+            "name": "mcp__codepilotx_apps__gmail_get_recent_emails",
+            "namespace": "mcp__codepilotx_apps__gmail",
             "arguments": "{\"top_k\":5}",
             "call_id": "call-1",
         }))
@@ -2636,8 +2636,8 @@ mod tests {
             item,
             ResponseItem::FunctionCall {
                 id: None,
-                name: "mcp__codex_apps__gmail_get_recent_emails".to_string(),
-                namespace: Some("mcp__codex_apps__gmail".to_string()),
+                name: "mcp__codepilotx_apps__gmail_get_recent_emails".to_string(),
+                namespace: Some("mcp__codepilotx_apps__gmail".to_string()),
                 arguments: "{\"top_k\":5}".to_string(),
                 call_id: "call-1".to_string(),
                 metadata: None,
@@ -2688,7 +2688,7 @@ mod tests {
             exec_policy
                 .add_prefix_rule(
                     &[format!("tool-{i:03}"), "x".repeat(500)],
-                    codex_execpolicy::Decision::Allow,
+                    codepilotx_execpolicy::Decision::Allow,
                 )
                 .expect("add rule");
         }
@@ -3252,7 +3252,7 @@ mod tests {
             execution: "client".to_string(),
             tools: vec![serde_json::json!({
                 "type": "function",
-                "name": "mcp__codex_apps__calendar_create_event",
+                "name": "mcp__codepilotx_apps__calendar_create_event",
                 "description": "Create a calendar event.",
                 "defer_loading": true,
                 "parameters": {
@@ -3274,7 +3274,7 @@ mod tests {
                 execution: "client".to_string(),
                 tools: vec![serde_json::json!({
                     "type": "function",
-                    "name": "mcp__codex_apps__calendar_create_event",
+                    "name": "mcp__codepilotx_apps__calendar_create_event",
                     "description": "Create a calendar event.",
                     "defer_loading": true,
                     "parameters": {
@@ -3299,7 +3299,7 @@ mod tests {
                 "execution": "client",
                 "tools": [{
                     "type": "function",
-                    "name": "mcp__codex_apps__calendar_create_event",
+                    "name": "mcp__codepilotx_apps__calendar_create_event",
                     "description": "Create a calendar event.",
                     "defer_loading": true,
                     "parameters": {
