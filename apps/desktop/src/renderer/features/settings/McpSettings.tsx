@@ -1,10 +1,11 @@
 import { desktopClient } from '../../services/desktopClient.js'
 import React, { useEffect, useMemo, useState } from 'react'
-import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
 import type {
   DesktopEditableMcpScope,
   DesktopMcpServerListItem,
+  McpReloadResult,
 } from '../../../shared/types.js'
 import { SettingsDropdown } from './SettingsDropdown.js'
 import { SettingsAutoSaveBadge, SettingsRow } from './SettingsRow.js'
@@ -50,6 +51,7 @@ export function McpSettings(): React.ReactNode {
   const [error, setError] = useState<string | null>(null)
   const [status, setStatus] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [reloadResult, setReloadResult] = useState<McpReloadResult | null>(null)
 
   useEffect(() => {
     void loadServers()
@@ -70,6 +72,30 @@ export function McpSettings(): React.ReactNode {
     } finally {
       setBusy(false)
     }
+  }
+
+  async function triggerReload(): Promise<void> {
+    setReloadResult(null)
+    try {
+      const r = await desktopClient.reloadMcpConfiguration()
+      setReloadResult(r)
+    } catch {
+      // Config is already persisted; reload is best-effort
+    }
+  }
+
+  function buildReloadStatusText(r: McpReloadResult): string {
+    const parts: string[] = []
+    if (r.refreshed > 0) {
+      parts.push(`已应用到 ${r.refreshed} 个当前会话`)
+    }
+    if (r.skipped > 0) {
+      parts.push(`${r.skipped} 个会话未启动，将在首次消息时生效`)
+    }
+    if (r.failed > 0) {
+      parts.push(`${r.failed} 个会话刷新失败`)
+    }
+    return parts.join('；') || '配置已保存'
   }
 
   function startCreate(type: McpTransportTemplate = 'stdio'): void {
@@ -136,7 +162,7 @@ export function McpSettings(): React.ReactNode {
       })
       setServers(nextServers)
       setForm(EMPTY_FORM)
-      setStatus('MCP server 已保存。新会话会使用更新后的配置。')
+      void triggerReload()
     } catch (saveError) {
       setError(errorMessageOf(saveError))
     } finally {
@@ -156,7 +182,7 @@ export function McpSettings(): React.ReactNode {
       )
       setServers(nextServers)
       if (form.originalName === server.name) setForm(EMPTY_FORM)
-      setStatus('MCP server 已删除。')
+      void triggerReload()
     } catch (removeError) {
       setError(errorMessageOf(removeError))
     } finally {
@@ -172,7 +198,7 @@ export function McpSettings(): React.ReactNode {
     setError(null)
     try {
       setServers(await desktopClient.setMcpServerEnabled(server.name, enabled))
-      setStatus(enabled ? 'MCP server 已启用。' : 'MCP server 已停用。')
+      void triggerReload()
     } catch (toggleError) {
       setError(errorMessageOf(toggleError))
     } finally {
@@ -194,12 +220,24 @@ export function McpSettings(): React.ReactNode {
 
         <SettingsSection
           title="服务器"
-          description={error ?? status ?? `已配置 ${servers.length} 个 MCP server。`}
+          description={
+            error
+              ? error
+              : reloadResult
+                ? buildReloadStatusText(reloadResult)
+                : (status ?? `已配置 ${servers.length} 个 MCP server。`)
+          }
           actions={
             <div className="settings-inline-actions">
               <button className="settings-button" type="button" onClick={() => void loadServers()}>
                 刷新
               </button>
+              {reloadResult?.failed ? (
+                <button className="settings-button" type="button" onClick={() => void triggerReload()}>
+                  <RefreshCw size={APP_ICON_SIZE} />
+                  <span>重试应用到当前会话</span>
+                </button>
+              ) : null}
               <button className="settings-button primary" type="button" onClick={() => startCreate()}>
                 <Plus size={APP_ICON_SIZE} />
                 <span>新增</span>

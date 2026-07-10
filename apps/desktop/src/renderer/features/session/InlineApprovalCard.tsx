@@ -8,6 +8,14 @@ import type {
 } from '../../../shared/types.js'
 import { AskUserQuestionApproval } from './AskUserQuestionApproval.js'
 import { ExitPlanModeApproval } from './ExitPlanModeApproval.js'
+import {
+  McpElicitationForm,
+  McpElicitationUnsupported,
+} from './mcpElicitation/McpElicitationForm.js'
+import {
+  getSchemaMode,
+  parseMcpElicitationSchema,
+} from './mcpElicitation/mcpElicitationUtils.js'
 
 type ApprovalChoice = 'allow' | `remember:${DesktopPermissionRememberOptionId}`
 
@@ -87,6 +95,56 @@ export function InlineApprovalCard({
           onRevise={() => onDecide(request, 'deny')}
         />
       </section>
+    )
+  }
+
+  if (request.toolName === 'McpElicitation') {
+    const elicitationRequest = request.input?.request as
+      | Record<string, unknown>
+      | undefined
+    const serverName =
+      (request.input?.serverName as string) ?? '未知服务器'
+    const message = (elicitationRequest?.message as string) ?? ''
+    const mode = getSchemaMode(elicitationRequest)
+
+    if (mode === 'form') {
+      const schema = parseMcpElicitationSchema(
+        elicitationRequest?.requestedSchema,
+      )
+      if (schema) {
+        return (
+          <McpElicitationForm
+            serverName={serverName}
+            message={message}
+            schema={schema}
+            onSubmit={content =>
+              onDecide(request, 'allow', false, { content })
+            }
+            onDecline={() => onDecide(request, 'deny')}
+            onCancel={() =>
+              onDecide(request, 'deny', false, {
+                cancelled: true,
+                action: 'cancel',
+              })
+            }
+          />
+        )
+      }
+    }
+
+    // Fallback: unsupported mode
+    return (
+      <McpElicitationUnsupported
+        serverName={serverName}
+        message={message}
+        onDecline={() => onDecide(request, 'deny')}
+        onCancel={() =>
+          onDecide(request, 'deny', false, {
+            cancelled: true,
+            action: 'cancel',
+          })
+        }
+      />
     )
   }
 

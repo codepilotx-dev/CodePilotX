@@ -7,7 +7,7 @@ import {
   ChevronRight,
   CornerDownLeft,
   Info,
-  Pencil,
+  PenLine,
 } from 'lucide-react'
 import type { DesktopPermissionRequest } from '../../../shared/types.js'
 
@@ -31,6 +31,8 @@ export type QuestionState = {
   focused?: string
 }
 
+export const CUSTOM_OPTION_FOCUS_VALUE = '__custom'
+
 export type AskUserQuestionApprovalProps = {
   request: DesktopPermissionRequest
   onSubmit: (updatedInput: Record<string, unknown>) => void
@@ -48,6 +50,7 @@ export function AskUserQuestionApproval({
   >({})
   const [currentQuestionIndex, setCurrentQuestionIndex] = React.useState(0)
   const [error, setError] = React.useState<string | null>(null)
+  const customInputRef = React.useRef<HTMLTextAreaElement | null>(null)
   const questionCount = questions?.length ?? 0
 
   React.useEffect(() => {
@@ -56,10 +59,25 @@ export function AskUserQuestionApproval({
     )
   }, [questionCount])
 
+  React.useLayoutEffect(() => {
+    const input = customInputRef.current
+    if (!input) return
+    input.style.height = 'auto'
+    input.style.height = `${Math.min(input.scrollHeight, 120)}px`
+  }, [currentQuestionIndex, questionStates])
+
   React.useEffect(() => {
     if (!questions || typeof window === 'undefined') return
     function handleKeyDown(event: KeyboardEvent): void {
-      if (isTextEntryTarget(event.target)) return
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        onReject()
+        return
+      }
+      if (shouldDeferAskUserQuestionShortcutToTextEntry(
+        event.key,
+        isTextEntryTarget(event.target),
+      )) return
       const currentQuestion = questions[currentQuestionIndex] ?? questions[0]
       if (!currentQuestion) return
       if (event.key === 'ArrowLeft') {
@@ -84,13 +102,27 @@ export function AskUserQuestionApproval({
           toggleFocusedMultiSelectOption(currentQuestion)
         }
       } else if (event.key === 'Enter') {
+        const currentState =
+          questionStates[currentQuestion.question] ??
+          initialQuestionState(currentQuestion)
+        const focusedCustom =
+          currentState.focused === CUSTOM_OPTION_FOCUS_VALUE
+        if (focusedCustom && !currentState.custom.trim()) {
+          event.preventDefault()
+          customInputRef.current?.focus()
+          return
+        }
+        if (shouldDeferAskUserQuestionShortcutToTextEntry(
+          event.key,
+          isTextEntryTarget(event.target),
+        )) return
         event.preventDefault()
         confirmCurrentQuestionAndAdvance(currentQuestion)
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [currentQuestionIndex, questionCount, questionStates, questions])
+  }, [currentQuestionIndex, onReject, questionCount, questionStates, questions])
 
   if (!questions) {
     return (
@@ -209,21 +241,45 @@ export function AskUserQuestionApproval({
     updateQuestion(question.question, current => {
       const currentLabel =
         current.focused ?? current.selected[0] ?? question.options[0]?.label
-      const nextLabel = nextOptionLabel(question, currentLabel, delta)
-      if (question.multiSelect) {
-        return nextLabel ? { ...current, focused: nextLabel } : current
+      const nextLabel = nextCustomOptionLabel(question, currentLabel, delta)
+      if (nextLabel === undefined) return current
+      if (nextLabel === CUSTOM_OPTION_FOCUS_VALUE) {
+        const baseState = question.multiSelect
+          ? current
+          : { ...current, selected: [], custom: '' }
+        const next = { ...baseState, focused: CUSTOM_OPTION_FOCUS_VALUE }
+        return question.multiSelect ? next : { ...next, answered: false }
       }
-      return nextLabel
-        ? { selected: [nextLabel], custom: '', answered: false }
-        : initialQuestionState(question)
+      if (question.multiSelect) {
+        return { ...current, focused: nextLabel }
+      }
+      return {
+        ...current,
+        selected: [nextLabel],
+        custom: '',
+        answered: false,
+      }
     })
   }
 
   function toggleFocusedMultiSelectOption(question: AskUserQuestion): void {
     updateQuestion(question.question, current => {
       const label = current.focused ?? current.selected[0] ?? question.options[0]?.label
-      return label ? toggleMultiSelectOption(current, label) : current
+      if (!label) return current
+      if (label === CUSTOM_OPTION_FOCUS_VALUE) {
+        const hasCustom = Boolean(current.custom.trim())
+        return {
+          ...current,
+          focused: CUSTOM_OPTION_FOCUS_VALUE,
+          answered: current.selected.length > 0 || hasCustom,
+        }
+      }
+      return toggleMultiSelectOption(current, label)
     })
+  }
+
+  function focusCustomInput(): void {
+    customInputRef.current?.focus()
   }
 
   function goToQuestion(delta: -1 | 1): void {
@@ -346,25 +402,64 @@ export function AskUserQuestionApproval({
               </button>
             )
           })}
-          <label
-            className={
-              state.custom.trim()
-                ? 'inline-approval-option custom filled'
-                : 'inline-approval-option custom'
-            }
+          <div
+            aria-checked={Boolean(state.custom.trim())}
+            className={[
+              'inline-approval-option custom',
+              state.focused === CUSTOM_OPTION_FOCUS_VALUE ? 'focused' : '',
+              state.custom.trim() ? 'filled' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+            role={currentQuestion.multiSelect ? 'checkbox' : 'radio'}
+            tabIndex={0}
+            onClick={event => {
+              if (
+                event.target instanceof HTMLElement &&
+                (event.target.tagName === 'TEXTAREA' ||
+                  event.target.isContentEditable)
+              ) {
+                return
+              }
+              focusCustomInput()
+              updateQuestion(currentQuestion.question, current => ({
+                ...current,
+                focused: CUSTOM_OPTION_FOCUS_VALUE,
+                selected:
+                  !currentQuestion.multiSelect ? [] : current.selected,
+                answered:
+                  currentQuestion.multiSelect &&
+                  (current.selected.length > 0 || Boolean(current.custom.trim())),
+              }))
+            }}
           >
-            <span className="inline-approval-option-index">
-              <Pencil size={14} />
+            <span className="inline-approval-option-custom-icon" aria-hidden="true">
+              <PenLine size={14} />
             </span>
-            <input
+            <textarea
+              ref={customInputRef}
               className="ask-user-question-custom-input"
               placeholder="否，请告知 CodePilotX 如何调整"
-              type="text"
+              rows={1}
               value={state.custom}
+              onFocus={() => {
+                updateQuestion(currentQuestion.question, current => {
+                  if (current.focused === CUSTOM_OPTION_FOCUS_VALUE) {
+                    return current
+                  }
+                  return {
+                    ...current,
+                    focused: CUSTOM_OPTION_FOCUS_VALUE,
+                    selected:
+                      !currentQuestion.multiSelect ? [] : current.selected,
+                  }
+                })
+              }}
               onChange={event => {
                 const custom = event.target.value
                 updateQuestion(currentQuestion.question, current => ({
                   ...current,
+                  focused: CUSTOM_OPTION_FOCUS_VALUE,
                   custom,
                   answered: Boolean(custom.trim()),
                   selected:
@@ -374,51 +469,56 @@ export function AskUserQuestionApproval({
                 }))
               }}
             />
-          </label>
+          </div>
+          <div className="inline-approval-split ask-user-question-actions">
+          <button
+            aria-label="跳过当前问题"
+            className="inline-approval-skip"
+            title="按 Esc 跳过"
+            type="button"
+            onClick={onReject}
+          >
+            跳过
+          </button>
+          {controls.showPrevious || controls.showNext ? (
+            <div className="ask-user-question-navigation">
+              {controls.showPrevious ? (
+                <button
+                  className="ask-user-question-nav-button"
+                  type="button"
+                  onClick={() => goToQuestion(-1)}
+                >
+                  <ChevronLeft size={14} />
+                  上一题
+                </button>
+              ) : null}
+              {controls.showNext ? (
+                <button
+                  className="ask-user-question-nav-button"
+                  type="button"
+                  onClick={() => goToQuestion(1)}
+                >
+                  下一题
+                  <ChevronRight size={14} />
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+          {controls.showSubmit ? (
+            <button
+              className="inline-approval-submit"
+              disabled={!canSubmit}
+              type="button"
+              onClick={() => confirmCurrentQuestionAndAdvance(currentQuestion)}
+            >
+              提交
+              <CornerDownLeft size={16} />
+            </button>
+          ) : null}
+          </div>
         </div>
       </section>
       {error ? <p className="ask-user-question-error">{error}</p> : null}
-      <div className="inline-approval-footer inline-approval-footer-split">
-        <div className="inline-approval-footer-hint">
-          <span>忽略</span>
-          <kbd className="inline-approval-footer-key">ESC</kbd>
-        </div>
-        {controls.showPrevious || controls.showNext ? (
-          <div className="ask-user-question-navigation">
-            {controls.showPrevious ? (
-              <button
-                className="ask-user-question-nav-button"
-                type="button"
-                onClick={() => goToQuestion(-1)}
-              >
-                <ChevronLeft size={14} />
-                上一题
-              </button>
-            ) : null}
-            {controls.showNext ? (
-              <button
-                className="ask-user-question-nav-button"
-                type="button"
-                onClick={() => goToQuestion(1)}
-              >
-                下一题
-                <ChevronRight size={14} />
-              </button>
-            ) : null}
-          </div>
-        ) : null}
-        {controls.showSubmit ? (
-          <button
-            className="inline-approval-submit"
-            disabled={!canSubmit}
-            type="button"
-            onClick={() => confirmCurrentQuestionAndAdvance(currentQuestion)}
-          >
-            提交
-            <CornerDownLeft size={16} />
-          </button>
-        ) : null}
-      </div>
     </div>
   )
 }
@@ -559,6 +659,35 @@ export function nextOptionLabel(
   return question.options[nextIndex]?.label
 }
 
+export function nextCustomOptionLabel(
+  question: { options: Array<{ label: string }> },
+  currentLabel: string | undefined,
+  delta: -1 | 1,
+): string | undefined {
+  if (
+    currentLabel === CUSTOM_OPTION_FOCUS_VALUE ||
+    currentLabel === undefined
+  ) {
+    if (delta < 0) {
+      return question.options[question.options.length - 1]?.label
+    }
+    return CUSTOM_OPTION_FOCUS_VALUE
+  }
+  const lastIndex = question.options.length - 1
+  const currentIndex = question.options.findIndex(
+    option => option.label === currentLabel,
+  )
+  if (currentIndex < 0) return undefined
+  if (currentIndex === lastIndex && delta > 0) {
+    return CUSTOM_OPTION_FOCUS_VALUE
+  }
+  if (currentIndex === 0 && delta < 0) {
+    return undefined
+  }
+  const nextIndex = nextQuestionIndex(currentIndex, delta, question.options.length)
+  return question.options[nextIndex]?.label
+}
+
 function buildAnswers(
   questions: AskUserQuestion[],
   questionStates: Record<string, QuestionState>,
@@ -584,6 +713,13 @@ function buildAnswers(
 function hasQuestionAnswer(state: QuestionState | undefined): boolean {
   if (!state) return false
   return state.answered && (state.selected.length > 0 || Boolean(state.custom.trim()))
+}
+
+export function shouldDeferAskUserQuestionShortcutToTextEntry(
+  key: string,
+  isTextEntry: boolean,
+): boolean {
+  return isTextEntry && key !== 'Escape'
 }
 
 function isTextEntryTarget(target: EventTarget | null): boolean {

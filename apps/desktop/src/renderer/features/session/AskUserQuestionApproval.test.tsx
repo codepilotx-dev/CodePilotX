@@ -13,10 +13,24 @@ import {
   nextOptionLabel,
   nextQuestionIndex,
   parseAskUserQuestions,
+  shouldDeferAskUserQuestionShortcutToTextEntry,
   shouldSubmitOptionClick,
   toggleMultiSelectOption,
 } from './AskUserQuestionApproval.js'
 import type { DesktopPermissionRequest } from '../../../shared/types.js'
+
+function extractCustomRowChunk(html: string, customClass: string): string {
+  const token = `class="${customClass}`
+  const start = html.indexOf(token)
+  expect(start).toBeGreaterThanOrEqual(0)
+  // Realign to the opening '<div' that precedes the class attribute.
+  const tagStart = html.lastIndexOf('<div', start)
+  expect(tagStart).toBeGreaterThanOrEqual(0)
+  // First closing div ends the custom row (textarea only has text children)
+  const end = html.indexOf('</div>', start)
+  expect(end).toBeGreaterThan(start)
+  return html.slice(tagStart, end + '</div>'.length)
+}
 
 test('AskUserQuestionApproval renders only the first question initially', () => {
   const html = renderToStaticMarkup(
@@ -77,6 +91,95 @@ test('AskUserQuestionApproval hides final submit before the last question', () =
 
   expect(html).not.toContain('inline-approval-submit')
   expect(html).toContain('下一题')
+})
+
+test('AskUserQuestionApproval renders the custom answer as an option row', () => {
+  const html = renderToStaticMarkup(
+    <AskUserQuestionApproval
+      request={requestWithQuestions(1)}
+      onReject={() => {}}
+      onSubmit={() => {}}
+    />,
+  )
+
+  expect(html).not.toContain('ask-user-question-answer-row')
+  expect(html).not.toContain('<label class="inline-approval-option custom')
+  expect(html).toContain('inline-approval-option custom')
+  expect(html.indexOf('inline-approval-options')).toBeLessThan(
+    html.indexOf('inline-approval-option custom'),
+  )
+  expect(html).toContain('lucide-pen-line')
+  expect(html).toContain('class="inline-approval-skip"')
+  expect(html).toContain('type="button">跳过</button>')
+  expect(html).not.toContain('inline-approval-footer')
+})
+
+test('AskUserQuestionApproval exposes the custom answer as a checkbox in multi-select', () => {
+  const input = {
+    questions: [
+      {
+        id: 'custom-q1',
+        question: 'First choice?',
+        header: 'Q1',
+        multiSelect: true,
+        options: [
+          { label: 'A', description: 'Choose A' },
+          { label: 'B', description: 'Choose B' },
+        ],
+      },
+    ],
+  }
+  const html = renderToStaticMarkup(
+    <AskUserQuestionApproval
+      request={{
+        requestId: 'question-request',
+        toolName: 'AskUserQuestion',
+        description: 'Answer questions?',
+        input,
+      }}
+      onReject={() => {}}
+      onSubmit={() => {}}
+    />,
+  )
+
+  const customChunk = extractCustomRowChunk(
+    html,
+    'inline-approval-option custom',
+  )
+  expect(customChunk).toContain('role="checkbox"')
+  expect(customChunk).toContain('aria-checked')
+  expect(customChunk).toContain('lucide-pen-line')
+  expect(customChunk).not.toContain('inline-approval-option-index')
+})
+
+test('AskUserQuestionApproval exposes the custom answer as a radio option in single-select', () => {
+  const html = renderToStaticMarkup(
+    <AskUserQuestionApproval
+      request={requestWithQuestions(1)}
+      onReject={() => {}}
+      onSubmit={() => {}}
+    />,
+  )
+
+  const customChunk = extractCustomRowChunk(
+    html,
+    'inline-approval-option custom',
+  )
+  expect(customChunk).toContain('role="radio"')
+  expect(customChunk).toContain('aria-checked')
+  expect(customChunk).toContain('lucide-pen-line')
+  expect(customChunk).not.toContain('inline-approval-option-index')
+  expect(customChunk).toContain('tabindex="0"')
+  // Footer controls stay on the same row as the custom option inside the option grid
+  expect(html.indexOf('lucide-pen-line')).toBeLessThan(
+    html.indexOf('inline-approval-skip'),
+  )
+})
+
+test('AskUserQuestionApproval lets Escape bypass the text-entry shortcut guard', () => {
+  expect(shouldDeferAskUserQuestionShortcutToTextEntry('Escape', true)).toBe(false)
+  expect(shouldDeferAskUserQuestionShortcutToTextEntry('Enter', true)).toBe(true)
+  expect(shouldDeferAskUserQuestionShortcutToTextEntry('ArrowDown', false)).toBe(false)
 })
 
 test('footerControls only exposes submit on the last question', () => {
@@ -146,6 +249,23 @@ test('nextOptionLabel clamps keyboard option navigation', () => {
   expect(nextOptionLabel(question, 'A', 1)).toBe('B')
   expect(nextOptionLabel(question, 'B', 1)).toBe('B')
   expect(nextOptionLabel(question, 'B', -1)).toBe('A')
+})
+
+test('nextCustomOptionLabel lets the keyboard cycle into the custom row from the last option', async () => {
+  const {
+    nextCustomOptionLabel,
+    CUSTOM_OPTION_FOCUS_VALUE,
+  } = await import('./AskUserQuestionApproval.js')
+  const [question] = parseRequestQuestions(1)
+
+  expect(nextCustomOptionLabel(question, 'B', 1)).toBe(
+    CUSTOM_OPTION_FOCUS_VALUE,
+  )
+  expect(nextCustomOptionLabel(question, 'A', 1)).toBe('B')
+  expect(nextCustomOptionLabel(question, '__custom', -1)).toBe('B')
+  expect(nextCustomOptionLabel(question, '__custom', 1)).toBe(
+    CUSTOM_OPTION_FOCUS_VALUE,
+  )
 })
 
 test('single-select option clicks submit but multi-select clicks only toggle', () => {
