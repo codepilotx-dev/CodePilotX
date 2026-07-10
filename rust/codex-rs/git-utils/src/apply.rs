@@ -59,7 +59,7 @@ pub fn apply_git_patch(req: &ApplyGitRequest) -> io::Result<ApplyGitResult> {
 
     // Optional: additional git config via env knob (defaults OFF)
     let mut cfg_parts: Vec<String> = Vec::new();
-    if let Ok(cfg) = std::env::var("CODEX_APPLY_GIT_CFG") {
+    if let Ok(cfg) = std::env::var("codepilotx_APPLY_GIT_CFG") {
         for pair in cfg.split(',') {
             let p = pair.trim();
             if p.is_empty() || !p.contains('=') {
@@ -490,7 +490,7 @@ pub fn parse_git_apply_output(
             continue;
         }
 
-        // === “U <path>” after conflicts ===
+        // === “U <path>�?after conflicts ===
         if let Some(c) = UNMERGED_LINE.captures(line) {
             if let Some(m) = c.name("path") {
                 add(&mut conflicted, m.as_str());

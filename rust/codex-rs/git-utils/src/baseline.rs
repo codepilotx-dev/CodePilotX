@@ -139,7 +139,7 @@ fn commit_current_tree(repo: &gix::Repository, message: &str) -> anyhow::Result<
         .workdir()
         .context("git baseline repo must have a worktree")?;
     let tree_id = write_tree(repo, root)?;
-    let signature = codex_signature();
+    let signature = codepilotx_signature();
     let mut time = gix::date::parse::TimeBuf::default();
     let signature_ref = signature.to_ref(&mut time);
     repo.commit_as(
@@ -159,7 +159,7 @@ fn write_index_from_head(root: &Path) -> anyhow::Result<()> {
         .context("write git baseline index from HEAD")
 }
 
-fn codex_signature() -> gix::actor::Signature {
+fn codepilotx_signature() -> gix::actor::Signature {
     gix::actor::Signature {
         name: "Codex".into(),
         email: "noreply@openai.com".into(),

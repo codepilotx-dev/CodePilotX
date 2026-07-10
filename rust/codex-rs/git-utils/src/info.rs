@@ -4,9 +4,9 @@ use std::ffi::OsStr;
 use std::path::Path;
 use std::path::PathBuf;
 
-use codex_file_system::ExecutorFileSystem;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_path_uri::PathUri;
+use codepilotx_file_system::ExecutorFileSystem;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_path_uri::PathUri;
 use futures::future::join_all;
 use schemars::JsonSchema;
 use serde::Deserialize;
