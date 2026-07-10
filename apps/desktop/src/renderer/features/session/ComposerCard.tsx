@@ -3,12 +3,15 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import * as Select from "@radix-ui/react-select";
 import {
+  Activity,
   ArrowUp,
+  Box,
   Blocks,
   Brain,
   Check,
   ChevronDown,
   ChevronRight,
+  CircleUserRound,
   Compass,
   FileText,
   Folder,
@@ -17,6 +20,7 @@ import {
   Hand,
   ListChecks,
   Mic,
+  MessageSquare,
   Monitor,
   Palette,
   Paperclip,
@@ -31,6 +35,7 @@ import {
   Target,
   Wrench,
   X,
+  Zap,
 } from "lucide-react";
 import {
   APP_ICON_SIZE,
@@ -154,12 +159,9 @@ const INSTALLED_CONTEXT_PLUGINS: ContextPlugin[] = [
 
 type UnifiedMenuGroup =
   | "添加"
-  | "目标"
-  | "计划模式"
-  | "智能体"
+  | "子智能体"
   | "插件"
-  | "Skills"
-  | "命令";
+  | "Skills";
 
 type UnifiedMenuItem = {
   group: UnifiedMenuGroup;
@@ -171,19 +173,25 @@ type UnifiedMenuItem = {
   matchText: string;
   /** Whether the item is active/pressed */
   isActive?: boolean;
+  /** Whether the option is visible but not wired in this desktop surface yet. */
+  disabled?: boolean;
   /** Core action, without trigger-text-clearing or dropdown-closing */
   onSelect: () => void;
 };
 
 const UNIFIED_GROUP_ORDER: UnifiedMenuGroup[] = [
   "添加",
-  "目标",
-  "计划模式",
-  "智能体",
+  "子智能体",
   "插件",
   "Skills",
-  "命令",
 ];
+
+const UNIFIED_GROUP_LABELS: Record<UnifiedMenuGroup, string> = {
+  "添加": "添加",
+  "子智能体": "子智能体",
+  "插件": "插件",
+  Skills: "技能",
+};
 
 const PERMISSION_CHIP_CLASS_NAMES: Record<DesktopPermissionMode, string> = {
   default: "permission-chip permission-chip-default",
@@ -399,9 +407,140 @@ export function ComposerCard({
       },
     });
 
+    items.push(
+      {
+        group: "添加",
+        key: "ide-context",
+        label: "IDE 上下文",
+        hint: "包含当前选择、打开的文件以及其他来自你的 IDE 的上下文",
+        icon: <Blocks size={14} />,
+        matchText: "IDE 上下文 ide context",
+        disabled: true,
+        onSelect: () => {},
+      },
+      {
+        group: "添加",
+        key: "mcp",
+        label: "MCP",
+        hint: "显示 MCP 服务器状态",
+        icon: <Paperclip size={14} />,
+        matchText: "MCP mcp servers",
+        disabled: true,
+        onSelect: () => {},
+      },
+      {
+        group: "添加",
+        key: "code-review",
+        label: "代码审查",
+        hint: "审查未暂存的更改，或与某个分支进行比较",
+        icon: <ShieldCheck size={14} />,
+        matchText: "代码审查 code review",
+        disabled: true,
+        onSelect: () => {},
+      },
+      {
+        group: "添加",
+        key: "task",
+        label: "任务",
+        hint: "不要在项目中工作",
+        icon: <MessageSquare size={14} />,
+        matchText: "任务 task",
+        disabled: true,
+        onSelect: () => {},
+      },
+      {
+        group: "添加",
+        key: "initialize",
+        label: "初始化",
+        hint: "创建包含 Codex 说明的 AGENTS.md 文件",
+        icon: <FileText size={14} />,
+        matchText: "初始化 initialize agents md",
+        disabled: true,
+        onSelect: () => {},
+      },
+      {
+        group: "添加",
+        key: "feedback",
+        label: "反馈",
+        hint: "发送关于此任务的反馈",
+        icon: <MessageSquare size={14} />,
+        matchText: "反馈 feedback",
+        disabled: true,
+        onSelect: () => {},
+      },
+      {
+        group: "添加",
+        key: "pet",
+        label: "宠物",
+        hint: "唤醒或收起桌面宠物",
+        icon: <CircleUserRound size={14} />,
+        matchText: "宠物 pet",
+        disabled: true,
+        onSelect: () => {},
+      },
+      {
+        group: "添加",
+        key: "fast",
+        label: "快速",
+        hint: "1.5x speed, increased usage",
+        icon: <Zap size={14} />,
+        matchText: "快速 fast speed",
+        disabled: true,
+        onSelect: () => {},
+      },
+      {
+        group: "添加",
+        key: "reasoning",
+        label: "推理",
+        hint: selectedThinkingLabel,
+        icon: <Brain size={14} />,
+        matchText: "推理 reasoning thinking",
+        onSelect: () => setOpenDropdown("model"),
+      },
+      {
+        group: "添加",
+        key: "worktree",
+        label: "新工作树",
+        hint: "在新的工作树中运行此任务",
+        icon: <GitBranch size={14} />,
+        matchText: "新工作树 worktree",
+        disabled: true,
+        onSelect: () => {},
+      },
+      {
+        group: "添加",
+        key: "model",
+        label: "模型",
+        hint: selectedModelLabel,
+        icon: <Box size={14} />,
+        matchText: "模型 model",
+        onSelect: () => setOpenDropdown("model"),
+      },
+      {
+        group: "添加",
+        key: "status",
+        label: "状态",
+        hint: "显示任务 ID、上下文用量和速率限制",
+        icon: <Activity size={14} />,
+        matchText: "状态 status task id context usage rate limit",
+        disabled: true,
+        onSelect: () => {},
+      },
+      {
+        group: "添加",
+        key: "memory",
+        label: "记忆",
+        hint: "生成 · 开",
+        icon: <Brain size={14} />,
+        matchText: "记忆 memory",
+        disabled: true,
+        onSelect: () => {},
+      },
+    );
+
     // 目标
     items.push({
-      group: "目标",
+      group: "添加",
       key: "goal-mode",
       label: "目标",
       hint: "设置 CodePilotX 将持续努力实现的目标",
@@ -415,7 +554,7 @@ export function ComposerCard({
 
     // 计划模式
     items.push({
-      group: "计划模式",
+      group: "添加",
       key: "plan-mode",
       label: "计划模式",
       hint: "开启计划模式",
@@ -430,7 +569,7 @@ export function ComposerCard({
     // 智能体
     for (const agent of CONTEXT_AGENT_OPTIONS) {
       items.push({
-        group: "智能体",
+        group: "子智能体",
         key: `agent-${agent.name}`,
         label: agent.name,
         hint: agent.role,
@@ -503,7 +642,7 @@ export function ComposerCard({
         });
       } else if (cmd.category === "command" && !planGoalNames.has(cmd.name)) {
         items.push({
-          group: "命令",
+          group: "添加",
           key: `cmd-${cmd.name}`,
           label: cmd.title,
           hint: cmd.description,
@@ -524,6 +663,8 @@ export function ComposerCard({
     onPlanModeChange,
     onOpenBrowser,
     onSkillSelect,
+    selectedModelLabel,
+    selectedThinkingLabel,
   ]);
 
   useEffect(() => {
@@ -555,11 +696,13 @@ export function ComposerCard({
   }
 
   function handleUnifiedPlusSelect(item: UnifiedMenuItem): void {
+    if (item.disabled) return;
     item.onSelect();
     closeDropdown();
   }
 
   function handleUnifiedSlashSelect(item: UnifiedMenuItem): void {
+    if (item.disabled) return;
     // Clear slash trigger text (preserve text after the /command)
     const slashMatch = input.match(/^\/\S+/);
     if (slashMatch) {
@@ -571,6 +714,7 @@ export function ComposerCard({
   }
 
   function handleUnifiedMentionSelect(item: UnifiedMenuItem): void {
+    if (item.disabled) return;
     if (activeMention) {
       const newInput =
         input.slice(0, activeMention.start) +
@@ -667,22 +811,22 @@ export function ComposerCard({
             {gi > 0 ? (
               <div className="chat-input__dropdown-separator" />
             ) : null}
-            <div className="chat-input__dropdown-section-title">{group}</div>
+            <div className="chat-input__dropdown-section-title">
+              {UNIFIED_GROUP_LABELS[group]}
+            </div>
             {(grouped.get(group) ?? []).map((item) => (
               <div
-                aria-pressed={
-                  item.isActive && item.group === "目标"
-                    ? true
-                    : item.isActive && item.group === "计划模式"
-                      ? true
-                      : undefined
-                }
+                aria-disabled={item.disabled ? true : undefined}
+                aria-pressed={item.isActive ? true : undefined}
                 className={[
                   "chat-input__dropdown-item",
                   item.isActive ? "is-active" : "",
+                  item.disabled ? "is-disabled" : "",
                 ].join(" ")}
                 key={item.key}
-                onClick={() => onItemSelect(item)}
+                onClick={() => {
+                  if (!item.disabled) onItemSelect(item);
+                }}
               >
                 <span className="chat-input__dropdown-leading">
                   {item.icon}

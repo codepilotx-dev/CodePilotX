@@ -758,6 +758,13 @@
   background: transparent;
   border: 0;
   font-family: inherit;
+
+  &.is-disabled {
+    color: var(--color-text-meta);
+    cursor: not-allowed;
+    opacity: 0.58;
+    pointer-events: none;
+  }
 }
 
 .chat-input__dropdown-leading {

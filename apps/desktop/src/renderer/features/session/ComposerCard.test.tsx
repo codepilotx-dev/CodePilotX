@@ -140,7 +140,7 @@ test('ChatInputDropdown adds --bottom modifier class when side is "bottom"', () 
   expect(html).toContain('chat-input__dropdown--bottom')
 })
 
-test('ComposerCard shows unified menu with all 7 groups when input is just "/"', () => {
+test('ComposerCard groups reference items, sub-agents, and plugins separately', () => {
   const html = renderWithProviders(
     <ComposerCard
       {...baseProps}
@@ -158,14 +158,25 @@ test('ComposerCard shows unified menu with all 7 groups when input is just "/"',
 
   expect(html).toContain('popover-surface chat-input__dropdown chat-input__dropdown--bottom')
   expect(html).toContain('--popover-max-width:100%')
-  // Unified menu shows all non-empty groups (Skills hidden because no skill commands)
+  // Unified menu uses one group for all available actions.
   expect(html).toContain('>添加<')
-  expect(html).toContain('>目标<')
-  expect(html).toContain('>计划模式<')
-  expect(html).toContain('>智能体<')
-  expect(html).toContain('>插件<')
-  expect(html).toContain('>命令<')
-  expect(html).not.toContain('>Skills<')
+  expect(html.match(/chat-input__dropdown-section-title/g)?.length).toBe(3)
+  expect(html).toContain('IDE 上下文')
+  expect(html).toContain('MCP')
+  expect(html).toContain('代码审查')
+  expect(html).toContain('初始化')
+  expect(html).toContain('反馈')
+  expect(html).toContain('宠物')
+  expect(html).toContain('新工作树')
+  expect(html).toContain('模型')
+  expect(html).toContain('状态')
+  expect(html).toContain('记忆')
+  expect(html).not.toContain('chat-input__dropdown-section-title">目标<')
+  expect(html).not.toContain('chat-input__dropdown-section-title">计划模式<')
+  expect(html).toContain('chat-input__dropdown-section-title">子智能体<')
+  expect(html).toContain('chat-input__dropdown-section-title">插件<')
+  expect(html).not.toContain('chat-input__dropdown-section-title">命令<')
+  expect(html).not.toContain('chat-input__dropdown-section-title">技能<')
   // Each group contains expected items
   expect(html).toContain('Files and folders')
   expect(html).toContain('Schrodinger')
@@ -264,7 +275,7 @@ test('ComposerCard shows no commands when no slash commands match', () => {
   expect(html).not.toContain('状态')
 })
 
-test('ComposerCard shows unified menu groups including Skills and 命令', () => {
+test('ComposerCard shows the 技能 group when skill commands are available', () => {
   const html = renderWithProviders(
     <ComposerCard
       {...baseProps}
@@ -287,17 +298,14 @@ test('ComposerCard shows unified menu groups including Skills and 命令', () =>
     />,
   )
 
-  // All 7 groups render
+  // Skills render under their own group while sub-agents and plugins have dedicated groups.
   expect(html).toContain('chat-input__dropdown-section-title">添加<')
-  expect(html).toContain('chat-input__dropdown-section-title">目标<')
-  expect(html).toContain('chat-input__dropdown-section-title">计划模式<')
-  expect(html).toContain('chat-input__dropdown-section-title">智能体<')
+  expect(html).toContain('chat-input__dropdown-section-title">子智能体<')
   expect(html).toContain('chat-input__dropdown-section-title">插件<')
-  expect(html).toContain('chat-input__dropdown-section-title">Skills<')
-  expect(html).toContain('chat-input__dropdown-section-title">命令<')
+  expect(html).toContain('chat-input__dropdown-section-title">技能<')
+  expect(html.match(/chat-input__dropdown-section-title/g)?.length).toBe(4)
   expect(html).toContain('状态')
   expect(html).toContain('Mmx CLI')
-  expect(html).toContain('chat-input__dropdown-separator')
 })
 
 test('ComposerCard renders inline skill token when selectedSkillToken is provided', () => {
@@ -763,11 +771,10 @@ test('ComposerCard unified menu filters by English keyword across hardcoded and 
 	    />,
 	  )
 
-	  // 目标 group item matches "goal" in matchText
-	  expect(html).toContain('>目标<')
-	  // Other groups without "goal" match are hidden
-	  expect(html).not.toContain('>添加<')
-	  expect(html).not.toContain('>计划模式<')
-	  expect(html).not.toContain('>智能体<')
-	  expect(html).not.toContain('>插件<')
+  // 目标 item matches "goal" in matchText while keeping the 添加 heading.
+  expect(html).toContain('>目标<')
+  expect(html).toContain('>添加<')
+  expect(html).not.toContain('>Files and folders<')
+  expect(html).not.toContain('>Schrodinger<')
+  expect(html).not.toContain('>Documents<')
 	})
