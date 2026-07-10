@@ -23,7 +23,7 @@
     },
     {
       "properties": {
-        "codexStreamlinedLogin": {
+        "codepilotxStreamlinedLogin": {
           "type": "boolean"
         },
         "type": {

@@ -125,7 +125,7 @@
       ]
     },
     "callId": {
-      "description": "Use to correlate this with [codex_protocol::protocol::ExecCommandBeginEvent] and [codex_protocol::protocol::ExecCommandEndEvent].",
+      "description": "Use to correlate this with [codepilotx_protocol::protocol::ExecCommandBeginEvent] and [codepilotx_protocol::protocol::ExecCommandEndEvent].",
       "type": "string"
     },
     "command": {

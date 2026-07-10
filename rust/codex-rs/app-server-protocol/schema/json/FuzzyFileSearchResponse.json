@@ -9,7 +9,7 @@
       "type": "string"
     },
     "FuzzyFileSearchResult": {
-      "description": "Superset of [`codex_file_search::FileMatch`]",
+      "description": "Superset of [`codepilotx_file_search::FileMatch`]",
       "properties": {
         "file_name": {
           "type": "string"
