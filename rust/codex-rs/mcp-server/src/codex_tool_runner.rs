@@ -9,20 +9,20 @@ use crate::exec_approval::handle_exec_approval_request;
 use crate::outgoing_message::OutgoingMessageSender;
 use crate::outgoing_message::OutgoingNotificationMeta;
 use crate::patch_approval::handle_patch_approval_request;
-use codex_core::CodexThread;
-use codex_core::NewThread;
-use codex_core::ThreadManager;
-use codex_core::config::Config as CodexConfig;
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::AgentMessageEvent;
-use codex_protocol::protocol::ApplyPatchApprovalRequestEvent;
-use codex_protocol::protocol::Event;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ExecApprovalRequestEvent;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::Submission;
-use codex_protocol::protocol::TurnCompleteEvent;
-use codex_protocol::user_input::UserInput;
+use codepilotx_core::CodexThread;
+use codepilotx_core::NewThread;
+use codepilotx_core::ThreadManager;
+use codepilotx_core::config::Config as CodexConfig;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::protocol::AgentMessageEvent;
+use codepilotx_protocol::protocol::ApplyPatchApprovalRequestEvent;
+use codepilotx_protocol::protocol::Event;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::ExecApprovalRequestEvent;
+use codepilotx_protocol::protocol::Op;
+use codepilotx_protocol::protocol::Submission;
+use codepilotx_protocol::protocol::TurnCompleteEvent;
+use codepilotx_protocol::user_input::UserInput;
 use rmcp::model::CallToolResult;
 use rmcp::model::Content;
 use rmcp::model::RequestId;
@@ -54,13 +54,13 @@ pub(crate) fn create_call_tool_result_with_thread_id(
 ///
 /// On completion (success or error) the function sends the appropriate
 /// `tools/call` response so the LLM can continue the conversation.
-pub async fn run_codex_tool_session(
+pub async fn run_codepilotx_tool_session(
     id: RequestId,
     initial_prompt: String,
     config: CodexConfig,
     outgoing: Arc<OutgoingMessageSender>,
     thread_manager: Arc<ThreadManager>,
-    running_requests_id_to_codex_uuid: Arc<Mutex<HashMap<RequestId, ThreadId>>>,
+    running_requests_id_to_codepilotx_uuid: Arc<Mutex<HashMap<RequestId, ThreadId>>>,
 ) {
     let NewThread {
         thread_id,
@@ -96,7 +96,7 @@ pub async fn run_codex_tool_session(
     // any events emitted for this tool-call can be correlated with the
     // originating `tools/call` request.
     let sub_id = id.to_string();
-    running_requests_id_to_codex_uuid
+    running_requests_id_to_codepilotx_uuid
         .lock()
         .await
         .insert(id.clone(), thread_id);
@@ -126,29 +126,29 @@ pub async fn run_codex_tool_session(
         );
         outgoing.send_response(id.clone(), result).await;
         // unregister the id so we don't keep it in the map
-        running_requests_id_to_codex_uuid.lock().await.remove(&id);
+        running_requests_id_to_codepilotx_uuid.lock().await.remove(&id);
         return;
     }
 
-    run_codex_tool_session_inner(
+    run_codepilotx_tool_session_inner(
         thread_id,
         thread,
         outgoing,
         id,
-        running_requests_id_to_codex_uuid,
+        running_requests_id_to_codepilotx_uuid,
     )
     .await;
 }
 
-pub async fn run_codex_tool_session_reply(
+pub async fn run_codepilotx_tool_session_reply(
     thread_id: ThreadId,
     thread: Arc<CodexThread>,
     outgoing: Arc<OutgoingMessageSender>,
     request_id: RequestId,
     prompt: String,
-    running_requests_id_to_codex_uuid: Arc<Mutex<HashMap<RequestId, ThreadId>>>,
+    running_requests_id_to_codepilotx_uuid: Arc<Mutex<HashMap<RequestId, ThreadId>>>,
 ) {
-    running_requests_id_to_codex_uuid
+    running_requests_id_to_codepilotx_uuid
         .lock()
         .await
         .insert(request_id.clone(), thread_id);
@@ -174,29 +174,29 @@ pub async fn run_codex_tool_session_reply(
         );
         outgoing.send_response(request_id.clone(), result).await;
         // unregister the id so we don't keep it in the map
-        running_requests_id_to_codex_uuid
+        running_requests_id_to_codepilotx_uuid
             .lock()
             .await
             .remove(&request_id);
         return;
     }
 
-    run_codex_tool_session_inner(
+    run_codepilotx_tool_session_inner(
         thread_id,
         thread,
         outgoing,
         request_id,
-        running_requests_id_to_codex_uuid,
+        running_requests_id_to_codepilotx_uuid,
     )
     .await;
 }
 
-async fn run_codex_tool_session_inner(
+async fn run_codepilotx_tool_session_inner(
     thread_id: ThreadId,
     thread: Arc<CodexThread>,
     outgoing: Arc<OutgoingMessageSender>,
     request_id: RequestId,
-    running_requests_id_to_codex_uuid: Arc<Mutex<HashMap<RequestId, ThreadId>>>,
+    running_requests_id_to_codepilotx_uuid: Arc<Mutex<HashMap<RequestId, ThreadId>>>,
 ) {
     let request_id_str = request_id.to_string();
 
@@ -311,7 +311,7 @@ async fn run_codex_tool_session_inner(
                         );
                         outgoing.send_response(request_id.clone(), result).await;
                         // unregister the id so we don't keep it in the map
-                        running_requests_id_to_codex_uuid
+                        running_requests_id_to_codepilotx_uuid
                             .lock()
                             .await
                             .remove(&request_id);
@@ -391,7 +391,7 @@ async fn run_codex_tool_session_inner(
                     | EventMsg::DeprecationNotice(_) => {
                         // For now, we do not do anything extra for these
                         // events. Note that
-                        // send(codex_event_to_notification(&event)) above has
+                        // send(codepilotx_event_to_notification(&event)) above has
                         // already dispatched these events as notifications,
                         // though we may want to do give different treatment to
                         // individual events in the future.

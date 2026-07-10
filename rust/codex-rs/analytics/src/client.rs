@@ -27,19 +27,19 @@ use crate::facts::TurnProfileFact;
 use crate::facts::TurnResolvedConfigFact;
 use crate::facts::TurnTokenUsageFact;
 use crate::reducer::AnalyticsReducer;
-use codex_app_server_protocol::ClientRequest;
-use codex_app_server_protocol::ClientResponsePayload;
-use codex_app_server_protocol::InitializeParams;
-use codex_app_server_protocol::JSONRPCErrorError;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::ServerRequest;
-use codex_app_server_protocol::ServerResponse;
-use codex_login::AuthManager;
-use codex_login::CodexAuth;
-use codex_login::default_client::create_client;
-use codex_plugin::PluginTelemetryMetadata;
-use codex_protocol::request_permissions::RequestPermissionsResponse;
+use codepilotx_app_server_protocol::ClientRequest;
+use codepilotx_app_server_protocol::ClientResponsePayload;
+use codepilotx_app_server_protocol::InitializeParams;
+use codepilotx_app_server_protocol::JSONRPCErrorError;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_app_server_protocol::ServerNotification;
+use codepilotx_app_server_protocol::ServerRequest;
+use codepilotx_app_server_protocol::ServerResponse;
+use codepilotx_login::AuthManager;
+use codepilotx_login::CodexAuth;
+use codepilotx_login::default_client::create_client;
+use codepilotx_plugin::PluginTelemetryMetadata;
+use codepilotx_protocol::request_permissions::RequestPermissionsResponse;
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -331,7 +331,7 @@ impl AnalyticsEventsClient {
         )));
     }
 
-    pub fn track_turn_codex_error(&self, fact: TurnCodexErrorFact) {
+    pub fn track_turn_codepilotx_error(&self, fact: TurnCodexErrorFact) {
         self.record_fact(AnalyticsFact::Custom(CustomAnalyticsFact::TurnCodexError(
             Box::new(fact),
         )));
@@ -507,7 +507,7 @@ async fn send_track_events(
     let Some(auth) = auth_manager.auth().await else {
         return;
     };
-    if !auth.uses_codex_backend() {
+    if !auth.uses_codepilotx_backend() {
         return;
     }
 
@@ -563,7 +563,7 @@ async fn send_track_events_request(
     let response = create_client()
         .post(url)
         .timeout(ANALYTICS_EVENTS_TIMEOUT)
-        .headers(codex_model_provider::auth_provider_from_auth(auth).to_auth_headers())
+        .headers(codepilotx_model_provider::auth_provider_from_auth(auth).to_auth_headers())
         .header("Content-Type", "application/json")
         .json(&payload)
         .send()

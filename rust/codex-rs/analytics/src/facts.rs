@@ -1,32 +1,32 @@
 use crate::events::AppServerRpcTransport;
 use crate::events::CodexRuntimeMetadata;
 use crate::events::GuardianReviewEventParams;
-use codex_app_server_protocol::ClientRequest;
-use codex_app_server_protocol::ClientResponsePayload;
-use codex_app_server_protocol::InitializeParams;
-use codex_app_server_protocol::JSONRPCErrorError;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::ServerRequest;
-use codex_app_server_protocol::ServerResponse;
-use codex_plugin::PluginTelemetryMetadata;
-use codex_protocol::config_types::ApprovalsReviewer;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::config_types::Personality;
-use codex_protocol::config_types::ReasoningSummary;
-use codex_protocol::config_types::ServiceTier;
-use codex_protocol::error::CodexErr;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::HookEventName;
-use codex_protocol::protocol::HookRunStatus;
-use codex_protocol::protocol::HookSource;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SkillScope;
-use codex_protocol::protocol::SubAgentSource;
-use codex_protocol::protocol::TokenUsage;
-use codex_protocol::request_permissions::RequestPermissionsResponse;
+use codepilotx_app_server_protocol::ClientRequest;
+use codepilotx_app_server_protocol::ClientResponsePayload;
+use codepilotx_app_server_protocol::InitializeParams;
+use codepilotx_app_server_protocol::JSONRPCErrorError;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_app_server_protocol::ServerNotification;
+use codepilotx_app_server_protocol::ServerRequest;
+use codepilotx_app_server_protocol::ServerResponse;
+use codepilotx_plugin::PluginTelemetryMetadata;
+use codepilotx_protocol::config_types::ApprovalsReviewer;
+use codepilotx_protocol::config_types::ModeKind;
+use codepilotx_protocol::config_types::Personality;
+use codepilotx_protocol::config_types::ReasoningSummary;
+use codepilotx_protocol::config_types::ServiceTier;
+use codepilotx_protocol::error::CodexErr;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::openai_models::ReasoningEffort;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_protocol::protocol::HookEventName;
+use codepilotx_protocol::protocol::HookRunStatus;
+use codepilotx_protocol::protocol::HookSource;
+use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_protocol::protocol::SkillScope;
+use codepilotx_protocol::protocol::SubAgentSource;
+use codepilotx_protocol::protocol::TokenUsage;
+use codepilotx_protocol::request_permissions::RequestPermissionsResponse;
 use serde::Serialize;
 use std::path::PathBuf;
 
@@ -126,11 +126,11 @@ pub struct TurnCodexErrorFact {
 }
 
 impl TurnCodexErrorFact {
-    pub fn from_codex_err(thread_id: String, turn_id: String, error: &CodexErr) -> Self {
+    pub fn from_codepilotx_err(thread_id: String, turn_id: String, error: &CodexErr) -> Self {
         Self {
             turn_id,
             thread_id,
-            error: TurnCodexError::from_codex_err(error),
+            error: TurnCodexError::from_codepilotx_err(error),
         }
     }
 }
@@ -183,7 +183,7 @@ pub(crate) struct TurnCodexError {
 }
 
 impl TurnCodexError {
-    fn from_codex_err(error: &CodexErr) -> Self {
+    fn from_codepilotx_err(error: &CodexErr) -> Self {
         Self {
             kind: error.into(),
             http_status_code: error.http_status_code_value(),
@@ -408,8 +408,8 @@ pub struct CodexCompactionEvent {
     pub phase: CompactionPhase,
     pub strategy: CompactionStrategy,
     pub status: CompactionStatus,
-    pub codex_error_kind: Option<CodexErrKind>,
-    pub codex_error_http_status_code: Option<u16>,
+    pub codepilotx_error_kind: Option<CodexErrKind>,
+    pub codepilotx_error_http_status_code: Option<u16>,
     pub active_context_tokens_before: i64,
     pub active_context_tokens_after: i64,
     pub retained_image_count: Option<usize>,
@@ -435,7 +435,7 @@ pub struct CodexGoalEvent {
     pub turn_id: Option<String>,
     pub goal_id: String,
     pub event_kind: GoalEventKind,
-    pub goal_status: codex_state::ThreadGoalStatus,
+    pub goal_status: codepilotx_state::ThreadGoalStatus,
     pub has_token_budget: bool,
     pub cumulative_tokens_accounted: Option<i64>,
     pub cumulative_time_accounted_seconds: Option<i64>,

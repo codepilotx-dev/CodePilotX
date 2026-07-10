@@ -1,11 +1,11 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use codex_core::CodexThread;
-use codex_protocol::ThreadId;
-use codex_protocol::parse_command::ParsedCommand;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::ReviewDecision;
+use codepilotx_core::CodexThread;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::parse_command::ParsedCommand;
+use codepilotx_protocol::protocol::Op;
+use codepilotx_protocol::protocol::ReviewDecision;
 use rmcp::model::ErrorData;
 use rmcp::model::RequestId;
 use serde::Deserialize;
@@ -29,13 +29,13 @@ pub struct ExecApprovalElicitRequestParams {
     // correlate the request with the codex tool call.
     #[serde(rename = "threadId")]
     pub thread_id: ThreadId,
-    pub codex_elicitation: String,
-    pub codex_mcp_tool_call_id: String,
-    pub codex_event_id: String,
-    pub codex_call_id: String,
-    pub codex_command: Vec<String>,
-    pub codex_cwd: PathBuf,
-    pub codex_parsed_cmd: Vec<ParsedCommand>,
+    pub codepilotx_elicitation: String,
+    pub codepilotx_mcp_tool_call_id: String,
+    pub codepilotx_event_id: String,
+    pub codepilotx_call_id: String,
+    pub codepilotx_command: Vec<String>,
+    pub codepilotx_cwd: PathBuf,
+    pub codepilotx_parsed_cmd: Vec<ParsedCommand>,
 }
 
 // TODO(mbolin): ExecApprovalResponse does not conform to ElicitResult. See:
@@ -58,7 +58,7 @@ pub(crate) async fn handle_exec_approval_request(
     event_id: String,
     call_id: String,
     approval_id: String,
-    codex_parsed_cmd: Vec<ParsedCommand>,
+    codepilotx_parsed_cmd: Vec<ParsedCommand>,
     thread_id: ThreadId,
 ) {
     let escaped_command =
@@ -72,13 +72,13 @@ pub(crate) async fn handle_exec_approval_request(
         message,
         requested_schema: json!({"type":"object","properties":{}}),
         thread_id,
-        codex_elicitation: "exec-approval".to_string(),
-        codex_mcp_tool_call_id: tool_call_id.clone(),
-        codex_event_id: event_id.clone(),
-        codex_call_id: call_id,
-        codex_command: command,
-        codex_cwd: cwd,
-        codex_parsed_cmd,
+        codepilotx_elicitation: "exec-approval".to_string(),
+        codepilotx_mcp_tool_call_id: tool_call_id.clone(),
+        codepilotx_event_id: event_id.clone(),
+        codepilotx_call_id: call_id,
+        codepilotx_command: command,
+        codepilotx_cwd: cwd,
+        codepilotx_parsed_cmd,
     };
     let params_json = match serde_json::to_value(&params) {
         Ok(value) => value,

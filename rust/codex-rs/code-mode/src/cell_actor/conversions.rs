@@ -1,9 +1,9 @@
-use codex_code_mode_protocol::CodeModeToolKind;
-use codex_code_mode_protocol::ExecuteRequest;
-use codex_code_mode_protocol::FunctionCallOutputContentItem;
-use codex_code_mode_protocol::ImageDetail;
-use codex_code_mode_protocol::ToolDefinition;
-use codex_protocol::ToolName;
+use codepilotx_code_mode_protocol::CodeModeToolKind;
+use codepilotx_code_mode_protocol::ExecuteRequest;
+use codepilotx_code_mode_protocol::FunctionCallOutputContentItem;
+use codepilotx_code_mode_protocol::ImageDetail;
+use codepilotx_code_mode_protocol::ToolDefinition;
+use codepilotx_protocol::ToolName;
 
 use super::CellImageDetail;
 use super::CellOutputItem;

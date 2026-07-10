@@ -9,7 +9,7 @@ use crate::metrics::validation::validate_metric_name;
 use crate::metrics::validation::validate_tag_key;
 use crate::metrics::validation::validate_tag_value;
 use crate::metrics::validation::validate_tags;
-use codex_utils_string::sanitize_metric_tag_value;
+use codepilotx_utils_string::sanitize_metric_tag_value;
 use opentelemetry::KeyValue;
 use opentelemetry::metrics::Counter;
 use opentelemetry::metrics::Gauge;

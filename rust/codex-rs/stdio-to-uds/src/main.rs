@@ -16,5 +16,5 @@ async fn main() -> anyhow::Result<()> {
     }
 
     let socket_path = PathBuf::from(socket_path);
-    codex_stdio_to_uds::run(&socket_path).await
+    codepilotx_stdio_to_uds::run(&socket_path).await
 }

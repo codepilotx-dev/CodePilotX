@@ -1,12 +1,12 @@
 use serde_json::Value as JsonValue;
 
-use codex_code_mode_protocol::DEFAULT_IMAGE_DETAIL;
-use codex_code_mode_protocol::FunctionCallOutputContentItem;
-use codex_code_mode_protocol::ImageDetail;
+use codepilotx_code_mode_protocol::DEFAULT_IMAGE_DETAIL;
+use codepilotx_code_mode_protocol::FunctionCallOutputContentItem;
+use codepilotx_code_mode_protocol::ImageDetail;
 
 const IMAGE_HELPER_EXPECTS_MESSAGE: &str = "image expects a non-empty image URL string, an object with image_url and optional detail, or a raw MCP image block";
 const REMOTE_IMAGE_URL_ERROR: &str = "Tool call failed: remote image URLs are not supported in tool outputs. Pass a base64 data URI instead";
-const CODEX_IMAGE_DETAIL_META_KEY: &str = "codex/imageDetail";
+const codepilotx_IMAGE_DETAIL_META_KEY: &str = "codex/imageDetail";
 
 pub(super) fn serialize_output_text(
     scope: &mut v8::PinScope<'_, '_>,
@@ -156,7 +156,7 @@ fn parse_mcp_output_image(
     let detail = result
         .get("_meta")
         .and_then(JsonValue::as_object)
-        .and_then(|meta| meta.get(CODEX_IMAGE_DETAIL_META_KEY))
+        .and_then(|meta| meta.get(codepilotx_IMAGE_DETAIL_META_KEY))
         .and_then(JsonValue::as_str)
         .filter(|detail| matches!(*detail, "auto" | "low" | "high" | "original"))
         .map(str::to_string);

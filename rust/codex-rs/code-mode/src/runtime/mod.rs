@@ -9,16 +9,16 @@ use std::sync::OnceLock;
 use std::sync::mpsc as std_mpsc;
 use std::thread;
 
-use codex_code_mode_protocol::CodeModeToolKind;
-use codex_code_mode_protocol::EnabledToolMetadata;
-use codex_code_mode_protocol::ExecuteRequest;
-use codex_code_mode_protocol::FunctionCallOutputContentItem;
-use codex_code_mode_protocol::enabled_tool_metadata;
-use codex_protocol::ToolName;
+use codepilotx_code_mode_protocol::CodeModeToolKind;
+use codepilotx_code_mode_protocol::EnabledToolMetadata;
+use codepilotx_code_mode_protocol::ExecuteRequest;
+use codepilotx_code_mode_protocol::FunctionCallOutputContentItem;
+use codepilotx_code_mode_protocol::enabled_tool_metadata;
+use codepilotx_protocol::ToolName;
 use serde_json::Value as JsonValue;
 use tokio::sync::mpsc;
 
-const EXIT_SENTINEL: &str = "__codex_code_mode_exit__";
+const EXIT_SENTINEL: &str = "__codepilotx_code_mode_exit__";
 
 #[derive(Debug)]
 pub(crate) enum RuntimeCommand {

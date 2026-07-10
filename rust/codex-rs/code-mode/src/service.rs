@@ -5,27 +5,27 @@ use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
-use codex_code_mode_protocol::CellId;
-use codex_code_mode_protocol::CodeModeNestedToolCall;
-use codex_code_mode_protocol::CodeModeSession;
-use codex_code_mode_protocol::CodeModeSessionDelegate;
-use codex_code_mode_protocol::CodeModeSessionProvider;
-use codex_code_mode_protocol::CodeModeSessionProviderFuture;
-use codex_code_mode_protocol::CodeModeSessionResultFuture;
-use codex_code_mode_protocol::CodeModeToolKind;
-use codex_code_mode_protocol::DEFAULT_EXEC_YIELD_TIME_MS;
-use codex_code_mode_protocol::ExecuteRequest;
-use codex_code_mode_protocol::ExecuteToPendingOutcome;
-use codex_code_mode_protocol::FunctionCallOutputContentItem;
-use codex_code_mode_protocol::ImageDetail;
-use codex_code_mode_protocol::NotificationFuture;
-use codex_code_mode_protocol::RuntimeResponse;
-use codex_code_mode_protocol::StartedCell;
-use codex_code_mode_protocol::ToolInvocationFuture;
-use codex_code_mode_protocol::WaitOutcome;
-use codex_code_mode_protocol::WaitRequest;
-use codex_code_mode_protocol::WaitToPendingOutcome;
-use codex_code_mode_protocol::WaitToPendingRequest;
+use codepilotx_code_mode_protocol::CellId;
+use codepilotx_code_mode_protocol::CodeModeNestedToolCall;
+use codepilotx_code_mode_protocol::CodeModeSession;
+use codepilotx_code_mode_protocol::CodeModeSessionDelegate;
+use codepilotx_code_mode_protocol::CodeModeSessionProvider;
+use codepilotx_code_mode_protocol::CodeModeSessionProviderFuture;
+use codepilotx_code_mode_protocol::CodeModeSessionResultFuture;
+use codepilotx_code_mode_protocol::CodeModeToolKind;
+use codepilotx_code_mode_protocol::DEFAULT_EXEC_YIELD_TIME_MS;
+use codepilotx_code_mode_protocol::ExecuteRequest;
+use codepilotx_code_mode_protocol::ExecuteToPendingOutcome;
+use codepilotx_code_mode_protocol::FunctionCallOutputContentItem;
+use codepilotx_code_mode_protocol::ImageDetail;
+use codepilotx_code_mode_protocol::NotificationFuture;
+use codepilotx_code_mode_protocol::RuntimeResponse;
+use codepilotx_code_mode_protocol::StartedCell;
+use codepilotx_code_mode_protocol::ToolInvocationFuture;
+use codepilotx_code_mode_protocol::WaitOutcome;
+use codepilotx_code_mode_protocol::WaitRequest;
+use codepilotx_code_mode_protocol::WaitToPendingOutcome;
+use codepilotx_code_mode_protocol::WaitToPendingRequest;
 use serde_json::Value as JsonValue;
 use tokio::sync::Mutex;
 use tokio::sync::oneshot;
@@ -326,7 +326,7 @@ impl CellHost for ServiceCellHost {
                 CodeModeNestedToolCall {
                     cell_id: self.cell_id.clone(),
                     runtime_tool_call_id: invocation.id,
-                    tool_name: codex_protocol::ToolName {
+                    tool_name: codepilotx_protocol::ToolName {
                         name: invocation.name.name,
                         namespace: invocation.name.namespace,
                     },

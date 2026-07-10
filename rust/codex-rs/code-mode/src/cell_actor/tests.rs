@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use codex_code_mode_protocol::ExecuteRequest;
-use codex_code_mode_protocol::FunctionCallOutputContentItem;
+use codepilotx_code_mode_protocol::ExecuteRequest;
+use codepilotx_code_mode_protocol::FunctionCallOutputContentItem;
 use pretty_assertions::assert_eq;
 use serde_json::Value as JsonValue;
 use tokio::sync::mpsc;

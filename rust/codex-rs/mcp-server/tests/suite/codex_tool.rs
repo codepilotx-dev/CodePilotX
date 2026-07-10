@@ -3,15 +3,15 @@ use std::env;
 use std::path::Path;
 use std::path::PathBuf;
 
-use codex_core::spawn::CODEX_SANDBOX_NETWORK_DISABLED_ENV_VAR;
-use codex_mcp_server::CodexToolCallParam;
-use codex_mcp_server::ExecApprovalElicitRequestParams;
-use codex_mcp_server::ExecApprovalResponse;
-use codex_mcp_server::PatchApprovalElicitRequestParams;
-use codex_mcp_server::PatchApprovalResponse;
-use codex_protocol::protocol::FileChange;
-use codex_protocol::protocol::ReviewDecision;
-use codex_shell_command::parse_command;
+use codepilotx_core::spawn::codepilotx_SANDBOX_NETWORK_DISABLED_ENV_VAR;
+use codepilotx_mcp_server::CodexToolCallParam;
+use codepilotx_mcp_server::ExecApprovalElicitRequestParams;
+use codepilotx_mcp_server::ExecApprovalResponse;
+use codepilotx_mcp_server::PatchApprovalElicitRequestParams;
+use codepilotx_mcp_server::PatchApprovalResponse;
+use codepilotx_protocol::protocol::FileChange;
+use codepilotx_protocol::protocol::ReviewDecision;
+use codepilotx_shell_command::parse_command;
 use pretty_assertions::assert_eq;
 use rmcp::model::JsonRpcResponse;
 use rmcp::model::JsonRpcVersion2_0;
@@ -38,7 +38,7 @@ const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs
 /// command, as expected.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_shell_command_approval_triggers_elicitation() {
-    if env::var(CODEX_SANDBOX_NETWORK_DISABLED_ENV_VAR).is_ok() {
+    if env::var(codepilotx_SANDBOX_NETWORK_DISABLED_ENV_VAR).is_ok() {
         println!(
             "Skipping test because it cannot execute when network is disabled in a Codex sandbox."
         );
@@ -101,8 +101,8 @@ async fn shell_command_approval_triggers_elicitation() -> anyhow::Result<()> {
     // Send a "codex" tool request, which should hit the responses endpoint.
     // In turn, it should reply with a tool call, which the MCP should forward
     // as an elicitation.
-    let codex_request_id = mcp_process
-        .send_codex_tool_call(CodexToolCallParam {
+    let codepilotx_request_id = mcp_process
+        .send_codepilotx_tool_call(CodexToolCallParam {
             prompt: "run `git init`".to_string(),
             ..Default::default()
         })
@@ -129,8 +129,8 @@ async fn shell_command_approval_triggers_elicitation() -> anyhow::Result<()> {
         Some(create_expected_elicitation_request_params(
             expected_shell_command,
             workdir_for_shell_function_call.path(),
-            codex_request_id.to_string(),
-            params.codex_event_id.clone(),
+            codepilotx_request_id.to_string(),
+            params.codepilotx_event_id.clone(),
             params.thread_id,
         )?)
     );
@@ -155,15 +155,15 @@ async fn shell_command_approval_triggers_elicitation() -> anyhow::Result<()> {
     .expect("task_complete_notification resp");
 
     // Verify the original `codex` tool call completes and that the file was created.
-    let codex_response = timeout(
+    let codepilotx_response = timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp_process.read_stream_until_response_message(RequestId::Number(codex_request_id)),
+        mcp_process.read_stream_until_response_message(RequestId::Number(codepilotx_request_id)),
     )
     .await??;
     assert_eq!(
         JsonRpcResponse {
             jsonrpc: JsonRpcVersion2_0,
-            id: RequestId::Number(codex_request_id),
+            id: RequestId::Number(codepilotx_request_id),
             result: json!({
                 "content": [
                     {
@@ -177,7 +177,7 @@ async fn shell_command_approval_triggers_elicitation() -> anyhow::Result<()> {
                 }
             }),
         },
-        codex_response
+        codepilotx_response
     );
 
     assert!(created_file.is_file(), "created file should exist");
@@ -188,27 +188,27 @@ async fn shell_command_approval_triggers_elicitation() -> anyhow::Result<()> {
 fn create_expected_elicitation_request_params(
     command: Vec<String>,
     workdir: &Path,
-    codex_mcp_tool_call_id: String,
-    codex_event_id: String,
-    thread_id: codex_protocol::ThreadId,
+    codepilotx_mcp_tool_call_id: String,
+    codepilotx_event_id: String,
+    thread_id: codepilotx_protocol::ThreadId,
 ) -> anyhow::Result<serde_json::Value> {
     let expected_message = format!(
         "Allow Codex to run `{}` in `{}`?",
         shlex::try_join(command.iter().map(std::convert::AsRef::as_ref))?,
         workdir.to_string_lossy()
     );
-    let codex_parsed_cmd = parse_command::parse_command(&command);
+    let codepilotx_parsed_cmd = parse_command::parse_command(&command);
     let params_json = serde_json::to_value(ExecApprovalElicitRequestParams {
         message: expected_message,
         requested_schema: json!({"type":"object","properties":{}}),
         thread_id,
-        codex_elicitation: "exec-approval".to_string(),
-        codex_mcp_tool_call_id,
-        codex_event_id,
-        codex_command: command,
-        codex_cwd: workdir.to_path_buf(),
-        codex_call_id: "call1234".to_string(),
-        codex_parsed_cmd,
+        codepilotx_elicitation: "exec-approval".to_string(),
+        codepilotx_mcp_tool_call_id,
+        codepilotx_event_id,
+        codepilotx_command: command,
+        codepilotx_cwd: workdir.to_path_buf(),
+        codepilotx_call_id: "call1234".to_string(),
+        codepilotx_parsed_cmd,
     })?;
     Ok(params_json)
 }
@@ -217,7 +217,7 @@ fn create_expected_elicitation_request_params(
 /// sending the approval applies the patch, as expected.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_patch_approval_triggers_elicitation() {
-    if env::var(CODEX_SANDBOX_NETWORK_DISABLED_ENV_VAR).is_ok() {
+    if env::var(codepilotx_SANDBOX_NETWORK_DISABLED_ENV_VAR).is_ok() {
         println!(
             "Skipping test because it cannot execute when network is disabled in a Codex sandbox."
         );
@@ -256,8 +256,8 @@ async fn patch_approval_triggers_elicitation() -> anyhow::Result<()> {
     .await?;
 
     // Send a "codex" tool request that will trigger the apply_patch command
-    let codex_request_id = mcp_process
-        .send_codex_tool_call(CodexToolCallParam {
+    let codepilotx_request_id = mcp_process
+        .send_codepilotx_tool_call(CodexToolCallParam {
             cwd: Some(cwd.path().to_string_lossy().to_string()),
             prompt: "please modify the test file".to_string(),
             // This test exercises patch approval elicitation, not local sandbox setup.
@@ -301,8 +301,8 @@ async fn patch_approval_triggers_elicitation() -> anyhow::Result<()> {
             expected_changes,
             /*grant_root*/ None, // No grant_root expected
             /*reason*/ None,
-            codex_request_id.to_string(),
-            params.codex_event_id.clone(),
+            codepilotx_request_id.to_string(),
+            params.codepilotx_event_id.clone(),
             params.thread_id,
         )?)
     );
@@ -318,15 +318,15 @@ async fn patch_approval_triggers_elicitation() -> anyhow::Result<()> {
         .await?;
 
     // Verify the original `codex` tool call completes
-    let codex_response = timeout(
+    let codepilotx_response = timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp_process.read_stream_until_response_message(RequestId::Number(codex_request_id)),
+        mcp_process.read_stream_until_response_message(RequestId::Number(codepilotx_request_id)),
     )
     .await??;
     assert_eq!(
         JsonRpcResponse {
             jsonrpc: JsonRpcVersion2_0,
-            id: RequestId::Number(codex_request_id),
+            id: RequestId::Number(codepilotx_request_id),
             result: json!({
                 "content": [
                     {
@@ -340,7 +340,7 @@ async fn patch_approval_triggers_elicitation() -> anyhow::Result<()> {
                 }
             }),
         },
-        codex_response
+        codepilotx_response
     );
 
     let file_contents = std::fs::read_to_string(test_file.as_path())?;
@@ -350,17 +350,17 @@ async fn patch_approval_triggers_elicitation() -> anyhow::Result<()> {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_codex_tool_passes_base_instructions() {
+async fn test_codepilotx_tool_passes_base_instructions() {
     skip_if_no_network!();
 
     // Apparently `#[tokio::test]` must return `()`, so we create a helper
     // function that returns `Result` so we can use `?` in favor of `unwrap`.
-    codex_tool_passes_base_instructions()
+    codepilotx_tool_passes_base_instructions()
         .await
         .expect("codex tool should pass base instructions");
 }
 
-async fn codex_tool_passes_base_instructions() -> anyhow::Result<()> {
+async fn codepilotx_tool_passes_base_instructions() -> anyhow::Result<()> {
     #![expect(clippy::unwrap_used)]
 
     let server =
@@ -368,14 +368,14 @@ async fn codex_tool_passes_base_instructions() -> anyhow::Result<()> {
             .await;
 
     // Run `codex mcp` with a specific config.toml.
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
-    let mut mcp_process = McpProcess::new(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
+    let mut mcp_process = McpProcess::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp_process.initialize()).await??;
 
     // Send a "codex" tool request, which should hit the responses endpoint.
-    let codex_request_id = mcp_process
-        .send_codex_tool_call(CodexToolCallParam {
+    let codepilotx_request_id = mcp_process
+        .send_codepilotx_tool_call(CodexToolCallParam {
             prompt: "How are you?".to_string(),
             base_instructions: Some("You are a helpful assistant.".to_string()),
             developer_instructions: Some("Foreshadow upcoming tool calls.".to_string()),
@@ -383,15 +383,15 @@ async fn codex_tool_passes_base_instructions() -> anyhow::Result<()> {
         })
         .await?;
 
-    let codex_response = timeout(
+    let codepilotx_response = timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp_process.read_stream_until_response_message(RequestId::Number(codex_request_id)),
+        mcp_process.read_stream_until_response_message(RequestId::Number(codepilotx_request_id)),
     )
     .await??;
-    assert_eq!(codex_response.jsonrpc, JsonRpcVersion2_0);
-    assert_eq!(codex_response.id, RequestId::Number(codex_request_id));
+    assert_eq!(codepilotx_response.jsonrpc, JsonRpcVersion2_0);
+    assert_eq!(codepilotx_response.id, RequestId::Number(codepilotx_request_id));
     assert_eq!(
-        codex_response.result,
+        codepilotx_response.result,
         json!({
             "content": [
                 {
@@ -400,7 +400,7 @@ async fn codex_tool_passes_base_instructions() -> anyhow::Result<()> {
                 }
             ],
             "structuredContent": {
-                "threadId": codex_response
+                "threadId": codepilotx_response
                     .result
                     .get("structuredContent")
                     .and_then(|v| v.get("threadId"))
@@ -449,9 +449,9 @@ fn create_expected_patch_approval_elicitation_request_params(
     changes: HashMap<PathBuf, FileChange>,
     grant_root: Option<PathBuf>,
     reason: Option<String>,
-    codex_mcp_tool_call_id: String,
-    codex_event_id: String,
-    thread_id: codex_protocol::ThreadId,
+    codepilotx_mcp_tool_call_id: String,
+    codepilotx_event_id: String,
+    thread_id: codepilotx_protocol::ThreadId,
 ) -> anyhow::Result<serde_json::Value> {
     let mut message_lines = Vec::new();
     if let Some(r) = &reason {
@@ -462,13 +462,13 @@ fn create_expected_patch_approval_elicitation_request_params(
         message: message_lines.join("\n"),
         requested_schema: json!({"type":"object","properties":{}}),
         thread_id,
-        codex_elicitation: "patch-approval".to_string(),
-        codex_mcp_tool_call_id,
-        codex_event_id,
-        codex_reason: reason,
-        codex_grant_root: grant_root,
-        codex_changes: changes,
-        codex_call_id: "call1234".to_string(),
+        codepilotx_elicitation: "patch-approval".to_string(),
+        codepilotx_mcp_tool_call_id,
+        codepilotx_event_id,
+        codepilotx_reason: reason,
+        codepilotx_grant_root: grant_root,
+        codepilotx_changes: changes,
+        codepilotx_call_id: "call1234".to_string(),
     })?;
 
     Ok(params_json)
@@ -488,22 +488,22 @@ pub struct McpHandle {
 
 async fn create_mcp_process(responses: Vec<String>) -> anyhow::Result<McpHandle> {
     let server = create_mock_responses_server(responses).await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
-    let mut mcp_process = McpProcess::new(codex_home.path()).await?;
+    let codepilotx_home = TempDir::new()?;
+    create_config_toml(codepilotx_home.path(), &server.uri())?;
+    let mut mcp_process = McpProcess::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp_process.initialize()).await??;
     Ok(McpHandle {
         process: mcp_process,
         server,
-        dir: codex_home,
+        dir: codepilotx_home,
     })
 }
 
 /// Create a Codex config that uses the mock server as the model provider.
 /// It also uses `approval_policy = "untrusted"` so that we exercise the
 /// elicitation code path for shell commands.
-fn create_config_toml(codex_home: &Path, server_uri: &str) -> std::io::Result<()> {
-    let config_toml = codex_home.join("config.toml");
+fn create_config_toml(codepilotx_home: &Path, server_uri: &str) -> std::io::Result<()> {
+    let config_toml = codepilotx_home.join("config.toml");
     std::fs::write(
         config_toml,
         format!(

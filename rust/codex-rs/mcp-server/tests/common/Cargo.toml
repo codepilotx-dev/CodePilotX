@@ -14,10 +14,10 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-codex-login = { workspace = true }
-codex-mcp-server = { workspace = true }
-codex-terminal-detection = { workspace = true }
-codex-utils-cargo-bin = { workspace = true }
+codepilotx-login = { workspace = true }
+codepilotx-mcp-server = { workspace = true }
+codepilotx-terminal-detection = { workspace = true }
+codepilotx-utils-cargo-bin = { workspace = true }
 rmcp = { workspace = true }
 os_info = { workspace = true }
 pretty_assertions = { workspace = true }

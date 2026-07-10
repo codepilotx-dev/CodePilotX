@@ -56,12 +56,12 @@ use crate::events::ToolItemFailureKind;
 use crate::events::ToolItemTerminalStatus;
 use crate::events::TrackEventRequest;
 use crate::events::WebSearchActionKind;
-use crate::events::codex_app_metadata;
-use crate::events::codex_compaction_event_params;
-use crate::events::codex_goal_event_params;
-use crate::events::codex_hook_run_metadata;
-use crate::events::codex_plugin_metadata;
-use crate::events::codex_plugin_used_metadata;
+use crate::events::codepilotx_app_metadata;
+use crate::events::codepilotx_compaction_event_params;
+use crate::events::codepilotx_goal_event_params;
+use crate::events::codepilotx_hook_run_metadata;
+use crate::events::codepilotx_plugin_metadata;
+use crate::events::codepilotx_plugin_used_metadata;
 use crate::events::plugin_state_event_type;
 use crate::events::subagent_source_name;
 use crate::events::subagent_thread_started_event_request;
@@ -95,48 +95,48 @@ use crate::now_unix_seconds;
 use crate::option_i64_to_u64;
 use crate::serialize_enum_as_string;
 use crate::usize_to_u64;
-use codex_app_server_protocol::ClientRequest;
-use codex_app_server_protocol::ClientResponse;
-use codex_app_server_protocol::CodexErrorInfo;
-use codex_app_server_protocol::CollabAgentStatus;
-use codex_app_server_protocol::CollabAgentTool;
-use codex_app_server_protocol::CollabAgentToolCallStatus;
-use codex_app_server_protocol::CommandAction;
-use codex_app_server_protocol::CommandExecutionApprovalDecision;
-use codex_app_server_protocol::CommandExecutionSource;
-use codex_app_server_protocol::CommandExecutionStatus;
-use codex_app_server_protocol::DynamicToolCallOutputContentItem;
-use codex_app_server_protocol::DynamicToolCallStatus;
-use codex_app_server_protocol::FileChangeApprovalDecision;
-use codex_app_server_protocol::GuardianApprovalReviewAction;
-use codex_app_server_protocol::GuardianApprovalReviewStatus;
-use codex_app_server_protocol::InitializeParams;
-use codex_app_server_protocol::McpToolCallStatus;
-use codex_app_server_protocol::NetworkPolicyRuleAction;
-use codex_app_server_protocol::PatchApplyStatus;
-use codex_app_server_protocol::PatchChangeKind;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::RequestPermissionProfile;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::ServerRequest;
-use codex_app_server_protocol::ServerResponse;
-use codex_app_server_protocol::ThreadItem;
-use codex_app_server_protocol::TurnSteerResponse;
-use codex_app_server_protocol::UserInput;
-use codex_app_server_protocol::WebSearchAction;
-use codex_git_utils::collect_git_info;
-use codex_git_utils::get_git_repo_root;
-use codex_login::default_client::originator;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::config_types::Personality;
-use codex_protocol::config_types::ReasoningSummary;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SkillScope;
-use codex_protocol::protocol::ThreadSource;
-use codex_protocol::protocol::TokenUsage;
-use codex_protocol::request_permissions::PermissionGrantScope as CorePermissionGrantScope;
-use codex_protocol::request_permissions::RequestPermissionsResponse as CoreRequestPermissionsResponse;
+use codepilotx_app_server_protocol::ClientRequest;
+use codepilotx_app_server_protocol::ClientResponse;
+use codepilotx_app_server_protocol::CodexErrorInfo;
+use codepilotx_app_server_protocol::CollabAgentStatus;
+use codepilotx_app_server_protocol::CollabAgentTool;
+use codepilotx_app_server_protocol::CollabAgentToolCallStatus;
+use codepilotx_app_server_protocol::CommandAction;
+use codepilotx_app_server_protocol::CommandExecutionApprovalDecision;
+use codepilotx_app_server_protocol::CommandExecutionSource;
+use codepilotx_app_server_protocol::CommandExecutionStatus;
+use codepilotx_app_server_protocol::DynamicToolCallOutputContentItem;
+use codepilotx_app_server_protocol::DynamicToolCallStatus;
+use codepilotx_app_server_protocol::FileChangeApprovalDecision;
+use codepilotx_app_server_protocol::GuardianApprovalReviewAction;
+use codepilotx_app_server_protocol::GuardianApprovalReviewStatus;
+use codepilotx_app_server_protocol::InitializeParams;
+use codepilotx_app_server_protocol::McpToolCallStatus;
+use codepilotx_app_server_protocol::NetworkPolicyRuleAction;
+use codepilotx_app_server_protocol::PatchApplyStatus;
+use codepilotx_app_server_protocol::PatchChangeKind;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_app_server_protocol::RequestPermissionProfile;
+use codepilotx_app_server_protocol::ServerNotification;
+use codepilotx_app_server_protocol::ServerRequest;
+use codepilotx_app_server_protocol::ServerResponse;
+use codepilotx_app_server_protocol::ThreadItem;
+use codepilotx_app_server_protocol::TurnSteerResponse;
+use codepilotx_app_server_protocol::UserInput;
+use codepilotx_app_server_protocol::WebSearchAction;
+use codepilotx_git_utils::collect_git_info;
+use codepilotx_git_utils::get_git_repo_root;
+use codepilotx_login::default_client::originator;
+use codepilotx_protocol::config_types::ModeKind;
+use codepilotx_protocol::config_types::Personality;
+use codepilotx_protocol::config_types::ReasoningSummary;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_protocol::protocol::SkillScope;
+use codepilotx_protocol::protocol::ThreadSource;
+use codepilotx_protocol::protocol::TokenUsage;
+use codepilotx_protocol::request_permissions::PermissionGrantScope as CorePermissionGrantScope;
+use codepilotx_protocol::request_permissions::RequestPermissionsResponse as CoreRequestPermissionsResponse;
 use sha1::Digest;
 use std::collections::HashMap;
 use std::path::Path;
@@ -215,7 +215,7 @@ impl<'a> AnalyticsDropSite<'a> {
     }
 
     fn tool_item(
-        notification: &'a codex_app_server_protocol::ItemCompletedNotification,
+        notification: &'a codepilotx_app_server_protocol::ItemCompletedNotification,
         item_id: &'a str,
     ) -> Self {
         Self {
@@ -350,7 +350,7 @@ struct TurnState {
     token_usage: Option<TokenUsage>,
     profile: Option<TurnProfile>,
     completed: Option<CompletedTurnState>,
-    codex_error: Option<TurnCodexError>,
+    codepilotx_error: Option<TurnCodexError>,
     latest_diff: Option<String>,
     steer_count: usize,
     tool_counts: TurnToolCounts,
@@ -500,7 +500,7 @@ impl AnalyticsReducer {
                     self.ingest_turn_profile(*input, out).await;
                 }
                 CustomAnalyticsFact::TurnCodexError(input) => {
-                    self.ingest_turn_codex_error(*input);
+                    self.ingest_turn_codepilotx_error(*input);
                 }
                 CustomAnalyticsFact::SkillInvoked(input) => {
                     self.ingest_skill_invoked(input, out).await;
@@ -598,7 +598,7 @@ impl AnalyticsReducer {
         };
         out.push(TrackEventRequest::GuardianReview(Box::new(
             GuardianReviewEventRequest {
-                event_type: "codex_guardian_review",
+                event_type: "codepilotx_guardian_review",
                 event_params: GuardianReviewEventPayload {
                     session_id: thread_metadata.session_id.clone(),
                     app_server_client: connection_state.app_server_client.clone(),
@@ -678,7 +678,7 @@ impl AnalyticsReducer {
         self.maybe_emit_turn_event(&turn_id, out).await;
     }
 
-    fn ingest_turn_codex_error(&mut self, input: TurnCodexErrorFact) {
+    fn ingest_turn_codepilotx_error(&mut self, input: TurnCodexErrorFact) {
         let TurnCodexErrorFact {
             turn_id,
             thread_id,
@@ -686,7 +686,7 @@ impl AnalyticsReducer {
         } = input;
         let turn_state = self.turns.entry(turn_id).or_default();
         turn_state.thread_id.get_or_insert(thread_id);
-        turn_state.codex_error = Some(error);
+        turn_state.codepilotx_error = Some(error);
     }
 
     async fn ingest_skill_invoked(
@@ -742,9 +742,9 @@ impl AnalyticsReducer {
     fn ingest_app_mentioned(&mut self, input: AppMentionedInput, out: &mut Vec<TrackEventRequest>) {
         let AppMentionedInput { tracking, mentions } = input;
         out.extend(mentions.into_iter().map(|mention| {
-            let event_params = codex_app_metadata(&tracking, mention);
+            let event_params = codepilotx_app_metadata(&tracking, mention);
             TrackEventRequest::AppMentioned(CodexAppMentionedEventRequest {
-                event_type: "codex_app_mentioned",
+                event_type: "codepilotx_app_mentioned",
                 event_params,
             })
         }));
@@ -752,9 +752,9 @@ impl AnalyticsReducer {
 
     fn ingest_app_used(&mut self, input: AppUsedInput, out: &mut Vec<TrackEventRequest>) {
         let AppUsedInput { tracking, app } = input;
-        let event_params = codex_app_metadata(&tracking, app);
+        let event_params = codepilotx_app_metadata(&tracking, app);
         out.push(TrackEventRequest::AppUsed(CodexAppUsedEventRequest {
-            event_type: "codex_app_used",
+            event_type: "codepilotx_app_used",
             event_params,
         }));
     }
@@ -762,16 +762,16 @@ impl AnalyticsReducer {
     fn ingest_hook_run(&mut self, input: HookRunInput, out: &mut Vec<TrackEventRequest>) {
         let HookRunInput { tracking, hook } = input;
         out.push(TrackEventRequest::HookRun(CodexHookRunEventRequest {
-            event_type: "codex_hook_run",
-            event_params: codex_hook_run_metadata(&tracking, hook),
+            event_type: "codepilotx_hook_run",
+            event_params: codepilotx_hook_run_metadata(&tracking, hook),
         }));
     }
 
     fn ingest_plugin_used(&mut self, input: PluginUsedInput, out: &mut Vec<TrackEventRequest>) {
         let PluginUsedInput { tracking, plugin } = input;
         out.push(TrackEventRequest::PluginUsed(CodexPluginUsedEventRequest {
-            event_type: "codex_plugin_used",
-            event_params: codex_plugin_used_metadata(&tracking, plugin),
+            event_type: "codepilotx_plugin_used",
+            event_params: codepilotx_plugin_used_metadata(&tracking, plugin),
         }));
     }
 
@@ -783,7 +783,7 @@ impl AnalyticsReducer {
         let PluginStateChangedInput { plugin, state } = input;
         let event = CodexPluginEventRequest {
             event_type: plugin_state_event_type(state),
-            event_params: codex_plugin_metadata(plugin),
+            event_params: codepilotx_plugin_metadata(plugin),
         };
         out.push(match state {
             PluginState::Installed => TrackEventRequest::PluginInstalled(event),
@@ -801,9 +801,9 @@ impl AnalyticsReducer {
         let PluginInstallFailedInput { plugin, error_type } = input;
         out.push(TrackEventRequest::PluginInstallFailed(
             CodexPluginInstallFailedEventRequest {
-                event_type: "codex_plugin_install_failed",
+                event_type: "codepilotx_plugin_install_failed",
                 event_params: CodexPluginInstallFailedMetadata {
-                    plugin: codex_plugin_metadata(plugin),
+                    plugin: codepilotx_plugin_metadata(plugin),
                     error_type,
                 },
             },
@@ -817,7 +817,7 @@ impl AnalyticsReducer {
     ) {
         out.push(TrackEventRequest::ExternalAgentConfigImportCompleted(
             CodexOnboardingExternalAgentImportCompleteEventRequest {
-                event_type: "codex_onboarding_external_agent_import_complete",
+                event_type: "codepilotx_onboarding_external_agent_import_complete",
                 event_params: CodexOnboardingExternalAgentImportCompleteMetadata {
                     import_id: input.import_id,
                     source: input.source,
@@ -837,7 +837,7 @@ impl AnalyticsReducer {
     ) {
         out.push(TrackEventRequest::ExternalAgentConfigImportFailure(
             CodexOnboardingExternalAgentImportFailureEventRequest {
-                event_type: "codex_onboarding_external_agent_import_failure",
+                event_type: "codepilotx_onboarding_external_agent_import_failure",
                 event_params: CodexOnboardingExternalAgentImportFailureMetadata {
                     import_id: input.import_id,
                     source: input.source,
@@ -1272,7 +1272,7 @@ impl AnalyticsReducer {
                     turn_error: notification
                         .turn
                         .error
-                        .and_then(|error| error.codex_error_info),
+                        .and_then(|error| error.codepilotx_error_info),
                     completed_at: notification
                         .turn
                         .completed_at
@@ -1293,7 +1293,7 @@ impl AnalyticsReducer {
     fn emit_thread_initialized(
         &mut self,
         connection_id: u64,
-        thread: codex_app_server_protocol::Thread,
+        thread: codepilotx_app_server_protocol::Thread,
         model: String,
         initialization_mode: ThreadInitializationMode,
         out: &mut Vec<TrackEventRequest>,
@@ -1322,7 +1322,7 @@ impl AnalyticsReducer {
         );
         out.push(TrackEventRequest::ThreadInitialized(
             ThreadInitializedEvent {
-                event_type: "codex_thread_initialized",
+                event_type: "codepilotx_thread_initialized",
                 event_params: ThreadInitializedEventParams {
                     thread_id,
                     session_id,
@@ -1349,8 +1349,8 @@ impl AnalyticsReducer {
         };
         out.push(TrackEventRequest::Compaction(Box::new(
             CodexCompactionEventRequest {
-                event_type: "codex_compaction_event",
-                event_params: codex_compaction_event_params(
+                event_type: "codepilotx_compaction_event",
+                event_params: codepilotx_compaction_event_params(
                     input,
                     thread_metadata.session_id.clone(),
                     connection_state.app_server_client.clone(),
@@ -1370,8 +1370,8 @@ impl AnalyticsReducer {
             return;
         };
         out.push(TrackEventRequest::Goal(Box::new(CodexGoalEventRequest {
-            event_type: "codex_goal_event",
-            event_params: codex_goal_event_params(
+            event_type: "codepilotx_goal_event",
+            event_params: codepilotx_goal_event_params(
                 input,
                 thread_metadata.session_id.clone(),
                 connection_state.app_server_client.clone(),
@@ -1385,7 +1385,7 @@ impl AnalyticsReducer {
 
     fn ingest_guardian_review_completed(
         &mut self,
-        notification: codex_app_server_protocol::ItemGuardianApprovalReviewCompletedNotification,
+        notification: codepilotx_app_server_protocol::ItemGuardianApprovalReviewCompletedNotification,
         out: &mut Vec<TrackEventRequest>,
     ) {
         let Some((status, resolution)) = guardian_review_result(notification.review.status) else {
@@ -1472,7 +1472,7 @@ impl AnalyticsReducer {
             return;
         };
         out.push(TrackEventRequest::TurnSteer(CodexTurnSteerEventRequest {
-            event_type: "codex_turn_steer_event",
+            event_type: "codepilotx_turn_steer_event",
             event_params: CodexTurnSteerEventParams {
                 thread_id: pending_request.thread_id,
                 session_id: thread_metadata.session_id.clone(),
@@ -1515,7 +1515,7 @@ impl AnalyticsReducer {
             return;
         };
         out.push(TrackEventRequest::ReviewEvent(CodexReviewEventRequest {
-            event_type: "codex_review_event",
+            event_type: "codepilotx_review_event",
             event_params: CodexReviewEventParams {
                 thread_id: pending_review.thread_id,
                 turn_id: pending_review.turn_id,
@@ -1599,8 +1599,8 @@ impl AnalyticsReducer {
             return;
         };
         let turn_event = TrackEventRequest::TurnEvent(Box::new(CodexTurnEventRequest {
-            event_type: "codex_turn_event",
-            event_params: codex_turn_event_params(
+            event_type: "codepilotx_turn_event",
+            event_params: codepilotx_turn_event_params(
                 connection_state.app_server_client.clone(),
                 connection_state.runtime.clone(),
                 turn_id.to_string(),
@@ -1770,7 +1770,7 @@ fn tool_item_event(input: ToolItemEventInput<'_>) -> Option<TrackEventRequest> {
             );
             Some(TrackEventRequest::CommandExecution(
                 CodexCommandExecutionEventRequest {
-                    event_type: "codex_command_execution_event",
+                    event_type: "codepilotx_command_execution_event",
                     event_params: CodexCommandExecutionEventParams {
                         base,
                         command_execution_source: *source,
@@ -1810,7 +1810,7 @@ fn tool_item_event(input: ToolItemEventInput<'_>) -> Option<TrackEventRequest> {
                 },
             );
             Some(TrackEventRequest::FileChange(CodexFileChangeEventRequest {
-                event_type: "codex_file_change_event",
+                event_type: "codepilotx_file_change_event",
                 event_params: CodexFileChangeEventParams {
                     base,
                     file_change_count: usize_to_u64(changes.len()),
@@ -1852,7 +1852,7 @@ fn tool_item_event(input: ToolItemEventInput<'_>) -> Option<TrackEventRequest> {
             );
             Some(TrackEventRequest::McpToolCall(
                 CodexMcpToolCallEventRequest {
-                    event_type: "codex_mcp_tool_call_event",
+                    event_type: "codepilotx_mcp_tool_call_event",
                     event_params: CodexMcpToolCallEventParams {
                         base,
                         mcp_server_name: server.clone(),
@@ -1896,7 +1896,7 @@ fn tool_item_event(input: ToolItemEventInput<'_>) -> Option<TrackEventRequest> {
             );
             Some(TrackEventRequest::DynamicToolCall(
                 CodexDynamicToolCallEventRequest {
-                    event_type: "codex_dynamic_tool_call_event",
+                    event_type: "codepilotx_dynamic_tool_call_event",
                     event_params: CodexDynamicToolCallEventParams {
                         base,
                         dynamic_tool_name: tool.clone(),
@@ -1940,7 +1940,7 @@ fn tool_item_event(input: ToolItemEventInput<'_>) -> Option<TrackEventRequest> {
             );
             Some(TrackEventRequest::CollabAgentToolCall(
                 CodexCollabAgentToolCallEventRequest {
-                    event_type: "codex_collab_agent_tool_call_event",
+                    event_type: "codepilotx_collab_agent_tool_call_event",
                     event_params: CodexCollabAgentToolCallEventParams {
                         base,
                         sender_thread_id: sender_thread_id.clone(),
@@ -1994,7 +1994,7 @@ fn tool_item_event(input: ToolItemEventInput<'_>) -> Option<TrackEventRequest> {
                 },
             );
             Some(TrackEventRequest::WebSearch(CodexWebSearchEventRequest {
-                event_type: "codex_web_search_event",
+                event_type: "codepilotx_web_search_event",
                 event_params: CodexWebSearchEventParams {
                     base,
                     web_search_action: action.as_ref().map(web_search_action_kind),
@@ -2031,7 +2031,7 @@ fn tool_item_event(input: ToolItemEventInput<'_>) -> Option<TrackEventRequest> {
             );
             Some(TrackEventRequest::ImageGeneration(
                 CodexImageGenerationEventRequest {
-                    event_type: "codex_image_generation_event",
+                    event_type: "codepilotx_image_generation_event",
                     event_params: CodexImageGenerationEventParams {
                         base,
                         revised_prompt_present: revised_prompt.is_some(),
@@ -2427,7 +2427,7 @@ struct FileChangeCounts {
     move_: u64,
 }
 
-fn file_change_counts(changes: &[codex_app_server_protocol::FileUpdateChange]) -> FileChangeCounts {
+fn file_change_counts(changes: &[codepilotx_app_server_protocol::FileUpdateChange]) -> FileChangeCounts {
     let mut counts = FileChangeCounts::default();
     for change in changes {
         match &change.kind {
@@ -2515,7 +2515,7 @@ fn accepted_line_event_input(
     ))
 }
 
-fn codex_turn_event_params(
+fn codepilotx_turn_event_params(
     app_server_client: CodexAppServerClientMetadata,
     runtime: CodexRuntimeMetadata,
     turn_id: String,
@@ -2571,7 +2571,7 @@ fn codex_turn_event_params(
         sampling_retry_count,
     } = profile;
     let token_usage = turn_state.token_usage.clone();
-    let codex_error = turn_state.codex_error.as_ref();
+    let codepilotx_error = turn_state.codepilotx_error.as_ref();
     CodexTurnEventParams {
         thread_id,
         session_id: thread_metadata.session_id.clone(),
@@ -2605,8 +2605,8 @@ fn codex_turn_event_params(
         is_first_turn,
         status: completed.status,
         turn_error: completed.turn_error,
-        codex_error_kind: codex_error.map(|error| error.kind),
-        codex_error_http_status_code: codex_error.and_then(|error| error.http_status_code),
+        codepilotx_error_kind: codepilotx_error.map(|error| error.kind),
+        codepilotx_error_http_status_code: codepilotx_error.and_then(|error| error.http_status_code),
         steer_count: Some(turn_state.steer_count),
         total_tool_call_count: Some(turn_state.tool_counts.total),
         shell_command_count: Some(turn_state.tool_counts.shell_command),
@@ -2689,12 +2689,12 @@ fn personality_mode(personality: Option<Personality>) -> Option<String> {
     }
 }
 
-fn analytics_turn_status(status: codex_app_server_protocol::TurnStatus) -> Option<TurnStatus> {
+fn analytics_turn_status(status: codepilotx_app_server_protocol::TurnStatus) -> Option<TurnStatus> {
     match status {
-        codex_app_server_protocol::TurnStatus::Completed => Some(TurnStatus::Completed),
-        codex_app_server_protocol::TurnStatus::Failed => Some(TurnStatus::Failed),
-        codex_app_server_protocol::TurnStatus::Interrupted => Some(TurnStatus::Interrupted),
-        codex_app_server_protocol::TurnStatus::InProgress => None,
+        codepilotx_app_server_protocol::TurnStatus::Completed => Some(TurnStatus::Completed),
+        codepilotx_app_server_protocol::TurnStatus::Failed => Some(TurnStatus::Failed),
+        codepilotx_app_server_protocol::TurnStatus::Interrupted => Some(TurnStatus::Interrupted),
+        codepilotx_app_server_protocol::TurnStatus::InProgress => None,
     }
 }
 
@@ -2759,9 +2759,9 @@ pub(crate) fn normalize_path_for_skill_id(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_protocol::models::SandboxEnforcement;
-    use codex_protocol::permissions::FileSystemSandboxPolicy;
-    use codex_protocol::permissions::NetworkSandboxPolicy;
+    use codepilotx_protocol::models::SandboxEnforcement;
+    use codepilotx_protocol::permissions::FileSystemSandboxPolicy;
+    use codepilotx_protocol::permissions::NetworkSandboxPolicy;
 
     #[test]
     fn managed_full_disk_with_restricted_network_reports_external_sandbox() {

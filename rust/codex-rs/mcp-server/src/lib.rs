@@ -5,13 +5,13 @@ use std::io::ErrorKind;
 use std::io::Result as IoResult;
 use std::sync::Arc;
 
-use codex_arg0::Arg0DispatchPaths;
-use codex_core::config::ConfigBuilder;
-use codex_core::resolve_installation_id;
-use codex_exec_server::EnvironmentManager;
-use codex_exec_server::ExecServerRuntimePaths;
-use codex_login::default_client::set_default_client_residency_requirement;
-use codex_utils_cli::CliConfigOverrides;
+use codepilotx_arg0::Arg0DispatchPaths;
+use codepilotx_core::config::ConfigBuilder;
+use codepilotx_core::resolve_installation_id;
+use codepilotx_exec_server::EnvironmentManager;
+use codepilotx_exec_server::ExecServerRuntimePaths;
+use codepilotx_login::default_client::set_default_client_residency_requirement;
+use codepilotx_utils_cli::CliConfigOverrides;
 
 use rmcp::model::ClientNotification;
 use rmcp::model::ClientRequest;
@@ -28,8 +28,8 @@ use tracing::info;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::prelude::*;
 
-mod codex_tool_config;
-mod codex_tool_runner;
+mod codepilotx_tool_config;
+mod codepilotx_tool_runner;
 mod exec_approval;
 pub(crate) mod message_processor;
 mod outgoing_message;
@@ -40,19 +40,19 @@ use crate::outgoing_message::OutgoingJsonRpcMessage;
 use crate::outgoing_message::OutgoingMessage;
 use crate::outgoing_message::OutgoingMessageSender;
 
-pub use crate::codex_tool_config::CodexToolCallParam;
-pub use crate::codex_tool_config::CodexToolCallReplyParam;
+pub use crate::codepilotx_tool_config::CodexToolCallParam;
+pub use crate::codepilotx_tool_config::CodexToolCallReplyParam;
 pub use crate::exec_approval::ExecApprovalElicitRequestParams;
 pub use crate::exec_approval::ExecApprovalResponse;
 pub use crate::patch_approval::PatchApprovalElicitRequestParams;
 pub use crate::patch_approval::PatchApprovalResponse;
 
 /// Size of the bounded channels used to communicate between tasks. The value
-/// is a balance between throughput and memory usage â€“ 128 messages should be
+/// is a balance between throughput and memory usage â€?128 messages should be
 /// plenty for an interactive CLI.
 const CHANNEL_CAPACITY: usize = 128;
 const DEFAULT_ANALYTICS_ENABLED: bool = true;
-const OTEL_SERVICE_NAME: &str = "codex_mcp_server";
+const OTEL_SERVICE_NAME: &str = "codepilotx_mcp_server";
 
 type IncomingMessage = JsonRpcMessage<ClientRequest, Value, ClientNotification>;
 
@@ -78,7 +78,7 @@ pub async fn run_main(
             std::io::Error::new(ErrorKind::InvalidData, format!("error loading config: {e}"))
         })?;
     set_default_client_residency_requirement(config.enforce_residency.value());
-    let otel = codex_core::otel_init::build_provider(
+    let otel = codepilotx_core::otel_init::build_provider(
         &config,
         env!("CARGO_PKG_VERSION"),
         Some(OTEL_SERVICE_NAME),
@@ -90,15 +90,15 @@ pub async fn run_main(
             format!("error loading otel config: {e}"),
         )
     })?;
-    codex_core::otel_init::record_process_start(otel.as_ref(), OTEL_SERVICE_NAME);
-    codex_core::otel_init::install_sqlite_telemetry(otel.as_ref(), OTEL_SERVICE_NAME);
-    let state_db = codex_core::init_state_db(&config).await;
+    codepilotx_core::otel_init::record_process_start(otel.as_ref(), OTEL_SERVICE_NAME);
+    codepilotx_core::otel_init::install_sqlite_telemetry(otel.as_ref(), OTEL_SERVICE_NAME);
+    let state_db = codepilotx_core::init_state_db(&config).await;
     let environment_manager = Arc::new(
-        EnvironmentManager::from_codex_home(
-            config.codex_home.clone(),
+        EnvironmentManager::from_codepilotx_home(
+            config.codepilotx_home.clone(),
             Some(ExecServerRuntimePaths::from_optional_paths(
-                arg0_paths.codex_self_exe.clone(),
-                arg0_paths.codex_linux_sandbox_exe.clone(),
+                arg0_paths.codepilotx_self_exe.clone(),
+                arg0_paths.codepilotx_linux_sandbox_exe.clone(),
             )?),
         )
         .await
@@ -120,7 +120,7 @@ pub async fn run_main(
     // Set up channels.
     let (incoming_tx, mut incoming_rx) = mpsc::channel::<IncomingMessage>(CHANNEL_CAPACITY);
     let (outgoing_tx, mut outgoing_rx) = mpsc::unbounded_channel::<OutgoingMessage>();
-    let installation_id = resolve_installation_id(&config.codex_home).await?;
+    let installation_id = resolve_installation_id(&config.codepilotx_home).await?;
 
     // Task: read from stdin, push to `incoming_tx`.
     let stdin_reader_handle = tokio::spawn({
@@ -133,7 +133,7 @@ pub async fn run_main(
                 match serde_json::from_str::<IncomingMessage>(&line) {
                     Ok(msg) => {
                         if incoming_tx.send(msg).await.is_err() {
-                            // Receiver gone â€“ nothing left to do.
+                            // Receiver gone â€?nothing left to do.
                             break;
                         }
                     }
@@ -205,8 +205,8 @@ pub async fn run_main(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_config::types::OtelExporterKind;
-    use codex_core::config::ConfigBuilder;
+    use codepilotx_config::types::OtelExporterKind;
+    use codepilotx_core::config::ConfigBuilder;
     use pretty_assertions::assert_eq;
     use std::collections::HashMap;
     use tempfile::TempDir;
@@ -218,9 +218,9 @@ mod tests {
 
     #[tokio::test]
     async fn mcp_server_builds_otel_provider_with_logs_traces_and_metrics() -> anyhow::Result<()> {
-        let codex_home = TempDir::new()?;
+        let codepilotx_home = TempDir::new()?;
         let mut config = ConfigBuilder::default()
-            .codex_home(codex_home.path().to_path_buf())
+            .codepilotx_home(codepilotx_home.path().to_path_buf())
             .build()
             .await?;
         let exporter = OtelExporterKind::OtlpGrpc {
@@ -233,7 +233,7 @@ mod tests {
         config.otel.metrics_exporter = exporter;
         config.analytics_enabled = None;
 
-        let provider = codex_core::otel_init::build_provider(
+        let provider = codepilotx_core::otel_init::build_provider(
             &config,
             "0.0.0-test",
             Some(OTEL_SERVICE_NAME),

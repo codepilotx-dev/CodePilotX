@@ -1,4 +1,4 @@
-use codex_utils_rustls_provider::ensure_rustls_crypto_provider;
+use codepilotx_utils_rustls_provider::ensure_rustls_crypto_provider;
 
 const EMPTY_ALGORITHMS: rustls::crypto::WebPkiSupportedAlgorithms =
     rustls::crypto::WebPkiSupportedAlgorithms {

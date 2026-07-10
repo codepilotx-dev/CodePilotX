@@ -6,7 +6,7 @@ use std::io::Write;
 use std::path::Path;
 
 pub(crate) const ANALYTICS_EVENTS_CAPTURE_FILE_ENV_VAR: &str =
-    "CODEX_ANALYTICS_EVENTS_CAPTURE_FILE";
+    "codepilotx_ANALYTICS_EVENTS_CAPTURE_FILE";
 
 pub(crate) fn initialize(path: &Path) -> io::Result<()> {
     open_capture_file(path).map(drop)

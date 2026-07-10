@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -52,7 +52,7 @@ pub struct OtelSettings {
     pub environment: String,
     pub service_name: String,
     pub service_version: String,
-    pub codex_home: PathBuf,
+    pub codepilotx_home: PathBuf,
     pub exporter: OtelExporter,
     pub trace_exporter: OtelExporter,
     pub metrics_exporter: OtelExporter,

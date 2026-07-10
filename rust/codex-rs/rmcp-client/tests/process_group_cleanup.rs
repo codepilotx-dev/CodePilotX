@@ -9,10 +9,10 @@ use std::time::Duration;
 
 use anyhow::Context;
 use anyhow::Result;
-use codex_rmcp_client::ElicitationAction;
-use codex_rmcp_client::ElicitationResponse;
-use codex_rmcp_client::LocalStdioServerLauncher;
-use codex_rmcp_client::RmcpClient;
+use codepilotx_rmcp_client::ElicitationAction;
+use codepilotx_rmcp_client::ElicitationResponse;
+use codepilotx_rmcp_client::LocalStdioServerLauncher;
+use codepilotx_rmcp_client::RmcpClient;
 use futures::FutureExt as _;
 use rmcp::model::ClientCapabilities;
 use rmcp::model::Implementation;
@@ -21,7 +21,7 @@ use rmcp::model::ProtocolVersion;
 use serde_json::json;
 
 fn stdio_server_bin() -> Result<std::path::PathBuf> {
-    codex_utils_cargo_bin::cargo_bin("test_stdio_server").map_err(Into::into)
+    codepilotx_utils_cargo_bin::cargo_bin("test_stdio_server").map_err(Into::into)
 }
 
 fn init_params() -> InitializeRequestParams {

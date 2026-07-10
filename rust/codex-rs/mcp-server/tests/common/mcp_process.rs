@@ -10,8 +10,8 @@ use tokio::process::ChildStdin;
 use tokio::process::ChildStdout;
 
 use anyhow::Context;
-use codex_mcp_server::CodexToolCallParam;
-use codex_terminal_detection::user_agent;
+use codepilotx_mcp_server::CodexToolCallParam;
+use codepilotx_terminal_detection::user_agent;
 
 use pretty_assertions::assert_eq;
 use rmcp::model::CallToolRequestParams;
@@ -44,8 +44,8 @@ pub struct McpProcess {
 }
 
 impl McpProcess {
-    pub async fn new(codex_home: &Path) -> anyhow::Result<Self> {
-        Self::new_with_env(codex_home, &[]).await
+    pub async fn new(codepilotx_home: &Path) -> anyhow::Result<Self> {
+        Self::new_with_env(codepilotx_home, &[]).await
     }
 
     /// Creates a new MCP process, allowing tests to override or remove
@@ -54,17 +54,17 @@ impl McpProcess {
     /// Pass a tuple of (key, Some(value)) to set/override, or (key, None) to
     /// remove a variable from the child's environment.
     pub async fn new_with_env(
-        codex_home: &Path,
+        codepilotx_home: &Path,
         env_overrides: &[(&str, Option<&str>)],
     ) -> anyhow::Result<Self> {
-        let program = codex_utils_cargo_bin::cargo_bin("codex-mcp-server")
+        let program = codepilotx_utils_cargo_bin::cargo_bin("codex-mcp-server")
             .context("should find binary for codex-mcp-server")?;
         let mut cmd = Command::new(program);
 
         cmd.stdin(Stdio::piped());
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
-        cmd.env("CODEX_HOME", codex_home);
+        cmd.env("codepilotx_HOME", codepilotx_home);
         cmd.env("RUST_LOG", "debug");
 
         for (k, v) in env_overrides {
@@ -138,7 +138,7 @@ impl McpProcess {
         let initialized = self.read_jsonrpc_message().await?;
         let os_info = os_info::get();
         let build_version = env!("CARGO_PKG_VERSION");
-        let originator = codex_login::default_client::originator().value;
+        let originator = codepilotx_login::default_client::originator().value;
         let user_agent = format!(
             "{originator}/{build_version} ({} {}; {}) {} (elicitation test; 0.0.0)",
             os_info.os_type(),
@@ -186,11 +186,11 @@ impl McpProcess {
 
     /// Returns the id used to make the request so it can be used when
     /// correlating notifications.
-    pub async fn send_codex_tool_call(
+    pub async fn send_codepilotx_tool_call(
         &mut self,
         params: CodexToolCallParam,
     ) -> anyhow::Result<i64> {
-        let codex_tool_call_params = CallToolRequestParams::new("codex").with_arguments(
+        let codepilotx_tool_call_params = CallToolRequestParams::new("codex").with_arguments(
             match serde_json::to_value(params)? {
                 serde_json::Value::Object(map) => map,
                 _ => unreachable!("params serialize to object"),
@@ -198,7 +198,7 @@ impl McpProcess {
         );
         self.send_request(
             "tools/call",
-            Some(serde_json::to_value(codex_tool_call_params)?),
+            Some(serde_json::to_value(codepilotx_tool_call_params)?),
         )
         .await
     }

@@ -1,6 +1,6 @@
 use super::*;
 use crate::PathUri;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
 
 #[derive(Clone, Copy, Debug)]
@@ -84,7 +84,7 @@ const RENDER_CASES: &[RenderCase] = &[
     RenderCase::round_trips("file:///tmp/", PathConvention::Posix, "/tmp/"),
     RenderCase::round_trips("file:///C:/Project", PathConvention::Posix, "/C:/Project"),
     RenderCase::round_trips("file:///C:", PathConvention::Posix, "/C:"),
-    RenderCase::round_trips("file:///tmp/%E2%98%83", PathConvention::Posix, "/tmp/â˜ƒ"),
+    RenderCase::round_trips("file:///tmp/%E2%98%83", PathConvention::Posix, "/tmp/â˜?),
     RenderCase::round_trips("file:///tmp/a%5Cb", PathConvention::Posix, "/tmp/a\\b"),
     RenderCase::round_trips(
         "file:///tmp/100%25/file",
@@ -135,7 +135,7 @@ const RENDER_CASES: &[RenderCase] = &[
     RenderCase::round_trips(
         "file:///d:/snowman/%E2%98%83",
         PathConvention::Windows,
-        r"d:\snowman\â˜ƒ",
+        r"d:\snowman\â˜?,
     ),
     RenderCase::round_trips("file:///C:/tmp/", PathConvention::Windows, "C:\\tmp\\"),
     RenderCase::round_trips(
@@ -198,7 +198,7 @@ const RENDER_CASES: &[RenderCase] = &[
     RenderCase::renders_lossily(
         "file:///%00/bad/path/L3RtcC9udWxsLQAt_y1ieXRl",
         PathConvention::Posix,
-        "/tmp/null-\0-ï¿½-byte",
+        "/tmp/null-\0-ï¿?byte",
     ),
     RenderCase::round_trips(
         "file:///%00/bad/path/XABcAC4AXABDAE8ATQAxAFwA",
@@ -242,12 +242,12 @@ const RENDER_CASES: &[RenderCase] = &[
     RenderCase::renders_lossily(
         "file:///tmp/non-utf8-%FF",
         PathConvention::Posix,
-        "/tmp/non-utf8-ï¿½",
+        "/tmp/non-utf8-ï¿?,
     ),
     RenderCase::renders_lossily(
         "file:///tmp/non-utf8-%A0",
         PathConvention::Posix,
-        "/tmp/non-utf8-ï¿½",
+        "/tmp/non-utf8-ï¿?,
     ),
     RenderCase::renders_lossily("file:///tmp/a%2Fb", PathConvention::Posix, "/tmp/a/b"),
     RenderCase::renders_lossily("file:///C:/a%2Fb", PathConvention::Windows, "C:\\a/b"),
@@ -527,14 +527,14 @@ fn renders_native_non_unicode_windows_fallback_lossily() {
 
     assert_eq!(
         LegacyAppPathString::from_abs_path(&native_path),
-        LegacyAppPathString(r"C:\bad\ï¿½".to_string())
+        LegacyAppPathString(r"C:\bad\ï¿?.to_string())
     );
 
     let path = PathUri::from_abs_path(&native_path);
 
     assert_eq!(
         LegacyAppPathString::from_path_uri(&path, PathConvention::Windows),
-        Ok(LegacyAppPathString(r"C:\bad\ï¿½".to_string()))
+        Ok(LegacyAppPathString(r"C:\bad\ï¿?.to_string()))
     );
     assert_eq!(
         LegacyAppPathString::from_path_uri(&path, PathConvention::Posix),

@@ -1,14 +1,14 @@
 //! OSS provider utilities shared between TUI and exec.
 
-use codex_core::config::Config;
-use codex_model_provider_info::LMSTUDIO_OSS_PROVIDER_ID;
-use codex_model_provider_info::OLLAMA_OSS_PROVIDER_ID;
+use codepilotx_core::config::Config;
+use codepilotx_model_provider_info::LMSTUDIO_OSS_PROVIDER_ID;
+use codepilotx_model_provider_info::OLLAMA_OSS_PROVIDER_ID;
 
 /// Returns the default model for a given OSS provider.
 pub fn get_default_model_for_oss_provider(provider_id: &str) -> Option<&'static str> {
     match provider_id {
-        LMSTUDIO_OSS_PROVIDER_ID => Some(codex_lmstudio::DEFAULT_OSS_MODEL),
-        OLLAMA_OSS_PROVIDER_ID => Some(codex_ollama::DEFAULT_OSS_MODEL),
+        LMSTUDIO_OSS_PROVIDER_ID => Some(codepilotx_lmstudio::DEFAULT_OSS_MODEL),
+        OLLAMA_OSS_PROVIDER_ID => Some(codepilotx_ollama::DEFAULT_OSS_MODEL),
         _ => None,
     }
 }
@@ -20,13 +20,13 @@ pub async fn ensure_oss_provider_ready(
 ) -> Result<(), std::io::Error> {
     match provider_id {
         LMSTUDIO_OSS_PROVIDER_ID => {
-            codex_lmstudio::ensure_oss_ready(config)
+            codepilotx_lmstudio::ensure_oss_ready(config)
                 .await
                 .map_err(|e| std::io::Error::other(format!("OSS setup failed: {e}")))?;
         }
         OLLAMA_OSS_PROVIDER_ID => {
-            codex_ollama::ensure_responses_supported(&config.model_provider).await?;
-            codex_ollama::ensure_oss_ready(config)
+            codepilotx_ollama::ensure_responses_supported(&config.model_provider).await?;
+            codepilotx_ollama::ensure_oss_ready(config)
                 .await
                 .map_err(|e| std::io::Error::other(format!("OSS setup failed: {e}")))?;
         }
@@ -44,13 +44,13 @@ mod tests {
     #[test]
     fn test_get_default_model_for_provider_lmstudio() {
         let result = get_default_model_for_oss_provider(LMSTUDIO_OSS_PROVIDER_ID);
-        assert_eq!(result, Some(codex_lmstudio::DEFAULT_OSS_MODEL));
+        assert_eq!(result, Some(codepilotx_lmstudio::DEFAULT_OSS_MODEL));
     }
 
     #[test]
     fn test_get_default_model_for_provider_ollama() {
         let result = get_default_model_for_oss_provider(OLLAMA_OSS_PROVIDER_ID);
-        assert_eq!(result, Some(codex_ollama::DEFAULT_OSS_MODEL));
+        assert_eq!(result, Some(codepilotx_ollama::DEFAULT_OSS_MODEL));
     }
 
     #[test]

@@ -1,13 +1,13 @@
 //! Configuration object accepted by the `codex` MCP tool-call.
 
-use codex_arg0::Arg0DispatchPaths;
-use codex_core::config::Config;
-use codex_core::config::ConfigBuilder;
-use codex_core::config::ConfigOverrides;
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::SandboxMode;
-use codex_protocol::protocol::AskForApproval;
-use codex_utils_json_to_toml::json_to_toml;
+use codepilotx_arg0::Arg0DispatchPaths;
+use codepilotx_core::config::Config;
+use codepilotx_core::config::ConfigBuilder;
+use codepilotx_core::config::ConfigOverrides;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::config_types::SandboxMode;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_utils_json_to_toml::json_to_toml;
 use rmcp::model::JsonObject;
 use rmcp::model::Tool;
 use schemars::JsonSchema;
@@ -45,7 +45,7 @@ pub struct CodexToolCallParam {
     pub sandbox: Option<CodexToolCallSandboxMode>,
 
     /// Individual config settings that will override what is in
-    /// CODEX_HOME/config.toml.
+    /// codepilotx_HOME/config.toml.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub config: Option<HashMap<String, serde_json::Value>>,
 
@@ -105,7 +105,7 @@ impl From<CodexToolCallSandboxMode> for SandboxMode {
 }
 
 /// Builds a `Tool` definition (JSON schema etc.) for the Codex tool-call.
-pub(crate) fn create_tool_for_codex_tool_call_param() -> Tool {
+pub(crate) fn create_tool_for_codepilotx_tool_call_param() -> Tool {
     let schema = SchemaSettings::draft2019_09()
         .with(|s| {
             s.inline_subschemas = true;
@@ -122,10 +122,10 @@ pub(crate) fn create_tool_for_codex_tool_call_param() -> Tool {
         input_schema,
     )
     .with_title("Codex")
-    .with_raw_output_schema(codex_tool_output_schema())
+    .with_raw_output_schema(codepilotx_tool_output_schema())
 }
 
-fn codex_tool_output_schema() -> Arc<JsonObject> {
+fn codepilotx_tool_output_schema() -> Arc<JsonObject> {
     let schema = serde_json::json!({
         "type": "object",
         "properties": {
@@ -165,8 +165,8 @@ impl CodexToolCallParam {
             cwd: cwd.map(PathBuf::from),
             approval_policy: approval_policy.map(Into::into),
             sandbox_mode: sandbox.map(Into::into),
-            codex_self_exe: arg0_paths.codex_self_exe.clone(),
-            codex_linux_sandbox_exe: arg0_paths.codex_linux_sandbox_exe.clone(),
+            codepilotx_self_exe: arg0_paths.codepilotx_self_exe.clone(),
+            codepilotx_linux_sandbox_exe: arg0_paths.codepilotx_linux_sandbox_exe.clone(),
             main_execve_wrapper_exe: arg0_paths.main_execve_wrapper_exe.clone(),
             base_instructions,
             developer_instructions,
@@ -224,7 +224,7 @@ impl CodexToolCallReplyParam {
 }
 
 /// Builds a `Tool` definition for the `codex-reply` tool-call.
-pub(crate) fn create_tool_for_codex_tool_call_reply_param() -> Tool {
+pub(crate) fn create_tool_for_codepilotx_tool_call_reply_param() -> Tool {
     let schema = SchemaSettings::draft2019_09()
         .with(|s| {
             s.inline_subschemas = true;
@@ -241,7 +241,7 @@ pub(crate) fn create_tool_for_codex_tool_call_reply_param() -> Tool {
         input_schema,
     )
     .with_title("Codex Reply")
-    .with_raw_output_schema(codex_tool_output_schema())
+    .with_raw_output_schema(codepilotx_tool_output_schema())
 }
 
 fn create_tool_input_schema(
@@ -292,8 +292,8 @@ mod tests {
     /// As of 2025-05-04, there is an open PR for this:
     /// https://github.com/modelcontextprotocol/inspector/pull/196
     #[test]
-    fn verify_codex_tool_json_schema() {
-        let tool = create_tool_for_codex_tool_call_param();
+    fn verify_codepilotx_tool_json_schema() {
+        let tool = create_tool_for_codepilotx_tool_call_param();
         let tool_json = serde_json::to_value(&tool).expect("tool serializes");
         let expected_tool_json = serde_json::json!({
           "description": "Run a Codex session. Accepts configuration parameters matching the Codex Config struct.",
@@ -320,7 +320,7 @@ mod tests {
               },
               "config": {
                 "additionalProperties": true,
-                "description": "Individual config settings that will override what is in CODEX_HOME/config.toml.",
+                "description": "Individual config settings that will override what is in codepilotx_HOME/config.toml.",
                 "type": "object"
               },
               "cwd": {
@@ -376,7 +376,7 @@ mod tests {
     }
 
     #[test]
-    fn codex_tool_call_param_rejects_removed_profile_field() {
+    fn codepilotx_tool_call_param_rejects_removed_profile_field() {
         let err = serde_json::from_value::<CodexToolCallParam>(serde_json::json!({
             "prompt": "hello",
             "profile": "work"
@@ -390,8 +390,8 @@ mod tests {
     }
 
     #[test]
-    fn verify_codex_tool_reply_json_schema() {
-        let tool = create_tool_for_codex_tool_call_reply_param();
+    fn verify_codepilotx_tool_reply_json_schema() {
+        let tool = create_tool_for_codepilotx_tool_call_reply_param();
         let tool_json = serde_json::to_value(&tool).expect("tool serializes");
         let expected_tool_json = serde_json::json!({
           "description": "Continue a Codex conversation by providing the thread id and prompt.",

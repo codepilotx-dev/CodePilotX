@@ -1,4 +1,4 @@
-use codex_protocol::ToolName;
+use codepilotx_protocol::ToolName;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::Value as JsonValue;

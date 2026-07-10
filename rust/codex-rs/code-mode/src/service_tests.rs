@@ -19,7 +19,7 @@ use crate::ExecuteRequest;
 use crate::ExecuteToPendingOutcome;
 use crate::FunctionCallOutputContentItem;
 use crate::ToolDefinition;
-use codex_protocol::ToolName;
+use codepilotx_protocol::ToolName;
 use pretty_assertions::assert_eq;
 use serde_json::Value as JsonValue;
 use tokio::sync::Notify;

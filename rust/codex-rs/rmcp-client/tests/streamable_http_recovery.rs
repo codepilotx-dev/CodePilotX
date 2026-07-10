@@ -5,12 +5,12 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
-use codex_exec_server::Environment;
-use codex_exec_server::ExecServerError;
-use codex_exec_server::HttpClient;
-use codex_exec_server::HttpRequestParams;
-use codex_exec_server::HttpRequestResponse;
-use codex_exec_server::HttpResponseBodyStream;
+use codepilotx_exec_server::Environment;
+use codepilotx_exec_server::ExecServerError;
+use codepilotx_exec_server::HttpClient;
+use codepilotx_exec_server::HttpRequestParams;
+use codepilotx_exec_server::HttpRequestResponse;
+use codepilotx_exec_server::HttpResponseBodyStream;
 use futures::FutureExt as _;
 use futures::future::BoxFuture;
 use pretty_assertions::assert_eq;

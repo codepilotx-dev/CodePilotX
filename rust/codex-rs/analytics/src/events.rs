@@ -23,23 +23,23 @@ use crate::facts::TurnSteerRejectionReason;
 use crate::facts::TurnSteerResult;
 use crate::facts::TurnSubmissionType;
 use crate::now_unix_millis;
-use codex_app_server_protocol::CodexErrorInfo;
-use codex_app_server_protocol::CommandExecutionSource;
-use codex_login::default_client::originator;
-use codex_plugin::PluginTelemetryMetadata;
-use codex_protocol::approvals::NetworkApprovalProtocol;
-use codex_protocol::models::AdditionalPermissionProfile;
-use codex_protocol::models::SandboxPermissions;
-use codex_protocol::protocol::GuardianAssessmentOutcome;
-use codex_protocol::protocol::GuardianCommandSource;
-use codex_protocol::protocol::GuardianRiskLevel;
-use codex_protocol::protocol::GuardianUserAuthorization;
-use codex_protocol::protocol::HookEventName;
-use codex_protocol::protocol::HookRunStatus;
-use codex_protocol::protocol::HookSource;
-use codex_protocol::protocol::SubAgentSource;
-use codex_protocol::protocol::ThreadSource;
-use codex_protocol::protocol::TokenUsage;
+use codepilotx_app_server_protocol::CodexErrorInfo;
+use codepilotx_app_server_protocol::CommandExecutionSource;
+use codepilotx_login::default_client::originator;
+use codepilotx_plugin::PluginTelemetryMetadata;
+use codepilotx_protocol::approvals::NetworkApprovalProtocol;
+use codepilotx_protocol::models::AdditionalPermissionProfile;
+use codepilotx_protocol::models::SandboxPermissions;
+use codepilotx_protocol::protocol::GuardianAssessmentOutcome;
+use codepilotx_protocol::protocol::GuardianCommandSource;
+use codepilotx_protocol::protocol::GuardianRiskLevel;
+use codepilotx_protocol::protocol::GuardianUserAuthorization;
+use codepilotx_protocol::protocol::HookEventName;
+use codepilotx_protocol::protocol::HookRunStatus;
+use codepilotx_protocol::protocol::HookSource;
+use codepilotx_protocol::protocol::SubAgentSource;
+use codepilotx_protocol::protocol::ThreadSource;
+use codepilotx_protocol::protocol::TokenUsage;
 use serde::Serialize;
 
 #[derive(Clone, Copy, Debug, Serialize)]
@@ -145,7 +145,7 @@ pub(crate) struct CodexAppServerClientMetadata {
 
 #[derive(Clone, Serialize)]
 pub(crate) struct CodexRuntimeMetadata {
-    pub(crate) codex_rs_version: String,
+    pub(crate) codepilotx_rs_version: String,
     pub(crate) runtime_os: String,
     pub(crate) runtime_os_version: String,
     pub(crate) runtime_arch: String,
@@ -800,8 +800,8 @@ pub(crate) struct CodexCompactionEventParams {
     pub(crate) phase: CompactionPhase,
     pub(crate) strategy: CompactionStrategy,
     pub(crate) status: CompactionStatus,
-    pub(crate) codex_error_kind: Option<CodexErrKind>,
-    pub(crate) codex_error_http_status_code: Option<u16>,
+    pub(crate) codepilotx_error_kind: Option<CodexErrKind>,
+    pub(crate) codepilotx_error_http_status_code: Option<u16>,
     pub(crate) active_context_tokens_before: i64,
     pub(crate) active_context_tokens_after: i64,
     pub(crate) retained_image_count: Option<usize>,
@@ -830,7 +830,7 @@ pub(crate) struct CodexGoalEventParams {
     pub(crate) parent_thread_id: Option<String>,
     pub(crate) goal_id: String,
     pub(crate) event_kind: GoalEventKind,
-    pub(crate) goal_status: codex_state::ThreadGoalStatus,
+    pub(crate) goal_status: codepilotx_state::ThreadGoalStatus,
     pub(crate) has_token_budget: bool,
     pub(crate) cumulative_tokens_accounted: Option<i64>,
     pub(crate) cumulative_time_accounted_seconds: Option<i64>,
@@ -873,8 +873,8 @@ pub(crate) struct CodexTurnEventParams {
     pub(crate) is_first_turn: bool,
     pub(crate) status: Option<TurnStatus>,
     pub(crate) turn_error: Option<CodexErrorInfo>,
-    pub(crate) codex_error_kind: Option<CodexErrKind>,
-    pub(crate) codex_error_http_status_code: Option<u16>,
+    pub(crate) codepilotx_error_kind: Option<CodexErrKind>,
+    pub(crate) codepilotx_error_http_status_code: Option<u16>,
     pub(crate) steer_count: Option<usize>,
     pub(crate) total_tool_call_count: Option<usize>,
     pub(crate) shell_command_count: Option<usize>,
@@ -1012,14 +1012,14 @@ pub(crate) struct CodexPluginUsedEventRequest {
 
 pub(crate) fn plugin_state_event_type(state: PluginState) -> &'static str {
     match state {
-        PluginState::Installed => "codex_plugin_installed",
-        PluginState::Uninstalled => "codex_plugin_uninstalled",
-        PluginState::Enabled => "codex_plugin_enabled",
-        PluginState::Disabled => "codex_plugin_disabled",
+        PluginState::Installed => "codepilotx_plugin_installed",
+        PluginState::Uninstalled => "codepilotx_plugin_uninstalled",
+        PluginState::Enabled => "codepilotx_plugin_enabled",
+        PluginState::Disabled => "codepilotx_plugin_disabled",
     }
 }
 
-pub(crate) fn codex_app_metadata(
+pub(crate) fn codepilotx_app_metadata(
     tracking: &TrackEventsContext,
     app: AppInvocation,
 ) -> CodexAppMetadata {
@@ -1034,7 +1034,7 @@ pub(crate) fn codex_app_metadata(
     }
 }
 
-pub(crate) fn codex_plugin_metadata(plugin: PluginTelemetryMetadata) -> CodexPluginMetadata {
+pub(crate) fn codepilotx_plugin_metadata(plugin: PluginTelemetryMetadata) -> CodexPluginMetadata {
     let PluginTelemetryMetadata {
         plugin_id,
         remote_plugin_id,
@@ -1062,7 +1062,7 @@ pub(crate) fn codex_plugin_metadata(plugin: PluginTelemetryMetadata) -> CodexPlu
     }
 }
 
-pub(crate) fn codex_compaction_event_params(
+pub(crate) fn codepilotx_compaction_event_params(
     input: CodexCompactionEvent,
     session_id: String,
     app_server_client: CodexAppServerClientMetadata,
@@ -1086,8 +1086,8 @@ pub(crate) fn codex_compaction_event_params(
         phase: input.phase,
         strategy: input.strategy,
         status: input.status,
-        codex_error_kind: input.codex_error_kind,
-        codex_error_http_status_code: input.codex_error_http_status_code,
+        codepilotx_error_kind: input.codepilotx_error_kind,
+        codepilotx_error_http_status_code: input.codepilotx_error_http_status_code,
         active_context_tokens_before: input.active_context_tokens_before,
         active_context_tokens_after: input.active_context_tokens_after,
         retained_image_count: input.retained_image_count,
@@ -1099,7 +1099,7 @@ pub(crate) fn codex_compaction_event_params(
     }
 }
 
-pub(crate) fn codex_goal_event_params(
+pub(crate) fn codepilotx_goal_event_params(
     input: CodexGoalEvent,
     session_id: String,
     app_server_client: CodexAppServerClientMetadata,
@@ -1126,7 +1126,7 @@ pub(crate) fn codex_goal_event_params(
     }
 }
 
-pub(crate) fn codex_plugin_used_metadata(
+pub(crate) fn codepilotx_plugin_used_metadata(
     tracking: &TrackEventsContext,
     plugin: PluginTelemetryMetadata,
 ) -> CodexPluginUsedMetadata {
@@ -1135,7 +1135,7 @@ pub(crate) fn codex_plugin_used_metadata(
         .as_ref()
         .map(|summary| summary.mcp_server_names.clone());
     CodexPluginUsedMetadata {
-        plugin: codex_plugin_metadata(plugin),
+        plugin: codepilotx_plugin_metadata(plugin),
         mcp_server_names,
         thread_id: Some(tracking.thread_id.clone()),
         turn_id: Some(tracking.turn_id.clone()),
@@ -1143,7 +1143,7 @@ pub(crate) fn codex_plugin_used_metadata(
     }
 }
 
-pub(crate) fn codex_hook_run_metadata(
+pub(crate) fn codepilotx_hook_run_metadata(
     tracking: &TrackEventsContext,
     hook: HookRunFact,
 ) -> CodexHookRunMetadata {
@@ -1191,7 +1191,7 @@ fn analytics_hook_source(source: HookSource) -> &'static str {
 pub(crate) fn current_runtime_metadata() -> CodexRuntimeMetadata {
     let os_info = os_info::get();
     CodexRuntimeMetadata {
-        codex_rs_version: env!("CARGO_PKG_VERSION").to_string(),
+        codepilotx_rs_version: env!("CARGO_PKG_VERSION").to_string(),
         runtime_os: std::env::consts::OS.to_string(),
         runtime_os_version: os_info.version().to_string(),
         runtime_arch: std::env::consts::ARCH.to_string(),
@@ -1222,7 +1222,7 @@ pub(crate) fn subagent_thread_started_event_request(
         created_at: input.created_at,
     };
     ThreadInitializedEvent {
-        event_type: "codex_thread_initialized",
+        event_type: "codepilotx_thread_initialized",
         event_params,
     }
 }

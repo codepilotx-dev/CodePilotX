@@ -12,12 +12,12 @@ use std::io;
 use std::sync::Arc;
 
 use bytes::Bytes;
-use codex_api::SharedAuthProvider;
-use codex_exec_server::ExecServerError;
-use codex_exec_server::HttpClient;
-use codex_exec_server::HttpHeader;
-use codex_exec_server::HttpRequestParams;
-use codex_exec_server::HttpResponseBodyStream;
+use codepilotx_api::SharedAuthProvider;
+use codepilotx_exec_server::ExecServerError;
+use codepilotx_exec_server::HttpClient;
+use codepilotx_exec_server::HttpHeader;
+use codepilotx_exec_server::HttpRequestParams;
+use codepilotx_exec_server::HttpResponseBodyStream;
 use futures::StreamExt;
 use futures::stream;
 use futures::stream::BoxStream;

@@ -1,13 +1,13 @@
-use codex_otel::MetricsClient;
-use codex_otel::MetricsConfig;
-use codex_otel::OtelExporter;
-use codex_otel::OtelHttpProtocol;
-use codex_otel::OtelProvider;
-use codex_otel::OtelSettings;
-use codex_otel::Result;
-use codex_otel::current_span_w3c_trace_context;
-use codex_otel::set_parent_from_w3c_trace_context;
-use codex_protocol::protocol::W3cTraceContext;
+use codepilotx_otel::MetricsClient;
+use codepilotx_otel::MetricsConfig;
+use codepilotx_otel::OtelExporter;
+use codepilotx_otel::OtelHttpProtocol;
+use codepilotx_otel::OtelProvider;
+use codepilotx_otel::OtelSettings;
+use codepilotx_otel::Result;
+use codepilotx_otel::current_span_w3c_trace_context;
+use codepilotx_otel::set_parent_from_w3c_trace_context;
+use codepilotx_protocol::protocol::W3cTraceContext;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::io::Read as _;
@@ -269,7 +269,7 @@ fn otlp_http_exporter_sends_logs_to_collector()
         environment: "test".to_string(),
         service_name: "codex-cli".to_string(),
         service_version: env!("CARGO_PKG_VERSION").to_string(),
-        codex_home: PathBuf::from("."),
+        codepilotx_home: PathBuf::from("."),
         exporter: OtelExporter::OtlpHttp {
             endpoint: format!("http://{addr}/v1/logs"),
             headers: HashMap::new(),
@@ -289,7 +289,7 @@ fn otlp_http_exporter_sends_logs_to_collector()
     tracing::subscriber::with_default(subscriber, || {
         tracing::callsite::rebuild_interest_cache();
         tracing::event!(
-            target: "codex_otel.log_only",
+            target: "codepilotx_otel.log_only",
             tracing::Level::INFO,
             event.name = "codex.test.log_exported",
             "test OTEL log export"
@@ -328,7 +328,7 @@ fn otel_provider_rejects_header_unsafe_configured_tracestate() {
         environment: "test".to_string(),
         service_name: "codex-cli".to_string(),
         service_version: env!("CARGO_PKG_VERSION").to_string(),
-        codex_home: PathBuf::from("."),
+        codepilotx_home: PathBuf::from("."),
         exporter: OtelExporter::None,
         trace_exporter: OtelExporter::OtlpHttp {
             endpoint: "http://127.0.0.1:1/v1/traces".to_string(),
@@ -393,7 +393,7 @@ fn otlp_http_exporter_sends_traces_to_collector()
         environment: "test".to_string(),
         service_name: "codex-cli".to_string(),
         service_version: env!("CARGO_PKG_VERSION").to_string(),
-        codex_home: PathBuf::from("."),
+        codepilotx_home: PathBuf::from("."),
         exporter: OtelExporter::None,
         trace_exporter: OtelExporter::OtlpHttp {
             endpoint: format!("http://{addr}/v1/traces"),
@@ -440,7 +440,7 @@ fn otlp_http_exporter_sends_traces_to_collector()
         let propagated_trace =
             current_span_w3c_trace_context().expect("current span should have trace context");
         tracing::event!(
-            target: "codex_otel.trace_safe",
+            target: "codepilotx_otel.trace_safe",
             tracing::Level::INFO,
             event.name = "codex.test.trace_event",
             "test OTEL trace event"
@@ -538,7 +538,7 @@ async fn otlp_http_exporter_sends_traces_to_collector_in_tokio_runtime()
         environment: "test".to_string(),
         service_name: "codex-cli".to_string(),
         service_version: env!("CARGO_PKG_VERSION").to_string(),
-        codex_home: PathBuf::from("."),
+        codepilotx_home: PathBuf::from("."),
         exporter: OtelExporter::None,
         trace_exporter: OtelExporter::OtlpHttp {
             endpoint: format!("http://{addr}/v1/traces"),
@@ -649,7 +649,7 @@ fn otlp_http_exporter_sends_traces_to_collector_in_current_thread_tokio_runtime(
                 environment: "test".to_string(),
                 service_name: "codex-cli".to_string(),
                 service_version: env!("CARGO_PKG_VERSION").to_string(),
-                codex_home: PathBuf::from("."),
+                codepilotx_home: PathBuf::from("."),
                 exporter: OtelExporter::None,
                 trace_exporter: OtelExporter::OtlpHttp {
                     endpoint: format!("http://{addr}/v1/traces"),

@@ -1,14 +1,14 @@
 use std::path::Path;
 
-use codex_arg0::Arg0DispatchPaths;
-use codex_arg0::Arg0PathEntryGuard;
-use codex_arg0::arg0_dispatch;
+use codepilotx_arg0::Arg0DispatchPaths;
+use codepilotx_arg0::Arg0PathEntryGuard;
+use codepilotx_arg0::arg0_dispatch;
 use tempfile::TempDir;
 
 pub struct TestBinaryDispatchGuard {
-    _codex_home: TempDir,
+    _codepilotx_home: TempDir,
     arg0: Arg0PathEntryGuard,
-    _previous_codex_home: Option<std::ffi::OsString>,
+    _previous_codepilotx_home: Option<std::ffi::OsString>,
 }
 
 impl TestBinaryDispatchGuard {
@@ -24,7 +24,7 @@ pub enum TestBinaryDispatchMode {
 }
 
 pub fn configure_test_binary_dispatch<F>(
-    codex_home_prefix: &str,
+    codepilotx_home_prefix: &str,
     classify: F,
 ) -> Option<TestBinaryDispatchGuard>
 where
@@ -44,33 +44,33 @@ where
         }
         TestBinaryDispatchMode::Skip => None,
         TestBinaryDispatchMode::InstallAliases => {
-            let codex_home = match tempfile::Builder::new().prefix(codex_home_prefix).tempdir() {
-                Ok(codex_home) => codex_home,
-                Err(error) => panic!("failed to create test CODEX_HOME: {error}"),
+            let codepilotx_home = match tempfile::Builder::new().prefix(codepilotx_home_prefix).tempdir() {
+                Ok(codepilotx_home) => codepilotx_home,
+                Err(error) => panic!("failed to create test codepilotx_HOME: {error}"),
             };
-            let previous_codex_home = std::env::var_os("CODEX_HOME");
+            let previous_codepilotx_home = std::env::var_os("codepilotx_HOME");
             // Safety: this runs from a test ctor before test threads begin.
             unsafe {
-                std::env::set_var("CODEX_HOME", codex_home.path());
+                std::env::set_var("codepilotx_HOME", codepilotx_home.path());
             }
 
             let arg0 = match arg0_dispatch() {
                 Some(arg0) => arg0,
                 None => panic!("failed to configure arg0 dispatch aliases for test binary"),
             };
-            match previous_codex_home.as_ref() {
+            match previous_codepilotx_home.as_ref() {
                 Some(value) => unsafe {
-                    std::env::set_var("CODEX_HOME", value);
+                    std::env::set_var("codepilotx_HOME", value);
                 },
                 None => unsafe {
-                    std::env::remove_var("CODEX_HOME");
+                    std::env::remove_var("codepilotx_HOME");
                 },
             }
 
             Some(TestBinaryDispatchGuard {
-                _codex_home: codex_home,
+                _codepilotx_home: codepilotx_home,
                 arg0,
-                _previous_codex_home: previous_codex_home,
+                _previous_codepilotx_home: previous_codepilotx_home,
             })
         }
     }

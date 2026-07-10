@@ -177,7 +177,7 @@ impl OtelProvider {
         })
     }
 
-    pub fn codex_export_filter(meta: &tracing::Metadata<'_>) -> bool {
+    pub fn codepilotx_export_filter(meta: &tracing::Metadata<'_>) -> bool {
         Self::log_export_filter(meta)
     }
 
@@ -511,18 +511,18 @@ mod tests {
 
     #[test]
     fn log_export_target_excludes_trace_safe_events() {
-        assert!(is_log_export_target("codex_otel.log_only"));
-        assert!(is_log_export_target("codex_otel.network_proxy"));
-        assert!(!is_log_export_target("codex_otel.trace_safe"));
-        assert!(!is_log_export_target("codex_otel.trace_safe.debug"));
+        assert!(is_log_export_target("codepilotx_otel.log_only"));
+        assert!(is_log_export_target("codepilotx_otel.network_proxy"));
+        assert!(!is_log_export_target("codepilotx_otel.trace_safe"));
+        assert!(!is_log_export_target("codepilotx_otel.trace_safe.debug"));
     }
 
     #[test]
     fn trace_export_target_only_includes_trace_safe_prefix() {
-        assert!(is_trace_safe_target("codex_otel.trace_safe"));
-        assert!(is_trace_safe_target("codex_otel.trace_safe.summary"));
-        assert!(!is_trace_safe_target("codex_otel.log_only"));
-        assert!(!is_trace_safe_target("codex_otel.network_proxy"));
+        assert!(is_trace_safe_target("codepilotx_otel.trace_safe"));
+        assert!(is_trace_safe_target("codepilotx_otel.trace_safe.summary"));
+        assert!(!is_trace_safe_target("codepilotx_otel.log_only"));
+        assert!(!is_trace_safe_target("codepilotx_otel.network_proxy"));
     }
 
     fn test_otel_settings() -> OtelSettings {
@@ -530,7 +530,7 @@ mod tests {
             environment: "test".to_string(),
             service_name: "codex-test".to_string(),
             service_version: "0.0.0".to_string(),
-            codex_home: PathBuf::from("."),
+            codepilotx_home: PathBuf::from("."),
             exporter: OtelExporter::None,
             trace_exporter: OtelExporter::None,
             metrics_exporter: OtelExporter::None,

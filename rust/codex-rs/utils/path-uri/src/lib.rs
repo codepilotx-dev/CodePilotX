@@ -3,7 +3,7 @@
 //! See [`PathUri`] for scheme, normalization, and serialization behavior.
 
 use base64::Engine;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Deserializer;

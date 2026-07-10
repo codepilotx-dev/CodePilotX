@@ -1,5 +1,5 @@
 use super::*;
-use codex_utils_absolute_path::AbsolutePathBufGuard;
+use codepilotx_utils_absolute_path::AbsolutePathBufGuard;
 use pretty_assertions::assert_eq;
 #[cfg(windows)]
 use std::ffi::OsString;

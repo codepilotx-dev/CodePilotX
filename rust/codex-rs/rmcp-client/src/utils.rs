@@ -1,6 +1,6 @@
 use anyhow::Result;
 use anyhow::anyhow;
-use codex_config::types::McpServerEnvVar;
+use codepilotx_config::types::McpServerEnvVar;
 use reqwest::ClientBuilder;
 use reqwest::header::HeaderMap;
 use reqwest::header::HeaderName;
@@ -143,7 +143,7 @@ pub(crate) const DEFAULT_ENV_VARS: &[&str] = &[
 
 #[cfg(windows)]
 pub(crate) const DEFAULT_ENV_VARS: &[&str] =
-    codex_protocol::shell_environment::WINDOWS_CORE_ENV_VARS;
+    codepilotx_protocol::shell_environment::WINDOWS_CORE_ENV_VARS;
 
 #[cfg(test)]
 mod tests {

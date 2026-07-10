@@ -10,8 +10,8 @@ use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use chrono::SecondsFormat;
 use chrono::Utc;
-use codex_protocol::auth::PlanType as AuthPlanType;
-use codex_protocol::protocol::SessionSource;
+use codepilotx_protocol::auth::PlanType as AuthPlanType;
+use codepilotx_protocol::protocol::SessionSource;
 use crypto_box::SecretKey as Curve25519SecretKey;
 use ed25519_dalek::Signer as _;
 use ed25519_dalek::SigningKey;
@@ -568,7 +568,7 @@ mod tests {
     use jsonwebtoken::Header;
     use pretty_assertions::assert_eq;
 
-    use codex_protocol::auth::KnownPlan;
+    use codepilotx_protocol::auth::KnownPlan;
 
     use super::*;
 

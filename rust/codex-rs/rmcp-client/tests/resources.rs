@@ -3,11 +3,11 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use codex_rmcp_client::ElicitationAction;
-use codex_rmcp_client::ElicitationResponse;
-use codex_rmcp_client::LocalStdioServerLauncher;
-use codex_rmcp_client::RmcpClient;
-use codex_utils_cargo_bin::CargoBinError;
+use codepilotx_rmcp_client::ElicitationAction;
+use codepilotx_rmcp_client::ElicitationResponse;
+use codepilotx_rmcp_client::LocalStdioServerLauncher;
+use codepilotx_rmcp_client::RmcpClient;
+use codepilotx_utils_cargo_bin::CargoBinError;
 use futures::FutureExt as _;
 use rmcp::model::AnnotateAble;
 use rmcp::model::ClientCapabilities;
@@ -24,7 +24,7 @@ use serde_json::json;
 const RESOURCE_URI: &str = "memo://codex/example-note";
 
 fn stdio_server_bin() -> Result<PathBuf, CargoBinError> {
-    codex_utils_cargo_bin::cargo_bin("test_stdio_server")
+    codepilotx_utils_cargo_bin::cargo_bin("test_stdio_server")
 }
 
 fn init_params() -> InitializeRequestParams {

@@ -3,7 +3,7 @@
 pub(crate) mod env;
 pub use env::is_wsl;
 
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use std::collections::HashSet;
 use std::io;
 use std::path::Path;

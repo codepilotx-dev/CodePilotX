@@ -13,28 +13,28 @@ use crate::events::SkillInvocationEventRequest;
 use crate::events::TrackEventRequest;
 use crate::facts::AnalyticsFact;
 use crate::facts::InvocationType;
-use codex_app_server_protocol::ApprovalsReviewer as AppServerApprovalsReviewer;
-use codex_app_server_protocol::AskForApproval as AppServerAskForApproval;
-use codex_app_server_protocol::ClientRequest;
-use codex_app_server_protocol::ClientResponsePayload;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::SandboxPolicy as AppServerSandboxPolicy;
-use codex_app_server_protocol::SessionSource as AppServerSessionSource;
-use codex_app_server_protocol::Thread;
-use codex_app_server_protocol::ThreadArchiveParams;
-use codex_app_server_protocol::ThreadArchiveResponse;
-use codex_app_server_protocol::ThreadForkResponse;
-use codex_app_server_protocol::ThreadResumeResponse;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::ThreadStatus as AppServerThreadStatus;
-use codex_app_server_protocol::Turn;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::TurnStartResponse;
-use codex_app_server_protocol::TurnStatus as AppServerTurnStatus;
-use codex_app_server_protocol::TurnSteerParams;
-use codex_app_server_protocol::TurnSteerResponse;
-use codex_utils_absolute_path::test_support::PathBufExt;
-use codex_utils_absolute_path::test_support::test_path_buf;
+use codepilotx_app_server_protocol::ApprovalsReviewer as AppServerApprovalsReviewer;
+use codepilotx_app_server_protocol::AskForApproval as AppServerAskForApproval;
+use codepilotx_app_server_protocol::ClientRequest;
+use codepilotx_app_server_protocol::ClientResponsePayload;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_app_server_protocol::SandboxPolicy as AppServerSandboxPolicy;
+use codepilotx_app_server_protocol::SessionSource as AppServerSessionSource;
+use codepilotx_app_server_protocol::Thread;
+use codepilotx_app_server_protocol::ThreadArchiveParams;
+use codepilotx_app_server_protocol::ThreadArchiveResponse;
+use codepilotx_app_server_protocol::ThreadForkResponse;
+use codepilotx_app_server_protocol::ThreadResumeResponse;
+use codepilotx_app_server_protocol::ThreadStartResponse;
+use codepilotx_app_server_protocol::ThreadStatus as AppServerThreadStatus;
+use codepilotx_app_server_protocol::Turn;
+use codepilotx_app_server_protocol::TurnStartParams;
+use codepilotx_app_server_protocol::TurnStartResponse;
+use codepilotx_app_server_protocol::TurnStatus as AppServerTurnStatus;
+use codepilotx_app_server_protocol::TurnSteerParams;
+use codepilotx_app_server_protocol::TurnSteerResponse;
+use codepilotx_utils_absolute_path::test_support::PathBufExt;
+use codepilotx_utils_absolute_path::test_support::test_path_buf;
 use std::collections::HashSet;
 #[cfg(debug_assertions)]
 use std::fs;
@@ -50,7 +50,7 @@ use tokio::sync::mpsc::error::TryRecvError;
 fn sample_accepted_line_fingerprint_event(thread_id: &str) -> TrackEventRequest {
     TrackEventRequest::AcceptedLineFingerprints(Box::new(
         CodexAcceptedLineFingerprintsEventRequest {
-            event_type: "codex_accepted_line_fingerprints",
+            event_type: "codepilotx_accepted_line_fingerprints",
             event_params: CodexAcceptedLineFingerprintsEventParams {
                 event_type: "codex.accepted_line_fingerprints",
                 turn_id: "turn-1".to_string(),
@@ -179,7 +179,7 @@ async fn capture_file_writes_exact_serialized_request() {
     };
     let event = sample_regular_track_event("thread-1");
     let expected_event = serde_json::to_value(&event).expect("serialize expected event");
-    let auth = codex_login::CodexAuth::create_dummy_chatgpt_auth_for_testing();
+    let auth = codepilotx_login::CodexAuth::create_dummy_chatgpt_auth_for_testing();
 
     send_track_events_request(&auth, &destination, vec![event]).await;
 
@@ -200,7 +200,7 @@ async fn capture_file_writes_final_batches_as_separate_lines() {
     let destination = AnalyticsEventsDestination::CaptureFile {
         path: capture_path.clone(),
     };
-    let auth = codex_login::CodexAuth::create_dummy_chatgpt_auth_for_testing();
+    let auth = codepilotx_login::CodexAuth::create_dummy_chatgpt_auth_for_testing();
     let events = vec![
         sample_regular_track_event("thread-1"),
         sample_accepted_line_fingerprint_event("thread-2"),
@@ -220,7 +220,7 @@ async fn capture_file_writes_final_batches_as_separate_lines() {
     assert_eq!(payloads[0]["events"][0]["skill_id"], "skill-thread-1");
     assert_eq!(
         payloads[1]["events"][0]["event_type"],
-        "codex_accepted_line_fingerprints"
+        "codepilotx_accepted_line_fingerprints"
     );
     assert_eq!(payloads[2]["events"][0]["skill_id"], "skill-thread-3");
 
@@ -359,7 +359,7 @@ fn sample_turn_start_response() -> ClientResponsePayload {
     ClientResponsePayload::TurnStart(TurnStartResponse {
         turn: Turn {
             id: "turn-1".to_string(),
-            items_view: codex_app_server_protocol::TurnItemsView::Full,
+            items_view: codepilotx_app_server_protocol::TurnItemsView::Full,
             items: Vec::new(),
             status: AppServerTurnStatus::InProgress,
             error: None,

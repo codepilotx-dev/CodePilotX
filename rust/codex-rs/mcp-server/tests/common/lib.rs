@@ -19,6 +19,6 @@ pub fn to_response<T: DeserializeOwned>(
     response: JsonRpcResponse<serde_json::Value>,
 ) -> anyhow::Result<T> {
     let value = serde_json::to_value(response.result)?;
-    let codex_response = serde_json::from_value(value)?;
-    Ok(codex_response)
+    let codepilotx_response = serde_json::from_value(value)?;
+    Ok(codepilotx_response)
 }

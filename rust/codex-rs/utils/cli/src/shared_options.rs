@@ -2,7 +2,7 @@
 
 use crate::SandboxModeCliArg;
 use clap::Args;
-use codex_protocol::config_types::ProfileV2Name;
+use codepilotx_protocol::config_types::ProfileV2Name;
 use std::path::PathBuf;
 
 #[derive(Args, Clone, Debug, Default)]
@@ -30,7 +30,7 @@ pub struct SharedCliOptions {
     #[arg(long = "local-provider")]
     pub oss_provider: Option<String>,
 
-    /// Layer $CODEX_HOME/<name>.config.toml on top of the base user config.
+    /// Layer $codepilotx_HOME/<name>.config.toml on top of the base user config.
     #[arg(long = "profile", short = 'p')]
     pub config_profile_v2: Option<ProfileV2Name>,
 

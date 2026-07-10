@@ -1,6 +1,6 @@
 use std::any::TypeId;
 
-use codex_exec_server::ExecServerError;
+use codepilotx_exec_server::ExecServerError;
 use pretty_assertions::assert_eq;
 use rmcp::transport::DynamicTransportError;
 use rmcp::transport::streamable_http_client::StreamableHttpError;
