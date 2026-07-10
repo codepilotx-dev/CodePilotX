@@ -104,6 +104,9 @@ url = { workspace = true }
 [target.'cfg(windows)'.dependencies]
 codepilotx-windows-sandbox = { workspace = true }
 
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
+
 [dev-dependencies]
 app_test_support = { workspace = true }
 axum = { workspace = true, default-features = false, features = [

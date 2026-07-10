@@ -26,6 +26,8 @@ No prior Task 1 commit was amended and nothing was pushed.
 - Clone subprocesses use isolated HOME/global/system Git config and redact token-shaped stderr. Failure and concurrent-target paths preserve caller data.
 - Empty keyring entries no longer cause legacy plaintext removal before a successful replacement write; legacy token cleanup is retried after secure reads.
 - Provider credential/model/balance protocol JSON and TypeScript artifacts are generated from Rust sources.
+- Stored provider keys now resolve endpoints only from the server-side `Config.model_providers` map; caller-provided URLs are ignored unless the same request supplies a transient key, and every credential-bearing endpoint must use HTTPS.
+- Clone publication uses atomic no-replace primitives: Windows rename without replace, Linux `renameat2(RENAME_NOREPLACE)`, and macOS `renamex_np(RENAME_EXCL)`. Unsupported Unix targets fail closed.
 
 ## TDD evidence
 
@@ -82,5 +84,7 @@ PASS
 Using an explicit rsproxy sparse-index override resolved the workspace dependencies and allowed real protocol generation plus focused model-provider tests. The focused app-server test build still stops before reaching this task's tests because existing `codepilotx-core` code produces five `E0275` Send/type-recursion overflow errors. No recursion-limit workaround was added because that failure is outside Task 2 and would mask the repository baseline issue.
 
 Before landing, rerun the app-server credential/clone tests after the `codepilotx-core` E0275 baseline is repaired.
+
+The final stored-key-exfiltration and atomic no-clobber focused build was also unable to start while another Cargo process held the shared package-cache lock. The blocked process was terminated without touching the other task's Cargo process; the new tests remain included for the next serial app-server run.
 
 No CSS files were changed.

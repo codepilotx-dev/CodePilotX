@@ -474,6 +474,16 @@ impl MessageProcessor {
         let provider_auth_processor = ProviderAuthRequestProcessor::new(
             config.codepilotx_home.to_path_buf(),
             config.cwd.to_path_buf(),
+            config
+                .model_providers
+                .iter()
+                .filter_map(|(provider_id, provider)| {
+                    provider
+                        .base_url
+                        .as_ref()
+                        .map(|base_url| (provider_id.clone(), base_url.clone()))
+                })
+                .collect(),
         );
         let remote_control_processor = RemoteControlRequestProcessor::new(remote_control_handle);
         let search_processor = SearchRequestProcessor::new(outgoing.clone());

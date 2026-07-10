@@ -57,14 +57,20 @@ pub(crate) struct ProviderAuthRequestProcessor {
     inner: Arc<Mutex<ProviderAuthInner>>,
     config_dir: PathBuf,
     approved_clone_root: PathBuf,
+    trusted_provider_endpoints: Arc<HashMap<String, String>>,
     keyring: Arc<dyn KeyringStore>,
 }
 
 impl ProviderAuthRequestProcessor {
-    pub(crate) fn new(config_dir: PathBuf, approved_clone_root: PathBuf) -> Self {
-        Self::new_with_keyring(
+    pub(crate) fn new(
+        config_dir: PathBuf,
+        approved_clone_root: PathBuf,
+        trusted_provider_endpoints: HashMap<String, String>,
+    ) -> Self {
+        Self::new_with_keyring_and_endpoints(
             config_dir,
             approved_clone_root,
+            trusted_provider_endpoints,
             Arc::new(DefaultKeyringStore),
         )
     }
@@ -74,12 +80,27 @@ impl ProviderAuthRequestProcessor {
         approved_clone_root: PathBuf,
         keyring: Arc<dyn KeyringStore>,
     ) -> Self {
+        Self::new_with_keyring_and_endpoints(
+            config_dir,
+            approved_clone_root,
+            HashMap::new(),
+            keyring,
+        )
+    }
+
+    fn new_with_keyring_and_endpoints(
+        config_dir: PathBuf,
+        approved_clone_root: PathBuf,
+        trusted_provider_endpoints: HashMap<String, String>,
+        keyring: Arc<dyn KeyringStore>,
+    ) -> Self {
         Self {
             inner: Arc::new(Mutex::new(ProviderAuthInner {
                 attempts: HashMap::new(),
             })),
             config_dir,
             approved_clone_root,
+            trusted_provider_endpoints: Arc::new(trusted_provider_endpoints),
             keyring,
         }
     }
@@ -350,21 +371,23 @@ impl ProviderAuthRequestProcessor {
         params: ProviderModelListParams,
     ) -> Result<ProviderModelListResponse, JSONRPCErrorError> {
         validate_provider_id(&params.provider_id)?;
-        let Some(base_url) = params
-            .base_url
-            .as_deref()
-            .filter(|value| !value.trim().is_empty())
+        let explicit_api_key = params.api_key.as_deref();
+        let Some(base_url) = self.resolve_provider_base_url(
+            &params.provider_id,
+            params.base_url.as_deref(),
+            explicit_api_key.is_some(),
+        )?
         else {
             return Ok(ProviderModelListResponse {
                 models: params.default_models,
                 error: Some(format!(
-                    "{} needs an OpenAI-compatible Base URL before connection testing.",
+                    "{} has no trusted OpenAI-compatible endpoint configured.",
                     params.provider_id
                 )),
             });
         };
         let Some(api_key) = self
-            .resolve_provider_api_key(&params.provider_id, params.api_key.as_deref())
+            .resolve_provider_api_key(&params.provider_id, explicit_api_key)
             .await?
         else {
             return Ok(ProviderModelListResponse {
@@ -372,7 +395,7 @@ impl ProviderAuthRequestProcessor {
                 error: Some(format!("{} API key is not configured.", params.provider_id)),
             });
         };
-        let endpoint = provider_endpoint(base_url, "models")?;
+        let endpoint = provider_endpoint(&base_url, "models")?;
         let response = match reqwest::Client::new()
             .get(endpoint)
             .bearer_auth(&api_key)
@@ -440,19 +463,21 @@ impl ProviderAuthRequestProcessor {
                 )),
             });
         }
-        let Some(base_url) = params
-            .base_url
-            .as_deref()
-            .filter(|value| !value.trim().is_empty())
+        let explicit_api_key = params.api_key.as_deref();
+        let Some(base_url) = self.resolve_provider_base_url(
+            &params.provider_id,
+            params.base_url.as_deref(),
+            explicit_api_key.is_some(),
+        )?
         else {
             return Ok(ProviderBalanceResponse {
                 is_available: false,
                 balances: Vec::new(),
-                error: Some("DeepSeek Base URL is not configured.".to_string()),
+                error: Some("DeepSeek has no trusted endpoint configured.".to_string()),
             });
         };
         let Some(api_key) = self
-            .resolve_provider_api_key(&params.provider_id, params.api_key.as_deref())
+            .resolve_provider_api_key(&params.provider_id, explicit_api_key)
             .await?
         else {
             return Ok(ProviderBalanceResponse {
@@ -461,7 +486,7 @@ impl ProviderAuthRequestProcessor {
                 error: Some("DeepSeek API key is not configured.".to_string()),
             });
         };
-        let endpoint = provider_endpoint(base_url, "user/balance")?;
+        let endpoint = provider_endpoint(&base_url, "user/balance")?;
         let response = match reqwest::Client::new()
             .get(endpoint)
             .bearer_auth(&api_key)
@@ -527,6 +552,33 @@ impl ProviderAuthRequestProcessor {
             )
             .map_err(|error| keyring_error("read", error))
             .map(|value| value.filter(|api_key| !api_key.trim().is_empty()))
+    }
+
+    fn resolve_provider_base_url(
+        &self,
+        provider_id: &str,
+        caller_base_url: Option<&str>,
+        has_transient_api_key: bool,
+    ) -> Result<Option<String>, JSONRPCErrorError> {
+        let base_url = if has_transient_api_key {
+            caller_base_url
+        } else {
+            self.trusted_provider_endpoints
+                .get(provider_id)
+                .map(String::as_str)
+        };
+        let Some(base_url) = base_url.filter(|value| !value.trim().is_empty()) else {
+            return Ok(None);
+        };
+        let parsed = url::Url::parse(base_url).map_err(|_| {
+            JSONRPCErrorError::invalid_params("provider endpoint must be a valid HTTPS URL")
+        })?;
+        if parsed.scheme() != "https" {
+            return Err(JSONRPCErrorError::invalid_params(
+                "provider credentials may only be sent to HTTPS endpoints",
+            ));
+        }
+        Ok(Some(base_url.to_string()))
     }
 
     //  List repositories
@@ -1274,18 +1326,71 @@ async fn clone_with_github_token<R: GitCloneRunner>(
             sanitize_git_error(&output.stderr, token)
         )));
     }
-    if tokio::fs::try_exists(&request.target)
-        .await
-        .map_err(|error| internal_error(format!("Failed to inspect final clone target: {error}")))?
-    {
-        return Err(internal_error(
-            "Clone target was created concurrently; refusing to replace it".to_string(),
-        ));
-    }
-    tokio::fs::rename(&staging_target, &request.target)
-        .await
+    publish_clone_noclobber(&staging_target, &request.target)
         .map_err(|error| internal_error(format!("Failed to publish cloned repository: {error}")))?;
     Ok(())
+}
+
+#[cfg(windows)]
+fn publish_clone_noclobber(source: &Path, destination: &Path) -> std::io::Result<()> {
+    // MoveFileExW without MOVEFILE_REPLACE_EXISTING is the behavior used by
+    // std::fs::rename on Windows, so an existing destination is never replaced.
+    std::fs::rename(source, destination)
+}
+
+#[cfg(target_os = "linux")]
+fn publish_clone_noclobber(source: &Path, destination: &Path) -> std::io::Result<()> {
+    use std::ffi::CString;
+    use std::os::unix::ffi::OsStrExt;
+
+    let source = CString::new(source.as_os_str().as_bytes())
+        .map_err(|_| std::io::Error::new(std::io::ErrorKind::InvalidInput, "NUL in source path"))?;
+    let destination = CString::new(destination.as_os_str().as_bytes()).map_err(|_| {
+        std::io::Error::new(std::io::ErrorKind::InvalidInput, "NUL in destination path")
+    })?;
+    // SAFETY: both C strings are NUL-terminated and remain alive for the syscall.
+    let result = unsafe {
+        libc::renameat2(
+            libc::AT_FDCWD,
+            source.as_ptr(),
+            libc::AT_FDCWD,
+            destination.as_ptr(),
+            libc::RENAME_NOREPLACE,
+        )
+    };
+    if result == 0 {
+        Ok(())
+    } else {
+        Err(std::io::Error::last_os_error())
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn publish_clone_noclobber(source: &Path, destination: &Path) -> std::io::Result<()> {
+    use std::ffi::CString;
+    use std::os::unix::ffi::OsStrExt;
+
+    let source = CString::new(source.as_os_str().as_bytes())
+        .map_err(|_| std::io::Error::new(std::io::ErrorKind::InvalidInput, "NUL in source path"))?;
+    let destination = CString::new(destination.as_os_str().as_bytes()).map_err(|_| {
+        std::io::Error::new(std::io::ErrorKind::InvalidInput, "NUL in destination path")
+    })?;
+    // SAFETY: both C strings are NUL-terminated and remain alive for the call.
+    let result =
+        unsafe { libc::renamex_np(source.as_ptr(), destination.as_ptr(), libc::RENAME_EXCL) };
+    if result == 0 {
+        Ok(())
+    } else {
+        Err(std::io::Error::last_os_error())
+    }
+}
+
+#[cfg(all(unix, not(any(target_os = "linux", target_os = "macos"))))]
+fn publish_clone_noclobber(_source: &Path, _destination: &Path) -> std::io::Result<()> {
+    Err(std::io::Error::new(
+        std::io::ErrorKind::Unsupported,
+        "atomic no-replace clone publish is unsupported on this platform",
+    ))
 }
 
 fn minimal_git_environment() -> HashMap<String, String> {
@@ -1355,8 +1460,7 @@ mod tests {
     use std::path::Path;
     use std::sync::Mutex as StdMutex;
     use std::sync::atomic::{AtomicUsize, Ordering};
-    use wiremock::matchers::{header, method, path};
-    use wiremock::{Mock, MockServer, ResponseTemplate};
+    use wiremock::MockServer;
 
     fn stored_token(provider_id: &str) -> StoredProviderToken {
         StoredProviderToken {
@@ -1635,30 +1739,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn provider_models_and_balance_use_keyring_without_returning_secret() {
+    async fn stored_provider_key_never_uses_caller_base_url() {
         let server = MockServer::start().await;
-        Mock::given(method("GET"))
-            .and(path("/v1/models"))
-            .and(header("authorization", "Bearer sentinel-provider-key"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-                "data": [{"id": "remote-model"}]
-            })))
-            .mount(&server)
-            .await;
-        Mock::given(method("GET"))
-            .and(path("/v1/user/balance"))
-            .and(header("authorization", "Bearer sentinel-provider-key"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-                "is_available": true,
-                "balance_infos": [{
-                    "currency": "CNY",
-                    "total_balance": "10",
-                    "granted_balance": "6",
-                    "topped_up_balance": "4"
-                }]
-            })))
-            .mount(&server)
-            .await;
         let home = tempfile::tempdir().expect("temp home");
         let keyring = MockKeyringStore::default();
         keyring
@@ -1673,31 +1755,72 @@ mod tests {
             home.path().to_path_buf(),
             Arc::new(keyring),
         );
-        let base_url = format!("{}/v1", server.uri());
+        for attacker_base_url in [
+            format!("{}/v1", server.uri()),
+            format!("{}/v1", server.uri()).replacen("http://", "https://", 1),
+        ] {
+            let models = processor
+                .fetch_provider_models(ProviderModelListParams {
+                    provider_id: "deepseek".to_string(),
+                    base_url: Some(attacker_base_url.clone()),
+                    api_key: None,
+                    default_models: vec!["default-model".to_string()],
+                })
+                .await
+                .expect("model fetch fails closed");
+            assert_eq!(models.models, vec!["default-model"]);
+            assert!(models.error.is_some());
+            let balance = processor
+                .fetch_provider_balance(ProviderBalanceParams {
+                    provider_id: "deepseek".to_string(),
+                    base_url: Some(attacker_base_url),
+                    api_key: None,
+                })
+                .await
+                .expect("balance fetch fails closed");
+            assert!(!balance.is_available);
+            assert!(balance.error.is_some());
+        }
+        assert!(
+            server
+                .received_requests()
+                .await
+                .expect("request recording")
+                .is_empty(),
+            "caller endpoints must not receive stored credentials"
+        );
+    }
 
-        let models = processor
-            .fetch_provider_models(ProviderModelListParams {
-                provider_id: "deepseek".to_string(),
-                base_url: Some(base_url.clone()),
-                api_key: None,
-                default_models: vec!["default-model".to_string()],
-            })
-            .await
-            .expect("model fetch");
-        let balance = processor
-            .fetch_provider_balance(ProviderBalanceParams {
-                provider_id: "deepseek".to_string(),
-                base_url: Some(base_url),
-                api_key: None,
-            })
-            .await
-            .expect("balance fetch");
+    #[test]
+    fn provider_endpoint_selection_uses_trusted_config_or_transient_key_only() {
+        let home = tempfile::tempdir().expect("temp home");
+        let processor = ProviderAuthRequestProcessor::new_with_keyring_and_endpoints(
+            home.path().to_path_buf(),
+            home.path().to_path_buf(),
+            HashMap::from([(
+                "deepseek".to_string(),
+                "https://trusted.example/v1".to_string(),
+            )]),
+            Arc::new(MockKeyringStore::default()),
+        );
 
-        assert_eq!(models.models, vec!["remote-model", "default-model"]);
-        assert!(models.error.is_none());
-        assert!(balance.is_available);
-        assert_eq!(balance.balances[0].total_balance, "10");
-        assert!(!format!("{models:?}{balance:?}").contains("sentinel-provider-key"));
+        assert_eq!(
+            processor
+                .resolve_provider_base_url("deepseek", Some("https://attacker.example/v1"), false,)
+                .expect("trusted endpoint"),
+            Some("https://trusted.example/v1".to_string())
+        );
+        assert_eq!(
+            processor
+                .resolve_provider_base_url("deepseek", Some("https://transient.example/v1"), true,)
+                .expect("transient endpoint"),
+            Some("https://transient.example/v1".to_string())
+        );
+        assert!(
+            processor
+                .resolve_provider_base_url("deepseek", Some("http://attacker.example/v1"), true,)
+                .is_err()
+        );
     }
 
     #[tokio::test]
@@ -1894,6 +2017,28 @@ mod tests {
         assert_eq!(
             fs::read(target.join("README.md")).expect("published file"),
             b"cloned"
+        );
+    }
+
+    #[test]
+    fn atomic_publish_never_replaces_concurrent_empty_target() {
+        let root = tempfile::tempdir().expect("clone root");
+        let source = root.path().join("staging-repository");
+        let target = root.path().join("repo");
+        fs::create_dir(&source).expect("source");
+        fs::write(source.join("README.md"), b"cloned").expect("source file");
+        fs::create_dir(&target).expect("concurrent empty target");
+
+        publish_clone_noclobber(&source, &target)
+            .expect_err("atomic publish must reject an existing empty target");
+
+        assert!(source.join("README.md").exists());
+        assert!(target.exists());
+        assert!(
+            fs::read_dir(&target)
+                .expect("target contents")
+                .next()
+                .is_none()
         );
     }
 
