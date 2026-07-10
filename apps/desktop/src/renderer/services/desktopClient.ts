@@ -547,6 +547,7 @@ function createBrowserMockDesktopClient(): DesktopApi {
       }
     },
     listSessions: async () => [...sessions.values()],
+    getSessionCatalogStatus: async () => ({ state: 'ready', error: null }),
     getSession: async sessionId => {
       const snapshot = sessions.get(sessionId)
       if (!snapshot) throw new Error(`Mock session not found: ${sessionId}`)
@@ -567,6 +568,16 @@ function createBrowserMockDesktopClient(): DesktopApi {
       }
       sessions.set(sessionId, next)
       emitSessionStoreChange()
+      return next
+    },
+    renameSession: async (sessionId, name) => {
+      const snapshot = sessions.get(sessionId)
+      if (!snapshot) throw new Error(`Unknown desktop session: ${sessionId}`)
+      const next = {
+        ...snapshot,
+        item: { ...snapshot.item, sessionName: name },
+      }
+      sessions.set(sessionId, next)
       return next
     },
     saveSessionReviewComment: async input => requireMockSession(sessions, input.sessionId),

@@ -198,7 +198,9 @@ const api: DesktopApi = {
     ipcRenderer.invoke(desktopApiChannel('saveThemeSettings'), settings),
   createSession: options =>
     ipcRenderer.invoke(desktopApiChannel('createSession'), options),
-  listSessions: () => ipcRenderer.invoke(desktopApiChannel('listSessions')),
+  listSessions: options => ipcRenderer.invoke(desktopApiChannel('listSessions'), options),
+  getSessionCatalogStatus: () =>
+    ipcRenderer.invoke(desktopApiChannel('getSessionCatalogStatus')),
   getSession: sessionId =>
     ipcRenderer.invoke(desktopApiChannel('getSession'), sessionId),
   getActiveSessionId: () =>
@@ -211,6 +213,8 @@ const api: DesktopApi = {
       sessionId,
       patch,
     ),
+  renameSession: (sessionId, name) =>
+    ipcRenderer.invoke(desktopApiChannel('renameSession'), sessionId, name),
   saveSessionReviewComment: input =>
     ipcRenderer.invoke(desktopApiChannel('saveSessionReviewComment'), input),
   resolveSessionReviewComment: input =>
