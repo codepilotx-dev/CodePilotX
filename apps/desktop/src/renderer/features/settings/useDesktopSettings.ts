@@ -118,7 +118,7 @@ export type UseDesktopSettingsResult = {
 	  setAuthBaseUrl: (value: string) => void
 	  setSandboxMode: (value: DesktopSandboxMode) => void
   setAllowNetworkAccess: (value: boolean) => void
-  setInstallCodexDependencies: (value: boolean) => void
+  setInstallCodePilotXDependencies: (value: boolean) => void
   setPersonality: (value: DesktopPersonality) => void
   setCustomInstructions: (value: string) => void
   setEnableMemory: (value: boolean) => void
@@ -359,7 +359,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
   const [allowNetworkAccess, setAllowNetworkAccess] = useState(
     initial.allowNetworkAccess,
   )
-  const [installCodePilotXDependencies, setInstallCodexDependencies] = useState(
+  const [installCodePilotXDependencies, setInstallCodePilotXDependencies] = useState(
     initial.installCodePilotXDependencies,
   )
   const [personality, setPersonality] = useState<DesktopPersonality>(
@@ -454,7 +454,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
 	        setAuthBaseUrl(settings.authBaseUrl)
 	        setSandboxMode(settings.sandboxMode)
         setAllowNetworkAccess(settings.allowNetworkAccess)
-        setInstallCodexDependencies(settings.installCodePilotXDependencies)
+        setInstallCodePilotXDependencies(settings.installCodePilotXDependencies)
         setPersonality(settings.personality)
         setCustomInstructions(settings.customInstructions)
         setEnableMemory(settings.enableMemory)
@@ -673,7 +673,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       setGithubOAuthClientId(snapshot.githubOAuthClientId)
       setSandboxMode(snapshot.sandboxMode)
       setAllowNetworkAccess(snapshot.allowNetworkAccess)
-      setInstallCodexDependencies(snapshot.installCodePilotXDependencies)
+      setInstallCodePilotXDependencies(snapshot.installCodePilotXDependencies)
       setPersonality(snapshot.personality)
       setCustomInstructions(snapshot.customInstructions)
       setEnableMemory(snapshot.enableMemory)
@@ -861,7 +861,7 @@ defaultOpenTargetId,
 	    setAuthBaseUrl,
 	    setSandboxMode,
     setAllowNetworkAccess,
-    setInstallCodexDependencies,
+    setInstallCodePilotXDependencies,
     setPersonality,
     setCustomInstructions,
     setEnableMemory,

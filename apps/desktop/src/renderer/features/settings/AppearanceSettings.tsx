@@ -18,7 +18,7 @@ import type {
   DesktopThemeVariant,
 } from '../../../shared/types.js'
 import {
-  CODEX_THEME_PREFIX,
+  CODEPILOTX_THEME_PREFIX,
   DEFAULT_CODE_FONT,
   DEFAULT_UI_FONT,
   DESKTOP_THEME_PRESETS,
@@ -358,7 +358,7 @@ export function AppearanceSettings() {
           label: activeThemeEntry?.label ?? activeTheme.codeThemeId,
           config: cleanConfig,
         }
-    const text = `${CODEX_THEME_PREFIX}${JSON.stringify(payload)}`
+    const text = `${CODEPILOTX_THEME_PREFIX}${JSON.stringify(payload)}`
     const copyPromise = navigator.clipboard?.writeText(text)
     if (!copyPromise) {
       window.prompt('复制主题', text)
@@ -418,8 +418,8 @@ export function AppearanceSettings() {
     const input = window.prompt('粘贴 CodePilotX 主题配置或 JSON')
     if (!input) return
 
-    const raw = input.trim().startsWith(CODEX_THEME_PREFIX)
-      ? input.trim().slice(CODEX_THEME_PREFIX.length)
+    const raw = input.trim().startsWith(CODEPILOTX_THEME_PREFIX)
+      ? input.trim().slice(CODEPILOTX_THEME_PREFIX.length)
       : input.trim()
 
     try {

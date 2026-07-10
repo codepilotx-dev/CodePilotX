@@ -90,7 +90,7 @@ export type DesktopHeadlessRuntimeOptions = {
   systemPrompt?: string
   appendSystemPrompt?: string
   additionalDirectories?: string[]
-  installCodexDependencies?: boolean
+  installCodePilotXDependencies?: boolean
   enableMemory?: boolean
   /** If true, load and connect to MCP servers from config on each turn */
   mcpEnabled?: boolean
@@ -102,7 +102,7 @@ export type DesktopHeadlessRuntimeOptions = {
   ): Promise<void> | void
 }
 
-export type DesktopHeadlessCodexPermissionConfig = {
+export type DesktopHeadlessCodePilotXPermissionConfig = {
   permissionProfile?: string
   sandboxMode?: 'read-only' | 'workspace-write' | 'danger-full-access'
   approvalPolicy?: 'untrusted' | 'on-request' | 'on-failure' | 'never'
@@ -133,7 +133,7 @@ export type DesktopHeadlessRuntime = {
   ): void
   setDebugConversationDump(enabled: boolean): void
   setPermissionMode(permissionMode: PermissionMode | undefined): void
-  setCodexPermissionConfig(config: DesktopHeadlessCodexPermissionConfig): void
+  setCodePilotXPermissionConfig(config: DesktopHeadlessCodePilotXPermissionConfig): void
   runUserTurn(
     content: string | ContentBlockParam[],
     signal: AbortSignal,
@@ -263,7 +263,7 @@ class EmbeddedDesktopHeadlessRuntime implements DesktopHeadlessRuntime {
     }))
   }
 
-  setCodexPermissionConfig(config: DesktopHeadlessCodexPermissionConfig): void {
+  setCodePilotXPermissionConfig(config: DesktopHeadlessCodePilotXPermissionConfig): void {
     this.options.permissionProfile = config.permissionProfile
     this.options.sandboxMode = config.sandboxMode
     this.options.approvalPolicy = config.approvalPolicy
@@ -713,8 +713,8 @@ class EmbeddedDesktopHeadlessRuntime implements DesktopHeadlessRuntime {
     process.env.CODEPILOTX_DISABLE_MDM_READ = '1'
     process.env.CODEPILOTX_DISABLE_MIN_VERSION_CHECK = '1'
     process.env.CLAUDE_CODE_ENTRYPOINT = 'desktop'
-    process.env.CODEPILOTX_INSTALL_CODEX_DEPENDENCIES =
-      this.options.installCodexDependencies === false ? '0' : '1'
+    process.env.CODEPILOTX_INSTALL_DEPENDENCIES =
+	      this.options.installCodePilotXDependencies === false ? '0' : '1'
     if (this.options.enableMemory === true) {
       process.env.CLAUDE_CODE_DISABLE_AUTO_MEMORY = '0'
     } else if (this.options.enableMemory === false) {
@@ -888,7 +888,7 @@ export function captureDesktopRuntimeGlobalState(): DesktopRuntimeGlobalState {
     'CODEPILOTX_DISABLE_MDM_READ',
     'CODEPILOTX_DISABLE_MIN_VERSION_CHECK',
     'CLAUDE_CODE_ENTRYPOINT',
-    'CODEPILOTX_INSTALL_CODEX_DEPENDENCIES',
+	    'CODEPILOTX_INSTALL_DEPENDENCIES',
     'CLAUDE_CODE_DISABLE_AUTO_MEMORY',
     'USE_BUILTIN_RIPGREP',
     'CODEPILOTX_ASK_USER_QUESTION_MAX_QUESTIONS',

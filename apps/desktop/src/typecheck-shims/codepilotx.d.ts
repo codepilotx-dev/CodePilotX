@@ -1023,7 +1023,7 @@ declare module '@codepilotx/tui/headless/desktopRuntime.js' {
     ): void
     setDebugConversationDump(enabled: boolean): void
     setPermissionMode(permissionMode: string | undefined): void
-    setCodexPermissionConfig(config: {
+    setCodePilotXPermissionConfig(config: {
       permissionProfile?: string
       sandboxMode?: 'read-only' | 'workspace-write' | 'danger-full-access'
       approvalPolicy?: 'untrusted' | 'on-request' | 'on-failure' | 'never'

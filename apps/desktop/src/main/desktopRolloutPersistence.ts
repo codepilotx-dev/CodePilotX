@@ -12,14 +12,14 @@ import {
   isInternalReviewerPromptText,
 } from '../shared/sessionEventModel.js'
 import type {
-  CodexRolloutItem,
-  CodexRolloutLine,
-  CodexSessionMetaPayload,
+  CodePilotXRolloutItem,
+  CodePilotXRolloutLine,
+  CodePilotXSessionMetaPayload,
 } from '../generated/protocol/rollout.js'
 
 export type DesktopRolloutSource = 'user' | 'internal_guardian' | 'subagent'
 
-export type DesktopRolloutMetadata = CodexSessionMetaPayload & {
+export type DesktopRolloutMetadata = CodePilotXSessionMetaPayload & {
   originator: 'desktop'
   source: DesktopRolloutSource
   parentSessionId?: string
@@ -27,23 +27,23 @@ export type DesktopRolloutMetadata = CodexSessionMetaPayload & {
 }
 
 export type DesktopRolloutItem =
-  | CodexRolloutItem<DesktopRolloutMetadata> & {
+  | CodePilotXRolloutItem<DesktopRolloutMetadata> & {
       type: 'session_meta'
     }
-  | CodexRolloutItem<Record<string, unknown>> & {
+  | CodePilotXRolloutItem<Record<string, unknown>> & {
       type: 'turn_context'
     }
-  | CodexRolloutItem<Record<string, unknown>> & {
+  | CodePilotXRolloutItem<Record<string, unknown>> & {
       type: 'response_item'
     }
-  | CodexRolloutItem<DesktopRolloutEventPayload> & {
+  | CodePilotXRolloutItem<DesktopRolloutEventPayload> & {
       type: 'event_msg'
     }
-  | CodexRolloutItem<Record<string, unknown>> & {
+  | CodePilotXRolloutItem<Record<string, unknown>> & {
       type: 'compacted'
     }
 
-export type DesktopRolloutLine = CodexRolloutLine & DesktopRolloutItem
+export type DesktopRolloutLine = CodePilotXRolloutLine & DesktopRolloutItem
 
 export type DesktopRolloutEventPayload = {
   eventType: string

@@ -1,24 +1,24 @@
-export type CodexRolloutLine = {
+export type CodePilotXRolloutLine = {
   timestamp: string
-  type: CodexRolloutItemType
+  type: CodePilotXRolloutItemType
   payload: Record<string, unknown>
 }
 
-export type CodexRolloutItemType =
+export type CodePilotXRolloutItemType =
   | 'session_meta'
   | 'turn_context'
   | 'response_item'
   | 'event_msg'
   | 'compacted'
 
-export type CodexRolloutItem<
+export type CodePilotXRolloutItem<
   TPayload extends object = Record<string, unknown>,
 > = {
-  type: CodexRolloutItemType
+  type: CodePilotXRolloutItemType
   payload: TPayload
 }
 
-export type CodexSessionMetaPayload = {
+export type CodePilotXSessionMetaPayload = {
   id: string
   timestamp: string
   cwd: string

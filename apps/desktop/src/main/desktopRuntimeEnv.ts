@@ -1,7 +1,7 @@
 import { execSync } from 'child_process'
 
 export const DESKTOP_TOOLCHAIN_ENABLED_ENV =
-  'CODEPILOTX_INSTALL_CODEX_DEPENDENCIES'
+  'CODEPILOTX_INSTALL_DEPENDENCIES'
 export const DESKTOP_TOOLCHAIN_ROOT_ENV = 'CODEPILOTX_DESKTOP_TOOLCHAIN_ROOT'
 
 export type DesktopToolchainEnvConfig = {

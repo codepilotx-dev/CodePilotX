@@ -21,7 +21,7 @@ beforeEach(() => {
   delete process.env.CODEPILOTX_DISABLE_MDM_READ
   delete process.env.CODEPILOTX_DISABLE_MIN_VERSION_CHECK
   delete process.env.CLAUDE_CODE_ENTRYPOINT
-  delete process.env.CODEPILOTX_INSTALL_CODEX_DEPENDENCIES
+  delete process.env.CODEPILOTX_INSTALL_DEPENDENCIES
   delete process.env.CLAUDE_CODE_DISABLE_AUTO_MEMORY
   delete process.env.USE_BUILTIN_RIPGREP
   delete process.env.CODEPILOTX_ASK_USER_QUESTION_MAX_QUESTIONS
@@ -60,18 +60,18 @@ test('capture and restore preserves all captured env fields', () => {
 
 test('capture and restore handles undefined env keys (deletes them)', () => {
   delete process.env.CODEPILOTX_DISABLE_MDM_READ
-  delete process.env.CODEPILOTX_INSTALL_CODEX_DEPENDENCIES
+  delete process.env.CODEPILOTX_INSTALL_DEPENDENCIES
 
   const snapshot = captureDesktopRuntimeGlobalState()
 
   // Runtime sets them
   process.env.CODEPILOTX_DISABLE_MDM_READ = '1'
-  process.env.CODEPILOTX_INSTALL_CODEX_DEPENDENCIES = '1'
+  process.env.CODEPILOTX_INSTALL_DEPENDENCIES = '1'
 
   restoreDesktopRuntimeGlobalState(snapshot)
 
   expect(process.env.CODEPILOTX_DISABLE_MDM_READ).toBeUndefined()
-  expect(process.env.CODEPILOTX_INSTALL_CODEX_DEPENDENCIES).toBeUndefined()
+  expect(process.env.CODEPILOTX_INSTALL_DEPENDENCIES).toBeUndefined()
 })
 
 test('nested capture and restore: env fields', () => {
@@ -196,7 +196,7 @@ test('constructor does not modify process.env', () => {
     'CODEPILOTX_DISABLE_MDM_READ',
     'CODEPILOTX_DISABLE_MIN_VERSION_CHECK',
     'CLAUDE_CODE_ENTRYPOINT',
-    'CODEPILOTX_INSTALL_CODEX_DEPENDENCIES',
+    'CODEPILOTX_INSTALL_DEPENDENCIES',
     'CLAUDE_CODE_DISABLE_AUTO_MEMORY',
     'USE_BUILTIN_RIPGREP',
     'CODEPILOTX_ASK_USER_QUESTION_MAX_QUESTIONS',
@@ -219,7 +219,7 @@ test('constructor does not modify process.env', () => {
     defaultModel: 'claude-sonnet-4-6',
     deepModel: 'claude-opus-4-6',
     enableMemory: true,
-    installCodexDependencies: true,
+	    installCodePilotXDependencies: true,
     askUserQuestionMaxQuestions: 5,
   })
 
