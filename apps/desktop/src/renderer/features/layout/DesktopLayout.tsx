@@ -84,7 +84,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { upsertRecentWorkspace } from '../../../shared/settings.js'
 
 const QUICK_CHAT_PATH = '/quick-chat'
-const RIGHT_DOCK_WIDTH_STORAGE_KEY = 'codex.desktop.rightDockWidth'
+const RIGHT_DOCK_WIDTH_STORAGE_KEY = 'codepilotx.desktop.rightDockWidth'
 const RIGHT_DOCK_MIN_WIDTH = 400
 const RIGHT_DOCK_MAX_WIDTH = 850
 const RIGHT_DOCK_DEFAULT_WIDTH = 680
@@ -307,6 +307,7 @@ export function DesktopLayout(): React.ReactNode {
     messages,
     contextUsage,
     pendingPermissions,
+    pendingPermissionSessionIds,
     input,
     setInput,
     activateSessionById,
@@ -1566,10 +1567,8 @@ export function DesktopLayout(): React.ReactNode {
 
   const appSidebarContent = (
     <DesktopSidebar
-      activePendingPermissionSessionId={
-        sessionId && pendingPermissions.length > 0 ? sessionId : null
-      }
       activeSessionId={sessionId}
+      pendingPermissionSessionIds={pendingPermissionSessionIds}
       recentWorkspaces={recentWorkspaces}
       removedWorkspaces={removedWorkspaces}
       sessionFallbackTitles={sidebarSessionFallbackTitles}

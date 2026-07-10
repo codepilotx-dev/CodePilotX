@@ -8,9 +8,9 @@ import type {
   DesktopThemeVariant,
 } from "./types.js";
 
-export const CODEX_THEME_PREFIX = "codepilotx-theme-v1:";
-export const DEFAULT_LIGHT_THEME_ID = "light-codex";
-export const DEFAULT_DARK_THEME_ID = "dark-codex";
+export const CODEPILOTX_THEME_PREFIX = "codepilotx-theme-v1:";
+export const DEFAULT_LIGHT_THEME_ID = "light-codepilotx";
+export const DEFAULT_DARK_THEME_ID = "dark-codepilotx";
 
 export const DEFAULT_UI_FONT: DesktopThemeFontEntry = {
   preset: "MiSans VF Regular",
@@ -351,7 +351,7 @@ export const DESKTOP_THEME_PRESETS: DesktopThemePreset[] = [
     label: "Terminal Green",
     config: createRadixThemePreset({
       accentScale: "green",
-      codeThemeId: "codex",
+      codeThemeId: "codepilotx",
       grayScale: "sage",
       skillScale: "green",
       variant: "light",
@@ -362,7 +362,7 @@ export const DESKTOP_THEME_PRESETS: DesktopThemePreset[] = [
     label: "Terminal Green",
     config: createRadixThemePreset({
       accentScale: "green",
-      codeThemeId: "codex",
+      codeThemeId: "codepilotx",
       grayScale: "sage",
       skillScale: "green",
       surfaceStep: 2,

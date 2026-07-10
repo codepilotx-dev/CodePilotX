@@ -33,7 +33,7 @@ import type {
   DesktopSkillOwnerFilter,
 } from '../../../shared/types.js'
 
-type PluginTone = 'github' | 'chrome' | 'sheet' | 'slides' | 'slack' | 'data' | 'design' | 'creative' | 'sales' | 'codex'
+type PluginTone = 'github' | 'chrome' | 'sheet' | 'slides' | 'slack' | 'data' | 'design' | 'creative' | 'sales' | 'codepilotx'
 
 type Plugin = {
   id: string
@@ -64,7 +64,7 @@ const PLUGINS: Plugin[] = [
     name: 'Computer Use',
     description: 'Control Windows apps from CodePilotX',
     icon: <Sparkles size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
-    tone: 'codex',
+    tone: 'codepilotx',
     installed: true,
   },
   {
@@ -508,8 +508,8 @@ export function PluginsView(): React.ReactNode {
             {visibleSkills.map(skill => {
               const installing = installingSkillIds.has(skill.id)
               return (
-                <li className="plugins-card" data-tone="codex" key={skill.id}>
-                  <span className="plugins-card-icon plugins-tone-codex">
+                <li className="plugins-card" data-tone="codepilotx" key={skill.id}>
+                  <span className="plugins-card-icon plugins-tone-codepilotx">
                     <Sparkles size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                   </span>
                   <div className="plugins-card-meta">

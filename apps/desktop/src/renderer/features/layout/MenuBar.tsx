@@ -59,7 +59,7 @@ export type ViewMenuAction =
 export type WindowMenuAction = 'minimize' | 'zoom' | 'close'
 
 export type HelpMenuAction =
-  | 'codexDocumentation'
+  | 'codepilotxDocumentation'
   | 'whatsNew'
   | 'automations'
   | 'localEnvironments'
@@ -398,7 +398,7 @@ export function MenuBar({
               label="帮助"
               value="help"
             >
-              <MenuItem onSelect={() => onHelpMenuAction('codexDocumentation')}>
+              <MenuItem onSelect={() => onHelpMenuAction('codepilotxDocumentation')}>
                 CodePilotX 文档
               </MenuItem>
               <MenuItem onSelect={() => onHelpMenuAction('whatsNew')}>

@@ -10,7 +10,7 @@ import {
 } from './theme.js'
 
 const THEME_SUITE_IDS = [
-  'codex',
+  'codepilotx',
   'github',
   'raycast',
   'dracula',
@@ -184,7 +184,7 @@ test('normalizeDesktopThemeConfig accepts string fonts entries as preset', () =>
 test('normalizeDesktopThemeSettings presets font fallback when font is a string', () => {
   const settings = normalizeDesktopThemeSettings({
     mode: 'light',
-    activeThemeIds: { light: 'light-codex', dark: 'dark-codex' },
+    activeThemeIds: { light: 'light-codepilotx', dark: 'dark-codepilotx' },
     fontSizes: { code: 12, ui: 14 },
     customThemes: [
       {
@@ -221,7 +221,7 @@ test('normalizeDesktopThemeSettings presets font fallback when font is a string'
 test('normalizeDesktopThemeSettings enables glass surfaces by default', () => {
   const settings = normalizeDesktopThemeSettings({
     mode: 'light',
-    activeThemeIds: { light: 'light-codex', dark: 'dark-codex' },
+    activeThemeIds: { light: 'light-codepilotx', dark: 'dark-codepilotx' },
     fontSizes: { code: 12, ui: 14 },
     customThemes: [],
     presetOverrides: {},
@@ -234,7 +234,7 @@ test('normalizeDesktopThemeSettings enables glass surfaces by default', () => {
 test('normalizeDesktopThemeSettings preserves disabled glass surfaces', () => {
   const settings = normalizeDesktopThemeSettings({
     mode: 'light',
-    activeThemeIds: { light: 'light-codex', dark: 'dark-codex' },
+    activeThemeIds: { light: 'light-codepilotx', dark: 'dark-codepilotx' },
     glassmorphismEnabled: false,
     fontSizes: { code: 12, ui: 14 },
     customThemes: [],
@@ -247,7 +247,7 @@ test('normalizeDesktopThemeSettings preserves disabled glass surfaces', () => {
 test('normalizeDesktopThemeSettings defaults reduce motion to system', () => {
   const settings = normalizeDesktopThemeSettings({
     mode: 'light',
-    activeThemeIds: { light: 'light-codex', dark: 'dark-codex' },
+    activeThemeIds: { light: 'light-codepilotx', dark: 'dark-codepilotx' },
     fontSizes: { code: 12, ui: 14 },
     customThemes: [],
     presetOverrides: {},
@@ -261,7 +261,7 @@ test('normalizeDesktopThemeSettings preserves reduce motion modes', () => {
   expect(
     normalizeDesktopThemeSettings({
       mode: 'light',
-      activeThemeIds: { light: 'light-codex', dark: 'dark-codex' },
+      activeThemeIds: { light: 'light-codepilotx', dark: 'dark-codepilotx' },
       reduceMotion: 'on',
       fontSizes: { code: 12, ui: 14 },
       customThemes: [],
@@ -271,7 +271,7 @@ test('normalizeDesktopThemeSettings preserves reduce motion modes', () => {
   expect(
     normalizeDesktopThemeSettings({
       mode: 'light',
-      activeThemeIds: { light: 'light-codex', dark: 'dark-codex' },
+      activeThemeIds: { light: 'light-codepilotx', dark: 'dark-codepilotx' },
       reduceMotion: 'off',
       fontSizes: { code: 12, ui: 14 },
       customThemes: [],
@@ -283,7 +283,7 @@ test('normalizeDesktopThemeSettings preserves reduce motion modes', () => {
 test('normalizeDesktopThemeSettings falls back for invalid reduce motion', () => {
   const settings = normalizeDesktopThemeSettings({
     mode: 'light',
-    activeThemeIds: { light: 'light-codex', dark: 'dark-codex' },
+    activeThemeIds: { light: 'light-codepilotx', dark: 'dark-codepilotx' },
     reduceMotion: 'fast',
     fontSizes: { code: 12, ui: 14 },
     customThemes: [],
