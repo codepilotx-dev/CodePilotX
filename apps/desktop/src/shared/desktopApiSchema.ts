@@ -284,6 +284,7 @@ export const DESKTOP_API_ARG_SCHEMAS = {
   ]),
   removeMcpServer: z.tuple([z.string(), editableMcpScope]),
   setMcpServerEnabled: z.tuple([z.string(), z.boolean()]),
+  reloadMcpConfiguration: emptyArgs,
   listOpenTargets: emptyArgs,
   openPathWithDefaultTarget: z.tuple([z.string()]),
   listModelProviders: emptyArgs,

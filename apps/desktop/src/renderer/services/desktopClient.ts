@@ -425,6 +425,7 @@ function createBrowserMockDesktopClient(): DesktopApi {
     saveMcpServer: async () => [],
     removeMcpServer: async () => [],
     setMcpServerEnabled: async () => [],
+    reloadMcpConfiguration: async () => ({ refreshed: 0, skipped: 0, failed: 0 }),
     listOpenTargets: async () => [],
     openPathWithDefaultTarget: async () => {},
     listModelProviders: async () => [provider],

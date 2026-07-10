@@ -102,6 +102,8 @@ const api: DesktopApi = {
     ipcRenderer.invoke(desktopApiChannel('removeMcpServer'), name, scope),
   setMcpServerEnabled: (name, enabled) =>
     ipcRenderer.invoke(desktopApiChannel('setMcpServerEnabled'), name, enabled),
+  reloadMcpConfiguration: () =>
+    ipcRenderer.invoke(desktopApiChannel('reloadMcpConfiguration')),
   listOpenTargets: () =>
     ipcRenderer.invoke(desktopApiChannel('listOpenTargets')),
   openPathWithDefaultTarget: targetPath =>

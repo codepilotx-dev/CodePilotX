@@ -50,6 +50,7 @@ export const DESKTOP_API_METHODS = [
   'saveMcpServer',
   'removeMcpServer',
   'setMcpServerEnabled',
+  'reloadMcpConfiguration',
   'listOpenTargets',
   'openPathWithDefaultTarget',
   'listModelProviders',

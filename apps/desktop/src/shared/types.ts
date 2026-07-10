@@ -748,6 +748,15 @@ export type DesktopMcpRuntimeStatus = {
   totalPrompts: number
 }
 
+export type McpReloadResult = {
+  /** Sessions that received the RPC successfully. */
+  refreshed: number
+  /** Sessions that were not running (null session or sidecar not started). */
+  skipped: number
+  /** Sessions where the RPC threw an error. */
+  failed: number
+}
+
 export type SaveDesktopMcpServerOptions = {
   originalName?: string
   name: string
@@ -1291,6 +1300,7 @@ export type DesktopApi = {
   saveMcpServer(options: SaveDesktopMcpServerOptions): Promise<DesktopMcpServerListItem[]>
   removeMcpServer(name: string, scope: DesktopEditableMcpScope): Promise<DesktopMcpServerListItem[]>
   setMcpServerEnabled(name: string, enabled: boolean): Promise<DesktopMcpServerListItem[]>
+  reloadMcpConfiguration(): Promise<McpReloadResult>
   listOpenTargets(): Promise<DesktopOpenTarget[]>
   openPathWithDefaultTarget(targetPath: string): Promise<void>
   listModelProviders(): Promise<DesktopModelProviderSummary[]>
