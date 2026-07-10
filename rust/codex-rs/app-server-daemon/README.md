@@ -1,11 +1,11 @@
-# codex-app-server-daemon
+# codepilotx-app-server-daemon
 
-> `codex-app-server-daemon` is experimental and its lifecycle contract may
+> `codepilotx-app-server-daemon` is experimental and its lifecycle contract may
 > change while the remote-management flow is still being developed.
 
-`codex-app-server-daemon` backs the machine-readable `codex app-server`
+`codepilotx-app-server-daemon` backs the machine-readable `codepilotx app-server`
 lifecycle commands used by remote clients such as the desktop and mobile apps.
-It is intended for Codex instances launched over SSH, including fresh developer
+It is intended for CodePilotX instances launched over SSH, including fresh developer
 machines that should expose app-server with `remote_control` enabled.
 
 ## Platform support
@@ -17,13 +17,13 @@ support Windows lifecycle management.
 ## Commands
 
 ```sh
-codex app-server daemon start
-codex app-server daemon restart
-codex app-server daemon enable-remote-control
-codex app-server daemon disable-remote-control
-codex app-server daemon stop
-codex app-server daemon version
-codex app-server daemon bootstrap --remote-control
+codepilotx app-server daemon start
+codepilotx app-server daemon restart
+codepilotx app-server daemon enable-remote-control
+codepilotx app-server daemon disable-remote-control
+codepilotx app-server daemon stop
+codepilotx app-server daemon version
+codepilotx app-server daemon bootstrap --remote-control
 ```
 
 On success, every command writes exactly one JSON object to stdout. Consumers
@@ -37,22 +37,22 @@ For a new remote machine:
 
 ```sh
 curl -fsSL https://chatgpt.com/codex/install.sh | sh
-$HOME/.codex/packages/standalone/current/codex app-server daemon bootstrap --remote-control
+	$HOME/.codepilotx/packages/standalone/current/codepilotx app-server daemon bootstrap --remote-control
 ```
 
 `bootstrap` requires the standalone managed install. It records the daemon
-settings under `CODEX_HOME/app-server-daemon/`, starts app-server as a
+settings under `CODEPILOTX_HOME/app-server-daemon/`, starts app-server as a
 pidfile-backed detached process, and launches a detached updater loop.
 
 ## Installation and update cases
 
-The daemon assumes Codex is installed through `install.sh` and always launches
-the standalone managed binary under `CODEX_HOME`.
+The daemon assumes CodePilotX is installed through `install.sh` and always launches
+the standalone managed binary under `CODEPILOTX_HOME`.
 
 | Situation | What starts | Does this daemon fetch new binaries? | Does a running app-server eventually move to a newer binary on its own? |
 | --- | --- | --- | --- |
-| `install.sh` has run, but only `start` is used | `start` uses `CODEX_HOME/packages/standalone/current/codex` | No | No. The managed path is used when starting or restarting, but no updater is installed. |
-| `install.sh` has run, then `bootstrap` is used | The pidfile backend uses `CODEX_HOME/packages/standalone/current/codex` | Yes. Bootstrap launches a detached updater loop that runs `install.sh` hourly. | Yes, while that updater process is alive and app-server is already running. After a successful fetch, the updater restarts app-server with the refreshed binary and only then replaces its own process image. |
+| `install.sh` has run, but only `start` is used | `start` uses `CODEPILOTX_HOME/packages/standalone/current/codepilotx` | No | No. The managed path is used when starting or restarting, but no updater is installed. |
+| `install.sh` has run, then `bootstrap` is used | The pidfile backend uses `CODEPILOTX_HOME/packages/standalone/current/codepilotx` | Yes. Bootstrap launches a detached updater loop that runs `install.sh` hourly. | Yes, while that updater process is alive and app-server is already running. After a successful fetch, the updater restarts app-server with the refreshed binary and only then replaces its own process image. |
 | Some other tool updates the managed binary path | The next fresh start or restart uses the updated file at that path | Only if `bootstrap` is active, because the updater still runs `install.sh` on its normal cadence. | Without `bootstrap`, no. With `bootstrap`, the next successful updater pass compares the managed binary contents after `install.sh` runs; if app-server is running and they differ from the updater's current image, it refreshes app-server first and then itself. |
 
 ### Standalone installs
@@ -92,20 +92,20 @@ JSON-RPC initialize handshake on the Unix control socket.
 for future starts. If a managed app-server is already running, they restart it
 so the new setting takes effect immediately.
 
-Top-level `codex remote-control` bootstraps with `--remote-control` when the
+Top-level `codepilotx remote-control` bootstraps with `--remote-control` when the
 updater loop is not running. Otherwise it enables remote control and starts the
 daemon normally.
 
 `stop` sends a graceful termination request first, then sends a second
 termination signal after the grace window if the process is still alive.
 
-All mutating lifecycle commands are serialized per `CODEX_HOME`, so a concurrent
+All mutating lifecycle commands are serialized per `CODEPILOTX_HOME`, so a concurrent
 `start`, `restart`, `enable-remote-control`, `disable-remote-control`, `stop`,
 or `bootstrap` does not race another in-flight lifecycle operation.
 
 ## State
 
-The daemon stores its local state under `CODEX_HOME/app-server-daemon/`:
+The daemon stores its local state under `CODEPILOTX_HOME/app-server-daemon/`:
 
 - `settings.json` for persisted launch settings
 - `app-server.pid` for the app-server process record
