@@ -2,12 +2,12 @@
 
 ## Goal
 
-Use `D:\GitHubProject\Agent\codex-main\codex-rs` as the long-term Rust agent
+Use `D:\GitHubProject\Agent\codepilotx-main\codepilotx-rs` as the long-term Rust agent
 core reference while keeping the current Electron/React desktop shell. This is
 not a TypeScript-to-Rust line-by-line rewrite.
 
 The reference repository is read-only for this branch. Current development
-uses the copied workspace under `rust/codex-rs`.
+uses the copied workspace under `rust/codepilotx-rs`.
 
 ## Current Desktop Boundary
 
@@ -25,30 +25,30 @@ uses the copied workspace under `rust/codex-rs`.
 
 Primary source repository:
 
-`D:\GitHubProject\Agent\codex-main\codex-rs`
+`D:\GitHubProject\Agent\codepilotx-main\codepilotx-rs`
 
 Current repository copy:
 
-`rust/codex-rs`
+`rust/codepilotx-rs`
 
 Key Rust crates:
 
-- `app-server`: package `codex-app-server`, binary `codex-app-server`.
+- `app-server`: package `codepilotx-app-server`, binary `codepilotx-app-server`.
 - `app-server-protocol`: official protocol types and generated schema.
 - `core`: agent/session/tool execution core used by the app server.
 
 Useful source paths:
 
-- `codex-rs/app-server/src/main.rs`
-- `codex-rs/app-server/src/lib.rs`
-- `codex-rs/app-server-transport/src/transport`
-- `codex-rs/app-server-protocol/src/protocol`
-- `codex-rs/app-server-protocol/schema/typescript`
+- `codepilotx-rs/app-server/src/main.rs`
+- `codepilotx-rs/app-server/src/lib.rs`
+- `codepilotx-rs/app-server-transport/src/transport`
+- `codepilotx-rs/app-server-protocol/src/protocol`
+- `codepilotx-rs/app-server-protocol/schema/typescript`
 
 ## Protocol Finding
 
 The current desktop `SidecarManager` uses `vscode-jsonrpc` stream framing
-(`Content-Length` headers). Rust `codex-app-server --listen stdio://` uses
+(`Content-Length` headers). Rust `codepilotx-app-server --listen stdio://` uses
 newline-delimited JSON messages. A Rust sidecar cannot safely reuse the current
 manager without a transport adapter.
 
@@ -57,9 +57,9 @@ manager without a transport adapter.
 ### Established (previous slice)
 
 - `rust-sidecar` can be selected and reported in runtime status.
-- `CODEPILOTX_RUST_APP_SERVER` can point at a local `codex-app-server` binary.
+- `CODEPILOTX_RUST_APP_SERVER` can point at a local `codepilotx-app-server` binary.
 - Default development lookup checks this repository's
-  `rust/codex-rs/target/debug/codex-app-server`.
+  `rust/codepilotx-rs/target/debug/codepilotx-app-server`.
 - `RustLineJsonRpcClient` provides the newline-delimited JSON-RPC transport
   needed by Rust `stdio://`.
 - Explicit `rust-sidecar` falls back to embedded headless when the local Rust
@@ -110,7 +110,7 @@ complete vertical slice for text-only agent conversation:
    - Unknown notifications are debug-logged and silently ignored.
 
 5. **`RustSidecarDesktopAgentRuntime`** (`rustSidecarRuntime.ts`):
-   - Lazy startup: spawns `codex-app-server --listen stdio:// --session-source vscode`
+   - Lazy startup: spawns `codepilotx-app-server --listen stdio:// --session-source vscode`
      on the first `runUserTurn()` call.
    - Sends `initialize` → `initialized` → `thread/start` during startup.
    - Each turn sends `turn/start` with text-only `UserInput`.
@@ -170,8 +170,8 @@ complete vertical slice for text-only agent conversation:
 
 ```sh
 # Build the current repository's Rust app-server
-cd rust/codex-rs
-cargo build -p codex-app-server
+cd rust/codepilotx-rs
+cargo build -p codepilotx-app-server
 
 # Build the Rust sidecar for dist
 cd /path/to/repo

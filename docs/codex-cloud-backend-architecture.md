@@ -1,8 +1,8 @@
-# Codex 云后端架构方案
+# CodePilotX 云后端架构方案
 
 ## 目标
 
-把手机 App、桌面 App、VS Code / Cursor 插件和 CLI 都收敛到统一 API。客户端只负责交互、展示和少量本地集成，真正的任务调度、Agent 生命周期、代码执行、会话状态、GitHub 集成、Sandbox、Docker/VM 和模型调用全部由 Codex 后端服务负责。
+把手机 App、桌面 App、VS Code / Cursor 插件和 CLI 都收敛到统一 API。客户端只负责交互、展示和少量本地集成，真正的任务调度、Agent 生命周期、代码执行、会话状态、GitHub 集成、Sandbox、Docker/VM 和模型调用全部由 CodePilotX 后端服务负责。
 
 ```text
         手机 App
@@ -15,7 +15,7 @@
            |
 ────────────── API ──────────────
            |
-     Codex 后端服务
+     CodePilotX 后端服务
            |
  ┌─────────┴─────────┐
  |                   |
@@ -75,7 +75,7 @@ GET    /artifacts/:artifactId
 POST   /github/installations/:installationId/repos/:repoId/connect
 ```
 
-### Codex 后端服务层
+### CodePilotX 后端服务层
 
 后端服务可以先做成模块化单体，后续按压力和团队边界拆成独立服务。第一版重点是逻辑边界清楚，而不是一开始就微服务化。
 

@@ -1,7 +1,7 @@
-# codex-main rollout 字段参考
+# codepilotx-main rollout 字段参考
 
-本文记录 `D:\GitHubProject\codex-main` 中和 rollout 相关的主要字段。这里的
-`rollout` 指 Codex 会话持久化的 JSONL 记录，以及协议、状态库里引用 rollout
+本文记录 `D:\GitHubProject\codepilotx-main` 中和 rollout 相关的主要字段。这里的
+`rollout` 指 CodePilotX 会话持久化的 JSONL 记录，以及协议、状态库里引用 rollout
 文件或 rollout 标识的字段。
 
 ## JSONL 行结构
@@ -24,7 +24,7 @@ rollout 文件按 JSONL 存储。每一行是一个 `RolloutLine`：
 | `type` | `RolloutItem` 类型。 |
 | `payload` | 对应类型的具体内容。 |
 
-定义位置：`codex-rs/protocol/src/protocol.rs` 中的 `RolloutLine` 和
+定义位置：`codepilotx-rs/protocol/src/protocol.rs` 中的 `RolloutLine` 和
 `RolloutItem`。
 
 ## RolloutItem 类型
@@ -75,7 +75,7 @@ rollout 文件按 JSONL 存储。每一行是一个 `RolloutLine`：
     "id": "019cc2ea-1dff-7902-8d40-c8f6e5d83cc4",
     "timestamp": "2026-06-30T12:00:00.000Z",
     "cwd": "D:\\VueProject\\ClaudeCode",
-    "originator": "codex",
+    "originator": "codepilotx",
     "cli_version": "0.0.0",
     "source": "cli",
     "model_provider": "openai",
@@ -272,10 +272,10 @@ rollout 文件按 JSONL 存储。每一行是一个 `RolloutLine`：
 
 | 路径 | 内容 |
 | --- | --- |
-| `codex-rs/protocol/src/protocol.rs` | `RolloutLine`、`RolloutItem`、`SessionMeta`、`TurnContextItem`、`EventMsg` 等核心协议结构。 |
-| `codex-rs/protocol/src/compacted_item.rs` | `CompactedItem` 兼容反序列化逻辑。 |
-| `codex-rs/rollout/src/recorder.rs` | rollout JSONL 写入逻辑。 |
-| `codex-rs/app-server-protocol/src/protocol/v2/thread.rs` | `thread/resume`、`thread/fork` 中按 path 使用 rollout 的参数。 |
-| `codex-rs/protocol/src/memory_citation.rs` | `rollout_ids` / `rolloutIds`。 |
-| `codex-rs/state/migrations` | `rollout_path`、`rollout_summary`、`rollout_slug` 的数据库字段。 |
-| `codex-rs/features/src/feature_configs.rs` | `rollout_budget` TOML 配置字段。 |
+| `codepilotx-rs/protocol/src/protocol.rs` | `RolloutLine`、`RolloutItem`、`SessionMeta`、`TurnContextItem`、`EventMsg` 等核心协议结构。 |
+| `codepilotx-rs/protocol/src/compacted_item.rs` | `CompactedItem` 兼容反序列化逻辑。 |
+| `codepilotx-rs/rollout/src/recorder.rs` | rollout JSONL 写入逻辑。 |
+| `codepilotx-rs/app-server-protocol/src/protocol/v2/thread.rs` | `thread/resume`、`thread/fork` 中按 path 使用 rollout 的参数。 |
+| `codepilotx-rs/protocol/src/memory_citation.rs` | `rollout_ids` / `rolloutIds`。 |
+| `codepilotx-rs/state/migrations` | `rollout_path`、`rollout_summary`、`rollout_slug` 的数据库字段。 |
+| `codepilotx-rs/features/src/feature_configs.rs` | `rollout_budget` TOML 配置字段。 |

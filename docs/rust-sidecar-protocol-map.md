@@ -3,7 +3,7 @@
 > Last updated: 2026-07-07
 
 This document maps the protocol between the Electron desktop shell and the Rust
-`codex-app-server` sidecar process. It covers the first text-only integration
+`codepilotx-app-server` sidecar process. It covers the first text-only integration
 slice.
 
 ## Transport
@@ -13,7 +13,7 @@ slice.
 | Protocol | JSON-RPC 2.0 |
 | Framing | Newline-delimited JSON (one JSON object per line) |
 | Direction | Bidirectional (request/response + server notifications) |
-| Transport | stdin/stdout of the spawned `codex-app-server` process |
+| Transport | stdin/stdout of the spawned `codepilotx-app-server` process |
 | Client | `RustLineJsonRpcClient` → `RustAppServerClient` |
 
 > **Contrast with TypeScript sidecar**: The TypeScript sidecar (`sidecarManager.ts`)

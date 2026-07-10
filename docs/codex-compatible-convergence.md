@@ -1,11 +1,11 @@
-# Codex-Compatible Convergence Mapping
+# CodePilotX-Compatible Convergence Mapping
 
 This document records the compatibility boundary for converging the desktop
-client toward Codex semantics without moving repositories in one step.
+client toward CodePilotX semantics without moving repositories in one step.
 
 ## Session Contract
 
-| Codex concept | Current desktop surface | Migration status |
+| CodePilotX concept | Current desktop surface | Migration status |
 | --- | --- | --- |
 | `CollaborationMode { mode: Plan }` | `collaborationMode` on session options, settings, list item, session runtime context | Canonical for new/normalized desktop session state. |
 | Legacy plan flag | `planModeActive` on UI snapshots and IPC toggle | Kept as derived UI compatibility state. |
@@ -14,7 +14,7 @@ client toward Codex semantics without moving repositories in one step.
 
 ## Permission And Auto Review
 
-| Codex concept | Current desktop surface | Migration status |
+| CodePilotX concept | Current desktop surface | Migration status |
 | --- | --- | --- |
 | Permission profile | `permissionProfile` / `:workspace` | Already mapped through core permission policy helpers. |
 | Approval policy | `approvalPolicy` / `on-request` | Already mapped through core permission policy helpers. |
@@ -23,7 +23,7 @@ client toward Codex semantics without moving repositories in one step.
 
 ## Subagent Compatibility
 
-| Codex concept | Current desktop/TUI surface | Migration status |
+| CodePilotX concept | Current desktop/TUI surface | Migration status |
 | --- | --- | --- |
 | `spawn_agent` | `AgentTool` foreground/background launch states. Completion envelope (`AgentToolResult`) now carries `transcriptPath` and `outputFile` metadata so the parent can discover full subagent artifacts on disk without loading them into context. | Envelope fields added; core state machine unchanged. |
 | `wait_agent` | SDK `task_notification` terminal states. Notification now includes `<transcript-path>` alongside `<output-file>`. Final message is character-bounded (`MAX_FINAL_MESSAGE_CHARS = 20K`); truncation notes reference the full-content path. | Notifications enriched with bounded result + transcript path. |
@@ -54,4 +54,4 @@ The following isolation properties are now enforced:
   (`allow`, `deny`, `ask_user` / fallback) instead of adding another reviewer
   abstraction.
 - Future subagent changes should project existing `AgentTool` task states into
-  Codex multi-agent events before replacing the underlying implementation.
+  CodePilotX multi-agent events before replacing the underlying implementation.
